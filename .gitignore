@@ -1,0 +1,8 @@
+node_modules/
+dist/
+coverage/
+.career/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env

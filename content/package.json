@@ -1,0 +1,13 @@
+{
+  "name": "@heroesim/content",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./node": "./src/node.ts"
+  },
+  "dependencies": {
+    "smol-toml": "1.8.0"
+  }
+}
