@@ -1,0 +1,32 @@
+id = "fever-in-the-wet"
+name = "Fever in the wet"
+stat = "Nerve"
+difficulty = 11
+weight = 2
+tags = ["wilds", "water"]
+
+[conditions]
+tags = ["wilds", "water"]
+
+[slots]
+hero = "lowest:Nerve"
+
+[outcomes.failure]
+narrative = "Three days of rain and nothing dry to sleep on, and then {hero} is shaking by the second watch and hot to the touch by morning. They carry {hero.them} the rest of the way on a hurdle, which halves the pace and doubles the ill temper. {hero} remembers almost none of it afterwards, and is a fortnight getting right."
+consequences = [
+  { kind = "score", delta = -1 },
+  { kind = "trait", trait = "Fevered", days = 12 },
+]
+
+[outcomes.success]
+narrative = "Three days of rain, and by the third {hero} is shivering in a way that has nothing to do with the cold. {hero} says so early rather than late, which is the whole of it. They lie up half a day under a turned cart, drink what the fire can boil, and go on slower. Nobody is carried and nobody is left behind."
+consequences = [
+  { kind = "score", delta = 1 },
+]
+
+[outcomes.critical]
+narrative = "{hero} has the fire lit and the water on before anyone else will admit to feeling it, and makes them all drink, and will not hear otherwise. Two of them were closer to it than they knew. They come in on the day they said they would, wet through and sound, and {patron} notices that they are neither late nor short-handed."
+consequences = [
+  { kind = "score", delta = 2 },
+  { kind = "patronRegard", delta = 1, reason = "the Party came in on the agreed day with nobody missing" },
+]

@@ -25,7 +25,11 @@ graph LR
     E1 --> E6["E6 · Chips + Tacticals<br/>Rare decision points<br/>mid-Commission stakes<br/>~2–3 days"]
     E5 --> E7["E7 · Terminal UI polish<br/>rich output<br/>navigation, saves<br/>~3–4 days"]
     E6 --> E7
+    E1 --> E8["E8 · Web front end<br/>same engine in a browser<br/>three responsive layouts<br/>~4–5 days"]
+    E7 --> E8
 ```
+
+E8 has two edges for a reason: a **first version** is buildable on E1 alone, and should be, because the responsive work is only discoverable in a browser. **Parity with E7** is what closes it.
 
 ---
 
@@ -40,8 +44,9 @@ graph LR
 | [E5](E5-rivals.md) | Rivals and the League | Other Guilds | Transfers, Poaching, Rival Roster churn, League view | 4–5 d | E2 + E3 + E4 |
 | [E6](E6-chips-and-tacticals.md) | Chips and Tacticals | Mid-Commission stakes | Rare decision points where a Party sends word | 2–3 d | E1 |
 | [E7](E7-terminal-ui-and-saves.md) | Terminal UI and Saves | Playable end to end | Navigation, career logs, graceful exit, rich output | 3–4 d | E5 + E6 |
+| [E8](E8-web-front-end.md) | Web front end | The same game in a browser | Three responsive layouts, browser saves, Playwright journeys | 4–5 d | E1 (first version), E7 (parity) |
 
-**Total build: 21–31 focused days**, against no calendar deadline.
+**Total build: 25–34 focused days**, against no calendar deadline. That is the sum of the ranges above and it is stated only here; every other document links to it rather than repeating it.
 
 ---
 
@@ -53,7 +58,9 @@ graph LR
 
 **Why E6 (Chips) is independent of Regards but sits before E7.** Chips represent rare moments where the player's attention snaps back mid-Commission — the equivalent of a mid-gameweek news event in FPL. They work independently of whether Heroes like or dislike each other. They belong in the terminal UI (E7) because they affect what the player sees.
 
-**Why E7 is last.** The terminal UI is where everything converges: saves must persist Regard, Injuries, Scars, Rivals, and Chip state. A terminal UI that speaks to a game-in-progress is clearer than one built before the game exists.
+**Why E7 is last of the terminal epics.** The terminal UI is where everything converges: saves must persist Regard, Injuries, Scars, Rivals, and Chip state. A terminal UI that speaks to a game-in-progress is clearer than one built before the game exists.
+
+**Why E8 closes the build, and why it also starts early.** A browser client (DL-01) is the only front end that can be verified across mobile, tablet and desktop, which is what the build goal asks for. It adds nothing to the engine — it is a second renderer over the same event stream (ADR-0002). Its first version is worth building straight after E1, because responsive layout problems found at the end are expensive; its closing story is parity with whatever E7 settled.
 
 ---
 
@@ -118,7 +125,7 @@ An epic is done when all of the following hold:
 
 1. **The engine accepts the new state shapes and emits the new event types.** No CLI calls that produce a panic or silent failure.
 2. **End-to-end tests cover the happy path and at least one realistic failure mode.** Tests assert on events, not prose.
-3. **New Vignettes (if any) are authored and committed as `.toml` files in `engine/src/vignettes/`, with their slot conditions documented.**
+3. **New Vignettes (if any) are authored and committed as `.toml` files in `content/vignettes/`, one per file, with their slot conditions documented** (DL-03 — the engine reads no files, and the web client must bundle them).
 4. **Terminal output passes the human-readability review.** Prose is clear, specific and under-adorned — no emoji, stars, or abbreviations that break on small screens.
 5. **Saves created in this epic load in the next without crashing or data loss.** (This is critical: a save is a contract.)
 6. **Documentation under `docs/planning/` is updated in the same change.**
@@ -170,4 +177,4 @@ Epics force you to define vertical slices that *work*, not horizontal layers tha
 | **What inputs I need to give, and when** | [INPUTS-REQUIRED.md](INPUTS-REQUIRED.md) |
 | **The terminology: Guild, Roster, Commission, Beat, etc.** | [../CONTEXT.md](../CONTEXT.md) |
 | **The design decisions and their reasoning** | [../design.md](../design.md) and [`../adr/`](../adr/) |
-| **How the game actually works (rules, mechanics, constants)** | Will be in [03-solution-architecture.md](../03-solution-architecture.md) and [04-conceptual-design.md](../04-conceptual-design.md) — not yet written |
+| **How the game actually works (rules, mechanics, constants)** | [03-solution-architecture.md](../03-solution-architecture.md) — the engine contract: state, config, content, rules, API, events, saves. Where it conflicts with an epic file, it wins. There is no `04-conceptual-design.md` and none is planned: the conceptual layer is [CONTEXT.md](../../CONTEXT.md) and [design.md](../design.md), and a third document restating them would only rot |

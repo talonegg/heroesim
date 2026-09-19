@@ -121,6 +121,21 @@ These shape the Vignette set, but they are **not blocking**. A neutral, moderate
 | 8.2 | **Save file location** | `.career/` (git-ignored), `.heroesim-local/`, or `~/.heroesim/`? | No | `./.career/` in the repo root, gitignored |
 | 8.3 | **Keyboard layout** | Arrow keys + Enter, or vim keys (hjkl), or number keys for menu selection? | No | Number keys for menu (1–6 for Commissions); letter keys for Heroes (a–f) |
 | 8.4 | **Rich output** | Tables with borders, ANSI colors, Unicode box-drawing? Or plain text? | No | ANSI colors yes; Unicode box-drawing only if terminal detects support |
+| 8.5 | **Narrow terminals** | Is 80 columns the floor, or should it read on a phone SSH client? | No | 40 columns is the tested floor; below 80 the layout stacks rather than truncating |
+
+---
+
+## 8b. E8 — Web front end
+
+Added by [DL-01](../00-decision-log.md#dl-01--a-web-front-end-is-in-scope-as-a-second-renderer-over-the-same-engine). The browser client runs the same engine and says the same words; these three are the only things it needs from you, and all three have defaults.
+
+| # | Input | Why | Blocking? | Default |
+| --- | --- | --- | --- | --- |
+| 8b.1 | **Browser storage slot count** | How many Careers live in `localStorage` at once? Each is a whole Career document, so this is a storage budget as well as a preference | No | **3 named slots plus 1 autosave**, matching the CLI (8.2). A Career is a few hundred kilobytes, so four slots sit well inside any browser's quota |
+| 8b.2 | **Minimum supported width** | Sets what "no horizontal overflow" is tested against, and therefore how hard the single-column layout has to work | No | **360px** is the design floor — a Pixel 7 in portrait. 320px is also tested and must not overflow, but may wrap harder. Tap targets are at least 40×40 CSS pixels at every width |
+| 8b.3 | **Publish to GitHub Pages?** | The build is a static folder, so publishing is free and one click on a public repo — but it makes a private game public | No | **No.** `npm run build -w web` produces a folder you open locally, and the Playwright suite runs against that. Say yes and nothing about the build changes; only a workflow is added |
+
+Two things this epic deliberately does **not** need from you, because the answers are already fixed: the save format (DL-02 — the browser stores exactly what the CLI writes, so a Career moves between them) and the test driver (DL-04 — Playwright on Chromium at three viewports; no Chrome extension or MCP tool is required).
 
 ---
 
@@ -131,10 +146,11 @@ These will not be implemented, by design:
 - **Account/login system** — single-player, local saves only
 - **Multiplayer or shared League** — your Guild is yours
 - **Save migration or versioning** — old saves may break on rule changes; that is acceptable
-- **Cloud saves or sync** — saves live in `.career/`, you can sync them with git if you want
+- **Cloud saves or sync** — saves live in `.career/` and in browser storage; neither leaves the machine
 - **Settings menu in the UI** — all tuning is in a config file (not yet committed; see 1.3 above)
-- **Animated or graphical view** — terminal and text only (E7 polish can add ANSI animations, but not graphics)
-- **Mobile app** — SSH into a terminal and play there, or run locally on your laptop
+- **Animated or graphical view** — text only in both front ends. E7 may add ANSI colour, E8 a CSS transition; neither adds graphics
+- **Mobile app** — no app store, no packaging. E8's browser client is responsive and plays on a phone from a local build; that is the whole of the mobile story
+- **A server, an API or a hosted service** — the browser client runs the engine itself and makes no network request at all (DL-01, ADR-0001)
 
 ---
 
@@ -152,7 +168,7 @@ The goal: **no surprise decisions mid-epic, and no default that feels wrong once
 
 **For E6+** (if Chips need async event sources): You might want a `HEROESIM_CONFIG` path or a `.heroesim.toml` file in the repo root, but that is not needed yet.
 
-**For publishing** (E7+, if you choose GitHub Pages or a domain): You'll need to decide on a URL and possibly set up GitHub Pages in the repo settings (which is a one-click enable on public repos). No environment variables needed for the game itself.
+**For publishing** (E8, and only if you say yes to 8b.3): You'd decide on a URL and enable GitHub Pages in the repo settings — one click on a public repo. The default is not to. No environment variables are needed for the game itself either way, because the browser client runs entirely in the page.
 
 ---
 

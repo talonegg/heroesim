@@ -1,12 +1,12 @@
 # Heroesim Implementation Plan — Executive Summary
 
-**Baselined:** 2026-09-19 · **Total build: 21–31 focused days** · **Master clock: narrative coherence, not calendar**
+**Baselined:** 2026-09-19 · **Total build: 25–34 focused days** ([the register is the source](README.md#2-epic-register)) · **Master clock: narrative coherence, not calendar**
 
 ---
 
 ## The Plan at a Glance
 
-Seven vertical-slice epics, each delivering a complete playable game end-to-end:
+Eight vertical-slice epics, each delivering a complete playable game end-to-end:
 
 1. **E1** — Core loop: take Commissions, commit Parties, resolve Beats (5–7 days)
 2. **E2** — Refusals: Heroes say no; relationships matter (3–4 days)
@@ -15,8 +15,11 @@ Seven vertical-slice epics, each delivering a complete playable game end-to-end:
 5. **E5** — Rivals & League: Transfers, Poaching, Rival churn (4–5 days)
 6. **E6** — Chips & mid-Commission stakes (2–3 days)
 7. **E7** — Terminal UI polish and saves (3–4 days)
+8. **E8** — Web front end: the same engine in a browser, three responsive layouts (4–5 days)
 
-**Why this structure:** Each epic lands with a game you can play. No feature layers that integrate later; no "the engine is done, now we build the UI" phase. After E1, you have playable Careers. After E2, refusals matter. After E5, Rivals exist. After E7, the terminal is polished. The discipline of vertical slices prevents you from shipping a beautiful shell over an empty core.
+**Why this structure:** Each epic lands with a game you can play. No feature layers that integrate later; no "the engine is done, now we build the UI" phase. After E1, you have playable Careers. After E2, refusals matter. After E5, Rivals exist. After E7, the terminal is polished. After E8, it plays on a phone. The discipline of vertical slices prevents you from shipping a beautiful shell over an empty core.
+
+**On E8.** It was added by [DL-01](../00-decision-log.md#dl-01--a-web-front-end-is-in-scope-as-a-second-renderer-over-the-same-engine) and it adds nothing to the engine: it is a second renderer over the same event stream, sharing the same narration package and the same save document as the terminal. It is also the only front end that can be verified across mobile, tablet and desktop, which the build goal asks for. Its first version is worth building straight after E1; parity with E7 closes it. Still zero running cost, still no network call.
 
 **Why narrative, not calendar:** There is no GW1 deadline. Each epic starts when its dependencies are coherent and all acceptance criteria are understood. This gives you time to see what a Career *feels* like before you build systems on top of it.
 
@@ -89,15 +92,18 @@ You do not need to argue about what the game *is*. That is locked. You only need
 - Any package managers beyond npm
 - Any external services
 
-**Workspace:**
+**Workspace** (five npm packages, per [DL-05](../00-decision-log.md#dl-05--package-layout-engine-content-narrate-cli-web)):
 ```
 heroesim/
   engine/        pure library (no I/O, injected RNG)
-  cli/           terminal front end
+  content/       TOML content and its parser; a pure entry and a Node entry
+  narrate/       events → English paragraphs, shared by both front ends
+  cli/           terminal front end, file saves
+  web/           React front end, browser saves (E8)
   docs/planning/ this plan, design, decisions, ADRs
 ```
 
-One rule: ESLint forbids `engine/` from importing `cli/`, so the engine stays a library forever.
+One rule: ESLint forbids `engine/` from importing any other package, so the engine stays a library forever.
 
 ---
 
@@ -159,9 +165,11 @@ One rule: ESLint forbids `engine/` from importing `cli/`, so the engine stays a 
 
 | Document | Purpose | Length |
 |----------|---------|--------|
-| `README.md` | Master plan overview, epic graph, sequencing rationale | ~300 lines |
+| `README.md` | Master plan overview, epic graph, sequencing rationale, definition of done | ~180 lines |
 | `E1-core-loop.md` | Full epic spec: 8 stories, acceptance criteria, technical setup, risks | ~430 lines |
-| `INPUTS-REQUIRED.md` | All decisions you might make, defaults, when to decide | ~170 lines |
+| `E2`…`E8` | One spec each: stories, acceptance, adopted defaults, exact engine additions, risks | 200–270 lines each |
+| `../03-solution-architecture.md` | The engine contract — state, config, content, rules, API, events, saves. Wins over any epic sketch | ~325 lines |
+| `INPUTS-REQUIRED.md` | All decisions you might make, defaults, when to decide | ~180 lines |
 | `../design.md` | Complete game design (already written) | ~220 lines |
 | `../CONTEXT.md` | Vocabulary and terminology (already written) | ~270 lines |
 | `../adr/` | Eight architecture decisions with reasoning (already written) | ~100 lines total |
@@ -172,7 +180,7 @@ Everything is in the repo at `c:\JHH\source\heroesim\docs\planning\`.
 
 ## The Honest Question
 
-**"Why 21–31 days if there's no deadline?"**
+**"Why a month of focused days if there's no deadline?"**
 
 Because shipping a game you want to play takes time, and rushing it makes it not fun. The epics are not a rigid schedule; they are a framework for vertical slices. If E1 takes 10 days because you got the Vignette authoring right, that is better than 5 days and a format you hate. If E2 takes 5 days because refusals turn out simple, that is better than 3 days and a mechanic that doesn't feel right.
 

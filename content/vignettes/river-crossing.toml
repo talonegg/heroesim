@@ -1,0 +1,32 @@
+id = "river-crossing"
+name = "The crossing"
+stat = "Might"
+difficulty = 10
+weight = 3
+tags = ["water", "wilds"]
+
+[conditions]
+tags = ["water", "wilds", "escort", "recover", "hunt"]
+
+[slots]
+hero = "highest:Might"
+
+[outcomes.failure]
+narrative = "The ford is higher than the map allows for and the bottom is all loose stone. {hero} is halfway across with the line when it goes from under {hero.them}. The others haul {hero.them} out a long way down, coughing, and the packs that went with {hero.them} do not come back. They make camp on the wrong bank and wait a day for the water to drop."
+consequences = [
+  { kind = "score", delta = -1 },
+  { kind = "coin", delta = -20 },
+]
+
+[outcomes.success]
+narrative = "{hero} goes first with the line about {hero.their} waist and finds the bar of gravel that runs at an angle to the current. It takes three attempts to make the far end fast. After that it is only cold. Everything that needs to cross dry crosses dry, and {hero.they} {hero.is} the last one out of the water, which surprises nobody."
+consequences = [
+  { kind = "score", delta = 1 },
+]
+
+[outcomes.critical]
+narrative = "{hero} reads the water for a while before touching it, then takes them a quarter of a mile upstream to an old drove crossing nobody has marked. They are over within the hour with everything dry, including the powder and the bread. {hero} has the grace not to mention how long they would have spent arguing at the ford."
+consequences = [
+  { kind = "score", delta = 2 },
+  { kind = "coin", delta = 10 },
+]
