@@ -387,7 +387,11 @@ function checkNarrativeTokens(narrative: string, where: string, traitAllowed: bo
       fail(where, `"{${token}}" is not a narrative token; expected one of ${NARRATIVE_TOKENS.join(', ')}`);
     }
     if (token === 'trait' && !traitAllowed) {
-      fail(where, '"{trait}" needs a conditions.requiresTrait or a with_trait: Hero slot');
+      fail(
+        where,
+        '"{trait}" needs a with_trait:<Trait> Hero slot and a conditions.requiresTrait ' +
+          'naming the same Trait; without both, the Hero the slot resolves to may not hold it',
+      );
     }
   }
 }
@@ -407,7 +411,13 @@ function readVignette(
   const id = readString(idValue, `${at}.id`);
   const conditions = readConditions(table['conditions'], at, sphereIds, traitNames);
   const slotRule = readHeroSlotRule(readTable(table['slots'], `${at}.slots`)['hero'], at, traitNames);
-  const traitAllowed = conditions.requiresTrait !== undefined || slotRule.startsWith('with_trait:');
+  // `{trait}` names the Trait the Beat turns on, and narration has nothing but the slot
+  // to fill it from. `with_trait:X` falls back to any member of the Party when nobody
+  // holds X, and a `requiresTrait` only promises that *somebody* in the Party holds it —
+  // so neither alone keeps the promise the prose makes. Both together do: the condition
+  // guarantees a holder exists and the slot guarantees the Beat goes to one (DL-13, F11).
+  const traitAllowed =
+    conditions.requiresTrait !== undefined && slotRule === `with_trait:${conditions.requiresTrait}`;
 
   const weight = readNumber(table['weight'], `${at}.weight`);
   if (weight <= 0) fail(`${at}.weight`, 'a weight must be greater than zero');

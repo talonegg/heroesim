@@ -85,6 +85,17 @@ export interface GameConfig {
   patronRegardOnFailure: number;
   /** Patron Regard moved when their Commission was left on the Board for a Rival. */
   patronRegardOnPassedOver: number;
+  /**
+   * A Patron is disappointed by work going to a Rival only while their Regard is
+   * strictly above this. Below it, only failing their own work moves it down, so no
+   * Patron ever falls silent from being passed over alone (DL-13).
+   */
+  patronPassedOverAboveRegard: number;
+  /**
+   * Days between a negative Patron Regard recovering one point towards zero.
+   * Disappointment fades; goodwill above zero is not touched. Zero switches it off.
+   */
+  patronRegardRecoveryEveryDays: number;
   /** A Patron posts to the Board only while their Regard is strictly above this. */
   patronPostsAboveRegard: number;
   /** Standing a Rival gains for taking a Commission. */
@@ -150,18 +161,18 @@ export const defaultConfig: GameConfig = {
   boardSizeMin: 4,
   boardSizeMax: 6,
   upkeepEveryDays: 10,
-  upkeepPerHero: 12,
-  upkeepBase: 2,
+  upkeepPerHero: 20,
+  upkeepBase: 8,
   startingCoin: 500,
-  feeMin: 80,
-  feeMax: 200,
+  feeMin: 45,
+  feeMax: 115,
   commissionSpanMin: 5,
   commissionSpanMax: 10,
   beatsMin: 3,
   beatsMax: 5,
   difficultyMin: 8,
   difficultyMax: 15,
-  criticalMargin: 5,
+  criticalMargin: 9,
   backingMax: 3,
   rivalTakesPerRefresh: 1,
   startingHeroes: 4,
@@ -182,6 +193,8 @@ export const defaultConfig: GameConfig = {
   patronRegardOnSuccess: 1,
   patronRegardOnFailure: -1,
   patronRegardOnPassedOver: -1,
+  patronPassedOverAboveRegard: -3,
+  patronRegardRecoveryEveryDays: 60,
   patronPostsAboveRegard: -4,
   rivalStandingPerCommission: 1,
   rivalStandingSpread: 3,

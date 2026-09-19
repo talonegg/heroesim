@@ -22,6 +22,7 @@ export {
   commitParty,
   heroById,
   standing,
+  REASON_TIME_PASSED,
   REASON_WORK_FINISHED,
   REASON_WORK_NOT_FINISHED,
 } from './career.js';

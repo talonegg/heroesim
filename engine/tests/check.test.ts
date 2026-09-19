@@ -182,9 +182,13 @@ describe('a Check', () => {
   });
 
   it('is critical only at the DC plus the configured margin', () => {
-    expect(check(13).result).toBe('success');
-    expect(check(14).result).toBe('critical');
-    expect(check(14).total).toBe(12 + config.criticalMargin);
+    // The DC is 12 and the Hero's Might is 3, with nothing else on the Check, so the
+    // die alone carries the margin. Written off the config rather than off the number
+    // it happens to hold, because the margin is a balance default (DL-13).
+    const edge = 12 + config.criticalMargin - 3;
+    expect(check(edge - 1).result).toBe('success');
+    expect(check(edge).result).toBe('critical');
+    expect(check(edge).total).toBe(12 + config.criticalMargin);
   });
 
   it('reports the die separately from the total', () => {
@@ -192,7 +196,9 @@ describe('a Check', () => {
     expect(outcome.roll).toBe(11);
     expect(outcome.total).toBe(11 + 3 + 2 + 2);
     expect(outcome.dc).toBe(12);
-    expect(outcome.result).toBe('critical');
+    // Six clear of the DC: a good Check, and short of the configured critical margin.
+    expect(outcome.total - outcome.dc).toBe(6);
+    expect(outcome.result).toBe(6 >= config.criticalMargin ? 'critical' : 'success');
   });
 
   it('carries a Trait over the boundary it was written to cross', () => {

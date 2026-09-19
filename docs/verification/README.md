@@ -12,6 +12,15 @@ npm run build
 npm run e2e
 ```
 
+## Non-browser verification
+
+Two layers prove the game works without a browser at all, and are evidence in their own right:
+
+- **API testing** — `engine/tests/api.test.ts`: determinism from a seed, input immutability, the
+  save round-trip, typed rejection of bad calls, and a 200-seed full-Career smoke run.
+- **CLI end-to-end** — `cli/tests/e2e.test.ts`: spawns the real process (via `--script`/`--quiet`)
+  and plays a scripted Career to a save, then resumes it to Retirement or Insolvency.
+
 ## Projects
 
 All three run on Chromium (DL-10 — the tablet is an iPad-class viewport, not WebKit).

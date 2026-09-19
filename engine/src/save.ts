@@ -7,6 +7,7 @@
  * `undefined`, so nothing is lost on the way through.
  */
 
+import { cloneCareer } from './clone.js';
 import { defaultConfig, type GameConfig } from './config.js';
 import { SaveError } from './errors.js';
 import type { RngState } from './rng.js';
@@ -224,7 +225,9 @@ export function serialiseCareer(career: Career): string {
 }
 
 /**
- * Read a Career back. Refuses anything it cannot trust rather than loading a half-world.
+ * Read a Career back. Refuses anything it cannot trust rather than loading a half-world,
+ * and returns a Career holding only the fields the world is made of — a key a front end
+ * stored beside its save is dropped here rather than carried a call further (DL-13).
  *
  * @throws SaveError on malformed JSON, a `formatVersion` this engine does not write, or
  * a document missing a field the world needs.
@@ -278,5 +281,8 @@ export function deserialiseCareer(saved: string): Career {
     checkReckoning(ended['reckoning'], 'ended.reckoning');
   }
 
-  return parsed as Career;
+  // Copied field by field rather than handed back as parsed, so that anything a front
+  // end stored alongside the Career is dropped here, at the boundary and on purpose,
+  // instead of surviving until the next call happens to clone it (DL-13, F13).
+  return cloneCareer(parsed as Career);
 }

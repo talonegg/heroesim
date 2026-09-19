@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { advance, advanceUntilAttention, availableHeroes, commitParty } from '../src/career.js';
 import type { GameConfig } from '../src/config.js';
 import { defaultConfig } from '../src/config.js';
+import type { Content, Vignette } from '../src/content.js';
 import type { GameEvent, GameEventType } from '../src/events.js';
 import { deserialiseCareer, serialiseCareer } from '../src/save.js';
 import type { Career, Commission } from '../src/types.js';
@@ -11,6 +12,13 @@ import { fixtureContent } from './fixtures.js';
 function must<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`the test expected ${what}`);
   return value;
+}
+
+function byId(content: Content, id: string): Vignette {
+  return must(
+    content.vignettes.find((vignette) => vignette.id === id),
+    `a Vignette with id "${id}"`,
+  );
 }
 
 function of<T extends GameEventType>(events: readonly GameEvent[], type: T) {
@@ -295,6 +303,149 @@ describe('the Board refresh', () => {
   });
 });
 
+describe('a Patron’s Regard over time', () => {
+  /** A still world: nobody is paid, nobody is charged, and no Rival takes anything. */
+  const still: Partial<GameConfig> = { rivalCount: 0, upkeepBase: 0, upkeepPerHero: 0 };
+
+  it('recovers a point towards zero on the interval, and never past zero', () => {
+    const soured = editable(start('recovers', { ...still, patronRegardRecoveryEveryDays: 30 }));
+    for (const patron of soured.patrons) patron.regardForGuild.value = -5;
+
+    // The Career opens on Day 1, so twenty-eight Days carry it to the eve of the first
+    // recovery and the twenty-ninth is the Day it falls on.
+    const early = advance(soured, 28, fixtureContent);
+    expect(early.career.day).toBe(29);
+    expect(of(early.events, 'PatronRegardChanged')).toHaveLength(0);
+
+    const first = advance(early.career, 1, fixtureContent);
+    const moved = of(first.events, 'PatronRegardChanged');
+    expect(moved).toHaveLength(soured.patrons.length);
+    for (const event of moved) {
+      expect(event.day).toBe(30);
+      expect(event.delta).toBe(1);
+      expect(event.value).toBe(-4);
+      expect(event.reason).toBe('time passed');
+    }
+
+    const later = advance(first.career, 5 * 30, fixtureContent);
+    for (const patron of later.career.patrons) expect(patron.regardForGuild.value).toBe(0);
+
+    // Goodwill above zero is earned, not waited for: nothing drifts once level.
+    const settled = advance(later.career, 4 * 30, fixtureContent);
+    expect(of(settled.events, 'PatronRegardChanged')).toHaveLength(0);
+  });
+
+  it('does not recover at all when the interval is zero', () => {
+    const soured = editable(
+      start('no-recovery', { ...still, patronRegardRecoveryEveryDays: 0, careerYears: 2 }),
+    );
+    for (const patron of soured.patrons) patron.regardForGuild.value = -5;
+    const step = advance(soured, 2 * 360, fixtureContent);
+    expect(of(step.events, 'PatronRegardChanged')).toHaveLength(0);
+    for (const patron of step.career.patrons) expect(patron.regardForGuild.value).toBe(-5);
+  });
+
+  it('stops being docked for work a Rival took once it has already soured', () => {
+    const soured = editable(
+      start('no-further-dock', { upkeepBase: 0, upkeepPerHero: 0, patronRegardRecoveryEveryDays: 0 }),
+    );
+    for (const patron of soured.patrons) {
+      patron.regardForGuild.value = defaultConfig.patronPassedOverAboveRegard;
+    }
+    const step = advance(soured, 10, fixtureContent);
+    // Still posting — the guard sits above the posting floor — and still passed over.
+    expect(of(step.events, 'CommissionPosted').length).toBeGreaterThan(0);
+    expect(of(step.events, 'CommissionTakenByRival')).toHaveLength(
+      defaultConfig.rivalTakesPerRefresh,
+    );
+    expect(of(step.events, 'PatronRegardChanged')).toHaveLength(0);
+  });
+
+  it('still falls past that guard when the Guild fails the Patron’s own work', () => {
+    let proved = false;
+    for (let seed = 0; seed < 40 && !proved; seed += 1) {
+      const soured = editable(
+        start(`sour-further-${seed}`, {
+          upkeepBase: 0,
+          upkeepPerHero: 0,
+          patronRegardRecoveryEveryDays: 0,
+          commissionSpanMin: 6,
+          commissionSpanMax: 6,
+        }),
+      );
+      for (const patron of soured.patrons) {
+        patron.regardForGuild.value = defaultConfig.patronPassedOverAboveRegard;
+      }
+      const sent = sendFirstParty(soured);
+      const step = advance(sent.career, 6, fixtureContent);
+      const home = of(step.events, 'PartyReturned')[0];
+      if (home === undefined || home.succeeded) continue;
+      proved = true;
+      const moved = must(
+        of(step.events, 'PatronRegardChanged')
+          .filter((event) => event.patronId === home.patronId)
+          .at(-1),
+        'the Patron’s Regard moving on the Party coming home',
+      );
+      expect(moved.reason).toBe('the work was not finished');
+      expect(moved.delta).toBe(defaultConfig.patronRegardOnFailure);
+      expect(moved.value).toBeLessThan(defaultConfig.patronPassedOverAboveRegard);
+    }
+    expect(proved).toBe(true);
+  });
+});
+
+describe('the score consequence', () => {
+  it('moves the Commission’s score on top of what the Beat itself is worth', () => {
+    // Every Beat of this Commission fires the same Vignette, and every outcome of it
+    // carries the same bonus, so the Party's score is the Beats plus exactly that.
+    const bonus = 10;
+    const only = byId(fixtureContent, 'the-find');
+    const generous: Content = {
+      ...fixtureContent,
+      vignettes: [
+        {
+          ...only,
+          outcomes: {
+            failure: { ...only.outcomes.failure, consequences: [{ kind: 'score', delta: bonus }] },
+            success: { ...only.outcomes.success, consequences: [{ kind: 'score', delta: bonus }] },
+            critical: { ...only.outcomes.critical, consequences: [{ kind: 'score', delta: bonus }] },
+          },
+        },
+      ],
+    };
+
+    const career = newCareer('score-consequence', generous, {
+      beatsMin: 3,
+      beatsMax: 3,
+      commissionSpanMin: 6,
+      commissionSpanMax: 6,
+    }).career;
+    const commission = must(career.board[0], 'a Commission on the Board');
+    const heroes = career.guild.roster.slice(0, 2).map((hero) => hero.id);
+    const sent = commitParty(career, commission.id, heroes, generous).career;
+    const step = advance(sent, 6, generous);
+
+    const beats = of(step.events, 'BeatResolved');
+    expect(beats).toHaveLength(3);
+    const fromBeats = beats.reduce(
+      (total, beat) =>
+        total +
+        (beat.result === 'critical'
+          ? defaultConfig.scoreCritical
+          : beat.result === 'success'
+            ? defaultConfig.scoreSuccess
+            : defaultConfig.scoreFailure),
+      0,
+    );
+    const home = must(of(step.events, 'PartyReturned')[0], 'a returned Party');
+    expect(home.score).toBe(fromBeats + 3 * bonus);
+    expect(
+      of(step.events, 'ConsequenceApplied').filter((event) => event.consequence.kind === 'score'),
+    ).toHaveLength(3);
+  });
+});
+
 describe('Injuries that lift', () => {
   it('come off on the Day their span is up, and are reported when they do', () => {
     const career = editable(start('lifts'));
@@ -433,8 +584,14 @@ describe('a Guild with nobody on the Roster', () => {
 });
 
 describe('a world where nobody will post', () => {
+  // The rule under test is what an empty Board does, so the recovery that would refill
+  // it in time is switched off here rather than raced against (DL-13).
+  const neverRecovers: Partial<GameConfig> = { patronRegardRecoveryEveryDays: 0 };
+
   it('keeps running with an empty Board rather than breaking', () => {
-    const soured = editable(start('nobody-posts', { careerYears: 1, daysPerYear: 60 }));
+    const soured = editable(
+      start('nobody-posts', { ...neverRecovers, careerYears: 1, daysPerYear: 60 }),
+    );
     for (const patron of soured.patrons) patron.regardForGuild.value = -5;
     const step = advance(soured, 200, fixtureContent);
     expect(step.career.ended).toBeDefined();
@@ -448,7 +605,9 @@ describe('a world where nobody will post', () => {
   });
 
   it('runs out of money in the end, because no work can be taken', () => {
-    const soured = editable(start('nobody-posts-ever', { careerYears: 20, daysPerYear: 360 }));
+    const soured = editable(
+      start('nobody-posts-ever', { ...neverRecovers, careerYears: 20, daysPerYear: 360 }),
+    );
     for (const patron of soured.patrons) patron.regardForGuild.value = -5;
     const step = advance(soured, 20 * 360, fixtureContent);
     expect(step.career.ended?.reason).toBe('insolvency');

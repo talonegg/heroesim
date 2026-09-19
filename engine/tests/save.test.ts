@@ -74,6 +74,25 @@ describe('saving and loading', () => {
     expect(afterLoad.events).toEqual(straightOn.events);
     expect(afterLoad.career).toEqual(straightOn.career);
   });
+
+  it('drops anything a front end kept beside the Career, at the boundary (F13)', () => {
+    // A front end may store its own keys in the same document; DL-11 tolerates them.
+    // They are dropped here, on purpose and in one place, rather than surviving until
+    // the next call happens to clone the Career (DL-13).
+    const career = advance(newCareer('extras', fixtureContent).career, 15, fixtureContent).career;
+    const save = JSON.parse(serialiseCareer(career)) as Record<string, unknown>;
+    save['uiScrollPosition'] = 400;
+    (save['guild'] as Record<string, unknown>)['favouriteColour'] = 'green';
+    const roster = (save['guild'] as { roster: Record<string, unknown>[] }).roster;
+    if (roster[0] !== undefined) roster[0]['portrait'] = 'brenna.png';
+
+    const loaded = deserialiseCareer(JSON.stringify(save));
+    expect(loaded).toEqual(career);
+    expect(Object.keys(loaded)).not.toContain('uiScrollPosition');
+    expect(Object.keys(loaded.guild)).not.toContain('favouriteColour');
+    expect(Object.keys(loaded.guild.roster[0] ?? {})).not.toContain('portrait');
+    expect(serialiseCareer(loaded)).toBe(serialiseCareer(career));
+  });
 });
 
 describe('a save that cannot be trusted', () => {

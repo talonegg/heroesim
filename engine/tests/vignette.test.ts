@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Content, Vignette } from '../src/content.js';
+import { validateContent, type Content, type Vignette } from '../src/content.js';
 import { ContentError } from '../src/errors.js';
 import type { Hero } from '../src/types.js';
 import { fillHeroSlot, selectVignette, type VignetteContext } from '../src/vignette.js';
@@ -183,6 +183,20 @@ describe('filling the Hero slot', () => {
     expect(fillHeroSlot(quarrel, nobody, scriptedRng({ ints: [1] })).hero.id).toBe('h2');
   });
 
+  it('names no Trait when the fallback fired, so prose cannot claim one (F11)', () => {
+    // `with_trait:` falls back to any member of the Party, and `requiresTrait` only
+    // promises that somebody in the Party holds it. Reporting the asked-for Trait
+    // regardless would hand narration a Trait this Hero has not got.
+    const quarrel = byId(fixtureContent, 'the-quarrel');
+    expect(fillHeroSlot(quarrel, [hero('h1'), hero('h2')], scriptedRng({ ints: [1] })).trait)
+      .toBeUndefined();
+
+    const party = [hero('h1'), hero('h2', {}, ['Craven'])];
+    const filled = fillHeroSlot(quarrel, party, scriptedRng({}));
+    expect(filled.hero.id).toBe('h2');
+    expect(filled.trait).toBe('Craven');
+  });
+
   it('reports no Trait when the Vignette turns on nobody in particular', () => {
     expect(fillHeroSlot(byId(fixtureContent, 'the-find'), party, scriptedRng({})).trait).toBeUndefined();
   });
@@ -190,6 +204,41 @@ describe('filling the Hero slot', () => {
   it('refuses to fill a slot from an empty Party', () => {
     expect(() => fillHeroSlot(byId(fixtureContent, 'the-find'), [], scriptedRng({}))).toThrow(
       /no Heroes/,
+    );
+  });
+});
+
+describe('admitting a Vignette that names a Trait in its prose', () => {
+  const holder = byId(fixtureContent, 'the-quarrel');
+
+  function admit(conditions: unknown, slot: string): Content {
+    return validateContent({
+      traits: fixtureContent.traits,
+      backgrounds: fixtureContent.backgrounds,
+      spheres: fixtureContent.spheres,
+      names: fixtureContent.names,
+      vignettes: [{ ...holder, conditions, slots: { hero: slot } }],
+    });
+  }
+
+  it('admits it when the slot asks for the very Trait the condition requires', () => {
+    const content = admit({ minBeat: 2, requiresTrait: 'Craven' }, 'with_trait:Craven');
+    expect(content.vignettes[0]?.slots.hero).toBe('with_trait:Craven');
+  });
+
+  it('refuses a with_trait slot with no condition behind it', () => {
+    expect(() => admit({ minBeat: 2 }, 'with_trait:Craven')).toThrow(ContentError);
+    expect(() => admit({ minBeat: 2 }, 'with_trait:Craven')).toThrow(/\{trait\}/);
+  });
+
+  it('refuses a condition with no with_trait slot in front of it', () => {
+    expect(() => admit({ minBeat: 2, requiresTrait: 'Craven' }, 'any')).toThrow(/\{trait\}/);
+    expect(() => admit({ minBeat: 2, requiresTrait: 'Craven' }, 'highest:Guile')).toThrow(/\{trait\}/);
+  });
+
+  it('refuses a slot and a condition that name different Traits', () => {
+    expect(() => admit({ minBeat: 2, requiresTrait: 'Craven' }, 'with_trait:Steady')).toThrow(
+      /\{trait\}/,
     );
   });
 });

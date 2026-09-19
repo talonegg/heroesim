@@ -83,7 +83,11 @@ export function selectVignette(content: Content, context: VignetteContext, rng: 
 /** The Hero a Vignette's slot resolved to, and the Trait the Beat turns on, if any. */
 export interface SlotFill {
   hero: Hero;
-  /** From `conditions.requiresTrait` or a `with_trait:` slot. Absent when neither applies. */
+  /**
+   * From `conditions.requiresTrait` or a `with_trait:` slot, and only when this Hero
+   * actually holds it. Absent when neither applies, or when the slot fell back to a
+   * Hero who does not.
+   */
   trait?: string;
 }
 
@@ -123,6 +127,11 @@ export function fillHeroSlot(vignette: Vignette, heroes: readonly Hero[], rng: R
     hero = extremeBy(heroes, rule.slice('lowest:'.length) as Stat, false, rng);
   }
 
-  const trait = vignette.conditions.requiresTrait ?? slotTrait;
-  return trait === undefined ? { hero } : { hero, trait };
+  // Name the Trait only when the Hero the slot resolved to actually holds it. The
+  // `with_trait:` fallback picks anyone when nobody does, and a `requiresTrait` only
+  // says somebody in the Party holds it — so reporting the asked-for Trait regardless
+  // would put a Trait in the mouth of a Hero who has not got it (DL-13, F11).
+  const asked = vignette.conditions.requiresTrait ?? slotTrait;
+  if (asked === undefined) return { hero };
+  return hero.traits.some((held) => held.name === asked) ? { hero, trait: asked } : { hero };
 }

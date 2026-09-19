@@ -2,7 +2,9 @@
 
 **Heroesim** is a guild-management simulation for the terminal: you run a Guild of heroes, take paid work from Patrons, choose who to send, and read what happened to them. The output that matters is the story, not the score.
 
-**Status:** Design complete (2026-09-19); implementation plan baselined and ready to start. Building.
+**Status:** E1 and the first web client (E8-S1–S5) are built and verified as of 2026-09-19: 375
+Vitest tests across engine, content, narrate, cli and web; 24 Playwright checks at mobile, tablet
+and desktop, all on Chromium; 36 screenshots kept as evidence under `docs/verification/`.
 
 ---
 
@@ -89,7 +91,7 @@ These will be decided **before each epic**, not before work starts. All have sen
 | Before E1 | Save format: JSON, TOML, plain text? | JSON — decided, DL-02 | INPUTS-REQUIRED §1.3 |
 | Mid-E1 | Career length (years)? | 20 years — adopted, DL-06 | INPUTS-REQUIRED §2.1 |
 | Mid-E1 | Board refresh rate? | Every 10 days — adopted, DL-06 | INPUTS-REQUIRED §2.2 |
-| Mid-E1 | Upkeep amount? | 50 coin per 10 days — adopted, DL-06 | INPUTS-REQUIRED §2.3 |
+| Mid-E1 | Upkeep amount? | 88 coin per 10 days for four Heroes — adjusted after measured play, DL-13 | INPUTS-REQUIRED §2.3 |
 | Mid-E1 | Vignette authoring format? | TOML — decided, DL-03 | INPUTS-REQUIRED §2.11 |
 | Before E2 | Regard decay rate, insistence cost? | −1/30 days; −2 + risk | INPUTS-REQUIRED §3 |
 | Before E3 | Injury duration, Hall costs? | 15–30 days; 200 coin | INPUTS-REQUIRED §4 |

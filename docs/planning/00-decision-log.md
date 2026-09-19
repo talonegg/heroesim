@@ -148,3 +148,55 @@ ESLint forbids `engine` from importing any other workspace and forbids `Math.ran
 3. The CLI takes `--script <file>`, which reads commands from a file one per line instead of from the terminal, and `--quiet`, which drops the Board redraw between commands so that only the narration is printed. They are the seam the end-to-end test drives, and they are the same code path as a terminal session — the only difference is where a line comes from.
 
 **Consequences.** This supersedes the `Paragraph` shape in §9 and nothing else; it is an addition, so a front end that switches on the six kinds §9 lists still compiles and merely ignores `commit`. The Day-order guarantee is pinned by `narrate/tests/stream.test.ts` over a real one-year Career, and the report grouping by an assertion that every `return` shares its `partyId` with at least one earlier `beat`. The CLI's end-to-end test spawns the real process with `node --import tsx`, so nothing in the loop is mocked, and the two flags are ordinary flags a player may also use.
+
+## DL-13 — The E1 balance pass: Commission score counted once, a wider critical margin, Patron Regard that recovers, and an economy where coin is tight
+
+**Status:** Accepted · **Date:** 2026-09-19 · **Supersedes:** the Upkeep, fee and critical-margin lines of [DL-06](#dl-06--e1-balance-defaults-adopted-from-inputs-required-a-year-is-360-days) — "Upkeep 50 coin every 10 Days", "Commission fees 80–200 coin by difficulty" and "critical at DC+5" — and the "188 of two hundred over the authored content" figure in DL-09's consequences
+
+**Context.** DL-06 adopted the INPUTS-REQUIRED defaults unplayed, and E1 shipped without anyone measuring what twenty years of them felt like. An independent verification of 500 seeds × 20 years under the automatic policy over the real authored content found one defect and three balance failures, and a measurement harness reproduced every one of them at 300 seeds:
+
+| | Before |
+| --- | --- |
+| retirement rate | 93.7% |
+| final coin, mean / median | 152,941 / 196,185 |
+| Beat mix (failure / success / critical) | 29.5% / 24.9% / 45.5% |
+| mean margin over DC | 3.61 |
+| Patrons at or below the −4 posting floor at year 20 | 73.1% |
+| Board refreshes that left the Board empty | 20.8% |
+| fee income against Upkeep, per year | 9,548 against 1,800 (5.3×) |
+
+1. **The Commission score was counted twice (F9).** The engine adds `scoreCritical`/`scoreSuccess`/`scoreFailure` per Beat *and* every one of the thirty authored outcomes carried an identical `{ kind = "score", delta = … }` consequence, so every Beat was worth twice what the rule says. A Commission of three Beats cleared its threshold on one good Beat.
+2. **Criticals were the common outcome (F8).** 45.5% of Beats were critical against 24.9% ordinary successes, which flattens the Check: the band between "it worked" and "it went perfectly" barely existed.
+3. **Patrons ratcheted down into silence (F6).** Every refresh docked one Patron a point for work the Roster was never large enough to take, gains were wasted against the +5 clamp, and four Heroes can only cover about two of the four to six postings. By year 20 three Patrons in four had gone quiet and one refresh in five posted nothing at all — a death spiral, and the largest threat to the game staying interesting.
+4. **Coin was never a decision (F7).** Income ran at five times Upkeep and insolvency was unreachable after year two, against the design's "Coin is tight".
+5. Two smaller defects: `{trait}` could be admitted where the Hero the slot resolved to need not hold it (F11), and `deserialiseCareer` returned the parsed document as a `Career`, so a front end's extra keys survived until something else happened to clone it (F13).
+
+**Decision.**
+
+1. **The per-Beat increment is the rule; content adds score only for the exceptional (F9).** All thirty `score` consequences are removed from `content/vignettes/*.toml` and from the engine's test fixture. The `score` consequence kind stays supported and is pinned by a test of its own, so an authored outcome can still be worth more than its result — it simply is not how ordinary Beats are scored. This is what solution architecture §5 already said; §4's illustrative TOML block still shows the doubled form and should be read as illustration rather than as a pattern to copy.
+2. **`criticalMargin` 5 → 9 (F8).** Nothing else about the Check moves: Stats generation, DCs and the difficulty pivot are untouched. Eight was tried first, as the verification suggested, and left criticals at 29.4% — outside the 15–25% target; nine puts all three bands inside it without shifting a single DC.
+3. **A Patron's disappointment fades (F6a).** New `patronRegardRecoveryEveryDays` (60): a Patron whose Regard for the Guild is negative recovers one point towards zero every sixty Days, reported as `PatronRegardChanged` with reason `"time passed"`. Regard at or above zero is untouched — goodwill is earned, and its decay belongs to E2. Zero switches the rule off, which is how the two "nobody will post" tests hold their world still.
+4. **Being passed over never silences a Patron (F6b).** New `patronPassedOverAboveRegard` (−3): the `patronRegardOnPassedOver` dock applies only while that Patron's Regard is strictly above it. The guard sits one point above the posting floor, so no Patron can be argued into silence by work they were never asked for. Failing a Patron's own Commission still docks them without limit, so a Sphere can still be lost — by failing its Patron, which is the only way it should be losable.
+5. **The economy is rescaled so that coin is a decision (F7).** `upkeepPerHero` 12 → 20 and `upkeepBase` 2 → 8, so a four-Hero Roster owes 88 every ten Days rather than 50; `feeMin` 80 → 45 and `feeMax` 200 → 115. Failure still pays nothing. Fee income now runs at 1.6× Upkeep rather than 5.3×, and the starting 500 coin is about six Upkeeps of runway.
+6. **`{trait}` is admitted only when the slot and the condition agree (F11).** `validateContent` now requires both a `with_trait:X` Hero slot *and* a `conditions.requiresTrait` naming the same `X` before a narrative may carry `{trait}`. Neither alone keeps the promise the prose makes: the slot falls back to any Party member when nobody holds `X`, and the condition only says that *somebody* in the Party does. The validator route was taken rather than dropping the binding in the engine because `narrate`'s `fillTokens` throws a `NarrationError` on an unfilled token, which would turn a wrong sentence into a crash. Alongside it, `fillHeroSlot` reports a slot Trait only when the Hero it resolved to actually holds it, so `BeatResolved.slots.trait` never names a Trait its Hero lacks either.
+7. **`deserialiseCareer` returns `cloneCareer(parsed as Career)` (F13).** Unknown fields are dropped at the boundary, deliberately and in one place, rather than riding along until the next call. This narrows the timing of DL-11's "the engine drops them on the next call" to "the engine drops them on load"; nothing a front end may legitimately keep in its own document changes.
+
+**Consequences.** Measured over 300 seeds × 20 years under the same automatic policy, after all of the above:
+
+| | Before | After | Target |
+| --- | --- | --- | --- |
+| retirement rate | 93.7% | 87.0% | at least 80% |
+| final coin, mean / median | 152,941 / 196,185 | 29,720 / 30,430 | low tens of thousands |
+| Beat failure | 29.5% | 29.9% | 25–35% |
+| Beat success | 24.9% | 44.9% | 40–50% |
+| Beat critical | 45.5% | 25.2% | 15–25% |
+| mean margin over DC | 3.61 | 3.53 | — |
+| Patrons at or below the floor at year 20 | 73.1% | 14.2% | under 25% |
+| refreshes that left the Board empty | 20.8% | 0.6% | under 5% |
+| fee income against Upkeep, per year | 9,548 / 1,800 | 5,100 / 3,168 | Upkeep must bite |
+| Commissions taken per year | 76.1 | 95.5 | — |
+| Commissions that succeed | 81.7% | 62.5% | — |
+
+A Guildmaster who sends one weak Hero alone at the hardest work on the Board fails about half of the first two years' Commissions and goes insolvent on all 100 seeds, at a median of Day 120: insolvency is reachable again, which the design says is the only way to lose. Under the automatic policy nearly every insolvency falls inside the first two years, so the opening is where a Career is now lost and the 500 starting coin is the whole of the buffer. That is deliberate, and E3's Hall and E4/E5's Transfers will add sinks rather than relief; if the opening proves too sharp to play, `startingCoin` is the dial to turn, not the fee scale.
+
+The measurement is committed as `content/tests/balance.measure.test.ts`, skipped unless `HEROESIM_BALANCE` is set, so the next balance pass starts from these numbers rather than from a fresh argument; `HEROESIM_BALANCE_CONFIG` takes `GameConfig` overrides, so a candidate default is measured before it is adopted. `engine/tests/api.test.ts` keeps its assertions unchanged — the fixture world still retires on 198 of 200 seeds — and two Check assertions in `check.test.ts` are rewritten off `config.criticalMargin` rather than off the number it happened to hold, which is what they should have said from the start. INPUTS-REQUIRED §2 carries the changed defaults.

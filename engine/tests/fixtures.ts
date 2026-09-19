@@ -3,6 +3,10 @@
  * `content` package or on what happens to be authored on disk. It is shaped like the
  * real content — a Vignette with no conditions, ones gated on tags, one gated on a Beat
  * index and a Trait — so that selection behaves here as it does in play.
+ *
+ * It follows the authored set on scoring too: no outcome carries a `score` consequence,
+ * because the per-Beat increment is the rule and content adds score only for the
+ * exceptional (DL-13). `loop.test.ts` proves the consequence kind still works.
  */
 
 import { advanceUntilAttention, availableHeroes, commitParty } from '../src/career.js';
@@ -108,16 +112,15 @@ export const fixtureContent: Content = validateContent({
       outcomes: {
         failure: {
           narrative: '{hero} has it out of the wall before anyone suggests otherwise, and it goes to powder.',
-          consequences: [{ kind: 'score', delta: -1 }],
+          consequences: [],
         },
         success: {
           narrative: '{hero} notices the dressed stone, and what is behind it goes into {hero.their} pack for {patron}.',
-          consequences: [{ kind: 'score', delta: 1 }],
+          consequences: [],
         },
         critical: {
           narrative: '{hero} comes away with the box and the ledger it was buried with, which is the part that matters.',
           consequences: [
-            { kind: 'score', delta: 2 },
             { kind: 'coin', delta: 15 },
           ],
         },
@@ -136,17 +139,16 @@ export const fixtureContent: Content = validateContent({
         failure: {
           narrative: 'The ford is higher than the map allows for and {hero} goes from under {hero.them}.',
           consequences: [
-            { kind: 'score', delta: -1 },
             { kind: 'coin', delta: -20 },
           ],
         },
         success: {
           narrative: '{hero} goes first with the line, and {hero.they} {hero.is} the last one out of the water.',
-          consequences: [{ kind: 'score', delta: 1 }],
+          consequences: [],
         },
         critical: {
           narrative: '{hero} reads the water and takes them to an old drove crossing nobody has marked.',
-          consequences: [{ kind: 'score', delta: 2 }],
+          consequences: [],
         },
       },
     },
@@ -163,18 +165,16 @@ export const fixtureContent: Content = validateContent({
         failure: {
           narrative: 'Something crosses the firelight and {hero} does nothing at all until the shouting is finished.',
           consequences: [
-            { kind: 'score', delta: -1 },
             { kind: 'trait', trait: 'Bruised', days: 6 },
           ],
         },
         success: {
           narrative: '{hero} is on {hero.their} feet before the others, and it is finished quickly.',
-          consequences: [{ kind: 'score', delta: 1 }],
+          consequences: [],
         },
         critical: {
           narrative: '{hero} lets them come all the way in, then closes the trap, and {patron} hears of it.',
           consequences: [
-            { kind: 'score', delta: 2 },
             { kind: 'patronRegard', delta: 1, reason: 'the lost crates came back with the Party' },
           ],
         },
@@ -193,18 +193,16 @@ export const fixtureContent: Content = validateContent({
         failure: {
           narrative: 'It starts over nothing, and because {hero} is {trait} it does not stop there.',
           consequences: [
-            { kind: 'score', delta: -1 },
             { kind: 'heroRegardForGuildmaster', delta: -1, reason: 'nobody had thought about who would be sent out together' },
           ],
         },
         success: {
           narrative: 'Being {trait} is not the same as being wrong, and {hero} lets it go before anyone stands up.',
-          consequences: [{ kind: 'score', delta: 1 }],
+          consequences: [],
         },
         critical: {
           narrative: '{hero} sees it coming and takes the other one off to look at the horses.',
           consequences: [
-            { kind: 'score', delta: 2 },
             { kind: 'heroRegardForGuildmaster', delta: 1, reason: 'the quarrel was settled without anyone being made to look small' },
           ],
         },
@@ -222,15 +220,15 @@ export const fixtureContent: Content = validateContent({
       outcomes: {
         failure: {
           narrative: 'The telling of it gets away from them, and {sphere} hears the wrong account first.',
-          consequences: [{ kind: 'score', delta: -1 }],
+          consequences: [],
         },
         success: {
           narrative: '{hero} says little in the taproom, and what reaches {sphere} is roughly what happened.',
-          consequences: [{ kind: 'score', delta: 1 }],
+          consequences: [],
         },
         critical: {
           narrative: 'The telling of {commission} reaches two places nobody has worked, and one writes to {guildmaster}.',
-          consequences: [{ kind: 'score', delta: 2 }],
+          consequences: [],
         },
       },
     },

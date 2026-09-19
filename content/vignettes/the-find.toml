@@ -16,19 +16,15 @@ hero = "any"
 [outcomes.failure]
 narrative = "There is a cavity behind the stone and something in it wrapped in oiled cloth. {hero} has it out and open before anyone suggests otherwise, and the cloth is the only part that survives the handling. What is underneath goes to powder in the air. They carry the fragments out because leaving them feels worse, and nobody can say afterwards what it was."
 consequences = [
-  { kind = "score", delta = -1 },
   { kind = "patronRegard", delta = -1, reason = "whatever was in the wall came out as dust in the Party's hands" },
 ]
 
 [outcomes.success]
 narrative = "{hero} notices the stone before anyone else does, because it is the only dressed one in a wall of rubble. Behind it there is a cavity, and in the cavity a small iron box with a maker's mark still legible on the lid. Without opening it, {hero.they} {hero.moves} the box into {hero.their} own pack. {patron} will want to be the one who does that."
-consequences = [
-  { kind = "score", delta = 1 },
-]
+consequences = []
 
 [outcomes.critical]
 narrative = "{hero} spends an hour on the wall before touching any of it, and comes away with three things: the box, the ledger it was buried with, and the reason it was buried there at all. The ledger is the part that matters. Read properly, it names two people who have been taking money from {patron} for years, and gives the dates."
 consequences = [
-  { kind = "score", delta = 2 },
   { kind = "patronRegard", delta = 1, reason = "the buried ledger answered a question that had been open for years" },
 ]

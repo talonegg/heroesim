@@ -4,6 +4,8 @@
 **Estimate:** 5–7 days · **Depends on:** None · **Implements:** [Design §2–4](../design.md#time-and-the-loop) · **Realises:** ADR-0001, ADR-0002, ADR-0006, ADR-0008  
 **Gate:** E1 passes full playthrough to Retirement; save/load works end-to-end
 
+**Status:** Built and verified 2026-09-19; balance pass in progress (DL-13).
+
 ---
 
 ## 0. What lands in E1
@@ -12,7 +14,7 @@
 - **CLI:** reads events, narrates them as prose, and manages the Career loop
 - **World state:** Guild (Guildmaster, Roster, Coin, Standing), Patrons, Commissions, Parties
 - **Beats:** a small starter Vignette set (6–8 templates) and the Beat resolution engine
-- **Saves:** state snapshots, load/save from `.career/` directory, not JSON — minimal format TBD
+- **Saves:** state snapshots, load/save from `.career/` directory, as JSON (DL-02)
 - **End-to-end:** a player can load a Career, make decisions until Retirement, and see a score reckoning
 
 **Not in E1 (deferral is deliberate, not omission):**
@@ -69,11 +71,11 @@ The `Career` state object is serialisable (to support saves); the engine never t
 
 **Acceptance:**
 
-- [ ] Engine compiles with zero lint errors
-- [ ] All event types are defined in `engine/src/events.ts` with JSDoc
-- [ ] Type tests verify Events are nominal (no accidental overlaps)
-- [ ] A new Career can be created and advanced 100 Days without crashing
-- [ ] All RNG calls are injected (no `Math.random()` anywhere in engine)
+- [x] Engine compiles with zero lint errors (`npm run lint` — ESLint, clean across the workspace)
+- [x] All event types are defined in `engine/src/events.ts` with JSDoc (`engine/src/events.ts`)
+- [x] Type tests verify Events are nominal (no accidental overlaps) (`engine/tests/events.test.ts`: "names every member exactly once", "narrows on `type` to the fields that member carries")
+- [x] A new Career can be created and advanced 100 Days without crashing (`engine/tests/events.test.ts`: "carries a Day on every event a real Career produces")
+- [x] All RNG calls are injected (no `Math.random()` anywhere in engine) (`eslint.config.js` `no-restricted-properties` for `engine/**`, enforced by `npm run lint`)
 
 ### E1-S2 · Commission and Beat resolution engine · 1.5–2 days
 
@@ -117,19 +119,19 @@ function checkResult(stat: number, traits: Trait[], backing: number, dc: number,
 }
 ```
 
-Vignettes are authored in TOML (or JSON if TOML feels heavy); each file is one Vignette. **The engine knows nothing about file I/O; Vignettes are loaded by the CLI and passed in.**
+Vignettes are authored in TOML (DL-03); each file is one Vignette. **The engine knows nothing about file I/O; Vignettes are loaded by the CLI and passed in.**
 
 Starter Vignette set: 6–8 templates covering basic scenarios (ambush, obstacle, discovery, quarrel, success, failure with a twist). These are **not** comprehensive; they are enough for a playable first Career.
 
 **Acceptance:**
 
-- [ ] A Commission runs for its full span without crashing
-- [ ] Beats fire from Vignettes, with slots filled correctly
-- [ ] Stat checks use d20, apply modifiers, and have three outcomes
-- [ ] Check results are deterministic given a seed (no RNG leakage)
-- [ ] Failed Checks do not end a Commission prematurely (Beats accumulate)
-- [ ] Six starter Vignettes are committed and load without parse errors
-- [ ] Event stream records each Beat and outcome
+- [x] A Commission runs for its full span without crashing (`engine/tests/loop.test.ts`: "fire on exactly the Days the Party was scheduled for", "brings the Party back on the Day it was due, and frees its Heroes")
+- [x] Beats fire from Vignettes, with slots filled correctly (`engine/tests/vignette.test.ts`: "choosing a Vignette" and "filling the Hero slot" describes)
+- [x] Stat checks use d20, apply modifiers, and have three outcomes (`engine/tests/check.test.ts`: "fails below the DC and succeeds on it", "is critical only at the DC plus the configured margin")
+- [x] Check results are deterministic given a seed (no RNG leakage) (`engine/tests/api.test.ts`: "tells the same story twice from the same seed and the same decisions")
+- [x] Failed Checks do not end a Commission prematurely (Beats accumulate) (`engine/tests/loop.test.ts`: "runs every Beat it was given even when one of them fails")
+- [x] Six starter Vignettes are committed and load without parse errors (`content/vignettes/*.toml` — ten files, per DL-03; `content/tests/parse.test.ts`: "loads from disk without an error")
+- [x] Event stream records each Beat and outcome (`engine/tests/api.test.ts`: "tells more than one kind of story"; `engine/tests/events.test.ts`)
 
 ### E1-S3 · Guildmaster and Party Backing · 1 day
 
@@ -147,11 +149,11 @@ This is asymmetric: the Guildmaster's presence is felt, but they never appear in
 
 **Acceptance:**
 
-- [ ] A Guildmaster is created with four Stats (each 1–5), Traits, and a Background
-- [ ] Backing is computed for a Party when it is committed
-- [ ] Backing modifies Checks numerically (e.g., +1, +2)
-- [ ] Regard scores exist but do not *yet* affect Backing (that is E2)
-- [ ] Saves include the Guildmaster's full state
+- [x] A Guildmaster is created with four Stats (each 1–5), Traits, and a Background (`engine/tests/worldgen.test.ts`: "gives everyone four Stats inside the configured range", "gives the Guildmaster the configured total and remembers it for the reckoning")
+- [x] Backing is computed for a Party when it is committed (`engine/tests/check.test.ts`, "Backing" describe)
+- [x] Backing modifies Checks numerically (e.g., +1, +2) (`engine/tests/check.test.ts`: "is added to the Check")
+- [x] Regard scores exist but do not *yet* affect Backing (that is E2) (`engine/tests/check.test.ts`: "does not yet move with the Guildmaster's Regard for the Party (that is E2)")
+- [x] Saves include the Guildmaster's full state (`engine/tests/save.test.ts`: "comes back deep-equal from every seed and every decision path")
 
 ### E1-S4 · Board refresh and Upkeep cycle · 1 day
 
@@ -169,18 +171,18 @@ The loop advances: the Board refreshes, Upkeep falls due, Rivals take Commission
 
 **Constants (TBD, you may refine these):**
 
-- Upkeep per 10 days: ~50 coin (configurable)
-- Commission fees: 80–200 coin (by difficulty)
+- Upkeep per 10 days: 88 coin for four Heroes (8 base + 20 per Hero; was ~50 before the measured balance pass, DL-13)
+- Commission fees: 45–115 coin by difficulty (was 80–200, DL-13)
 - Starting coin: 500 coin
 - Board size: 4–6 live Commissions
 - Rival action: they take 1 Commission per refresh (if Board has one left)
 
 **Acceptance:**
 
-- [ ] Player can advance by N days and the Board updates
-- [ ] Upkeep is tallied and deducted; Insolvency triggers if coin < 0
-- [ ] Rivals take unclaimed Commissions (event emitted)
-- [ ] Standing and Coin balance are tracked through a full Career
+- [x] Player can advance by N days and the Board updates (`engine/tests/loop.test.ts`, "the Board refresh" describe: "lets a Rival take one, expires the rest and refills within bounds")
+- [x] Upkeep is tallied and deducted; Insolvency triggers if coin < 0 (`engine/tests/loop.test.ts`, "Upkeep" and "insolvency" describes: "falls due on the configured Days, for the configured amount", "needs two Upkeeps in a row with the Guild in the red")
+- [x] Rivals take unclaimed Commissions (event emitted) (`engine/tests/loop.test.ts`: "lets a Rival take one, expires the rest and refills within bounds", "costs the Patron whose work was passed over some Regard, and pays the Rival in Standing")
+- [x] Standing and Coin balance are tracked through a full Career (`engine/tests/loop.test.ts`: "keeps every coin balance, and every Upkeep, agreeing with the Guild"; `engine/tests/api.test.ts`, "two hundred Careers" describe)
 
 ### E1-S5 · Career lifecycle: Retirement and Insolvency · 0.5 day
 
@@ -192,10 +194,10 @@ A Career ends when either:
 
 **Acceptance:**
 
-- [ ] A Career can run to Retirement without error
-- [ ] Insolvency ends a Career and emits a `CareerEnded` event
-- [ ] The reckoning shows meaningful summary stats
-- [ ] Saves are deleted on Career exit (no weird dangling state)
+- [x] A Career can run to Retirement without error (`engine/tests/loop.test.ts`: "retires the Guildmaster on the exact Day, and never a Day later"; `engine/tests/api.test.ts`, "two hundred Careers": "all reach an ending, and most of them reach Retirement")
+- [x] Insolvency ends a Career and emits a `CareerEnded` event (`engine/tests/loop.test.ts`, "insolvency" describe)
+- [x] The reckoning shows meaningful summary stats (`engine/tests/api.test.ts`, "two hundred Careers" reckoning assertions; `narrate/tests/errors.test.ts`: "names the Guild, the Guildmaster and what the Guild became")
+- [x] Saves are deleted on Career exit (no weird dangling state) (`cli/tests/e2e.test.ts`: "leaves no dangling autosave for a Career that has ended"; `cli/tests/saves.test.ts`: "clears the autosave when the Career it holds is the one that ended")
 
 ### E1-S6 · CLI: event loop and narration · 1.5–2 days
 
@@ -230,12 +232,12 @@ The CLI is the front end. It reads events and turns them into prose.
 
 **Acceptance:**
 
-- [ ] CLI compiles and runs without panicking
-- [ ] Board displays correctly on a 80-char wide terminal
-- [ ] Events are narrated with character names and Trait-specific flavor
-- [ ] A full Career can be played through the CLI from start to Retirement
-- [ ] Saves are atomic (no partial corrupted state)
-- [ ] Terminal output is readable under 2 minutes of gameplay without scrollback
+- [x] CLI compiles and runs without panicking (`cli/tests/e2e.test.ts`: "runs both times without failing"; `npm run typecheck`)
+- [x] Board displays correctly on a 80-char wide terminal (`cli/tests/display.test.ts`: "fits 80 columns", "fits 80 columns while a Party is being chosen, too")
+- [x] Events are narrated with character names and Trait-specific flavor (`narrate/tests/vignettes.test.ts`, "every authored Vignette renders" describe; `narrate/tests/stream.test.ts`)
+- [x] A full Career can be played through the CLI from start to Retirement (`cli/tests/e2e.test.ts`: "reaches the end of the Career and prints the reckoning")
+- [x] Saves are atomic (no partial corrupted state) (`cli/tests/saves.test.ts`: "writes atomically: nothing half-written is left beside the slot")
+- [ ] Terminal output is readable under 2 minutes of gameplay without scrollback (not met: no automated test measures play duration or scrollback length — this is a manual/subjective criterion and no evidence of it being checked was found)
 
 ### E1-S7 · Saves and load: state snapshots · 1 day
 
@@ -260,10 +262,10 @@ Format: JSON or plain text, your choice. (JSON is probably easier; TOML if you w
 
 **Acceptance:**
 
-- [ ] A Career can be saved at any decision point
-- [ ] A saved Career can be loaded and resumed
-- [ ] Loaded Career behaves identically to unsaved (same RNG path)
-- [ ] Multiple save slots work (`.career/slot1.json`, `.career/slot2.json`, etc.)
+- [x] A Career can be saved at any decision point (`cli/tests/saves.test.ts`: "creates the Career directory and writes the slot"; `cli/tests/e2e.test.ts`: `Saved to slot "one".`)
+- [x] A saved Career can be loaded and resumed (`cli/tests/saves.test.ts`: "gives back exactly the Career that was saved"; `cli/tests/e2e.test.ts`: "carried the Career on from the save rather than starting a new one")
+- [x] Loaded Career behaves identically to unsaved (same RNG path) (`engine/tests/api.test.ts`: "is unaffected by a save and load along the way"; `engine/tests/rng.test.ts`: "carries its state through a save, so a loaded Career runs the same path")
+- [x] Multiple save slots work (`.career/slot1.json`, `.career/slot2.json`, etc.) (`cli/tests/saves.test.ts`, "listing" describe: "reports each slot with the Guild, the Day and the seed" — slots are named by the player, e.g. `one.json`, rather than the literal `slot1.json`/`slot2.json` sketched here)
 
 ### E1-S8 · Starter Vignettes: six templates · 2 days
 
@@ -288,10 +290,10 @@ Each Vignette includes:
 
 **Acceptance:**
 
-- [ ] Six Vignettes are committed to `engine/src/vignettes/`
-- [ ] Each loads and parses without error
-- [ ] Slot markers are documented (which Vignette expects which slots)
-- [ ] A full Commission fires at least three different Vignettes
+- [x] Six Vignettes are committed to `engine/src/vignettes/` (`content/vignettes/*.toml` — ten files, per DL-03, which supersedes this path: the engine reads no files, so content lives in the `content` package instead)
+- [x] Each loads and parses without error (`content/tests/parse.test.ts`: "loads from disk without an error", "refuses TOML it cannot parse, naming the file")
+- [x] Slot markers are documented (which Vignette expects which slots) (each file's `[slots]` table, e.g. `content/vignettes/night-attack.toml`: `hero = "lowest:Nerve"`; validated by `content/tests/parse.test.ts`, "the Vignette files on disk" describe)
+- [x] A full Commission fires at least three different Vignettes (`engine/tests/api.test.ts`, "a Commission of five Beats": "tells more than one kind of story")
 
 ---
 
@@ -327,40 +329,75 @@ Each Vignette includes:
 
 ### Workspace and repo layout
 
+This supersedes the engine-only sketch drafted before the build started: content is its own
+package (DL-03), so the engine never reads a file, and `narrate` is shared by both front ends
+(DL-01, DL-05). What was actually built, as five npm workspaces:
+
 ```
 heroesim/
   engine/
     src/
-      index.ts           exports { Engine, GameEvent, Career, ... }
-      world.ts           Guild, Patron, Commission, Party types
-      check.ts           stat resolution and Checks
+      index.ts           the public surface (Solution architecture §6)
+      world.ts           newCareer; Guild, Patron, Commission, Party generation
+      career.ts          advance, advanceUntilAttention, commitParty, the read-only queries
+      check.ts           Check resolution: d20, Trait modifiers, Backing
       beat.ts            Beat firing and resolution
-      vignette.ts        Vignette loading and slot-filling
-      vignettes/         *.toml or *.json files, one per template
+      board.ts           Board refresh, Rival takes, Patron posting
+      vignette.ts        Vignette selection and slot-filling
+      content.ts         validateContent and the Content types
+      events.ts          the GameEvent union
+      save.ts            serialiseCareer / deserialiseCareer
+      rng.ts             the seeded xoshiro128** generator (DL-07)
+      config.ts          GameConfig and its defaults
+      clone.ts, state.ts, types.ts, errors.ts
     tests/
-      index.test.ts      E2E: newCareer → advance → commitParty → save → load
-      check.test.ts      d20 resolution: cases for success/failure/critical
-      beat.test.ts       Vignette firing conditions
+      api.test.ts        the engine API contract (DL-04): determinism, immutability, 200-seed smoke
+      loop.test.ts       Beats, Upkeep, Board refresh, insolvency, retirement
+      check.test.ts      d20 resolution, Trait modifiers, Backing
+      vignette.test.ts   Vignette selection and slot-filling
+      worldgen.test.ts   newCareer's world generation
+      events.test.ts     the event union is nominal; every event carries a Day
+      save.test.ts       save/load round-trip and corrupted-save rejection
+      rng.test.ts, clone.test.ts
+  content/
+    src/                 TOML parsing: a pure entry (text in, objects out) and a Node entry
+    vignettes/           *.toml, one Vignette per file
+    traits.toml  backgrounds.toml  spheres.toml  names.toml
+    tests/
+      parse.test.ts      every file loads; every token resolves; every tag set has a Vignette
+  narrate/
+    src/
+      index.ts           narrateEvents: events → Paragraph[]
+      lines.ts           errorSentence, formatDay, reckoningLines
+      tokens.ts          narrative token filling and pronoun agreement
+    tests/                stream, tokens, vignettes, errors
   cli/
     src/
       index.ts           main loop, input handling
       display.ts         Board and state rendering
-      narrate.ts         Events → prose
-      saves.ts           load/save operations
-    .eslintrc.json       shared with engine
+      input.ts           argument and command parsing
+      saves.ts           load/save operations, `.career/` slots
+    tests/                display, input, saves, and e2e.test.ts (spawns the real process)
+  web/
+    src/                 Vite + React front end (E8)
+    e2e/                  Playwright: journey, layout, smoke
+    tests/                Vitest + Testing Library
   docs/
     planning/
-      README.md          (this plan)
+      README.md          (the planning set overview)
       epics/
         E1-core-loop.md  (this file)
         E2-...md         (next epics)
-      design.md          (already exists)
-      adr/               (already exists)
-      CONTEXT.md         (already exists)
-  package.json
+      00-decision-log.md
+      03-solution-architecture.md
+    adr/
+    verification/        Playwright screenshot evidence
+  CONTEXT.md
+  design.md
+  package.json           npm workspaces: engine, content, narrate, cli, web
   tsconfig.json
   vitest.config.ts
-  vite.config.ts (for build, if needed)
+  eslint.config.js
 ```
 
 ### Linting and testing

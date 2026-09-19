@@ -14,19 +14,15 @@ hero = "highest:Guile"
 [outcomes.failure]
 narrative = "The man on the gate has been told to expect somebody and has decided it is not them. {hero} tries the letter first, then the name of {patron}, then something closer to a threat, and each one makes him more certain. They wait until the shift changes, which takes until dark, and by then whoever they came to see has gone home."
 consequences = [
-  { kind = "score", delta = -1 },
   { kind = "patronRegard", delta = -1, reason = "the Party stood at the gate until dark and was seen doing it" },
 ]
 
 [outcomes.success]
 narrative = "{hero} does not mention {patron} at all. Instead {hero.they} {hero.has} a question about the man's brother, and then a second question, and by the time the first is properly answered the gate is open and none of them have been counted. It is not clever so much as unhurried. {hero} thanks him by name on the way through, which is the part that matters."
-consequences = [
-  { kind = "score", delta = 1 },
-]
+consequences = []
 
 [outcomes.critical]
 narrative = "{hero} spends ten minutes on the weather and the state of the road and never once asks for anything. The man on the gate ends up walking them in himself, past the ledger, and telling them on the way which of {patron}'s people can be relied on and which cannot. That last part is worth more than the crossing was."
 consequences = [
-  { kind = "score", delta = 2 },
   { kind = "patronRegard", delta = 1, reason = "the gatekeeper spoke well of the Party afterwards" },
 ]

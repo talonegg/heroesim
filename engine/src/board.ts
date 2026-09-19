@@ -122,13 +122,13 @@ export function refreshBoard(draft: Career, content: Content, rng: Rng, events: 
       patronId: commission.patronId,
       rivalId: rival.id,
     });
-    changePatronRegard(
-      draft,
-      requirePatron(draft, commission.patronId),
-      config.patronRegardOnPassedOver,
-      REASON_PASSED_OVER,
-      events,
-    );
+    // Being passed over disappoints a Patron; it never silences one. Below
+    // `patronPassedOverAboveRegard` the dock stops, so the only way to lose a Sphere
+    // altogether is to keep failing that Patron's own work (DL-13, F6).
+    const patron = requirePatron(draft, commission.patronId);
+    if (patron.regardForGuild.value > config.patronPassedOverAboveRegard) {
+      changePatronRegard(draft, patron, config.patronRegardOnPassedOver, REASON_PASSED_OVER, events);
+    }
   }
 
   const takenIds = new Set(taken.map((commission) => commission.id));

@@ -2,6 +2,10 @@
 
 **Baselined:** 2026-09-19 · **Total build: 25–34 focused days** ([the register is the source](README.md#2-epic-register)) · **Master clock: narrative coherence, not calendar**
 
+**Status:** E1 and the first web client (E8-S1–S5) are built and verified as of 2026-09-19: 375
+Vitest tests across engine, content, narrate, cli and web; 24 Playwright checks at mobile, tablet
+and desktop, all on Chromium; 36 screenshots kept as evidence under `docs/verification/`.
+
 ---
 
 ## The Plan at a Glance
@@ -56,7 +60,7 @@ You do not need to argue about what the game *is*. That is locked. You only need
 | Save file format (JSON, TOML, plain text) | JSON | Anytime; E1-S7 deadline is soft |
 | Career length in years | 20 years | By E1-S5, but 20 is fine |
 | Board refresh cycle | Every 10 days | By E1-S4, but 10 is fine |
-| Upkeep amount | 50 coin per 10 days | By E1-S4, but 50 is fine |
+| Upkeep amount | 88 coin per 10 days for four Heroes (adjusted after measured play, DL-13) | Decided; retune after playing |
 | Difficulty curve | Random by Patron/Sphere | By E1-S2, but random is fine |
 | Vignette authoring format | Same as save format (JSON or TOML) | By E1-S8, but JSON is fine |
 

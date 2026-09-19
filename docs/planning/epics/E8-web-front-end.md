@@ -4,6 +4,8 @@
 **Estimate:** 4–5 days · **Depends on:** E1 (first version), E7 (parity) · **Implements:** [DL-01](../00-decision-log.md#dl-01--a-web-front-end-is-in-scope-as-a-second-renderer-over-the-same-engine), [Architecture §9](../03-solution-architecture.md#9-front-ends) · **Realises:** ADR-0001, ADR-0002, DL-01, DL-02, DL-04, DL-05  
 **Gate:** Playwright plays a Career at three viewports — new Career, commit a Party, advance until it returns, read the report, save, reload, load — with no horizontal overflow at 360px
 
+**Status:** S1–S5 built and verified 2026-09-19; S6 parity awaits E7.
+
 ---
 
 ## 0. What lands in E8
@@ -43,11 +45,11 @@ const content = validateContent(parseContent(files as Record<string, string>))
 
 **Acceptance:**
 
-- [ ] `npm run build -w web` produces a static bundle that opens from the filesystem
-- [ ] The built bundle contains no reference to `fs`, `node:*` or `process`
-- [ ] A unit test asserts the browser content and the Node content are deep-equal for the same files
-- [ ] ESLint forbids `web` from importing `cli`, and `engine` from importing either
-- [ ] A build-time check fails if the bundle contains `fetch(`, `XMLHttpRequest` or a URL literal outside a comment
+- [x] `npm run build -w web` produces a static bundle that opens from the filesystem (`npm run build -w web`, `vite.config.ts`: `base: './'`)
+- [x] The built bundle contains no reference to `fs`, `node:*` or `process` (`web/scripts/check-bundle.mjs`, run after every build)
+- [x] A unit test asserts the browser content and the Node content are deep-equal for the same files (`web/tests/content.test.ts`: "is deep-equal to the content the Node entry reads from disk")
+- [x] ESLint forbids `web` from importing `cli`, and `engine` from importing either (`eslint.config.js`: `no-restricted-imports` blocks `engine/**` from importing any sibling; `web/tests/engine-imports.test.ts`: "nothing in web/src imports the terminal front end" enforces the `web`-forbids-`cli` half as a Vitest check rather than an ESLint rule)
+- [x] A build-time check fails if the bundle contains `fetch(`, `XMLHttpRequest` or a URL literal outside a comment (`web/scripts/check-bundle.mjs`)
 
 ### E8-S2 · State, and one place decisions are made · 1 day
 
@@ -60,11 +62,11 @@ The engine is pure; React holds one `Career` and replaces it.
 
 **Acceptance:**
 
-- [ ] One reducer; no component calls an engine function directly, enforced by a lint rule on imports
-- [ ] The Career is never mutated — a test freezes it and drives twenty actions
-- [ ] Every `EngineError` code renders as a sentence, and the map is shared with the CLI, not copied
-- [ ] Narrated paragraphs are identical to the CLI's for the same seed and decisions, asserted by a cross-package test
-- [ ] Rapid repeated taps on `advance` cannot interleave two engine calls
+- [x] One reducer; no component calls an engine function directly, enforced by a lint rule on imports (the "lint rule" is `web/tests/engine-imports.test.ts`: "are types only, except under `state/` and in `content.ts`" — a Vitest check over the source, not an ESLint rule)
+- [x] The Career is never mutated — a test freezes it and drives twenty actions (`web/tests/careerReducer.test.ts`: "never mutates the Career it was given, over twenty actions")
+- [x] Every `EngineError` code renders as a sentence, and the map is shared with the CLI, not copied (`web/tests/careerReducer.test.ts`: "turns every EngineError into a sentence rather than a crash"; `narrate/tests/errors.test.ts`: "has a sentence for every code"; `web/src/words.ts` re-exports `errorSentence` from `@heroesim/narrate`, the same function `cli/src/index.ts` imports)
+- [ ] Narrated paragraphs are identical to the CLI's for the same seed and decisions, asserted by a cross-package test (not met: both front ends call the same `narrateEvents` from `@heroesim/narrate` directly, so there is no second implementation to diverge, but no test was found that drives the CLI and the web client on the same seed/decisions and diffs the output)
+- [x] Rapid repeated taps on `advance` cannot interleave two engine calls (`web/tests/careerReducer.test.ts`: "drops a second engine action that arrives before the first has settled"; `web/tests/app.test.tsx`: "two taps on Advance in one batch drive one engine call, not two")
 
 ### E8-S3 · Three layouts · 1–1.5 days
 
@@ -78,12 +80,12 @@ Secondary views — Patrons, League, Hall, Applicants, former Heroes — are a s
 
 **Acceptance:**
 
-- [ ] Breakpoints are CSS container queries or media queries, never JavaScript width branching
-- [ ] No horizontal scrolling at 320, 360, 414, 768, 1024 and 1280px, asserted by measuring `scrollWidth` against `clientWidth`
-- [ ] Every interactive element is at least 40×40 CSS pixels, asserted by measuring every `button` and `a` in every pane
-- [ ] Text reflows rather than truncating; no `text-overflow: ellipsis` on a Hero, Patron or Commission name
-- [ ] The bottom bar does not overlap content at the bottom of a scrolled pane (`env(safe-area-inset-bottom)` respected)
-- [ ] At 200% browser zoom on the desktop viewport the layout falls back to the tablet arrangement rather than overflowing
+- [x] Breakpoints are CSS container queries or media queries, never JavaScript width branching (`web/src/styles.css`: `@media (min-width: 600px)` / `(min-width: 1024px)`; no `innerWidth`, `matchMedia` or `resize` anywhere under `web/src`)
+- [x] No horizontal scrolling at 320, 360, 414, 768, 1024 and 1280px, asserted by measuring `scrollWidth` against `clientWidth` (`web/e2e/layout.spec.ts` via `expectNoHorizontalOverflow` in `web/e2e/helpers.ts`, run at `WIDTHS = [320, 360, 414, 768, 1024, 1280]`)
+- [x] Every interactive element is at least 40×40 CSS pixels, asserted by measuring every `button` and `a` in every pane (`web/e2e/layout.spec.ts` via `expectTapTargets` in `web/e2e/helpers.ts`)
+- [x] Text reflows rather than truncating; no `text-overflow: ellipsis` on a Hero, Patron or Commission name (`web/src/styles.css`: "Names wrap; they are never cut off with an ellipsis (E8-S3)")
+- [x] The bottom bar does not overlap content at the bottom of a scrolled pane (`env(safe-area-inset-bottom)` respected) (`web/src/styles.css`: `padding-bottom: calc(var(--tap) + 1.5rem + env(safe-area-inset-bottom))`)
+- [ ] At 200% browser zoom on the desktop viewport the layout falls back to the tablet arrangement rather than overflowing (not met: no test in `web/e2e/` emulates browser zoom or a reduced-viewport-at-desktop-project scenario)
 
 ### E8-S4 · Saves in the browser · 0.5 day
 
@@ -95,16 +97,16 @@ The stored string is **exactly** what `serialiseCareer` returns (DL-02). A slot 
 
 **Acceptance:**
 
-- [ ] `config.webSlotCount` slots, plus one autosave slot written after every action
-- [ ] A save written by the web client deserialises in Node, and a `.career/*.json` file pasted in loads in the browser — a test does both directions
-- [ ] `QuotaExceededError` is caught and reported as a sentence naming the slot; nothing is silently dropped
-- [ ] A refused `formatVersion` prints the refusal and leaves the stored document untouched (no migration — design non-goal)
-- [ ] Clearing a slot asks once and cannot be undone by a reload
-- [ ] Private-browsing mode, where `localStorage` throws on write, degrades to in-memory play with a visible warning
+- [x] `config.webSlotCount` slots, plus one autosave slot written after every action (`web/tests/storage.test.ts`: "has three named slots and an autosave" — `webSlotCount` is not a `GameConfig` field, per §3's adopted default; the three named slots plus the autosave are `web/src/state/storage.ts`'s `NAMED_SLOTS` and `AUTOSAVE_SLOT`)
+- [ ] A save written by the web client deserialises in Node, and a `.career/*.json` file pasted in loads in the browser — a test does both directions (not met: `web/tests/storage.test.ts` ("a document written here deserialises with the engine, as the CLI would read it") proves only the web-to-Node direction; no test was found that loads a CLI-written `.career/*.json` file into browser storage, though both directions share the same `serialiseCareer`/`deserialiseCareer` functions)
+- [x] `QuotaExceededError` is caught and reported as a sentence naming the slot; nothing is silently dropped (`web/tests/storage.test.ts`: "reports a full quota as a sentence naming the slot, and drops nothing silently")
+- [x] A refused `formatVersion` prints the refusal and leaves the stored document untouched (no migration — design non-goal) (`web/tests/storage.test.ts`: "refuses a save whose formatVersion does not match, and leaves it untouched")
+- [x] Clearing a slot asks once and cannot be undone by a reload (`web/tests/app.test.tsx`: "asks once before clearing a slot"; `web/tests/storage.test.ts`: "clearing a slot empties it and drops it from the index")
+- [x] Private-browsing mode, where `localStorage` throws on write, degrades to in-memory play with a visible warning (`web/tests/storage.test.ts`: "degrades to memory when localStorage throws, and says so")
 
 ### E8-S5 · Playwright, three devices, one journey · 1–1.5 days
 
-Three projects on Chromium (DL-04): **mobile** Pixel 7, **tablet** iPad Mini, **desktop** 1280×800. Every project runs the same journey against a **built** bundle served locally:
+Three projects on Chromium (DL-04): **mobile** Pixel 7, **tablet** an 820×1180 Chromium viewport, **desktop** 1280×800. The tablet project is an iPad-class *viewport* on the Chromium engine, not the Playwright `iPad Mini` device (which pulls in WebKit) — DL-10 supersedes the "iPad Mini" wording used when this story was drafted. Every project runs the same journey against a **built** bundle served locally:
 
 1. New Career from a fixed seed
 2. Read the Board; open a Commission; toggle two Heroes; commit
@@ -118,12 +120,12 @@ Plus, per project: no horizontal overflow, tap targets ≥ 40px, and a screensho
 
 **Acceptance:**
 
-- [ ] The journey passes on all three projects against a production build
-- [ ] The seed is fixed, so the assertions name an actual Hero and an actual Commission, not a placeholder
-- [ ] Screenshots are committed under `docs/verification/` and regenerated by `npm run e2e -w web`
-- [ ] The overflow and tap-target checks run on every pane and every sheet, not just the landing view
-- [ ] A network-request listener asserts **zero** requests leave the origin during the whole journey
-- [ ] The suite fails, not skips, if the bundle has not been built
+- [x] The journey passes on all three projects against a production build (`web/e2e/journey.spec.ts`, run across the `mobile`/`tablet`/`desktop` projects in `web/playwright.config.ts`)
+- [x] The seed is fixed, so the assertions name an actual Hero and an actual Commission, not a placeholder (`web/e2e/helpers.ts`: `FIXED_SEED`; `web/e2e/journey.spec.ts` asserts a sent Hero's name appears in the report)
+- [x] Screenshots are committed under `docs/verification/` and regenerated by `npm run e2e -w web` (`docs/verification/{mobile,tablet,desktop}/` — 12 images per project, 36 in total; `web/e2e/layout.spec.ts` writes them via `VERIFICATION_DIR`)
+- [x] The overflow and tap-target checks run on every pane and every sheet, not just the landing view (`web/e2e/layout.spec.ts`, looping over `board`, `roster`, `report`, `party`, `slots`, plus the start screen and the reckoning)
+- [x] A network-request listener asserts **zero** requests leave the origin during the whole journey (`web/e2e/journey.spec.ts`: the `page.on('request', ...)` listener and the `offOrigin` assertion)
+- [x] The suite fails, not skips, if the bundle has not been built (`web/playwright.config.ts`: throws if `dist/index.html` is missing)
 
 ### E8-S6 · Parity with the terminal · 0.5 day
 

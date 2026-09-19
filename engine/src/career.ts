@@ -28,6 +28,8 @@ import type { Career, Commission, Hero, Step } from './types.js';
 export const REASON_WORK_FINISHED = 'the work was finished';
 /** The reason a Patron's Regard moves when work was not finished. */
 export const REASON_WORK_NOT_FINISHED = 'the work was not finished';
+/** The reason a Patron's Regard moves as disappointment fades. */
+export const REASON_TIME_PASSED = 'time passed';
 
 /** Events that are worth stopping a stretch of Days for. */
 const ATTENTION: ReadonlySet<GameEvent['type']> = new Set<GameEvent['type']>([
@@ -85,6 +87,19 @@ function returnParties(draft: Career, events: GameEvent[]): void {
   }
 }
 
+/**
+ * Disappointment fades. A Patron whose Regard for the Guild has gone negative recovers
+ * one point towards zero every `config.patronRegardRecoveryEveryDays` Days, so that a
+ * Sphere is lost by failing that Patron's work rather than by arithmetic (DL-13, F6).
+ * Regard at or above zero is left alone: goodwill is earned, and E2 owns its decay.
+ */
+function recoverPatronRegard(draft: Career, events: GameEvent[]): void {
+  for (const patron of draft.patrons) {
+    if (patron.regardForGuild.value >= 0) continue;
+    changePatronRegard(draft, patron, 1, REASON_TIME_PASSED, events);
+  }
+}
+
 function payUpkeep(draft: Career, events: GameEvent[]): void {
   const amount = draft.config.upkeepBase + draft.config.upkeepPerHero * draft.guild.roster.length;
   events.push({
@@ -111,6 +126,9 @@ function stepDay(
 ): void {
   draft.day += 1;
   liftDueTraits(draft, events);
+  if (fallsDue(draft.day, draft.config.patronRegardRecoveryEveryDays)) {
+    recoverPatronRegard(draft, events);
+  }
 
   for (const party of [...draft.parties]) {
     const due = party.beatDays.filter((day) => day === draft.day).length;

@@ -14,19 +14,15 @@ hero = "highest:Guile"
 [outcomes.failure]
 narrative = "{patron}'s factor catches them at the crossroads with a second letter. The terms have altered: the same work, further to carry it, and the fee unchanged. {hero} argues the point for a quarter of an hour and is out-argued by a man who does this for a living. They take the longer road because the alternative is going home empty, and the extra days come out of the Guild's own coin."
 consequences = [
-  { kind = "score", delta = -1 },
   { kind = "coin", delta = -20 },
 ]
 
 [outcomes.success]
 narrative = "{patron}'s factor catches them at the crossroads with a second letter and a reasonable manner. {hero} reads it twice, agrees to the change, and then asks what anyone who works for {sphere} is paid for cartage this year. The answer settles it. They go the longer way and the fee rises to cover it, written on the back of the letter and signed there at the roadside."
-consequences = [
-  { kind = "score", delta = 1 },
-]
+consequences = []
 
 [outcomes.critical]
 narrative = "{patron}'s factor catches them at the crossroads and finds {hero} already holding the old letter open at the clause he was hoping nobody had read. The new terms are agreed in five minutes, on {hero}'s wording rather than his, with a line about the extra days written in at the bottom. The factor copies it out himself and does not look pleased about it."
 consequences = [
-  { kind = "score", delta = 2 },
   { kind = "coin", delta = 20 },
 ]

@@ -141,15 +141,16 @@ Every tunable is a named field with a default. The config is stored in the save.
 interface GameConfig {
   careerYears: 20; daysPerYear: 360
   boardRefreshEveryDays: 10; boardSizeMin: 4; boardSizeMax: 6
-  upkeepEveryDays: 10; upkeepPerHero: 12; upkeepBase: 2       // 4 Heroes ⇒ 50
+  upkeepEveryDays: 10; upkeepPerHero: 20; upkeepBase: 8       // 4 Heroes ⇒ 88 (DL-13)
   startingCoin: 500
-  feeMin: 80; feeMax: 200
+  feeMin: 45; feeMax: 115                                     // DL-13
   commissionSpanMin: 5; commissionSpanMax: 10
   beatsMin: 3; beatsMax: 5
   difficultyMin: 8; difficultyMax: 15
-  criticalMargin: 5
+  criticalMargin: 9                                           // DL-13
   backingMax: 3
   rivalTakesPerRefresh: 1
+  patronPassedOverAboveRegard: -3; patronRegardRecoveryEveryDays: 60   // DL-13
   startingHeroes: 4; patronCount: 5; rivalCount: 4
 }
 ```
@@ -214,20 +215,23 @@ hero = "lowest:Nerve"
 
 [outcomes.failure]
 narrative = "Something moves beyond the firelight. {hero} freezes, knife in hand, and by the time {hero.they} {hero.moves} the packs are gone."
-consequences = [{ kind = "score", delta = -1 }, { kind = "coin", delta = -15 }]
+consequences = [{ kind = "coin", delta = -15 }]
 
 [outcomes.success]
 narrative = "{hero} is awake before the others and meets the first of them at the tree line. It is short and ugly and it is enough."
-consequences = [{ kind = "score", delta = 1 }]
+consequences = []
 
 [outcomes.critical]
 narrative = "{hero} lets them come all the way in, then closes the trap. Two of the Patron's missing crates are among what they drop."
-consequences = [{ kind = "score", delta = 2 }, { kind = "patronRegard", delta = 1, reason = "recovered the lost crates" }]
+consequences = [{ kind = "patronRegard", delta = 1, reason = "recovered the lost crates" }]
 ```
 
 Narrative tokens, filled by `narrate`: `{hero}`, `{hero.they}`, `{hero.them}`, `{hero.their}`, `{hero.is}`, `{hero.has}`, `{hero.moves}` (verb agreement: they move / she moves), `{patron}`, `{sphere}`, `{guildmaster}`, `{commission}`, `{trait}` (the requiresTrait or with_trait name if any). Unknown tokens are a content validation error.
 
 ## 5. Rules
+
+**Note.** DL-09 and DL-11 record additions and clarifications made while building E1 against this
+contract; DL-13 (in progress) records balance adjustments made during E1's balance pass.
 
 **Check.** `roll = d20`, `total = roll + hero.stats[stat] + traitModifiers + party.backing`. `critical` if `total ≥ dc + config.criticalMargin`; `success` if `total ≥ dc`; else `failure`. `dc = vignette.difficulty + (commission.difficulty − 11)` clamped to 5..20, so hard Commissions make every Beat harder.
 
@@ -239,9 +243,9 @@ Narrative tokens, filled by `narrate`: `{hero}`, `{hero.they}`, `{hero.them}`, `
 
 **Slot hero.** `any` picks uniformly among the Party; `with_trait:X` picks among members holding X, else any; `highest:Stat`/`lowest:Stat` pick the extreme, ties broken by RNG.
 
-**Commission score.** Each Beat adds `+2` critical, `+1` success, `−1` failure, plus any `score` consequences. On return, `succeeded = score ≥ ceil(beatCount / 2)`. Success pays the fee, Patron Regard +1, and counts for the favourite Patron; failure pays nothing and Patron Regard −1.
+**Commission score.** Each Beat adds `+2` critical, `+1` success, `−1` failure (the engine does this; a Vignette adds a `score` consequence only for an exceptional outcome, never to repeat the per-Beat increment — DL-13). On return, `succeeded = score ≥ ceil(beatCount / 2)`. Success pays the fee, Patron Regard +1, and counts for the favourite Patron; failure pays nothing and Patron Regard −1.
 
-**Board refresh.** Unclaimed Commissions: one is taken by a random Rival (`CommissionTakenByRival`, Rival Standing +1, that Patron's Regard −1 with reason "you passed on their work") and the rest expire. The Board is refilled to a size in `[boardSizeMin, boardSizeMax]` from Patrons whose Regard is above −4, weighting Patrons with higher Regard. A Patron at −5 posts nothing.
+**Board refresh.** Unclaimed Commissions: one is taken by a random Rival (`CommissionTakenByRival`, Rival Standing +1, that Patron's Regard −1 with reason "you passed on their work", applied only while that Patron's Regard is above `patronPassedOverAboveRegard` — DL-13) and the rest expire. Negative Patron Regard recovers by +1 every `patronRegardRecoveryEveryDays` with reason "time passed" (DL-13). The Board is refilled to a size in `[boardSizeMin, boardSizeMax]` from Patrons whose Regard is above −4, weighting Patrons with higher Regard. A Patron at −5 posts nothing.
 
 **Upkeep.** `upkeepBase + upkeepPerHero × roster.length`, deducted whether anyone worked. If coin < 0 at this Upkeep and `ledger.lastUpkeepNegative` was already true, the Career ends in insolvency.
 
@@ -302,11 +306,11 @@ Later epics add to this union; they never change an existing member's shape.
 
 ## 9. Front ends
 
-**CLI.** Node, `node:readline`, no rendering dependency. Loop: show Board, Roster, coin and Upkeep timer; accept a command; call the engine; narrate; repeat. Commands: `1`–`6` pick a Commission then `a`–`l` toggle Heroes and `Enter` commits; `n` advance until attention; `s` save; `l` load; `q` quit. Output fits 80 columns.
+**CLI.** Node, `node:readline`, no rendering dependency. Loop: show Board, Roster, coin and Upkeep timer; accept a command; call the engine; narrate; repeat. Commands: `1`–`6` pick a Commission then `a`–`l` toggle Heroes and `Enter` commits; `n` advance until attention; `s` save; `l` load; `q` quit. Output fits 80 columns. Two flags (DL-12) let the CLI be driven by a test rather than a terminal: `--script <file>` reads commands from a file, one per line, instead of from stdin; `--quiet` drops the Board redraw between commands so only the narration prints. Both are the same code path as an interactive session — only where a line comes from differs.
 
 **Web.** Vite + React, no router. Three layouts by width: under 600px single column with a bottom bar (Board / Roster / Report); 600–1023px two columns; 1024px and up three panes. Saves in `localStorage`. Content bundled via `import.meta.glob('../../content/**/*.toml', { query: '?raw' })` and parsed with the pure content entry. Nothing is fetched from the network.
 
-**Narrate.** `narrateEvents(events, career, content): Paragraph[]` where `Paragraph = { kind: 'beat' | 'return' | 'board' | 'coin' | 'end' | 'note'; text: string; day: number }`. Groups a Party's Beats and its return into one report. Both front ends render the same paragraphs.
+**Narrate.** `narrateEvents(events, career, content): Paragraph[]` where `Paragraph = { kind: 'beat' | 'return' | 'board' | 'coin' | 'commit' | 'end' | 'note'; text: string; day: number; partyId?: string }` (DL-12: `commit` and `partyId` are additions to the sketch drafted here, so a Party's report can be grouped by `partyId` without reordering paragraphs out of Day order). Groups a Party's Beats and its return into one report. Both front ends render the same paragraphs.
 
 ## 10. Verification
 
@@ -317,8 +321,10 @@ Later epics add to this union; they never change an existing member's shape.
 | Content | Vitest | Every TOML file loads; every token resolves; every Commission tag set has a Vignette |
 | Narrate | Vitest | Every Vignette outcome renders with every pronoun set; no `{` survives |
 | CLI end-to-end | Vitest spawning the process | Scripted stdin plays to Retirement; save then load resumes |
+| CLI end-to-end spawn test | `cli/tests/e2e.test.ts` | Spawns the real process over `--script`/`--quiet`; a scripted Career saves, reloads and reaches Retirement or Insolvency |
 | Web unit | Vitest + Testing Library | Components render state and dispatch decisions |
-| Browser | Playwright, Chromium, three device projects | Journey to a returned Party and a saved game; no horizontal overflow; tap targets ≥ 40px; screenshots kept under `docs/verification/` |
+| Web bundle network check | `web/scripts/check-bundle.mjs` | The built bundle contains no `fetch(`, `XMLHttpRequest`, `node:*` specifier, `process.env` read or stray URL literal (CLAUDE.md invariant 9) |
+| Browser | Playwright, Chromium, three device projects | Journey to a returned Party and a saved game; no horizontal overflow; tap targets ≥ 40px; screenshots kept under `docs/verification/`. The tablet project is an 820×1180 Chromium viewport (DL-10), not the WebKit-backed `iPad Mini` device |
 | Static | `tsc --noEmit`, ESLint | Purity rules, import boundaries |
 
 The definition of done in [epics/README.md](epics/README.md) §5 applies to every epic.

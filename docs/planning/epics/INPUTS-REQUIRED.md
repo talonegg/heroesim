@@ -32,11 +32,14 @@ The first decision that shapes the feel is the **Career length** — how many in
 | --- | --- | --- | --- | --- |
 | 2.1 | **Career length in years** | How long does a playthrough feel? | 20 years | Short enough for a weekend, long enough for narrative arc. Can be 15–30. |
 | 2.2 | **Board refresh cycle** | How often do new Commissions appear? | Every 10 days | Affects rhythm and planning depth. Every 5 = frantic; every 15 = slow |
-| 2.3 | **Upkeep amount** | How much does it cost to keep the Roster between Commissions? | 50 coin per 10 days | Affects economic tension. 30 = easy, 70 = punishing |
-| 2.4 | **Commission fee distribution** | What do jobs pay? | 80–200 coin, by difficulty | Balances Upkeep pressure and coin headroom for Hall upgrades (E3) |
+| 2.3 | **Upkeep amount** | How much does it cost to keep the Roster between Commissions? | **88 coin per 10 days** for four Heroes — 8 base plus 20 per Hero — adjusted after measured play, DL-13 | Affects economic tension. At 50 income ran at five times Upkeep and insolvency was unreachable; at 88 it runs at 1.6 times and the opening year can be lost |
+| 2.4 | **Commission fee distribution** | What do jobs pay? | **45–115 coin, by difficulty** — adjusted after measured play, DL-13 | Balances Upkeep pressure and coin headroom for Hall upgrades (E3). Twenty years now ends near 30,000 coin rather than near 200,000 |
 | 2.5 | **Difficulty curve** | Do Commissions get systematically harder? | Random by Patron and Sphere | Simplest; can add difficulty scaling later if campaigns feel stale |
+| 2.5a | **Critical margin** | How far over the DC is a Check exceptional? | **DC + 9** — adjusted after measured play, DL-13 | At DC + 5 nearly half of all Beats were critical. At DC + 9 the mix is 30% failure, 45% success, 25% critical |
+| 2.5b | **Patron Regard recovery** | How long before a Patron stops holding a grudge? | **+1 towards zero every 60 days** while negative — adjusted after measured play, DL-13 | Without it three Patrons in four had fallen silent by year 20 and one Board refresh in five was empty. A Patron is still lost by failing their work |
+| 2.5c | **Passed-over dock floor** | How far can being passed over sour a Patron? | **Down to −3, and no further** — adjusted after measured play, DL-13 | A four-Hero Roster cannot take four to six postings, so the dock alone would silence every Patron in time. Only failing their own Commissions takes one below −3 |
 
-These are all **easily tunable** — they are constants in config, not baked into the engine. Set a default and change them after playing.
+These are all **easily tunable** — they are constants in config, not baked into the engine. Set a default and change them after playing. The defaults marked "adjusted after measured play" were changed by the E1 balance pass ([DL-13](../00-decision-log.md)), which measured 300 seeds × 20 years under the automatic policy; `content/tests/balance.measure.test.ts` is the harness, and it runs when `HEROESIM_BALANCE` is set.
 
 ### E1-S5: Career reckoning stats (decide by mid-S5)
 
