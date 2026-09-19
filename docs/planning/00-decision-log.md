@@ -95,3 +95,19 @@ ESLint forbids `engine` from importing any other workspace and forbids `Math.ran
 **Decision.** A `BeatResolved` event carries the Vignette id, the outcome and the resolved slot bindings (hero id, patron id, sphere id, trait name). The narrate package looks up the Vignette's template for that outcome and fills tokens such as `{hero}`, `{hero.they}`, `{patron}`, `{sphere}` and `{guildmaster}` from the world snapshot. Heroes carry pronouns so templates read correctly.
 
 **Consequences.** Engine tests never see a sentence. Rewording a Vignette changes no test.
+
+## DL-09 — E1 additions to the engine contract: Commission tags, a Party score, a bounded record of finished work, the rule and world-generation constants on `GameConfig`, and Injuries that lift
+
+**Status:** Accepted · **Date:** 2026-09-19
+
+**Context.** Building E1 against [solution architecture](03-solution-architecture.md) §2–§8 turned up five places where the contract is silent but the code cannot be. Vignette selection matches on "the Commission's tags" (§5) and the `Commission` in §3 carries none. Commission score accumulates across Beats and from `score` consequences, and `Party` in §3 has nowhere to hold it. A committed Commission leaves the Board and its Party is removed on return, so `commissionById` — and therefore `narrate`'s `{commission}` token — would have nothing to resolve. §5 states several balance numbers as literals (±1 Patron Regard, +1 Rival Standing, the −4 posting floor, the d20, the 5..20 DC clamp, the ×10 Standing scale) and world generation needs a dozen more (Stat totals, starting Regard bands, how many bonds), while CLAUDE.md invariant 8 makes a balance literal in rules code a defect. And `TraitLifted` is in the E1 event union while the rule that fires it is deferred to E3, which over twenty years leaves every Hero permanently carrying every Injury they ever took.
+
+**Decision.**
+
+1. `Commission` gains `tags: string[]`, copied from the Sphere's entry for that title. Vignette selection reads them from there.
+2. `Party` gains `score: number`, the Commission's running score, reported on `PartyReturned`.
+3. `Party` gains `commission: Commission`, the record itself, and `Career` gains `recentCommissions: Commission[]` — the last `config.recentCommissionsKept` (24) finished Commissions, newest first. `commissionById` searches the Board, then Parties, then that list. Bounded, so a save stays small.
+4. `GameConfig` gains named fields for every remaining rule constant and every world-generation number, defaulted to the values §5 and this epic state. The §3 fields keep their DL-06 defaults unchanged.
+5. An Injury whose `liftsOn` has arrived is removed at the start of the Day and reported with `TraitLifted`. Giving a Trait somebody already holds extends the span rather than duplicating it. E3 still owns the infirmary, the Hall and everything else about Injuries.
+
+**Consequences.** All five are additions: no existing field changes shape and no event member changes (ADR-0002's rule that later epics only add still holds). `narrate` can resolve `{commission}` for any Beat or return in the events of a call. Balance is tuned by editing `defaultConfig`, which the E1 contract suite's retirement-rate assertion is allowed to drive; it did not need to. Under the automatic policy the defaults as written reach Retirement on all two hundred seeds of the contract suite's fixture world, and on 188 of two hundred over the authored content, the other twelve ending in insolvency.
