@@ -15,6 +15,12 @@ import type { Career } from './types.js';
 /** The `formatVersion` this engine writes and will load. */
 export const SAVE_FORMAT_VERSION = 1;
 
+const PRONOUNS = ['she', 'he', 'they'];
+const REGARD_NATURES = ['neutral', 'bond', 'rivalry'];
+const BEAT_RESULTS = ['failure', 'success', 'critical'];
+const END_REASONS = ['retirement', 'insolvency'];
+const STAT_NAMES = ['Might', 'Craft', 'Nerve', 'Guile'];
+
 function fail(what: string): never {
   throw new SaveError(`this save cannot be loaded: ${what}`);
 }
@@ -41,6 +47,25 @@ function text(value: unknown, where: string): string {
   return value;
 }
 
+function optionalNumber(value: unknown, where: string): void {
+  if (value !== undefined) number(value, where);
+}
+
+function oneOf(value: unknown, allowed: readonly string[], where: string): void {
+  const found = text(value, where);
+  if (!allowed.includes(found)) {
+    fail(`${where} is "${found}", and the only values it may take are ${allowed.join(', ')}`);
+  }
+}
+
+function textList(value: unknown, where: string): void {
+  list(value, where).forEach((item, index) => text(item, `${where}[${index}]`));
+}
+
+function numberList(value: unknown, where: string): void {
+  list(value, where).forEach((item, index) => number(item, `${where}[${index}]`));
+}
+
 function checkRng(value: unknown): RngState {
   const words = list(value, 'rng');
   if (words.length !== 4) fail('rng does not hold four words');
@@ -60,7 +85,7 @@ function checkRegard(value: unknown, where: string): void {
   const raw = table(value, where);
   number(raw['value'], `${where}.value`);
   text(raw['reason'], `${where}.reason`);
-  text(raw['nature'], `${where}.nature`);
+  oneOf(raw['nature'], REGARD_NATURES, `${where}.nature`);
 }
 
 function checkTraits(value: unknown, where: string): void {
@@ -68,12 +93,13 @@ function checkTraits(value: unknown, where: string): void {
     const raw = table(held, `${where}[${index}]`);
     text(raw['name'], `${where}[${index}].name`);
     number(raw['since'], `${where}[${index}].since`);
+    optionalNumber(raw['liftsOn'], `${where}[${index}].liftsOn`);
   });
 }
 
 function checkStats(value: unknown, where: string): void {
   const raw = table(value, where);
-  for (const stat of ['Might', 'Craft', 'Nerve', 'Guile']) {
+  for (const stat of STAT_NAMES) {
     number(raw[stat], `${where}.${stat}`);
   }
 }
@@ -87,7 +113,7 @@ function checkHero(value: unknown, where: string): void {
   const raw = table(value, where);
   text(raw['id'], `${where}.id`);
   text(raw['name'], `${where}.name`);
-  text(raw['pronouns'], `${where}.pronouns`);
+  oneOf(raw['pronouns'], PRONOUNS, `${where}.pronouns`);
   checkStats(raw['stats'], `${where}.stats`);
   text(raw['background'], `${where}.background`);
   checkTraits(raw['traits'], `${where}.traits`);
@@ -105,7 +131,7 @@ function checkCommission(value: unknown, where: string): void {
   number(raw['difficulty'], `${where}.difficulty`);
   number(raw['spanDays'], `${where}.spanDays`);
   number(raw['beatCount'], `${where}.beatCount`);
-  list(raw['tags'], `${where}.tags`);
+  textList(raw['tags'], `${where}.tags`);
   number(raw['postedOn'], `${where}.postedOn`);
   number(raw['expiresOn'], `${where}.expiresOn`);
 }
@@ -115,14 +141,46 @@ function checkParty(value: unknown, where: string): void {
   text(raw['id'], `${where}.id`);
   text(raw['commissionId'], `${where}.commissionId`);
   checkCommission(raw['commission'], `${where}.commission`);
-  list(raw['heroIds'], `${where}.heroIds`);
+  textList(raw['heroIds'], `${where}.heroIds`);
   number(raw['backing'], `${where}.backing`);
   number(raw['departedOn'], `${where}.departedOn`);
   number(raw['returnsOn'], `${where}.returnsOn`);
-  list(raw['beatDays'], `${where}.beatDays`);
-  list(raw['beatsResolved'], `${where}.beatsResolved`);
-  list(raw['vignettesUsed'], `${where}.vignettesUsed`);
+  numberList(raw['beatDays'], `${where}.beatDays`);
+  list(raw['beatsResolved'], `${where}.beatsResolved`).forEach((result, index) =>
+    oneOf(result, BEAT_RESULTS, `${where}.beatsResolved[${index}]`),
+  );
+  textList(raw['vignettesUsed'], `${where}.vignettesUsed`);
   number(raw['score'], `${where}.score`);
+}
+
+/**
+ * The reckoning inside a finished Career. It is read straight back out by `cloneCareer`
+ * and by the front ends, so an `ended` block that is a table but not a reckoning has to
+ * be refused here rather than becoming a TypeError on the next call.
+ */
+function checkReckoning(value: unknown, where: string): void {
+  const raw = table(value, where);
+  for (const field of [
+    'years',
+    'heroesOnRoster',
+    'heroesLost',
+    'commissionsCompleted',
+    'commissionsFailed',
+    'peakCoin',
+    'finalCoin',
+    'standing',
+  ]) {
+    number(raw[field], `${where}.${field}`);
+  }
+  const stats = table(raw['guildmasterStats'], `${where}.guildmasterStats`);
+  checkStats(stats['start'], `${where}.guildmasterStats.start`);
+  checkStats(stats['end'], `${where}.guildmasterStats.end`);
+  if (raw['favouritePatron'] !== undefined) {
+    const favourite = table(raw['favouritePatron'], `${where}.favouritePatron`);
+    text(favourite['id'], `${where}.favouritePatron.id`);
+    text(favourite['name'], `${where}.favouritePatron.name`);
+    number(favourite['count'], `${where}.favouritePatron.count`);
+  }
 }
 
 function checkGuild(value: unknown): void {
@@ -130,7 +188,7 @@ function checkGuild(value: unknown): void {
   text(guild['name'], 'guild.name');
   const guildmaster = table(guild['guildmaster'], 'guild.guildmaster');
   text(guildmaster['name'], 'guild.guildmaster.name');
-  text(guildmaster['pronouns'], 'guild.guildmaster.pronouns');
+  oneOf(guildmaster['pronouns'], PRONOUNS, 'guild.guildmaster.pronouns');
   checkStats(guildmaster['stats'], 'guild.guildmaster.stats');
   checkStats(guildmaster['startingStats'], 'guild.guildmaster.startingStats');
   text(guildmaster['background'], 'guild.guildmaster.background');
@@ -143,14 +201,17 @@ function checkGuild(value: unknown): void {
     checkHero(hero, `guild.formerHeroes[${index}]`),
   );
   number(guild['coin'], 'guild.coin');
-  list(guild['hall'], 'guild.hall');
+  textList(guild['hall'], 'guild.hall');
 }
 
 function checkLedger(value: unknown): void {
   const ledger = table(value, 'ledger');
   number(ledger['commissionsCompleted'], 'ledger.commissionsCompleted');
   number(ledger['commissionsFailed'], 'ledger.commissionsFailed');
-  table(ledger['commissionsByPatron'], 'ledger.commissionsByPatron');
+  const byPatron = table(ledger['commissionsByPatron'], 'ledger.commissionsByPatron');
+  for (const [id, count] of Object.entries(byPatron)) {
+    number(count, `ledger.commissionsByPatron.${id}`);
+  }
   number(ledger['peakCoin'], 'ledger.peakCoin');
   if (typeof ledger['lastUpkeepNegative'] !== 'boolean') {
     fail('ledger.lastUpkeepNegative is missing or is not a boolean');
@@ -212,9 +273,9 @@ export function deserialiseCareer(saved: string): Career {
   );
   if (raw['ended'] !== undefined) {
     const ended = table(raw['ended'], 'ended');
-    text(ended['reason'], 'ended.reason');
+    oneOf(ended['reason'], END_REASONS, 'ended.reason');
     number(ended['onDay'], 'ended.onDay');
-    table(ended['reckoning'], 'ended.reckoning');
+    checkReckoning(ended['reckoning'], 'ended.reckoning');
   }
 
   return parsed as Career;

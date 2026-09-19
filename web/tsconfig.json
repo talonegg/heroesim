@@ -6,12 +6,13 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "vite/client"],
     "noEmit": true,
     "composite": false,
     "declaration": false,
     "declarationMap": false
   },
-  "include": ["src", "e2e"],
+  "include": ["src", "e2e", "tests", "vitest.setup.ts"],
   "references": [
     { "path": "../engine" },
     { "path": "../content" },

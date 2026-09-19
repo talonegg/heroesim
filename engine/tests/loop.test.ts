@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { advance, advanceUntilAttention, commitParty } from '../src/career.js';
+import { advance, advanceUntilAttention, availableHeroes, commitParty } from '../src/career.js';
 import type { GameConfig } from '../src/config.js';
 import { defaultConfig } from '../src/config.js';
 import type { GameEvent, GameEventType } from '../src/events.js';
@@ -51,6 +51,59 @@ describe('Beats and the Commission they belong to', () => {
       for (const beat of of(step.events, 'BeatResolved')) fired.push(beat.day);
     }
     expect(fired).toEqual([...party.beatDays].sort((one, other) => one - other));
+  });
+
+  it('runs every Beat it was given even when one of them fails', () => {
+    // Solution architecture section 5: a Beat's outcome moves the score; it never cuts
+    // the Commission short. Search for a seed whose first Beat fails, then count.
+    let proved = false;
+    for (let seed = 0; seed < 40 && !proved; seed += 1) {
+      const fixed = start(`failures-${seed}`, {
+        beatsMin: 4,
+        beatsMax: 4,
+        commissionSpanMin: 8,
+        commissionSpanMax: 8,
+      });
+      const sent = sendFirstParty(fixed);
+      const step = advance(sent.career, 8, fixtureContent);
+      const beats = of(step.events, 'BeatResolved');
+      if (!beats.some((beat) => beat.result === 'failure')) continue;
+      proved = true;
+      expect(beats).toHaveLength(4);
+      expect(beats.map((beat) => beat.beatIndex)).toEqual([1, 2, 3, 4]);
+      expect(of(step.events, 'PartyReturned')).toHaveLength(1);
+    }
+    expect(proved).toBe(true);
+  });
+
+  it('resolves exactly the Beats the Commission asked for, on every Party of a long run', () => {
+    for (let seed = 0; seed < 6; seed += 1) {
+      const asked = new Map<string, number>();
+      const got = new Map<string, number>();
+      let career = start(`beat-budget-${seed}`, { careerYears: 1, daysPerYear: 180 });
+      while (career.ended === undefined) {
+        const free = career.guild.roster.map((hero) => hero.id);
+        const away = new Set(career.parties.flatMap((party) => party.heroIds));
+        let taken = 0;
+        for (const commission of [...career.board]) {
+          const party = free.filter((id) => !away.has(id)).slice(taken, taken + 2);
+          if (party.length === 0) break;
+          career = commitParty(career, commission.id, party, fixtureContent).career;
+          const sent = career.parties.at(-1);
+          if (sent !== undefined) asked.set(sent.id, sent.commission.beatCount);
+          taken += party.length;
+        }
+        const step = advanceUntilAttention(career, fixtureContent);
+        for (const beat of of(step.events, 'BeatResolved')) {
+          got.set(beat.partyId, (got.get(beat.partyId) ?? 0) + 1);
+        }
+        for (const home of of(step.events, 'PartyReturned')) {
+          expect(got.get(home.partyId) ?? 0).toBe(asked.get(home.partyId));
+        }
+        career = step.career;
+      }
+      expect(asked.size).toBeGreaterThan(10);
+    }
   });
 
   it('numbers its Beats from one and never runs more than the Commission asks for', () => {
@@ -262,6 +315,54 @@ describe('Injuries that lift', () => {
   });
 });
 
+describe('what the events say about the world they came from', () => {
+  it('keeps every coin balance, and every Upkeep, agreeing with the Guild', () => {
+    for (let seed = 0; seed < 4; seed += 1) {
+      let career = start(`coin-${seed}`, { careerYears: 1, daysPerYear: 150 });
+      let balance = career.guild.coin;
+      while (career.ended === undefined) {
+        const free = career.guild.roster.map((hero) => hero.id);
+        const away = new Set(career.parties.flatMap((party) => party.heroIds));
+        const party = free.filter((id) => !away.has(id)).slice(0, 2);
+        const commission = career.board[0];
+        if (commission !== undefined && party.length > 0) {
+          career = commitParty(career, commission.id, party, fixtureContent).career;
+        }
+        const step = advanceUntilAttention(career, fixtureContent);
+        step.events.forEach((event, index) => {
+          if (event.type === 'CoinChanged') {
+            balance += event.delta;
+            expect(event.balance).toBe(balance);
+          }
+          if (event.type === 'UpkeepOwed') {
+            const next = step.events[index + 1];
+            expect(next?.type).toBe('CoinChanged');
+            if (next?.type === 'CoinChanged') {
+              expect(next.reason).toBe('upkeep');
+              expect(next.delta).toBe(-event.amount);
+              expect(next.balance).toBe(event.balance);
+            }
+          }
+        });
+        career = step.career;
+        expect(career.guild.coin).toBe(balance);
+      }
+    }
+  });
+
+  it('hands back Heroes the moment their Party is reported home', () => {
+    const career = start('home-again', { commissionSpanMin: 4, commissionSpanMax: 4 });
+    const sent = sendFirstParty(career);
+    const away = must(sent.career.parties[0], 'a Party').heroIds;
+    expect(availableHeroes(sent.career).map((hero) => hero.id)).not.toContain(away[0]);
+    const step = advance(sent.career, 4, fixtureContent);
+    const home = must(of(step.events, 'PartyReturned')[0], 'a returned Party');
+    const free = availableHeroes(step.career).map((hero) => hero.id);
+    for (const id of home.heroIds) expect(free).toContain(id);
+    expect(home.heroIds).toEqual(away);
+  });
+});
+
 describe('the end of a Career', () => {
   const short: Partial<GameConfig> = { careerYears: 1, daysPerYear: 10 };
 
@@ -279,6 +380,78 @@ describe('the end of a Career', () => {
     const after = advance(ended.career, 100, fixtureContent);
     expect(after.events).toEqual([]);
     expect(after.career).toEqual(ended.career);
+  });
+
+  it('answers advanceUntilAttention the same way it answers advance', () => {
+    // The contract names `CareerEnded` as a rejection for `commitParty` alone. The two
+    // advancing calls report an ended Career as an empty Step instead, and they agree.
+    const ended = advance(start('over-again', short), 50, fixtureContent).career;
+    const stepped = advance(ended, 5, fixtureContent);
+    const attended = advanceUntilAttention(ended, fixtureContent);
+    expect(stepped.events).toEqual([]);
+    expect(attended.events).toEqual([]);
+    expect(stepped.career).toEqual(ended);
+    expect(attended.career).toEqual(ended);
+    expect(() => commitParty(ended, 'anything', ['h1'], fixtureContent)).toThrow(/Career has ended/);
+  });
+
+  it('reports the end last, once, and never again', () => {
+    const run = advance(start('last-word', short), 500, fixtureContent);
+    expect(of(run.events, 'CareerEnded')).toHaveLength(1);
+    expect(run.events.at(-1)?.type).toBe('CareerEnded');
+    expect(advance(run.career, 500, fixtureContent).events).toEqual([]);
+    expect(advanceUntilAttention(run.career, fixtureContent).events).toEqual([]);
+  });
+
+  it('treats no Days, a fraction of a Day and a Day owed backwards as standing still', () => {
+    const career = start('standing-still');
+    for (const days of [0, 0.9, -1, -10_000, Number.NaN]) {
+      const step = advance(career, days, fixtureContent);
+      expect(step.events).toEqual([]);
+      expect(step.career).toEqual(career);
+      expect(step.career).not.toBe(career);
+    }
+  });
+});
+
+describe('a Guild with nobody on the Roster', () => {
+  // E1 has no Death, Departure or Retirement of a Hero, so the Roster cannot empty during
+  // play; E3 to E5 will make it reachable. The loop already survives it, and this pins it.
+  it('still advances, still owes Upkeep, and still refuses a Party', () => {
+    const alone = start('alone', { startingHeroes: 0, careerYears: 1, daysPerYear: 60 });
+    expect(alone.guild.roster).toEqual([]);
+    const step = advance(alone, 60, fixtureContent);
+    expect(step.career.ended?.reason).toBe('retirement');
+    const owed = of(step.events, 'UpkeepOwed');
+    expect(owed.length).toBeGreaterThan(0);
+    for (const event of owed) expect(event.amount).toBe(defaultConfig.upkeepBase);
+    expect(of(step.events, 'BeatResolved')).toHaveLength(0);
+    const commission = must(alone.board[0], 'a Commission on the Board');
+    expect(() => commitParty(alone, commission.id, [], fixtureContent)).toThrow(/at least one Hero/);
+    expect(() => commitParty(alone, commission.id, ['h1'], fixtureContent)).toThrow(/no Hero with id/);
+  });
+});
+
+describe('a world where nobody will post', () => {
+  it('keeps running with an empty Board rather than breaking', () => {
+    const soured = editable(start('nobody-posts', { careerYears: 1, daysPerYear: 60 }));
+    for (const patron of soured.patrons) patron.regardForGuild.value = -5;
+    const step = advance(soured, 200, fixtureContent);
+    expect(step.career.ended).toBeDefined();
+    expect(step.career.board).toEqual([]);
+    const refreshes = of(step.events, 'BoardRefreshed');
+    expect(refreshes.length).toBeGreaterThan(3);
+    for (const refresh of refreshes) expect(refresh.commissionIds).toEqual([]);
+    // Nothing can be earned from an empty Board, so coin only ever goes one way.
+    expect(step.career.guild.coin).toBeLessThan(soured.guild.coin);
+    expect(of(step.events, 'CoinChanged').every((coin) => coin.reason === 'upkeep')).toBe(true);
+  });
+
+  it('runs out of money in the end, because no work can be taken', () => {
+    const soured = editable(start('nobody-posts-ever', { careerYears: 20, daysPerYear: 360 }));
+    for (const patron of soured.patrons) patron.regardForGuild.value = -5;
+    const step = advance(soured, 20 * 360, fixtureContent);
+    expect(step.career.ended?.reason).toBe('insolvency');
   });
 });
 

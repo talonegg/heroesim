@@ -123,6 +123,76 @@ describe('a save that cannot be trusted', () => {
     }
   });
 
+  it('is refused when the reckoning is a table but not a reckoning', () => {
+    const ended = advance(
+      newCareer('half-reckoning', fixtureContent, { careerYears: 1, daysPerYear: 10 }).career,
+      30,
+      fixtureContent,
+    ).career;
+    const save = JSON.parse(serialiseCareer(ended)) as { ended: Record<string, unknown> };
+    save.ended['reckoning'] = {};
+    expect(() => deserialiseCareer(JSON.stringify(save))).toThrow(SaveError);
+    expect(() => deserialiseCareer(JSON.stringify(save))).toThrow(/ended\.reckoning\.years/);
+
+    const noStats = JSON.parse(serialiseCareer(ended)) as {
+      ended: { reckoning: Record<string, unknown> };
+    };
+    delete noStats.ended.reckoning['guildmasterStats'];
+    expect(() => deserialiseCareer(JSON.stringify(noStats))).toThrow(
+      /ended\.reckoning\.guildmasterStats/,
+    );
+
+    const badReason = JSON.parse(serialiseCareer(ended)) as { ended: Record<string, unknown> };
+    badReason.ended['reason'] = 'boredom';
+    expect(() => deserialiseCareer(JSON.stringify(badReason))).toThrow(/ended\.reason/);
+  });
+
+  it('is refused when an enumerated field carries a value the world has no meaning for', () => {
+    const cases: [RegExp, (save: Record<string, unknown>) => void][] = [
+      [
+        /pronouns/,
+        (save) => {
+          const roster = (save['guild'] as { roster: Record<string, unknown>[] }).roster;
+          const hero = roster[0];
+          if (hero !== undefined) hero['pronouns'] = 'it';
+        },
+      ],
+      [
+        /nature/,
+        (save) => {
+          const patron = (save['patrons'] as { regardForGuild: Record<string, unknown> }[])[0];
+          if (patron !== undefined) patron.regardForGuild['nature'] = 'friendly';
+        },
+      ],
+      [
+        /liftsOn/,
+        (save) => {
+          const hero = (save['guild'] as { roster: { traits: unknown[] }[] }).roster[0];
+          hero?.traits.push({ name: 'Bruised', since: 1, liftsOn: 'tomorrow' });
+        },
+      ],
+      [
+        /beatsResolved/,
+        (save) => {
+          const party = (save['parties'] as { beatsResolved: unknown[] }[])[0];
+          party?.beatsResolved.push('triumph');
+        },
+      ],
+    ];
+    const away = commitParty(
+      good,
+      good.board[0]?.id ?? '',
+      [good.guild.roster[0]?.id ?? ''],
+      fixtureContent,
+    ).career;
+    for (const [pattern, break_] of cases) {
+      const save = JSON.parse(serialiseCareer(away)) as Record<string, unknown>;
+      break_(save);
+      expect(() => deserialiseCareer(JSON.stringify(save))).toThrow(SaveError);
+      expect(() => deserialiseCareer(JSON.stringify(save))).toThrow(pattern);
+    }
+  });
+
   it('is refused when a nested field is the wrong shape', () => {
     const missingStat = JSON.parse(serialiseCareer(good)) as Record<string, unknown>;
     const guild = missingStat['guild'] as { roster: { stats: Record<string, unknown> }[] };
@@ -136,5 +206,110 @@ describe('a save that cannot be trusted', () => {
     const thinConfig = JSON.parse(serialiseCareer(good)) as Record<string, unknown>;
     delete (thinConfig['config'] as Record<string, unknown>)['upkeepPerHero'];
     expect(() => deserialiseCareer(JSON.stringify(thinConfig))).toThrow(/config.upkeepPerHero/);
+  });
+});
+
+/**
+ * A save comes from a file or from browser storage, so anything at all can be in it. The
+ * two acceptable answers are a `SaveError` at the boundary or a Career the engine can go
+ * on using — never a `TypeError` several calls later out of a half-world that was let in.
+ */
+describe('a save corrupted one field at a time', () => {
+  /** A Career carrying every optional part: a Party out, an Injury, finished work, an end. */
+  function fullyPopulated(): Career {
+    const opened = newCareer('corruption', fixtureContent, {
+      careerYears: 1,
+      daysPerYear: 60,
+      commissionSpanMin: 9,
+      commissionSpanMax: 9,
+    }).career;
+    const first = opened.board[0];
+    if (first === undefined) throw new Error('the test expected a Commission');
+    let career = commitParty(opened, first.id, [opened.guild.roster[0]?.id ?? ''], fixtureContent)
+      .career;
+    career = advance(career, 12, fixtureContent).career;
+    const next = career.board[0];
+    if (next === undefined) throw new Error('the test expected the Board to have refilled');
+    career = commitParty(career, next.id, [career.guild.roster[1]?.id ?? ''], fixtureContent).career;
+    career.guild.roster[0]?.traits.push({
+      name: 'Bruised',
+      since: career.day,
+      liftsOn: career.day + 40,
+    });
+    career.ledger.commissionsByPatron['pa1'] = 3;
+    const away = career.parties[0];
+    if (away !== undefined) {
+      // Keep the Party out past the end, so the save carries one alongside `ended`.
+      away.returnsOn = 9990;
+      away.beatDays = [9980];
+    }
+    return advance(career, 200, fixtureContent).career;
+  }
+
+  /** Every path through a JSON document, as a list of keys. */
+  function paths(
+    value: unknown,
+    at: (string | number)[] = [],
+    out: (string | number)[][] = [],
+  ): (string | number)[][] {
+    if (at.length > 0) out.push(at);
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => paths(item, [...at, index], out));
+    } else if (typeof value === 'object' && value !== null) {
+      for (const [key, item] of Object.entries(value)) paths(item, [...at, key], out);
+    }
+    return out;
+  }
+
+  function parentOf(root: unknown, path: (string | number)[]) {
+    let node = root as Record<string | number, unknown>;
+    for (const key of path.slice(0, -1)) node = node[key] as Record<string | number, unknown>;
+    return { parent: node, key: path[path.length - 1] as string | number };
+  }
+
+  it('is either refused or still usable, and never leaks a TypeError', () => {
+    const text = serialiseCareer(fullyPopulated());
+    const every = paths(JSON.parse(text));
+    expect(every.length).toBeGreaterThan(300);
+    const corruptions: [string, unknown][] = [
+      ['delete', undefined],
+      ['null', null],
+      ['a string', 'corrupt'],
+      ['a number', 12345],
+      ['an array', []],
+      ['an object', {}],
+      ['a boolean', true],
+    ];
+    const leaks: string[] = [];
+
+    for (const path of every) {
+      for (const [what, value] of corruptions) {
+        const copy: unknown = JSON.parse(text);
+        const { parent, key } = parentOf(copy, path);
+        if (what === 'delete') delete parent[key];
+        else parent[key] = value;
+
+        let loaded: Career;
+        try {
+          loaded = deserialiseCareer(JSON.stringify(copy));
+        } catch (thrown) {
+          if (!(thrown instanceof SaveError)) {
+            leaks.push(`${path.join('.')} set to ${what}: load threw ${String(thrown)}`);
+          }
+          continue;
+        }
+        try {
+          advance(loaded, 3, fixtureContent);
+          advanceUntilAttention(loaded, fixtureContent, 3);
+          serialiseCareer(loaded);
+        } catch (thrown) {
+          const name = thrown instanceof Error ? thrown.name : 'something';
+          if (name !== 'EngineError' && name !== 'ContentError' && name !== 'SaveError') {
+            leaks.push(`${path.join('.')} set to ${what}: loaded, then ${String(thrown)}`);
+          }
+        }
+      }
+    }
+    expect(leaks).toEqual([]);
   });
 });

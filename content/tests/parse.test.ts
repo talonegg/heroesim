@@ -1,9 +1,14 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { parse as parseToml } from 'smol-toml';
 import {
   advanceUntilAttention,
   availableHeroes,
-  commitParty,
+  defaultConfig,
   newCareer,
+  commitParty,
   type Career,
   type Content,
   type GameEvent,
@@ -114,6 +119,126 @@ describe('the authored content', () => {
     const declared = new Set(content.spheres.flatMap((sphere) => sphere.commissionTitles.flatMap((entry) => entry.tags)));
     for (const vignette of content.vignettes) {
       for (const tag of vignette.conditions.tags ?? []) expect(declared).toContain(tag);
+    }
+  });
+
+  it('draws every Vignette and Trait tag from the same declared set', () => {
+    const declared = new Set(
+      content.spheres.flatMap((sphere) => sphere.commissionTitles.flatMap((entry) => entry.tags)),
+    );
+    for (const vignette of content.vignettes) {
+      for (const tag of vignette.tags) {
+        expect(declared, `vignette "${vignette.id}" carries "${tag}"`).toContain(tag);
+      }
+    }
+    for (const trait of content.traits) {
+      for (const modifier of trait.modifiers) {
+        for (const tag of modifier.tags ?? []) {
+          expect(declared, `Trait "${trait.name}" matches on "${tag}"`).toContain(tag);
+        }
+      }
+    }
+  });
+
+  it('carries, on some Vignette, every tag a Trait modifier waits for', () => {
+    // A Trait modifier is matched against the Vignette's tags, never the Commission's, so
+    // a tag no Vignette carries is a modifier half that can never fire.
+    //
+    // Known gap, for the balance pass rather than for this test to hide: no Vignette
+    // carries "hunt", so the "hunt" half of Poacher's Craft modifier is dead. Its "wilds"
+    // half still fires, so the Trait is not wasted. Remove the entry when a Vignette
+    // takes the tag.
+    const knownGaps = new Set(['hunt']);
+    const onVignettes = new Set(content.vignettes.flatMap((vignette) => vignette.tags));
+    const waitedFor = new Set(
+      content.traits.flatMap((trait) => trait.modifiers.flatMap((modifier) => modifier.tags ?? [])),
+    );
+    const dead = [...waitedFor].filter((tag) => !onVignettes.has(tag)).sort();
+    expect(dead).toEqual([...knownGaps].sort());
+  });
+
+  it('never promises a Trait in prose that the Hero it names might not hold', () => {
+    // `{trait}` renders conditions.requiresTrait if there is one, otherwise the Trait the
+    // `with_trait:` slot asked for — and that slot falls back to any member of the Party
+    // when nobody holds it. Only a matching requiresTrait makes the promise true.
+    for (const vignette of content.vignettes) {
+      const usesToken = Object.values(vignette.outcomes).some((outcome) =>
+        outcome.narrative.includes('{trait}'),
+      );
+      if (!usesToken) continue;
+      const slot = vignette.slots.hero;
+      if (!slot.startsWith('with_trait:')) continue;
+      expect(vignette.conditions.requiresTrait, `vignette "${vignette.id}"`).toBe(
+        slot.slice('with_trait:'.length),
+      );
+    }
+  });
+
+  it('can always fill a Beat without relaxing the tags condition', () => {
+    // Solution architecture section 5 throws a ContentError when not even the relaxed
+    // pass finds a candidate, and says the starter set must make that unreachable. It is
+    // unreachable a step earlier than that: a Vignette with no conditions at all is a
+    // candidate for every Beat of every Commission, so the relaxed pass never runs.
+    const unconditional = content.vignettes.filter(
+      (vignette) => Object.keys(vignette.conditions).length === 0,
+    );
+    expect(unconditional.map((vignette) => vignette.id)).toEqual(['the-find']);
+
+    const beatsMax = defaultConfig.beatsMax;
+    for (const sphere of content.spheres) {
+      for (const entry of sphere.commissionTitles) {
+        for (let beat = 1; beat <= beatsMax; beat += 1) {
+          const candidates = content.vignettes.filter(({ conditions }) => {
+            if (conditions.minBeat !== undefined && beat < conditions.minBeat) return false;
+            if (conditions.maxBeat !== undefined && beat > conditions.maxBeat) return false;
+            if (conditions.spheres !== undefined && !conditions.spheres.includes(sphere.id)) {
+              return false;
+            }
+            // a Party holding no Traits at all is the worst case
+            if (conditions.requiresTrait !== undefined) return false;
+            if (
+              conditions.tags !== undefined &&
+              !conditions.tags.some((tag) => entry.tags.includes(tag))
+            ) {
+              return false;
+            }
+            return true;
+          });
+          expect(
+            candidates.length,
+            `${sphere.id} / "${entry.title}" on Beat ${beat}`,
+          ).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+});
+
+describe('the Vignette files on disk', () => {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const directory = join(here, '..', 'vignettes');
+
+  /** Every key `validateContent` reads off a Vignette table. Anything else is dropped. */
+  const READ_KEYS = new Set([
+    'id',
+    'name',
+    'stat',
+    'difficulty',
+    'weight',
+    'tags',
+    'conditions',
+    'slots',
+    'outcomes',
+  ]);
+
+  it('carries no top-level key the validator would silently drop', () => {
+    const files = readdirSync(directory).filter((name) => name.endsWith('.toml'));
+    expect(files.length).toBe(content.vignettes.length);
+    for (const file of files) {
+      const parsed = parseToml(readFileSync(join(directory, file), 'utf8')) as Record<string, unknown>;
+      for (const key of Object.keys(parsed)) {
+        expect(READ_KEYS.has(key), `${file} carries "${key}"`).toBe(true);
+      }
     }
   });
 });

@@ -48,12 +48,48 @@ describe('determinism', () => {
     expect(other.events).not.toEqual(one.events);
   });
 
+  it('tells the same story twice over five in-game years, down to the saved bytes', () => {
+    const once = play('five-years', { careerYears: 5 });
+    const twice = play('five-years', { careerYears: 5 });
+    expect(once.career.day).toBe(5 * once.career.config.daysPerYear + 1);
+    expect(once.events.length).toBeGreaterThan(2000);
+    expect(twice.events).toEqual(once.events);
+    expect(serialiseCareer(twice.career)).toBe(serialiseCareer(once.career));
+  });
+
   it('is unaffected by a save and load along the way', () => {
     const opened = newCareer('resumable', content, { careerYears: 1, daysPerYear: 120 }).career;
     const midway = advance(opened, 55, content).career;
     const straightOn = autoPlay(midway, content);
     const afterLoad = autoPlay(deserialiseCareer(serialiseCareer(midway)), content);
     expect(afterLoad).toEqual(straightOn);
+  });
+
+  it('carries the generator across a save taken with a Party halfway through its work', () => {
+    for (let seed = 0; seed < 8; seed += 1) {
+      const opened = newCareer(`mid-commission-${seed}`, content, {
+        careerYears: 1,
+        daysPerYear: 120,
+        commissionSpanMin: 9,
+        commissionSpanMax: 9,
+      }).career;
+      const commission = opened.board[0];
+      if (commission === undefined) throw new Error('the test expected a Commission');
+      const sent = commitParty(
+        opened,
+        commission.id,
+        opened.guild.roster.slice(0, 2).map((hero) => hero.id),
+        content,
+      ).career;
+      const midway = advance(sent, 4, content).career;
+      expect(midway.parties).toHaveLength(1);
+      expect(midway.parties[0]?.beatsResolved.length ?? 0).toBeGreaterThan(0);
+
+      const straightOn = advance(midway, 400, content);
+      const afterLoad = advance(deserialiseCareer(serialiseCareer(midway)), 400, content);
+      expect(afterLoad.events).toEqual(straightOn.events);
+      expect(serialiseCareer(afterLoad.career)).toBe(serialiseCareer(straightOn.career));
+    }
   });
 });
 
@@ -79,6 +115,39 @@ describe('immutability', () => {
     expect(step.career).not.toBe(frozen);
     expect(step.career.parties).toHaveLength(1);
     expect(frozen.parties).toHaveLength(0);
+  });
+
+  it('leaves a deep-frozen Career alone through every exported function', () => {
+    const snapshot = serialiseCareer(frozen);
+    const commission = frozen.board[0];
+    const heroIds = frozen.guild.roster.map((hero) => hero.id);
+    advance(frozen, 0, content);
+    advance(frozen, -5, content);
+    advance(frozen, 41, content);
+    advanceUntilAttention(frozen, content);
+    advanceUntilAttention(frozen, content, 0);
+    availableHeroes(frozen);
+    heroById(frozen, heroIds[0] ?? '');
+    commissionById(frozen, commission?.id ?? '');
+    standing(frozen);
+    deserialiseCareer(serialiseCareer(frozen));
+    commitParty(frozen, commission?.id ?? '', heroIds.slice(0, 2), content);
+    expect(serialiseCareer(frozen)).toBe(snapshot);
+  });
+
+  it('plays a whole Career from a frozen start over frozen content', () => {
+    const snapshot = serialiseCareer(frozen);
+    const played = autoPlay(frozen, content, {});
+    expect(played.ended).toBeDefined();
+    expect(serialiseCareer(frozen)).toBe(snapshot);
+  });
+
+  it('does not write through a frozen config override', () => {
+    const overrides = Object.freeze({ careerYears: 1, daysPerYear: 20 });
+    const step = newCareer('frozen-config', content, overrides);
+    expect(step.career.config.careerYears).toBe(1);
+    expect(step.career.config.daysPerYear).toBe(20);
+    expect(overrides.careerYears).toBe(1);
   });
 
   it('returns a Career that shares nothing with the one it was given', () => {

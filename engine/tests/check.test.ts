@@ -111,6 +111,25 @@ describe('Backing', () => {
     expect(backingFor(connected, fixtureContent, config)).toBe(config.backingMax + 1);
   });
 
+  it('does not yet move with the Guildmaster’s Regard for the Party (that is E2)', () => {
+    const indifferent = guildmaster({ regardFor: {} });
+    const devoted = guildmaster({
+      regardFor: {
+        h1: { value: 5, reason: 'carried them out of the weir', nature: 'bond' },
+        h2: { value: 5, reason: 'ten years of it', nature: 'bond' },
+      },
+    });
+    const despised = guildmaster({
+      regardFor: {
+        h1: { value: -5, reason: 'the business at Thurrow', nature: 'rivalry' },
+        h2: { value: -5, reason: 'the business at Thurrow', nature: 'rivalry' },
+      },
+    });
+    const baseline = backingFor(indifferent, fixtureContent, config);
+    expect(backingFor(devoted, fixtureContent, config)).toBe(baseline);
+    expect(backingFor(despised, fixtureContent, config)).toBe(baseline);
+  });
+
   it('is added to the Check', () => {
     const index = traitIndex(fixtureContent);
     const withoutBacking = resolveCheck(
