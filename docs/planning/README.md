@@ -15,7 +15,9 @@ Read in order. Each builds on the one before.
 | — | **[CONTEXT](../CONTEXT.md)** | Vocabulary, naming conventions, and the words *not* to use — binding reference |
 | — | **[Design](../design.md)** | Complete game design: loop, people, work, Rivals, Career, what we are deliberately not doing |
 | — | **[ADRs](../adr/)** | Eight architecture decisions (engine as library, events-not-prose, Traits-as-currency, Vignettes, Beats, Guildmaster-never-joins, Rivals-unsimulated, snapshots-not-replay) |
-| — | **[Implementation Plan](epics/README.md)** | **Seven epics (E1–E7), 21–31 days, vertical slices delivering playable game after each** |
+| 00 | **[Decision log](00-decision-log.md)** | Build-time decisions (DL-nn), appended before implementation; supersede, never edit |
+| 03 | **[Solution architecture](03-solution-architecture.md)** | The engine contract: packages, state shapes, content format, rules, API, events, saves, verification |
+| — | **[Implementation Plan](epics/README.md)** | **Eight epics (E1–E8), vertical slices delivering a playable game after each; E8 is the web front end (DL-01)** |
 
 ---
 
@@ -26,7 +28,7 @@ Read in order. Each builds on the one before.
 | **Story** | Guild management, not role-playing. You never control a Hero directly; you stay in the hall |
 | **Winning** | There is no high score. Retirement ends a Career well; Insolvency ends it badly. Story is the thing |
 | **Audience** | One player, single-player, local saves, no multiplayer or accounts |
-| **Build** | TypeScript on Node 22+; engine (pure library) + CLI (terminal front end). Vitest for testing |
+| **Build** | TypeScript on Node 22+; engine (pure library) + CLI (terminal front end) + web client (React, DL-01). Vitest for testing; Playwright on Chromium for browser verification (DL-04) |
 | **Tech stack** | No external services. No API keys. No hosting. Runs entirely locally |
 | **Costs** | Zero running cost forever (NFR-level requirement) |
 
@@ -84,11 +86,11 @@ These will be decided **before each epic**, not before work starts. All have sen
 
 | When | Question | Default | Where |
 | --- | --- | --- | --- |
-| Before E1 | Save format: JSON, TOML, plain text? | JSON | INPUTS-REQUIRED §1.3 |
-| Mid-E1 | Career length (years)? | 20 years | INPUTS-REQUIRED §2.1 |
-| Mid-E1 | Board refresh rate? | Every 10 days | INPUTS-REQUIRED §2.2 |
-| Mid-E1 | Upkeep amount? | 50 coin per 10 days | INPUTS-REQUIRED §2.3 |
-| Mid-E1 | Vignette authoring format? | Same as save format | INPUTS-REQUIRED §2.11 |
+| Before E1 | Save format: JSON, TOML, plain text? | JSON — decided, DL-02 | INPUTS-REQUIRED §1.3 |
+| Mid-E1 | Career length (years)? | 20 years — adopted, DL-06 | INPUTS-REQUIRED §2.1 |
+| Mid-E1 | Board refresh rate? | Every 10 days — adopted, DL-06 | INPUTS-REQUIRED §2.2 |
+| Mid-E1 | Upkeep amount? | 50 coin per 10 days — adopted, DL-06 | INPUTS-REQUIRED §2.3 |
+| Mid-E1 | Vignette authoring format? | TOML — decided, DL-03 | INPUTS-REQUIRED §2.11 |
 | Before E2 | Regard decay rate, insistence cost? | −1/30 days; −2 + risk | INPUTS-REQUIRED §3 |
 | Before E3 | Injury duration, Hall costs? | 15–30 days; 200 coin | INPUTS-REQUIRED §4 |
 | Before E4 | Applicant frequency, Standing gates? | Every 20 days; yes | INPUTS-REQUIRED §5 |
