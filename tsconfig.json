@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "engine" },
+    { "path": "content" },
+    { "path": "narrate" },
+    { "path": "cli" }
+  ]
+}

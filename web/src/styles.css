@@ -1,0 +1,745 @@
+/*
+ * The whole of the web client's styling (E8-S3). Three layouts by width, declared with
+ * media queries only — no JavaScript ever measures the viewport. System fonts, no icon
+ * set, no stylesheet from anywhere else: the page makes no network request of any kind
+ * (CLAUDE.md invariant 9).
+ */
+
+:root {
+  --bg: #f6f3ee;
+  --bg-raised: #fffdfa;
+  --bg-sunken: #ebe5db;
+  --ink: #241f1a;
+  --ink-soft: #5d554b;
+  --line: #d6cdbf;
+  --accent: #7a4e2d;
+  --accent-ink: #fffdfa;
+  --good: #2f6b3f;
+  --bad: #8c2f2f;
+  --tap: 44px;
+  --gap: 0.75rem;
+  --radius: 10px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171513;
+    --bg-raised: #221f1c;
+    --bg-sunken: #100e0d;
+    --ink: #ece5dc;
+    --ink-soft: #a89e92;
+    --line: #3b3630;
+    --accent: #d09b6a;
+    --accent-ink: #1a1613;
+    --good: #85c59a;
+    --bad: #e29a9a;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Names wrap; they are never cut off with an ellipsis (E8-S3). */
+h1,
+h2,
+h3,
+p,
+li,
+span,
+button {
+  overflow-wrap: break-word;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  cursor: pointer;
+  text-align: left;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button--primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.button--on {
+  background: var(--bg-sunken);
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+input[type='text'],
+input[type='number'] {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: var(--tap);
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+/* ── Shell ──────────────────────────────────────────────────────────────── */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--gap);
+  padding: var(--gap);
+  background: var(--bg-raised);
+  border-bottom: 1px solid var(--line);
+}
+
+.header__name {
+  font-size: 1.15rem;
+  margin: 0;
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.header__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  flex: 1 1 100%;
+}
+
+.header__facts b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.panes {
+  flex: 1 1 auto;
+  display: grid;
+  gap: var(--gap);
+  padding: var(--gap);
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+}
+
+.pane {
+  min-width: 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.pane__title {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+  background: var(--bg-raised);
+  border-top: 1px solid var(--line);
+}
+
+.bar button {
+  flex: 1 1 0;
+  text-align: center;
+  padding-inline: 0.35rem;
+}
+
+/* Under 600px: a single column, one pane at a time, the bar always reachable. */
+@media (max-width: 599px) {
+  .panes {
+    padding-bottom: calc(var(--tap) + 1.5rem + env(safe-area-inset-bottom));
+  }
+
+  .app[data-pane='board'] .pane--roster,
+  .app[data-pane='board'] .pane--report,
+  .app[data-pane='board'] .pane--word,
+  .app[data-pane='roster'] .pane--board,
+  .app[data-pane='roster'] .pane--report,
+  .app[data-pane='roster'] .pane--word,
+  .app[data-pane='report'] .pane--board,
+  .app[data-pane='report'] .pane--roster {
+    display: none;
+  }
+}
+
+/* 600–1023px: Board and Roster side by side, Report below. */
+@media (min-width: 600px) {
+  .bar {
+    display: none;
+  }
+
+  .panes {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas:
+      'board roster'
+      'report report';
+  }
+
+  .pane--board {
+    grid-area: board;
+  }
+
+  .pane--roster {
+    grid-area: roster;
+  }
+
+  .pane--report,
+  .pane--word {
+    grid-area: report;
+  }
+}
+
+/* 1024px and up: three panes, all visible at once. */
+@media (min-width: 1024px) {
+  .panes {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-areas: 'board roster report';
+  }
+}
+
+/* ── Cards ──────────────────────────────────────────────────────────────── */
+
+.cards {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg);
+  padding: 0.65rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.card__title {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.card__line {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.card__line b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* Somebody coming back is marked in words, and the words carry the whole of it — the
+   colour adds nothing a player who cannot see it would miss (E4-S4). */
+.card__flag {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+  padding: 0;
+}
+
+.stat {
+  display: flex;
+  gap: 0.3rem;
+  align-items: baseline;
+  background: var(--bg-sunken);
+  border-radius: 6px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.85rem;
+}
+
+.stat dt {
+  color: var(--ink-soft);
+  margin: 0;
+}
+
+.stat dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.chip {
+  font-size: 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.05rem 0.5rem;
+  background: var(--bg-sunken);
+}
+
+/* An Injury and a Scar carry their own words as well as their own colour — "lifts on
+   Year 3, Day 47" and "Scar" — so nothing here is told by colour alone (E3). */
+.chip--injury {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.chip--scar {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+
+.away {
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+
+.injured {
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+
+.available {
+  color: var(--good);
+  font-size: 0.85rem;
+}
+
+.empty {
+  color: var(--ink-soft);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+/* ── Report ─────────────────────────────────────────────────────────────── */
+
+.report {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  max-height: 60vh;
+  min-height: 8rem;
+  padding-right: 0.2rem;
+}
+
+@media (min-width: 1024px) {
+  .report {
+    max-height: none;
+    flex: 1 1 auto;
+  }
+}
+
+.para {
+  margin: 0;
+}
+
+.para__day {
+  display: block;
+  font-size: 0.75rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.para--beat,
+.para--return {
+  border-left: 3px solid var(--accent);
+  padding: 0.15rem 0 0.15rem 0.6rem;
+  font-size: 1rem;
+}
+
+.para--return {
+  font-weight: 600;
+}
+
+.para--word,
+.para--answer {
+  border-left: 3px solid var(--accent);
+  padding: 0.15rem 0 0.15rem 0.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.para--board,
+.para--coin,
+.para--commit,
+.para--note,
+.para--end {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  padding-left: 0.6rem;
+}
+
+.para--end {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+/* ── Overlays ───────────────────────────────────────────────────────────── */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 55%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: var(--gap);
+  z-index: 10;
+}
+
+@media (min-width: 600px) {
+  .scrim {
+    align-items: center;
+  }
+}
+
+.sheet {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  width: 100%;
+  max-width: 34rem;
+  max-height: 88vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.sheet__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.sheet__title {
+  margin: 0;
+  font-size: 1.05rem;
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.sheet__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.toggles {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.toggles button {
+  width: 100%;
+}
+
+/* Who will not go, under the Party as it is put together (E2). */
+.refusals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  min-width: 0;
+}
+
+.refusals .card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--bad);
+}
+
+/* ── Messages and the start screen ──────────────────────────────────────── */
+
+.notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.6rem var(--gap);
+  background: var(--bg-sunken);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 0.9rem;
+}
+
+.notice p {
+  margin: 0;
+  flex: 1 1 10rem;
+  min-width: 0;
+}
+
+.notice--warning {
+  color: var(--bad);
+}
+
+.start {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--gap);
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.field span {
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.lede {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.reckoning {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* One Sphere, and the Patrons whose work comes from it (E7-S3, E8-S6). The same shape as
+   `.rival` below and for the same reason: a section rather than a card, so the people
+   inside it are the cards, and it never sets a width, so it reflows at 320px. */
+.sphere {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* A list that is a list of lines rather than of cards: what one Patron has on the Board. */
+.plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* One other Guild, and everybody in their employ (E5-S2). A section rather than a card so
+   that the people inside it are the cards; it keeps its own gap and never sets a width, so
+   it reflows to a single column at 320px like everything else. */
+.rival {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* Your own row in the League. The mark that carries it is the words "your Guild" in the
+   heading; this only draws the eye to a row the text has already named (E8-S3). */
+.card--you {
+  border-color: var(--accent);
+}
+
+/* ── A Party waiting on your word (E6-S4) ───────────────────────────────── */
+
+.word {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.card--word {
+  border-color: var(--accent);
+}
+
+.card__name {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Long prompts and long labels wrap; nothing here is ever cut short with an ellipsis,
+   because the words are the whole of what is being decided (E6-S4). */
+.card--word .card__line,
+.word__option button {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.card__line--quiet {
+  font-size: 0.85rem;
+}
+
+.card__line--warning {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.word__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.word__option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.word__option button {
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap);
+  height: auto;
+  padding: 0.6rem 0.7rem;
+}
+
+/* Letting the Days run is deliberately the quiet control on this pane: it is a real thing
+   to do and not the thing being asked (DL-24 §A1). Set apart by a rule and by weight, never
+   by colour alone, and it still meets the tap target every other control here does. */
+.word__leave {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.word__leave button {
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap);
+  height: auto;
+  padding: 0.6rem 0.7rem;
+  background: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.word__leave-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}

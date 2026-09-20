@@ -1,0 +1,1629 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`a Party waiting on your word > fits every width, wrapped rather than cut > word at 40 1`] = `
+"WORD
+  Ysane of Thurrow, on The drove at
+  Wend Water before the rains.
+  A runner comes back down the road
+  with word. The guide has stopped at
+  the ford and will not go on for what
+  was agreed; he says the water is
+  higher than the price. Ysane of
+  Thurrow has kept everyone civil so
+  far and wants to know what the Guild
+  wants done.
+  1  Tell them to go on without him.
+     [their own judgement]
+  2  Send forty coin up the road and
+     settle it. (40 coin)
+  3  Bring them home. The crossing is
+     not worth it.
+      Calling them home pays 0 coin of
+      the 95 the work is worth, for 1
+      of 4 Beats done.
+  They have waited 0 Days. With no word
+  from you they act on their own
+  judgement in 5 Days. The Guild holds
+  5,000 coin."
+`;
+
+exports[`a Party waiting on your word > fits every width, wrapped rather than cut > word at 60 1`] = `
+"WAITING ON YOUR WORD
+  Ysane of Thurrow, on The drove at Wend Water before the
+  rains.
+  A runner comes back down the road with word. The guide
+  has stopped at the ford and will not go on for what was
+  agreed; he says the water is higher than the price. Ysane
+  of Thurrow has kept everyone civil so far and wants to
+  know what the Guild wants done.
+  1  Tell them to go on without him. [their own judgement]
+  2  Send forty coin up the road and settle it. (40 coin)
+  3  Bring them home. The crossing is not worth it.
+      Calling them home pays 0 coin of the 95 the work is
+      worth, for 1 of 4 Beats done.
+  They have waited 0 Days. With no word from you they act
+  on their own judgement in 5 Days. The Guild holds 5,000
+  coin."
+`;
+
+exports[`a Party waiting on your word > fits every width, wrapped rather than cut > word at 80 1`] = `
+"WAITING ON YOUR WORD
+  Ysane of Thurrow, on The drove at Wend Water before the rains.
+  A runner comes back down the road with word. The guide has stopped at the
+  ford and will not go on for what was agreed; he says the water is higher than
+  the price. Ysane of Thurrow has kept everyone civil so far and wants to know
+  what the Guild wants done.
+  1  Tell them to go on without him. [their own judgement]
+  2  Send forty coin up the road and settle it. (40 coin)
+  3  Bring them home. The crossing is not worth it.
+      Calling them home pays 0 coin of the 95 the work is worth, for 1 of 4
+      Beats done.
+  They have waited 0 Days. With no word from you they act on their own
+  judgement in 5 Days. The Guild holds 5,000 coin."
+`;
+
+exports[`a Party waiting on your word > fits every width, wrapped rather than cut > word at 120 1`] = `
+"WAITING ON YOUR WORD
+  Ysane of Thurrow, on The drove at Wend Water before the rains.
+  A runner comes back down the road with word. The guide has stopped at the ford and will not go on for what was
+  agreed; he says the water is higher than the price. Ysane of Thurrow has kept everyone civil so far and wants to know
+  what the Guild wants done.
+  1  Tell them to go on without him. [their own judgement]
+  2  Send forty coin up the road and settle it. (40 coin)
+  3  Bring them home. The crossing is not worth it.
+      Calling them home pays 0 coin of the 95 the work is worth, for 1 of 4 Beats done.
+  They have waited 0 Days. With no word from you they act on their own judgement in 5 Days. The Guild holds 5,000 coin."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > applicants at 40 1`] = `
+"APPLICANTS
+  Nobody is waiting. Let the Days run
+  and see who comes."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > former at 40 1`] = `
+"FORMER
+  Nobody has left the Guild yet."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > hall at 40 1`] = `
+"HALL
+  500 coin in hand. Each is bought once.
+
+  1  Infirmary
+     Cost 200 coin
+     every Injury given from now on
+     runs 50% as long
+     You can afford this.
+
+  2  Training yard
+     Cost 250 coin
+     +1 Backing for every Party you send
+     You can afford this.
+
+  3  Quarters
+     Cost 250 coin
+     neglect takes 2 times as long to
+     tell: 60 idle Days
+     You can afford this."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > league at 40 1`] = `
+"LEAGUE
+    The Tallow Guild
+    Standing 11, 5 on the Roster
+  > The Fenwater Guild
+    Standing 10, 4 on the Roster
+    The Sixpenny Guild
+    Standing 10, 6 on the Roster
+    The Guild of the Bone Bridge
+    Standing 8, 6 on the Roster
+    The Kestrel Guild
+    Standing 7, 5 on the Roster
+
+Standing is the mean of what your
+Patrons think of the Guild, scaled. It
+is not a score and nothing is spent on
+it: the only way to climb is to earn
+their Regard. It buys one thing — the
+calibre of the people who come to your
+door."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > patrons at 40 1`] = `
+"PATRONS
+
+  the river towns
+    The Salt Factors of Marrow Quay
+      Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board
+      just now.
+    Widow Sessil, who keeps the weir
+      Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board
+      just now.
+
+  the Low Temple
+    Mother Ilse of the Low Temple
+      Regard +1
+      Regard: came with the Guild
+      On the Board: The vigil in the
+      crypt at Ellersgate, 85 coin
+
+  the mine consortium
+    Factor Brede of Callow Drift
+      Regard +1
+      Regard: came with the Guild
+      On the Board: The old workings
+      above Callow Drift, 55 coin
+      On the Board: The shift that
+      never came up, 105 coin
+
+  the drovers' road
+    The Autumn Drove Partners
+      Regard +1
+      Regard: came with the Guild
+      On the Board: Whoever is lifting
+      beasts on the high road, 105 coin"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > rivals at 40 1`] = `
+"GUILDS
+  500 coin in hand. 4 of 12 places on
+  the Roster taken.
+
+  The Sixpenny Guild
+    Standing 10, 6 on their Roster,
+    Regard for you 0
+    Regard: nothing has passed between
+    you
+
+  1  Sawel
+     Copy-house: Ten years bent over
+     other people's ledgers in Lowford,
+     with no occasion ever to be brave.
+     Traits: Scribe, Craven
+     Age 30, Might 3, Craft 3, Nerve 2,
+     Guile 2
+     What they make of The Sixpenny
+     Guild: -2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: you can do this
+     now.
+
+  2  Thessa
+     Pit head: Born at Gaunt Adit
+     within earshot of the winding
+     gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 37, Might 2, Craft 5, Nerve 4,
+     Guile 1
+     What they make of The Sixpenny
+     Guild: -1, this is who they work
+     for
+     Transfer for 200 coin: you can do
+     this now.
+     Poach for 100 coin: they are
+     content enough where they are.
+
+  3  Hale
+     Levy years: Taken by the levy at
+     seventeen and came home with a
+     pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 25, Might 3, Craft 3, Nerve 2,
+     Guile 2
+     What they make of The Sixpenny
+     Guild: +1, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  4  Maud
+     Ferry family: Grew up on the Wend
+     Water crossings, poling a flat
+     boat before they could write their
+     own name.
+     Traits: Ferryman's daughter,
+     Sure-footed
+     Age 36, Might 3, Craft 4, Nerve 1,
+     Guile 2
+     What they make of The Sixpenny
+     Guild: +2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  5  Merrick
+     Levy years: Taken by the levy at
+     seventeen and came home with a
+     pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 34, Might 3, Craft 2, Nerve 5,
+     Guile 2
+     What they make of The Sixpenny
+     Guild: +1, this is who they work
+     for
+     Transfer for 200 coin: you can do
+     this now.
+     Poach for 100 coin: they are
+     content enough where they are.
+
+  6  Pell of Gaunt Adit
+     Pit head: Born at Gaunt Adit
+     within earshot of the winding
+     gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 28, Might 3, Craft 5, Nerve 1,
+     Guile 3
+     What they make of The Sixpenny
+     Guild: +2, this is who they work
+     for
+     Transfer for 200 coin: you can do
+     this now.
+     Poach for 100 coin: they are
+     content enough where they are.
+
+  The Kestrel Guild
+    Standing 7, 5 on their Roster,
+    Regard for you 0
+    Regard: nothing has passed between
+    you
+
+  7  Brenna Saltborn
+     Wharf family: Marrow Quay people,
+     on good terms with every bargeman
+     and none at all with the tithe
+     office.
+     Traits: Known on the water,
+     Silver-tongued
+     Age 40, Might 1, Craft 3, Nerve 3,
+     Guile 3
+     What they make of The Kestrel
+     Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  8  Wilda the Elder
+     Ferry family: Grew up on the Wend
+     Water crossings, poling a flat
+     boat before they could write their
+     own name.
+     Traits: Ferryman's daughter,
+     Sure-footed
+     Age 27, Might 2, Craft 1, Nerve 2,
+     Guile 5
+     What they make of The Kestrel
+     Guild: -1, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  9  Ailith
+     Town family: Lowford gentry of the
+     modest sort, with a cousin on
+     every table that signs anything.
+     Traits: Well-connected, Scribe
+     Age 36, Might 4, Craft 3, Nerve 1,
+     Guile 2
+     What they make of The Kestrel
+     Guild: +2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  10  Jarran of Marrow Quay
+     Fen poacher: Fed a family off
+     other people's water for nine
+     years and never once answered for
+     it.
+     Traits: Poacher, Sharp-eyed
+     Age 32, Might 2, Craft 4, Nerve 2,
+     Guile 2
+     What they make of The Kestrel
+     Guild: +2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  11  Aneth the Unlucky
+     Drover's child: Walked Cairn Pass
+     twice a year from the age of six
+     and never lost a beast to the
+     weather.
+     Traits: Sure-footed, Reckless
+     Age 24, Might 2, Craft 3, Nerve 4,
+     Guile 1
+     What they make of The Kestrel
+     Guild: -3, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: you can do this
+     now.
+
+  The Guild of the Bone Bridge
+    Standing 8, 6 on their Roster,
+    Regard for you 0
+    Regard: nothing has passed between
+    you
+
+  12  Haldor of Gaunt Adit
+     Temple ward: Left at the Low
+     Temple door as an infant and
+     brought up on plain food and long
+     silences, and on exactly what is
+     kept below the crypt floor.
+     Traits: Temple-raised, Dour,
+     Godfearing
+     Age 25, Might 3, Craft 3, Nerve 1,
+     Guile 3
+     What they make of The Guild of the
+     Bone Bridge: +1, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  13  Ysane Sootfoot
+     Fen poacher: Fed a family off
+     other people's water for nine
+     years and never once answered for
+     it.
+     Traits: Poacher, Sharp-eyed
+     Age 26, Might 1, Craft 4, Nerve 1,
+     Guile 4
+     What they make of The Guild of the
+     Bone Bridge: -3, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: you can do this
+     now.
+
+  14  Gower of Marrow Quay
+     Drover's child: Walked Cairn Pass
+     twice a year from the age of six
+     and never lost a beast to the
+     weather.
+     Traits: Sure-footed, Reckless
+     Age 35, Might 2, Craft 4, Nerve 1,
+     Guile 3
+     What they make of The Guild of the
+     Bone Bridge: 0, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  15  Haldor the Steady
+     Pit head: Born at Gaunt Adit
+     within earshot of the winding
+     gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 30, Might 4, Craft 2, Nerve 3,
+     Guile 1
+     What they make of The Guild of the
+     Bone Bridge: -3, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: you can do this
+     now.
+
+  16  Aldis of the Fen
+     Drover's child: Walked Cairn Pass
+     twice a year from the age of six
+     and never lost a beast to the
+     weather.
+     Traits: Sure-footed, Reckless
+     Age 33, Might 1, Craft 3, Nerve 2,
+     Guile 4
+     What they make of The Guild of the
+     Bone Bridge: -1, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  17  Orrin Hookarm
+     Levy years: Taken by the levy at
+     seventeen and came home with a
+     pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 32, Might 5, Craft 2, Nerve 2,
+     Guile 1
+     What they make of The Guild of the
+     Bone Bridge: 0, this is who they
+     work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  The Tallow Guild
+    Standing 11, 5 on their Roster,
+    Regard for you 0
+    Regard: nothing has passed between
+    you
+
+  18  Torrin
+     Temple ward: Left at the Low
+     Temple door as an infant and
+     brought up on plain food and long
+     silences, and on exactly what is
+     kept below the crypt floor.
+     Traits: Temple-raised, Dour,
+     Godfearing
+     Age 40, Might 1, Craft 3, Nerve 3,
+     Guile 3
+     What they make of The Tallow
+     Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  19  Wilda the Bitter
+     Came up from the deep: Held a deep
+     lease at Callow Drift for eleven
+     years, walked out of the sumps one
+     morning, and has kept above ground
+     since.
+     Traits: Never again the deep,
+     Sure-footed
+     Age 29, Might 1, Craft 4, Nerve 3,
+     Guile 2
+     What they make of The Tallow
+     Guild: +2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: they are
+     content enough where they are.
+
+  20  Colm
+     Drover's child: Walked Cairn Pass
+     twice a year from the age of six
+     and never lost a beast to the
+     weather.
+     Traits: Sure-footed, Reckless
+     Age 25, Might 3, Craft 2, Nerve 5,
+     Guile 2
+     What they make of The Tallow
+     Guild: 0, this is who they work for
+     Transfer for 200 coin: you can do
+     this now.
+     Poach for 100 coin: they are
+     content enough where they are.
+
+  21  Vane
+     Quiet river work: Moved what
+     wanted moving after dark, and
+     talked out of it more often than
+     not.
+     Traits: Smuggler, Sharp-eyed
+     Age 38, Might 3, Craft 5, Nerve 3,
+     Guile 1
+     What they make of The Tallow
+     Guild: -2, this is who they work
+     for
+     Transfer for 200 coin: you can do
+     this now.
+     Poach for 100 coin: you can do
+     this now.
+
+  22  Perrin of Ellersgate
+     Wharf family: Marrow Quay people,
+     on good terms with every bargeman
+     and none at all with the tithe
+     office.
+     Traits: Known on the water,
+     Silver-tongued
+     Age 38, Might 5, Craft 1, Nerve 2,
+     Guile 2
+     What they make of The Tallow
+     Guild: -2, this is who they work
+     for
+     Transfer for 150 coin: you can do
+     this now.
+     Poach for 75 coin: you can do this
+     now.
+"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 40 > roster at 40 1`] = `
+"ROSTER
+  4 of 12 places taken.
+
+  Bede of Thurrow
+    Age  30
+    Might/Craft/Nerve/Guile  3/2/4/2
+    available
+    Regard for you +1: came with the
+    Guild
+    Never again the deep - Went down
+    one time too many and came up owing
+    nobody another descent.
+    Sure-footed - Goes over wet stone
+    and loose scree the way other
+    people go along a street.
+
+  Garrick
+    Age  38
+    Might/Craft/Nerve/Guile  2/4/3/3
+    available
+    Regard for you -1: came with the
+    Guild
+    Well-connected - Knows somebody in
+    every hall worth knowing somebody
+    in.
+    Scribe - Kept somebody's ledgers
+    for years, and still reads a clause
+    before signing under it.
+
+  Rual Half-hand
+    Age  31
+    Might/Craft/Nerve/Guile  3/2/3/5
+    available
+    Regard for you +2: came with the
+    Guild
+    Soldier once - Carried a pike for
+    somebody else's argument, and kept
+    the habits if not the coat.
+    Hot-headed - Quick to the insult
+    and quicker to answer it, which has
+    its uses and its costs.
+
+  Varr
+    Age  35
+    Might/Craft/Nerve/Guile  2/3/2/5
+    available
+    Regard for you -1: came with the
+    Guild
+    Ferryman's daughter - Raised on the
+    water, and reads a current properly
+    before setting foot in it.
+    Sure-footed - Goes over wet stone
+    and loose scree the way other
+    people go along a street."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > applicants at 60 1`] = `
+"APPLICANTS
+  Nobody is waiting. Let the Days run and see who comes."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > former at 60 1`] = `
+"FORMER HEROES
+  Nobody has left the Guild yet."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > hall at 60 1`] = `
+"THE HALL
+  500 coin in hand. Each is bought once.
+
+  1  Infirmary
+     Cost 200 coin
+     every Injury given from now on runs 50% as long
+     You can afford this.
+
+  2  Training yard
+     Cost 250 coin
+     +1 Backing for every Party you send
+     You can afford this.
+
+  3  Quarters
+     Cost 250 coin
+     neglect takes 2 times as long to tell: 60 idle Days
+     You can afford this."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > league at 60 1`] = `
+"THE LEAGUE
+    The Tallow Guild
+    Standing 11, 5 on the Roster
+  > The Fenwater Guild
+    Standing 10, 4 on the Roster
+    The Sixpenny Guild
+    Standing 10, 6 on the Roster
+    The Guild of the Bone Bridge
+    Standing 8, 6 on the Roster
+    The Kestrel Guild
+    Standing 7, 5 on the Roster
+
+Standing is the mean of what your Patrons think of the
+Guild, scaled. It is not a score and nothing is spent on
+it: the only way to climb is to earn their Regard. It buys
+one thing — the calibre of the people who come to your door."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > patrons at 60 1`] = `
+"PATRONS
+
+  the river towns
+    The Salt Factors of Marrow Quay
+      Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+    Widow Sessil, who keeps the weir
+      Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+
+  the Low Temple
+    Mother Ilse of the Low Temple
+      Regard +1
+      Regard: came with the Guild
+      On the Board: The vigil in the crypt at Ellersgate,
+      85 coin
+
+  the mine consortium
+    Factor Brede of Callow Drift
+      Regard +1
+      Regard: came with the Guild
+      On the Board: The old workings above Callow Drift, 55
+      coin
+      On the Board: The shift that never came up, 105 coin
+
+  the drovers' road
+    The Autumn Drove Partners
+      Regard +1
+      Regard: came with the Guild
+      On the Board: Whoever is lifting beasts on the high
+      road, 105 coin"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > rivals at 60 1`] = `
+"THE OTHER GUILDS
+  500 coin in hand. 4 of 12 places on the Roster taken.
+
+  The Sixpenny Guild
+    Standing 10, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  1  Sawel
+     Copy-house: Ten years bent over other people's ledgers
+     in Lowford, with no occasion ever to be brave.
+     Traits: Scribe, Craven
+     Age 30, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: -2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  2  Thessa
+     Pit head: Born at Gaunt Adit within earshot of the
+     winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 37, Might 2, Craft 5, Nerve 4, Guile 1
+     What they make of The Sixpenny Guild: -1, this is who
+     they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they
+     are.
+
+  3  Hale
+     Levy years: Taken by the levy at seventeen and came
+     home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 25, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  4  Maud
+     Ferry family: Grew up on the Wend Water crossings,
+     poling a flat boat before they could write their own
+     name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 36, Might 3, Craft 4, Nerve 1, Guile 2
+     What they make of The Sixpenny Guild: +2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  5  Merrick
+     Levy years: Taken by the levy at seventeen and came
+     home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 34, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who
+     they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they
+     are.
+
+  6  Pell of Gaunt Adit
+     Pit head: Born at Gaunt Adit within earshot of the
+     winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 28, Might 3, Craft 5, Nerve 1, Guile 3
+     What they make of The Sixpenny Guild: +2, this is who
+     they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they
+     are.
+
+  The Kestrel Guild
+    Standing 7, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  7  Brenna Saltborn
+     Wharf family: Marrow Quay people, on good terms with
+     every bargeman and none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Kestrel Guild: 0, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  8  Wilda the Elder
+     Ferry family: Grew up on the Wend Water crossings,
+     poling a flat boat before they could write their own
+     name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 27, Might 2, Craft 1, Nerve 2, Guile 5
+     What they make of The Kestrel Guild: -1, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  9  Ailith
+     Town family: Lowford gentry of the modest sort, with a
+     cousin on every table that signs anything.
+     Traits: Well-connected, Scribe
+     Age 36, Might 4, Craft 3, Nerve 1, Guile 2
+     What they make of The Kestrel Guild: +2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  10  Jarran of Marrow Quay
+     Fen poacher: Fed a family off other people's water for
+     nine years and never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 32, Might 2, Craft 4, Nerve 2, Guile 2
+     What they make of The Kestrel Guild: +2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  11  Aneth the Unlucky
+     Drover's child: Walked Cairn Pass twice a year from
+     the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 24, Might 2, Craft 3, Nerve 4, Guile 1
+     What they make of The Kestrel Guild: -3, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  The Guild of the Bone Bridge
+    Standing 8, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  12  Haldor of Gaunt Adit
+     Temple ward: Left at the Low Temple door as an infant
+     and brought up on plain food and long silences, and on
+     exactly what is kept below the crypt floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 25, Might 3, Craft 3, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: +1,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  13  Ysane Sootfoot
+     Fen poacher: Fed a family off other people's water for
+     nine years and never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 26, Might 1, Craft 4, Nerve 1, Guile 4
+     What they make of The Guild of the Bone Bridge: -3,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  14  Gower of Marrow Quay
+     Drover's child: Walked Cairn Pass twice a year from
+     the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 35, Might 2, Craft 4, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: 0,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  15  Haldor the Steady
+     Pit head: Born at Gaunt Adit within earshot of the
+     winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 30, Might 4, Craft 2, Nerve 3, Guile 1
+     What they make of The Guild of the Bone Bridge: -3,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  16  Aldis of the Fen
+     Drover's child: Walked Cairn Pass twice a year from
+     the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 33, Might 1, Craft 3, Nerve 2, Guile 4
+     What they make of The Guild of the Bone Bridge: -1,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  17  Orrin Hookarm
+     Levy years: Taken by the levy at seventeen and came
+     home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 32, Might 5, Craft 2, Nerve 2, Guile 1
+     What they make of The Guild of the Bone Bridge: 0,
+     this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  The Tallow Guild
+    Standing 11, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  18  Torrin
+     Temple ward: Left at the Low Temple door as an infant
+     and brought up on plain food and long silences, and on
+     exactly what is kept below the crypt floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Tallow Guild: 0, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  19  Wilda the Bitter
+     Came up from the deep: Held a deep lease at Callow
+     Drift for eleven years, walked out of the sumps one
+     morning, and has kept above ground since.
+     Traits: Never again the deep, Sure-footed
+     Age 29, Might 1, Craft 4, Nerve 3, Guile 2
+     What they make of The Tallow Guild: +2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they
+     are.
+
+  20  Colm
+     Drover's child: Walked Cairn Pass twice a year from
+     the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 25, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Tallow Guild: 0, this is who
+     they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they
+     are.
+
+  21  Vane
+     Quiet river work: Moved what wanted moving after dark,
+     and talked out of it more often than not.
+     Traits: Smuggler, Sharp-eyed
+     Age 38, Might 3, Craft 5, Nerve 3, Guile 1
+     What they make of The Tallow Guild: -2, this is who
+     they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: you can do this now.
+
+  22  Perrin of Ellersgate
+     Wharf family: Marrow Quay people, on good terms with
+     every bargeman and none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 38, Might 5, Craft 1, Nerve 2, Guile 2
+     What they make of The Tallow Guild: -2, this is who
+     they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 60 > roster at 60 1`] = `
+"THE ROSTER
+  4 of 12 places taken.
+
+  Bede of Thurrow
+    Age  30
+    Might/Craft/Nerve/Guile  3/2/4/2
+    available
+    Regard for you +1: came with the Guild
+    Never again the deep - Went down one time too many and
+    came up owing nobody another descent.
+    Sure-footed - Goes over wet stone and loose scree the
+    way other people go along a street.
+
+  Garrick
+    Age  38
+    Might/Craft/Nerve/Guile  2/4/3/3
+    available
+    Regard for you -1: came with the Guild
+    Well-connected - Knows somebody in every hall worth
+    knowing somebody in.
+    Scribe - Kept somebody's ledgers for years, and still
+    reads a clause before signing under it.
+
+  Rual Half-hand
+    Age  31
+    Might/Craft/Nerve/Guile  3/2/3/5
+    available
+    Regard for you +2: came with the Guild
+    Soldier once - Carried a pike for somebody else's
+    argument, and kept the habits if not the coat.
+    Hot-headed - Quick to the insult and quicker to answer
+    it, which has its uses and its costs.
+
+  Varr
+    Age  35
+    Might/Craft/Nerve/Guile  2/3/2/5
+    available
+    Regard for you -1: came with the Guild
+    Ferryman's daughter - Raised on the water, and reads a
+    current properly before setting foot in it.
+    Sure-footed - Goes over wet stone and loose scree the
+    way other people go along a street."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > applicants at 80 1`] = `
+"APPLICANTS
+  Nobody is waiting. Let the Days run and see who comes."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > former at 80 1`] = `
+"FORMER HEROES
+  Nobody has left the Guild yet."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > hall at 80 1`] = `
+"THE HALL
+  500 coin in hand. Each is bought once.
+
+  1  Infirmary, 200 coin
+     every Injury given from now on runs 50% as long
+     You can afford this.
+
+  2  Training yard, 250 coin
+     +1 Backing for every Party you send
+     You can afford this.
+
+  3  Quarters, 250 coin
+     neglect takes 2 times as long to tell: 60 idle Days
+     You can afford this."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > league at 80 1`] = `
+"THE LEAGUE
+    The Tallow Guild                11  5 on the Roster
+  > The Fenwater Guild              10  4 on the Roster
+    The Sixpenny Guild              10  6 on the Roster
+    The Guild of the Bone Bridge     8  6 on the Roster
+    The Kestrel Guild                7  5 on the Roster
+
+Standing is the mean of what your Patrons think of the Guild, scaled. It is not
+a score and nothing is spent on it: the only way to climb is to earn their
+Regard. It buys one thing — the calibre of the people who come to your door."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > patrons at 80 1`] = `
+"PATRONS
+
+  the river towns
+    The Salt Factors of Marrow Quay, Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+    Widow Sessil, who keeps the weir, Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+
+  the Low Temple
+    Mother Ilse of the Low Temple, Regard +1
+      Regard: came with the Guild
+      On the Board: The vigil in the crypt at Ellersgate, 85 coin
+
+  the mine consortium
+    Factor Brede of Callow Drift, Regard +1
+      Regard: came with the Guild
+      On the Board: The old workings above Callow Drift, 55 coin
+      On the Board: The shift that never came up, 105 coin
+
+  the drovers' road
+    The Autumn Drove Partners, Regard +1
+      Regard: came with the Guild
+      On the Board: Whoever is lifting beasts on the high road, 105 coin"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > rivals at 80 1`] = `
+"THE OTHER GUILDS
+  500 coin in hand. 4 of 12 places on the Roster taken.
+
+  The Sixpenny Guild
+    Standing 10, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  1  Sawel
+     Copy-house: Ten years bent over other people's ledgers in Lowford, with no
+     occasion ever to be brave.
+     Traits: Scribe, Craven
+     Age 30, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: -2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  2  Thessa
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down
+     the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 37, Might 2, Craft 5, Nerve 4, Guile 1
+     What they make of The Sixpenny Guild: -1, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  3  Hale
+     Levy years: Taken by the levy at seventeen and came home with a pike and a
+     short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 25, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  4  Maud
+     Ferry family: Grew up on the Wend Water crossings, poling a flat boat
+     before they could write their own name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 36, Might 3, Craft 4, Nerve 1, Guile 2
+     What they make of The Sixpenny Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  5  Merrick
+     Levy years: Taken by the levy at seventeen and came home with a pike and a
+     short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 34, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  6  Pell of Gaunt Adit
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down
+     the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 28, Might 3, Craft 5, Nerve 1, Guile 3
+     What they make of The Sixpenny Guild: +2, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  The Kestrel Guild
+    Standing 7, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  7  Brenna Saltborn
+     Wharf family: Marrow Quay people, on good terms with every bargeman and
+     none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Kestrel Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  8  Wilda the Elder
+     Ferry family: Grew up on the Wend Water crossings, poling a flat boat
+     before they could write their own name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 27, Might 2, Craft 1, Nerve 2, Guile 5
+     What they make of The Kestrel Guild: -1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  9  Ailith
+     Town family: Lowford gentry of the modest sort, with a cousin on every
+     table that signs anything.
+     Traits: Well-connected, Scribe
+     Age 36, Might 4, Craft 3, Nerve 1, Guile 2
+     What they make of The Kestrel Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  10  Jarran of Marrow Quay
+     Fen poacher: Fed a family off other people's water for nine years and
+     never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 32, Might 2, Craft 4, Nerve 2, Guile 2
+     What they make of The Kestrel Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  11  Aneth the Unlucky
+     Drover's child: Walked Cairn Pass twice a year from the age of six and
+     never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 24, Might 2, Craft 3, Nerve 4, Guile 1
+     What they make of The Kestrel Guild: -3, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  The Guild of the Bone Bridge
+    Standing 8, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  12  Haldor of Gaunt Adit
+     Temple ward: Left at the Low Temple door as an infant and brought up on
+     plain food and long silences, and on exactly what is kept below the crypt
+     floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 25, Might 3, Craft 3, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: +1, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  13  Ysane Sootfoot
+     Fen poacher: Fed a family off other people's water for nine years and
+     never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 26, Might 1, Craft 4, Nerve 1, Guile 4
+     What they make of The Guild of the Bone Bridge: -3, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  14  Gower of Marrow Quay
+     Drover's child: Walked Cairn Pass twice a year from the age of six and
+     never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 35, Might 2, Craft 4, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: 0, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  15  Haldor the Steady
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down
+     the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 30, Might 4, Craft 2, Nerve 3, Guile 1
+     What they make of The Guild of the Bone Bridge: -3, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  16  Aldis of the Fen
+     Drover's child: Walked Cairn Pass twice a year from the age of six and
+     never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 33, Might 1, Craft 3, Nerve 2, Guile 4
+     What they make of The Guild of the Bone Bridge: -1, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  17  Orrin Hookarm
+     Levy years: Taken by the levy at seventeen and came home with a pike and a
+     short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 32, Might 5, Craft 2, Nerve 2, Guile 1
+     What they make of The Guild of the Bone Bridge: 0, this is who they work
+     for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  The Tallow Guild
+    Standing 11, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  18  Torrin
+     Temple ward: Left at the Low Temple door as an infant and brought up on
+     plain food and long silences, and on exactly what is kept below the crypt
+     floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Tallow Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  19  Wilda the Bitter
+     Came up from the deep: Held a deep lease at Callow Drift for eleven years,
+     walked out of the sumps one morning, and has kept above ground since.
+     Traits: Never again the deep, Sure-footed
+     Age 29, Might 1, Craft 4, Nerve 3, Guile 2
+     What they make of The Tallow Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  20  Colm
+     Drover's child: Walked Cairn Pass twice a year from the age of six and
+     never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 25, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Tallow Guild: 0, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  21  Vane
+     Quiet river work: Moved what wanted moving after dark, and talked out of
+     it more often than not.
+     Traits: Smuggler, Sharp-eyed
+     Age 38, Might 3, Craft 5, Nerve 3, Guile 1
+     What they make of The Tallow Guild: -2, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: you can do this now.
+
+  22  Perrin of Ellersgate
+     Wharf family: Marrow Quay people, on good terms with every bargeman and
+     none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 38, Might 5, Craft 1, Nerve 2, Guile 2
+     What they make of The Tallow Guild: -2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 80 > roster at 80 1`] = `
+"THE ROSTER
+  4 of 12 places taken.
+
+  Bede of Thurrow, 30, Might/Craft/Nerve/Guile 3/2/4/2
+    available
+    Regard for you +1: came with the Guild
+    Never again the deep - Went down one time too many and came up owing nobody
+    another descent.
+    Sure-footed - Goes over wet stone and loose scree the way other people go
+    along a street.
+
+  Garrick, 38, Might/Craft/Nerve/Guile 2/4/3/3
+    available
+    Regard for you -1: came with the Guild
+    Well-connected - Knows somebody in every hall worth knowing somebody in.
+    Scribe - Kept somebody's ledgers for years, and still reads a clause before
+    signing under it.
+
+  Rual Half-hand, 31, Might/Craft/Nerve/Guile 3/2/3/5
+    available
+    Regard for you +2: came with the Guild
+    Soldier once - Carried a pike for somebody else's argument, and kept the
+    habits if not the coat.
+    Hot-headed - Quick to the insult and quicker to answer it, which has its
+    uses and its costs.
+
+  Varr, 35, Might/Craft/Nerve/Guile 2/3/2/5
+    available
+    Regard for you -1: came with the Guild
+    Ferryman's daughter - Raised on the water, and reads a current properly
+    before setting foot in it.
+    Sure-footed - Goes over wet stone and loose scree the way other people go
+    along a street."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > applicants at 120 1`] = `
+"APPLICANTS
+  Nobody is waiting. Let the Days run and see who comes."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > former at 120 1`] = `
+"FORMER HEROES
+  Nobody has left the Guild yet."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > hall at 120 1`] = `
+"THE HALL
+  500 coin in hand. Each is bought once.
+
+  1  Infirmary, 200 coin
+     every Injury given from now on runs 50% as long
+     You can afford this.
+
+  2  Training yard, 250 coin
+     +1 Backing for every Party you send
+     You can afford this.
+
+  3  Quarters, 250 coin
+     neglect takes 2 times as long to tell: 60 idle Days
+     You can afford this."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > league at 120 1`] = `
+"THE LEAGUE
+    The Tallow Guild                11  5 on the Roster
+  > The Fenwater Guild              10  4 on the Roster
+    The Sixpenny Guild              10  6 on the Roster
+    The Guild of the Bone Bridge     8  6 on the Roster
+    The Kestrel Guild                7  5 on the Roster
+
+Standing is the mean of what your Patrons think of the Guild, scaled. It is not a score and nothing is spent on it: the
+only way to climb is to earn their Regard. It buys one thing — the calibre of the people who come to your door."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > patrons at 120 1`] = `
+"PATRONS
+
+  the river towns
+    The Salt Factors of Marrow Quay, Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+    Widow Sessil, who keeps the weir, Regard +1
+      Regard: came with the Guild
+      Nothing of theirs is on the Board just now.
+
+  the Low Temple
+    Mother Ilse of the Low Temple, Regard +1
+      Regard: came with the Guild
+      On the Board: The vigil in the crypt at Ellersgate, 85 coin
+
+  the mine consortium
+    Factor Brede of Callow Drift, Regard +1
+      Regard: came with the Guild
+      On the Board: The old workings above Callow Drift, 55 coin
+      On the Board: The shift that never came up, 105 coin
+
+  the drovers' road
+    The Autumn Drove Partners, Regard +1
+      Regard: came with the Guild
+      On the Board: Whoever is lifting beasts on the high road, 105 coin"
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > rivals at 120 1`] = `
+"THE OTHER GUILDS
+  500 coin in hand. 4 of 12 places on the Roster taken.
+
+  The Sixpenny Guild
+    Standing 10, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  1  Sawel
+     Copy-house: Ten years bent over other people's ledgers in Lowford, with no occasion ever to be brave.
+     Traits: Scribe, Craven
+     Age 30, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: -2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  2  Thessa
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 37, Might 2, Craft 5, Nerve 4, Guile 1
+     What they make of The Sixpenny Guild: -1, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  3  Hale
+     Levy years: Taken by the levy at seventeen and came home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 25, Might 3, Craft 3, Nerve 2, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  4  Maud
+     Ferry family: Grew up on the Wend Water crossings, poling a flat boat before they could write their own name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 36, Might 3, Craft 4, Nerve 1, Guile 2
+     What they make of The Sixpenny Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  5  Merrick
+     Levy years: Taken by the levy at seventeen and came home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 34, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Sixpenny Guild: +1, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  6  Pell of Gaunt Adit
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 28, Might 3, Craft 5, Nerve 1, Guile 3
+     What they make of The Sixpenny Guild: +2, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  The Kestrel Guild
+    Standing 7, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  7  Brenna Saltborn
+     Wharf family: Marrow Quay people, on good terms with every bargeman and none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Kestrel Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  8  Wilda the Elder
+     Ferry family: Grew up on the Wend Water crossings, poling a flat boat before they could write their own name.
+     Traits: Ferryman's daughter, Sure-footed
+     Age 27, Might 2, Craft 1, Nerve 2, Guile 5
+     What they make of The Kestrel Guild: -1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  9  Ailith
+     Town family: Lowford gentry of the modest sort, with a cousin on every table that signs anything.
+     Traits: Well-connected, Scribe
+     Age 36, Might 4, Craft 3, Nerve 1, Guile 2
+     What they make of The Kestrel Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  10  Jarran of Marrow Quay
+     Fen poacher: Fed a family off other people's water for nine years and never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 32, Might 2, Craft 4, Nerve 2, Guile 2
+     What they make of The Kestrel Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  11  Aneth the Unlucky
+     Drover's child: Walked Cairn Pass twice a year from the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 24, Might 2, Craft 3, Nerve 4, Guile 1
+     What they make of The Kestrel Guild: -3, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  The Guild of the Bone Bridge
+    Standing 8, 6 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  12  Haldor of Gaunt Adit
+     Temple ward: Left at the Low Temple door as an infant and brought up on plain food and long silences, and on
+     exactly what is kept below the crypt floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 25, Might 3, Craft 3, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: +1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  13  Ysane Sootfoot
+     Fen poacher: Fed a family off other people's water for nine years and never once answered for it.
+     Traits: Poacher, Sharp-eyed
+     Age 26, Might 1, Craft 4, Nerve 1, Guile 4
+     What they make of The Guild of the Bone Bridge: -3, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  14  Gower of Marrow Quay
+     Drover's child: Walked Cairn Pass twice a year from the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 35, Might 2, Craft 4, Nerve 1, Guile 3
+     What they make of The Guild of the Bone Bridge: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  15  Haldor the Steady
+     Pit head: Born at Gaunt Adit within earshot of the winding gear, and down the shaft by twelve.
+     Traits: Mine-born, Steady
+     Age 30, Might 4, Craft 2, Nerve 3, Guile 1
+     What they make of The Guild of the Bone Bridge: -3, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now.
+
+  16  Aldis of the Fen
+     Drover's child: Walked Cairn Pass twice a year from the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 33, Might 1, Craft 3, Nerve 2, Guile 4
+     What they make of The Guild of the Bone Bridge: -1, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  17  Orrin Hookarm
+     Levy years: Taken by the levy at seventeen and came home with a pike and a short way of speaking.
+     Traits: Soldier once, Hot-headed
+     Age 32, Might 5, Craft 2, Nerve 2, Guile 1
+     What they make of The Guild of the Bone Bridge: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  The Tallow Guild
+    Standing 11, 5 on their Roster, Regard for you 0
+    Regard: nothing has passed between you
+
+  18  Torrin
+     Temple ward: Left at the Low Temple door as an infant and brought up on plain food and long silences, and on
+     exactly what is kept below the crypt floor.
+     Traits: Temple-raised, Dour, Godfearing
+     Age 40, Might 1, Craft 3, Nerve 3, Guile 3
+     What they make of The Tallow Guild: 0, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  19  Wilda the Bitter
+     Came up from the deep: Held a deep lease at Callow Drift for eleven years, walked out of the sumps one morning,
+     and has kept above ground since.
+     Traits: Never again the deep, Sure-footed
+     Age 29, Might 1, Craft 4, Nerve 3, Guile 2
+     What they make of The Tallow Guild: +2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: they are content enough where they are.
+
+  20  Colm
+     Drover's child: Walked Cairn Pass twice a year from the age of six and never lost a beast to the weather.
+     Traits: Sure-footed, Reckless
+     Age 25, Might 3, Craft 2, Nerve 5, Guile 2
+     What they make of The Tallow Guild: 0, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: they are content enough where they are.
+
+  21  Vane
+     Quiet river work: Moved what wanted moving after dark, and talked out of it more often than not.
+     Traits: Smuggler, Sharp-eyed
+     Age 38, Might 3, Craft 5, Nerve 3, Guile 1
+     What they make of The Tallow Guild: -2, this is who they work for
+     Transfer for 200 coin: you can do this now.
+     Poach for 100 coin: you can do this now.
+
+  22  Perrin of Ellersgate
+     Wharf family: Marrow Quay people, on good terms with every bargeman and none at all with the tithe office.
+     Traits: Known on the water, Silver-tongued
+     Age 38, Might 5, Craft 1, Nerve 2, Guile 2
+     What they make of The Tallow Guild: -2, this is who they work for
+     Transfer for 150 coin: you can do this now.
+     Poach for 75 coin: you can do this now."
+`;
+
+exports[`every view, at 40, 60, 80 and 120 columns > is the same text as last time, at 120 > roster at 120 1`] = `
+"THE ROSTER
+  4 of 12 places taken.
+
+  Bede of Thurrow, 30, Might/Craft/Nerve/Guile 3/2/4/2
+    available
+    Regard for you +1: came with the Guild
+    Never again the deep - Went down one time too many and came up owing nobody another descent.
+    Sure-footed - Goes over wet stone and loose scree the way other people go along a street.
+
+  Garrick, 38, Might/Craft/Nerve/Guile 2/4/3/3
+    available
+    Regard for you -1: came with the Guild
+    Well-connected - Knows somebody in every hall worth knowing somebody in.
+    Scribe - Kept somebody's ledgers for years, and still reads a clause before signing under it.
+
+  Rual Half-hand, 31, Might/Craft/Nerve/Guile 3/2/3/5
+    available
+    Regard for you +2: came with the Guild
+    Soldier once - Carried a pike for somebody else's argument, and kept the habits if not the coat.
+    Hot-headed - Quick to the insult and quicker to answer it, which has its uses and its costs.
+
+  Varr, 35, Might/Craft/Nerve/Guile 2/3/2/5
+    available
+    Regard for you -1: came with the Guild
+    Ferryman's daughter - Raised on the water, and reads a current properly before setting foot in it.
+    Sure-footed - Goes over wet stone and loose scree the way other people go along a street."
+`;

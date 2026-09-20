@@ -1,0 +1,44 @@
+id = "the-guide-wants-more"
+name = "The guide wants more"
+weight = 3
+tags = ["escort", "wilds"]
+
+prompt = "A runner comes back down the road with word. The guide has stopped at the ford and will not go on for what was agreed; he says the water is higher than the price. {hero} has kept everyone civil so far and wants to know what the Guild wants done."
+
+# A hired guide who stops at a ford is a thing that happens while somebody is being taken
+# somewhere, and it is not a thing that happens underground or in a graveyard. Until
+# DL-24 §A3 this also waited on `wilds` and `water`, which between them admitted the
+# flooded lower gallery, the old workings above Callow Drift, whatever walks the old
+# burial ground and a negotiation with the hill families at Cairn — none of which has a
+# ford or a guide in it. The Sphere tags are right; the condition was loose.
+[conditions]
+min_beat = 2
+tags = ["escort"]
+
+[slots]
+hero = "highest:Guile"
+
+[[options]]
+id = "press-on"
+kind = "pressOn"
+label = "Tell them to go on without him."
+default = true
+consequences = [{ kind = "score", delta = -1 }]
+effect = { dc_delta = 1 }
+
+[[options]]
+id = "send-coin"
+kind = "sendCoin"
+label = "Send forty coin up the road and settle it."
+cost = 40
+requires = { min_coin = 40 }
+consequences = []
+effect = { backing_delta = 1 }
+
+[[options]]
+id = "turn-back"
+kind = "turnBack"
+label = "Bring them home. The crossing is not worth it."
+consequences = [
+  { kind = "patronRegard", delta = -1, reason = "came home from the ford without finishing" },
+]

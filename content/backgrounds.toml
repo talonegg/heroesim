@@ -1,0 +1,79 @@
+# Backgrounds — the Traits a Hero or Guildmaster began with, before the Guild.
+#
+# The Guildmaster and each starting Hero draw one of these. Every name in `traits`
+# must exist in traits.toml.
+#
+# Three Backgrounds — Wharf family, Old campaign and Town family — carry a Trait with
+# `backing`, which only does anything on the Guildmaster. A Hero who draws one of them
+# keeps the Trait's ordinary modifiers and nothing else; that is deliberate, so that the
+# Guildmaster draws from the same pool as everybody else.
+#
+# Two Backgrounds — Temple ward and Came up from the deep — carry a Trait with a
+# `refusal` (E2), so that a starting Roster of four holds somebody who will say no to
+# about half of the Careers dealt. Both refusals are conditional: the Hero is worth
+# having, and will simply not take one kind of work.
+
+[[backgrounds]]
+name = "Ferry family"
+summary = "Grew up on the Wend Water crossings, poling a flat boat before they could write their own name."
+traits = ["Ferryman's daughter", "Sure-footed"]
+
+[[backgrounds]]
+name = "Wharf family"
+summary = "Marrow Quay people, on good terms with every bargeman and none at all with the tithe office."
+traits = ["Known on the water", "Silver-tongued"]
+
+[[backgrounds]]
+name = "Temple ward"
+summary = "Left at the Low Temple door as an infant and brought up on plain food and long silences, and on exactly what is kept below the crypt floor."
+traits = ["Temple-raised", "Dour", "Godfearing"]
+
+[[backgrounds]]
+name = "Pit head"
+summary = "Born at Gaunt Adit within earshot of the winding gear, and down the shaft by twelve."
+traits = ["Mine-born", "Steady"]
+
+[[backgrounds]]
+name = "Levy years"
+summary = "Taken by the levy at seventeen and came home with a pike and a short way of speaking."
+traits = ["Soldier once", "Hot-headed"]
+
+[[backgrounds]]
+name = "Fen poacher"
+summary = "Fed a family off other people's water for nine years and never once answered for it."
+traits = ["Poacher", "Sharp-eyed"]
+
+[[backgrounds]]
+name = "Copy-house"
+summary = "Ten years bent over other people's ledgers in Lowford, with no occasion ever to be brave."
+traits = ["Scribe", "Craven"]
+
+[[backgrounds]]
+name = "Quiet river work"
+summary = "Moved what wanted moving after dark, and talked out of it more often than not."
+traits = ["Smuggler", "Sharp-eyed"]
+
+[[backgrounds]]
+name = "Wise of the fen"
+summary = "Sat with the dying and the birthing in half the hamlets between Ellersgate and Byre."
+traits = ["Hedge-healer", "Steady"]
+
+[[backgrounds]]
+name = "Drover's child"
+summary = "Walked Cairn Pass twice a year from the age of six and never lost a beast to the weather."
+traits = ["Sure-footed", "Reckless"]
+
+[[backgrounds]]
+name = "Old campaign"
+summary = "Came back from a long war with a name that opens doors and a list of people who owe them."
+traits = ["Old campaigner", "Soldier once"]
+
+[[backgrounds]]
+name = "Town family"
+summary = "Lowford gentry of the modest sort, with a cousin on every table that signs anything."
+traits = ["Well-connected", "Scribe"]
+
+[[backgrounds]]
+name = "Came up from the deep"
+summary = "Held a deep lease at Callow Drift for eleven years, walked out of the sumps one morning, and has kept above ground since."
+traits = ["Never again the deep", "Sure-footed"]

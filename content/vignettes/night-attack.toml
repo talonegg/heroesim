@@ -1,0 +1,28 @@
+id = "night-attack"
+name = "Night attack"
+stat = "Nerve"
+difficulty = 11
+weight = 3
+tags = ["fight", "dark"]
+
+[conditions]
+tags = ["escort", "wilds", "guard", "dark", "hunt", "water", "fight"]
+
+[slots]
+hero = "lowest:Nerve"
+
+[outcomes.failure]
+narrative = "Something crosses the firelight and does not come back into it. {hero} is awake and stays awake and does nothing at all until the shouting is finished. By morning two of the packs are gone and the ground beyond the ashes is trodden flat. Nobody says anything to {hero.them} about it, which is worse than if they had."
+consequences = [
+  { kind = "coin", delta = -15 },
+]
+
+[outcomes.success]
+narrative = "{hero} is on {hero.their} feet before the others, knife low, facing the dark where the sound came from. What comes out of it is thin and quick and frightened of light. It is short and ugly and it is finished before the fire has properly caught again. Afterwards {hero.they} {hero.moves} the packs in against the stones, and the watch is doubled for what is left of the night."
+consequences = []
+
+[outcomes.critical]
+narrative = "{hero} lets them come all the way in before doing anything, which takes a kind of nerve the others talk about for weeks. Then the fire goes up and the trap closes, and the ones who run leave what they are carrying behind them. Two crates with {patron}'s mark burned into the lid are among it. {hero} has the sense to say nothing clever about any of it."
+consequences = [
+  { kind = "patronRegard", delta = 1, reason = "the lost crates came back with the Party" },
+]

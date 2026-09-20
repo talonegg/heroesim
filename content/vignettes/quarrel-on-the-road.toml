@@ -1,0 +1,29 @@
+id = "quarrel-on-the-road"
+name = "The quarrel"
+stat = "Nerve"
+difficulty = 10
+weight = 2
+tags = ["talk"]
+
+[conditions]
+min_beat = 2
+requires_trait = "Hot-headed"
+
+[slots]
+hero = "with_trait:Hot-headed"
+
+[outcomes.failure]
+narrative = "It starts over nothing — the order of the watch, or a remark about the fire — and because {hero} is {trait}, it does not stop there. Words are said that will be remembered in the hall. The other one walks apart and sleeps apart for the rest of it, and the two of them do not speak again before the work is finished."
+consequences = [
+  { kind = "heroRegardForGuildmaster", delta = -1, reason = "nobody had thought about who would be sent out together" },
+]
+
+[outcomes.success]
+narrative = "It starts the way these things do, over the order of the watch, and {hero} has the worse of the argument on merit. Being {trait} is not the same as being wrong. Still, {hero.they} {hero.has} the sense to let it go before anyone stands up, and the fire burns down without further comment. In the morning nobody refers to it, which is how it should be."
+consequences = []
+
+[outcomes.critical]
+narrative = "{hero} sees it coming before it arrives and takes the other one off to look at the horses, which fools nobody and works anyway. Whatever is said out there is said quietly. They come back, the watch is set, and that is the end of it. Being {trait} turns out to be useful when {hero} is the one spending it deliberately."
+consequences = [
+  { kind = "heroRegardForGuildmaster", delta = 1, reason = "the quarrel was settled without anyone being made to look small" },
+]

@@ -1,0 +1,43 @@
+id = "somebody-is-flagging"
+name = "Somebody is flagging"
+weight = 2
+tags = ["escort", "wilds"]
+
+prompt = "A letter comes back written at a halt rather than at a table. The road has been longer and harder than the terms allowed for, {hero} has been carrying more than {hero.their} share of it for days, and the half of the work that is left is the worse half. Nobody out there will decide this, and they are not asking {guildmaster} to pretend otherwise."
+
+# Tagged to the work it belongs to. Until DL-24 §A3 this was the one Decision with no tag
+# condition at all, so it was eligible on every Commission in the game and fired far more
+# often than either of the others — a rate nobody chose. A long road is what wears a Party
+# down, so it waits for work that has one.
+[conditions]
+min_beat = 2
+tags = ["escort", "wilds", "hunt", "recover"]
+
+[slots]
+hero = "lowest:Might"
+
+[[options]]
+id = "press-on"
+kind = "pressOn"
+label = "Finish it. They can rest when it is done."
+default = true
+consequences = [{ kind = "score", delta = -1 }]
+effect = { dc_delta = 1 }
+
+[[options]]
+id = "send-coin"
+kind = "sendCoin"
+label = "Send sixty coin ahead for fresh beasts, a night under a roof and somebody to carry."
+cost = 60
+requires = { min_coin = 60 }
+consequences = []
+effect = { backing_delta = 1 }
+
+[[options]]
+id = "turn-back"
+kind = "turnBack"
+label = "Bring them all home. The work will keep."
+consequences = [
+  { kind = "patronRegard", delta = -1, reason = "came home with the work half done" },
+  { kind = "heroRegardForGuildmaster", delta = 1, reason = "you brought them home rather than driving them on" },
+]

@@ -1,0 +1,58 @@
+# Name pools. Hero names are built as a first name, sometimes with an epithet.
+# Patron names live in spheres.toml, because they belong to a Sphere.
+
+heroFirst = [
+  "Brenna", "Aldis", "Corran", "Maelis", "Roskil", "Ysolde", "Hale", "Thessa",
+  "Garrick", "Noll", "Edric", "Sennet", "Wyn", "Orla", "Dunn", "Kest",
+  "Halla", "Brann", "Ivo", "Marta", "Osric", "Tamsin", "Rual", "Gethin",
+  "Nerys", "Haldor", "Sibb", "Colm", "Ailith", "Fenn", "Morwen", "Drust",
+  "Elswith", "Radek", "Joss", "Petra", "Vane", "Gwenna", "Torrin", "Bede",
+  "Alric", "Senna", "Kel", "Maud", "Orrin", "Pell", "Rhia", "Sawel",
+  "Tibb", "Una", "Varr", "Wilda", "Ysane", "Aneth", "Berrick", "Cait",
+  "Dagan", "Eira", "Flin", "Gower", "Hesk", "Ilsa", "Jarran", "Kern",
+  "Lowri", "Merrick", "Nan", "Oswin", "Perrin", "Quenna",
+]
+
+heroEpithets = [
+  "of Ashfall", "the Younger", "Half-hand", "of Lowford", "the Quiet",
+  "of Marrow Quay", "the Elder", "Longshanks", "of the Fen", "Coldwater",
+  "the Dour", "Two-coats", "of Thurrow", "the Lame", "Ninefingers",
+  "of Cairn", "the Patient", "Sootfoot", "of Gaunt Adit", "the Bitter",
+  "Nightwalker", "of Ellersgate", "the Steady", "Saltborn", "of Callow Drift",
+  "the Unlucky", "Stonehand", "of Wend Water", "the Mild", "Ratcatcher",
+  "of the Low Temple", "the Wary", "Hookarm", "of Byre", "the Late", "Greyeye",
+]
+
+guildNames = [
+  "The Lowford Guild",
+  "The Ashfall Guild",
+  "The Wending Guild",
+  "The Guild of the Long Ford",
+  "The Marrow Quay Guild",
+  "The Cairn Guild",
+  "The Thurrow Guild",
+  "The Guild at Ellersgate",
+  "The Salt Road Guild",
+  "The Fenwater Guild",
+  "The Guild of the Cold Weir",
+  "The Byre Guild",
+  "The Guild at Gaunt Adit",
+  "The Drover's Rest Guild",
+]
+
+rivalNames = [
+  "The Hollow Hill Guild",
+  "The Iron Weir Guild",
+  "The Guild of Saint Mell",
+  "The Blackwater Guild",
+  "The Kestrel Guild",
+  "The Guild at Ryesend",
+  "The Sixpenny Guild",
+  "The Guild of the Broken Wheel",
+  "The Northgate Guild",
+  "The Tallow Guild",
+  "The Guild at Cold Harbour",
+  "The Red Ford Guild",
+  "The Guild of the Bone Bridge",
+  "The Winterlight Guild",
+]

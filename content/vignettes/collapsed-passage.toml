@@ -1,0 +1,30 @@
+id = "collapsed-passage"
+name = "The fall in the passage"
+stat = "Might"
+difficulty = 13
+weight = 2
+tags = ["delve", "dark"]
+
+[conditions]
+spheres = ["mine-consortium"]
+tags = ["delve", "dark", "recover", "hunt"]
+
+[slots]
+hero = "highest:Might"
+
+[outcomes.failure]
+narrative = "A section of the old drive comes down behind them without warning and takes the light with it. {hero} works at the fall for three hours and moves perhaps a foot of it, and the timber above keeps talking. They go out the long way, through water, and come up at the wrong head with nothing to show. One of the lamps is still down there, burning."
+consequences = [
+  { kind = "trait", trait = "Bruised", days = 6 },
+  { kind = "heroRegardForGuildmaster", delta = -1, reason = "they went under timber the Guild had not paid anyone to set" },
+]
+
+[outcomes.success]
+narrative = "The fall is loose rather than solid, which {hero} works out by listening to it rather than looking at it. Working from the crown down, {hero.they} {hero.moves} the top stones first and the rest comes after in a slide nobody enjoys. It takes most of the afternoon and costs the skin off both hands. The passage beyond is open and dry and leads where {patron} said it would."
+consequences = []
+
+[outcomes.critical]
+narrative = "{hero} will not let anyone near the fall until the timber is properly set, which takes an hour and is the reason they all come out again. After that it clears in four hours of steady work. Behind it they find the shift that never came up: cold, thirsty, and alive. Two of them can walk. {hero} carries the third."
+consequences = [
+  { kind = "patronRegard", delta = 1, reason = "the missing shift came up alive and everyone at the head saw it" },
+]

@@ -1,0 +1,13 @@
+{
+  "name": "@heroesim/web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/check-bundle.mjs",
+    "preview": "vite preview",
+    "e2e": "playwright test",
+    "typecheck": "tsc --noEmit"
+  }
+}

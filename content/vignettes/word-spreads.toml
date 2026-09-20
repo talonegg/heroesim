@@ -1,0 +1,30 @@
+id = "word-spreads"
+name = "Word spreads"
+stat = "Guile"
+difficulty = 10
+weight = 1
+tags = ["talk", "town"]
+
+# The last Beat of a longer Commission: the work is done and the telling of it begins.
+# No conditions.tags, so it fits any Commission that runs to three Beats or more.
+[conditions]
+min_beat = 3
+
+[slots]
+hero = "highest:Guile"
+
+[outcomes.failure]
+narrative = "The work is finished and the telling of it gets away from them on the road home. By the time {hero} is back at the inn the account going about has the Guild arriving late and leaving a mess, and {sphere} will hear that one before it hears any other. {hero} tries a correction in the taproom and makes it stick worse."
+consequences = [
+  { kind = "patronRegard", delta = -1, reason = "the account that travelled had the Guild late and careless" },
+]
+
+[outcomes.success]
+narrative = "The work is finished, and {hero} spends the last evening of it in the taproom saying little and paying for nothing showy. Word reaches {sphere} inside a week, and what reaches it is roughly what happened, which is rarer than it sounds. The Guild comes out of the telling neither larger nor smaller than it is, and that is worth having."
+consequences = []
+
+[outcomes.critical]
+narrative = "{hero} has the sense to let somebody else tell it, and picks the right somebody: a carter who talks for a living and owes {hero.them} nothing, so that none of it sounds like boasting. Inside a fortnight the telling of {commission} has reached two places nobody in the Guild has ever worked, and one of them writes to {guildmaster}."
+consequences = [
+  { kind = "patronRegard", delta = 1, reason = "the account that travelled was accurate and came from someone with no stake in it" },
+]

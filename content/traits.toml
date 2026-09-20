@@ -1,0 +1,327 @@
+# Traits — the universal currency of character (ADR-0005).
+#
+# kind is one of: background | disposition | injury | scar
+#   background   the Traits someone began with, before the Guild
+#   disposition  innate temperament
+#   injury       given by a consequence carrying `days`; lifts when the span is up
+#   scar         given by a consequence with no `days`; never lifts
+#
+# A modifier applies when the Beat's Stat matches `stat` (if given) and the Vignette's
+# tags intersect `tags` (if given). Tags come from the controlled set defined at the top
+# of spheres.toml. Every delta is within -2..+2.
+#
+# `backing` is the Guildmaster-only contribution to a Party's Backing. It does nothing
+# on a Hero. Three Traits carry it, and the Backgrounds that hold them are noted in
+# backgrounds.toml.
+#
+# `refusal` makes a Trait one that says *not this, not for them* (E2). Both fields absent
+# means it refuses every Commission; otherwise it refuses one whose tags intersect
+# `refusal.tags`, or whose difficulty has reached `refusal.minDifficulty`. Refusal is
+# data: adding a refusing Trait is an edit to this file and never to the engine. The
+# summary is what the CLI and the web client print when they explain a refusal, so it has
+# to read as a reason rather than as a label.
+
+# ── Dispositions ─────────────────────────────────────────────────────────────
+
+[[traits]]
+name = "Craven"
+kind = "disposition"
+summary = "Fear arrives early and leaves late, and everyone who has worked beside them knows it."
+modifiers = [
+  { stat = "Nerve", delta = -2 },
+]
+
+[[traits]]
+name = "Steady"
+kind = "disposition"
+summary = "Nothing much moves them, which is dull to drink with and priceless in the dark."
+modifiers = [
+  { stat = "Nerve", delta = 1 },
+]
+
+[[traits]]
+name = "Hot-headed"
+kind = "disposition"
+summary = "Quick to the insult and quicker to answer it, which has its uses and its costs."
+modifiers = [
+  { stat = "Guile", tags = ["talk"], delta = -1 },
+  { stat = "Might", tags = ["fight"], delta = 1 },
+]
+
+[[traits]]
+name = "Sharp-eyed"
+kind = "disposition"
+summary = "Sees the thing nobody else has noticed, usually a little before it matters."
+modifiers = [
+  { stat = "Craft", delta = 1 },
+  { stat = "Nerve", tags = ["dark"], delta = 1 },
+]
+
+[[traits]]
+name = "Sure-footed"
+kind = "disposition"
+summary = "Goes over wet stone and loose scree the way other people go along a street."
+modifiers = [
+  { stat = "Might", tags = ["water", "wilds"], delta = 1 },
+  { stat = "Craft", tags = ["delve"], delta = 1 },
+]
+
+[[traits]]
+name = "Silver-tongued"
+kind = "disposition"
+summary = "Can talk a toll down, a door open, or an angry man into sitting back down again."
+modifiers = [
+  { stat = "Guile", tags = ["talk"], delta = 2 },
+  { stat = "Guile", tags = ["town"], delta = 1 },
+]
+
+[[traits]]
+name = "Dour"
+kind = "disposition"
+summary = "Says little, expects less, and is unmoved by things that unsettle better company."
+modifiers = [
+  { stat = "Nerve", tags = ["dark"], delta = 1 },
+  { stat = "Guile", tags = ["talk"], delta = -1 },
+]
+
+[[traits]]
+name = "Reckless"
+kind = "disposition"
+summary = "Goes in first and thinks about it on the way, which works more often than it should."
+modifiers = [
+  { stat = "Might", tags = ["fight"], delta = 2 },
+  { stat = "Nerve", delta = -1 },
+]
+
+# ── Background-flavoured ─────────────────────────────────────────────────────
+
+[[traits]]
+name = "Ferryman's daughter"
+kind = "background"
+summary = "Raised on the water, and reads a current properly before setting foot in it."
+modifiers = [
+  { stat = "Might", tags = ["water"], delta = 1 },
+  { stat = "Craft", tags = ["water"], delta = 1 },
+]
+
+[[traits]]
+name = "Temple-raised"
+kind = "background"
+summary = "Brought up in the Low Temple's care, and still says the old words when the light goes."
+modifiers = [
+  { stat = "Nerve", tags = ["dark"], delta = 1 },
+  { stat = "Guile", tags = ["talk"], delta = 1 },
+]
+
+[[traits]]
+name = "Mine-born"
+kind = "background"
+summary = "Went down before learning to read, and is easier underground than above it."
+modifiers = [
+  { stat = "Craft", tags = ["delve"], delta = 1 },
+  { stat = "Nerve", tags = ["delve", "dark"], delta = 1 },
+]
+
+[[traits]]
+name = "Soldier once"
+kind = "background"
+summary = "Carried a pike for somebody else's argument, and kept the habits if not the coat."
+modifiers = [
+  { stat = "Might", tags = ["fight"], delta = 1 },
+  { stat = "Nerve", tags = ["guard"], delta = 1 },
+]
+
+[[traits]]
+name = "Poacher"
+kind = "background"
+summary = "Took what the fen offered without asking, and learned to be elsewhere afterwards."
+modifiers = [
+  { stat = "Craft", tags = ["wilds", "hunt"], delta = 1 },
+  { stat = "Guile", tags = ["wilds"], delta = 1 },
+]
+
+[[traits]]
+name = "Scribe"
+kind = "background"
+summary = "Kept somebody's ledgers for years, and still reads a clause before signing under it."
+modifiers = [
+  { stat = "Craft", delta = 1 },
+  { stat = "Guile", tags = ["town", "talk"], delta = 1 },
+]
+
+[[traits]]
+name = "Smuggler"
+kind = "background"
+summary = "Moved goods past people who were paid to notice, and seldom paid the toll."
+modifiers = [
+  { stat = "Guile", tags = ["water", "town"], delta = 1 },
+  { stat = "Craft", tags = ["recover"], delta = 1 },
+]
+
+[[traits]]
+name = "Hedge-healer"
+kind = "background"
+summary = "Knows which fen plants bring a fever down and which finish what it started."
+modifiers = [
+  { stat = "Craft", tags = ["recover"], delta = 1 },
+  { stat = "Nerve", tags = ["wilds"], delta = 1 },
+]
+
+# ── Injuries (given with `days`; they lift) ───────────────────────────────────
+#
+# A Vignette outcome may give one of these by name with a `days` span, and where an
+# outcome says nothing the engine draws one of them for the slot Hero of a failed Check
+# (E3). The draw is even across this section and never repeats a Trait the Hero already
+# holds, so the set is written to read as things that happen to a working person: stiff,
+# cut, cracked, feverish. Adding one here widens what harm can look like without touching
+# the engine.
+
+[[traits]]
+name = "Bruised"
+kind = "injury"
+summary = "Stiff down one side, and slower getting up than getting down."
+modifiers = [
+  { stat = "Might", delta = -1 },
+]
+
+[[traits]]
+name = "Cut hand"
+kind = "injury"
+summary = "A bad one across the palm, bound tight and no use for anything needing grip."
+modifiers = [
+  { stat = "Craft", delta = -2 },
+  { stat = "Might", delta = -1 },
+]
+
+[[traits]]
+name = "Cracked rib"
+kind = "injury"
+summary = "Every deep breath is a reminder, and laughing is out of the question."
+modifiers = [
+  { stat = "Might", delta = -2 },
+  { stat = "Nerve", delta = -1 },
+]
+
+[[traits]]
+name = "Fevered"
+kind = "injury"
+summary = "Hot, thin and unreliable, and no use to anybody until it breaks."
+modifiers = [
+  { stat = "Nerve", delta = -1 },
+  { stat = "Craft", delta = -1 },
+  { stat = "Might", delta = -1 },
+]
+
+# ── Scars (given without `days`; they never lift) ─────────────────────────────
+#
+# A badly failed Check may leave one of these, drawn evenly across every `kind = "scar"`
+# Trait in this file — which includes the two refusing ones further down, because a Hero
+# who comes back saying *never again* is exactly what a Scar is (E3). They are written as
+# things that happened to a person rather than as a list of wounds: each one changes what
+# the Hero is good at and what they will still walk into, and each is permanent. A Scar is
+# never removed; that is what makes it a Scar.
+
+[[traits]]
+name = "Limps"
+kind = "scar"
+summary = "The leg set badly and never came right, though it has not stopped them yet."
+modifiers = [
+  { stat = "Might", delta = -1 },
+  { stat = "Nerve", delta = 1 },
+]
+
+[[traits]]
+name = "One-eyed"
+kind = "scar"
+summary = "Lost the left one underground, and has learned to turn the head a great deal more."
+modifiers = [
+  { stat = "Craft", delta = -1 },
+  { stat = "Nerve", tags = ["dark"], delta = 1 },
+]
+
+[[traits]]
+name = "Haunted"
+kind = "scar"
+summary = "Came back from something and left a part of itself behind, and does not sleep well."
+modifiers = [
+  { stat = "Nerve", delta = -2 },
+  { stat = "Nerve", tags = ["dark"], delta = 1 },
+]
+
+[[traits]]
+name = "Burned"
+kind = "scar"
+summary = "Marked from jaw to collar, which closes some doors and opens a few others."
+modifiers = [
+  { stat = "Guile", tags = ["talk"], delta = -1 },
+  { stat = "Nerve", tags = ["fight"], delta = 1 },
+]
+
+# ── Refusing Traits (E2) ─────────────────────────────────────────────────────
+#
+# Two of these three reach a starting Hero through a Background — "Godfearing" through
+# Temple ward, "Never again the deep" through Came up from the deep — so refusals happen
+# in ordinary play without the Guildmaster having first earned one. "Worn" is the
+# unconditional case the rule exists for, and nothing in E2 hands it out: a Hero becomes
+# Worn, and E3 is where a Scar like it is given. Both of the Scars here are in the pool a
+# critical failure draws from, so a Hero can come back from one and refuse that kind of
+# work for good.
+
+[[traits]]
+name = "Godfearing"
+kind = "disposition"
+summary = "Will not go into the dark for money, and is not going to be argued out of it."
+modifiers = [
+  { stat = "Nerve", tags = ["wilds"], delta = 1 },
+  { stat = "Guile", tags = ["talk"], delta = 1 },
+]
+refusal = { tags = ["dark"] }
+
+[[traits]]
+name = "Never again the deep"
+kind = "scar"
+summary = "Went down one time too many and came up owing nobody another descent."
+modifiers = [
+  { stat = "Nerve", tags = ["dark"], delta = -1 },
+  { stat = "Craft", tags = ["recover"], delta = 1 },
+]
+refusal = { tags = ["delve"] }
+
+[[traits]]
+name = "Worn"
+kind = "scar"
+summary = "Has given the work everything it asked for and has nothing further to give it."
+modifiers = [
+  { stat = "Might", delta = -1 },
+  { stat = "Nerve", delta = -1 },
+]
+refusal = {}
+
+# ── Guildmaster-plausible, carrying Backing ──────────────────────────────────
+
+[[traits]]
+name = "Old campaigner"
+kind = "background"
+summary = "Twenty years of other people's wars, and still knows exactly who to write to."
+modifiers = [
+  { stat = "Nerve", tags = ["fight"], delta = 1 },
+]
+backing = 1
+
+[[traits]]
+name = "Well-connected"
+kind = "background"
+summary = "Knows somebody in every hall worth knowing somebody in."
+modifiers = [
+  { stat = "Guile", tags = ["talk"], delta = 1 },
+]
+backing = 1
+
+[[traits]]
+name = "Known on the water"
+kind = "background"
+summary = "Every ferryman between Lowford and Byre owes them a favour or a grudge."
+modifiers = [
+  { stat = "Guile", tags = ["water"], delta = 1 },
+]
+backing = 1

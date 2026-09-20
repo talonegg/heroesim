@@ -1,0 +1,110 @@
+# Spheres — the worlds a Patron's work comes from.
+#
+# CONTROLLED TAG SET. These eleven tags are the whole vocabulary. Every `tags` entry in
+# this file, every `tags` and `conditions.tags` entry in content/vignettes/*.toml, and
+# every `tags` entry on a Trait modifier in content/traits.toml is drawn from it and
+# nothing else:
+#
+#   escort   moving someone or something that cannot move itself safely
+#   wilds    open country, away from any walls
+#   town     streets, tables, offices, people who write things down
+#   talk     the work turns on what is said
+#   fight    the work turns on force
+#   delve    underground, in workings or crypts
+#   dark     without light, or at night
+#   water    river, ford, weir, flood
+#   guard    standing over something so that nothing happens to it
+#   recover  fetching back what is lost, or bringing someone in
+#   hunt     finding a thing that does not want to be found
+#
+# `difficulty` is the Commission's base DC, 8-15, and shifts every Beat's DC by
+# (difficulty - 11). Sphere names are lowercase noun phrases because they are dropped
+# into narrative prose through the {sphere} token.
+
+[[spheres]]
+id = "river-towns"
+name = "the river towns"
+patronNames = [
+  "The Wending Ferrymen",
+  "Reeve Halloran of Lowford",
+  "The Salt Factors of Marrow Quay",
+  "Widow Sessil, who keeps the weir",
+  "The Bargemen of Wend Water",
+  "Alderman Prees of Byre",
+  "The Tithe Office at Lowford",
+]
+commissionTitles = [
+  { title = "The tithe barge down to Lowford", difficulty = 9, tags = ["escort", "water"] },
+  { title = "The night watch at Marrow Quay", difficulty = 8, tags = ["guard", "town"] },
+  { title = "The ferryman's strongbox in the shallows", difficulty = 11, tags = ["recover", "water"] },
+  { title = "The salt factor's walk along the towpath", difficulty = 10, tags = ["escort", "talk"] },
+  { title = "Whatever has fouled the Lowford weir", difficulty = 13, tags = ["water", "wilds"] },
+  { title = "The quarrel over the Lowford crossing", difficulty = 12, tags = ["talk", "town"] },
+  { title = "The thing taking dogs off the bank", difficulty = 14, tags = ["hunt", "wilds", "water"] },
+]
+
+[[spheres]]
+id = "low-temple"
+name = "the Low Temple"
+patronNames = [
+  "Mother Ilse of the Low Temple",
+  "The Almonry at Ellersgate",
+  "Brother Cadoc, keeper of the crypt",
+  "The Sisters of the Fen Chapels",
+  "Canon Verrick",
+  "The Vigil of Saint Mell",
+  "Dame Orlaith, who pays the winter dole",
+]
+commissionTitles = [
+  { title = "The almoner's road to the fen chapels", difficulty = 9, tags = ["escort", "talk"] },
+  { title = "The vigil in the crypt at Ellersgate", difficulty = 12, tags = ["dark", "guard"] },
+  { title = "The relic promised to the Low Temple", difficulty = 13, tags = ["recover", "delve", "dark"] },
+  { title = "The winter dole for the fen hamlets", difficulty = 8, tags = ["escort", "wilds"] },
+  { title = "The temple's case at the Lowford assize", difficulty = 11, tags = ["talk", "town"] },
+  { title = "Whatever walks the old burial ground", difficulty = 15, tags = ["fight", "dark", "wilds"] },
+  { title = "The hedge-healer who will not come in", difficulty = 10, tags = ["recover", "wilds", "water"] },
+]
+
+[[spheres]]
+id = "mine-consortium"
+name = "the mine consortium"
+patronNames = [
+  "The Gaunt Adit Consortium",
+  "Factor Brede of Callow Drift",
+  "The Hewers' Table at Gaunt Adit",
+  "Overseer Nance",
+  "The Winding House Partners",
+  "Old Tolley, who holds the deep leases",
+  "The Consortium's Pay Office",
+]
+commissionTitles = [
+  { title = "The flooded lower gallery", difficulty = 13, tags = ["delve", "water", "dark"] },
+  { title = "The pay chest up to Gaunt Adit", difficulty = 10, tags = ["escort", "guard"] },
+  { title = "The shift that never came up", difficulty = 14, tags = ["delve", "dark", "recover"] },
+  { title = "The winding house and the hill men", difficulty = 12, tags = ["fight", "guard"] },
+  { title = "The old workings above Callow Drift", difficulty = 9, tags = ["delve", "wilds"] },
+  { title = "The new terms for the hewers at Gaunt Adit", difficulty = 8, tags = ["talk", "town"] },
+  { title = "Whatever is spoiling the sumps", difficulty = 15, tags = ["hunt", "delve", "dark"] },
+]
+
+[[spheres]]
+id = "drovers-road"
+name = "the drovers' road"
+patronNames = [
+  "The Drovers of Cairn Pass",
+  "Tollkeeper Amery at Thurrow",
+  "The Hill Families of Cairn",
+  "Goodwife Merrin of Ashfall steading",
+  "The Autumn Drove Partners",
+  "Bailiff Skene of Thurrow",
+  "The Byre Cattle Fair",
+]
+commissionTitles = [
+  { title = "The autumn drove over Cairn Pass", difficulty = 11, tags = ["escort", "wilds"] },
+  { title = "The toll house at Thurrow", difficulty = 9, tags = ["guard", "town"] },
+  { title = "The drover who never reached Thurrow", difficulty = 12, tags = ["recover", "wilds", "hunt"] },
+  { title = "Terms with the hill families at Cairn", difficulty = 10, tags = ["talk", "wilds"] },
+  { title = "Whoever is lifting beasts on the high road", difficulty = 14, tags = ["fight", "hunt", "wilds"] },
+  { title = "The drove at Wend Water before the rains", difficulty = 13, tags = ["water", "escort"] },
+  { title = "The sick beasts at Ashfall steading", difficulty = 8, tags = ["recover", "town"] },
+]
