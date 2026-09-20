@@ -4,10 +4,23 @@
  * reads a narrative (ADR-0008).
  */
 
-import type { Content, Vignette } from './content.js';
+import type { Content, HeroSlotRule, Vignette, VignetteConditions } from './content.js';
 import { ContentError, EngineError } from './errors.js';
 import type { Rng } from './rng.js';
 import type { Hero, Stat } from './types.js';
+
+/**
+ * The part of an authored thing that selection reads. A Vignette and a Decision carry
+ * exactly the same conditions, weight and Hero slot, so one predicate, one weighted pick
+ * and one slot filler serve both (E6-S1) — shared rather than copied, which is what keeps
+ * the two from drifting apart.
+ */
+export interface Selectable {
+  id: string;
+  weight: number;
+  conditions: VignetteConditions;
+  slots: { hero: HeroSlotRule };
+}
 
 /** Everything the selection rule looks at. */
 export interface VignetteContext {
@@ -27,8 +40,13 @@ function partyHolds(heroes: readonly Hero[], trait: string): boolean {
   return heroes.some((hero) => hero.traits.some((held) => held.name === trait));
 }
 
-function conditionsHold(vignette: Vignette, context: VignetteContext, ignoreTags: boolean): boolean {
-  const { conditions } = vignette;
+/** Whether every condition an authored thing carries holds for this Beat. */
+export function conditionsHold(
+  candidate: Selectable,
+  context: VignetteContext,
+  ignoreTags: boolean,
+): boolean {
+  const { conditions } = candidate;
   if (conditions.minBeat !== undefined && context.beatIndex < conditions.minBeat) return false;
   if (conditions.maxBeat !== undefined && context.beatIndex > conditions.maxBeat) return false;
   if (conditions.spheres !== undefined && !conditions.spheres.includes(context.sphereId)) return false;
@@ -45,12 +63,13 @@ function conditionsHold(vignette: Vignette, context: VignetteContext, ignoreTags
   return true;
 }
 
-function pickByWeight(candidates: readonly Vignette[], rng: Rng): Vignette {
-  const total = candidates.reduce((sum, vignette) => sum + vignette.weight, 0);
+/** One of the candidates, by weight. Exactly one draw, whatever the list holds. */
+export function pickByWeight<T extends { weight: number }>(candidates: readonly T[], rng: Rng): T {
+  const total = candidates.reduce((sum, candidate) => sum + candidate.weight, 0);
   let target = rng.float() * total;
-  for (const vignette of candidates) {
-    target -= vignette.weight;
-    if (target < 0) return vignette;
+  for (const candidate of candidates) {
+    target -= candidate.weight;
+    if (target < 0) return candidate;
   }
   const last = candidates[candidates.length - 1];
   if (last === undefined) {
@@ -104,8 +123,10 @@ function extremeBy(heroes: readonly Hero[], stat: Stat, highest: boolean, rng: R
 /**
  * Fill the Hero slot. `any` picks uniformly; `with_trait:X` picks among those holding X
  * and falls back to anyone; `highest:`/`lowest:` pick the extreme, ties broken by the RNG.
+ *
+ * A Decision's slot is filled by this same function, from the same shape (E6-S1).
  */
-export function fillHeroSlot(vignette: Vignette, heroes: readonly Hero[], rng: Rng): SlotFill {
+export function fillHeroSlot(vignette: Selectable, heroes: readonly Hero[], rng: Rng): SlotFill {
   if (heroes.length === 0) {
     throw new EngineError('InternalError', 'a Beat fired for a Party with no Heroes in it');
   }

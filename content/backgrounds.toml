@@ -7,6 +7,11 @@
 # `backing`, which only does anything on the Guildmaster. A Hero who draws one of them
 # keeps the Trait's ordinary modifiers and nothing else; that is deliberate, so that the
 # Guildmaster draws from the same pool as everybody else.
+#
+# Two Backgrounds — Temple ward and Came up from the deep — carry a Trait with a
+# `refusal` (E2), so that a starting Roster of four holds somebody who will say no to
+# about half of the Careers dealt. Both refusals are conditional: the Hero is worth
+# having, and will simply not take one kind of work.
 
 [[backgrounds]]
 name = "Ferry family"
@@ -20,8 +25,8 @@ traits = ["Known on the water", "Silver-tongued"]
 
 [[backgrounds]]
 name = "Temple ward"
-summary = "Left at the Low Temple door as an infant and brought up on plain food and long silences."
-traits = ["Temple-raised", "Dour"]
+summary = "Left at the Low Temple door as an infant and brought up on plain food and long silences, and on exactly what is kept below the crypt floor."
+traits = ["Temple-raised", "Dour", "Godfearing"]
 
 [[backgrounds]]
 name = "Pit head"
@@ -67,3 +72,8 @@ traits = ["Old campaigner", "Soldier once"]
 name = "Town family"
 summary = "Lowford gentry of the modest sort, with a cousin on every table that signs anything."
 traits = ["Well-connected", "Scribe"]
+
+[[backgrounds]]
+name = "Came up from the deep"
+summary = "Held a deep lease at Callow Drift for eleven years, walked out of the sumps one morning, and has kept above ground since."
+traits = ["Never again the deep", "Sure-footed"]

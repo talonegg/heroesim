@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { advance, advanceUntilAttention, availableHeroes, commitParty } from '../src/career.js';
+import {
+  advance,
+  advanceUntilAttention,
+  availableHeroes,
+  commitParty,
+  proposeParty,
+} from '../src/career.js';
 import type { GameConfig } from '../src/config.js';
 import { defaultConfig } from '../src/config.js';
 import type { Content, Vignette } from '../src/content.js';
@@ -90,11 +96,13 @@ describe('Beats and the Commission they belong to', () => {
       const got = new Map<string, number>();
       let career = start(`beat-budget-${seed}`, { careerYears: 1, daysPerYear: 180 });
       while (career.ended === undefined) {
-        const free = career.guild.roster.map((hero) => hero.id);
-        const away = new Set(career.parties.flatMap((party) => party.heroIds));
+        // `availableHeroes` is who can actually be sent: not away, and not hurt (E3-S2).
+        // Asking it rather than filtering the Roster by hand is the only change E3 made
+        // to this test, and the assertion below it is untouched.
+        const free = availableHeroes(career).map((hero) => hero.id);
         let taken = 0;
         for (const commission of [...career.board]) {
-          const party = free.filter((id) => !away.has(id)).slice(taken, taken + 2);
+          const party = free.slice(taken, taken + 2);
           if (party.length === 0) break;
           career = commitParty(career, commission.id, party, fixtureContent).career;
           const sent = career.parties.at(-1);
@@ -335,6 +343,21 @@ describe('a Patron’s Regard over time', () => {
     expect(of(settled.events, 'PatronRegardChanged')).toHaveLength(0);
   });
 
+  it('recovers by the configured amount rather than a literal one (invariant 8, Fix 3)', () => {
+    const soured = editable(
+      start('recovers-by-two', { ...still, patronRegardRecoveryEveryDays: 30, patronRegardRecoveryAmount: 2 }),
+    );
+    for (const patron of soured.patrons) patron.regardForGuild.value = -5;
+
+    const first = advance(soured, 29, fixtureContent);
+    const moved = of(first.events, 'PatronRegardChanged');
+    expect(moved).toHaveLength(soured.patrons.length);
+    for (const event of moved) {
+      expect(event.delta).toBe(2);
+      expect(event.value).toBe(-3);
+    }
+  });
+
   it('does not recover at all when the interval is zero', () => {
     const soured = editable(
       start('no-recovery', { ...still, patronRegardRecoveryEveryDays: 0, careerYears: 2 }),
@@ -453,13 +476,17 @@ describe('Injuries that lift', () => {
     hero.traits.push({ name: 'Bruised', since: career.day, liftsOn: career.day + 3 });
 
     const early = advance(career, 2, fixtureContent);
-    expect(of(early.events, 'TraitLifted')).toHaveLength(0);
+    expect(of(early.events, 'InjuryLifted')).toHaveLength(0);
 
     const later = advance(early.career, 1, fixtureContent);
-    const lifted = must(of(later.events, 'TraitLifted')[0], 'a lifted Trait');
+    // E1 reported every lift as `TraitLifted`. From E3 an Injury lifting reports
+    // `InjuryLifted` **alone**, so that narration never has to de-duplicate a pair, and
+    // `TraitLifted` is reserved for a timed Trait that is not an Injury (E3 §4).
+    const lifted = must(of(later.events, 'InjuryLifted')[0], 'a lifted Injury');
     expect(lifted.trait).toBe('Bruised');
     expect(lifted.heroId).toBe(hero.id);
     expect(lifted.day).toBe(4);
+    expect(of(later.events, 'TraitLifted')).toHaveLength(0);
     expect(must(later.career.guild.roster[0], 'the Hero').traits.map((held) => held.name)).not.toContain(
       'Bruised',
     );
@@ -472,12 +499,22 @@ describe('what the events say about the world they came from', () => {
       let career = start(`coin-${seed}`, { careerYears: 1, daysPerYear: 150 });
       let balance = career.guild.coin;
       while (career.ended === undefined) {
-        const free = career.guild.roster.map((hero) => hero.id);
-        const away = new Set(career.parties.flatMap((party) => party.heroIds));
-        const party = free.filter((id) => !away.has(id)).slice(0, 2);
+        // Not away, and not hurt: `availableHeroes` answers both since E3-S2, and asking
+        // it rather than filtering the Roster by hand is the only change E3 made here.
+        const willing = availableHeroes(career).map((hero) => hero.id);
         const commission = career.board[0];
-        if (commission !== undefined && party.length > 0) {
-          career = commitParty(career, commission.id, party, fixtureContent).career;
+        if (commission !== undefined && willing.length > 0) {
+          // A year of this is long enough for somebody's Regard to sour, and a Hero who
+          // refuses is sent round rather than insisted upon (E2).
+          const refusing = new Set(
+            proposeParty(career, commission.id, willing, fixtureContent).refusals.map(
+              (refusal) => refusal.heroId,
+            ),
+          );
+          const party = willing.filter((id) => !refusing.has(id)).slice(0, 2);
+          if (party.length > 0) {
+            career = commitParty(career, commission.id, party, fixtureContent).career;
+          }
         }
         const step = advanceUntilAttention(career, fixtureContent);
         step.events.forEach((event, index) => {
@@ -630,7 +667,16 @@ describe('advancing until something wants attention', () => {
   });
 
   it('stops on the Day the Career ends', () => {
-    const career = start('attention-end', { careerYears: 1, daysPerYear: 10, boardRefreshEveryDays: 1000 });
+    // The Board is put out of reach and so are the Applicants, for the same reason: this
+    // is about the *end* being what stops the stretch, and a starting Roster of four sits
+    // below `rosterFloor`, so a batch would otherwise arrive on Day 10 and stop it (E4).
+    const career = start('attention-end', {
+      careerYears: 1,
+      daysPerYear: 10,
+      boardRefreshEveryDays: 1000,
+      applicantsEveryDays: 0,
+      applicantsEveryDaysBelowFloor: 0,
+    });
     const first = advanceUntilAttention(career, fixtureContent);
     expect(first.career.day).toBe(11);
     expect(of(first.events, 'CareerEnded')).toHaveLength(1);

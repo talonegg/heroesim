@@ -12,11 +12,15 @@ function hero(id: string, stats: Partial<Hero['stats']> = {}, traits: string[] =
     name: id.toUpperCase(),
     pronouns: 'they',
     stats: { Might: 2, Craft: 2, Nerve: 2, Guile: 2, ...stats },
+    age: 30,
     background: 'Ferry family',
     traits: traits.map((name) => ({ name, since: 1 })),
+    calibre: 1,
     regardForGuildmaster: { value: 0, reason: 'came with the Guild', nature: 'neutral' },
     regardFor: {},
     joinedOn: 1,
+    lastCommittedOn: 1,
+    regardDecayedOn: 1,
   };
 }
 

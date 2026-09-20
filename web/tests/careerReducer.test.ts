@@ -114,6 +114,39 @@ describe('the career reducer', () => {
     expect(unknownHero.message).toContain('cannot go');
   });
 
+  it('refuses to commit a Hero who will not go unless the action says to insist (E2)', () => {
+    const begun = started();
+    const career = careerOf(begun);
+
+    // World generation never starts anybody low enough to refuse, so the Career is put
+    // into the state the rule is about and handed back through `load`.
+    const soured = JSON.parse(JSON.stringify(career)) as Career;
+    const hero = soured.guild.roster[0];
+    if (hero === undefined) throw new Error('expected a Roster');
+    hero.regardForGuildmaster = {
+      value: soured.config.refusalRegardThreshold,
+      reason: 'you sent them anyway',
+      nature: 'neutral',
+    };
+    const loaded = drive(begun, [{ type: 'load', career: soured }]);
+    const commissionId = careerOf(loaded).board[0]?.id ?? '';
+
+    const refused = careerReducer(loaded, { type: 'commit', commissionId, heroIds: [hero.id] });
+    expect(refused.message).toContain('will not take this work');
+    expect(refused.career).toBe(loaded.career);
+    expect(careerOf(refused).parties).toHaveLength(0);
+
+    const insisted = drive(loaded, [
+      { type: 'commit', commissionId, heroIds: [hero.id], insist: true },
+    ]);
+    expect(insisted.message).toBeNull();
+    expect(careerOf(insisted).parties).toHaveLength(1);
+    expect(
+      careerOf(insisted).guild.roster.find((entry) => entry.id === hero.id)?.regardForGuildmaster
+        .value,
+    ).toBe(soured.config.refusalRegardThreshold - soured.config.insistenceRegardCost);
+  });
+
   it('drops a second engine action that arrives before the first has settled', () => {
     const begun = started();
     const once = careerReducer(begun, { type: 'advance' });

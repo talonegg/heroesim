@@ -230,8 +230,10 @@ input[type='number'] {
 
   .app[data-pane='board'] .pane--roster,
   .app[data-pane='board'] .pane--report,
+  .app[data-pane='board'] .pane--word,
   .app[data-pane='roster'] .pane--board,
   .app[data-pane='roster'] .pane--report,
+  .app[data-pane='roster'] .pane--word,
   .app[data-pane='report'] .pane--board,
   .app[data-pane='report'] .pane--roster {
     display: none;
@@ -259,7 +261,8 @@ input[type='number'] {
     grid-area: roster;
   }
 
-  .pane--report {
+  .pane--report,
+  .pane--word {
     grid-area: report;
   }
 }
@@ -310,6 +313,15 @@ input[type='number'] {
   font-weight: 600;
 }
 
+/* Somebody coming back is marked in words, and the words carry the whole of it — the
+   colour adds nothing a player who cannot see it would miss (E4-S4). */
+.card__flag {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -355,12 +367,25 @@ input[type='number'] {
   background: var(--bg-sunken);
 }
 
+/* An Injury and a Scar carry their own words as well as their own colour — "lifts on
+   Year 3, Day 47" and "Scar" — so nothing here is told by colour alone (E3). */
 .chip--injury {
   border-color: var(--bad);
   color: var(--bad);
 }
 
+.chip--scar {
+  border-style: dashed;
+  border-color: var(--ink-soft);
+  color: var(--ink-soft);
+}
+
 .away {
+  color: var(--bad);
+  font-size: 0.85rem;
+}
+
+.injured {
   color: var(--bad);
   font-size: 0.85rem;
 }
@@ -415,6 +440,14 @@ input[type='number'] {
 }
 
 .para--return {
+  font-weight: 600;
+}
+
+.para--word,
+.para--answer {
+  border-left: 3px solid var(--accent);
+  padding: 0.15rem 0 0.15rem 0.6rem;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -500,6 +533,23 @@ input[type='number'] {
   width: 100%;
 }
 
+/* Who will not go, under the Party as it is put together (E2). */
+.refusals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  border: 1px solid var(--bad);
+  border-radius: var(--radius);
+  padding: 0.6rem;
+  min-width: 0;
+}
+
+.refusals .card__title {
+  margin: 0;
+  font-size: 0.95rem;
+  color: var(--bad);
+}
+
 /* ── Messages and the start screen ──────────────────────────────────────── */
 
 .notice {
@@ -551,6 +601,141 @@ input[type='number'] {
 }
 
 .reckoning {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+/* One Sphere, and the Patrons whose work comes from it (E7-S3, E8-S6). The same shape as
+   `.rival` below and for the same reason: a section rather than a card, so the people
+   inside it are the cards, and it never sets a width, so it reflows at 320px. */
+.sphere {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* A list that is a list of lines rather than of cards: what one Patron has on the Board. */
+.plain {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+/* One other Guild, and everybody in their employ (E5-S2). A section rather than a card so
+   that the people inside it are the cards; it keeps its own gap and never sets a width, so
+   it reflows to a single column at 320px like everything else. */
+.rival {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding-top: 0.6rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* Your own row in the League. The mark that carries it is the words "your Guild" in the
+   heading; this only draws the eye to a row the text has already named (E8-S3). */
+.card--you {
+  border-color: var(--accent);
+}
+
+/* ── A Party waiting on your word (E6-S4) ───────────────────────────────── */
+
+.word {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.card--word {
+  border-color: var(--accent);
+}
+
+.card__name {
+  margin: 0;
+  font-size: 1rem;
+}
+
+/* Long prompts and long labels wrap; nothing here is ever cut short with an ellipsis,
+   because the words are the whole of what is being decided (E6-S4). */
+.card--word .card__line,
+.word__option button {
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.card__line--quiet {
+  font-size: 0.85rem;
+}
+
+.card__line--warning {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.word__options {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.word__option {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.word__option button {
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap);
+  height: auto;
+  padding: 0.6rem 0.7rem;
+}
+
+/* Letting the Days run is deliberately the quiet control on this pane: it is a real thing
+   to do and not the thing being asked (DL-24 §A1). Set apart by a rule and by weight, never
+   by colour alone, and it still meets the tap target every other control here does. */
+.word__leave {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.word__leave button {
+  width: 100%;
+  text-align: left;
+  min-height: var(--tap);
+  height: auto;
+  padding: 0.6rem 0.7rem;
+  background: none;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+.word__leave-list {
   list-style: none;
   margin: 0;
   padding: 0;

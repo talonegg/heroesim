@@ -101,4 +101,32 @@ export default tseslint.config(
       ],
     },
   },
+  // E7 §5's first risk row: a view quietly needs engine data and somebody computes it in
+  // the CLI. The terminal front end reaches the engine, content and narrate through their
+  // package entry points and through nothing else — never a relative path into another
+  // workspace's source, and never a subpath of a package that exports only its entry.
+  {
+    files: ['cli/**/*.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            '@heroesim/engine/*',
+            '@heroesim/narrate/*',
+            '@heroesim/web',
+            '@heroesim/web/*',
+            '../engine/*',
+            '../../engine/*',
+            '../narrate/*',
+            '../../narrate/*',
+            '../content/*',
+            '../../content/*',
+            '../web/*',
+            '../../web/*',
+          ],
+        },
+      ],
+    },
+  },
 );

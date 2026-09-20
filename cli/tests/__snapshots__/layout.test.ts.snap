@@ -1,0 +1,121 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`the main screen at every width > is the same screen as last time, at 40 > main screen at 40 1`] = `
+"The Fenwater Guild
+Year 1, Day 1
+500 coin
+Standing 10
+Upkeep 88 coin in 9 Days
+Board refreshes in 9 Days
+----------------------------------------
+BOARD
+  1  Whoever is lifting beasts on the
+     high road
+     105 coin, grim, 8 Days, 3 Beats
+  2  The old workings above Callow Drift
+     55 coin, easy, 5 Days, 4 Beats
+  3  The vigil in the crypt at
+     Ellersgate
+     85 coin, hard, 6 Days, 4 Beats
+  4  The shift that never came up
+     105 coin, grim, 10 Days, 5 Beats
+
+ROSTER
+  4 of 12 places taken
+
+RECENTLY
+  Year 1, Day 3
+    Brenna, Oswin and Tam set out on
+    the tithe barge down to Lowford.
+  Year 1, Day 9
+    Tam came off worst: Turned ankle,
+    and no work until Year 1, Day 23.
+----------------------------------------
+[1-6] commission
+[r] roster
+[p] patrons
+[g] league
+[i] hall
+[a] applicants
+[o] other guilds
+[f] former
+[n] advance
+[s] save
+[l] slots
+[h] help
+[q] quit"
+`;
+
+exports[`the main screen at every width > is the same screen as last time, at 60 > main screen at 60 1`] = `
+"The Fenwater Guild
+Year 1, Day 1 · 500 coin · Standing 10
+Upkeep of 88 coin in 9 Days · Board refreshes in 9 Days
+------------------------------------------------------------
+BOARD
+  1  Whoever is lifting beasts on the high road
+     105 coin, grim, 8 Days, 3 Beats
+  2  The old workings above Callow Drift
+     55 coin, easy, 5 Days, 4 Beats
+  3  The vigil in the crypt at Ellersgate
+     85 coin, hard, 6 Days, 4 Beats
+  4  The shift that never came up
+     105 coin, grim, 10 Days, 5 Beats
+
+ROSTER
+  4 of 12 places taken
+
+RECENTLY
+  Year 1, Day 3
+    Brenna, Oswin and Tam set out on the tithe barge down
+    to Lowford.
+  Year 1, Day 9
+    Tam came off worst: Turned ankle, and no work until
+    Year 1, Day 23.
+------------------------------------------------------------
+[1-6] commission  [r] roster  [p] patrons  [g] league
+[i] hall  [a] applicants  [o] other guilds  [f] former
+[n] advance  [s] save  [l] slots  [h] help  [q] quit"
+`;
+
+exports[`the main screen at every width > is the same screen as last time, at 80 > main screen at 80 1`] = `
+"The Fenwater Guild                        Year 1, Day 1 · 500 coin · Standing 10
+Upkeep of 88 coin in 9 Days · Board refreshes in 9 Days
+--------------------------------------------------------------------------------
+BOARD
+  1  Whoever is lifting beasts on the high road 105 coin  grim   8 Days  3 Beats
+  2  The old workings above Callow Drift         55 coin  easy   5 Days  4 Beats
+  3  The vigil in the crypt at Ellersgate        85 coin  hard   6 Days  4 Beats
+  4  The shift that never came up               105 coin  grim  10 Days  5 Beats
+
+ROSTER  4 of 12 places taken
+
+RECENTLY
+  Year 1, Day 3 · Brenna, Oswin and Tam set out on the tithe barge down to
+  Lowford.
+  Year 1, Day 9 · Tam came off worst: Turned ankle, and no work until Year 1,
+  Day 23.
+--------------------------------------------------------------------------------
+[1-6] commission  [r] roster  [p] patrons  [g] league  [i] hall  [a] applicants
+[o] other guilds  [f] former  [n] advance  [s] save  [l] slots  [h] help
+[q] quit"
+`;
+
+exports[`the main screen at every width > is the same screen as last time, at 120 > main screen at 120 1`] = `
+"The Fenwater Guild                                                                Year 1, Day 1 · 500 coin · Standing 10
+Upkeep of 88 coin in 9 Days · Board refreshes in 9 Days
+------------------------------------------------------------------------------------------------------------------------
+BOARD
+  1  Whoever is lifting beasts on the high road                                         105 coin  grim   8 Days  3 Beats
+  2  The old workings above Callow Drift                                                 55 coin  easy   5 Days  4 Beats
+  3  The vigil in the crypt at Ellersgate                                                85 coin  hard   6 Days  4 Beats
+  4  The shift that never came up                                                       105 coin  grim  10 Days  5 Beats
+
+ROSTER  4 of 12 places taken
+
+RECENTLY
+  Year 1, Day 3 · Brenna, Oswin and Tam set out on the tithe barge down to Lowford.
+  Year 1, Day 9 · Tam came off worst: Turned ankle, and no work until Year 1, Day 23.
+------------------------------------------------------------------------------------------------------------------------
+[1-6] commission  [r] roster  [p] patrons  [g] league  [i] hall  [a] applicants  [o] other guilds  [f] former
+[n] advance  [s] save  [l] slots  [h] help  [q] quit"
+`;

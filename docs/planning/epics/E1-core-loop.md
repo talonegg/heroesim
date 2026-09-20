@@ -462,3 +462,5 @@ Once E1 is done, E2–E4 can start in parallel. They all assume a working core l
 - **E4:** Recruitment. Applicants appear, Standing determines calibre.
 
 **Do not start E2 until E1 is genuinely playable to Retirement.**
+
+> **Where those tests are now.** E7 restructured the terminal front end and its suite (DL-25, DL-26): `cli/tests/display.test.ts` became `cli/tests/views.test.ts`, `layout.test.ts` and `screen.test.ts`, the screens that ask for a confirming keypress became `cli/tests/confirm.test.ts`, and `cli/tests/saves.test.ts` became `cli/tests/slots.test.ts`. Every assertion cited above moved with the code it covers; none was dropped.

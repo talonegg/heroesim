@@ -2,9 +2,22 @@
 
 **Heroesim** is a guild-management simulation for the terminal: you run a Guild of heroes, take paid work from Patrons, choose who to send, and read what happened to them. The output that matters is the story, not the score.
 
-**Status:** E1 and the first web client (E8-S1–S5) are built and verified as of 2026-09-19: 375
-Vitest tests across engine, content, narrate, cli and web; 24 Playwright checks at mobile, tablet
-and desktop, all on Chromium; 36 screenshots kept as evidence under `docs/verification/`.
+**Status:** all eight epics are built and independently verified, as of 2026-09-20 (DL-13 to
+DL-28). E8's S1–S5 were verified on 2026-09-19 and **E8-S6, the three earlier acceptance boxes
+that were still open and E8's definition of done were independently verified on 2026-09-20**;
+that round found and fixed nine defects and gaps — among them an ended Career's header stating an Upkeep that will
+never fall due and a Board that will never refresh, the Waiting-on-your-word pane still offered
+on an ended Career that stopped with a Party mid-Commission (reachable on 9 of 60 sampled seeds),
+ten identifier fallbacks that could put an engine id in front of the player, and a retired
+Hero's exit read out twice — and raised design questions for the owner which are listed in
+[E8 §6](epics/E8-web-front-end.md#6-what-independent-verification-raised-for-the-owner). The
+figures, measured at the end of that verification: **1,629 Vitest tests passed and 5 skipped
+across 91 files** (89 passed, 2 skipped) over engine, content, narrate, cli and web, in about
+180 s; **141 Playwright checks at mobile, tablet and desktop, all on Chromium** — 47 per
+project, against the built bundle; **109 screenshots** kept as evidence under
+`docs/verification/`. `npm run typecheck` is clean and `npm run lint` reports 0 errors (1
+pre-existing warning). All of it was re-run from a **clean copy of the tree with `npm ci`**,
+outside the repository, and passed there too.
 
 ---
 
@@ -93,10 +106,10 @@ These will be decided **before each epic**, not before work starts. All have sen
 | Mid-E1 | Board refresh rate? | Every 10 days — adopted, DL-06 | INPUTS-REQUIRED §2.2 |
 | Mid-E1 | Upkeep amount? | 88 coin per 10 days for four Heroes — adjusted after measured play, DL-13 | INPUTS-REQUIRED §2.3 |
 | Mid-E1 | Vignette authoring format? | TOML — decided, DL-03 | INPUTS-REQUIRED §2.11 |
-| Before E2 | Regard decay rate, insistence cost? | −1/30 days; −2 + risk | INPUTS-REQUIRED §3 |
+| Before E2 | Regard decay rate, insistence cost? | −1/30 idle days; −2 + risk — adopted and built, DL-14 | INPUTS-REQUIRED §3 |
 | Before E3 | Injury duration, Hall costs? | 15–30 days; 200 coin | INPUTS-REQUIRED §4 |
-| Before E4 | Applicant frequency, Standing gates? | Every 20 days; yes | INPUTS-REQUIRED §5 |
-| Before E5 | Rival count, Transfer fees, Poaching cost? | 4–6 Rivals; 100+50×Stars | INPUTS-REQUIRED §6 |
+| Before E4 | Applicant frequency, Standing gates? | Every 20 Days, 10 below the Roster floor; Standing gates calibre and nothing else — adopted and built, DL-19 | INPUTS-REQUIRED §5 |
+| Before E5 | Rival count, Transfer fees, Poaching cost? | 4–6 Rivals; 100+50×calibre | INPUTS-REQUIRED §6 |
 
 **None of these block the start of E1.** You can build with the defaults and tune after playing.
 

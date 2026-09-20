@@ -11,16 +11,18 @@
  */
 
 import type {
+  AnyHero,
+  Applicant,
   Career,
   CareerEnd,
   CareerLedger,
   Commission,
   Guild,
   Guildmaster,
-  Hero,
   HeroTrait,
   Party,
   Patron,
+  PendingWord,
   Reckoning,
   Regard,
   Rival,
@@ -48,23 +50,51 @@ function cloneCounts(map: Record<string, number>): Record<string, number> {
 }
 
 function cloneTrait(trait: HeroTrait): HeroTrait {
-  return trait.liftsOn === undefined
-    ? { name: trait.name, since: trait.since }
-    : { name: trait.name, since: trait.since, liftsOn: trait.liftsOn };
+  const copy: HeroTrait = { name: trait.name, since: trait.since };
+  if (trait.liftsOn !== undefined) copy.liftsOn = trait.liftsOn;
+  // E6: the kind travels with the Trait, so a timed Trait that is not an Injury stays one
+  // through a copy, a save and a move between Rosters (DL-23 §10).
+  if (trait.kind !== undefined) copy.kind = trait.kind;
+  return copy;
 }
 
-function cloneHero(hero: Hero): Hero {
-  return {
+/**
+ * A copy of anybody on any Roster. The employer Regard is exclusive (E5 §4), so exactly
+ * one of the two is present and the copy carries the one that was there — which keeps a
+ * round trip deep-equal and keeps the exclusivity true of every copy ever made.
+ *
+ * The cast is the price of writing one function for the two shapes rather than two nearly
+ * identical ones; `clone.test.ts` and `rivals.test.ts` are what prove it right.
+ */
+function cloneHero<T extends AnyHero>(hero: T): T {
+  // Written as spreads rather than as assignments afterwards so that the copy's keys fall
+  // in the same order as the original's: `clone.test.ts` compares the two serialised, and
+  // `JSON.stringify` writes keys in the order they were set.
+  const copy = {
     id: hero.id,
     name: hero.name,
     pronouns: hero.pronouns,
     stats: cloneStats(hero.stats),
+    age: hero.age,
     background: hero.background,
     traits: hero.traits.map(cloneTrait),
-    regardForGuildmaster: cloneRegard(hero.regardForGuildmaster),
+    calibre: hero.calibre,
+    ...(hero.regardForGuildmaster === undefined
+      ? {}
+      : { regardForGuildmaster: cloneRegard(hero.regardForGuildmaster) }),
+    ...(hero.regardForRival === undefined
+      ? {}
+      : { regardForRival: cloneRegard(hero.regardForRival) }),
     regardFor: cloneRegardMap(hero.regardFor),
     joinedOn: hero.joinedOn,
+    lastCommittedOn: hero.lastCommittedOn,
+    regardDecayedOn: hero.regardDecayedOn,
+    ...(hero.formerHeroId === undefined ? {} : { formerHeroId: hero.formerHeroId }),
+    ...(hero.exit === undefined
+      ? {}
+      : { exit: { kind: hero.exit.kind, onDay: hero.exit.onDay, reason: hero.exit.reason } }),
   };
+  return copy as unknown as T;
 }
 
 function cloneGuildmaster(guildmaster: Guildmaster): Guildmaster {
@@ -114,8 +144,27 @@ function cloneCommission(commission: Commission): Commission {
   };
 }
 
-function cloneParty(party: Party): Party {
+function clonePendingWord(word: PendingWord): PendingWord {
   return {
+    decisionId: word.decisionId,
+    beatIndex: word.beatIndex,
+    askedOn: word.askedOn,
+    timesOutOn: word.timesOutOn,
+    slots:
+      word.slots.trait === undefined
+        ? { heroId: word.slots.heroId, patronId: word.slots.patronId, sphereId: word.slots.sphereId }
+        : {
+            heroId: word.slots.heroId,
+            patronId: word.slots.patronId,
+            sphereId: word.slots.sphereId,
+            trait: word.slots.trait,
+          },
+    optionIds: [...word.optionIds],
+  };
+}
+
+function cloneParty(party: Party): Party {
+  const copy: Party = {
     id: party.id,
     commissionId: party.commissionId,
     commission: cloneCommission(party.commission),
@@ -127,11 +176,40 @@ function cloneParty(party: Party): Party {
     beatsResolved: [...party.beatsResolved],
     vignettesUsed: [...party.vignettesUsed],
     score: party.score,
+    decisionUsed: party.decisionUsed,
+    dcDelta: party.dcDelta,
   };
+  if (party.pendingWord !== undefined) copy.pendingWord = clonePendingWord(party.pendingWord);
+  if (party.turnedBackOn !== undefined) copy.turnedBackOn = party.turnedBackOn;
+  return copy;
 }
 
 function cloneRival(rival: Rival): Rival {
-  return { id: rival.id, name: rival.name, standing: rival.standing };
+  return {
+    id: rival.id,
+    name: rival.name,
+    standing: rival.standing,
+    roster: rival.roster.map(cloneHero),
+    regardForGuild: cloneRegard(rival.regardForGuild),
+  };
+}
+
+function cloneApplicant(applicant: Applicant): Applicant {
+  const copy: Applicant = {
+    id: applicant.id,
+    name: applicant.name,
+    pronouns: applicant.pronouns,
+    stats: cloneStats(applicant.stats),
+    background: applicant.background,
+    traits: applicant.traits.map(cloneTrait),
+    age: applicant.age,
+    calibre: applicant.calibre,
+    askingFee: applicant.askingFee,
+    arrivedOn: applicant.arrivedOn,
+    expiresOn: applicant.expiresOn,
+  };
+  if (applicant.formerHeroId !== undefined) copy.formerHeroId = applicant.formerHeroId;
+  return copy;
 }
 
 function cloneLedger(ledger: CareerLedger): CareerLedger {
@@ -141,6 +219,20 @@ function cloneLedger(ledger: CareerLedger): CareerLedger {
     commissionsByPatron: cloneCounts(ledger.commissionsByPatron),
     peakCoin: ledger.peakCoin,
     lastUpkeepNegative: ledger.lastUpkeepNegative,
+    departures: ledger.departures,
+    heroesInjured: ledger.heroesInjured,
+    heroesScarred: ledger.heroesScarred,
+    heroesDied: ledger.heroesDied,
+    heroesRetired: ledger.heroesRetired,
+    applicantsSeen: ledger.applicantsSeen,
+    applicantsAccepted: ledger.applicantsAccepted,
+    returners: ledger.returners,
+    returnersOffered: ledger.returnersOffered,
+    heroesTransferredIn: ledger.heroesTransferredIn,
+    heroesPoachedIn: ledger.heroesPoachedIn,
+    heroesPoachedFromUs: ledger.heroesPoachedFromUs,
+    wordsSent: ledger.wordsSent,
+    turnedBack: ledger.turnedBack,
   };
 }
 
@@ -149,6 +241,9 @@ function cloneReckoning(reckoning: Reckoning): Reckoning {
     years: reckoning.years,
     heroesOnRoster: reckoning.heroesOnRoster,
     heroesLost: reckoning.heroesLost,
+    heroesRetired: reckoning.heroesRetired,
+    heroesRecruited: reckoning.heroesRecruited,
+    heroesPoachedFromUs: reckoning.heroesPoachedFromUs,
     commissionsCompleted: reckoning.commissionsCompleted,
     commissionsFailed: reckoning.commissionsFailed,
     peakCoin: reckoning.peakCoin,
@@ -182,6 +277,9 @@ export function cloneCareer(career: Career): Career {
     board: career.board.map(cloneCommission),
     parties: career.parties.map(cloneParty),
     rivals: career.rivals.map(cloneRival),
+    applicants: career.applicants.map(cloneApplicant),
+    nextApplicantNumber: career.nextApplicantNumber,
+    nextRivalHeroNumber: career.nextRivalHeroNumber,
     ledger: cloneLedger(career.ledger),
     recentCommissions: career.recentCommissions.map(cloneCommission),
   };

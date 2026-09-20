@@ -38,13 +38,13 @@ E8 has two edges for a reason: a **first version** is buildable on E1 alone, and
 | ID | Epic | Objective | Narrative scope | Est. | Dependencies | Status |
 | --- | --- | --- | --- | --- | --- | --- |
 | [**E1**](E1-core-loop.md) | **Core simulation loop** | **First playable Career** | Take Commissions, send Parties, resolve Beats end-to-end | **5–7 d** | None | Built, verified 2026-09-19; balance pass in progress (DL-13) |
-| [E2](E2-refusals-and-regard.md) | Refusals and Regard | Heroes say no; relationships matter | Low Regard, Trait-based refusals, insistence costs | 3–4 d | E1 | Not started |
-| [E3](E3-injuries-and-scars.md) | Injuries and Scars | Heroes wear history | Injuries that heal, Scars that stay, Hall improvements | 2–3 d | E1 | Not started |
-| [E4](E4-recruitment.md) | Recruitment | Roster grows | Applicants, Standing gates, onboarding decisions | 2–3 d | E1 | Not started |
-| [E5](E5-rivals.md) | Rivals and the League | Other Guilds | Transfers, Poaching, Rival Roster churn, League view | 4–5 d | E2 + E3 + E4 | Not started |
-| [E6](E6-chips-and-tacticals.md) | Chips and Tacticals | Mid-Commission stakes | Rare decision points where a Party sends word | 2–3 d | E1 | Not started |
-| [E7](E7-terminal-ui-and-saves.md) | Terminal UI and Saves | Playable end to end | Navigation, career logs, graceful exit, rich output | 3–4 d | E5 + E6 | Not started |
-| [E8](E8-web-front-end.md) | Web front end | The same game in a browser | Three responsive layouts, browser saves, Playwright journeys | 4–5 d | E1 (first version), E7 (parity) | S1–S5 built and verified 2026-09-19; S6 pending E7 |
+| [E2](E2-refusals-and-regard.md) | Refusals and Regard | Heroes say no; relationships matter | Low Regard, Trait-based refusals, insistence costs | 3–4 d | E1 | Built and independently verified 2026-09-19 (DL-14, DL-15) |
+| [E3](E3-injuries-and-scars.md) | Injuries and Scars | Heroes wear history | Injuries that heal, Scars that stay, Hall improvements | 2–3 d | E1 | Built and independently verified 2026-09-19 (DL-16, DL-17); one acceptance box not met, named in the epic |
+| [E4](E4-recruitment.md) | Recruitment | Roster grows | Applicants, Standing gates, onboarding decisions | 2–3 d | E1 | Built and independently verified 2026-09-19 (DL-19, DL-20); every acceptance box met |
+| [E5](E5-rivals.md) | Rivals and the League | Other Guilds | Transfers, Poaching, Rival Roster churn, League view | 4–5 d | E2 + E3 + E4 | Built and independently verified 2026-09-20 (DL-21, DL-22) |
+| [E6](E6-chips-and-tacticals.md) | Chips and Tacticals | Mid-Commission stakes | Rare decision points where a Party sends word | 2–3 d | E1 | Built and independently verified 2026-09-20 (DL-23, DL-24) |
+| [E7](E7-terminal-ui-and-saves.md) | Terminal UI and Saves | Playable end to end | Navigation, career logs, graceful exit, rich output | 3–4 d | E5 + E6 | Built and independently verified 2026-09-20 (DL-25, DL-26); every acceptance box met, three of them as amended and each amendment stated |
+| [E8](E8-web-front-end.md) | Web front end | The same game in a browser | Three responsive layouts, browser saves, Playwright journeys | 4–5 d | E1 (first version), E7 (parity) | Built and independently verified 2026-09-20 (DL-27, DL-28); S1–S5 verified 2026-09-19, S6, the three earlier boxes and the definition of done verified 2026-09-20. Every acceptance box met, five of them as amended and each amendment stated; verification fixed nine defects and gaps and raised seven design questions, both listed in [E8 §6](E8-web-front-end.md#6-what-independent-verification-raised-for-the-owner) |
 
 **Total build: 25–34 focused days**, against no calendar deadline. That is the sum of the ranges above and it is stated only here; every other document links to it rather than repeating it.
 

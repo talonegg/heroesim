@@ -9,6 +9,7 @@ import type { Content, SphereDef } from './content.js';
 import { EngineError } from './errors.js';
 import type { GameEvent } from './events.js';
 import type { Rng } from './rng.js';
+import { souredRivals } from './rival.js';
 import { changePatronRegard, nextRefreshDay, requirePatron } from './state.js';
 import type { Career, Commission, Patron } from './types.js';
 
@@ -104,16 +105,41 @@ export function postCommissions(
 }
 
 /**
- * Refresh the Board: a Rival takes what was left, the rest expires, and the Board is
+ * How many unclaimed Commissions Rivals take at this refresh (E5-S5). E1's rule was one;
+ * it becomes `rivalTakesPerRefresh` plus `souredRivalExtraTakes` for each Rival at or
+ * below `souredRivalThreshold`, capped at `rivalTakesMax`. Souring two Rivals therefore
+ * costs up to three Commissions a refresh, which is where the price of poaching is
+ * actually felt — on the Board, which is the resource the whole Career runs on.
+ *
+ * It takes no draw, so a Career with nobody soured takes exactly the draws E1 took.
+ */
+function takesThisRefresh(draft: Career): number {
+  const { config } = draft;
+  return clamp(
+    config.rivalTakesPerRefresh + config.souredRivalExtraTakes * souredRivals(draft).length,
+    0,
+    config.rivalTakesMax,
+  );
+}
+
+/**
+ * Refresh the Board: Rivals take what was left, the rest expires, and the Board is
  * refilled to a size within the configured bounds.
+ *
+ * **The draws are E1's exactly, when nobody is soured** (E5-S5): one shuffle of the Board,
+ * then one pick per Commission taken. A soured Rival is *preferred* as the taker, which is
+ * a narrower pool to pick from and not an extra draw — so `rng.pick` is called once per
+ * take either way and a Career in which no Rival has been wronged unfolds bit for bit as
+ * it did before E5.
  */
 export function refreshBoard(draft: Career, content: Content, rng: Rng, events: GameEvent[]): void {
   const { config } = draft;
 
-  const takeable = rng.shuffle(draft.board).slice(0, Math.max(0, config.rivalTakesPerRefresh));
+  const takeable = rng.shuffle(draft.board).slice(0, Math.max(0, takesThisRefresh(draft)));
   const taken = draft.rivals.length === 0 ? [] : takeable;
+  const soured = souredRivals(draft);
   for (const commission of taken) {
-    const rival = rng.pick(draft.rivals);
+    const rival = rng.pick(soured.length > 0 ? soured : draft.rivals);
     rival.standing += config.rivalStandingPerCommission;
     events.push({
       type: 'CommissionTakenByRival',

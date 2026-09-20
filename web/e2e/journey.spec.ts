@@ -59,6 +59,30 @@ test('plays a Career, saves it, reloads and loads it again', async ({ page }) =>
     `expected one of ${sent.join(' or ')} in the report`,
   ).toBe(true);
 
+  // 4b. The three views E8-S6 added, on the same continuous play-through: the Patrons by
+  //     Sphere, the Heroes who have left, and what the player has just done. The network
+  //     listener above is still running over every one of them.
+  await page.getByTestId('open-more').click();
+  await page.getByTestId('open-patrons').click();
+  await expect(page.getByTestId('sphere').first()).toBeVisible();
+  await expect(page.getByTestId('patron-regard').first()).toContainText('Regard for the Guild');
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByTestId('open-more').click();
+  await page.getByTestId('open-former').click();
+  // Nobody may have left this early, and the sheet says so in words rather than showing
+  // an empty box — which is the state worth walking past on a journey.
+  await expect(page.getByRole('dialog', { name: 'Former Heroes' })).toBeVisible();
+  await page.getByRole('button', { name: 'Close' }).click();
+
+  await page.getByTestId('open-more').click();
+  await page.getByTestId('open-history').click();
+  const remembered = page.getByTestId('history-entry');
+  expect(await remembered.count(), 'the history should hold what has just happened')
+    .toBeGreaterThan(0);
+  const beforeSaving = await remembered.allTextContents();
+  await page.getByRole('button', { name: 'Close' }).click();
+
   // 5. Save to slot 1.
   await page.getByTestId('open-saves').click();
   await page.getByTestId('save-1').click();
@@ -81,6 +105,12 @@ test('plays a Career, saves it, reloads and loads it again', async ({ page }) =>
   await expect(page.getByTestId('day')).toHaveText(savedDay ?? '');
   await expect(page.getByTestId('coin')).toHaveText(savedCoin ?? '');
   await expect(page.getByTestId('hero')).toHaveCount(savedRoster);
+
+  // 7b. And what led up to it came back with it (E8-S6, E8 §4).
+  await page.getByTestId('open-more').click();
+  await page.getByTestId('open-history').click();
+  expect(await page.getByTestId('history-entry').allTextContents()).toEqual(beforeSaving);
+  await page.getByRole('button', { name: 'Close' }).click();
 
   expect(offOrigin, `the page requested ${offOrigin.join(', ')}`).toEqual([]);
 });

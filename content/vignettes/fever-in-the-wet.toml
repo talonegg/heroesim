@@ -15,6 +15,7 @@ hero = "lowest:Nerve"
 narrative = "Three days of rain and nothing dry to sleep on, and then {hero} is shaking by the second watch and hot to the touch by morning. They carry {hero.them} the rest of the way on a hurdle, which halves the pace and doubles the ill temper. {hero} remembers almost none of it afterwards, and is a fortnight getting right."
 consequences = [
   { kind = "trait", trait = "Fevered", days = 12 },
+  { kind = "heroRegardForGuildmaster", delta = -1, reason = "a week in the rain with nothing dry to lie on, and the Guild had known the season" },
 ]
 
 [outcomes.success]

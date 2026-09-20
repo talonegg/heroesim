@@ -5,5 +5,30 @@
  * the single import point is obvious and a stray one is easy to spot.
  */
 
-export { errorSentence, formatDay, narrateEvents, reckoningLines } from '@heroesim/narrate';
-export type { Paragraph, ParagraphKind } from '@heroesim/narrate';
+export {
+  atRiskSentence,
+  coin,
+  count,
+  difficultyWord,
+  entriesFrom,
+  errorSentence,
+  exitReason,
+  exitWords,
+  formatDay,
+  groupDigits,
+  narrateEvents,
+  noneCanBeTakenReason,
+  remember,
+  splitStamp,
+  postingNothingSentence,
+  reckoningLines,
+  returnerSentence,
+  turnBackSentence,
+  wordProse,
+  wrongedRivalSentence,
+  DIFFICULTY_BANDS,
+  HISTORY_KEPT,
+  STANDING_EXPLAINED,
+  WORTH_REMEMBERING,
+} from '@heroesim/narrate';
+export type { Paragraph, ParagraphKind, WordProse } from '@heroesim/narrate';

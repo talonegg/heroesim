@@ -12,13 +12,20 @@ import { Sheet } from '../ui/Sheet';
 export function SlotPicker({
   storage,
   career,
+  history,
   onLoad,
   onMessage,
   onClose,
 }: {
   storage: CareerStorage;
   career: Career | null;
-  onLoad: (career: Career, slot: string) => void;
+  /**
+   * The five entries that led to this Career, written beside it and read back with it
+   * (E8 §4). A slot is the Career **and** what led up to it, exactly as the terminal's
+   * slot file is.
+   */
+  history: readonly string[];
+  onLoad: (career: Career, history: readonly string[], slot: string) => void;
   onMessage: (message: string) => void;
   onClose: () => void;
 }) {
@@ -32,7 +39,7 @@ export function SlotPicker({
   function save(slot: string): void {
     if (career === null) return;
     const savedOn = new Date().toISOString();
-    const result = storage.save(slot, career, savedOn);
+    const result = storage.save(slot, career, savedOn, history);
     refresh();
     onMessage(result.ok ? `Saved to slot ${slot}.` : (result.message ?? 'The save did not happen.'));
   }
@@ -43,7 +50,7 @@ export function SlotPicker({
       onMessage(result.message);
       return;
     }
-    onLoad(result.career, slot);
+    onLoad(result.career, result.history, slot);
   }
 
   function clear(slot: string): void {

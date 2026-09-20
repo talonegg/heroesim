@@ -10,7 +10,13 @@
  * no save migration, by design.
  */
 
-import { deserialiseCareer, serialiseCareer, type Career } from '@heroesim/engine';
+import {
+  deserialiseCareer,
+  serialiseCareer,
+  yearOf as engineYearOf,
+  type Career,
+} from '@heroesim/engine';
+import { content } from '../content';
 
 /** The three named slots the player chooses between, plus the autosave. */
 export const NAMED_SLOTS = ['1', '2', '3'] as const;
@@ -24,6 +30,17 @@ export const SLOT_INDEX_KEY = 'heroesim.slots';
 /** Where one slot's Career document lives. */
 export function careerKey(slot: string): string {
   return `heroesim.career.${slot}`;
+}
+
+/**
+ * Where one slot's history lives (E8 §4). It is kept **beside** the Career rather than
+ * inside it, so the document under `heroesim.career.<slot>` stays exactly the string
+ * `serialiseCareer` returned and the CLI reads it unchanged (DL-02). The terminal wraps
+ * the same Career in a slot file with its history in a `history` field; the browser has no
+ * wrapper, so it uses a second key.
+ */
+export function historyKey(slot: string): string {
+  return `heroesim.history.${slot}`;
 }
 
 /** What the slot picker shows without deserialising anything. */
@@ -51,8 +68,10 @@ export interface StorageResult {
   message?: string;
 }
 
-/** What a read came to. */
-export type LoadResult = { ok: true; career: Career } | { ok: false; message: string };
+/** What a read came to. The history comes back beside the Career it was saved with. */
+export type LoadResult =
+  | { ok: true; career: Career; history: string[] }
+  | { ok: false; message: string };
 
 /** The storage the app talks to, whether it reached the browser or not. */
 export interface CareerStorage {
@@ -61,8 +80,10 @@ export interface CareerStorage {
   /** A sentence to show the player when `persistent` is false. */
   readonly warning?: string;
   listSlots(): SlotIndexEntry[];
-  save(slot: string, career: Career, savedOn: string): StorageResult;
+  save(slot: string, career: Career, savedOn: string, history?: readonly string[]): StorageResult;
   load(slot: string): LoadResult;
+  /** The five entries saved beside a slot's Career, oldest first. Empty when it has none. */
+  loadHistory(slot: string): string[];
   clear(slot: string): StorageResult;
   /** Whether a slot holds anything, without deserialising it. */
   has(slot: string): boolean;
@@ -114,9 +135,9 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The Year a Day falls in, counting from one. Derived from the Career's own config. */
+/** The Year a Day falls in, counting from one — the engine's own answer (DL-18). */
 export function yearOf(career: Career): number {
-  return Math.floor((career.day - 1) / career.config.daysPerYear) + 1;
+  return engineYearOf(career.day, career.config);
 }
 
 /**
@@ -155,6 +176,28 @@ export function createCareerStorage(backing: KeyValueStore | null): CareerStorag
     store.setItem(SLOT_INDEX_KEY, JSON.stringify(entries));
   }
 
+  /**
+   * The five entries beside a slot's Career. A slot with none — one written before the
+   * history was kept, or one somebody edited by hand — reads as none rather than refusing
+   * the Career it sits beside: the Career is the thing that must not be lost.
+   */
+  function readHistory(slot: string): string[] {
+    let raw: string | null;
+    try {
+      raw = store.getItem(historyKey(slot));
+    } catch {
+      return [];
+    }
+    if (raw === null) return [];
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter((entry): entry is string => typeof entry === 'string');
+    } catch {
+      return [];
+    }
+  }
+
   return {
     persistent,
     ...(warning === undefined ? {} : { warning }),
@@ -171,7 +214,7 @@ export function createCareerStorage(backing: KeyValueStore | null): CareerStorag
       }
     },
 
-    save(slot: string, career: Career, savedOn: string): StorageResult {
+    save(slot: string, career: Career, savedOn: string, history?: readonly string[]): StorageResult {
       const document = serialiseCareer(career);
       try {
         store.setItem(careerKey(slot), document);
@@ -182,6 +225,20 @@ export function createCareerStorage(backing: KeyValueStore | null): CareerStorag
             ? `There is no room left in browser storage, so slot ${slot} was not written. Clear a slot and try again.`
             : `Slot ${slot} could not be written: ${messageOf(error)}`,
         };
+      }
+      // The history is written after the Career and reported the same way: a quota that
+      // stops it does not lose the Career, and it is never dropped in silence (E8-S4).
+      if (history !== undefined) {
+        try {
+          store.setItem(historyKey(slot), JSON.stringify([...history]));
+        } catch (error) {
+          return {
+            ok: false,
+            message: isQuotaError(error)
+              ? `Slot ${slot} was written, but there was no room left for what led up to it. Clear a slot and save again.`
+              : `Slot ${slot} was written but its history was not: ${messageOf(error)}`,
+          };
+        }
       }
       const entry: SlotIndexEntry = {
         slot,
@@ -212,7 +269,13 @@ export function createCareerStorage(backing: KeyValueStore | null): CareerStorag
       if (document === null) return { ok: false, message: `Slot ${slot} is empty.` };
       try {
         // A refused save is left exactly where it is: nothing below writes.
-        return { ok: true, career: deserialiseCareer(document) };
+        // With the content in hand, so that a save written before Rivals had people is
+        // given its Rosters at load rather than at the first Advance (E5, DL-21 §13).
+        return {
+          ok: true,
+          career: deserialiseCareer(document, content),
+          history: readHistory(slot),
+        };
       } catch (error) {
         return {
           ok: false,
@@ -221,9 +284,14 @@ export function createCareerStorage(backing: KeyValueStore | null): CareerStorag
       }
     },
 
+    loadHistory: readHistory,
+
     clear(slot: string): StorageResult {
       try {
         store.removeItem(careerKey(slot));
+        // The history goes with the slot it belongs to: a cleared slot leaves nothing
+        // behind for the next Career to inherit (E8-S4).
+        store.removeItem(historyKey(slot));
         writeIndex(readIndex().filter((held) => held.slot !== slot));
         return { ok: true };
       } catch (error) {

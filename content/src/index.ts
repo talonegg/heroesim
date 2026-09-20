@@ -20,6 +20,8 @@ export const CONTENT_FILES = {
   names: 'names.toml',
   /** One Vignette per file. */
   vignettes: 'vignettes/',
+  /** One Decision per file (E6-S1). A content set with none is complete, not broken. */
+  decisions: 'decisions/',
 } as const;
 
 /** The Vignette condition keys, which are snake_case on disk and camelCase in the contract. */
@@ -71,9 +73,59 @@ function mapConditions(raw: unknown, path: string): Record<string, unknown> {
   return conditions;
 }
 
-function vignettePaths(files: Record<string, string>): string[] {
+/** An option's `requires` keys, snake_case on disk and camelCase in the contract (E6-S1). */
+const REQUIRES_KEYS: Readonly<Record<string, string>> = { min_coin: 'minCoin' };
+
+/** An option's `effect` keys, on the same rule. */
+const EFFECT_KEYS: Readonly<Record<string, string>> = {
+  backing_delta: 'backingDelta',
+  dc_delta: 'dcDelta',
+  beats_remaining_delta: 'beatsRemainingDelta',
+};
+
+/**
+ * Rename a small table's keys from the snake_case an author writes to the names the
+ * contract uses, refusing anything that is not one of them — the same treatment, and the
+ * same kind of named-field error, that a Vignette's `[conditions]` already gets.
+ */
+function mapKeys(
+  raw: unknown,
+  keys: Readonly<Record<string, string>>,
+  path: string,
+  what: string,
+): Record<string, unknown> | undefined {
+  if (raw === undefined) return undefined;
+  if (!isTable(raw)) throw new ContentError(`${path}: ${what} is not a table`);
+  const mapped: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    const name = keys[key];
+    if (name === undefined) {
+      throw new ContentError(
+        `${path}: ${what}.${key} is not one of ${Object.keys(keys).join(', ')}`,
+      );
+    }
+    mapped[name] = value;
+  }
+  return mapped;
+}
+
+/** One option of a Decision, with its two nested tables renamed. */
+function mapOption(raw: unknown, path: string, index: number): Record<string, unknown> {
+  if (!isTable(raw)) throw new ContentError(`${path}: [[options]] ${index + 1} is not a table`);
+  const option: Record<string, unknown> = { ...raw };
+  const where = `[[options]] ${index + 1}`;
+  const requires = mapKeys(raw['requires'], REQUIRES_KEYS, path, `${where}.requires`);
+  if (requires === undefined) delete option['requires'];
+  else option['requires'] = requires;
+  const effect = mapKeys(raw['effect'], EFFECT_KEYS, path, `${where}.effect`);
+  if (effect === undefined) delete option['effect'];
+  else option['effect'] = effect;
+  return option;
+}
+
+function filesUnder(files: Record<string, string>, directory: string): string[] {
   return Object.keys(files)
-    .filter((path) => path.startsWith(CONTENT_FILES.vignettes) && path.endsWith('.toml'))
+    .filter((path) => path.startsWith(directory) && path.endsWith('.toml'))
     .sort();
 }
 
@@ -86,7 +138,7 @@ function vignettePaths(files: Record<string, string>): string[] {
  */
 export function parseContent(files: Record<string, string>): Content {
   const names = readRequired(files, CONTENT_FILES.names);
-  const paths = vignettePaths(files);
+  const paths = filesUnder(files, CONTENT_FILES.vignettes);
   if (paths.length === 0) {
     throw new ContentError(`${CONTENT_FILES.vignettes}: no Vignette files were found`);
   }
@@ -96,6 +148,20 @@ export function parseContent(files: Record<string, string>): Content {
     if (text === undefined) throw new ContentError(`${path}: the file is missing`);
     const raw = parseFile(path, text);
     return { ...raw, conditions: mapConditions(raw['conditions'], path) };
+  });
+
+  // A Decision reads the Commission and the Party exactly as a Vignette does, so its
+  // `[conditions]` are mapped by the same function; its options carry two small tables of
+  // their own (E6-S1). No Decision files at all is a complete content set: a Commission
+  // with nothing eligible simply never stops to ask.
+  const decisions = filesUnder(files, CONTENT_FILES.decisions).map((path) => {
+    const text = files[path];
+    if (text === undefined) throw new ContentError(`${path}: the file is missing`);
+    const raw = parseFile(path, text);
+    const options = Array.isArray(raw['options'])
+      ? raw['options'].map((option, index) => mapOption(option, path, index))
+      : raw['options'];
+    return { ...raw, conditions: mapConditions(raw['conditions'], path), options };
   });
 
   return validateContent({
@@ -109,5 +175,6 @@ export function parseContent(files: Record<string, string>): Content {
       rivalNames: names['rivalNames'],
     },
     vignettes,
+    decisions,
   });
 }

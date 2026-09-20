@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -50,14 +50,62 @@ export async function expectTapTargets(page: Page, where: string): Promise<void>
   }
 }
 
-/** The page never scrolls sideways (E8-S3 acceptance). */
+/**
+ * One named control is at least 40×40 CSS pixels. A control the player cannot press is
+ * still a control they will aim at, so a disabled one is held to the same floor (E8-S3).
+ */
+export async function expectTapTarget(target: Locator, what: string): Promise<void> {
+  const box = await target.boundingBox();
+  expect(box, `${what} has no box`).not.toBeNull();
+  expect(box?.width ?? 0, `${what} is too narrow`).toBeGreaterThanOrEqual(40);
+  expect(box?.height ?? 0, `${what} is too short`).toBeGreaterThanOrEqual(40);
+}
+
+/**
+ * Nothing scrolls sideways: not the page, and not any box inside it (E8-S3 acceptance).
+ *
+ * The document on its own is not enough. A secondary view renders inside `.sheet`, which
+ * carries `overflow-y: auto` and therefore computes `overflow-x: auto` too — so a child
+ * too wide for it scrolls *within the sheet* and the document never widens by a pixel.
+ * The same is true of the Report log. Every scrollable box on the page is measured, which
+ * is the only way the check can see what the player would have to drag.
+ */
 export async function expectNoHorizontalOverflow(page: Page, where: string): Promise<void> {
-  const overflow = await page.evaluate(() => ({
-    scrollWidth: document.documentElement.scrollWidth,
-    clientWidth: document.documentElement.clientWidth,
-  }));
-  expect(
-    overflow.scrollWidth,
-    `${where}: the page scrolls sideways (${overflow.scrollWidth} > ${overflow.clientWidth})`,
-  ).toBeLessThanOrEqual(overflow.clientWidth);
+  const boxes = await page.evaluate(() => {
+    /** Enough of an element to find it again in the source. */
+    function describe(element: Element): string {
+      const testid = element.getAttribute('data-testid');
+      const classes = [...element.classList].map((name) => `.${name}`).join('');
+      return `<${element.tagName.toLowerCase()}${classes}${
+        testid === null ? '' : ` data-testid="${testid}"`
+      }>`;
+    }
+
+    const measured = [
+      {
+        what: 'the page',
+        scrollWidth: document.documentElement.scrollWidth,
+        clientWidth: document.documentElement.clientWidth,
+      },
+    ];
+    for (const element of [...document.querySelectorAll('*')]) {
+      const { overflowX } = getComputedStyle(element);
+      if (overflowX !== 'auto' && overflowX !== 'scroll') continue;
+      // A box with no width of its own — display:none, or not laid out — cannot be dragged.
+      if (element.clientWidth === 0) continue;
+      measured.push({
+        what: describe(element),
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth,
+      });
+    }
+    return measured;
+  });
+
+  for (const box of boxes) {
+    expect(
+      box.scrollWidth,
+      `${where}: ${box.what} scrolls sideways (${box.scrollWidth} > ${box.clientWidth})`,
+    ).toBeLessThanOrEqual(box.clientWidth);
+  }
 }

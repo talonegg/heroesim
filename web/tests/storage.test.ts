@@ -5,6 +5,7 @@ import {
   AUTOSAVE_SLOT,
   careerKey,
   createCareerStorage,
+  historyKey,
   memoryStore,
   NAMED_SLOTS,
   SLOT_INDEX_KEY,
@@ -93,6 +94,50 @@ describe('browser saves', () => {
     expect(result.ok).toBe(false);
     expect(result.message).toContain('slot 1');
     expect(result.message).toContain('no room');
+  });
+
+  it('reports a quota that stopped the history, without losing the Career beside it', () => {
+    // DL-27 §6: "a quota that stops it is reported as a sentence naming the slot, as the
+    // Career's own is". The Career goes in and the history does not, and the player is
+    // told which slot — nothing is dropped in silence (E8-S4).
+    const held = memoryStore();
+    const store: KeyValueStore = {
+      getItem: (key) => held.getItem(key),
+      removeItem: (key) => {
+        held.removeItem(key);
+      },
+      setItem: (key, value) => {
+        if (key === historyKey('1')) {
+          const error = new Error('the quota has been exceeded');
+          error.name = 'QuotaExceededError';
+          throw error;
+        }
+        held.setItem(key, value);
+      },
+    };
+    const storage = createCareerStorage(store);
+    const result = storage.save('1', career, SAVED_ON, ['Year 1, Day 3 · A Party set out.']);
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('Slot 1');
+    expect(result.message).toContain('no room');
+    expect(result.message).toContain('what led up to it');
+    // The Career itself is there, which is the half that must not be lost.
+    expect(held.getItem(careerKey('1'))).toBe(serialiseCareer(career));
+  });
+
+  it('keeps each slot’s history to itself', () => {
+    // Nothing pinned this, and a history key that ignored its slot — every slot sharing
+    // one window — passed every test in the suite.
+    const storage = createCareerStorage(memoryStore());
+    storage.save('1', career, SAVED_ON, ['Year 1, Day 3 · The first Party set out.']);
+    storage.save('2', career, SAVED_ON, ['Year 2, Day 9 · A different Party came back.']);
+    expect(storage.loadHistory('1')).toEqual(['Year 1, Day 3 · The first Party set out.']);
+    expect(storage.loadHistory('2')).toEqual(['Year 2, Day 9 · A different Party came back.']);
+    // And clearing one leaves the other exactly where it was.
+    storage.clear('1');
+    expect(storage.loadHistory('1')).toEqual([]);
+    expect(storage.loadHistory('2')).toEqual(['Year 2, Day 9 · A different Party came back.']);
+    expect(historyKey('1')).not.toBe(historyKey('2'));
   });
 
   it('degrades to memory when localStorage throws, and says so', () => {

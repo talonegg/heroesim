@@ -12,13 +12,25 @@ function hero(overrides: Partial<Hero> = {}): Hero {
     name: 'Brenna',
     pronouns: 'she',
     stats: { Might: 3, Craft: 2, Nerve: 2, Guile: 3 },
+    age: 30,
     background: 'Ferry family',
     traits: [],
+    calibre: 1,
     regardForGuildmaster: { value: 0, reason: 'came with the Guild', nature: 'neutral' },
     regardFor: {},
     joinedOn: 1,
+    lastCommittedOn: 1,
+    regardDecayedOn: 1,
     ...overrides,
   };
+}
+
+/** A Hero who thinks exactly this much of the Guildmaster, for the Backing's Regard term. */
+function thinking(value: number, id = 'h1'): Hero {
+  return hero({
+    id,
+    regardForGuildmaster: { value, reason: 'the business at Thurrow', nature: 'neutral' },
+  });
 }
 
 function commission(difficulty: number): Commission {
@@ -95,39 +107,68 @@ describe('Trait modifiers', () => {
 });
 
 describe('Backing', () => {
-  it('comes from the Guildmaster’s Nerve and Guile, and is never negative', () => {
-    expect(backingFor(guildmaster(), fixtureContent, config)).toBe(2);
+  it('comes from the Guildmaster’s Nerve and Guile, and that term is never negative', () => {
+    expect(backingFor(guildmaster(), [thinking(0)], fixtureContent, config)).toBe(2);
     const timid = guildmaster({ stats: { Might: 1, Craft: 1, Nerve: 1, Guile: 1 } });
-    expect(backingFor(timid, fixtureContent, config)).toBe(0);
+    expect(backingFor(timid, [thinking(0)], fixtureContent, config)).toBe(0);
   });
 
-  it('is capped, and then Traits that carry Backing are added on top', () => {
+  it('adds the Traits that carry Backing, and clamps the whole of it', () => {
     const formidable = guildmaster({ stats: { Might: 5, Craft: 5, Nerve: 5, Guile: 5 } });
-    expect(backingFor(formidable, fixtureContent, config)).toBe(config.backingMax);
+    expect(backingFor(formidable, [thinking(0)], fixtureContent, config)).toBe(config.backingMax);
     const connected = guildmaster({
       stats: { Might: 5, Craft: 5, Nerve: 5, Guile: 5 },
       traits: [{ name: 'Old campaigner', since: 1 }],
     });
-    expect(backingFor(connected, fixtureContent, config)).toBe(config.backingMax + 1);
+    // The Stat term alone already reaches the ceiling, so the Trait cannot take it past
+    // one: `backingMax` is the ceiling on the whole of it from E2 (DL-14).
+    expect(backingFor(connected, [thinking(0)], fixtureContent, config)).toBe(config.backingMax);
   });
 
-  it('does not yet move with the Guildmaster’s Regard for the Party (that is E2)', () => {
-    const indifferent = guildmaster({ regardFor: {} });
+  it('moves with what the Party thinks of the Guildmaster (E2)', () => {
+    const gm = guildmaster();
+    const baseline = backingFor(gm, [thinking(0)], fixtureContent, config);
+    expect(backingFor(gm, [thinking(4), thinking(4, 'h2')], fixtureContent, config)).toBe(
+      Math.min(config.backingMax, baseline + 2),
+    );
+    expect(backingFor(gm, [thinking(-4), thinking(-4, 'h2')], fixtureContent, config)).toBe(
+      baseline - 2,
+    );
+  });
+
+  it('goes negative for a Party of resentful Heroes, down to the configured floor', () => {
+    const timid = guildmaster({ stats: { Might: 1, Craft: 1, Nerve: 1, Guile: 1 } });
+    const resentful = [thinking(-5), thinking(-5, 'h2'), thinking(-5, 'h3')];
+    expect(backingFor(timid, resentful, fixtureContent, config)).toBe(config.backingMin);
+  });
+
+  it('contributes nothing for a Regard term with nobody to average', () => {
+    expect(backingFor(guildmaster(), [], fixtureContent, config)).toBe(2);
+  });
+
+  it('does not read the Guildmaster’s Regard for the Party, only theirs for them', () => {
     const devoted = guildmaster({
       regardFor: {
         h1: { value: 5, reason: 'carried them out of the weir', nature: 'bond' },
         h2: { value: 5, reason: 'ten years of it', nature: 'bond' },
       },
     });
+    expect(backingFor(devoted, [thinking(0)], fixtureContent, config)).toBe(
+      backingFor(guildmaster(), [thinking(0)], fixtureContent, config),
+    );
+  });
+
+  it('does not move for the Guildmaster’s own negative Regard for the Party either', () => {
     const despised = guildmaster({
       regardFor: {
         h1: { value: -5, reason: 'the business at Thurrow', nature: 'rivalry' },
         h2: { value: -5, reason: 'the business at Thurrow', nature: 'rivalry' },
       },
     });
-    const baseline = backingFor(indifferent, fixtureContent, config);
-    expect(backingFor(devoted, fixtureContent, config)).toBe(baseline);
-    expect(backingFor(despised, fixtureContent, config)).toBe(baseline);
+    // Backing reads each member's own `regardForGuildmaster` (the Regard term above),
+    // never the Guildmaster's Regard for them — pinned against the same 2 the plain
+    // Guildmaster gives in "comes from the Guildmaster's Nerve and Guile" above.
+    expect(backingFor(despised, [thinking(0)], fixtureContent, config)).toBe(2);
   });
 
   it('is added to the Check', () => {

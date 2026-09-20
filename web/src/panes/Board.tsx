@@ -1,5 +1,6 @@
 import type { Career, Content } from '@heroesim/engine';
 import { difficultyBand, patronOf, sphereName } from '../state/selectors';
+import { coin, count } from '../words';
 
 /**
  * The Board: the Commissions currently on offer, one card each. A Patron whose Regard
@@ -35,10 +36,14 @@ export function Board({
                 <p className="card__line">
                   <b>{patron?.name ?? 'An unnamed Patron'}</b> · {sphereName(content, patron?.sphere)}
                 </p>
+                {/* The same four terms the terminal's Board row carries, in the same
+                    order: fee, difficulty **word**, span and Beats. The raw difficulty
+                    number the browser used to print beside the word is gone — parity is of
+                    information, the terminal shows a word and never the number, and a bare
+                    engine number in brackets is not a thing a player weighs (DL-27 §3). */}
                 <p className="card__line">
-                  Fee <b>{commission.fee} coin</b> · {difficultyBand(career, commission)} (
-                  {commission.difficulty}) · <b>{commission.spanDays}</b> Days ·{' '}
-                  {commission.beatCount} Beats
+                  Fee <b>{coin(commission.fee)}</b> · {difficultyBand(career, commission)} ·{' '}
+                  <b>{count(commission.spanDays, 'Day', 'Days')}</b> · {commission.beatCount} Beats
                 </p>
                 {ended ? null : (
                   <button

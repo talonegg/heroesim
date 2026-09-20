@@ -9,11 +9,14 @@
  * exceptional (DL-13). `loop.test.ts` proves the consequence kind still works.
  */
 
-import { advanceUntilAttention, availableHeroes, commitParty } from '../src/career.js';
+import { advanceUntilAttention, availableHeroes, commitParty, proposeParty } from '../src/career.js';
+import { cloneCareer } from '../src/clone.js';
 import { validateContent, type Content } from '../src/content.js';
 import type { GameEvent } from '../src/events.js';
+import { hallCost, improveHall } from '../src/hall.js';
 import { rngOn, type Rng, type RngState } from '../src/rng.js';
-import type { Career, Hero } from '../src/types.js';
+import { HALL_IMPROVEMENTS } from '../src/types.js';
+import type { Career, Commission, Hero, RivalHero } from '../src/types.js';
 
 /** The fixture content, admitted through the real validator. */
 export const fixtureContent: Content = validateContent({
@@ -48,6 +51,35 @@ export const fixtureContent: Content = validateContent({
       kind: 'injury',
       summary: 'Stiff down one side.',
       modifiers: [{ stat: 'Might', delta: -1 }],
+    },
+    // Three refusing Traits, one of each shape the rule allows (E2). No fixture
+    // Background carries one, so under E2 a test that wanted a refusal had to give it
+    // deliberately and every other fixture Career behaved exactly as it did before. Under
+    // E3 that is no longer true of `Worn`: it is one of only two `kind: 'scar'` Traits
+    // here, and E3's harm draws a Scar from every Trait of that kind, evenly, whenever a
+    // critical failure marks someone — so roughly half of the Scars any fixture Career
+    // hands out are `Worn`, and its unconditional refusal (`refusal: {}`) then stops that
+    // Hero working for good without a test ever asking for it (DL-17 §4).
+    {
+      name: 'Worn',
+      kind: 'scar',
+      summary: 'Has given the work everything it asked for.',
+      modifiers: [],
+      refusal: {},
+    },
+    {
+      name: 'Never the water',
+      kind: 'scar',
+      summary: 'Went under once and will not go near it again.',
+      modifiers: [],
+      refusal: { tags: ['water'] },
+    },
+    {
+      name: 'Nothing desperate',
+      kind: 'disposition',
+      summary: 'Will take the work but not the kind nobody comes back from.',
+      modifiers: [],
+      refusal: { minDifficulty: 13 },
     },
   ],
   backgrounds: [
@@ -235,6 +267,47 @@ export const fixtureContent: Content = validateContent({
   ],
 });
 
+/**
+ * The fixture content with the **shipped** name pools in place of the nine first names and
+ * three epithets the rest of the fixture makes do with.
+ *
+ * Nine names cannot seat a Guildmaster, four Heroes, four Rival Rosters and a queue at the
+ * door all at once, so a Career played on `fixtureContent` runs the pool dry and two people
+ * sharing a name there would say something about the fixture and nothing about the rule.
+ * Anything asking "does anybody ever share a name" is played on this instead, and asserts
+ * the pool was never exhausted so the question stays an honest one.
+ */
+export const roomyNameContent: Content = validateContent({
+  traits: fixtureContent.traits,
+  backgrounds: fixtureContent.backgrounds,
+  spheres: fixtureContent.spheres,
+  names: {
+    heroFirst: [
+      'Brenna', 'Aldis', 'Corran', 'Maelis', 'Roskil', 'Ysolde', 'Hale', 'Thessa',
+      'Garrick', 'Noll', 'Edric', 'Sennet', 'Wyn', 'Orla', 'Dunn', 'Kest',
+      'Halla', 'Brann', 'Ivo', 'Marta', 'Osric', 'Tamsin', 'Rual', 'Gethin',
+      'Nerys', 'Haldor', 'Sibb', 'Colm', 'Ailith', 'Fenn', 'Morwen', 'Drust',
+      'Elswith', 'Radek', 'Joss', 'Petra', 'Vane', 'Gwenna', 'Torrin', 'Bede',
+      'Alric', 'Senna', 'Kel', 'Maud', 'Orrin', 'Pell', 'Rhia', 'Sawel',
+      'Tibb', 'Una', 'Varr', 'Wilda', 'Ysane', 'Aneth', 'Berrick', 'Cait',
+      'Dagan', 'Eira', 'Flin', 'Gower', 'Hesk', 'Ilsa', 'Jarran', 'Kern',
+      'Lowri', 'Merrick', 'Nan', 'Oswin', 'Perrin', 'Quenna',
+    ],
+    heroEpithets: [
+      'of Ashfall', 'the Younger', 'Half-hand', 'of Lowford', 'the Quiet',
+      'of Marrow Quay', 'the Elder', 'Longshanks', 'of the Fen', 'Coldwater',
+      'the Dour', 'Two-coats', 'of Thurrow', 'the Lame', 'Ninefingers',
+      'of Cairn', 'the Patient', 'Sootfoot', 'of Gaunt Adit', 'the Bitter',
+      'Nightwalker', 'of Ellersgate', 'the Steady', 'Saltborn', 'of Callow Drift',
+      'the Unlucky', 'Stonehand', 'of Wend Water', 'the Mild', 'Ratcatcher',
+      'of the Low Temple', 'the Wary', 'Hookarm', 'of Byre', 'the Late', 'Greyeye',
+    ],
+    guildNames: fixtureContent.names.guildNames,
+    rivalNames: fixtureContent.names.rivalNames,
+  },
+  vignettes: fixtureContent.vignettes,
+});
+
 /** Content with a single Vignette that can never fire, for the unreachable-selection case. */
 export const unreachableContent: Content = validateContent({
   traits: fixtureContent.traits,
@@ -307,6 +380,260 @@ export function seededRng(state: RngState): Rng {
   return rngOn({ rng: [...state] as RngState });
 }
 
+// ── Putting a world into a state a seed alone will not reach (E2) ───────────
+//
+// Refusal, drift and Departure all turn on a Regard value, and world generation starts
+// every Hero between −1 and +2. Rather than hunt for a seed that eventually souring
+// happens to reach, these helpers set the state the rule is being tested against, the way
+// `api.test.ts` expires a Commission by hand. Each returns a fresh Career and leaves the
+// one it was given alone, so a test can build several from the same start.
+
+/** A copy of a Career in which one Hero thinks exactly this much of the Guildmaster. */
+export function thinking(career: Career, heroId: string, value: number, reason = 'the business at Thurrow'): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  hero.regardForGuildmaster = { value, reason, nature: hero.regardForGuildmaster.nature };
+  return copy;
+}
+
+/** A copy of a Career in which the whole Roster thinks exactly this much of the Guildmaster. */
+export function allThinking(career: Career, value: number): Career {
+  return career.guild.roster.reduce((held, hero) => thinking(held, hero.id, value), career);
+}
+
+/** A copy of a Career in which one Hero holds a Trait they did not have before. */
+export function holding(career: Career, heroId: string, trait: string): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  if (!hero.traits.some((held) => held.name === trait)) {
+    hero.traits.push({ name: trait, since: copy.day });
+  }
+  return copy;
+}
+
+// ── Putting a world into a state a seed alone will not reach (E3) ───────────
+
+/**
+ * A copy of a Career in which one Hero is carrying an Injury given on `since` and lifting
+ * on `liftsOn`. Set directly, so that a test of the lift does not also depend on the dice
+ * that would have caused it.
+ */
+export function hurt(
+  career: Career,
+  heroId: string,
+  trait: string,
+  since: number,
+  liftsOn: number,
+): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  hero.traits = hero.traits.filter((held) => held.name !== trait);
+  hero.traits.push({ name: trait, since, liftsOn });
+  return copy;
+}
+
+/** A copy of a Career in which one Hero is exactly this old. */
+export function aged(career: Career, heroId: string, age: number): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  hero.age = age;
+  return copy;
+}
+
+/** A copy of a Career holding this much coin. */
+export function holdingCoin(career: Career, coin: number): Career {
+  const copy = cloneCareer(career);
+  copy.guild.coin = coin;
+  return copy;
+}
+
+// ── Putting a world into a state a seed alone will not reach (E4) ───────────
+
+/**
+ * A copy of a Career in which every Patron thinks exactly this much of the Guild, and so
+ * the Guild's Standing is exactly `value × config.standingScale`. World generation starts
+ * every Patron between 0 and +1, so the calibre thresholds are otherwise out of reach.
+ */
+export function patronsThinking(career: Career, value: number): Career {
+  const copy = cloneCareer(career);
+  for (const patron of copy.patrons) {
+    patron.regardForGuild = { ...patron.regardForGuild, value };
+  }
+  return copy;
+}
+
+/**
+ * A copy of a Career in which one Hero has left the Roster the way E2 loses them — by
+ * choice, over low Regard, on a named Day. Set directly, because reaching a Departure
+ * through play takes a seed hunt and this file's job is to put the world where the rule
+ * under test can be read (E4-S4).
+ */
+export function walkedOut(
+  career: Career,
+  heroId: string,
+  onDay: number,
+  reason = 'you sent them anyway',
+): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  copy.guild.roster = copy.guild.roster.filter((candidate) => candidate.id !== heroId);
+  hero.exit = { kind: 'departure', onDay, reason };
+  copy.guild.formerHeroes.push(hero);
+  copy.ledger.departures += 1;
+  return copy;
+}
+
+/** A copy of a Career in which one Hero has left the Roster in one of the other two ways. */
+export function gone(
+  career: Career,
+  heroId: string,
+  kind: 'death' | 'retirement',
+  onDay: number,
+): Career {
+  const copy = cloneCareer(career);
+  const hero = copy.guild.roster.find((candidate) => candidate.id === heroId);
+  if (hero === undefined) throw new Error(`no Hero "${heroId}" is on the Roster`);
+  copy.guild.roster = copy.guild.roster.filter((candidate) => candidate.id !== heroId);
+  hero.exit = { kind, onDay, reason: kind === 'death' ? 'did not come back' : 'reached the end' };
+  copy.guild.formerHeroes.push(hero);
+  if (kind === 'death') copy.ledger.heroesDied += 1;
+  else copy.ledger.heroesRetired += 1;
+  return copy;
+}
+
+// ── Putting a world into a state a seed alone will not reach (E5) ───────────
+//
+// A Rival starts neutral about the Guild and their Heroes start between
+// `rivalHeroRegardMin` and `rivalHeroRegardMax`, so consent, poaching, retaliation and a
+// soured Board all turn on values the opening world does not hold. These set them, the
+// way `thinking` sets what one of your own Heroes makes of the Guildmaster.
+
+/** A copy of a Career in which one Rival thinks exactly this much of your Guild. */
+export function rivalThinking(
+  career: Career,
+  rivalId: string,
+  value: number,
+  reason = 'the business at Thurrow',
+): Career {
+  const copy = cloneCareer(career);
+  const rival = copy.rivals.find((candidate) => candidate.id === rivalId);
+  if (rival === undefined) throw new Error(`no Rival "${rivalId}" is in this Career`);
+  rival.regardForGuild = { value, reason, nature: rival.regardForGuild.nature };
+  return copy;
+}
+
+/** A copy of a Career in which every Rival thinks exactly this much of your Guild. */
+export function allRivalsThinking(career: Career, value: number): Career {
+  return career.rivals.reduce((held, rival) => rivalThinking(held, rival.id, value), career);
+}
+
+/** A copy of a Career in which one of a Rival's Heroes thinks exactly this much of them. */
+export function rivalHeroThinking(
+  career: Career,
+  heroId: string,
+  value: number,
+  reason = 'the business at Thurrow',
+): Career {
+  const copy = cloneCareer(career);
+  for (const rival of copy.rivals) {
+    const hero = rival.roster.find((candidate) => candidate.id === heroId);
+    if (hero === undefined) continue;
+    hero.regardForRival = { value, reason, nature: hero.regardForRival.nature };
+    return copy;
+  }
+  throw new Error(`no Rival employs a Hero with id "${heroId}"`);
+}
+
+/**
+ * A copy of a Career in which every Rival's Roster has been cut to `size` people, so that
+ * a test of retaliation is never quietly refused for want of room on the other side.
+ */
+export function trimRivalRosters(career: Career, size: number): Career {
+  const copy = cloneCareer(career);
+  for (const rival of copy.rivals) rival.roster = rival.roster.slice(0, size);
+  return copy;
+}
+
+/** The first Hero on the named Rival's Roster, which the seed has always dealt somebody to. */
+export function firstRivalHero(career: Career, rivalId: string): RivalHero {
+  const hero = career.rivals.find((rival) => rival.id === rivalId)?.roster[0];
+  if (hero === undefined) throw new Error(`no Rival "${rivalId}" with anybody on its Roster`);
+  return hero;
+}
+
+/**
+ * Content with exactly one Vignette, so that a harm test knows which Beat it resolved and
+ * what that Beat's own outcome did. The Vignette has no conditions, so it is always the
+ * candidate; its Hero slot is `any`, so the Party's first member takes the Check under a
+ * scripted generator.
+ *
+ * It carries two more Traits than `fixtureContent` does — a second Injury and a third
+ * Scar — so that a harm test has a pool deep enough to prove the draw never repeats a
+ * Trait the Hero already holds. They live here rather than on `fixtureContent` because
+ * every Career in the suite draws harm from that pool, and widening it would move every
+ * seeded outcome E1 and E2 pinned.
+ *
+ * @param failureConsequences what the failure outcome carries. Empty is the ordinary case
+ * the engine's own harm falls back on; a `trait` Consequence is the authored-harm case,
+ * which suppresses it entirely.
+ */
+export function oneVignetteContent(failureConsequences: unknown[] = []): Content {
+  return validateContent({
+    traits: [
+      ...fixtureContent.traits,
+      {
+        name: 'Cut hand',
+        kind: 'injury',
+        summary: 'Bound tight, and no use for anything needing grip.',
+        modifiers: [{ stat: 'Craft', delta: -2 }],
+      },
+      {
+        name: 'Limps',
+        kind: 'scar',
+        summary: 'The leg set badly and never came right.',
+        modifiers: [{ stat: 'Might', delta: -1 }],
+      },
+    ],
+    backgrounds: fixtureContent.backgrounds,
+    spheres: fixtureContent.spheres,
+    names: fixtureContent.names,
+    vignettes: [
+      {
+        id: 'the-only-one',
+        name: 'The only one',
+        stat: 'Craft',
+        difficulty: 11,
+        weight: 1,
+        tags: [],
+        conditions: {},
+        slots: { hero: 'any' },
+        outcomes: {
+          failure: { narrative: '{hero} does not manage it.', consequences: failureConsequences },
+          success: { narrative: '{hero} manages it.', consequences: [] },
+          critical: { narrative: '{hero} manages it very well indeed.', consequences: [] },
+        },
+      },
+    ],
+  });
+}
+
+/**
+ * A copy of a Career whose first Commission on the Board is exactly as described, so that
+ * a refusal can be aimed at a known set of tags and a known difficulty.
+ */
+export function offering(career: Career, patch: Partial<Commission>): { career: Career; commission: Commission } {
+  const copy = cloneCareer(career);
+  const commission = copy.board[0];
+  if (commission === undefined) throw new Error('the test expected a Commission on the Board');
+  Object.assign(commission, patch);
+  return { career: copy, commission };
+}
+
 /** Freeze an object and everything reachable from it, so any mutation throws. */
 export function deepFreeze<T>(value: T): T {
   if (value === null || typeof value !== 'object') return value;
@@ -320,6 +647,18 @@ export function deepFreeze<T>(value: T): T {
  * available Heroes to the best-paying Commission until the Roster is used, then advance.
  * It makes no interesting decisions — it exists so that a Career can be run end to end
  * without a player.
+ *
+ * It never insists (E2). It asks `proposeParty` who would refuse, sends somebody else,
+ * and if nobody on the Roster will take a Commission it leaves that one alone and moves
+ * on — so the Regard the suite measures is only ever moved by work and by neglect, never
+ * by a policy deciding to spend it.
+ *
+ * It does improve the Hall (E3), because a player would: an injured Hero cannot be sent,
+ * and a policy that never buys the infirmary spends a growing share of a twenty-year
+ * Career with half its Roster sitting at home. It buys an improvement only when it can
+ * comfortably afford one — the cost plus a full `startingCoin` of runway left over — so
+ * the purchase is never what makes it insolvent. `availableHeroes` is what keeps it from
+ * committing anybody who is hurt, so the policy itself needs no rule about that.
  */
 export function autoPlay(
   start: Career,
@@ -334,16 +673,38 @@ export function autoPlay(
   while (career.ended === undefined) {
     guard += 1;
     if (guard > 100_000) throw new Error('the auto policy never reached the end of the Career');
+    for (const improvement of HALL_IMPROVEMENTS) {
+      if (career.guild.hall.includes(improvement)) continue;
+      if (career.guild.coin < hallCost(improvement, career.config) + career.config.startingCoin) {
+        continue;
+      }
+      const bought = improveHall(career, improvement);
+      career = bought.career;
+      options.onEvents?.(bought.events);
+    }
     const free = [...availableHeroes(career)].sort((one, other) => strength(other) - strength(one));
     const byFee = [...career.board].sort((one, other) => other.fee - one.fee);
-    let taken = 0;
+    const used = new Set<string>();
     for (const commission of byFee) {
-      const party = free.slice(taken, taken + partySize).map((hero) => hero.id);
-      if (party.length === 0) break;
+      const left = free.filter((hero) => !used.has(hero.id));
+      if (left.length === 0) break;
+      const refusing = new Set(
+        proposeParty(
+          career,
+          commission.id,
+          left.map((hero) => hero.id),
+          content,
+        ).refusals.map((refusal) => refusal.heroId),
+      );
+      const party = left
+        .filter((hero) => !refusing.has(hero.id))
+        .slice(0, partySize)
+        .map((hero) => hero.id);
+      if (party.length === 0) continue;
       const step = commitParty(career, commission.id, party, content);
       career = step.career;
       options.onEvents?.(step.events);
-      taken += party.length;
+      for (const id of party) used.add(id);
     }
     const step = advanceUntilAttention(career, content);
     career = step.career;

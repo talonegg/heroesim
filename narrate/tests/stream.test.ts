@@ -45,8 +45,21 @@ describe('a one-year Career, narrated', () => {
   });
 
   it('covers every kind of paragraph the loop can produce', () => {
+    // `word` and `answer` join the seven E1–E5 kinds because the authored content now
+    // ships Decisions and a one-year Career meets one (E6-S4). The seven before them are
+    // unchanged, which is the half of that acceptance box worth guarding.
     expect(kinds(paragraphs)).toEqual(
-      new Set<ParagraphKind>(['note', 'board', 'commit', 'beat', 'return', 'coin', 'end']),
+      new Set<ParagraphKind>([
+        'note',
+        'board',
+        'commit',
+        'beat',
+        'return',
+        'coin',
+        'end',
+        'word',
+        'answer',
+      ]),
     );
   });
 
@@ -88,7 +101,9 @@ describe('the lines narrate writes itself', () => {
     expect(commits.length).toBeGreaterThan(0);
     for (const entry of commits) {
       expect(entry.text).toMatch(/set out on /);
-      expect(entry.text).toMatch(/(with Backing of \d+|with no Backing)/);
+      expect(entry.text).toMatch(
+        /(with Backing of \d+|with no Backing|worse off by \d+ for what they think of you)/,
+      );
       expect(entry.text).toMatch(/due back on Year \d+, Day \d+\./);
     }
   });

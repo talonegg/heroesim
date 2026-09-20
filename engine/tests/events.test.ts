@@ -16,6 +16,9 @@ const EVERY_EVENT: Record<GameEventType, true> = {
   CommissionPosted: true,
   CommissionExpired: true,
   CommissionTakenByRival: true,
+  CommissionRefused: true,
+  InsistenceApplied: true,
+  HeroDeparted: true,
   PartyCommitted: true,
   BeatResolved: true,
   ConsequenceApplied: true,
@@ -25,6 +28,25 @@ const EVERY_EVENT: Record<GameEventType, true> = {
   HeroRegardForGuildmasterChanged: true,
   TraitGained: true,
   TraitLifted: true,
+  HeroInjured: true,
+  InjuryLifted: true,
+  HeroScarred: true,
+  HeroDied: true,
+  HeroRetired: true,
+  ApplicantsArrived: true,
+  ApplicantAccepted: true,
+  ApplicantDeclined: true,
+  HeroJoined: true,
+  HeroTransferred: true,
+  HeroPoached: true,
+  RivalPoachedHero: true,
+  RivalRosterChanged: true,
+  RivalRegardChanged: true,
+  TransferRefused: true,
+  PartyAwaitingWord: true,
+  PartyAnswered: true,
+  PartyTurnedBack: true,
+  HallImproved: true,
   UpkeepOwed: true,
   CareerEnded: true,
 };
@@ -33,7 +55,7 @@ describe('the event union', () => {
   it('names every member exactly once', () => {
     const names = Object.keys(EVERY_EVENT);
     expect(new Set(names).size).toBe(names.length);
-    expect(names).toHaveLength(16);
+    expect(names).toHaveLength(38);
   });
 
   it('narrows on `type` to the fields that member carries', () => {

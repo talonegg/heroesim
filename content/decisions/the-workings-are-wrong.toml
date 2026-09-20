@@ -1,0 +1,41 @@
+id = "the-workings-are-wrong"
+name = "The workings are wrong"
+weight = 2
+tags = ["delve", "dark"]
+
+prompt = "Word comes up by the same road they went down. The timbers are further gone than anybody was told and the water is standing where it was not standing a week ago. {hero} has written it out plainly and is waiting at the head of the shaft for an answer."
+
+[conditions]
+min_beat = 2
+# Work below ground only: the prose has timbers and the head of a shaft in it. "water"
+# alone let it fire on a tithe barge and a cattle drove, and "dark" alone on a crypt vigil.
+tags = ["delve"]
+
+[slots]
+hero = "lowest:Nerve"
+
+[[options]]
+id = "press-on"
+kind = "pressOn"
+label = "They knew the ground when they took it. Go on."
+default = true
+consequences = []
+effect = { dc_delta = 2 }
+
+[[options]]
+id = "send-coin"
+kind = "sendCoin"
+label = "Send thirty coin for timber and a local who knows the shaft."
+cost = 30
+requires = { min_coin = 30 }
+consequences = []
+effect = { backing_delta = 1, dc_delta = -1 }
+
+[[options]]
+id = "turn-back"
+kind = "turnBack"
+label = "Nothing down there is worth a Hero. Bring them up."
+consequences = [
+  { kind = "patronRegard", delta = -1, reason = "left the workings unfinished" },
+  { kind = "heroRegardForGuildmaster", delta = 1, reason = "you called them up out of it" },
+]

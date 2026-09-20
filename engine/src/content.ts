@@ -20,6 +20,23 @@ export interface TraitDef {
   modifiers: TraitModifier[];
   /** The Guildmaster-only contribution to a Party's Backing. Does nothing on a Hero. */
   backing?: number;
+  /**
+   * Present ⇒ a Hero holding this Trait can refuse a Commission it matches (E2). Refusal
+   * is data: adding a refusing Trait is a content edit and never an engine edit.
+   */
+  refusal?: TraitRefusal;
+}
+
+/**
+ * When a Trait says *not this, not for them*. Both fields absent ⇒ it refuses everything;
+ * otherwise it refuses a Commission whose tags intersect `tags`, **or** whose difficulty
+ * has reached `minDifficulty`.
+ */
+export interface TraitRefusal {
+  /** Refuses a Commission carrying one of these tags. */
+  tags?: string[];
+  /** Refuses a Commission this hard or harder. */
+  minDifficulty?: number;
 }
 
 /** One conditional adjustment a Trait makes to a Check. */
@@ -114,7 +131,81 @@ export type Consequence =
   | { kind: 'patronRegard'; delta: number; reason: string }
   | { kind: 'heroRegardForGuildmaster'; delta: number; reason: string }
   | { kind: 'trait'; trait: string; days?: number }
-  | { kind: 'score'; delta: number };
+  | { kind: 'score'; delta: number }
+  /**
+   * A Rival thinks better or worse of the Guild for what happened (E5 §4). `rivalId` is
+   * optional because content cannot name a Rival: Rivals are generated, and their ids
+   * mean nothing to an author. Left out, the engine picks one — so a Vignette can sour a
+   * Rival without an engine change, which is the whole reason this kind exists.
+   */
+  | { kind: 'rivalRegard'; rivalId?: string; delta: number; reason: string }
+  /**
+   * The Party works better or worse for what was decided: it adjusts the Backing fixed at
+   * commit, clamped to `config.backingMin`..`config.backingMax` (E6 §4). Added so that a
+   * Decision option's `effect` and a Vignette's outcome speak one vocabulary, and valid in
+   * both for that reason.
+   */
+  | { kind: 'backing'; delta: number };
+
+/**
+ * The three things a Party can be told to do when it sends word (E6-S2). A closed
+ * vocabulary owned by the engine, exactly as Consequence kinds are (DL-03): adding a
+ * Decision is writing a file, and adding a fourth kind is an engine change.
+ */
+export type DecisionOptionKind = 'pressOn' | 'sendCoin' | 'turnBack';
+
+/** What taking an option does to the Commission, in numbers (E6-S3). */
+export interface DecisionEffect {
+  /** Added to the Party's fixed Backing, clamped like any other Backing movement. */
+  backingDelta?: number;
+  /** Added to every remaining Beat's DC, before the DC's own clamp. */
+  dcDelta?: number;
+  /**
+   * Lengthens or shortens the run. The Commission can never be taken below the Beats it
+   * has already resolved plus the one the Decision displaced.
+   */
+  beatsRemainingDelta?: number;
+}
+
+/** What the Guild must have before an option can be taken (E6-S1). */
+export interface DecisionRequires {
+  /** Coin the Guild must hold. Checked again at the moment of answering (DL-23 §8). */
+  minCoin?: number;
+}
+
+/** One thing the Guildmaster can tell a Party that has sent word (E6-S1). */
+export interface DecisionOption {
+  id: string;
+  kind: DecisionOptionKind;
+  /** The template `narrate` fills. The engine never reads it (ADR-0002). */
+  label: string;
+  /** Coin it costs. Required on `sendCoin` and meaningless on the other two. */
+  cost?: number;
+  requires?: DecisionRequires;
+  /** Exactly one option per Decision carries it, and it is taken on the timeout. */
+  default?: boolean;
+  consequences: Consequence[];
+  effect?: DecisionEffect;
+}
+
+/**
+ * An authored moment at which a Commission stops and asks (E6-S1). Conditions, slots and
+ * weight are deliberately the same shape as a {@link Vignette}'s, so one selector and one
+ * token filler serve both and a content author learns one language. Only `outcomes` versus
+ * `options` differ.
+ */
+export interface DecisionDef {
+  id: string;
+  name: string;
+  /** Relative likelihood of being picked among the candidates. Greater than zero. */
+  weight: number;
+  tags: string[];
+  conditions: VignetteConditions;
+  slots: { hero: HeroSlotRule };
+  /** The template `narrate` fills. The engine never reads it (ADR-0002). */
+  prompt: string;
+  options: DecisionOption[];
+}
 
 /** Everything the engine needs that was authored rather than generated. */
 export interface Content {
@@ -123,6 +214,8 @@ export interface Content {
   spheres: SphereDef[];
   names: NamePools;
   vignettes: Vignette[];
+  /** The Decisions a Commission may stop and ask (E6-S1). An empty set never stops one. */
+  decisions: DecisionDef[];
 }
 
 /** The only tokens a narrative may carry. Anything else is a content error. */
@@ -149,7 +242,14 @@ const CONSEQUENCE_KINDS = [
   'heroRegardForGuildmaster',
   'trait',
   'score',
+  'rivalRegard',
+  'backing',
 ] as const;
+
+const OPTION_KINDS: readonly DecisionOptionKind[] = ['pressOn', 'sendCoin', 'turnBack'];
+
+/** An id a front end prints and a save carries: lower case, digits and hyphens. */
+const ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 const TOKEN_PATTERN = /\{([^{}]*)\}/g;
 
@@ -230,6 +330,27 @@ function readTraitDef(raw: unknown, index: number): TraitDef {
   if (table['backing'] !== undefined) {
     def.backing = readNumber(table['backing'], `${at}.backing`);
   }
+  if (table['refusal'] !== undefined) {
+    const refusalAt = `${at}.refusal`;
+    const refusalTable = readTable(table['refusal'], refusalAt);
+    for (const key of Object.keys(refusalTable)) {
+      if (key !== 'tags' && key !== 'minDifficulty') {
+        fail(`${refusalAt}.${key}`, 'a refusal takes only tags and minDifficulty');
+      }
+    }
+    const refusal: TraitRefusal = {};
+    if (refusalTable['tags'] !== undefined) {
+      const tags = readStringArray(refusalTable['tags'], `${refusalAt}.tags`);
+      if (tags.length === 0) {
+        fail(`${refusalAt}.tags`, 'give at least one tag, or leave tags out to refuse everything');
+      }
+      refusal.tags = tags;
+    }
+    if (refusalTable['minDifficulty'] !== undefined) {
+      refusal.minDifficulty = readInteger(refusalTable['minDifficulty'], `${refusalAt}.minDifficulty`);
+    }
+    def.refusal = refusal;
+  }
   return def;
 }
 
@@ -307,6 +428,22 @@ function readConsequence(raw: unknown, where: string, traitNames: ReadonlySet<st
         delta: readNumber(table['delta'], `${where}.delta`),
         reason: readString(table['reason'], `${where}.reason`),
       };
+    case 'backing':
+      return { kind: 'backing', delta: readNumber(table['delta'], `${where}.delta`) };
+    case 'rivalRegard': {
+      const consequence: Consequence = {
+        kind: 'rivalRegard',
+        delta: readNumber(table['delta'], `${where}.delta`),
+        reason: readString(table['reason'], `${where}.reason`),
+      };
+      // An id may be named, but it cannot be checked here: Rivals are generated from the
+      // seed and their ids exist only inside a Career. Naming one that no Career holds is
+      // a Consequence that does nothing, which is why leaving it out is the usual way.
+      if (table['rivalId'] !== undefined) {
+        consequence.rivalId = readString(table['rivalId'], `${where}.rivalId`);
+      }
+      return consequence;
+    }
     default: {
       const trait = readString(table['trait'], `${where}.trait`);
       if (!traitNames.has(trait)) {
@@ -451,6 +588,177 @@ function readVignette(
 }
 
 /**
+ * Whether `{trait}` may appear in this template's prose. The condition guarantees that
+ * somebody in the Party holds the Trait and the slot guarantees the moment goes to one of
+ * them; neither alone keeps the promise the prose makes (DL-13, F11). The same rule for a
+ * Decision's prompt and labels as for a Vignette's narratives, because the filler is the
+ * same one.
+ */
+function traitTokenAllowed(conditions: VignetteConditions, slotRule: HeroSlotRule): boolean {
+  return (
+    conditions.requiresTrait !== undefined && slotRule === `with_trait:${conditions.requiresTrait}`
+  );
+}
+
+function readDecisionOption(
+  raw: unknown,
+  at: string,
+  index: number,
+  traitNames: ReadonlySet<string>,
+  traitAllowed: boolean,
+): DecisionOption {
+  const where = `${at}.options[${index}]`;
+  const table = readTable(raw, where);
+  const id = readString(table['id'], `${where}.id`);
+  if (!ID_PATTERN.test(id)) {
+    fail(`${where}.id`, `an option id is lower case, digits and hyphens, not "${id}"`);
+  }
+  const kind = readEnum(table['kind'], OPTION_KINDS, `${where}.kind`);
+  const label = readString(table['label'], `${where}.label`);
+  checkNarrativeTokens(label, `${where}.label`, traitAllowed);
+
+  const option: DecisionOption = {
+    id,
+    kind,
+    label,
+    consequences: readArray(table['consequences'] ?? [], `${where}.consequences`).map(
+      (entry, position) => readConsequence(entry, `${where}.consequences[${position}]`, traitNames),
+    ),
+  };
+
+  if (table['cost'] !== undefined) {
+    const cost = readInteger(table['cost'], `${where}.cost`);
+    if (cost < 0) fail(`${where}.cost`, 'a cost cannot be negative');
+    option.cost = cost;
+  }
+  // A `sendCoin` option that costs nothing is a `pressOn` option wearing a hat, and an
+  // author who wrote one meant to name a number (E6 §4).
+  if (kind === 'sendCoin' && option.cost === undefined) {
+    fail(`${where}.cost`, 'a sendCoin option needs a cost');
+  }
+  if (table['requires'] !== undefined) {
+    const requiresAt = `${where}.requires`;
+    const requiresTable = readTable(table['requires'], requiresAt);
+    for (const key of Object.keys(requiresTable)) {
+      if (key !== 'minCoin') fail(`${requiresAt}.${key}`, 'an option requires only minCoin');
+    }
+    const requires: DecisionRequires = {};
+    if (requiresTable['minCoin'] !== undefined) {
+      requires.minCoin = readInteger(requiresTable['minCoin'], `${requiresAt}.minCoin`);
+    }
+    option.requires = requires;
+  }
+  if (table['default'] !== undefined) {
+    if (typeof table['default'] !== 'boolean') fail(`${where}.default`, 'expected true or false');
+    if (table['default']) option.default = true;
+  }
+  if (table['effect'] !== undefined) {
+    const effectAt = `${where}.effect`;
+    const effectTable = readTable(table['effect'], effectAt);
+    const effect: DecisionEffect = {};
+    for (const key of Object.keys(effectTable)) {
+      if (key !== 'backingDelta' && key !== 'dcDelta' && key !== 'beatsRemainingDelta') {
+        fail(
+          `${effectAt}.${key}`,
+          'an effect takes only backingDelta, dcDelta and beatsRemainingDelta',
+        );
+      }
+    }
+    if (effectTable['backingDelta'] !== undefined) {
+      effect.backingDelta = readInteger(effectTable['backingDelta'], `${effectAt}.backingDelta`);
+    }
+    if (effectTable['dcDelta'] !== undefined) {
+      effect.dcDelta = readInteger(effectTable['dcDelta'], `${effectAt}.dcDelta`);
+    }
+    if (effectTable['beatsRemainingDelta'] !== undefined) {
+      effect.beatsRemainingDelta = readInteger(
+        effectTable['beatsRemainingDelta'],
+        `${effectAt}.beatsRemainingDelta`,
+      );
+    }
+    option.effect = effect;
+  }
+  return option;
+}
+
+function readDecision(
+  raw: unknown,
+  index: number,
+  sphereIds: ReadonlySet<string>,
+  traitNames: ReadonlySet<string>,
+): DecisionDef {
+  const table = readTable(raw, `decisions[${index}]`);
+  const idValue = table['id'];
+  const at =
+    typeof idValue === 'string' && idValue.length > 0
+      ? `decisions/${idValue}.toml`
+      : `decisions[${index}]`;
+  const id = readString(idValue, `${at}.id`);
+  if (!ID_PATTERN.test(id)) {
+    fail(`${at}.id`, `a Decision id is lower case, digits and hyphens, not "${id}"`);
+  }
+  const conditions = readConditions(table['conditions'], at, sphereIds, traitNames);
+  const slotRule = readHeroSlotRule(readTable(table['slots'], `${at}.slots`)['hero'], at, traitNames);
+  const traitAllowed = traitTokenAllowed(conditions, slotRule);
+
+  const weight = readNumber(table['weight'], `${at}.weight`);
+  if (weight <= 0) fail(`${at}.weight`, 'a weight must be greater than zero');
+
+  const prompt = readString(table['prompt'], `${at}.prompt`);
+  checkNarrativeTokens(prompt, `${at}.prompt`, traitAllowed);
+
+  const options = readArray(table['options'], `${at}.options`).map((entry, position) =>
+    readDecisionOption(entry, at, position, traitNames, traitAllowed),
+  );
+  if (options.length < 2) {
+    fail(`${at}.options`, 'a Decision that offers fewer than two things is not a decision');
+  }
+  requireUnique(
+    options.map((option) => option.id),
+    `${at}.options`,
+    'option id',
+  );
+  // Turning back is always on the table: it is the option that makes the other two a
+  // choice rather than a formality, and every Decision must carry one (E6-S1).
+  if (!options.some((option) => option.kind === 'turnBack')) {
+    fail(`${at}.options`, 'a Decision needs an option of kind turnBack');
+  }
+  const defaults = options.filter((option) => option.default === true);
+  if (defaults.length === 0) {
+    fail(`${at}.options`, 'a Decision needs exactly one option marked default; none is marked');
+  }
+  if (defaults.length > 1) {
+    fail(
+      `${at}.options`,
+      `a Decision needs exactly one option marked default; ${defaults.map((option) => `"${option.id}"`).join(', ')} are`,
+    );
+  }
+  // The default is what a Party gets when nobody answers, so it has to be a thing the
+  // Guild can always do. One that costs coin, or that waits on coin, would leave a
+  // penniless Guild's Party waiting for a question nobody can close — and the timeout is
+  // the whole of "a Career never deadlocks" (E6 §2, DL-23 §3).
+  const fallback = defaults[0];
+  if (fallback !== undefined && (fallback.cost !== undefined || fallback.requires !== undefined)) {
+    fail(
+      `${at}.options`,
+      `the default option "${fallback.id}" must be one the Guild can always take: it can carry ` +
+        'neither a cost nor a requires, because it is what happens when nobody answers',
+    );
+  }
+
+  return {
+    id,
+    name: readString(table['name'], `${at}.name`),
+    weight,
+    tags: readStringArray(table['tags'] ?? [], `${at}.tags`),
+    conditions,
+    slots: { hero: slotRule },
+    prompt,
+    options,
+  };
+}
+
+/**
  * Admit parsed content, or refuse it with a {@link ContentError} naming the file and
  * field. Returns a clean copy: unknown keys are dropped and optional keys are omitted
  * rather than set to `undefined`.
@@ -498,5 +806,17 @@ export function validateContent(raw: unknown): Content {
     'Vignette id',
   );
 
-  return { traits, backgrounds, spheres, names, vignettes };
+  // A content set with no Decisions is complete rather than broken: a Commission that has
+  // none to draw from simply never stops to ask (E6-S2), which is what the engine's own
+  // fixture world and every verification world rely on.
+  const decisions = readArray(table['decisions'] ?? [], 'decisions').map((entry, index) =>
+    readDecision(entry, index, sphereIds, traitNames),
+  );
+  requireUnique(
+    decisions.map((decision) => decision.id),
+    'decisions',
+    'Decision id',
+  );
+
+  return { traits, backgrounds, spheres, names, vignettes, decisions };
 }

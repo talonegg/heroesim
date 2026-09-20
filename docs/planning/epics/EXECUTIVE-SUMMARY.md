@@ -2,9 +2,22 @@
 
 **Baselined:** 2026-09-19 · **Total build: 25–34 focused days** ([the register is the source](README.md#2-epic-register)) · **Master clock: narrative coherence, not calendar**
 
-**Status:** E1 and the first web client (E8-S1–S5) are built and verified as of 2026-09-19: 375
-Vitest tests across engine, content, narrate, cli and web; 24 Playwright checks at mobile, tablet
-and desktop, all on Chromium; 36 screenshots kept as evidence under `docs/verification/`.
+**Status:** all eight epics are built and independently verified, as of 2026-09-20 (DL-13 to
+DL-28). E8's S1–S5 were verified on 2026-09-19 and **E8-S6, the three earlier acceptance boxes
+that were still open and E8's definition of done were independently verified on 2026-09-20**;
+that round found and fixed nine defects and gaps — among them an ended Career's header stating an Upkeep that will
+never fall due and a Board that will never refresh, the Waiting-on-your-word pane still offered
+on an ended Career that stopped with a Party mid-Commission (reachable on 9 of 60 sampled seeds),
+ten identifier fallbacks that could put an engine id in front of the player, and a retired
+Hero's exit read out twice — and raised design questions for the owner which are listed in
+[E8 §6](epics/E8-web-front-end.md#6-what-independent-verification-raised-for-the-owner). The
+figures, measured at the end of that verification: **1,629 Vitest tests passed and 5 skipped
+across 91 files** (89 passed, 2 skipped) over engine, content, narrate, cli and web, in about
+180 s; **141 Playwright checks at mobile, tablet and desktop, all on Chromium** — 47 per
+project, against the built bundle; **109 screenshots** kept as evidence under
+`docs/verification/`. `npm run typecheck` is clean and `npm run lint` reports 0 errors (1
+pre-existing warning). All of it was re-run from a **clean copy of the tree with `npm ci`**,
+outside the repository, and passed there too.
 
 ---
 

@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { content } from './content';
 import { Shell, type PaneName } from './layout/Shell';
+import { Applicants } from './panes/Applicants';
+import { Former } from './panes/Former';
+import { Hall } from './panes/Hall';
+import { History } from './panes/History';
+import { League } from './panes/League';
+import { More } from './panes/More';
+import { Patrons } from './panes/Patrons';
+import { Rivals } from './panes/Rivals';
 import { PartyPicker } from './panes/PartyPicker';
 import { SlotPicker } from './panes/SlotPicker';
 import { useCareer } from './state/careerReducer';
@@ -20,6 +28,16 @@ export function App({ seed }: { seed?: string }) {
   const [pane, setPane] = useState<PaneName>('board');
   const [picking, setPicking] = useState<string | null>(null);
   const [slotsOpen, setSlotsOpen] = useState(false);
+  const [hallOpen, setHallOpen] = useState(false);
+  const [applicantsOpen, setApplicantsOpen] = useState(false);
+  const [rivalsOpen, setRivalsOpen] = useState(false);
+  const [leagueOpen, setLeagueOpen] = useState(false);
+  // The three views E8-S6 added, reached through the More sheet so the header stays two
+  // rows deep at 360px (DL-27 §8).
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [patronsOpen, setPatronsOpen] = useState(false);
+  const [formerOpen, setFormerOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [starting, setStarting] = useState(true);
   const [notice, setNotice] = useState<string | null>(null);
   const [seedText, setSeedText] = useState(() => seed ?? randomSeed());
@@ -29,11 +47,13 @@ export function App({ seed }: { seed?: string }) {
   const { career } = state;
 
   // Autosave after every action, so a closed tab never costs more than the current Day.
+  // The history follows the autosave, so what led up to a Career is never a Day behind it
+  // (E8-S6).
   useEffect(() => {
     if (career === null) return;
-    const result = storage.save(AUTOSAVE_SLOT, career, new Date().toISOString());
+    const result = storage.save(AUTOSAVE_SLOT, career, new Date().toISOString(), state.history);
     if (!result.ok && result.message !== undefined) setNotice(result.message);
-  }, [career, storage]);
+  }, [career, state.history, storage]);
 
   const commission = picking === null || career === null ? undefined : commissionById(career, picking);
 
@@ -124,8 +144,9 @@ export function App({ seed }: { seed?: string }) {
           <SlotPicker
             storage={storage}
             career={career}
-            onLoad={(loaded) => {
-              dispatch({ type: 'load', career: loaded });
+            history={state.history}
+            onLoad={(loaded, history) => {
+              dispatch({ type: 'load', career: loaded, history });
               setSlotsOpen(false);
               setStarting(false);
               setPane('report');
@@ -181,9 +202,28 @@ export function App({ seed }: { seed?: string }) {
           dispatch({ type: 'advance' });
           setPane('report');
         }}
+        onAnswer={(partyId, optionId) => {
+          dispatch({ type: 'answer', partyId, optionId });
+          setPane('report');
+        }}
         onSend={setPicking}
         onOpenSaves={() => {
           setSlotsOpen(true);
+        }}
+        onOpenHall={() => {
+          setHallOpen(true);
+        }}
+        onOpenApplicants={() => {
+          setApplicantsOpen(true);
+        }}
+        onOpenRivals={() => {
+          setRivalsOpen(true);
+        }}
+        onOpenLeague={() => {
+          setLeagueOpen(true);
+        }}
+        onOpenMore={() => {
+          setMoreOpen(true);
         }}
         onNewCareer={() => {
           setSeedText(randomSeed());
@@ -196,8 +236,8 @@ export function App({ seed }: { seed?: string }) {
           career={career}
           commission={commission}
           disabled={state.busy}
-          onCommit={(heroIds) => {
-            dispatch({ type: 'commit', commissionId: commission.id, heroIds });
+          onCommit={(heroIds, insist) => {
+            dispatch({ type: 'commit', commissionId: commission.id, heroIds, insist });
             setPicking(null);
             setPane('report');
           }}
@@ -207,12 +247,114 @@ export function App({ seed }: { seed?: string }) {
         />
       )}
 
+      {applicantsOpen ? (
+        <Applicants
+          career={career}
+          disabled={state.busy}
+          onAccept={(applicantId) => {
+            dispatch({ type: 'accept', applicantId });
+          }}
+          onDecline={(applicantId) => {
+            dispatch({ type: 'decline', applicantId });
+          }}
+          onClose={() => {
+            setApplicantsOpen(false);
+          }}
+        />
+      ) : null}
+
+      {rivalsOpen ? (
+        <Rivals
+          career={career}
+          disabled={state.busy}
+          onTransfer={(rivalId, heroId) => {
+            dispatch({ type: 'transfer', rivalId, heroId });
+          }}
+          onPoach={(rivalId, heroId) => {
+            dispatch({ type: 'poach', rivalId, heroId });
+          }}
+          onClose={() => {
+            setRivalsOpen(false);
+          }}
+        />
+      ) : null}
+
+      {leagueOpen ? (
+        <League
+          career={career}
+          onClose={() => {
+            setLeagueOpen(false);
+          }}
+        />
+      ) : null}
+
+      {moreOpen ? (
+        <More
+          onOpenPatrons={() => {
+            setMoreOpen(false);
+            setPatronsOpen(true);
+          }}
+          onOpenFormer={() => {
+            setMoreOpen(false);
+            setFormerOpen(true);
+          }}
+          onOpenHistory={() => {
+            setMoreOpen(false);
+            setHistoryOpen(true);
+          }}
+          onClose={() => {
+            setMoreOpen(false);
+          }}
+        />
+      ) : null}
+
+      {patronsOpen ? (
+        <Patrons
+          career={career}
+          onClose={() => {
+            setPatronsOpen(false);
+          }}
+        />
+      ) : null}
+
+      {formerOpen ? (
+        <Former
+          career={career}
+          onClose={() => {
+            setFormerOpen(false);
+          }}
+        />
+      ) : null}
+
+      {historyOpen ? (
+        <History
+          history={state.history}
+          onClose={() => {
+            setHistoryOpen(false);
+          }}
+        />
+      ) : null}
+
+      {hallOpen ? (
+        <Hall
+          career={career}
+          disabled={state.busy}
+          onBuy={(improvement) => {
+            dispatch({ type: 'improveHall', improvement });
+          }}
+          onClose={() => {
+            setHallOpen(false);
+          }}
+        />
+      ) : null}
+
       {slotsOpen ? (
         <SlotPicker
           storage={storage}
           career={career}
-          onLoad={(loaded) => {
-            dispatch({ type: 'load', career: loaded });
+          history={state.history}
+          onLoad={(loaded, history) => {
+            dispatch({ type: 'load', career: loaded, history });
             setSlotsOpen(false);
             setPane('report');
           }}

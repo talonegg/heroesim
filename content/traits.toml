@@ -13,6 +13,13 @@
 # `backing` is the Guildmaster-only contribution to a Party's Backing. It does nothing
 # on a Hero. Three Traits carry it, and the Backgrounds that hold them are noted in
 # backgrounds.toml.
+#
+# `refusal` makes a Trait one that says *not this, not for them* (E2). Both fields absent
+# means it refuses every Commission; otherwise it refuses one whose tags intersect
+# `refusal.tags`, or whose difficulty has reached `refusal.minDifficulty`. Refusal is
+# data: adding a refusing Trait is an edit to this file and never to the engine. The
+# summary is what the CLI and the web client print when they explain a refusal, so it has
+# to read as a reason rather than as a label.
 
 # ── Dispositions ─────────────────────────────────────────────────────────────
 
@@ -161,6 +168,13 @@ modifiers = [
 ]
 
 # ── Injuries (given with `days`; they lift) ───────────────────────────────────
+#
+# A Vignette outcome may give one of these by name with a `days` span, and where an
+# outcome says nothing the engine draws one of them for the slot Hero of a failed Check
+# (E3). The draw is even across this section and never repeats a Trait the Hero already
+# holds, so the set is written to read as things that happen to a working person: stiff,
+# cut, cracked, feverish. Adding one here widens what harm can look like without touching
+# the engine.
 
 [[traits]]
 name = "Bruised"
@@ -199,6 +213,13 @@ modifiers = [
 ]
 
 # ── Scars (given without `days`; they never lift) ─────────────────────────────
+#
+# A badly failed Check may leave one of these, drawn evenly across every `kind = "scar"`
+# Trait in this file — which includes the two refusing ones further down, because a Hero
+# who comes back saying *never again* is exactly what a Scar is (E3). They are written as
+# things that happened to a person rather than as a list of wounds: each one changes what
+# the Hero is good at and what they will still walk into, and each is permanent. A Scar is
+# never removed; that is what makes it a Scar.
 
 [[traits]]
 name = "Limps"
@@ -235,6 +256,46 @@ modifiers = [
   { stat = "Guile", tags = ["talk"], delta = -1 },
   { stat = "Nerve", tags = ["fight"], delta = 1 },
 ]
+
+# ── Refusing Traits (E2) ─────────────────────────────────────────────────────
+#
+# Two of these three reach a starting Hero through a Background — "Godfearing" through
+# Temple ward, "Never again the deep" through Came up from the deep — so refusals happen
+# in ordinary play without the Guildmaster having first earned one. "Worn" is the
+# unconditional case the rule exists for, and nothing in E2 hands it out: a Hero becomes
+# Worn, and E3 is where a Scar like it is given. Both of the Scars here are in the pool a
+# critical failure draws from, so a Hero can come back from one and refuse that kind of
+# work for good.
+
+[[traits]]
+name = "Godfearing"
+kind = "disposition"
+summary = "Will not go into the dark for money, and is not going to be argued out of it."
+modifiers = [
+  { stat = "Nerve", tags = ["wilds"], delta = 1 },
+  { stat = "Guile", tags = ["talk"], delta = 1 },
+]
+refusal = { tags = ["dark"] }
+
+[[traits]]
+name = "Never again the deep"
+kind = "scar"
+summary = "Went down one time too many and came up owing nobody another descent."
+modifiers = [
+  { stat = "Nerve", tags = ["dark"], delta = -1 },
+  { stat = "Craft", tags = ["recover"], delta = 1 },
+]
+refusal = { tags = ["delve"] }
+
+[[traits]]
+name = "Worn"
+kind = "scar"
+summary = "Has given the work everything it asked for and has nothing further to give it."
+modifiers = [
+  { stat = "Might", delta = -1 },
+  { stat = "Nerve", delta = -1 },
+]
+refusal = {}
 
 # ── Guildmaster-plausible, carrying Backing ──────────────────────────────────
 

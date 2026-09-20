@@ -13,9 +13,11 @@ hero = "highest:Craft"
 
 [outcomes.failure]
 narrative = "The gate is barred from the far side and the hinges are set in stone, not timber. {hero} works at it with wire and patience until the wire snaps off in the ward and makes the whole thing worse. They go by the ditch in the end, which costs them half a day and one of the lanterns, and the bar is still on when they come past it again."
-consequences = [
-  { kind = "heroRegardForGuildmaster", delta = -1, reason = "the gate cost half a day and nobody had thought to send the right wire" },
-]
+# No Regard consequence. This is the most-fired Vignette in the set and the grievance is
+# a small one; a point off a five-point scale every third time it fires took every Roster
+# to the floor inside four years (DL-14). Regard moves where the Guildmaster's judgement
+# is genuinely at issue, and rarely.
+consequences = []
 
 [outcomes.success]
 narrative = "{hero} spends a long while on the hinges rather than the lock, which is where the timber has gone soft. It comes off the lower pin with the flat of a knife and the weight of one shoulder. Nothing is broken that cannot be put back, and when they are through {hero.they} {hero.moves} the pin into place again, so that anyone following finds the gate as it was."

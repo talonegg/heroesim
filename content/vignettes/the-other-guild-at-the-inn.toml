@@ -1,0 +1,38 @@
+id = "the-other-guild-at-the-inn"
+name = "The other Guild at the inn"
+stat = "Guile"
+difficulty = 11
+# An evening in a taproom with another Guild's party at the long table, and the one thing
+# in the game that sours a Rival besides a Poaching. Until the balance pass it waited on
+# `escort` and `guard` as well, which between them admitted more than half the Commissions
+# in the game — a night watch in a crypt, a pay chest up a mine road — and it fired on
+# 6.4% of every Beat, some seven hundred times a Career. That is not an occasional evening
+# at an inn; it is the main mechanism, and E5 §3 names losing people "like weather rather
+# than consequence" as the reason to change the rule. Narrowed to its own tags and halved
+# in weight, so it is colour again (DL-24 §B3). The deltas are unchanged: the step was
+# never the problem, only how often it was taken.
+weight = 1
+tags = ["talk", "town"]
+
+[conditions]
+min_beat = 2
+tags = ["talk", "town"]
+
+[slots]
+hero = "highest:Guile"
+
+[outcomes.failure]
+narrative = "There is another Guild's party in the taproom, three of them at the long table, and they have been on the same road for the same reasons. {hero} says more about {patron}'s business than {hero.they} meant to, and one of them writes nothing down and remembers all of it. By the time the ale is finished the other table knows what the Guild is paid, who it is short of, and which of the two names on the letter actually decides."
+consequences = [
+  { kind = "rivalRegard", delta = -1, reason = "your people talked where theirs were listening" },
+]
+
+[outcomes.success]
+narrative = "There is another Guild's party in the taproom and {hero} takes the far end of it, orders once, and says nothing about the work at all. They talk about the weather over Cairn and about a man in Thurrow who owes everybody money. Both tables leave knowing exactly as much about the other as they arrived with, which between Guilds is a civil evening."
+consequences = []
+
+[outcomes.critical]
+narrative = "There is another Guild's party in the taproom, and by the second hour {hero} has the youngest of them explaining what their Guildmaster pays and why two of their number are looking elsewhere. {hero} buys the round that keeps it going, agrees that it is a hard business, and walks out with a name worth remembering and nothing given away in exchange."
+consequences = [
+  { kind = "rivalRegard", delta = 1, reason = "their people were made much of at the Thurrow inn" },
+]

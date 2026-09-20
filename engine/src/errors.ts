@@ -11,8 +11,31 @@ export type EngineErrorCode =
   | 'HeroNotAvailable'
   /** No Heroes were named. */
   | 'EmptyParty'
+  /**
+   * At least one named Hero refuses the Commission and the call did not say to insist.
+   * Ask `proposeParty` who refuses and why before deciding whether to pay the price.
+   */
+  | 'HeroRefused'
   /** The Career has already ended, in Retirement or in insolvency. */
   | 'CareerEnded'
+  /** The Guild cannot afford the Hall improvement it was asked to buy (E3). */
+  | 'InsufficientCoin'
+  /** The Hall already holds that improvement, and each is bought once (E3). */
+  | 'AlreadyImproved'
+  /** No Applicant of that id is waiting: the id is unknown, or they have expired (E4). */
+  | 'NoSuchApplicant'
+  /** The Roster is at `config.rosterCap` and nobody else can be taken on (E4). */
+  | 'RosterFull'
+  /** No Rival of that id is in this Career (E5). */
+  | 'NoSuchRival'
+  /** No Hero of that id is on the Roster this call named (E5). */
+  | 'NoSuchHero'
+  /** No Party of that id is away on a Commission (E6). */
+  | 'NoSuchParty'
+  /** That Party has not sent word, so there is nothing to answer (E6). */
+  | 'NotAwaitingWord'
+  /** The Decision that Party is waiting on offers no option of that id (E6). */
+  | 'NoSuchOption'
   /** The engine reached a state it believes unreachable. Never part of normal play. */
   | 'InternalError';
 

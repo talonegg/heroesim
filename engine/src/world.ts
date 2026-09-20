@@ -4,37 +4,30 @@
  * Patrons, Rivals and work on the Board.
  */
 
+import { startingAge } from './age.js';
 import { postCommissions } from './board.js';
 import { defaultConfig, type GameConfig } from './config.js';
 import type { BackgroundDef, Content } from './content.js';
 import { EngineError } from './errors.js';
 import type { GameEvent } from './events.js';
+import { calibreOfStats, distributeStats, PRONOUNS, statTotal } from './people.js';
+import { populateRivalRosters, REASON_NOTHING_BETWEEN_YOU } from './rival.js';
 import { rngOn, seedRng, type Rng } from './rng.js';
 import { standingOf } from './state.js';
-import { STATS } from './types.js';
-import type { Career, Guildmaster, Hero, Patron, Pronouns, Regard, Stats, Step } from './types.js';
+import type { Career, Guildmaster, Hero, Patron, Regard, Stats, Step } from './types.js';
 
 /** The reason every Regard a Career starts with carries. */
 export const REASON_CAME_WITH_THE_GUILD = 'came with the Guild';
 
-const PRONOUNS: readonly Pronouns[] = ['she', 'he', 'they'];
+/**
+ * Kept here because E1 put them here and several modules import them from this path. The
+ * definitions themselves moved to `people.ts` in E5, where world generation, an Applicant
+ * at the door and a Rival's Roster all reach them without importing one another.
+ */
+export { distributeStats, PRONOUNS };
 
 function blankStats(): Stats {
   return { Might: 0, Craft: 0, Nerve: 0, Guile: 0 };
-}
-
-/** Four Stats within the configured range, totalling `total`. */
-function distributeStats(total: number, config: GameConfig, rng: Rng): Stats {
-  const stats: Stats = { ...blankStats() };
-  for (const stat of STATS) stats[stat] = config.statMin;
-  let remaining = total - config.statMin * STATS.length;
-  while (remaining > 0) {
-    const room = STATS.filter((stat) => stats[stat] < config.statMax);
-    if (room.length === 0) break;
-    stats[rng.pick(room)] += 1;
-    remaining -= 1;
-  }
-  return stats;
 }
 
 function drawFrom(pool: string[], rng: Rng, what: string): string {
@@ -79,6 +72,7 @@ function makeGuildmaster(content: Content, config: GameConfig, rng: Rng, firstNa
 }
 
 function makeHero(
+  seed: string,
   index: number,
   content: Content,
   config: GameConfig,
@@ -89,13 +83,32 @@ function makeHero(
   const background = rng.pick(content.backgrounds);
   const first = drawFrom(firstNames, rng, 'hero first names');
   const named = epithets.length > 0 && rng.chance(config.heroEpithetChance);
+  const id = `h${index + 1}`;
+  // Drawn in exactly the order E1 drew them — the epithet, then the pronouns, then the
+  // Stats — because every seeded expectation in the suite is this sequence. E5 needs the
+  // Stats in hand before the object is built, to read a calibre off them, and taking them
+  // out of the literal is the only change: not one draw moves.
+  const name = named ? `${first} ${drawFrom(epithets, rng, 'hero epithets')}` : first;
+  const pronouns = rng.pick(PRONOUNS);
+  const stats = distributeStats(
+    rng.between(config.heroStatTotalMin, config.heroStatTotalMax),
+    config,
+    rng,
+  );
   return {
-    id: `h${index + 1}`,
-    name: named ? `${first} ${drawFrom(epithets, rng, 'hero epithets')}` : first,
-    pronouns: rng.pick(PRONOUNS),
-    stats: distributeStats(rng.between(config.heroStatTotalMin, config.heroStatTotalMax), config, rng),
+    id,
+    name,
+    pronouns,
+    stats,
+    // Drawn from a stream of its own rather than from `rng`, so that adding ages to world
+    // generation moved no other draw and a save without them can be filled with exactly
+    // the same number (DL-16 §1).
+    age: startingAge(seed, id, config),
     background: background.name,
     traits: traitsOf(background, 1),
+    // Read off the Stats they were generated with rather than drawn, so nothing about
+    // world generation moves for E5 carrying calibre onto a person (DL-19 §7).
+    calibre: calibreOfStats(statTotal(stats), config),
     regardForGuildmaster: regard(
       rng.between(config.heroRegardForGuildmasterMin, config.heroRegardForGuildmasterMax),
       REASON_CAME_WITH_THE_GUILD,
@@ -103,6 +116,8 @@ function makeHero(
     ),
     regardFor: {},
     joinedOn: 1,
+    lastCommittedOn: 1,
+    regardDecayedOn: 1,
   };
 }
 
@@ -169,6 +184,12 @@ function makePatrons(content: Content, config: GameConfig, rng: Rng): Patron[] {
  */
 export function newCareer(seed: string, content: Content, config?: Partial<GameConfig>): Step {
   const settings: GameConfig = { ...defaultConfig, ...config };
+  // The debt the Guild came with, taken out of the opening float and then never spoken of
+  // again: no obligation is tracked, no event is emitted and no draw is taken for it, so
+  // at the default of 0 this is `startingCoin` and every seeded expectation is untouched
+  // (E7 §3's adopted default, DL-25 §1). The peak is set to the same number because it is
+  // the largest balance the Guild has actually held.
+  const openingCoin = settings.startingCoin - settings.startingDebt;
   const career: Career = {
     formatVersion: 1,
     seed,
@@ -188,19 +209,39 @@ export function newCareer(seed: string, content: Content, config?: Partial<GameC
       },
       roster: [],
       formerHeroes: [],
-      coin: settings.startingCoin,
+      coin: openingCoin,
       hall: [],
     },
     patrons: [],
     board: [],
     parties: [],
     rivals: [],
+    // A Career opens with nobody waiting and no Applicant ever made: the first batch is
+    // due on the first Day that is a multiple of `applicantsEveryDays` (E4-S2). Nothing
+    // here takes a draw for it, so world generation is bit-identical to E3's (DL-19 §1).
+    applicants: [],
+    nextApplicantNumber: 1,
+    nextRivalHeroNumber: 1,
     ledger: {
       commissionsCompleted: 0,
       commissionsFailed: 0,
       commissionsByPatron: {},
-      peakCoin: settings.startingCoin,
+      peakCoin: openingCoin,
       lastUpkeepNegative: false,
+      departures: 0,
+      heroesInjured: 0,
+      heroesScarred: 0,
+      heroesDied: 0,
+      heroesRetired: 0,
+      applicantsSeen: 0,
+      applicantsAccepted: 0,
+      returners: 0,
+      returnersOffered: 0,
+      heroesTransferredIn: 0,
+      heroesPoachedIn: 0,
+      heroesPoachedFromUs: 0,
+      wordsSent: 0,
+      turnedBack: 0,
     },
     recentCommissions: [],
   };
@@ -214,7 +255,7 @@ export function newCareer(seed: string, content: Content, config?: Partial<GameC
   career.guild.guildmaster = makeGuildmaster(content, settings, rng, firstNames);
 
   for (let index = 0; index < settings.startingHeroes; index += 1) {
-    career.guild.roster.push(makeHero(index, content, settings, rng, firstNames, epithets));
+    career.guild.roster.push(makeHero(seed, index, content, settings, rng, firstNames, epithets));
   }
   seedHeroRegard(career.guild.roster, content, settings, rng);
   for (const hero of career.guild.roster) {
@@ -236,8 +277,18 @@ export function newCareer(seed: string, content: Content, config?: Partial<GameC
         0,
         standing + rng.between(-settings.rivalStandingSpread, settings.rivalStandingSpread),
       ),
+      roster: [],
+      regardForGuild: regard(
+        settings.rivalStartingRegard,
+        REASON_NOTHING_BETWEEN_YOU,
+        'neutral',
+      ),
     });
   }
+  // Each Rival's Roster is drawn from a stream of its own, keyed on the seed and that
+  // Rival's id, so world generation takes not one extra draw from `career.rng` and every
+  // seeded expectation E1 to E4 pinned is bit-identical to what it was (E5 §5, DL-19 §1).
+  populateRivalRosters(career, content);
 
   const events: GameEvent[] = [
     {

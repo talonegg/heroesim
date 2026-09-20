@@ -9,6 +9,7 @@ import {
   availableHeroes,
   commitParty,
   newCareer,
+  proposeParty,
   type Career,
   type Content,
   type GameConfig,
@@ -20,7 +21,11 @@ import { narrateEvents, type Paragraph } from '../src/index.js';
 /** The authored content, loaded once. */
 export const content: Content = loadContentFromDisk();
 
-/** Send the strongest available Heroes, two at a time, at whatever the Board offers. */
+/**
+ * Send the strongest available Heroes, two at a time, at whatever the Board offers. Like
+ * the engine's own policy it asks who would refuse and sends somebody else rather than
+ * insisting, so the Regard these paragraphs report moved on its own (E2).
+ */
 export function playCareer(
   seed: string,
   config?: Partial<GameConfig>,
@@ -36,12 +41,20 @@ export function playCareer(
     for (const commission of [...career.board]) {
       const free = [...availableHeroes(career)].sort((a, b) => strength(b) - strength(a));
       if (free.length < 2) break;
-      const step = commitParty(
-        career,
-        commission.id,
-        free.slice(0, 2).map((hero) => hero.id),
-        content,
+      const refusing = new Set(
+        proposeParty(
+          career,
+          commission.id,
+          free.map((hero) => hero.id),
+          content,
+        ).refusals.map((refusal) => refusal.heroId),
       );
+      const party = free
+        .filter((hero) => !refusing.has(hero.id))
+        .slice(0, 2)
+        .map((hero) => hero.id);
+      if (party.length === 0) continue;
+      const step = commitParty(career, commission.id, party, content);
       career = step.career;
       paragraphs.push(...narrateEvents(step.events, career, content));
     }

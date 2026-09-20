@@ -14,7 +14,17 @@ const CODES = {
   CommissionNotOnBoard: true,
   HeroNotAvailable: true,
   EmptyParty: true,
+  HeroRefused: true,
   CareerEnded: true,
+  InsufficientCoin: true,
+  AlreadyImproved: true,
+  NoSuchApplicant: true,
+  RosterFull: true,
+  NoSuchRival: true,
+  NoSuchHero: true,
+  NoSuchParty: true,
+  NotAwaitingWord: true,
+  NoSuchOption: true,
   InternalError: true,
 } satisfies Record<EngineErrorCode, true>;
 
