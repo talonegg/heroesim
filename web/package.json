@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/check-bundle.mjs",
+    "build:exe": "npm run build && node scripts/build-exe.mjs",
+    "serve": "node launcher/serve.mjs",
     "preview": "vite preview",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit"

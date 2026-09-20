@@ -4,7 +4,7 @@
 **Estimate:** 4–5 days · **Depends on:** E1 (first version), E7 (parity) · **Implements:** [DL-01](../00-decision-log.md#dl-01--a-web-front-end-is-in-scope-as-a-second-renderer-over-the-same-engine), [Architecture §9](../03-solution-architecture.md#9-front-ends) · **Realises:** ADR-0001, ADR-0002, DL-01, DL-02, DL-04, DL-05  
 **Gate:** Playwright plays a Career at three viewports — new Career, commit a Party, advance until it returns, read the report, save, reload, load — with no horizontal overflow at 360px
 
-**Status:** Built and independently verified 2026-09-20 (DL-27, DL-28). S1–S5 verified 2026-09-19; S6, the three earlier boxes that were open and the definition of done verified 2026-09-20 — nine defects and gaps found and fixed, seven design questions raised, both in [§6](#6-what-independent-verification-raised-for-the-owner).
+**Status:** Built and independently verified 2026-09-20 (DL-27, DL-28). S1–S5 verified 2026-09-19; S6, the three earlier boxes that were open and the definition of done verified 2026-09-20 — nine defects and gaps found and fixed, seven design questions raised, both in [§6](#6-what-independent-verification-raised-for-the-owner). **E8-S7, the launcher executable, was added and built afterwards on 2026-09-20 (DL-29); it has not been independently verified.**
 
 ---
 
@@ -21,7 +21,7 @@
 
 **Deliberately deferred:**
 
-- Any server, any hosting, any account. Zero running cost is a hard requirement, not a preference
+- Any server, any hosting, any account. Zero running cost is a hard requirement, not a preference. *Narrowed by [DL-29](../00-decision-log.md) to mean hosting: E8-S7's launcher serves the built page on the loopback address of the machine it runs on, which costs nothing and reaches nobody*
 - Service workers, offline install, PWA manifest. The page is static and already works offline once loaded
 - Routing. One page, panes and a bottom bar (architecture §9: "no router")
 - Animation beyond a CSS transition on a pane change
@@ -139,6 +139,21 @@ Once E7 has landed, the browser gains what the terminal has: Roster with Traits 
 - [x] An awaiting Party (E6) cannot be advanced past, and shows the timeout countdown (files: `web/tests/word.test.tsx`, "will not let Advance pass it, and says why in the header" and "shows the prompt, both clocks and the coin the Guild holds"; `web/e2e/word.spec.ts`, "a Party waiting on word takes over the Report and says everything it is asking" and "two taps let the Days run, and the Party then decides for itself"). **Met as amended, deliberately:** DL-26 §2 gave the terminal a **summary** when two or more Parties wait and refused a number on that screen, and the browser does **not** copy it. That is a twenty-four-row budget rule and an ambiguity about what a keypress means; the browser scrolls, and every option is a labelled button tied to its own Party. So the browser shows every waiting Party **whole**, which is more information on a screen that has room for it — parity of information, not of arrangement (§3 above; DL-27 §10)
 - [x] A cross-front-end test drives the same seed and decision list through both and diffs the narrated paragraphs (file: `web/tests/narration-parity.test.ts` — the same test, the same evidence, as E8-S2's last box above)
 
+### E8-S7 · A launcher executable · 0.5 day
+
+Added 2026-09-20 at the owner's request ([DL-29](../00-decision-log.md)). `npm run build:exe` builds the page and then `web/release/heroesim.exe`: a Node single-executable application, made by `node --build-sea` with no new dependency, that holds the built page, serves it on `127.0.0.1:4790` and opens the default browser at it. The launcher is one zero-dependency file, `web/launcher/serve.mjs`, and runs the same outside the executable (`npm run serve -w web`, reading `web/dist`). It exists because the built folder does **not** open from the filesystem in Chromium — see [§6.2](#62-judged-not-changed) item 8.
+
+**Acceptance:**
+
+- [x] `npm run build:exe` produces one executable from a clean `web/release/`, adds no dependency and downloads nothing, and refuses in a sentence on a Node older than 25.5 (`web/scripts/build-exe.mjs`; the script runs the executable it wrote with `--help` and fails if it does not answer). Measured 2026-09-20 on Windows x64, Node 26.9: 95 MB, the 3 files of the built page inside it
+- [x] The executable serves the page and the page plays. Driven once by hand with Playwright's Chromium against the real executable: the start screen rendered ("Begin a Career", "Load a saved Career"), no console error, no page error, and **zero requests left the origin**
+- [x] Saves survive closing the launcher and starting it again, because the port — part of the origin `localStorage` belongs to — is fixed. Same hand-driven check: a key written before the executable was killed was read back after it was restarted. `--port` warns that saves do not follow it (`web/tests/launcher.test.ts`: "defaults to the fixed port, because saves belong to the origin, and opens a browser")
+- [x] It binds the loopback address and nothing wider, answers only `GET` and `HEAD`, and cannot be walked out of — a request path is looked up in a map of the files it was given and never resolved against a directory (`web/tests/launcher.test.ts`: "binds the loopback address and nothing wider", "answers nothing but GET and HEAD", "cannot be walked out of: a path is looked up, never resolved"; the real executable also gave 404 for `/..%2f..%2fpackage.json`)
+- [x] A second copy started on the same port recognises the first, opens the browser at it and exits cleanly; a port held by another program is reported in a sentence naming `--port` (`web/tests/launcher.test.ts`: "recognises the first as itself", "does not mistake another program for itself", "does not mistake a closed port for itself"; the real executable's second copy printed "Heroesim is already running at …" and exited 0)
+- [x] The executable is not committed (`.gitignore`: `release/`)
+
+**Not covered by a test, and said so:** opening the default browser. It is three lines handing a fixed loopback address to the operating system's own opener, and a test of it would open a browser window on every `npm test`. Checked once by hand on Windows 11, 2026-09-20: the executable started with no arguments opened Chrome at a tab titled "Heroesim". The `open` and `xdg-open` branches have not been run at all.
+
 ---
 
 ## 2. Definition of done
@@ -223,6 +238,10 @@ web/
   tests/
     narration-parity.test.ts  E8-S2/E8-S6: the same decisions down both front ends, diffed
     save-interop.test.ts      E8-S4: a save document, both directions
+    launcher.test.ts          E8-S7: the launcher's server, on a real loopback socket
+  launcher/serve.mjs        E8-S7: the program inside heroesim.exe; also runs as it stands
+  scripts/check-bundle.mjs  E8-S1: refuses a bundle that could reach outside itself
+  scripts/build-exe.mjs     E8-S7: node --build-sea → release/heroesim.exe (gitignored)
 ```
 
 ### Storage
@@ -381,6 +400,17 @@ Each of these is a decision for the owner.
 7. **An ended Career's Roster still says a Hero is "away … waiting on your word — back no sooner
    than Year 1, Day 165"**, a Day that will never come. The same class as the header clocks, one
    layer down and less clearly wrong: it is where they were when it ended.
+8. **E8-S1's first box — the build "opens from the filesystem" — is not true in Chromium.** Found
+   2026-09-20 while building E8-S7, not by the verification above. Vite writes
+   `<script type="module" crossorigin>`, and Chromium refuses a module script from a `file://`
+   origin whatever its attributes: `web/dist/index.html` opened from disk in Playwright's
+   Chromium logs "blocked by CORS policy: Cross origin requests are only supported for protocol
+   schemes: chrome, chrome-untrusted, data, http, https" for the script and the stylesheet, and
+   `#root` stays empty. `base: './'` makes the *addresses* relative; it does not make the page
+   run. No test caught it because every browser test serves the build over HTTP. The box is
+   left ticked and unedited here, because whether to make it true (a non-module build) or to
+   reword it now that the launcher is the supported way to open a build is the owner's call
+   ([DL-29](../00-decision-log.md)). Firefox and Safari were not tried.
 
 ### 6.3 On the cross-front-end narration test
 

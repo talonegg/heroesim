@@ -29,6 +29,7 @@ Read, in order, before changing anything: `CONTEXT.md` (binding vocabulary, with
 | Play in the terminal | `npm run play` |
 | Web dev server | `npm run dev -w web` |
 | Browser tests (needs a built web app) | `npm run e2e -w web` |
+| Build the launcher executable (needs Node 25.5+, DL-29) | `npm run build:exe` → `web/release/` |
 
 ## Layout
 
