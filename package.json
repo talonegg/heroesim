@@ -21,6 +21,7 @@
     "play": "npm run start -w cli",
     "build": "npm run build -w web",
     "build:exe": "npm run build:exe -w web",
+    "deploy": "npm run build && npm run deploy -w web",
     "e2e": "npm run e2e -w web"
   },
   "devDependencies": {

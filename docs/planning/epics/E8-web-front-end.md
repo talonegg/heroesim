@@ -21,11 +21,11 @@
 
 **Deliberately deferred:**
 
-- Any server, any hosting, any account. Zero running cost is a hard requirement, not a preference. *Narrowed by [DL-29](../00-decision-log.md) to mean hosting: E8-S7's launcher serves the built page on the loopback address of the machine it runs on, which costs nothing and reaches nobody*
+- Any server, any hosting, any account. Zero running cost is a hard requirement, not a preference. *Narrowed by [DL-29](../00-decision-log.md) to mean hosting: E8-S7's launcher serves the built page on the loopback address of the machine it runs on, which costs nothing and reaches nobody*. *Superseded for hosting by [DL-30](../00-decision-log.md): the built folder is published to Cloudflare Pages on the free plan, so hosting and an account now both exist — at no running cost, and with the page itself still reaching no service*
 - Service workers, offline install, PWA manifest. The page is static and already works offline once loaded
 - Routing. One page, panes and a bottom bar (architecture §9: "no router")
 - Animation beyond a CSS transition on a pane change
-- Publishing to GitHub Pages (INPUTS 8b.3 — default no; `npm run build` produces a folder you can open)
+- Publishing to GitHub Pages (INPUTS 8b.3 — default no; `npm run build` produces a folder you can open). *Superseded by [DL-30](../00-decision-log.md): the built folder is published, but to Cloudflare Pages rather than GitHub Pages, because this repository is private and GitHub Pages from a private repository needs a paid plan*
 - Touch gestures, drag-to-assign, long-press menus. Taps and a keyboard
 
 ---

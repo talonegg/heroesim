@@ -14,6 +14,7 @@ Run everything from the repository root.
 | Build (and check the bundle) | `npm run build` |
 | Open the build | `npm run serve -w web`, then `http://127.0.0.1:4790/`. Opening `web/dist/index.html` from disk does **not** work in Chromium (E8 §6.2 item 8) |
 | Build the launcher executable | `npm run build:exe` → `web/release/heroesim.exe` (needs Node 25.5+) |
+| Build and publish to Cloudflare Pages | `npm run deploy` from the repository root → https://heroesguildsim-poc.pages.dev (DL-30) |
 | Preview the build | `npm run preview -w web -- --port 4173` |
 | Unit tests | `npm test` (the `web` Vitest project) |
 | Browser tests | `npm run build` first, then `npm run e2e` |

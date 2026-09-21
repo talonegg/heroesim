@@ -30,6 +30,7 @@ Read, in order, before changing anything: `CONTEXT.md` (binding vocabulary, with
 | Web dev server | `npm run dev -w web` |
 | Browser tests (needs a built web app) | `npm run e2e -w web` |
 | Build the launcher executable (needs Node 25.5+, DL-29) | `npm run build:exe` → `web/release/` |
+| Build and publish to Cloudflare Pages (DL-30) | `npm run deploy` → https://heroesguildsim-poc.pages.dev |
 
 ## Layout
 
