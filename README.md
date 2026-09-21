@@ -23,5 +23,6 @@ yet started.
 | Install | `npm install` |
 | Play in the terminal | `npm run play` |
 | Play in the browser | `npm run dev -w web` |
+| Build an executable that serves the game to your browser | `npm run build:exe`, then run `web/release/heroesim.exe` |
 | Run the tests | `npm test` |
 | Build, then run the browser checks | `npm run build && npm run e2e` |

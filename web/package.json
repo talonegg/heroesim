@@ -6,6 +6,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && node scripts/check-bundle.mjs",
+    "build:exe": "npm run build && node scripts/build-exe.mjs",
+    "serve": "node launcher/serve.mjs",
+    "deploy": "npx -y wrangler@4 pages deploy dist --project-name heroesguildsim-poc --branch main --commit-dirty=true",
     "preview": "vite preview",
     "e2e": "playwright test",
     "typecheck": "tsc --noEmit"
