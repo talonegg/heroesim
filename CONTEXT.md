@@ -56,10 +56,11 @@ _Avoid_: Role, Job, Type, Archetype
 
 **Stat**:
 A numeric capability that a Quest is assessed against and that grows with experience. Stats
-are a keyed set defined in content. A Hero's initial Stats: Strength, Dexterity, Weaponry,
-Constitution, Endurance, Arcana, Intelligence, Knowledge, Judgement, Perception, Willpower,
-Courage, Wits, Leadership, Charisma, Social. A Guildmaster's: Leadership, Influence,
-Negotiation, Coaching, Perception.
+are a keyed set defined in content, each in one of four areas. A Hero's initial Stats:
+Physical (Strength, Dexterity, Weaponry, Constitution, Endurance), Mental (Intelligence,
+Knowledge, Perception, Wits, Courage, Willpower), Magical (Arcana, Power, Spelllore, Spirit,
+Resistance) and Social (Leadership, Charisma, Diplomacy, Adaptability). A Guildmaster's: Leadership,
+Influence, Negotiation, Coaching, Perception.
 _Avoid_: Attribute (see above), Ability, Score
 
 **Skill**:

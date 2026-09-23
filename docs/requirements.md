@@ -97,9 +97,16 @@ Every system in the game must serve at least one of these:
   A Class biases starting Stats, gates Skills, sets the growth profile per Level, and is an
   input to Synergies.
 - R14. Stats are a keyed set defined in content, not fixed fields, so they can be added,
-  changed or removed between releases without touching the engine's shape. Initial Hero
-  Stats: Strength, Dexterity, Weaponry, Constitution, Endurance, Arcana, Intelligence,
-  Knowledge, Judgement, Perception, Willpower, Courage, Wits, Leadership, Charisma, Social.
+  changed or removed between releases without touching the engine's shape. Each Stat belongs
+  to one of four areas, used for display. Initial Hero Stats:
+
+  | Area | Stats |
+  | --- | --- |
+  | Physical | Strength, Dexterity, Weaponry, Constitution, Endurance |
+  | Mental | Intelligence, Knowledge, Perception, Wits, Courage, Willpower |
+  | Magical | Arcana, Power, Spelllore, Spirit, Resistance |
+  | Social | Leadership, Charisma, Diplomacy, Adaptability |
+
   Not every Stat is read by every rule in every release.
 - R15. Skills are named proficiencies rated 1 to 5. The rating is in the data model from the
   first build; the stub Quest Engine reads it as a flat modifier. Skill growth is deferred.
@@ -203,7 +210,7 @@ Every system in the game must serve at least one of these:
 
 - Balance numbers everywhere: Stat ranges, XP curves, Upkeep, fees, difficulty, harm rates,
   Morale and Regard scales. Set defaults per increment and measure them (N10).
-- The grouping of the sixteen Hero Stats into the four areas (physical, intellectual,
-  magical, social) for display and for the stub Quest Engine.
+- Whether the stub Quest Engine assesses a Quest by area sums or by a weighted list of Stat
+  demands carried on the Quest. The latter keeps the area grouping display-only.
 - Rival disposition names.
 - Which Hall Improvement grades exist and what each costs.
