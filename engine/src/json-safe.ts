@@ -92,7 +92,11 @@ function checkObject(object: object, path: (string | number)[], ancestors: Set<o
   return null;
 }
 
-function formatPath(path: (string | number)[]): string {
+/**
+ * A path into the document as `findJsonUnsafe` reports it: `['world', 'heroes', 'hero-000001']`
+ * is `$.world.heroes["hero-000001"]`. The validator names where it failed the same way.
+ */
+export function formatPath(path: readonly (string | number)[]): string {
   let text = '$';
   for (const segment of path) {
     if (typeof segment === 'number') text += `[${segment}]`;

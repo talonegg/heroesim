@@ -188,10 +188,10 @@ helper that wraps a document assertion.
 
 **Acceptance:**
 
-- [ ] One test per refusal row in `data-model.md` §6, each mutating a valid document into the
+- [x] One test per refusal row in `data-model.md` §6, each mutating a valid document into the
       failing shape and asserting the named check
-- [ ] An unknown Stat key on a Hero warns and does not refuse; the Hero's other Stats still read
-- [ ] Validating a 1,000-Hero world runs under 50 ms
+- [x] An unknown Stat key on a Hero warns and does not refuse; the Hero's other Stats still read
+- [x] Validating a 1,000-Hero world runs under 50 ms
 
 ### M1-S8 · Canonical serialisation, save and load · 1 session
 
