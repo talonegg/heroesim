@@ -202,7 +202,7 @@ describe('ensureStreams, for a save made before a stream existed (M2-S3, DL-25)'
 
     ensureStreams(world, seed);
 
-    expect(world.rng).toEqual({ generation: advancedCopy(fresh.generation, 7), board: fresh.board });
+    expect(world.rng).toEqual({ ...fresh, generation: advancedCopy(fresh.generation, 7) });
     expect(world.rng.generation).toBe(generation);
     expect(Object.keys(world.rng).sort()).toEqual([...streamNames].sort());
   });
