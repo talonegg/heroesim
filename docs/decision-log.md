@@ -1533,6 +1533,24 @@ the accident of its empty Roster.
 tests play Turns on a created world meets the Rivals, and stills them when it watches something
 else.
 
+## DL-32 — Merging M2-S5/S6 with M2-S9/S10: the content version and stream list DL-29 named
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the
+M2-S5/S6 implementer's report)
+
+**Context.** M2-S5/S6 were built in parallel with M2-S9 and M2-S10, then merged. Two statements in
+DL-29 were true of their branch and are not true of the merged code.
+
+**Decision.** (1) DL-29 item 7 says the content version becomes 3 with `injuries.json`; M2-S9's
+`dispositions.json` took 3 first, so after the merge `meta.content.version` is **4**. (2) DL-29
+item 1's stream list gains `rivals` at the end, as DL-30 item 7 said it would: the core streams are
+`generation`, `board`, `quests`, `pool`, `heroes`, `rivals`, in ADR-0009's order. The merge also
+proved that a folded Guild's Parties are handled once: `questsConclude` runs first at night and
+resolves a Party due that night; the fold runs last and disbands any Party still out; tests cover
+both orders.
+
+**Consequences.** DL-29 is read with these corrections. No rule changed.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

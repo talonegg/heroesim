@@ -4,7 +4,7 @@
 **Sessions:** 12–16 · **Depends on:** M1 · **Implements:** `plan.md` M2; approach §2 and §3; R2–R4, R11, R18, R20–R23, R25, R27, R34; ADR-0002, ADR-0003; requirements §5 open item on the stub (closed: weighted Stat demands, DL-06)
 **Gate:** `npm run harness` plays 200 seeds × 20 years to an ending and reports the counters; from the CLI a human runs `advance`, `dispatch`, `recruit`, `advance --until party-returns` and reads what happened
 
-**Status:** in progress — M2-S1 and S2 done
+**Status:** in progress — M2-S1 to M2-S10 done
 
 ## 0. What lands in M2
 
