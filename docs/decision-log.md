@@ -190,8 +190,9 @@ on the rule it exists to enforce, not merely assumed to. M0-S3's three acceptanc
 
 DL-12 and DL-13 remain reserved by the epics and are not yet written here: DL-12 is M1-S2's PRNG
 choice and DL-13 is M1-S10's determinism measure (renumbered from a collision by pre-M0 review
-E1). DL-11 above and DL-14 below are now written. The next writer of a new decision uses DL-15
-onward.
+E1). Every other number from DL-11 on is written below, in order. The next writer of a new
+decision uses the next number after the highest written, skipping DL-12 and DL-13 until their
+stories write them.
 
 ---
 
@@ -236,6 +237,22 @@ logged at the time; each is verified against the repository below rather than ta
 (`package.json`, `package-lock.json`, `eslint.config.js`, `engine/tsconfig.json`,
 `vitest.config.ts`, `harness/run.mjs`). Items 6 and 7 are forward notes for M1-S9 and M1-S4, not
 yet built.
+
+## DL-15 — Corrections to two transcriptions in this log
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M0 verification pass)
+
+**Context.** The M0 verifier compared this log with its sources and found two slips of
+transcription, not of decision. The log is append-only, so they are corrected here rather than
+in place.
+
+**Decision.** (1) DL-05's quoted reason ("growth is the pull (principle 2), so Levels and
+Potential land first…") is from `docs/planning/epics/README.md` §2, not `plan.md` §1. (2) Pre-M0
+review E2 added three variables to INPUTS §9, not two: `HEROESIM_SEEDS`, `HEROESIM_VALIDATE` and
+`HEROESIM_MODULES` (the review's table row, `git show a8973d2:docs/planning/PRE-M0-TO-ACTION.md`
+line 567).
+
+**Consequences.** DL-05 and E2 are read with these corrections. No decision changes.
 
 ---
 
