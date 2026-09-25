@@ -1894,6 +1894,33 @@ are the levers there. The policy's Heroes die at four a year. M3's Levels change
 and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
 keep their rows; their defaults now differ from the config's, as this entry records.
 
+## DL-39 — M2 close: verification, the timing tests, and which harness run a tag carries
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the
+M2 verifier's report)
+
+**Context.** M2's twelve stories were built partly in parallel and verified independently before
+the `m2-the-loop` tag: every box proved, 20 of 23 mutation tests turned a test red, and the three
+survivors were weak tests, now strengthened. INPUTS 4.13 names "200 seeds × 20 years for the
+per-milestone run, 1,000 × 20 for the tagged run".
+
+**Decision.** (1) The validator's 1,000-Hero timing test asserts the fastest of repeated runs
+under the unchanged 50 ms bound, and its retry is removed (commit `28f10a3`); this supersedes the
+"retries twice" in DL-34. DL-34's remark that fast forward "can call" `partyFor` is out of date:
+it does, through `staffableQuests`. (2) The `controller.kind` guard also counts calls of
+`dispositionOf`; the Upkeep test checks the Turn each Guild pays on; the harness writes MiB where
+it divides by 1,024². (3) The "cheapest Unattached Hero" rule, written three times in M2
+(`rival.ts`, `policy.ts`, `endings.ts`), and the policy's copy of `offeredQuests`, become one
+engine selector each in M3-S5 (DL-38), where the Fame gate changes who can be signed. (4) Each
+milestone tag carries the epic gate's 200 × 20 run, committed as `harness/reports/m<n>-<date>.md`;
+the 1,000 × 20 run INPUTS 4.13 calls "the tagged run" is made once, for the first-build tag at M8,
+because a 1,000-game sweep costs over an hour of the machine per milestone and the counters are
+read at 200.
+
+**Consequences.** `m2-the-loop` carries `harness/reports/m2-2026-09-26.md` (200 × 20, validated
+after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
+with `HEROESIM_SEEDS=1000`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
