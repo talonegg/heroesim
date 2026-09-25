@@ -1,0 +1,17 @@
+{
+  "swordcraft": { "name": "Swordcraft" },
+  "shieldwork": { "name": "Shieldwork" },
+  "tactics": { "name": "Tactics" },
+
+  "lockpicking": { "name": "Lockpicking" },
+  "stealth": { "name": "Stealth" },
+  "trapcraft": { "name": "Trapcraft" },
+
+  "evocation": { "name": "Evocation" },
+  "warding": { "name": "Warding" },
+  "runecraft": { "name": "Runecraft" },
+
+  "field-surgery": { "name": "Field surgery" },
+  "herbalism": { "name": "Herbalism" },
+  "benediction": { "name": "Benediction" }
+}

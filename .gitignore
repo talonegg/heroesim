@@ -7,6 +7,11 @@ coverage/
 # Local saves, harness samples and front-end build and test output
 .saves/
 harness/samples/
+
+# Every harness run writes a report here. Only the report of a milestone's tagged run is
+# committed, force-added with `git add -f harness/reports/m<n>-<date>.md`; once tracked, Git
+# follows it despite this line (M1-S10, DL-13).
+harness/reports/*
 web/dist/
 test-results/
 playwright-report/

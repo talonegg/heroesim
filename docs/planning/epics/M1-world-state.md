@@ -4,7 +4,7 @@
 **Sessions:** 12–14 · **Depends on:** M0 · **Implements:** `plan.md` M1; `data-model.md` in full; R1, R5, R7, R8, R12–R16, R27 (the pool's existence), R35, R36; ADR-0001, ADR-0006, ADR-0008, ADR-0009
 **Gate:** `heroesim new --seed x` then `show` prints Guilds, Rosters, the pool and Patrons; `save` then `load` round-trips byte-for-byte; the harness creates 1,000 worlds twice and every pair is byte-identical
 
-**Status:** not started
+**Status:** done — 2026-09-26 (`m1-world-state`)
 
 ## 0. What lands in M1
 
@@ -46,10 +46,10 @@ A test, `document.test.ts`, asserts `isJsonSafe(defaultDocument)`: a recursive c
 
 **Acceptance:**
 
-- [ ] The compiler refuses a `GuildId` where a `HeroId` is expected (a `// @ts-expect-error`
+- [x] The compiler refuses a `GuildId` where a `HeroId` is expected (a `// @ts-expect-error`
       test line)
-- [ ] `isJsonSafe` refuses each forbidden value kind and accepts a nested plain document
-- [ ] Every interface in `data-model.md` §3.2 and §4 has a type of the same name and fields
+- [x] `isJsonSafe` refuses each forbidden value kind and accepts a nested plain document
+- [x] Every interface in `data-model.md` §3.2 and §4 has a type of the same name and fields
 
 ### M1-S2 · Seeded random streams · 1 session
 
@@ -68,12 +68,12 @@ shares an old stream (D7).
 
 **Acceptance:**
 
-- [ ] The same seed and name produce the same first thousand draws across two processes
-- [ ] Two names from one seed produce different sequences
-- [ ] `RngState` is JSON-safe and a state serialised and deserialised continues the sequence
+- [x] The same seed and name produce the same first thousand draws across two processes
+- [x] Two names from one seed produce different sequences
+- [x] `RngState` is JSON-safe and a state serialised and deserialised continues the sequence
       exactly
-- [ ] Drawing from `board` leaves `heroes` unchanged (deep-equal before and after)
-- [ ] Nothing in `engine/` imports `rng.ts`'s state type except through `world.rng`
+- [x] Drawing from `board` leaves `heroes` unchanged (deep-equal before and after)
+- [x] Nothing in `engine/` imports `rng.ts`'s state type except through `world.rng`
 
 ### M1-S3 · History append and indexes · 1 session
 
@@ -85,12 +85,12 @@ other mutator.
 
 **Acceptance:**
 
-- [ ] After N appends, `entries.length === N` and every index position points at an entry of the
+- [x] After N appends, `entries.length === N` and every index position points at an entry of the
       right entity or type
-- [ ] Appending an entry with a lower `turn` than the last throws (programming error, rule 1 of
+- [x] Appending an entry with a lower `turn` than the last throws (programming error, rule 1 of
       §4)
-- [ ] A test freezes every entry after append and reads back unchanged
-- [ ] `entriesBetween` on 10,000 entries returns the right slice and runs under 1 ms
+- [x] A test freezes every entry after append and reads back unchanged
+- [x] `entriesBetween` on 10,000 entries returns the right slice and runs under 1 ms
 
 ### M1-S4 · Content set and loader · 2 sessions
 
@@ -120,14 +120,14 @@ carries `{ id: "core", version: 1 }` for `meta.content`.
 
 **Acceptance:**
 
-- [ ] `loadContent()` returns twenty Hero Stats in four areas and five Guildmaster Stats, four
+- [x] `loadContent()` returns twenty Hero Stats in four areas and five Guildmaster Stats, four
       Classes, and validates
-- [ ] Each refusal above has a test with a fixture that triggers it, and the message names the
+- [x] Each refusal above has a test with a fixture that triggers it, and the message names the
       key
-- [ ] The pure entry and the Node entry return deep-equal sets for the same files
-- [ ] `engine/` imports nothing from `@heroesim/content`, not even a type; `content/` imports
+- [x] The pure entry and the Node entry return deep-equal sets for the same files
+- [x] `engine/` imports nothing from `@heroesim/content`, not even a type; `content/` imports
       its types from `@heroesim/engine` (the M0-S2 boundary test covers both directions)
-- [ ] `tsc -b` succeeds with `content` referencing `engine` and `engine` referencing nothing
+- [x] `tsc -b` succeeds with `content` referencing `engine` and `engine` referencing nothing
 
 ### M1-S5 · Heroes Generator · 1–2 sessions
 
@@ -143,10 +143,10 @@ Config: `heroStartingAgeMin/Max`, `statBiasMin/Max`, `potentialGapMin/Max`,
 
 **Acceptance:**
 
-- [ ] Over 10,000 generated Heroes every Stat stays in its content range and Potential ≥ base
-- [ ] A Warrior's mean Strength exceeds a Mage's by at least the minimum bias
-- [ ] Only Skills gated by the Hero's Class appear
-- [ ] Every draw comes from `generation`: the other six streams are unchanged after generation
+- [x] Over 10,000 generated Heroes every Stat stays in its content range and Potential ≥ base
+- [x] A Warrior's mean Strength exceeds a Mage's by at least the minimum bias
+- [x] Only Skills gated by the Hero's Class appear
+- [x] Every draw comes from `generation`: the other six streams are unchanged after generation
 
 ### M1-S6 · Guild, Guildmaster and Patron Generators; `createWorld` · 2 sessions
 
@@ -172,26 +172,29 @@ Config: `startingRosterSize`, `startingWealth`, `rivalCount`, `rivalRosterMin/Ma
 
 **Acceptance:**
 
-- [ ] `createWorld` returns a document that the validator (S7) accepts
-- [ ] Every Guild, player and Rival, is produced by the same function; the only difference in
+- [x] `createWorld` returns a document that the validator (S7) accepts — *wired in M1-S10:
+      `engine/src/create.test.ts` with the fixture content, `harness/src/creation.test.ts` with
+      the core content*
+- [x] Every Guild, player and Rival, is produced by the same function; the only difference in
       the output is `controller` (a test diffs a player Guild and a Rival Guild generated with the
       same parameters)
-- [ ] The player's starting Roster has one Hero per Class when `startingRosterSize` is 4
-- [ ] `meta.config` deep-equals the config passed in and `meta.seed` the seed
+- [x] The player's starting Roster has one Hero per Class when `startingRosterSize` is 4
+- [x] `meta.config` deep-equals the config passed in and `meta.seed` the seed
 
 ### M1-S7 · Validator · 1 session
 
 `engine/src/validate.ts`: `validate(document, content): { ok: true, warnings } | { ok: false,
-failures }`, every check in `data-model.md` §6 as a named function returning a list, so a
-failure names its check and the offending id. Runs in every engine test through a `withValid`
-helper that wraps a document assertion.
+failures }` (signature changed to `validate(document, deps)` in DL-23), every check in
+`data-model.md` §6 as a named function returning a list, so a failure names its check and the
+offending id. Runs in every engine test through a `withValid` helper that wraps a document
+assertion.
 
 **Acceptance:**
 
-- [ ] One test per refusal row in `data-model.md` §6, each mutating a valid document into the
+- [x] One test per refusal row in `data-model.md` §6, each mutating a valid document into the
       failing shape and asserting the named check
-- [ ] An unknown Stat key on a Hero warns and does not refuse; the Hero's other Stats still read
-- [ ] Validating a 1,000-Hero world runs under 50 ms
+- [x] An unknown Stat key on a Hero warns and does not refuse; the Hero's other Stats still read
+- [x] Validating a 1,000-Hero world runs under 50 ms
 
 ### M1-S8 · Canonical serialisation, save and load · 1 session
 
@@ -203,10 +206,10 @@ the validator. A version with no chain refuses, naming both versions.
 
 **Acceptance:**
 
-- [ ] `serialise(deserialise(serialise(d)))` equals `serialise(d)` byte for byte
-- [ ] Two documents that differ only in key insertion order serialise identically
-- [ ] A document with `meta.version: 999` is refused with both versions in the reason
-- [ ] `structuredClone(world)` and `JSON.parse(JSON.stringify(world))` deep-equal
+- [x] `serialise(deserialise(serialise(d)))` equals `serialise(d)` byte for byte
+- [x] Two documents that differ only in key insertion order serialise identically
+- [x] A document with `meta.version: 999` is refused with both versions in the reason
+- [x] `structuredClone(world)` and `JSON.parse(JSON.stringify(world))` deep-equal
 
 ### M1-S9 · CLI: `new`, `show`, `save`, `load` · 1–2 sessions
 
@@ -224,11 +227,11 @@ outside the engine).
 
 **Acceptance:**
 
-- [ ] `new`, `show roster`, `show pool`, `show patrons`, `show hero <id>` work end to end on a
+- [x] `new`, `show roster`, `show pool`, `show patrons`, `show hero <id>` work end to end on a
       real file
-- [ ] `show hero` never prints Potential (rule 9); a test greps the output
-- [ ] A refused load prints the reason and exits non-zero
-- [ ] `cli/` contains no rule: every number shown comes from a document field or an engine
+- [x] `show hero` never prints Potential (rule 9); a test greps the output
+- [x] A refused load prints the reason and exits non-zero
+- [x] `cli/` contains no rule: every number shown comes from a document field or an engine
       selector
 
 ### M1-S10 · Harness skeleton and the determinism measure · 1 session
@@ -243,10 +246,29 @@ except the one committed at the tag).
 
 **Acceptance:**
 
-- [ ] 1,000 worlds byte-identical across two runs (**Measure:** recorded in DL-13 with the
+- [x] 1,000 worlds byte-identical across two runs (**Measure:** recorded in DL-13 with the
       creation time per world)
-- [ ] The report lists every Stat's mean per Class and no Class has a Stat outside its range
-- [ ] `npm test` without the flag skips the harness project in under a second
+- [x] The report lists every Stat's mean per Class and no Class has a Stat outside its range
+- [x] `npm test` without the flag skips the harness project in under a second
+
+## Measured
+
+`npm run harness`, 2026-09-26, **1,000 seeds** (`seed-0001` to `seed-1000`), world creation only
+(no years are simulated before M2). Full report: `harness/reports/m1-2026-09-26.md`; decision
+DL-13.
+
+| Measure | Result |
+| --- | --- |
+| Worlds byte-identical when created again | 1,000 of 1,000 (fingerprint `82c1e94e…b8244`, reproduced after the M1 verification follow-ups) |
+| Worlds the validator refused / warnings | 0 / 0 |
+| Creation time per world | mean 0.494 ms, p99 1.131 ms |
+| Serialised world size | mean 54,348 characters (44,629 to 64,498) |
+| Player's Roster / a Rival's Roster | 4 / mean 5.97 (4 to 8) |
+| Rival Guilds / Unattached pool / Patrons | 4 / 8 / 12 |
+| Class and Stat pairs outside the Stat's range | 0 |
+
+Verified independently on 2026-09-26: every box proved, ten mutation tests each turned a test
+red; five low-severity follow-ups fixed in DL-23.
 
 ## 2. Configuration and events introduced
 

@@ -1,0 +1,15 @@
+{
+  "farm-born": { "name": "Farm-born", "owner": "hero" },
+  "levy-soldier": { "name": "Levy soldier", "owner": "hero" },
+  "temple-ward": { "name": "Temple ward", "owner": "hero" },
+  "river-folk": { "name": "River folk", "owner": "hero" },
+  "pit-village": { "name": "Pit village", "owner": "hero" },
+  "town-apprentice": { "name": "Town apprentice", "owner": "hero" },
+  "poachers-child": { "name": "Poacher's child", "owner": "hero" },
+  "fallen-gentry": { "name": "Fallen gentry", "owner": "hero" },
+
+  "old-charter": { "name": "Old charter", "owner": "guild" },
+  "breakaway": { "name": "Breakaway", "owner": "guild" },
+  "newly-founded": { "name": "Newly founded", "owner": "guild" },
+  "inherited": { "name": "Inherited", "owner": "guild" }
+}

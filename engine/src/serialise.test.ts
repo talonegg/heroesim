@@ -1,0 +1,259 @@
+import { describe, expect, test, vi } from 'vitest';
+import {
+  defaultConfig,
+  deserialise,
+  migrate,
+  migrations,
+  serialise,
+  type EngineDeps,
+  type GameConfig,
+  type Hero,
+  type LoadResult,
+  type Migration,
+  type SavedDocument,
+  type WorldDocument,
+} from './index.js';
+import { buildDocument, testContent, withValid } from './world.test-support.js';
+
+// M1-S8: canonical serialisation (data-model rule 7) and a versioned, validated load (§6).
+
+// ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
+
+/** A loading front end's deps: the engine's own config, not one merged from the save (DL-20). */
+const deps: EngineDeps = { config: defaultConfig, content: testContent };
+
+const built = (): WorldDocument => withValid(buildDocument().document, deps);
+
+/** A deep copy with every object's keys in reverse insertion order; arrays keep their order. */
+function reversedKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(reversedKeys);
+  if (typeof value !== 'object' || value === null) return value;
+  const entries = Object.entries(value).reverse();
+  return Object.fromEntries(entries.map(([key, inner]) => [key, reversedKeys(inner)]));
+}
+
+/** A deep copy with sorted keys, written independently of serialise.ts to check it against. */
+function sortedKeys(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(sortedKeys);
+  if (typeof value !== 'object' || value === null) return value;
+  const entries = Object.entries(value).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return Object.fromEntries(entries.map(([key, inner]) => [key, sortedKeys(inner)]));
+}
+
+function loaded(result: LoadResult): WorldDocument {
+  if (!result.ok) throw new Error(`Refused: ${result.reason.message}`);
+  return result.document;
+}
+
+function refusal(result: LoadResult) {
+  if (result.ok) throw new Error('Loaded, where a refusal was expected');
+  return result.reason;
+}
+
+const withVersion = (document: WorldDocument, version: number): string =>
+  serialise({ ...document, meta: { ...document.meta, version } });
+
+// ── serialise ────────────────────────────────────────────────────────────────────────────────
+
+describe('serialise', () => {
+  test('sorts keys at every depth, keeps arrays in order, and writes no whitespace', () => {
+    const document = built();
+    const text = serialise(document);
+    expect(text).toBe(JSON.stringify(sortedKeys(document)));
+    expect(text).not.toBe(JSON.stringify(document));
+    expect(text.startsWith('{"history":{"byEntity":{')).toBe(true);
+    expect(JSON.parse(text)).toEqual(document);
+  });
+
+  test('two documents differing only in key insertion order serialise identically', () => {
+    const document = built();
+    const reordered = reversedKeys(document) as WorldDocument;
+    expect(JSON.stringify(reordered)).not.toBe(JSON.stringify(document));
+    expect(serialise(reordered)).toBe(serialise(document));
+  });
+
+  test('keeps arrays in their order: a reordered Roster is a different document', () => {
+    const document = built();
+    const reordered = structuredClone(document);
+    const [guildId, guild] = Object.entries(reordered.world.guilds)[0] ?? [];
+    const roster = guild?.rosterIds.reverse();
+    expect(serialise(reordered)).not.toBe(serialise(document));
+    const written = JSON.parse(serialise(reordered)) as { world: { guilds: Record<string, { rosterIds: string[] }> } };
+    expect(written.world.guilds[guildId ?? '']?.rosterIds).toEqual(roster);
+  });
+
+  test('throws, naming the path, on a document that is not JSON-safe', () => {
+    const document = built();
+    const hero = Object.values(document.world.heroes)[0] as Hero;
+    hero.morale = Number.NaN;
+    expect(() => serialise(document)).toThrow(`$.world.heroes["${hero.id}"].morale is nan`);
+  });
+});
+
+// ── deserialise ──────────────────────────────────────────────────────────────────────────────
+
+describe('deserialise', () => {
+  test('serialise(deserialise(serialise(d))) equals serialise(d) byte for byte', () => {
+    const text = serialise(built());
+    expect(serialise(loaded(deserialise(text, deps)))).toBe(text);
+  });
+
+  test('returns an equal document and no warnings', () => {
+    const document = built();
+    const result = deserialise(serialise(document), deps);
+    expect(result).toEqual({ ok: true, document, warnings: [] });
+  });
+
+  test('a document with meta.version 999 is refused, naming both versions', () => {
+    expect(refusal(deserialise(withVersion(built(), 999), deps))).toMatchObject({
+      kind: 'unsupported-version',
+      documentVersion: 999,
+      schemaVersion: defaultConfig.schemaVersion,
+    });
+  });
+
+  test('an older version with no migration is refused, naming both versions', () => {
+    expect(refusal(deserialise(withVersion(built(), 0), deps))).toMatchObject({
+      kind: 'unsupported-version',
+      documentVersion: 0,
+      schemaVersion: defaultConfig.schemaVersion,
+    });
+  });
+
+  test('the version compared is the one in deps.config', () => {
+    const later: GameConfig = { ...defaultConfig, schemaVersion: defaultConfig.schemaVersion + 1 };
+    expect(refusal(deserialise(serialise(built()), { ...deps, config: later }))).toMatchObject({
+      kind: 'unsupported-version',
+      documentVersion: defaultConfig.schemaVersion,
+      schemaVersion: later.schemaVersion,
+    });
+  });
+
+  test.each([
+    ['empty text', ''],
+    ['truncated JSON', serialise(buildDocument().document).slice(0, 200)],
+    ['a trailing comma', '{"meta":{"version":1},}'],
+  ])('malformed JSON (%s) is a typed refusal, not a throw', (_, text) => {
+    expect(refusal(deserialise(text, deps)).kind).toBe('malformed-json');
+  });
+
+  test.each([
+    ['null', 'null'],
+    ['an array', '[]'],
+    ['a string', '"hero-000001"'],
+    ['no meta', '{"world":{}}'],
+    ['no version', '{"meta":{}}'],
+    ['a fractional version', '{"meta":{"version":1.5}}'],
+    ['a version in a string', '{"meta":{"version":"1"}}'],
+  ])('JSON that is not a document (%s) is refused', (_, text) => {
+    expect(refusal(deserialise(text, deps)).kind).toBe('not-a-document');
+  });
+
+  test('a document the validator refuses is refused with its failures', () => {
+    const document = built();
+    const [player, rival] = Object.values(document.world.guilds);
+    const heroId = player?.rosterIds[1] ?? ('' as Hero['id']);
+    rival?.rosterIds.push(heroId);
+    const reason = refusal(deserialise(serialise(document), deps));
+    expect(reason.kind).toBe('invalid');
+    const failures = reason.kind === 'invalid' ? reason.failures.map(({ check, id }) => ({ check, id })) : [];
+    expect(failures).toContainEqual({ check: 'hero-on-two-rosters', id: heroId });
+  });
+
+  test('a structurally broken document is refused, not thrown on', () => {
+    const reason = refusal(deserialise('{"meta":{"version":1},"world":[],"history":null}', deps));
+    expect(reason.kind).toBe('invalid');
+  });
+
+  test('unknown keys at the top level, in meta.config and in a row survive a round trip (rule 5)', () => {
+    const document = built();
+    const extended = {
+      ...document,
+      notes: { kept: true },
+      meta: { ...document.meta, config: { ...document.meta.config, futureTunable: 7 } },
+    };
+    const hero = Object.values(extended.world.heroes)[0] as Hero & { nickname?: string };
+    hero.nickname = 'the Lantern';
+    const text = serialise(extended);
+
+    const back = loaded(deserialise(text, deps)) as typeof extended;
+
+    expect(back.notes).toEqual({ kept: true });
+    expect(back.meta.config).toMatchObject({ futureTunable: 7 });
+    expect((back.world.heroes[hero.id] as typeof hero).nickname).toBe('the Lantern');
+    expect(serialise(back)).toBe(text);
+  });
+
+  test('an unknown content key loads, with its warning', () => {
+    const document = built();
+    const hero = Object.values(document.world.heroes)[0] as Hero;
+    hero.stats.luck = 7;
+    const result = deserialise(serialise(document), deps);
+    const warnings = result.ok ? result.warnings.map(({ check, key }) => ({ check, key })) : [];
+    expect(warnings).toEqual([{ check: 'unknown-stat', key: 'luck' }]);
+    expect(loaded(result).world.heroes[hero.id]?.stats.luck).toBe(7);
+  });
+});
+
+// ── The migration chain ──────────────────────────────────────────────────────────────────────
+
+describe('the migration chain', () => {
+  const saved = (version: number): SavedDocument => ({ meta: { version }, steps: [] as number[] });
+
+  /** A step that records its own version in the document. */
+  const recording =
+    (from: number): Migration =>
+    (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
+
+  test('is empty in M1', () => {
+    expect(migrations).toEqual({});
+  });
+
+  test('runs forward one step per version, in order, setting meta.version after each', () => {
+    const chain = { 1: recording(1), 2: recording(2), 3: recording(3) };
+    const result = migrate(saved(1), 4, chain);
+    expect(result).toEqual({ ok: true, document: { meta: { version: 4 }, steps: [1, 2, 3] } });
+  });
+
+  test('starts from the document’s own version', () => {
+    const chain = { 1: recording(1), 2: recording(2), 3: recording(3) };
+    expect(migrate(saved(2), 4, chain)).toEqual({ ok: true, document: { meta: { version: 4 }, steps: [2, 3] } });
+  });
+
+  test('leaves a current document alone', () => {
+    const document = saved(3);
+    expect(migrate(document, 3, { 3: recording(3) })).toEqual({ ok: true, document });
+  });
+
+  test('a gap in the chain refuses, naming both versions, and runs no step', () => {
+    const first = vi.fn(recording(1));
+    const result = migrate(saved(1), 4, { 1: first, 3: recording(3) });
+    expect(result).toMatchObject({
+      ok: false,
+      reason: { kind: 'unsupported-version', documentVersion: 1, schemaVersion: 4 },
+    });
+    expect(first).not.toHaveBeenCalled();
+  });
+
+  test('never runs backwards', () => {
+    expect(migrate(saved(5), 4, { 4: recording(4) })).toMatchObject({
+      ok: false,
+      reason: { kind: 'unsupported-version', documentVersion: 5, schemaVersion: 4 },
+    });
+  });
+});
+
+// ── structuredClone and JSON agree (rule 6) ──────────────────────────────────────────────────
+
+describe('a document is JSON-safe', () => {
+  test('structuredClone(world) and JSON.parse(JSON.stringify(world)) deep-equal', () => {
+    const { world } = built();
+    expect(structuredClone(world)).toStrictEqual(JSON.parse(JSON.stringify(world)));
+  });
+
+  test('so do the whole document and its History', () => {
+    const document = built();
+    expect(structuredClone(document)).toStrictEqual(JSON.parse(JSON.stringify(document)));
+    expect(structuredClone(document.history)).toStrictEqual(JSON.parse(serialise(document)).history);
+  });
+});

@@ -186,15 +186,118 @@ legs.
 **Consequences.** The workflow added by M0-S3 (`.github/workflows/check.yml`) is proved to fail
 on the rule it exists to enforce, not merely assumed to. M0-S3's three acceptance boxes are met.
 
----
+## DL-12 — Random streams are xoshiro128\*\* seeded by cyrb128 of `seed:name`
 
-DL-12 and DL-13 remain reserved by the epics and are not yet written here: DL-12 is M1-S2's PRNG
-choice and DL-13 is M1-S10's determinism measure (renumbered from a collision by pre-M0 review
-E1). Every other number from DL-11 on is written below, in order. The next writer of a new
-decision uses the next number after the highest written, skipping DL-12 and DL-13 until their
-stories write them.
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S2), taking the epic's
+proposal unchanged
 
----
+**Context.** ADR-0001 puts a seeded generator's state inside the World State; ADR-0009 (as
+amended 2026-09-26) gives every drawing subsystem its own stream, seeded from the master seed
+and the stream's name. Neither names an algorithm, and the algorithm fixes what every seed plays.
+M1-S2 proposed xoshiro128\*\* seeded through cyrb128 and reserved this entry. The v1 proof of
+concept (`feature/poc:engine/src/rng.ts`) also used xoshiro128\*\*, but with one stream, FNV-1a
+and splitmix32 seeding, and draws that returned a new state rather than mutating one.
+
+**Decision.** In `engine/src/rng.ts`:
+
+1. **Generator: xoshiro128\*\*** (Blackman and Vigna, reference implementation v1.1). A stream's
+   state is its four 32-bit words as unsigned integers in a plain array, `RngState = [number,
+   number, number, number]`: JSON-safe, 16 bytes a stream, period 2^128 − 1, and each step is a
+   handful of 32-bit operations JavaScript does exactly with `Math.imul` and `>>> 0`. Rejected:
+   `Math.random` (not seedable); 32-bit-state generators such as mulberry32 (a period of 2^32 is
+   within reach of a long harness run); the 64-bit xoshiro and PCG variants (they need `BigInt`
+   in JavaScript, which is slow and not JSON-safe).
+2. **Seeding: cyrb128 of `${masterSeed}:${streamName}`**, bryc's 128-bit string hash, which fills
+   all four words from any string and spreads similar seeds (`seed-0001`, `seed-0002`) far apart.
+   A stream depends on the master seed and its own name only. A name may not be empty or contain
+   `:`, so no two (seed, name) pairs hash the same text. An all-zero hash (one input in 2^128),
+   which xoshiro would never leave, is replaced by a fixed constant; `next` throws on an all-zero
+   state, since only a hand-written one can hold it.
+3. **Draws** mutate the state in place (it lives in the per-Turn copy of `world`) and take a fixed
+   number of draws whatever their arguments: `next` is a word divided by 2^32, so a fraction in
+   [0, 1) with 32 bits of resolution; `int(min, max)`, inclusive, is `min + floor(next × span)`
+   for spans up to 2^32, each value's chance off by less than one part in 2^32 per value;
+   `pick` is one `int`; `shuffle` returns a new array by Fisher–Yates in `length − 1` draws and
+   leaves its argument alone; `chance(p)` draws once even at 0 and 1, so tuning a probability
+   never shifts later draws.
+4. **Engine-internal.** `@heroesim/engine` exports `streamNames` and `StreamName` only; the state
+   type and the draw functions are imported by engine modules from `rng.ts`, and only `rng.ts`
+   and `document.ts` name the state type (a test scans `engine/src`). Front ends draw cosmetics
+   from their own source (ADR-0001).
+5. **Pinned by tests** (`engine/src/rng.test.ts`): xoshiro128\*\*'s reference outputs from state
+   [1, 2, 3, 4] (the values Rust's `rand_xoshiro` pins from the C reference), cyrb128 of one seed,
+   and the SHA-256 of a seed's first 1,000 draws; the cyrb128 transcription and the 1,000th
+   state were also checked against an independent Python transcription at the time of writing.
+
+**Consequences.** Changing the algorithm, the seeding text, or any draw function's arithmetic or
+draw count changes every seed's game. The pinned tests fail first, and the change needs a new
+entry superseding this one. Saves are snapshots, so games in progress continue (ADR-0001); only
+replaying a seed from the start changes. Adding a stream moves no other: a milestone that
+appends a name to `streamNames` gives an older save that stream, `createStreams(meta.seed,
+[name])`, in its migration step. A rule needing a probability finer than 2^-32 would need a
+second draw; none is foreseen. The API hides the algorithm, so a swap is one file and one entry
+(the epic's risk table).
+
+## DL-13 — Determinism measured: 1,000 worlds, each created twice, are byte-identical
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S10), recording a
+measure and the method that took it
+
+**Context.** DL-08 has each performance target measured in the first milestone that can take it,
+and M1-S10 is where determinism can first be measured; pre-M0 review E1 reserved this number for
+it. ADR-0001 promises that a seed plays the same game, data-model rule 7 makes a save canonical
+text, and pre-M0 review D10.1 has the harness pass a fixed `createdAt` so that `meta` compares.
+The epic names the measure but not the method, the reports' place in Git, or the machine.
+
+**Decision.**
+
+1. **Method.** `npm run harness` runs `harness/src/create.harness.test.ts`. For `HEROESIM_SEEDS`
+   seeds (1,000 by default, INPUTS §9) named `seed-0001` onward, it calls `createWorld(seed,
+   harnessSetup, { config: { ...defaultConfig }, content: loadContent() })`, the core content
+   and the default config passed explicitly, with `createdAt: "harness"`; validates, describes
+   and serialises each world; then, once every world exists, creates each again and compares its
+   `serialise` output with the first as a string (equal strings are equal bytes). A SHA-256 over
+   every serialisation in seed order, the report's *fingerprint*, lets two runs in two processes,
+   or on two machines, be compared without keeping the worlds. The run fails on any refusal, any
+   mismatch, or any Hero Stat outside its content range; warnings are counted, not failed on.
+   Creation time is `performance.now()` around the `createWorld` call alone.
+2. **Result, 2026-09-26** (`harness/reports/m1-2026-09-26.md`, committed with this entry):
+   - **1,000 of 1,000 worlds byte-identical** when created again. The validator refused none and
+     warned about none.
+   - Fingerprint `82c1e94e0a16a96f57eb59539dce93d97ac16b3ae7d42adab8794fd38e1b8244`, the same in
+     three separate `npm run harness` processes that day: byte equality holds across processes
+     as well as within one.
+   - **Creation time per world: mean 0.494 ms, p99 1.131 ms** (p50 0.430, max 2.751) in the first
+     pass; mean 0.426 ms, p99 0.752 ms in the second, warmed up.
+   - **Total run time: 2.81 s** for the sweep (both passes, validation, serialisation and the
+     report's statistics); 3.92 s wall for `npm run harness`, Vitest's start-up included.
+   - The two earlier runs that day gave creation means of 0.479 and 0.618 ms, p99s of 1.099 and
+     1.399 ms, and sweeps of 2.72 and 3.19 s. The machine was shared with other work, and the
+     timings vary by about a quarter from run to run.
+   - **Machine:** AMD Ryzen AI Max+ 395 (32 logical cores), Windows 11 (Windows_NT 10.0.26200)
+     x64, Node v26.9.0, Vitest 5.0.2.
+   - A world serialises to 54,348 characters on average (44,629 to 64,498) and holds 35.9 Heroes
+     (28 to 44). Leading Stats average 9.5 and the others 6.5 in every Class, as DL-19 item 5
+     predicts, and no Stat leaves its range.
+3. **Reports in Git.** Every run writes `harness/reports/m<n>-<local date>.md`. `.gitignore`
+   ignores `harness/reports/*`; the report of a milestone's run is committed with
+   `git add -f`, after which Git tracks it despite the ignore line. M1's is committed here; if
+   M1's tagged run writes a newer one, that one is force-added in its place.
+4. **Reusable parts.** `harness/src/stats.ts` (summaries, nearest-rank percentiles),
+   `report.ts` (Markdown tables, report paths, the machine), `seeds.ts` (`HEROESIM_SEEDS` and seed
+   names) and `creation.ts` (`sweepCreation`, `describeWorld`, `creationReport`) are plain
+   modules with ordinary tests under `npm test`, for M2-S12's play sweep to extend.
+5. **`npm test` stays fast.** Without `HEROESIM_HARNESS` the `harness-run` project does not
+   exist, so no `*.harness.test.ts` file is collected (`vitest list --filesOnly` lists none) and
+   skipping it costs nothing. Measured the same day: `npm test` took 2.85 s wall for 475 tests;
+   asking Vitest for the harness file by name without the flag exits in 0.31 to 0.43 s, finding
+   no project that includes it.
+
+**Consequences.** `createWorld` is deterministic byte for byte under the core content and
+`defaultConfig`. The fingerprint pins what the first 1,000 seeds create: a change to draw order,
+to content or to a generation default changes it, and the next report shows that it did (like a
+change under DL-12, it changes every seed's world). Creation is not a cost worth tuning. M2-S12
+measures determinism under play, one seed played twice, and data-model §7's play targets.
 
 ## DL-14 — Toolchain pins and boundary-rule choices made in M0-S1/S2
 
@@ -253,6 +356,476 @@ review E2 added three variables to INPUTS §9, not two: `HEROESIM_SEEDS`, `HEROE
 line 567).
 
 **Consequences.** DL-05 and E2 are read with these corrections. No decision changes.
+
+## DL-16 — Engine lint forbids performance, crypto, process, timers, the global object and dynamic import
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S2's implementer,
+closing a gap the M0 verification found)
+
+**Context.** ADR-0001 forbids the engine the platform's clock and random source; ADR-0007 has the
+engine run unchanged in Node, in a browser and in a test, importing nothing outside itself.
+M0-S2's lint enforced `Math.random`, `Date`'s clock reads, `console` and static imports. The M0
+verifier found that `performance.now()`, `crypto.randomUUID()`, `crypto.getRandomValues()`,
+`process.env`, `process.hrtime`, `setTimeout`, `setInterval` and dynamic `import()` all passed
+lint in engine source.
+
+**Decision.** `eslint.config.js` additionally forbids, in engine source (`engine/**/*.ts`), each
+with a message naming its ADR:
+
+1. With `no-restricted-globals`: `performance` and `crypto` (ADR-0001); `process` (ADR-0001,
+   ADR-0007); `setTimeout`, `setInterval` and `setImmediate` (ADR-0001: time advances only when
+   `advance` is called); and the global object's four names, `globalThis`, `global`, `window`
+   and `self`, through which every forbidden global, `Math.random` included, would otherwise
+   be reachable.
+2. With `no-restricted-syntax`: `ImportExpression`, the dynamic `import()` (ADR-0007).
+
+Engine tests (`engine/**/*.test.ts`) keep the bans on `Math.random`, `Date`'s clock reads and
+`console`, and may use everything this entry forbids, because they time what they measure
+(M1-S3, M1-S7), spawn processes (M1-S2's cross-process test) and inspect the repository.
+`queueMicrotask` is left alone: it reads no clock. `engine/src/boundary.test.ts` proves each new
+rule fires once in source with its ADR, and that a test file may use them.
+
+**Consequences.** Lint guards against the accidental read; it is not a sandbox, and a deliberate
+way round it (the `Function` constructor, say) is left to review. Browser globals that reach the
+environment — `fetch`, `localStorage`, `navigator`, `document` — still pass lint, and they
+type-check because `tsconfig.base.json` sets no `lib`, so the engine compiles against the DOM
+library (`tsc -p engine --listFilesOnly` lists `lib.dom.d.ts`). Forbidding them, or narrowing
+`lib` for the engine, is a later decision if a change ever reaches for one. A helper that engine
+tests share but that is not itself a `*.test.ts` file is linted as source.
+
+## DL-17 — Content file layout, schema refusals and the first content values (M1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S4's implementer)
+
+**Context.** M1-S4 left open how a content file is laid out, how the schema reports a refusal and
+how duplicate keys are found in JSON, whose parser discards them. The owner's inputs leave some
+values to choose: INPUTS 3.6 gives the Stat range but no `default`; R14 gives areas to Hero
+Stats only; INPUTS 5.3's "weighted 2:1 toward the Class's leading Stats" does not say whether
+the ratio is per Stat or in total.
+
+**Decision.**
+
+1. Each file is a JSON object keyed by content key, and a row does not repeat its key: the
+   parser adds `key` from where the row is stored. A field the schema does not know is refused,
+   so a misspelt field cannot vanish silently.
+2. Both entries throw a `ContentError` rather than return a failure value. Its `problems` list
+   every problem found, each naming the file or table and the key. `parseContent` checks every
+   row's shape, then runs `validateContent`, so no path from text yields an unvalidated set.
+3. Duplicate keys are found in each file's raw text by a scanner that tracks strings, nesting
+   and commas (`content/src/duplicate-keys.ts`), before the parse discards the evidence. Keys
+   are per table: one key in two tables is not a duplicate. A name repeated in a name list and a
+   key listed twice in a Class's `leadingStats` or `gatedSkills` are refused too.
+4. `parseContent` reads the seven files it knows by name and ignores the rest, so a glob of the
+   directory (M7-S1) may pass `package.json` along with them.
+5. Growth is read as a split of each Level's points: a Class's four leading Stats share two
+   thirds (0.1667 each) and its sixteen other Hero Stats one third (0.0208 each). Thirds do not
+   terminate as decimals, so the weights must sum to 1 within `growthSumTolerance`, 0.001.
+6. Every Stat, Hero and Guildmaster alike, ranges 1–20 with `default` 10, the middle, so a Stat
+   added in a later release neither cripples nor flatters a Hero saved before it (data-model
+   rule 5).
+7. The Guildmaster's Stats take display areas: Inspiration, Influence and Negotiation `social`;
+   Coaching and Judgement `mental`.
+8. `ContentSet`'s `{ id: "core", version: 1 }` are constants of the content package
+   (`contentSetId`, `contentVersion`), raised when the files change.
+
+**Consequences.** M3-S1 should draw growth points in proportion to the weights, normalising by
+their sum, not treat them as exact probabilities. Items 5–7 and every name and key in `content/`
+are an agent's choice, open to the owner as a content change. The `@heroesim/content/node`
+exception to the subpath ban (DL-14 item 7) admits the harness and the CLI and still refuses the
+web, which runs in a browser.
+
+## DL-18 — The History's range bounds and paging, what `append` checks, and no freezing
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S3)
+
+**Context.** M1-S3 names the functions of `engine/src/history.ts` (ADR-0008, data-model §4)
+but leaves open the bounds of `entriesBetween`, the meaning of `entriesFor`'s `{ from, limit }`,
+how much `append` checks, and whether it freezes what it stores; the acceptance box "a test
+freezes every entry after append and reads back unchanged" reads either way. `advance` (M2-S1),
+the CLI's `show history` (M1-S9) and the web's Hero pages (M7) build on these contracts.
+
+**Decision.**
+
+1. `entriesBetween(history, fromTurn, toTurn)` is half-open, `fromTurn` included and `toTurn`
+   excluded, like `Array.prototype.slice`, so consecutive ranges tile: Turn `t` alone is
+   `(t, t + 1)`, Day `d` is `(3d, 3d + 3)`, year `y` is `(y × turnsPerYear, (y + 1) ×
+   turnsPerYear)`. Either bound may be an infinity; an empty or reversed range returns `[]`; a
+   NaN bound throws.
+2. `entriesFor(history, entityId, { from = 0, limit })` returns newest first; `from` is how many
+   of the newest entries to skip and `limit` the most to return (all when omitted), each a whole
+   number from 0 or it throws. `{ from: 20, limit: 10 }` is the third page of ten.
+3. `append` checks, before changing anything, only what its indexes and the binary search rely
+   on: the type contains a dot (what `EventType` promises), each participant is an id of the
+   data-model §3.1 form (what `EntityId` promises, and what the validator refuses otherwise), and
+   the Turn is a whole number from 0 not below the last entry's. Because a type always has a dot
+   and an id is always `<table>-<six digits>`, no index key can be a key of `Object.prototype`
+   such as `__proto__` or `constructor`; the readers also look keys up with `Object.hasOwn`, so
+   any string reads as absent unless indexed, in a History parsed from JSON too. The indexes stay
+   ordinary `{}` objects rather than null-prototype ones, because a loaded save gives ordinary
+   objects and the two must behave alike.
+4. `append` does not check that the entry is JSON-safe. The validator runs on every load and,
+   in tests, after every `advance` (data-model §6), and reuses `isJsonSafe`; walking every
+   payload on every append would repeat that in play. For this to hold, **M1-S7's validator runs
+   `isJsonSafe` over `history`**.
+5. `append` stores the entry as given, neither copied nor frozen. Measured here, a deep freeze
+   costs about 0.4 µs an entry against about 0.07 µs for the checks in item 3, and data-model
+   §7's harness target (1,000 games of 20 years in 10 minutes) leaves about 27 µs a Turn:
+   freezing ten entries a Turn would spend some 15% of it. Freezing would also guard only the
+   entries appended in the running process, since `JSON.parse` and `structuredClone` return
+   unfrozen copies, so a loaded game would behave unlike a new one; and it would freeze objects
+   the caller still holds (the events `advance` returns are the same objects). Immutability after
+   append rests instead on the module's shape and its tests: `append` is the only export that
+   writes, the readers return new arrays, one test deep-freezes every entry after append and
+   reads everything back unchanged, and another runs every reader on a wholly frozen History.
+6. An entity listed twice among one entry's participants is indexed once; the entry itself is
+   stored as given. `append` returns the new entry's position, its sequence number.
+
+**Consequences.** Code that changes an entry after appending it, or one a reader returned,
+rewrites the past for every document sharing the History, and does so silently unless a test
+has frozen that entry. If such a bug turns up, freezing in `append` is a small change to weigh
+against the per-Turn cost M2-S12 measures.
+
+## DL-19 — Generator signatures, draw order and the starting world's defaults (M1-S5, M1-S6)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S5 and M1-S6's
+implementer)
+
+**Context.** M1-S5 and M1-S6 name the Heroes, Guild and Patron Generators and `createWorld`, but
+their signatures predate the one-`deps` convention (approach §3, epics README §4, pre-M0 review
+D1): the epic writes `createWorld(content, config, seed, setup)` and `generateHero(world,
+content, config, …)`. M2-S8 needs the Heroes Generator to draw from a stream its caller names
+(D7). The epics leave open the base Stat draw before the Class bias, the Guildmaster's Stats, two
+config defaults with no INPUTS row (`rivalStartingWealthMin/Max`, `patronCount`), how "one Hero
+per Class" arises for the player without a player rule (ADR-0002), and the events' payloads.
+
+**Decision.**
+
+1. **Signatures follow the convention.** `createWorld(seed, setup, deps) -> { document, events }`
+   with `setup = { guildmasterName, guildName, backgroundKey?, createdAt }`: `createdAt` comes
+   from the caller (D10.1), and `backgroundKey` may be left out, in which case it is drawn like a
+   Rival's, so a front end never draws. The generators are `generateHero(world, deps, options)`,
+   `generateGuild(world, deps, options)` and `generatePatron(world, deps, options)`. Each mutates
+   the `world` it is given (the one being created, or later the per-Turn copy), takes ids from
+   `world.counters` through `takeId`, and returns its row and its typed events; the caller
+   appends the events to the History through `append`, as `createWorld` does. M8-S1 adds
+   `modules` to `deps`, not a fifth parameter to `createWorld`.
+2. **The caller names the stream.** Every generator takes `stream`, a `StreamName` defaulting to
+   `generation`, and draws from `world.rng[stream]` alone; `generateGuild` passes it on to its
+   Roster's Heroes. M2-S8's pool refresh passes `pool`, and M2-S10's Rival replacement names
+   whichever stream it owns. A stream missing from `world.rng` throws.
+3. **Draws walk content in sorted key order.** Classes, Backgrounds, Spheres, Stats and Traits are
+   drawn from their keys sorted by code unit, not in content's insertion order, so a seed's world
+   does not change when rows in a file are reordered or a front end assembles the set another
+   way. A Class's gated Skills are drawn in the list's own order, which is content.
+4. **The Hero.** In draw order: sex; given name by sex; family name; Background (`owner: "hero"`);
+   Class, uniform unless given; age, `int(heroStartingAgeMin, heroStartingAgeMax)`; then for each
+   Hero Stat, a base `int(statBaseMin, statBaseMax)`, plus `int(statBiasMin, statBiasMax)` on the
+   Class's leading Stats, clamped to the Stat's content range, and Potential `min(stat.max, base +
+   int(potentialGapMin, potentialGapMax))`; then `int(startingSkillsMin, startingSkillsMax)`
+   Skills (at most the gated list's length) from a shuffle of the Class's gated list, each rated
+   `int(1, startingSkillRatingMax)`. `xp: 0`, `morale: moraleBaseline`, no Injury, Traits or
+   Regard. `level` is 1 unless the caller gives one; a higher Level is stored as given, with no
+   growth applied, until M3 has a growth rule.
+5. **The base Stat draw is uniform over 3–10** (`statBaseMin/Max`, chosen). A leading Stat then
+   starts at 5–14 (mean 9.5) and every other at 3–10 (mean 6.5), all inside 1–20 before the
+   clamp. Potential on a leading Stat lands at 8–20, so M3's growth (INPUTS 5.3: three points a
+   Level weighted 2:1, about nine or ten points on each leading Stat over twenty Levels) meets
+   Potential within a typical career rather than never or at once. A Warrior's mean Strength
+   exceeds a Mage's by the mean bias, 3. Uniform rather than bell-shaped because it is one draw
+   and M1-S10's harness reports the spread before anything is tuned.
+6. **The Guild and its Guildmaster.** The name is as given or drawn from `names.guild` among the
+   names no Guild in the world already has; the Background is as given or drawn from `owner:
+   "guild"`; `fame: 0`; `hall` at grade 0 for each facility; `belowFloorSince` and `foldedOnTurn`
+   null; `foundedTurn` the world's Turn. The Guildmaster: sex, a name as given or drawn (given and
+   family), age `int(guildmasterStartingAgeMin, guildmasterStartingAgeMax)`, each of the five
+   Guildmaster Stats `int(guildmasterStatMin, guildmasterStatMax)`, **5–15, chosen** to centre on
+   the Stats' middle, 10, because M4-S5's effects scale across the Stat's range; and
+   `int(guildmasterTraitsMin, guildmasterTraitsMax)` Traits from a shuffle of the `owner:
+   "guildmaster"` rows, none twice. Nothing excludes one Trait from another (Thrifty with
+   Spendthrift is possible): content has no field for it yet.
+7. **Classes on a Roster are dealt evenly**: every Class once, in shuffled order, before any
+   twice. Four Heroes are therefore one per Class (INPUTS 3.3), and a Rival's four to eight are as
+   balanced, by a rule every Guild shares rather than one for the player's. Nothing in
+   `generateGuild` reads `controller`, so a player's and a Rival's Guild from the same seed and
+   parameters differ in that field alone (tested, ADR-0002). `createWorld` deals Spheres to
+   Patrons the same way.
+8. **The Patron** is a name from `names.patron` among the names no Patron has, and a Sphere as
+   given or uniform; no template keys are stored (D3).
+9. **`createWorld`** builds `meta` (`version: config.schemaVersion`, the seed, content's `id` and
+   `version`, a copy of `deps.config`, the caller's `createdAt`) and the streams, then generates
+   the player's Guild from the setup with `startingRosterSize` and `startingWealth`, first, so it
+   is `guild-000001`; then `rivalCount` Rivals, each drawing its Roster size `int(rivalRosterMin,
+   rivalRosterMax)` and Wealth `int(rivalStartingWealthMin, rivalStartingWealthMax)` before it is
+   generated, controller `{ kind: "rival", disposition: "steady" }` (INPUTS 4.12; dispositions
+   become content in M2-S9); then `patronCount` Patrons; then `unattachedPoolSize` Unattached
+   Heroes, Classes uniform. A blank name or a key that is not a Guild Background throws: the front
+   end checks its input first.
+10. **Events**, each at the world's Turn, labelled with every participant's name: `world.created`
+    `{ seed }`, no participants, the first entry; `guild.founded` `{ guildId, guildmasterId }`,
+    a Milestone, naming both; `guildmaster.generated` `{ guildmasterId, guildId }`, naming both;
+    `hero.generated` `{ heroId, guildId, classKey }`, naming the Hero and, on a Roster, the Guild
+    (data-model §4); `patron.generated` `{ patronId, sphereKey }`. Their types, and the union
+    `EngineEvent` later stories add to, are in `engine/src/events.ts`.
+11. **Config defaults.** From INPUTS: `startingRosterSize` 4 and `startingWealth` 500 (3.3),
+    `rivalCount` 4 and `rivalRosterMin/Max` 4/8 (3.4), `heroStartingAgeMin/Max` 18/36 (3.5),
+    `statBiasMin/Max` 2/4 and `potentialGapMin/Max` 3/12 (3.6), `unattachedPoolSize` 8 (3.7),
+    `startingSkillsMin/Max` 1/2 and `startingSkillRatingMax` 2 (3.11), `guildmasterTraitsMin/Max`
+    0/2 (3.13), `moraleBaseline` 60 (4.8), `guildmasterStartingAgeMin/Max` 30/45 (4.10). Chosen
+    here: `rivalStartingWealthMin/Max` **300/700**, centred on the player's 500 so the player
+    starts mid-table in Wealth; `patronCount` **12**, two for each of INPUTS 3.8's six Spheres;
+    `statBaseMin/Max` **3/10** (item 5); `guildmasterStatMin/Max` **5/15** (item 6). Fields were
+    added and no existing default changed, so `configVersion` stays 1.
+
+**Consequences.** Engine tests build worlds from a fixture content set in
+`engine/src/generators/test-content.ts`, because engine tests may not import
+`@heroesim/content`; the core content is first exercised end to end by the CLI and the harness
+(M1-S9, M1-S10). A Guild generated when every name in `names.guild` is taken throws; the core
+list has thirty against five Guilds, but M2-S10's Rival replacement (D6) keeps folded Guilds'
+rows and so their names, and must add names or a rule for reuse. Hero and Guildmaster names are
+not unique. Any change to the draw order in items 3–9 changes every seed's world, like a change
+under DL-12. M1-S6's first acceptance box, that the validator accepts what `createWorld`
+returns, waits for M1-S7.
+
+## DL-20 — What the validator checks beyond §6's table, and how a save is written and read
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S7 and M1-S8)
+
+**Context.** Data-model §6 lists what the validator refuses and warns about; rules 5 to 8 and
+DL-18 item 4 add to it; M1-S7 and M1-S8 name the functions. Left open: how a failure is reported,
+how a document of the wrong shape is refused without the validator throwing, what "more Parties
+than the build allows" is, what a counter is compared with, how Quest template and Item keys are
+checked before content has either, how the migration chain runs, and which `schemaVersion` a load
+compares against.
+
+**Decision.**
+
+1. **Reports.** `validate(document, content)` (`engine/src/validate.ts`) returns
+   `{ ok: true, warnings }` or `{ ok: false, failures }`. A failure is `{ check, id, detail }` and a
+   warning `{ check, id, key, detail }`: `check` is a kebab-case name from `refusalChecks` or
+   `warningChecks`, each the function of the same name in camelCase; `id` is the offending row or
+   entity, or, where no row is at fault, the path of the offending value (`$.world.counters.heroes`,
+   `$.history.byType["quest.resolved"]`); `key` is the unknown content key; `detail` is prose for
+   a front end. Tests assert on `check`, `id` and `key`, never on `detail`. Warnings are reported
+   only when nothing is refused.
+2. **Shape first.** `document-shape` checks that every section, table, row and History entry is a
+   plain object carrying each field of its interface with the right kind (string, number,
+   integer, list, map, or nullable), and every list and map a later check walks. The field lists
+   are typed `Record<keyof Row, FieldKind>`, so the compiler refuses one that drifts from
+   `document.ts`. When the shape fails, only it and `json-safe` report, so no later check can throw
+   on a missing field: a damaged or hand-made save is refused and never crashes a load. A field no
+   interface names is kept and ignored (rule 5). Enumerated values and numeric ranges are not
+   checked; §6 does not ask for them.
+3. **Beyond the table's rows.** `json-safe` covers the whole document, the History included
+   (rule 6, DL-18 item 4), naming the first offending path. `id-format` covers each table's keys,
+   `row.id` equal to its key, Regard keys, History participants and `byEntity` keys.
+   `roster-guild-mismatch` also refuses a living, unretired Hero whose Guild's Roster does not
+   list them; dead and retired Heroes leave the Roster and keep `guildId` (M2-S5, M2-S6).
+   `party-member-mismatch` holds `hero.partyId` and `party.heroIds` to agree, as
+   `quest-party-mismatch` holds `quest.partyIds` and `party.questId`. `history-index-mismatch`
+   checks each index list ascends strictly and points at entries of its entity, type or Milestone
+   flag, and that the lists' lengths account for every entry (counting, linear, no rebuild).
+   `history-turn-order` refuses an entry out of Turn order, before Turn 0 or after `world.turn`.
+4. **Rule 8.** `passiveEntryTypes` is `['hero.generated', 'hero.left-pool']`.
+   `removed-hero-in-history` refuses a Hero id absent from `world.heroes` that any other entry
+   names. It is about Heroes only: Quests, Parties, offers and stacks are removed while the History
+   keeps their ids, and that is not refused.
+5. **Parties.** "More Parties than the build allows" is `maxPartiesPerQuest = 1`, a named constant
+   and not a `GameConfig` field: it is a limit of the first build's rules, not a balance number,
+   and the later "at most one per Guild" changes the check, not a value.
+6. **Counters.** A counter is the next id number (`emptyDocument` starts each at 1), so
+   `counter-range` refuses one that is missing, not a whole number, past 999,999, or not above the
+   highest id of its table in use, among the table's own keys or in the History's `byEntity`
+   keys: the next id must never repeat a removed Quest's. The last usable id is 999,998.
+7. **Offers.** Expired means `expiresOnTurn < world.turn`: an offer is live through its expiry
+   Turn and removed that night (M6-S2).
+8. **Content keys** warn by owner: a Hero's Stats, Potential, Traits and Background must be
+   content rows with `owner: "hero"`, a Guildmaster's Stats and Traits `"guildmaster"`, a Guild's
+   Background `"guild"`. Quest demands, Skill keys and requirements are checked too. Quest
+   template and Item keys are looked up in content tables named `questTemplates` and `items`,
+   which M2-S3 and M5-S1 add to `ContentSet`; until one exists, content defines no such key and
+   every one warns, as §6 says. Injury types, Dispositions, Encounters, Loot tables, slots and tags
+   are not checked until their content exists.
+9. **Serialisation** writes object keys in `Array.prototype.sort`'s default order (UTF-16 code
+   units, the same in every JavaScript engine), arrays in their own order, scalars by
+   `JSON.stringify`, and no whitespace. `serialise` throws on a document that is not JSON-safe,
+   naming the path: a programming error, since the engine makes only JSON-safe documents.
+10. **Loading.** `deserialise(text, deps)` never throws on its input; it refuses with a typed
+    `reason` whose `kind` is `malformed-json`, `not-a-document` (no whole-number `meta.version`),
+    `unsupported-version` (naming `documentVersion` and `schemaVersion`, when no chain leads from
+    one to the other, including from a newer save) or `invalid` (carrying the validator's
+    failures). On success it returns the validator's `warnings` beside the document, so a front
+    end can show them (rule 5). `migrations[n]` turns a version-n document into version n + 1; the
+    runner checks every step exists before running any, and sets `meta.version` after each, so a
+    step cannot forget. `meta.config` is left alone: only `rebase` rewrites it.
+11. **The version a load compares is `deps.config.schemaVersion`, and the `deps` given to
+    `deserialise` carry the engine's own `defaultConfig`, not a config merged from the save.** A
+    config built as `{ ...defaultConfig, ...meta.config }` carries the save's own
+    `schemaVersion`, which equals its `meta.version`, and would skip every migration. Front ends
+    (M1-S9, M7-S2) build that merged config for play, after the load.
+12. **Test support.** `withValid(document, content, { allowWarnings })` and the fixtures (a small
+    content set mirroring the real keys, with Quest template and Item tables, and `buildDocument`,
+    a valid document using every table and lifecycle) are in `engine/src/world.test-support.ts`:
+    not run as a test, linted as engine source (DL-16), not exported from the package. The engine's
+    tests cannot load the real content (ADR-0007). `withValid` throws on a failure, and on a
+    warning unless allowed, since a document the engine makes from content should hold only that
+    content's keys.
+
+**Consequences.** M2-S3 and M5-S1 should name their content tables `questTemplates` and `items`
+or change the two lookups in `validate.ts`; a mismatch shows as a warning on every Quest or Item,
+which `withValid` turns into a failing test. A new row field needs its kind in the validator's
+field lists, which the compiler demands. A later build allowing more Parties changes
+`tooManyParties`. The validator walks the History a few times, each pass linear; measured here, a
+1,000-Hero world with about a thousand entries validates in about 11 ms, and M2-S12 measures a
+20-year save.
+
+## DL-21 — The CLI's command line, save files, and the selectors it reads through (M1-S9)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S9's implementer)
+
+**Context.** M1-S9 names the CLI's commands, its save location (INPUTS 3.12, §9) and how it
+builds `deps.config` (data-model §2, pre-M0 review D3), and says `cli/` holds no rule. It leaves
+open how the runner is shaped and tested, what a `<file>` on the command line means, what `new`
+does without `--background` or over an existing save, what `save --as` and `load` write, the exit
+codes, and where the numbers a view needs, such as a Hero's age, come from.
+
+**Decision.**
+
+1. **The runner.** `cli/src/main.ts` exports `main(argv, io)`, returning the exit code, with `io`
+   the output streams, the working directory, the environment, the clock and a random source; its
+   last line runs it with Node's when the file is the entry (`import.meta.main`). Tests run it in
+   process against a temporary directory and real files. `play` runs `tsx cli/src/main.ts`
+   (DL-14 item 6); the placeholder `cli/src/index.ts` and its test are gone, and the package
+   exports `main.ts`. Output goes through `render.ts` as plain text tables.
+2. **Exit codes.** 0 done; 1 refused (no save, a save that does not load, an id the save lacks, a
+   save `new` would replace, a file-system error); 2 a bad command line (an unknown command, flag
+   or view, a flag without its value or given twice, a missing argument, a blank name, a key that
+   is not a Guild Background, a word that is not an id), printed with the usage when the command
+   line does not parse, and with what is expected when a value is wrong.
+3. **Save files.** `--save`, `save --as` and `load` take a `<file>`: one with no slash and no
+   `.json` is a name, `<dir>/<name>.json`, where `<dir>` is `HEROESIM_SAVE_DIR` resolved against
+   the working directory or else `.saves/` in it; anything else is a path from the working
+   directory. `--save` defaults to `current`.
+4. **Reading a save** is `openSave` in `cli/src/saves.ts`: `deserialise` with
+   `deps.config = defaultConfig` (DL-20 item 11), then, only after the load, the play deps
+   `{ config: { ...defaultConfig, ...meta.config }, content }`, which every view reads (a Hero's
+   age uses the save's `turnsPerYear`). Content keys the content lacks print a warning and the
+   save still loads (rule 5).
+5. **What is written.** A command writes only when the World State it names changes: `new`
+   writes the new world, `load` writes the loaded document to `--save`, `save --as` writes to its
+   target; `show` only reads, since writing back what it read would change nothing. What is
+   written is always `serialise` of a document that loaded or was just created, so `save --as`
+   refuses to copy a save that does not load, `load` changes nothing when it refuses, and a save
+   copied then loaded back is byte for byte the original (the M1 gate).
+6. **`new`.** Without `--background`, the setup leaves `backgroundKey` out and `createWorld`
+   draws it from the seed as it does a Rival's (DL-19 item 1), rather than the CLI taking the
+   first Guild Background in content order, which would be a rule outside the engine, or
+   refusing, which makes a flag the epic lists as optional compulsory. A given key must be an
+   `owner: "guild"` Background; otherwise the choices are listed. Names are trimmed and a blank
+   one refused, since `createWorld` throws on one. `createdAt` is the CLI's clock as an ISO
+   string (D10.1), and a new world is created under `defaultConfig`. `new` refuses to replace an
+   existing save unless given `--force`, a flag the epic does not list: with no prompts, a
+   repeated `new` would otherwise lose a game silently. `save --as` replaces its target, since
+   naming it is the request.
+7. **The made-up seed** (INPUTS 3.1) is `<adjective>-<animal>-<four digits>` from two lists of
+   sixteen words in `cli/src/seed.ts`, drawn with `Math.random`: 2,560,000 seeds, each readable
+   and typeable. To the engine it is any string.
+8. **The views.** `show` alone prints the seed, the Turn, the Guilds table and counts of Guilds,
+   Heroes, Unattached Heroes, Patrons and History entries. `show history` prints the whole
+   History oldest first (`entriesBetween(history, 0, Infinity)`), `show history <id>` one
+   entity's entries newest first (`entriesFor`, DL-18), each row the Turn, the type, a Milestone
+   mark and the participants' labels. `show roster` without an id is the player's Guild. A
+   content key the content lacks is shown as the key. `show hero` shows base Stats and never
+   reads `potential` (rule 9).
+9. **Selectors added to the engine**, so that every number the CLI prints is a document field,
+   a table's size or a selector's result: `ageOf(person, turn, config)` in `engine/src/time.ts`,
+   a Hero's or Guildmaster's age in whole years, `ageAtEntry` plus the years completed since
+   `enteredTurn`, rising on the Turn a year completes and throwing for a Turn before entry
+   (M2-S1 adds `dayOf`, `timeOfDay` and `yearOf` beside it); and in `engine/src/selectors.ts`
+   `playerGuild(world)`, `unattachedHeroes(world)` in id order, and `baseStat(values, stat)`,
+   the stored value or the content's default for a Stat the row lacks (rule 5).
+
+**Consequences.** M2-S1's `advance` command follows the same shape: open the save, act through
+the play deps, write it back. A rule reading age should call `ageOf` rather than the fractional
+formula in data-model §3.2, or add a selector beside it and say which it uses. The web (M7-S2)
+builds its deps the same two-step way and can share the selectors. Replacing a save with `new`
+needs `--force`; nothing else in the CLI asks for confirmation.
+
+## DL-22 — One fixture module for the engine's tests
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S10's implementer, at
+the orchestrator's request)
+
+**Context.** M1-S5/S6 and M1-S7/S8 were built in parallel, and each made its own test content:
+`engine/src/generators/test-content.ts` (DL-19's consequences), a fresh copy per call with
+`testDeps` and `testWorld`; and `engine/src/world.test-support.ts` (DL-20 item 12), a constant
+with `testMeta`, `buildDocument` and `withValid`. Two content sets that drift apart would let a
+generator test and a validator test disagree about what content holds.
+
+**Decision.**
+
+1. `engine/src/world.test-support.ts` is the one fixture module; `test-content.ts` is deleted and
+   its `testDeps` and `testWorld` moved in. It stays under DL-20 item 12's terms: not a test,
+   linted as engine source, not exported from the package.
+2. There is one content set, `testContent`, the union of the two: every Trait and Sphere of the
+   core, four Hero and three Guild Backgrounds, the generator set's name lists (long enough for
+   `createWorld` under `defaultConfig`), its growth weights (two thirds shared by the leading
+   Stats, DL-17 item 5), and the validator set's Quest template and Item tables. Its `id` is
+   `"test"`, since it is not the core set.
+3. It is a deep-frozen constant rather than a fresh copy per call: a test that changed shared
+   content throws at once instead of changing another test's input, and a test that needs other
+   content spreads a copy.
+
+**Consequences.** DL-19's and DL-20's references to where the fixtures live are read with this
+entry. No test's expectation changed: the generators read no Quest template or Item table, and
+no validator test names a key the union adds.
+
+## DL-23 — M1 verification corrections
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M1 verification pass)
+
+**Context.** The M1 verifier found two defects, one of transcription and one of design, neither
+in the built engine's rules.
+
+**Decision.**
+
+1. **DL-19 item 4 misstates the Stat draw order.** It reads "a base `int(statBaseMin,
+   statBaseMax)`, plus `int(statBiasMin, statBiasMax)` on the Class's leading Stats", which reads
+   as base drawn first, bias second. `engine/src/generators/heroes.ts`'s `drawStats` (lines
+   141–142) draws the other way round:
+
+   ```
+   const bias = heroClass.leadingStats.includes(stat.key) ? int(state, config.statBiasMin, config.statBiasMax) : 0;
+   const base = clamp(int(state, config.statBaseMin, config.statBaseMax) + bias, stat.min, stat.max);
+   ```
+
+   On a leading Stat, the bias is drawn first (`int(state, config.statBiasMin,
+   config.statBiasMax)`), then the base (`int(state, config.statBaseMin, config.statBaseMax)`),
+   which has the already-drawn bias added to it before the clamp. On a Stat that does not lead,
+   no bias is drawn at all — `bias` is the literal `0` — so only the base is drawn. The true order
+   per Stat is: the bias, when the Stat leads the Class (one draw), then the base (one draw), then
+   the Potential gap (one draw): two draws for an ordinary Stat, three for a leading one. The
+   function's own doc comment already says as much ("Two draws a Stat, three on a leading one").
+   The code is correct and is **not changed**; only DL-19's prose was wrong. Changing the draw
+   order would change every seed's Heroes (DL-19's own consequence), which is not wanted here —
+   this entry corrects the record, not the game.
+2. **`validate(document, content)` breaks the one-`deps` convention** (epics README §4): every
+   other engine entry point reads `deps = { config, content, modules }`, but `validate`
+   (`engine/src/validate.ts`) and the test helper `withValid`
+   (`engine/src/world.test-support.ts`) took a bare `ContentSet` as their second parameter. M8's
+   modules will need `deps.modules` to validate their own state slices, so both are changed to
+   take `deps: EngineDeps`, reading `deps.content` where they read `content` before. Every caller
+   is updated to match: `deserialise` (`engine/src/serialise.ts`), `withValid`'s own call into
+   `validate`, the CLI's tests (which call `deserialise`, whose signature is unchanged, so nothing
+   there needed editing), the harness (`harness/src/creation.ts` and its test), and every engine
+   test that called `validate` or `withValid` with a bare content set, which now pass or build an
+   `EngineDeps`.
+
+**Consequences.** No behaviour changes: `validate` still reads only `content`, since M1 gives it
+nothing else worth reading from `deps`. A later story that gives `validate` reason to read
+`deps.config` or `deps.modules` needs no further signature change. DL-19 item 4 is read with this
+entry's correction; DL-19 itself is not edited, and neither is DL-20 (item 1 names
+`validate(document, content)`, item 12 `withValid(document, content, …)`), per this log's
+append-only rule — both are read with this correction instead.
 
 ---
 
