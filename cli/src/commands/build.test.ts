@@ -102,6 +102,36 @@ describe('build', () => {
     expect(saved()).toBe(before);
   });
 
+  test('build --facility training-yard, then idle nights: each Hero on the Roster gains xpPerTrainingDay a night', () => {
+    // M3-S6's yard half of its second box, with M3-S2's `training`: the grade built through the CLI
+    // is the one the night reads. The training XP pinned; a twin world left at grade 0 gains none.
+    /** A new world, its training yard built or not, played five Days idle: its Roster's XP after. */
+    const idleXp = (withYard: boolean): number[] => {
+      rmSync(current(), { force: true });
+      newWorld(1_000);
+      const edited = document();
+      edited.meta.config.xpPerTrainingDay = 2;
+      writeFileSync(current(), serialise(edited));
+      if (withYard) {
+        const built = play(['build', '--facility', 'training-yard']);
+        expect(built).toMatchObject({ code: exitCodes.ok, err: '' });
+        expect(built.out).toContain("The Test's training yard is now grade 1.");
+      }
+      // Fifteen Turns from the morning of Day 0: the nights of Days 0 to 4. Nobody is sent anywhere.
+      expect(play(['advance', '--turns', '15']).code).toBe(exitCodes.ok);
+      const { world } = document();
+      const guild = player();
+      expect(world.turn).toBe(15);
+      expect(guild.hall.trainingYard).toBe(withYard ? 1 : 0);
+      return guild.rosterIds.map((id) => world.heroes[id]?.xp ?? Number.NaN);
+    };
+
+    const trained = idleXp(true);
+    expect(trained).toHaveLength(4);
+    expect(trained).toEqual([10, 10, 10, 10]);
+    expect(idleXp(false)).toEqual([0, 0, 0, 0]);
+  });
+
   test('refuses a grade the Guild cannot pay for, naming the cost, and writes nothing', () => {
     newWorld(199);
     const before = saved();

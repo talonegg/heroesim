@@ -1,7 +1,8 @@
 // The play sweep's game (M2-S12): create a world and play it under the automatic policy
 // (`policy.ts`) until the game ends or the years run out, applying the policy's actions between
 // Turns through the real actions and timing every `advance`. Counters come from the History
-// (`counters.ts`), measures from the harness's clock. DL-34 records the method and the result.
+// (`counters.ts`), and what it cannot give from the World State before the policy acts on each
+// Turn (`observe`, M3, DL-40); measures from the harness's clock. DL-34 records the method.
 //
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
@@ -21,7 +22,7 @@ import {
   type WorldSetup,
 } from '@heroesim/engine';
 import { harnessSetup } from './creation.js';
-import { countGame, type GameCounters } from './counters.js';
+import { countGame, emptyObservations, observe, takeCensus, type GameCounters, type GameObservations } from './counters.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
@@ -83,16 +84,19 @@ export interface PlayedGame {
   refusals: PolicyRefusal[];
   /** The first validation that refused the document or warned about it; `null` when none did. */
   invalid: Invalid | null;
+  /** What the World State showed before the policy acted on each Turn, and at the last (`observe`). */
+  observations: GameObservations;
 }
 
 /** A validation's result is a problem when it refuses or warns: the engine's worlds warn of nothing. */
 const troubled = (result: ValidationResult): boolean => !result.ok || result.warnings.length > 0;
 
 /**
- * Creates `seed`'s world and plays it: before each Turn the policy's actions, applied in order
- * through `applyAction`; then `advance`, timed; then, when validating, the validator from the
+ * Creates `seed`'s world and plays it: before each Turn, the World State observed (`observe`) and
+ * then the policy's actions, applied in order through `applyAction`; then `advance`, timed; then, when validating, the validator from the
  * History's length at its last run (`historyFrom`), so that validating every Turn stays linear
- * in the History; and once the game stops, the validator over the whole document. Stops when the
+ * in the History; and once the game stops, the year's census if it stopped at a year's start
+ * without ending, and the validator over the whole document. Stops when the
  * game ends, when `years × turnsPerYear` Turns have been reached, or at a validator refusal or
  * warning. Never throws on what it finds: a refused action or document is recorded.
  */
@@ -111,6 +115,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
   const refusals: PolicyRefusal[] = [];
   let invalid: Invalid | null = null;
   let validated = 0;
+  const observations = emptyObservations();
 
   /** Validates from `from`, timing it into `times`; records and reports a problem. */
   const check = (from: number, times: number[]): boolean => {
@@ -125,6 +130,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
   const created: number[] = [];
   if (!validating || check(0, created)) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
+      observe(observations, document.world, deps);
       for (const action of automaticPolicy(document, deps, policy)) {
         const result = applyAction(document, action, deps);
         if (result.ok) document = result.document;
@@ -137,6 +143,8 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
 
       if (validating && !check(validated, validateMs)) break;
     }
+    // The last year's end, when the game ran its full length: the policy does not act on it.
+    if (document.world.ended === null) takeCensus(observations, document.world, deps);
   }
 
   const whole: number[] = [];
@@ -150,6 +158,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     wholeValidateMs: whole[0] ?? null,
     refusals,
     invalid,
+    observations,
   };
 }
 
@@ -190,6 +199,7 @@ export function measureDocument(
 export interface GameRecord {
   seed: string;
   counters: GameCounters;
+  observations: GameObservations;
   turnsPlayed: number;
   /** Whether the game ran to its last Turn without ending. */
   ranFullLength: boolean;
@@ -212,7 +222,8 @@ export function recordGame(
   return {
     record: {
       seed,
-      counters: countGame(document),
+      counters: countGame(document, deps),
+      observations: game.observations,
       turnsPlayed: game.turnsPlayed,
       ranFullLength: document.world.ended === null && document.world.turn >= years * deps.config.turnsPerYear,
       refusals: game.refusals,

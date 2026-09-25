@@ -111,7 +111,10 @@ Config: `fameRequiredPerLevel`.
 - [x] `by: "wealth"` and `by: "fame"` differ on a fixture built to make them differ
 - [x] A Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero with the
       default; raising Fame past the threshold flips the refusal
-- [ ] The harness counts signings refused by Fame per controller kind
+- [x] The harness counts signings refused by Fame per controller kind — each morning before the
+      policy acts, `unsignableHeroes` for every Guild in play, by controller kind, beside the
+      `signing-refused` rejections returned (`observe` in `harness/src/counters.ts`, tested in
+      `counters.test.ts`; reported in `harness/reports/m3-*.md`, DL-40)
 
 ### M3-S6 · Hall Improvements · 1 session
 
@@ -128,8 +131,11 @@ Config: `quartersMoraleBonus`.
 
 - [x] Each facility climbs from 0 to its top grade with the right cumulative cost and refuses
       beyond
-- [ ] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
-      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury
+- [x] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
+      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury — the
+      yard end to end: `build --facility training-yard`, then five idle Days, every Roster Hero
+      gains `xpPerTrainingDay` a night and a twin at grade 0 none (`cli/src/commands/build.test.ts`,
+      DL-40)
 - [x] CLI `build --facility infirmary`
 
 ## 2. Configuration and events introduced
