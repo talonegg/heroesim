@@ -40,6 +40,15 @@ export { generatePatron, type GeneratedPatron, type PatronOptions } from './gene
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './history.js';
 export * from './json-safe.js';
+export { moraleBand } from './morale.js';
+export {
+  questBand,
+  resolveQuest,
+  stubScore,
+  type QuestInjury,
+  type QuestOutcome,
+  type StubDeps,
+} from './quest-engine/stub.js';
 export * from './selectors.js';
 export * from './serialise.js';
 export * from './time.js';

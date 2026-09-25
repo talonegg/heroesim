@@ -1,7 +1,121 @@
-// Night, first: Quests concluding go to the Quest Engine and their outcomes are applied
-// (approach §2). M2-S5 fills it: each Party whose `returnsOnTurn` has come is resolved by the stub
-// Quest Engine, drawing from the `quests` stream. Until then it changes nothing and emits nothing.
+// Night, first: Quests concluding go to the Quest Engine and their outcomes are applied (approach
+// §2, M2-S5, DL-29). Each Party whose `returnsOnTurn` has come, in id order, is resolved by the
+// stub Quest Engine (quest-engine/stub.ts), which draws from the `quests` stream alone, and its
+// outcome applied here: the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's,
+// later the same night); a Hero injured carries the Injury until its night; a Hero who died leaves
+// the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP (Level
+// stays 1 until M3); Morale moves on a strong success and on a Death in the Roster, each change
+// emitting `hero.morale-changed`; the survivors are free again (`partyId: null`); and the Party and
+// the Quest rows go, the History keeping their record. Every Guild alike (ADR-0002 as amended by
+// pre-M0 review A1), a folded Guild's Parties excepted, as every per-Guild rule skips a folded
+// Guild.
+//
+// A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
+// from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
 
-import type { PhaseRun } from './phase.js';
+import { compareByCodeUnit, type Guild, type Party, type Quest, type World } from '../document.js';
+import type { EngineEvent } from '../events.js';
+import { changeMorale } from '../morale.js';
+import { resolveQuest, type QuestOutcome } from '../quest-engine/stub.js';
+import { dayOf, nightOf } from '../time.js';
+import type { PhaseContext, PhaseRun } from './phase.js';
 
-export const questsConclude: PhaseRun = () => [];
+export const questsConclude: PhaseRun = (world, ctx) => {
+  const events: EngineEvent[] = [];
+  const due = Object.values(world.parties)
+    .filter((party) => party.returnsOnTurn <= ctx.turn)
+    .sort((a, b) => compareByCodeUnit(a.id, b.id));
+  for (const party of due) {
+    const guild = row(world.guilds, party.guildId);
+    if (guild.foldedOnTurn !== null) continue;
+    const quest = row(world.quests, party.questId);
+    const outcome = resolveQuest(world, quest, party, ctx);
+    events.push(...conclude(world, ctx, { party, guild, quest, outcome }));
+  }
+  return events;
+};
+
+interface Concluding {
+  party: Party;
+  guild: Guild;
+  quest: Quest;
+  outcome: QuestOutcome;
+}
+
+/** Applies `outcome` to the world and returns its events, in the order they happened. */
+function conclude(world: World, ctx: PhaseContext, { party, guild, quest, outcome }: Concluding): EngineEvent[] {
+  const { config, emit, turn } = ctx;
+  const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId));
+  // Emitted first, while the Quest and the Party are still rows to label.
+  const events: EngineEvent[] = [
+    emit({
+      type: 'quest.resolved',
+      participants: [quest.id, party.id, ...party.heroIds, guild.id, quest.patronId],
+      payload: {
+        questId: quest.id,
+        partyId: party.id,
+        guildId: guild.id,
+        heroIds: [...party.heroIds],
+        templateKey: quest.templateKey,
+        ...outcome,
+      },
+    }),
+  ];
+
+  guild.wealth += outcome.wealthDelta;
+  guild.fame += outcome.fameDelta;
+
+  for (const { heroId, typeKey, healDays } of outcome.injuries) {
+    const healsOnTurn = nightOf(dayOf(turn) + healDays);
+    row(world.heroes, heroId).injury = { typeKey, healsOnTurn };
+    events.push(
+      emit({ type: 'hero.injured', participants: [heroId, quest.id], payload: { heroId, questId: quest.id, typeKey, healsOnTurn } }),
+    );
+  }
+
+  for (const heroId of outcome.deaths) {
+    const hero = row(world.heroes, heroId);
+    hero.diedOnTurn = turn;
+    hero.partyId = null;
+    guild.rosterIds = guild.rosterIds.filter((id) => id !== heroId);
+    events.push(emit({ type: 'hero.died', participants: [heroId, quest.id], payload: { heroId, questId: quest.id } }));
+  }
+
+  const survivors = heroes.filter((hero) => hero.diedOnTurn === null);
+  for (const hero of survivors) {
+    hero.xp += outcome.xpPerHero;
+    events.push(
+      emit({
+        type: 'hero.xp-gained',
+        participants: [hero.id],
+        payload: { heroId: hero.id, questId: quest.id, amount: outcome.xpPerHero },
+      }),
+    );
+  }
+
+  if (outcome.band === 'strong') {
+    for (const hero of survivors) {
+      events.push(changeMorale(hero, config.moraleOnStrongSuccess, 'strong-success', config, emit));
+    }
+  }
+  // Each Death costs every Hero left on the Roster, those away on other Quests included.
+  for (let death = 0; death < outcome.deaths.length; death += 1) {
+    for (const heroId of guild.rosterIds) {
+      const mate = row(world.heroes, heroId);
+      if (mate.diedOnTurn !== null || mate.retiredOnTurn !== null) continue;
+      events.push(changeMorale(mate, config.moraleOnRosterDeath, 'roster-death', config, emit));
+    }
+  }
+
+  for (const hero of survivors) hero.partyId = null;
+  delete world.parties[party.id];
+  delete world.quests[quest.id];
+  return events;
+}
+
+/** The row `id` names in `rows`, which must be there: a Party's Guild, Quest and Heroes always are. */
+function row<Row>(rows: Readonly<Record<string, Row>>, id: string): Row {
+  const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
+  if (found === undefined) throw new RangeError(`${id} is not in the world`);
+  return found;
+}

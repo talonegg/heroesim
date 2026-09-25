@@ -3,8 +3,10 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { ClassKey, QuestTemplateKey, SphereKey } from './content-types.js';
+import type { MoraleBand } from './config.js';
+import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
 import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
+import type { QuestOutcome } from './quest-engine/stub.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -96,6 +98,63 @@ export type QuestTaken = Entry<
   { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
 >;
 
+// ── The stub Quest Engine (M2-S5, DL-29) ─────────────────────────────────────────────────────
+
+/**
+ * A Party came home and its Quest was resolved by the stub Quest Engine: the payload is the
+ * outcome (`QuestOutcome`) with the Quest's, Party's and Guild's ids and the template's key, which
+ * names the Quest once its row is gone. Names the Quest, the Party, each Hero, the Guild and the
+ * Patron. Not a Milestone: its Injuries and Deaths are entries of their own.
+ */
+export type QuestResolved = Entry<
+  'quest.resolved',
+  QuestOutcome & {
+    questId: QuestId;
+    partyId: PartyId;
+    guildId: GuildId;
+    heroIds: HeroId[];
+    templateKey: QuestTemplateKey;
+  }
+>;
+
+/** A Hero came home from a Quest injured, until `healsOnTurn`. Names the Hero and the Quest. */
+export type HeroInjured = Entry<
+  'hero.injured',
+  { heroId: HeroId; questId: QuestId; typeKey: InjuryTypeKey; healsOnTurn: Turn }
+>;
+
+/**
+ * A Hero died on a Quest: off the Roster, the row kept with `diedOnTurn` (data-model rule 8). A
+ * Milestone, naming the Hero and the Quest.
+ */
+export type HeroDied = Entry<'hero.died', { heroId: HeroId; questId: QuestId }>;
+
+/** A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero. */
+export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: QuestId; amount: number }>;
+
+// ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
+
+/** What moved a Hero's Morale: a Death on their Roster, a strong success, or the nightly drift. */
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift';
+
+/**
+ * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
+ * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero.
+ */
+export type HeroMoraleChanged = Entry<
+  'hero.morale-changed',
+  { heroId: HeroId; cause: MoraleCause; before: number; after: number; bandBefore: MoraleBand; bandAfter: MoraleBand }
+>;
+
+/** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
+export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryTypeKey; traitKey: TraitKey | null }>;
+
+/**
+ * A Hero retired at a yearly check, at `age`: off the Roster, the row kept with `retiredOnTurn`. A
+ * Milestone, naming the Hero and their Guild.
+ */
+export type HeroRetired = Entry<'hero.retired', { heroId: HeroId; guildId: GuildId; age: number }>;
+
 // ── Endings (M2-S10, pre-M0 review D6, DL-28) ────────────────────────────────────────────────
 
 /**
@@ -131,6 +190,13 @@ export type EngineEvent =
   | QuestOffered
   | QuestExpired
   | QuestTaken
+  | QuestResolved
+  | HeroInjured
+  | HeroDied
+  | HeroXpGained
+  | HeroMoraleChanged
+  | HeroHealed
+  | HeroRetired
   | GameEnded
   | GuildFolded
   | HeroLeftGuild;
@@ -159,6 +225,13 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'quest.offered': false,
   'quest.expired': false,
   'quest.taken': false,
+  'quest.resolved': false,
+  'hero.injured': false,
+  'hero.died': true,
+  'hero.xp-gained': false,
+  'hero.morale-changed': false,
+  'hero.healed': false,
+  'hero.retired': true,
   'game.ended': true,
   'guild.folded': true,
   'hero.left-guild': false,

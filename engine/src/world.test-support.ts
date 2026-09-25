@@ -13,6 +13,7 @@ import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   Class,
   ContentSet,
+  InjuryType,
   QuestTemplate,
   QuestTemplateRequires,
   SphereKey,
@@ -144,6 +145,11 @@ function questTemplate(
   ];
 }
 
+/** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
+function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], leavesTrait: string | null): [string, InjuryType] {
+  return [key, { key, name: title(key), healDaysMin, healDaysMax, leavesTrait }];
+}
+
 /**
  * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
  * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
@@ -160,10 +166,10 @@ export function deepFreeze<T>(value: T): T {
 /**
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
- * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), and the twelve Quest
- * templates, two to a Sphere, with simpler demands (M2-S3), and the one Disposition, `steady`
- * (M2-S9). It also carries the Item table M5-S1
- * adds, so that fixture Items raise no warning.
+ * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
+ * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), and the one
+ * Disposition, `steady` (M2-S9). It also carries the Item table M5-S1 adds, so that fixture Items
+ * raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -242,6 +248,13 @@ export const testContent: ContentSet = deepFreeze(
           'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
         questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
           'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
+      ]),
+      // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
+      injuries: Object.fromEntries([
+        injuryType('bruised-ribs', [5, 8], null),
+        injuryType('broken-arm', [15, 25], null),
+        injuryType('deep-cut', [6, 12], 'scarred'),
+        injuryType('shattered-knee', [20, 30], 'lame'),
       ]),
       dispositions: keyed({}, 'steady'),
     },

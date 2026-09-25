@@ -346,7 +346,7 @@ describe('a Party in play', () => {
     }
   });
 
-  // Until the night of its return: that night's questsConclude (M2-S5) brings the Party back.
+  // Every Turn before the return night; that night's questsConclude (M2-S5) frees them (next test).
   test('keeps a dispatched Hero from being dispatched again on every Turn until the Party returns', () => {
     const start = createWorld('twice', setup, deps).document;
     const guild = playerGuild(start.world) as Guild;
@@ -365,6 +365,37 @@ describe('a Party in play', () => {
         rejection: { action: 'dispatch', reason: 'hero-unavailable', heroId: first, because: 'in-party' },
       });
       expect(document.world.heroes[second]?.partyId).toBe(partyId);
+    }
+  });
+
+  // M2-S4's last box, closed by M2-S5's questsConclude (DL-25 item 16, DL-29).
+  test('frees its Heroes on the night of Day d + k, so they are dispatchable again on the morning of Day d + k + 1, whichever Turn of Day d they left in', () => {
+    // No harm, so the Heroes come home fit to go again, and no Rivals to empty the Board (DL-30
+    // item 11): the timing is what is checked.
+    const noHarm = { fail: 0, success: 0, strong: 0 };
+    const unharmed = testDeps({ rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    for (const day of [0, 2]) {
+      for (const turn of [3 * day, 3 * day + 1, 3 * day + 2]) {
+        const document = playTo(createWorld(`again-${turn}`, setup, unharmed).document, turn, unharmed);
+        const guild = playerGuild(document.world) as Guild;
+        const heroIds = guild.rosterIds.slice(0, 2);
+        const { document: away, quest, partyId } = sent(document, heroIds);
+        const k = durationDaysOf(quest);
+
+        const eve = playTo(away, nightOf(day + k) - 1, unharmed);
+        expect(eve.world.parties[partyId]?.returnsOnTurn).toBe(nightOf(day + k));
+        expect(heroIds.map((heroId) => heroOf(eve.world, heroId).partyId)).toEqual([partyId, partyId]);
+
+        const night = playTo(eve, nightOf(day + k), unharmed);
+        expect(night.world.parties[partyId]).toBeUndefined();
+        expect(heroIds.map((heroId) => heroOf(night.world, heroId).partyId)).toEqual([null, null]);
+
+        const morning = playTo(night, nightOf(day + k) + 1, unharmed);
+        expect([dayOf(morning.world.turn), timeOfDay(morning.world.turn)]).toEqual([day + k + 1, 'morning']);
+        const next = openQuest(morning.world, heroIds.length, 0);
+        const again = dispatch(morning, { guildId: guild.id, questId: next.id, heroIds }, unharmed);
+        expect(again.ok, `left on Turn ${turn}`).toBe(true);
+      }
     }
   });
 

@@ -116,11 +116,11 @@ the Party is simply away until `returnsOnTurn`.
 - [x] The validator still accepts the document after dispatch (`quest.partyIds` ↔
       `party.questId`)
 - [x] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
-- [ ] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
+- [x] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
       `returnsOnTurn` equal to the night Turn of Day d + k, and its Heroes are dispatchable
       again on the morning of Day d + k + 1
-      _(M2-S4 proves the `returnsOnTurn` half for all three Turns of a Day; the morning-after
-      half waits for M2-S5's `questsConclude`, DL-25 item 16.)_
+      _(M2-S4 proves the `returnsOnTurn` half for all three Turns of a Day; M2-S5's
+      `questsConclude` closes the morning-after half, DL-25 item 16, DL-29 item 15.)_
 
 ### M2-S5 · Stub Quest Engine · 1–2 sessions
 
@@ -141,13 +141,13 @@ Config: `stubBands`, `stubVariance`, `stubSkillBonusPerRating`, `stubInjuryChanc
 
 **Acceptance:**
 
-- [ ] A Party whose Stats exceed the demands by 2× strongly succeeds with variance 0
-- [ ] Two Parties with identical Stats differ in score by exactly `stubSkillBonusPerRating ×`
+- [x] A Party whose Stats exceed the demands by 2× strongly succeeds with variance 0
+- [x] Two Parties with identical Stats differ in score by exactly `stubSkillBonusPerRating ×`
       the difference in their summed ratings of the Quest's `skillKeys`
-- [ ] Wealth, Fame and XP move by the outcome; a dead Hero leaves the Roster, keeps their row,
+- [x] Wealth, Fame and XP move by the outcome; a dead Hero leaves the Roster, keeps their row,
       and appears in `history.byEntity`
-- [ ] All randomness in resolution draws from `quests`
-- [ ] A resolved Quest is gone from `world.quests` and present in `history.byType["quest.resolved"]`
+- [x] All randomness in resolution draws from `quests`
+- [x] A resolved Quest is gone from `world.quests` and present in `history.byType["quest.resolved"]`
 
 ### M2-S6 · Hero State Engine · 1 session
 
@@ -167,13 +167,13 @@ Config: `moraleDrift`, `moraleBands`, `moraleOnRosterDeath`, `moraleOnStrongSucc
 
 **Acceptance:**
 
-- [ ] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
-- [ ] Morale converges on the baseline over nights without overshooting
-- [ ] A year of drift with no band crossing appends nothing; a crossing appends exactly one
+- [x] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
+- [x] Morale converges on the baseline over nights without overshooting
+- [x] A year of drift with no band crossing appends nothing; a crossing appends exactly one
       `hero.morale-changed`
-- [ ] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
+- [x] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
       is within 20% of the configured chance
-- [ ] Only the `heroes` stream advances
+- [x] Only the `heroes` stream advances
 
 ### M2-S7 · Guild State Engine · 1 session
 

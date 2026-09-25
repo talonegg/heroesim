@@ -1,0 +1,9 @@
+{
+  "bruised-ribs": { "name": "Bruised ribs", "healDaysMin": 5, "healDaysMax": 8, "leavesTrait": null },
+  "sprained-ankle": { "name": "Sprained ankle", "healDaysMin": 5, "healDaysMax": 10, "leavesTrait": null },
+  "broken-arm": { "name": "Broken arm", "healDaysMin": 15, "healDaysMax": 25, "leavesTrait": null },
+  "deep-cut": { "name": "Deep cut", "healDaysMin": 6, "healDaysMax": 12, "leavesTrait": "scarred" },
+  "shattered-knee": { "name": "Shattered knee", "healDaysMin": 20, "healDaysMax": 30, "leavesTrait": "lame" },
+  "eye-wound": { "name": "Eye wound", "healDaysMin": 10, "healDaysMax": 20, "leavesTrait": "one-eyed" },
+  "lung-fever": { "name": "Lung fever", "healDaysMin": 8, "healDaysMax": 16, "leavesTrait": "short-winded" }
+}

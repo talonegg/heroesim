@@ -645,6 +645,13 @@ describe('a key the content does not define warns and never refuses', () => {
       'slay-the-wyrm',
     ],
     [
+      'an Injury type (M2-S5)',
+      (d) => (hero(d, idleHero).injury = { typeKey: 'frostbite', healsOnTurn: fixtureTurn + 3 }),
+      'unknown-injury',
+      idleHero,
+      'frostbite',
+    ],
+    [
       "a Rival's Disposition",
       (d) => (guild(d, ids.rivalGuild).controller = { kind: 'rival', disposition: 'reckless' }),
       'unknown-disposition',
