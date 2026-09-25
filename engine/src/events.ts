@@ -206,6 +206,19 @@ export type GuildImproved = Entry<
   { guildId: GuildId; facility: FacilityKey; grade: number; improvementKey: ImprovementKey; cost: number }
 >;
 
+// ── Progression (M3-S1, DL-36) ───────────────────────────────────────────────────────────────
+
+/**
+ * A Hero's XP reached the next Level and they gained it: `level` is the Level reached, one entry
+ * for each Level gained in a night. `statDeltas` holds each Stat that rose and by how much, and
+ * `pointsLost` the Level's growth points that fell on a Stat already at its Potential. A Milestone,
+ * naming the Hero and their Guild.
+ */
+export type HeroLevelled = Entry<
+  'hero.levelled',
+  { heroId: HeroId; guildId: GuildId; level: number; statDeltas: Record<StatKey, number>; pointsLost: number }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -231,7 +244,8 @@ export type EngineEvent =
   | GameEnded
   | GuildFolded
   | HeroLeftGuild
-  | GuildImproved;
+  | GuildImproved
+  | HeroLevelled;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -269,4 +283,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guild.folded': true,
   'hero.left-guild': false,
   'guild.improved': true,
+  'hero.levelled': true,
 } satisfies Record<EngineEventType, boolean>);

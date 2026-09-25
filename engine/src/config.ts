@@ -21,7 +21,7 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -83,7 +83,8 @@ export interface GameConfig {
   /**
    * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
    * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
-   * nothing (DL-35).
+   * nothing (DL-35). 20 since Heroes gain Levels (M3-S1): at 70 a Roster at Level 2 to 4 bankrupted
+   * every harness game within months (DL-36).
    */
   wagePerLevel: number;
   /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
@@ -137,11 +138,6 @@ export interface GameConfig {
   stubInjuryChance: Readonly<Record<QuestBand, number>>;
   /** The chance, per band, that one Hero of the Party dies. */
   stubDeathChance: Readonly<Record<QuestBand, number>>;
-  /**
-   * XP each surviving Hero gains, per point of the Quest's difficulty, by band, rounded down.
-   * M3-S2 replaces it with `xpPerDifficultyPoint × xpBandFactor`.
-   */
-  stubXpPerDifficulty: Readonly<Record<QuestBand, number>>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -215,6 +211,30 @@ export interface GameConfig {
    * automatic policy has its own multiple, as it has its own `recruitWealthMultiple` (DL-34).
    */
   buildWealthMultiple: number;
+
+  // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
+  /**
+   * The XP curve: going from Level L to L + 1 takes `xpCurveBase × L^xpCurveExponent` XP, rounded
+   * to the nearest whole number (INPUTS 5.2: 100 × Level²). `hero.xp` is cumulative, so a Hero
+   * holds Level n once it reaches `xpForLevel(n)`, the sum of those steps below n (progression.ts).
+   */
+  xpCurveBase: number;
+  xpCurveExponent: number;
+  /** No Hero rises past this Level; XP still accrues beyond it. */
+  levelCap: number;
+  /** Stat points each Level applies, each drawn by the Class's growth weights (INPUTS 5.3). */
+  growthPointsPerLevel: number;
+  /**
+   * Quest XP: each Hero home alive gains the Quest's difficulty × `xpPerDifficultyPoint` ×
+   * `xpBandFactor` of the band, rounded down (INPUTS 5.1: 1 a point on a success, half on a failure).
+   */
+  xpPerDifficultyPoint: number;
+  xpBandFactor: Readonly<Record<QuestBand, number>>;
+  /**
+   * Training XP: each night, a Hero on a Roster, in no Party and not injured, gains this times the
+   * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
+   */
+  xpPerTrainingDay: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -234,7 +254,7 @@ export type PotentialHint = (typeof potentialHints)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 2,
+  configVersion: 3,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -268,7 +288,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterTraitsMax: 2,
 
   upkeepEveryDays: 10,
-  wagePerLevel: 70,
+  wagePerLevel: 20,
   hallMaintenancePerGrade: 10,
   bankruptcyFloor: 0,
   bankruptcyGraceDays: 30,
@@ -288,7 +308,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   stubSkillBonusPerRating: 2,
   stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
   stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
-  stubXpPerDifficulty: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
 
   moraleMin: 0,
   moraleMax: 100,
@@ -311,6 +330,14 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   rivalReplacementDays: 30,
   recruitWealthMultiple: 10,
   buildWealthMultiple: 3,
+
+  xpCurveBase: 100,
+  xpCurveExponent: 2,
+  levelCap: 20,
+  growthPointsPerLevel: 3,
+  xpPerDifficultyPoint: 1,
+  xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
+  xpPerTrainingDay: 2,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

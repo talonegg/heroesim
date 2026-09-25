@@ -217,14 +217,17 @@ describe('generateHero', () => {
     expect(hero.potential.dexterity).toBe(20);
   });
 
-  test('takes the Class and Level it is given', () => {
-    const deps = testDeps();
+  test('takes the Class and Level it is given, with the XP that Level takes (DL-36)', () => {
+    const deps = testDeps({ xpCurveBase: 100, xpCurveExponent: 2 });
     const world = testWorld('given', deps);
     const { hero } = generateHero(world, deps, { classKey: 'healer', level: 4 });
+    const { hero: first } = generateHero(world, deps);
 
     expect(hero.classKey).toBe('healer');
     expect(hero.level).toBe(4);
-    expect(hero.xp).toBe(0);
+    // 100 + 400 + 900: the steps from Level 1 to 4.
+    expect(hero.xp).toBe(1400);
+    expect(first).toMatchObject({ level: 1, xp: 0 });
   });
 
   test('emits hero.generated naming the Hero, and the Guild of a Hero put on its Roster', () => {

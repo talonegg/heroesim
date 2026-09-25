@@ -100,6 +100,13 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     improvementKey: 'training-yard-2',
     cost: 500,
   }),
+  'hero.levelled': event('hero.levelled', [heroId, guildId], {
+    heroId,
+    guildId,
+    level: 3,
+    statDeltas: { strength: 1, courage: 2 },
+    pointsLost: 0,
+  }),
 };
 
 describe('narrate', () => {
@@ -125,6 +132,15 @@ describe('narrate', () => {
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
     );
+    expect(narrate(samples['hero.levelled'], content)).toBe(
+      'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
+    );
+  });
+
+  test('says a Level gained without naming the points Potential took', () => {
+    const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
+
+    expect(narrate(allLost, content)).toBe('Brenna Ashcombe (hero-000007) reached Level 20.');
   });
 });
 

@@ -20,7 +20,9 @@ describe('the phase list', () => {
       ['morning', 'marketRefresh'],
       ['afternoon', 'rivalControllers'],
       ['afternoon', 'questsAdvance'],
+      ['night', 'training'],
       ['night', 'questsConclude'],
+      ['night', 'levelUps'],
       ['night', 'heroState'],
       ['night', 'ageing'],
       ['night', 'guildState'],
@@ -66,7 +68,9 @@ describe('runTurn', () => {
     const events = runTurn(world, ctx);
 
     expect(events.map((event) => event.payload)).toEqual(
-      ['questsConclude', 'heroState', 'ageing', 'guildState', 'poolRefresh', 'endings'].map((seed) => ({ seed })),
+      ['training', 'questsConclude', 'levelUps', 'heroState', 'ageing', 'guildState', 'poolRefresh', 'endings'].map(
+        (seed) => ({ seed }),
+      ),
     );
   });
 

@@ -38,10 +38,10 @@ Config: `xpCurveBase`, `xpCurveExponent`, `levelCap`, `growthPointsPerLevel`.
 
 **Acceptance:**
 
-- [ ] A Hero with XP for three Levels gains three in one night with three events
-- [ ] No Stat exceeds Potential after 10,000 level-ups over random Heroes
-- [ ] Level never exceeds `levelCap`; XP still accrues past it
-- [ ] Upkeep rises with Level (M2's `wagePerLevel` now has an effect; test the delta)
+- [x] A Hero with XP for three Levels gains three in one night with three events
+- [x] No Stat exceeds Potential after 10,000 level-ups over random Heroes
+- [x] Level never exceeds `levelCap`; XP still accrues past it
+- [x] Upkeep rises with Level (M2's `wagePerLevel` now has an effect; test the delta)
 
 ### M3-S2 · XP sources: Quests and the training yard · 1 session
 
@@ -56,9 +56,9 @@ Config: `xpPerDifficultyPoint`, `xpBandFactor`, `xpPerTrainingDay`.
 
 **Acceptance:**
 
-- [ ] A Hero idle at grade 1 for a year has gained `360 × xpPerTrainingDay` XP
-- [ ] An injured or away Hero gains no training XP
-- [ ] `history.entries` grows by zero per night from training
+- [x] A Hero idle at grade 1 for a year has gained `360 × xpPerTrainingDay` XP
+- [x] An injured or away Hero gains no training XP
+- [x] `history.entries` grows by zero per night from training
 
 ### M3-S3 · Potential hints · 0.5 session
 

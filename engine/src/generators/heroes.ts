@@ -15,6 +15,7 @@ import {
   type World,
 } from '../document.js';
 import type { HeroGenerated } from '../events.js';
+import { xpForLevel } from '../progression.js';
 import { int, pick, shuffle } from '../rng.js';
 import {
   clamp,
@@ -38,7 +39,10 @@ const highestSkillRating = 5;
 export interface HeroOptions extends DrawsFrom {
   /** The Hero's Class; drawn uniformly from content when omitted. */
   classKey?: ClassKey;
-  /** Stored as given; no growth is applied for a Level above the first until M3 (DL-19). */
+  /**
+   * Stored as given (DL-19), with the XP that Level takes, `xpForLevel`, so that the Hero's XP and
+   * Level agree (DL-36); no growth is applied for the Levels above the first.
+   */
   level?: number;
   /** The Guild whose Roster the Hero joins; Unattached when omitted. */
   guildId?: GuildId;
@@ -102,7 +106,7 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     potential,
     skills,
     traits: [],
-    xp: 0,
+    xp: xpForLevel(level, config),
     level,
     injury: null,
     morale: config.moraleBaseline,
