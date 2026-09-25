@@ -121,6 +121,25 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     statDeltas: { strength: 1, courage: 2 },
     pointsLost: 0,
   }),
+  'patron.regard-changed': event('patron.regard-changed', [patronId, guildId], {
+    patronId: patronId as never,
+    guildId,
+    cause: 'quest-failure',
+    before: -3,
+    after: -5,
+    bandBefore: 'neutral',
+    bandAfter: 'cool',
+  }),
+  'guildmaster.regard-changed': event('guildmaster.regard-changed', [guildmasterId, heroId, guildId], {
+    guildmasterId: guildmasterId as never,
+    guildId,
+    entityId: heroId,
+    cause: 'quest-success',
+    before: 3.5,
+    after: 4.5,
+    bandBefore: 'neutral',
+    bandAfter: 'warm',
+  }),
 };
 
 describe('narrate', () => {
@@ -155,6 +174,15 @@ describe('narrate', () => {
     expect(narrate(samples['hero.levelled'], content)).toBe(
       'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
     );
+  });
+
+  test('says a Regard band crossed, never the number, and what moved a Patron (M4-S5)', () => {
+    const patron = narrate(samples['patron.regard-changed'], content);
+    const guildmaster = narrate(samples['guildmaster.regard-changed'], content);
+
+    expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
+    expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.");
+    for (const line of [patron, guildmaster]) expect(line).not.toMatch(/\d/);
   });
 
   test('says a Level gained without naming the points Potential took', () => {

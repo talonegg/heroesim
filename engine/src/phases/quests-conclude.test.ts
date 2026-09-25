@@ -4,11 +4,12 @@ import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import { createWorld } from '../create.js';
-import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from '../document.js';
+import type { Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
 import { entriesFor } from '../history.js';
 import { phases } from '../pipeline.js';
 import { encounterCount } from '../quest-engine/encounters.js';
+import { regardValue } from '../regard.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
@@ -465,6 +466,46 @@ describe('questsConclude', () => {
     }
     expect(resolved).toHaveLength(taken.filter((event) => event.payload.returnsOnTurn <= document.world.turn).length);
     for (const party of Object.values(document.world.parties)) expect(party.returnsOnTurn).toBeGreaterThan(document.world.turn);
+  });
+});
+
+// M4-S5's Regard writers (DL-43 item 4) meet M4-S2's Encounter resolution (DL-42) in this phase
+// (DL-44): each resolved Quest writes the Patron's Regard for the Guild, and the Guildmaster's for the
+// Patron, exactly once, by the band the Encounters gave, for the player's Guild and a Rival's alike.
+describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-44)', () => {
+  const regardPins: Partial<GameConfig> = {
+    patronRegardOnSuccess: 1,
+    patronRegardOnFailure: -2,
+    patronRegardOnExpiry: 0,
+    influenceFactor: 0,
+    guildmasterRegardOnPatronSuccess: 1,
+    guildmasterRegardOnPatronFailure: -1,
+  };
+
+  test.each([
+    ['player', 1, 'strong', 1, 1],
+    ['player', 5000, 'fail', -2, -1],
+    ['rival', 1, 'strong', 1, 1],
+    ['rival', 5000, 'fail', -2, -1],
+  ] as const)("the %s Guild's Party at difficulty %i: band %s, the Patron's Regard moves %i and the Guildmaster's %i", (side, difficulty, band, patronDelta, guildmasterDelta) => {
+    const rival = side === 'rival';
+    const deps = rival ? testDeps({ rivalCount: 1, ...regardPins }) : soloDeps(regardPins);
+    if (rival) stillRivalControllers();
+    const { eve, quest, guildId } = sentAway(`regard-${side}-${difficulty}`, deps, { rival, difficulty });
+    const patronOf = (world: World) => world.patrons[quest.patronId] as Patron;
+    const guildmasterOf = (world: World) => world.guildmasters[guildOf(world, guildId).guildmasterId] as Guildmaster;
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    expect(ofType(events, 'quest.resolved').map((event) => event.payload.band)).toEqual([band]);
+    expect(regardValue(patronOf(world).regard, guildId) - regardValue(patronOf(eve.world).regard, guildId)).toBe(patronDelta);
+    expect(regardValue(guildmasterOf(world).regard, quest.patronId) - regardValue(guildmasterOf(eve.world).regard, quest.patronId)).toBe(
+      guildmasterDelta,
+    );
+    // No other Guild's Regard moves.
+    for (const other of Object.values(world.guilds).map((guild) => guild.id).filter((id) => id !== guildId)) {
+      expect(regardValue(patronOf(world).regard, other)).toBe(regardValue(patronOf(eve.world).regard, other));
+    }
   });
 });
 

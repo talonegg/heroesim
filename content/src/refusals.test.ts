@@ -473,12 +473,52 @@ describe('a file', () => {
     expect(refusalOf(() => parseContent(files)).message).toMatch(/dispositions\.json: steady\.riskAppetite/);
   });
 
-  test("with a Trait's effect set before any rule reads it is refused", () => {
-    const files = withJson('traits.json', (json) => {
-      Object.assign(json['miser'] ?? {}, { effect: { upkeepFactor: 0.9 } });
-    });
+  // M4-S5: a Guildmaster Trait carries one effect of the closed union, a Hero Trait none (DL-43).
+  const traitRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
+    [
+      'an effect of no kind the union knows',
+      (json) => Object.assign(json['miser'] ?? {}, { effect: { upkeepFactor: 0.9 } }),
+      /traits\.json: miser\.effect\.kind.*classStatBonus, guildMoraleShift, upkeepFactor/,
+    ],
+    [
+      'an effect with a field its kind does not have',
+      (json) => Object.assign(json['miser'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -5, factor: 2 } }),
+      /traits\.json: miser\.effect\.factor is not a field/,
+    ],
+    [
+      'a classStatBonus naming an unknown Class',
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'paladin', statKey: 'weaponry', delta: 1 } }),
+      /traits\.old-soldier\.effect\.classKey: "paladin" is not a Class/,
+    ],
+    [
+      'a classStatBonus naming a Stat that is no Hero Stat',
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'judgement', delta: 1 } }),
+      /traits\.old-soldier\.effect\.statKey: "judgement" is not a Hero Stat/,
+    ],
+    [
+      'a classStatBonus of 0',
+      (json) => Object.assign(json['old-soldier'] ?? {}, { effect: { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 0 } }),
+      /traits\.old-soldier\.effect\.delta is 0/,
+    ],
+    [
+      'an upkeepFactor of 0',
+      (json) => Object.assign(json['thrifty'] ?? {}, { effect: { kind: 'upkeepFactor', factor: 0 } }),
+      /traits\.thrifty\.effect\.factor is 0/,
+    ],
+    [
+      'a Guildmaster Trait with no effect',
+      (json) => Object.assign(json['well-liked'] ?? {}, { effect: null }),
+      /traits\.well-liked\.effect: a Guildmaster Trait carries one effect/,
+    ],
+    [
+      'a Hero Trait with an effect',
+      (json) => Object.assign(json['scarred'] ?? {}, { effect: { kind: 'guildMoraleShift', delta: -1 } }),
+      /traits\.scarred\.effect: a Hero Trait has no effect/,
+    ],
+  ];
 
-    expect(refusalOf(() => parseContent(files)).message).toMatch(/traits\.json: miser\.effect/);
+  test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
   });
 });
 

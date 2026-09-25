@@ -9,12 +9,15 @@
 import {
   compareByCodeUnit,
   dayOf,
+  regardBandNames,
   type ContentSet,
   type EndingReason,
   type EngineDeps,
   type EngineEvent,
   type EntityId,
+  type PatronRegardCause,
   type QuestBand,
+  type RegardBand,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -48,6 +51,20 @@ const endingWords: Readonly<Record<EndingReason, string>> = {
   bankruptcy: 'went bankrupt',
   'roster-wiped': 'had its Roster wiped out',
 };
+
+/** What moved a Patron's Regard, after the band it reached. */
+const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
+  'quest-success': 'after a Quest of theirs succeeded',
+  'quest-failure': 'after a Quest of theirs failed',
+  'offer-expired': 'when an offer of theirs went untaken',
+  recovery: 'as time passed',
+};
+
+/** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
+function crossed(before: RegardBand, after: RegardBand): string {
+  const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
+  return `${way} from ${before} to ${after}`;
+}
 
 /** One line for `event`, in the CLI's words. */
 export function narrate(event: EngineEvent, content: ContentSet): string {
@@ -145,6 +162,17 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         .sort(([a], [b]) => compareByCodeUnit(a, b))
         .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${signed(delta)}`);
       return `${hero(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
+    }
+    case 'patron.regard-changed': {
+      const { patronId, guildId, cause, bandBefore, bandAfter } = event.payload;
+      return (
+        `${called(event, patronId)}'s Regard for ${called(event, guildId)} ${crossed(bandBefore, bandAfter)} ` +
+        `${patronRegardWords[cause]}.`
+      );
+    }
+    case 'guildmaster.regard-changed': {
+      const { guildmasterId, entityId, bandBefore, bandAfter } = event.payload;
+      return `${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
     }
   }
 }

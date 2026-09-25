@@ -1,12 +1,12 @@
 import { describe, expect, test } from 'vitest';
-import type { DispatchAction } from '../actions/dispatch.js';
+import { unmetRequirements, type DispatchAction } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { dispositionOf, playerGuild, signingFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { deepFreeze, testContent, testDeps } from '../world.test-support.js';
 import { applyGuildAction } from '../actions/action.js';
-import { availableHeroes, rivalChoices } from './rival.js';
+import { availableHeroes, partyFor, rivalChoices } from './rival.js';
 
 // M2-S9: the `steady` Disposition's choices (INPUTS 4.12, DL-30), read off a world and never
 // written to it. The phase that applies them is phases/rival-controllers.test.ts.
@@ -189,10 +189,41 @@ describe('steady: which Heroes', () => {
   });
 });
 
+// M4-S5 folded M2-S4's `party-size` rejection into `requirement-unmet` (DL-43 item 1): the staffing
+// rule `steady` and the harness's policy share is held to the one test `dispatch` applies (DL-44).
+describe('steady: staffing agrees with dispatch', () => {
+  test('every Party partyFor names meets unmetRequirements, size, Class and Skill alike', () => {
+    let named = 0;
+    for (const seed of ['agree-a', 'agree-b', 'agree-c']) {
+      const { world, rival, deps } = scene(seed, testDeps({ rivalRosterMin: 6, rivalRosterMax: 8 }));
+      const available = availableHeroes(world, rival);
+      const shapes = [
+        {},
+        { classKey: 'healer' },
+        { skillKey: 'lockpicking' },
+        { classKey: 'warrior', skillKey: 'tactics' },
+      ];
+      for (const quest of boardQuests(world)) {
+        for (const [min, max] of [[1, 1], [1, 3], [2, 4], [3, 5]] as const) {
+          for (const shape of shapes) {
+            const asked = { ...quest, requirements: { partySizeMin: min, partySizeMax: max, ...shape } };
+            const heroIds = partyFor(asked, available, deps.content);
+            if (heroIds === null) continue;
+            named += 1;
+            expect(unmetRequirements(asked, heroIds.map((id) => heroOf(world, id))), `${seed} ${quest.id} ${min}-${max}`).toEqual([]);
+          }
+        }
+      }
+    }
+    expect(named).toBeGreaterThan(20);
+  });
+});
+
 describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6).
-  const noBuilding = { buildWealthMultiple: 1_000_000 };
+  // Negotiation still too (M4-S5): the fees are compared at the list price.
+  const noBuilding = { buildWealthMultiple: 1_000_000, negotiationRange: 0 };
   const deps = testDeps({ recruitWealthMultiple: 10, ...noBuilding });
 
   /** The Hero in the pool with the lowest fee, lowest id among equals. */
@@ -208,7 +239,7 @@ describe('steady: recruiting', () => {
 
   test('recruits the cheapest Unattached Hero only while Wealth exceeds recruitWealthMultiple Upkeeps', () => {
     const { world, rival } = scene('threshold', deps);
-    const threshold = deps.config.recruitWealthMultiple * upkeep(rival, world, deps.config);
+    const threshold = deps.config.recruitWealthMultiple * upkeep(rival, world, deps.config, deps.content);
     expect(threshold).toBeGreaterThan(0);
 
     rival.wealth = threshold;
@@ -222,7 +253,7 @@ describe('steady: recruiting', () => {
     // INPUTS 4.12 says three; DL-35 raised the default to ten.
     expect(testDeps().config.recruitWealthMultiple).toBe(10);
     const { world, rival } = scene('multiple', deps);
-    const wealth = 5 * upkeep(rival, world, deps.config);
+    const wealth = 5 * upkeep(rival, world, deps.config, deps.content);
     rival.wealth = wealth;
 
     expect(recruits(world, rival)).toEqual([]);
@@ -268,7 +299,7 @@ describe('steady: recruiting', () => {
   });
 
   test('recruits no one it cannot pay for, and no one from an empty pool', () => {
-    const noThreshold = testDeps({ recruitWealthMultiple: 0 });
+    const noThreshold = testDeps({ recruitWealthMultiple: 0, negotiationRange: 0 });
     const { world, rival } = scene('afford', noThreshold);
     const fee = signingFee(cheapest(world), noThreshold);
     const hires = () => rivalChoices(world, rival, noThreshold).filter((action) => action.kind === 'recruit');

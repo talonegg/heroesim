@@ -184,9 +184,11 @@ describe('generateQuest', () => {
 
   // The encounters stream is new in M4 (ADR-0009 as amended, D7), so the Board a seed produces is
   // the one it produced before M4: pinned from the engine at M3's end (v1.0-dev 8229670) for the
-  // test content, no Rivals and no Party sent, over 30 Days of refreshes and expiries.
+  // test content, no Rivals and no Party sent, over 30 Days of refreshes and expiries. The Board's
+  // Regard weighting (M4-S5, DL-43 item 5) is set to 0, DL-25's uniform draw as at M3's end: the
+  // expiries move Patron Regard, which with the weighting on moves the Patrons drawn (DL-44).
   test('draws the Board a seed produced before M4, Quest for Quest, and leaves the board stream where M3 left it', () => {
-    const deps = testDeps({ rivalCount: 0 });
+    const deps = testDeps({ rivalCount: 0, boardRegardWeight: 0 });
     let { document } = createWorld('board-a', { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' }, deps);
     const board = (): (string | number)[][] =>
       document.world.board.map((id) => {

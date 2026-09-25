@@ -55,22 +55,23 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
   ) {
     return 'bankruptcy';
   }
-  if (guild.rosterIds.length === 0 && guild.wealth < cheapestSigningFee(world, ctx)) return 'roster-wiped';
+  if (guild.rosterIds.length === 0 && guild.wealth < cheapestSigningFee(world, guild, ctx)) return 'roster-wiped';
   return null;
 }
 
 /**
- * The lowest signing fee in the Unattached pool (`cheapestUnattached`), whoever the Hero would sign
- * for. With nobody in the pool no Hero can be signed at any price, so it is infinite, and a Guild
- * with an empty Roster is wiped whatever its Wealth.
+ * The lowest signing fee `guild` would pay in the Unattached pool (`cheapestUnattached`, its
+ * Guildmaster's Negotiation applied from M4-S5), whoever the Hero would sign for. With nobody in
+ * the pool no Hero can be signed at any price, so it is infinite, and a Guild with an empty Roster
+ * is wiped whatever its Wealth.
  *
  * Fame is not asked (DL-38). An ending is for good, and a Hero's refusal for Fame is not: every
  * Hero the pool's refill brings is Level 1 and signs for any Guild, and the pool turns over within
  * `unattachedStayDays`. A Guild whose Wealth reaches a Hero who refuses it is waiting, not wiped;
  * it is wiped once its Wealth is short of every fee in the pool.
  */
-function cheapestSigningFee(world: World, deps: Pick<EngineDeps, 'config' | 'content'>): number {
-  return cheapestUnattached(world, deps)?.fee ?? Number.POSITIVE_INFINITY;
+function cheapestSigningFee(world: World, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number {
+  return cheapestUnattached(world, deps, guild, false)?.fee ?? Number.POSITIVE_INFINITY;
 }
 
 /**

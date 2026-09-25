@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { EncounterKind, StatArea } from '@heroesim/engine';
+import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 6 since the Encounters (M4-S1)', () => {
+  test('is the core content set, version 7 since the Encounters (M4-S1) and the Trait effects (M4-S5) merged', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(6);
+    expect(content.version).toBe(7);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -83,12 +83,20 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has six Guildmaster Traits and some Hero Traits, none with an effect yet', () => {
+  test('has six Guildmaster Traits, three buffs and three penalties, each kind of effect among them; Hero Traits have none (M4-S5)', () => {
     const traits = Object.values(content.traits);
+    const guildmaster = traits.filter((trait) => trait.owner === 'guildmaster');
+    const buff = (effect: TraitEffect): boolean =>
+      effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0;
 
-    expect(traits.filter((trait) => trait.owner === 'guildmaster')).toHaveLength(6);
+    expect(guildmaster).toHaveLength(6);
+    const effects = guildmaster.map((trait) => trait.effect).filter((effect) => effect !== null);
+    expect(effects).toHaveLength(6);
+    expect(effects.filter(buff)).toHaveLength(3);
+    expect(new Set(effects.map((effect) => effect.kind))).toEqual(new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor']));
+    expect(content.traits['old-soldier']?.effect).toEqual({ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 });
     expect(traits.filter((trait) => trait.owner === 'hero').length).toBeGreaterThan(0);
-    for (const trait of traits) expect(trait.effect).toBeNull();
+    for (const trait of traits) if (trait.owner === 'hero') expect(trait.effect).toBeNull();
   });
 
   test('has eight Hero and four Guild Backgrounds, and six Spheres', () => {

@@ -3,6 +3,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Hero, HeroId, PartyId, Quest, QuestId, World, WorldDocument } from '../document.js';
+import { negotiatedReward } from '../guildmaster.js';
 import { count } from '../history.js';
 import { phaseContext } from '../phases/phase.js';
 import { questsAdvance } from '../phases/quests-advance.js';
@@ -64,6 +65,8 @@ describe('dispatch', () => {
     const { world } = next;
     const partyId = 'party-000002' as PartyId;
     const returnsOnTurn = nightOf(dayOf(fixtureTurn) + durationDaysOf(quest));
+    const guildmaster = world.guildmasters[world.guilds[ids.playerGuild]?.guildmasterId ?? ids.playerGuildmaster];
+    const agreed = negotiatedReward(quest.reward, guildmaster, deps.content, deps.config);
     expect(world.parties[partyId]).toEqual({
       id: partyId,
       questId,
@@ -89,9 +92,11 @@ describe('dispatch', () => {
           [quest.patronId]: world.patrons[quest.patronId]?.name,
         },
         milestone: false,
-        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn },
+        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed },
       },
     ]);
+    // The reward agreed is the offer's, the Guildmaster's Negotiation applied (M4-S5), and the Quest carries it.
+    expect(questOf(world, questId).reward).toBe(agreed);
     expect(next.history.entries.at(-1)).toBe(result.events[0]);
     // A new world; the old one as it was; meta and the History shared, as advance shares them.
     expect(world).not.toBe(document.world);
@@ -188,7 +193,7 @@ describe('dispatch', () => {
       }
     });
 
-    test('party-size: too few or too many, naming partySizeMin and partySizeMax; any size within is accepted', () => {
+    test('requirement-unmet naming party-size: too few or too many, with partySizeMin and partySizeMax; any size within is accepted', () => {
       const { document, ids, rogue, mage, healer } = built();
       const { partySizeMin, partySizeMax } = questOf(document.world, ids.offeredQuest).requirements;
       expect([partySizeMin, partySizeMax]).toEqual([2, 4]);
@@ -197,26 +202,24 @@ describe('dispatch', () => {
         questId: ids.offeredQuest,
         heroIds,
       });
-      const refusal = (size: number) => ({
+      const refusal = (size: number, max = partySizeMax) => ({
         action: 'dispatch',
-        reason: 'party-size',
+        reason: 'requirement-unmet',
         questId: ids.offeredQuest,
-        size,
-        partySizeMin,
-        partySizeMax,
+        unmet: [{ requirement: 'party-size', size, partySizeMin, partySizeMax: max }],
       });
 
       expect(rejected(document, request([]))).toEqual(refusal(0));
       expect(rejected(document, request([rogue]))).toEqual(refusal(1));
       const small = structuredClone(document);
       questOf(small.world, ids.offeredQuest).requirements.partySizeMax = 2;
-      expect(rejected(withValid(small, deps), request([rogue, mage, healer]))).toEqual({ ...refusal(3), partySizeMax: 2 });
+      expect(rejected(withValid(small, deps), request([rogue, mage, healer]))).toEqual(refusal(3, 2));
 
       expect(dispatch(document, request([rogue, mage]), deps).ok).toBe(true);
       expect(dispatch(document, request([rogue, mage, healer]), deps).ok).toBe(true);
     });
 
-    test('requirement-unmet: naming the Class and the Skill no Hero in the Party brings', () => {
+    test('requirement-unmet: naming each requirement the Party misses, class and skill, in that order (M4-S5)', () => {
       const { document, ids, rogue, mage, healer } = built();
       const demanding = structuredClone(document);
       const quest = questOf(demanding.world, ids.offeredQuest);
@@ -227,19 +230,41 @@ describe('dispatch', () => {
         questId: ids.offeredQuest,
         heroIds,
       });
-      const unmet = (missing: object) => ({
+      const unmet = (...missing: object[]) => ({
         action: 'dispatch',
         reason: 'requirement-unmet',
         questId: ids.offeredQuest,
         unmet: missing,
       });
+      const needsMage = { requirement: 'class', classKey: 'mage' };
+      const needsLockpicking = { requirement: 'skill', skillKey: 'lockpicking' };
 
       // buildDocument gives each Hero their Class's first Skill: the Rogue holds Lockpicking.
       expect(heroOf(demanding.world, rogue).skills).toHaveProperty('lockpicking');
-      expect(rejected(demanding, request([healer]))).toEqual(unmet({ classKey: 'mage', skillKey: 'lockpicking' }));
-      expect(rejected(demanding, request([rogue, healer]))).toEqual(unmet({ classKey: 'mage' }));
-      expect(rejected(demanding, request([mage, healer]))).toEqual(unmet({ skillKey: 'lockpicking' }));
+      expect(rejected(demanding, request([healer]))).toEqual(unmet(needsMage, needsLockpicking));
+      expect(rejected(demanding, request([rogue, healer]))).toEqual(unmet(needsMage));
+      expect(rejected(demanding, request([mage, healer]))).toEqual(unmet(needsLockpicking));
       expect(dispatch(demanding, request([mage, rogue]), deps).ok).toBe(true);
+
+      // Every requirement missed at once: the size, the Class and the Skill.
+      quest.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      expect(rejected(demanding, request([healer]))).toEqual(
+        unmet({ requirement: 'party-size', size: 1, partySizeMin: 2, partySizeMax: 4 }, needsMage, needsLockpicking),
+      );
+    });
+
+    test('requirement-unmet: a Quest requiring a Healer refuses a Party without one, naming class (M4-S5)', () => {
+      const { document, ids, rogue, mage, healer } = built();
+      const wanting = structuredClone(document);
+      questOf(wanting.world, ids.offeredQuest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
+      withValid(wanting, deps);
+      const request = (heroIds: HeroId[]): DispatchRequest => ({ guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds });
+
+      const rejection = rejected(wanting, request([rogue, mage]));
+      expect(rejection.reason).toBe('requirement-unmet');
+      expect(rejection.reason === 'requirement-unmet' && rejection.unmet).toEqual([{ requirement: 'class', classKey: 'healer' }]);
+      expect(heroOf(wanting.world, healer).classKey).toBe('healer');
+      expect(dispatch(wanting, request([rogue, healer]), deps).ok).toBe(true);
     });
 
     test('guild-folded: a Guild that has folded sends no Party, whatever else the request gets right', () => {
@@ -258,7 +283,7 @@ describe('dispatch', () => {
       );
     });
 
-    test('in order: the Guild, then the Quest, then each Hero, then the size, then the requirements', () => {
+    test('in order: the Guild, then the Quest, then each Hero, then the requirements, the size among them', () => {
       const { document, ids, rogue } = built();
       const reason = (questId: QuestId, heroIds: HeroId[]): string =>
         rejected(document, { guildId: ids.playerGuild, questId, heroIds }).reason;
@@ -271,7 +296,7 @@ describe('dispatch', () => {
       expect(reason(ids.takenQuest, [ids.rivalHero])).toBe('quest-not-offered');
       expect(reason(ids.offeredQuest, [ids.rivalHero])).toBe('hero-not-on-roster');
       expect(reason(ids.offeredQuest, [ids.partyHero])).toBe('hero-unavailable');
-      expect(reason(ids.offeredQuest, [rogue])).toBe('party-size');
+      expect(reason(ids.offeredQuest, [rogue])).toBe('requirement-unmet');
     });
   });
 

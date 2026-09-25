@@ -2,11 +2,11 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import type { Encounter } from '../content-types.js';
-import type { Hero, World } from '../document.js';
+import type { Guild, GuildId, Guildmaster, Hero, World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { generateHero } from '../generators/heroes.js';
 import { next } from '../rng.js';
-import { heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
+import { buildDocument, heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
 import { capability, check } from './check.js';
 
 // M4-S2: the Check (INPUTS 6.2, DL-42). Heroes are generated, then given the Stats and Skills a test
@@ -138,6 +138,69 @@ describe('check', () => {
       if (name === 'quests') expect(after[name], name).not.toEqual(before[name]);
       else expect(after[name], name).toEqual(before[name]);
     }
+  });
+});
+
+// DL-44 (M4-S2 and M4-S5 merged): the Check reads a Hero's Stats through the one `effectiveStats`
+// selector, so a Guildmaster's `classStatBonus` Trait reaches the Check, and so Quest outcomes, for
+// that Guild's Heroes of that Class and no other, every Guild alike (ADR-0002).
+describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, DL-44)', () => {
+  /** The fixture world, every Guildmaster without a Trait, and a Warrior and a Mage on each Roster, every Stat 8. */
+  function traitScene() {
+    const { world } = buildDocument({ rivals: 1, rosterSize: 2 }).document;
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = [];
+    const sides = Object.values(world.guilds).map((guild) => {
+      const [warrior, mage] = guild.rosterIds.map((id) => world.heroes[id] as Hero) as [Hero, Hero];
+      for (const [hero, classKey] of [[warrior, 'warrior'], [mage, 'mage']] as const) {
+        hero.classKey = classKey;
+        hero.stats = Object.fromEntries(heroStatKeys.map((key) => [key, 8]));
+        hero.skills = {};
+      }
+      return { guild, warrior, mage };
+    });
+    return { world, sides };
+  }
+  const guildmasterOf = (world: World, guild: Guild) => world.guildmasters[guild.guildmasterId] as Guildmaster;
+  // Weaponry alone, one Hero's best, no Skill: the capability is the Hero's effective Weaponry.
+  const weaponry = encounterWith({ demands: [['weaponry', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 1 });
+  const arcana = encounterWith({ demands: [['arcana', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 1 });
+
+  test.each([0, 1])("Old soldier on Guild %i lifts that Guild's Warriors' capability by 1 and turns a Check at the edge, and nobody else's", (index) => {
+    const { world, sides } = traitScene();
+    const own = sides[index] as (typeof sides)[number];
+    const other = sides[1 - index] as (typeof sides)[number];
+    const capabilities = () =>
+      [own.warrior, own.mage, other.warrior, other.mage].map((hero) => capability([hero], weaponry, world, deps));
+    const before = capabilities();
+    const quest = { difficulty: 9 };
+
+    expect(before).toEqual([8, 8, 8, 8]);
+    expect(check([own.warrior], weaponry, quest, world, deps)).toMatchObject({ roll: 8, target: 9, outcome: 'failure' });
+
+    guildmasterOf(world, own.guild).traits = ['old-soldier'];
+
+    expect(capabilities()).toEqual([9, 8, 8, 8]);
+    expect(check([own.warrior], weaponry, quest, world, deps)).toMatchObject({ roll: 9, target: 9, outcome: 'success' });
+    // The stored base is untouched (data-model rule 1).
+    expect(own.warrior.stats['weaponry']).toBe(8);
+  });
+
+  test("Mistrusts magic lowers that Guild's Mages' capability on Arcana, and not its Warriors' nor another Guild's Mages'", () => {
+    const { world, sides } = traitScene();
+    const [own, other] = sides as [(typeof sides)[number], (typeof sides)[number]];
+    guildmasterOf(world, own.guild).traits = ['mistrusts-magic'];
+
+    expect([own.mage, own.warrior, other.mage].map((hero) => capability([hero], arcana, world, deps))).toEqual([7, 8, 8]);
+  });
+
+  test('a Guild whose Guildmaster row is missing reads base Stats', () => {
+    const { world, sides } = traitScene();
+    const [own] = sides as [(typeof sides)[number]];
+    guildmasterOf(world, own.guild).traits = ['old-soldier'];
+    const guildId: GuildId = own.guild.id;
+    Reflect.deleteProperty(world.guildmasters, (world.guilds[guildId] as Guild).guildmasterId);
+
+    expect(capability([own.warrior], weaponry, world, deps)).toBe(8);
   });
 });
 

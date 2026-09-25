@@ -3,10 +3,11 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { MoraleBand } from './config.js';
+import type { MoraleBand, RegardBand } from './config.js';
 import type { ClassKey, ImprovementKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
 import type {
   EndingReason,
+  EntityId,
   Entry,
   FacilityKey,
   GuildId,
@@ -106,7 +107,18 @@ export type QuestExpired = Entry<
  */
 export type QuestTaken = Entry<
   'quest.taken',
-  { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
+  {
+    questId: QuestId;
+    partyId: PartyId;
+    guildId: GuildId;
+    heroIds: HeroId[];
+    returnsOnTurn: Turn;
+    /**
+     * The reward agreed: the Quest's reward as the Guildmaster's Negotiation set it at dispatch,
+     * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before M4-S5.
+     */
+    reward?: number;
+  }
 >;
 
 // ── The Quest Engine (M2-S5, DL-29; M4-S2, DL-42) ────────────────────────────────────────────
@@ -233,6 +245,52 @@ export type HeroLevelled = Entry<
   { heroId: HeroId; guildId: GuildId; level: number; statDeltas: Record<StatKey, number>; pointsLost: number }
 >;
 
+// ── Regard (M4-S5, data-model rule 10, DL-43) ───────────────────────────────────────────────
+
+/** What moved a Patron's Regard for a Guild: a Quest of theirs resolved, an offer expired untaken, or the nightly recovery. */
+export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expired' | 'recovery';
+
+/**
+ * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
+ * discrete change and for the nightly recovery alike, and only on a crossing (data-model rule 10).
+ * `before` and `after` are the values, which a front end shows as bands. Names the Patron and the
+ * Guild.
+ */
+export type PatronRegardChanged = Entry<
+  'patron.regard-changed',
+  {
+    patronId: PatronId;
+    guildId: GuildId;
+    cause: PatronRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
+/** What moved a Guildmaster's Regard: in M4, a Quest their Guild resolved (M6-S2 adds Transfer deals). */
+export type GuildmasterRegardCause = 'quest-success' | 'quest-failure';
+
+/**
+ * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
+ * from one of `regardBands` into another; only on a crossing (data-model rule 10, pre-M0 review
+ * B3). Names the Guildmaster, the entity and the Guildmaster's Guild.
+ */
+export type GuildmasterRegardChanged = Entry<
+  'guildmaster.regard-changed',
+  {
+    guildmasterId: GuildmasterId;
+    guildId: GuildId;
+    entityId: EntityId;
+    cause: GuildmasterRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -260,7 +318,9 @@ export type EngineEvent =
   | GuildFolded
   | HeroLeftGuild
   | GuildImproved
-  | HeroLevelled;
+  | HeroLevelled
+  | PatronRegardChanged
+  | GuildmasterRegardChanged;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -300,4 +360,6 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.left-guild': false,
   'guild.improved': true,
   'hero.levelled': true,
+  'patron.regard-changed': false,
+  'guildmaster.regard-changed': false,
 } satisfies Record<EngineEventType, boolean>);

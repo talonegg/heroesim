@@ -15,15 +15,17 @@ export {
   applyDispatch,
   dispatch,
   unavailability,
+  unmetRequirements,
   type DispatchAction,
   type DispatchGuildFolded,
   type DispatchRejection,
   type DispatchRequest,
   type HeroNotOnRoster,
   type HeroUnavailable,
-  type PartySize,
   type QuestNotOffered,
+  type RequirementKind,
   type RequirementUnmet,
+  type UnmetRequirement,
   type Unavailability,
 } from './actions/dispatch.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
@@ -46,12 +48,14 @@ export * from './create.js';
 export * from './document.js';
 export * from './events.js';
 export * from './fast-forward.js';
+export * from './guildmaster.js';
 export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './history.js';
 export * from './json-safe.js';
+export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';

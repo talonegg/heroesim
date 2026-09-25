@@ -87,16 +87,35 @@ export interface Skill {
 /** Whose Trait it is: a Hero's lasting mark (R16) or a Guildmaster's buff or penalty (R8). */
 export type TraitOwner = 'hero' | 'guildmaster';
 
+/**
+ * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): one effect from a closed
+ * union, each applied inside the one selector that already works its quantity out, for every Guild
+ * alike (ADR-0002). A new kind is an engine change and earns a decision-log entry.
+ *
+ * - `classStatBonus`: `delta` added to the Stat `statKey` of each Hero of the Class `classKey` on
+ *   the Guildmaster's Guild, in `effectiveStats`, held inside the Stat's range;
+ * - `guildMoraleShift`: `delta` added to the Morale baseline of the Guild's Heroes, in
+ *   `moraleBaselineFor`;
+ * - `upkeepFactor`: the Guild's Upkeep multiplied by `factor`, in `upkeep`.
+ */
+export type TraitEffect =
+  | { kind: 'classStatBonus'; classKey: ClassKey; statKey: StatKey; delta: number }
+  | { kind: 'guildMoraleShift'; delta: number }
+  | { kind: 'upkeepFactor'; factor: number };
+
+/** The kinds of `TraitEffect`. */
+export type TraitEffectKind = TraitEffect['kind'];
+
 /** A Trait (R8, R16; `traits.json`). */
 export interface Trait {
   key: TraitKey;
   name: string;
   owner: TraitOwner;
   /**
-   * `null` until a rule reads it: M4-S5 gives the Guildmaster's Traits one effect each from a
-   * closed union (pre-M0 review B2).
+   * A Guildmaster Trait's one effect (M4-S5); `null` for a Hero Trait, which no rule reads in the
+   * first build. Content validation holds each owner to its own.
    */
-  effect: null;
+  effect: TraitEffect | null;
 }
 
 /** Whose Background it is: a Hero's, or the narrative history of a Guild (INPUTS 3.10). */

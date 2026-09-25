@@ -45,6 +45,8 @@ describe('parseArgs', () => {
     expect(command('show', 'rankings', '--by', 'wealth')).toMatchObject({ view: { kind: 'rankings', by: 'wealth' } });
     expect(command('show', 'rankings', '--by=fame')).toMatchObject({ view: { kind: 'rankings', by: 'fame' } });
     expect(command('show', 'hero', 'hero-000001')).toMatchObject({ view: { kind: 'hero', heroId: 'hero-000001' } });
+    expect(command('show', 'guildmaster')).toMatchObject({ view: { kind: 'guildmaster' } });
+    expect(command('show', 'guildmaster', 'guild-000002')).toMatchObject({ view: { kind: 'guildmaster', guildId: 'guild-000002' } });
     expect(command('show', 'history')).toMatchObject({ view: { kind: 'history' } });
     expect(command('show', 'history', 'hero-000001', '--save', 'demo')).toMatchObject({
       save: 'demo',
@@ -84,6 +86,17 @@ describe('parseArgs', () => {
     expect(command('dispatch', '--quest', 'quest-000003', '--heroes', 'hero-000001, hero-000002')).toMatchObject({
       heroes: ['hero-000001', 'hero-000002'],
     });
+  });
+
+  test('reads preview as dispatch is read: a Quest id and Hero ids joined by commas (M4-S5)', () => {
+    expect(command('preview', '--quest', 'quest-000003', '--heroes', 'hero-000001,hero-000002', '--save', 'demo')).toEqual({
+      name: 'preview',
+      save: 'demo',
+      quest: 'quest-000003',
+      heroes: ['hero-000001', 'hero-000002'],
+    });
+    expect(parseArgs(['preview', '--quest', 'the-barrow', '--heroes', 'hero-000001']).ok).toBe(false);
+    expect(parseArgs(['preview', '--quest', 'quest-000001']).ok).toBe(false);
   });
 
   test('reads build: a facility in the CLI’s words (M3-S6)', () => {

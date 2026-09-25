@@ -44,10 +44,13 @@ export interface CheckResult {
  * Encounter's Skills, `skillBonusPerRating` times the best rating any member holds of it, 0 when
  * none does; plus the Synergy bonus; all times the teamwork scalar. A demand on a Stat, or a Skill,
  * that content no longer defines counts for nothing (data-model rule 5). No members, no capability.
+ * A member's effective values are the one selector's, `effectiveStats` (selectors.ts), which holds
+ * every modifier of a Stat: the Class Stat bonuses of the Hero's Guild's Traits (M4-S5) and, from
+ * M5-S2, gear (DL-44). None is worked out here.
  */
 export function capability(heroes: readonly Hero[], encounter: Encounter, world: World, deps: CheckDeps): number {
   const { config, content } = deps;
-  const stats = heroes.map((hero) => effectiveStats(hero, world, deps));
+  const stats = heroes.map((hero) => effectiveStats(hero, world, content));
   let base = 0;
   for (const [statKey, weight] of encounter.demands) {
     const values = stats.map((values) => (Object.hasOwn(values, statKey) ? (values[statKey] ?? 0) : 0));

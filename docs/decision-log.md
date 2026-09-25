@@ -2439,6 +2439,201 @@ summed) beside `regardPerSharedQuest` with its band events; M4-S5's `classStatBo
 `payload.guildId`'s Guild (the harm each kind does is in its `injured` and `died`); Injuries by type
 are the `hero.injured` entries by `payload.typeKey`, joined to the Guild as DL-34 item 4 joins them.
 
+## DL-43 — Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and Guildmaster Regard (M4-S5)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S5's implementer)
+
+**Context.** M4-S5 asks for a reason on `dispatch`'s `requirement-unmet` (`class`, `skill`,
+`party-size`) and a CLI `preview`; Patron Regard for each Guild written on Quest outcomes (+1, −2,
+and −1 "when their offer expires untaken by anyone"), a Board refresh weighting Patrons by their
+mean Regard across Guilds (closing DL-25's uniform draw), and a nightly recovery toward neutral
+(pre-M0 review B5); one rule for each Guildmaster Stat, Guild-side and inside the selector or phase
+the table names (R8, B6, D9, INPUTS 6.5); the closed Trait effect union with the six starter
+Traits' effects (B2, INPUTS 3.13); Guildmaster Regard writers for Patrons and Roster Heroes with
+band-crossing events and "Regard for a Guild is a selector over Regard for its Guildmaster" (B3);
+and `show guildmaster`. It leaves open: the shape of the reason; Regard's scale and bands, which
+M4-S4 names (`regardBands`) but this story needs first; how an expiry "untaken by anyone" is
+charged across Guilds; how the mean weights the draw; what "within 1 / `patronRegardRecoveryPerYear`
+years" makes the rate's unit; how each Stat reads "across the Stat range" and "up to"; what
+"narrowing" hint bands means; where Negotiation meets the reward; the Traits' effects when INPUTS
+3.13's example gives Miser two; and how the 50-seed acceptance is run.
+
+**Decision.**
+
+1. **Requirements by reason.** `requirement-unmet` carries `unmet: UnmetRequirement[]`, every
+   requirement the Party misses in the order party size, Class, Skill, each named by
+   `requirement: 'party-size' | 'class' | 'skill'` with its detail (`size`, `partySizeMin/Max`;
+   `classKey`; `skillKey`). The separate `party-size` rejection of M2-S4 is folded into it, as the
+   epic lists party size among the reasons: `dispatch`'s checks are now `guild-folded`,
+   `quest-not-offered`, `hero-not-on-roster`, `hero-unavailable`, `requirement-unmet`. The one test
+   is `unmetRequirements(quest, party)` (actions/dispatch.ts), which the CLI's `preview` reads too.
+2. **One Regard scale for every holder**, `regardMin` −20 to `regardMax` 20, neutral 0 (absence),
+   and one set of bands, `regardBands` `{ hostile: −20, cool: −12, neutral: −4, warm: 4, close: 12 }`,
+   read as Morale's are (the highest start reached). M4-S4's Regard between Heroes is meant to
+   share both; its story may retune them. `adjustRegard` holds a value in the scale and sets
+   `since` and `reason` (an event type: `quest.resolved`, `quest.expired`); a drift leaves them, and
+   an entry drifted back to 0 is removed. **Every** Regard change, discrete or drift, emits its event
+   only on a band crossing, as the epic has M4-S4's `hero.regard-changed` do.
+3. **Where Regard is kept.** A Patron's Regard for a Guild is `patron.regard[guildId]`, as the
+   M1 fixture already had it. "Regard for a Guild is a selector over Regard for its Guildmaster" is
+   read as R9's Guildmaster Regard for a Guild: `guildmasterRegardForGuild(guildmaster, guildId,
+   world)` returns their Regard for that Guild's Guildmaster, and nothing is stored under a Guild's
+   id in a Guildmaster's map. Guildmaster Regard is keyed by the Patron's, Hero's or (M6-S2)
+   Guildmaster's id.
+4. **The writers** (regard.ts), for every Guild alike, player's and Rivals' (ADR-0002). A success is
+   any band but `fail`. On a resolution (`questsConclude` calls `regardOnQuestResolved`): the
+   Patron's Regard for the Guild `patronRegardOnSuccess` 1 × Influence, or `patronRegardOnFailure`
+   −2; the Guildmaster's Regard for the Patron `guildmasterRegardOnPatronSuccess/Failure` 1 / −1;
+   and for each Hero of the Party home on the Roster (the dead excluded) `…OnHeroSuccess/Failure`
+   1 / −1. **An offer expiring untaken** costs `patronRegardOnExpiry` −1 with **every Guild in
+   play**: no Guild took it, so each passed it over and each is charged alike; a folded Guild is out
+   of play and is not. The alternative, only the Guilds that could have staffed it, would need a
+   staffing test for every Guild at every expiry and gives the same mean in the common case.
+   Events: `patron.regard-changed` `{ patronId, guildId, cause, before, after, bandBefore,
+   bandAfter }` naming the Patron and the Guild, `cause` one of `quest-success`, `quest-failure`,
+   `offer-expired`, `recovery`; `guildmaster.regard-changed` `{ guildmasterId, guildId, entityId,
+   cause, before, after, bandBefore, bandAfter }` naming the Guildmaster, the entity and the
+   Guildmaster's Guild. Neither is a Milestone.
+5. **The Board's weighting** (R22). Each refresh reads, once, after its expiries, each Patron's mean
+   Regard across the Guilds in play and draws Patrons in proportion to
+   `max(0, 1 + boardRegardWeight × mean / reach)`, the reach being `regardMax` for a positive mean
+   and −`regardMin` for a negative one. **`boardRegardWeight`** is a new field, default 1: a Patron at
+   the scale's top posts twice as often as one at neutral, one at its bottom never; 0 restores
+   DL-25's uniform draw. The draw is `weightedPick` (rng.ts, one draw), which with every weight 1 draws
+   what `pick` draws: a new world opens on the Board it opened on before this story, and a seed's
+   Boards change only once Regard moves, which is expected.
+6. **The Patron State Engine** is the night phase `patronState`, after `guildState` and before
+   `poolRefresh` (approach §2). Each night every Patron's Regard for each Guild in play moves toward
+   neutral by `patronRegardRecoveryPerYear` × the scale's reach ÷ the year's nights, from either
+   side, and stops there. The rate is a **share of the scale's reach a year**, so that the epic's
+   bound holds for any start: even the scale's end is neutral within 1 / `patronRegardRecoveryPerYear`
+   years. Default **0.5** (ten points a year): a bad year is gone within two.
+7. **The Guildmaster's Stats** (guildmaster.ts). Each rule reads where the Stat falls between its
+   content `min` and `max`: Negotiation from −1 at the bottom to +1 at the top ("±10% across the
+   range", INPUTS 6.5), the other four from 0 at the bottom to 1 at the top ("up to"). A Stat content
+   does not define has no effect. Defaults: **`negotiationRange` 0.1** (INPUTS 6.5),
+   **`inspirationMoraleShift` 10**, **`coachingFactor` 0.5**, **`influenceFactor` 0.5**,
+   **`judgementHintSharpening` 0.25**. Where each lives:
+   - *Negotiation* at dispatch: `applyDispatch` writes the reward agreed,
+     `negotiatedReward(reward, guildmaster)` rounded, onto the Quest it takes, which the Quest Engine
+     pays on a success; `quest.taken` carries it as `reward`. And in `signingFee(hero, deps, buyer)`,
+     × (1 − the same), before the fee's one rounding down: `recruit` passes the buying Guild's
+     Guildmaster, `cheapestUnattached` does so given a Guild (so `steady` and the automatic policy
+     pay the same price), and the Roster wiped ending now prices a way back at the Guild's own fee
+     (`cheapestUnattached(world, deps, guild, heedFame = false)`, keeping DL-38 item 6). With no
+     buyer it is the list price, which only callers from before this story ask for. M6-S2's
+     `transferFee` multiplies by the same `feeFactor`.
+   - *Inspiration* and `guildMoraleShift` Traits in `moraleBaselineFor(hero, world, config,
+     content)`, the sum rounded to a whole number so that Morale stays whole.
+   - *Coaching* in `training`: `xpPerTrainingDay × grade × (1 + up to coachingFactor)`, rounded down,
+     as Quest XP is.
+   - *Influence* on the gains in a Patron's Regard for the Guild only; losses are not scaled.
+   - *Judgement* by `judgedHintBands`: each start of `potentialHintBands` × (1 − up to
+     `judgementHintSharpening`). "Narrowed" is read literally: every band but the open last one is
+     narrower, so a sharper judge calls a smaller gap promising or exceptional. `potentialHint` is
+     unchanged (DL-37 item 4); `show hero` passes the player's Guildmaster's bands.
+8. **The Trait effects**: the closed union `classStatBonus { classKey, statKey, delta }`,
+   `guildMoraleShift { delta }`, `upkeepFactor { factor }` (`TraitEffect`, content-types.ts), one
+   effect a Guildmaster Trait, none a Hero Trait; content validation refuses an unknown kind or
+   field, a Class or Hero Stat content lacks, a bonus or shift of 0, a factor of 0 or less, a
+   Guildmaster Trait without an effect and a Hero Trait with one. The six: *Old soldier* +1 Weaponry
+   to Warriors, *Well liked* Morale baseline +5, *Thrifty* Upkeep ×0.9 (buffs); *Miser* Morale
+   baseline −5, *Spendthrift* Upkeep ×1.1, *Mistrusts magic* −1 Arcana to Mages (penalties). INPUTS
+   3.13's example gives Miser both Upkeep ×0.9 and baseline −5; the epic allows one effect a Trait,
+   so Miser keeps the penalty and Thrifty carries the saving. `contentVersion` is **6**; the
+   engine's test content carries the same six. `classStatBonus` is applied in **`effectiveStats(hero,
+   world, content)`** (selectors.ts), held inside the Stat's range, for Heroes of the Class on the
+   Guildmaster's Guild; M4-S2's check, built in parallel, should read Stats through it (the stub in
+   `quest-engine/`, which this story does not touch, still reads base Stats). `upkeepFactor` is in
+   `upkeep(guild, world, config, content)`, the product rounded to a whole Wealth; `content` is
+   optional so that tests written before this story still compile, and every rule, controller and
+   front end passes it (the harness's policy included).
+9. **The CLI.** `show guildmaster [guildId]` prints the Guildmaster's Stats with what each bears on,
+   their Traits with each effect in words, and their Regard for every Patron, each Hero on the
+   Roster and each other Guild in play (through its Guildmaster), as bands only; `show patrons` adds
+   each Patron's Regard for the player's Guild as a band; `preview --quest --heroes` prints each
+   requirement met or missed, any Hero who cannot go, the reward agreed and `dispatch`'s own verdict
+   (its rule run on a copy), writing nothing, as a list of sections M4-S3 extends with Synergies;
+   `dispatch` prints the reward agreed. `narrate` has a line for each new event, naming bands only.
+10. **The 50-seed acceptance** is an engine test (`phases/patron-offers.test.ts`), as the
+    orchestrator asked, not a harness run: 50 seeds, a year each of the Board refresh and the
+    Patron State Engine, the player taking every Quest two chosen Patrons post, one's always failing
+    and the other's always succeeding, the rest expiring. The failing Patron offered 1,082 Quests in
+    all against 56,445, fewer in every seed.
+11. **Versions.** `configVersion` stays 3: fields are added and no default changes (DL-38's reading).
+
+**Consequences.** Tests that watch a fee, a Morale baseline or training XP pin
+`negotiationRange`, `inspirationMoraleShift` or `coachingFactor` to 0, or clear the generated
+Guildmasters' Traits, and say so; `effectiveStats` and M4-S2's own Stats selector are to be
+reconciled at merge. A scratch run of the automatic policy (4 seeds × 3 years, default config)
+saw about 8% of offers expire, no Patron silent in years 0 to 2, 101 to 213 offers per Patron in
+year 2, most Patrons neutral or cool with the Rivals and cool or hostile with the player, and the
+player's Guildmaster's Regard mostly warm or close by year 3 (nothing decays it): the M4 counters
+should watch these. **For the M4-close counter task:** *Patrons silent* reads
+`history.byType['quest.offered']` by `payload.patronId` per year of `turn` and counts the Patrons
+with none, over the years the game played through whole; *the player's Guildmaster's
+Regard band distribution at year 10* is `regardBandCounts(guildmaster.regard, config)` on the world
+at Turn `10 × turnsPerYear` (or the crossings in `guildmaster.regard-changed`, `bandAfter` by
+`entityId`), split by the entity's table (Patrons, Heroes).
+
+## DL-44 — Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content version 7
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 integration merge)
+
+**Context.** M4-S1 and M4-S2 (DL-42) and M4-S5 (DL-43) were built in parallel from v1.0-dev
+`8229670`. Each added an `effectiveStats` selector to `selectors.ts`: M4-S2's `(hero, world, deps)`,
+base Stats only, which its Check reads; M4-S5's `(hero, world, content)`, which applies the
+Guildmaster's `classStatBonus` Traits and which nothing but its own tests read, since the stub it
+knew still read base Stats. Both raised `contentVersion` to 6 for different content. M4-S5 folded
+`party-size` into `requirement-unmet`'s `unmet[]` and wrote Patron and Guildmaster Regard from the
+stub's outcome in `questsConclude`, which M4-S2 had rewritten around the Encounter sequence. M4-S5's
+Board weighting by Patron Regard moved a Board that M4-S2 pins as M3's.
+
+**Decision.**
+
+1. **One `effectiveStats(hero, world, content)`**, in `selectors.ts`: M4-S5's body (base Stat plus
+   the Class Stat bonuses of the Guildmaster of the Hero's Guild for the Hero's Class, held inside
+   the Stat's range; a Hero on no Roster, or of a Guild whose Guildmaster has no row, has only their
+   base) under M5-S2's epic signature `(hero, world, content)`, which M5-S2 extends with gear. M4-S2's
+   `(hero, world, deps)` is gone, superseding DL-42 item 9's signature, not its rule: the Check's
+   `capability` reads every member's Stats through it (`effectiveStats(hero, world, content)`), so a
+   Guildmaster Trait's Class Stat bonus now moves Quest outcomes for that Guild's Heroes of that
+   Class and no other, every Guild alike. `check.ts` still names nothing of the Guildmaster's (M4's
+   third risk): the rule lives in the selector. A base Stat is always inside its range, so for a
+   Guild with no such Trait the Check reads what DL-42 measured. Tests: `check.test.ts` shows Old
+   soldier lifting the capability of its own Guild's Warrior by 1 and turning a Check at the edge,
+   and nobody else's, for the player's Guild and a Rival's; Mistrusts magic lowering its own Mages'
+   Arcana only.
+2. **`contentVersion` is 7**: the core content holds both M4-S1's Encounters and M4-S5's Trait
+   effects, which no version 6 held. **`configVersion` stays 4** (DL-42): the merge changes no
+   default.
+3. **Requirements.** The Quest Engine tests no requirement: `dispatch` alone does, through
+   `unmetRequirements` (DL-43 item 1). The staffing rule `partyFor`, which `steady` and the
+   harness's policy share, is held to it by a test (`rival.test.ts`): every Party it names meets
+   `unmetRequirements`, size, Class and Skill, so neither is refused on `party-size`, now one
+   reason among `unmet[]`.
+4. **Patron and Guildmaster Regard are written once per resolved Quest**, in `questsConclude`'s
+   `conclude`, after the Encounter sequence's outcome is applied: `regardOnQuestResolved` with
+   `succeeded` for any band but `fail` of DL-42 item 11's `questBand`, the Heroes home on the Roster,
+   for every Guild's Party alike. A test (`quests-conclude.test.ts`) resolves a strong and a failed
+   Quest for the player's Guild and for a Rival's and finds the Patron's Regard for that Guild moved
+   by `patronRegardOnSuccess` or `patronRegardOnFailure` once, the Guildmaster's for the Patron by
+   one writer's delta once, and no other Guild's Regard moved.
+5. **The Encounters' Regard stays unapplied.** `outcome.regardDelta` (the Encounters' `regard`
+   consequences, summed, between Heroes) is M4-S4's to apply (DL-42 item 2); M4-S5's writers read
+   the band, never `regardDelta`, so nothing is counted twice. M4-S4 applies it on DL-43 item 2's
+   scale and bands, or retunes them.
+6. **The pre-M4 Board test pins `boardRegardWeight` 0.** Offers expiring over its 30 Days move
+   Patron Regard, which DL-43 item 5's weighting reads, so the Patrons drawn change, as DL-43
+   expects; with the weight at 0 (DL-25's uniform draw) the pinned Board, and the `board` stream's
+   state, are M3's still, which is what the test holds M4-S1's new stream to.
+
+**Consequences.** DL-42's balance pass was measured without M4-S5's rules: the reward agreed
+through Negotiation (±10%), the six Traits (Old soldier's Weaponry and Mistrusts magic's Arcana
+now reach the Check; Thrifty and Spendthrift move Upkeep), Coaching, and the Board's weighting. Only
+a smoke run is made here: 4 seeds × 5 years, the automatic policy, validated after every advance.
+The M4 close's balance pass measures them together.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
