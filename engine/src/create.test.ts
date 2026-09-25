@@ -33,6 +33,7 @@ describe('createWorld', () => {
   test('writes meta from the seed, the setup, the content and a copy of the config passed in', () => {
     const deps = testDeps({ rivalCount: 2 });
     const { document } = createWorld('amber-fox-4821', setup, deps);
+    withValid(document, deps);
 
     expect(document.meta.seed).toBe('amber-fox-4821');
     expect(document.meta.config).toEqual(deps.config);
@@ -49,6 +50,7 @@ describe('createWorld', () => {
   test("generates the player's Guild first, from the setup, with one Hero per Class", () => {
     const deps = testDeps();
     const { document } = createWorld('player', setup, deps);
+    withValid(document, deps);
     const guild = document.world.guilds[playerId];
     const classes = guild?.rosterIds.map((id) => document.world.heroes[id]?.classKey);
 
@@ -68,6 +70,7 @@ describe('createWorld', () => {
     const deps = testDeps();
     for (const seed of ['rivals-1', 'rivals-2', 'rivals-3', 'rivals-4', 'rivals-5']) {
       const { document } = createWorld(seed, setup, deps);
+      withValid(document, deps);
       const found = rivals(document);
 
       expect(found).toHaveLength(deps.config.rivalCount);
@@ -88,6 +91,7 @@ describe('createWorld', () => {
   test('generates patronCount Patrons with the Spheres dealt evenly, and the Unattached pool', () => {
     const deps = testDeps();
     const { document } = createWorld('patrons', setup, deps);
+    withValid(document, deps);
     const patrons = Object.values(document.world.patrons);
     const perSphere = deps.config.patronCount / Object.keys(deps.content.spheres).length;
     const unattached = Object.values(document.world.heroes).filter((hero) => hero.guildId === null);
@@ -101,7 +105,9 @@ describe('createWorld', () => {
   });
 
   test('puts every Hero on the Roster of the Guild it names, or in the pool, and numbers every table from 1', () => {
-    const { document } = createWorld('consistency', setup, testDeps());
+    const deps = testDeps();
+    const { document } = createWorld('consistency', setup, deps);
+    withValid(document, deps);
     const { world } = document;
     const onRosters = guilds(document).flatMap((guild) => guild.rosterIds.map((id) => [id, guild.id] as const));
 
@@ -121,6 +127,7 @@ describe('createWorld', () => {
   test('starts the History with world.created, then a guild.founded Milestone per Guild, and returns those entries', () => {
     const deps = testDeps();
     const { document, events } = createWorld('history', setup, deps);
+    withValid(document, deps);
     const { history } = document;
     const guildCount = 1 + deps.config.rivalCount;
     const heroCount = Object.keys(document.world.heroes).length;
@@ -158,6 +165,7 @@ describe('createWorld', () => {
     const deps = testDeps();
     const one = createWorld('determinism', setup, deps);
     const two = createWorld('determinism', setup, deps);
+    withValid(one.document, deps);
 
     expect(two.document).toEqual(one.document);
     expect(JSON.stringify(two.document)).toBe(JSON.stringify(one.document));
@@ -166,7 +174,10 @@ describe('createWorld', () => {
   });
 
   test('returns a JSON-safe document', () => {
-    expect(isJsonSafe(createWorld('json', setup, testDeps()).document)).toBe(true);
+    const deps = testDeps();
+    const { document } = createWorld('json', setup, deps);
+    withValid(document, deps);
+    expect(isJsonSafe(document)).toBe(true);
   });
 
   test('returns a document the validator accepts, with no warning', () => {
@@ -174,8 +185,8 @@ describe('createWorld', () => {
     const deps = testDeps();
     for (const seed of ['valid-1', 'valid-2', 'valid-3']) {
       const { document } = createWorld(seed, setup, deps);
-      expect(validate(document, deps.content)).toEqual({ ok: true, warnings: [] });
-      expect(withValid(document, deps.content)).toBe(document);
+      expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
+      expect(withValid(document, deps)).toBe(document);
     }
   });
 
@@ -192,6 +203,7 @@ describe('createWorld', () => {
       unattachedPoolSize: 0,
     });
     const { document } = createWorld('config', setup, deps);
+    withValid(document, deps);
     const [player, rival, ...others] = guilds(document);
 
     expect(others).toEqual([]);
@@ -211,6 +223,7 @@ describe('createWorld', () => {
       createdAt: setup.createdAt,
     };
     const { document } = createWorld('background', withoutBackground, deps);
+    withValid(document, deps);
     const player = document.world.guilds[playerId];
 
     expect(deps.content.backgrounds[player?.backgroundKey ?? '']?.owner).toBe('guild');

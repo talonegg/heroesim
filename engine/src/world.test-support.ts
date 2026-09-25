@@ -94,11 +94,15 @@ interface Named {
   name: string;
 }
 
-/** Freezes `value` and everything it holds, so no test can change what another test reads. */
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null) {
-    for (const inner of Object.values(value)) deepFreeze(inner);
+/**
+ * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
+ * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
+ * structure that shares an object between two places is not walked twice.
+ */
+export function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
     Object.freeze(value);
+    for (const inner of Object.values(value)) deepFreeze(inner);
   }
   return value;
 }
@@ -173,6 +177,23 @@ const classKeys = Object.keys(testContent.classes);
 const ratings: readonly SkillRating[] = [1, 2, 3];
 
 // ── Deps and empty worlds, for the generators ────────────────────────────────────────────────
+
+/**
+ * Every stream ADR-0009 (as amended) plans, each added in the milestone that draws from it; M1
+ * defines `generation` alone (`streamNames`), so a test world or a stream sweep carries the rest
+ * beside it, to watch them stand still until their milestone lands.
+ */
+export const plannedStreams = [
+  'generation',
+  'board',
+  'quests',
+  'encounters',
+  'pool',
+  'heroes',
+  'progression',
+  'rivals',
+  'market',
+] as const;
 
 /** The test content with the default config, or with `overrides` on it. */
 export function testDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
@@ -490,17 +511,20 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
 // ── withValid ────────────────────────────────────────────────────────────────────────────────
 
 /**
- * Returns `document` when the validator accepts it under `content`, and throws, listing every
- * failure, when it refuses. A warning throws too unless `allowWarnings` is set: a document the
- * engine makes from content should hold only that content's keys. Wrap every document an engine
- * test makes or changes: `const document = withValid(advance(...).document, testContent)`.
+ * Returns `document` when the validator accepts it under `deps.content`, and throws, listing
+ * every failure, when it refuses. A warning throws too unless `allowWarnings` is set: a document
+ * the engine makes from content should hold only that content's keys. Wrap every document an
+ * engine test makes or changes: `const document = withValid(advance(...).document, deps)`.
+ *
+ * Takes `deps` rather than a bare `ContentSet` (DL-23), so that a test already holding the deps
+ * it built a document with can pass them straight on.
  */
 export function withValid<Document extends WorldDocument>(
   document: Document,
-  content: ContentSet,
+  deps: EngineDeps,
   { allowWarnings = false }: { allowWarnings?: boolean } = {},
 ): Document {
-  const result = validate(document, content);
+  const result = validate(document, deps);
   if (!result.ok) {
     const lines = result.failures.map(({ check, id, detail }) => `  ${check} ${id}: ${detail}`);
     throw new Error(`The validator refuses the document:\n${lines.join('\n')}`);

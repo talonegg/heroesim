@@ -22,7 +22,7 @@ import { buildDocument, testContent, withValid } from './world.test-support.js';
 /** A loading front end's deps: the engine's own config, not one merged from the save (DL-20). */
 const deps: EngineDeps = { config: defaultConfig, content: testContent };
 
-const built = (): WorldDocument => withValid(buildDocument().document, testContent);
+const built = (): WorldDocument => withValid(buildDocument().document, deps);
 
 /** A deep copy with every object's keys in reverse insertion order; arrays keep their order. */
 function reversedKeys(value: unknown): unknown {

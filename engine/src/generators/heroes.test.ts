@@ -2,21 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { facilityKeys, makeId, type Guild, type Hall, type Hero, type World } from '../document.js';
 import type { StreamName } from '../rng.js';
 import { generateHero } from './heroes.js';
-import { testDeps, testWorld } from '../world.test-support.js';
-
-// Every stream ADR-0009 (as amended) plans, each added in the milestone that draws from it; M1
-// defines `generation` alone, so a test world carries the others beside it to watch them.
-const plannedStreams = [
-  'generation',
-  'board',
-  'quests',
-  'encounters',
-  'pool',
-  'heroes',
-  'progression',
-  'rivals',
-  'market',
-] as const;
+import { plannedStreams, testDeps, testWorld } from '../world.test-support.js';
 
 function heroes(world: World, deps = testDeps(), count: number, classKey?: string): Hero[] {
   const made: Hero[] = [];

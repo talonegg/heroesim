@@ -22,7 +22,7 @@ describe('createWorld with the core content', () => {
   // content; this one uses the content the game ships.
   test.each(seedNames(5))('returns a document the validator accepts, with no warning (%s)', (seed) => {
     const { document } = createWorld(seed, harnessSetup, deps);
-    expect(validate(document, content)).toEqual({ ok: true, warnings: [] });
+    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
   });
 });
 

@@ -22,7 +22,7 @@ import {
   type WarningCheck,
   type WorldDocument,
 } from './index.js';
-import { buildDocument, fixtureTurn, heroStatKeys, testContent, withValid } from './world.test-support.js';
+import { buildDocument, fixtureTurn, heroStatKeys, testContent, testDeps, withValid } from './world.test-support.js';
 
 // M1-S7: the validator of data-model §6. Each refusal test mutates the valid fixture document into
 // one failing shape and asserts the check it names and the id it points at, never the prose.
@@ -33,6 +33,8 @@ import { buildDocument, fixtureTurn, heroStatKeys, testContent, withValid } from
 const { ids } = buildDocument();
 const idleHero = ids.idleHero ?? makeId('heroes', 0);
 const unattachedHero = ids.unattachedHero ?? makeId('heroes', 0);
+
+const deps = testDeps();
 
 function row<Row>(table: Record<string, Row>, id: string): Row {
   const found = table[id];
@@ -65,14 +67,14 @@ const failure = (check: RefusalCheck, id: string): Named => ({ check, id });
 function refusals(mutate: Mutation): Named[] {
   const { document } = buildDocument();
   mutate(document);
-  const result = validate(document, testContent);
+  const result = validate(document, deps);
   return result.ok ? [] : result.failures.map(({ check, id }) => failure(check, id));
 }
 
 function warnings(mutate: Mutation, content: ContentSet = testContent) {
   const { document } = buildDocument();
   mutate(document);
-  const result = validate(document, content);
+  const result = validate(document, { ...deps, content });
   if (!result.ok) throw new Error(`Refused: ${result.failures.map(({ check }) => check).join(', ')}`);
   return result.warnings.map(({ check, id, key }) => ({ check, id, key }));
 }
@@ -93,8 +95,8 @@ function secondParty(document: Doc, questId: Quest['id'], heroIds: Hero['id'][])
 describe('a valid document', () => {
   test('is accepted with no warning', () => {
     const { document } = buildDocument();
-    expect(validate(document, testContent)).toEqual({ ok: true, warnings: [] });
-    expect(withValid(document, testContent)).toBe(document);
+    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(withValid(document, deps)).toBe(document);
   });
 
   test('holds every lifecycle the validator tells apart', () => {
@@ -122,7 +124,7 @@ describe('a valid document', () => {
     ['an empty object', {}],
     ['empty sections', { meta: {}, world: {}, history: {} }],
   ])('%s is refused by document-shape, without a throw', (_, value) => {
-    const result = validate(value, testContent);
+    const result = validate(value, deps);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(new Set(result.failures.map(({ check }) => check))).toEqual(new Set(['document-shape']));
   });
@@ -433,7 +435,7 @@ describe('document-shape', () => {
     const { document } = buildDocument();
     set(hero(document, ids.partyHero), 'nickname', 'the Lantern');
     set(document, 'notes', ['kept']);
-    expect(validate(document, testContent)).toEqual({ ok: true, warnings: [] });
+    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
   });
 });
 
@@ -504,7 +506,7 @@ describe('a key the content does not define warns and never refuses', () => {
     const before = { ...hero(document, ids.partyHero).stats };
     hero(document, ids.partyHero).stats.luck = 7;
 
-    const result = validate(document, testContent);
+    const result = validate(document, deps);
 
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -595,11 +597,11 @@ describe('the checks', () => {
   test('validate a 1,000-Hero world in under 50 ms (median of seven runs)', () => {
     const { document } = buildDocument({ rivals: 9, rosterSize: 20, unattached: 799 });
     expect(Object.keys(document.world.heroes)).toHaveLength(1000);
-    withValid(document, testContent);
+    withValid(document, deps);
 
     const times = Array.from({ length: 7 }, () => {
       const start = performance.now();
-      validate(document, testContent);
+      validate(document, deps);
       return performance.now() - start;
     }).sort((a, b) => a - b);
 
@@ -611,13 +613,13 @@ describe('withValid', () => {
   test('throws, naming the check and the id, on a refused document', () => {
     const { document } = buildDocument();
     delete document.world.heroes[ids.deadHero];
-    expect(() => withValid(document, testContent)).toThrow(`removed-hero-in-history ${ids.deadHero}`);
+    expect(() => withValid(document, deps)).toThrow(`removed-hero-in-history ${ids.deadHero}`);
   });
 
   test('throws on a warning unless warnings are allowed', () => {
     const { document } = buildDocument();
     hero(document, ids.partyHero).stats.luck = 7;
-    expect(() => withValid(document, testContent)).toThrow(`unknown-stat ${ids.partyHero}`);
-    expect(withValid(document, testContent, { allowWarnings: true })).toBe(document);
+    expect(() => withValid(document, deps)).toThrow(`unknown-stat ${ids.partyHero}`);
+    expect(withValid(document, deps, { allowWarnings: true })).toBe(document);
   });
 });

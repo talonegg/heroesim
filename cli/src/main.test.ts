@@ -359,6 +359,24 @@ describe('show', () => {
   test('history refuses a word that is not an id', () => {
     expect(play(['show', 'history', 'ada']).code).toBe(exitCodes.usage);
   });
+
+  test('history pluralises the entry count: one entry reads "1 entry", never "1 entries"', () => {
+    // A Patron's History holds only its own patron.generated entry (DL-19 item 10).
+    const patronId = makeId('patrons', 1);
+    expect(document().history.byEntity[patronId]).toHaveLength(1);
+
+    const run = play(['show', 'history', patronId]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('1 entry, newest first');
+    expect(run.out).not.toContain('1 entries');
+
+    // Any other count still reads "entries".
+    const all = play(['show', 'history']);
+    const { entries } = document().history;
+    expect(entries.length).toBeGreaterThan(1);
+    expect(all.out).toContain(`${entries.length} entries, oldest first`);
+  });
 });
 
 describe('save and load', () => {

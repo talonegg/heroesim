@@ -137,7 +137,7 @@ export function deserialise(text: string, deps: EngineDeps): LoadResult {
   const migrated = migrate(parsed, deps.config.schemaVersion);
   if (!migrated.ok) return migrated;
 
-  const result = validate(migrated.document, deps.content);
+  const result = validate(migrated.document, deps);
   if (!result.ok) {
     const checks = [...new Set(result.failures.map(({ check }) => check))].join(', ');
     return {

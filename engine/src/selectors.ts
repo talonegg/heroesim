@@ -6,7 +6,7 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { Stat } from './content-types.js';
-import type { Guild, Hero, StatValues, World } from './document.js';
+import { compareByCodeUnit, type Guild, type Hero, type StatValues, type World } from './document.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -17,7 +17,7 @@ export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
 export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
   return Object.values(world.heroes)
     .filter((hero) => hero.guildId === null)
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    .sort((a, b) => compareByCodeUnit(a.id, b.id));
 }
 
 /**

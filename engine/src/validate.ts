@@ -10,6 +10,7 @@
 // The shape is checked first, so that no later check can throw on a missing field: a hand-made
 // or damaged save is refused, never crashes the load. The choices the epic left open are DL-20.
 
+import type { EngineDeps } from './config.js';
 import type { ContentSet } from './content-types.js';
 import {
   isId,
@@ -155,10 +156,14 @@ const contentChecks: readonly ContentCheck[] = [
 ];
 
 /**
- * Accepts `document`, with a warning per content key `content` does not define, or refuses it
- * with every failure found. Never throws, whatever it is given: a load hands it parsed text.
+ * Accepts `document`, with a warning per content key `deps.content` does not define, or refuses
+ * it with every failure found. Never throws, whatever it is given: a load hands it parsed text.
+ *
+ * Takes `deps` rather than a bare `ContentSet` (DL-23), matching every other engine entry point
+ * (epics README §4): M8's modules will need `deps.modules` to validate their own state slices.
  */
-export function validate(document: unknown, content: ContentSet): ValidationResult {
+export function validate(document: unknown, deps: EngineDeps): ValidationResult {
+  const { content } = deps;
   const shape = documentShape(document);
   const failures = [...jsonSafe(document), ...shape];
   if (shape.length > 0) return { ok: false, failures };

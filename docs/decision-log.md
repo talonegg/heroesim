@@ -779,6 +779,54 @@ generator test and a validator test disagree about what content holds.
 entry. No test's expectation changed: the generators read no Quest template or Item table, and
 no validator test names a key the union adds.
 
+## DL-23 — M1 verification corrections
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M1 verification pass)
+
+**Context.** The M1 verifier found two defects, one of transcription and one of design, neither
+in the built engine's rules.
+
+**Decision.**
+
+1. **DL-19 item 4 misstates the Stat draw order.** It reads "a base `int(statBaseMin,
+   statBaseMax)`, plus `int(statBiasMin, statBiasMax)` on the Class's leading Stats", which reads
+   as base drawn first, bias second. `engine/src/generators/heroes.ts`'s `drawStats` (lines
+   141–142) draws the other way round:
+
+   ```
+   const bias = heroClass.leadingStats.includes(stat.key) ? int(state, config.statBiasMin, config.statBiasMax) : 0;
+   const base = clamp(int(state, config.statBaseMin, config.statBaseMax) + bias, stat.min, stat.max);
+   ```
+
+   On a leading Stat, the bias is drawn first (`int(state, config.statBiasMin,
+   config.statBiasMax)`), then the base (`int(state, config.statBaseMin, config.statBaseMax)`),
+   which has the already-drawn bias added to it before the clamp. On a Stat that does not lead,
+   no bias is drawn at all — `bias` is the literal `0` — so only the base is drawn. The true order
+   per Stat is: the bias, when the Stat leads the Class (one draw), then the base (one draw), then
+   the Potential gap (one draw): two draws for an ordinary Stat, three for a leading one. The
+   function's own doc comment already says as much ("Two draws a Stat, three on a leading one").
+   The code is correct and is **not changed**; only DL-19's prose was wrong. Changing the draw
+   order would change every seed's Heroes (DL-19's own consequence), which is not wanted here —
+   this entry corrects the record, not the game.
+2. **`validate(document, content)` breaks the one-`deps` convention** (epics README §4): every
+   other engine entry point reads `deps = { config, content, modules }`, but `validate`
+   (`engine/src/validate.ts`) and the test helper `withValid`
+   (`engine/src/world.test-support.ts`) took a bare `ContentSet` as their second parameter. M8's
+   modules will need `deps.modules` to validate their own state slices, so both are changed to
+   take `deps: EngineDeps`, reading `deps.content` where they read `content` before. Every caller
+   is updated to match: `deserialise` (`engine/src/serialise.ts`), `withValid`'s own call into
+   `validate`, the CLI's tests (which call `deserialise`, whose signature is unchanged, so nothing
+   there needed editing), the harness (`harness/src/creation.ts` and its test), and every engine
+   test that called `validate` or `withValid` with a bare content set, which now pass or build an
+   `EngineDeps`.
+
+**Consequences.** No behaviour changes: `validate` still reads only `content`, since M1 gives it
+nothing else worth reading from `deps`. A later story that gives `validate` reason to read
+`deps.config` or `deps.modules` needs no further signature change. DL-19 item 4 is read with this
+entry's correction; DL-19 itself is not edited, and neither is DL-20 (item 1 names
+`validate(document, content)`, item 12 `withValid(document, content, …)`), per this log's
+append-only rule — both are read with this correction instead.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

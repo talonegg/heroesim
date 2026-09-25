@@ -3,7 +3,7 @@
 // one that depends on the values drawn.
 
 import type { Names } from '../content-types.js';
-import type { Sex, World } from '../document.js';
+import { compareByCodeUnit, type Sex, type World } from '../document.js';
 import { int, pick, shuffle, type StreamName } from '../rng.js';
 
 /** A stream's state, reached through `world.rng` as the rest of the engine reaches it (M1-S2). */
@@ -35,7 +35,7 @@ export function sortedRows<Row extends { key: string }>(
 ): Row[] {
   return Object.values(table)
     .filter(keep)
-    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
+    .sort((a, b) => compareByCodeUnit(a.key, b.key));
 }
 
 /** The keys of `sortedRows(table, keep)`. */

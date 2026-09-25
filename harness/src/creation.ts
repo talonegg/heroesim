@@ -6,7 +6,9 @@
 import { createHash } from 'node:crypto';
 import {
   createWorld,
+  playerGuild,
   serialise,
+  unattachedHeroes,
   validate,
   type EngineDeps,
   type ValidationFailure,
@@ -52,11 +54,9 @@ export function describeWorld(document: WorldDocument): WorldDescription {
   }
   return {
     heroesByClass: tally(heroes.map((hero) => hero.classKey)),
-    playerRoster: guilds
-      .filter((guild) => guild.controller.kind === 'player')
-      .reduce((sum, guild) => sum + guild.rosterIds.length, 0),
+    playerRoster: playerGuild(world)?.rosterIds.length ?? 0,
     rivalRosters: guilds.filter((guild) => guild.controller.kind === 'rival').map((guild) => guild.rosterIds.length),
-    pool: heroes.filter((hero) => hero.guildId === null).length,
+    pool: unattachedHeroes(world).length,
     patrons: Object.keys(world.patrons).length,
     heroes: heroes.length,
     heroStats,
@@ -155,7 +155,7 @@ export function sweepCreation(seeds: readonly string[], deps: EngineDeps, option
     const { document } = createWorld(seed, setup, deps);
     firstTimes.push(now() - before);
 
-    const result = validate(document, content);
+    const result = validate(document, deps);
     if (!result.ok) refused.push({ seed, failures: result.failures });
     else if (result.warnings.length > 0) {
       worldsWithWarnings += 1;

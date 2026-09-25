@@ -67,7 +67,11 @@ function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): 
   return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
 }
 
-function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
+/**
+ * The row of `rows` keyed by `id`, or `undefined` when there is none: an ordinary lookup that
+ * does not fall through to `Object.prototype` for a key such as `constructor`.
+ */
+export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
 

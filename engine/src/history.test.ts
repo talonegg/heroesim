@@ -15,6 +15,7 @@ import {
   type Meta,
   type World,
 } from './index.js';
+import { deepFreeze } from './world.test-support.js';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
@@ -75,14 +76,6 @@ function recountIndexes(entries: Entry[]): Omit<History, 'entries'> {
     if (e.milestone) milestones.push(position);
   });
   return { byEntity, byType, milestones };
-}
-
-function deepFreeze<T>(value: T): T {
-  if (typeof value === 'object' && value !== null && !Object.isFrozen(value)) {
-    Object.freeze(value);
-    for (const child of Object.values(value)) deepFreeze(child);
-  }
-  return value;
 }
 
 const turnsOf = (entries: Entry[]): number[] => entries.map((e) => e.turn);

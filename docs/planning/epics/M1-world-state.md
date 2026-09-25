@@ -184,9 +184,10 @@ Config: `startingRosterSize`, `startingWealth`, `rivalCount`, `rivalRosterMin/Ma
 ### M1-S7 · Validator · 1 session
 
 `engine/src/validate.ts`: `validate(document, content): { ok: true, warnings } | { ok: false,
-failures }`, every check in `data-model.md` §6 as a named function returning a list, so a
-failure names its check and the offending id. Runs in every engine test through a `withValid`
-helper that wraps a document assertion.
+failures }` (signature changed to `validate(document, deps)` in DL-23), every check in
+`data-model.md` §6 as a named function returning a list, so a failure names its check and the
+offending id. Runs in every engine test through a `withValid` helper that wraps a document
+assertion.
 
 **Acceptance:**
 

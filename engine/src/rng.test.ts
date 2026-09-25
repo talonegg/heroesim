@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { isJsonSafe } from './json-safe.js';
 import { chance, createStreams, cyrb128, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
+import { plannedStreams } from './world.test-support.js';
 
 // A stream's state, reached through the function that draws from it rather than by its name
 // (see the last describe block).
@@ -12,19 +13,6 @@ type State = Parameters<typeof next>[0];
 
 const seed = 'amber-fox-4821';
 const thousand = 1000;
-
-/** Every core stream ADR-0009 (as amended) will have once M6 lands; M1 has only `generation`. */
-const plannedStreams = [
-  'generation',
-  'board',
-  'quests',
-  'encounters',
-  'pool',
-  'heroes',
-  'progression',
-  'rivals',
-  'market',
-] as const;
 
 function generation(seedText = seed): State {
   return createStreams(seedText, streamNames).generation;

@@ -140,6 +140,16 @@ export function isId<Table extends TableName>(table: Table, value: unknown): val
   return typeof value === 'string' && parseId(value)?.table === table;
 }
 
+/**
+ * `Array.prototype.sort`'s default order for strings, UTF-16 code units, spelled out as a
+ * comparator: what `unattachedHeroes` (`selectors.ts`) sorts ids by and the generators
+ * (`generators/draw.ts`) sort content keys by, so that neither an id's issue order nor a
+ * content file's row order changes what a draw picks or a selector returns.
+ */
+export function compareByCodeUnit(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 // ── Values shared by rows ────────────────────────────────────────────────────────────────────
 
 /** An absolute Turn index from 0. Day and time of day are derived from it (data-model §3.1). */

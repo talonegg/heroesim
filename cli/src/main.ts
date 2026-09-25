@@ -39,6 +39,7 @@ import {
   renderPool,
   renderRoster,
   renderSummary,
+  rowIn,
 } from './render.js';
 import { playDeps, readSave, savePath, writeSave } from './saves.js';
 import { readableSeed } from './seed.js';
@@ -188,8 +189,9 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
 
 // ── show ─────────────────────────────────────────────────────────────────────────────────────
 
-function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+/** `1 entry`, `0 entries`, `2 entries`: English's one irregular plural among the CLI's counts. */
+function entryCount(n: number): string {
+  return `${n} ${n === 1 ? 'entry' : 'entries'}`;
 }
 
 function show(view: View, { io, content, path }: Context): Exit {
@@ -223,7 +225,7 @@ function show(view: View, { io, content, path }: Context): Exit {
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);
-        return say(io, renderHistory(`History: ${entries.length} entries, oldest first`, entries));
+        return say(io, renderHistory(`History: ${entryCount(entries.length)}, oldest first`, entries));
       }
       if (parseId(view.entityId) === null) {
         return refuse(io, `"${view.entityId}" is not an id such as hero-000001 or guild-000001.`, exitCodes.usage);
@@ -231,7 +233,7 @@ function show(view: View, { io, content, path }: Context): Exit {
       const entries = entriesFor(history, view.entityId as EntityId);
       const label = entries[0]?.labels[view.entityId as EntityId];
       const who = label === undefined ? view.entityId : `${label} (${view.entityId})`;
-      return say(io, renderHistory(`History of ${who}: ${entries.length} entries, newest first`, entries));
+      return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries));
     }
   }
 }
