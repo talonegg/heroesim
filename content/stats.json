@@ -1,0 +1,31 @@
+{
+  "strength": { "name": "Strength", "area": "physical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "dexterity": { "name": "Dexterity", "area": "physical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "weaponry": { "name": "Weaponry", "area": "physical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "constitution": { "name": "Constitution", "area": "physical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "endurance": { "name": "Endurance", "area": "physical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+
+  "intelligence": { "name": "Intelligence", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "knowledge": { "name": "Knowledge", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "perception": { "name": "Perception", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "wits": { "name": "Wits", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "courage": { "name": "Courage", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "willpower": { "name": "Willpower", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+
+  "arcana": { "name": "Arcana", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "power": { "name": "Power", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "spelllore": { "name": "Spelllore", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "spirit": { "name": "Spirit", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "resistance": { "name": "Resistance", "area": "magical", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+
+  "leadership": { "name": "Leadership", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "charisma": { "name": "Charisma", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "diplomacy": { "name": "Diplomacy", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+  "adaptability": { "name": "Adaptability", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "hero" },
+
+  "inspiration": { "name": "Inspiration", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "guildmaster" },
+  "influence": { "name": "Influence", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "guildmaster" },
+  "negotiation": { "name": "Negotiation", "area": "social", "min": 1, "max": 20, "default": 10, "owner": "guildmaster" },
+  "coaching": { "name": "Coaching", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "guildmaster" },
+  "judgement": { "name": "Judgement", "area": "mental", "min": 1, "max": 20, "default": 10, "owner": "guildmaster" }
+}

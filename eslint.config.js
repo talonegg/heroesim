@@ -19,12 +19,18 @@ function relativeInto(self, message) {
 const byNameOnly =
   'Import another package by its name, never by a relative path into its source (approach §5).';
 
-// Every package exports only its entry, so no subpath exists to import. When a package exports
-// a second entry (content's Node entry, M1-S4), allow that one path here and in the test.
-const noSubpath = {
-  regex: '^@heroesim/[^/]+/',
-  message: 'Import a package by its name only; its entry is all it exports (approach §5).',
-};
+// Every package exports only its entry, so no subpath exists to import, with one exception:
+// content's Node entry, `@heroesim/content/node` (M1-S4, DL-14 item 7), which reads the content
+// files with node:fs. The harness and the CLI run on Node and may import it; the web runs in a
+// browser and may not. content/src/imports.test.ts proves both.
+function noSubpath({ node }) {
+  return {
+    regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
+    message:
+      'Import a package by its name only; its entry is all it exports, and ' +
+      '`@heroesim/content/node` is for the CLI and the harness, never the browser (approach §5).',
+  };
+}
 
 const nodeBuiltin = {
   regex: `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`,
@@ -85,7 +91,7 @@ function contentImports({ node }) {
 function consumerImports(self, forbidden) {
   return {
     patterns: [
-      noSubpath,
+      noSubpath({ node: self !== 'web' }),
       {
         group: forbidden.map((name) => `@heroesim/${name}`),
         message:
