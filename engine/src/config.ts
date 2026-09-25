@@ -5,8 +5,9 @@
 // current default; the harness passes its own; `rebase` adopts the current defaults (M2-S1).
 //
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
-// M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25). Every "Min/Max" pair is
-// an inclusive range drawn with `int`.
+// M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
+// Engine and M2-S6 the Hero State Engine (DL-29). Every "Min/Max" pair is an inclusive range
+// drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -108,7 +109,58 @@ export interface GameConfig {
    */
   questDifficultyMin: number;
   questDifficultyMax: number;
+
+  // ── The stub Quest Engine (M2-S5, INPUTS 4.3, 4.4, 5.1, pre-M0 review A4, DL-29) ─────────
+  /**
+   * Where the bands start on the ratio of score to difficulty: below `successAtLeast` a Quest
+   * fails, from it up to and including `strongAbove` it succeeds, and above `strongAbove` it is a
+   * strong success.
+   */
+  stubBands: Readonly<{ successAtLeast: number; strongAbove: number }>;
+  /** The one roll's reach: the score is scaled by 1 + a draw from −`stubVariance` to +`stubVariance`. */
+  stubVariance: number;
+  /** Added to the score for each rating point of a Quest's Skills held across the Party (R15). */
+  stubSkillBonusPerRating: number;
+  /** The chance, per band, that one Hero of the Party is injured. */
+  stubInjuryChance: Readonly<Record<QuestBand, number>>;
+  /** The chance, per band, that one Hero of the Party dies. */
+  stubDeathChance: Readonly<Record<QuestBand, number>>;
+  /**
+   * XP each surviving Hero gains, per point of the Quest's difficulty, by band, rounded down.
+   * M3-S2 replaces it with `xpPerDifficultyPoint × xpBandFactor`.
+   */
+  stubXpPerDifficulty: Readonly<Record<QuestBand, number>>;
+
+  // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
+  /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
+  moraleMin: number;
+  moraleMax: number;
+  /**
+   * Where each Morale band starts: a Hero's band is the highest whose start their Morale has
+   * reached. Nightly drift emits `hero.morale-changed` only when it crosses from one to another.
+   */
+  moraleBands: Readonly<Record<MoraleBand, number>>;
+  /** Added to the Morale of every Hero left on a Roster when one of its Heroes dies (negative). */
+  moraleOnRosterDeath: number;
+  /** Added to the Morale of every Hero who comes home from a strong success. */
+  moraleOnStrongSuccess: number;
+  /**
+   * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
+   * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   */
+  infirmaryHealFactor: readonly number[];
 }
+
+/** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
+export const questBands = ['fail', 'success', 'strong'] as const;
+
+export type QuestBand = (typeof questBands)[number];
+
+/** The named ranges Morale falls in, lowest first (M2-S6, pre-M0 review A7). */
+export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] as const;
+
+export type MoraleBand = (typeof moraleBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
@@ -159,6 +211,20 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questOfferDays: 3,
   questDifficultyMin: 10,
   questDifficultyMax: 100,
+
+  stubBands: Object.freeze({ successAtLeast: 0.8, strongAbove: 1.2 }),
+  stubVariance: 0.2,
+  stubSkillBonusPerRating: 2,
+  stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
+  stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
+  stubXpPerDifficulty: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
+
+  moraleMin: 0,
+  moraleMax: 100,
+  moraleBands: Object.freeze({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 }),
+  moraleOnRosterDeath: -10,
+  moraleOnStrongSuccess: 5,
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

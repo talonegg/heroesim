@@ -76,6 +76,7 @@ export const warningChecks = [
   'unknown-sphere',
   'unknown-item',
   'unknown-template',
+  'unknown-injury',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -155,6 +156,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownSphere,
   unknownItem,
   unknownTemplate,
+  unknownInjury,
 ];
 
 /**
@@ -1056,11 +1058,11 @@ function unknownSphere({ world }: WorldDocument, content: ContentSet): Validatio
 }
 
 /**
- * A content table a later milestone adds to `ContentSet`: Quest templates (M2-S3) and Item
- * definitions (M5-S1). Until content carries one under this name it defines no such key, and
- * every one warns, as §6 says (DL-20).
+ * A content table a later milestone adds to `ContentSet`: Quest templates (M2-S3), Injury types
+ * (M2-S5) and Item definitions (M5-S1). Until content carries one under this name it defines no
+ * such key, and every one warns, as §6 says (DL-20).
  */
-function laterTable(content: ContentSet, name: 'questTemplates' | 'items'): object {
+function laterTable(content: ContentSet, name: 'questTemplates' | 'injuries' | 'items'): object {
   const table: unknown = Reflect.get(content, name);
   return isMap(table) ? table : {};
 }
@@ -1076,5 +1078,15 @@ function unknownTemplate({ world }: WorldDocument, content: ContentSet): Validat
   const { warnings, known } = keyWarnings('unknown-template', 'a Quest template');
   const templates = laterTable(content, 'questTemplates');
   for (const [id, quest] of Object.entries(world.quests)) known(id, 'templateKey', templates, quest.templateKey);
+  return warnings;
+}
+
+/** A Hero's Injury type (M2-S5, DL-29): the Injury still heals on its night; it leaves no Trait. */
+function unknownInjury({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-injury', 'an Injury type');
+  const injuries = laterTable(content, 'injuries');
+  for (const [id, hero] of Object.entries(world.heroes)) {
+    if (hero.injury !== null) known(id, 'injury', injuries, hero.injury.typeKey);
+  }
   return warnings;
 }

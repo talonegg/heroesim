@@ -4,7 +4,8 @@
 //
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
-// `ContentSet`; M2-S3 `QuestTemplate`. Later milestones add theirs (M5-S1 Items).
+// `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`. Later milestones add theirs (M5-S1
+// Items).
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -28,7 +29,7 @@ export type SphereKey = string;
 export type QuestTemplateKey = string;
 /** A tag a Quest template carries (M2-S3). */
 export type QuestTagKey = string;
-/** A type of Injury (M2). */
+/** A type of Injury (M2-S5, `injuries.json`). */
 export type InjuryTypeKey = string;
 /** A Rival Guild's Disposition: `steady` from M2, the rest in M6. */
 export type DispositionKey = string;
@@ -151,6 +152,21 @@ export interface QuestTemplate {
   lootTableKey: null;
 }
 
+/**
+ * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before an infirmary
+ * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). The stub
+ * Quest Engine draws a type for each Injury it inflicts.
+ */
+export interface InjuryType {
+  key: InjuryTypeKey;
+  name: string;
+  /** Days to heal, an inclusive range drawn with `int`, each at least 1. */
+  healDaysMin: number;
+  healDaysMax: number;
+  /** A Hero Trait the Hero gains when the Injury heals, or `null` for one that leaves no mark. */
+  leavesTrait: TraitKey | null;
+}
+
 /** The name lists the generators draw from (INPUTS 3.9; `names.json`). No list is empty. */
 export interface Names {
   /** Given names for Heroes and Guildmasters, by sex. */
@@ -175,6 +191,8 @@ export interface ContentSet {
   names: Names;
   /** The kinds of Quest the Patrons offer, found by Sphere at draw time (M2-S3, DL-20). */
   questTemplates: Record<QuestTemplateKey, QuestTemplate>;
+  /** The types of Injury a Quest can leave; at least one (M2-S5). */
+  injuries: Record<InjuryTypeKey, InjuryType>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

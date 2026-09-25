@@ -1175,6 +1175,139 @@ for the missing stream (DL-19 item 2). A test of a phase that reads the History 
 years, 21,600 advances with only this phase live, in 4.5 to 6 s here (about 0.2 ms a Turn), so it
 runs in `npm test` at full length with a 60 s timeout. Fields were added and `schemaVersion` changed, no rule's default, so `configVersion` stays 1.
 
+## DL-29 — The stub Quest Engine, Injury types, Morale bands and the Hero State Engine (M2-S5, M2-S6)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S5 and M2-S6's
+implementer)
+
+**Context.** M2-S5 gives the stub's score, the outcome's shape, five config fields, the night's
+`questsConclude` and `content/injuries.json`; M2-S6 the night's healing, Morale drift and yearly
+Retirement check with nine config fields. They leave open: how the roll applies and the defaults
+INPUTS does not give (`stubVariance`, `stubSkillBonusPerRating`); how Wealth, Fame and XP follow
+from the band, and how much XP a Quest gives before M3; the order of the draws; whether one Hero
+can be both killed and injured; how the infirmary's factor rounds; Morale's scale and band edges;
+how "2% per year past it" reads; which night is an anniversary; which Heroes the Hero State Engine
+covers, and what becomes of a Hero away on a Quest on their anniversary; the events' payloads;
+the content version; and when a returned Hero may be sent again (M2-S4's last box, DL-25 item 16).
+
+**Decision.**
+
+1. **Streams.** `quests` and `heroes` join `streamNames` in ADR-0009's order: `generation`,
+   `board`, `quests`, `pool`, `heroes`, which is also a new world's order of `rng` keys; an old save
+   gains both through `ensureStreams` (DL-25 item 8). `questsConclude` draws from `quests` alone
+   and `heroState` from `heroes` alone.
+2. **The score**, `stubScore` in `engine/src/quest-engine/stub.ts`: for each demand, its weight
+   times the sum of that base Stat across the Party (`baseStat`), plus `stubSkillBonusPerRating`
+   times the ratings, summed across the Party, of the Skills in the Quest's `skillKeys` (pre-M0
+   review A4). A demand on a Stat, or a Skill, that content no longer defines counts for nothing
+   (rule 5). Base Stats, since no effective-Stat selector exists before M5. `stubSkillBonusPerRating`
+   is **2**, chosen: three rating points of the Quest's Skills add 6, about a third of what two
+   starting Heroes' Stats score.
+3. **The roll** is one draw scaling the score: `ratio = score × (1 + roll) / difficulty`, the roll
+   uniform from −`stubVariance` up to +`stubVariance`; `stubVariance` is **0.2**, chosen, so a Party
+   exactly at the difficulty always succeeds and one at 0.9 of it fails about a fifth of the time.
+   `stubBands` is `{ successAtLeast: 0.8, strongAbove: 1.2 }` (INPUTS 4.3): fail below 0.8, success
+   from 0.8 up to and including 1.2, strong success above. The bands are named `fail`, `success`
+   and `strong` (`questBands`). `resolveQuest(world, quest, party, deps)` takes `deps` where the epic
+   wrote `content, config`, as every entry point does, and draws from `world.rng.quests` where it
+   wrote `rng`, since only `rng.ts` and `document.ts` name a stream's state type.
+4. **Wealth, Fame and XP.** A success or a strong success pays the Quest's `reward` and gains its
+   `fameEffect`; a failure pays nothing and loses `fameEffect`, the magnitude DL-25 item 3 stores.
+   A strong success earns no more than a success: it differs in harming no one and in Morale. XP
+   before M3 is `stubXpPerDifficulty[band]` times the difficulty, rounded down, with `{ fail: 0.5,
+   success: 1, strong: 1 }`: INPUTS 5.1's values brought forward, so the XP a Hero banks now means
+   what M3 will read, and M3-S2 replaces the field with `xpPerDifficultyPoint × xpBandFactor`. Each
+   Hero who comes home alive gains it, with `hero.xp-gained`; Level stays 1.
+5. **Harm** (INPUTS 4.4): `stubDeathChance` `{ fail: 0.05, success: 0, strong: 0 }` and
+   `stubInjuryChance` `{ fail: 0.4, success: 0.1, strong: 0 }`, each for one Hero, every Hero in the
+   Party equally likely. The Death is drawn first and the Injury among the survivors, so no Hero
+   is both, and a lone Hero who dies is not also injured.
+6. **Seven draws.** Every resolution takes exactly seven draws from `quests`, in this order: the
+   roll; whether a Hero dies; which; whether a Hero is injured; which; the Injury's type, uniform
+   over content's types in key order; its Days, `int` over the type's range. Each is taken whether
+   or not it is used, so neither an outcome nor a tuned chance shifts a later draw, as `chance`
+   promises for one. Parties resolve in id order.
+7. **Injury types** are content: `content/injuries.json`, `ContentSet.injuries`, seven types healing
+   in 5 to 30 Days (INPUTS 4.5): `bruised-ribs`, `sprained-ankle` and `broken-arm` leave nothing;
+   `deep-cut` leaves `scarred`, `shattered-knee` `lame`, `eye-wound` `one-eyed` and `lung-fever`
+   `short-winded`, the four Hero Traits of M1-S4. Content validation refuses an empty table, a Day
+   range starting below 1 or upside down, and a `leavesTrait` that is not a Hero Trait, whether
+   unknown or a Guildmaster's. `contentVersion` becomes **3**. The World State validator gains the
+   warning `unknown-injury` for an Injury whose type content does not define (rule 5); such an
+   Injury heals on its night and leaves no Trait.
+8. **The infirmary** is read when the Injury is inflicted (M2-S6): the Days times
+   `infirmaryHealFactor[grade]`, `[1, 1/2, 1/3]` (INPUTS 4.5: grade 1 halves, grade 2 thirds),
+   rounded to the nearest Day and at least 1, a grade past the list reading its last factor. The
+   Injury heals on `nightOf(dayOf(turn) + Days)`, so never on the night it was inflicted; a grade
+   raised later does not shorten an Injury already carried.
+9. **`questsConclude`**, for each Party whose `returnsOnTurn <= turn`: `quest.resolved` first,
+   while the Quest and Party rows can be labelled, its payload the outcome (`band`, `score` before
+   the roll, `ratio`, `wealthDelta`, `fameDelta`, `xpPerHero`, `injuries` each with its `healDays`,
+   `deaths`) with the Quest's, Party's and Guild's ids, the Heroes and the template's key; then the
+   Guild's Wealth and Fame (Fame's floor is `guildState`'s, later that night); `hero.injured` per
+   Injury and `hero.died` (Milestone) per Death, both naming the Quest too, the dead Hero off the
+   Roster with `diedOnTurn`, keeping row and Guild; `hero.xp-gained` per survivor; the Morale
+   changes; then the survivors are freed and the Party and Quest rows removed. A folded Guild's
+   Party is skipped, as every per-Guild rule skips a folded Guild, so M2-S10's fold must disband
+   the Parties it leaves away. A Party's holdings go back to its Guild from M5-S2; none exist
+   before.
+10. **Morale** runs from `moraleMin` 0 to `moraleMax` 100 (INPUTS 4.8), two fields, since a literal
+    bound in a rule is a defect. A discrete change is clamped into the scale and always emits
+    `hero.morale-changed`, even when the clamp leaves the value where it was: `moraleOnStrongSuccess`
+    **+5** to each Hero home from a strong success, `moraleOnRosterDeath` **−10** to every living Hero
+    left on the Roster for each Death, those away on other Quests included. **Bands**
+    (`moraleBands`, where each starts): `wretched` 0, `low` 20, `steady` 40, `high` 75, `elated` 90,
+    chosen so the baseline, 60, sits in `steady`, and neither one Death nor one strong success moves
+    a Hero at the baseline out of it. `hero.morale-changed` carries `{ heroId, cause, before, after,
+    bandBefore, bandAfter }`, `cause` being `roster-death`, `strong-success` or `drift`.
+11. **The Hero State Engine covers** the Heroes on the Roster of a Guild that has not folded, in
+    Guild id order and Roster order, those away on a Quest included; a dead or retired Hero has
+    left the Roster. **The Unattached pool is left alone**: rule 8 keeps for good the row of a pool
+    Hero named by any entry but their two passive ones, so a `hero.healed` or a band crossing in the
+    pool would break M2-S8's bound; a pool Hero stays ten Days, too few to meet an anniversary; and
+    a Hero released into the pool by a fold (M2-S10) keeps their Injury and Morale until a Guild
+    signs them, when the next night heals an Injury whose night has passed.
+12. **Healing** clears the Injury on the first night at or after `healsOnTurn`, adds `leavesTrait`
+    unless the Hero holds it already, and emits `hero.healed` `{ heroId, typeKey, traitKey }`,
+    `traitKey` being the Trait added or null. **Drift** moves Morale `moraleDrift` (**1**) toward
+    `moraleBaseline` and stops on it, emitting only on the night it crosses a band.
+13. **Retirement.** "From 45, 2% per year past it" (INPUTS 4.11) is read as a chance that rises
+    with age, as `CONTEXT.md` says Retirement's likelihood does: `heroRetirementChancePerYear` (0.02)
+    for each whole year of age past `heroRetirementAge` (45), so none at 45, 2% at 46 and 10% at 50,
+    times `heroRetirementInjuredMultiplier` (2) while injured, at most 1 (`retirementChance`). The
+    check falls on the night of the Day on which each anniversary of the Hero's `enteredTurn` falls
+    (`lastAnniversaryNight`), by when `ageOf` has counted the new year. Every due check takes one
+    draw from `heroes`, whatever the age, so tuning the age or the chance shifts no later draw. A
+    retired Hero leaves the Roster and keeps row, Guild and any Injury, with `retiredOnTurn`, and
+    `hero.retired` (Milestone) carries `{ heroId, guildId, age }`.
+14. **A Hero away on their anniversary** is not checked that night, since they cannot leave a Party
+    in the field, but on the night their Party brings them home: `heroState` reads the Hero's latest
+    `quest.taken` entry in the History as it stood before the Turn, and checks them when its
+    `returnsOnTurn` is tonight and an anniversary night fell after the Turn it was taken. Without it
+    a Hero kept busy would seldom be checked at all. It reads the History for earlier Turns, as the
+    pool refresh does (DL-27 item 3); a phase test that passes no History sees no such check.
+15. **The return night.** `questsConclude` runs first at night, so a returned Hero is free from that
+    night's end: dispatchable on the morning of Day d + k + 1, as M2-S4's last box asks, and on the
+    return night itself too, since an action may be taken in any Turn (pre-M0 review D2) and a Party
+    sent at night leaves on that Day (C4). M2-S4's test that a dispatched Hero cannot go again checks
+    every Turn before the return night and holds unchanged; a new test proves the morning after for
+    a Party sent in each of the three Turns of a Day.
+16. **Config.** The fields are added and no default changes, so `configVersion` stays 1. A default
+    that is an object or a list is frozen with `defaultConfig`.
+
+**Consequences.** Quests now end, Heroes are hurt, die, heal and retire, and every Guild's Parties
+come home, so a created world played forward changes on its nights where it did not. As specified
+the stub is hard on a starting Guild: two starting Heroes score about 15 to 20 against difficulties
+of 10 to 100, so most Quests fail. A crude ten-year run sending every idle Hero out resolved 514
+Quests, 41% of them with an Injury, at about 0.23 ms a Turn, and its document validated; tuning
+the score, the difficulty scale and the bands is M2-S12's balance pass, as M2's risks say. M3-S2
+replaces `stubXpPerDifficulty`; M3-S4 puts the decline beside the Retirement check and can reuse
+`lastAnniversaryNight`. M2-S10's fold disbands a folded Guild's Parties, and its endings read a
+retired Hero as off the Roster with `guildId` kept. M4 replaces the stub and keeps `QuestOutcome`'s
+shape where it can. M5-S2 returns a Party's holdings before its row is removed. Another story
+appending a stream appends it after `heroes`; another adding a content file raises `contentVersion`
+past 3.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

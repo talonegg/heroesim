@@ -293,7 +293,7 @@ runs per Turn in play.
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
-| A Stat, Class, Skill, Trait, Item or template key the content does not define | warn |
+| A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 
 A refused document names the failed check. Nothing is repaired silently.
 

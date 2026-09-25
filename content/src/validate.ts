@@ -51,6 +51,7 @@ export function validateContent(set: ContentSet): ContentSet {
     backgrounds: set.backgrounds,
     spheres: set.spheres,
     questTemplates: set.questTemplates,
+    injuries: set.injuries,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -118,6 +119,19 @@ export function validateContent(set: ContentSet): ContentSet {
   // template serves would leave its Patrons offering nothing.
   for (const sphereKey of spheres) {
     if (!served.has(sphereKey)) problems.push(`spheres.${sphereKey}: no Quest template names it in sphereKeys`);
+  }
+
+  // The stub Quest Engine draws an Injury's type from these (M2-S5): at least one, each healing in
+  // a Day or more, and leaving no Trait or a Hero Trait content defines.
+  if (Object.keys(set.injuries).length === 0) problems.push('injuries is empty: the Quest Engine inflicts one of its types');
+  for (const [key, type] of Object.entries(set.injuries)) {
+    const where = `injuries.${key}`;
+    checkRange(where, 'healDays', type.healDaysMin, type.healDaysMax, 1, problems);
+    const trait = type.leavesTrait;
+    const row = trait === null || !Object.hasOwn(set.traits, trait) ? undefined : set.traits[trait];
+    if (trait !== null && row?.owner !== 'hero') {
+      problems.push(`${where}.leavesTrait: "${trait}" is not a Hero Trait`);
+    }
   }
 
   const lists: [string, string[]][] = [

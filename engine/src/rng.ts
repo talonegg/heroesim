@@ -27,9 +27,12 @@
  * `ensureStreams` on its copy of `world` (M2-S3, DL-25). No migration is needed and no other
  * stream moves.
  *
- * `board` (M2-S3) draws the Quests the Board offers.
+ * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the stub Quest Engine's
+ * resolutions; `pool` (M2-S8) the Unattached pool's refill. The tuple keeps ADR-0009's order,
+ * which is also the order of a new world's `rng` keys; an old save gains a missing stream wherever
+ * `ensureStreams` puts it.
  */
-export const streamNames = ['generation', 'board', 'pool'] as const;
+export const streamNames = ['generation', 'board', 'quests', 'pool'] as const;
 
 export type StreamName = (typeof streamNames)[number];
 

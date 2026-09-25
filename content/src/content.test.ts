@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 2 since the Quest templates (M2-S3)', () => {
+  test('is the core content set, version 3 since the Injury types (M2-S5)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(2);
+    expect(content.version).toBe(3);
   });
 
   test('has twenty Hero Stats in four areas', () => {
@@ -135,6 +135,27 @@ describe('loadContent()', () => {
       );
       expect(requiring.length).toBeGreaterThan(0);
       expect(requiring.length).toBeLessThan(templates.length / 2);
+    });
+  });
+
+  describe('Injury types (M2-S5)', () => {
+    const types = Object.values(content.injuries);
+
+    test('are a few, healing in 5 to 30 Days (INPUTS 4.5)', () => {
+      expect(types.length).toBeGreaterThanOrEqual(3);
+      for (const it of types) {
+        expect(it.healDaysMin, it.key).toBeGreaterThanOrEqual(5);
+        expect(it.healDaysMax, it.key).toBeLessThanOrEqual(30);
+        expect(it.healDaysMin, it.key).toBeLessThanOrEqual(it.healDaysMax);
+      }
+    });
+
+    test('leave a Hero Trait or none, and between them leave every Hero Trait', () => {
+      const left = types.flatMap((it) => (it.leavesTrait === null ? [] : [it.leavesTrait]));
+      const heroTraits = Object.values(content.traits).filter((trait) => trait.owner === 'hero');
+
+      expect(types.some((it) => it.leavesTrait === null)).toBe(true);
+      expect([...new Set(left)].sort()).toEqual(heroTraits.map((trait) => trait.key).sort());
     });
   });
 

@@ -610,6 +610,13 @@ describe('a key the content does not define warns and never refuses', () => {
       ids.offeredQuest,
       'slay-the-wyrm',
     ],
+    [
+      'an Injury type (M2-S5)',
+      (d) => (hero(d, idleHero).injury = { typeKey: 'frostbite', healsOnTurn: fixtureTurn + 3 }),
+      'unknown-injury',
+      idleHero,
+      'frostbite',
+    ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
   });
