@@ -185,13 +185,9 @@ describe('generateGuild', () => {
     expect(rivalsStream(byDefault)).toEqual((before as Record<string, unknown>).rivals);
     expect(byDefault.rng.generation).not.toEqual(before.generation);
 
-    // `rivals` joins `streamNames` in the milestone that first draws from it.
-    const { guild } = generateGuild(named, deps, {
-      controller: rival,
-      rosterSize: 8,
-      wealth: 0,
-      stream: 'rivals' as string as StreamName,
-    });
+    // Any core stream the caller names: `rivals` (M2-S9) here.
+    const stream: StreamName = 'rivals';
+    const { guild } = generateGuild(named, deps, { controller: rival, rosterSize: 8, wealth: 0, stream });
     expect(named.rng.generation).toEqual(before.generation);
     expect(rivalsStream(named)).not.toEqual((before as Record<string, unknown>).rivals);
     expect(guild.rosterIds).toHaveLength(8);

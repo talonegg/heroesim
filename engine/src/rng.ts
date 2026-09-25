@@ -27,9 +27,10 @@
  * `ensureStreams` on its copy of `world` (M2-S3, DL-25). No migration is needed and no other
  * stream moves.
  *
- * `board` (M2-S3) draws the Quests the Board offers.
+ * `board` (M2-S3) draws the Quests the Board offers. `rivals` (M2-S9) is the Rival controllers'
+ * own: a Disposition draws from it and from no other, and `steady` draws nothing (DL-30).
  */
-export const streamNames = ['generation', 'board', 'pool'] as const;
+export const streamNames = ['generation', 'board', 'pool', 'rivals'] as const;
 
 export type StreamName = (typeof streamNames)[number];
 

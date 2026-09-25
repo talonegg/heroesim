@@ -6,12 +6,21 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { Stat } from './content-types.js';
+import type { DispositionKey, Stat } from './content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type StatValues, type World } from './document.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
   return Object.values(world.guilds).find((guild) => guild.controller.kind === 'player');
+}
+
+/**
+ * The Disposition that makes `guild`'s choices, or `null` for the Guild whose choices the player
+ * makes. Where a Guild's choices come from is one of `plan.md` §1's three accepted exceptions to
+ * ADR-0002, and this is the one place the Rival controllers read it (M2-S9, DL-30).
+ */
+export function dispositionOf(guild: Pick<Guild, 'controller'>): DispositionKey | null {
+  return guild.controller.kind === 'rival' ? guild.controller.disposition : null;
 }
 
 /**

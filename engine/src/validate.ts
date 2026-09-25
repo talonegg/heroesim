@@ -37,6 +37,7 @@ import {
   type WorldDocument,
 } from './document.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
+import { dispositionOf } from './selectors.js';
 
 // ── Results ──────────────────────────────────────────────────────────────────────────────────
 
@@ -76,6 +77,7 @@ export const warningChecks = [
   'unknown-sphere',
   'unknown-item',
   'unknown-template',
+  'unknown-disposition',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -155,6 +157,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownSphere,
   unknownItem,
   unknownTemplate,
+  unknownDisposition,
 ];
 
 /**
@@ -1056,13 +1059,24 @@ function unknownSphere({ world }: WorldDocument, content: ContentSet): Validatio
 }
 
 /**
- * A content table a later milestone adds to `ContentSet`: Quest templates (M2-S3) and Item
- * definitions (M5-S1). Until content carries one under this name it defines no such key, and
- * every one warns, as §6 says (DL-20).
+ * A content table a later milestone adds to `ContentSet`: Quest templates (M2-S3), Dispositions
+ * (M2-S9) and Item definitions (M5-S1). Until content carries one under this name it defines no
+ * such key, and every one warns, as §6 says (DL-20).
  */
-function laterTable(content: ContentSet, name: 'questTemplates' | 'items'): object {
+function laterTable(content: ContentSet, name: 'questTemplates' | 'dispositions' | 'items'): object {
   const table: unknown = Reflect.get(content, name);
   return isMap(table) ? table : {};
+}
+
+/** A Rival's Disposition (M2-S9). The player's Guild names none. */
+function unknownDisposition({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-disposition', 'a Disposition');
+  const dispositions = laterTable(content, 'dispositions');
+  for (const [id, guild] of Object.entries(world.guilds)) {
+    const disposition = dispositionOf(guild);
+    if (disposition !== null) known(id, 'controller', dispositions, disposition);
+  }
+  return warnings;
 }
 
 function unknownItem({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {

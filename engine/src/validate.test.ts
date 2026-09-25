@@ -610,17 +610,28 @@ describe('a key the content does not define warns and never refuses', () => {
       ids.offeredQuest,
       'slay-the-wyrm',
     ],
+    [
+      "a Rival's Disposition",
+      (d) => (guild(d, ids.rivalGuild).controller = { kind: 'rival', disposition: 'reckless' }),
+      'unknown-disposition',
+      ids.rivalGuild,
+      'reckless',
+    ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
   });
 
-  test('before content has Quest templates or Items, every such key warns', () => {
+  test('before content has Quest templates, Dispositions or Items, every such key warns', () => {
     const withoutLaterTables: ContentSet = { ...testContent };
     Reflect.deleteProperty(withoutLaterTables, 'questTemplates');
+    Reflect.deleteProperty(withoutLaterTables, 'dispositions');
     Reflect.deleteProperty(withoutLaterTables, 'items');
     const found = warnings(() => undefined, withoutLaterTables);
     const templates = found.filter(({ check }) => check === 'unknown-template').map(({ id }) => id);
     expect(templates).toEqual([ids.takenQuest, ids.offeredQuest]);
+    // The Rival's, and not the player's, which names none.
+    const dispositions = found.filter(({ check }) => check === 'unknown-disposition').map(({ id }) => id);
+    expect(dispositions).toEqual([ids.rivalGuild]);
     // The unique Item and the four stacks.
     expect(found.filter(({ check }) => check === 'unknown-item')).toHaveLength(5);
   });

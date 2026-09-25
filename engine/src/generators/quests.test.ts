@@ -183,7 +183,7 @@ describe('generateQuest', () => {
     expect(() => generateQuest(world, { ...patron, id: 'patron-000009' as Patron['id'] }, deps)).toThrow(/patron-000009/);
     expect(() => generateQuest(world, patron, unserved)).toThrow(/crown/);
     expect(() => generateQuest(world, patron, deps, { templateKey: 'a-quiet-word' })).toThrow(/a-quiet-word/);
-    expect(() => generateQuest(world, patron, deps, { stream: 'rivals' as string as StreamName })).toThrow(/rivals/);
+    expect(() => generateQuest(world, patron, deps, { stream: 'market' as string as StreamName })).toThrow(/market/);
     expect(world).toEqual(before);
   });
 });

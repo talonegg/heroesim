@@ -1,6 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Background, Class, Names, QuestTemplate, Skill, Sphere, Stat, Trait } from '@heroesim/engine';
+import type {
+  Background,
+  Class,
+  Disposition,
+  Names,
+  QuestTemplate,
+  Skill,
+  Sphere,
+  Stat,
+  Trait,
+} from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -20,6 +30,7 @@ interface Files {
   'spheres.json': Rows<Sphere>;
   'names.json': Names;
   'quest-templates.json': Rows<QuestTemplate>;
+  'dispositions.json': Rows<Disposition>;
 }
 
 function realFiles(): Record<string, string> {
@@ -176,6 +187,7 @@ describe('a key that is not kebab-case', () => {
     ['skills.json', 'fieldSurgery'],
     ['spheres.json', 'the crown'],
     ['backgrounds.json', '-farm-born'],
+    ['dispositions.json', 'Steady'],
   ] as const)('in %s is refused, naming the key: %s', (file, key) => {
     const files = withJson(file, (json) => {
       const rows = json as Record<string, unknown>;
@@ -316,6 +328,14 @@ describe('a file', () => {
     });
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(/stats\.json: wits\.area.*"emotional"/);
+  });
+
+  test('whose Disposition has a field the schema does not know is refused, naming it (M2-S9)', () => {
+    const files = withJson('dispositions.json', (json) => {
+      Object.assign(json['steady'] ?? {}, { riskAppetite: 0.2 });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/dispositions\.json: steady\.riskAppetite/);
   });
 
   test("with a Trait's effect set before any rule reads it is refused", () => {

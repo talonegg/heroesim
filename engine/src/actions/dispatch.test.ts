@@ -14,7 +14,9 @@ import { buildDocument, fixtureTurn, testDeps, withValid } from '../world.test-s
 import { applyAction } from './action.js';
 import { dispatch, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
-const deps = testDeps();
+// No Rivals in a created world: from M2-S9 they take Quests off the Board each afternoon, and
+// these tests play Turns to watch the player's own Parties.
+const deps = testDeps({ rivalCount: 0 });
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** A built document with a Roster of four (a Warrior in a Party, then a Rogue, a Mage, a Healer). */

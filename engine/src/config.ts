@@ -108,6 +108,12 @@ export interface GameConfig {
    */
   questDifficultyMin: number;
   questDifficultyMax: number;
+  // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
+  /**
+   * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
+   * "when Wealth exceeds three Upkeeps"). M6-S1 moves the threshold into each Disposition's row.
+   */
+  recruitWealthMultiple: number;
 }
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
@@ -159,6 +165,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questOfferDays: 3,
   questDifficultyMin: 10,
   questDifficultyMax: 100,
+  recruitWealthMultiple: 3,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

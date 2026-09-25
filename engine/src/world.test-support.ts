@@ -161,7 +161,8 @@ export function deepFreeze<T>(value: T): T {
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), and the twelve Quest
- * templates, two to a Sphere, with simpler demands (M2-S3). It also carries the Item table M5-S1
+ * templates, two to a Sphere, with simpler demands (M2-S3), and the one Disposition, `steady`
+ * (M2-S9). It also carries the Item table M5-S1
  * adds, so that fixture Items raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
@@ -242,6 +243,7 @@ export const testContent: ContentSet = deepFreeze(
         questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
           'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
       ]),
+      dispositions: keyed({}, 'steady'),
     },
     {
       items: keyed({}, 'healing-draught', 'lantern-of-stannary'),

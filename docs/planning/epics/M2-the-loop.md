@@ -228,10 +228,10 @@ engine change, approach §4).
 
 **Acceptance:**
 
-- [ ] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
+- [x] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
       taken per controller kind
-- [ ] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
-- [ ] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
+- [x] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
+- [x] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
       the test asserts no stream moved)
 
 ### M2-S10 · Endings · 1 session
