@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld } from './create.js';
 import { makeId, type Hero } from './document.js';
-import { testDeps } from './generators/test-content.js';
+import { testDeps } from './world.test-support.js';
 import { baseStat, playerGuild, unattachedHeroes } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
