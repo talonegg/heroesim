@@ -59,7 +59,7 @@ morning    Board refresh (drawing from Patrons) · Market refresh · [modules: o
 afternoon  Rival controllers act, on what the player left · Quests in flight advance ·
            [modules: onAfternoon]
 night      Quests concluding → Quest Engine → outcomes applied
-           Hero State Engine (heal, Morale, ageing, Retirement checks)
+           Hero State Engine (heal, Morale, Retirement checks) · ageing (decline on those nights)
            Guild State Engine (Upkeep on its Day, Fame, Rankings)
            Unattached pool refresh · [modules: onNight — Random Events, when built]
            Ending checks (Retirement, Bankruptcy, Roster wiped)

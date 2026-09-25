@@ -1,6 +1,6 @@
 // Night: the Hero State Engine — healing, Morale drift and the yearly Retirement check (approach
-// §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29). Ageing itself is derived (`ageOf`); M3-S4 adds the
-// yearly decline beside the Retirement check.
+// §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29). Ageing itself is derived (`ageOf`); the yearly decline
+// is the `ageing` phase's, which runs next on the same nights (ageing.ts, M3-S4, DL-37).
 //
 // It covers the Heroes on a Roster of a Guild that has not folded, in Guild id order and Roster
 // order, those away on a Quest included; a dead or retired Hero has left the Roster and is never
@@ -101,9 +101,10 @@ export function retirementChance(
 /**
  * Whether `hero`'s yearly check falls tonight: tonight is an anniversary night and the Hero is
  * home, or the Hero came home tonight from a Quest they were away on over the last anniversary
- * night. An away Hero is never checked.
+ * night. An away Hero is never checked. The `ageing` phase, which runs next, asks it too, so a
+ * Hero's decline falls on the nights of their Retirement check (M3-S4, DL-37).
  */
-function retirementCheckDue(hero: Hero, ctx: PhaseContext): boolean {
+export function retirementCheckDue(hero: Hero, ctx: PhaseContext): boolean {
   if (hero.partyId !== null) return false;
   if (lastAnniversaryNight(hero, ctx.turn, ctx.config) === ctx.turn) return true;
   const departed = departureOfAPartyHomeTonight(ctx.history, hero.id, ctx.turn);

@@ -89,6 +89,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
   'hero.retired': event('hero.retired', [heroId, guildId], { heroId, guildId, age: 51 }),
+  'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
@@ -112,6 +113,7 @@ describe('narrate', () => {
       `Lady Maud offered ${content.questTemplates['clear-the-barrow']?.name} (quest-000003).`,
     );
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
+    expect(narrate(samples['hero.declined'], content)).toBe('Brenna Ashcombe (hero-000007), at 41, lost 1 Endurance to age.');
     expect(narrate(samples['quest.resolved'], content)).toContain('and failed: Wealth 0, Fame -2.');
   });
 });

@@ -22,6 +22,7 @@ describe('the phase list', () => {
       ['afternoon', 'questsAdvance'],
       ['night', 'questsConclude'],
       ['night', 'heroState'],
+      ['night', 'ageing'],
       ['night', 'guildState'],
       ['night', 'poolRefresh'],
       ['night', 'endings'],
@@ -65,7 +66,7 @@ describe('runTurn', () => {
     const events = runTurn(world, ctx);
 
     expect(events.map((event) => event.payload)).toEqual(
-      ['questsConclude', 'heroState', 'guildState', 'poolRefresh', 'endings'].map((seed) => ({ seed })),
+      ['questsConclude', 'heroState', 'ageing', 'guildState', 'poolRefresh', 'endings'].map((seed) => ({ seed })),
     );
   });
 
