@@ -30,7 +30,8 @@ Front ends: cli · web        Harness: automatic policy over N seeds
 ```
 
 **World State** is a plain serialisable document: the data layer. It includes the random
-source's state and the current Day and Turn, so a snapshot is the whole game.
+source's state and the current Turn, so a snapshot is the whole game. Its shape, tables and
+rules are in [`data-model.md`](./data-model.md).
 
 **Generators** create entities from the seed: at world creation, and over time (Unattached
 Heroes, Quests for the Board, events). Their outputs are World State changes plus events.

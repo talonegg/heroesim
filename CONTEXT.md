@@ -231,6 +231,16 @@ A thing the Guild owns and equips or expends: permanent gear that a Hero carries
 consumable that is used up.
 _Avoid_: Equipment (for the general concept), Gear (for consumables), Inventory
 
+**Common Item**:
+An Item that is not an individual: tools, potions, ordinary gear. It has a quantity and may
+be held in several places at once, including the Market.
+_Avoid_: Stackable, Generic item, Commodity
+
+**Unique Item**:
+An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
+holder at a time.
+_Avoid_: Artefact, Legendary, Named item
+
 **Unattached Hero**:
 A Hero on no Roster, in a pool the Heroes Generator refreshes and every Guild recruits from
 for a signing fee.
