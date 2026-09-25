@@ -172,12 +172,13 @@ Config: `startingRosterSize`, `startingWealth`, `rivalCount`, `rivalRosterMin/Ma
 
 **Acceptance:**
 
-- [ ] `createWorld` returns a document that the validator (S7) accepts
-- [ ] Every Guild, player and Rival, is produced by the same function; the only difference in
+- [ ] `createWorld` returns a document that the validator (S7) accepts — *open: S7 was built in
+      parallel; the test is wired once both are merged*
+- [x] Every Guild, player and Rival, is produced by the same function; the only difference in
       the output is `controller` (a test diffs a player Guild and a Rival Guild generated with the
       same parameters)
-- [ ] The player's starting Roster has one Hero per Class when `startingRosterSize` is 4
-- [ ] `meta.config` deep-equals the config passed in and `meta.seed` the seed
+- [x] The player's starting Roster has one Hero per Class when `startingRosterSize` is 4
+- [x] `meta.config` deep-equals the config passed in and `meta.seed` the seed
 
 ### M1-S7 · Validator · 1 session
 
