@@ -44,6 +44,14 @@ export type WorldRulesAdopted = Entry<
   { oldConfigVersion: number; newConfigVersion: number }
 >;
 
+// ── The Guild State Engine (M2-S7, INPUTS 4.6, DL-26) ────────────────────────────────────────
+
+/**
+ * Upkeep was deducted from a Guild's Wealth on its Day (`upkeep`, selectors.ts): `amount` taken
+ * and Wealth after paying it, which may be negative.
+ */
+export type GuildUpkeepPaid = Entry<'guild.upkeep-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -51,7 +59,8 @@ export type EngineEvent =
   | GuildmasterGenerated
   | HeroGenerated
   | PatronGenerated
-  | WorldRulesAdopted;
+  | WorldRulesAdopted
+  | GuildUpkeepPaid;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -71,4 +80,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.generated': false,
   'patron.generated': false,
   'world.rules-adopted': true,
+  'guild.upkeep-paid': false,
 } satisfies Record<EngineEventType, boolean>);

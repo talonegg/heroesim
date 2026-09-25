@@ -16,8 +16,8 @@ import {
   dayOf,
   timeOfDay,
   unattachedHeroes,
+  upkeep,
   yearOf,
-  type ContentSet,
   type EngineDeps,
   type Entry,
   type Guild,
@@ -102,8 +102,9 @@ function controllerOf(guild: Guild): string {
   return guild.controller.kind === 'player' ? 'Player' : `Rival (${guild.controller.disposition})`;
 }
 
-function guildTable(document: WorldDocument, content: ContentSet): string[] {
+function guildTable(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
+  const { content, config } = deps;
   const guilds = Object.values(world.guilds);
   return table(
     [
@@ -115,6 +116,7 @@ function guildTable(document: WorldDocument, content: ContentSet): string[] {
       { heading: 'Roster', align: 'right' },
       { heading: 'Wealth', align: 'right' },
       { heading: 'Fame', align: 'right' },
+      { heading: 'Upkeep', align: 'right' },
     ],
     guilds.map((guild) => [
       guild.id,
@@ -125,6 +127,7 @@ function guildTable(document: WorldDocument, content: ContentSet): string[] {
       String(guild.rosterIds.length),
       String(guild.wealth),
       String(guild.fame),
+      String(upkeep(guild, world, config)),
     ]),
   );
 }
@@ -142,7 +145,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
-    ...guildTable(document, deps.content),
+    ...guildTable(document, deps),
     '',
     counts.join(', '),
   ];
@@ -150,7 +153,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
 
 /** `show guilds`. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
-  return ['Guilds', '', ...guildTable(document, deps.content)];
+  return ['Guilds', '', ...guildTable(document, deps)];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────

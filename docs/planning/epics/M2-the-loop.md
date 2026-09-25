@@ -186,9 +186,9 @@ Config: `upkeepEveryDays`, `wagePerLevel`, `hallMaintenancePerGrade`, `bankruptc
 
 **Acceptance:**
 
-- [ ] Upkeep is deducted from Rivals and the player alike on the same Day
-- [ ] `upkeep()` is a selector: no `upkeep` field exists on the Guild row
-- [ ] A Guild that recovers above the floor loses `belowFloorSince`
+- [x] Upkeep is deducted from Rivals and the player alike on the same Day
+- [x] `upkeep()` is a selector: no `upkeep` field exists on the Guild row
+- [x] A Guild that recovers above the floor loses `belowFloorSince`
 
 ### M2-S8 · Recruitment and the pool · 1 session
 

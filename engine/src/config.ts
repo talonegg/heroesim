@@ -71,6 +71,20 @@ export interface GameConfig {
   /** How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2). */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
+
+  // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
+  /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
+  upkeepEveryDays: number;
+  /** Wealth deducted per Level of each living Hero on the Roster, each Upkeep. */
+  wagePerLevel: number;
+  /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
+  hallMaintenancePerGrade: number;
+  /** Wealth below this sets `belowFloorSince`; at or above it, `belowFloorSince` is cleared. */
+  bankruptcyFloor: number;
+  /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */
+  bankruptcyGraceDays: number;
+  /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
+  fameFloor: number;
 }
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
@@ -107,6 +121,13 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
+
+  upkeepEveryDays: 10,
+  wagePerLevel: 5,
+  hallMaintenancePerGrade: 10,
+  bankruptcyFloor: 0,
+  bankruptcyGraceDays: 30,
+  fameFloor: 0,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */
