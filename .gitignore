@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+
+# Local saves, harness samples and front-end build and test output
+.saves/
+harness/samples/
+web/dist/
+test-results/
+playwright-report/
+.wrangler/
+
+# Agent worktrees are separate checkouts, never part of this one
+.claude/worktrees/

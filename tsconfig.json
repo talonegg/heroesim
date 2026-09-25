@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "references": [
+    { "path": "engine" },
+    { "path": "content" },
+    { "path": "harness" },
+    { "path": "cli" },
+    { "path": "web" }
+  ]
+}

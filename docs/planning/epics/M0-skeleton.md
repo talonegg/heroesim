@@ -4,7 +4,7 @@
 **Sessions:** 3–4 · **Depends on:** nothing · **Implements:** `plan.md` M0; ADR-0007
 **Gate:** `npm test` and `npm run lint` pass locally and in CI; a deliberate `Math.random()` in `engine/` fails lint; `docs/decision-log.md` exists with DL-01 to DL-10
 
-**Status:** not started
+**Status:** in progress — M0-S1 done
 
 ## 0. What lands in M0
 
@@ -61,10 +61,10 @@ Dev dependencies, pinned exactly: `typescript`, `vitest`, `tsx`, `@types/node`, 
 
 **Acceptance:**
 
-- [ ] `npm install` then `npm test` runs five placeholder tests, one per package, and passes
-- [ ] `npm run typecheck` passes with no emitted files committed (`dist/` ignored)
-- [ ] `engine/package.json` has no `dependencies` and no `devDependencies`
-- [ ] `.node-version`, `.npmrc` (`save-exact=true`, `engine-strict=true`), `.editorconfig`
+- [x] `npm install` then `npm test` runs five placeholder tests, one per package, and passes
+- [x] `npm run typecheck` passes with no emitted files committed (`dist/` ignored)
+- [x] `engine/package.json` has no `dependencies` and no `devDependencies`
+- [x] `.node-version`, `.npmrc` (`save-exact=true`, `engine-strict=true`), `.editorconfig`
       (2-space, LF, final newline) and `.gitignore` (`node_modules/`, `dist/`, `coverage/`,
       `.saves/`, `web/dist/`, `test-results/`, `playwright-report/`, `harness/samples/`,
       `.wrangler/`) exist
