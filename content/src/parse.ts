@@ -8,7 +8,12 @@ import type {
   BackgroundOwner,
   Class,
   ContentSet,
+  Consequence,
+  ConsequenceKind,
   Disposition,
+  Encounter,
+  EncounterAggregate,
+  EncounterKind,
   FacilityKey,
   Improvement,
   InjuryType,
@@ -31,9 +36,10 @@ export const contentSetId = 'core';
 /**
  * Raised whenever the content changes, so a document says which content it was created under:
  * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
- * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements.
+ * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from M4-S1, which added the Encounters and each
+ * Quest template's Encounter kinds and counts.
  */
-export const contentVersion = 5;
+export const contentVersion = 6;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -48,6 +54,7 @@ export const contentFiles = [
   'dispositions.json',
   'injuries.json',
   'improvements.json',
+  'encounters.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -59,6 +66,18 @@ const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const traitOwners: Record<TraitOwner, true> = { hero: true, guildmaster: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
+const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
+const aggregates: Record<EncounterAggregate, true> = { best: true, sum: true };
+const consequenceKinds: Record<ConsequenceKind, true> = {
+  injury: true,
+  death: true,
+  morale: true,
+  regard: true,
+  xp: true,
+  wealth: true,
+  fame: true,
+};
+const regardBetween: Record<'party', true> = { party: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -128,6 +147,9 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         skillKeys: row.strings('skillKeys'),
         requires: requires(row.child('requires')),
         lootTableKey: row.null('lootTableKey'),
+        encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
+        encountersMin: row.integer('encountersMin'),
+        encountersMax: row.integer('encountersMax'),
       }),
     ),
     dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
@@ -151,6 +173,15 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         cost: row.integer('cost'),
       }),
     ),
+    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row) => ({
+      name: row.string('name'),
+      kind: row.oneOf('kind', encounterKinds),
+      demands: row.weightedKeys('demands'),
+      aggregate: row.oneOf('aggregate', aggregates),
+      skillKeys: row.strings('skillKeys'),
+      difficultyFactor: row.number('difficultyFactor'),
+      consequences: outcomes(row.child('consequences')),
+    })),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -239,6 +270,40 @@ function requires(reader: RowReader): QuestTemplateRequires {
   return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
 }
 
+/** An Encounter's consequences: a list for each outcome, and nothing else (M4-S1). */
+function outcomes(reader: RowReader): Encounter['consequences'] {
+  const result = {
+    success: reader.children('success').map(consequence),
+    failure: reader.children('failure').map(consequence),
+  };
+  reader.refuseUnknown("an Encounter's consequences");
+  return result;
+}
+
+/** One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). */
+function consequence(reader: RowReader): Consequence {
+  const kind = reader.oneOf('kind', consequenceKinds);
+  const read = ((): Consequence => {
+    switch (kind) {
+      case 'injury':
+        return { kind, typeKey: reader.string('typeKey'), chance: reader.number('chance'), count: reader.integer('count') };
+      case 'death':
+        return { kind, chance: reader.number('chance') };
+      case 'morale':
+        return { kind, delta: reader.integer('delta') };
+      case 'regard':
+        return { kind, between: reader.oneOf('between', regardBetween), delta: reader.number('delta') };
+      case 'xp':
+      case 'wealth':
+        return { kind, factor: reader.number('factor') };
+      case 'fame':
+        return { kind, delta: reader.integer('delta') };
+    }
+  })();
+  reader.refuseUnknown(`a consequence of kind ${kind}`);
+  return read;
+}
+
 /**
  * Reads a row's fields, recording a problem for each that is missing or of the wrong type and
  * returning a stand-in so reading can go on and every problem be reported at once.
@@ -305,6 +370,15 @@ class RowReader {
     return undefined;
   }
 
+  /** A list of strings, each one of `choices`, such as a Quest template's Encounter kinds. */
+  oneOfEach<Choice extends string>(field: string, choices: Record<Choice, true>): Choice[] {
+    const value = this.field(field);
+    const isChoice = (item: unknown): item is Choice => typeof item === 'string' && Object.hasOwn(choices, item);
+    if (Array.isArray(value) && value.every(isChoice)) return [...value];
+    this.wrong(field, value, `a list, each one of ${Object.keys(choices).join(', ')}`);
+    return [];
+  }
+
   /** A list of `[key, weight]` pairs, such as a Quest template's demands. */
   weightedKeys(field: string): [string, number][] {
     const value = this.field(field);
@@ -340,6 +414,25 @@ class RowReader {
   /** A reader for the object in `field`, reporting its problems under this row's path. */
   child(field: string): RowReader {
     return new RowReader(this.file, [...this.prefix, field], this.object(field), this.problems);
+  }
+
+  /**
+   * A reader for each object in the list in `field`, reporting its problems under this row's path
+   * and the item's place in the list; an item that is not an object is a problem of its own.
+   */
+  children(field: string): RowReader[] {
+    const value = this.field(field);
+    if (!Array.isArray(value)) {
+      this.wrong(field, value, 'a list of objects');
+      return [];
+    }
+    const readers: RowReader[] = [];
+    value.forEach((item: unknown, index) => {
+      const where = [...this.prefix, field, String(index)];
+      if (isObject(item)) readers.push(new RowReader(this.file, where, item, this.problems));
+      else this.problems.push(`${this.file}: ${where.join('.')} is ${JSON.stringify(item)}; expected an object`);
+    });
+    return readers;
   }
 
   /** Record a problem for every field of the row that nothing read. */

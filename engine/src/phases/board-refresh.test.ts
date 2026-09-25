@@ -117,7 +117,7 @@ describe('boardRefresh', () => {
     expect(count(playTo(document, 15, deps).document.history, 'quest.expired')).toBe(deps.config.boardSize);
   });
 
-  test('advances the board stream and no other', () => {
+  test("advances the board stream and, for the new Quests' Encounter sequences, the encounters stream, and no other", () => {
     const deps = testDeps(noRivals);
     const document = created('streams', deps);
     const others = plannedStreams.filter((name) => !Object.hasOwn(document.world.rng, name));
@@ -130,7 +130,7 @@ describe('boardRefresh', () => {
     const after = morning.world.rng as Record<string, unknown>;
     expect(count(morning.history, 'quest.expired')).toBe(deps.config.boardSize);
     for (const name of plannedStreams) {
-      if (name === 'board') expect(after[name], name).not.toEqual(before[name]);
+      if (name === 'board' || name === 'encounters') expect(after[name], name).not.toEqual(before[name]);
       else expect(after[name], name).toEqual(before[name]);
     }
   });

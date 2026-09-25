@@ -152,6 +152,109 @@ export interface QuestTemplate {
   requires: QuestTemplateRequires;
   /** `null` until Loot tables exist (M5). */
   lootTableKey: null;
+  /**
+   * The kinds of Encounter a Quest of this kind is drawn with (M4-S1): each of its Encounters is
+   * of one of these, at least one listed, none twice, and content holding an Encounter of each.
+   */
+  encounterKinds: EncounterKind[];
+  /**
+   * How many Encounters a Quest of this kind is drawn with, from `encountersMin` at the bottom of
+   * its difficulty range to `encountersMax` at the top (INPUTS 6.1: 2 to 5 by difficulty); each at
+   * least 1.
+   */
+  encountersMin: number;
+  encountersMax: number;
+}
+
+/** The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from. */
+export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const;
+
+export type EncounterKind = (typeof encounterKinds)[number];
+
+/**
+ * How a Check reads the Party's Stats on an Encounter's demands (M4-S2): `best` takes the best
+ * Hero's value of each Stat, `sum` the Party's sum of it.
+ */
+export type EncounterAggregate = 'best' | 'sum';
+
+/**
+ * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
+ * each among the living who carry no Injury from this Quest yet.
+ */
+export interface InjuryConsequence {
+  kind: 'injury';
+  typeKey: InjuryTypeKey;
+  chance: number;
+  count: number;
+}
+
+/** With probability `chance` one living Hero of the Party dies, and takes no part in what follows. */
+export interface DeathConsequence {
+  kind: 'death';
+  chance: number;
+}
+
+/** Each Hero who comes home has their Morale moved by `delta`. */
+export interface MoraleConsequence {
+  kind: 'morale';
+  delta: number;
+}
+
+/** Every pair in the Party has its Regard for each other moved by `delta` (applied from M4-S4). */
+export interface RegardConsequence {
+  kind: 'regard';
+  between: 'party';
+  delta: number;
+}
+
+/** The Quest's XP for each Hero is multiplied by `factor`. */
+export interface XpConsequence {
+  kind: 'xp';
+  factor: number;
+}
+
+/** The Quest's reward, paid only if the Quest succeeds, is multiplied by `factor`. */
+export interface WealthConsequence {
+  kind: 'wealth';
+  factor: number;
+}
+
+/** The Guild's Fame moves by `delta`, beside the Quest's own Fame effect. */
+export interface FameConsequence {
+  kind: 'fame';
+  delta: number;
+}
+
+/** What an Encounter's outcome does (M4-S1): a closed union, so a new kind is an engine change. */
+export type Consequence =
+  | InjuryConsequence
+  | DeathConsequence
+  | MoraleConsequence
+  | RegardConsequence
+  | XpConsequence
+  | WealthConsequence
+  | FameConsequence;
+
+export type ConsequenceKind = Consequence['kind'];
+
+/**
+ * One typed step of a Quest (M4-S1, `encounters.json`), resolved by a Check (M4-S2): the Party's
+ * capability on the weighted `demands`, aggregated by `aggregate`, with a bonus for the best rating
+ * held of each of `skillKeys`, against `difficultyFactor` times the Quest's difficulty. Its
+ * `consequences` are applied by outcome.
+ */
+export interface Encounter {
+  key: EncounterKey;
+  name: string;
+  kind: EncounterKind;
+  /** Hero Stats with weights summing to 1, as a Quest template's demands. */
+  demands: [statKey: StatKey, weight: number][];
+  aggregate: EncounterAggregate;
+  /** The Skills that help; may be none. */
+  skillKeys: SkillKey[];
+  /** The Check's target is this times the Quest's difficulty; above 0. */
+  difficultyFactor: number;
+  consequences: { success: Consequence[]; failure: Consequence[] };
 }
 
 /**
@@ -226,6 +329,8 @@ export interface ContentSet {
   dispositions: Record<DispositionKey, Disposition>;
   /** The Hall Improvements, each one grade of one facility and its cost (M3-S6). */
   improvements: Record<ImprovementKey, Improvement>;
+  /** The Encounters a Quest's sequence is drawn from, by the kinds its template names (M4-S1). */
+  encounters: Record<EncounterKey, Encounter>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

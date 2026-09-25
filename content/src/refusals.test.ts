@@ -4,6 +4,7 @@ import type {
   Background,
   Class,
   Disposition,
+  Encounter,
   InjuryType,
   Names,
   QuestTemplate,
@@ -33,6 +34,7 @@ interface Files {
   'quest-templates.json': Rows<QuestTemplate>;
   'injuries.json': Rows<InjuryType>;
   'dispositions.json': Rows<Disposition>;
+  'encounters.json': Rows<Encounter>;
 }
 
 function realFiles(): Record<string, string> {
@@ -291,6 +293,106 @@ describe('a Quest template', () => {
     expect(refusalOf(() => parseContent(files)).message).toContain(
       'spheres.villages: no Quest template names it in sphereKeys',
     );
+  });
+});
+
+describe("a Quest template's Encounters (M4-S1)", () => {
+  test.each<[string, (it: Template) => void, RegExp]>([
+    ['no Encounter kind', (it) => (it.encounterKinds = []), /encounterKinds is empty/],
+    ['a kind listed twice', (it) => void it.encounterKinds.push('combat'), /encounterKinds: "combat" is listed twice/],
+    ['a count range upside down', (it) => (it.encountersMin = 5), /encountersMin 5 is greater than encountersMax 4/],
+    ['a count of no Encounters', (it) => (it.encountersMin = 0), /encountersMin is 0/],
+  ])('with %s is refused, naming the template', (_, change, problem) => {
+    const files = withJson('quest-templates.json', (json) => change(barrow(json)));
+
+    const { message } = refusalOf(() => parseContent(files));
+
+    expect(message).toContain('questTemplates.clear-the-barrow');
+    expect(message).toMatch(problem);
+  });
+
+  test('with a kind that is not one of the five is refused, naming the field', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      Object.assign(barrow(json), { encounterKinds: ['combat', 'naval'] });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/clear-the-barrow\.encounterKinds is \["combat","naval"\]/);
+  });
+
+  test('with a kind content has no Encounter of is refused, naming the kind', () => {
+    const files = withJson('encounters.json', (json) => {
+      for (const [key, it] of Object.entries(json)) if (it.kind === 'stealth') delete json[key];
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "stealth"/,
+    );
+  });
+});
+
+// M4-S1's first box: an Encounter naming an unknown Stat, Skill or Injury type is refused.
+describe('an Encounter (M4-S1)', () => {
+  const ambush = (json: Files['encounters.json']) => json['ambush-on-the-road'] as Omit<Encounter, 'key'>;
+
+  test.each<[string, (it: Omit<Encounter, 'key'>) => void, RegExp]>([
+    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.4]), /encounters\.ambush-on-the-road\.demands: "strenght" is not a Hero Stat/],
+    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['judgement', 0.4]), /encounters\.ambush-on-the-road\.demands: "judgement" is not a Hero Stat/],
+    ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /encounters\.ambush-on-the-road\.skillKeys: "axemanship" is not a Skill/],
+    [
+      'an Injury of a type that does not exist',
+      (it) => void it.consequences.failure.push({ kind: 'injury', typeKey: 'frostbite', chance: 0.1, count: 1 }),
+      /encounters\.ambush-on-the-road\.consequences\.failure\.2\.typeKey: "frostbite" is not an Injury type/,
+    ],
+    ['demand weights not summing to 1', (it) => (it.demands[0] = ['weaponry', 0.6]), /ambush-on-the-road\.demands: weights sum to 1\.2, not 1/],
+    ['a difficulty factor of 0', (it) => (it.difficultyFactor = 0), /ambush-on-the-road\.difficultyFactor is 0/],
+    [
+      'a chance above 1',
+      (it) => void it.consequences.failure.push({ kind: 'death', chance: 1.5 }),
+      /ambush-on-the-road\.consequences\.failure\.2\.chance is 1\.5/,
+    ],
+    [
+      'an Injury to no Heroes',
+      (it) => void it.consequences.failure.push({ kind: 'injury', typeKey: 'deep-cut', chance: 0.1, count: 0 }),
+      /ambush-on-the-road\.consequences\.failure\.2\.count is 0/,
+    ],
+    [
+      'a negative factor',
+      (it) => void it.consequences.success.push({ kind: 'wealth', factor: -1 }),
+      /ambush-on-the-road\.consequences\.success\.1\.factor is -1/,
+    ],
+  ])('with %s is refused, naming the Encounter', (_, change, problem) => {
+    const files = withJson('encounters.json', (json) => change(ambush(json)));
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
+  });
+
+  test('with a consequence of an unknown kind, or a field its kind lacks, is refused, naming it', () => {
+    const unknown = withJson('encounters.json', (json) => {
+      Object.assign(ambush(json).consequences, { success: [{ kind: 'loot', table: 'hoard' }] });
+    });
+    const extra = withJson('encounters.json', (json) => {
+      Object.assign(ambush(json).consequences, { success: [{ kind: 'fame', delta: 1, factor: 2 }] });
+    });
+    const outcome = withJson('encounters.json', (json) => {
+      Object.assign(ambush(json).consequences, { draw: [] });
+    });
+
+    expect(refusalOf(() => parseContent(unknown)).message).toMatch(/ambush-on-the-road\.consequences\.success\.0\.kind is "loot"/);
+    expect(refusalOf(() => parseContent(extra)).message).toMatch(
+      /ambush-on-the-road\.consequences\.success\.0\.factor is not a field of a consequence of kind fame/,
+    );
+    expect(refusalOf(() => parseContent(outcome)).message).toMatch(/ambush-on-the-road\.consequences\.draw is not a field/);
+  });
+
+  test('of a kind or aggregate outside the choices is refused, naming the choices', () => {
+    const files = withJson('encounters.json', (json) => {
+      Object.assign(ambush(json), { kind: 'naval', aggregate: 'worst' });
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+
+    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth/);
+    expect(message).toMatch(/ambush-on-the-road\.aggregate is "worst"; expected one of best, sum/);
   });
 });
 

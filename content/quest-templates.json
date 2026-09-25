@@ -11,7 +11,9 @@
     "demands": [["strength", 0.3], ["weaponry", 0.3], ["courage", 0.2], ["constitution", 0.2]],
     "skillKeys": ["swordcraft", "benediction"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["combat", "stealth", "travel"],
+    "encountersMin": 2, "encountersMax": 4
   },
   "hold-the-border-fort": {
     "name": "Hold the border fort",
@@ -25,7 +27,9 @@
     "demands": [["strength", 0.3], ["weaponry", 0.3], ["endurance", 0.2], ["leadership", 0.2]],
     "skillKeys": ["tactics", "shieldwork"],
     "requires": { "classKey": "warrior" },
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["combat", "travel"],
+    "encountersMin": 3, "encountersMax": 5
   },
 
   "escort-the-tithe": {
@@ -40,7 +44,9 @@
     "demands": [["endurance", 0.3], ["perception", 0.3], ["weaponry", 0.2], ["diplomacy", 0.2]],
     "skillKeys": ["tactics", "field-surgery"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["travel", "combat", "social"],
+    "encountersMin": 2, "encountersMax": 3
   },
   "lay-the-restless-dead": {
     "name": "Lay the restless dead",
@@ -54,7 +60,9 @@
     "demands": [["spirit", 0.4], ["willpower", 0.3], ["courage", 0.3]],
     "skillKeys": ["benediction", "warding"],
     "requires": { "classKey": "healer" },
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["combat", "arcane"],
+    "encountersMin": 3, "encountersMax": 4
   },
 
   "guard-the-caravan": {
@@ -69,7 +77,9 @@
     "demands": [["weaponry", 0.3], ["perception", 0.3], ["endurance", 0.2], ["constitution", 0.2]],
     "skillKeys": ["tactics", "trapcraft"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["travel", "combat"],
+    "encountersMin": 2, "encountersMax": 4
   },
   "recover-the-strongbox": {
     "name": "Recover the strongbox",
@@ -83,7 +93,9 @@
     "demands": [["dexterity", 0.4], ["wits", 0.3], ["adaptability", 0.3]],
     "skillKeys": ["lockpicking", "trapcraft"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["travel", "stealth"],
+    "encountersMin": 2, "encountersMax": 3
   },
 
   "the-beast-of-the-fells": {
@@ -98,7 +110,9 @@
     "demands": [["strength", 0.3], ["perception", 0.3], ["courage", 0.2], ["endurance", 0.2]],
     "skillKeys": ["swordcraft", "stealth"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["travel", "combat", "stealth"],
+    "encountersMin": 2, "encountersMax": 4
   },
   "the-sickness-at-the-mill": {
     "name": "The sickness at the mill",
@@ -112,7 +126,9 @@
     "demands": [["knowledge", 0.4], ["willpower", 0.3], ["charisma", 0.3]],
     "skillKeys": ["herbalism", "field-surgery"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["social", "arcane"],
+    "encountersMin": 2, "encountersMax": 2
   },
 
   "survey-the-old-workings": {
@@ -127,7 +143,9 @@
     "demands": [["intelligence", 0.3], ["perception", 0.3], ["knowledge", 0.2], ["endurance", 0.2]],
     "skillKeys": ["runecraft", "trapcraft"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["travel", "arcane", "stealth"],
+    "encountersMin": 2, "encountersMax": 4
   },
   "break-the-sealed-vault": {
     "name": "Break the sealed vault",
@@ -141,7 +159,9 @@
     "demands": [["arcana", 0.3], ["spelllore", 0.3], ["power", 0.2], ["resistance", 0.2]],
     "skillKeys": ["warding", "runecraft"],
     "requires": { "classKey": "mage" },
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["arcane", "stealth", "combat"],
+    "encountersMin": 4, "encountersMax": 5
   },
 
   "a-quiet-word": {
@@ -156,7 +176,9 @@
     "demands": [["wits", 0.3], ["diplomacy", 0.3], ["charisma", 0.2], ["adaptability", 0.2]],
     "skillKeys": ["stealth", "lockpicking"],
     "requires": {},
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["social", "stealth"],
+    "encountersMin": 2, "encountersMax": 3
   },
   "the-counting-house-job": {
     "name": "The counting-house job",
@@ -170,6 +192,8 @@
     "demands": [["dexterity", 0.3], ["wits", 0.3], ["perception", 0.2], ["adaptability", 0.2]],
     "skillKeys": ["lockpicking", "stealth", "trapcraft"],
     "requires": { "skillKey": "lockpicking" },
-    "lootTableKey": null
+    "lootTableKey": null,
+    "encounterKinds": ["stealth", "social"],
+    "encountersMin": 3, "encountersMax": 5
   }
 }

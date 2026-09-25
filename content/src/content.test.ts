@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { StatArea } from '@heroesim/engine';
+import type { EncounterKind, StatArea } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { contentFiles, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 5 since the Hall Improvements (M3-S6)', () => {
+  test('is the core content set, version 6 since the Encounters (M4-S1)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(5);
+    expect(content.version).toBe(6);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -156,6 +156,58 @@ describe('loadContent()', () => {
       );
       expect(requiring.length).toBeGreaterThan(0);
       expect(requiring.length).toBeLessThan(templates.length / 2);
+    });
+
+    test('are drawn with 2 to 5 Encounters by difficulty (INPUTS 6.1), of kinds content has Encounters of (M4-S1)', () => {
+      const kinds = new Set(Object.values(content.encounters).map((it) => it.kind));
+      for (const it of templates) {
+        expect(it.encountersMin, it.key).toBeGreaterThanOrEqual(2);
+        expect(it.encountersMax, it.key).toBeLessThanOrEqual(5);
+        expect(it.encountersMin, it.key).toBeLessThanOrEqual(it.encountersMax);
+        expect(it.encounterKinds.length, it.key).toBeGreaterThan(0);
+        for (const kind of it.encounterKinds) expect(kinds.has(kind), `${it.key} ${kind}`).toBe(true);
+      }
+      // The hardest templates are the longest: a count never falls as a template's difficulty rises.
+      const byDifficulty = [...templates].sort((a, b) => a.difficultyMax - b.difficultyMax);
+      expect(byDifficulty.at(-1)?.encountersMax).toBe(5);
+      expect(byDifficulty[0]?.encountersMin).toBe(2);
+    });
+  });
+
+  // M4-S1's third box.
+  describe('Encounters (M4-S1)', () => {
+    const encounters = Object.values(content.encounters);
+    // The engine's union, written out: content imports only types from the engine (ADR-0006).
+    const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const satisfies readonly EncounterKind[];
+
+    test('are twelve, at least two of each kind', () => {
+      expect(encounters).toHaveLength(12);
+      for (const kind of encounterKinds) {
+        expect(encounters.filter((it) => it.kind === kind).length, kind).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    test('each weigh demands on Hero Stats summing to 1, name Skills from skills.json, and harm only on a failure', () => {
+      for (const it of encounters) {
+        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
+        expect(sum, it.key).toBeCloseTo(1, 6);
+        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
+        for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
+        expect(it.difficultyFactor, it.key).toBeGreaterThan(0);
+        const harm = it.consequences.success.filter((consequence) => consequence.kind === 'injury' || consequence.kind === 'death');
+        expect(harm, it.key).toEqual([]);
+        for (const consequence of it.consequences.failure) {
+          if (consequence.kind === 'injury') expect(content.injuries[consequence.typeKey], it.key).toBeDefined();
+        }
+      }
+    });
+
+    test('use both aggregates and every kind of consequence', () => {
+      expect(new Set(encounters.map((it) => it.aggregate))).toEqual(new Set(['best', 'sum']));
+      const used = new Set(
+        encounters.flatMap((it) => [...it.consequences.success, ...it.consequences.failure].map((consequence) => consequence.kind)),
+      );
+      expect(used).toEqual(new Set(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
     });
   });
 

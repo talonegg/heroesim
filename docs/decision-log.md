@@ -2252,6 +2252,91 @@ read at 200.
 after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
 with `HEROESIM_SEEDS=1000`.
 
+## DL-42 — Encounters and the drawn sequence (M4-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S1 and M4-S2's
+implementer)
+
+**Context.** M4-S1 names `content/encounters.json` and its row, the typed `Consequence` union, the
+templates' `encounterKinds` and `encountersMin/Max`, and the sequence drawn at generation from the
+new `encounters` stream and stored as `encounterKeys`, so that the Board a seed produces is
+unchanged (ADR-0009 as amended, pre-M0 review D7). INPUTS 6.1 says "count by difficulty", 2 to 5. It
+leaves open: how a consequence is written in JSON and what each kind does; what content validation
+refuses beyond the first box; how the count follows difficulty and how a slot's Encounter is
+drawn; which draws come first; and how a Quest saved before M4, whose `encounterKeys` is `[]`, is
+resolved.
+
+**Decision.**
+
+1. **Twelve Encounters**, `content/encounters.json`, content table `encounters`: three `combat`
+   (`ambush-on-the-road`, `the-restless-dead`, `hold-the-line`), three `travel` (`the-long-march`,
+   `the-flooded-ford`, `lost-in-the-fells`), two `social` (`a-hostile-reeve`,
+   `the-patrons-steward`), two `arcane` (`the-sealed-door`, `a-restless-power`) and two `stealth`
+   (`past-the-watch`, `the-trapped-passage`). Fighting, marching and holding back a power are
+   `sum` (the whole Party bears it); finding a way, talking, opening a seal and slipping past are
+   `best` (one Hero does it). Harm is only on a failure. Each row is `{ name, kind, demands,
+   aggregate, skillKeys, difficultyFactor, consequences: { success, failure } }`, demands weighted
+   as a template's.
+2. **A consequence is a flat object with a `kind`**, `{ "kind": "injury", "typeKey": "deep-cut",
+   "chance": 0.25, "count": 1 }`, the engine's closed union `Consequence` (`content-types.ts`); a
+   new kind is an engine change. What each does, applied by the Quest Engine (M4-S2) to a working
+   outcome in sequence order:
+   - `injury { typeKey, chance, count }`: `count` times, with probability `chance`, one Hero is
+     injured with that type, drawn among the Party's living members who carry no Injury from this
+     Quest yet (a Hero comes home with at most one, as `hero.injury` holds one);
+   - `death { chance }`: with probability `chance` one living member dies and takes no part in the
+     rest of the sequence; an Injury they took earlier on the Quest is dropped (no Hero is both,
+     DL-29 item 5);
+   - `morale { delta }`: summed over the sequence, applied once to each Hero who comes home;
+   - `regard { between: "party", delta }`: summed into the outcome for M4-S4, which gives Regard
+     between Heroes its writer and band events; until then nothing applies it;
+   - `xp { factor }` and `wealth { factor }`: multiplied together over the sequence, then applied to
+     the Quest's XP and to its reward (which a failed Quest does not pay, so a wealth factor matters
+     only on a Quest that succeeds);
+   - `fame { delta }`: summed, beside the Quest's own Fame effect.
+3. **Content validation refuses** (the first box, and the rest of the row): a demand on an unknown
+   or Guildmaster Stat, a repeated one, one weighing 0 or less, weights not summing to 1 within
+   `demandSumTolerance`, or none; an unknown or repeated Skill; a `difficultyFactor` not above 0;
+   an injury consequence naming an unknown Injury type or a `count` below 1; a `chance` outside 0
+   to 1; a factor below 0; a kind, aggregate or consequence kind outside its choices; a field a
+   consequence's kind lacks; and in a template, no `encounterKinds`, one listed twice, one that is
+   not a kind, one no Encounter is of, or an `encountersMin/Max` range upside down or below 1. Morale
+   and Fame deltas are whole numbers; a Regard delta is any number, its scale being M4-S4's.
+4. **Template kinds and counts** (`quest-templates.json`): each template lists the kinds its tags
+   suggest, two or three, and counts rising with its difficulty: `the-sickness-at-the-mill` 2,
+   `escort-the-tithe`, `recover-the-strongbox` and `a-quiet-word` 2 to 3, `clear-the-barrow`,
+   `guard-the-caravan`, `the-beast-of-the-fells` and `survey-the-old-workings` 2 to 4,
+   `lay-the-restless-dead` 3 to 4, `hold-the-border-fort` and `the-counting-house-job` 3 to 5,
+   `break-the-sealed-vault` 4 to 5. A content test holds them to INPUTS 6.1's 2 to 5.
+   `contentVersion` becomes **6**; the engine's test content carries the same twelve keys and kinds.
+5. **The count follows difficulty, with no draw** (`encounterCount`): `encountersMin` at the bottom
+   of the template's difficulty range, `encountersMax` at the top, in proportion between, rounded
+   to the nearest whole number; the range is the one the difficulty was drawn over, held inside
+   `questDifficultyMin/Max`, and a range of one value gives `encountersMin`. "By difficulty" read
+   as a rule, not a chance: a harder Quest of a kind is always at least as long.
+6. **The draw.** After the Board's three draws (template, difficulty, Days — DL-25 item 4,
+   unchanged), `generateQuest` draws the sequence from `encounters` and no other stream, two draws
+   an Encounter: a kind uniformly among the template's `encounterKinds` as listed, then an Encounter
+   uniformly among content's of that kind in key order (`drawSequence`). A kind a Patron's
+   templates name that content has no Encounter of throws before any draw, as the generator's other
+   programming errors do. `encounters` joins `streamNames` after `quests` (ADR-0009's order); an old
+   save gains it through `ensureStreams`. **The Board is unchanged**: a test pins, from the engine
+   at M3's end, a seed's first Board, the Board after 30 Days of refreshes and expiries (no Rivals,
+   no Party sent) and the `board` stream's state then, and M4's engine draws them the same.
+7. **A Quest saved before M4** (its `encounterKeys` `[]`, offered or already taken) is resolved
+   through a sequence drawn when it resolves (`sequenceFor`), from `encounters`, by the same rule
+   and its template's kinds and count at its difficulty; for a template content no longer defines,
+   one Encounter drawn among all of content's. Drawing at resolution rather than at dispatch covers
+   Quests already away when the save is loaded, with one rule. A stored key content no longer
+   defines is left out, and a Quest left with none draws afresh; the validator warns of such a key
+   (`unknown-encounter`, data-model rule 5).
+
+**Consequences.** Every Quest drawn from M4 on carries two to five Encounter keys, which a front
+end can show before dispatch. The `encounters` stream moves only when a Quest is generated or a
+pre-M4 Quest resolves. The Quest template's own `demands` and `skillKeys` stay: `partyFor` (the
+Rival controller's and the policy's staffing rule) and `show board` read them, and M4-S2's Check
+reads the Encounters' instead.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -660,6 +660,13 @@ describe('a key the content does not define warns and never refuses', () => {
       ids.rivalGuild,
       'reckless',
     ],
+    [
+      "an Encounter in a Quest's sequence (M4-S1)",
+      (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
+      'unknown-encounter',
+      ids.offeredQuest,
+      'the-dragon-wakes',
+    ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
   });

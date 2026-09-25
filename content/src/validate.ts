@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { ContentSet, FacilityKey } from '@heroesim/engine';
+import type { Consequence, ContentSet, FacilityKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -57,6 +57,7 @@ export function validateContent(set: ContentSet): ContentSet {
     injuries: set.injuries,
     dispositions: set.dispositions,
     improvements: set.improvements,
+    encounters: set.encounters,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -119,6 +120,7 @@ export function validateContent(set: ContentSet): ContentSet {
     if (skillKey !== undefined && !skills.has(skillKey)) {
       problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
     }
+    checkEncounterDraw(where, template, set.encounters, problems);
   }
   // A Patron's Quests are found by Sphere when the Board is drawn (pre-M0 review D3): a Sphere no
   // template serves would leave its Patrons offering nothing.
@@ -140,6 +142,7 @@ export function validateContent(set: ContentSet): ContentSet {
   }
 
   checkImprovements(set.improvements, problems);
+  checkEncounters(set, heroStats, skills, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -182,6 +185,85 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
         `improvements: the grades of ${facility} are ${sorted.join(', ')}; they run 1 to ${sorted.length}, each once`,
       );
     }
+  }
+}
+
+/**
+ * What a Quest template's Encounter sequence is drawn by (M4-S1): at least one kind, none twice,
+ * each with an Encounter in content to draw, and a count range from 1 that is not upside down.
+ */
+function checkEncounterDraw(
+  where: string,
+  template: ContentSet['questTemplates'][string],
+  encounters: ContentSet['encounters'],
+  problems: string[],
+): void {
+  if (template.encounterKinds.length === 0) problems.push(`${where}.encounterKinds is empty: a Quest is drawn with Encounters`);
+  for (const kind of repeated(template.encounterKinds)) problems.push(`${where}.encounterKinds: "${kind}" is listed twice`);
+  for (const kind of new Set(template.encounterKinds)) {
+    if (!Object.values(encounters).some((encounter) => encounter.kind === kind)) {
+      problems.push(`${where}.encounterKinds: no Encounter is of kind "${kind}"`);
+    }
+  }
+  checkRange(where, 'encounters', template.encountersMin, template.encountersMax, 1, problems);
+}
+
+/**
+ * The Encounters (M4-S1): demands on Hero Stats weighted as a Quest template's are, Skills that
+ * exist, a difficulty factor above 0, and consequences each within its kind's bounds, an Injury
+ * naming a type content defines. The epic's first box: an unknown Stat, Skill or Injury type is
+ * refused.
+ */
+function checkEncounters(
+  set: ContentSet,
+  heroStats: ReadonlySet<string>,
+  skills: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, encounter] of Object.entries(set.encounters)) {
+    const where = `encounters.${key}`;
+    checkDemands(`${where}.demands`, encounter.demands, heroStats, problems);
+    checkReferences(`${where}.skillKeys`, encounter.skillKeys, skills, 'a Skill', problems);
+    if (!(Number.isFinite(encounter.difficultyFactor) && encounter.difficultyFactor > 0)) {
+      problems.push(`${where}.difficultyFactor is ${encounter.difficultyFactor}; it is a number above 0`);
+    }
+    for (const outcome of ['success', 'failure'] as const) {
+      encounter.consequences[outcome].forEach((consequence, index) => {
+        checkConsequence(`${where}.consequences.${outcome}.${index}`, consequence, set, problems);
+      });
+    }
+  }
+}
+
+/** One consequence's fields, by its kind. */
+function checkConsequence(where: string, consequence: Consequence, set: ContentSet, problems: string[]): void {
+  const probability = (value: number): void => {
+    if (!(value >= 0 && value <= 1)) problems.push(`${where}.chance is ${value}; it is a probability from 0 to 1`);
+  };
+  const factor = (value: number): void => {
+    if (!(Number.isFinite(value) && value >= 0)) problems.push(`${where}.factor is ${value}; it is a number of 0 or more`);
+  };
+  switch (consequence.kind) {
+    case 'injury':
+      if (!Object.hasOwn(set.injuries, consequence.typeKey)) {
+        problems.push(`${where}.typeKey: "${consequence.typeKey}" is not an Injury type`);
+      }
+      probability(consequence.chance);
+      if (!(Number.isInteger(consequence.count) && consequence.count >= 1)) {
+        problems.push(`${where}.count is ${consequence.count}; it is a whole number from 1`);
+      }
+      return;
+    case 'death':
+      probability(consequence.chance);
+      return;
+    case 'xp':
+    case 'wealth':
+      factor(consequence.factor);
+      return;
+    case 'morale':
+    case 'regard':
+    case 'fame':
+      return;
   }
 }
 

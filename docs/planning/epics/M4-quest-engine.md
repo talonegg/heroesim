@@ -41,9 +41,9 @@ principle be told what kind of work it is.
 
 **Acceptance:**
 
-- [ ] Content validation refuses an encounter naming an unknown Stat, Skill or injury type
-- [ ] Every generated Quest's `encounterKeys` are within its template's kinds and count
-- [ ] Twelve encounters ship, at least two per kind
+- [x] Content validation refuses an encounter naming an unknown Stat, Skill or injury type
+- [x] Every generated Quest's `encounterKeys` are within its template's kinds and count
+- [x] Twelve encounters ship, at least two per kind
 
 ### M4-S2 · The check · 2 sessions
 
