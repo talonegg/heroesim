@@ -1,6 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import {
+  advance,
   append,
+  createWorld,
   makeId,
   parseId,
   passiveEntryTypes,
@@ -687,7 +689,10 @@ describe('the checks', () => {
     for (const name of names) expect(name).toMatch(/^[a-z]+(-[a-z0-9]+)*$/);
   });
 
-  test('validate a 1,000-Hero world in under 50 ms (median of seven runs)', () => {
+  // About 12 ms alone; under `npm test`'s thirty-odd workers it has been measured at 55 to 67 ms,
+  // one full run in three failing before M2-S12 added its tests. A retry times it again rather
+  // than raising the bound (DL-34).
+  test('validate a 1,000-Hero world in under 50 ms (median of seven runs)', { retry: 2 }, () => {
     const { document } = buildDocument({ rivals: 9, rosterSize: 20, unattached: 799 });
     expect(Object.keys(document.world.heroes)).toHaveLength(1000);
     withValid(document, deps);
@@ -714,5 +719,154 @@ describe('withValid', () => {
     hero(document, ids.partyHero).stats.luck = 7;
     expect(() => withValid(document, deps)).toThrow(`unknown-stat ${ids.partyHero}`);
     expect(withValid(document, deps, { allowWarnings: true })).toBe(document);
+  });
+});
+
+// ── historyFrom: the History read from where the last validation left it (M2-S12, DL-34) ────
+
+describe('validating from historyFrom', () => {
+  const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+
+  /** Appends two valid entries, the second a Milestone, to the History; returns where they begin. */
+  function grow(d: Doc): number {
+    const from = d.history.entries.length;
+    const participants = [ids.partyHero, ids.playerGuild];
+    const entry = { turn: fixtureTurn, labels: {}, payload: { at: from } };
+    append(d.history, { ...entry, participants: [...participants], type: 'hero.morale-changed', milestone: false });
+    append(d.history, { ...entry, participants: [...participants], type: 'hero.recruited', milestone: true });
+    return from;
+  }
+
+  /** What a validation from `from` finds in `document`. */
+  function refusalsOf(document: Doc, from: number): Named[] {
+    const result = validate(document, deps, { historyFrom: from });
+    return result.ok ? [] : result.failures.map(({ check, id }) => failure(check, id));
+  }
+
+  /** What a validation from where it grew finds in the fixture, grown and then changed by `mutate`. */
+  function refusalsFrom(mutate: (d: Doc, from: number) => unknown): { from: number; found: Named[] } {
+    const { document } = buildDocument();
+    const from = grow(document);
+    mutate(document, from);
+    return { from, found: refusalsOf(document, from) };
+  }
+
+  type Loose = { turn: number; participants: string[]; payload: unknown };
+  const entryAt = (d: Doc, position: number): Loose => d.history.entries[position] as Loose;
+
+  test('accepts, after every Turn of a played game, exactly what a validation from 0 accepts', () => {
+    const played = testDeps();
+    let { document } = createWorld('history-from', setup, played);
+    let validated = document.history.entries.length;
+    for (let turn = 0; turn < 60; turn += 1) {
+      document = advance(document, played).document;
+      const fromLast = validate(document, played, { historyFrom: validated });
+      expect(fromLast).toEqual(validate(document, played));
+      expect(fromLast.ok).toBe(true);
+      validated = document.history.entries.length;
+    }
+  });
+
+  test('from 0 reads the whole History; from its end, the World State alone, in full', () => {
+    const { document } = buildDocument();
+    const end = document.history.entries.length;
+    expect(validate(document, deps, { historyFrom: 0 })).toEqual(validate(document, deps));
+    expect(validate(document, deps, { historyFrom: end })).toEqual({ ok: true, warnings: [] });
+
+    hero(document, ids.partyHero).morale = Number.NaN;
+    expect(refusalsOf(document, end)).toEqual([failure('json-safe', `$.world.heroes["${ids.partyHero}"].morale`)]);
+  });
+
+  test.each<[string, (d: Doc, from: number) => unknown, (from: number) => Named]>([
+    [
+      'a participant that is not an id',
+      (d, from) => entryAt(d, from).participants.push('nobody'),
+      (from) => failure('id-format', `$.history.entries[${from}].participants[2]`),
+    ],
+    [
+      'NaN in a payload',
+      (d, from) => (entryAt(d, from).payload = { at: Number.NaN }),
+      (from) => failure('json-safe', `$.history.entries[${from}].payload.at`),
+    ],
+    [
+      'an entry without a payload',
+      (d, from) => Reflect.deleteProperty(entryAt(d, from), 'payload'),
+      (from) => failure('document-shape', `$.history.entries[${from}].payload`),
+    ],
+    [
+      'an entry at a Turn before the one it follows',
+      (d, from) => (entryAt(d, from + 1).turn = 0),
+      (from) => failure('history-turn-order', `$.history.entries[${from + 1}]`),
+    ],
+    [
+      'an entry left out of the list of its type',
+      (d) => d.history.byType['hero.recruited']?.pop(),
+      () => failure('history-index-mismatch', '$.history.byType["hero.recruited"]'),
+    ],
+    [
+      'a Milestone left out of the Milestones',
+      (d) => d.history.milestones.pop(),
+      () => failure('history-index-mismatch', '$.history.milestones'),
+    ],
+    [
+      'an entry listed under a type it is not',
+      (d, from) => d.history.byType['hero.recruited']?.splice(-1, 0, from),
+      () => failure('history-index-mismatch', '$.history.byType["hero.recruited"]'),
+    ],
+    [
+      'an entry left out of a participant’s list',
+      (d) => d.history.byEntity[ids.playerGuild]?.pop(),
+      () => failure('history-index-mismatch', `$.history.byEntity["${ids.playerGuild}"]`),
+    ],
+  ])('finds %s among the new entries, naming it', (_, mutate, expected) => {
+    const { from, found } = refusalsFrom(mutate);
+    expect(found).toContainEqual(expected(from));
+  });
+
+  test('finds a position outside the entries at the end of a list a new entry names', () => {
+    let index = 0;
+    const { found } = refusalsFrom((d) => {
+      const positions = d.history.byEntity[ids.partyHero] ?? [];
+      index = positions.length;
+      positions.push(10_000);
+    });
+    expect(found).toEqual([failure('history-position-out-of-range', `$.history.byEntity["${ids.partyHero}"][${index}]`)]);
+  });
+
+  test('finds a removed Hero a new entry names, and a counter that would reuse a new entry’s id', () => {
+    const naming = (type: 'hero.recruited' | 'hero.left-pool') => (d: Doc) => {
+      const entry = { turn: fixtureTurn, labels: {}, milestone: false, payload: {} };
+      append(d.history, { ...entry, type, participants: [ids.departedHero] });
+    };
+    expect(refusalsFrom(naming('hero.recruited')).found).toEqual([failure('removed-hero-in-history', ids.departedHero)]);
+    expect(refusalsFrom(naming('hero.left-pool')).found).toEqual([]);
+
+    const departed = parseId(ids.departedHero)?.n ?? 0;
+    const lowered = (d: Doc): void => {
+      naming('hero.left-pool')(d);
+      d.world.counters.heroes = departed;
+    };
+    expect(refusalsFrom(lowered).found).toEqual([failure('counter-range', '$.world.counters.heroes')]);
+  });
+
+  test('does not read the entries before it, which a validation from 0 does', () => {
+    const { document } = buildDocument();
+    const from = grow(document);
+    entryAt(document, 0).payload = { at: Number.NaN };
+    expect(refusalsOf(document, from)).toEqual([]);
+    expect(refusalsOf(document, 0)).toEqual([failure('json-safe', '$.history.entries[0].payload.at')]);
+  });
+
+  test('throws on a position that is not a whole number, or is past the end of the History', () => {
+    const { document } = buildDocument();
+    const end = document.history.entries.length;
+    for (const historyFrom of [-1, 1.5, Number.NaN, end + 1]) {
+      expect(() => validate(document, deps, { historyFrom })).toThrow(RangeError);
+    }
+  });
+
+  test('reads a document too damaged to have a list of entries from 0, without a throw', () => {
+    const result = validate({ meta: {}, world: {}, history: { entries: 3 } }, deps, { historyFrom: 5 });
+    expect(result.ok).toBe(false);
   });
 });

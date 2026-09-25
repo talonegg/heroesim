@@ -9,6 +9,10 @@
 //
 // The shape is checked first, so that no later check can throw on a missing field: a hand-made
 // or damaged save is refused, never crashes the load. The choices the epic left open are DL-20.
+//
+// A caller that validates the same document Turn after Turn (the harness, M2-S12) passes
+// `historyFrom`, and the History's checks then read only the entries appended since it last
+// validated, so validating every Turn of a game is not quadratic in its History (DL-34).
 
 import type { EngineDeps } from './config.js';
 import type { ContentSet } from './content-types.js';
@@ -126,7 +130,30 @@ export const maxPartiesPerQuest = 1;
 
 // ── The validator ────────────────────────────────────────────────────────────────────────────
 
-type Check = (document: WorldDocument) => ValidationFailure[];
+/** What `validate` is asked to check. */
+export interface ValidateOptions {
+  /**
+   * The History's entries before this position, and the index positions naming them, were
+   * accepted by an earlier validation of this same History, which is append-only (ADR-0008:
+   * `append` is its one writer and changes no entry), so only the entries from here on are
+   * checked, with the index lists that name them; the World State is checked in full. 0, the
+   * default, checks the whole History. A caller validating a game Turn after Turn passes the
+   * History's length at its last validation (M2-S12, DL-34).
+   *
+   * What a check from here on does not see: damage to an older entry or to an index list no new
+   * entry names, which only something other than `append` could do; a counter lowered below an id
+   * only older entries name; and a Hero's row removed while only older entries name them, which
+   * no rule does without first emitting an entry naming the Hero (the pool refresh's
+   * `hero.left-pool`). A validation from 0, such as every load's, sees all of these.
+   *
+   * `validate` throws a RangeError when it is not a whole number from 0, or is past the end of the
+   * History: a programming error, since the History never shrinks.
+   */
+  historyFrom?: number;
+}
+
+/** A check, given the first History position it must read (0 for the whole History). */
+type Check = (document: WorldDocument, from: number) => ValidationFailure[];
 type ContentCheck = (document: WorldDocument, content: ContentSet) => ValidationWarning[];
 
 /** The checks that run once the shape is known to be right, in the order they report. */
@@ -172,25 +199,103 @@ const contentChecks: readonly ContentCheck[] = [
  * Takes `deps` rather than a bare `ContentSet` (DL-23), matching every other engine entry point
  * (epics README §4): M8's modules will need `deps.modules` to validate their own state slices.
  */
-export function validate(document: unknown, deps: EngineDeps): ValidationResult {
+export function validate(document: unknown, deps: EngineDeps, options: ValidateOptions = {}): ValidationResult {
   const { content } = deps;
-  const shape = documentShape(document);
-  const failures = [...jsonSafe(document), ...shape];
+  const { historyFrom = 0 } = options;
+  if (!Number.isSafeInteger(historyFrom) || historyFrom < 0) {
+    throw new RangeError(`historyFrom is a whole number from 0, not ${historyFrom}`);
+  }
+  // A document too damaged to have a list of History entries is read whole.
+  const from = historyFromWithin(document, historyFrom);
+  const shape = documentShape(document, from);
+  const failures = [...jsonSafe(document, from), ...shape];
   if (shape.length > 0) return { ok: false, failures };
 
   const wellShaped = document as WorldDocument;
-  for (const check of checksOfAWellShapedDocument) failures.push(...check(wellShaped));
+  for (const check of checksOfAWellShapedDocument) failures.push(...check(wellShaped, from));
   if (failures.length > 0) return { ok: false, failures };
   return { ok: true, warnings: contentChecks.flatMap((check) => check(wellShaped, content)) };
 }
 
+/**
+ * `historyFrom`, once `document` has a History whose entries are a list; 0 while it has none, so
+ * that a document too damaged to have one is read whole. Throws when `historyFrom` is past the
+ * end of the entries.
+ */
+function historyFromWithin(document: unknown, historyFrom: number): number {
+  if (historyFrom === 0 || !isMap(document) || !isMap(document.history)) return 0;
+  const { entries } = document.history;
+  if (!Array.isArray(entries)) return 0;
+  if (historyFrom > entries.length) {
+    throw new RangeError(`historyFrom is ${historyFrom}, past the History's ${entries.length} entries`);
+  }
+  return historyFrom;
+}
+
+/** The entries from `from` on, each with its position. */
+function entriesFrom(history: History, from: number): [position: number, entry: Entry][] {
+  const found: [number, Entry][] = [];
+  for (let position = from; position < history.entries.length; position += 1) {
+    found.push([position, history.entries[position] as Entry]);
+  }
+  return found;
+}
+
+/** An index list a new entry belongs in, and the positions it should end with, in order. */
+interface NamedList {
+  list: unknown;
+  positions: number[];
+}
+
+/**
+ * The index lists the entries from `from` on belong in, by path: `byType` of each one's type,
+ * `byEntity` of each participant, once an entry, and `milestones` for a Milestone. For a
+ * well-shaped History.
+ */
+function listsNamedFrom(history: History, from: number): Map<string, NamedList> {
+  const named = new Map<string, NamedList>();
+  const add = (path: string, list: unknown, position: number): void => {
+    const found = named.get(path);
+    if (found === undefined) named.set(path, { list, positions: [position] });
+    else if (found.positions.at(-1) !== position) found.positions.push(position);
+  };
+  for (const [position, entry] of entriesFrom(history, from)) {
+    add(formatPath(['history', 'byType', entry.type]), rowOf(history.byType, entry.type), position);
+    for (const participant of entry.participants as unknown[]) {
+      if (typeof participant !== 'string') continue;
+      add(formatPath(['history', 'byEntity', participant]), rowOf(history.byEntity, participant), position);
+    }
+    if (entry.milestone) add(formatPath(['history', 'milestones']), history.milestones, position);
+  }
+  return named;
+}
+
 // ── Shape and JSON safety ────────────────────────────────────────────────────────────────────
 
-/** Rule 6, over the whole document, the History included (DL-18 item 4). */
-function jsonSafe(document: unknown): ValidationFailure[] {
-  const unsafe = findJsonUnsafe(document);
-  if (unsafe === null) return [];
-  return [{ check: 'json-safe', id: unsafe.path, detail: `${unsafe.path} is not JSON-safe: ${unsafe.kind}` }];
+/**
+ * Rule 6, over the whole document, the History included (DL-18 item 4); from `from` on, over
+ * every section but the History, and the History's entries from `from`.
+ */
+function jsonSafe(document: unknown, from: number): ValidationFailure[] {
+  const found = (unsafe: ReturnType<typeof findJsonUnsafe>): ValidationFailure[] =>
+    unsafe === null
+      ? []
+      : [{ check: 'json-safe', id: unsafe.path, detail: `${unsafe.path} is not JSON-safe: ${unsafe.kind}` }];
+  if (from === 0) return found(findJsonUnsafe(document));
+
+  // `from` is past 0 only for a document whose History has a list of entries (historyFromWithin).
+  const sections = document as Record<string, unknown>;
+  for (const [key, section] of Object.entries(sections)) {
+    if (key === 'history') continue;
+    const unsafe = found(findJsonUnsafe(section, [key]));
+    if (unsafe.length > 0) return unsafe;
+  }
+  const entries = (sections.history as { entries: unknown[] }).entries;
+  for (let position = from; position < entries.length; position += 1) {
+    const unsafe = found(findJsonUnsafe(entries[position], ['history', 'entries', position]));
+    if (unsafe.length > 0) return unsafe;
+  }
+  return [];
 }
 
 type FieldKind =
@@ -403,7 +508,7 @@ type Path = (string | number)[];
  * interface, of the right kind; every list and map a later check walks is one. A field no
  * interface names is kept and ignored (rule 5). Enumerated values and ranges are not checked.
  */
-function documentShape(document: unknown): ValidationFailure[] {
+function documentShape(document: unknown, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
   const fail = (path: Path, detail: string): void => {
     failures.push({ check: 'document-shape', id: formatPath(path), detail });
@@ -463,8 +568,27 @@ function documentShape(document: unknown): ValidationFailure[] {
     }
   }
   if (fields(history, historyFields, ['history'])) {
-    (history.entries as unknown[]).forEach((entry, index) => fields(entry, entryFields, ['history', 'entries', index]));
-    lists(history.byEntity, ['history', 'byEntity']);
+    const entries = history.entries as unknown[];
+    for (let index = from; index < entries.length; index += 1) {
+      fields(entries[index], entryFields, ['history', 'entries', index]);
+    }
+    if (from === 0) lists(history.byEntity, ['history', 'byEntity']);
+    else {
+      // Only the lists the new entries name: every other one was a list when last validated.
+      const byEntity = history.byEntity as Record<string, unknown>;
+      for (let index = from; index < entries.length; index += 1) {
+        const entry = entries[index];
+        const participants: unknown = isMap(entry) ? entry.participants : undefined;
+        if (!Array.isArray(participants)) continue;
+        for (const participant of participants) {
+          const list = rowOf(byEntity, participant);
+          if (list !== undefined && !Array.isArray(list)) {
+            const path = ['history', 'byEntity', participant as string];
+            fail(path, `${formatPath(path)} is not a list`);
+          }
+        }
+      }
+    }
     lists(history.byType, ['history', 'byType']);
   }
   return failures;
@@ -491,7 +615,7 @@ const regardTables = ['guilds', 'guildmasters', 'heroes', 'patrons'] as const;
  * Every id is `<table>-<six digits>` (data-model §3.1): each table's keys with its own prefix,
  * each row's `id` equal to its key, each Regard key, each History participant and `byEntity` key.
  */
-function idFormat({ world, history }: WorldDocument): ValidationFailure[] {
+function idFormat({ world, history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
   const fail = (id: string, detail: string): void => {
     failures.push({ check: 'id-format', id, detail });
@@ -510,17 +634,20 @@ function idFormat({ world, history }: WorldDocument): ValidationFailure[] {
       }
     }
   }
-  history.entries.forEach((entry, index) => {
+  for (const [index, entry] of entriesFrom(history, from)) {
     entry.participants.forEach((participant: unknown, at) => {
       if (typeof participant !== 'string' || parseId(participant) === null) {
         const path = formatPath(['history', 'entries', index, 'participants', at]);
         fail(path, `${path} is ${q(participant)}, not an id`);
       }
     });
-  });
-  for (const key of Object.keys(history.byEntity)) {
-    const path = formatPath(['history', 'byEntity', key]);
-    if (parseId(key) === null) fail(path, `The History indexes ${q(key)}, which is not an id`);
+  }
+  // From `from` on, the keys the new entries are indexed under are their participants, above.
+  if (from === 0) {
+    for (const key of Object.keys(history.byEntity)) {
+      const path = formatPath(['history', 'byEntity', key]);
+      if (parseId(key) === null) fail(path, `The History indexes ${q(key)}, which is not an id`);
+    }
   }
   return failures;
 }
@@ -529,7 +656,7 @@ function idFormat({ world, history }: WorldDocument): ValidationFailure[] {
  * Each table's counter, the next id number, is a whole number no greater than 999,999 and above
  * every id of its table in use, in the tables or in the History, so no id is ever reused.
  */
-function counterRange({ world, history }: WorldDocument): ValidationFailure[] {
+function counterRange({ world, history }: WorldDocument, from: number): ValidationFailure[] {
   const highest = new Map<TableName, { n: number; id: string }>();
   const note = (id: string): void => {
     const parsed = parseId(id);
@@ -538,7 +665,12 @@ function counterRange({ world, history }: WorldDocument): ValidationFailure[] {
   };
   // A key filed under another table is id-format's to report, not a use of that table's ids.
   for (const table of tableNames) for (const id of Object.keys(world[table])) if (isId(table, id)) note(id);
-  for (const id of Object.keys(history.byEntity)) note(id);
+  if (from === 0) for (const id of Object.keys(history.byEntity)) note(id);
+  else {
+    for (const [, entry] of entriesFrom(history, from)) {
+      for (const id of entry.participants as unknown[]) if (typeof id === 'string') note(id);
+    }
+  }
 
   const failures: ValidationFailure[] = [];
   for (const table of tableNames) {
@@ -901,11 +1033,38 @@ function isPosition(history: History, position: unknown): position is number {
   return Number.isSafeInteger(position) && (position as number) >= 0 && (position as number) < history.entries.length;
 }
 
-/** Every position in an index is a position in `entries` (data-model §6). */
-function historyPositionOutOfRange({ history }: WorldDocument): ValidationFailure[] {
+/**
+ * The end of an index list from its last position below `from`: the part `append` added to while
+ * appending the entries from `from` on, and `start`, the index in the list it begins at. A value
+ * that is not a whole number is taken as part of it, so that it is reported.
+ */
+function tailFrom(positions: readonly unknown[], from: number): { start: number; tail: readonly unknown[] } {
+  let start = positions.length;
+  while (start > 0) {
+    const position = positions[start - 1];
+    if (Number.isSafeInteger(position) && (position as number) >= 0 && (position as number) < from) break;
+    start -= 1;
+  }
+  return { start, tail: positions.slice(start) };
+}
+
+/**
+ * Every position in an index is a position in `entries` (data-model §6). From `from` on, the end
+ * of each list a new entry names, where `append` put their positions.
+ */
+function historyPositionOutOfRange({ history }: WorldDocument, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
-  for (const { path, positions } of indexLists(history)) {
-    positions.forEach((position, index) => {
+  const lists: { path: string; positions: readonly unknown[]; start: number }[] =
+    from === 0
+      ? indexLists(history).map(({ path, positions }) => ({ path, positions, start: 0 }))
+      : [...listsNamedFrom(history, from)].flatMap(([path, { list }]) => {
+          if (!Array.isArray(list)) return [];
+          const { start, tail } = tailFrom(list, from);
+          return [{ path, positions: tail, start }];
+        });
+  for (const { path, positions, start } of lists) {
+    positions.forEach((position, at) => {
+      const index = start + at;
       if (!isPosition(history, position)) {
         failures.push({
           check: 'history-position-out-of-range',
@@ -923,7 +1082,8 @@ function historyPositionOutOfRange({ history }: WorldDocument): ValidationFailur
  * of its entity, type or Milestone flag, and the lists' lengths account for every entry, so no
  * entry is missing from an index. Positions outside `entries` are the previous check's.
  */
-function historyIndexMismatch({ history }: WorldDocument): ValidationFailure[] {
+function historyIndexMismatch({ history }: WorldDocument, from: number): ValidationFailure[] {
+  if (from > 0) return historyIndexMismatchFrom(history, from);
   const failures: ValidationFailure[] = [];
   const fail = (id: string, detail: string): void => {
     failures.push({ check: 'history-index-mismatch', id, detail });
@@ -972,11 +1132,32 @@ function historyIndexMismatch({ history }: WorldDocument): ValidationFailure[] {
   return failures;
 }
 
-/** Entries arrive in Turn order, which `entriesBetween` relies on, and none is after `world.turn`. */
-function historyTurnOrder({ world, history }: WorldDocument): ValidationFailure[] {
+/**
+ * From `from` on: each list a new entry names ends in exactly the positions of the new entries
+ * that belong in it, in order, so every new entry is indexed where it belongs, once, and nothing
+ * else was added to those lists. Positions outside `entries` are the previous check's.
+ */
+function historyIndexMismatchFrom(history: History, from: number): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
-  let previous = 0;
-  history.entries.forEach(({ turn }, index) => {
+  for (const [path, { list, positions }] of listsNamedFrom(history, from)) {
+    const held = Array.isArray(list) ? tailFrom(list, from).tail.filter((position) => isPosition(history, position)) : [];
+    if (held.length !== positions.length || held.some((position, at) => position !== positions[at])) {
+      failures.push({
+        check: 'history-index-mismatch',
+        id: path,
+        detail: `${path} holds ${q(held)} from position ${from}, where the entries from there belong at ${q(positions)}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/** Entries arrive in Turn order, which `entriesBetween` relies on, and none is after `world.turn`. */
+function historyTurnOrder({ world, history }: WorldDocument, from: number): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  // The entries before `from` were in order when validated, so the last of them is the latest.
+  let previous = from === 0 ? 0 : Math.max(0, (history.entries[from - 1] as Entry).turn);
+  for (const [index, { turn }] of entriesFrom(history, from)) {
     const id = formatPath(['history', 'entries', index]);
     let detail: string | null = null;
     if (turn < 0) detail = `${id} is at Turn ${turn}, before Turn 0`;
@@ -984,7 +1165,7 @@ function historyTurnOrder({ world, history }: WorldDocument): ValidationFailure[
     else if (turn > world.turn) detail = `${id} is at Turn ${turn}; the world is at Turn ${world.turn}`;
     if (detail !== null) failures.push({ check: 'history-turn-order', id, detail });
     previous = Math.max(previous, turn);
-  });
+  }
   return failures;
 }
 
@@ -992,11 +1173,18 @@ function historyTurnOrder({ world, history }: WorldDocument): ValidationFailure[
  * Rule 8: a Hero's row is removed only when nothing but the passive entries names them. Quests,
  * Parties, offers and stacks are removed while the History keeps their ids; that is not refused.
  */
-function removedHeroInHistory({ world, history }: WorldDocument): ValidationFailure[] {
+function removedHeroInHistory({ world, history }: WorldDocument, from: number): ValidationFailure[] {
   const passive = new Set<string>(passiveEntryTypes);
   const failures: ValidationFailure[] = [];
-  for (const [id, positions] of Object.entries(history.byEntity)) {
-    if (!isId('heroes', id) || has(world.heroes, id)) continue;
+  // From `from` on, the Heroes the new entries name: a rule removes a Hero's row only after an
+  // entry naming them (the pool refresh's `hero.left-pool`), so a row removed since is among them.
+  const heroIds: Iterable<string> =
+    from === 0
+      ? Object.keys(history.byEntity)
+      : new Set(entriesFrom(history, from).flatMap(([, entry]) => entry.participants as string[]));
+  for (const id of heroIds) {
+    const positions = rowOf(history.byEntity, id);
+    if (positions === undefined || !isId('heroes', id) || has(world.heroes, id)) continue;
     const named = positions
       .map((position) => (isPosition(history, position) ? history.entries[position] : undefined))
       .find((entry) => entry !== undefined && !passive.has(entry.type));
