@@ -40,6 +40,7 @@ describe('parseArgs', () => {
     expect(command('show', 'roster', 'guild-000002')).toMatchObject({ view: { kind: 'roster', guildId: 'guild-000002' } });
     expect(command('show', 'pool')).toMatchObject({ view: { kind: 'pool' } });
     expect(command('show', 'patrons')).toMatchObject({ view: { kind: 'patrons' } });
+    expect(command('show', 'board')).toMatchObject({ view: { kind: 'board' } });
     expect(command('show', 'hero', 'hero-000001')).toMatchObject({ view: { kind: 'hero', heroId: 'hero-000001' } });
     expect(command('show', 'history')).toMatchObject({ view: { kind: 'history' } });
     expect(command('show', 'history', 'hero-000001', '--save', 'demo')).toMatchObject({
@@ -66,7 +67,7 @@ describe('parseArgs', () => {
     [[], 'No command'],
     [['play'], 'Unknown command "play"'],
     [['show', '--verbose'], 'show takes no flag --verbose'],
-    [['show', 'board'], 'no view "board"'],
+    [['show', 'market'], 'no view "market"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
     [['new', '--master', 'Ada'], 'new needs --guild'],

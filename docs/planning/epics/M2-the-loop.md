@@ -87,12 +87,12 @@ Config: `boardSize`, `questOfferDays`, `questDifficultyMin/Max`.
 
 **Acceptance:**
 
-- [ ] Each morning the Board is refilled to `boardSize` and never above
-- [ ] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
+- [x] Each morning the Board is refilled to `boardSize` and never above
+- [x] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
       `world.quests`
-- [ ] Every Quest's `demands` weights sum to 1 (content validation)
-- [ ] Only the `board` stream advances during refresh
-- [ ] CLI `show board`
+- [x] Every Quest's `demands` weights sum to 1 (content validation)
+- [x] Only the `board` stream advances during refresh
+- [x] CLI `show board`
 
 ### M2-S4 · Dispatch · 1–2 sessions
 

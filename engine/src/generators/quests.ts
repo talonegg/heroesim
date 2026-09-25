@@ -1,0 +1,119 @@
+// The Quest Generator (M2-S3, approach §1). A Quest is drawn for a Patron from the templates of
+// the Patron's Sphere, found in content at draw time and never stored on the Patron (pre-M0
+// review D3), and copies from its template everything it carries, so a template may change under
+// a live save without altering Quests already offered (data-model §3.2). The draw order and the
+// formulas are DL-25; changing them changes every seed's Board.
+
+import type { EngineDeps } from '../config.js';
+import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../content-types.js';
+import { takeId, type Demand, type Patron, type Quest, type QuestRequirements, type World } from '../document.js';
+import { eventEmitter } from '../emit.js';
+import type { QuestOffered } from '../events.js';
+import { int, pick, type StreamName } from '../rng.js';
+import { dayOf, nightOf, turnsPerDay } from '../time.js';
+import { clamp, sortedRows, streamOf, type DrawsFrom } from './draw.js';
+
+/** The stream the Board is drawn from (pre-M0 review D7), unless the caller names another. */
+export const boardStream: StreamName = 'board';
+
+export interface QuestOptions extends DrawsFrom {
+  /** One of the Patron's templates; drawn uniformly from them when omitted. */
+  templateKey?: QuestTemplateKey;
+}
+
+export interface GeneratedQuest {
+  quest: Quest;
+  events: QuestOffered[];
+}
+
+/**
+ * The templates whose `sphereKeys` hold `sphereKey`, in key order, so that a draw does not depend
+ * on the order content's rows were written in (DL-19 item 3). Empty for a Sphere no template
+ * serves, which content validation refuses but a save's unknown Sphere may still name (rule 5).
+ */
+export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphereKey: SphereKey): QuestTemplate[] {
+  return sortedRows(content.questTemplates, (template) => template.sphereKeys.includes(sphereKey));
+}
+
+/**
+ * Generates a Quest offered by `patron` into `world` and onto the end of the Board, drawing from
+ * `options.stream` (`board` by default) and from no other stream, and returns it with its
+ * `quest.offered` event for the caller to append. In draw order (DL-25):
+ *
+ * 1. the template, uniformly among the Patron's (no draw when `templateKey` is given);
+ * 2. the difficulty, `int` over the template's range held inside `questDifficultyMin/Max`;
+ * 3. the duration in Days, `int` over the template's range, stored as `durationTurns`.
+ *
+ * The reward is the difficulty times the template's `rewardPerDifficulty`, rounded; the rest is
+ * copied. The Quest is offered on the world's Turn and stays on offer through the night of the
+ * `questOfferDays`th Day, its `expiresOnTurn`: offered on Day d, the next morning's refresh after
+ * the night of Day d + questOfferDays − 1 expires it.
+ *
+ * Throws, changing nothing, on a programming error: a Patron not in the world, a Sphere no
+ * template serves, a `templateKey` that is not one of the Patron's, or a stream the world lacks.
+ */
+export function generateQuest(
+  world: World,
+  patron: Patron,
+  deps: EngineDeps,
+  options: QuestOptions = {},
+): GeneratedQuest {
+  const { config, content } = deps;
+  if (!Object.hasOwn(world.patrons, patron.id)) throw new RangeError(`${patron.id} is not in world.patrons`);
+  const offered = templatesFor(content, patron.sphereKey);
+  if (offered.length === 0) {
+    throw new RangeError(`No Quest template serves the Sphere ${JSON.stringify(patron.sphereKey)} of ${patron.id}`);
+  }
+  const given = options.templateKey;
+  const givenTemplate = given === undefined ? undefined : offered.find((template) => template.key === given);
+  if (given !== undefined && givenTemplate === undefined) {
+    throw new RangeError(`${patron.id} offers no Quest template keyed ${JSON.stringify(given)}`);
+  }
+  const state = streamOf(world, options.stream ?? boardStream);
+
+  const template = givenTemplate ?? pick(state, offered);
+  const scale = (value: number): number => clamp(value, config.questDifficultyMin, config.questDifficultyMax);
+  const difficulty = int(state, scale(template.difficultyMin), scale(template.difficultyMax));
+  const durationDays = int(state, template.durationDaysMin, template.durationDaysMax);
+
+  const id = takeId(world, 'quests');
+  const quest: Quest = {
+    id,
+    templateKey: template.key,
+    patronId: patron.id,
+    difficulty,
+    tags: [...template.tags],
+    reward: Math.round(difficulty * template.rewardPerDifficulty),
+    fameEffect: template.fameEffect,
+    durationTurns: durationDays * turnsPerDay,
+    demands: template.demands.map(([statKey, weight]): Demand => [statKey, weight]),
+    skillKeys: [...template.skillKeys],
+    encounterKeys: [],
+    requirements: requirementsOf(template),
+    lootTableKey: template.lootTableKey,
+    status: 'offered',
+    offeredOnTurn: world.turn,
+    expiresOnTurn: nightOf(dayOf(world.turn) + config.questOfferDays - 1),
+    partyIds: [],
+  };
+  world.quests[id] = quest;
+  world.board.push(id);
+
+  const event = eventEmitter(world)({
+    type: 'quest.offered',
+    participants: [id, patron.id],
+    payload: { questId: id, patronId: patron.id, templateKey: template.key },
+  });
+  return { quest, events: [event] };
+}
+
+/** The template's Party size and, where it has them, its required Class and Skill. */
+function requirementsOf(template: QuestTemplate): QuestRequirements {
+  const { classKey, skillKey } = template.requires;
+  return {
+    partySizeMin: template.partySizeMin,
+    partySizeMax: template.partySizeMax,
+    ...(classKey === undefined ? {} : { classKey }),
+    ...(skillKey === undefined ? {} : { skillKey }),
+  };
+}

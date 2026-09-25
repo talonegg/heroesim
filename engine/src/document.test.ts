@@ -341,8 +341,8 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the only stream in M1 is generation (ADR-0009 as amended)', () => {
-    expect(streamNames).toEqual(['generation']);
+  test('the core streams are generation and, from M2-S3, board (ADR-0009 as amended)', () => {
+    expect(streamNames).toEqual(['generation', 'board']);
   });
 
   test('the Hall has the three facilities of data-model §3.2', () => {

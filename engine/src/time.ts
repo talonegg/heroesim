@@ -6,7 +6,7 @@
 // Year 0 (DL-24). M1-S9 added `ageOf`, the first reader; M2-S1 adds the rest.
 
 import type { GameConfig } from './config.js';
-import type { Hero, Turn } from './document.js';
+import type { Hero, Quest, Turn } from './document.js';
 
 /** The three Turns of a Day, in order (`CONTEXT.md`, Day). */
 export const timesOfDay = ['morning', 'afternoon', 'night'] as const;
@@ -45,6 +45,16 @@ export function yearOf(turn: Turn, config: Pick<GameConfig, 'turnsPerYear'>): nu
 export function nightOf(day: number): Turn {
   checkWhole('Day', day);
   return day * turnsPerDay + timesOfDay.indexOf('night');
+}
+
+/**
+ * How many Days a Quest lasts. A Quest stores `durationTurns`, its template's Days times three
+ * (data-model §3.2, pre-M0 review C4), so this is a whole number; one that is not, which only a
+ * hand-made row could hold, counts a part-Day as a Day.
+ */
+export function durationDaysOf(quest: Pick<Quest, 'durationTurns'>): number {
+  checkWhole('duration in Turns', quest.durationTurns);
+  return Math.ceil(quest.durationTurns / turnsPerDay);
 }
 
 /** Anyone with an age: a Hero or a Guildmaster, who store it the same way. */

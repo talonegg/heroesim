@@ -5,8 +5,8 @@
 // current default; the harness passes its own; `rebase` adopts the current defaults (M2-S1).
 //
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
-// M1-S5 and M1-S6 the starting world (DL-19). Every "Min/Max" pair is an inclusive range drawn
-// with `int`.
+// M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25). Every "Min/Max" pair is
+// an inclusive range drawn with `int`.
 
 import type { ContentSet } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -71,6 +71,18 @@ export interface GameConfig {
   /** How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2). */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
+
+  // ── The Board (M2-S3, INPUTS 4.1, 4.3, DL-25) ─────────────────────────────────────────────
+  /** Each morning's refresh draws Quests until the Board holds this many, and never more. */
+  boardSize: number;
+  /** Days a Quest stays on offer, the Day it is drawn included; it expires the next morning. */
+  questOfferDays: number;
+  /**
+   * The difficulty scale: a template's difficulty range is held inside it before the draw.
+   * Durations and rewards are the templates' own (INPUTS 4.2: per template).
+   */
+  questDifficultyMin: number;
+  questDifficultyMax: number;
 }
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
@@ -107,6 +119,11 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
+
+  boardSize: 6,
+  questOfferDays: 3,
+  questDifficultyMin: 10,
+  questDifficultyMax: 100,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

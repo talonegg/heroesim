@@ -13,6 +13,7 @@ import {
   deserialise,
   makeId,
   serialise,
+  type EntityId,
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -246,6 +247,41 @@ describe('show', () => {
     }
   });
 
+  test("board prints the Quests on offer in the Board's order, each with its template, Patron and terms (M2-S3)", () => {
+    const { world } = document();
+    expect(world.board).toHaveLength(defaultConfig.boardSize);
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain(`Board: ${defaultConfig.boardSize} Quests on offer, Turn 0 (Day 0, morning, Year 0)`);
+    const lines = run.out.split('\n');
+    const positions = world.board.map((id) => lines.findIndex((line) => line.startsWith(id)));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      const row = rowOf(run.out, id);
+      expect(row).toContain(content.questTemplates[quest.templateKey]?.name);
+      expect(row).toContain(world.patrons[quest.patronId]?.name);
+      expect(row).toMatch(new RegExp(`\\s${quest.difficulty}\\s+${quest.durationTurns / 3}\\s+${quest.reward}\\s`));
+      expect(row).toMatch(/Day 2$/);
+    }
+  });
+
+  test('board says so when the Board is empty', () => {
+    edit((edited) => {
+      edited.world.board = [];
+      edited.world.quests = {};
+    });
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Board: 0 Quests on offer');
+    expect(run.out).toContain('The Board is empty.');
+  });
+
   test("hero prints a Hero's Attributes, Stats and Skills by their content names", () => {
     const { world } = document();
     const hero = world.heroes[makeId('heroes', 1)] as Hero;
@@ -363,9 +399,11 @@ describe('show', () => {
   });
 
   test('history pluralises the entry count: one entry reads "1 entry", never "1 entries"', () => {
-    // A Patron's History holds only its own patron.generated entry (DL-19 item 10).
-    const patronId = makeId('patrons', 1);
-    expect(document().history.byEntity[patronId]).toHaveLength(1);
+    // A Patron who offers nothing on the first Board has only their patron.generated entry
+    // (DL-19 item 10); six Quests from twelve Patrons leave some such.
+    const { byEntity } = document().history;
+    const patronId = Object.keys(document().world.patrons).find((id) => byEntity[id as EntityId]?.length === 1);
+    if (patronId === undefined) throw new Error('Every Patron offers a Quest on the first Board');
 
     const run = play(['show', 'history', patronId]);
 
@@ -418,6 +456,23 @@ describe('advance', () => {
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('The game ended on Turn 0: bankruptcy');
     expect(saved()).toBe(original);
+  });
+
+  test('plays on a save made before the Board existed, filling its Board on the first morning (M2-S3)', () => {
+    // An M1 save: no board stream, no Quests.
+    edit((edited) => {
+      Reflect.deleteProperty(edited.world.rng, 'board');
+      edited.world.board = [];
+      edited.world.quests = {};
+      edited.meta.content.version = 1;
+    });
+
+    const run = play(['advance', '--turns', '3']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toMatch(/quest\.offered/);
+    expect(document().world.board).toHaveLength(defaultConfig.boardSize);
+    expect(Object.hasOwn(document().world.rng, 'board')).toBe(true);
   });
 
   test('refuses a bad --turns as a bad command line', () => {
@@ -559,7 +614,7 @@ describe('the command line', () => {
     expect(run.err).toContain('EISDIR');
   });
 
-  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'board']], [['new', '--seed', 'x']]])(
+  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'market']], [['new', '--seed', 'x']]])(
     '%j prints the usage and exits non-zero',
     (argv) => {
       const run = play(argv);

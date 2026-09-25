@@ -17,16 +17,19 @@
 
 /**
  * The core streams. Each is added in the milestone that introduces the subsystem that draws
- * from it — `board`, `quests`, `encounters`, `pool`, `heroes`, `progression`, `rivals` and
- * `market` follow, in the order their milestones land — and a new subsystem never shares an old
+ * from it — `quests`, `encounters`, `pool`, `heroes`, `progression`, `rivals` and `market`
+ * follow `board`, in the order their milestones land — and a new subsystem never shares an old
  * stream (ADR-0009 as amended, pre-M0 review D7). M1 draws only to generate the world.
  *
  * Adding one is appending its name here. A stream depends only on the master seed and its own
  * name, so a document saved before the name existed gains the stream a new world would have
- * had, `createStreams(meta.seed, [name])`, in that milestone's migration step (data-model §6),
- * and no other stream moves.
+ * had, `createStreams(meta.seed, [name])`, the first time it is played: `advance` calls
+ * `ensureStreams` on its copy of `world` (M2-S3, DL-25). No migration is needed and no other
+ * stream moves.
+ *
+ * `board` (M2-S3) draws the Quests the Board offers.
  */
-export const streamNames = ['generation'] as const;
+export const streamNames = ['generation', 'board'] as const;
 
 export type StreamName = (typeof streamNames)[number];
 
@@ -75,6 +78,17 @@ export function createStreams<Name extends string>(
     streams[name] = nonZero(cyrb128(`${seed}${nameSeparator}${name}`));
   }
   return streams as Record<Name, RngState>;
+}
+
+/**
+ * Gives `world` each core stream it lacks, seeded as `createStreams(seed, [name])` would seed it,
+ * and leaves the streams it has alone: a save made before a stream was added plays on, drawing
+ * what a new world from the same seed would have drawn from that stream (M2-S3, DL-25). `seed` is
+ * the document's `meta.seed`. Changes `world.rng` in place; `advance` calls it on its copy.
+ */
+export function ensureStreams(world: { rng: Partial<Record<StreamName, RngState>> }, seed: string): void {
+  const missing = streamNames.filter((name) => !Object.hasOwn(world.rng, name));
+  Object.assign(world.rng, createStreams(seed, missing));
 }
 
 /**

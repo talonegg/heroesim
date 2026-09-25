@@ -3,8 +3,8 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { ClassKey, SphereKey } from './content-types.js';
-import type { Entry, GuildId, GuildmasterId, HeroId, PatronId } from './document.js';
+import type { ClassKey, QuestTemplateKey, SphereKey } from './content-types.js';
+import type { Entry, GuildId, GuildmasterId, HeroId, PatronId, QuestId } from './document.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -44,6 +44,26 @@ export type WorldRulesAdopted = Entry<
   { oldConfigVersion: number; newConfigVersion: number }
 >;
 
+// ── The Board (M2-S3, DL-25) ─────────────────────────────────────────────────────────────────
+
+/**
+ * A Patron offered a Quest: it is on the Board. Names the Quest and the Patron. The template's
+ * key lets a front end name the Quest after its row is gone.
+ */
+export type QuestOffered = Entry<
+  'quest.offered',
+  { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
+>;
+
+/**
+ * An offered Quest no Guild took went off the Board at a morning's refresh, and its row was
+ * removed; this entry keeps its record (data-model rule 8). Names the Quest and the Patron.
+ */
+export type QuestExpired = Entry<
+  'quest.expired',
+  { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -51,7 +71,9 @@ export type EngineEvent =
   | GuildmasterGenerated
   | HeroGenerated
   | PatronGenerated
-  | WorldRulesAdopted;
+  | WorldRulesAdopted
+  | QuestOffered
+  | QuestExpired;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -71,4 +93,6 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.generated': false,
   'patron.generated': false,
   'world.rules-adopted': true,
+  'quest.offered': false,
+  'quest.expired': false,
 } satisfies Record<EngineEventType, boolean>);

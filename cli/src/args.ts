@@ -11,10 +11,10 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | hero <heroId> | history [entityId]]
+  show [guilds | roster [guildId] | pool | patrons | board | hero <heroId> | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; history shows the whole History unless given
-      an id.
+      player's Guild unless given another; board shows the Quests on offer; history shows
+      the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -39,6 +39,7 @@ export type View =
   | { kind: 'roster'; guildId?: string }
   | { kind: 'pool' }
   | { kind: 'patrons' }
+  | { kind: 'board' }
   | { kind: 'hero'; heroId: string }
   | { kind: 'history'; entityId?: string };
 
@@ -136,6 +137,7 @@ function parseView(positional: readonly string[]): View {
     case 'guilds':
     case 'pool':
     case 'patrons':
+    case 'board':
       atMost(positional, 1, `show ${view}`);
       return { kind: view };
     case 'roster':

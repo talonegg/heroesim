@@ -12,6 +12,7 @@ export * from './events.js';
 export { generateGuild, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
+export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './history.js';
 export * from './json-safe.js';
 export * from './selectors.js';

@@ -4,7 +4,7 @@
 //
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
-// `ContentSet`. Later milestones add theirs (M2-S3 `QuestTemplate`).
+// `ContentSet`; M2-S3 `QuestTemplate`. Later milestones add theirs (M5-S1 Items).
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -112,6 +112,45 @@ export interface Sphere {
   name: string;
 }
 
+/** What a Party must include to take a Quest: a Hero of a Class, a Hero with a Skill, or both. */
+export interface QuestTemplateRequires {
+  classKey?: ClassKey;
+  skillKey?: SkillKey;
+}
+
+/**
+ * A kind of Quest a Patron offers (R21; `quest-templates.json`, M2-S3). A Patron's templates are
+ * the ones whose `sphereKeys` hold the Patron's Sphere, looked up when the Board is drawn and
+ * never stored (pre-M0 review D3). The Quest Generator copies what a Quest carries from its
+ * template, so a template may change under a live save without altering Quests already offered.
+ * Every range is inclusive and drawn with `int`.
+ */
+export interface QuestTemplate {
+  key: QuestTemplateKey;
+  name: string;
+  /** The Spheres whose Patrons offer it; at least one. */
+  sphereKeys: SphereKey[];
+  tags: QuestTagKey[];
+  /** Drawn inside the config's difficulty scale (`questDifficultyMin/Max`). */
+  difficultyMin: number;
+  difficultyMax: number;
+  durationDaysMin: number;
+  durationDaysMax: number;
+  /** A Quest's reward is its difficulty times this, rounded to a whole Wealth. */
+  rewardPerDifficulty: number;
+  /** The Fame a Quest of this kind moves, won or lost (M2-S5). */
+  fameEffect: number;
+  partySizeMin: number;
+  partySizeMax: number;
+  /** The Hero Stats the stub assesses, each with a weight; the weights sum to 1 (DL-06). */
+  demands: [statKey: StatKey, weight: number][];
+  /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
+  skillKeys: SkillKey[];
+  requires: QuestTemplateRequires;
+  /** `null` until Loot tables exist (M5). */
+  lootTableKey: null;
+}
+
 /** The name lists the generators draw from (INPUTS 3.9; `names.json`). No list is empty. */
 export interface Names {
   /** Given names for Heroes and Guildmasters, by sex. */
@@ -134,6 +173,8 @@ export interface ContentSet {
   backgrounds: Record<BackgroundKey, Background>;
   spheres: Record<SphereKey, Sphere>;
   names: Names;
+  /** The kinds of Quest the Patrons offer, found by Sphere at draw time (M2-S3, DL-20). */
+  questTemplates: Record<QuestTemplateKey, QuestTemplate>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */
