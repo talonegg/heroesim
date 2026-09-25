@@ -26,7 +26,7 @@
  * had, `createStreams(meta.seed, [name])`, in that milestone's migration step (data-model §6),
  * and no other stream moves.
  */
-export const streamNames = ['generation'] as const;
+export const streamNames = ['generation', 'pool'] as const;
 
 export type StreamName = (typeof streamNames)[number];
 

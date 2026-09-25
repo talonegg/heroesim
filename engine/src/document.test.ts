@@ -123,6 +123,8 @@ const hero: Hero = {
   enteredTurn: 0,
   ageAtEntry: 24,
   guildId,
+  unattachedSince: null,
+  leftPoolOnTurn: null,
   partyId,
   stats: { strength: 14, weaponry: 12, courage: 9 },
   potential: { strength: 19, weaponry: 17, courage: 15 },
@@ -341,8 +343,8 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the only stream in M1 is generation (ADR-0009 as amended)', () => {
-    expect(streamNames).toEqual(['generation']);
+  test('the streams so far are generation and, from M2-S8, pool (ADR-0009 as amended)', () => {
+    expect(streamNames).toEqual(['generation', 'pool']);
   });
 
   test('the Hall has the three facilities of data-model §3.2', () => {

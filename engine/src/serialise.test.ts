@@ -13,7 +13,10 @@ import {
   type SavedDocument,
   type WorldDocument,
 } from './index.js';
-import { buildDocument, testContent, withValid } from './world.test-support.js';
+import { createWorld } from './create.js';
+import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
+
+const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 // M1-S8: canonical serialisation (data-model rule 7) and a versioned, validated load (§6).
 
@@ -205,8 +208,9 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('is empty in M1', () => {
-    expect(migrations).toEqual({});
+  test('holds one step, from version 1, added by M2-S8 with schemaVersion 2', () => {
+    expect(Object.keys(migrations)).toEqual(['1']);
+    expect(defaultConfig.schemaVersion).toBe(2);
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -240,6 +244,49 @@ describe('the migration chain', () => {
       ok: false,
       reason: { kind: 'unsupported-version', documentVersion: 5, schemaVersion: 4 },
     });
+  });
+});
+
+// ── Version 1 to 2: the pool's Hero fields (M2-S8, DL-27) ─────────────────────────────────────
+
+describe('a version-1 save', () => {
+  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields. */
+  function asVersion1(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
+    parsed.meta.version = 1;
+    for (const hero of Object.values(parsed.world.heroes)) {
+      Reflect.deleteProperty(hero, 'unattachedSince');
+      Reflect.deleteProperty(hero, 'leftPoolOnTurn');
+    }
+    return JSON.stringify(parsed);
+  }
+
+  const created = (): WorldDocument => createWorld('version-1', setup, testDeps()).document;
+
+  test.each([
+    ['a created world', created],
+    ['the fixture, with a dead Hero and a departed one', built],
+  ])('%s loads as the document the engine writes now', (_, make) => {
+    const document = make();
+
+    const result = loaded(deserialise(asVersion1(document), deps));
+
+    // Pool Heroes entered at enteredTurn, every other Hero has neither field, none has left.
+    expect(result).toEqual(document);
+    expect(result.meta.version).toBe(2);
+  });
+
+  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
+    const saved = JSON.parse(asVersion1(created())) as SavedDocument;
+    const before = structuredClone(saved);
+    const step = migrations[1] as Migration;
+
+    step(saved);
+    expect(saved).toEqual(before);
+
+    const damaged = { ...saved, world: { heroes: 'none' } };
+    expect(step(damaged)).toBe(damaged);
+    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
   });
 });
 

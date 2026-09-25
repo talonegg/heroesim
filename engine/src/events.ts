@@ -44,6 +44,21 @@ export type WorldRulesAdopted = Entry<
   { oldConfigVersion: number; newConfigVersion: number }
 >;
 
+// ── Recruitment and the Unattached pool (M2-S8, DL-27) ───────────────────────────────────────
+
+/**
+ * A Guild signed an Unattached Hero for `fee` Wealth through `recruit`. A Milestone, naming the
+ * Hero and the Guild.
+ */
+export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: GuildId; fee: number }>;
+
+/**
+ * An Unattached Hero left the pool unrecruited, `unattachedStayDays` after entering it. Names the
+ * Hero, whose row is then removed unless an entry other than this and `hero.generated` names them
+ * (data-model rule 8).
+ */
+export type HeroLeftPool = Entry<'hero.left-pool', { heroId: HeroId }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -51,7 +66,9 @@ export type EngineEvent =
   | GuildmasterGenerated
   | HeroGenerated
   | PatronGenerated
-  | WorldRulesAdopted;
+  | WorldRulesAdopted
+  | HeroRecruited
+  | HeroLeftPool;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -71,4 +88,6 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.generated': false,
   'patron.generated': false,
   'world.rules-adopted': true,
+  'hero.recruited': true,
+  'hero.left-pool': false,
 } satisfies Record<EngineEventType, boolean>);

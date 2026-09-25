@@ -2,6 +2,14 @@
 
 export * from './actions/action.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
+export {
+  recruit,
+  type GuildFoldedRejection,
+  type HeroNotUnattachedRejection,
+  type InsufficientWealthRejection,
+  type RecruitAction,
+  type RecruitRejection,
+} from './actions/recruit.js';
 export * from './actions/result.js';
 export * from './advance.js';
 export * from './config.js';

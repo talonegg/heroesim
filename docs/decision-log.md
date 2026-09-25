@@ -904,6 +904,104 @@ M2-S11 gives a `StopReason` fields if it needs them, and makes `advance` detect 
 reasons; until then the CLI's `advance` stops early only on `ended`. No `GameConfig` field was
 added and no default changed, so `configVersion` stays 1.
 
+## DL-27 — Recruitment, the signing fee, and the Unattached pool's lifecycle (M2-S8)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S8's implementer)
+
+**Context.** M2-S8 names `recruit`, the `signingFee(hero, config)` selector (INPUTS 4.7), the
+night phase `poolRefresh`, rule 8's removal of a Hero who leaves the pool, and four config
+fields. It leaves open: the selector's inputs and rounding, and whether it takes the buying Guild
+before M4-S5 scales the fee by that Guild's Negotiation; what `recruit` does with a folded or
+unknown Guild, or a Hero id with no row; how the pool knows when a Hero entered it, since a Hero
+released into it later (M2-S10's folds, M6) did not enter at `enteredTurn`; what becomes of a
+Hero who leaves while an entry keeps their row, who would otherwise still read as Unattached and
+leave again every night; how a phase reads the History; `unattachedStayDays`' default; the
+events' payloads; and the CLI.
+
+**Decision.**
+
+1. **Two Hero fields, and the first schema step.** `unattachedSince: Turn | null` is the Turn the
+   Hero last entered the Unattached pool (generated into it; from M2-S10, released into it), null
+   on a Roster and once they have left the pool. `leftPoolOnTurn: Turn | null` is set when a Hero
+   leaves the pool unrecruited and a History entry keeps their row (rule 8): such a Hero is on no
+   Roster and in no pool, out of play as a dead or retired Hero is. The pool is the Heroes whose
+   `unattachedSince` is set (`unattachedHeroes`). Stored, not read from the History, because a
+   phase reads the World State and not the History for what happened earlier in its Turn (DL-24
+   item 2): a Hero released by an earlier night phase would read as having entered at an older
+   entry and leave that same night. And every pool reader but this phase, M2-S9's
+   `rivalChoices(world, guild, deps)` among them, has the world and not the History.
+   `schemaVersion` becomes **2**, and `migrations[1]` adds both fields to a version-1 save:
+   `unattachedSince` is `enteredTurn` for a living, unretired Hero with no Guild (in a version-1
+   world only generation puts a Hero in the pool) and null for every other Hero; `leftPoolOnTurn`
+   is null. `configVersion` stays 1: `schemaVersion` is the format the engine writes, read by
+   `createWorld` and by a load against `defaultConfig`, never by a rule, so no game plays
+   differently, and a version bump would tell every save that new rules await a `rebase` that
+   changes nothing a rule reads. The validator's new check `unattached-mismatch` refuses a Hero
+   on a Roster's Guild with either field set, and a Hero with no Guild who is both in the pool and
+   gone (left, dead or retired), or neither.
+2. **When a Hero leaves.** On the night of Day `dayOf(unattachedSince) + unattachedStayDays`,
+   in the pool refresh, and not before: a Hero who enters on Day d, almost always at night since
+   the refill is at night (INPUTS 3.7), is in the pool for the next `unattachedStayDays` Days.
+   `unattachedStayDays` is **10**, chosen: as long as the longest Quest (INPUTS 4.2, 2–10 Days),
+   so a Party that sets out the Day a Hero enters is home before the Hero goes, and one upkeep
+   cycle (INPUTS 4.6); with a pool of 8 about one Hero leaves a night. Heroes leave in id order,
+   each with `hero.left-pool`, payload `{ heroId }`, not a Milestone, emitted before the row
+   changes so its label is the Hero's name.
+3. **Rule 8 reads the History.** `PhaseContext` gains `history`, the History as it stood before
+   the Turn, for reading: `advance` passes the document's, and `append` stays its one writer
+   (ADR-0008). `phaseContext`'s new third parameter defaults to an empty History, so a test of a
+   phase that reads none (M2-S3's, M2-S4's, M2-S7's) builds its context as before. A leaving Hero's row is removed when every position in `byEntity[heroId]` is an
+   entry whose type is in `passiveEntryTypes`, the validator's list (DL-20 item 4), imported
+   rather than repeated; otherwise the row stays with `unattachedSince` null and `leftPoolOnTurn`
+   set. The Hero's own `hero.left-pool` is passive, so it never keeps a row. An entry naming a
+   pool Hero made by a night phase before `poolRefresh` in the same Turn is not yet in the
+   History and would be missed; no M2 phase makes one, and the validator after an `advance` in
+   the tests refuses the removed row if a later one does.
+4. **The refill** generates `unattachedPoolSize` less the pool's size, after the departures, so
+   a Hero who leaves is replaced the same night. Each is drawn by the Heroes Generator from the
+   `pool` stream (D7; `pool` is appended to `streamNames`), Class uniform, and emits its own
+   `hero.generated`. `pool` is the only stream the phase moves.
+5. **`signingFee(hero, deps)`** (`selectors.ts`) is `floor(signingFeeBase + signingFeePerLevel ×
+   level + Σ Stats ÷ signingFeeStatDivisor)`, defaults **50, 25, 4** (INPUTS 4.7). The sum is over
+   content's Hero Stats read through `baseStat`, so a Stat content no longer defines is ignored
+   and one the row lacks reads as the content's default (rule 5); that needs content, so the
+   selector takes `deps` where the epic wrote `config`. The fee is a whole number rounded down
+   once, at the end: "÷" read as whole-number division, and a factor M4-S5 multiplies in is then
+   rounded with the rest, not before it. It takes no buying Guild yet: nothing of the buyer's
+   moves the fee in M2, and M4-S5 needs the buyer's Guildmaster, so the shape of that argument (a
+   Guild, a Guildmaster, or the world) is M4-S5's to choose. Every caller (`recruit`, the CLI,
+   M2-S9's `steady`, M2-S10's roster-wiped check, M2-S12's policy) has the Guild to hand, and the
+   compiler finds each one when the signature changes. It stays the one place a fee is computed.
+6. **`recruit(document, { guildId, heroId }, deps)`** checks, in order: a Guild id not in the
+   world throws, a programming error, since Guild rows are never removed and no front end or
+   controller can offer one; a folded Guild (`foldedOnTurn` set) is refused `guild-folded`,
+   carrying the `guildId`, a rule rather than a programming error because the Guild row is there
+   but the Guild has left play (M2-S10) and must never gain a Roster; a Hero not in the pool is
+   refused `hero-not-unattached`, carrying the `heroId`, whether on a Roster, gone from the pool,
+   or with no row at all, since a Hero who left has a valid id the History still shows; Wealth
+   below the fee is refused `insufficient-wealth`, carrying `fee` and `wealth` (Wealth equal to
+   the fee recruits, leaving 0). On success it copies `world` (DL-24's consequence), deducts
+   exactly the fee, sets `guildId`, clears `unattachedSince`, appends the Hero to the Roster and
+   emits `hero.recruited`, a Milestone naming the Hero and the Guild, payload `{ heroId,
+   guildId, fee }`. `recruit` joins the `Action` union as `{ kind: 'recruit', guildId, heroId }`.
+7. **The CLI.** `recruit --hero <id>`, in its own module `cli/src/commands/recruit.ts`, recruits
+   for the player's Guild, writes the save, and prints the fee and the new Roster size. A word
+   that is not a Hero id is a bad command line (exit 2); a Hero the save lacks, one not in the
+   pool, or a fee above the Guild's Wealth is refused (exit 1) and nothing is written. `show pool`
+   gains a Fee column read through `signingFee`; `show hero` shows when a kept Hero left the pool.
+
+**Consequences.** M2-S10's fold releases a Hero by setting `guildId` null and `unattachedSince`
+to the Turn; M6's release does the same. A rule that retires or kills an Unattached Hero clears
+`unattachedSince`, or the validator refuses the document. A Hero kept after leaving the pool
+stays for good (rule 8), so `world.heroes` grows by the released Heroes nobody re-signs and by no
+one else; with no recruitment it holds exactly the Rosters and `unattachedPoolSize` pool Heroes
+from the first refill on. A version-1 save loads through the migration and plays once M2-S3's
+`ensureStreams` gives it the `pool` stream; on this story's branch alone its first night throws
+for the missing stream (DL-19 item 2). A test of a phase that reads the History passes it to
+`phaseContext`; left out, the phase sees an empty one. The bounded-pool test drives all twenty
+years, 21,600 advances with only this phase live, in 4.5 to 6 s here (about 0.2 ms a Turn), so it
+runs in `npm test` at full length with a 60 s timeout. Fields were added and `schemaVersion` changed, no rule's default, so `configVersion` stays 1.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

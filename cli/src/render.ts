@@ -3,9 +3,9 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `unattachedHeroes`); every name is a document field or a content row's
-// display name. Where the engine has no selector for something a view needs, the selector goes
-// into the engine, not here.
+// (`ageOf`, `baseStat`, `signingFee`, `unattachedHeroes`); every name is a document field or a
+// content row's display name. Where the engine has no selector for something a view needs, the
+// selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, and main.test.ts checks the printed Hero for it.
@@ -14,6 +14,7 @@ import {
   ageOf,
   baseStat,
   dayOf,
+  signingFee,
   timeOfDay,
   unattachedHeroes,
   yearOf,
@@ -155,7 +156,17 @@ export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
 
-function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: EngineDeps): string[] {
+/** A column a view adds to the Hero table, after the others: its heading and each Hero's cell. */
+interface HeroColumn extends Column {
+  cell: (hero: Hero) => string;
+}
+
+function heroTable(
+  heroes: readonly Hero[],
+  document: WorldDocument,
+  deps: EngineDeps,
+  more: readonly HeroColumn[] = [],
+): string[] {
   const { content, config } = deps;
   const { turn } = document.world;
   return table(
@@ -167,6 +178,7 @@ function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: Engin
       { heading: 'Age', align: 'right' },
       { heading: 'Morale', align: 'right' },
       { heading: 'Background' },
+      ...more,
     ],
     heroes.map((hero) => [
       hero.id,
@@ -176,6 +188,7 @@ function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: Engin
       String(ageOf(hero, turn, config)),
       String(hero.morale),
       nameIn(content.backgrounds, hero.backgroundKey),
+      ...more.map((column) => column.cell(hero)),
     ]),
   );
 }
@@ -186,9 +199,10 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
 }
 
-/** `show pool`: the Unattached Heroes. */
+/** `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives. */
 export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
-  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps)];
+  const fee: HeroColumn = { heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) };
+  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, [fee])];
 }
 
 /**
@@ -205,7 +219,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Age', String(ageOf(hero, world.turn, config))],
     ['Class', nameIn(content.classes, hero.classKey)],
     ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
-    ['Guild', hero.guildId === null ? 'Unattached' : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
+    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'none' : 'Unattached') : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
@@ -215,6 +229,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
   if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);
+  if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', `Turn ${hero.leftPoolOnTurn}`]);
 
   let lastArea = '';
   const stats = Object.values(content.stats)
