@@ -135,6 +135,8 @@ export interface GameConfig {
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
   moraleMin: number;
   moraleMax: number;
+  /** How far Morale moves toward `moraleBaseline` each night, never past it. */
+  moraleDrift: number;
   /**
    * Where each Morale band starts: a Hero's band is the highest whose start their Morale has
    * reached. Nightly drift emits `hero.morale-changed` only when it crosses from one to another.
@@ -144,6 +146,12 @@ export interface GameConfig {
   moraleOnRosterDeath: number;
   /** Added to the Morale of every Hero who comes home from a strong success. */
   moraleOnStrongSuccess: number;
+  /** A Hero's Retirement check can first fire past this age. */
+  heroRetirementAge: number;
+  /** The yearly chance of Retirement for each whole year of age past `heroRetirementAge`. */
+  heroRetirementChancePerYear: number;
+  /** The Retirement chance is multiplied by this while the Hero is injured. */
+  heroRetirementInjuredMultiplier: number;
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
@@ -221,9 +229,13 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   moraleMin: 0,
   moraleMax: 100,
+  moraleDrift: 1,
   moraleBands: Object.freeze({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 }),
   moraleOnRosterDeath: -10,
   moraleOnStrongSuccess: 5,
+  heroRetirementAge: 45,
+  heroRetirementChancePerYear: 0.02,
+  heroRetirementInjuredMultiplier: 2,
   infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
 });
 

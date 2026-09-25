@@ -4,7 +4,7 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand } from './config.js';
-import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey } from './content-types.js';
+import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
 import type { Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
@@ -134,8 +134,8 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
 
-/** What moved a Hero's Morale: a Death on their Roster, or a strong success. */
-export type MoraleCause = 'roster-death' | 'strong-success';
+/** What moved a Hero's Morale: a Death on their Roster, a strong success, or the nightly drift. */
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift';
 
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
@@ -145,6 +145,15 @@ export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
   { heroId: HeroId; cause: MoraleCause; before: number; after: number; bandBefore: MoraleBand; bandAfter: MoraleBand }
 >;
+
+/** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
+export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryTypeKey; traitKey: TraitKey | null }>;
+
+/**
+ * A Hero retired at a yearly check, at `age`: off the Roster, the row kept with `retiredOnTurn`. A
+ * Milestone, naming the Hero and their Guild.
+ */
+export type HeroRetired = Entry<'hero.retired', { heroId: HeroId; guildId: GuildId; age: number }>;
 
 /** Every event the engine emits. */
 export type EngineEvent =
@@ -164,7 +173,9 @@ export type EngineEvent =
   | HeroInjured
   | HeroDied
   | HeroXpGained
-  | HeroMoraleChanged;
+  | HeroMoraleChanged
+  | HeroHealed
+  | HeroRetired;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -195,4 +206,6 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.died': true,
   'hero.xp-gained': false,
   'hero.morale-changed': false,
+  'hero.healed': false,
+  'hero.retired': true,
 } satisfies Record<EngineEventType, boolean>);

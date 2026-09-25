@@ -167,13 +167,13 @@ Config: `moraleDrift`, `moraleBands`, `moraleOnRosterDeath`, `moraleOnStrongSucc
 
 **Acceptance:**
 
-- [ ] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
-- [ ] Morale converges on the baseline over nights without overshooting
-- [ ] A year of drift with no band crossing appends nothing; a crossing appends exactly one
+- [x] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
+- [x] Morale converges on the baseline over nights without overshooting
+- [x] A year of drift with no band crossing appends nothing; a crossing appends exactly one
       `hero.morale-changed`
-- [ ] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
+- [x] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
       is within 20% of the configured chance
-- [ ] Only the `heroes` stream advances
+- [x] Only the `heroes` stream advances
 
 ### M2-S7 · Guild State Engine · 1 session
 

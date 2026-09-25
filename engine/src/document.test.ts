@@ -343,8 +343,8 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board (M2-S3), quests (M2-S5) and pool (M2-S8), in ADR-0009 order', () => {
-    expect(streamNames).toEqual(['generation', 'board', 'quests', 'pool']);
+  test('the streams so far are generation, board (M2-S3), quests (M2-S5), pool (M2-S8) and heroes (M2-S6), in ADR-0009 order', () => {
+    expect(streamNames).toEqual(['generation', 'board', 'quests', 'pool', 'heroes']);
   });
 
   test('the Hall has the three facilities of data-model §3.2', () => {
