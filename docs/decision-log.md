@@ -1894,9 +1894,10 @@ are the levers there. The policy's Heroes die at four a year. M3's Levels change
 and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
 keep their rows; their defaults now differ from the config's, as this entry records.
 
-## DL-38 — Rankings are read, not narrated; Fame gates who will sign, by one test (M3-S5)
+## DL-38 — Rankings are read, not narrated; Fame gates who will sign; Hall Improvements are built (M3-S5, M3-S6)
 
-**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S5's implementer)
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S5 and M3-S6's
+implementer); items 7 and 8 fold in two M2 verification defects at the orchestrator's request
 
 **Context.** M3-S5 asks for the CLI's `show rankings`, an entry recording that Rankings are read and
 not narrated, and Fame's first rule (R10 as amended, pre-M0 review B4): a `signing-refused`
@@ -1906,6 +1907,14 @@ policy and `steady` skipping such Heroes, every Guild gated alike, and a harness
 the rejection's payload and its place among `recruit`'s checks, whether a refusal the policy or
 `steady` never meet because they skip counts, how the counter is measured, and whether the Roster
 wiped ending (DL-28 item 1), which asks whether a Guild can still sign anyone, should heed Fame.
+M3-S6 (moved from M5, pre-M0 review D8) names `improvements.json` `{ facility, grade, cost, name }`
+(INPUTS 7.3), `build` with `max-grade` and `insufficient-wealth`, `guild.improved`,
+`quartersMoraleBonus`, and the policy and `steady` building the infirmary "when Wealth exceeds three
+times its cost". It leaves open the content's keys and checks, where the build threshold lives, how
+a build and a recruit share one Wealth, the bonus's default, and the CLI's words. The M2
+verification, meanwhile, found the "cheapest Unattached Hero" rule written three times and the
+Board's offered Quests read twice, and a policy test claiming "draws no random number" that a
+`Math.random` tie-break passed.
 
 **Decision.**
 
@@ -1922,8 +1931,8 @@ wiped ending (DL-28 item 1), which asks whether a Guild can still sign anyone, s
 3. **One test of a signing: `signingRefusal(guild, hero, config)`** in `selectors.ts`, `null` when
    the Hero would sign and otherwise `{ fameRequired, fame, shortfall }`, where `fameRequired` is
    `fameRequiredPerLevel × (level − 1)` and Fame equal to it is enough. `fameRequiredPerLevel` is
-   **10** (INPUTS 5.6). `recruit`, `steady`, the automatic policy, the CLI's `show pool` and the
-   Roster wiped ending all ask it, and no other code works the threshold out. It asks nothing of
+   **10** (INPUTS 5.6). `recruit`, `cheapestUnattached` (so `steady` and the automatic policy) and
+   the CLI's `show pool` ask it, and no other code works the threshold out. It asks nothing of
    Wealth, which stays the fee's check.
 4. **`recruit`'s checks** are now `guild-folded`, `hero-not-unattached`, **`signing-refused`**,
    `insufficient-wealth`, in that order: the Hero refuses before a fee is asked, so a Guild short of
@@ -1934,26 +1943,105 @@ wiped ending (DL-28 item 1), which asks whether a Guild can still sign anyone, s
 5. **`steady` and the policy pass over** a Hero who would refuse, and recruit the cheapest who would
    sign; they never ask one who would not, so neither meets `signing-refused` (a Rival's refused
    action is a bug, DL-30 item 3; the harness fails a run on one, DL-34 item 2).
-6. **Roster wiped counts only Heroes who would sign.** DL-28's check, an empty Roster and Wealth
-   below the cheapest fee in the pool, now takes the cheapest among the Heroes who would sign for
-   that Guild: an empty Roster whose Wealth reaches only Heroes who refuse it has no way back. The
-   pool refills with Level 1 Heroes, who sign anywhere, so this seldom differs from before.
-7. **The counter, for the M3-close counter task** (not added to the harness here). "Signings refused
-   by Fame" counts the refusals a Guild meets **whether or not it asks**: because the policy and
-   `steady` skip, the `signing-refused` rejections they return are zero by construction and would say
-   nothing about how Fame gates a Guild. It is measured with `unsignableHeroes(world, guild,
+6. **The Roster wiped ending does not heed Fame.** DL-28's check, an empty Roster and Wealth below
+   the cheapest fee in the pool as tonight's refresh left it, stands: the cheapest fee of any Hero
+   in the pool, whoever they would sign for. An ending is for good and a refusal for Fame is not.
+   A Guild with an empty Roster cannot raise its Fame (Fame moves with Quest outcomes), so a Hero
+   who refuses it tonight refuses it until they leave the pool; but every Hero the refill brings is
+   Level 1 and signs for any Guild, and the pool turns over within `unattachedStayDays`. Heeding
+   Fame would end a Guild, the player's game with it, for a pool that is for a few Days all
+   veterans a fold released (a Rival's Roster settles near 20, DL-35, and the refill waits while
+   the pool is over its size), whatever Wealth it holds: a false ending. Not heeding it leaves a
+   Guild whose Wealth reaches only refusing Heroes waiting, and wipes it once its Wealth is short of
+   every fee in the pool, as before. (This branch first heeded Fame here; the orchestrator asked
+   that the choice be weighed, and it was reversed before merging.)
+7. **One selector for each repeated rule** (M2 verification). `cheapestUnattached(world, deps,
+   guild?)` in `selectors.ts` is the one "cheapest Hero in the Unattached pool, lowest id among
+   equal fees, with the fee": given a Guild, only Heroes who would sign for it (item 3). `steady`'s
+   `cheapestHire`, the policy's recruit and the Roster wiped ending (without a Guild, item 6) each
+   had a copy and now call it. `offeredQuests(world)`, private in `controllers/rival.ts` and copied in
+   the policy's `byReward`, moves to `selectors.ts` and both call it. `affordableImprovement(guild,
+   facility, wealthMultiple, content)` is the one "build when Wealth is above a multiple of the next
+   grade's cost" for `steady` (the game's multiple) and the policy (its own), item 12.
+8. **The policy's determinism is tested, not asserted** (M2 verification). The test that says the
+   policy draws no random number spies on `Math.random` and finds no call, across dispatches, a
+   build and a recruit; a new test arranges equal rewards on a Board held in reverse id order and
+   equal fees across the pool, and finds the Quests taken in Quest id order and the Hero of the
+   lowest id recruited, with no call to `Math.random`. Replacing the reward tie-break with a random
+   one fails it (checked by hand).
+9. **The Fame counter, for the M3-close counter task** (not added to the harness here). "Signings
+   refused by Fame" counts the refusals a Guild meets **whether or not it asks**: because the policy
+   and `steady` skip, the `signing-refused` rejections they return are zero by construction and would
+   say nothing about how Fame gates a Guild. It is measured with `unsignableHeroes(world, guild,
    config)` (`selectors.ts`, the pool's Heroes for whom `signingRefusal` is not null): once a Day,
    on the morning Turn before the policy acts, for every Guild in play, the count is added to its
    controller kind's total. The report gives, per controller kind, that total (Hero-Days refused),
    its mean per Guild-Day, and the Guild-Days on which at least one pool Hero refused. Beside it,
    the `signing-refused` rejections actually returned, which must be 0. No event is needed: the
    pool and every Guild's Fame are in `world`.
+10. **`content/improvements.json`**, content table `improvements`, rows keyed `infirmary-1`,
+    `training-yard-2`, `quarters-3` and so on, each `{ facility, grade, cost, name }`; `facility` is
+    the Hall's own key (`infirmary`, `trainingYard`, `quarters`). Three grades of each facility at
+    **200, 500 and 1,000** Wealth (INPUTS 7.3), named by the agent (the infirmary: Sickroom,
+    Infirmary ward, Physicians' wing; the training yard: Practice yard, Drill ground, Tiltyard and
+    armoury; the quarters: Dormitory, Private rooms, Comfortable lodgings). Content validation
+    refuses a facility that is not one of the Hall's three, a grade that is not a whole number from
+    1, a cost that is not a whole number above 0, and a facility whose grades are not 1 to n, each
+    once; a facility no row names cannot be built. `contentVersion` becomes **5**; the engine's test
+    content carries the same nine rows.
+11. **`build(document, { guildId, facility }, deps)`** and its rule `applyBuild(world, …)` (DL-30's
+    seam), in `actions/build.ts`, join `Action` and `GuildAction`. The next grade is content's row
+    for the facility at its grade plus one (`nextImprovement`). Checks, in order: `guild-folded`
+    (`{ guildId }`), `max-grade` (`{ facility, grade }`: no next row, a grade past content's top
+    after content shrank included, rule 5), `insufficient-wealth` (`{ facility, cost, wealth }`;
+    Wealth equal to the cost builds). A Guild id the world lacks, or a facility the Hall lacks,
+    throws. Success deducts the cost, sets the grade and emits `guild.improved`, a Milestone naming
+    the Guild, payload `{ guildId, facility, grade, improvementKey, cost }`. No selling or pulling
+    down. Upkeep already charges `hallMaintenancePerGrade` a grade (DL-26).
+12. **What a grade does, read where it matters.** The infirmary as DL-29 item 8 has it, at the
+    Injury's infliction. The training yard by M3-S2's `training` phase, built in parallel: this
+    branch proves only that `build` puts the grade on the Guild's row. The quarters through
+    **`moraleBaselineFor(hero, world, config)`** (`morale.ts`): `moraleBaseline` plus
+    `quartersMoraleBonus` for each grade of the Hero's Guild's quarters, held inside `moraleMin` to
+    `moraleMax`; a Hero on no Roster has none. The Hero State Engine's drift reads it, the one place
+    the baseline is worked out, which M4-S5's Inspiration and Guildmaster Traits extend. A generated
+    Hero still starts at `moraleBaseline`. `quartersMoraleBonus` is **5**, chosen, having no INPUTS
+    row: grade 3 lifts the baseline from 60 to 75, where `high` starts, so the best quarters hold an
+    idle Roster high, and at grade 1 (65) one Death on the Roster (−10) still leaves a Hero `steady`.
+13. **The controllers build the infirmary**, and only it: its next grade when Wealth is strictly
+    above three times that grade's cost. `steady`'s multiple is a rule of the game,
+    **`buildWealthMultiple` 3** in `GameConfig`; the policy's is the harness's, `buildWealthMultiple`
+    3 in `PolicyConfig`, as each has its own `recruitWealthMultiple` (DL-34). Each makes **one
+    purchase** an afternoon (`steady`) or a Turn (the policy): the build when due, else the recruit.
+    Both are chosen on the world as it stands, so a second purchase could find the Wealth the first
+    spent and be refused, which neither may be (item 5); a build due delays a recruit by one
+    afternoon or Turn, three times a Guild's life.
+14. **The CLI.** `build --facility infirmary|training-yard|quarters`, kebab-case words for the Hall's
+    keys, as `--until` has its own words (DL-33): builds for the player's Guild, writes the save, and
+    prints what was built and for how much, the Wealth and Upkeep after, and the next grade's cost
+    or that the facility is at its highest; a refusal is put into words and nothing is written
+    (exit 1); a word that is not a facility is a bad command line (exit 2). `narrate` has a line for
+    `guild.improved`.
+15. **The Improvements counter, for the M3-close counter task.** "Improvement grades reached by year
+    10 per controller kind" reads `history.byType['guild.improved']`: the entries before Turn
+    `10 × turnsPerYear`, the highest `grade` per Guild and `facility`, the Guild's controller kind
+    from its row by the payload's `guildId`. A Guild that built nothing has grade 0 in each facility,
+    so the denominator is the Guilds founded before year 10 (`guild.founded` entries, replacement
+    Rivals included). Reported per controller kind and facility: the mean grade per Guild, and how
+    many Guilds reached each grade 0 to 3.
 
-**Consequences.** `configVersion` stays 2: a field was added and no default changed (DL-28 item 10's
-reading). Until M3-S1 gives Heroes Levels, every Hero is Level 1 and nothing is refused; after it, a
-pool Hero above Level 1 is one a folded Guild released (DL-28 item 3), the generator making Level 1
-Heroes, so the counter measures how often a fallen Rival's veterans are out of a Guild's reach. A
-Guild at Fame 0 signs only Level 1 Heroes and needs Fame 40 for a Level 5.
+**Consequences.** `configVersion` stays 2: `fameRequiredPerLevel`, `quartersMoraleBonus` and
+`buildWealthMultiple` were added and no default changed (DL-28 item 10's reading). Until M3-S1 gives
+Heroes Levels every Hero is Level 1 and nothing is refused; after it, a pool Hero above Level 1 is one
+a folded Guild released, the generator making Level 1 Heroes, so the Fame counter measures how often
+a fallen Rival's veterans are out of a Guild's reach. A Guild at Fame 0 signs only Level 1 Heroes and
+needs Fame 40 for a Level 5. Wealth now has a sink: a Rival founded with more than 600 Wealth builds
+its infirmary on its first afternoon, 1,700 Wealth over three grades, and 30 more Upkeep each ten
+Days once all three are up; the M3 run should watch whether that hastens Rival folds, and
+`buildWealthMultiple` is the dial. Tests that watch a recruit by a Guild with ample Wealth, and the
+fold test with its two Days' grace, put building out of reach, as DL-30 item 11 stills what a test
+does not watch. A merge with M3-S1 to S4 takes the next content version if one of them raised it too,
+and ticks the training-yard half of M3-S6's second box once M3-S2's `training` phase is in.
 
 ---
 

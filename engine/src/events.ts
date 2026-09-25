@@ -4,8 +4,19 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand } from './config.js';
-import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
-import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
+import type { ClassKey, ImprovementKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
+import type {
+  EndingReason,
+  Entry,
+  FacilityKey,
+  GuildId,
+  GuildmasterId,
+  HeroId,
+  PartyId,
+  PatronId,
+  QuestId,
+  Turn,
+} from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
@@ -176,6 +187,17 @@ export type GuildFolded = Entry<'guild.folded', { guildId: GuildId; reason: Endi
  */
 export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: GuildId }>;
 
+// ── Hall Improvements (M3-S6, DL-38) ─────────────────────────────────────────────────────────
+
+/**
+ * A Guild built an Improvement through `build`, raising `facility` to `grade` for `cost` Wealth. A
+ * Milestone, naming the Guild.
+ */
+export type GuildImproved = Entry<
+  'guild.improved',
+  { guildId: GuildId; facility: FacilityKey; grade: number; improvementKey: ImprovementKey; cost: number }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -199,7 +221,8 @@ export type EngineEvent =
   | HeroRetired
   | GameEnded
   | GuildFolded
-  | HeroLeftGuild;
+  | HeroLeftGuild
+  | GuildImproved;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -235,4 +258,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'game.ended': true,
   'guild.folded': true,
   'hero.left-guild': false,
+  'guild.improved': true,
 } satisfies Record<EngineEventType, boolean>);

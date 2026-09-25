@@ -26,6 +26,7 @@ import {
   type ContentSet,
   type EngineDeps,
   type Entry,
+  type FacilityKey,
   type Guild,
   type Hero,
   type Patron,
@@ -85,6 +86,13 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
 export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
+
+/** A Hall facility as the CLI names one in a sentence (`CONTEXT.md`, Hall). */
+export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
+  infirmary: 'infirmary',
+  trainingYard: 'training yard',
+  quarters: 'quarters',
+});
 
 function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);

@@ -170,6 +170,11 @@ export interface GameConfig {
    * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
    */
   infirmaryHealFactor: readonly number[];
+  /**
+   * Added to `moraleBaseline` for each grade of the Guild's quarters: what nightly drift returns a
+   * Roster Hero's Morale to (`moraleBaselineFor`; M3-S6, R33, DL-38).
+   */
+  quartersMoraleBonus: number;
 
   // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
   /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
@@ -185,6 +190,12 @@ export interface GameConfig {
    * row. The harness's automatic policy has its own threshold (DL-34).
    */
   recruitWealthMultiple: number;
+  /**
+   * `steady` builds its infirmary's next grade only while its Wealth is above this many times that
+   * grade's cost (M3-S6: "when Wealth exceeds three times its cost", DL-38). The harness's
+   * automatic policy has its own multiple, as it has its own `recruitWealthMultiple` (DL-34).
+   */
+  buildWealthMultiple: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -265,10 +276,12 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
   infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+  quartersMoraleBonus: 5,
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
   recruitWealthMultiple: 10,
+  buildWealthMultiple: 3,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

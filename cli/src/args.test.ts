@@ -86,6 +86,16 @@ describe('parseArgs', () => {
     });
   });
 
+  test('reads build: a facility in the CLI’s words (M3-S6)', () => {
+    expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
+    expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
+      name: 'build',
+      save: 'demo',
+      facility: 'trainingYard',
+    });
+    expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -133,6 +143,10 @@ describe('parseArgs', () => {
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'Brenna'], 'got "Brenna"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,hero-000001'], '--heroes names hero-000001 twice'],
     [['dispatch', 'quest-000001'], 'does not take "quest-000001"'],
+    [['build'], 'build needs --facility'],
+    [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
+    [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
+    [['build', 'infirmary'], 'does not take "infirmary"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

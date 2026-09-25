@@ -13,7 +13,14 @@ import { unavailability } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, DispositionKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
-import { baseStat, dispositionOf, signingFee, signingRefusal, unattachedHeroes, upkeep } from '../selectors.js';
+import {
+  affordableImprovement,
+  baseStat,
+  cheapestUnattached,
+  dispositionOf,
+  offeredQuests,
+  upkeep,
+} from '../selectors.js';
 
 /** A Disposition's rule: the actions its Guild takes this afternoon, on the world as it stands. */
 export type DispositionRule = (world: World, guild: Guild, deps: EngineDeps) => GuildAction[];
@@ -54,16 +61,6 @@ export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild,
   return heroes;
 }
 
-/** The Quests on offer on the Board, in the Board's order. */
-function offeredQuests(world: Pick<World, 'board' | 'quests'>): Quest[] {
-  const offered: Quest[] = [];
-  for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
-    if (quest !== undefined && quest.status === 'offered') offered.push(quest);
-  }
-  return offered;
-}
-
 /**
  * The Quests on offer on the Board that `guild` could staff now, in the Board's order: those for
  * which some Party of its available Heroes (`availableHeroes`, `dispatch`'s own test) meets the
@@ -83,18 +80,31 @@ export function staffableQuests(
 // ── steady ───────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `steady` (INPUTS 4.12, DL-30): dispatch to the easiest Quest on the Board it can staff, then
- * recruit the cheapest Unattached Hero while its Wealth is above `recruitWealthMultiple` times its
- * Upkeep. At most one of each an afternoon, and no draw. The two do not depend on each other: a
- * dispatch moves no Wealth and a recruit sends no one, so both are chosen on the same world.
+ * `steady` (INPUTS 4.12, DL-30, DL-38): dispatch to the easiest Quest on the Board it can staff,
+ * then make one purchase: build the infirmary's next grade while its Wealth is above
+ * `buildWealthMultiple` times that grade's cost (M3-S6), or else recruit the cheapest Unattached
+ * Hero who would sign while its Wealth is above `recruitWealthMultiple` times its Upkeep. At most
+ * one dispatch and one purchase an afternoon, and no draw. The dispatch and the purchase do not
+ * depend on each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen
+ * on the same world; one purchase, so that the second never finds the Wealth the first spent.
  */
 function steady(world: World, guild: Guild, deps: EngineDeps): GuildAction[] {
   const choices: GuildAction[] = [];
   const quest = easiestStaffable(world, guild, deps.content);
   if (quest !== null) choices.push(quest);
-  const hire = cheapestHire(world, guild, deps);
-  if (hire !== null) choices.push(hire);
+  const purchase = infirmaryBuild(guild, deps) ?? cheapestHire(world, guild, deps);
+  if (purchase !== null) choices.push(purchase);
   return choices;
+}
+
+/**
+ * A build of the infirmary's next grade when `guild`'s Wealth is above `buildWealthMultiple` times
+ * its cost (`affordableImprovement`); `null` otherwise, and once the infirmary is at its top grade
+ * (M3-S6, DL-38). Only the infirmary: the story asks no more of `steady`.
+ */
+function infirmaryBuild(guild: Guild, deps: EngineDeps): GuildAction | null {
+  const next = affordableImprovement(guild, 'infirmary', deps.config.buildWealthMultiple, deps.content);
+  return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
 }
 
 /**
@@ -174,19 +184,14 @@ function strengthFor(hero: Hero, quest: Quest, content: ContentSet): number {
 
 /**
  * A recruit of the cheapest Hero in the Unattached pool who would sign for `guild`
- * (`signingRefusal`, M3-S5), lowest id among equal fees, when `guild`'s Wealth is above
- * `recruitWealthMultiple` times its Upkeep and covers the fee; `null` otherwise, and when no Hero
- * in the pool would sign. A Hero who would refuse the Guild's Fame is passed over, never asked.
+ * (`cheapestUnattached`, M3-S5), when `guild`'s Wealth is above `recruitWealthMultiple` times its
+ * Upkeep and covers the fee; `null` otherwise, and when no Hero in the pool would sign. A Hero who
+ * would refuse the Guild's Fame is passed over, never asked.
  */
 function cheapestHire(world: World, guild: Guild, deps: EngineDeps): GuildAction | null {
   const threshold = deps.config.recruitWealthMultiple * upkeep(guild, world, deps.config);
   if (!(guild.wealth > threshold)) return null;
-  let cheapest: { heroId: HeroId; fee: number } | null = null;
-  for (const hero of unattachedHeroes(world)) {
-    if (signingRefusal(guild, hero, deps.config) !== null) continue;
-    const fee = signingFee(hero, deps);
-    if (cheapest === null || fee < cheapest.fee) cheapest = { heroId: hero.id, fee };
-  }
+  const cheapest = cheapestUnattached(world, deps, guild);
   if (cheapest === null || cheapest.fee > guild.wealth) return null;
-  return { kind: 'recruit', guildId: guild.id, heroId: cheapest.heroId };
+  return { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id };
 }

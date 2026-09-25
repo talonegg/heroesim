@@ -4,6 +4,8 @@ import { makeId, type Guild, type Hero } from './document.js';
 import { testDeps } from './world.test-support.js';
 import {
   baseStat,
+  cheapestUnattached,
+  offeredQuests,
   playerGuild,
   rankings,
   signingFee,
@@ -331,5 +333,62 @@ describe('unsignableHeroes (M3-S5)', () => {
       guild.fame = 0;
       expect(unsignableHeroes(world, guild, deps.config)).toEqual([second, fourth]);
     }
+  });
+});
+
+describe('cheapestUnattached (DL-38)', () => {
+  const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
+
+  function pool() {
+    const { document } = createWorld('cheapest', setup, deps);
+    const heroes = unattachedHeroes(document.world);
+    if (heroes.length !== 4) throw new Error('A short pool');
+    // Stats that set the fees: 50 + 25 × Level + the Stats' sum ÷ 4 (INPUTS 4.7).
+    const statsAt = (value: number) => Object.fromEntries(Object.keys(heroes[0]?.stats ?? {}).map((key) => [key, value]));
+    heroes.forEach((hero, index) => (hero.stats = statsAt([12, 8, 8, 10][index] ?? 10)));
+    return { world: document.world, heroes: heroes as [Hero, Hero, Hero, Hero] };
+  }
+
+  test('is the Hero with the lowest fee, the lowest id among equal fees, with that fee', () => {
+    const { world, heroes } = pool();
+    const [, second] = heroes;
+
+    expect(cheapestUnattached(world, deps)).toEqual({ hero: second, fee: signingFee(second, deps) });
+    expect(signingFee(second, deps)).toBe(signingFee(heroes[2], deps));
+  });
+
+  test("given a Guild, passes over a Hero who would refuse its Fame, and is null when none would sign", () => {
+    const { world, heroes } = pool();
+    const [first, second, third, fourth] = heroes;
+    second.level = 2; // asks Fame 10, and now costs 25 more
+    third.level = 2;
+
+    expect(cheapestUnattached(world, deps, { fame: 0 })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps)?.hero).toBe(fourth);
+    for (const hero of [first, fourth]) hero.level = 3;
+    expect(cheapestUnattached(world, deps, { fame: 0 })).toBeNull();
+    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(second);
+    // Without a Guild, Fame is not asked: the cheapest in the pool, whoever they would sign for.
+    expect(cheapestUnattached(world, deps)?.hero).toBe(second);
+  });
+
+  test('is null for an empty pool', () => {
+    expect(cheapestUnattached({ heroes: {} }, deps)).toBeNull();
+    expect(cheapestUnattached({ heroes: {} }, deps, { fame: 100 })).toBeNull();
+  });
+});
+
+describe('offeredQuests (DL-38)', () => {
+  test("is the Board's Quests on offer, in the Board's order, and no other", () => {
+    const { document } = createWorld('offered', setup, testDeps());
+    const { world } = document;
+    const [first, second, third, ...rest] = world.board;
+    if (first === undefined || second === undefined || third === undefined) throw new Error('A short Board');
+    world.board = [third, first, second, makeId('quests', 999), ...rest];
+    (world.quests[first] as { status: string }).status = 'taken';
+
+    expect(offeredQuests(world).map((quest) => quest.id)).toEqual([third, second, ...rest]);
+    expect(offeredQuests({ board: [], quests: world.quests })).toEqual([]);
   });
 });

@@ -6,8 +6,17 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { DispositionKey, Stat } from './content-types.js';
-import { compareByCodeUnit, type Guild, type GuildId, type Hero, type StatValues, type World } from './document.js';
+import type { ContentSet, DispositionKey, Improvement, Stat } from './content-types.js';
+import {
+  compareByCodeUnit,
+  type FacilityKey,
+  type Guild,
+  type GuildId,
+  type Hero,
+  type Quest,
+  type StatValues,
+  type World,
+} from './document.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -71,8 +80,9 @@ export interface SigningRefusal {
  * enough. Every Guild is asked alike (ADR-0002).
  *
  * The one test of it: `recruit` refuses `signing-refused` on it, `steady` and the harness's policy
- * pass over the Heroes it refuses, the Roster-wiped ending counts only the Heroes who would sign,
- * and the CLI's `show pool` marks the rest. It asks nothing of Wealth, which is the fee's business.
+ * pass over the Heroes it refuses (through `cheapestUnattached`), and the CLI's `show pool` marks
+ * them. It asks nothing of Wealth, which is the fee's business. The Roster wiped ending does not
+ * ask it: a refusal for Fame lasts only until the pool turns over (DL-38).
  */
 export function signingRefusal(
   guild: Pick<Guild, 'fame'>,
@@ -94,6 +104,51 @@ export function unsignableHeroes(
   config: Pick<GameConfig, 'fameRequiredPerLevel'>,
 ): Hero[] {
   return unattachedHeroes(world).filter((hero) => signingRefusal(guild, hero, config) !== null);
+}
+
+/** A Hero in the Unattached pool and the signing fee they ask. */
+export interface Hire {
+  hero: Hero;
+  fee: number;
+}
+
+/**
+ * The cheapest Hero in the Unattached pool and their fee (`signingFee`), the lowest id among equal
+ * fees; `null` when there is none. Given `guild`, only a Hero who would sign for it counts
+ * (`signingRefusal`), so one who would refuse its Fame is passed over, never asked (M3-S5).
+ *
+ * The one statement of "the cheapest Hero" (DL-38): `steady` and the harness's policy recruit it
+ * for their Guild; the Roster wiped ending asks it without a Guild, pricing a way back by the
+ * cheapest Hero in the pool whoever they would sign for, since a refusal for Fame lasts only until
+ * the pool turns over (DL-38).
+ */
+export function cheapestUnattached(
+  world: Pick<World, 'heroes'>,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+  guild?: Pick<Guild, 'fame'>,
+): Hire | null {
+  let cheapest: Hire | null = null;
+  for (const hero of unattachedHeroes(world)) {
+    if (guild !== undefined && signingRefusal(guild, hero, deps.config) !== null) continue;
+    const fee = signingFee(hero, deps);
+    // The pool is in id order, so a strict comparison keeps the lowest id among equal fees.
+    if (cheapest === null || fee < cheapest.fee) cheapest = { hero, fee };
+  }
+  return cheapest;
+}
+
+/**
+ * The Quests on offer on the Board, in the Board's order: each id on the Board whose row is there
+ * and `offered`. What every chooser of a Quest starts from, `steady` (and fast forward's
+ * `decision-needed` through `staffableQuests`) and the harness's policy alike (DL-38).
+ */
+export function offeredQuests(world: Pick<World, 'board' | 'quests'>): Quest[] {
+  const offered: Quest[] = [];
+  for (const questId of world.board) {
+    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
+    if (quest !== undefined && quest.status === 'offered') offered.push(quest);
+  }
+  return offered;
 }
 
 /** A Guild statistic the Rankings order by (R10). */
@@ -153,4 +208,36 @@ export function upkeep(
   }, 0);
   const hallGrades = Object.values(guild.hall).reduce((total, grade) => total + grade, 0);
   return wages + config.hallMaintenancePerGrade * hallGrades;
+}
+
+/**
+ * The Improvement that would raise `guild`'s `facility` one grade (M3-S6): content's row for that
+ * facility whose grade is the facility's grade now plus one, or `null` when content has none, the
+ * facility being at its top grade. `build` builds it and charges its cost; a controller reads its
+ * cost before choosing to build.
+ */
+export function nextImprovement(
+  guild: Pick<Guild, 'hall'>,
+  facility: FacilityKey,
+  content: Pick<ContentSet, 'improvements'>,
+): Improvement | null {
+  const grade = guild.hall[facility] + 1;
+  return Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade) ?? null;
+}
+
+/**
+ * The next Improvement of `facility` (`nextImprovement`) when `guild`'s Wealth is above
+ * `wealthMultiple` times its cost and covers it; `null` otherwise, and at the top grade. How a
+ * controller decides to build: `steady` with the game's `buildWealthMultiple`, the harness's policy
+ * with its own (M3-S6, DL-38).
+ */
+export function affordableImprovement(
+  guild: Pick<Guild, 'hall' | 'wealth'>,
+  facility: FacilityKey,
+  wealthMultiple: number,
+  content: Pick<ContentSet, 'improvements'>,
+): Improvement | null {
+  const next = nextImprovement(guild, facility, content);
+  if (next === null || !(guild.wealth > wealthMultiple * next.cost) || guild.wealth < next.cost) return null;
+  return next;
 }

@@ -16,7 +16,7 @@ import type { EngineEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
-import { playerGuild, rankings, signingFee, unattachedHeroes } from '../selectors.js';
+import { playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
 import { nightOf } from '../time.js';
 import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
 import { endings } from './endings.js';
@@ -226,23 +226,22 @@ describe("the player's ending ends the game", () => {
     expect(document.world.ended).toBeNull();
   });
 
-  test("an empty Roster is wiped when every Hero it could pay for would refuse its Fame (M3-S5, DL-38)", () => {
+  test('an empty Roster whose Wealth reaches only Heroes who refuse its Fame is waiting, not wiped (M3-S5, DL-38)', () => {
     // No Rivals, so that nobody signs from the pool before night.
     const refusing = testDeps({ rivalCount: 0, fameRequiredPerLevel: 10 });
-    const start = created('wiped-by-fame', refusing);
+    const start = created('waiting-for-fame', refusing);
     const player = thePlayer(start.world);
     wipeRoster(start.world, player);
-    player.wealth = 1_000_000;
     player.fame = 0;
-    for (const hero of unattachedHeroes(start.world)) hero.level = 2;
+    const pool = unattachedHeroes(start.world);
+    for (const hero of pool) hero.level = 2;
+    expect(pool.every((hero) => signingRefusal(player, hero, refusing.config) !== null)).toBe(true);
+    player.wealth = cheapestFee(start.world, refusing);
 
-    expect(playTo(structuredClone(start), nightOf(0), refusing).document.world.ended).toEqual({
-      turn: nightOf(0),
-      reason: 'roster-wiped',
-    });
-    // Under a rule that asks no Fame, the same Heroes would sign, and the Guild plays on.
-    const unasked = testDeps({ rivalCount: 0, fameRequiredPerLevel: 0 });
-    expect(playTo(start, nightOf(0), unasked).document.world.ended).toBeNull();
+    expect(playTo(structuredClone(start), nightOf(0), refusing).document.world.ended).toBeNull();
+    // A fee short of every Hero in the pool is wiped, as before: Fame is not what ends a Guild.
+    player.wealth -= 1;
+    expect(playTo(start, nightOf(0), refusing).document.world.ended).toEqual({ turn: nightOf(0), reason: 'roster-wiped' });
   });
 
   test('an empty Roster with nobody in the pool to sign is wiped, whatever the Wealth', () => {
@@ -322,6 +321,9 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       // Out of every Rival's reach, so that none re-signs the released Heroes (M2-S9 recruits
       // above this many Upkeeps), whose leaving the pool the test watches.
       recruitWealthMultiple: 1_000_000,
+      // And no building (M3-S6), which would spend a new Rival's Wealth before its first Upkeep and,
+      // under this test's two Days' grace, fold it too.
+      buildWealthMultiple: 1_000_000,
     });
     const start = created('fold', deps);
     const player = thePlayer(start.world);

@@ -125,11 +125,11 @@ Config: `quartersMoraleBonus`.
 
 **Acceptance:**
 
-- [ ] Each facility climbs from 0 to its top grade with the right cumulative cost and refuses
+- [x] Each facility climbs from 0 to its top grade with the right cumulative cost and refuses
       beyond
 - [ ] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
       grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury
-- [ ] CLI `build --facility infirmary`
+- [x] CLI `build --facility infirmary`
 
 ## 2. Configuration and events introduced
 

@@ -4,12 +4,12 @@
 //
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
-// `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`. Later milestones
-// add theirs (M5-S1 Items).
+// `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`; M3-S6
+// `Improvement`. Later milestones add theirs (M5-S1 Items).
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
-import type { Sex } from './document.js';
+import type { FacilityKey, Sex } from './document.js';
 
 // Content keys. A key names a content row; the World State stores keys, never rows. They are
 // plain strings: type safety over them comes from content validation at load, not from the
@@ -41,6 +41,8 @@ export type LootTableKey = string;
 export type ItemDefinitionKey = string;
 /** A gear slot on a Hero (M5). */
 export type SlotKey = string;
+/** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
+export type ImprovementKey = string;
 
 /** The four areas a Stat belongs to, used for display (R14). */
 export type StatArea = 'physical' | 'mental' | 'magical' | 'social';
@@ -177,6 +179,23 @@ export interface Disposition {
   name: string;
 }
 
+/**
+ * A Hall Improvement (R33, INPUTS 7.3; `improvements.json`, M3-S6): one grade of one facility, and
+ * what it costs to build. `build` raises a facility from grade g to g + 1 at the cost of the row
+ * whose `grade` is g + 1; a facility's grades run 1, 2, 3, … with no gap, and its top grade is the
+ * highest content defines.
+ */
+export interface Improvement {
+  key: ImprovementKey;
+  name: string;
+  /** The Hall facility the Improvement raises. */
+  facility: FacilityKey;
+  /** The grade it raises the facility to, from 1. */
+  grade: number;
+  /** The Wealth it costs, a whole number above 0. */
+  cost: number;
+}
+
 /** The name lists the generators draw from (INPUTS 3.9; `names.json`). No list is empty. */
 export interface Names {
   /** Given names for Heroes and Guildmasters, by sex. */
@@ -205,6 +224,8 @@ export interface ContentSet {
   injuries: Record<InjuryTypeKey, InjuryType>;
   /** The Rival Dispositions, each a Rival controller's rule by key (M2-S9). */
   dispositions: Record<DispositionKey, Disposition>;
+  /** The Hall Improvements, each one grade of one facility and its cost (M3-S6). */
+  improvements: Record<ImprovementKey, Improvement>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

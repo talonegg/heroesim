@@ -3,7 +3,14 @@
 // is the command's to check, once the save and the content are open. Whether a word has the form
 // of an id is checked here, by the engine's `isId`.
 
-import { isId, type HeroId, type QuestId, type RankingMeasure, type StopCondition } from '@heroesim/engine';
+import {
+  isId,
+  type FacilityKey,
+  type HeroId,
+  type QuestId,
+  type RankingMeasure,
+  type StopCondition,
+} from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -38,6 +45,9 @@ Commands:
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party and the Day it returns. Rivals take Quests from the Board
       each afternoon.
+  build --facility <infirmary | training-yard | quarters>
+      Raise a facility of the player's Guild's Hall by one grade, for the next grade's
+      cost, and print what was built, the Wealth left and what the next grade costs.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -80,6 +90,7 @@ export type Command =
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
+  | { name: 'build'; save: string; facility: FacilityKey }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -94,6 +105,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
+  build: { save: 'value', facility: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -170,6 +182,21 @@ function stopList(value: string): StopCondition[] {
   const twice = words.find((word, index) => words.indexOf(word) !== index);
   if (twice !== undefined) refuse(`--until names ${twice} twice`);
   return words.map((word) => untilWords[word] as StopCondition);
+}
+
+/** The words `--facility` takes, and the Hall facility each names (M3-S6). */
+const facilityWords: Readonly<Record<string, FacilityKey>> = Object.freeze({
+  infirmary: 'infirmary',
+  'training-yard': 'trainingYard',
+  quarters: 'quarters',
+});
+
+/** `--facility`: one of the Hall's facilities, in the CLI's words. */
+function facility(value: string): FacilityKey {
+  if (!Object.hasOwn(facilityWords, value)) {
+    refuse(`--facility takes ${Object.keys(facilityWords).join(', ')}; got "${value}"`);
+  }
+  return facilityWords[value] as FacilityKey;
 }
 
 /** `--heroes`: Hero ids joined by commas, each once. */
@@ -291,6 +318,9 @@ function parse(argv: readonly string[]): Command {
       if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
       return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
     }
+    case 'build':
+      atMost(positional, 0, 'build');
+      return { name, save, facility: facility(required(flags, name, 'facility')) };
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

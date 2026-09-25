@@ -92,6 +92,13 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
+  'guild.improved': event('guild.improved', [guildId], {
+    guildId,
+    facility: 'trainingYard',
+    grade: 2,
+    improvementKey: 'training-yard-2',
+    cost: 500,
+  }),
 };
 
 describe('narrate', () => {
@@ -113,6 +120,9 @@ describe('narrate', () => {
     );
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
     expect(narrate(samples['quest.resolved'], content)).toContain('and failed: Wealth 0, Fame -2.');
+    expect(narrate(samples['guild.improved'], content)).toBe(
+      `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
+    );
   });
 });
 

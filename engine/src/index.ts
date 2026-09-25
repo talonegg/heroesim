@@ -2,6 +2,16 @@
 
 export * from './actions/action.js';
 export {
+  applyBuild,
+  build,
+  type BuildAction,
+  type BuildGuildFolded,
+  type BuildInsufficientWealth,
+  type BuildRejection,
+  type BuildRequest,
+  type MaxGrade,
+} from './actions/build.js';
+export {
   applyDispatch,
   dispatch,
   unavailability,
@@ -42,7 +52,7 @@ export { generatePatron, type GeneratedPatron, type PatronOptions } from './gene
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './history.js';
 export * from './json-safe.js';
-export { moraleBand } from './morale.js';
+export { moraleBand, moraleBaselineFor } from './morale.js';
 export {
   questBand,
   resolveQuest,

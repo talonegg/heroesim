@@ -9,6 +9,8 @@ import type {
   Class,
   ContentSet,
   Disposition,
+  FacilityKey,
+  Improvement,
   InjuryType,
   Names,
   QuestTemplate,
@@ -29,9 +31,9 @@ export const contentSetId = 'core';
 /**
  * Raised whenever the content changes, so a document says which content it was created under:
  * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
- * from M2-S5, which added the Injury types.
+ * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements.
  */
-export const contentVersion = 4;
+export const contentVersion = 5;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -45,6 +47,7 @@ export const contentFiles = [
   'quest-templates.json',
   'dispositions.json',
   'injuries.json',
+  'improvements.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -55,6 +58,7 @@ const statAreas: Record<StatArea, true> = { physical: true, mental: true, magica
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const traitOwners: Record<TraitOwner, true> = { hero: true, guildmaster: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
+const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -135,6 +139,18 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       healDaysMax: row.integer('healDaysMax'),
       leavesTrait: row.stringOrNull('leavesTrait'),
     })),
+    improvements: table<Improvement>(
+      'improvements.json',
+      json('improvements.json'),
+      problems,
+      'an Improvement',
+      (row) => ({
+        name: row.string('name'),
+        facility: row.oneOf('facility', facilities),
+        grade: row.integer('grade'),
+        cost: row.integer('cost'),
+      }),
+    ),
   };
 
   if (problems.length > 0) throw new ContentError(problems);

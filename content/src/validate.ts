@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { ContentSet } from '@heroesim/engine';
+import type { ContentSet, FacilityKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -31,6 +31,9 @@ export const growthSumTolerance = 0.001;
  */
 export const demandSumTolerance = 0.001;
 
+/** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
+const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
+
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -53,6 +56,7 @@ export function validateContent(set: ContentSet): ContentSet {
     questTemplates: set.questTemplates,
     injuries: set.injuries,
     dispositions: set.dispositions,
+    improvements: set.improvements,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -135,6 +139,8 @@ export function validateContent(set: ContentSet): ContentSet {
     }
   }
 
+  checkImprovements(set.improvements, problems);
+
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
     ['family', set.names.family],
@@ -148,6 +154,35 @@ export function validateContent(set: ContentSet): ContentSet {
 
   if (problems.length > 0) throw new ContentError(problems);
   return set;
+}
+
+/**
+ * The Hall Improvements (M3-S6): each raises a Hall facility, costs a whole number of Wealth above
+ * 0, and each facility's grades run 1, 2, 3, … once each, with no gap, so that `build` finds the
+ * next grade of any facility by its number. A facility no row names cannot be built; none need be.
+ */
+function checkImprovements(improvements: ContentSet['improvements'], problems: string[]): void {
+  const grades = new Map<string, number[]>();
+  for (const [key, improvement] of Object.entries(improvements)) {
+    const where = `improvements.${key}`;
+    const { facility, grade, cost } = improvement;
+    if (!Object.hasOwn(facilities, facility)) {
+      problems.push(`${where}.facility: "${facility}" is not a Hall facility (${Object.keys(facilities).join(', ')})`);
+    } else {
+      grades.set(facility, [...(grades.get(facility) ?? []), grade]);
+    }
+    if (!(Number.isInteger(grade) && grade >= 1)) problems.push(`${where}.grade is ${grade}; it is a whole number from 1`);
+    if (!(Number.isInteger(cost) && cost > 0)) problems.push(`${where}.cost is ${cost}; it is a whole number above 0`);
+  }
+  for (const [facility, listed] of grades) {
+    const sorted = [...listed].sort((a, b) => a - b);
+    const expected = sorted.map((_, index) => index + 1);
+    if (sorted.some((grade, index) => grade !== expected[index])) {
+      problems.push(
+        `improvements: the grades of ${facility} are ${sorted.join(', ')}; they run 1 to ${sorted.length}, each once`,
+      );
+    }
+  }
 }
 
 /** Every key must name a row of the table it refers to, and appear once. */
