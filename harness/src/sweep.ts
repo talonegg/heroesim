@@ -249,7 +249,7 @@ const noGrowth = (): GrowthAgainstDecline => ({
   pointsDeclinedAfter: 0,
 });
 const noGrades = (): GradeCounts => Object.fromEntries(facilityKeys.map((facility) => [facility, []])) as unknown as GradeCounts;
-const noCensus = (): RosterCensus => ({ guilds: 0, heroes: 0, levels: 0, atPotential: 0 });
+const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
@@ -377,6 +377,7 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
   ]);
 
   const censusCells = (census: RosterCensus): string[] => [
+    ratio(census.wealth, census.guilds, 0),
     ratio(census.heroes, census.guilds, 1),
     ratio(census.levels, census.heroes),
     `${whole(census.atPotential)} (${percent(census.atPotential, census.heroes)})`,
@@ -482,22 +483,24 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
       ['right', 'right', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
-    'The Rosters of the Guilds in play as each year begins, before the policy acts (0 is the new world), over ' +
+    'The Guilds in play and their Rosters as each year begins, before the policy acts (0 is the new world), over ' +
       'the games in play then; a Hero is at Potential when any Stat has reached its Potential, where growth stops:',
     '',
     markdownTable(
       [
         'After years',
         'Games',
-        "Player's Heroes a Guild",
+        "Player's Wealth",
+        'Heroes',
         'Mean Level',
         'At Potential',
-        "Rivals' Heroes a Guild",
+        "Rivals' Wealth a Guild",
+        'Heroes a Guild',
         'Mean Level',
         'At Potential',
       ],
       rosterRows,
-      ['right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+      ['right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
     potentialLine,

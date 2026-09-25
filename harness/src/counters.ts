@@ -414,8 +414,9 @@ export interface FameGate {
 
 /** The Roster Heroes of one kind of Guild at a moment, the Guilds in play only. */
 export interface RosterCensus {
-  /** The Guilds in play. */
+  /** The Guilds in play, and their Wealth summed. */
   guilds: number;
+  wealth: number;
   heroes: number;
   /** Their Levels, summed. */
   levels: number;
@@ -431,7 +432,7 @@ export interface GameObservations {
 }
 
 const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
-const noCensus = (): RosterCensus => ({ guilds: 0, heroes: 0, levels: 0, atPotential: 0 });
+const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function emptyObservations(): GameObservations {
   return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [] };
@@ -458,6 +459,7 @@ export function takeCensus(observations: GameObservations, world: World, deps: E
   for (const guild of guildsInPlay(world)) {
     const counts = census[guild.controller.kind];
     counts.guilds += 1;
+    counts.wealth += guild.wealth;
     for (const heroId of guild.rosterIds) {
       const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
       if (hero === undefined) continue;
