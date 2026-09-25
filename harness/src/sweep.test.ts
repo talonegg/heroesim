@@ -74,7 +74,7 @@ describe('sweepPlay', () => {
     expect(totals.fameGate.player.guildDays).toBe(2 * 20);
     expect(totals.fameGate.rival.guildDays).toBe(sweep.games.reduce((sum, game) => sum + game.observations.fameGate.rival.guildDays, 0));
     expect(totals.rosters).toHaveLength(1);
-    expect(totals.rosters[0]).toMatchObject({ games: 2, player: { heroes: 8, levels: 8 } });
+    expect(totals.rosters[0]).toMatchObject({ games: 2, player: { guilds: 2, heroes: 8, levels: 8 }, rival: { guilds: 8 } });
     expect(totals.gamesAtCountedYear).toBe(0);
     expect(totals.signingRefused).toBe(0);
   });

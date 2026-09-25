@@ -249,7 +249,7 @@ const noGrowth = (): GrowthAgainstDecline => ({
   pointsDeclinedAfter: 0,
 });
 const noGrades = (): GradeCounts => Object.fromEntries(facilityKeys.map((facility) => [facility, []])) as unknown as GradeCounts;
-const noCensus = (): RosterCensus => ({ heroes: 0, levels: 0, atPotential: 0 });
+const noCensus = (): RosterCensus => ({ guilds: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
@@ -376,15 +376,15 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
     }),
   ]);
 
-  const censusCells = (census: RosterCensus, games: number): string[] => [
-    ratio(census.heroes, games, 1),
+  const censusCells = (census: RosterCensus): string[] => [
+    ratio(census.heroes, census.guilds, 1),
     ratio(census.levels, census.heroes),
     `${whole(census.atPotential)} (${percent(census.atPotential, census.heroes)})`,
   ];
   const rosterRows = totals.rosters.map((census, year) => [
     whole(year),
     whole(census.games),
-    ...controllerKinds.flatMap((kind) => censusCells(census[kind], census.games)),
+    ...controllerKinds.flatMap((kind) => censusCells(census[kind])),
   ]);
   const atCounted = totals.rosters[countedYear];
   const rosterName = (kind: ControllerKind): string => (kind === 'player' ? "the player's Roster" : "the Rivals' Rosters");
@@ -489,10 +489,10 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
       [
         'After years',
         'Games',
-        "Player's Heroes a game",
+        "Player's Heroes a Guild",
         'Mean Level',
         'At Potential',
-        "Rivals' Heroes a game",
+        "Rivals' Heroes a Guild",
         'Mean Level',
         'At Potential',
       ],

@@ -302,8 +302,9 @@ describe("M3's counters, from the World State while a game is played", () => {
     takeCensus(observations, world, shortYears);
     const rivalHeroes = a.rosterIds.length;
     const newWorld = {
-      player: { heroes: player.rosterIds.length, levels: player.rosterIds.length + 2, atPotential: 1 },
-      rival: { heroes: rivalHeroes, levels: rivalHeroes, atPotential: 1 },
+      player: { guilds: 1, heroes: player.rosterIds.length, levels: player.rosterIds.length + 2, atPotential: 1 },
+      // Rival B has folded: only A is in play.
+      rival: { guilds: 1, heroes: rivalHeroes, levels: rivalHeroes, atPotential: 1 },
     };
     expect(observations.rosters).toEqual([newWorld]);
 
