@@ -1,6 +1,18 @@
 // @heroesim/engine: pure rules, state, generators and engines; imports nothing outside itself.
 
 export * from './actions/action.js';
+export {
+  dispatch,
+  type DispatchAction,
+  type DispatchRejection,
+  type DispatchRequest,
+  type HeroNotOnRoster,
+  type HeroUnavailable,
+  type PartySize,
+  type QuestNotOffered,
+  type RequirementUnmet,
+  type Unavailability,
+} from './actions/dispatch.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export {
   recruit,
@@ -20,6 +32,7 @@ export * from './events.js';
 export { generateGuild, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
+export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './history.js';
 export * from './json-safe.js';
 export * from './selectors.js';

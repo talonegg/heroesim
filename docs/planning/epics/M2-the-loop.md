@@ -87,12 +87,12 @@ Config: `boardSize`, `questOfferDays`, `questDifficultyMin/Max`.
 
 **Acceptance:**
 
-- [ ] Each morning the Board is refilled to `boardSize` and never above
-- [ ] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
+- [x] Each morning the Board is refilled to `boardSize` and never above
+- [x] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
       `world.quests`
-- [ ] Every Quest's `demands` weights sum to 1 (content validation)
-- [ ] Only the `board` stream advances during refresh
-- [ ] CLI `show board`
+- [x] Every Quest's `demands` weights sum to 1 (content validation)
+- [x] Only the `board` stream advances during refresh
+- [x] CLI `show board`
 
 ### M2-S4 · Dispatch · 1–2 sessions
 
@@ -111,14 +111,16 @@ the Party is simply away until `returnsOnTurn`.
 
 **Acceptance:**
 
-- [ ] Every rejection has a test and none throws
-- [ ] A dispatched Hero cannot be dispatched again until the Party returns
-- [ ] The validator still accepts the document after dispatch (`quest.partyIds` ↔
+- [x] Every rejection has a test and none throws
+- [x] A dispatched Hero cannot be dispatched again until the Party returns
+- [x] The validator still accepts the document after dispatch (`quest.partyIds` ↔
       `party.questId`)
-- [ ] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
+- [x] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
 - [ ] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
       `returnsOnTurn` equal to the night Turn of Day d + k, and its Heroes are dispatchable
       again on the morning of Day d + k + 1
+      _(M2-S4 proves the `returnsOnTurn` half for all three Turns of a Day; the morning-after
+      half waits for M2-S5's `questsConclude`, DL-25 item 16.)_
 
 ### M2-S5 · Stub Quest Engine · 1–2 sessions
 

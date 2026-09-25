@@ -8,6 +8,7 @@ import type { EngineEvent } from './events.js';
 import { append } from './history.js';
 import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
+import { ensureStreams } from './rng.js';
 
 /**
  * Why time stopped: what fast forward (M2-S11) stops on, and what `advance` reports for the Turn it
@@ -34,8 +35,8 @@ export interface AdvanceResult {
 }
 
 /**
- * Plays the next Turn (data-model §1): copies `world` once with `structuredClone`, advances its
- * Turn by one, runs the pipeline's phases for the new Turn's time of day on the copy under
+ * Plays the next Turn (data-model §1): copies `world` once with `structuredClone`, gives the copy
+ * any core random stream it lacks (`ensureStreams`), advances its Turn by one, runs the pipeline's phases for the new Turn's time of day on the copy under
  * `deps.config` and `deps.content`, appends every event to the History through `append`, and
  * returns a document with the new `world` that shares `meta` and `history` with the old one. The
  * old document's `world` is left as it was; its `history` sees the new entries too (ADR-0008).
@@ -48,6 +49,8 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   if (document.world.ended !== null) return { document, events: [], stoppedBecause: { kind: 'ended' } };
 
   const world = structuredClone(document.world);
+  // A save made before a stream existed gains it here, seeded as a new world's (DL-25).
+  ensureStreams(world, document.meta.seed);
   world.turn += 1;
   const events = runTurn(world, phaseContext(world, deps, document.history));
   for (const event of events) append(document.history, event);

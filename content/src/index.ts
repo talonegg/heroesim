@@ -12,4 +12,4 @@ export {
   parseContent,
   type ContentFileName,
 } from './parse.js';
-export { ContentError, growthSumTolerance, validateContent } from './validate.js';
+export { ContentError, demandSumTolerance, growthSumTolerance, validateContent } from './validate.js';

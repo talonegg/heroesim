@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from './config.js';
-import { ageOf, dayOf, nightOf, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
+import { ageOf, dayOf, durationDaysOf, nightOf, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
 
 describe('Days and times of day', () => {
   test('a Day is three Turns, morning, afternoon and night, counted from Turn 0', () => {
@@ -65,5 +65,17 @@ describe('ageOf', () => {
 
   test('throws for a Turn before the person entered the world', () => {
     expect(() => ageOf({ ageAtEntry: 24, enteredTurn: 10 }, 9, year)).toThrow(RangeError);
+  });
+});
+
+describe('durationDaysOf', () => {
+  test("is a Quest's durationTurns in Days, a part-Day counting as a Day", () => {
+    expect([3, 6, 30].map((durationTurns) => durationDaysOf({ durationTurns }))).toEqual([1, 2, 10]);
+    expect(durationDaysOf({ durationTurns: 7 })).toBe(3);
+  });
+
+  test('refuses a duration that is not a whole number of Turns from 0', () => {
+    expect(() => durationDaysOf({ durationTurns: -3 })).toThrow(RangeError);
+    expect(() => durationDaysOf({ durationTurns: 1.5 })).toThrow(RangeError);
   });
 });

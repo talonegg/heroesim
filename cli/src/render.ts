@@ -15,15 +15,18 @@ import {
   baseStat,
   dayOf,
   signingFee,
+  durationDaysOf,
   timeOfDay,
   unattachedHeroes,
   upkeep,
   yearOf,
+  type ContentSet,
   type EngineDeps,
   type Entry,
   type Guild,
   type Hero,
   type Patron,
+  type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -276,6 +279,70 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
     ...table(
       [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }],
       patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey)]),
+    ),
+  ];
+}
+
+// ── The Board ────────────────────────────────────────────────────────────────────────────────
+
+/** What a Quest requires beyond its Party size: a Class, a Skill, both, or nothing. */
+function requiredOf(quest: Quest, content: ContentSet): string {
+  const { classKey, skillKey } = quest.requirements;
+  const needs = [
+    ...(classKey === undefined ? [] : [nameIn(content.classes, classKey)]),
+    ...(skillKey === undefined ? [] : [nameIn(content.skills, skillKey)]),
+  ];
+  return needs.join(', ');
+}
+
+/**
+ * `show board`: the Quests on offer in the Board's order, each with its template's name, its
+ * Patron, its terms and the last Day it stays on offer; then what each demands and the Skills
+ * that help (M2-S3).
+ */
+export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
+  const { world } = document;
+  const { content } = deps;
+  const quests = world.board.flatMap((id) => rowIn(world.quests, id) ?? []);
+  const heading = `Board: ${quests.length} ${quests.length === 1 ? 'Quest' : 'Quests'} on offer, ${renderTime(world.turn, deps.config)}`;
+  if (quests.length === 0) return [heading, '', 'The Board is empty.'];
+  return [
+    heading,
+    '',
+    ...table(
+      [
+        { heading: 'Id' },
+        { heading: 'Quest' },
+        { heading: 'Patron' },
+        { heading: 'Difficulty', align: 'right' },
+        { heading: 'Days', align: 'right' },
+        { heading: 'Reward', align: 'right' },
+        { heading: 'Fame', align: 'right' },
+        { heading: 'Party' },
+        { heading: 'Requires' },
+        { heading: 'On offer through' },
+      ],
+      quests.map((quest) => [
+        quest.id,
+        nameIn(content.questTemplates, quest.templateKey),
+        rowIn(world.patrons, quest.patronId)?.name ?? quest.patronId,
+        String(quest.difficulty),
+        String(durationDaysOf(quest)),
+        String(quest.reward),
+        String(quest.fameEffect),
+        `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax}`,
+        requiredOf(quest, content),
+        `Day ${dayOf(quest.expiresOnTurn)}`,
+      ]),
+    ),
+    '',
+    ...table(
+      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }],
+      quests.map((quest) => [
+        quest.id,
+        quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
+        none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+      ]),
     ),
   ];
 }

@@ -1,7 +1,9 @@
 // The command line, `heroesim <command> [flags]`, parsed into a typed command or refused with a
 // reason. Nothing here reads a save or the content: whether a Guild Background or an id exists
-// is the command's to check, once the save and the content are open.
+// is the command's to check, once the save and the content are open. Whether a word has the form
+// of an id is checked here, by the engine's `isId`.
 
+import { isId, type HeroId, type QuestId } from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -11,16 +13,20 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | hero <heroId> | history [entityId]]
+  show [guilds | roster [guildId] | pool | patrons | board | hero <heroId> | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; history shows the whole History unless given
-      an id.
+      player's Guild unless given another; board shows the Quests on offer; history shows
+      the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
+  dispatch --quest <questId> --heroes <heroId,heroId,...>
+      Send a Party of the player's Heroes on a Quest from the Board, within the current
+      Turn, and print the Party and the Day it returns. Rivals take Quests from the Board
+      each afternoon.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -42,6 +48,7 @@ export type View =
   | { kind: 'roster'; guildId?: string }
   | { kind: 'pool' }
   | { kind: 'patrons' }
+  | { kind: 'board' }
   | { kind: 'hero'; heroId: string }
   | { kind: 'history'; entityId?: string };
 
@@ -59,6 +66,7 @@ export type Command =
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number }
   | { name: 'recruit'; save: string; hero: string }
+  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -72,6 +80,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   show: { save: 'value' },
   advance: { save: 'value', turns: 'value' },
   recruit: { save: 'value', hero: 'value' },
+  dispatch: { save: 'value', quest: 'value', heroes: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -129,6 +138,17 @@ function wholeFromOne(flag: string, value: string): number {
     : refuse(`${flag} needs a whole number from 1; got "${value}"`);
 }
 
+/** `--heroes`: Hero ids joined by commas, each once. */
+function heroList(value: string): HeroId[] {
+  const heroes = value.split(',').map((word) => word.trim());
+  for (const word of heroes) {
+    if (!isId('heroes', word)) refuse(`--heroes needs Hero ids such as hero-000001, joined by commas; got "${word}"`);
+  }
+  const twice = heroes.find((word, index) => heroes.indexOf(word) !== index);
+  if (twice !== undefined) refuse(`--heroes names ${twice} twice`);
+  return heroes as HeroId[];
+}
+
 function atMost(positional: readonly string[], count: number, command: string): void {
   if (positional.length > count) refuse(`${command} does not take "${positional[count] ?? ''}"`);
 }
@@ -141,6 +161,7 @@ function parseView(positional: readonly string[]): View {
     case 'guilds':
     case 'pool':
     case 'patrons':
+    case 'board':
       atMost(positional, 1, `show ${view}`);
       return { kind: view };
     case 'roster':
@@ -203,6 +224,12 @@ function parse(argv: readonly string[]): Command {
     case 'recruit':
       atMost(positional, 0, 'recruit');
       return { name, save, hero: required(flags, name, 'hero') };
+    case 'dispatch': {
+      atMost(positional, 0, 'dispatch');
+      const quest = required(flags, name, 'quest');
+      if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
+      return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
+    }
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

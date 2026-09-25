@@ -1,5 +1,7 @@
 // `createWorld` (M1-S6, approach §3): a seeded World State at Turn 0 and the events that
-// explain it. The order below is DL-19 item 9; changing it changes every seed's world.
+// explain it. The order below is DL-19 item 9; changing it changes every seed's world. Since
+// M2-S3 the first Board is drawn last, from the `board` stream, so a new game opens on a full
+// Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
 import type { EngineDeps } from './config.js';
 import type { BackgroundKey, DispositionKey } from './content-types.js';
@@ -10,6 +12,8 @@ import { generateGuild } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
+import { boardRefresh } from './phases/board-refresh.js';
+import { phaseContext } from './phases/phase.js';
 import { createStreams, int, streamNames } from './rng.js';
 
 /** What the player chooses before a game begins. */
@@ -38,7 +42,8 @@ const firstDisposition: DispositionKey = 'steady';
  * Creates a world from `seed` and the player's `setup`, under `deps.config` and `deps.content`
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), then `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
- * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`. Appends
+ * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
+ * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25). Appends
  * `world.created` and every generator's events to the new History and returns them.
  *
  * Throws on a programming error: a blank name, or a `backgroundKey` that is not a Guild
@@ -82,6 +87,10 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   for (let hero = 0; hero < config.unattachedPoolSize; hero += 1) {
     generated.push(...generateHero(world, deps).events);
   }
+
+  // Turn 0 is a morning whose phases never run (DL-24), so its Board is drawn here, by the same
+  // refresh, from `board` alone: the world above is what it was before M2-S3.
+  generated.push(...boardRefresh(world, phaseContext(world, deps)));
 
   const created: WorldCreated = {
     turn: world.turn,

@@ -161,6 +161,28 @@ describe('createWorld', () => {
     ]);
   });
 
+  test('opens on a full Board, drawn last and from the board stream alone (M2-S3, DL-25)', () => {
+    const deps = testDeps();
+    const { document, events } = createWorld('first-board', setup, deps);
+    withValid(document, deps);
+    const { world, history } = document;
+    // The same world with no first Board: what createWorld made before M2-S3.
+    const empty = createWorld('first-board', setup, testDeps({ boardSize: 0 })).document;
+
+    expect(world.board).toHaveLength(deps.config.boardSize);
+    for (const questId of world.board) {
+      expect(world.quests[questId]).toMatchObject({ status: 'offered', offeredOnTurn: 0 });
+    }
+    expect(count(history, 'quest.offered')).toBe(deps.config.boardSize);
+    expect(events.slice(-deps.config.boardSize).map((event) => event.participants[0])).toEqual(world.board);
+    expect(world.rng.generation).toEqual(empty.world.rng.generation);
+    expect(world.rng.board).not.toEqual(empty.world.rng.board);
+    for (const table of ['guilds', 'guildmasters', 'heroes', 'patrons'] as const) {
+      expect(world[table], table).toEqual(empty.world[table]);
+    }
+    expect(empty.world.board).toEqual([]);
+  });
+
   test('is deterministic: the same seed and setup give deep-equal documents, byte for byte', () => {
     const deps = testDeps();
     const one = createWorld('determinism', setup, deps);

@@ -40,6 +40,7 @@ describe('parseArgs', () => {
     expect(command('show', 'roster', 'guild-000002')).toMatchObject({ view: { kind: 'roster', guildId: 'guild-000002' } });
     expect(command('show', 'pool')).toMatchObject({ view: { kind: 'pool' } });
     expect(command('show', 'patrons')).toMatchObject({ view: { kind: 'patrons' } });
+    expect(command('show', 'board')).toMatchObject({ view: { kind: 'board' } });
     expect(command('show', 'hero', 'hero-000001')).toMatchObject({ view: { kind: 'hero', heroId: 'hero-000001' } });
     expect(command('show', 'history')).toMatchObject({ view: { kind: 'history' } });
     expect(command('show', 'history', 'hero-000001', '--save', 'demo')).toMatchObject({
@@ -55,6 +56,22 @@ describe('parseArgs', () => {
     expect(command('rebase')).toEqual({ name: 'rebase', save: 'current' });
   });
 
+  test('reads dispatch: a Quest id and Hero ids joined by commas (M2-S4)', () => {
+    expect(command('dispatch', '--quest', 'quest-000003', '--heroes', 'hero-000001,hero-000002')).toEqual({
+      name: 'dispatch',
+      save: 'current',
+      quest: 'quest-000003',
+      heroes: ['hero-000001', 'hero-000002'],
+    });
+    expect(command('dispatch', '--heroes=hero-000004', '--quest=quest-000001', '--save', 'demo')).toMatchObject({
+      save: 'demo',
+      heroes: ['hero-000004'],
+    });
+    expect(command('dispatch', '--quest', 'quest-000003', '--heroes', 'hero-000001, hero-000002')).toMatchObject({
+      heroes: ['hero-000001', 'hero-000002'],
+    });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -66,7 +83,7 @@ describe('parseArgs', () => {
     [[], 'No command'],
     [['play'], 'Unknown command "play"'],
     [['show', '--verbose'], 'show takes no flag --verbose'],
-    [['show', 'board'], 'no view "board"'],
+    [['show', 'market'], 'no view "market"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
     [['new', '--master', 'Ada'], 'new needs --guild'],
@@ -84,6 +101,13 @@ describe('parseArgs', () => {
     ]),
     [['advance', 'three'], 'does not take "three"'],
     [['rebase', '--turns', '2'], 'rebase takes no flag --turns'],
+    [['dispatch', '--heroes', 'hero-000001'], 'dispatch needs --quest'],
+    [['dispatch', '--quest', 'quest-000001'], 'dispatch needs --heroes'],
+    [['dispatch', '--quest', 'hero-000001', '--heroes', 'hero-000002'], '--quest needs a Quest id such as quest-000001; got "hero-000001"'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,,hero-000002'], '--heroes needs Hero ids'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'Brenna'], 'got "Brenna"'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,hero-000001'], '--heroes names hero-000001 twice'],
+    [['dispatch', 'quest-000001'], 'does not take "quest-000001"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

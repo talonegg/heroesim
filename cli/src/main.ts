@@ -35,8 +35,11 @@ import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { recruitHero } from './commands/recruit.js';
+import { dispatchParty } from './commands/dispatch.js';
+import type { CommandOutcome } from './commands/outcome.js';
 import {
   renderAdvance,
+  renderBoard,
   renderGuilds,
   renderHero,
   renderHistory,
@@ -115,6 +118,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return advanceTurns(command.turns, context);
     case 'recruit':
       return recruitHero(command.hero, context);
+    case 'dispatch':
+      return act(context, (document, deps) => dispatchParty(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -155,6 +160,23 @@ export function open(io: CliIo, path: string, content: ContentSet): { document: 
   }
   for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
   return { document: read.document, deps: read.deps };
+}
+
+/**
+ * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
+ * `change` under the save's own deps, and on success writes the new document and prints its lines;
+ * on a refusal prints the problem and writes nothing.
+ */
+function act(
+  { io, content, path }: Context,
+  change: (document: WorldDocument, deps: EngineDeps) => CommandOutcome,
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const outcome = change(opened.document, opened.deps);
+  if (!outcome.ok) return refuse(io, outcome.problem);
+  writeSave(path, outcome.document);
+  return say(io, outcome.lines);
 }
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────
@@ -228,6 +250,8 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderPool(document, deps));
     case 'patrons':
       return say(io, renderPatrons(document, deps));
+    case 'board':
+      return say(io, renderBoard(document, deps));
     case 'hero': {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);

@@ -904,6 +904,146 @@ M2-S11 gives a `StopReason` fields if it needs them, and makes `advance` detect 
 reasons; until then the CLI's `advance` stops early only on `ended`. No `GameConfig` field was
 added and no default changed, so `configVersion` stays 1.
 
+## DL-25 — Quest templates, the Board and its first draw, streams for old saves, and dispatch (M2-S3, M2-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S3 and M2-S4's
+implementer)
+
+**Context.** M2-S3 names the template's fields, the Quest Generator, the morning's Board refresh
+and three config fields; M2-S4 names `dispatch` and its rejections. They leave open which of the
+Quest's ranges are content and which config; how difficulty, duration and reward are drawn; when
+an offer expires; how Patrons are weighted, given that R22 weights them by Regard for *the*
+Guild while every Guild draws from one Board; whether `createWorld` draws the first Board (DL-24's
+consequences: otherwise a new game opens on an empty Board until Turn 3); how a save made before
+the `board` stream plays on (the text requires M1 saves to keep working); the events' payloads;
+the order and shape of dispatch's rejections and what it throws on; and the CLI's `show board`
+and `dispatch`.
+
+**Decision.**
+
+1. **Twelve templates**, `content/quest-templates.json`, content table `questTemplates` (DL-20),
+   each naming one Sphere, so two to a Sphere: Crown `clear-the-barrow`, `hold-the-border-fort`;
+   Church `escort-the-tithe`, `lay-the-restless-dead`; Merchants `guard-the-caravan`,
+   `recover-the-strongbox`; Villages `the-beast-of-the-fells`, `the-sickness-at-the-mill`;
+   Scholars `survey-the-old-workings`, `break-the-sealed-vault`; Underworld `a-quiet-word`,
+   `the-counting-house-job`. Three require a Class (Warrior, Healer, Mage) and one a Skill
+   (Lockpicking), so most of the Board is open to any Party. Tags come from the v1 proof of
+   concept's controlled vocabulary (`escort`, `wilds`, `town`, `talk`, `fight`, `delve`, `dark`,
+   `water`, `guard`, `recover`, `hunt`); no rule reads them yet. `parseContent` reads the file as
+   the eighth it knows by name (DL-17 item 4). `contentVersion`, and so a new world's
+   `meta.content.version`, is 2.
+2. **Content validation** refuses a template whose demands are empty, name anything but a Hero
+   Stat, repeat a Stat, weigh one at 0 or less, or sum further than `demandSumTolerance`, 0.001,
+   from 1 (written by hand, like growth weights, DL-17 item 5); whose `sphereKeys`, `skillKeys`
+   or `requires` name a key content lacks; whose difficulty, Day or Party-size range is upside
+   down or starts below 1; whose `rewardPerDifficulty` or `fameEffect` is negative; whose tag is
+   not kebab-case or is listed twice; whose `requires` has any field but `classKey` and
+   `skillKey`; or whose `lootTableKey` is not null. It also refuses a Sphere that no template
+   names, since its Patrons would offer nothing.
+3. **Which ranges are content.** INPUTS 4.2 says durations and rewards are per template, so they
+   are content: a template carries its Day range and a `rewardPerDifficulty`, and content tests,
+   not rules, hold the shipped twelve to 2–10 Days, a reward of 40–400 Wealth and a Fame effect of
+   1–5. The config holds the difficulty scale, `questDifficultyMin/Max` (INPUTS 4.3): a template's
+   difficulty range is clamped into it before the draw, so a template wholly outside the scale
+   draws its nearer bound. `fameEffect` is copied as a magnitude; M2-S5 gives it its sign by band.
+4. **The Quest Generator**, `generateQuest(world, patron, deps, { stream = 'board', templateKey?
+   })` in `engine/src/generators/quests.ts`, draws in this order: the template, uniformly among
+   those whose `sphereKeys` hold the Patron's Sphere, in key order (no draw when one is given);
+   the difficulty, `int` over the clamped range; the Days, `int` over the template's range. It
+   stores `durationTurns = Days × 3`, `reward = Math.round(difficulty × rewardPerDifficulty)`,
+   `requirements` as the template's Party sizes plus its `requires` keys where present, and
+   copies of the demands, tags and Skill keys, sharing nothing with content. It adds the row and
+   appends its id to the Board, since an offered Quest is on the Board by definition, and returns
+   `quest.offered`. It throws on a programming error: a Patron not in the world, a Sphere no
+   template serves, a template that is not the Patron's, a missing stream.
+5. **Offer and expiry.** A Quest offered on Day d has `expiresOnTurn = nightOf(d + questOfferDays
+   − 1)`: it is on offer through that night, and the next morning's refresh expires it
+   (`expiresOnTurn < turn`), which is how DL-20 item 7 reads an offer's expiry. With the defaults
+   a Quest drawn on the morning of Day 0 is on offer on Days 0, 1 and 2 and expires on the
+   morning of Day 3, `questOfferDays` later. Only offered Quests on the Board expire; a taken
+   Quest's `expiresOnTurn` is never read again.
+6. **The refresh**, `boardRefresh` in `engine/src/phases/board-refresh.ts`: first each expired
+   Quest emits `quest.expired` and its row is removed (the History keeps its record; the
+   validator's rule-8 check is about Heroes, DL-20 item 4), the Board keeping the order of what
+   stays; then Quests are drawn until the Board holds `boardSize`, and a Board already that full
+   (after `boardSize` is lowered) draws nothing and loses nothing. Each Quest's Patron is one draw,
+   uniform among the Patrons, in id order, whose Sphere some template serves, then the
+   generator's draws, all from `board`. **R22 is simplified**: Patrons are weighted uniformly, not
+   by Regard, until M4 gives Regard its rules and M4-S5 weights by the mean across Guilds. The
+   same template may be on the Board twice.
+7. **The first Board.** `createWorld` runs `boardRefresh` last, at Turn 0, so a new game opens on
+   a full Board; Turn 0's morning phases never run in `advance` (DL-24 item 1). Every draw before
+   it is unchanged, since it draws from `board` alone, so a seed's Guilds, Heroes and Patrons are
+   what they were. The document does gain six Quests, their `quest.offered` entries and a `board`
+   stream, so the M1 creation sweep's fingerprint (DL-13's harness report) is no longer what a run
+   prints. That fingerprint measured M1; it is not a contract, and DL-13's result, two creations
+   byte-identical, stands.
+8. **Streams for old saves.** `ensureStreams(world, seed)` in `engine/src/rng.ts` gives a world
+   each core stream it lacks, seeded as `createStreams(seed, [name])` seeds a new world's, and
+   moves none it has; `advance` calls it on its copy with `meta.seed` before the pipeline. An M1
+   save (no `board` stream, an empty Board, `meta.content.version` 1) loads unchanged, and on its
+   next morning fills its Board exactly as a world created now with an empty first Board would.
+   No migration is needed; DL-12's consequence, which gave an old save a new stream "in its
+   migration step", is read with this. Every later stream (M2-S5 `quests`, M2-S8 `pool`, M2-S9
+   `rivals`) reaches old saves the same way by being appended to `streamNames`.
+9. **Events.** `quest.offered` and `quest.expired`, neither a Milestone, name the Quest and its
+   Patron, with payload `{ questId, patronId, templateKey }`: the template's key lets a front end
+   name a Quest whose row is gone, since a Quest has no name of its own and `emit` labels only
+   named rows (DL-24 item 3).
+10. **Config.** `boardSize` 6 and `questOfferDays` 3 (INPUTS 4.1); `questDifficultyMin/Max` 10/100
+    (INPUTS 4.3). Fields were added and no default changed, so `configVersion` stays 1.
+11. **The CLI's `show board`** lists the Quests in the Board's order, each with its template's
+    name, its Patron, difficulty, Days (`durationDaysOf`, a selector added to `time.ts`), reward,
+    Fame, Party size, required Class or Skill, and the last Day it is on offer; then each Quest's
+    weighted demands and the Skills that help.
+12. **Dispatch's checks, in order.** `dispatch(document, { guildId, questId, heroIds }, deps)` in
+    `engine/src/actions/dispatch.ts` rejects on the first check that fails: the Quest is offered
+    and on the Board (`quest-not-offered`, naming it; taken, expired, resolved and never offered
+    read alike); then each Hero, in the order given, is the Guild's (`hero-not-on-roster`, naming
+    the Hero and the Guild: another Guild's, Unattached, or no row at all) and free to go
+    (`hero-unavailable`, whose `because` is `dead`, `retired`, `injured` or `in-party`); then the
+    Party's size is within the Quest's bounds (`party-size`, naming `size`, `partySizeMin` and
+    `partySizeMax`); then some Hero in the Party is of the required Class and some holds the
+    required Skill, at any rating (`requirement-unmet`, whose `unmet` names whichever of
+    `classKey` and `skillKey` the Party lacks). Death and Retirement are checked before the Roster,
+    since a dead or retired Hero has left it and keeps `guildId` (DL-20 item 3), so they read as
+    unavailable rather than as strangers. Retirement is not in the epic's list; it is Death's case.
+    M4-S5 gives `requirement-unmet` its own reason field on top of this shape.
+13. **Programming errors throw** rather than reject: a Guild not in the world, and a Hero named
+    twice. The CLI refuses a repeated Hero, and a word without an id's form, as a bad command line
+    before it calls.
+14. **On success** `dispatch` copies `world` (DL-24's consequences), adds a `parties` row
+    departing this Turn with `returnsOnTurn = nightOf(dayOf(turn) + durationDaysOf(quest))`, a
+    night whichever Turn of the Day it left in (pre-M0 review C4); sets the Quest `taken`, lists
+    the Party in `partyIds` and takes it off the Board; sets each Hero's `partyId`; and appends and
+    returns `quest.taken`, not a Milestone, naming the Quest, the Party, each Hero, the Guild and
+    the Patron, with payload `{ questId, partyId, guildId, heroIds, returnsOnTurn }`. `meta` and
+    `history` are shared, as `advance` shares them. `deps` is taken, as by every entry point, and
+    read by no rule of dispatch until M4-S5's Negotiation scales the reward. `dispatch` joins the
+    `Action` union and `applyAction`. The afternoon's `questsAdvance` stays a no-op.
+15. **The CLI's `dispatch --quest <id> --heroes <id,id>`** sends Heroes of the player's Guild and
+    prints the Party, the Quest's template name, its length in Days and the night it returns
+    (Day and Turn), then after every dispatch: "Rivals take Quests from the Board each afternoon: a
+    Quest left on it may be gone by then." A rejection is put into words, exits 1 and writes
+    nothing. The command's logic is `cli/src/commands/dispatch.ts`, which returns an outcome;
+    `main.ts` registers it through a new `act`, which opens the save, applies a command's change
+    under the save's deps, and writes and prints, or refuses, for M2-S8's `recruit` to share.
+16. **M2-S4's last box is half proved.** A test dispatches in each of the three Turns of three
+    Days and finds `returnsOnTurn` on the night of Day d + k each time. That the Heroes are
+    dispatchable again on the morning of Day d + k + 1 needs M2-S5's `questsConclude` to bring the
+    Party back, so the box stays unticked until then. The test that a dispatched Hero cannot go
+    again checks every Turn before `returnsOnTurn`; that night itself is M2-S5's.
+
+**Consequences.** A template changed in content reaches only Quests drawn after the change
+(data-model §3.2). The shipped templates' ranges are INPUTS values held in content, so tuning
+them is a content change with a `contentVersion` bump rather than a `configVersion` one; only the
+difficulty scale, the Board's size and the offer's length are config. M2-S5 reads `fameEffect` as
+a magnitude and `durationDaysOf` for a Quest's Days, and frees the Party's Heroes by clearing
+their `partyId` when it removes the Party; a taken Quest's `expiresOnTurn` is never read again, so
+it cannot expire under a Party. M2-S9's Rival controller and M2-S12's policy produce `dispatch`
+actions and meet the same rejections. M4-S5 replaces the uniform Patron draw with Regard weights,
+changing what every seed's Board draws from Day 1.
+
 ## DL-26 — Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S7's implementer)

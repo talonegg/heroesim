@@ -3,8 +3,8 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { ClassKey, SphereKey } from './content-types.js';
-import type { Entry, GuildId, GuildmasterId, HeroId, PatronId } from './document.js';
+import type { ClassKey, QuestTemplateKey, SphereKey } from './content-types.js';
+import type { Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -65,6 +65,36 @@ export type HeroRecruited = Entry<'hero.recruited', { heroId: HeroId; guildId: G
  * (data-model rule 8).
  */
 export type HeroLeftPool = Entry<'hero.left-pool', { heroId: HeroId }>;
+// ── The Board (M2-S3, DL-25) ─────────────────────────────────────────────────────────────────
+
+/**
+ * A Patron offered a Quest: it is on the Board. Names the Quest and the Patron. The template's
+ * key lets a front end name the Quest after its row is gone.
+ */
+export type QuestOffered = Entry<
+  'quest.offered',
+  { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
+>;
+
+/**
+ * An offered Quest no Guild took went off the Board at a morning's refresh, and its row was
+ * removed; this entry keeps its record (data-model rule 8). Names the Quest and the Patron.
+ */
+export type QuestExpired = Entry<
+  'quest.expired',
+  { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
+>;
+
+// ── Dispatch (M2-S4, DL-25) ──────────────────────────────────────────────────────────────────
+
+/**
+ * A Guild sent a Party on a Quest from the Board: the Quest is taken and the Party away until
+ * `returnsOnTurn`, a night. Names the Quest, the Party, each Hero, the Guild and the Patron.
+ */
+export type QuestTaken = Entry<
+  'quest.taken',
+  { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
+>;
 
 /** Every event the engine emits. */
 export type EngineEvent =
@@ -76,7 +106,10 @@ export type EngineEvent =
   | WorldRulesAdopted
   | GuildUpkeepPaid
   | HeroRecruited
-  | HeroLeftPool;
+  | HeroLeftPool
+  | QuestOffered
+  | QuestExpired
+  | QuestTaken;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -99,4 +132,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guild.upkeep-paid': false,
   'hero.recruited': true,
   'hero.left-pool': false,
+  'quest.offered': false,
+  'quest.expired': false,
+  'quest.taken': false,
 } satisfies Record<EngineEventType, boolean>);

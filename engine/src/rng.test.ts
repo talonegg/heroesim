@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { isJsonSafe } from './json-safe.js';
-import { chance, createStreams, cyrb128, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
+import { chance, createStreams, cyrb128, ensureStreams, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
 import { plannedStreams } from './world.test-support.js';
 
 // A stream's state, reached through the function that draws from it rather than by its name
@@ -190,6 +190,33 @@ describe('named streams', () => {
   test('refuses a stream name that is empty or holds the separator', () => {
     expect(() => createStreams(seed, [''])).toThrow(RangeError);
     expect(() => createStreams(seed, ['board:heroes'])).toThrow(RangeError);
+  });
+});
+
+describe('ensureStreams, for a save made before a stream existed (M2-S3, DL-25)', () => {
+  test("gives the world each core stream it lacks, seeded as a new world's, and moves none it has", () => {
+    const fresh = createStreams(seed, streamNames);
+    const generation = advancedCopy(fresh.generation, 7);
+    // An M1 save: its generation stream drawn from, no board stream.
+    const world: { rng: Partial<typeof fresh> } = { rng: { generation } };
+
+    ensureStreams(world, seed);
+
+    expect(world.rng).toEqual({ generation: advancedCopy(fresh.generation, 7), board: fresh.board });
+    expect(world.rng.generation).toBe(generation);
+    expect(Object.keys(world.rng).sort()).toEqual([...streamNames].sort());
+  });
+
+  test('changes nothing in a world that has every stream, and keeps a stream it does not know', () => {
+    const rng = { ...createStreams(seed, streamNames), ...createStreams(seed, ['rivals']) };
+    const board = advancedCopy(rng.board, 3);
+    const world = { rng: { ...rng, board } };
+    const before = structuredClone(world);
+
+    ensureStreams(world, seed);
+
+    expect(world).toEqual(before);
+    expect(world.rng.board).toBe(board);
   });
 });
 
