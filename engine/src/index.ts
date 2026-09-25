@@ -30,7 +30,7 @@ export * from './actions/result.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
-export { availableHeroes, rivalChoices, staffableQuests, type DispositionRule } from './controllers/rival.js';
+export { availableHeroes, partyFor, rivalChoices, staffableQuests, type DispositionRule } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';

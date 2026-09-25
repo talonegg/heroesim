@@ -19,6 +19,7 @@
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "harness": "node harness/run.mjs",
+    "harness:sample": "tsx harness/src/sample.ts",
     "play": "tsx cli/src/main.ts"
   },
   "devDependencies": {

@@ -122,6 +122,9 @@ function easiestStaffable(world: World, guild: Guild, content: ContentSet): Guil
  * Strength is the Hero's Stats weighted by the Quest's demands (`strengthFor`), ties by Hero id.
  * `null` exactly when no Party of `available` could go, so `staffableQuests` reads it as the test
  * of whether a Quest can be staffed.
+ *
+ * Exported as the one staffing rule: the harness's automatic policy (M2-S12, DL-34) sends the
+ * Party it names rather than keeping a copy. It reads nothing but its arguments and draws nothing.
  */
 export function partyFor(quest: Quest, available: readonly Hero[], content: ContentSet): HeroId[] | null {
   const strength = new Map(available.map((hero) => [hero.id, strengthFor(hero, quest, content)]));

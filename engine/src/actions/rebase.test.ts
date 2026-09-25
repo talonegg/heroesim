@@ -12,8 +12,13 @@ import { rebase } from './rebase.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
-/** The defaults of a later release: the version raised, and one default changed with it. */
-const laterDefaults: GameConfig = { ...defaultConfig, configVersion: defaultConfig.configVersion + 1, turnsPerYear: 12 };
+/**
+ * A game's own rules at version 1, and the defaults of a later release at version 2 with one
+ * default changed, whatever version `defaultConfig` is at: the versions these tests name are
+ * pinned here (DL-35 raised the defaults' own version to 2).
+ */
+const olderRules = (): EngineDeps => testDeps({ configVersion: 1 });
+const laterDefaults: GameConfig = { ...defaultConfig, configVersion: 2, turnsPerYear: 12 };
 
 /** The deps a front end plays a loaded game under: its own config, filled forward (data-model §2). */
 function playDeps(document: WorldDocument, defaults: GameConfig): EngineDeps {
@@ -42,7 +47,7 @@ afterEach(() => {
 
 describe('a save under older rules', () => {
   test('plays under its own configVersion until rebase adopts the new defaults, once', () => {
-    const created = createWorld('rebase', setup, testDeps()).document;
+    const created = createWorld('rebase', setup, olderRules()).document;
     expect(created.meta.config.configVersion).toBe(1);
 
     // Loaded by a release whose defaults are at version 2.
@@ -83,7 +88,7 @@ describe('a save under older rules', () => {
   });
 
   test('survives a save and a load under the new rules', () => {
-    const created = createWorld('rebase-saved', setup, testDeps()).document;
+    const created = createWorld('rebase-saved', setup, olderRules()).document;
     const rebased = rebase(created, { config: laterDefaults, content: testContent });
     if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
 
@@ -108,7 +113,7 @@ describe('rebase', () => {
   });
 
   test('gives the new document a new meta and leaves the old one, which other documents share, alone', () => {
-    const document = createWorld('shared-meta', setup, testDeps()).document;
+    const document = createWorld('shared-meta', setup, olderRules()).document;
     Object.freeze(document.meta.config);
     Object.freeze(document.meta);
 
@@ -129,20 +134,21 @@ describe('rebase', () => {
     saved.retiredField = 7;
     saved.configVersion = 3;
 
-    const result = rebase(document, testDeps());
+    const result = rebase(document, olderRules());
 
     if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
-    expect(result.document.meta.config).toEqual(defaultConfig);
+    expect(result.document.meta.config).toEqual({ ...defaultConfig, configVersion: 1 });
     expect(result.events[0]?.payload).toEqual({ oldConfigVersion: 3, newConfigVersion: 1 });
   });
 
   test('is what applyAction does with a rebase action', () => {
-    const one = createWorld('apply', setup, testDeps()).document;
-    const two = createWorld('apply', setup, testDeps()).document;
+    const one = createWorld('apply', setup, olderRules()).document;
+    const two = createWorld('apply', setup, olderRules()).document;
     const deps = { config: laterDefaults, content: testContent };
 
     const direct = rebase(one, deps);
     const applied = applyAction(two, { kind: 'rebase' }, deps);
+    expect(direct.ok && applied.ok).toBe(true);
 
     expect(applied.ok && serialise(applied.document)).toBe(direct.ok && serialise(direct.document));
     // `two`'s meta is untouched, so it is the rebased document that is now current.

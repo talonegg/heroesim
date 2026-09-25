@@ -184,8 +184,9 @@ describe('fastForward: a decision needed (always on)', () => {
 });
 
 describe('fastForward: the pool refreshing (opt-in)', () => {
-  // Rivals recruit from the pool each afternoon, so the pool is refilled most nights.
-  const deps = testDeps({ startingRosterSize: 2 });
+  // Unattached Heroes leave after two Days, so the pool refills most nights whether or not the
+  // Rivals recruit (which the balance pass, DL-35, made rare).
+  const deps = testDeps({ startingRosterSize: 2, unattachedStayDays: 2 });
 
   test('never stops unless listed in until', () => {
     const { document, party } = sendEveryone(created('ff-3', deps), deps);
@@ -194,7 +195,9 @@ describe('fastForward: the pool refreshing (opt-in)', () => {
 
     const arrivals = ofType(result.events, 'hero.generated').filter((event) => event.payload.guildId === null);
     expect(arrivals.length).toBeGreaterThan(0);
-    expect(arrivals.every((event) => event.turn < party.returnsOnTurn)).toBe(true);
+    // The pool refreshes at night, the return night included: no refresh before it stopped the run.
+    expect(arrivals.some((event) => event.turn < party.returnsOnTurn)).toBe(true);
+    expect(arrivals.every((event) => event.turn <= party.returnsOnTurn)).toBe(true);
     expect(result.stoppedBecause.kind).toBe('party-returned');
   });
 

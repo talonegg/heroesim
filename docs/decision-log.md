@@ -1649,6 +1649,251 @@ the pool, which is why it is opt-in. M7's web front end offers the conditions as
 the watched Guild as the CLI does; a later milestone that widens "a decision is needed" (M4's
 Regard, M6's offers) changes `decisionNeededStop` alone.
 
+## DL-34 — The automatic policy, the play sweep, validating from where the last validation stopped, and the M2 measures (M2-S12)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S12's implementer),
+recording a measure and the method that took it
+
+**Context.** M2-S12 names the harness's automatic policy (INPUTS 4.14), a play sweep of 200 seeds ×
+20 years (INPUTS 4.13) validated after every advance when `HEROESIM_VALIDATE` is set, the counters
+and measures, `npm run harness:sample` (pre-M0 review E8), and asks for the measures in this log
+against `data-model.md` §7's targets (DL-08). It leaves open: how "the strongest available Party of
+the required size" reads, how many Parties the policy sends a Turn and which Hero it recruits, where
+the policy's own numbers live, how a validation after each of 21,600 advances stays affordable when
+the validator reads the whole History, how a counter joins an entry to a Guild, where a game that
+outlives its 20 years stands in "years survived", and how long the sweep may take.
+
+**Decision.**
+
+1. **The policy**, `automaticPolicy(document, deps, policy?)` in `harness/src/policy.ts`, returns
+   `GuildAction[]` (the epic's `Action[]` narrowed, as `rivalChoices` does, DL-30 item 9) for the
+   player's Guild, on the document as it stands:
+   - *Dispatch.* The offered Quests on the Board by `reward`, highest first, then Quest id. "The
+     required size" is read as the least the Quest takes, the size `steady` sends, and "the
+     strongest" as the strongest Heroes by the Quest's demand weights: the Party is
+     `partyFor(quest, availableHeroes, content)`, the Rival controller's staffing rule, now exported
+     from `engine/src/controllers/rival.ts` rather than copied (no rule changed). A Quest it cannot
+     staff is passed over; it keeps sending Parties, each to the next Quest, until no Hero is free,
+     no Hero twice. Read the other way, a Party as large as the Quest allows, the policy would send
+     fewer, stronger Parties; the owner can say so and it is one argument to `partyFor`.
+   - *Recruit.* One a Turn, when the Roster is below `rosterLimit` (8) and Wealth is strictly above
+     `recruitWealthMultiple` (3) Upkeeps: the cheapest Hero in the pool, lowest id among equal
+     fees, when Wealth covers the fee. INPUTS 4.14 names no Hero; this is `steady`'s choice, so the
+     two players differ only where 4.14 says they do. Never a transfer.
+   - *Its numbers are the harness's.* `PolicyConfig` (`recruitWealthMultiple` 3, `rosterLimit` 8)
+     lives in the harness, not in `GameConfig`: the policy is not a rule of the game. It does not
+     read the Rivals' `recruitWealthMultiple` (DL-30 item 5 thought it might), so tuning the Rivals
+     (DL-35) leaves the harness's player as INPUTS 4.14 defines it.
+   - *Deterministic.* It reads the document and draws nothing; a test finds the document's
+     serialisation unchanged by a call and the same choices twice.
+2. **The play loop**, `playGame` in `harness/src/play.ts`: `createWorld(seed, harnessSetup, deps)`;
+   then, until `world.ended` is set or the world reaches `years × turnsPerYear` (21,600 Turns), the
+   policy's actions applied in order through `applyAction`, each copying the world as a front end's
+   action does, then one `advance`, timed with `performance.now()`. A refused action is recorded and
+   fails the run: the policy chooses only what the rules accept.
+3. **Validating from where the last validation stopped.** Measured before choosing: `validate`
+   costs about 5.8 µs a History entry (31 ms at 6,910 entries after a year, 95 ms at 15,347, 241 ms
+   at 41,706 after five), so validating after each of a game's 21,600 advances is quadratic, hours
+   a game at 20 years. `validate(document, deps, { historyFrom })` (engine,
+   `validate.ts`) now checks the World State in full and the History only from position
+   `historyFrom`, taking the entries before it as accepted by an earlier validation of the same
+   History, which is append-only (ADR-0008). From there: JSON safety of every section but the
+   History and of each new entry (`findJsonUnsafe` gained a path prefix); each new entry's shape,
+   participants' id form and Turn order (after the last older entry's Turn); the counters against
+   the world's ids and the new entries' participants; each index list a new entry names ends in
+   exactly the new positions that belong in it, in order, and holds none outside `entries`; and a
+   Hero a new entry names who has no row and a non-passive entry anywhere (rule 8). What it cannot
+   see, and a validation from 0 does: damage to an older entry or to an index list no new entry
+   names (only something other than `append` could do it), a counter lowered below an id only
+   older entries name, and a Hero's row removed while no new entry names them (no rule does: the
+   pool refresh emits `hero.left-pool` first). `historyFrom` defaults to 0, the whole History, as
+   every load's validation is; one past the History's end, or not a whole number, throws. Tests in
+   `validate.test.ts` play 60 Turns validating from the last length each Turn and find the same
+   verdict as a validation from 0, find each kind of damage among new entries under the check and id
+   it names, and show that damage before `historyFrom` is left to a validation from 0. The harness
+   validates the new world from 0, after every advance from the History's length at the last
+   validation, and the whole document once more when the game stops; a refusal or a warning stops
+   the game and fails the run. The full validator's own cost is unchanged (12 ms for the
+   1,000-Hero fixture before and after).
+4. **Counters** (`harness/src/counters.ts`, `countGame`), each read through `history.byType` and
+   joined to the Guild the entry is about: its payload's `guildId`, or else the first Guild among its
+   participants, which `emit` adds for any Hero it names at the time (DL-24 item 3), so a Hero's
+   Injury or Death counts for the Guild they were on then. Quests taken and `quest.resolved` by band
+   are split by controller kind, as are `hero.injured`, `hero.died`, `hero.recruited` and
+   `hero.retired`; `game.ended` by reason; `guild.folded` by reason (the Rival folds). **Years
+   survived** is `world.ended.turn / turnsPerYear` for a game that ended and the full 20 for one
+   that did not, a censored figure the report states beside how many games ran the full length and
+   how many ended in each year.
+5. **Measures.** `advance` per Turn, every Turn of every game (mean, p50, p99, max), and the first
+   seed's replay timed alone; for the last document of every game that ran the full 20 years:
+   `history.entries.length`, `serialise(document).length`, and the time to serialise it and to
+   `deserialise` it (parse, migrate and a whole validation: a load), which also checks that it loads
+   and serialises back to the same text. The 1,000-game estimate is the run's wall-clock time per
+   Turn played × 21,600 × 1,000.
+6. **The sweep runs in parallel.** A 20-year game takes most of a minute, so 200 of them one after
+   another take hours. `sweepPlayInParallel` deals the seeds in turn among child processes, half the
+   logical processors by default (16 here), each running `harness/src/shard.ts` under tsx (`node
+   --import tsx`) with the core content and the sweep's config, and merges the records in seed
+   order; the byte-equality replay runs in the parent afterwards. Games share nothing and each is
+   seeded, so where one is played does not change it: a test runs the same seeds both ways and finds
+   the same records. Timings taken under that load are higher than one process alone, which is why
+   the replay is timed as well. `sweepPlay`, in one process, serves the ordinary tests.
+7. **Seeds and flags.** The play sweep plays 200 seeds when `HEROESIM_SEEDS` is unset (INPUTS 4.13's
+   per-milestone run), the creation sweep still 1,000 (`seedCount` takes the fallback); the tagged
+   run sets `HEROESIM_SEEDS=1000`. `HEROESIM_VALIDATE` is `1` or `true`, or unset, blank, `0` or
+   `false`; anything else throws, so a mistyped flag cannot quietly skip validation. `npm run
+   harness` runs both sweeps; `npm run harness -- play.harness` runs this one alone.
+8. **Byte equality.** After the sweep, one seed is played twice more under the policy and the two
+   last documents' serialisations compared: the first seed whose game ran its full length, the
+   longest comparison and the fairest single-game timing, or `seed-0001` when none did. An
+   ordinary test does the same for 20 Days.
+9. **`npm run harness:sample`** runs `harness/src/sample.ts` under tsx and writes a 20-year save,
+   `serialise`'s text, to `harness/samples/twenty-years.json`, which `.gitignore` already ignores:
+   it plays `seed-0001`, `seed-0002`, … under `defaultConfig` and writes the first game to run
+   its full 20 years (under DL-35's defaults, `seed-0004`, the fourth tried, 45 s), or the longest
+   of the first twenty when none does, since M7-S4 asks for a 20-year save and a game that ends in
+   its first months is not one. `npm run play -- load harness/samples/twenty-years.json` makes it
+   the CLI's game.
+10. **Result, 2026-09-26** (`harness/reports/m2-2026-09-26.md`, committed with this entry): 200
+    seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+    advance, under DL-35's defaults (config version 2, content version 4), in 16 processes on the
+    machine of DL-13 (AMD Ryzen AI Max+ 395, 32 logical cores, Windows 11, Node v26.9.0). The run
+    took 53.6 minutes. The defaults' own run, before DL-35, is in DL-35.
+    - **Validation.** No refusal and no warning in any of the 200 games, after every advance and
+      over the whole document at each game's end; no policy action refused; all 200 last documents
+      load and serialise back to the same text.
+    - **Byte equality.** `seed-0004`, the first seed to run its full 20 years, played twice more
+      after the sweep: identical, 79,719,374 characters.
+    - **Counters.** 134 games ran the full 20 years; 66 ended in Bankruptcy, none in Retirement
+      or a wiped Roster. Years survived: mean 14.07, min 0.14, max 20. Rivals folded 190 times
+      (0.95 a game: 187 Bankruptcies, 3 wiped Rosters). Quests taken: the player 679,616 (3,398 a
+      game), the Rivals 3,756,277. Resolved, fail / success / strong success: the player 52.2% /
+      33.4% / 14.4%, the Rivals 11.7% / 33.4% / 54.9%. A game, player and Rivals: `hero.injured`
+      797 and 1,480, `hero.died` 88.4 and 109.8, `hero.recruited` 91.2 and 172.9, `hero.retired`
+      0 and 3.07.
+    - **Measures against `data-model.md` §7** (provisional targets, recorded and not chased,
+      DL-08). "Alone" is `seed-0004`'s replay in one process, 21,600 Turns, or the sample save of
+      the same game loaded alone; "loaded" is every Turn of the sweep, 16 processes at once.
+
+      | Measure | Target | Measured |
+      | --- | --- | --- |
+      | Advance one Turn | under 5 ms | alone: mean 1.27 ms, p99 2.79 ms; loaded: mean 5.84 ms, p99 11.9 ms |
+      | Fast forward a year | under 1 s | 1.37 s (mean alone × 1,080 Turns): over |
+      | Harness: 1,000 games of 20 years | under 10 min | 372 min at this run's rate (16 processes, validated; validation about doubles it): over |
+      | Save after 20 years | under 20 MB | mean 74.9 MiB (78.6 million characters, 210,663 entries), max 78.4 MiB, over 134 games: about four times over |
+      | Load a save | under 1 s | alone: 1.04 s (parse 0.25 s, the whole validation 0.75 s); loaded: mean 4.6 s |
+
+      Serialising the 20-year save takes 0.74 s alone. Validating after an advance, from where the
+      last validation stopped, costs about what the advance does (6.28 ms mean loaded, beside its
+      5.84 ms), where validating the whole document would have cost 0.75 s by the twentieth year.
+
+**Consequences.** M2's gate has its run: 200 seeds × 20 years play to an ending or their last
+Turn, and the report gives the counters. What the measures say, for the owner and later
+milestones, not acted on here (DL-08):
+
+- **The History is the save.** About 10,500 entries a year at about 370 characters each: 20
+  years is 75 MiB, four times §7's target and past what a browser holds in `localStorage` (M7
+  saves to IndexedDB, §7). By share of its characters: `quest.resolved` 27% (its payload is the
+  whole outcome), `hero.xp-gained` 20% (one entry a Hero a Quest), `quest.taken` 20%,
+  `hero.morale-changed` 15% (every strong success moves every Hero home), `quest.offered` 12%.
+  §7's levers, in order: leaner entries (one XP entry a Party, fewer labels), then compression on
+  write. Rivals take a Quest a day each and make most of it.
+- **Fast forward a year is 1.37 s alone**, over the 1 s target: M2-S11's fast forward will show it.
+  `advance`'s cost grows with the Heroes `world` keeps (362 rows after 20 years in `seed-0004`,
+  dead, retired and released Heroes among them, every one copied each Turn): the epic's risk
+  table names the lever, fewer rows in `world`.
+- **Timings under load are not timings alone.** A Turn of the sweep, 16 processes at once, cost
+  4.6 times one of `seed-0004`'s replay alone. Two runs' timings compare only at the same number of
+  processes; the report states it.
+- **A load validates the whole document**, as before (`historyFrom` defaults to 0); only a caller
+  that validated the same History before, as the harness does, passes it. The 1,000-Hero
+  validator timing test (M1-S7) failed one full `npm test` in three on this machine before this
+  story, at 55 ms against its 50 ms bound, 12 ms alone; it now retries twice rather than having
+  its bound raised.
+- **`partyFor` is the engine's one staffing rule**, exported: M2-S11's `decision-needed` (a Quest
+  the Guild could staff) can call it rather than keep a third.
+- **Nobody retires on the player's Roster**: its Heroes die, 88 a game, before any reaches 46, since
+  the policy takes the hardest Quests and a failure kills one Hero in twenty (INPUTS 4.4). And no
+  game can end in the Guildmaster's Retirement within 20 years: the oldest starting Guildmaster
+  (45, INPUTS 4.10) turns 65 on Turn 21,600, which the sweep does not play past.
+- **`npm run harness` takes about an hour** at 200 seeds (DL-13's creation sweep, seconds, runs
+  with it); the tagged run of 1,000 seeds, about six hours validated on this machine.
+
+## DL-35 — The first balance pass: the stub's bands, the wage, and how much a Rival keeps before it recruits (M2-S12)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S12's implementer), as
+the story asks: a first pass for the owner to tune
+
+**Context.** The M2 implementers warned that the stub as specified fails most Quests for starting
+Parties (DL-29's consequences) and that Rivals fold again and again beside an idle player. M2-S12
+runs the 200 × 20 sweep on the defaults first (DL-34), and turns the INPUTS 4.x dials, config
+defaults only, if the outcome is degenerate.
+
+It is. **Before**, under the defaults (config version 1; 200 seeds × 20 years, validated, the
+same harness): all 200 games ended in Bankruptcy in their first year, after 0.15 years on
+average (0.11 to 0.25). The player's Guild failed 99.1% of its 5,933 resolved Quests and the
+Rivals 96.1% of their 23,116; Rivals folded 391 times, 1.96 a game in those 55-odd Days. A game:
+the player's Heroes injured 11.3 times, 1.5 died, 4.0 recruited. Three causes:
+
+1. **The stub's scale.** A Level-1 Hero weighs about 7.5 on a Quest's weighted demands, so the
+   Party of the size a Quest requires scores about 15 to 25 against difficulties of 10 to 100: a
+   ratio near 0.25 to 0.35 on the high-reward Quests the policy takes and 0.5 to 0.8 on the easy
+   ones the Rivals take, all below INPUTS 4.3's 0.8. M2 has no Levels (XP accrues, Level stays 1
+   until M3), so no Guild grows into the scale.
+2. **Upkeep is a rounding error beside a reward.** 5 Wealth a Hero every ten Days against rewards of
+   40 to 450: in trials with workable bands, even a wage of 50, ten times INPUTS 4.6's, let Wealth
+   grow without end (the player about 63,000 after five years), and nothing ended a game after its
+   first months. Under the defaults the policy's first Turns instead spend its 500 on four
+   recruits, down to three Upkeeps, and every Quest fails.
+3. **`steady` recruits to the edge.** It recruits whenever Wealth exceeds three Upkeeps, without a
+   cap, so a Rival grows its Roster until its Upkeep eats its income of one Quest a day. With
+   INPUTS 4.6's wage and workable bands that is hundreds of Heroes (354 a Rival after three years,
+   1,469 Hero rows in `world`, `advance` at 6.5 ms), and at a wage of 50 about 31, with a month's
+   Upkeep in hand, so that an ordinary bad month folds it: 9.2 folds a game in five years.
+
+**Decision.** Three defaults change, and `configVersion` goes from 1 to 2 (data-model §2):
+
+| Field | INPUTS default | Now | Why |
+| --- | --- | --- | --- |
+| `stubBands` | 0.8 / 1.2 (4.3) | **0.26 / 0.39** | Both scaled by 0.325, keeping the success band's width in proportion: a Party of the size a Quest requires, at Level 1, succeeds about half the time on the hardest Quests and nearly always on the easiest |
+| `wagePerLevel` | 5 (4.6) | **70** | A Hero's wage becomes a real cost against Quest rewards, so a Guild must keep succeeding to stay afloat, and a Rival's Roster settles near 20 |
+| `recruitWealthMultiple` | 3 (4.12) | **10** | A Rival recruits only while it holds ten Upkeeps, about 100 Days of wages, so an ordinary run of failures no longer folds it |
+
+The trials that chose them, all under the policy of DL-34 (scratch runs, not committed; 20 seeds
+unless said): the bands alone (0.3 / 0.5) gave Rival Rosters in the hundreds; 0.25 / 0.5 with a
+wage of 50 gave no Bankruptcy in five years and 9.2 Rival folds a game; the Rivals' ten Upkeeps
+took that to 0.05; wages of 85 and 100 bankrupted 9 and 17 of 20 within five years, most in the
+first; over 20 years, 0.25 / 0.375 at 75 left 84 of 100 games alive with 12 of the 16 Bankruptcies
+in the first year, and **0.26 / 0.39 at 70 left 63 of 100 alive**, its 37 Bankruptcies spread over
+years 0 to 8 and 16, with a Rival fold a game. The last is taken: games that last years, some
+Bankruptcies, some Rival turnover, a spread for the owner to tune rather than one outcome.
+
+Not turned: the difficulty scale (`questDifficultyMin/Max` clamps a template's range, so lowering
+the top would pin every hard template at one difficulty); rewards and durations (content, DL-25
+item 3); harm (INPUTS 4.4), the Bankruptcy grace (4.9) and starting Wealth (3.x), which the trials
+did not need; and the policy's own numbers (INPUTS 4.14, the harness's player, DL-34).
+
+**After** (DL-34's run, 200 × 20, validated): 134 games ran the full 20 years and 66 ended in
+Bankruptcy, 41 of them in the first year and the rest over years 1 to 8 and one in the sixteenth;
+years survived mean 14.07. The player fails 52.2% of its Quests (33.4% succeed, 14.4% strongly),
+the Rivals 11.7% (54.9% strongly). Rivals fold 0.95 times a game (187 Bankruptcies, 3 wiped
+Rosters), where the M2 implementers saw 11 to 14 in a 20-year run beside an idle player. A game:
+the player's Heroes injured 797 times, 88 died, 91 recruited, none retired; the Rivals' 3.07
+retired.
+
+Tests that relied on a changed default now pin it: the stub's tests pin INPUTS 4.3's bands they
+are written against, beside a new test of the new defaults; the Rival-controller phase tests that
+watch a first-afternoon recruit pin INPUTS 4.6's wage and three Upkeeps; the rebase tests pin
+versions 1 and 2; the Rival test of the default multiple expects ten. No assertion was loosened.
+
+**Consequences.** A save made before this entry plays under version 1 until the player rebases
+(DL-24 item 6), when `world.rules-adopted` records 1 to 2. A fifth of games still end in their
+first year: the start is the fragile part (500 Wealth against 280 Upkeep every ten Days, and the
+hardest Quests first), and the Bankruptcy grace, starting Wealth or the policy's choice of Quest
+are the levers there. The policy's Heroes die at four a year. M3's Levels change the stub's scale
+and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
+keep their rows; their defaults now differ from the config's, as this entry records.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

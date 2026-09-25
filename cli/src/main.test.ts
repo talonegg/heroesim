@@ -538,6 +538,11 @@ describe('advance --until: fast forward (M2-S11)', () => {
   }
 
   test('party-returns stops on the night the Party comes home, printing why and every event since the last command', () => {
+    // Unattached Heroes leave after two Days, so the pool refills on the way whether or not the
+    // Rivals recruit (which the balance pass, DL-35, made rare).
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
+    });
     const { partyId, returnsOnTurn } = sendParty();
     const before = document();
     const expected = fastForward(
@@ -560,13 +565,23 @@ describe('advance --until: fast forward (M2-S11)', () => {
   });
 
   test('pool-refreshed stops on the first night new Heroes enter the pool, naming them, only when asked', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
+    });
     sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['pool-refreshed'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+    expect(expected.stoppedBecause.kind).toBe('pool-refreshed');
 
     const run = play(['advance', '--until', 'pool-refreshed']);
 
     expect(run.code).toBe(exitCodes.ok);
     const { world } = document();
-    expect(dayOf(world.turn)).toBe(0);
+    expect(world.turn).toBe(expected.document.world.turn);
     expect(run.out).toMatch(/Stopped: new in the Unattached pool: .+ \(hero-\d{6}\).* \(show pool\)\./);
   });
 

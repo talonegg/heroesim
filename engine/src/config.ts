@@ -20,7 +20,8 @@ export interface GameConfig {
   schemaVersion: number;
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
-   * records the old and the new (data-model §2, pre-M0 review D1).
+   * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
+   * pass (DL-35).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -79,7 +80,11 @@ export interface GameConfig {
   // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
   /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
   upkeepEveryDays: number;
-  /** Wealth deducted per Level of each living Hero on the Roster, each Upkeep. */
+  /**
+   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
+   * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
+   * nothing (DL-35).
+   */
   wagePerLevel: number;
   /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
   hallMaintenancePerGrade: number;
@@ -114,7 +119,8 @@ export interface GameConfig {
   /**
    * Where the bands start on the ratio of score to difficulty: below `successAtLeast` a Quest
    * fails, from it up to and including `strongAbove` it succeeds, and above `strongAbove` it is a
-   * strong success.
+   * strong success. INPUTS 4.3's 0.8 and 1.2 scaled by 0.325 since the first balance pass, a
+   * Level-1 Party of the size a Quest requires scoring about a third of its difficulty (DL-35).
    */
   stubBands: Readonly<{ successAtLeast: number; strongAbove: number }>;
   /** The one roll's reach: the score is scaled by 1 + a draw from −`stubVariance` to +`stubVariance`. */
@@ -168,7 +174,9 @@ export interface GameConfig {
   // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
   /**
    * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
-   * "when Wealth exceeds three Upkeeps"). M6-S1 moves the threshold into each Disposition's row.
+   * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
+   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
+   * row. The harness's automatic policy has its own threshold (DL-34).
    */
   recruitWealthMultiple: number;
 }
@@ -185,7 +193,7 @@ export type MoraleBand = (typeof moraleBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 1,
+  configVersion: 2,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -219,7 +227,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterTraitsMax: 2,
 
   upkeepEveryDays: 10,
-  wagePerLevel: 5,
+  wagePerLevel: 70,
   hallMaintenancePerGrade: 10,
   bankruptcyFloor: 0,
   bankruptcyGraceDays: 30,
@@ -233,7 +241,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questDifficultyMin: 10,
   questDifficultyMax: 100,
 
-  stubBands: Object.freeze({ successAtLeast: 0.8, strongAbove: 1.2 }),
+  stubBands: Object.freeze({ successAtLeast: 0.26, strongAbove: 0.39 }),
   stubVariance: 0.2,
   stubSkillBonusPerRating: 2,
   stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
@@ -253,7 +261,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 3,
+  recruitWealthMultiple: 10,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

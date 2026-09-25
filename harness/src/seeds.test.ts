@@ -1,11 +1,17 @@
 import { describe, expect, test } from 'vitest';
-import { defaultSeedCount, seedCount, seedNames } from './seeds.js';
+import { defaultPlaySeedCount, defaultSeedCount, seedCount, seedNames } from './seeds.js';
 
 describe('seedCount', () => {
   test('is 1,000 when HEROESIM_SEEDS is unset or blank (INPUTS §9)', () => {
     expect(defaultSeedCount).toBe(1000);
     expect(seedCount(undefined)).toBe(1000);
     expect(seedCount(' ')).toBe(1000);
+  });
+
+  test("is the play sweep's 200 when that is the fallback (INPUTS 4.13)", () => {
+    expect(defaultPlaySeedCount).toBe(200);
+    expect(seedCount(undefined, defaultPlaySeedCount)).toBe(200);
+    expect(seedCount('7', defaultPlaySeedCount)).toBe(7);
   });
 
   test('reads a whole number from 1', () => {
