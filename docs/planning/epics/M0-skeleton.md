@@ -118,9 +118,13 @@ pointer to the log. README's map gains the log.
 
 **Acceptance:**
 
-- [ ] `docs/decision-log.md` exists with ten entries matching `plan.md` §5 as it stood
-- [ ] `plan.md` §5 points at the log and repeats nothing
-- [ ] `README.md` lists the log
+- [x] `docs/decision-log.md` exists with ten entries matching `plan.md` §5 as it stood
+- [x] `plan.md` §5 points at the log and repeats nothing
+- [x] `README.md` lists the log
+
+`docs/decision-log.md` also gains a "Pre-M0 review decisions" section, copying every decision
+from `docs/planning/PRE-M0-TO-ACTION.md` (43 items, A1–F4) under the review's own IDs, without
+consuming a DL number; `PRE-M0-TO-ACTION.md` is then deleted, as it said it would be.
 
 ## 2. Configuration and events introduced
 

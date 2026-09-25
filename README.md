@@ -11,6 +11,7 @@ Nothing is built yet — this is design v2, baselined 2026-09-24.
 - [`docs/principles.md`](./docs/principles.md) — the design principles and what goes wrong without each
 - [`docs/approach.md`](./docs/approach.md) — architecture, Turn pipeline, layout, verification
 - [`docs/plan.md`](./docs/plan.md) — the delivery plan: milestones, session-sized increments, what "done" means
+- [`docs/decision-log.md`](./docs/decision-log.md) — decisions taken during the build, appended as they are made
 - [`docs/planning/epics/`](./docs/planning/epics/README.md) — the implementation plan: one epic per milestone, and the inputs required from the owner
 - [`docs/data-model.md`](./docs/data-model.md) — the World State document: sections, tables, rules, validator
 - [`docs/adr/`](./docs/adr/) — the decisions that are hard to reverse, and why
