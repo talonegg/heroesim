@@ -112,6 +112,18 @@ export function makeId<Table extends TableName>(table: Table, n: number): IdOf<T
   return `${prefix}-${String(n).padStart(idDigits, '0')}` as IdOf<Table>;
 }
 
+/**
+ * The next id of `table`, numbered by `world.counters`, advancing the counter so that no id is
+ * ever issued twice (data-model §3.1). Throws past 999,999, as `makeId` does, before the counter
+ * moves.
+ */
+export function takeId<Table extends TableName>(world: Pick<World, 'counters'>, table: Table): IdOf<Table> {
+  const n = world.counters[table];
+  const id = makeId(table, n);
+  world.counters[table] = n + 1;
+  return id;
+}
+
 const tableByPrefix = new Map<string, TableName>(tableNames.map((table) => [idPrefixes[table], table]));
 const idPattern = /^([a-z]+)-(\d{6})$/;
 

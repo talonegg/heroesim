@@ -434,6 +434,107 @@ rewrites the past for every document sharing the History, and does so silently u
 has frozen that entry. If such a bug turns up, freezing in `append` is a small change to weigh
 against the per-Turn cost M2-S12 measures.
 
+## DL-19 — Generator signatures, draw order and the starting world's defaults (M1-S5, M1-S6)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S5 and M1-S6's
+implementer)
+
+**Context.** M1-S5 and M1-S6 name the Heroes, Guild and Patron Generators and `createWorld`, but
+their signatures predate the one-`deps` convention (approach §3, epics README §4, pre-M0 review
+D1): the epic writes `createWorld(content, config, seed, setup)` and `generateHero(world,
+content, config, …)`. M2-S8 needs the Heroes Generator to draw from a stream its caller names
+(D7). The epics leave open the base Stat draw before the Class bias, the Guildmaster's Stats, two
+config defaults with no INPUTS row (`rivalStartingWealthMin/Max`, `patronCount`), how "one Hero
+per Class" arises for the player without a player rule (ADR-0002), and the events' payloads.
+
+**Decision.**
+
+1. **Signatures follow the convention.** `createWorld(seed, setup, deps) -> { document, events }`
+   with `setup = { guildmasterName, guildName, backgroundKey?, createdAt }`: `createdAt` comes
+   from the caller (D10.1), and `backgroundKey` may be left out, in which case it is drawn like a
+   Rival's, so a front end never draws. The generators are `generateHero(world, deps, options)`,
+   `generateGuild(world, deps, options)` and `generatePatron(world, deps, options)`. Each mutates
+   the `world` it is given (the one being created, or later the per-Turn copy), takes ids from
+   `world.counters` through `takeId`, and returns its row and its typed events; the caller
+   appends the events to the History through `append`, as `createWorld` does. M8-S1 adds
+   `modules` to `deps`, not a fifth parameter to `createWorld`.
+2. **The caller names the stream.** Every generator takes `stream`, a `StreamName` defaulting to
+   `generation`, and draws from `world.rng[stream]` alone; `generateGuild` passes it on to its
+   Roster's Heroes. M2-S8's pool refresh passes `pool`, and M2-S10's Rival replacement names
+   whichever stream it owns. A stream missing from `world.rng` throws.
+3. **Draws walk content in sorted key order.** Classes, Backgrounds, Spheres, Stats and Traits are
+   drawn from their keys sorted by code unit, not in content's insertion order, so a seed's world
+   does not change when rows in a file are reordered or a front end assembles the set another
+   way. A Class's gated Skills are drawn in the list's own order, which is content.
+4. **The Hero.** In draw order: sex; given name by sex; family name; Background (`owner: "hero"`);
+   Class, uniform unless given; age, `int(heroStartingAgeMin, heroStartingAgeMax)`; then for each
+   Hero Stat, a base `int(statBaseMin, statBaseMax)`, plus `int(statBiasMin, statBiasMax)` on the
+   Class's leading Stats, clamped to the Stat's content range, and Potential `min(stat.max, base +
+   int(potentialGapMin, potentialGapMax))`; then `int(startingSkillsMin, startingSkillsMax)`
+   Skills (at most the gated list's length) from a shuffle of the Class's gated list, each rated
+   `int(1, startingSkillRatingMax)`. `xp: 0`, `morale: moraleBaseline`, no Injury, Traits or
+   Regard. `level` is 1 unless the caller gives one; a higher Level is stored as given, with no
+   growth applied, until M3 has a growth rule.
+5. **The base Stat draw is uniform over 3–10** (`statBaseMin/Max`, chosen). A leading Stat then
+   starts at 5–14 (mean 9.5) and every other at 3–10 (mean 6.5), all inside 1–20 before the
+   clamp. Potential on a leading Stat lands at 8–20, so M3's growth (INPUTS 5.3: three points a
+   Level weighted 2:1, about nine or ten points on each leading Stat over twenty Levels) meets
+   Potential within a typical career rather than never or at once. A Warrior's mean Strength
+   exceeds a Mage's by the mean bias, 3. Uniform rather than bell-shaped because it is one draw
+   and M1-S10's harness reports the spread before anything is tuned.
+6. **The Guild and its Guildmaster.** The name is as given or drawn from `names.guild` among the
+   names no Guild in the world already has; the Background is as given or drawn from `owner:
+   "guild"`; `fame: 0`; `hall` at grade 0 for each facility; `belowFloorSince` and `foldedOnTurn`
+   null; `foundedTurn` the world's Turn. The Guildmaster: sex, a name as given or drawn (given and
+   family), age `int(guildmasterStartingAgeMin, guildmasterStartingAgeMax)`, each of the five
+   Guildmaster Stats `int(guildmasterStatMin, guildmasterStatMax)`, **5–15, chosen** to centre on
+   the Stats' middle, 10, because M4-S5's effects scale across the Stat's range; and
+   `int(guildmasterTraitsMin, guildmasterTraitsMax)` Traits from a shuffle of the `owner:
+   "guildmaster"` rows, none twice. Nothing excludes one Trait from another (Thrifty with
+   Spendthrift is possible): content has no field for it yet.
+7. **Classes on a Roster are dealt evenly**: every Class once, in shuffled order, before any
+   twice. Four Heroes are therefore one per Class (INPUTS 3.3), and a Rival's four to eight are as
+   balanced, by a rule every Guild shares rather than one for the player's. Nothing in
+   `generateGuild` reads `controller`, so a player's and a Rival's Guild from the same seed and
+   parameters differ in that field alone (tested, ADR-0002). `createWorld` deals Spheres to
+   Patrons the same way.
+8. **The Patron** is a name from `names.patron` among the names no Patron has, and a Sphere as
+   given or uniform; no template keys are stored (D3).
+9. **`createWorld`** builds `meta` (`version: config.schemaVersion`, the seed, content's `id` and
+   `version`, a copy of `deps.config`, the caller's `createdAt`) and the streams, then generates
+   the player's Guild from the setup with `startingRosterSize` and `startingWealth`, first, so it
+   is `guild-000001`; then `rivalCount` Rivals, each drawing its Roster size `int(rivalRosterMin,
+   rivalRosterMax)` and Wealth `int(rivalStartingWealthMin, rivalStartingWealthMax)` before it is
+   generated, controller `{ kind: "rival", disposition: "steady" }` (INPUTS 4.12; dispositions
+   become content in M2-S9); then `patronCount` Patrons; then `unattachedPoolSize` Unattached
+   Heroes, Classes uniform. A blank name or a key that is not a Guild Background throws: the front
+   end checks its input first.
+10. **Events**, each at the world's Turn, labelled with every participant's name: `world.created`
+    `{ seed }`, no participants, the first entry; `guild.founded` `{ guildId, guildmasterId }`,
+    a Milestone, naming both; `guildmaster.generated` `{ guildmasterId, guildId }`, naming both;
+    `hero.generated` `{ heroId, guildId, classKey }`, naming the Hero and, on a Roster, the Guild
+    (data-model §4); `patron.generated` `{ patronId, sphereKey }`. Their types, and the union
+    `EngineEvent` later stories add to, are in `engine/src/events.ts`.
+11. **Config defaults.** From INPUTS: `startingRosterSize` 4 and `startingWealth` 500 (3.3),
+    `rivalCount` 4 and `rivalRosterMin/Max` 4/8 (3.4), `heroStartingAgeMin/Max` 18/36 (3.5),
+    `statBiasMin/Max` 2/4 and `potentialGapMin/Max` 3/12 (3.6), `unattachedPoolSize` 8 (3.7),
+    `startingSkillsMin/Max` 1/2 and `startingSkillRatingMax` 2 (3.11), `guildmasterTraitsMin/Max`
+    0/2 (3.13), `moraleBaseline` 60 (4.8), `guildmasterStartingAgeMin/Max` 30/45 (4.10). Chosen
+    here: `rivalStartingWealthMin/Max` **300/700**, centred on the player's 500 so the player
+    starts mid-table in Wealth; `patronCount` **12**, two for each of INPUTS 3.8's six Spheres;
+    `statBaseMin/Max` **3/10** (item 5); `guildmasterStatMin/Max` **5/15** (item 6). Fields were
+    added and no existing default changed, so `configVersion` stays 1.
+
+**Consequences.** Engine tests build worlds from a fixture content set in
+`engine/src/generators/test-content.ts`, because engine tests may not import
+`@heroesim/content`; the core content is first exercised end to end by the CLI and the harness
+(M1-S9, M1-S10). A Guild generated when every name in `names.guild` is taken throws; the core
+list has thirty against five Guilds, but M2-S10's Rival replacement (D6) keeps folded Guilds'
+rows and so their names, and must add names or a rule for reuse. Hero and Guildmaster names are
+not unique. Any change to the draw order in items 3–9 changes every seed's world, like a change
+under DL-12. M1-S6's first acceptance box, that the validator accepts what `createWorld`
+returns, waits for M1-S7.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
