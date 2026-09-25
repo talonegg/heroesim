@@ -1,9 +1,10 @@
 // `dispatch` (M2-S4, R23): a Guild sends a Party of its Heroes on a Quest from the Board. A
 // standalone call in any Turn (pre-M0 review D2): the CLI calls it and saves, the harness's policy
-// calls it between advances, and a Rival's controller (M2-S9) produces the same action. The Party
-// is away until `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's
-// `questsAdvance` does nothing with it until M4, and the night's `questsConclude` (M2-S5)
-// resolves it. The choices here are DL-25.
+// calls it between advances, and a Rival's controller (M2-S9) produces the same action, applied
+// through `applyDispatch`, the rule `dispatch` runs (DL-30). The Party is away until
+// `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's `questsAdvance` does
+// nothing with it until M4, and the night's `questsConclude` (M2-S5) resolves it. The choices
+// here are DL-25.
 
 import type { EngineDeps } from '../config.js';
 import type { ClassKey, SkillKey } from '../content-types.js';
@@ -19,9 +20,8 @@ import {
   type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
-import { append } from '../history.js';
 import { dayOf, durationDaysOf, nightOf } from '../time.js';
-import type { ActionResult, Rejection } from './result.js';
+import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
 export interface DispatchAction {
   kind: 'dispatch';
@@ -33,6 +33,11 @@ export interface DispatchAction {
 
 /** What `dispatch` is asked: the action without its `kind`. */
 export type DispatchRequest = Omit<DispatchAction, 'kind'>;
+
+/** The Guild has folded (M2-S10): it has left play and sends no Party again (DL-31). */
+export interface DispatchGuildFolded extends Rejection<'dispatch', 'guild-folded'> {
+  guildId: GuildId;
+}
 
 /** The Quest is not on the Board: taken, expired, resolved, or never offered. */
 export interface QuestNotOffered extends Rejection<'dispatch', 'quest-not-offered'> {
@@ -67,14 +72,21 @@ export interface RequirementUnmet extends Rejection<'dispatch', 'requirement-unm
   unmet: { classKey?: ClassKey; skillKey?: SkillKey };
 }
 
-export type DispatchRejection = QuestNotOffered | HeroNotOnRoster | HeroUnavailable | PartySize | RequirementUnmet;
+export type DispatchRejection =
+  | DispatchGuildFolded
+  | QuestNotOffered
+  | HeroNotOnRoster
+  | HeroUnavailable
+  | PartySize
+  | RequirementUnmet;
 
 /**
  * Sends `heroIds` of `guildId` on `questId`. The checks run in this order, and the first that
- * fails is the rejection (DL-25): the Quest is on the Board (`quest-not-offered`); each Hero in
- * turn is on the Guild's Roster (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead,
- * retired, injured, or in a Party); the Party's size is within the Quest's bounds (`party-size`);
- * and it meets the Quest's required Class and Skill (`requirement-unmet`).
+ * fails is the rejection (DL-25, DL-31): the Guild has not folded (`guild-folded`); the Quest is
+ * on the Board (`quest-not-offered`); each Hero in turn is on the Guild's Roster
+ * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, or in a
+ * Party); the Party's size is within the Quest's bounds (`party-size`); and it meets the Quest's
+ * required Class and Skill (`requirement-unmet`).
  *
  * On success, a copy of `world` gains a `parties` row departing this Turn and returning on
  * `nightOf(dayOf(turn) + durationDays)`, a night Turn whichever Turn of the Day it left in
@@ -90,20 +102,32 @@ export function dispatch(
   request: DispatchRequest,
   deps: EngineDeps,
 ): ActionResult<DispatchRejection> {
+  return applyToCopy(document, (world) => applyDispatch(world, request, deps));
+}
+
+/**
+ * `dispatch`'s rule on a world it changes in place: the same checks in the same order, the same
+ * changes and the same `quest.taken`, which it returns rather than appends. `dispatch` runs it on
+ * a copy of a document's world; a Rival controller runs it on the Turn's copy (M2-S9, DL-30). A
+ * refusal changes nothing. Throws on the programming errors `dispatch` throws on.
+ */
+export function applyDispatch(
+  world: World,
+  request: DispatchRequest,
+  deps: EngineDeps,
+): WorldActionResult<DispatchRejection> {
   // Taken as every entry point takes it (epics README §4); no rule of dispatch reads it until
   // M4-S5's Negotiation scales the reward.
   void deps;
-  const { meta, history } = document;
   const { guildId, questId, heroIds } = request;
-  const guild = own(document.world.guilds, guildId);
+  const guild = own(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
   const repeated = heroIds.find((heroId, index) => heroIds.indexOf(heroId) !== index);
   if (repeated !== undefined) throw new RangeError(`A Party names ${repeated} twice`);
 
-  const rejection = refusal(document.world, guild, request);
+  const rejection = refusal(world, guild, request);
   if (rejection !== null) return { ok: false, rejection };
 
-  const world = structuredClone(document.world);
   const quest = world.quests[questId] as Quest;
   const partyId = takeId(world, 'parties');
   const returnsOnTurn = nightOf(dayOf(world.turn) + durationDaysOf(quest));
@@ -125,13 +149,13 @@ export function dispatch(
     participants: [questId, partyId, ...heroIds, guildId, quest.patronId],
     payload: { questId, partyId, guildId, heroIds: [...heroIds], returnsOnTurn },
   });
-  append(history, taken);
-  return { ok: true, document: { meta, world, history }, events: [taken] };
+  return { ok: true, events: [taken] };
 }
 
 /** The first check `request` fails, in the order `dispatch` gives, or `null` when it passes them all. */
 function refusal(world: World, guild: Guild, request: DispatchRequest): DispatchRejection | null {
   const { guildId, questId, heroIds } = request;
+  if (guild.foldedOnTurn !== null) return { action: 'dispatch', reason: 'guild-folded', guildId };
   const quest = own(world.quests, questId);
   if (quest === undefined || quest.status !== 'offered' || !world.board.includes(questId)) {
     return { action: 'dispatch', reason: 'quest-not-offered', questId };
@@ -165,8 +189,11 @@ function refusal(world: World, guild: Guild, request: DispatchRequest): Dispatch
   return null;
 }
 
-/** Why a Hero cannot go, or `null` when they can: Death and Retirement before the rest. */
-function unavailability(hero: Hero): Unavailability | null {
+/**
+ * Why a Hero cannot go, or `null` when they can: Death and Retirement before the rest. What a
+ * controller reads to choose a Party that `dispatch` accepts (M2-S9).
+ */
+export function unavailability(hero: Hero): Unavailability | null {
   if (hero.diedOnTurn !== null) return 'dead';
   if (hero.retiredOnTurn !== null) return 'retired';
   if (hero.injury !== null) return 'injured';

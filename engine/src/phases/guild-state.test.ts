@@ -1,14 +1,19 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from '../advance.js';
 import type { GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild } from '../document.js';
+import { phases } from '../pipeline.js';
 import { dayOf, nightOf } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { guildState } from './guild-state.js';
 import { phaseContext } from './phase.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 /** A world small enough to reason about by hand: the player and one Rival, one Hero each. */
 function smallWorld(overrides: Partial<GameConfig> = {}) {
@@ -51,6 +56,11 @@ describe('guildState', () => {
   });
 
   test('deducts Upkeep from the player and a Rival on the same Day, driven through advance', () => {
+    // The Rival's controller is stilled: from M2-S9 it recruits and dispatches each afternoon,
+    // moving the Wealth this test watches Upkeep alone move.
+    const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
+    if (rivalControllers === undefined) throw new Error('No rivalControllers phase');
+    vi.spyOn(rivalControllers, 'run').mockReturnValue([]);
     const deps = testDeps({
       rivalCount: 1,
       startingRosterSize: 1,

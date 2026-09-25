@@ -5,7 +5,7 @@
 
 import type { MoraleBand } from './config.js';
 import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
-import type { Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
+import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
@@ -155,6 +155,27 @@ export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryT
  */
 export type HeroRetired = Entry<'hero.retired', { heroId: HeroId; guildId: GuildId; age: number }>;
 
+// ── Endings (M2-S10, pre-M0 review D6, DL-28) ────────────────────────────────────────────────
+
+/**
+ * The player-controlled Guild reached its ending, for `reason`, and the game is over: `world.ended`
+ * is set. A Milestone, naming the Guild and its Guildmaster.
+ */
+export type GameEnded = Entry<'game.ended', { guildId: GuildId; reason: EndingReason }>;
+
+/**
+ * A Rival reached its ending, for `reason`, and folded: it is out of play and out of the Rankings.
+ * A Milestone, naming the Guild, its Guildmaster, and each Party the fold disbanded and Quest it
+ * abandoned (DL-28).
+ */
+export type GuildFolded = Entry<'guild.folded', { guildId: GuildId; reason: EndingReason }>;
+
+/**
+ * A Hero left a Guild's Roster for the Unattached pool: in M2 because the Guild folded. Names the
+ * Hero and the Guild.
+ */
+export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: GuildId }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -175,7 +196,10 @@ export type EngineEvent =
   | HeroXpGained
   | HeroMoraleChanged
   | HeroHealed
-  | HeroRetired;
+  | HeroRetired
+  | GameEnded
+  | GuildFolded
+  | HeroLeftGuild;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -208,4 +232,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.morale-changed': false,
   'hero.healed': false,
   'hero.retired': true,
+  'game.ended': true,
+  'guild.folded': true,
+  'hero.left-guild': false,
 } satisfies Record<EngineEventType, boolean>);

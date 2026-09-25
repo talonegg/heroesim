@@ -29,6 +29,12 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
   return { document: current, events };
 }
 
+/**
+ * No Rivals: from M2-S9 they take Quests each afternoon, and the tests that play Turns watch the
+ * Board's own refresh.
+ */
+const noRivals = { rivalCount: 0 };
+
 /** Takes `n` Quests off the Board and out of the world, as a Guild taking them would. */
 function takeFromBoard(world: World, n: number): void {
   for (const questId of world.board.splice(0, n)) delete world.quests[questId];
@@ -36,7 +42,7 @@ function takeFromBoard(world: World, n: number): void {
 
 describe('boardRefresh', () => {
   test('refills the Board to boardSize every morning, and it never holds more', () => {
-    const deps = testDeps();
+    const deps = testDeps(noRivals);
     let document = created('refill', deps);
     expect(document.world.board).toHaveLength(deps.config.boardSize);
 
@@ -58,9 +64,9 @@ describe('boardRefresh', () => {
   });
 
   test('draws nothing onto a Board already holding boardSize or more, and removes nothing unexpired', () => {
-    const deps = testDeps();
+    const deps = testDeps(noRivals);
     const document = created('full', deps);
-    const smaller = testDeps({ boardSize: 3 });
+    const smaller = testDeps({ ...noRivals, boardSize: 3 });
 
     const { document: morning, events } = playTo(document, 3, smaller);
 
@@ -69,7 +75,7 @@ describe('boardRefresh', () => {
   });
 
   test('expires an offered Quest questOfferDays after it was offered, with quest.expired, and removes its row', () => {
-    const deps = testDeps();
+    const deps = testDeps(noRivals);
     const document = created('expiry', deps);
     const offered = [...document.world.board];
     const patrons = offered.map((id) => document.world.quests[id]?.patronId);
@@ -104,7 +110,7 @@ describe('boardRefresh', () => {
   });
 
   test('reads questOfferDays from the config it is given', () => {
-    const deps = testDeps({ questOfferDays: 5 });
+    const deps = testDeps({ ...noRivals, questOfferDays: 5 });
     const document = created('five-days', deps);
 
     expect(count(playTo(document, 14, deps).document.history, 'quest.expired')).toBe(0);
@@ -112,7 +118,7 @@ describe('boardRefresh', () => {
   });
 
   test('advances the board stream and no other', () => {
-    const deps = testDeps();
+    const deps = testDeps(noRivals);
     const document = created('streams', deps);
     const others = plannedStreams.filter((name) => !Object.hasOwn(document.world.rng, name));
     Object.assign(document.world.rng, createStreams(document.meta.seed, others));

@@ -8,6 +8,7 @@ import type {
   BackgroundOwner,
   Class,
   ContentSet,
+  Disposition,
   InjuryType,
   Names,
   QuestTemplate,
@@ -27,9 +28,10 @@ import { ContentError, validateContent } from './validate.js';
 export const contentSetId = 'core';
 /**
  * Raised whenever the content changes, so a document says which content it was created under:
- * 2 from M2-S3, which added the Quest templates; 3 from M2-S5, which added the Injury types.
+ * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
+ * from M2-S5, which added the Injury types.
  */
-export const contentVersion = 3;
+export const contentVersion = 4;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -41,6 +43,7 @@ export const contentFiles = [
   'spheres.json',
   'names.json',
   'quest-templates.json',
+  'dispositions.json',
   'injuries.json',
 ] as const;
 
@@ -123,6 +126,9 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         lootTableKey: row.null('lootTableKey'),
       }),
     ),
+    dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
+      name: row.string('name'),
+    })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),
       healDaysMin: row.integer('healDaysMin'),

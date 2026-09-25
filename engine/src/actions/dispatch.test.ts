@@ -14,7 +14,9 @@ import { buildDocument, fixtureTurn, testDeps, withValid } from '../world.test-s
 import { applyAction } from './action.js';
 import { dispatch, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
-const deps = testDeps();
+// No Rivals in a created world: from M2-S9 they take Quests off the Board each afternoon, and
+// these tests play Turns to watch the player's own Parties.
+const deps = testDeps({ rivalCount: 0 });
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /** A built document with a Roster of four (a Warrior in a Party, then a Rogue, a Mage, a Healer). */
@@ -240,11 +242,32 @@ describe('dispatch', () => {
       expect(dispatch(demanding, request([mage, rogue]), deps).ok).toBe(true);
     });
 
-    test('in order: the Quest, then each Hero, then the size, then the requirements', () => {
+    test('guild-folded: a Guild that has folded sends no Party, whatever else the request gets right', () => {
+      const { document, ids } = built();
+      const folded = structuredClone(document);
+      const rival = folded.world.guilds[ids.rivalGuild] as Guild;
+      rival.foldedOnTurn = fixtureTurn - 1;
+      // Its Roster is left in place, so that the first request would otherwise be accepted.
+      const pair = rival.rosterIds.slice(0, 2);
+      const refusal = { action: 'dispatch', reason: 'guild-folded', guildId: ids.rivalGuild };
+
+      expect(rejected(folded, { guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair })).toEqual(refusal);
+      expect(rejected(folded, { guildId: ids.rivalGuild, questId: ids.takenQuest, heroIds: [] })).toEqual(refusal);
+      expect(dispatch(document, { guildId: ids.rivalGuild, questId: ids.offeredQuest, heroIds: pair }, deps).ok).toBe(
+        true,
+      );
+    });
+
+    test('in order: the Guild, then the Quest, then each Hero, then the size, then the requirements', () => {
       const { document, ids, rogue } = built();
       const reason = (questId: QuestId, heroIds: HeroId[]): string =>
         rejected(document, { guildId: ids.playerGuild, questId, heroIds }).reason;
+      const folded = structuredClone(document);
+      (folded.world.guilds[ids.playerGuild] as Guild).foldedOnTurn = fixtureTurn - 1;
 
+      expect(rejected(folded, { guildId: ids.playerGuild, questId: ids.takenQuest, heroIds: [ids.rivalHero] }).reason).toBe(
+        'guild-folded',
+      );
       expect(reason(ids.takenQuest, [ids.rivalHero])).toBe('quest-not-offered');
       expect(reason(ids.offeredQuest, [ids.rivalHero])).toBe('hero-not-on-roster');
       expect(reason(ids.offeredQuest, [ids.partyHero])).toBe('hero-unavailable');
@@ -347,9 +370,10 @@ describe('a Party in play', () => {
 
   // M2-S4's last box, closed by M2-S5's questsConclude (DL-25 item 16, DL-29).
   test('frees its Heroes on the night of Day d + k, so they are dispatchable again on the morning of Day d + k + 1, whichever Turn of Day d they left in', () => {
-    // No harm, so the Heroes come home fit to go again; the timing is what is checked.
+    // No harm, so the Heroes come home fit to go again, and no Rivals to empty the Board (DL-30
+    // item 11): the timing is what is checked.
     const noHarm = { fail: 0, success: 0, strong: 0 };
-    const unharmed = testDeps({ stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    const unharmed = testDeps({ rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
     for (const day of [0, 2]) {
       for (const turn of [3 * day, 3 * day + 1, 3 * day + 2]) {
         const document = playTo(createWorld(`again-${turn}`, setup, unharmed).document, turn, unharmed);

@@ -13,9 +13,13 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 3 since the Injury types (M2-S5)', () => {
+  test('is the core content set, version 4 since the Injury types (M2-S5) followed the Dispositions (M2-S9)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(3);
+    expect(content.version).toBe(4);
+  });
+
+  test("has one Disposition, M2's steady (INPUTS 4.12)", () => {
+    expect(content.dispositions).toEqual({ steady: { key: 'steady', name: 'Steady' } });
   });
 
   test('has twenty Hero Stats in four areas', () => {

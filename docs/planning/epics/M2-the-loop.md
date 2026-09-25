@@ -228,10 +228,10 @@ engine change, approach §4).
 
 **Acceptance:**
 
-- [ ] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
+- [x] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
       taken per controller kind
-- [ ] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
-- [ ] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
+- [x] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
+- [x] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
       the test asserts no stream moved)
 
 ### M2-S10 · Endings · 1 session
@@ -252,10 +252,10 @@ Config: `guildmasterRetirementAge`, `rivalReplacementDays`.
 
 **Acceptance:**
 
-- [ ] Each of the three endings has a test that arranges it and asserts the event and
+- [x] Each of the three endings has a test that arranges it and asserts the event and
       `world.ended`
-- [ ] `advance` after an ending is a no-op with the typed stop
-- [ ] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
+- [x] `advance` after an ending is a no-op with the typed stop
+- [x] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
       same night, it is absent from `rankings()`, its controller emits nothing afterwards, and a
       new Rival exists `rivalReplacementDays` later with a `guild.founded` entry
 

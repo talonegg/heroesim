@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { recruit } from '../actions/recruit.js';
 import { advance } from '../advance.js';
-import type { EngineDeps } from '../config.js';
+import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Entry, HeroId, WorldDocument } from '../document.js';
 import type { EngineEvent } from '../events.js';
@@ -18,6 +18,14 @@ import { poolRefresh } from './pool-refresh.js';
 // a test inspects.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
+
+/**
+ * The test deps with no Rivals: from M2-S9 they recruit from the pool each afternoon, and these
+ * tests watch the pool's own refresh.
+ */
+function quietDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
+  return testDeps({ rivalCount: 0, ...overrides });
+}
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return createWorld(seed, setup, deps).document;
@@ -44,7 +52,7 @@ afterEach(() => {
 
 describe('departures', () => {
   test('a Hero leaves on the night of the Day unattachedStayDays after the Day they entered, and not before', () => {
-    const deps = testDeps({ unattachedStayDays: 3 });
+    const deps = quietDeps({ unattachedStayDays: 3 });
     const start = created('stay', deps);
     const first = unattachedHeroes(start.world).map((hero) => hero.id);
 
@@ -66,7 +74,7 @@ describe('departures', () => {
   });
 
   test('stays unattachedStayDays, 10 by default: from creation, until the night of Day 10', () => {
-    const deps = testDeps();
+    const deps = quietDeps();
     expect(deps.config.unattachedStayDays).toBe(10);
     const { events } = playTo(created('default-stay', deps), nightOf(10), deps);
 
@@ -74,7 +82,7 @@ describe('departures', () => {
   });
 
   test('a Hero with only hero.generated and hero.left-pool entries is gone, and both entries read with their labels', () => {
-    const deps = testDeps({ unattachedStayDays: 1 });
+    const deps = quietDeps({ unattachedStayDays: 1 });
     const start = created('passive', deps);
     const [hero] = unattachedHeroes(start.world);
     if (hero === undefined) throw new Error('The pool is empty');
@@ -91,7 +99,7 @@ describe('departures', () => {
   });
 
   test('a Hero any other entry names leaves the pool but keeps their row, once, and is out of play', () => {
-    const deps = testDeps({ unattachedStayDays: 1 });
+    const deps = quietDeps({ unattachedStayDays: 1 });
     const start = created('named', deps);
     const [passive, named] = unattachedHeroes(start.world);
     if (passive === undefined || named === undefined) throw new Error('The pool is too small');
@@ -127,7 +135,7 @@ describe('departures', () => {
 
 describe('the refill', () => {
   test('refills the pool to unattachedPoolSize the night a Hero is recruited, with Unattached Heroes', () => {
-    const deps = testDeps();
+    const deps = quietDeps();
     const start = created('refill', deps);
     const guild = playerGuild(start.world);
     const [hero] = unattachedHeroes(start.world);
@@ -147,7 +155,7 @@ describe('the refill', () => {
   });
 
   test('advances only the pool stream', () => {
-    const deps = testDeps({ unattachedStayDays: 0 });
+    const deps = quietDeps({ unattachedStayDays: 0 });
     const document = created('streams', deps);
     const world = structuredClone(document.world);
     // Every planned stream, so that each can be seen to stand still.
@@ -171,7 +179,7 @@ describe('over twenty years with no recruitment', { timeout: 60_000 }, () => {
   test('world.heroes never holds more Heroes on no Roster than unattachedPoolSize', () => {
     // Only the pool refresh runs: no Rival recruits, no ending stops the game, nothing else moves.
     for (const phase of phases) if (phase.name !== 'poolRefresh') vi.spyOn(phase, 'run').mockReturnValue([]);
-    const deps = testDeps();
+    const deps = quietDeps();
     let document = created('twenty-years', deps);
     const onRosters = Object.values(document.world.heroes).filter((hero) => hero.guildId !== null).length;
     const years = 20;

@@ -1,11 +1,12 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
-import type { EngineDeps } from '../config.js';
+import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
-import { count, entriesFor } from '../history.js';
+import { entriesFor } from '../history.js';
+import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, timeOfDay } from '../time.js';
@@ -21,6 +22,25 @@ import { questsConclude } from './quests-conclude.js';
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const noHarm = { fail: 0, success: 0, strong: 0 };
 const certainHarm = { stubDeathChance: { ...noHarm, fail: 1 }, stubInjuryChance: { ...noHarm, fail: 1 } };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * The test config with no Rivals: from M2-S9 they take Quests and send Parties every afternoon
+ * (DL-30), and a test whose subject is one Party stills them (DL-30 item 11).
+ */
+function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
+  return testDeps({ rivalCount: 0, ...overrides });
+}
+
+/** Stills every Rival's controller until the spy is restored, for a test whose subject is a Rival's own Party. */
+function stillRivalControllers(): void {
+  const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
+  if (rivalControllers === undefined) throw new Error('No rivalControllers phase');
+  vi.spyOn(rivalControllers, 'run').mockReturnValue([]);
+}
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
 function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
@@ -51,12 +71,12 @@ interface Away {
 /**
  * A world created from `seed` whose Guild (the player's, or the first Rival's) sends its first
  * `size` Heroes on the first Quest on the Board that asks for no Class or Skill, at `difficulty`
- * when given, played to the afternoon before the Party comes home.
+ * when given, played to the afternoon before the Party comes home, or daysEarly Days before that.
  */
 function sentAway(
   seed: string,
   deps: EngineDeps,
-  { size = 2, rival = false, difficulty }: { size?: number; rival?: boolean; difficulty?: number } = {},
+  { size = 2, rival = false, difficulty, daysEarly = 0 }: { size?: number; rival?: boolean; difficulty?: number; daysEarly?: number } = {},
 ): Away {
   const start = createWorld(seed, setup, deps).document;
   const guilds = Object.values(start.world.guilds);
@@ -73,7 +93,7 @@ function sentAway(
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;
   const party = sent.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
-  const { document: eve, events } = playTo(withValid(sent.document, deps), party.returnsOnTurn - 1, deps);
+  const { document: eve, events } = playTo(withValid(sent.document, deps), party.returnsOnTurn - 1 - 3 * daysEarly, deps);
   return { eve, party: structuredClone(party), quest: structuredClone(quest), guildId: guild.id, heroIds, events };
 }
 
@@ -90,7 +110,7 @@ const guildOf = (world: World, id: GuildId): Guild => world.guilds[id] as Guild;
 
 describe('questsConclude', () => {
   test("resolves a Party on its return night and not before: quest.resolved, the Quest and the Party gone, the Heroes free", () => {
-    const deps = testDeps();
+    const deps = soloDeps();
     const { eve, party, quest, heroIds, events: before } = sentAway('return-night', deps);
 
     expect(timeOfDay(party.returnsOnTurn)).toBe('night');
@@ -120,7 +140,7 @@ describe('questsConclude', () => {
   });
 
   test('moves Wealth, Fame and XP by the outcome, the XP to every Hero who came home', () => {
-    const deps = testDeps();
+    const deps = soloDeps();
     for (const difficulty of [1, 40, 5000]) {
       const { eve, guildId, heroIds } = sentAway(`moves-${difficulty}`, deps, { difficulty });
       const guildBefore = guildOf(eve.world, guildId);
@@ -146,7 +166,7 @@ describe('questsConclude', () => {
   });
 
   test('a Hero who dies leaves the Roster, keeps their row and Guild, and is indexed in the History by the Milestone', () => {
-    const deps = testDeps(certainHarm);
+    const deps = soloDeps(certainHarm);
     const { eve, party, guildId, heroIds } = sentAway('death', deps, { difficulty: 5000 });
 
     const { document, events } = playTo(eve, party.returnsOnTurn, deps);
@@ -165,7 +185,7 @@ describe('questsConclude', () => {
   });
 
   test('a Death costs each Hero left on the Roster moraleOnRosterDeath, and each change is an event', () => {
-    const deps = testDeps(certainHarm);
+    const deps = soloDeps(certainHarm);
     const { eve, guildId } = sentAway('roster-death', deps, { difficulty: 5000 });
 
     const { world, events } = concludeAlone(eve, deps);
@@ -181,7 +201,7 @@ describe('questsConclude', () => {
   });
 
   test('an injured Hero carries the Injury until the night its Days run out, the infirmary at the time shortening it', () => {
-    const injureOnly = testDeps({ stubInjuryChance: { ...noHarm, fail: 1 } });
+    const injureOnly = soloDeps({ stubInjuryChance: { ...noHarm, fail: 1 } });
     const healDays = (grade: number): { days: number; heroId: HeroId; typeKey: string; world: World; night: number } => {
       const { eve, guildId, party } = sentAway('injury', injureOnly, { difficulty: 5000 });
       guildOf(eve.world, guildId).hall.infirmary = grade;
@@ -206,7 +226,7 @@ describe('questsConclude', () => {
   });
 
   test('a strong success raises the Morale of each Hero who came home by moraleOnStrongSuccess, each an event', () => {
-    const deps = testDeps();
+    const deps = soloDeps();
     const { eve, heroIds } = sentAway('strong', deps, { difficulty: 1 });
 
     const { world, events } = concludeAlone(eve, deps);
@@ -221,7 +241,7 @@ describe('questsConclude', () => {
   });
 
   test('emits, in order, quest.resolved, then Injuries, Deaths, XP and Morale changes', () => {
-    const deps = testDeps(certainHarm);
+    const deps = soloDeps(certainHarm);
     const { eve } = sentAway('order', deps, { size: 3, difficulty: 5000 });
 
     const { events } = concludeAlone(eve, deps);
@@ -231,7 +251,9 @@ describe('questsConclude', () => {
   });
 
   test("resolves a Rival's Party through the same engine, moving the Rival's Wealth and Fame", () => {
-    const deps = testDeps();
+    // One Rival, its controller stilled so that the Party sent here is its only one.
+    const deps = testDeps({ rivalCount: 1 });
+    stillRivalControllers();
     const { eve, guildId, heroIds } = sentAway('rival', deps, { rival: true, difficulty: 1 });
     expect(guildOf(eve.world, guildId).controller.kind).toBe('rival');
 
@@ -243,7 +265,7 @@ describe('questsConclude', () => {
   });
 
   test("leaves a folded Guild's Party alone, as every per-Guild rule skips a folded Guild", () => {
-    const deps = testDeps();
+    const deps = soloDeps();
     const { eve, guildId, party } = sentAway('folded', deps);
     guildOf(eve.world, guildId).foldedOnTurn = eve.world.turn;
 
@@ -254,7 +276,7 @@ describe('questsConclude', () => {
   });
 
   test('advances the quests stream and no other', () => {
-    const deps = testDeps(certainHarm);
+    const deps = soloDeps(certainHarm);
     const { eve } = sentAway('streams', deps, { difficulty: 5000 });
     Object.assign(eve.world.rng, createStreams(eve.meta.seed, plannedStreams), structuredClone(eve.world.rng));
     const before = structuredClone(eve.world.rng) as Record<string, unknown>;
@@ -269,12 +291,77 @@ describe('questsConclude', () => {
     }
   });
 
-  test('over many returns, every Quest a Party took resolves once, and the documents stay valid', () => {
+  test('with the Rivals sending Parties every afternoon, each Party resolves once, on its return night, and none is left overdue', () => {
     const deps = testDeps();
-    const { eve, party } = sentAway('many', deps);
-    const { document } = playTo(eve, party.returnsOnTurn + 30, deps);
+    const start = createWorld('many', setup, deps).document;
 
-    expect(count(document.history, 'quest.resolved')).toBe(count(document.history, 'quest.taken'));
-    expect(Object.keys(document.world.parties)).toEqual([]);
+    const { document, events } = playTo(start, nightOf(15), deps);
+
+    const taken = ofType(events, 'quest.taken');
+    const resolved = ofType(events, 'quest.resolved');
+    expect(new Set(taken.map((event) => event.payload.guildId)).size).toBeGreaterThan(1);
+    for (const { payload } of taken) {
+      const home = resolved.filter((event) => event.payload.partyId === payload.partyId);
+      if (payload.returnsOnTurn <= document.world.turn) {
+        expect(home.map((event) => event.turn), payload.partyId).toEqual([payload.returnsOnTurn]);
+      } else {
+        expect(home, payload.partyId).toEqual([]);
+        expect(document.world.parties[payload.partyId]?.returnsOnTurn).toBe(payload.returnsOnTurn);
+      }
+    }
+    expect(resolved).toHaveLength(taken.filter((event) => event.payload.returnsOnTurn <= document.world.turn).length);
+    for (const party of Object.values(document.world.parties)) expect(party.returnsOnTurn).toBeGreaterThan(document.world.turn);
+  });
+});
+
+// A Rival's fold (M2-S10, DL-28 item 3) disbands its Parties at the end of the night; questsConclude
+// runs first. So a folded Guild never has a Party for questsConclude to find: one away when its
+// Guild folds is abandoned unresolved, and one home on the night of the fold is resolved first.
+describe("a folded Rival's Party", () => {
+  /**
+   * A Rival's Party sent away as `sentAway` sends it, played to the afternoon `daysEarly` Days
+   * before its return night, the Rival's Guildmaster then made old enough to retire that night.
+   */
+  function retiringRival(seed: string, daysEarly: number) {
+    const deps = testDeps({ rivalCount: 1 });
+    stillRivalControllers();
+    const away = sentAway(seed, deps, { rival: true, daysEarly });
+    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
+    if (guildmaster === undefined) throw new Error('No Guildmaster');
+    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    return { deps, ...away };
+  }
+
+  test('is disbanded by a fold before its return night and never resolved, nor left behind', () => {
+    // The Rival folds the night before its Party is due.
+    const { deps, eve, party, quest, guildId } = retiringRival('fold-away', 1);
+    expect(eve.world.parties[party.id]).toEqual(party);
+
+    const { document, events } = playTo(eve, party.returnsOnTurn + 3, deps);
+
+    expect(ofType(events, 'guild.folded').map((event) => event.turn)).toEqual([party.returnsOnTurn - 3]);
+    expect(guildOf(document.world, guildId).foldedOnTurn).toBe(party.returnsOnTurn - 3);
+    expect(ofType(events, 'quest.resolved').filter((event) => event.payload.partyId === party.id)).toEqual([]);
+    expect(document.world.parties).not.toHaveProperty(party.id);
+    expect(document.world.quests).not.toHaveProperty(quest.id);
+  });
+
+  test('home on the night its Guild folds is resolved first, then the fold finds no Party', () => {
+    // The Rival folds on the night its Party comes home.
+    const { deps, eve, party, guildId } = retiringRival('fold-home', 0);
+
+    const { document, events } = playTo(eve, party.returnsOnTurn, deps);
+
+    const order = events
+      .filter((event) => event.type === 'quest.resolved' || event.type === 'guild.folded')
+      .map((event) => [event.type, event.turn]);
+    expect(order).toEqual([
+      ['quest.resolved', party.returnsOnTurn],
+      ['guild.folded', party.returnsOnTurn],
+    ]);
+    const [fold] = ofType(events, 'guild.folded');
+    expect(fold?.participants).not.toContain(party.id);
+    expect(guildOf(document.world, guildId).foldedOnTurn).toBe(party.returnsOnTurn);
+    expect(Object.values(document.world.parties).filter((it) => it.guildId === guildId)).toEqual([]);
   });
 });

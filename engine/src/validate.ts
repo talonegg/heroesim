@@ -17,6 +17,7 @@ import {
   maxIdNumber,
   parseId,
   tableNames,
+  type Ending,
   type Entry,
   type EventType,
   type Guild,
@@ -37,6 +38,7 @@ import {
   type WorldDocument,
 } from './document.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
+import { dispositionOf } from './selectors.js';
 
 // ── Results ──────────────────────────────────────────────────────────────────────────────────
 
@@ -53,6 +55,7 @@ export const refusalChecks = [
   'hero-in-two-parties',
   'party-member-mismatch',
   'guildmaster-guild-mismatch',
+  'folded-guild-in-play',
   'quest-party-mismatch',
   'too-many-parties',
   'duplicate-stack',
@@ -77,6 +80,7 @@ export const warningChecks = [
   'unknown-item',
   'unknown-template',
   'unknown-injury',
+  'unknown-disposition',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -136,6 +140,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   heroInTwoParties,
   partyMemberMismatch,
   guildmasterGuildMismatch,
+  foldedGuildInPlay,
   questPartyMismatch,
   tooManyParties,
   duplicateStack,
@@ -157,6 +162,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownItem,
   unknownTemplate,
   unknownInjury,
+  unknownDisposition,
 ];
 
 /**
@@ -252,6 +258,8 @@ const worldFields: Shape<World> = {
   offers: 'map',
   modules: 'map',
 };
+
+const endingFields: Shape<Ending> = { turn: 'integer', reason: 'string' };
 
 const historyFields: Shape<History> = { entries: 'list', byEntity: 'map', byType: 'map', milestones: 'list' };
 
@@ -447,6 +455,7 @@ function documentShape(document: unknown): ValidationFailure[] {
   const { meta, world, history } = document;
   fields(meta, metaFields, ['meta']);
   if (fields(world, worldFields, ['world'])) {
+    if (world.ended !== null) fields(world.ended, endingFields, ['world', 'ended']);
     for (const table of tableNames) {
       for (const [id, row] of Object.entries(world[table] as Record<string, unknown>)) {
         if (fields(row, rowFields[table], ['world', table, id])) rowParts(table, id, row);
@@ -743,6 +752,34 @@ function guildmasterGuildMismatch({ world }: WorldDocument): ValidationFailure[]
         check: 'guildmaster-guild-mismatch',
         id: guild.guildmasterId,
         detail: `${guildId} names ${guild.guildmasterId} as Guildmaster, whose guildId is ${q(guildmaster.guildId)}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/**
+ * A folded Guild is out of play (DL-28): no Hero is on its Roster and no Party is its own. Its row
+ * and its Guildmaster's stay, and its dead or retired Heroes keep it as their `guildId`.
+ */
+function foldedGuildInPlay({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [guildId, guild] of Object.entries(world.guilds)) {
+    if (guild.foldedOnTurn !== null && guild.rosterIds.length > 0) {
+      failures.push({
+        check: 'folded-guild-in-play',
+        id: guildId,
+        detail: `${guildId} folded on Turn ${guild.foldedOnTurn} but has ${guild.rosterIds.length} Heroes on its Roster`,
+      });
+    }
+  }
+  for (const [partyId, party] of Object.entries(world.parties)) {
+    const guild = rowOf(world.guilds, party.guildId);
+    if (guild !== undefined && guild.foldedOnTurn !== null) {
+      failures.push({
+        check: 'folded-guild-in-play',
+        id: partyId,
+        detail: `${partyId} is ${party.guildId}'s, which folded on Turn ${guild.foldedOnTurn}`,
       });
     }
   }
@@ -1059,12 +1096,26 @@ function unknownSphere({ world }: WorldDocument, content: ContentSet): Validatio
 
 /**
  * A content table a later milestone adds to `ContentSet`: Quest templates (M2-S3), Injury types
- * (M2-S5) and Item definitions (M5-S1). Until content carries one under this name it defines no
- * such key, and every one warns, as §6 says (DL-20).
+ * (M2-S5), Dispositions (M2-S9) and Item definitions (M5-S1). Until content carries one under this
+ * name it defines no such key, and every one warns, as §6 says (DL-20).
  */
-function laterTable(content: ContentSet, name: 'questTemplates' | 'injuries' | 'items'): object {
+function laterTable(
+  content: ContentSet,
+  name: 'questTemplates' | 'injuries' | 'dispositions' | 'items',
+): object {
   const table: unknown = Reflect.get(content, name);
   return isMap(table) ? table : {};
+}
+
+/** A Rival's Disposition (M2-S9). The player's Guild names none. */
+function unknownDisposition({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-disposition', 'a Disposition');
+  const dispositions = laterTable(content, 'dispositions');
+  for (const [id, guild] of Object.entries(world.guilds)) {
+    const disposition = dispositionOf(guild);
+    if (disposition !== null) known(id, 'controller', dispositions, disposition);
+  }
+  return warnings;
 }
 
 function unknownItem({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {

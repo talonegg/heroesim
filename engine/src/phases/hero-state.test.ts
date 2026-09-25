@@ -54,7 +54,8 @@ const rosterOf = (world: World): HeroId[] => (playerGuild(world) as Guild).roste
 
 describe('healing', () => {
   test('an Injury heals on its night and not before, with hero.healed', () => {
-    const deps = testDeps();
+    // No Rivals: their Parties would come home hurt, and they are not the subject (DL-30 item 11).
+    const deps = testDeps({ rivalCount: 0 });
     const start = created('heal', deps);
     const [heroId] = rosterOf(start.world) as [HeroId];
     hero(start.world, heroId).injury = { typeKey: 'bruised-ribs', healsOnTurn: nightOf(3) };
@@ -234,7 +235,7 @@ describe('Retirement', () => {
   });
 
   test('takes the Hero off the Roster, keeping their row, Guild and retiredOnTurn, with the hero.retired Milestone', () => {
-    const deps = testDeps({ ...certain, turnsPerYear: 30 });
+    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0 });
     const start = created('retire', deps);
     const guild = playerGuild(start.world) as Guild;
     const [heroId] = guild.rosterIds as [HeroId];
@@ -255,7 +256,8 @@ describe('Retirement', () => {
   });
 
   test('checks a Hero away on the anniversary on the night their Party brings them home', () => {
-    const deps = testDeps({ ...certain, turnsPerYear: 30, stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    // No Rivals: they would take the Board's Quests and send Parties of their own (DL-30 item 11).
+    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
     const start = created('away', deps);
     const ids = rosterOf(start.world);
     for (const heroId of ids) Object.assign(hero(start.world, heroId), { enteredTurn: 0, ageAtEntry: 60 });
