@@ -4,7 +4,7 @@
 **Sessions:** 3–4 · **Depends on:** nothing · **Implements:** `plan.md` M0; ADR-0007
 **Gate:** `npm test` and `npm run lint` pass locally and in CI; a deliberate `Math.random()` in `engine/` fails lint; `docs/decision-log.md` exists with DL-01 to DL-10
 
-**Status:** in progress — M0-S1 done
+**Status:** in progress — M0-S1 and M0-S2 done
 
 ## 0. What lands in M0
 
@@ -88,11 +88,11 @@ asserts no dependency keys.
 
 **Acceptance:**
 
-- [ ] `npm run lint` passes on the skeleton
-- [ ] The boundary test fails lint on `Math.random`, `Date.now()`, `new Date()`, `console.log`,
+- [x] `npm run lint` passes on the skeleton
+- [x] The boundary test fails lint on `Math.random`, `Date.now()`, `new Date()`, `console.log`,
       `import fs from "node:fs"` and `import x from "@heroesim/content"` inside `engine/`, each
       with the message naming the ADR
-- [ ] `npm test` runs the boundary test as part of the ordinary run
+- [x] `npm test` runs the boundary test as part of the ordinary run
 
 ### M0-S3 · CI · 0.5–1 session
 
