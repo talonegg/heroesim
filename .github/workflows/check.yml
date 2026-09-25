@@ -1,0 +1,38 @@
+name: check
+
+# M0-S3: lint, typecheck and test on push and pull request. No Playwright, no deploy, and no
+# repository secret is referenced anywhere below. The matrix proves the documented floor (Node
+# 22, ADR-0007 / pre-M0 review A8) against the Node this repository is developed on
+# (.node-version), rather than assuming the floor works.
+on:
+  push:
+    branches:
+      - v1.0-dev
+      - v1.0-release
+  pull_request:
+    branches:
+      - v1.0-dev
+      - v1.0-release
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: node-22
+            node-version: '22'
+          - name: node-version-file
+            node-version-file: '.node-version'
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ matrix.node-version }}
+          node-version-file: ${{ matrix.node-version-file }}
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
