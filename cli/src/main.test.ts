@@ -13,10 +13,12 @@ import {
   defaultConfig,
   deserialise,
   dispatch,
+  fastForward,
   makeId,
   serialise,
   upkeep,
   type EntityId,
+  type Guild,
   type Hero,
   type HeroId,
   type Quest,
@@ -194,6 +196,30 @@ describe('show', () => {
       expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
+  });
+
+  test('guilds marks a folded Guild with the Day it folded, and show lists only the Guilds in play (DL-28, DL-33)', () => {
+    const rivalId = makeId('guilds', 2);
+    // Folded as M2-S10's fold leaves a Guild: its Heroes released to the pool, its Roster empty.
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      for (const heroId of rival.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+      }
+      rival.rosterIds = [];
+      rival.foldedOnTurn = 0;
+    });
+
+    const guilds = play(['show', 'guilds']);
+    const summary = play(['show']);
+
+    expect(guilds.code).toBe(exitCodes.ok);
+    expect(rowOf(guilds.out, rivalId)).toMatch(/\s{2}on Day 0$/);
+    expect(rowOf(guilds.out, playerId)).not.toContain('on Day');
+    expect(guilds.out.split('\n')[2]).toMatch(/\s{2}Folded$/);
+    expect(summary.out.split('\n').some((line) => line.startsWith(rivalId))).toBe(false);
+    expect(rowOf(summary.out, playerId)).toContain('The Test');
+    expect(summary.out).toContain(`${defaultConfig.rivalCount} Guilds in play and 1 folded (show guilds lists them)`);
   });
 
   test("roster prints the player's Roster, with ages from the engine and names from content", () => {
@@ -477,7 +503,8 @@ describe('advance', () => {
     const run = play(['advance', '--turns', '3']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toMatch(/quest\.offered/);
+    // The morning's offers, in the CLI's words (DL-33).
+    expect(run.out).toMatch(/offered .+ \(quest-\d{6}\)\./);
     expect(document().world.board).toHaveLength(defaultConfig.boardSize);
     expect(Object.hasOwn(document().world.rng, 'board')).toBe(true);
   });
@@ -485,6 +512,113 @@ describe('advance', () => {
   test('refuses a bad --turns as a bad command line', () => {
     expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
     expect(document().world.turn).toBe(0);
+  });
+});
+
+describe('advance --until: fast forward (M2-S11)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  const playDepsOf = (before: WorldDocument) => ({ config: { ...defaultConfig, ...before.meta.config }, content });
+
+  /**
+   * Sends two of the player's four Heroes on the demo Board's seven-Day Guard the caravan, open to
+   * any two to four; the other two stay at home, and no decision is needed while the Party is out.
+   */
+  function sendParty(): { partyId: string; returnsOnTurn: number } {
+    const { world } = document();
+    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
+    if (questId === undefined) throw new Error('The demo Board has changed');
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    expect(play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    const party = Object.values(document().world.parties)[0];
+    if (party === undefined) throw new Error('No Party');
+    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn };
+  }
+
+  test('party-returns stops on the night the Party comes home, printing why and every event since the last command', () => {
+    const { partyId, returnsOnTurn } = sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['party-returned'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+
+    const run = play(['advance', '--until', 'party-returns']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(document().world.turn).toBe(returnsOnTurn);
+    expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Day ${dayOf(returnsOnTurn)}, night, Year 0).`);
+    expect(run.out).toContain(`Stopped: The Test's Party came home: ${partyId}.`);
+    expect(run.out).toContain(`Events: ${expected.events.length}, oldest first`);
+    expect(run.out).toContain(`The Test's ${partyId} came home from Guard the caravan (quest-`);
+    // The pool refreshed on the way, and did not stop it: pool-refreshed is opt-in.
+    expect(run.out).toContain('joined the Unattached pool.');
+  });
+
+  test('pool-refreshed stops on the first night new Heroes enter the pool, naming them, only when asked', () => {
+    sendParty();
+
+    const run = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const { world } = document();
+    expect(dayOf(world.turn)).toBe(0);
+    expect(run.out).toMatch(/Stopped: new in the Unattached pool: .+ \(hero-\d{6}\).* \(show pool\)\./);
+  });
+
+  test('decision stops the morning Quests the idle Roster could take reach the Board', () => {
+    const run = play(['advance', '--until', 'decision']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Now Turn 3 (Day 1, morning, Year 0).');
+    expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
+  });
+
+  test('--max caps the Turns and says so', () => {
+    sendParty();
+
+    const run = play(['advance', '--max', '2']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Played 2 Turns.');
+    expect(run.out).toContain('Stopped: played the most Turns allowed, 2.');
+    expect(document().world.turn).toBe(2);
+  });
+
+  test("without --max the cap is one year of Turns, under the save's own rules", () => {
+    // A Guild with no Roster sends no one and has nothing to decide: only the cap stops it. The
+    // save's rules make a year thirty Turns, which keeps the test short.
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, turnsPerYear: 30 };
+      const guild = edited.world.guilds[playerId] as Guild;
+      for (const heroId of guild.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn });
+      }
+      guild.rosterIds = [];
+    });
+
+    const year = play(['advance', '--until', 'ended']);
+
+    expect(year.code, year.err).toBe(exitCodes.ok);
+    expect(year.out).toContain('Played 30 Turns. Now Turn 30 (Day 10, morning, Year 1).');
+    expect(year.out).toContain('Stopped: played the most Turns allowed, 30.');
+  });
+
+  test('refuses a game that has ended, writing nothing', () => {
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'retirement' };
+    });
+    const original = saved();
+
+    const run = play(['advance', '--until', 'party-returns', '--max', '5']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain('The game ended on Turn 0: retirement');
+    expect(saved()).toBe(original);
   });
 });
 

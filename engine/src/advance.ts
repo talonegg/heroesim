@@ -9,28 +9,18 @@ import { append } from './history.js';
 import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
 import { ensureStreams } from './rng.js';
-
-/**
- * Why time stopped: what fast forward (M2-S11) stops on, and what `advance` reports for the Turn it
- * played. `ended` and `party-returned` always stop fast forward; `pool-refreshed` only when the
- * caller asks for it (approach §2, pre-M0 review B7); `max-turns` is fast forward's own. M2-S11
- * adds what `advance` detects beyond `ended`, and may give a reason fields of its own.
- */
-export type StopReason =
-  | { kind: 'party-returned' }
-  | { kind: 'ended' }
-  | { kind: 'decision-needed' }
-  | { kind: 'max-turns' }
-  | { kind: 'pool-refreshed' };
-
-export type StopReasonKind = StopReason['kind'];
+import { endedStop, type StopReason } from './stops.js';
 
 export interface AdvanceResult {
   /** A new document: a new `world`, the same `meta` and `history`. */
   document: WorldDocument;
   /** The Turn's events in the order they happened, each also appended to the History. */
   events: EngineEvent[];
-  /** Why time should stop after this Turn, or `null` when nothing asks it to. */
+  /**
+   * Why time should stop after this Turn, whoever is watching, or `null`: `ended` when the game is
+   * over. The reasons that belong to one Guild (`party-returned`, `decision-needed`) and the opt-in
+   * `pool-refreshed` are fast forward's to report, from the same detectors (stops.ts, DL-33).
+   */
   stoppedBecause: StopReason | null;
 }
 
@@ -46,7 +36,8 @@ export interface AdvanceResult {
  * reports `ended` too.
  */
 export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResult {
-  if (document.world.ended !== null) return { document, events: [], stoppedBecause: { kind: 'ended' } };
+  const ended = endedStop(document.world);
+  if (ended !== null) return { document, events: [], stoppedBecause: ended };
 
   const world = structuredClone(document.world);
   // A save made before a stream existed gains it here, seeded as a new world's (DL-25).
@@ -58,6 +49,6 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
   return {
     document: { meta: document.meta, world, history: document.history },
     events,
-    stoppedBecause: world.ended === null ? null : { kind: 'ended' },
+    stoppedBecause: endedStop(world),
   };
 }

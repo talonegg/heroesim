@@ -20,6 +20,7 @@ import {
   defaultConfig,
   entriesBetween,
   entriesFor,
+  fastForward,
   parseId,
   playerGuild,
   rebase,
@@ -37,8 +38,8 @@ import { parseArgs, usage, type Command, type View } from './args.js';
 import { recruitHero } from './commands/recruit.js';
 import { dispatchParty } from './commands/dispatch.js';
 import type { CommandOutcome } from './commands/outcome.js';
+import { narrateStop, renderAdvance } from './narrate.js';
 import {
-  renderAdvance,
   renderBoard,
   renderGuilds,
   renderHero,
@@ -115,7 +116,7 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
     case 'show':
       return show(command.view, context);
     case 'advance':
-      return advanceTurns(command.turns, context);
+      return 'until' in command ? fastForwardTurns(command, context) : advanceTurns(command.turns, context);
     case 'recruit':
       return recruitHero(command.hero, context);
     case 'dispatch':
@@ -275,6 +276,12 @@ function show(view: View, { io, content, path }: Context): Exit {
 
 // ── advance and rebase ───────────────────────────────────────────────────────────────────────
 
+/** The refusal of a Turn after the game's end, or `undefined` while it goes on. */
+function over(io: CliIo, document: WorldDocument): Exit | undefined {
+  const { ended } = document.world;
+  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+}
+
 /**
  * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping
  * early if the game ends, writes the save and prints what happened. A game that has already ended
@@ -285,8 +292,8 @@ function advanceTurns(turns: number, { io, content, path }: Context): Exit {
   if (opened === undefined) return exitCodes.refused;
   const { deps } = opened;
   let { document } = opened;
-  const { ended } = document.world;
-  if (ended !== null) return refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+  const refused = over(io, document);
+  if (refused !== undefined) return refused;
 
   const events: EngineEvent[] = [];
   let played = 0;
@@ -299,6 +306,32 @@ function advanceTurns(turns: number, { io, content, path }: Context): Exit {
   }
   writeSave(path, document);
   return say(io, renderAdvance(played, events, document, deps));
+}
+
+/**
+ * `advance --until <stops> [--max n]`: fast forward for the player's Guild under the save's rules
+ * (M2-S11, DL-33), at most `max` Turns or, unless given, one year of them (`turnsPerYear`); writes
+ * the save and prints why it stopped and what happened. A game already over is refused and nothing
+ * is written.
+ */
+function fastForwardTurns(
+  command: Extract<Command, { name: 'advance'; until: unknown }>,
+  { io, content, path }: Context,
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const { document, deps } = opened;
+  const refused = over(io, document);
+  if (refused !== undefined) return refused;
+  const guild = playerGuild(document.world);
+  if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
+
+  const maxTurns = command.max ?? deps.config.turnsPerYear;
+  const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);
+  writeSave(path, result.document);
+  const played = result.document.world.turn - document.world.turn;
+  const stop = narrateStop(result.stoppedBecause, result.document, maxTurns);
+  return say(io, renderAdvance(played, result.events, result.document, deps, stop));
 }
 
 /**

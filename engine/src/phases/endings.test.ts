@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { advance, type StopReason } from '../advance.js';
+import { advance } from '../advance.js';
+import type { StopReason } from '../stops.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import {

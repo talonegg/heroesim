@@ -54,6 +54,32 @@ export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild,
   return heroes;
 }
 
+/** The Quests on offer on the Board, in the Board's order. */
+function offeredQuests(world: Pick<World, 'board' | 'quests'>): Quest[] {
+  const offered: Quest[] = [];
+  for (const questId of world.board) {
+    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
+    if (quest !== undefined && quest.status === 'offered') offered.push(quest);
+  }
+  return offered;
+}
+
+/**
+ * The Quests on offer on the Board that `guild` could staff now, in the Board's order: those for
+ * which some Party of its available Heroes (`availableHeroes`, `dispatch`'s own test) meets the
+ * Quest's size and requirements, as `steady` staffs a Quest (`partyFor`). Fast forward's
+ * `decision-needed` reads it (M2-S11, DL-33), so a stop and a Rival agree on what can be staffed.
+ */
+export function staffableQuests(
+  world: Pick<World, 'board' | 'quests' | 'heroes'>,
+  guild: Pick<Guild, 'rosterIds'>,
+  content: ContentSet,
+): Quest[] {
+  const available = availableHeroes(world, guild);
+  if (available.length === 0) return [];
+  return offeredQuests(world).filter((quest) => partyFor(quest, available, content) !== null);
+}
+
 // ── steady ───────────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -78,11 +104,7 @@ function steady(world: World, guild: Guild, deps: EngineDeps): GuildAction[] {
 function easiestStaffable(world: World, guild: Guild, content: ContentSet): GuildAction | null {
   const available = availableHeroes(world, guild);
   if (available.length === 0) return null;
-  const offered: Quest[] = [];
-  for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
-    if (quest !== undefined && quest.status === 'offered') offered.push(quest);
-  }
+  const offered = offeredQuests(world);
   offered.sort((a, b) => a.difficulty - b.difficulty || compareByCodeUnit(a.id, b.id));
   for (const quest of offered) {
     const heroIds = partyFor(quest, available, content);
@@ -98,8 +120,10 @@ function easiestStaffable(world: World, guild: Guild, content: ContentSet): Guil
  * the rest stay free for tomorrow's Board. A requirement is met by the strongest Hero who meets
  * it (one who meets both when there is one); the other places go to the strongest of the rest.
  * Strength is the Hero's Stats weighted by the Quest's demands (`strengthFor`), ties by Hero id.
+ * `null` exactly when no Party of `available` could go, so `staffableQuests` reads it as the test
+ * of whether a Quest can be staffed.
  */
-function partyFor(quest: Quest, available: readonly Hero[], content: ContentSet): HeroId[] | null {
+export function partyFor(quest: Quest, available: readonly Hero[], content: ContentSet): HeroId[] | null {
   const strength = new Map(available.map((hero) => [hero.id, strengthFor(hero, quest, content)]));
   const ranked = [...available].sort(
     (a, b) => (strength.get(b.id) ?? 0) - (strength.get(a.id) ?? 0) || compareByCodeUnit(a.id, b.id),
