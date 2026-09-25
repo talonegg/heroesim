@@ -1,0 +1,13 @@
+{
+  "old-soldier": { "name": "Old soldier", "owner": "guildmaster", "effect": null },
+  "well-liked": { "name": "Well liked", "owner": "guildmaster", "effect": null },
+  "thrifty": { "name": "Thrifty", "owner": "guildmaster", "effect": null },
+  "miser": { "name": "Miser", "owner": "guildmaster", "effect": null },
+  "spendthrift": { "name": "Spendthrift", "owner": "guildmaster", "effect": null },
+  "mistrusts-magic": { "name": "Mistrusts magic", "owner": "guildmaster", "effect": null },
+
+  "scarred": { "name": "Scarred", "owner": "hero", "effect": null },
+  "lame": { "name": "Lame", "owner": "hero", "effect": null },
+  "one-eyed": { "name": "One-eyed", "owner": "hero", "effect": null },
+  "short-winded": { "name": "Short-winded", "owner": "hero", "effect": null }
+}

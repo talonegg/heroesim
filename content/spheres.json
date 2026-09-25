@@ -1,0 +1,8 @@
+{
+  "crown": { "name": "Crown" },
+  "church": { "name": "Church" },
+  "merchants": { "name": "Merchants" },
+  "villages": { "name": "Villages" },
+  "scholars": { "name": "Scholars" },
+  "underworld": { "name": "Underworld" }
+}

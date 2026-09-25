@@ -1,0 +1,45 @@
+{
+  "given": {
+    "female": [
+      "Aelfwyn", "Aldith", "Ashild", "Aud", "Beadu", "Bera", "Brynja", "Cwen", "Cynwise", "Dagny",
+      "Dunna", "Eadgyth", "Edda", "Eira", "Elswith", "Estrid", "Freydis", "Frida", "Gisla", "Gunnhild",
+      "Gyda", "Hallveig", "Helka", "Hild", "Idony", "Ingrith", "Ise", "Jorunn", "Kelda", "Ketta",
+      "Leofrun", "Liv", "Lufa", "Maud", "Merewyn", "Mildrith", "Nanna", "Odella", "Odgifu", "Osgyth",
+      "Ragna", "Ragnhild", "Runa", "Saeth", "Sigrun", "Solvei", "Sunniva", "Swanhild", "Tamsin", "Thora",
+      "Thyra", "Tove", "Ulfhild", "Una", "Vigdis", "Wenna", "Wilda", "Wulfrun", "Wynflaed", "Yrsa"
+    ],
+    "male": [
+      "Aelfric", "Aldred", "Alrik", "Arne", "Asketil", "Beorn", "Bjarni", "Bram", "Brand", "Cenric",
+      "Colben", "Cuthwin", "Dag", "Dunstan", "Eadric", "Edmer", "Egil", "Eirik", "Finn", "Folke",
+      "Gamel", "Godric", "Grim", "Gunnar", "Guthlac", "Hakon", "Halvard", "Harek", "Herewin", "Hrolf",
+      "Ingram", "Ingvar", "Ivo", "Kettil", "Kolbein", "Leofric", "Ljot", "Oddvar", "Orm", "Osgar",
+      "Osric", "Oswin", "Ragnvald", "Randolf", "Rannulf", "Sigbert", "Steinar", "Styr", "Sweyn", "Thorald",
+      "Thorkel", "Thurstan", "Toki", "Torvald", "Ulf", "Unwin", "Vali", "Wace", "Wigmund", "Wulfstan"
+    ]
+  },
+  "family": [
+    "Aldersey", "Ashcombe", "Barrowby", "Birchall", "Blackwater", "Brackenridge", "Brantwood", "Carrick", "Coldharbour", "Crossley",
+    "Dalby", "Dunmere", "Elderkin", "Fallowfield", "Fenwick", "Garside", "Greave", "Grimshaw", "Hallam", "Harrowgate",
+    "Hartsell", "Heathcote", "Holloway", "Ingleby", "Kettleby", "Kirkstall", "Langstrand", "Ledger", "Lowther", "Marrick",
+    "Mossop", "Netherby", "Oakenshaw", "Ormsby", "Pennock", "Quarrie", "Ravensworth", "Redmayne", "Rigg", "Rookwood",
+    "Saltmarsh", "Scarth", "Skelwith", "Stanegate", "Stonor", "Swale", "Thackwray", "Thornby", "Thwaite", "Tolland",
+    "Ulverby", "Wainwright", "Walderby", "Wetherell", "Whinfell", "Wickham", "Willoughby", "Wray", "Yarrow", "Yewdale"
+  ],
+  "guild": [
+    "The Ashford Guild", "The Guild of the Broken Oar", "The Coldbeck Guild", "The Guild at Harrow Cross",
+    "The Greywater Guild", "The Guild of the Tallow Candle", "The Lantern Guild", "The Kestrel Guild",
+    "The Guild of Saint Aldith", "The Ninefold Guild", "The Old Weir Guild", "The Guild at Ravensgill",
+    "The Drove Road Guild", "The Guild of the Red Stag", "The Thornbury Guild", "The Guild of the Long Barrow",
+    "The Blackfen Guild", "The Guild at Wyndham Bridge", "The Hollin Guild", "The Guild of the Silver Bell",
+    "The Marrowdale Guild", "The Guild at Cinder Hill", "The Wolfshead Guild", "The Guild of the Quiet Hand",
+    "The Oakhollow Guild", "The Guild at Stanegate", "The Grey Goose Guild", "The Guild of the Seven Stones",
+    "The Northmoor Guild", "The Guild at Kettle Ford"
+  ],
+  "patron": [
+    "Aldous Fairweather", "Berengar Holt", "Cecily Ashdown", "Denholm Crane", "Edith Marlow", "Florian Keld",
+    "Godwin Harrow", "Hawise Brennard", "Isolde Varney", "Jocelyn Pike", "Lambert Sowerby", "Mabel Thorne",
+    "Nicolas Aske", "Orabel Quint", "Piers Latimer", "Rohesia Dunmore", "Simeon Garrow", "Petronel Swift",
+    "Walter Moorby", "Agnes Wolstan", "Baldwin Cressy", "Emmeline Stake", "Geoffrey Brand", "Juliana Cray",
+    "Hamo Redvers", "Letice Gorham", "Ranulf Tarrant", "Sybil Hawtrey", "Tobias Wendle", "Ysmay Carew"
+  ]
+}

@@ -254,6 +254,47 @@ line 567).
 
 **Consequences.** DL-05 and E2 are read with these corrections. No decision changes.
 
+## DL-17 — Content file layout, schema refusals and the first content values (M1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S4's implementer)
+
+**Context.** M1-S4 left open how a content file is laid out, how the schema reports a refusal and
+how duplicate keys are found in JSON, whose parser discards them. The owner's inputs leave some
+values to choose: INPUTS 3.6 gives the Stat range but no `default`; R14 gives areas to Hero
+Stats only; INPUTS 5.3's "weighted 2:1 toward the Class's leading Stats" does not say whether
+the ratio is per Stat or in total.
+
+**Decision.**
+
+1. Each file is a JSON object keyed by content key, and a row does not repeat its key: the
+   parser adds `key` from where the row is stored. A field the schema does not know is refused,
+   so a misspelt field cannot vanish silently.
+2. Both entries throw a `ContentError` rather than return a failure value. Its `problems` list
+   every problem found, each naming the file or table and the key. `parseContent` checks every
+   row's shape, then runs `validateContent`, so no path from text yields an unvalidated set.
+3. Duplicate keys are found in each file's raw text by a scanner that tracks strings, nesting
+   and commas (`content/src/duplicate-keys.ts`), before the parse discards the evidence. Keys
+   are per table: one key in two tables is not a duplicate. A name repeated in a name list and a
+   key listed twice in a Class's `leadingStats` or `gatedSkills` are refused too.
+4. `parseContent` reads the seven files it knows by name and ignores the rest, so a glob of the
+   directory (M7-S1) may pass `package.json` along with them.
+5. Growth is read as a split of each Level's points: a Class's four leading Stats share two
+   thirds (0.1667 each) and its sixteen other Hero Stats one third (0.0208 each). Thirds do not
+   terminate as decimals, so the weights must sum to 1 within `growthSumTolerance`, 0.001.
+6. Every Stat, Hero and Guildmaster alike, ranges 1–20 with `default` 10, the middle, so a Stat
+   added in a later release neither cripples nor flatters a Hero saved before it (data-model
+   rule 5).
+7. The Guildmaster's Stats take display areas: Inspiration, Influence and Negotiation `social`;
+   Coaching and Judgement `mental`.
+8. `ContentSet`'s `{ id: "core", version: 1 }` are constants of the content package
+   (`contentSetId`, `contentVersion`), raised when the files change.
+
+**Consequences.** M3-S1 should draw growth points in proportion to the weights, normalising by
+their sum, not treat them as exact probabilities. Items 5–7 and every name and key in `content/`
+are an agent's choice, open to the owner as a content change. The `@heroesim/content/node`
+exception to the subpath ban (DL-14 item 7) admits the harness and the CLI and still refuses the
+web, which runs in a browser.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

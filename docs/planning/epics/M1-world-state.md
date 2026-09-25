@@ -120,14 +120,14 @@ carries `{ id: "core", version: 1 }` for `meta.content`.
 
 **Acceptance:**
 
-- [ ] `loadContent()` returns twenty Hero Stats in four areas and five Guildmaster Stats, four
+- [x] `loadContent()` returns twenty Hero Stats in four areas and five Guildmaster Stats, four
       Classes, and validates
-- [ ] Each refusal above has a test with a fixture that triggers it, and the message names the
+- [x] Each refusal above has a test with a fixture that triggers it, and the message names the
       key
-- [ ] The pure entry and the Node entry return deep-equal sets for the same files
-- [ ] `engine/` imports nothing from `@heroesim/content`, not even a type; `content/` imports
+- [x] The pure entry and the Node entry return deep-equal sets for the same files
+- [x] `engine/` imports nothing from `@heroesim/content`, not even a type; `content/` imports
       its types from `@heroesim/engine` (the M0-S2 boundary test covers both directions)
-- [ ] `tsc -b` succeeds with `content` referencing `engine` and `engine` referencing nothing
+- [x] `tsc -b` succeeds with `content` referencing `engine` and `engine` referencing nothing
 
 ### M1-S5 · Heroes Generator · 1–2 sessions
 
