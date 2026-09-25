@@ -5,6 +5,7 @@
 // M1-S9 adds the first three, for the CLI's views; later stories add Rankings, Upkeep and the
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
+import type { GameConfig } from './config.js';
 import type { Stat } from './content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type StatValues, type World } from './document.js';
 
@@ -26,4 +27,27 @@ export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
  */
 export function baseStat(values: StatValues, stat: Pick<Stat, 'key' | 'default'>): number {
   return Object.hasOwn(values, stat.key) ? (values[stat.key] ?? stat.default) : stat.default;
+}
+
+/**
+ * A Guild's Upkeep (M2-S7, INPUTS 4.6): `wagePerLevel` for each Level of each living Hero on the
+ * Roster — a Hero away on a Quest still draws wages, since leaving is what takes a Hero off the
+ * Roster (`CONTEXT.md`, Roster) — plus `hallMaintenancePerGrade` for each grade summed over every
+ * Hall facility. Computed from the Roster and the Hall, never stored (data-model §3.2, rule 1).
+ * Filters the Roster to Heroes with neither `diedOnTurn` nor `retiredOnTurn` set: belt and braces
+ * over the invariant that a dead or retired Hero already left the Roster (`CONTEXT.md`, Roster;
+ * data-model rule 8).
+ */
+export function upkeep(
+  guild: Pick<Guild, 'rosterIds' | 'hall'>,
+  world: Pick<World, 'heroes'>,
+  config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
+): number {
+  const wages = guild.rosterIds.reduce((total, heroId) => {
+    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) return total;
+    return total + config.wagePerLevel * hero.level;
+  }, 0);
+  const hallGrades = Object.values(guild.hall).reduce((total, grade) => total + grade, 0);
+  return wages + config.hallMaintenancePerGrade * hallGrades;
 }

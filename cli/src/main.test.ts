@@ -13,6 +13,7 @@ import {
   deserialise,
   makeId,
   serialise,
+  upkeep,
   type Hero,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -172,7 +173,7 @@ describe('show', () => {
     expect(run.out).toContain(`${defaultConfig.patronCount} Patrons`);
   });
 
-  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth and Fame', () => {
+  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
     const { world } = document();
 
     const run = play(['show', 'guilds']);
@@ -183,7 +184,8 @@ describe('show', () => {
       expect(row).toContain(guild.name);
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
-      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}$`));
+      const due = upkeep(guild, world, defaultConfig);
+      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
   });

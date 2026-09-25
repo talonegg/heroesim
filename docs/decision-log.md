@@ -906,6 +906,41 @@ added and no default changed, so `configVersion` stays 1.
 
 ---
 
+## DL-26 — Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S7's implementer)
+
+**Context.** M2-the-loop.md says Upkeep falls "on every `upkeepEveryDays`th Day" without saying
+which Days those are numerically, and describes the Bankruptcy floor and the Fame floor without
+saying whether they act only on an Upkeep Day or every night.
+
+**Decision.**
+
+1. **The Upkeep Day.** `dayOf(turn) % config.upkeepEveryDays === config.upkeepEveryDays - 1`:
+   under `upkeepEveryDays` 10, Days 9, 19, 29, … Days count from 0 (DL-24), so the "10th Day" is
+   Day index 9, the same ordinal reading DL-24 already gives Turn and Day; Upkeep then falls once
+   every ten Days have completed, not after eleven. `upkeepEveryDays` 1 charges Upkeep every
+   night, which the formula gives without a special case.
+2. **The Bankruptcy floor and the Fame floor act every night, not only on an Upkeep Day.**
+   Wealth can cross `bankruptcyFloor` on a night that is not an Upkeep Day (a Quest reward, a
+   future purchase), and Fame moves on Quest outcomes any night, so `guildState` checks
+   `belowFloorSince` and clamps Fame every night it runs, for every non-folded Guild, whether or
+   not Upkeep is deducted that night.
+3. **No event for the floor or the Fame clamp.** The story names one event, `guild.upkeep-paid`,
+   for the Upkeep deduction; `belowFloorSince` moving and Fame being clamped stay silent state
+   changes, like Morale's nightly drift (data-model rule 10), not Milestones. `belowFloorSince`
+   itself is the record a front end or a later story (M2-S10's Bankruptcy ending) reads; nothing
+   is lost by not also logging its change as an entry.
+4. **A folded Guild is skipped whole**, before Upkeep, the floor check or the Fame clamp, per
+   the M2 shared context's rule that every per-Guild loop skips a folded Guild now, ahead of
+   M2-S10 setting `foldedOnTurn`.
+
+**Consequences.** `engine/src/phases/guild-state.ts` and its tests fix Day 9 (not Day 10) as the
+first Upkeep Day under the default `upkeepEveryDays`. `bankruptcyGraceDays` is defined as a
+`GameConfig` field here but read by no rule until M2-S10's ending.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
