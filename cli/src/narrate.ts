@@ -110,6 +110,10 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
     }
     case 'hero.retired':
       return `${hero(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`;
+    case 'hero.declined': {
+      const { heroId, statKey, delta, age } = event.payload;
+      return `${hero(event, heroId)}, at ${age}, lost ${-delta} ${nameIn(content.stats, statKey)} to age.`;
+    }
     case 'game.ended':
       return `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`;
     case 'guild.folded':

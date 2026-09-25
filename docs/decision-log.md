@@ -1894,6 +1894,82 @@ are the levers there. The policy's Heroes die at four a year. M3's Levels change
 and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
 keep their rows; their defaults now differ from the config's, as this entry records.
 
+## DL-37 — Potential hints, and the yearly ageing decline beside the Retirement check (M3-S3, M3-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S3 and M3-S4's
+implementer)
+
+**Context.** M3-S3 asks for `potentialHint(hero, statKey, config)` giving one of INPUTS 5.4's three
+words from the gap between base and Potential, bands in config (`potentialHintBands`), and `show
+hero` printing the word and never the number; pre-M0 review D9 keeps Judgement's sharpening of the
+hints for M4-S5. M3-S4 asks for a night phase `ageing`, "on the Hero's entry anniversary alongside
+the Retirement check", in which a Hero past `declineAge` loses `declinePerYear` from one Stat of
+`declineAreas` drawn from `heroes`, with `hero.declined`. They leave open: the bands' shape and
+defaults; what a Stat the row lacks hints; where the hint sits in the view; whether decline is a
+phase of its own or part of `heroState`; which comes first on a shared night and whether a Hero
+who retires also declines; how "past `declineAge`" reads against INPUTS 5.5's "from 40"; which
+Stats the draw is over and whether an unused draw is taken; the event's payload.
+
+**Decision.**
+
+1. **The hint** is `potentialHint` in `engine/src/potential.ts`, a file of its own as `moraleBand`
+   has `morale.ts`, exported from the package. The words are `potentialHints`, `modest`,
+   `promising`, `exceptional`, in `config.ts` beside `moraleBandNames`.
+2. **The bands** say where each word starts on the gap, Potential less base, in Stat points, and a
+   gap takes the highest word whose start it has reached, the lowest for a gap below every start:
+   `moraleBand`'s rule. Every gap so has exactly one word whatever the three numbers are, which is
+   the partition with no hole the first box asks for; the test walks every gap from 0 to 19, the
+   widest content allows. Defaults **`{ modest: 0, promising: 6, exceptional: 10 }`**, chosen so a
+   generated Hero's gaps, 3 to 12 (`potentialGapMin/Max`, fewer where Potential meets the Stat's
+   maximum), split near thirds: 3 to 5 modest, 6 to 9 promising, 10 to 12 exceptional. A Hero grown
+   close to Potential reads modest.
+3. **A Stat the row lacks**, in its base or its Potential (data-model rule 5), reads as a gap of 0,
+   the lowest word: there is no stored Potential to hint at. The hint reads the Hero and the bands
+   alone, never content.
+4. **The M4 seam.** `potentialHint` takes the bands from the `config` it is given and nothing else,
+   so M4-S5 sharpens hints by passing bands narrowed by the Guildmaster's Judgement
+   (`judgementHintSharpening`), with no change to the function.
+5. **The view.** `show hero`'s Stats table gains a fourth column, **Outlook**, after the value. The
+   heading avoids the word Potential, which M1-S9's test forbids anywhere in the printed Hero; the
+   test is kept and extended: every Stat row ends in a hint word, its base before it, and a hint
+   comes from the save's own bands.
+6. **`ageing` is a phase of its own**, as the epic names it, placed **right after `heroState`**
+   and before `guildState`. It does not repeat the anniversary rule: it asks `heroState`'s
+   `retirementCheckDue`, now exported, so a Hero is checked for decline on exactly the nights they
+   are checked for Retirement — the night of each anniversary of `enteredTurn` if home, or the
+   night their Party brings them home if away over it (DL-29 item 14). It covers the Heroes
+   `heroState` covers: the Roster of each Guild that has not folded, in Guild id and Roster order.
+7. **Retirement first; a Hero who retires does not decline.** `heroState` has run, so a Hero who
+   retired tonight has left the Roster and `ageing` never reaches them: no draw, no change, no
+   `hero.declined`. A career's Stats stay as they stood when it ended, and the History does not
+   record a change to a Hero no one can field.
+8. **From `declineAge`.** A due check declines when `ageOf` at that night is **at least**
+   `declineAge` (40), so the first decline falls on the anniversary the Hero turns 40: INPUTS 5.5's
+   "from 40" is read over the epic's "past", which for Retirement (DL-29 item 13) means "above".
+9. **The draw.** Every due check takes **one** `int` draw from `heroes`, whatever the age, as every
+   due Retirement check does, so tuning `declineAge` or `declineAreas` shifts no later draw. It
+   picks among content's Hero Stats whose area is in `declineAreas` (default `["physical"]`), in
+   key order (DL-19 item 3), **that are still above their content minimum**, so a Hero past the age
+   loses exactly one Stat a year while any can fall. The Stat loses `declinePerYear` (1), never
+   past its minimum; a Hero whose every such Stat is at its minimum, or a `declinePerYear` of 0,
+   changes nothing and emits nothing. Stats are read through `baseStat`: one the row lacks reads as
+   the content default and is written when it declines; a key content does not define never
+   declines. **Potential is untouched**, so a declined Stat can be grown back by a Level (M3-S1),
+   and its hint may rise as the gap widens.
+10. **`hero.declined`** `{ heroId, statKey, delta, age }`, `delta` negative, naming the Hero (and,
+    through `emit`, their Guild); not a Milestone, since the epic names none.
+11. **Config.** `potentialHintBands`, `declineAge`, `declinePerYear` and `declineAreas` are added;
+    the objects are frozen. No default changes, so `configVersion` stays 2 (as DL-29 item 16), and
+    a save from before M3 reads the new fields as the defaults.
+
+**Consequences.** Every due yearly check now takes a second `heroes` draw after the night's
+Retirement draws, so a seed's Retirements after its first anniversary differ from M2's; saves are
+snapshots (ADR-0001). Heroes generated at 18 to 36 start declining within 4 to 22 years, while
+Retirement starts at 46. M3-S1's level-up reads a declined Stat as below Potential and may raise it
+again, which the harness's Levels-gained counter measures against `hero.declined`. The M3 counter
+task reads Retirements by age band from `hero.retired`'s `age`, and declines from `hero.declined`.
+M4-S5 narrows the hint bands through the `config` it passes.
+
 ## DL-39 — M2 close: verification, the timing tests, and which harness run a tag carries
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the

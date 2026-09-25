@@ -70,8 +70,8 @@ Config: `potentialHintBands`.
 
 **Acceptance:**
 
-- [ ] The three bands partition the gap range with no hole
-- [ ] `show hero` output contains hints and no Potential number (the M1 grep test extended)
+- [x] The three bands partition the gap range with no hole
+- [x] `show hero` output contains hints and no Potential number (the M1 grep test extended)
 
 ### M3-S4 · Ageing decline · 1 session
 
@@ -83,10 +83,11 @@ Config: `declineAge`, `declinePerYear`, `declineAreas`.
 
 **Acceptance:**
 
-- [ ] No decline before `declineAge`; exactly one Stat per year after it
-- [ ] Only Stats in `declineAreas` decline
+- [x] No decline before `declineAge`; exactly one Stat per year after it
+- [x] Only Stats in `declineAreas` decline
 - [ ] The harness's Levels-gained counter still rises after decline starts (growth outpaces
-      decline for a young Roster)
+      decline for a young Roster) — open: needs M3-S1's `levelUps` and the M3 harness counters,
+      built in parallel; closed after they merge (DL-37)
 
 ### M3-S5 · Rankings, and Fame gating signings · 1–2 sessions
 

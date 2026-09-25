@@ -8,7 +8,8 @@
 // selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
-// `hero.potential`, and main.test.ts checks the printed Hero for it.
+// `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
+// printed Hero for it.
 
 import {
   ageOf,
@@ -16,6 +17,7 @@ import {
   dayOf,
   signingFee,
   durationDaysOf,
+  potentialHint,
   timeOfDay,
   unattachedHeroes,
   upkeep,
@@ -229,7 +231,8 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
 
 /**
  * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
- * Stats shown are base values, read through `baseStat`.
+ * Stats shown are base values, read through `baseStat`, each with its Potential hint beside it
+ * under "Outlook", the word `potentialHint` gives (M3-S3).
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
@@ -259,7 +262,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     .map((stat) => {
       const area = stat.area === lastArea ? '' : capitalised(stat.area);
       lastArea = stat.area;
-      return [area, stat.name, String(baseStat(hero.stats, stat))];
+      return [area, stat.name, String(baseStat(hero.stats, stat)), potentialHint(hero, stat.key, config)];
     });
 
   const skillKeys = Object.keys(hero.skills);
@@ -275,7 +278,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...fields(attributes),
     '',
     'Stats',
-    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }], stats),
+    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }, { heading: 'Outlook' }], stats),
     '',
     'Skills',
     ...(skills.length === 0

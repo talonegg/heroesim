@@ -42,6 +42,7 @@ export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } f
 export * from './history.js';
 export * from './json-safe.js';
 export { moraleBand } from './morale.js';
+export { potentialHint } from './potential.js';
 export {
   questBand,
   resolveQuest,

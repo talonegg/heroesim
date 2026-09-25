@@ -4,7 +4,7 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand } from './config.js';
-import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
+import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
 import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
@@ -155,6 +155,14 @@ export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryT
  */
 export type HeroRetired = Entry<'hero.retired', { heroId: HeroId; guildId: GuildId; age: number }>;
 
+// ── Ageing (M3-S4, DL-37) ────────────────────────────────────────────────────────────────────
+
+/**
+ * A Hero's Stat `statKey` fell by `delta`, a negative number, at a yearly check at `age`, from
+ * `declineAge`. Potential is untouched. Names the Hero.
+ */
+export type HeroDeclined = Entry<'hero.declined', { heroId: HeroId; statKey: StatKey; delta: number; age: number }>;
+
 // ── Endings (M2-S10, pre-M0 review D6, DL-28) ────────────────────────────────────────────────
 
 /**
@@ -197,6 +205,7 @@ export type EngineEvent =
   | HeroMoraleChanged
   | HeroHealed
   | HeroRetired
+  | HeroDeclined
   | GameEnded
   | GuildFolded
   | HeroLeftGuild;
@@ -232,6 +241,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.morale-changed': false,
   'hero.healed': false,
   'hero.retired': true,
+  'hero.declined': false,
   'game.ended': true,
   'guild.folded': true,
   'hero.left-guild': false,
