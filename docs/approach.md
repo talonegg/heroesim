@@ -115,25 +115,9 @@ ESLint forbids `engine/` from importing any other package and from using `Math.r
 
 ## 6. Build order
 
-Vertical increments. Each ends with a playable game and a harness run.
-
-1. **World State and creation.** Schema, seeded random source, generators for Guilds, Heroes,
-   Patrons and the Unattached pool, snapshot save and load, harness skeleton that creates a
-   thousand worlds and reports their shape.
-2. **The loop.** Turn pipeline, Board, dispatch, stub Quest Engine, Upkeep, healing, ageing,
-   Morale, recruitment, endings. Harness plays full games under an automatic policy.
-3. **Viewers.** CLI and browser front ends: view the world, advance, dispatch, recruit.
-4. **Progression.** XP, Levels, Class growth profiles, Potential and hints, ageing decline,
-   Rankings by Fame and Wealth.
-5. **Quest Engine.** Encounters, checks, Skills as modifiers, Relationship, Synergies.
-6. **Items.** Gear slots, consumables, Market, Loot tables; Hall Improvements.
-7. **Rivals.** Dispositions drawing from the Board and the pool, Transfers in both directions,
-   Transfer Generator between Rivals.
-8. **Module contract.** Registration, state slices, Turn phases; Random Events as the first
-   module to prove it.
-
-Later, as modules: Scenarios, Campaigns, Contacts, Factions, Scouting and hidden information,
-Workers, Skill growth, Guildmaster in a Party, further endings.
+Superseded 2026-09-25 by [`plan.md`](./plan.md): nine milestones of session-sized
+increments, each ending in a harness run and a CLI a human can drive. The plan is the build
+order; this section only points at it.
 
 ## 7. Verification
 

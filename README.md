@@ -9,7 +9,8 @@ Nothing is built yet — this is design v2, baselined 2026-09-24.
 - [`CONTEXT.md`](./CONTEXT.md) — the glossary, and the words not to use
 - [`docs/requirements.md`](./docs/requirements.md) — what the game is, the first build, and what is deferred
 - [`docs/principles.md`](./docs/principles.md) — the design principles and what goes wrong without each
-- [`docs/approach.md`](./docs/approach.md) — architecture, Turn pipeline, layout, build order, verification
+- [`docs/approach.md`](./docs/approach.md) — architecture, Turn pipeline, layout, verification
+- [`docs/plan.md`](./docs/plan.md) — the delivery plan: milestones, session-sized increments, what "done" means
 - [`docs/data-model.md`](./docs/data-model.md) — the World State document: sections, tables, rules, validator
 - [`docs/adr/`](./docs/adr/) — the decisions that are hard to reverse, and why
 - [`docs/images/`](./docs/images/) — the conceptual game-flow diagram this baseline was drawn from
