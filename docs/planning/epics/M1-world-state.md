@@ -143,10 +143,10 @@ Config: `heroStartingAgeMin/Max`, `statBiasMin/Max`, `potentialGapMin/Max`,
 
 **Acceptance:**
 
-- [ ] Over 10,000 generated Heroes every Stat stays in its content range and Potential ≥ base
-- [ ] A Warrior's mean Strength exceeds a Mage's by at least the minimum bias
-- [ ] Only Skills gated by the Hero's Class appear
-- [ ] Every draw comes from `generation`: the other six streams are unchanged after generation
+- [x] Over 10,000 generated Heroes every Stat stays in its content range and Potential ≥ base
+- [x] A Warrior's mean Strength exceeds a Mage's by at least the minimum bias
+- [x] Only Skills gated by the Hero's Class appear
+- [x] Every draw comes from `generation`: the other six streams are unchanged after generation
 
 ### M1-S6 · Guild, Guildmaster and Patron Generators; `createWorld` · 2 sessions
 
