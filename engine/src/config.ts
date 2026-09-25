@@ -21,7 +21,7 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -83,7 +83,8 @@ export interface GameConfig {
   /**
    * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
    * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
-   * nothing (DL-35).
+   * nothing (DL-35). 20 since Heroes gain Levels (M3-S1): at 70 a Roster at Level 2 to 4 bankrupted
+   * every harness game within months (DL-36).
    */
   wagePerLevel: number;
   /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
@@ -212,7 +213,7 @@ export type MoraleBand = (typeof moraleBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 2,
+  configVersion: 3,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -246,7 +247,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterTraitsMax: 2,
 
   upkeepEveryDays: 10,
-  wagePerLevel: 70,
+  wagePerLevel: 20,
   hallMaintenancePerGrade: 10,
   bankruptcyFloor: 0,
   bankruptcyGraceDays: 30,

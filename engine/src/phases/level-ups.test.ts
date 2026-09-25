@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
-import type { EngineDeps, GameConfig } from '../config.js';
+import { defaultConfig, type EngineDeps, type GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
@@ -183,6 +183,10 @@ describe('levelUps', () => {
 
     expect(hero(after.world, heroId).level).toBe(4);
     expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
+  });
+
+  test('the default wage is 20 a Level since Heroes gain Levels, under configVersion 3 (DL-36)', () => {
+    expect(defaultConfig).toMatchObject({ wagePerLevel: 20, configVersion: 3 });
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {

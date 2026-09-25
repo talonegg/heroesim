@@ -1896,7 +1896,7 @@ keep their rows; their defaults now differ from the config's, as this entry reco
 
 ---
 
-## DL-36 — XP, Levels and growth; Quest XP and the training yard (M3-S1, M3-S2)
+## DL-36 — XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S1 and M3-S2's
 implementer)
@@ -1906,7 +1906,8 @@ review D7) and four config fields; M3-S2 the stub's new XP formula, the night ph
 three fields (INPUTS 5.1 to 5.3). They leave open: whether "XP for Level n" is cumulative or within
 the Level, and how `hero.xp` reads beside it; how a growth point is drawn; which Heroes level and
 train; where the two phases sit in the night; what becomes of DL-29's `stubXpPerDifficulty`; the
-event's payload; and whether `configVersion` moves.
+event's payload; whether `configVersion` moves; and whether M2's balance (DL-35) stands once wages
+rise with Level.
 
 **Decision.**
 
@@ -1966,22 +1967,40 @@ event's payload; and whether `configVersion` moves.
    `wagePerLevel` more at each Upkeep from then on.
 9. **Config.** Seven fields are added with INPUTS 5.1 to 5.3's values (`xpCurveBase` **100**,
    `xpCurveExponent` **2**, `levelCap` **20**, `growthPointsPerLevel` **3**, and item 5's and 6's),
-   and one removed with its effect kept, so no default's effect changes and `configVersion` stays
-   **2**, as DL-29 item 16 read adding fields. The growth weights are content's and already refused
+   and one removed with its effect kept. The growth weights are content's and already refused
    unless they sum to 1 within 0.001 (`checkGrowth`, content's refusal test); the core's 0.1667 ×
    4 + 0.0208 × 16 sums to 0.9996, and a draw weighs by the sum it finds.
+10. **The wage, for Levels: `wagePerLevel` 70 → 20, and `configVersion` 2 → 3.** Measured under the
+    automatic policy (DL-34) on the core content, 8 seeds × 10 years (scratch runs, not
+    committed): with Levels held at 1 (`levelCap` 1, M2's rules) 5 of 8 games lasted the ten years;
+    with Levels and DL-35's wage of 70, **all 8 went bankrupt within 0.17 to 0.44 years**, their
+    Heroes at Level 2 to 4 costing two to four times the wage DL-35 tuned against. A Level adds a
+    whole `wagePerLevel` to a Hero's wage but three Stat points spread over twenty Stats to the
+    stub's score, a few per cent, so under the stub a Level is a cost before it is an earning.
+    Trials of the wage: 35 bankrupted 8 of 8 within 2 years; 30 8 of 8 within 5; 25 4 of 8, over
+    years 2 to 6; **20 none in 10 years**, the player's Roster at a mean Level of 3.6 after the
+    first year and 4.1 to 4.7 after, where Deaths and Level-1 recruits hold it. At that mean a Hero
+    costs about what DL-35's Level-1 Hero cost. Over 16 seeds × 20 years at 20: no Bankruptcy, the
+    player's mean Level 3.7 after the first year and 4.0 to 4.9 in each later one, Rivals gaining
+    about 31 Levels a Rival-year, and 74 of 1,540 Roster Heroes at the end with a Stat at Potential.
+    No Bankruptcy is not DL-35's spread (25 gave one), but the other M3 tracks add costs, and this
+    is a stopgap so that M3's harness pass measures games rather than first-year Bankruptcies; that
+    pass tunes the wage again with the other M3 tracks' rules merged. The wage's shape, all per
+    Level with no base (INPUTS 4.6), is unchanged; a base plus a smaller per-Level part is the other
+    lever, and the owner's. Tests pin the wages they rely on; one pins the new default.
 
-**Consequences.** Heroes grow now, on every Roster, and their wages with them, so M2's balance
-(DL-35) moves: the harness's next pass measures it. The curve means about 50,000 XP for Level 12 and
-247,000 for Level 20; a Hero taking a Quest of difficulty 50 every week earns some 2,500 a year from
-Quests and 720 more at yard grade 1, so the cap is far off in a 20-year game unless the curve or the
-XP is tuned (the epic's second risk; the harness reports mean Level by year). The M3 counters read:
-Levels gained per Guild-year, the `hero.levelled` entries by `payload.guildId` and `yearOf(turn)`;
-the mean Level of the player's Roster by year, and the Heroes with a Stat at Potential after 10
-years, from the World State at the year's end (`level`; a base Stat against `potential`), with
-`pointsLost` summing the growth Potential refused. M3-S6's `build` raises the yard's grade; until
-it lands only a test sets it. M3-S4's decline may lower a Stat that a later Level regrows, up to
-Potential.
+**Consequences.** Heroes grow now, on every Roster, and their wages with them (item 10). A save made
+before this entry plays under `configVersion` 2, a wage of 70, until the player rebases. The curve
+asks about 50,000 XP for Level 12 and 247,000 for Level 20; a Hero taking a Quest of difficulty 50
+every week earns some 2,500 a year from Quests and 720 more at yard grade 1, and the policy's Roster,
+thinned by Deaths and refilled at Level 1, holds a mean Level near 4.5 (item 10), so the cap is far
+off in a 20-year game unless the curve or the XP is tuned (the epic's second risk). The M3 counters
+read: Levels gained per Guild-year, the `hero.levelled` entries by `payload.guildId` and
+`yearOf(turn)`; the mean Level of the player's Roster by year, and the Heroes with a Stat at
+Potential after 10 years, from the World State at each year's end (`level`; a base Stat against
+`potential`), with `pointsLost` summing the growth Potential refused. M3-S6's `build` raises the
+yard's grade; until it lands only a test sets it. M3-S4's decline may lower a Stat that a later
+Level regrows, up to Potential.
 
 ---
 
