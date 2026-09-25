@@ -11,3 +11,9 @@ from one generator, and it keeps open a future where other players' Guilds are t
 Features that seem to belong only to the player (a Hall, a Market visit, Improvements) exist for
 Rivals too, even if their disposition never uses them. Rival simulation is deliberately light:
 their Quests do not run the Quest Engine in the first build.
+
+*Amended 2026-09-25.* The last sentence is withdrawn. Rivals dispatch through the same action
+and their Quests resolve through the same Quest Engine as the player's, from the first loop
+milestone (M2 in [`../plan.md`](../plan.md)). "Light" describes a Rival's *choices*, made by a
+disposition, not a second resolver: one code path, and Rival Heroes Level, are injured and die
+on the same rules and the same harness counters. Decided by the owner.

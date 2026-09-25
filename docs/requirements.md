@@ -34,7 +34,7 @@ Every system in the game must serve at least one of these:
 | Area | First build | Later module or expansion |
 | --- | --- | --- |
 | World State and World Engine | Yes | — |
-| Generators: Heroes, Guild, Patron, Quest | Yes | Random Event, Inciting Event, Transfer generators |
+| Generators: Heroes, Guild, Patron, Quest, Transfer | Yes | Random Event and Inciting Event generators, as modules |
 | Turn structure, fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills (rated), Traits, States | Yes | Skill growth, Class change, gender-linked mechanics |
 | Progression: XP, Level, Potential, ageing decline | Yes | Guildmaster Traits that sharpen Potential hints |
@@ -48,7 +48,7 @@ Every system in the game must serve at least one of these:
 | Rankings by Fame and Wealth | Yes | Rankings by any Guild statistic |
 | Endings: Retirement, Bankruptcy, Roster wiped | Yes | Defeated by a Rival, Hall lost, capture and indenture, Ultimate Campaign Victory |
 | Saves: snapshot with History | Yes | Hosted saves following a player across devices |
-| Front ends: CLI and browser viewer with advance, dispatch, recruit | Yes | Full action set |
+| Front ends: CLI and browser, exposing every engine action as it lands | Yes | — |
 | Harness: automatic policy over many seeds | Yes | — |
 | Scenarios, Campaigns, Contacts, Factions | No | Modules |
 | Guildmaster joining a Party | No | With penalties: Guild suffers while away; death ends the game |
@@ -63,29 +63,35 @@ Every system in the game must serve at least one of these:
 - R2. A Day is three Turns: morning, afternoon, night. The World Engine advances one Turn at a
   time; the player may fast forward, and the engine stops early when a decision is needed.
 - R3. Fixed rhythm: the Board and Market refresh in the morning; Quests in flight advance every
-  Turn; healing, Morale drift, ageing and Random Events fall at night.
+  Turn; healing, Morale drift and ageing fall at night, where Random Events will also fall
+  once that module exists.
 - R4. The player has one Outing per Turn (Market, scouting, a Patron visit) and unlimited Hall
-  actions (dispatch, recruit, equip, inspect, build).
+  actions (dispatch, recruit, equip, inspect, build). The Outing limit is built with the
+  second kind of Outing — scouting or Patron visits, both modules; in the first build the
+  Market is the only Outing and is not limited (owner, 2026-09-25, pre-M0 review B1).
 - R5. Generation: a new world is created from a seed and a setup (Guildmaster, Guild
   Background, starting Roster and Wealth) by the Heroes, Guild and Patron Generators. The
   Heroes Generator also refreshes the Unattached pool over time.
-- R6. The Random Event and Inciting Event generators change the World State as time passes.
-  Inciting Events are drawn at random or prescribed by an active Campaign, and may produce
-  Quests. Both are content with conditions, not code.
+- R6. Later, as modules (§2): the Random Event and Inciting Event generators change the World
+  State as time passes. Inciting Events are drawn at random or prescribed by an active
+  Campaign, and may produce Quests. Both are content with conditions, not code.
 
 ### 3.2 Guilds and Guildmasters
 
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a controller. The player's
   Guild is controlled by the player; a Rival by a disposition (three or four named kinds) that
   weights its draws from the Board and the Unattached pool.
-- R8. The Guildmaster has Attributes (name, sex, details), Stats (Leadership, Influence,
-  Negotiation, Coaching, Perception) and Traits that buff or penalise the Guild or a Class.
+- R8. The Guildmaster has Attributes (name, sex, details), Stats (Inspiration, Influence,
+  Negotiation, Coaching, Judgement — renamed from Leadership and Perception on 2026-09-26 so
+  no Stat key is shared with Heroes, pre-M0 review D4) and Traits that buff or penalise the Guild or a Class.
   Guildmaster Stats resolve Guild-side actions only: negotiation, recruitment, Morale, training.
   The Guildmaster never joins a Party in the first build.
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never
-  spent; it gates Campaigns and Applicant calibre.
+  spent; it gates which Unattached Heroes will sign for a Guild — a Hero refuses a Guild whose
+  Fame is below a threshold that rises with the Hero's Level — and, later, Campaigns (owner,
+  2026-09-25, pre-M0 review B4; originally "Applicant calibre").
 - R11. Wealth is the currency. It pays Upkeep (wages and Hall maintenance), signing fees,
   Transfer fees, Items and Hall Improvements.
 
@@ -145,7 +151,8 @@ Every system in the game must serve at least one of these:
 - R27. An Unattached pool of Heroes exists in the World State, refreshed by the Heroes
   Generator. Any Guild recruits from it for a signing fee set by Level and Stats.
 - R28. Transfers move a Hero between Guilds for a fee in either direction. Transferring out a
-  Hero the Roster holds in high Regard lowers the Morale of the Heroes who stay.
+  Hero lowers the Morale of each remaining Hero who held them in high Regard; the rest are
+  untouched (pre-M0 review D5: pairwise, not the Roster's mean).
 - R29. First build: no hidden information. Stats of Heroes outside the player's Guild are
   visible. Scouting mechanics are deferred.
 
@@ -174,22 +181,28 @@ Every system in the game must serve at least one of these:
 - R35. A save is a snapshot of the World State, written locally. Loading never replays the
   game.
 - R36. The History inside the World State keeps every engine event, per Guild and per Hero,
-  and a list of Milestones. Neither list is bounded: no significant event is dropped.
+  and a list of Milestones. Neither list is bounded: no event is dropped. Every discrete
+  change is an event; a nightly drift (Morale toward its baseline, training XP, Regard decay)
+  is a configured rule that emits an event only when it crosses a band (principle 11).
 
 ### 3.10 Front ends
 
 - R37. The engine is a library; front ends render its state and events. The first build ships
-  a CLI and a browser front end, each a viewer of the world plus advance, dispatch and recruit.
+  a CLI and a browser front end, each a viewer of the world plus every engine action, added to
+  the front end in the increment that adds it to the engine (owner, 2026-09-25, pre-M0 review
+  A6; originally "advance, dispatch and recruit").
 - R38. The browser build deploys as static files at zero running cost.
 
 ## 4. Non-functional requirements
 
 - N1. **Deterministic engine.** A seeded random source whose state is part of the World State,
-  and time that advances only when the engine is told to. A game is reproducible from its seed
-  and the player's choices. Front-end cosmetics may use global randomness (ADR-0001).
+  and time that advances only when the engine is told to. A game is reproducible from its seed,
+  the player's choices and the rules in force, which `meta.config` holds and a
+  `world.rules-adopted` entry records whenever they change. Front-end cosmetics may use global randomness (ADR-0001).
 - N2. **Single player, siloed, local.** Each player has their own World State and saves
-  locally. No accounts, server, network call or paid dependency. Zero running cost now; low
-  cost for a small group later, still siloed.
+  locally. No player accounts, no server, no network call, no paid dependency; a hosting
+  account that serves static files at zero running cost is allowed (pre-M0 review D10.2).
+  Zero running cost now; low cost for a small group later, still siloed.
 - N3. **Every Guild is a Guild.** The engine never assumes the player's Guild is special;
   the difference is the controller (ADR-0002).
 - N4. **Typed events plus state out of the engine, never prose** (ADR-0003).
@@ -198,8 +211,8 @@ Every system in the game must serve at least one of these:
   The core runs with none installed (ADR-0005).
 - N7. **Content over code.** Classes, Stats, Skills, Synergies, Items, Quest templates and
   events are data files; adding one never changes the engine (ADR-0006).
-- N8. **TypeScript on Node 22, zero dependencies in the engine**, Vitest, one repository
-  (ADR-0007).
+- N8. **TypeScript on Node 22 or later, zero dependencies in the engine**, Vitest, one
+  repository (ADR-0007 as amended 2026-09-25).
 - N9. **Every tunable is a named, defaulted configuration field.** A literal balance number
   in rules code is a defect.
 - N10. **Measured before tuned.** A harness with an automatic policy plays many seeded games
@@ -210,7 +223,9 @@ Every system in the game must serve at least one of these:
 
 - Balance numbers everywhere: Stat ranges, XP curves, Upkeep, fees, difficulty, harm rates,
   Morale and Regard scales. Set defaults per increment and measure them (N10).
-- Whether the stub Quest Engine assesses a Quest by area sums or by a weighted list of Stat
-  demands carried on the Quest. The latter keeps the area grouping display-only.
+- ~~Whether the stub Quest Engine assesses a Quest by area sums or by a weighted list of Stat
+  demands carried on the Quest.~~ Resolved 2026-09-25 in the plan interview: weighted Stat
+  demands and Skill keys carried on the Quest template and copied to the Quest row; the area
+  grouping stays display-only (`plan.md` §5, pre-M0 review F4).
 - Rival disposition names.
 - Which Hall Improvement grades exist and what each costs.

@@ -19,7 +19,7 @@ Generators ───────────  State Engines ──────�
   Guild Generator         Guild State Engine       Quest Engine  (resolve a Quest)
   Patron Generator        Patron State Engine      Market Engine (prices, refresh)
   Quest Generator         Transfer Generator
-  Random Event Generator
+  Random Event Generator (module)
   Inciting Event Generator (module)
 
 Controllers ──────────  Modules ───────────────────────────────────────────────
@@ -54,19 +54,21 @@ at defined Turn phases. The core runs with none installed.
 ## 2. The Turn pipeline
 
 ```
-morning    Board refresh · Market refresh · Patron draws · [modules: onMorning]
-           Player choices applied · Rival controllers act
-afternoon  Quests in flight advance · [modules: onAfternoon]
+morning    Board refresh (drawing from Patrons) · Market refresh · [modules: onMorning]
+           (the player acts through standalone actions in any Turn; time does not move)
+afternoon  Rival controllers act, on what the player left · Quests in flight advance ·
+           [modules: onAfternoon]
 night      Quests concluding → Quest Engine → outcomes applied
            Hero State Engine (heal, Morale, ageing, Retirement checks)
            Guild State Engine (Upkeep on its Day, Fame, Rankings)
-           Random Events · Unattached pool refresh · [modules: onNight]
+           Unattached pool refresh · [modules: onNight — Random Events, when built]
            Ending checks (Retirement, Bankruptcy, Roster wiped)
 ```
 
-Fast forward runs Turns until a stop condition: a Party returns, an ending is reached, an
-Applicant or Transfer offer arrives, or a module asks for a decision. The stop reasons are
-typed events.
+Fast forward runs Turns until a stop condition. Some always stop it: a Party returns, an
+ending is reached, a Transfer offer arrives, or a module asks for a decision. Others the
+caller opts into, such as the Unattached pool having refreshed. The stop reasons are typed
+events.
 
 ## 3. Engine contract
 
@@ -74,13 +76,20 @@ Pure functions over the World State. No files, output, clock or global random in
 engine. Sketch, to be refined in the first increment:
 
 ```
-createWorld(config, seed, setup)            -> { world, events }
-advance(world, choices, config)             -> { world, events, stoppedBecause }
-actions: dispatch, recall?, recruit, transferIn, transferOut, buy, sell, equip, build
-         each (world, params, config) -> { world, events } or a typed rejection
+deps = { config, content, modules }         every entry point takes the same object
+createWorld(seed, setup, deps)              -> { document, events }
+advance(document, deps)                     -> { document, events, stoppedBecause }
+actions: dispatch, recall?, recruit, transferIn, transferOut, buy, sell, equip, build, rebase
+         each (document, params, deps) -> { document, events } or a typed rejection
 selectors: rankings, roster, board, hero, history   (read-only, shared by front ends)
-serialise(world) / deserialise(document)   -> one format, one version field
+serialise(document) / deserialise(text, deps)   -> one format, one version field
 ```
+
+Rules read `deps.config`. A front end passes the document's own `meta.config`, so a loaded
+game plays under the rules it was started with; `rebase` rewrites `meta.config` to the
+current defaults and records a `world.rules-adopted` Milestone, so tuning reaches a game when
+the player says so and the History says when. The harness passes its configuration
+explicitly (owner, 2026-09-25, pre-M0 review D1).
 
 Events are typed records with the Day and Turn they happened on. Front ends narrate them; the
 History stores them; tests assert on them.
@@ -99,7 +108,8 @@ that needs a new kind of condition or effect is an engine change, and should be 
 
 ## 5. Repository layout
 
-One repository, npm workspaces, Node 22, TypeScript, Vitest, ESLint.
+One repository, npm workspaces, Node 22 or later (developed on the current release, CI on
+both), TypeScript, Vitest, ESLint.
 
 ```
 engine/     pure rules, state, generators, engines; zero dependencies; tests beside

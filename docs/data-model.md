@@ -11,12 +11,13 @@ One JSON document, three top-level sections with different lifecycles:
 
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
-| `meta` | Written at creation, never changed | schema version, seed, content set id and version, the configuration snapshot, creation timestamp supplied by the caller |
+| `meta` | Written at creation; changed only by the `rebase` action, which rewrites `config` | schema version, seed, content set id and version, the configuration in force, creation timestamp supplied by the caller |
 | `world` | Copied once per Turn with `structuredClone`, then mutated | every table, the Board, random stream states, id counters, module slices, the current Turn |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
 
-`advance(document, choices)` clones `world`, mutates the clone, appends to `history`, and
-returns a new document that shares `meta` and `history` with the old one. The History is the
+`advance(document, deps)` clones `world`, mutates the clone, appends to `history`, and
+returns a new document that shares `meta` and `history` with the old one. `deps` is
+`{ config, content, modules }`, the same object every engine entry point takes (approach §3). The History is the
 one deliberate exception to "state in, new state out": the previous reference sees new entries
 too, and nothing but the engine's append function may touch it (ADR-0008).
 
@@ -27,11 +28,22 @@ version:        integer          schema version of this document
 seed:           string           master seed the world was created from
 content:        { id, version }  the content set the world was created under
 config:         GameConfig       every tunable, as it was at creation
-createdAt:      string           ISO timestamp supplied by the caller, never read by rules
+createdAt:      string           supplied by the caller, never read by rules: the clock from
+                                 a front end, a fixed value from the harness so two runs of a
+                                 seed compare byte for byte
 ```
 
-Loading uses `meta.config`, not current defaults, so a game continues under the rules it was
-started with. The harness passes configuration explicitly and ignores this field.
+Rules read `deps.config`, never `meta.config` directly. A front end passes `meta.config` as
+`deps.config`, so a loaded game continues under the rules it was started with; the `rebase`
+action rewrites `meta.config` to the current `defaultConfig` and appends a
+`world.rules-adopted` Milestone carrying the old and new `configVersion`, so tuning reaches a
+game when the player chooses and the History records when. The harness passes its own
+configuration as `deps.config` and never rebases. A front end builds `deps.config` as
+`{ ...defaultConfig, ...meta.config }`: a field the save has keeps its value, a field it
+predates reads as the current default, a field the current `GameConfig` lacks is ignored
+(rule 5). No config migration exists; `rebase` is the only thing that rewrites `meta.config`
+(pre-M0 review D3). `configVersion` is a field of `GameConfig`,
+bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review D1).
 
 ## 3. `world`
 
@@ -41,19 +53,26 @@ started with. The harness passes configuration explicitly and ignores this field
 turn:      integer                     absolute Turn index from 0
 rng:       Record<StreamName, State>   one seeded generator per subsystem (ADR-0009)
 counters:  Record<TableName, integer>  next id number per table
+ended:     { turn, reason } | null     set once, when the player-controlled Guild's ending
+                                       is reached (an accepted exception to ADR-0002,
+                                       plan.md §1); advance on an ended world is a no-op
 ```
 
 Day and time of day are derived: `day = floor(turn / 3)`, `timeOfDay = turn % 3` (morning,
 afternoon, night). Years use `config.turnsPerYear`, whose default is 1,080 (360 Days), a
 configuration default and not a decision.
 
-Streams are named per subsystem so that adding a subsystem never shifts another's draws:
-`generation`, `board`, `quests`, `heroes`, `rivals`, `events`, `market`. A stream is seeded
-from the master seed and its name. A module that draws random numbers registers a stream of
-its own.
+Streams are named per drawing subsystem so that adding a subsystem never shifts another's
+draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
+Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
+subsystem (ADR-0009 as amended 2026-09-26). A stream is seeded from the master seed and its
+name. A new subsystem gets a new stream and never shares an old one. A module that draws
+random numbers registers a stream of its own.
 
-Ids are strings with a table prefix and a zero-padded counter: `hero-0042`, `guild-0002`,
-`quest-01337`. They are never reused; a dead Hero's id stays valid in the History. In
+Ids are strings with a table prefix and a counter zero-padded to six digits in every table:
+`hero-000042`, `guild-000002`, `quest-001337`, so that string order is numeric order for the
+life of any plausible game (a 20-year game uses about 43,000 Quest ids); the validator refuses
+a counter past 999,999. They are never reused; a dead Hero's id stays valid in the History. In
 TypeScript each table's id is a branded string type, so the compiler keeps a `GuildId` out of
 a `HeroId` parameter at no runtime cost.
 
@@ -69,6 +88,8 @@ id, name, backgroundKey, foundedTurn
 guildmasterId
 rosterIds:      HeroId[]                    ordered
 wealth, fame
+belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
+foldedOnTurn:   turn | null                 a Guild that reached an ending; out of Rankings
 hall:           Record<FacilityKey, grade>  infirmary, trainingYard, quarters
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
 regard:         Record<EntityId, RegardEntry>
@@ -106,31 +127,53 @@ Equipment is not on the Hero: it is the unique Items whose holder is this Hero (
 **patrons**
 ```
 id, name, sphereKey
-questTemplateKeys: QuestTemplateKey[]
 regard:         Record<EntityId, RegardEntry>
 ```
+A Patron's Quest templates are looked up by `sphereKey` in content at draw time, never
+stored (rule 1), so a content change reaches every Patron without a migration.
 
 **quests**
 ```
 id, templateKey, patronId
-difficulty, tags, durationTurns, reward, fameEffect
-requirements:   { partySize, classKey?, skillKey? }
+difficulty, tags, reward, fameEffect
+durationTurns:  integer                     durationDays × 3, from the template's range
+demands:        [StatKey, weight][]         copied from the template at generation
+skillKeys:      SkillKey[]                  copied from the template at generation
+encounterKeys:  string[]                    drawn at generation (M4); empty before
+requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
 lootTableKey:   string | null
 status:         "offered" | "taken" | "resolved"
 offeredOnTurn, expiresOnTurn
 partyIds:       PartyId[]                   first build: at most one; later, at most one per Guild
 ```
 The Board is `world.board: QuestId[]`, ordered, holding the offered Quests. A Quest row is
-removed when it expires or resolves; the History keeps its record.
+removed when it expires or resolves; the History keeps its record. The fields copied from
+the template at generation make a Quest row self-contained: a template may change under a
+live save without altering Quests already offered, and no content migration is needed.
 
 **parties**
 ```
 id, questId, guildId
 heroIds:        HeroId[]
-departedOnTurn, returnsOnTurn
+departedOnTurn
+returnsOnTurn:  integer                     always a night Turn: the night of
+                                            dayOf(departedOnTurn) + durationDays; the Quest
+                                            resolves in that night phase and the Heroes are
+                                            free from the next morning
 ```
 A Party's consumables are the stacks whose holder is this Party (3.3). `quest.partyIds` and
 `party.questId` must agree; the validator checks it.
+
+**offers**
+```
+id, kind: "transfer"
+fromGuildId, toGuildId, heroId
+fee
+offeredOnTurn, expiresOnTurn
+```
+A pending Transfer offer (M6). The Hero must be on `fromGuildId`'s Roster; an offer is removed
+when accepted, declined or expired, and the History keeps its record. Other offer kinds may
+join the union later.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
@@ -204,15 +247,24 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 4. **Named random streams**, one per subsystem (ADR-0009).
 5. **Unknown keys are kept.** A Stat, Class or Item key the current content does not define
    survives a load; rules ignore it; the validator warns. A missing Stat reads as the
-   content's default.
+   content's default. The same holds for `meta.config`: a field the current `GameConfig`
+   lacks is kept and ignored, and a field the save lacks reads as the current default (§2).
 6. **JSON-safe values only**: no `Map`, `Set`, `Date`, class instances, `undefined`, `NaN` or
    `Infinity` anywhere in the document, so `structuredClone` and `JSON.stringify` agree.
 7. **Canonical serialisation**: sorted keys, so the same state always produces the same bytes
    and the harness can check determinism by byte equality.
 8. **Row lifecycle**: a Quest is removed when it expires or resolves; an Unattached Hero is
-   removed when they leave the pool unrecruited unless they appear in any History entry; dead
-   and retired Heroes stay, with their State.
+   removed when they leave the pool unrecruited unless a History entry *other than* their own
+   `hero.generated` and `hero.left-pool` names them — those two entries every pool Hero has,
+   and their labels narrate without the row; dead and retired Heroes stay, with their State.
+   The validator knows the list of passive entry types and refuses a removal that a
+   non-passive entry contradicts.
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
+10. **Discrete changes are events; nightly drift is not.** A Quest outcome, an Injury, a Level,
+    a Transfer, a purchase: each appends an entry. Morale drifting toward its baseline,
+    training XP accruing, Regard decaying: each is a rule of `meta.config` applied at night,
+    recomputable from the entries that bound it, and appends an entry only when the value
+    crosses a band. No entry is ever dropped (R36, principle 11).
 
 ## 6. Versioning and the validator
 
@@ -230,6 +282,8 @@ runs per Turn in play.
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
+| An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
+| An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
 | A Stat, Class, Skill, Trait, Item or template key the content does not define | warn |
 
@@ -248,8 +302,9 @@ Not a priority in the first increments; to be rebaselined against the first harn
 | Load a save | under 1 s |
 
 The History will dominate save size. The levers, in order: lean entries (ids and labels,
-never entity copies), compression on write with Node's built-in `zlib` or the browser's
-`CompressionStream`, and only then archiving old years. A browser's `localStorage` holds about
+never entity copies), rule 10 (drift is not an event), and compression on write with Node's
+built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
+a lever: R36 forbids it. A browser's `localStorage` holds about
 5 MB per origin, so the web front end saves to IndexedDB.
 
 ## 8. Type sketch
@@ -267,6 +322,7 @@ interface World {
   turn: number;
   rng: Record<StreamName, RngState>;
   counters: Record<TableName, number>;
+  ended: { turn: number; reason: EndingReason } | null;
   guilds: Record<GuildId, Guild>;
   guildmasters: Record<GuildmasterId, Guildmaster>;
   heroes: Record<HeroId, Hero>;
@@ -276,6 +332,7 @@ interface World {
   items: Record<ItemId, UniqueItem>;
   stacks: Record<StackId, Stack>;
   board: QuestId[];
+  offers: Record<OfferId, TransferOffer>;
   modules: Record<ModuleId, unknown>;
 }
 

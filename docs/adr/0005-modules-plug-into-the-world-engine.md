@@ -11,7 +11,7 @@ written.
 ## Consequences
 
 The module contract (registration, state slice, phases, events) is built before any story
-module exists and proven with a small module, Random Events.
+module exists and proven with a small module.
 
 *Amended 2026-09-25.* This originally read "built in the first increments". The delivery plan
 ([`../plan.md`](../plan.md)) builds the Turn pipeline flat and adds the contract as the last

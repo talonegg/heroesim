@@ -51,7 +51,7 @@ files with conditions. The engine matches conditions and applies effects; adding
 changes it.
 
 *Without it:* every new Class or Synergy is an engine change, and the engine's shape freezes
-around the first sixteen Stats.
+around the first twenty Stats.
 
 ## 7. Modules plug in; the core runs with none
 
@@ -79,22 +79,26 @@ tuned against those counters, not against a feeling from one playthrough.
 ## 10. A rhythm the player can learn
 
 Three Turns a Day with fixed duties: Board and Market in the morning, Quests every Turn,
-healing, Morale, ageing and Random Events at night. The engine stops fast forward when a
-decision is needed.
+healing, Morale and ageing at night, and Random Events at night once that module exists. The
+engine stops fast forward when a decision is needed.
 
 *Without it:* fast forward is unsafe, and the player cannot plan.
 
 ## 11. Nothing significant is forgotten
 
 The History inside the World State keeps every engine event and every Milestone, unbounded. A
-Hero's page is their History.
+Hero's page is their History. Every discrete change — a Quest's outcome, an Injury, a Level, a
+Transfer, a purchase — is an event. A nightly drift toward a baseline (Morale, training XP,
+Regard decay) is a rule of the configuration, not an event; it is recorded when it crosses a
+band, and is otherwise recomputable from the events that bound it.
 
 *Without it:* the Hero the player grew for ten years is a row of numbers.
 
 ## 12. Single player, siloed, zero running cost
 
-Each player has their own World State and local saves. No server, account, network call or
-paid dependency.
+Each player has their own World State and local saves. No server, player account, network
+call or paid dependency; a hosting account that serves static files at zero running cost is
+allowed.
 
 *Without it:* the engine gains a deployment, a login and a bill before it has a game.
 

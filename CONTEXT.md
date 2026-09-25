@@ -34,6 +34,10 @@ _Avoid_: Team, Squad, Band
 A person or body that offers Quests to Guilds.
 _Avoid_: Client, Employer, Quest-giver
 
+**Sphere**:
+The walk of life a Patron belongs to, which decides the kinds of Quest they offer.
+_Avoid_: Faction (until Factions exist), Category
+
 **Contact**:
 A non-player character the player can deal with who assists or hinders Quests, influences the
 world as it advances and affects Campaign progress, but does not offer Quests.
@@ -42,6 +46,10 @@ _Avoid_: NPC, Ally, Informant
 **Rival Guild**:
 Any Guild the player does not run. It competes for Quests, Heroes and Rankings.
 _Avoid_: Enemy, Opponent, AI guild, Competitor
+
+**Disposition**:
+The named rule set that makes a Rival Guild's choices.
+_Avoid_: AI, Personality, Strategy
 
 ### What a Hero is made of
 
@@ -59,8 +67,9 @@ A numeric capability that a Quest is assessed against and that grows with experi
 are a keyed set defined in content, each in one of four areas. A Hero's initial Stats:
 Physical (Strength, Dexterity, Weaponry, Constitution, Endurance), Mental (Intelligence,
 Knowledge, Perception, Wits, Courage, Willpower), Magical (Arcana, Power, Spelllore, Spirit,
-Resistance) and Social (Leadership, Charisma, Diplomacy, Adaptability). A Guildmaster's: Leadership,
-Influence, Negotiation, Coaching, Perception.
+Resistance) and Social (Leadership, Charisma, Diplomacy, Adaptability). A Guildmaster's:
+Inspiration, Influence, Negotiation, Coaching, Judgement. No Stat name is shared between
+Heroes and Guildmasters, so a Stat key names one thing.
 _Avoid_: Attribute (see above), Ability, Score
 
 **Skill**:
@@ -108,6 +117,11 @@ _Avoid_: Happiness, Mood, Loyalty
 The opinion one entity holds of another, whether Hero, Guild, Guildmaster or Patron.
 _Avoid_: Reputation, Opinion, Affinity, Standing
 
+**Regard band**:
+One of the named ranges a Regard value falls in; a History entry is recorded when a value
+crosses one.
+_Avoid_: Tier, Level (of Regard)
+
 **Relationship**:
 A score between two entities computed from the Regard each holds for the other.
 _Avoid_: Bond, Link, Connection
@@ -123,6 +137,14 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 The part of the engine that assesses a Quest against the Party sent and produces the outcome:
 effects on each Hero, reward or penalty, Loot, and what the world learns from it.
 _Avoid_: Mission Engine, Combat system, Resolver
+
+**Encounter**:
+One typed step of a Quest, resolved by a Check with typed consequences.
+_Avoid_: Beat, Scene, Event
+
+**Check**:
+The comparison of a Party's capability against an Encounter's difficulty.
+_Avoid_: Roll (for the whole), Test, Save
 
 **Board**:
 Where the Quests currently on offer are posted. Every Guild draws from it.
@@ -184,7 +206,8 @@ Patron visit. Actions inside the Hall are not limited.
 _Avoid_: Action, Move, Action point
 
 **Milestone**:
-A History entry that is never dropped: a Level gained, a Death, a Transfer, a Campaign beat.
+A History entry marked as one a Hero's or a Guild's page always shows first: a Level gained,
+a Death, a Transfer, a Campaign beat. No entry is dropped; a Milestone is one that is surfaced.
 _Avoid_: Highlight, Achievement, Key event
 
 ### Setup
@@ -226,6 +249,10 @@ _Avoid_: Staff, Employee, NPC, Hireling
 Where the Guild buys and sells Items. An Item sells for less than it costs to buy.
 _Avoid_: Shop, Store, Exchange, Bazaar
 
+**Market Engine**:
+The part of the engine that refreshes the Market and prices Items.
+_Avoid_: Economy, Shop system
+
 **Item**:
 A thing the Guild owns and equips or expends: permanent gear that a Hero carries, or a
 consumable that is used up.
@@ -247,9 +274,13 @@ for a signing fee.
 _Avoid_: Free agent, Mercenary, Recruit (as a noun), Candidate
 
 **Transfer**:
-Moving a Hero between Guilds for a fee, in either direction. Transferring out a Hero the
-Roster holds in high Regard costs the Guild the Morale of the Heroes who stay.
+Moving a Hero between Guilds for a fee, in either direction. Transferring out a Hero costs
+the Morale of each Hero who stays and held them in high Regard.
 _Avoid_: Sell, Buy, Trade, Signing, Poach (until poaching is a distinct thing)
+
+**Transfer Offer**:
+A Rival's pending bid for a Hero, held until accepted, declined or expired.
+_Avoid_: Bid, Request
 
 **Fame**:
 A Guild's renown, rising and falling with Quest outcomes and the player's dealings with
@@ -268,5 +299,6 @@ and with injury.
 _Avoid_: Ageing out, Quitting
 
 **Bankruptcy**:
-The Guild's Wealth staying below the floor for long enough that the game ends.
+The Guild's Wealth staying below the floor for long enough that the Guild folds: its Heroes
+go to the Unattached pool and its Items to the Market. For the player's Guild, the game ends.
 _Avoid_: Insolvency, Game over, Ruin

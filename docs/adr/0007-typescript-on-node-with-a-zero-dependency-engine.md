@@ -6,3 +6,8 @@ that stays true. We chose this over Python (a good engine, but the browser front
 second codebase) and over a game engine such as Godot (rendering we do not need, and no
 harness) because the same engine must run unchanged in a terminal, in a browser served as
 static files, and in a test that plays a thousand games.
+
+*Amended 2026-09-25.* "Node 22" reads "Node 22 or later": `engines` declares `>=22`,
+development runs on the current release (26.9 at the time), and CI runs both 22 and the
+development version so the floor is tested rather than assumed. Decided by the owner (pre-M0
+review A8).

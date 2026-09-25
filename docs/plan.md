@@ -9,7 +9,8 @@ in [`principles.md`](./principles.md); the document it starts from is
 ## 1. How the plan works
 
 **Working software at every increment.** An increment is a session or two of work. It is done
-when the tests pass, the harness runs, and a human can drive the result from the CLI. The CLI
+when the tests pass and, from M1-S9 onward, the harness runs and a human can drive the result
+from the CLI; M0 and the first M1 stories end with passing tests (E9). The CLI
 starts in M1 as a handful of commands over the engine's selectors and gains one command per
 increment; it is never a separate milestone. The browser front end waits until the engine's
 action set is stable (M7).
@@ -20,8 +21,9 @@ it must record. Milestones are sequential; increments inside one may be reordere
 teaches.
 
 **Tracking.** One GitHub issue per milestone, opened when the milestone starts and not before,
-carrying its increments as a checklist. A milestone completes with a git tag on the closing
-commit (`m1-world-state`), the issue closed, and its status and date written in the table in §2.
+carrying its increments as a checklist. A milestone completes by merging `v1.0-dev` into
+`v1.0-release`, a git tag on that merge (`m1-world-state`), the issue closed, and its status
+and date written in the table in §2.
 The rationale lives here; the checklist lives in the issue.
 
 **Measure before tune.** Every milestone names the counters the harness must report from then
@@ -33,10 +35,18 @@ draw from the Board and the Unattached pool from M2, with one trivial dispositio
 after M2 is written and tuned against a contested Board (ADR-0002). M6 adds the named
 dispositions and Transfers.
 
+**Three accepted exceptions to ADR-0002.** The ADR says no rule asks whether a Guild is the
+player's. Three rules in this plan do, and the owner accepted them on 2026-09-25 rather than
+amend the ADR: the game ends when the player's Guild ends, while a Rival's ending only folds
+that Guild (M2); the Transfer Generator never takes from the player's Guild (M6); and on the
+Board, the player's controller acts before the Rivals' (M2, R22). A test may grep the engine
+for `controller.kind` and expect exactly these reads. A fourth needs a decision, not a commit.
+
 **The module contract comes last in the first build.** The Turn pipeline is built flat in M2 and
-given registration, state slices and phases in M8, with Random Events as the proving module.
-ADR-0005 is amended accordingly: the contract is built before any story module, not in the
-first increments.
+given registration, state slices and phases in M8, proved by a test-only probe module that
+exercises every part of the contract. Random Events, the first real module, follows the first
+build (owner, 2026-09-25, pre-M0 review A5). ADR-0005 is amended accordingly: the contract is
+built before any story module, not in the first increments.
 
 **No spikes.** Determinism, per-Turn copy cost and History size are measured inside M1 and M2
 rather than investigated beforehand.
@@ -48,16 +58,20 @@ rather than investigated beforehand.
 | M0 | Skeleton | `npm test` runs; the lint rule fails a deliberate `Math.random` in `engine/`; CI green; decision log exists | |
 | M1 | World State | A seeded world of Guilds, Heroes, Patrons and an Unattached pool is created, validated, saved, loaded and shown; 1,000 worlds byte-identical across two runs | |
 | M2 | The loop | The harness plays whole games to an ending under an automatic policy; a human can advance, dispatch and recruit from the CLI | |
-| M3 | Progression | Heroes gain Levels toward their Potential and decline with age; Rankings order Guilds by Fame and Wealth | |
+| M3 | Progression | Heroes gain Levels toward their Potential and decline with age; Rankings order Guilds by Fame and Wealth; Hall Improvements are bought | |
 | M4 | Quest Engine | The stub is replaced by typed encounters and checks reading Skills, Relationship and Synergies | |
-| M5 | Items | Gear, consumables, the Market, Loot and Hall Improvements exist and are bought, sold, equipped and expended | |
+| M5 | Items | Gear, consumables, the Market and Loot exist and are bought, sold, equipped and expended | |
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | |
-| M8 | Modules | The module contract exists and Random Events run as a module; the core runs with it uninstalled | |
+| M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | |
 
 The first build is complete when M8 is tagged.
 
 ## 3. Increments
+
+The detailed implementation plan — stories, acceptance, files, config fields, events and
+counters per milestone, and the inputs the owner must supply — is in
+[`planning/epics/`](./planning/epics/README.md). This section is the summary it expands.
 
 Each line is a session or two. A line is a deliverable, not a task: it ends in a passing test
 and, where it says so, a CLI command. Reorder within a milestone freely; record why in the
@@ -103,7 +117,8 @@ decision log.
 2. Turn pipeline as a flat ordered list of phases: morning, afternoon, night, in the order
    `approach.md` §2 gives.
 3. Quest Generator and Quest templates in content, each carrying weighted Stat demands
-   (`[StatKey, weight][]`); the Board refreshes each morning, weighted by Patron Regard.
+   (`[StatKey, weight][]`); the Board refreshes each morning. Weighting by Patron Regard
+   arrives in M4, once Regard has rules (E5).
 4. Dispatch: a Party from the Roster to an offered Quest; Party unavailable while away; the
    Quest advances every Turn. CLI `dispatch`.
 5. Stub Quest Engine: the Party's Stats scored against the Quest's weighted demands; outcome
@@ -126,7 +141,10 @@ decision log.
 2. Potential hints as a selector the CLI shows.
 3. Ageing decline past a configured age.
 4. Rankings by Fame and by Wealth as selectors. CLI `rankings`.
-5. **Counters:** Levels gained, Heroes reaching Potential, Retirements by age.
+5. Hall Improvements: `build` raises a facility's grade for Wealth; `improvements.json`. CLI
+   `build`. (Moved from M5, pre-M0 review D8.)
+6. **Counters:** Levels gained, Heroes reaching Potential, Retirements by age, Improvement
+   grades reached.
 
 ### M4 Quest Engine
 
@@ -147,8 +165,8 @@ decision log.
 4. Market refresh each morning; buy and sell with the sell price below the buy price. CLI
    `buy`, `sell`.
 5. Loot tables and Loot on hard Quests.
-6. Hall Improvements raising infirmary, training yard and quarters grades. CLI `build`.
-7. **Counters:** Wealth spent by category, Loot awarded, Improvement grades reached.
+6. **Counters:** Wealth spent by category, Loot awarded, consumables expended per Quest.
+   (Hall Improvements moved to M3, pre-M0 review D8.)
 
 ### M6 Rivals
 
@@ -174,17 +192,18 @@ decision log.
    the phases it hooks.
 2. The pipeline calls registered modules at `onMorning`, `onAfternoon` and `onNight`; a
    module may ask fast forward to stop.
-3. Random Events as a module: content with conditions and effects, drawn at night.
+3. A probe module, test-only, exercising every hook, its slice, its stream and the effects
+   API.
 4. Slice validation and migration owned by the module; a test that the core runs with no
    module installed.
 5. ADR-0005 amended to record the timing.
-6. **Counters:** Random Events by type; a harness run with and without the module.
+6. **Counters:** every core counter with and without the probe module installed.
 
 ## 4. After the first build
 
-Modules, in whatever order the module contract makes cheapest: Scenarios, Campaigns, Contacts,
-Factions, Scouting and hidden information, Workers, Skill growth, the Guildmaster in a Party,
-the deferred endings. They are not sequenced here; the first build will show which is cheapest
+Modules, in whatever order the module contract makes cheapest: Random Events (the smallest,
+and the first real module), Scenarios, Campaigns, Contacts, Factions, Scouting and hidden
+information, Workers, Skill growth, the Guildmaster in a Party, the deferred endings. They are not sequenced here; the first build will show which is cheapest
 to prove next.
 
 ## 5. Decisions this plan rests on
