@@ -42,6 +42,7 @@ import {
   type World,
   type WorldDocument,
 } from './index.js';
+import { createStreams } from './rng.js';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────────────────────
 
@@ -53,9 +54,8 @@ const meta: Meta = {
   createdAt: 'harness',
 };
 
-// An arbitrary stream state: this story fixes only its shape (plain numbers). M1-S2's
-// generator makes real ones.
-const rng = { generation: [1, 2, 3, 4] };
+// Real streams, seeded from the fixture's seed (M1-S2).
+const rng = createStreams(meta.seed, streamNames);
 
 /** A valid empty world: every table empty, the Board empty, History empty. */
 const defaultDocument = emptyDocument(meta, rng);

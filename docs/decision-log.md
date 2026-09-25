@@ -186,13 +186,65 @@ legs.
 **Consequences.** The workflow added by M0-S3 (`.github/workflows/check.yml`) is proved to fail
 on the rule it exists to enforce, not merely assumed to. M0-S3's three acceptance boxes are met.
 
+## DL-12 — Random streams are xoshiro128\*\* seeded by cyrb128 of `seed:name`
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S2), taking the epic's
+proposal unchanged
+
+**Context.** ADR-0001 puts a seeded generator's state inside the World State; ADR-0009 (as
+amended 2026-09-26) gives every drawing subsystem its own stream, seeded from the master seed
+and the stream's name. Neither names an algorithm, and the algorithm fixes what every seed plays.
+M1-S2 proposed xoshiro128\*\* seeded through cyrb128 and reserved this entry. The v1 proof of
+concept (`feature/poc:engine/src/rng.ts`) also used xoshiro128\*\*, but with one stream, FNV-1a
+and splitmix32 seeding, and draws that returned a new state rather than mutating one.
+
+**Decision.** In `engine/src/rng.ts`:
+
+1. **Generator: xoshiro128\*\*** (Blackman and Vigna, reference implementation v1.1). A stream's
+   state is its four 32-bit words as unsigned integers in a plain array, `RngState = [number,
+   number, number, number]`: JSON-safe, 16 bytes a stream, period 2^128 − 1, and each step is a
+   handful of 32-bit operations JavaScript does exactly with `Math.imul` and `>>> 0`. Rejected:
+   `Math.random` (not seedable); 32-bit-state generators such as mulberry32 (a period of 2^32 is
+   within reach of a long harness run); the 64-bit xoshiro and PCG variants (they need `BigInt`
+   in JavaScript, which is slow and not JSON-safe).
+2. **Seeding: cyrb128 of `${masterSeed}:${streamName}`**, bryc's 128-bit string hash, which fills
+   all four words from any string and spreads similar seeds (`seed-0001`, `seed-0002`) far apart.
+   A stream depends on the master seed and its own name only. A name may not be empty or contain
+   `:`, so no two (seed, name) pairs hash the same text. An all-zero hash (one input in 2^128),
+   which xoshiro would never leave, is replaced by a fixed constant; `next` throws on an all-zero
+   state, since only a hand-written one can hold it.
+3. **Draws** mutate the state in place (it lives in the per-Turn copy of `world`) and take a fixed
+   number of draws whatever their arguments: `next` is a word divided by 2^32, so a fraction in
+   [0, 1) with 32 bits of resolution; `int(min, max)`, inclusive, is `min + floor(next × span)`
+   for spans up to 2^32, each value's chance off by less than one part in 2^32 per value;
+   `pick` is one `int`; `shuffle` returns a new array by Fisher–Yates in `length − 1` draws and
+   leaves its argument alone; `chance(p)` draws once even at 0 and 1, so tuning a probability
+   never shifts later draws.
+4. **Engine-internal.** `@heroesim/engine` exports `streamNames` and `StreamName` only; the state
+   type and the draw functions are imported by engine modules from `rng.ts`, and only `rng.ts`
+   and `document.ts` name the state type (a test scans `engine/src`). Front ends draw cosmetics
+   from their own source (ADR-0001).
+5. **Pinned by tests** (`engine/src/rng.test.ts`): xoshiro128\*\*'s reference outputs from state
+   [1, 2, 3, 4] (the values Rust's `rand_xoshiro` pins from the C reference), cyrb128 of one seed,
+   and the SHA-256 of a seed's first 1,000 draws; the cyrb128 transcription and the 1,000th
+   state were also checked against an independent Python transcription at the time of writing.
+
+**Consequences.** Changing the algorithm, the seeding text, or any draw function's arithmetic or
+draw count changes every seed's game. The pinned tests fail first, and the change needs a new
+entry superseding this one. Saves are snapshots, so games in progress continue (ADR-0001); only
+replaying a seed from the start changes. Adding a stream moves no other: a milestone that
+appends a name to `streamNames` gives an older save that stream, `createStreams(meta.seed,
+[name])`, in its migration step. A rule needing a probability finer than 2^-32 would need a
+second draw; none is foreseen. The API hides the algorithm, so a swap is one file and one entry
+(the epic's risk table).
+
 ---
 
-DL-12 and DL-13 remain reserved by the epics and are not yet written here: DL-12 is M1-S2's PRNG
-choice and DL-13 is M1-S10's determinism measure (renumbered from a collision by pre-M0 review
-E1). Every other number from DL-11 on is written below, in order. The next writer of a new
-decision uses the next number after the highest written, skipping DL-12 and DL-13 until their
-stories write them.
+DL-13 remains reserved by the epics and is not yet written here: it is M1-S10's determinism
+measure (renumbered from a collision by pre-M0 review E1, as was DL-12, M1-S2's PRNG choice,
+written above). Every other number from DL-11 on is written below, in order. The next writer of
+a new decision uses the next number after the highest written, skipping DL-13 until its story
+writes it.
 
 ---
 
