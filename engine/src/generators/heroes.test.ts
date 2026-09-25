@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { facilityKeys, makeId, type Guild, type Hall, type Hero, type World } from '../document.js';
 import type { StreamName } from '../rng.js';
 import { generateHero } from './heroes.js';
-import { testDeps, testWorld } from './test-content.js';
+import { testDeps, testWorld } from '../world.test-support.js';
 
 // Every stream ADR-0009 (as amended) plans, each added in the milestone that draws from it; M1
 // defines `generation` alone, so a test world carries the others beside it to watch them.

@@ -238,15 +238,66 @@ appends a name to `streamNames` gives an older save that stream, `createStreams(
 second draw; none is foreseen. The API hides the algorithm, so a swap is one file and one entry
 (the epic's risk table).
 
----
+## DL-13 — Determinism measured: 1,000 worlds, each created twice, are byte-identical
 
-DL-13 remains reserved by the epics and is not yet written here: it is M1-S10's determinism
-measure (renumbered from a collision by pre-M0 review E1, as was DL-12, M1-S2's PRNG choice,
-written above). Every other number from DL-11 on is written below, in order. The next writer of
-a new decision uses the next number after the highest written, skipping DL-13 until its story
-writes it.
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S10), recording a
+measure and the method that took it
 
----
+**Context.** DL-08 has each performance target measured in the first milestone that can take it,
+and M1-S10 is where determinism can first be measured; pre-M0 review E1 reserved this number for
+it. ADR-0001 promises that a seed plays the same game, data-model rule 7 makes a save canonical
+text, and pre-M0 review D10.1 has the harness pass a fixed `createdAt` so that `meta` compares.
+The epic names the measure but not the method, the reports' place in Git, or the machine.
+
+**Decision.**
+
+1. **Method.** `npm run harness` runs `harness/src/create.harness.test.ts`. For `HEROESIM_SEEDS`
+   seeds (1,000 by default, INPUTS §9) named `seed-0001` onward, it calls `createWorld(seed,
+   harnessSetup, { config: { ...defaultConfig }, content: loadContent() })`, the core content
+   and the default config passed explicitly, with `createdAt: "harness"`; validates, describes
+   and serialises each world; then, once every world exists, creates each again and compares its
+   `serialise` output with the first as a string (equal strings are equal bytes). A SHA-256 over
+   every serialisation in seed order, the report's *fingerprint*, lets two runs in two processes,
+   or on two machines, be compared without keeping the worlds. The run fails on any refusal, any
+   mismatch, or any Hero Stat outside its content range; warnings are counted, not failed on.
+   Creation time is `performance.now()` around the `createWorld` call alone.
+2. **Result, 2026-09-26** (`harness/reports/m1-2026-09-26.md`, committed with this entry):
+   - **1,000 of 1,000 worlds byte-identical** when created again. The validator refused none and
+     warned about none.
+   - Fingerprint `82c1e94e0a16a96f57eb59539dce93d97ac16b3ae7d42adab8794fd38e1b8244`, the same in
+     three separate `npm run harness` processes that day: byte equality holds across processes
+     as well as within one.
+   - **Creation time per world: mean 0.494 ms, p99 1.131 ms** (p50 0.430, max 2.751) in the first
+     pass; mean 0.426 ms, p99 0.752 ms in the second, warmed up.
+   - **Total run time: 2.81 s** for the sweep (both passes, validation, serialisation and the
+     report's statistics); 3.92 s wall for `npm run harness`, Vitest's start-up included.
+   - The two earlier runs that day gave creation means of 0.479 and 0.618 ms, p99s of 1.099 and
+     1.399 ms, and sweeps of 2.72 and 3.19 s. The machine was shared with other work, and the
+     timings vary by about a quarter from run to run.
+   - **Machine:** AMD Ryzen AI Max+ 395 (32 logical cores), Windows 11 (Windows_NT 10.0.26200)
+     x64, Node v26.9.0, Vitest 5.0.2.
+   - A world serialises to 54,348 characters on average (44,629 to 64,498) and holds 35.9 Heroes
+     (28 to 44). Leading Stats average 9.5 and the others 6.5 in every Class, as DL-19 item 5
+     predicts, and no Stat leaves its range.
+3. **Reports in Git.** Every run writes `harness/reports/m<n>-<local date>.md`. `.gitignore`
+   ignores `harness/reports/*`; the report of a milestone's run is committed with
+   `git add -f`, after which Git tracks it despite the ignore line. M1's is committed here; if
+   M1's tagged run writes a newer one, that one is force-added in its place.
+4. **Reusable parts.** `harness/src/stats.ts` (summaries, nearest-rank percentiles),
+   `report.ts` (Markdown tables, report paths, the machine), `seeds.ts` (`HEROESIM_SEEDS` and seed
+   names) and `creation.ts` (`sweepCreation`, `describeWorld`, `creationReport`) are plain
+   modules with ordinary tests under `npm test`, for M2-S12's play sweep to extend.
+5. **`npm test` stays fast.** Without `HEROESIM_HARNESS` the `harness-run` project does not
+   exist, so no `*.harness.test.ts` file is collected (`vitest list --filesOnly` lists none) and
+   skipping it costs nothing. Measured the same day: `npm test` took 2.85 s wall for 475 tests;
+   asking Vitest for the harness file by name without the flag exits in 0.31 to 0.43 s, finding
+   no project that includes it.
+
+**Consequences.** `createWorld` is deterministic byte for byte under the core content and
+`defaultConfig`. The fingerprint pins what the first 1,000 seeds create: a change to draw order,
+to content or to a generation default changes it, and the next report shows that it did (like a
+change under DL-12, it changes every seed's world). Creation is not a cost worth tuning. M2-S12
+measures determinism under play, one seed played twice, and data-model §7's play targets.
 
 ## DL-14 — Toolchain pins and boundary-rule choices made in M0-S1/S2
 
@@ -626,6 +677,35 @@ field lists, which the compiler demands. A later build allowing more Parties cha
 `tooManyParties`. The validator walks the History a few times, each pass linear; measured here, a
 1,000-Hero world with about a thousand entries validates in about 11 ms, and M2-S12 measures a
 20-year save.
+
+## DL-22 — One fixture module for the engine's tests
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S10's implementer, at
+the orchestrator's request)
+
+**Context.** M1-S5/S6 and M1-S7/S8 were built in parallel, and each made its own test content:
+`engine/src/generators/test-content.ts` (DL-19's consequences), a fresh copy per call with
+`testDeps` and `testWorld`; and `engine/src/world.test-support.ts` (DL-20 item 12), a constant
+with `testMeta`, `buildDocument` and `withValid`. Two content sets that drift apart would let a
+generator test and a validator test disagree about what content holds.
+
+**Decision.**
+
+1. `engine/src/world.test-support.ts` is the one fixture module; `test-content.ts` is deleted and
+   its `testDeps` and `testWorld` moved in. It stays under DL-20 item 12's terms: not a test,
+   linted as engine source, not exported from the package.
+2. There is one content set, `testContent`, the union of the two: every Trait and Sphere of the
+   core, four Hero and three Guild Backgrounds, the generator set's name lists (long enough for
+   `createWorld` under `defaultConfig`), its growth weights (two thirds shared by the leading
+   Stats, DL-17 item 5), and the validator set's Quest template and Item tables. Its `id` is
+   `"test"`, since it is not the core set.
+3. It is a deep-frozen constant rather than a fresh copy per call: a test that changed shared
+   content throws at once instead of changing another test's input, and a test that needs other
+   content spreads a copy.
+
+**Consequences.** DL-19's and DL-20's references to where the fixtures live are read with this
+entry. No test's expectation changed: the generators read no Quest template or Item table, and
+no validator test names a key the union adds.
 
 ---
 

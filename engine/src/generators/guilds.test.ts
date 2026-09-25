@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
 import type { StreamName } from '../rng.js';
 import { generateGuild, type GuildOptions } from './guilds.js';
-import { testDeps, testWorld } from './test-content.js';
+import { testDeps, testWorld } from '../world.test-support.js';
 
 const player: Controller = { kind: 'player' };
 const rival: Controller = { kind: 'rival', disposition: 'steady' };

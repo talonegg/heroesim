@@ -172,8 +172,9 @@ Config: `startingRosterSize`, `startingWealth`, `rivalCount`, `rivalRosterMin/Ma
 
 **Acceptance:**
 
-- [ ] `createWorld` returns a document that the validator (S7) accepts — *open: S7 was built in
-      parallel; the test is wired once both are merged*
+- [x] `createWorld` returns a document that the validator (S7) accepts — *wired in M1-S10:
+      `engine/src/create.test.ts` with the fixture content, `harness/src/creation.test.ts` with
+      the core content*
 - [x] Every Guild, player and Rival, is produced by the same function; the only difference in
       the output is `controller` (a test diffs a player Guild and a Rival Guild generated with the
       same parameters)
@@ -244,10 +245,10 @@ except the one committed at the tag).
 
 **Acceptance:**
 
-- [ ] 1,000 worlds byte-identical across two runs (**Measure:** recorded in DL-13 with the
+- [x] 1,000 worlds byte-identical across two runs (**Measure:** recorded in DL-13 with the
       creation time per world)
-- [ ] The report lists every Stat's mean per Class and no Class has a Stat outside its range
-- [ ] `npm test` without the flag skips the harness project in under a second
+- [x] The report lists every Stat's mean per Class and no Class has a Stat outside its range
+- [x] `npm test` without the flag skips the harness project in under a second
 
 ## 2. Configuration and events introduced
 

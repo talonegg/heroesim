@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { generatePatron } from './patrons.js';
-import { testDeps, testWorld } from './test-content.js';
+import { testDeps, testWorld } from '../world.test-support.js';
 
 describe('generatePatron', () => {
   test('makes a Patron of a name, a Sphere and empty Regard, storing no Quest templates (D3)', () => {

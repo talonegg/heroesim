@@ -1,13 +1,15 @@
-// Fixtures shared by the engine's tests: a small content set, a builder of valid World State
-// documents with every table in use, and `withValid`, which every engine test wraps a document
-// in to assert that the validator accepts it (M1-S7).
+// The one set of fixtures the engine's tests share (DL-22): a small content set, the deps and
+// empty worlds the generator tests draw into, a builder of valid World State documents with every
+// table in use, and `withValid`, which every engine test wraps a document in to assert that the
+// validator accepts it (M1-S7).
 //
 // Vitest runs only `*.test.ts`, so this file is not a test, and ESLint holds it to the engine's
 // source rules (DL-16): no Node, no clock, no platform randomness. The real content cannot be
 // loaded here, since the engine's tests import nothing from @heroesim/content (ADR-0007); this
-// content set mirrors its keys. It is not exported from the package (DL-20).
+// content set mirrors its keys. It is not exported from the package (DL-20). The harness checks
+// the engine against the real content (M1-S10).
 
-import { defaultConfig } from './config.js';
+import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type { Class, ContentSet, Stat, StatArea, StatOwner } from './content-types.js';
 import {
   emptyDocument,
@@ -34,6 +36,7 @@ import {
   type StackHolder,
   type StackId,
   type TableName,
+  type World,
   type WorldDocument,
 } from './document.js';
 import { append } from './history.js';
@@ -66,10 +69,18 @@ function stat(key: string, area: StatArea, owner: StatOwner): [string, Stat] {
   return [key, { key, name: title(key), area, min: 1, max: 20, default: 10, owner }];
 }
 
-/** A Class from its leading Stats and gated Skills, each a space-separated list of keys. */
+/**
+ * A Class from its leading Stats and gated Skills, each a space-separated list of keys. Its four
+ * leading Stats share two thirds of growth and the sixteen others one third, as in the core
+ * (DL-17 item 5).
+ */
 function heroClass(key: string, leading: string, gated: string): [string, Class] {
   const leadingStats = leading.split(' ');
-  const growth = Object.fromEntries(leadingStats.map((statKey) => [statKey, 1 / leadingStats.length]));
+  const leadingWeight = 2 / 3 / leadingStats.length;
+  const otherWeight = 1 / 3 / (heroStatKeys.length - leadingStats.length);
+  const growth = Object.fromEntries(
+    heroStatKeys.map((statKey) => [statKey, leadingStats.includes(statKey) ? leadingWeight : otherWeight]),
+  );
   return [key, { key, name: title(key), leadingStats, gatedSkills: gated.split(' '), growth }];
 }
 
@@ -83,54 +94,107 @@ interface Named {
   name: string;
 }
 
+/** Freezes `value` and everything it holds, so no test can change what another test reads. */
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    for (const inner of Object.values(value)) deepFreeze(inner);
+    Object.freeze(value);
+  }
+  return value;
+}
+
 /**
- * A content set with the real content's keys, cut down: every Stat, the four Classes, twelve
- * Skills, and a few Traits, Backgrounds, Spheres and names. It also carries the Quest template
- * and Item tables that M2-S3 and M5-S1 add, so that fixture Quests and Items raise no warning.
+ * A content set with the real content's keys, cut down: every Stat, the four Classes and their
+ * twelve Skills, every Trait and Sphere, some of the Backgrounds, and name lists long enough for
+ * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons). It also carries the Quest
+ * template and Item tables that M2-S3 and M5-S1 add, so that fixture Quests and Items raise no
+ * warning.
+ *
+ * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
+ * that (`{ ...testContent, spheres: {} }`).
  */
-export const testContent: ContentSet = Object.assign(
-  {
-    id: 'core',
-    version: 1,
-    stats: Object.fromEntries([
-      ...Object.entries(heroStats).flatMap(([area, keys]) => keys.map((key) => stat(key, area as StatArea, 'hero'))),
-      ...Object.entries(guildmasterStats).map(([key, area]) => stat(key, area, 'guildmaster')),
-    ]),
-    classes: Object.fromEntries([
-      heroClass('warrior', 'strength weaponry constitution courage', 'swordcraft shieldwork tactics'),
-      heroClass('rogue', 'dexterity perception wits adaptability', 'lockpicking stealth trapcraft'),
-      heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
-      heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
-    ]),
-    skills: keyed(
-      {},
-      ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
-      ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
-    ),
-    traits: {
-      ...keyed({ owner: 'guildmaster' as const, effect: null }, 'old-soldier', 'thrifty'),
-      ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame'),
+export const testContent: ContentSet = deepFreeze(
+  Object.assign(
+    {
+      id: 'test',
+      version: 1,
+      stats: Object.fromEntries([
+        ...Object.entries(heroStats).flatMap(([area, keys]) => keys.map((key) => stat(key, area as StatArea, 'hero'))),
+        ...Object.entries(guildmasterStats).map(([key, area]) => stat(key, area, 'guildmaster')),
+      ]),
+      classes: Object.fromEntries([
+        heroClass('warrior', 'strength weaponry constitution courage', 'swordcraft shieldwork tactics'),
+        heroClass('rogue', 'dexterity perception wits adaptability', 'lockpicking stealth trapcraft'),
+        heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
+        heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
+      ]),
+      skills: keyed(
+        {},
+        ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
+        ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
+      ),
+      traits: {
+        ...keyed(
+          { owner: 'guildmaster' as const, effect: null },
+          ...['old-soldier', 'well-liked', 'thrifty', 'miser', 'spendthrift', 'mistrusts-magic'],
+        ),
+        ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
+      },
+      backgrounds: {
+        ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
+        ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
+      },
+      spheres: keyed({}, 'crown', 'church', 'merchants', 'villages', 'scholars', 'underworld'),
+      names: {
+        given: {
+          female: ['Aldith', 'Brynja', 'Cwen', 'Dagny', 'Edda', 'Frida', 'Gyda', 'Hild'],
+          male: ['Aldred', 'Bram', 'Cenric', 'Dag', 'Egil', 'Finn', 'Grim', 'Hakon'],
+        },
+        family: ['Ashcombe', 'Barrowby', 'Carrick', 'Dalby', 'Fenwick', 'Garside', 'Hallam', 'Ingleby'],
+        guild: [
+          ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
+          ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
+        ],
+        patron: [
+          ...['Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow'],
+          ...['Florian Keld', 'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'],
+          ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
+        ],
+      },
     },
-    backgrounds: {
-      ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward'),
-      ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway'),
+    {
+      questTemplates: keyed({}, 'clear-the-barrow', 'escort-the-tithe'),
+      items: keyed({}, 'healing-draught', 'lantern-of-stannary'),
     },
-    spheres: keyed({}, 'crown', 'church', 'merchants'),
-    names: {
-      given: { female: ['Aldith', 'Brynja', 'Edda', 'Hild'], male: ['Aldred', 'Brand', 'Egil', 'Godric'] },
-      family: ['Hale', 'Venn', 'Ashdown'],
-      guild: ['The Iron Lantern', 'The Grey Wardens'],
-      patron: ['Lady Maud of Stannary', 'Abbot Cenric'],
-    },
-  },
-  {
-    questTemplates: keyed({}, 'clear-the-barrow', 'escort-the-tithe'),
-    items: keyed({}, 'healing-draught', 'lantern-of-stannary'),
-  },
+  ),
 );
 
 const classKeys = Object.keys(testContent.classes);
 const ratings: readonly SkillRating[] = [1, 2, 3];
+
+// ── Deps and empty worlds, for the generators ────────────────────────────────────────────────
+
+/** The test content with the default config, or with `overrides` on it. */
+export function testDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
+  return { config: { ...defaultConfig, ...overrides }, content: testContent };
+}
+
+/**
+ * An empty world at Turn 0 with a stream for each of `names`, seeded from `seed`: the core's
+ * streams by default. A test that must see other streams stand still names them here.
+ */
+export function testWorld(seed: string, deps: EngineDeps, names: readonly string[] = streamNames): World {
+  const meta: Meta = {
+    version: deps.config.schemaVersion,
+    seed,
+    content: { id: deps.content.id, version: deps.content.version },
+    config: { ...deps.config },
+    createdAt: 'test',
+  };
+  // Every core stream is among `names` or the world is unusable; a test adds names, never drops one.
+  const rng = { ...createStreams(seed, names), ...createStreams(seed, streamNames) };
+  return emptyDocument(meta, rng).world;
+}
 
 // ── Documents ────────────────────────────────────────────────────────────────────────────────
 
