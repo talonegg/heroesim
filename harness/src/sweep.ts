@@ -279,7 +279,15 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt }: PlayR
     full.length > 0
       ? `the ${whole(full.length)} games that ran the full ${yearsText} years`
       : `every game's last document (no game ran the full ${yearsText} years)`;
-  const yearMs = sweep.advance.mean * config.turnsPerYear;
+  // A player's fast forward runs alone, so the replay's own `advance`, where there is one.
+  const alone = sweep.replay?.advance ?? sweep.advance;
+  const yearMs = alone.mean * config.turnsPerYear;
+  const load = sweep.workers === 1 ? '' : ` under ${sweep.workers} processes' load`;
+  const aloneText =
+    sweep.replay === null || sweep.workers === 1
+      ? ''
+      : `; mean ${ms(alone.mean)} ms, p99 ${ms(alone.p99)} ms alone (\`${sweep.replay.seed}\` replayed)`;
+  const sizeOf = full.length > 0 ? `the ${whole(full.length)} games that ran 20 years` : 'last documents: no game ran 20 years';
   // What 1,000 games of 20 years would take at this run's cost per Turn played, all included.
   const turnsPlayed = sweep.games.reduce((sum, game) => sum + game.turnsPlayed, 0);
   const perThousandMinutes =
@@ -419,8 +427,16 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt }: PlayR
     markdownTable(
       ['Measure', 'Target', 'Measured'],
       [
-        ['Advance one Turn', `under ${targets.advanceMs} ms`, `mean ${ms(sweep.advance.mean)} ms, p99 ${ms(sweep.advance.p99)} ms`],
-        ['Fast forward a year', `under ${targets.yearMs / 1000} s`, `${fixed(yearMs, 0)} ms (mean \`advance\` × ${whole(config.turnsPerYear)} Turns)`],
+        [
+          'Advance one Turn',
+          `under ${targets.advanceMs} ms`,
+          `mean ${ms(sweep.advance.mean)} ms, p99 ${ms(sweep.advance.p99)} ms${load}${aloneText}`,
+        ],
+        [
+          'Fast forward a year',
+          `under ${targets.yearMs / 1000} s`,
+          `${fixed(yearMs, 0)} ms (mean \`advance\`${sweep.replay === null ? '' : ' alone'} × ${whole(config.turnsPerYear)} Turns)`,
+        ],
         [
           'Harness: 1,000 games of 20 years',
           `under ${targets.harnessMinutesPerThousand} min`,
@@ -428,8 +444,12 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt }: PlayR
             `${sweep.workers === 1 ? 'process' : 'processes'}, ${sweep.validated ? 'validation' : 'no validation'} ` +
             `included, × ${whole(20 * config.turnsPerYear)} Turns × 1,000 games)`,
         ],
-        ['Save after 20 years', 'under 20 MB', `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MB, max ${fixed(lengths.max / 1024 / 1024, 2)} MB`],
-        ['Load a save', `under ${targets.loadMs / 1000} s`, `mean ${fixed(loadMs.mean, 0)} ms, max ${fixed(loadMs.max, 0)} ms`],
+        [
+          'Save after 20 years',
+          'under 20 MB',
+          `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MB, max ${fixed(lengths.max / 1024 / 1024, 2)} MB (${sizeOf})`,
+        ],
+        ['Load a save', `under ${targets.loadMs / 1000} s`, `mean ${fixed(loadMs.mean, 0)} ms, max ${fixed(loadMs.max, 0)} ms${load} (${sizeOf})`],
       ],
     ),
     '',
