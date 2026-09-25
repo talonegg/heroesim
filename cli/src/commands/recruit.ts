@@ -13,7 +13,8 @@ import { writeSave } from '../saves.js';
 /**
  * Recruits `heroId` for the player's Guild, writes the save, and prints the fee and the new Roster
  * size. A word that is not a Hero id is a bad command line; a Hero the save lacks, one not in the
- * pool, and a fee above the Guild's Wealth are refused, and nothing is written.
+ * pool, one who will not sign for the Guild's Fame (M3-S5) and a fee above the Guild's Wealth are
+ * refused, and nothing is written.
  */
 export function recruitHero(heroId: string, { io, content, path }: Context): Exit {
   if (!isId('heroes', heroId)) {
@@ -45,6 +46,11 @@ function refusal(rejection: RecruitRejection, who: string, guildName: string): s
   switch (rejection.reason) {
     case 'hero-not-unattached':
       return `${who} is not in the Unattached pool; show pool lists who is.`;
+    case 'signing-refused':
+      return (
+        `${who} will not sign for a Guild with less than ${rejection.fameRequired} Fame; ` +
+        `${guildName} has ${rejection.fame}, ${rejection.shortfall} short.`
+      );
     case 'insufficient-wealth':
       return `${who}'s signing fee is ${rejection.fee} Wealth; ${guildName} has ${rejection.wealth}.`;
     case 'guild-folded':

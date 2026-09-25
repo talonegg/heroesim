@@ -5,6 +5,7 @@ import { createWorld } from '../create.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { dispositionOf, playerGuild, signingFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { deepFreeze, testContent, testDeps } from '../world.test-support.js';
+import { applyGuildAction } from '../actions/action.js';
 import { availableHeroes, rivalChoices } from './rival.js';
 
 // M2-S9: the `steady` Disposition's choices (INPUTS 4.12, DL-30), read off a world and never
@@ -189,8 +190,10 @@ describe('steady: which Heroes', () => {
 });
 
 describe('steady: recruiting', () => {
-  // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee.
-  const deps = testDeps({ recruitWealthMultiple: 10 });
+  // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
+  // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6).
+  const noBuilding = { buildWealthMultiple: 1_000_000 };
+  const deps = testDeps({ recruitWealthMultiple: 10, ...noBuilding });
 
   /** The Hero in the pool with the lowest fee, lowest id among equals. */
   function cheapest(world: World): Hero {
@@ -223,7 +226,7 @@ describe('steady: recruiting', () => {
     rival.wealth = wealth;
 
     expect(recruits(world, rival)).toEqual([]);
-    const lower = testDeps({ recruitWealthMultiple: 4 });
+    const lower = testDeps({ recruitWealthMultiple: 4, ...noBuilding });
     expect(rivalChoices(world, rival, lower).filter((action) => action.kind === 'recruit')).toHaveLength(1);
   });
 
@@ -236,6 +239,32 @@ describe('steady: recruiting', () => {
     for (const hero of pool) hero.stats = { ...lowestId?.stats };
 
     expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id }]);
+  });
+
+  test("passes over a Hero who would refuse its Fame for the cheapest who would sign (M3-S5), and asks no one when none would", () => {
+    const gated = testDeps({ recruitWealthMultiple: 10, fameRequiredPerLevel: 10, ...noBuilding });
+    const { world, rival } = scene('fame-skip', gated);
+    rival.wealth = 100_000;
+    rival.fame = 0;
+    const first = cheapest(world);
+    // Level 2 asks Fame 10 of a Guild and costs 25 more, so give the others dearer Stats to keep it cheapest.
+    first.level = 2;
+    for (const hero of unattachedHeroes(world)) {
+      if (hero.id !== first.id) hero.stats = Object.fromEntries(Object.keys(hero.stats).map((key) => [key, 20]));
+    }
+    expect(cheapest(world).id).toBe(first.id);
+    const hires = () => rivalChoices(world, rival, gated).filter((action) => action.kind === 'recruit');
+
+    const [hire] = hires();
+    expect(hire).toMatchObject({ kind: 'recruit', guildId: rival.id });
+    expect(hire?.kind === 'recruit' && hire.heroId).not.toBe(first.id);
+
+    rival.fame = 10;
+    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id }]);
+
+    rival.fame = 0;
+    for (const hero of unattachedHeroes(world)) hero.level = 3;
+    expect(hires()).toEqual([]);
   });
 
   test('recruits no one it cannot pay for, and no one from an empty pool', () => {
@@ -253,10 +282,56 @@ describe('steady: recruiting', () => {
   });
 });
 
+describe('steady: building (M3-S6)', () => {
+  // Pinned: three times the cost, and a recruit threshold low enough that recruiting is on offer.
+  const deps = testDeps({ buildWealthMultiple: 3, recruitWealthMultiple: 1 });
+  const purchases = (world: World, guild: Guild) => rivalChoices(world, guild, deps).filter((action) => action.kind !== 'dispatch');
+
+  test("builds the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
+    const { world, rival } = scene('build-threshold', deps);
+    expect(testDeps().config.buildWealthMultiple).toBe(3);
+
+    rival.wealth = 3 * 200;
+    expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
+    rival.wealth = 3 * 200 + 1;
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
+
+    rival.hall.infirmary = 1; // the next grade costs 500
+    rival.wealth = 3 * 500;
+    expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
+    rival.wealth = 3 * 500 + 1;
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
+  });
+
+  test('builds nothing once the infirmary is at its top grade, and no other facility', () => {
+    const { world, rival } = scene('build-top', deps);
+    rival.wealth = 1_000_000;
+    rival.hall = { infirmary: 3, trainingYard: 0, quarters: 0 };
+
+    expect(purchases(world, rival).map((action) => action.kind)).toEqual(['recruit']);
+  });
+
+  test('its build is accepted by the rule, and climbs the infirmary afternoon by afternoon', () => {
+    const { world, rival } = scene('build-climb', deps);
+    rival.wealth = 100_000;
+
+    for (const grade of [1, 2, 3]) {
+      const [build] = purchases(world, rival);
+      expect(build).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
+      if (build === undefined) throw new Error('No build');
+      expect(applyGuildAction(world, build, deps)).toMatchObject({ ok: true });
+      expect(rival.hall.infirmary).toBe(grade);
+    }
+    expect(rival.wealth).toBe(100_000 - 1700);
+    expect(purchases(world, rival).map((action) => action.kind)).toEqual(['recruit']);
+  });
+});
+
 describe('rivalChoices', () => {
   test('dispatches, then recruits, as Action values a front end would produce', () => {
     const { world, rival, deps } = scene('both');
     rival.wealth = 100_000;
+    rival.hall.infirmary = 3; // built to its top (M3-S6), so that its purchase is a recruit
 
     const choices = rivalChoices(world, rival, deps);
 

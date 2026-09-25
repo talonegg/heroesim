@@ -13,9 +13,26 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 4 since the Injury types (M2-S5) followed the Dispositions (M2-S9)', () => {
+  test('is the core content set, version 5 since the Hall Improvements (M3-S6)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(4);
+    expect(content.version).toBe(5);
+  });
+
+  test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
+    const improvements = Object.values(content.improvements);
+    for (const facility of ['infirmary', 'trainingYard', 'quarters'] as const) {
+      const grades = improvements
+        .filter((it) => it.facility === facility)
+        .sort((a, b) => a.grade - b.grade)
+        .map(({ grade, cost }) => [grade, cost]);
+      expect(grades, facility).toEqual([
+        [1, 200],
+        [2, 500],
+        [3, 1000],
+      ]);
+    }
+    expect(improvements).toHaveLength(9);
+    for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
   test("has one Disposition, M2's steady (INPUTS 4.12)", () => {

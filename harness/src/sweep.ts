@@ -331,8 +331,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt }: PlayR
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): the highest-reward Quest it can staff, the strongest Party of the size it requires; ` +
-      `recruit the cheapest Hero while Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster ` +
-      `is below ${sweep.policy.rosterLimit}; never transfer.`,
+      `one purchase a Turn: the infirmary's next grade while Wealth exceeds ${sweep.policy.buildWealthMultiple} times ` +
+      `its cost (M3-S6), else the cheapest Hero who would sign while Wealth exceeds ` +
+      `${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}; never transfer.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,

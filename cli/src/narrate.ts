@@ -17,7 +17,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn, renderTime, rowIn, table } from './render.js';
+import { facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
 
 /** A participant by the label the event carries, or its id when it has none. */
 function called(event: EngineEvent, id: EntityId): string {
@@ -120,6 +120,13 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`;
     case 'hero.left-guild':
       return `${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`;
+    case 'guild.improved': {
+      const { guildId, facility, grade, improvementKey, cost } = event.payload;
+      return (
+        `${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: ` +
+        `its ${facilityNames[facility]} is now grade ${grade}.`
+      );
+    }
   }
 }
 

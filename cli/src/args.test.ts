@@ -41,6 +41,9 @@ describe('parseArgs', () => {
     expect(command('show', 'pool')).toMatchObject({ view: { kind: 'pool' } });
     expect(command('show', 'patrons')).toMatchObject({ view: { kind: 'patrons' } });
     expect(command('show', 'board')).toMatchObject({ view: { kind: 'board' } });
+    expect(command('show', 'rankings')).toMatchObject({ view: { kind: 'rankings', by: 'fame' } });
+    expect(command('show', 'rankings', '--by', 'wealth')).toMatchObject({ view: { kind: 'rankings', by: 'wealth' } });
+    expect(command('show', 'rankings', '--by=fame')).toMatchObject({ view: { kind: 'rankings', by: 'fame' } });
     expect(command('show', 'hero', 'hero-000001')).toMatchObject({ view: { kind: 'hero', heroId: 'hero-000001' } });
     expect(command('show', 'history')).toMatchObject({ view: { kind: 'history' } });
     expect(command('show', 'history', 'hero-000001', '--save', 'demo')).toMatchObject({
@@ -83,6 +86,16 @@ describe('parseArgs', () => {
     });
   });
 
+  test('reads build: a facility in the CLI’s words (M3-S6)', () => {
+    expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
+    expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
+      name: 'build',
+      save: 'demo',
+      facility: 'trainingYard',
+    });
+    expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -97,6 +110,10 @@ describe('parseArgs', () => {
     [['show', 'market'], 'no view "market"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
+    [['show', 'rankings', '--by', 'level'], '--by takes fame or wealth; got "level"'],
+    [['show', 'rankings', 'wealth'], 'does not take "wealth"'],
+    [['show', 'pool', '--by', 'wealth'], '--by is taken by show rankings alone'],
+    [['show', '--by', 'wealth'], '--by is taken by show rankings alone'],
     [['new', '--master', 'Ada'], 'new needs --guild'],
     [['new', '--guild', 'G', '--master'], '--master needs a value'],
     [['new', '--guild', '--master', 'Ada'], '--guild needs a value'],
@@ -126,6 +143,10 @@ describe('parseArgs', () => {
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'Brenna'], 'got "Brenna"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,hero-000001'], '--heroes names hero-000001 twice'],
     [['dispatch', 'quest-000001'], 'does not take "quest-000001"'],
+    [['build'], 'build needs --facility'],
+    [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
+    [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
+    [['build', 'infirmary'], 'does not take "infirmary"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

@@ -8,6 +8,7 @@ import {
   playerGuild,
   serialise,
   signingFee,
+  signingRefusal,
   unattachedHeroes,
   upkeep,
   type EngineDeps,
@@ -16,9 +17,9 @@ import {
   type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { harnessSetup } from './creation.js';
-import { automaticPolicy, defaultPolicyConfig } from './policy.js';
+import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 // M2-S12: the harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
 // Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults.
@@ -51,15 +52,56 @@ function openBoard(quests: Quest[], min = 2): void {
 
 const dispatches = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'dispatch');
 const recruits = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'recruit');
+const builds = (actions: GuildAction[]) => actions.filter((action) => action.kind === 'build');
+
+/**
+ * The policy with building out of reach: from M3-S6 its one purchase a Turn is the infirmary's next
+ * grade whenever Wealth is three times its cost, which the recruiting tests' Wealth is.
+ */
+const noBuilding: PolicyConfig = { ...defaultPolicyConfig, buildWealthMultiple: Number.POSITIVE_INFINITY };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe('automaticPolicy', () => {
   test('draws no random number and changes nothing: the document serialises as before, and it chooses alike twice', () => {
-    const { document } = scene();
+    const { document, guild } = scene();
+    // Every kind of choice on offer: Parties to send, a purchase to make.
+    document.world.guilds[guild.id] = { ...guild, wealth: 10_000 };
+    const random = vi.spyOn(Math, 'random');
     const before = serialise(document);
+
     const actions = automaticPolicy(document, deps);
-    expect(actions.length).toBeGreaterThan(0);
+    const noBuild = automaticPolicy(document, deps, noBuilding);
+
+    expect(dispatches(actions).length).toBeGreaterThan(0);
+    expect(builds(actions)).toHaveLength(1);
+    expect(recruits(noBuild)).toHaveLength(1);
+    expect(random).not.toHaveBeenCalled();
     expect(serialise(document)).toBe(before);
     expect(automaticPolicy(document, deps)).toEqual(actions);
+    expect(automaticPolicy(document, deps, noBuilding)).toEqual(noBuild);
+  });
+
+  test('breaks a tie of rewards by the lower Quest id, and a tie of fees by the lower Hero id, whatever the order it meets them in', () => {
+    const { document, guild, quests } = scene();
+    openBoard(quests);
+    for (const quest of quests) quest.reward = 100;
+    // The Board in reverse id order, so that its own order would give the other answer.
+    document.world.board = [...document.world.board].sort().reverse();
+    const pool = unattachedHeroes(document.world);
+    const [lowest] = pool;
+    for (const hero of pool) hero.stats = { ...lowest?.stats };
+    document.world.guilds[guild.id] = { ...guild, wealth: 500 };
+    const random = vi.spyOn(Math, 'random');
+
+    const actions = automaticPolicy(document, deps, noBuilding);
+
+    expect(random).not.toHaveBeenCalled();
+    const byId = [...quests].sort((a, b) => (a.id < b.id ? -1 : 1)).map((quest) => quest.id);
+    expect(dispatches(actions).map((action) => action.questId)).toEqual(byId.slice(0, dispatches(actions).length));
+    expect(recruits(actions)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: lowest?.id }]);
   });
 
   test('sends the strongest Party of the size required, by the engine’s staffing rule, to the highest reward first', () => {
@@ -101,22 +143,28 @@ describe('automaticPolicy', () => {
     expect(sent.flatMap((action) => action.heroIds)).not.toContain(hurt);
   });
 
-  test('chooses only what the rules accept, applied in order', () => {
+  test('chooses only what the rules accept, applied in order: a build, or with building out of reach a recruit', () => {
     for (const seed of ['policy-a', 'policy-b', 'policy-c']) {
-      let { document } = scene(seed);
-      const guild = playerGuild(document.world) as Guild;
-      document.world.guilds[guild.id] = { ...guild, wealth: 10_000 };
-      const actions = automaticPolicy(document, deps);
-      expect(recruits(actions)).toHaveLength(1);
-      for (const action of actions) {
-        const result = applyAction(document, action, deps);
-        expect(result.ok).toBe(true);
-        if (result.ok) document = result.document;
+      for (const [policy, purchase] of [
+        [defaultPolicyConfig, 'build'],
+        [noBuilding, 'recruit'],
+      ] as const) {
+        let { document } = scene(seed);
+        const guild = playerGuild(document.world) as Guild;
+        document.world.guilds[guild.id] = { ...guild, wealth: 10_000 };
+        const actions = automaticPolicy(document, deps, policy);
+        expect(dispatches(actions).length).toBeGreaterThan(0);
+        expect([...recruits(actions), ...builds(actions)].map((action) => action.kind)).toEqual([purchase]);
+        for (const action of actions) {
+          const result = applyAction(document, action, deps);
+          expect(result.ok).toBe(true);
+          if (result.ok) document = result.document;
+        }
       }
     }
   });
 
-  describe('recruits', () => {
+  describe('recruits (building out of reach)', () => {
     /** The player's Guild with `wealth` and an empty Board, so only recruitment is chosen. */
     function recruiting(wealth: number) {
       const { document, guild } = scene();
@@ -131,7 +179,7 @@ describe('automaticPolicy', () => {
       const cheapest = Math.min(...pool.map((hero) => signingFee(hero, deps)));
       const expected = pool.find((hero) => signingFee(hero, deps) === cheapest);
 
-      expect(automaticPolicy(document, deps)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: expected?.id }]);
+      expect(automaticPolicy(document, deps, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: expected?.id }]);
     });
 
     test('only when Wealth is strictly above the threshold and covers the fee', () => {
@@ -139,20 +187,84 @@ describe('automaticPolicy', () => {
       at.guild.wealth = at.threshold;
       expect(defaultPolicyConfig.recruitWealthMultiple).toBe(3);
       expect(at.threshold).toBe(60);
-      expect(automaticPolicy(at.document, deps)).toEqual([]);
+      expect(automaticPolicy(at.document, deps, noBuilding)).toEqual([]);
 
       const above = recruiting(61);
       const fees = unattachedHeroes(above.document.world).map((hero) => signingFee(hero, deps));
       expect(Math.min(...fees)).toBeGreaterThan(61);
-      expect(automaticPolicy(above.document, deps)).toEqual([]);
+      expect(automaticPolicy(above.document, deps, noBuilding)).toEqual([]);
+    });
+
+    test("passing over a Hero who would refuse the Guild's Fame for the cheapest who would sign, by the engine's own test (M3-S5)", () => {
+      const gated: EngineDeps = { ...deps, config: { ...deps.config, fameRequiredPerLevel: 10 } };
+      const { document, guild } = recruiting(10_000);
+      guild.fame = 0;
+      const pool = unattachedHeroes(document.world);
+      const [first, second] = pool;
+      if (first === undefined || second === undefined) throw new Error('A short pool');
+      // The first the cheapest by far, at Level 3, which asks Fame 20 of a Guild; the second next.
+      const statsAt = (value: number) => Object.fromEntries(Object.keys(first.stats).map((key) => [key, value]));
+      for (const hero of pool) hero.stats = statsAt(20);
+      first.stats = statsAt(1);
+      first.level = 3;
+      second.stats = statsAt(12);
+      expect(signingFee(first, gated)).toBeLessThan(signingFee(second, gated));
+      expect(signingRefusal(guild, first, gated.config)).toEqual({ fameRequired: 20, fame: 0, shortfall: 20 });
+
+      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: second.id }]);
+
+      guild.fame = 20;
+      expect(automaticPolicy(document, gated, noBuilding)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: first.id }]);
+
+      guild.fame = 0;
+      for (const hero of pool) hero.level = 2;
+      expect(automaticPolicy(document, gated, noBuilding)).toEqual([]);
     });
 
     test('only while the Roster is below the limit, 8 unless the policy says otherwise', () => {
       expect(defaultPolicyConfig.rosterLimit).toBe(8);
       const { document, guild } = recruiting(10_000);
       expect(guild.rosterIds).toHaveLength(4);
-      expect(automaticPolicy(document, deps, { ...defaultPolicyConfig, rosterLimit: 5 })).toHaveLength(1);
-      expect(automaticPolicy(document, deps, { ...defaultPolicyConfig, rosterLimit: 4 })).toEqual([]);
+      expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 5 })).toHaveLength(1);
+      expect(automaticPolicy(document, deps, { ...noBuilding, rosterLimit: 4 })).toEqual([]);
+    });
+  });
+
+  describe('builds (M3-S6)', () => {
+    /** The player's Guild with `wealth`, its infirmary at `grade`, and an empty Board. */
+    function building(wealth: number, grade = 0) {
+      const { document, guild } = scene();
+      document.world.board = [];
+      guild.wealth = wealth;
+      guild.hall.infirmary = grade;
+      return { document, guild };
+    }
+
+    test("the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
+      expect(defaultPolicyConfig.buildWealthMultiple).toBe(3);
+      const at = building(3 * 200);
+      expect(automaticPolicy(at.document, deps).map((action) => action.kind)).toEqual(['recruit']);
+
+      const above = building(3 * 200 + 1);
+      expect(automaticPolicy(above.document, deps)).toEqual([{ kind: 'build', guildId: above.guild.id, facility: 'infirmary' }]);
+
+      const second = building(3 * 500 + 1, 1);
+      expect(automaticPolicy(second.document, deps)).toEqual([{ kind: 'build', guildId: second.guild.id, facility: 'infirmary' }]);
+      expect(automaticPolicy(building(3 * 500, 1).document, deps).map((action) => action.kind)).toEqual(['recruit']);
+    });
+
+    test('nothing past the top grade, and no other facility: then it recruits', () => {
+      const { document } = building(1_000_000, 3);
+      expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);
+    });
+
+    test('reads its own multiple, not the game’s', () => {
+      const { document, guild } = building(1_000);
+      expect(automaticPolicy(document, deps, { ...defaultPolicyConfig, buildWealthMultiple: 5 })).not.toContainEqual(
+        expect.objectContaining({ kind: 'build' }),
+      );
+      const game = { ...deps, config: { ...deps.config, buildWealthMultiple: 100 } };
+      expect(automaticPolicy(document, game)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'infirmary' });
     });
   });
 

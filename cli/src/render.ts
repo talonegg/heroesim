@@ -3,9 +3,9 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `signingFee`, `unattachedHeroes`); every name is a document field or a
-// content row's display name. Where the engine has no selector for something a view needs, the
-// selector goes into the engine, not here.
+// (`ageOf`, `baseStat`, `signingFee`, `signingRefusal`, `rankings`, `unattachedHeroes`); every
+// name is a document field or a content row's display name. Where the engine has no selector for
+// something a view needs, the selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
@@ -15,7 +15,10 @@ import {
   ageOf,
   baseStat,
   dayOf,
+  playerGuild,
+  rankings,
   signingFee,
+  signingRefusal,
   durationDaysOf,
   potentialHint,
   timeOfDay,
@@ -25,10 +28,12 @@ import {
   type ContentSet,
   type EngineDeps,
   type Entry,
+  type FacilityKey,
   type Guild,
   type Hero,
   type Patron,
   type Quest,
+  type RankingMeasure,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -83,6 +88,13 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
 export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
+
+/** A Hall facility as the CLI names one in a sentence (`CONTEXT.md`, Hall). */
+export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
+  infirmary: 'infirmary',
+  trainingYard: 'training yard',
+  quarters: 'quarters',
+});
 
 function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -223,10 +235,29 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
 }
 
-/** `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives. */
+/**
+ * `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives and,
+ * when there is a player's Guild, whether they would sign for it: `yes`, or the Fame they ask of
+ * it (M3-S5, `signingRefusal`), since a Hero of a higher Level will not sign for a Guild whose Fame
+ * is below what their Level asks.
+ */
 export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
-  const fee: HeroColumn = { heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) };
-  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, [fee])];
+  const guild = playerGuild(document.world);
+  const columns: HeroColumn[] = [{ heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) }];
+  if (guild !== undefined) {
+    columns.push({
+      heading: 'Signs',
+      cell: (hero) => {
+        const refusal = signingRefusal(guild, hero, deps.config);
+        return refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`;
+      },
+    });
+  }
+  const note =
+    guild === undefined
+      ? []
+      : ['', `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`];
+  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, columns), ...note];
 }
 
 /**
@@ -284,6 +315,41 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...(skills.length === 0
       ? ['none']
       : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+  ];
+}
+
+// ── Rankings ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `show rankings [--by wealth]` (M3-S5, R10): every Guild in play, the player's among them, in the
+ * order the engine's `rankings` gives, by Fame unless by Wealth. A folded Guild is not ranked.
+ */
+export function renderRankings(document: WorldDocument, deps: EngineDeps, by: RankingMeasure): string[] {
+  const { world } = document;
+  const measure = by === 'fame' ? 'Fame' : 'Wealth';
+  const rows = rankings(world, by).map((ranking) => {
+    const guild = rowIn(world.guilds, ranking.guildId);
+    return [
+      String(ranking.rank),
+      ranking.guildId,
+      guild?.name ?? ranking.guildId,
+      guild === undefined ? '' : controllerOf(guild),
+      String(ranking.value),
+    ];
+  });
+  return [
+    `Rankings by ${measure}, ${renderTime(world.turn, deps.config)}`,
+    '',
+    ...table(
+      [
+        { heading: 'Rank', align: 'right' },
+        { heading: 'Id' },
+        { heading: 'Guild' },
+        { heading: 'Controller' },
+        { heading: measure, align: 'right' },
+      ],
+      rows,
+    ),
   ];
 }
 

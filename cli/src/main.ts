@@ -35,6 +35,7 @@ import {
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
+import { buildImprovement } from './commands/build.js';
 import { recruitHero } from './commands/recruit.js';
 import { dispatchParty } from './commands/dispatch.js';
 import type { CommandOutcome } from './commands/outcome.js';
@@ -46,6 +47,7 @@ import {
   renderHistory,
   renderPatrons,
   renderPool,
+  renderRankings,
   renderRoster,
   renderSummary,
   rowIn,
@@ -121,6 +123,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return recruitHero(command.hero, context);
     case 'dispatch':
       return act(context, (document, deps) => dispatchParty(command, document, deps));
+    case 'build':
+      return act(context, (document, deps) => buildImprovement(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -253,6 +257,8 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderPatrons(document, deps));
     case 'board':
       return say(io, renderBoard(document, deps));
+    case 'rankings':
+      return say(io, renderRankings(document, deps, view.by));
     case 'hero': {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);

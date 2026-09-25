@@ -185,6 +185,60 @@ describe('recruit refuses, never throwing and changing nothing', () => {
   });
 });
 
+describe('recruit and Fame (M3-S5, R10 as amended, pre-M0 review B4)', () => {
+  // Pinned: the default may be tuned (INPUTS 5.6), these tests are written against 10.
+  const gated = testDeps({ fameRequiredPerLevel: 10 });
+
+  /** Recruits `hero` for `guild` under `gated`, asserting the document when it succeeds. */
+  function sign(document: WorldDocument, guild: Guild, hero: Hero) {
+    const result = recruit(document, { guildId: guild.id, heroId: hero.id }, gated);
+    if (result.ok) withValid(result.document, gated);
+    return result;
+  }
+
+  test.each(['player', 'rival'] as const)(
+    "the %s's Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero; raising Fame past the threshold flips the refusal",
+    (whose) => {
+      const { document, guild: player, rival, hero } = scene(`fame-${whose}`);
+      const guild = whose === 'player' ? player : rival;
+      const [, other] = unattachedHeroes(document.world);
+      if (other === undefined) throw new Error('A pool of one');
+      guild.fame = 0;
+      guild.wealth = 100_000;
+      hero.level = 5;
+      const saved = serialise(document);
+
+      const refused = sign(document, guild, hero);
+      expect(refused).toEqual({
+        ok: false,
+        rejection: { action: 'recruit', reason: 'signing-refused', heroId: hero.id, fameRequired: 40, fame: 0, shortfall: 40 },
+      });
+      expect(serialise(document)).toBe(saved);
+
+      expect(other.level).toBe(1);
+      expect(sign(document, guild, other).ok).toBe(true);
+
+      guild.fame = 39;
+      expect(sign(document, guild, hero)).toMatchObject({ ok: false, rejection: { reason: 'signing-refused', shortfall: 1 } });
+      guild.fame = 40;
+      const accepted = sign(document, guild, hero);
+      if (!accepted.ok) throw new Error(`Refused: ${accepted.rejection.reason}`);
+      expect(accepted.document.world.heroes[hero.id]?.guildId).toBe(guild.id);
+    },
+  );
+
+  test('the Hero refuses before the fee is asked: signing-refused over insufficient-wealth, guild-folded over both', () => {
+    const { document, rival, hero } = scene('fame-order');
+    hero.level = 5;
+    rival.fame = 0;
+    rival.wealth = 0;
+
+    expect(sign(document, rival, hero)).toMatchObject({ ok: false, rejection: { reason: 'signing-refused' } });
+    rival.foldedOnTurn = 0;
+    expect(sign(document, rival, hero)).toMatchObject({ ok: false, rejection: { reason: 'guild-folded' } });
+  });
+});
+
 describe('recruit throws on a programming error', () => {
   test('a Guild id the world does not hold, changing nothing', () => {
     const { document, hero } = scene();
