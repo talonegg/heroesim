@@ -15,14 +15,18 @@
 
 import { existsSync } from 'node:fs';
 import {
+  advance,
   createWorld,
   defaultConfig,
   entriesBetween,
   entriesFor,
+  fastForward,
   parseId,
   playerGuild,
+  rebase,
   type ContentSet,
   type EngineDeps,
+  type EngineEvent,
   type EntityId,
   type Guild,
   type Hero,
@@ -31,7 +35,12 @@ import {
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
+import { recruitHero } from './commands/recruit.js';
+import { dispatchParty } from './commands/dispatch.js';
+import type { CommandOutcome } from './commands/outcome.js';
+import { narrateStop, renderAdvance } from './narrate.js';
 import {
+  renderBoard,
   renderGuilds,
   renderHero,
   renderHistory,
@@ -64,9 +73,9 @@ export interface CliIo {
  */
 export const exitCodes = { ok: 0, refused: 1, usage: 2 } as const;
 
-type Exit = (typeof exitCodes)[keyof typeof exitCodes];
+export type Exit = (typeof exitCodes)[keyof typeof exitCodes];
 
-interface Context {
+export interface Context {
   io: CliIo;
   content: ContentSet;
   /** The save the command reads and writes. */
@@ -106,6 +115,14 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return newWorld(command, context);
     case 'show':
       return show(command.view, context);
+    case 'advance':
+      return 'until' in command ? fastForwardTurns(command, context) : advanceTurns(command.turns, context);
+    case 'recruit':
+      return recruitHero(command.hero, context);
+    case 'dispatch':
+      return act(context, (document, deps) => dispatchParty(command, document, deps));
+    case 'rebase':
+      return rebaseRules(context);
     case 'save':
       return saveAs(command.as, context);
     case 'load':
@@ -115,12 +132,12 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
 
 // ── Output ───────────────────────────────────────────────────────────────────────────────────
 
-function say(io: CliIo, lines: readonly string[]): Exit {
+export function say(io: CliIo, lines: readonly string[]): Exit {
   io.stdout(`${lines.join('\n')}\n`);
   return exitCodes.ok;
 }
 
-function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
+export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
   io.stderr(`${problem}\n`);
   return code;
 }
@@ -130,7 +147,7 @@ function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exi
  * printing why it does not load. Content keys the content does not define are warned about and
  * the save still loads (data-model rule 5).
  */
-function open(io: CliIo, path: string, content: ContentSet): { document: WorldDocument; deps: EngineDeps } | undefined {
+export function open(io: CliIo, path: string, content: ContentSet): { document: WorldDocument; deps: EngineDeps } | undefined {
   const read = readSave(path, content);
   if (!read.ok) {
     const { reason } = read;
@@ -144,6 +161,23 @@ function open(io: CliIo, path: string, content: ContentSet): { document: WorldDo
   }
   for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
   return { document: read.document, deps: read.deps };
+}
+
+/**
+ * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
+ * `change` under the save's own deps, and on success writes the new document and prints its lines;
+ * on a refusal prints the problem and writes nothing.
+ */
+function act(
+  { io, content, path }: Context,
+  change: (document: WorldDocument, deps: EngineDeps) => CommandOutcome,
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const outcome = change(opened.document, opened.deps);
+  if (!outcome.ok) return refuse(io, outcome.problem);
+  writeSave(path, outcome.document);
+  return say(io, outcome.lines);
 }
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────
@@ -217,6 +251,8 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderPool(document, deps));
     case 'patrons':
       return say(io, renderPatrons(document, deps));
+    case 'board':
+      return say(io, renderBoard(document, deps));
     case 'hero': {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);
@@ -236,6 +272,83 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderHistory(`History of ${who}: ${entryCount(entries.length)}, newest first`, entries));
     }
   }
+}
+
+// ── advance and rebase ───────────────────────────────────────────────────────────────────────
+
+/** The refusal of a Turn after the game's end, or `undefined` while it goes on. */
+function over(io: CliIo, document: WorldDocument): Exit | undefined {
+  const { ended } = document.world;
+  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+}
+
+/**
+ * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping
+ * early if the game ends, writes the save and prints what happened. A game that has already ended
+ * is refused and nothing is written.
+ */
+function advanceTurns(turns: number, { io, content, path }: Context): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const { deps } = opened;
+  let { document } = opened;
+  const refused = over(io, document);
+  if (refused !== undefined) return refused;
+
+  const events: EngineEvent[] = [];
+  let played = 0;
+  while (played < turns) {
+    const result = advance(document, deps);
+    document = result.document;
+    events.push(...result.events);
+    played += 1;
+    if (result.stoppedBecause?.kind === 'ended') break;
+  }
+  writeSave(path, document);
+  return say(io, renderAdvance(played, events, document, deps));
+}
+
+/**
+ * `advance --until <stops> [--max n]`: fast forward for the player's Guild under the save's rules
+ * (M2-S11, DL-33), at most `max` Turns or, unless given, one year of them (`turnsPerYear`); writes
+ * the save and prints why it stopped and what happened. A game already over is refused and nothing
+ * is written.
+ */
+function fastForwardTurns(
+  command: Extract<Command, { name: 'advance'; until: unknown }>,
+  { io, content, path }: Context,
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const { document, deps } = opened;
+  const refused = over(io, document);
+  if (refused !== undefined) return refused;
+  const guild = playerGuild(document.world);
+  if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
+
+  const maxTurns = command.max ?? deps.config.turnsPerYear;
+  const result = fastForward(document, { guildId: guild.id, until: command.until, maxTurns }, deps);
+  writeSave(path, result.document);
+  const played = result.document.world.turn - document.world.turn;
+  const stop = narrateStop(result.stoppedBecause, result.document, maxTurns);
+  return say(io, renderAdvance(played, result.events, result.document, deps, stop));
+}
+
+/**
+ * `rebase`: the save adopts this release's `defaultConfig`. Not the play deps `open` gives, whose
+ * config is the save's own filled forward and carries the save's `configVersion`: under those
+ * every save would already be current. Refused, writing nothing, when it is.
+ */
+function rebaseRules({ io, content, path }: Context): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const was = opened.document.meta.config.configVersion;
+  const result = rebase(opened.document, { config: defaultConfig, content });
+  if (!result.ok) {
+    return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
+  }
+  writeSave(path, result.document);
+  return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.config.configVersion}.`]);
 }
 
 // ── save and load ────────────────────────────────────────────────────────────────────────────

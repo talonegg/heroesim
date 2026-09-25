@@ -827,6 +827,1100 @@ entry's correction; DL-19 itself is not edited, and neither is DL-20 (item 1 nam
 `validate(document, content)`, item 12 `withValid(document, content, …)`), per this log's
 append-only rule — both are read with this correction instead.
 
+## DL-24 — `advance`, the Turn pipeline, `emit`, actions and `rebase` (M2-S1, M2-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S1 and M2-S2's
+implementer)
+
+**Context.** M2-S1 and M2-S2 name `advance`, `rebase`, the `Action` union, the time selectors,
+the pipeline and its `emit`, and lay the ground every later M2 story builds on. They leave open
+which Turn's phases `advance` runs and how Days and Years are counted; where the phases live
+before their stories fill them; what `emit` labels and when it refuses; the shapes of
+`StopReason`, a rejection and `ActionResult`; how `rebase` treats `meta` and a config field the
+new rules lack; and the CLI's `advance` and `rebase`.
+
+**Decision.**
+
+1. **Time.** Turn 0, where `createWorld` leaves a world, is the morning of Day 0 in Year 0: Day,
+   time of day and Year count from 0, as the Turn does (`dayOf`, `timeOfDay`, `yearOf` and
+   `nightOf(day)` in `engine/src/time.ts`, each throwing on a value that is not a whole number
+   from 0). `advance` increments the Turn and then runs the phases of the *new* Turn's time of
+   day, so the first `advance` plays the afternoon of Day 0 and Turn 0's morning phases never
+   run. Three Turns a Day is `turnsPerDay`, the length of `timesOfDay`: the calendar, not a
+   balance number, so not a `GameConfig` field.
+2. **The pipeline.** `phases` in `engine/src/pipeline.ts` is a literal list of `{ name,
+   timeOfDay, run }`, and each `run` is in a file of its own under `engine/src/phases/`, declared
+   now as a stub that changes nothing and returns no events: morning `boardRefresh` (M2-S3),
+   `marketRefresh` (M5-S4); afternoon `rivalControllers` (M2-S9), `questsAdvance` (M4); night
+   `questsConclude` (M2-S5), `heroState` (M2-S6), `guildState` (M2-S7), `poolRefresh` (M2-S8),
+   `endings` (M2-S10). `marketRefresh` is declared before M5 because approach §2 lists it; the
+   module hook positions are M8's. `runTurn` returns the phases' events in the order they ran,
+   and `advance` appends them once the whole Turn has run, so a phase reads the World State,
+   never the History, for what happened earlier in the same Turn.
+3. **`emit`** (`engine/src/emit.ts`; `ctx.emit` in a phase, `eventEmitter(world)` in an action)
+   completes a draft `{ type, participants, payload }`: `turn` is `world.turn`; the participants
+   keep their order, each once, followed by the Guild of each Hero among them who has one and
+   whose Guild is not listed; `labels` hold the `name` of each participant whose row has one
+   (Guild, Guildmaster, Hero, Patron), while a row with no name of its own (Quest, Party, offer,
+   Item, stack) gets no label and a front end shows its id, until content gives it a name;
+   `milestone` is `milestoneTypes[type]`, a record keyed by every `EngineEventType`, so the
+   compiler refuses an event type added without its flag. `emit` throws on a participant that is
+   not an id or whose row is not in the world: a rule emits before it removes a row. It makes the
+   event; appending it is the caller's.
+4. **Stops.** `StopReason` is `{ kind }` over `party-returned`, `ended`, `decision-needed`,
+   `max-turns` and `pool-refreshed`, with no fields until M2-S11 needs some. `advance` on a world
+   whose `ended` is set returns the same document object, no events and `{ kind: 'ended' }`; it
+   reports `ended` too for the Turn whose phases set `world.ended`, and nothing else yet.
+5. **Actions.** `Action` (`engine/src/actions/action.ts`) is a union on `kind`, only `{ kind:
+   'rebase' }` so far, and `applyAction(document, action, deps)` switches over it exhaustively.
+   Each action's file defines its action and its rejection; a story adding an action adds both to
+   the unions and a case to the switch. A rejection is `{ action, reason, …what the reason names
+   }`, data and no prose (ADR-0003), naming its action so two actions' reasons never collide;
+   `ActionResult<R>` is `{ ok: true, document, events } | { ok: false, rejection: R }`.
+6. **`rebase(document, deps)`** refuses `already-current`, carrying the version, when
+   `meta.config.configVersion` equals `deps.config.configVersion`, and only then: a lower version
+   in `deps` is adopted as a higher one is. It returns a new `meta` whose `config` is a copy of
+   `deps.config`, whole (a field the save had and `deps.config` lacks is dropped: `rebase`
+   rewrites, it does not merge), and never writes to the old `meta`, which the documents of
+   earlier Turns share. `world` does not change and is shared, like `history`.
+   `world.rules-adopted` is a Milestone at `world.turn` naming no participant, the rules being the
+   whole world's, with payload `{ oldConfigVersion, newConfigVersion }`.
+7. **The CLI.** `advance [--turns n]`, `n` a whole number from 1 and 1 by default, plays under
+   the play deps `openSave` builds, stops early when the game ends, writes the save and prints the
+   Turns played, where time stands and the events; on a game already ended it refuses (exit 1)
+   and writes nothing. `rebase` passes `{ config: defaultConfig, content }`, never the play deps:
+   their config is the save's own, carrying its `configVersion`, under which every save would be
+   `already-current`. `already-current` exits 1 and writes nothing. `show`'s first line and
+   `advance`'s output print `Turn t (Day d, <time of day>, Year y)` from the engine's selectors,
+   the Year under the save's own `turnsPerYear`.
+
+**Consequences.** The Board is empty at Turn 0 and first refills on Turn 3, the morning of Day 1,
+unless M2-S3 has `createWorld` draw one: that is M2-S3's call. Filling a phase changes only its
+file; adding one (M3's `training` and `ageing`, M6's `transfers`) is a line in `phases` and in
+the literal `pipeline.test.ts` holds it to. The generators still set `milestone` by hand; a test
+holds what `createWorld` emits to `milestoneTypes`. An action that changes `world` (M2-S4's
+`dispatch`, M2-S8's `recruit`) copies it first, as `advance` does, since documents share it.
+M2-S11 gives a `StopReason` fields if it needs them, and makes `advance` detect the other
+reasons; until then the CLI's `advance` stops early only on `ended`. No `GameConfig` field was
+added and no default changed, so `configVersion` stays 1.
+
+## DL-25 — Quest templates, the Board and its first draw, streams for old saves, and dispatch (M2-S3, M2-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S3 and M2-S4's
+implementer)
+
+**Context.** M2-S3 names the template's fields, the Quest Generator, the morning's Board refresh
+and three config fields; M2-S4 names `dispatch` and its rejections. They leave open which of the
+Quest's ranges are content and which config; how difficulty, duration and reward are drawn; when
+an offer expires; how Patrons are weighted, given that R22 weights them by Regard for *the*
+Guild while every Guild draws from one Board; whether `createWorld` draws the first Board (DL-24's
+consequences: otherwise a new game opens on an empty Board until Turn 3); how a save made before
+the `board` stream plays on (the text requires M1 saves to keep working); the events' payloads;
+the order and shape of dispatch's rejections and what it throws on; and the CLI's `show board`
+and `dispatch`.
+
+**Decision.**
+
+1. **Twelve templates**, `content/quest-templates.json`, content table `questTemplates` (DL-20),
+   each naming one Sphere, so two to a Sphere: Crown `clear-the-barrow`, `hold-the-border-fort`;
+   Church `escort-the-tithe`, `lay-the-restless-dead`; Merchants `guard-the-caravan`,
+   `recover-the-strongbox`; Villages `the-beast-of-the-fells`, `the-sickness-at-the-mill`;
+   Scholars `survey-the-old-workings`, `break-the-sealed-vault`; Underworld `a-quiet-word`,
+   `the-counting-house-job`. Three require a Class (Warrior, Healer, Mage) and one a Skill
+   (Lockpicking), so most of the Board is open to any Party. Tags come from the v1 proof of
+   concept's controlled vocabulary (`escort`, `wilds`, `town`, `talk`, `fight`, `delve`, `dark`,
+   `water`, `guard`, `recover`, `hunt`); no rule reads them yet. `parseContent` reads the file as
+   the eighth it knows by name (DL-17 item 4). `contentVersion`, and so a new world's
+   `meta.content.version`, is 2.
+2. **Content validation** refuses a template whose demands are empty, name anything but a Hero
+   Stat, repeat a Stat, weigh one at 0 or less, or sum further than `demandSumTolerance`, 0.001,
+   from 1 (written by hand, like growth weights, DL-17 item 5); whose `sphereKeys`, `skillKeys`
+   or `requires` name a key content lacks; whose difficulty, Day or Party-size range is upside
+   down or starts below 1; whose `rewardPerDifficulty` or `fameEffect` is negative; whose tag is
+   not kebab-case or is listed twice; whose `requires` has any field but `classKey` and
+   `skillKey`; or whose `lootTableKey` is not null. It also refuses a Sphere that no template
+   names, since its Patrons would offer nothing.
+3. **Which ranges are content.** INPUTS 4.2 says durations and rewards are per template, so they
+   are content: a template carries its Day range and a `rewardPerDifficulty`, and content tests,
+   not rules, hold the shipped twelve to 2–10 Days, a reward of 40–400 Wealth and a Fame effect of
+   1–5. The config holds the difficulty scale, `questDifficultyMin/Max` (INPUTS 4.3): a template's
+   difficulty range is clamped into it before the draw, so a template wholly outside the scale
+   draws its nearer bound. `fameEffect` is copied as a magnitude; M2-S5 gives it its sign by band.
+4. **The Quest Generator**, `generateQuest(world, patron, deps, { stream = 'board', templateKey?
+   })` in `engine/src/generators/quests.ts`, draws in this order: the template, uniformly among
+   those whose `sphereKeys` hold the Patron's Sphere, in key order (no draw when one is given);
+   the difficulty, `int` over the clamped range; the Days, `int` over the template's range. It
+   stores `durationTurns = Days × 3`, `reward = Math.round(difficulty × rewardPerDifficulty)`,
+   `requirements` as the template's Party sizes plus its `requires` keys where present, and
+   copies of the demands, tags and Skill keys, sharing nothing with content. It adds the row and
+   appends its id to the Board, since an offered Quest is on the Board by definition, and returns
+   `quest.offered`. It throws on a programming error: a Patron not in the world, a Sphere no
+   template serves, a template that is not the Patron's, a missing stream.
+5. **Offer and expiry.** A Quest offered on Day d has `expiresOnTurn = nightOf(d + questOfferDays
+   − 1)`: it is on offer through that night, and the next morning's refresh expires it
+   (`expiresOnTurn < turn`), which is how DL-20 item 7 reads an offer's expiry. With the defaults
+   a Quest drawn on the morning of Day 0 is on offer on Days 0, 1 and 2 and expires on the
+   morning of Day 3, `questOfferDays` later. Only offered Quests on the Board expire; a taken
+   Quest's `expiresOnTurn` is never read again.
+6. **The refresh**, `boardRefresh` in `engine/src/phases/board-refresh.ts`: first each expired
+   Quest emits `quest.expired` and its row is removed (the History keeps its record; the
+   validator's rule-8 check is about Heroes, DL-20 item 4), the Board keeping the order of what
+   stays; then Quests are drawn until the Board holds `boardSize`, and a Board already that full
+   (after `boardSize` is lowered) draws nothing and loses nothing. Each Quest's Patron is one draw,
+   uniform among the Patrons, in id order, whose Sphere some template serves, then the
+   generator's draws, all from `board`. **R22 is simplified**: Patrons are weighted uniformly, not
+   by Regard, until M4 gives Regard its rules and M4-S5 weights by the mean across Guilds. The
+   same template may be on the Board twice.
+7. **The first Board.** `createWorld` runs `boardRefresh` last, at Turn 0, so a new game opens on
+   a full Board; Turn 0's morning phases never run in `advance` (DL-24 item 1). Every draw before
+   it is unchanged, since it draws from `board` alone, so a seed's Guilds, Heroes and Patrons are
+   what they were. The document does gain six Quests, their `quest.offered` entries and a `board`
+   stream, so the M1 creation sweep's fingerprint (DL-13's harness report) is no longer what a run
+   prints. That fingerprint measured M1; it is not a contract, and DL-13's result, two creations
+   byte-identical, stands.
+8. **Streams for old saves.** `ensureStreams(world, seed)` in `engine/src/rng.ts` gives a world
+   each core stream it lacks, seeded as `createStreams(seed, [name])` seeds a new world's, and
+   moves none it has; `advance` calls it on its copy with `meta.seed` before the pipeline. An M1
+   save (no `board` stream, an empty Board, `meta.content.version` 1) loads unchanged, and on its
+   next morning fills its Board exactly as a world created now with an empty first Board would.
+   No migration is needed; DL-12's consequence, which gave an old save a new stream "in its
+   migration step", is read with this. Every later stream (M2-S5 `quests`, M2-S8 `pool`, M2-S9
+   `rivals`) reaches old saves the same way by being appended to `streamNames`.
+9. **Events.** `quest.offered` and `quest.expired`, neither a Milestone, name the Quest and its
+   Patron, with payload `{ questId, patronId, templateKey }`: the template's key lets a front end
+   name a Quest whose row is gone, since a Quest has no name of its own and `emit` labels only
+   named rows (DL-24 item 3).
+10. **Config.** `boardSize` 6 and `questOfferDays` 3 (INPUTS 4.1); `questDifficultyMin/Max` 10/100
+    (INPUTS 4.3). Fields were added and no default changed, so `configVersion` stays 1.
+11. **The CLI's `show board`** lists the Quests in the Board's order, each with its template's
+    name, its Patron, difficulty, Days (`durationDaysOf`, a selector added to `time.ts`), reward,
+    Fame, Party size, required Class or Skill, and the last Day it is on offer; then each Quest's
+    weighted demands and the Skills that help.
+12. **Dispatch's checks, in order.** `dispatch(document, { guildId, questId, heroIds }, deps)` in
+    `engine/src/actions/dispatch.ts` rejects on the first check that fails: the Quest is offered
+    and on the Board (`quest-not-offered`, naming it; taken, expired, resolved and never offered
+    read alike); then each Hero, in the order given, is the Guild's (`hero-not-on-roster`, naming
+    the Hero and the Guild: another Guild's, Unattached, or no row at all) and free to go
+    (`hero-unavailable`, whose `because` is `dead`, `retired`, `injured` or `in-party`); then the
+    Party's size is within the Quest's bounds (`party-size`, naming `size`, `partySizeMin` and
+    `partySizeMax`); then some Hero in the Party is of the required Class and some holds the
+    required Skill, at any rating (`requirement-unmet`, whose `unmet` names whichever of
+    `classKey` and `skillKey` the Party lacks). Death and Retirement are checked before the Roster,
+    since a dead or retired Hero has left it and keeps `guildId` (DL-20 item 3), so they read as
+    unavailable rather than as strangers. Retirement is not in the epic's list; it is Death's case.
+    M4-S5 gives `requirement-unmet` its own reason field on top of this shape.
+13. **Programming errors throw** rather than reject: a Guild not in the world, and a Hero named
+    twice. The CLI refuses a repeated Hero, and a word without an id's form, as a bad command line
+    before it calls.
+14. **On success** `dispatch` copies `world` (DL-24's consequences), adds a `parties` row
+    departing this Turn with `returnsOnTurn = nightOf(dayOf(turn) + durationDaysOf(quest))`, a
+    night whichever Turn of the Day it left in (pre-M0 review C4); sets the Quest `taken`, lists
+    the Party in `partyIds` and takes it off the Board; sets each Hero's `partyId`; and appends and
+    returns `quest.taken`, not a Milestone, naming the Quest, the Party, each Hero, the Guild and
+    the Patron, with payload `{ questId, partyId, guildId, heroIds, returnsOnTurn }`. `meta` and
+    `history` are shared, as `advance` shares them. `deps` is taken, as by every entry point, and
+    read by no rule of dispatch until M4-S5's Negotiation scales the reward. `dispatch` joins the
+    `Action` union and `applyAction`. The afternoon's `questsAdvance` stays a no-op.
+15. **The CLI's `dispatch --quest <id> --heroes <id,id>`** sends Heroes of the player's Guild and
+    prints the Party, the Quest's template name, its length in Days and the night it returns
+    (Day and Turn), then after every dispatch: "Rivals take Quests from the Board each afternoon: a
+    Quest left on it may be gone by then." A rejection is put into words, exits 1 and writes
+    nothing. The command's logic is `cli/src/commands/dispatch.ts`, which returns an outcome;
+    `main.ts` registers it through a new `act`, which opens the save, applies a command's change
+    under the save's deps, and writes and prints, or refuses, for M2-S8's `recruit` to share.
+16. **M2-S4's last box is half proved.** A test dispatches in each of the three Turns of three
+    Days and finds `returnsOnTurn` on the night of Day d + k each time. That the Heroes are
+    dispatchable again on the morning of Day d + k + 1 needs M2-S5's `questsConclude` to bring the
+    Party back, so the box stays unticked until then. The test that a dispatched Hero cannot go
+    again checks every Turn before `returnsOnTurn`; that night itself is M2-S5's.
+
+**Consequences.** A template changed in content reaches only Quests drawn after the change
+(data-model §3.2). The shipped templates' ranges are INPUTS values held in content, so tuning
+them is a content change with a `contentVersion` bump rather than a `configVersion` one; only the
+difficulty scale, the Board's size and the offer's length are config. M2-S5 reads `fameEffect` as
+a magnitude and `durationDaysOf` for a Quest's Days, and frees the Party's Heroes by clearing
+their `partyId` when it removes the Party; a taken Quest's `expiresOnTurn` is never read again, so
+it cannot expire under a Party. M2-S9's Rival controller and M2-S12's policy produce `dispatch`
+actions and meet the same rejections. M4-S5 replaces the uniform Patron draw with Regard weights,
+changing what every seed's Board draws from Day 1.
+
+## DL-26 — Which Day is an Upkeep Day, and what the Guild State Engine leaves silent (M2-S7)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S7's implementer)
+
+**Context.** M2-the-loop.md says Upkeep falls "on every `upkeepEveryDays`th Day" without saying
+which Days those are numerically, and describes the Bankruptcy floor and the Fame floor without
+saying whether they act only on an Upkeep Day or every night.
+
+**Decision.**
+
+1. **The Upkeep Day.** `dayOf(turn) % config.upkeepEveryDays === config.upkeepEveryDays - 1`:
+   under `upkeepEveryDays` 10, Days 9, 19, 29, … Days count from 0 (DL-24), so the "10th Day" is
+   Day index 9, the same ordinal reading DL-24 already gives Turn and Day; Upkeep then falls once
+   every ten Days have completed, not after eleven. `upkeepEveryDays` 1 charges Upkeep every
+   night, which the formula gives without a special case.
+2. **The Bankruptcy floor and the Fame floor act every night, not only on an Upkeep Day.**
+   Wealth can cross `bankruptcyFloor` on a night that is not an Upkeep Day (a Quest reward, a
+   future purchase), and Fame moves on Quest outcomes any night, so `guildState` checks
+   `belowFloorSince` and clamps Fame every night it runs, for every non-folded Guild, whether or
+   not Upkeep is deducted that night.
+3. **No event for the floor or the Fame clamp.** The story names one event, `guild.upkeep-paid`,
+   for the Upkeep deduction; `belowFloorSince` moving and Fame being clamped stay silent state
+   changes, like Morale's nightly drift (data-model rule 10), not Milestones. `belowFloorSince`
+   itself is the record a front end or a later story (M2-S10's Bankruptcy ending) reads; nothing
+   is lost by not also logging its change as an entry.
+4. **A folded Guild is skipped whole**, before Upkeep, the floor check or the Fame clamp, per
+   the M2 shared context's rule that every per-Guild loop skips a folded Guild now, ahead of
+   M2-S10 setting `foldedOnTurn`.
+
+**Consequences.** `engine/src/phases/guild-state.ts` and its tests fix Day 9 (not Day 10) as the
+first Upkeep Day under the default `upkeepEveryDays`. `bankruptcyGraceDays` is defined as a
+`GameConfig` field here but read by no rule until M2-S10's ending.
+
+## DL-27 — Recruitment, the signing fee, and the Unattached pool's lifecycle (M2-S8)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S8's implementer)
+
+**Context.** M2-S8 names `recruit`, the `signingFee(hero, config)` selector (INPUTS 4.7), the
+night phase `poolRefresh`, rule 8's removal of a Hero who leaves the pool, and four config
+fields. It leaves open: the selector's inputs and rounding, and whether it takes the buying Guild
+before M4-S5 scales the fee by that Guild's Negotiation; what `recruit` does with a folded or
+unknown Guild, or a Hero id with no row; how the pool knows when a Hero entered it, since a Hero
+released into it later (M2-S10's folds, M6) did not enter at `enteredTurn`; what becomes of a
+Hero who leaves while an entry keeps their row, who would otherwise still read as Unattached and
+leave again every night; how a phase reads the History; `unattachedStayDays`' default; the
+events' payloads; and the CLI.
+
+**Decision.**
+
+1. **Two Hero fields, and the first schema step.** `unattachedSince: Turn | null` is the Turn the
+   Hero last entered the Unattached pool (generated into it; from M2-S10, released into it), null
+   on a Roster and once they have left the pool. `leftPoolOnTurn: Turn | null` is set when a Hero
+   leaves the pool unrecruited and a History entry keeps their row (rule 8): such a Hero is on no
+   Roster and in no pool, out of play as a dead or retired Hero is. The pool is the Heroes whose
+   `unattachedSince` is set (`unattachedHeroes`). Stored, not read from the History, because a
+   phase reads the World State and not the History for what happened earlier in its Turn (DL-24
+   item 2): a Hero released by an earlier night phase would read as having entered at an older
+   entry and leave that same night. And every pool reader but this phase, M2-S9's
+   `rivalChoices(world, guild, deps)` among them, has the world and not the History.
+   `schemaVersion` becomes **2**, and `migrations[1]` adds both fields to a version-1 save:
+   `unattachedSince` is `enteredTurn` for a living, unretired Hero with no Guild (in a version-1
+   world only generation puts a Hero in the pool) and null for every other Hero; `leftPoolOnTurn`
+   is null. `configVersion` stays 1: `schemaVersion` is the format the engine writes, read by
+   `createWorld` and by a load against `defaultConfig`, never by a rule, so no game plays
+   differently, and a version bump would tell every save that new rules await a `rebase` that
+   changes nothing a rule reads. The validator's new check `unattached-mismatch` refuses a Hero
+   on a Roster's Guild with either field set, and a Hero with no Guild who is both in the pool and
+   gone (left, dead or retired), or neither.
+2. **When a Hero leaves.** On the night of Day `dayOf(unattachedSince) + unattachedStayDays`,
+   in the pool refresh, and not before: a Hero who enters on Day d, almost always at night since
+   the refill is at night (INPUTS 3.7), is in the pool for the next `unattachedStayDays` Days.
+   `unattachedStayDays` is **10**, chosen: as long as the longest Quest (INPUTS 4.2, 2–10 Days),
+   so a Party that sets out the Day a Hero enters is home before the Hero goes, and one upkeep
+   cycle (INPUTS 4.6); with a pool of 8 about one Hero leaves a night. Heroes leave in id order,
+   each with `hero.left-pool`, payload `{ heroId }`, not a Milestone, emitted before the row
+   changes so its label is the Hero's name.
+3. **Rule 8 reads the History.** `PhaseContext` gains `history`, the History as it stood before
+   the Turn, for reading: `advance` passes the document's, and `append` stays its one writer
+   (ADR-0008). `phaseContext`'s new third parameter defaults to an empty History, so a test of a
+   phase that reads none (M2-S3's, M2-S4's, M2-S7's) builds its context as before. A leaving Hero's row is removed when every position in `byEntity[heroId]` is an
+   entry whose type is in `passiveEntryTypes`, the validator's list (DL-20 item 4), imported
+   rather than repeated; otherwise the row stays with `unattachedSince` null and `leftPoolOnTurn`
+   set. The Hero's own `hero.left-pool` is passive, so it never keeps a row. An entry naming a
+   pool Hero made by a night phase before `poolRefresh` in the same Turn is not yet in the
+   History and would be missed; no M2 phase makes one, and the validator after an `advance` in
+   the tests refuses the removed row if a later one does.
+4. **The refill** generates `unattachedPoolSize` less the pool's size, after the departures, so
+   a Hero who leaves is replaced the same night. Each is drawn by the Heroes Generator from the
+   `pool` stream (D7; `pool` is appended to `streamNames`), Class uniform, and emits its own
+   `hero.generated`. `pool` is the only stream the phase moves.
+5. **`signingFee(hero, deps)`** (`selectors.ts`) is `floor(signingFeeBase + signingFeePerLevel ×
+   level + Σ Stats ÷ signingFeeStatDivisor)`, defaults **50, 25, 4** (INPUTS 4.7). The sum is over
+   content's Hero Stats read through `baseStat`, so a Stat content no longer defines is ignored
+   and one the row lacks reads as the content's default (rule 5); that needs content, so the
+   selector takes `deps` where the epic wrote `config`. The fee is a whole number rounded down
+   once, at the end: "÷" read as whole-number division, and a factor M4-S5 multiplies in is then
+   rounded with the rest, not before it. It takes no buying Guild yet: nothing of the buyer's
+   moves the fee in M2, and M4-S5 needs the buyer's Guildmaster, so the shape of that argument (a
+   Guild, a Guildmaster, or the world) is M4-S5's to choose. Every caller (`recruit`, the CLI,
+   M2-S9's `steady`, M2-S10's roster-wiped check, M2-S12's policy) has the Guild to hand, and the
+   compiler finds each one when the signature changes. It stays the one place a fee is computed.
+6. **`recruit(document, { guildId, heroId }, deps)`** checks, in order: a Guild id not in the
+   world throws, a programming error, since Guild rows are never removed and no front end or
+   controller can offer one; a folded Guild (`foldedOnTurn` set) is refused `guild-folded`,
+   carrying the `guildId`, a rule rather than a programming error because the Guild row is there
+   but the Guild has left play (M2-S10) and must never gain a Roster; a Hero not in the pool is
+   refused `hero-not-unattached`, carrying the `heroId`, whether on a Roster, gone from the pool,
+   or with no row at all, since a Hero who left has a valid id the History still shows; Wealth
+   below the fee is refused `insufficient-wealth`, carrying `fee` and `wealth` (Wealth equal to
+   the fee recruits, leaving 0). On success it copies `world` (DL-24's consequence), deducts
+   exactly the fee, sets `guildId`, clears `unattachedSince`, appends the Hero to the Roster and
+   emits `hero.recruited`, a Milestone naming the Hero and the Guild, payload `{ heroId,
+   guildId, fee }`. `recruit` joins the `Action` union as `{ kind: 'recruit', guildId, heroId }`.
+7. **The CLI.** `recruit --hero <id>`, in its own module `cli/src/commands/recruit.ts`, recruits
+   for the player's Guild, writes the save, and prints the fee and the new Roster size. A word
+   that is not a Hero id is a bad command line (exit 2); a Hero the save lacks, one not in the
+   pool, or a fee above the Guild's Wealth is refused (exit 1) and nothing is written. `show pool`
+   gains a Fee column read through `signingFee`; `show hero` shows when a kept Hero left the pool.
+
+**Consequences.** M2-S10's fold releases a Hero by setting `guildId` null and `unattachedSince`
+to the Turn; M6's release does the same. A rule that retires or kills an Unattached Hero clears
+`unattachedSince`, or the validator refuses the document. A Hero kept after leaving the pool
+stays for good (rule 8), so `world.heroes` grows by the released Heroes nobody re-signs and by no
+one else; with no recruitment it holds exactly the Rosters and `unattachedPoolSize` pool Heroes
+from the first refill on. A version-1 save loads through the migration and plays once M2-S3's
+`ensureStreams` gives it the `pool` stream; on this story's branch alone its first night throws
+for the missing stream (DL-19 item 2). A test of a phase that reads the History passes it to
+`phaseContext`; left out, the phase sees an empty one. The bounded-pool test drives all twenty
+years, 21,600 advances with only this phase live, in 4.5 to 6 s here (about 0.2 ms a Turn), so it
+runs in `npm test` at full length with a 60 s timeout. Fields were added and `schemaVersion` changed, no rule's default, so `configVersion` stays 1.
+
+## DL-28 — Endings: the checks, what a fold does, the replacement Rival, and Rankings pulled forward (M2-S10)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S10's implementer)
+
+**Context.** M2-S10 names the night phase `endings`, three endings, the player's ending setting
+`world.ended` and a Rival's folding it (pre-M0 review D6), `rivalReplacementDays` and
+`guildmasterRetirementAge`, and four events. It leaves open: when each ending falls precisely,
+which wins when a Guild meets two, whether a Rival Guildmaster's Retirement folds the Rival, what
+becomes of a folded Guild's Parties in flight, which stream the replacement draws from and how the
+phase knows a folded Rival has been replaced, the names the replacement takes (DL-19's
+consequences ask for "names or a rule for reuse"), and what the validator says of a folded Guild.
+Its acceptance asks that a folded Rival be absent from `rankings()`, which arrives in M3-S5, and
+the epic's risk table asks for a test that finds every read of `controller.kind`.
+
+**Decision.**
+
+1. **The checks.** Night, last, after the Guild State Engine and the pool refresh, over every
+   Guild not folded, the player's and each Rival's alike, in Guild id order (ADR-0002). A Guild
+   has reached the first of these that holds:
+   - **Retirement**: its Guildmaster's `ageOf` is at least `guildmasterRetirementAge`, **65**
+     (INPUTS 4.10). `ageOf` already reads a Guildmaster (`Aged`), so no new selector: the age
+     rises on the Turn a year completes and the ending falls on the first night after.
+   - **Bankruptcy**: `belowFloorSince` is set and `dayOf(turn) ≥ dayOf(belowFloorSince) +
+     bankruptcyGraceDays`: on the night `bankruptcyGraceDays` Days after the night Wealth first
+     fell below the floor, the ordinal reading DL-26 and DL-27 give Days. The Guild State Engine
+     runs first the same night, so a Guild back at the floor tonight has `belowFloorSince` cleared
+     and does not end. "At least", not "equal", so that a grace shortened by `rebase` ends the
+     Guild at once rather than never.
+   - **Roster wiped**: an empty Roster and Wealth below the cheapest `signingFee` in the pool as
+     tonight's refresh left it. With nobody in the pool no Hero can be signed at any price, so an
+     empty Roster is then wiped whatever the Wealth (the least of no fees is infinite).
+
+   One ending per Guild, the first in the story's order: Retirement, Bankruptcy, Roster wiped.
+   A Rival Guildmaster's Retirement folds that Rival: the same rules for every Guild.
+2. **The accepted exception, in one place.** `end` in `phases/endings.ts` is the phase's one read
+   of `controller.kind` (`plan.md` §1). The player's ending sets `world.ended` to `{ turn, reason
+   }`, once, and emits `game.ended`, a Milestone naming the Guild and its Guildmaster, payload
+   `{ guildId, reason }`. That Guild is not folded and keeps its Roster and Parties: the world
+   stops as it stands, and the Guild stays in the Rankings. A Rival's ending folds it (item 3).
+   The replacement reads no controller, since only a Rival folds.
+3. **The fold.** First the events, made before any row changes: `guild.folded`, a Milestone,
+   payload `{ guildId, reason }`, naming the Guild, its Guildmaster, and each Party the fold
+   disbands and each Quest it abandons, so that their History pages end with it; then
+   `hero.left-guild`, not a Milestone, payload `{ heroId, guildId }`, for each Hero on the Roster
+   in Roster order. Then **its Parties in flight are disbanded**: each Party row is removed, its
+   members' `partyId` cleared and its id taken off its Quest's `partyIds`; a Quest left with no
+   Party is removed from the world and the Board, unresolved (no reward, Fame, harm or XP), since
+   nobody is left to finish it or to be paid. Chosen over letting the Party finish because the
+   story releases every Hero the same night, and a Hero in the pool must be in no Party. Then
+   each Roster Hero is released: `guildId` null and `unattachedSince` the Turn (DL-27), keeping
+   their Injury, Level, XP and Morale. The Roster is emptied and `foldedOnTurn` set. The Guild
+   keeps its row, its Guildmaster, its Wealth (perhaps negative), Fame, Hall and
+   `belowFloorSince`, a record no rule reads again; its dead and retired Heroes keep it as their
+   `guildId`. `hero.left-guild` is not a passive entry, so a released Hero nobody re-signs keeps
+   their row, with `leftPoolOnTurn`, when they leave the pool (DL-27's consequences). M5-S4 lists
+   the folded Guild's unique Items on the Market; M6 settles its Transfer offers.
+4. **Out of play.** A folded Guild is skipped by every per-Guild rule: the Guild State Engine
+   (since M2-S7) and this phase; `recruit` refuses it `guild-folded` (DL-27); M2-S4's `dispatch`
+   and M2-S9's controller must refuse or skip it the same way. The validator gains
+   `folded-guild-in-play`, refusing a folded Guild with a Hero on its Roster or a Party of its
+   own, so that a later rule giving one a Hero fails in the tests; and `world.ended`, when set,
+   must have an integer `turn` and a string `reason`.
+5. **The replacement.** On the night of Day `dayOf(foldedOnTurn) + rivalReplacementDays`, one new
+   Rival for each Guild that folded that many Days before, in their id order, through
+   `generateRival`: the draws `createWorld` makes for each Rival (Roster size, then Wealth, then
+   `generateGuild` with the `steady` controller), now one function both call, so no seed's world
+   changes. It emits `guild.founded` (a Milestone), `guildmaster.generated` and a
+   `hero.generated` per Roster Hero. `rivalReplacementDays` is **30**, chosen, having no INPUTS
+   row: a month, as long as the Bankruptcy grace. It fires on exactly that night, so no field
+   records that a folded Rival has been replaced and the schema does not change; the cost is that
+   a `rebase` shortening `rivalReplacementDays` past a pending replacement's night leaves that
+   Rival unreplaced.
+6. **The stream.** The replacement draws from `generation`, the Guild Generator's own stream,
+   which nothing draws from once the world is created: a replacement moves no other subsystem's
+   draws (ADR-0009), and every save already has the stream, so it needs no `ensureStreams`.
+   `rivals` is M2-S9's controller's, and a new core stream would stray from pre-M0 review D7's
+   list. A fold draws nothing.
+7. **Guild names.** A generated Guild takes a name no Guild has ever had while one is left; once
+   every name in `names.guild` has been used, one that only folded Guilds have had, never the
+   name of a Guild in play. One draw either way, and with no folded Guild exactly DL-19 item 6's
+   draw. It throws only when every name belongs to a Guild in play: thirty names against five
+   Guilds in the core content.
+8. **Rankings, pulled forward from M3-S5.** `rankings(world, by: "fame" | "wealth")` in
+   `selectors.ts` returns M3-S5's shape, `{ guildId, value, rank }[]`: every Guild not folded,
+   highest first, ties by Guild id in code-unit order, `rank` its position from 1, so that no two
+   Guilds share a rank; never stored (rule 1). M3-S5 adds the CLI and whatever else its story
+   asks.
+9. **The reads of `controller.kind`.** `engine/src/controller-reads.test.ts` strips the comments
+   from every engine source file that is not a test and counts its reads: `controller.kind` (with
+   optional chaining), `controller['kind']`, `kind` destructured from a controller, a key tested
+   `in` a controller, and a call of `playerGuild`. Its allow-list, a file, a count and a reason,
+   holds today `selectors.ts` (1: `playerGuild`, how the front ends and the harness find the
+   player's Guild; no rule calls it) and `phases/endings.ts` (1). M2-S9's order and M6's Transfer
+   Generator add their lines; a fourth exception needs the owner first.
+10. **Config.** `guildmasterRetirementAge` 65 and `rivalReplacementDays` 30. Fields were added and
+    no default changed, so `configVersion` stays 1.
+
+**Consequences.** A game now ends, so M2-S12's `game.ended` counter has something to count; on
+this story's branch, with no Quest income, every game ends in Bankruptcy within its first Year. A Rival's fold grows the
+pool past `unattachedPoolSize` until its Heroes leave or are signed, and the refill waits until
+then. `world.guilds` grows by one row for each replacement over the life of a game. The engine
+exports `generateRival` and `rankings`. The CLI's `show` still lists a folded Guild among the
+Guilds, with its empty Roster; M3-S5's `show rankings` leaves it out.
+
+## DL-29 — The stub Quest Engine, Injury types, Morale bands and the Hero State Engine (M2-S5, M2-S6)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S5 and M2-S6's
+implementer)
+
+**Context.** M2-S5 gives the stub's score, the outcome's shape, five config fields, the night's
+`questsConclude` and `content/injuries.json`; M2-S6 the night's healing, Morale drift and yearly
+Retirement check with nine config fields. They leave open: how the roll applies and the defaults
+INPUTS does not give (`stubVariance`, `stubSkillBonusPerRating`); how Wealth, Fame and XP follow
+from the band, and how much XP a Quest gives before M3; the order of the draws; whether one Hero
+can be both killed and injured; how the infirmary's factor rounds; Morale's scale and band edges;
+how "2% per year past it" reads; which night is an anniversary; which Heroes the Hero State Engine
+covers, and what becomes of a Hero away on a Quest on their anniversary; the events' payloads;
+the content version; and when a returned Hero may be sent again (M2-S4's last box, DL-25 item 16).
+
+**Decision.**
+
+1. **Streams.** `quests` and `heroes` join `streamNames` in ADR-0009's order: `generation`,
+   `board`, `quests`, `pool`, `heroes`, which is also a new world's order of `rng` keys; an old save
+   gains both through `ensureStreams` (DL-25 item 8). `questsConclude` draws from `quests` alone
+   and `heroState` from `heroes` alone.
+2. **The score**, `stubScore` in `engine/src/quest-engine/stub.ts`: for each demand, its weight
+   times the sum of that base Stat across the Party (`baseStat`), plus `stubSkillBonusPerRating`
+   times the ratings, summed across the Party, of the Skills in the Quest's `skillKeys` (pre-M0
+   review A4). A demand on a Stat, or a Skill, that content no longer defines counts for nothing
+   (rule 5). Base Stats, since no effective-Stat selector exists before M5. `stubSkillBonusPerRating`
+   is **2**, chosen: three rating points of the Quest's Skills add 6, about a third of what two
+   starting Heroes' Stats score.
+3. **The roll** is one draw scaling the score: `ratio = score × (1 + roll) / difficulty`, the roll
+   uniform from −`stubVariance` up to +`stubVariance`; `stubVariance` is **0.2**, chosen, so a Party
+   exactly at the difficulty always succeeds and one at 0.9 of it fails about a fifth of the time.
+   `stubBands` is `{ successAtLeast: 0.8, strongAbove: 1.2 }` (INPUTS 4.3): fail below 0.8, success
+   from 0.8 up to and including 1.2, strong success above. The bands are named `fail`, `success`
+   and `strong` (`questBands`). `resolveQuest(world, quest, party, deps)` takes `deps` where the epic
+   wrote `content, config`, as every entry point does, and draws from `world.rng.quests` where it
+   wrote `rng`, since only `rng.ts` and `document.ts` name a stream's state type.
+4. **Wealth, Fame and XP.** A success or a strong success pays the Quest's `reward` and gains its
+   `fameEffect`; a failure pays nothing and loses `fameEffect`, the magnitude DL-25 item 3 stores.
+   A strong success earns no more than a success: it differs in harming no one and in Morale. XP
+   before M3 is `stubXpPerDifficulty[band]` times the difficulty, rounded down, with `{ fail: 0.5,
+   success: 1, strong: 1 }`: INPUTS 5.1's values brought forward, so the XP a Hero banks now means
+   what M3 will read, and M3-S2 replaces the field with `xpPerDifficultyPoint × xpBandFactor`. Each
+   Hero who comes home alive gains it, with `hero.xp-gained`; Level stays 1.
+5. **Harm** (INPUTS 4.4): `stubDeathChance` `{ fail: 0.05, success: 0, strong: 0 }` and
+   `stubInjuryChance` `{ fail: 0.4, success: 0.1, strong: 0 }`, each for one Hero, every Hero in the
+   Party equally likely. The Death is drawn first and the Injury among the survivors, so no Hero
+   is both, and a lone Hero who dies is not also injured.
+6. **Seven draws.** Every resolution takes exactly seven draws from `quests`, in this order: the
+   roll; whether a Hero dies; which; whether a Hero is injured; which; the Injury's type, uniform
+   over content's types in key order; its Days, `int` over the type's range. Each is taken whether
+   or not it is used, so neither an outcome nor a tuned chance shifts a later draw, as `chance`
+   promises for one. Parties resolve in id order.
+7. **Injury types** are content: `content/injuries.json`, `ContentSet.injuries`, seven types healing
+   in 5 to 30 Days (INPUTS 4.5): `bruised-ribs`, `sprained-ankle` and `broken-arm` leave nothing;
+   `deep-cut` leaves `scarred`, `shattered-knee` `lame`, `eye-wound` `one-eyed` and `lung-fever`
+   `short-winded`, the four Hero Traits of M1-S4. Content validation refuses an empty table, a Day
+   range starting below 1 or upside down, and a `leavesTrait` that is not a Hero Trait, whether
+   unknown or a Guildmaster's. `contentVersion` becomes **3**. The World State validator gains the
+   warning `unknown-injury` for an Injury whose type content does not define (rule 5); such an
+   Injury heals on its night and leaves no Trait.
+8. **The infirmary** is read when the Injury is inflicted (M2-S6): the Days times
+   `infirmaryHealFactor[grade]`, `[1, 1/2, 1/3]` (INPUTS 4.5: grade 1 halves, grade 2 thirds),
+   rounded to the nearest Day and at least 1, a grade past the list reading its last factor. The
+   Injury heals on `nightOf(dayOf(turn) + Days)`, so never on the night it was inflicted; a grade
+   raised later does not shorten an Injury already carried.
+9. **`questsConclude`**, for each Party whose `returnsOnTurn <= turn`: `quest.resolved` first,
+   while the Quest and Party rows can be labelled, its payload the outcome (`band`, `score` before
+   the roll, `ratio`, `wealthDelta`, `fameDelta`, `xpPerHero`, `injuries` each with its `healDays`,
+   `deaths`) with the Quest's, Party's and Guild's ids, the Heroes and the template's key; then the
+   Guild's Wealth and Fame (Fame's floor is `guildState`'s, later that night); `hero.injured` per
+   Injury and `hero.died` (Milestone) per Death, both naming the Quest too, the dead Hero off the
+   Roster with `diedOnTurn`, keeping row and Guild; `hero.xp-gained` per survivor; the Morale
+   changes; then the survivors are freed and the Party and Quest rows removed. A folded Guild's
+   Party is skipped, as every per-Guild rule skips a folded Guild, so M2-S10's fold must disband
+   the Parties it leaves away. A Party's holdings go back to its Guild from M5-S2; none exist
+   before.
+10. **Morale** runs from `moraleMin` 0 to `moraleMax` 100 (INPUTS 4.8), two fields, since a literal
+    bound in a rule is a defect. A discrete change is clamped into the scale and always emits
+    `hero.morale-changed`, even when the clamp leaves the value where it was: `moraleOnStrongSuccess`
+    **+5** to each Hero home from a strong success, `moraleOnRosterDeath` **−10** to every living Hero
+    left on the Roster for each Death, those away on other Quests included. **Bands**
+    (`moraleBands`, where each starts): `wretched` 0, `low` 20, `steady` 40, `high` 75, `elated` 90,
+    chosen so the baseline, 60, sits in `steady`, and neither one Death nor one strong success moves
+    a Hero at the baseline out of it. `hero.morale-changed` carries `{ heroId, cause, before, after,
+    bandBefore, bandAfter }`, `cause` being `roster-death`, `strong-success` or `drift`.
+11. **The Hero State Engine covers** the Heroes on the Roster of a Guild that has not folded, in
+    Guild id order and Roster order, those away on a Quest included; a dead or retired Hero has
+    left the Roster. **The Unattached pool is left alone**: rule 8 keeps for good the row of a pool
+    Hero named by any entry but their two passive ones, so a `hero.healed` or a band crossing in the
+    pool would break M2-S8's bound; a pool Hero stays ten Days, too few to meet an anniversary; and
+    a Hero released into the pool by a fold (M2-S10) keeps their Injury and Morale until a Guild
+    signs them, when the next night heals an Injury whose night has passed.
+12. **Healing** clears the Injury on the first night at or after `healsOnTurn`, adds `leavesTrait`
+    unless the Hero holds it already, and emits `hero.healed` `{ heroId, typeKey, traitKey }`,
+    `traitKey` being the Trait added or null. **Drift** moves Morale `moraleDrift` (**1**) toward
+    `moraleBaseline` and stops on it, emitting only on the night it crosses a band.
+13. **Retirement.** "From 45, 2% per year past it" (INPUTS 4.11) is read as a chance that rises
+    with age, as `CONTEXT.md` says Retirement's likelihood does: `heroRetirementChancePerYear` (0.02)
+    for each whole year of age past `heroRetirementAge` (45), so none at 45, 2% at 46 and 10% at 50,
+    times `heroRetirementInjuredMultiplier` (2) while injured, at most 1 (`retirementChance`). The
+    check falls on the night of the Day on which each anniversary of the Hero's `enteredTurn` falls
+    (`lastAnniversaryNight`), by when `ageOf` has counted the new year. Every due check takes one
+    draw from `heroes`, whatever the age, so tuning the age or the chance shifts no later draw. A
+    retired Hero leaves the Roster and keeps row, Guild and any Injury, with `retiredOnTurn`, and
+    `hero.retired` (Milestone) carries `{ heroId, guildId, age }`.
+14. **A Hero away on their anniversary** is not checked that night, since they cannot leave a Party
+    in the field, but on the night their Party brings them home: `heroState` reads the Hero's latest
+    `quest.taken` entry in the History as it stood before the Turn, and checks them when its
+    `returnsOnTurn` is tonight and an anniversary night fell after the Turn it was taken. Without it
+    a Hero kept busy would seldom be checked at all. It reads the History for earlier Turns, as the
+    pool refresh does (DL-27 item 3); a phase test that passes no History sees no such check.
+15. **The return night.** `questsConclude` runs first at night, so a returned Hero is free from that
+    night's end: dispatchable on the morning of Day d + k + 1, as M2-S4's last box asks, and on the
+    return night itself too, since an action may be taken in any Turn (pre-M0 review D2) and a Party
+    sent at night leaves on that Day (C4). M2-S4's test that a dispatched Hero cannot go again checks
+    every Turn before the return night and holds unchanged; a new test proves the morning after for
+    a Party sent in each of the three Turns of a Day.
+16. **Config.** The fields are added and no default changes, so `configVersion` stays 1. A default
+    that is an object or a list is frozen with `defaultConfig`.
+
+**Consequences.** Quests now end, Heroes are hurt, die, heal and retire, and every Guild's Parties
+come home, so a created world played forward changes on its nights where it did not. As specified
+the stub is hard on a starting Guild: two starting Heroes score about 15 to 20 against difficulties
+of 10 to 100, so most Quests fail. A crude ten-year run sending every idle Hero out resolved 514
+Quests, 41% of them with an Injury, at about 0.23 ms a Turn, and its document validated; tuning
+the score, the difficulty scale and the bands is M2-S12's balance pass, as M2's risks say. M3-S2
+replaces `stubXpPerDifficulty`; M3-S4 puts the decline beside the Retirement check and can reuse
+`lastAnniversaryNight`. M2-S10's fold disbands a folded Guild's Parties, and its endings read a
+retired Hero as off the Roster with `guildId` kept. M4 replaces the stub and keeps `QuestOutcome`'s
+shape where it can. M5-S2 returns a Party's holdings before its row is removed. Another story
+appending a stream appends it after `heroes`; another adding a content file raises `contentVersion`
+past 3.
+
+## DL-30 — The `steady` Disposition, and a Rival acting through the player's actions (M2-S9)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S9's implementer)
+
+**Context.** M2-S9 names `rivalChoices(world, guild, deps)`, the afternoon phase
+`rivalControllers`, `content/dispositions.json` with one entry, and INPUTS 4.12's rule: take the
+easiest Quest it can staff, and recruit the cheapest Hero when Wealth exceeds three Upkeeps. It
+leaves open how a phase, which changes the Turn's copy of the world in place, applies actions
+that take and return documents; which Heroes `steady` sends and how many; how much a Rival does
+in one afternoon; what becomes of a refused Rival action; what a Disposition's row holds; where
+the three lives; and where the engine reads `controller.kind` to find the Rivals.
+
+**Decision.**
+
+1. **One rule per action, two ways in.** `dispatch` and `recruit` are each split into their
+   rule, `applyDispatch(world, request, deps)` and `applyRecruit(world, request, deps)`, which
+   check and then change a world in place and return `{ ok: true, events } | { ok: false,
+   rejection }` without appending (`WorldActionResult`), and the document-level action, which
+   runs the rule on a copy through `applyToCopy(document, rule)` (`actions/result.ts`) and
+   appends the events. Checks, their order, rejections, throws and events are unchanged, and the
+   actions' tests pass unchanged; a refused document-level call now copies the world before
+   refusing and drops the copy. `applyGuildAction(world, action, deps)` in `actions/action.ts`
+   switches over `GuildAction`, `dispatch | recruit`: the actions a Guild takes, `rebase` being
+   the save's. Rejected: wrapping the Turn's world in a transient document, which copies the
+   whole world per Rival action, copies it back, and needs a `meta` a phase does not have.
+2. **The phase** walks every Guild in id order and applies what `rivalChoices` returns through
+   `applyGuildAction` on the Turn's world, so a later Rival chooses from what an earlier one
+   left; it returns the rules' events in order and `advance` appends them. It adds no event
+   type. The spy test watches `applyDispatch` and `applyRecruit`, the rules `dispatch` and
+   `recruit` run, and finds every Rival choice there and the afternoon's events theirs.
+3. **A refused Rival action is dropped silently**, the world unchanged, and the Guild's next
+   choice applied. `steady` chooses only what the rules accept on the world it reads, so a
+   refusal is a bug, not a move; a test plays ten Days and finds none. Not thrown, because a
+   later controller that chooses several things from one world (M6: buying and recruiting from
+   one Wealth) may lose one to another, and a player's game should not stop on a Rival's
+   mistake; not an event, because the epic lists none and nothing would read it.
+4. **`steady`** makes at most one dispatch and one recruit an afternoon, the dispatch first, both
+   chosen on the world as the afternoon found it: a dispatch moves no Wealth and a recruit sends no
+   one. It draws nothing.
+   - *Which Quest:* the offered Quests on the Board by difficulty, lowest first, then Quest id;
+     the first it can staff.
+   - *Which Heroes:* those on its Roster and free to go by `dispatch`'s own test
+     (`unavailability`, now exported; `availableHeroes` in `controllers/rival.ts`). The fewest the
+     Quest allows: `partySizeMin`, or two when it requires a Class and a Skill and no one Hero has
+     both. A requirement goes to the strongest Hero who meets it (one who meets both, if any),
+     every other place to the strongest of the rest. A Hero's strength for a Quest is the sum of
+     its demand weights times the Hero's base Stats, the stub's own measure less its Skill bonus;
+     ties by Hero id; the Party is listed strongest first. Few Heroes keeps the rest free and the
+     Board contested (`plan.md` §1); small Parties will fail more often under the stub, which
+     M2-S12 measures and M6-S1's `questRiskAppetite` revisits.
+   - *Recruiting:* when Wealth is strictly above `recruitWealthMultiple × upkeep(guild)` ("exceeds"),
+     the Unattached Hero with the lowest `signingFee`, lowest id among equal fees, and only if
+     Wealth covers the fee, since `recruit` would refuse it. No Roster cap: INPUTS 4.12 names
+     none, where 4.14's policy does.
+5. **Config.** `recruitWealthMultiple` 3 (INPUTS 4.12), named for the rule rather than for
+   `steady`, so that M2-S12's policy, whose threshold is the same three Upkeeps (INPUTS 4.14),
+   can read it; M6-S1 moves each Disposition's threshold into its row. A field was added and no
+   default changed, so `configVersion` stays 1.
+6. **Content.** `content/dispositions.json`, content table `dispositions`, holds one row,
+   `steady: { name: "Steady" }`: a name only, the rule being code keyed by it (`dispositionRules`,
+   approach §4). The content validator holds its keys to kebab-case and to their rows;
+   `contentVersion` is 3. The engine's validator warns `unknown-disposition` for a Rival whose
+   Disposition the content lacks (rule 5), and `rivalChoices` returns nothing for that Rival, nor
+   for one whose Disposition content defines and the engine has no rule for.
+7. **The `rivals` stream** is appended to `streamNames` now, after `pool`; merging with M2-S5 and
+   M2-S6 puts the tuple in ADR-0009's order. `steady` draws from no stream: the test runs the phase
+   with every planned stream present, choices made, and finds none moved.
+8. **`controller.kind`** is read in one new place, `dispositionOf(guild)` in `selectors.ts`
+   beside `playerGuild`'s existing read: the Disposition that makes a Guild's choices, or `null`
+   for the player's. `rivalChoices` and the new warning call it; the phase reads no controller.
+   It is `plan.md` §1's accepted exception for the source of a Guild's choices.
+9. **`rivalChoices` returns `GuildAction[]`**, the epic's `Action[]` narrowed to what a Guild
+   does; every value is an `Action` a front end produces. The player's Guild and a folded Guild
+   get none.
+10. **The counter.** `questsTakenByController(document)` in `harness/src/counters.ts` counts
+    `history.byType['quest.taken']` by the kind of controller of the Guild each entry names. It
+    is the harness's, for M2-S12's report: a measure, not a rule, and no read of the engine's.
+11. **Tests of one phase that play Turns** (the Board refresh, the pool refresh, dispatch's
+    Parties in play) now create worlds with `rivalCount: 0`, and the Guild State test that needs a
+    Rival stills its controller with a spy, since Rivals now take Quests and recruit each afternoon.
+
+**Consequences.** On the first afternoon of a default world the four Rivals take most of the
+Board and recruit a Hero each (seed `s9-smoke`: four of six Quests, four recruits). A Rival
+recruits every afternoon that its Wealth is above three Upkeeps, so Rival Rosters grow as Quest
+rewards arrive (M2-S5) and the pool, refilled each night, is drawn on daily; M2-S12 measures
+Roster sizes and the per-Turn copy cost, and `recruitWealthMultiple` is the dial. A merged story
+whose tests play Turns on a created world meets the Rivals too, and stills them as item 11 does
+when it watches something else. M2-S11's `decision-needed` and M2-S12's policy can use
+`availableHeroes`. M6-S1 replaces `dispositionRules` with one rule reading weights from the rows.
+
+## DL-31 — Merging M2-S9 with M2-S10: `dispatch` refuses a folded Guild, and the endings' tests still the Rivals
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the merge of M2-S9 into
+`v1.0-dev`)
+
+**Context.** M2-S9 (DL-30) and M2-S10 (DL-28) were built side by side. Merged, the Rivals act
+every afternoon in the endings' tests, which were written when they did not: a Rival signs the
+cheapest Hero, so the player's Wealth arranged at Turn 0 no longer covers the cheapest left; a
+bankrupt Rival still sends Parties, which its fold disbands; a Rival's Roster grows by a recruit
+after the test records it; and released Heroes are re-signed. DL-28 item 4 says `dispatch` must
+refuse a folded Guild as `recruit` does; `dispatch` had no such check, and refused one only by
+the accident of its empty Roster.
+
+**Decision.**
+
+1. **`dispatch` refuses a folded Guild `guild-folded`**, payload `{ guildId }`, before every
+   other check, as `recruit` does; `DispatchGuildFolded` joins `DispatchRejection`, and the
+   CLI narrates it. The Rival controllers already skip a folded Guild (`rivalChoices`), so this
+   is the rules' own guard, not the controllers'.
+2. **The endings' tests still the Rivals that are not their subject**, in DL-30 item 11's style:
+   the player's "not wiped" test plays with `rivalCount: 0`; the Rival fold tests still the
+   `rivalControllers` phase with a spy. The bankrupt-Rival test stills it only until the fold,
+   then lets the Rivals act again with `recruitWealthMultiple` out of reach, so that "it acts no
+   more" is proved against running controllers while no one re-signs the released Heroes.
+3. `controller-reads.test.ts` allows `selectors.ts` its two reads: `playerGuild` and
+   `dispositionOf` (DL-30 item 8). No assertion was weakened and no other engine rule changed.
+
+**Consequences.** Both actions a Guild takes refuse a folded Guild by name. A later story whose
+tests play Turns on a created world meets the Rivals, and stills them when it watches something
+else.
+
+## DL-32 — Merging M2-S5/S6 with M2-S9/S10: the content version and stream list DL-29 named
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the
+M2-S5/S6 implementer's report)
+
+**Context.** M2-S5/S6 were built in parallel with M2-S9 and M2-S10, then merged. Two statements in
+DL-29 were true of their branch and are not true of the merged code.
+
+**Decision.** (1) DL-29 item 7 says the content version becomes 3 with `injuries.json`; M2-S9's
+`dispositions.json` took 3 first, so after the merge `meta.content.version` is **4**. (2) DL-29
+item 1's stream list gains `rivals` at the end, as DL-30 item 7 said it would: the core streams are
+`generation`, `board`, `quests`, `pool`, `heroes`, `rivals`, in ADR-0009's order. The merge also
+proved that a folded Guild's Parties are handled once: `questsConclude` runs first at night and
+resolves a Party due that night; the fold runs last and disbands any Party still out; tests cover
+both orders.
+
+**Consequences.** DL-29 is read with these corrections. No rule changed.
+
+## DL-33 — Fast forward: always-on and opt-in stops, the watched Guild, and the CLI's `--until` (M2-S11)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S11's implementer)
+
+**Context.** M2-S11 names `fastForward(document, { until, maxTurns }, content)` calling `advance`
+in a loop, five stop reasons, `pool-refreshed` opt-in (pre-M0 review B7), and the CLI's `advance
+--until … --max <n>`. Approach §2 says some stops *always* stop fast forward (a Party returns, an
+ending, a Transfer offer, a module asking for a decision) and others the caller opts into;
+principle 10 and R2 say the engine stops when a decision is needed. The story leaves open: whether
+`until` can narrow the always-on set; whose Party and whose decision stop it, when ADR-0002 forbids
+a rule asking which Guild is the player's (`controller-reads.test.ts` holds the engine to the three
+accepted reads); what "returned" and "a decision is needed" mean exactly; what `advance` itself
+reports; the shapes of the reasons; how several reasons on one Turn are ordered; the CLI's cap
+without `--max`; and how it prints what happened. DL-28 also left the CLI listing a folded Guild
+among the Guilds, and DL-31 added `dispatch`'s `guild-folded` for the CLI to put in words.
+
+**Decision.**
+
+1. **Signature.** `fastForward(document, { guildId, until, maxTurns }, deps)` in
+   `engine/src/fast-forward.ts` returns `{ document, events, stoppedBecause }`: every event of every
+   Turn played, in order, and one `StopReason`, never null. `deps` where the epic wrote `content`,
+   as every entry point takes it. It plays each Turn through `advance` and adds no rule, so it lands
+   exactly where the same number of `advance` calls would (a test compares the saves).
+2. **The watched Guild.** `guildId` names the Guild whose Parties and decisions stop it; the CLI
+   passes the player's (`playerGuild`, a front end's read). The engine never asks whose Guild it is,
+   so no fourth read of `controller.kind` is needed and the stops are the same rules for any Guild
+   (ADR-0002). A Rival's Party therefore never stops the player's fast forward. Chosen over reading
+   the player's Guild inside the engine, which `plan.md` §1 would make a fourth accepted exception
+   needing the owner.
+3. **Always on, and `until` does not narrow them.** `ended`, `party-returned` and `decision-needed`
+   always stop it (`alwaysStops` in `engine/src/stops.ts`, a record keyed by every condition so a new
+   one must say which it is); `pool-refreshed` only when listed in `until`. Naming an always-on
+   condition in `until` is accepted and changes nothing. Approach §2's "always" is the owner's word
+   (B7), and principle 10 says fast forward without the decision stop is unsafe; a player who wants
+   Turns played regardless has `advance --turns n`. M6's `transfer-offer` and M8's `module` join as
+   always-on. `max-turns` is not a condition: `maxTurns` sets it.
+4. **`party-returned`**: a `quest.resolved` this Turn naming the watched Guild, the Party home and
+   resolved, so it falls on the Party's `returnsOnTurn` exactly. It carries `{ guildId, partyIds }`
+   in resolution order. A Party a fold disbands has not returned; only a Rival folds.
+5. **`decision-needed`, the M2 reading**: the watched Guild's Roster is idle, no Hero on it away in
+   a Party, and the Board holds Quests it could staff that it could not before the Turn. "Could
+   staff" is `staffableQuests(world, guild, content)` in `controllers/rival.ts`: the Quests on offer
+   for which `partyFor`, `steady`'s own Party-maker, finds a Party of the Heroes `dispatch`'s
+   `unavailability` leaves free (`availableHeroes`); a test finds that `dispatch` accepts the Party
+   for every Quest the stop names. It carries `{ guildId, questIds }` in Board order.
+   - *Idle Roster.* The epic's "and the Roster is idle" is read as a clause of its own: while any
+     Party of the Guild is out, its return is the next thing to wait for, and no decision stops
+     fast forward, even with Heroes at home. Otherwise `advance --until party-returns`, the M2
+     gate's command, would stop every morning that new Quests arrive for the Heroes kept at home.
+   - *New, not standing.* Only Quests that became staffable this Turn count: new on the Board, or
+     within reach because the last Party came home or a Hero healed. A Quest the caller could
+     already staff when the Turn began has been seen and passed over; were it counted, fast forward
+     from an idle Guild would stop after every Turn and be useless (B7's own objection).
+   So an idle Guild is stopped on the mornings new Quests it can staff arrive, and on the night its
+   last Party returns when the Board holds one it can staff (after `party-returned`).
+6. **`pool-refreshed`**: Heroes in the Unattached pool after the Turn who were not in it before,
+   the night's refill and a fold's released Heroes alike, carrying `{ heroIds }` in id order.
+   `ended` carries nothing more (`world.ended` says why); `max-turns` nothing.
+7. **Several reasons on one Turn** are reported in the order `ended`, `party-returned`,
+   `decision-needed`, `pool-refreshed` (`stopConditions`); fast forward stops with the first it is
+   listening for. `stopsOfTurn(turn, guildId, deps, conditions)` returns every reason a played Turn
+   gives among the conditions asked, one detector per condition in `stops.ts`, the one place each
+   is detected.
+8. **What `advance` reports.** `advance` has no watched Guild, and `pool-refreshed` is opt-in, so
+   its `stoppedBecause` stays what DL-24 made it: `ended` or null, now from the same detector
+   (`endedStop`). `StopReason` moves from `advance.ts` to `stops.ts` with fields added, as DL-24
+   allowed.
+9. **`maxTurns`** must be a whole number from 0, or fast forward throws `RangeError`, a
+   programming error, as it does for a condition that is not one or a Guild not in the world. It
+   always terminates: 0 returns the same document, no events, `max-turns`. An ended world returns
+   the same document with `ended` whatever `maxTurns`, since no Turn can follow.
+10. **The CLI.** `advance --until <stops> [--max <n>]`, or `advance --max <n>` alone, fast forwards
+    for the player's Guild; `<stops>` is any of `party-returns`, `decision`, `ended`,
+    `pool-refreshed` (the epic's words, mapped to the engine's conditions), joined by commas, each
+    once; `--max` is a whole number from 1; `--turns` cannot be combined with either (exit 2). Without
+    `--max` the cap is **one year of Turns**, the save's `turnsPerYear` (1,080 by default): longer
+    than any Quest many times over, and data-model §7's own measure of a fast forward. It prints the
+    Turns played, where time stands, a `Stopped: …` line for the reason, and every event of those
+    Turns, one line each in the CLI's words (`cli/src/narrate.ts`: typed event in, line out, a
+    switch the compiler holds to every event type and stop reason, and a test with one event of
+    each type). Plain `advance` and `--turns` print the same narrated lines in place of the
+    event-type table. A game already over is refused, as `--turns` refuses it.
+11. **Folded Guilds in the CLI (DL-28's follow-up).** `show` lists only the Guilds in play and
+    counts the folded ones ("4 Guilds in play and 1 folded (show guilds lists them)"); `show guilds`
+    lists every Guild and, once any has folded, adds a last column marking each folded one "on Day
+    N". The CLI's map of `dispatch`'s rejections already puts `guild-folded` (DL-31) in words; a test
+    now proves it.
+
+**Consequences.** `staffableQuests` and `partyFor` are exported from `controllers/rival.ts`, and
+`easiestStaffable` shares their Board walk (`offeredQuests`); `steady`'s choices are unchanged. The
+engine exports `fastForward`, `stopsOfTurn`, `alwaysStops` and the detectors. A year of fast forward
+on a created world with four Rivals, 1,080 Turns, took 0.6 to 0.9 s here under Vitest, within
+data-model §7's 1 s; the stop checks add under a tenth to `advance`'s own cost, which M2-S12
+measures. Listening to every condition from an idle Guild stops about 400 times a year, most of them
+the pool, which is why it is opt-in. M7's web front end offers the conditions as buttons and names
+the watched Guild as the CLI does; a later milestone that widens "a decision is needed" (M4's
+Regard, M6's offers) changes `decisionNeededStop` alone.
+
+## DL-34 — The automatic policy, the play sweep, validating from where the last validation stopped, and the M2 measures (M2-S12)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S12's implementer),
+recording a measure and the method that took it
+
+**Context.** M2-S12 names the harness's automatic policy (INPUTS 4.14), a play sweep of 200 seeds ×
+20 years (INPUTS 4.13) validated after every advance when `HEROESIM_VALIDATE` is set, the counters
+and measures, `npm run harness:sample` (pre-M0 review E8), and asks for the measures in this log
+against `data-model.md` §7's targets (DL-08). It leaves open: how "the strongest available Party of
+the required size" reads, how many Parties the policy sends a Turn and which Hero it recruits, where
+the policy's own numbers live, how a validation after each of 21,600 advances stays affordable when
+the validator reads the whole History, how a counter joins an entry to a Guild, where a game that
+outlives its 20 years stands in "years survived", and how long the sweep may take.
+
+**Decision.**
+
+1. **The policy**, `automaticPolicy(document, deps, policy?)` in `harness/src/policy.ts`, returns
+   `GuildAction[]` (the epic's `Action[]` narrowed, as `rivalChoices` does, DL-30 item 9) for the
+   player's Guild, on the document as it stands:
+   - *Dispatch.* The offered Quests on the Board by `reward`, highest first, then Quest id. "The
+     required size" is read as the least the Quest takes, the size `steady` sends, and "the
+     strongest" as the strongest Heroes by the Quest's demand weights: the Party is
+     `partyFor(quest, availableHeroes, content)`, the Rival controller's staffing rule, now exported
+     from `engine/src/controllers/rival.ts` rather than copied (no rule changed). A Quest it cannot
+     staff is passed over; it keeps sending Parties, each to the next Quest, until no Hero is free,
+     no Hero twice. Read the other way, a Party as large as the Quest allows, the policy would send
+     fewer, stronger Parties; the owner can say so and it is one argument to `partyFor`.
+   - *Recruit.* One a Turn, when the Roster is below `rosterLimit` (8) and Wealth is strictly above
+     `recruitWealthMultiple` (3) Upkeeps: the cheapest Hero in the pool, lowest id among equal
+     fees, when Wealth covers the fee. INPUTS 4.14 names no Hero; this is `steady`'s choice, so the
+     two players differ only where 4.14 says they do. Never a transfer.
+   - *Its numbers are the harness's.* `PolicyConfig` (`recruitWealthMultiple` 3, `rosterLimit` 8)
+     lives in the harness, not in `GameConfig`: the policy is not a rule of the game. It does not
+     read the Rivals' `recruitWealthMultiple` (DL-30 item 5 thought it might), so tuning the Rivals
+     (DL-35) leaves the harness's player as INPUTS 4.14 defines it.
+   - *Deterministic.* It reads the document and draws nothing; a test finds the document's
+     serialisation unchanged by a call and the same choices twice.
+2. **The play loop**, `playGame` in `harness/src/play.ts`: `createWorld(seed, harnessSetup, deps)`;
+   then, until `world.ended` is set or the world reaches `years × turnsPerYear` (21,600 Turns), the
+   policy's actions applied in order through `applyAction`, each copying the world as a front end's
+   action does, then one `advance`, timed with `performance.now()`. A refused action is recorded and
+   fails the run: the policy chooses only what the rules accept.
+3. **Validating from where the last validation stopped.** Measured before choosing: `validate`
+   costs about 5.8 µs a History entry (31 ms at 6,910 entries after a year, 95 ms at 15,347, 241 ms
+   at 41,706 after five), so validating after each of a game's 21,600 advances is quadratic, hours
+   a game at 20 years. `validate(document, deps, { historyFrom })` (engine,
+   `validate.ts`) now checks the World State in full and the History only from position
+   `historyFrom`, taking the entries before it as accepted by an earlier validation of the same
+   History, which is append-only (ADR-0008). From there: JSON safety of every section but the
+   History and of each new entry (`findJsonUnsafe` gained a path prefix); each new entry's shape,
+   participants' id form and Turn order (after the last older entry's Turn); the counters against
+   the world's ids and the new entries' participants; each index list a new entry names ends in
+   exactly the new positions that belong in it, in order, and holds none outside `entries`; and a
+   Hero a new entry names who has no row and a non-passive entry anywhere (rule 8). What it cannot
+   see, and a validation from 0 does: damage to an older entry or to an index list no new entry
+   names (only something other than `append` could do it), a counter lowered below an id only
+   older entries name, and a Hero's row removed while no new entry names them (no rule does: the
+   pool refresh emits `hero.left-pool` first). `historyFrom` defaults to 0, the whole History, as
+   every load's validation is; one past the History's end, or not a whole number, throws. Tests in
+   `validate.test.ts` play 60 Turns validating from the last length each Turn and find the same
+   verdict as a validation from 0, find each kind of damage among new entries under the check and id
+   it names, and show that damage before `historyFrom` is left to a validation from 0. The harness
+   validates the new world from 0, after every advance from the History's length at the last
+   validation, and the whole document once more when the game stops; a refusal or a warning stops
+   the game and fails the run. The full validator's own cost is unchanged (12 ms for the
+   1,000-Hero fixture before and after).
+4. **Counters** (`harness/src/counters.ts`, `countGame`), each read through `history.byType` and
+   joined to the Guild the entry is about: its payload's `guildId`, or else the first Guild among its
+   participants, which `emit` adds for any Hero it names at the time (DL-24 item 3), so a Hero's
+   Injury or Death counts for the Guild they were on then. Quests taken and `quest.resolved` by band
+   are split by controller kind, as are `hero.injured`, `hero.died`, `hero.recruited` and
+   `hero.retired`; `game.ended` by reason; `guild.folded` by reason (the Rival folds). **Years
+   survived** is `world.ended.turn / turnsPerYear` for a game that ended and the full 20 for one
+   that did not, a censored figure the report states beside how many games ran the full length and
+   how many ended in each year.
+5. **Measures.** `advance` per Turn, every Turn of every game (mean, p50, p99, max), and the first
+   seed's replay timed alone; for the last document of every game that ran the full 20 years:
+   `history.entries.length`, `serialise(document).length`, and the time to serialise it and to
+   `deserialise` it (parse, migrate and a whole validation: a load), which also checks that it loads
+   and serialises back to the same text. The 1,000-game estimate is the run's wall-clock time per
+   Turn played × 21,600 × 1,000.
+6. **The sweep runs in parallel.** A 20-year game takes most of a minute, so 200 of them one after
+   another take hours. `sweepPlayInParallel` deals the seeds in turn among child processes, half the
+   logical processors by default (16 here), each running `harness/src/shard.ts` under tsx (`node
+   --import tsx`) with the core content and the sweep's config, and merges the records in seed
+   order; the byte-equality replay runs in the parent afterwards. Games share nothing and each is
+   seeded, so where one is played does not change it: a test runs the same seeds both ways and finds
+   the same records. Timings taken under that load are higher than one process alone, which is why
+   the replay is timed as well. `sweepPlay`, in one process, serves the ordinary tests.
+7. **Seeds and flags.** The play sweep plays 200 seeds when `HEROESIM_SEEDS` is unset (INPUTS 4.13's
+   per-milestone run), the creation sweep still 1,000 (`seedCount` takes the fallback); the tagged
+   run sets `HEROESIM_SEEDS=1000`. `HEROESIM_VALIDATE` is `1` or `true`, or unset, blank, `0` or
+   `false`; anything else throws, so a mistyped flag cannot quietly skip validation. `npm run
+   harness` runs both sweeps; `npm run harness -- play.harness` runs this one alone.
+8. **Byte equality.** After the sweep, one seed is played twice more under the policy and the two
+   last documents' serialisations compared: the first seed whose game ran its full length, the
+   longest comparison and the fairest single-game timing, or `seed-0001` when none did. An
+   ordinary test does the same for 20 Days.
+9. **`npm run harness:sample`** runs `harness/src/sample.ts` under tsx and writes a 20-year save,
+   `serialise`'s text, to `harness/samples/twenty-years.json`, which `.gitignore` already ignores:
+   it plays `seed-0001`, `seed-0002`, … under `defaultConfig` and writes the first game to run
+   its full 20 years (under DL-35's defaults, `seed-0004`, the fourth tried, 45 s), or the longest
+   of the first twenty when none does, since M7-S4 asks for a 20-year save and a game that ends in
+   its first months is not one. `npm run play -- load harness/samples/twenty-years.json` makes it
+   the CLI's game.
+10. **Result, 2026-09-26** (`harness/reports/m2-2026-09-26.md`, committed with this entry): 200
+    seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+    advance, under DL-35's defaults (config version 2, content version 4), in 16 processes on the
+    machine of DL-13 (AMD Ryzen AI Max+ 395, 32 logical cores, Windows 11, Node v26.9.0). The run
+    took 53.6 minutes. The defaults' own run, before DL-35, is in DL-35.
+    - **Validation.** No refusal and no warning in any of the 200 games, after every advance and
+      over the whole document at each game's end; no policy action refused; all 200 last documents
+      load and serialise back to the same text.
+    - **Byte equality.** `seed-0004`, the first seed to run its full 20 years, played twice more
+      after the sweep: identical, 79,719,374 characters.
+    - **Counters.** 134 games ran the full 20 years; 66 ended in Bankruptcy, none in Retirement
+      or a wiped Roster. Years survived: mean 14.07, min 0.14, max 20. Rivals folded 190 times
+      (0.95 a game: 187 Bankruptcies, 3 wiped Rosters). Quests taken: the player 679,616 (3,398 a
+      game), the Rivals 3,756,277. Resolved, fail / success / strong success: the player 52.2% /
+      33.4% / 14.4%, the Rivals 11.7% / 33.4% / 54.9%. A game, player and Rivals: `hero.injured`
+      797 and 1,480, `hero.died` 88.4 and 109.8, `hero.recruited` 91.2 and 172.9, `hero.retired`
+      0 and 3.07.
+    - **Measures against `data-model.md` §7** (provisional targets, recorded and not chased,
+      DL-08). "Alone" is `seed-0004`'s replay in one process, 21,600 Turns, or the sample save of
+      the same game loaded alone; "loaded" is every Turn of the sweep, 16 processes at once.
+
+      | Measure | Target | Measured |
+      | --- | --- | --- |
+      | Advance one Turn | under 5 ms | alone: mean 1.27 ms, p99 2.79 ms; loaded: mean 5.84 ms, p99 11.9 ms |
+      | Fast forward a year | under 1 s | 1.37 s (mean alone × 1,080 Turns): over |
+      | Harness: 1,000 games of 20 years | under 10 min | 372 min at this run's rate (16 processes, validated; validation about doubles it): over |
+      | Save after 20 years | under 20 MB | mean 74.9 MiB (78.6 million characters, 210,663 entries), max 78.4 MiB, over 134 games: about four times over |
+      | Load a save | under 1 s | alone: 1.04 s (parse 0.25 s, the whole validation 0.75 s); loaded: mean 4.6 s |
+
+      Serialising the 20-year save takes 0.74 s alone. Validating after an advance, from where the
+      last validation stopped, costs about what the advance does (6.28 ms mean loaded, beside its
+      5.84 ms), where validating the whole document would have cost 0.75 s by the twentieth year.
+
+**Consequences.** M2's gate has its run: 200 seeds × 20 years play to an ending or their last
+Turn, and the report gives the counters. What the measures say, for the owner and later
+milestones, not acted on here (DL-08):
+
+- **The History is the save.** About 10,500 entries a year at about 370 characters each: 20
+  years is 75 MiB, four times §7's target and past what a browser holds in `localStorage` (M7
+  saves to IndexedDB, §7). By share of its characters: `quest.resolved` 27% (its payload is the
+  whole outcome), `hero.xp-gained` 20% (one entry a Hero a Quest), `quest.taken` 20%,
+  `hero.morale-changed` 15% (every strong success moves every Hero home), `quest.offered` 12%.
+  §7's levers, in order: leaner entries (one XP entry a Party, fewer labels), then compression on
+  write. Rivals take a Quest a day each and make most of it.
+- **Fast forward a year is 1.37 s alone**, over the 1 s target: M2-S11's fast forward will show it.
+  `advance`'s cost grows with the Heroes `world` keeps (362 rows after 20 years in `seed-0004`,
+  dead, retired and released Heroes among them, every one copied each Turn): the epic's risk
+  table names the lever, fewer rows in `world`.
+- **Timings under load are not timings alone.** A Turn of the sweep, 16 processes at once, cost
+  4.6 times one of `seed-0004`'s replay alone. Two runs' timings compare only at the same number of
+  processes; the report states it.
+- **A load validates the whole document**, as before (`historyFrom` defaults to 0); only a caller
+  that validated the same History before, as the harness does, passes it. The 1,000-Hero
+  validator timing test (M1-S7) failed one full `npm test` in three on this machine before this
+  story, at 55 ms against its 50 ms bound, 12 ms alone; it now retries twice rather than having
+  its bound raised.
+- **`partyFor` is the engine's one staffing rule**, exported: M2-S11's `decision-needed` (a Quest
+  the Guild could staff) can call it rather than keep a third.
+- **Nobody retires on the player's Roster**: its Heroes die, 88 a game, before any reaches 46, since
+  the policy takes the hardest Quests and a failure kills one Hero in twenty (INPUTS 4.4). And no
+  game can end in the Guildmaster's Retirement within 20 years: the oldest starting Guildmaster
+  (45, INPUTS 4.10) turns 65 on Turn 21,600, which the sweep does not play past.
+- **`npm run harness` takes about an hour** at 200 seeds (DL-13's creation sweep, seconds, runs
+  with it); the tagged run of 1,000 seeds, about six hours validated on this machine.
+
+## DL-35 — The first balance pass: the stub's bands, the wage, and how much a Rival keeps before it recruits (M2-S12)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S12's implementer), as
+the story asks: a first pass for the owner to tune
+
+**Context.** The M2 implementers warned that the stub as specified fails most Quests for starting
+Parties (DL-29's consequences) and that Rivals fold again and again beside an idle player. M2-S12
+runs the 200 × 20 sweep on the defaults first (DL-34), and turns the INPUTS 4.x dials, config
+defaults only, if the outcome is degenerate.
+
+It is. **Before**, under the defaults (config version 1; 200 seeds × 20 years, validated, the
+same harness): all 200 games ended in Bankruptcy in their first year, after 0.15 years on
+average (0.11 to 0.25). The player's Guild failed 99.1% of its 5,933 resolved Quests and the
+Rivals 96.1% of their 23,116; Rivals folded 391 times, 1.96 a game in those 55-odd Days. A game:
+the player's Heroes injured 11.3 times, 1.5 died, 4.0 recruited. Three causes:
+
+1. **The stub's scale.** A Level-1 Hero weighs about 7.5 on a Quest's weighted demands, so the
+   Party of the size a Quest requires scores about 15 to 25 against difficulties of 10 to 100: a
+   ratio near 0.25 to 0.35 on the high-reward Quests the policy takes and 0.5 to 0.8 on the easy
+   ones the Rivals take, all below INPUTS 4.3's 0.8. M2 has no Levels (XP accrues, Level stays 1
+   until M3), so no Guild grows into the scale.
+2. **Upkeep is a rounding error beside a reward.** 5 Wealth a Hero every ten Days against rewards of
+   40 to 450: in trials with workable bands, even a wage of 50, ten times INPUTS 4.6's, let Wealth
+   grow without end (the player about 63,000 after five years), and nothing ended a game after its
+   first months. Under the defaults the policy's first Turns instead spend its 500 on four
+   recruits, down to three Upkeeps, and every Quest fails.
+3. **`steady` recruits to the edge.** It recruits whenever Wealth exceeds three Upkeeps, without a
+   cap, so a Rival grows its Roster until its Upkeep eats its income of one Quest a day. With
+   INPUTS 4.6's wage and workable bands that is hundreds of Heroes (354 a Rival after three years,
+   1,469 Hero rows in `world`, `advance` at 6.5 ms), and at a wage of 50 about 31, with a month's
+   Upkeep in hand, so that an ordinary bad month folds it: 9.2 folds a game in five years.
+
+**Decision.** Three defaults change, and `configVersion` goes from 1 to 2 (data-model §2):
+
+| Field | INPUTS default | Now | Why |
+| --- | --- | --- | --- |
+| `stubBands` | 0.8 / 1.2 (4.3) | **0.26 / 0.39** | Both scaled by 0.325, keeping the success band's width in proportion: a Party of the size a Quest requires, at Level 1, succeeds about half the time on the hardest Quests and nearly always on the easiest |
+| `wagePerLevel` | 5 (4.6) | **70** | A Hero's wage becomes a real cost against Quest rewards, so a Guild must keep succeeding to stay afloat, and a Rival's Roster settles near 20 |
+| `recruitWealthMultiple` | 3 (4.12) | **10** | A Rival recruits only while it holds ten Upkeeps, about 100 Days of wages, so an ordinary run of failures no longer folds it |
+
+The trials that chose them, all under the policy of DL-34 (scratch runs, not committed; 20 seeds
+unless said): the bands alone (0.3 / 0.5) gave Rival Rosters in the hundreds; 0.25 / 0.5 with a
+wage of 50 gave no Bankruptcy in five years and 9.2 Rival folds a game; the Rivals' ten Upkeeps
+took that to 0.05; wages of 85 and 100 bankrupted 9 and 17 of 20 within five years, most in the
+first; over 20 years, 0.25 / 0.375 at 75 left 84 of 100 games alive with 12 of the 16 Bankruptcies
+in the first year, and **0.26 / 0.39 at 70 left 63 of 100 alive**, its 37 Bankruptcies spread over
+years 0 to 8 and 16, with a Rival fold a game. The last is taken: games that last years, some
+Bankruptcies, some Rival turnover, a spread for the owner to tune rather than one outcome.
+
+Not turned: the difficulty scale (`questDifficultyMin/Max` clamps a template's range, so lowering
+the top would pin every hard template at one difficulty); rewards and durations (content, DL-25
+item 3); harm (INPUTS 4.4), the Bankruptcy grace (4.9) and starting Wealth (3.x), which the trials
+did not need; and the policy's own numbers (INPUTS 4.14, the harness's player, DL-34).
+
+**After** (DL-34's run, 200 × 20, validated): 134 games ran the full 20 years and 66 ended in
+Bankruptcy, 41 of them in the first year and the rest over years 1 to 8 and one in the sixteenth;
+years survived mean 14.07. The player fails 52.2% of its Quests (33.4% succeed, 14.4% strongly),
+the Rivals 11.7% (54.9% strongly). Rivals fold 0.95 times a game (187 Bankruptcies, 3 wiped
+Rosters), where the M2 implementers saw 11 to 14 in a 20-year run beside an idle player. A game:
+the player's Heroes injured 797 times, 88 died, 91 recruited, none retired; the Rivals' 3.07
+retired.
+
+Tests that relied on a changed default now pin it: the stub's tests pin INPUTS 4.3's bands they
+are written against, beside a new test of the new defaults; the Rival-controller phase tests that
+watch a first-afternoon recruit pin INPUTS 4.6's wage and three Upkeeps; the rebase tests pin
+versions 1 and 2; the Rival test of the default multiple expects ten. No assertion was loosened.
+
+**Consequences.** A save made before this entry plays under version 1 until the player rebases
+(DL-24 item 6), when `world.rules-adopted` records 1 to 2. A fifth of games still end in their
+first year: the start is the fragile part (500 Wealth against 280 Upkeep every ten Days, and the
+hardest Quests first), and the Bankruptcy grace, starting Wealth or the policy's choice of Quest
+are the levers there. The policy's Heroes die at four a year. M3's Levels change the stub's scale
+and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
+keep their rows; their defaults now differ from the config's, as this entry records.
+
+## DL-39 — M2 close: verification, the timing tests, and which harness run a tag carries
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the
+M2 verifier's report)
+
+**Context.** M2's twelve stories were built partly in parallel and verified independently before
+the `m2-the-loop` tag: every box proved, 20 of 23 mutation tests turned a test red, and the three
+survivors were weak tests, now strengthened. INPUTS 4.13 names "200 seeds × 20 years for the
+per-milestone run, 1,000 × 20 for the tagged run".
+
+**Decision.** (1) The validator's 1,000-Hero timing test asserts the fastest of repeated runs
+under the unchanged 50 ms bound, and its retry is removed (commit `28f10a3`); this supersedes the
+"retries twice" in DL-34. DL-34's remark that fast forward "can call" `partyFor` is out of date:
+it does, through `staffableQuests`. (2) The `controller.kind` guard also counts calls of
+`dispositionOf`; the Upkeep test checks the Turn each Guild pays on; the harness writes MiB where
+it divides by 1,024². (3) The "cheapest Unattached Hero" rule, written three times in M2
+(`rival.ts`, `policy.ts`, `endings.ts`), and the policy's copy of `offeredQuests`, become one
+engine selector each in M3-S5 (DL-38), where the Fame gate changes who can be signed. (4) Each
+milestone tag carries the epic gate's 200 × 20 run, committed as `harness/reports/m<n>-<date>.md`;
+the 1,000 × 20 run INPUTS 4.13 calls "the tagged run" is made once, for the first-build tag at M8,
+because a 1,000-game sweep costs over an hour of the machine per milestone and the counters are
+read at 200.
+
+**Consequences.** `m2-the-loop` carries `harness/reports/m2-2026-09-26.md` (200 × 20, validated
+after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
+with `HEROESIM_SEEDS=1000`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

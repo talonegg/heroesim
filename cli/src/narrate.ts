@@ -1,0 +1,188 @@
+// The CLI's words for what the engine reports (M2-S11, DL-33): a typed event in, one short line
+// out, and a stop reason in, one line out. The CLI's own rendering, not the engine's: the engine
+// emits data (ADR-0003), and M7's web front end narrates it in its own words.
+//
+// Names come from each event's labels, written when it happened, so a Hero or Quest whose row has
+// since gone still reads; content keys become content's display names. Each switch covers every
+// type, so the compiler refuses an event type or stop reason added without a line.
+
+import {
+  dayOf,
+  type ContentSet,
+  type EndingReason,
+  type EngineDeps,
+  type EngineEvent,
+  type EntityId,
+  type QuestBand,
+  type StopReason,
+  type WorldDocument,
+} from '@heroesim/engine';
+import { nameIn, renderTime, rowIn, table } from './render.js';
+
+/** A participant by the label the event carries, or its id when it has none. */
+function called(event: EngineEvent, id: EntityId): string {
+  return event.labels[id] ?? id;
+}
+
+/** A Hero by label and id, `Brenna Ashcombe (hero-000003)`: the id is what the commands take. */
+function hero(event: EngineEvent, id: EntityId): string {
+  const label = event.labels[id];
+  return label === undefined ? id : `${label} (${id})`;
+}
+
+/** `+120`, `-2`, `0`. */
+function signed(n: number): string {
+  return n > 0 ? `+${n}` : String(n);
+}
+
+function night(turn: number): string {
+  return `the night of Day ${dayOf(turn)}`;
+}
+
+const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success: 'succeeded', strong: 'succeeded strongly' };
+
+/** What befell a Guild at its ending, after its name. */
+const endingWords: Readonly<Record<EndingReason, string>> = {
+  retirement: 'lost its Guildmaster to Retirement',
+  bankruptcy: 'went bankrupt',
+  'roster-wiped': 'had its Roster wiped out',
+};
+
+/** One line for `event`, in the CLI's words. */
+export function narrate(event: EngineEvent, content: ContentSet): string {
+  switch (event.type) {
+    case 'world.created':
+      return `The world was made from seed ${event.payload.seed}.`;
+    case 'guild.founded':
+      return `${called(event, event.payload.guildId)} was founded.`;
+    case 'guildmaster.generated':
+      return `${called(event, event.payload.guildmasterId)} leads ${called(event, event.payload.guildId)}.`;
+    case 'hero.generated': {
+      const { heroId, guildId, classKey } = event.payload;
+      const where = guildId === null ? 'the Unattached pool' : called(event, guildId);
+      return `${hero(event, heroId)}, ${nameIn(content.classes, classKey)}, joined ${where}.`;
+    }
+    case 'patron.generated':
+      return `${called(event, event.payload.patronId)} of the ${nameIn(content.spheres, event.payload.sphereKey)} became a Patron.`;
+    case 'world.rules-adopted':
+      return `The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`;
+    case 'guild.upkeep-paid':
+      return `${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`;
+    case 'hero.recruited':
+      return `${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`;
+    case 'hero.left-pool':
+      return `${hero(event, event.payload.heroId)} left the Unattached pool.`;
+    case 'quest.offered': {
+      const { patronId, templateKey, questId } = event.payload;
+      return `${called(event, patronId)} offered ${nameIn(content.questTemplates, templateKey)} (${questId}).`;
+    }
+    case 'quest.expired': {
+      const { patronId, templateKey, questId } = event.payload;
+      return `${called(event, patronId)}'s ${nameIn(content.questTemplates, templateKey)} (${questId}) expired untaken.`;
+    }
+    case 'quest.taken': {
+      const { guildId, partyId, questId, returnsOnTurn } = event.payload;
+      return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}.`;
+    }
+    case 'quest.resolved': {
+      const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta } = event.payload;
+      return (
+        `${called(event, guildId)}'s ${partyId} came home from ${nameIn(content.questTemplates, templateKey)} ` +
+        `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.`
+      );
+    }
+    case 'hero.injured': {
+      const { heroId, typeKey, healsOnTurn } = event.payload;
+      return `${hero(event, heroId)} was injured (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;
+    }
+    case 'hero.died':
+      return `${hero(event, event.payload.heroId)} died on ${event.payload.questId}.`;
+    case 'hero.xp-gained':
+      return `${hero(event, event.payload.heroId)} gained ${event.payload.amount} XP.`;
+    case 'hero.morale-changed': {
+      const { heroId, before, after, bandAfter } = event.payload;
+      return `${hero(event, heroId)}'s Morale went from ${before} to ${after}, ${bandAfter}.`;
+    }
+    case 'hero.healed': {
+      const { heroId, typeKey, traitKey } = event.payload;
+      const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
+      return `${hero(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
+    }
+    case 'hero.retired':
+      return `${hero(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`;
+    case 'game.ended':
+      return `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`;
+    case 'guild.folded':
+      return `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`;
+    case 'hero.left-guild':
+      return `${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`;
+  }
+}
+
+/** A list of ids as the CLI prints one: `a`, `a and b`, `a, b and c`. */
+function listed(items: readonly string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+}
+
+/**
+ * Why a fast forward stopped, in one line. `document` is where it stopped; `maxTurns` the cap it
+ * played under.
+ */
+export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns: number): string {
+  const { world } = document;
+  switch (stop.kind) {
+    case 'ended':
+      return 'Stopped: the game is over.';
+    case 'party-returned': {
+      const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
+      const parties = stop.partyIds.length === 1 ? 'Party' : 'Parties';
+      return `Stopped: ${guild}'s ${parties} came home: ${listed(stop.partyIds)}.`;
+    }
+    case 'decision-needed': {
+      const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
+      return `Stopped: a decision is needed: ${guild} has no Party out, and could send one on ${listed(stop.questIds)} (show board).`;
+    }
+    case 'max-turns':
+      return `Stopped: played the most Turns allowed, ${maxTurns}.`;
+    case 'pool-refreshed': {
+      const heroes = stop.heroIds.map((id) => {
+        const row = rowIn(world.heroes, id);
+        return row === undefined ? id : `${row.name} (${id})`;
+      });
+      return `Stopped: new in the Unattached pool: ${listed(heroes)} (show pool).`;
+    }
+  }
+}
+
+// ── Advancing ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `advance`: how many Turns were played, where time stands now, why a fast forward stopped when it
+ * was one (`stop`), whether the game has ended, and each event of the Turns played, oldest first,
+ * one line each in the CLI's words.
+ */
+export function renderAdvance(
+  played: number,
+  events: readonly EngineEvent[],
+  document: WorldDocument,
+  deps: EngineDeps,
+  stop?: string,
+): string[] {
+  const { turn, ended } = document.world;
+  return [
+    `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
+    ...(stop === undefined ? [] : [stop]),
+    ...(ended === null ? [] : [`The game ended on Turn ${ended.turn}: ${ended.reason}.`]),
+    '',
+    ...(events.length === 0
+      ? ['No events.']
+      : [
+          `Events: ${events.length}, oldest first`,
+          '',
+          ...table(
+            [{ heading: 'Turn', align: 'right' }, { heading: 'What happened' }],
+            events.map((event) => [String(event.turn), narrate(event, deps.content)]),
+          ),
+        ]),
+  ];
+}

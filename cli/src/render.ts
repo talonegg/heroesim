@@ -3,9 +3,9 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `unattachedHeroes`); every name is a document field or a content row's
-// display name. Where the engine has no selector for something a view needs, the selector goes
-// into the engine, not here.
+// (`ageOf`, `baseStat`, `signingFee`, `unattachedHeroes`); every name is a document field or a
+// content row's display name. Where the engine has no selector for something a view needs, the
+// selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, and main.test.ts checks the printed Hero for it.
@@ -13,13 +13,20 @@
 import {
   ageOf,
   baseStat,
+  dayOf,
+  signingFee,
+  durationDaysOf,
+  timeOfDay,
   unattachedHeroes,
+  upkeep,
+  yearOf,
   type ContentSet,
   type EngineDeps,
   type Entry,
   type Guild,
   type Hero,
   type Patron,
+  type Quest,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -63,7 +70,7 @@ function fields(pairs: readonly (readonly [string, string])[]): string[] {
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
 /** A content row's display name; a key the content does not define is shown as it is (rule 5). */
-function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
+export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
   return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
 }
 
@@ -83,15 +90,30 @@ function none(list: readonly string[]): string {
   return list.length === 0 ? 'none' : list.join(', ');
 }
 
+// ── Time ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The Turn and where it falls: `Turn 3 (Day 1, morning, Year 0)`. Day and Year count from 0, as
+ * the Turn does, and come from the engine's selectors under the rules the save plays under.
+ */
+export function renderTime(turn: number, config: EngineDeps['config']): string {
+  return `Turn ${turn} (Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)})`;
+}
+
 // ── Guilds and the summary ───────────────────────────────────────────────────────────────────
 
 function controllerOf(guild: Guild): string {
   return guild.controller.kind === 'player' ? 'Player' : `Rival (${guild.controller.disposition})`;
 }
 
-function guildTable(document: WorldDocument, content: ContentSet): string[] {
+/**
+ * The Guilds as a table. When any has folded, a last column marks each folded one with the Day it
+ * folded (DL-28, DL-33): its row stays, out of play, with an empty Roster.
+ */
+function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
-  const guilds = Object.values(world.guilds);
+  const { content, config } = deps;
+  const anyFolded = !guilds.every(inPlay);
   return table(
     [
       { heading: 'Id' },
@@ -102,6 +124,8 @@ function guildTable(document: WorldDocument, content: ContentSet): string[] {
       { heading: 'Roster', align: 'right' },
       { heading: 'Wealth', align: 'right' },
       { heading: 'Fame', align: 'right' },
+      { heading: 'Upkeep', align: 'right' },
+      ...(anyFolded ? [{ heading: 'Folded' }] : []),
     ],
     guilds.map((guild) => [
       guild.id,
@@ -112,37 +136,59 @@ function guildTable(document: WorldDocument, content: ContentSet): string[] {
       String(guild.rosterIds.length),
       String(guild.wealth),
       String(guild.fame),
+      String(upkeep(guild, world, config)),
+      ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
     ]),
   );
 }
 
-/** `show`: the seed, the Turn, every Guild, and how many of everything there are. */
+function inPlay(guild: Guild): boolean {
+  return guild.foldedOnTurn === null;
+}
+
+/**
+ * `show`: the seed, the Turn, the Guilds in play, and how many of everything there are. A folded
+ * Guild is counted, and listed by `show guilds` (DL-33).
+ */
 export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
   const { meta, world, history } = document;
   const heroes = Object.keys(world.heroes).length;
+  const guilds = Object.values(world.guilds);
+  const playing = guilds.filter(inPlay);
+  const folded = guilds.length - playing.length;
   const counts = [
-    `${Object.keys(world.guilds).length} Guilds`,
+    `${playing.length} Guilds in play${folded === 0 ? '' : ` and ${folded} folded (show guilds lists them)`}`,
     `${heroes} Heroes (${unattachedHeroes(world).length} Unattached)`,
     `${Object.keys(world.patrons).length} Patrons`,
     `${history.entries.length} History entries`,
   ];
   return [
-    `Seed ${meta.seed}, Turn ${world.turn}, created ${meta.createdAt}`,
+    `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
-    ...guildTable(document, deps.content),
+    ...guildTable(playing, document, deps),
     '',
     counts.join(', '),
   ];
 }
 
-/** `show guilds`. */
+/** `show guilds`: every Guild, a folded one marked with the Day it folded. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
-  return ['Guilds', '', ...guildTable(document, deps.content)];
+  return ['Guilds', '', ...guildTable(Object.values(document.world.guilds), document, deps)];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
 
-function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: EngineDeps): string[] {
+/** A column a view adds to the Hero table, after the others: its heading and each Hero's cell. */
+interface HeroColumn extends Column {
+  cell: (hero: Hero) => string;
+}
+
+function heroTable(
+  heroes: readonly Hero[],
+  document: WorldDocument,
+  deps: EngineDeps,
+  more: readonly HeroColumn[] = [],
+): string[] {
   const { content, config } = deps;
   const { turn } = document.world;
   return table(
@@ -154,6 +200,7 @@ function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: Engin
       { heading: 'Age', align: 'right' },
       { heading: 'Morale', align: 'right' },
       { heading: 'Background' },
+      ...more,
     ],
     heroes.map((hero) => [
       hero.id,
@@ -163,6 +210,7 @@ function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: Engin
       String(ageOf(hero, turn, config)),
       String(hero.morale),
       nameIn(content.backgrounds, hero.backgroundKey),
+      ...more.map((column) => column.cell(hero)),
     ]),
   );
 }
@@ -173,9 +221,10 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
 }
 
-/** `show pool`: the Unattached Heroes. */
+/** `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives. */
 export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
-  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps)];
+  const fee: HeroColumn = { heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) };
+  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, [fee])];
 }
 
 /**
@@ -192,7 +241,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Age', String(ageOf(hero, world.turn, config))],
     ['Class', nameIn(content.classes, hero.classKey)],
     ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
-    ['Guild', hero.guildId === null ? 'Unattached' : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
+    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'none' : 'Unattached') : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
@@ -202,6 +251,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
   if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);
+  if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', `Turn ${hero.leftPoolOnTurn}`]);
 
   let lastArea = '';
   const stats = Object.values(content.stats)
@@ -245,6 +295,70 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
     ...table(
       [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }],
       patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey)]),
+    ),
+  ];
+}
+
+// ── The Board ────────────────────────────────────────────────────────────────────────────────
+
+/** What a Quest requires beyond its Party size: a Class, a Skill, both, or nothing. */
+function requiredOf(quest: Quest, content: ContentSet): string {
+  const { classKey, skillKey } = quest.requirements;
+  const needs = [
+    ...(classKey === undefined ? [] : [nameIn(content.classes, classKey)]),
+    ...(skillKey === undefined ? [] : [nameIn(content.skills, skillKey)]),
+  ];
+  return needs.join(', ');
+}
+
+/**
+ * `show board`: the Quests on offer in the Board's order, each with its template's name, its
+ * Patron, its terms and the last Day it stays on offer; then what each demands and the Skills
+ * that help (M2-S3).
+ */
+export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
+  const { world } = document;
+  const { content } = deps;
+  const quests = world.board.flatMap((id) => rowIn(world.quests, id) ?? []);
+  const heading = `Board: ${quests.length} ${quests.length === 1 ? 'Quest' : 'Quests'} on offer, ${renderTime(world.turn, deps.config)}`;
+  if (quests.length === 0) return [heading, '', 'The Board is empty.'];
+  return [
+    heading,
+    '',
+    ...table(
+      [
+        { heading: 'Id' },
+        { heading: 'Quest' },
+        { heading: 'Patron' },
+        { heading: 'Difficulty', align: 'right' },
+        { heading: 'Days', align: 'right' },
+        { heading: 'Reward', align: 'right' },
+        { heading: 'Fame', align: 'right' },
+        { heading: 'Party' },
+        { heading: 'Requires' },
+        { heading: 'On offer through' },
+      ],
+      quests.map((quest) => [
+        quest.id,
+        nameIn(content.questTemplates, quest.templateKey),
+        rowIn(world.patrons, quest.patronId)?.name ?? quest.patronId,
+        String(quest.difficulty),
+        String(durationDaysOf(quest)),
+        String(quest.reward),
+        String(quest.fameEffect),
+        `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax}`,
+        requiredOf(quest, content),
+        `Day ${dayOf(quest.expiresOnTurn)}`,
+      ]),
+    ),
+    '',
+    ...table(
+      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }],
+      quests.map((quest) => [
+        quest.id,
+        quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
+        none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+      ]),
     ),
   ];
 }

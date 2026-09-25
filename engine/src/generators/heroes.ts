@@ -94,6 +94,9 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     enteredTurn: world.turn,
     ageAtEntry,
     guildId: guild?.id ?? null,
+    // A Hero generated onto no Roster enters the Unattached pool now (DL-27).
+    unattachedSince: guild === undefined ? world.turn : null,
+    leftPoolOnTurn: null,
     partyId: null,
     stats,
     potential,

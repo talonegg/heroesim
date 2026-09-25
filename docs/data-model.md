@@ -89,7 +89,8 @@ guildmasterId
 rosterIds:      HeroId[]                    ordered
 wealth, fame
 belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
-foldedOnTurn:   turn | null                 a Guild that reached an ending; out of Rankings
+foldedOnTurn:   turn | null                 a Rival that reached an ending; out of play and out of
+                                            Rankings, its Roster released to the pool (DL-28)
 hall:           Record<FacilityKey, grade>  infirmary, trainingYard, quarters
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
 regard:         Record<EntityId, RegardEntry>
@@ -109,7 +110,11 @@ regard:         Record<EntityId, RegardEntry>
 ```
 id, name, sex, backgroundKey, classKey
 enteredTurn, ageAtEntry                     age now = ageAtEntry + (turn - enteredTurn) / turnsPerYear
-guildId:        GuildId | null              null means Unattached
+guildId:        GuildId | null              null means on no Roster: Unattached, or gone from the pool
+unattachedSince: integer | null             the Turn the Hero last entered the Unattached pool; null
+                                            on a Roster and once they have left the pool (DL-27)
+leftPoolOnTurn: integer | null              set when the Hero left the pool unrecruited and an entry
+                                            kept their row (rule 8): out of play, in no pool
 partyId:        PartyId | null
 stats:          Record<StatKey, number>     base values only
 potential:      Record<StatKey, number>     hidden ceiling per Stat; stored plainly, the UI hides it
@@ -257,6 +262,9 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
    removed when they leave the pool unrecruited unless a History entry *other than* their own
    `hero.generated` and `hero.left-pool` names them — those two entries every pool Hero has,
    and their labels narrate without the row; dead and retired Heroes stay, with their State.
+   A Hero leaves the pool `unattachedStayDays` after the Day they entered it
+   (`unattachedSince`); one whose row an entry keeps stays with `leftPoolOnTurn` set, out of
+   play and out of the pool (DL-27).
    The validator knows the list of passive entry types and refuses a removal that a
    non-passive entry contradicts.
 9. **Hidden information is stored plainly.** Potential is a field the front end does not show.
@@ -279,13 +287,15 @@ runs per Turn in play.
 | --- | --- |
 | An id referenced by a row that does not exist in its table | refuse |
 | A Hero on two Rosters, or in two Parties, or on a Roster of a Guild other than `guildId` | refuse |
+| A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither | refuse |
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
+| A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
-| A Stat, Class, Skill, Trait, Item or template key the content does not define | warn |
+| A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 
 A refused document names the failed check. Nothing is repaired silently.
 

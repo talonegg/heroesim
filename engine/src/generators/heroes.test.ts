@@ -74,7 +74,9 @@ describe('generateHero', () => {
     expect(world.counters.guilds).toBe(1);
   });
 
-  test('over 10,000 Heroes every Stat stays in its content range and Potential is at least the base', () => {
+  // 10,000 Heroes generated: about 0.65 s alone, 1.7 s in a full `npm test` on a busy machine; the
+  // timeout bounds a hang with room for a busier one, not the speed.
+  test('over 10,000 Heroes every Stat stays in its content range and Potential is at least the base', { timeout: 30_000 }, () => {
     const deps = testDeps();
     const world = testWorld('ranges', deps);
     const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');
@@ -148,12 +150,10 @@ describe('generateHero', () => {
     const fromPool = testWorld('named-stream', deps, plannedStreams);
     const fromGeneration = testWorld('named-stream', deps, plannedStreams);
     const before = structuredClone(fromPool.rng);
-    // `pool` joins `streamNames` in M2-S8; until then the type does not know it.
-    const pool = 'pool' as string as StreamName;
-    const { hero } = generateHero(fromPool, deps, { stream: pool });
+    const { hero } = generateHero(fromPool, deps, { stream: 'pool' });
 
     expect(fromPool.rng.generation).toEqual(before.generation);
-    expect((fromPool.rng as Record<string, unknown>).pool).not.toEqual((before as Record<string, unknown>).pool);
+    expect(fromPool.rng.pool).not.toEqual(before.pool);
     expect(hero).not.toEqual(generateHero(fromGeneration, deps).hero);
   });
 
@@ -161,8 +161,10 @@ describe('generateHero', () => {
     const deps = testDeps();
     const world = testWorld('missing-stream', deps);
     const before = structuredClone(world);
+    // A name no core stream has, so the world lacks it whatever streams later milestones add.
+    const missing = 'no-such-stream' as string as StreamName;
 
-    expect(() => generateHero(world, deps, { stream: 'pool' as string as StreamName })).toThrow(/pool/);
+    expect(() => generateHero(world, deps, { stream: missing })).toThrow(/no-such-stream/);
     expect(world).toEqual(before);
   });
 

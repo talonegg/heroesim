@@ -10,7 +10,17 @@
 // the engine against the real content (M1-S10).
 
 import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
-import type { Class, ContentSet, Stat, StatArea, StatOwner } from './content-types.js';
+import type {
+  Class,
+  ContentSet,
+  InjuryType,
+  QuestTemplate,
+  QuestTemplateRequires,
+  SphereKey,
+  Stat,
+  StatArea,
+  StatOwner,
+} from './content-types.js';
 import {
   emptyDocument,
   makeId,
@@ -95,6 +105,52 @@ interface Named {
 }
 
 /**
+ * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
+ * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
+ * and the Fame effect 2, as INPUTS 4.2's defaults put them.
+ */
+function questTemplate(
+  key: string,
+  sphere: SphereKey,
+  [difficultyMin, difficultyMax]: [number, number],
+  [durationDaysMin, durationDaysMax]: [number, number],
+  [partySizeMin, partySizeMax]: [number, number],
+  demands: string,
+  skills: string,
+  requires: QuestTemplateRequires = {},
+): [string, QuestTemplate] {
+  return [
+    key,
+    {
+      key,
+      name: title(key),
+      sphereKeys: [sphere],
+      tags: ['fight'],
+      difficultyMin,
+      difficultyMax,
+      durationDaysMin,
+      durationDaysMax,
+      rewardPerDifficulty: 4,
+      fameEffect: 2,
+      partySizeMin,
+      partySizeMax,
+      demands: demands.split(' ').map((pair) => {
+        const [statKey = '', weight = ''] = pair.split(':');
+        return [statKey, Number(weight)];
+      }),
+      skillKeys: skills.split(' '),
+      requires,
+      lootTableKey: null,
+    },
+  ];
+}
+
+/** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
+function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], leavesTrait: string | null): [string, InjuryType] {
+  return [key, { key, name: title(key), healDaysMin, healDaysMax, leavesTrait }];
+}
+
+/**
  * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
  * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
  * structure that shares an object between two places is not walked twice.
@@ -109,10 +165,11 @@ export function deepFreeze<T>(value: T): T {
 
 /**
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
- * twelve Skills, every Trait and Sphere, some of the Backgrounds, and name lists long enough for
- * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons). It also carries the Quest
- * template and Item tables that M2-S3 and M5-S1 add, so that fixture Quests and Items raise no
- * warning.
+ * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
+ * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
+ * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), and the one
+ * Disposition, `steady` (M2-S9). It also carries the Item table M5-S1 adds, so that fixture Items
+ * raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -165,9 +222,43 @@ export const testContent: ContentSet = deepFreeze(
           ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
         ],
       },
+      // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
+      questTemplates: Object.fromEntries([
+        questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
+          'strength:0.5 courage:0.5', 'swordcraft benediction'),
+        questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
+          'strength:0.5 leadership:0.5', 'tactics shieldwork', { classKey: 'warrior' }),
+        questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
+          'endurance:0.5 perception:0.5', 'tactics field-surgery'),
+        questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
+          'spirit:0.4 willpower:0.3 courage:0.3', 'benediction warding', { classKey: 'healer' }),
+        questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
+          'weaponry:0.5 perception:0.5', 'tactics trapcraft'),
+        questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
+          'dexterity:0.4 wits:0.3 adaptability:0.3', 'lockpicking trapcraft'),
+        questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
+          'strength:0.5 perception:0.5', 'swordcraft stealth'),
+        questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
+          'knowledge:0.4 willpower:0.3 charisma:0.3', 'herbalism field-surgery'),
+        questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
+          'intelligence:0.5 perception:0.5', 'runecraft trapcraft'),
+        questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
+          'arcana:0.5 spelllore:0.5', 'warding runecraft', { classKey: 'mage' }),
+        questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
+          'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
+        questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
+          'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
+      ]),
+      // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
+      injuries: Object.fromEntries([
+        injuryType('bruised-ribs', [5, 8], null),
+        injuryType('broken-arm', [15, 25], null),
+        injuryType('deep-cut', [6, 12], 'scarred'),
+        injuryType('shattered-knee', [20, 30], 'lame'),
+      ]),
+      dispositions: keyed({}, 'steady'),
     },
     {
-      questTemplates: keyed({}, 'clear-the-barrow', 'escort-the-tithe'),
       items: keyed({}, 'healing-draught', 'lantern-of-stannary'),
     },
   ),
@@ -312,6 +403,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       enteredTurn: 0,
       ageAtEntry: 18 + (n % 15),
       guildId,
+      unattachedSince: guildId === null ? 0 : null,
+      leftPoolOnTurn: null,
       partyId: null,
       stats,
       potential: Object.fromEntries(Object.entries(stats).map(([key, value]) => [key, value + 2])),

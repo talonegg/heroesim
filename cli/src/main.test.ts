@@ -5,13 +5,24 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  advance,
   ageOf,
+  count,
   createWorld,
+  dayOf,
   defaultConfig,
   deserialise,
+  dispatch,
+  fastForward,
   makeId,
   serialise,
+  upkeep,
+  type EntityId,
+  type Guild,
   type Hero,
+  type HeroId,
+  type Quest,
+  type QuestId,
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
@@ -170,7 +181,7 @@ describe('show', () => {
     expect(run.out).toContain(`${defaultConfig.patronCount} Patrons`);
   });
 
-  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth and Fame', () => {
+  test('guilds prints each Guild with its Guildmaster, Roster size, Wealth, Fame and Upkeep', () => {
     const { world } = document();
 
     const run = play(['show', 'guilds']);
@@ -181,9 +192,34 @@ describe('show', () => {
       expect(row).toContain(guild.name);
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
-      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}$`));
+      const due = upkeep(guild, world, defaultConfig);
+      expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
+  });
+
+  test('guilds marks a folded Guild with the Day it folded, and show lists only the Guilds in play (DL-28, DL-33)', () => {
+    const rivalId = makeId('guilds', 2);
+    // Folded as M2-S10's fold leaves a Guild: its Heroes released to the pool, its Roster empty.
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      for (const heroId of rival.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+      }
+      rival.rosterIds = [];
+      rival.foldedOnTurn = 0;
+    });
+
+    const guilds = play(['show', 'guilds']);
+    const summary = play(['show']);
+
+    expect(guilds.code).toBe(exitCodes.ok);
+    expect(rowOf(guilds.out, rivalId)).toMatch(/\s{2}on Day 0$/);
+    expect(rowOf(guilds.out, playerId)).not.toContain('on Day');
+    expect(guilds.out.split('\n')[2]).toMatch(/\s{2}Folded$/);
+    expect(summary.out.split('\n').some((line) => line.startsWith(rivalId))).toBe(false);
+    expect(rowOf(summary.out, playerId)).toContain('The Test');
+    expect(summary.out).toContain(`${defaultConfig.rivalCount} Guilds in play and 1 folded (show guilds lists them)`);
   });
 
   test("roster prints the player's Roster, with ages from the engine and names from content", () => {
@@ -242,6 +278,41 @@ describe('show', () => {
       expect(row).toContain(patron.name);
       expect(row).toContain(content.spheres[patron.sphereKey]?.name);
     }
+  });
+
+  test("board prints the Quests on offer in the Board's order, each with its template, Patron and terms (M2-S3)", () => {
+    const { world } = document();
+    expect(world.board).toHaveLength(defaultConfig.boardSize);
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain(`Board: ${defaultConfig.boardSize} Quests on offer, Turn 0 (Day 0, morning, Year 0)`);
+    const lines = run.out.split('\n');
+    const positions = world.board.map((id) => lines.findIndex((line) => line.startsWith(id)));
+    expect(positions).toEqual([...positions].sort((a, b) => a - b));
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      const row = rowOf(run.out, id);
+      expect(row).toContain(content.questTemplates[quest.templateKey]?.name);
+      expect(row).toContain(world.patrons[quest.patronId]?.name);
+      expect(row).toMatch(new RegExp(`\\s${quest.difficulty}\\s+${quest.durationTurns / 3}\\s+${quest.reward}\\s`));
+      expect(row).toMatch(/Day 2$/);
+    }
+  });
+
+  test('board says so when the Board is empty', () => {
+    edit((edited) => {
+      edited.world.board = [];
+      edited.world.quests = {};
+    });
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Board: 0 Quests on offer');
+    expect(run.out).toContain('The Board is empty.');
   });
 
   test("hero prints a Hero's Attributes, Stats and Skills by their content names", () => {
@@ -361,9 +432,11 @@ describe('show', () => {
   });
 
   test('history pluralises the entry count: one entry reads "1 entry", never "1 entries"', () => {
-    // A Patron's History holds only its own patron.generated entry (DL-19 item 10).
-    const patronId = makeId('patrons', 1);
-    expect(document().history.byEntity[patronId]).toHaveLength(1);
+    // A Patron who offers nothing on the first Board has only their patron.generated entry
+    // (DL-19 item 10); six Quests from twelve Patrons leave some such.
+    const { byEntity } = document().history;
+    const patronId = Object.keys(document().world.patrons).find((id) => byEntity[id as EntityId]?.length === 1);
+    if (patronId === undefined) throw new Error('Every Patron offers a Quest on the first Board');
 
     const run = play(['show', 'history', patronId]);
 
@@ -376,6 +449,314 @@ describe('show', () => {
     const { entries } = document().history;
     expect(entries.length).toBeGreaterThan(1);
     expect(all.out).toContain(`${entries.length} entries, oldest first`);
+  });
+});
+
+describe('advance', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  test('plays one Turn, saves the document the engine returns, and show reflects the Turn', () => {
+    const before = document();
+    const expected = advance(before, { config: { ...defaultConfig, ...before.meta.config }, content }).document;
+
+    const run = play(['advance']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected));
+    expect(run.out).toContain('Played 1 Turn. Now Turn 1 (Day 0, afternoon, Year 0).');
+    expect(play(['show']).out).toContain('Seed demo, Turn 1 (Day 0, afternoon, Year 0)');
+  });
+
+  test('--turns plays that many Turns: three from a new world is the morning of Day 1', () => {
+    const run = play(['advance', '--turns', '3']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Played 3 Turns. Now Turn 3 (Day 1, morning, Year 0).');
+    expect(document().world.turn).toBe(3);
+    expect(play(['show']).out).toContain('Seed demo, Turn 3 (Day 1, morning, Year 0)');
+  });
+
+  test('refuses a game that has ended, writing nothing', () => {
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'bankruptcy' };
+    });
+    const original = saved();
+
+    const run = play(['advance', '--turns', '2']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain('The game ended on Turn 0: bankruptcy');
+    expect(saved()).toBe(original);
+  });
+
+  test('plays on a save made before the Board existed, filling its Board on the first morning (M2-S3)', () => {
+    // An M1 save: no board stream, no Quests.
+    edit((edited) => {
+      Reflect.deleteProperty(edited.world.rng, 'board');
+      edited.world.board = [];
+      edited.world.quests = {};
+      edited.meta.content.version = 1;
+    });
+
+    const run = play(['advance', '--turns', '3']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    // The morning's offers, in the CLI's words (DL-33).
+    expect(run.out).toMatch(/offered .+ \(quest-\d{6}\)\./);
+    expect(document().world.board).toHaveLength(defaultConfig.boardSize);
+    expect(Object.hasOwn(document().world.rng, 'board')).toBe(true);
+  });
+
+  test('refuses a bad --turns as a bad command line', () => {
+    expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
+    expect(document().world.turn).toBe(0);
+  });
+});
+
+describe('advance --until: fast forward (M2-S11)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  const playDepsOf = (before: WorldDocument) => ({ config: { ...defaultConfig, ...before.meta.config }, content });
+
+  /**
+   * Sends two of the player's four Heroes on the demo Board's seven-Day Guard the caravan, open to
+   * any two to four; the other two stay at home, and no decision is needed while the Party is out.
+   */
+  function sendParty(): { partyId: string; returnsOnTurn: number } {
+    const { world } = document();
+    const questId = world.board.find((id) => world.quests[id]?.templateKey === 'guard-the-caravan');
+    if (questId === undefined) throw new Error('The demo Board has changed');
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    expect(play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, 2).join(',')]).code).toBe(exitCodes.ok);
+    const party = Object.values(document().world.parties)[0];
+    if (party === undefined) throw new Error('No Party');
+    return { partyId: party.id, returnsOnTurn: party.returnsOnTurn };
+  }
+
+  test('party-returns stops on the night the Party comes home, printing why and every event since the last command', () => {
+    // Unattached Heroes leave after two Days, so the pool refills on the way whether or not the
+    // Rivals recruit (which the balance pass, DL-35, made rare).
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
+    });
+    const { partyId, returnsOnTurn } = sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['party-returned'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+
+    const run = play(['advance', '--until', 'party-returns']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(document().world.turn).toBe(returnsOnTurn);
+    expect(run.out).toContain(`Played ${returnsOnTurn} Turns. Now Turn ${returnsOnTurn} (Day ${dayOf(returnsOnTurn)}, night, Year 0).`);
+    expect(run.out).toContain(`Stopped: The Test's Party came home: ${partyId}.`);
+    expect(run.out).toContain(`Events: ${expected.events.length}, oldest first`);
+    expect(run.out).toContain(`The Test's ${partyId} came home from Guard the caravan (quest-`);
+    // The pool refreshed on the way, and did not stop it: pool-refreshed is opt-in.
+    expect(run.out).toContain('joined the Unattached pool.');
+  });
+
+  test('pool-refreshed stops on the first night new Heroes enter the pool, naming them, only when asked', () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, unattachedStayDays: 2 };
+    });
+    sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['pool-refreshed'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+    expect(expected.stoppedBecause.kind).toBe('pool-refreshed');
+
+    const run = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const { world } = document();
+    expect(world.turn).toBe(expected.document.world.turn);
+    expect(run.out).toMatch(/Stopped: new in the Unattached pool: .+ \(hero-\d{6}\).* \(show pool\)\./);
+  });
+
+  test('decision stops the morning Quests the idle Roster could take reach the Board', () => {
+    const run = play(['advance', '--until', 'decision']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Now Turn 3 (Day 1, morning, Year 0).');
+    expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
+  });
+
+  test('--max caps the Turns and says so', () => {
+    sendParty();
+
+    const run = play(['advance', '--max', '2']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Played 2 Turns.');
+    expect(run.out).toContain('Stopped: played the most Turns allowed, 2.');
+    expect(document().world.turn).toBe(2);
+  });
+
+  test("without --max the cap is one year of Turns, under the save's own rules", () => {
+    // A Guild with no Roster sends no one and has nothing to decide: only the cap stops it. The
+    // save's rules make a year thirty Turns, which keeps the test short.
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, turnsPerYear: 30 };
+      const guild = edited.world.guilds[playerId] as Guild;
+      for (const heroId of guild.rosterIds) {
+        Object.assign(edited.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: edited.world.turn });
+      }
+      guild.rosterIds = [];
+    });
+
+    const year = play(['advance', '--until', 'ended']);
+
+    expect(year.code, year.err).toBe(exitCodes.ok);
+    expect(year.out).toContain('Played 30 Turns. Now Turn 30 (Day 10, morning, Year 1).');
+    expect(year.out).toContain('Stopped: played the most Turns allowed, 30.');
+  });
+
+  test('refuses a game that has ended, writing nothing', () => {
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'retirement' };
+    });
+    const original = saved();
+
+    const run = play(['advance', '--until', 'party-returns', '--max', '5']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain('The game ended on Turn 0: retirement');
+    expect(saved()).toBe(original);
+  });
+});
+
+describe('dispatch (M2-S4)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  /** The first Quest on the Board the player's first Heroes can take: no Class or Skill asked, and a size they make. */
+  function openQuest(world: WorldDocument['world']): { questId: QuestId; heroIds: HeroId[] } {
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    for (const questId of world.board) {
+      const { requirements } = world.quests[questId] as Quest;
+      if (requirements.classKey === undefined && requirements.skillKey === undefined) {
+        return { questId, heroIds: roster.slice(0, requirements.partySizeMin) };
+      }
+    }
+    throw new Error('No open Quest on the Board');
+  }
+
+  test('sends the Party the engine sends, saves it, and prints the Party, the return Day and the Rivals reminder', () => {
+    const before = document();
+    const { questId, heroIds } = openQuest(before.world);
+    const expected = dispatch(
+      before,
+      { guildId: playerId, questId, heroIds },
+      { config: { ...defaultConfig, ...before.meta.config }, content },
+    );
+    if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
+    const party = Object.values(expected.document.world.parties)[0];
+    if (party === undefined) throw new Error('No Party');
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(run.out).toContain(`Dispatched ${party.id} from The Test on ${questId}`);
+    for (const heroId of heroIds) expect(run.out).toContain(`${before.world.heroes[heroId]?.name} (${heroId})`);
+    expect(run.out).toContain(`returns on the night of Day ${dayOf(party.returnsOnTurn)}, Turn ${party.returnsOnTurn} `);
+    expect(run.out).toContain('Rivals take Quests from the Board each afternoon');
+    expect(play(['show', 'board']).out).not.toContain(questId);
+  });
+
+  test("refuses a Quest not on the Board, a Hero away and another Guild's Hero, writing nothing", () => {
+    const { questId, heroIds } = openQuest(document().world);
+    expect(play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]).code).toBe(exitCodes.ok);
+    const original = saved();
+    const { world } = document();
+    const next = openQuest(world);
+    const idle = (world.guilds[playerId]?.rosterIds ?? []).filter((id) => !heroIds.includes(id));
+    const rivalHero = world.guilds[makeId('guilds', 2)]?.rosterIds[0] as HeroId;
+
+    const cases: [string[], RegExp][] = [
+      [['--quest', questId, '--heroes', idle.join(',')], new RegExp(`${questId} is not on the Board`)],
+      [['--quest', next.questId, '--heroes', heroIds.join(',')], /is away with a Party and cannot go/],
+      [['--quest', next.questId, '--heroes', rivalHero], new RegExp(`\\(${rivalHero}\\) is not on the Roster of The Test`)],
+    ];
+    for (const [flags, problem] of cases) {
+      const run = play(['dispatch', ...flags]);
+      expect(run.code, flags.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toMatch(problem);
+      expect(saved()).toBe(original);
+    }
+  });
+
+  test('refuses a Party larger than the Quest takes, naming its bounds, writing nothing', () => {
+    const { world } = document();
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const questId = world.board.find((id) => (world.quests[id]?.requirements.partySizeMax ?? 0) < roster.length);
+    if (questId === undefined) throw new Error('Every Quest on the Board takes the whole Roster');
+    const { partySizeMin, partySizeMax } = (world.quests[questId] as Quest).requirements;
+    const original = saved();
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', roster.join(',')]);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(
+      `${questId} takes a Party of ${partySizeMin} to ${partySizeMax} Heroes; ${roster.length} were named.`,
+    );
+    expect(saved()).toBe(original);
+  });
+
+  test('refuses a word that is not an id as a bad command line', () => {
+    expect(play(['dispatch', '--quest', 'the-barrow', '--heroes', 'hero-000001']).code).toBe(exitCodes.usage);
+  });
+});
+
+describe('rebase', () => {
+  const adopted = (): number => count(document().history, 'world.rules-adopted');
+
+  test('refuses a save already under the current rules, writing nothing', () => {
+    newDemo();
+    const original = saved();
+
+    const run = play(['rebase']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(`already plays under this release's rules, configVersion ${defaultConfig.configVersion}`);
+    expect(saved()).toBe(original);
+  });
+
+  test("a save made under older rules plays under them until rebase adopts this release's, once", () => {
+    newDemo();
+    // A save from a release whose rules were one version older, with a year of three Turns.
+    edit((edited) => {
+      edited.meta.config.configVersion = defaultConfig.configVersion - 1;
+      edited.meta.config.turnsPerYear = 3;
+    });
+
+    expect(play(['advance', '--turns', '3']).out).toContain('Now Turn 3 (Day 1, morning, Year 1).');
+    expect(document().meta.config.turnsPerYear).toBe(3);
+
+    const run = play(['rebase']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain(`configVersion ${defaultConfig.configVersion - 1} to ${defaultConfig.configVersion}`);
+    expect(document().meta.config).toEqual(defaultConfig);
+    expect(adopted()).toBe(1);
+    expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
+    expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+yes/m);
+
+    expect(play(['rebase']).code).toBe(exitCodes.refused);
+    expect(adopted()).toBe(1);
   });
 });
 
@@ -473,7 +854,7 @@ describe('the command line', () => {
     expect(run.err).toContain('EISDIR');
   });
 
-  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'board']], [['new', '--seed', 'x']]])(
+  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'market']], [['new', '--seed', 'x']]])(
     '%j prints the usage and exits non-zero',
     (argv) => {
       const run = play(argv);

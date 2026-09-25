@@ -13,9 +13,13 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 1', () => {
+  test('is the core content set, version 4 since the Injury types (M2-S5) followed the Dispositions (M2-S9)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(1);
+    expect(content.version).toBe(4);
+  });
+
+  test("has one Disposition, M2's steady (INPUTS 4.12)", () => {
+    expect(content.dispositions).toEqual({ steady: { key: 'steady', name: 'Steady' } });
   });
 
   test('has twenty Hero Stats in four areas', () => {
@@ -91,6 +95,72 @@ describe('loadContent()', () => {
     expect(content.names.family.length).toBeGreaterThanOrEqual(55);
     expect(content.names.guild.length).toBeGreaterThanOrEqual(25);
     expect(content.names.patron.length).toBeGreaterThan(0);
+  });
+
+  describe('Quest templates (M2-S3)', () => {
+    const templates = Object.values(content.questTemplates);
+
+    test('are twelve, two for each Sphere', () => {
+      expect(templates).toHaveLength(12);
+      for (const sphereKey of Object.keys(content.spheres)) {
+        expect(templates.filter((it) => it.sphereKeys.includes(sphereKey)), sphereKey).toHaveLength(2);
+      }
+    });
+
+    test('each weigh demands on Hero Stats summing to 1, and name Skills from skills.json', () => {
+      for (const it of templates) {
+        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
+        expect(sum, it.key).toBeCloseTo(1, 6);
+        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
+        expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
+        for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
+        expect(it.lootTableKey).toBeNull();
+      }
+    });
+
+    // The ranges are content, not rules: the templates hold them (DL-25).
+    test('keep to INPUTS 4.2 and 4.3: 2 to 10 Days, a reward of 40 to 400, Fame 1 to 5, difficulty 10 to 100', () => {
+      for (const it of templates) {
+        expect(it.durationDaysMin, it.key).toBeGreaterThanOrEqual(2);
+        expect(it.durationDaysMax, it.key).toBeLessThanOrEqual(10);
+        expect(it.difficultyMin, it.key).toBeGreaterThanOrEqual(10);
+        expect(it.difficultyMax, it.key).toBeLessThanOrEqual(100);
+        expect(Math.round(it.difficultyMin * it.rewardPerDifficulty), it.key).toBeGreaterThanOrEqual(40);
+        expect(Math.round(it.difficultyMax * it.rewardPerDifficulty), it.key).toBeLessThanOrEqual(400);
+        expect(it.fameEffect, it.key).toBeGreaterThanOrEqual(1);
+        expect(it.fameEffect, it.key).toBeLessThanOrEqual(5);
+      }
+    });
+
+    test('ask for a Party the starting Roster of four can field, a few with a Class or Skill required', () => {
+      for (const it of templates) expect(it.partySizeMin, it.key).toBeLessThanOrEqual(4);
+      const requiring = templates.filter(
+        (it) => it.requires.classKey !== undefined || it.requires.skillKey !== undefined,
+      );
+      expect(requiring.length).toBeGreaterThan(0);
+      expect(requiring.length).toBeLessThan(templates.length / 2);
+    });
+  });
+
+  describe('Injury types (M2-S5)', () => {
+    const types = Object.values(content.injuries);
+
+    test('are a few, healing in 5 to 30 Days (INPUTS 4.5)', () => {
+      expect(types.length).toBeGreaterThanOrEqual(3);
+      for (const it of types) {
+        expect(it.healDaysMin, it.key).toBeGreaterThanOrEqual(5);
+        expect(it.healDaysMax, it.key).toBeLessThanOrEqual(30);
+        expect(it.healDaysMin, it.key).toBeLessThanOrEqual(it.healDaysMax);
+      }
+    });
+
+    test('leave a Hero Trait or none, and between them leave every Hero Trait', () => {
+      const left = types.flatMap((it) => (it.leavesTrait === null ? [] : [it.leavesTrait]));
+      const heroTraits = Object.values(content.traits).filter((trait) => trait.owner === 'hero');
+
+      expect(types.some((it) => it.leavesTrait === null)).toBe(true);
+      expect([...new Set(left)].sort()).toEqual(heroTraits.map((trait) => trait.key).sort());
+    });
   });
 
   test('validates', () => {

@@ -1,6 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Background, Class, Names, Skill, Sphere, Stat, Trait } from '@heroesim/engine';
+import type {
+  Background,
+  Class,
+  Disposition,
+  InjuryType,
+  Names,
+  QuestTemplate,
+  Skill,
+  Sphere,
+  Stat,
+  Trait,
+} from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { ContentError, contentFiles, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
@@ -19,6 +30,9 @@ interface Files {
   'backgrounds.json': Rows<Background>;
   'spheres.json': Rows<Sphere>;
   'names.json': Names;
+  'quest-templates.json': Rows<QuestTemplate>;
+  'injuries.json': Rows<InjuryType>;
+  'dispositions.json': Rows<Disposition>;
 }
 
 function realFiles(): Record<string, string> {
@@ -54,6 +68,9 @@ function refusalOf(run: () => unknown): ContentError {
 }
 
 const warrior = (json: Files['classes.json']) => json['warrior'] as Omit<Class, 'key'>;
+const barrow = (json: Files['quest-templates.json']) => json['clear-the-barrow'] as Template;
+
+type Template = Omit<QuestTemplate, 'key'>;
 const stat = (json: Files['stats.json'], key: string) => json[key] as Omit<Stat, 'key'>;
 
 describe('the real content', () => {
@@ -172,6 +189,7 @@ describe('a key that is not kebab-case', () => {
     ['skills.json', 'fieldSurgery'],
     ['spheres.json', 'the crown'],
     ['backgrounds.json', '-farm-born'],
+    ['dispositions.json', 'Steady'],
   ] as const)('in %s is refused, naming the key: %s', (file, key) => {
     const files = withJson(file, (json) => {
       const rows = json as Record<string, unknown>;
@@ -200,6 +218,110 @@ describe("a Class's growth", () => {
     });
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(/classes\.mage\.growth.*"arcana"/);
+  });
+});
+
+describe('a Quest template', () => {
+  test('whose demand weights do not sum to 1 is refused, naming the template and the sum', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      barrow(json).demands[0] = ['strength', 0.5];
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /questTemplates\.clear-the-barrow\.demands: weights sum to 1\.2, not 1/,
+    );
+  });
+
+  test('with a demand of no weight, or no demand at all, is refused', () => {
+    const zero = withJson('quest-templates.json', (json) => {
+      barrow(json).demands = [['strength', 1], ['courage', 0]];
+    });
+    const none = withJson('quest-templates.json', (json) => {
+      barrow(json).demands = [];
+    });
+
+    expect(refusalOf(() => parseContent(zero)).message).toMatch(/clear-the-barrow\.demands.*"courage"/);
+    expect(refusalOf(() => parseContent(none)).message).toMatch(/clear-the-barrow\.demands is empty/);
+  });
+
+  test.each<[string, (it: Template) => void, RegExp]>([
+    ['a demand on a Stat that does not exist', (it) => (it.demands[0] = ['strenght', 0.3]), /demands.*"strenght"/],
+    ['a demand on a Guildmaster Stat', (it) => (it.demands[0] = ['negotiation', 0.3]), /demands.*"negotiation"/],
+    ['a Skill that does not exist', (it) => void it.skillKeys.push('axemanship'), /skillKeys.*"axemanship"/],
+    ['a Sphere that does not exist', (it) => void it.sphereKeys.push('the-sea'), /sphereKeys.*"the-sea"/],
+    ['a required Class that does not exist', (it) => (it.requires = { classKey: 'bard' }), /requires\.classKey.*"bard"/],
+    ['a required Skill that does not exist', (it) => (it.requires = { skillKey: 'lute' }), /requires\.skillKey.*"lute"/],
+    ['a difficulty range upside down', (it) => (it.difficultyMin = 80), /difficultyMin 80 is greater than difficultyMax 70/],
+    ['a Party of no Heroes', (it) => (it.partySizeMin = 0), /partySizeMin is 0/],
+    ['a tag that is not kebab-case', (it) => void it.tags.push('Dark Places'), /tags: "Dark Places"/],
+  ])('with %s is refused, naming the template', (_, change, problem) => {
+    const files = withJson('quest-templates.json', (json) => change(barrow(json)));
+
+    const { message } = refusalOf(() => parseContent(files));
+
+    expect(message).toContain('questTemplates.clear-the-barrow');
+    expect(message).toMatch(problem);
+  });
+
+  test('requiring anything but a Class or a Skill is refused, naming the field', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      Object.assign(barrow(json).requires, { level: 3 });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /quest-templates\.json: clear-the-barrow\.requires\.level is not a field/,
+    );
+  });
+
+  test('with a Loot table before Loot exists is refused', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      Object.assign(barrow(json), { lootTableKey: 'barrow-hoard' });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/clear-the-barrow\.lootTableKey/);
+  });
+
+  test('that leaves a Sphere with none is refused, naming the Sphere', () => {
+    const files = withJson('quest-templates.json', (json) => {
+      for (const [key, it] of Object.entries(json)) {
+        if (it.sphereKeys.includes('villages')) delete json[key];
+      }
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toContain(
+      'spheres.villages: no Quest template names it in sphereKeys',
+    );
+  });
+});
+
+describe('an Injury type (M2-S5)', () => {
+  const deepCut = (json: Files['injuries.json']) => json['deep-cut'] as Omit<InjuryType, 'key'>;
+
+  test.each<[string, (it: Omit<InjuryType, 'key'>) => void, RegExp]>([
+    ['leaving a Trait that does not exist', (it) => (it.leavesTrait = 'cursed'), /injuries\.deep-cut\.leavesTrait: "cursed" is not a Hero Trait/],
+    ['leaving a Guildmaster Trait', (it) => (it.leavesTrait = 'miser'), /injuries\.deep-cut\.leavesTrait: "miser" is not a Hero Trait/],
+    ['healing in no Days', (it) => (it.healDaysMin = 0), /injuries\.deep-cut\.healDaysMin is 0/],
+    ['a heal range upside down', (it) => (it.healDaysMax = 3), /injuries\.deep-cut\.healDaysMin 6 is greater than healDaysMax 3/],
+  ])('%s is refused, naming the type', (_, change, problem) => {
+    const files = withJson('injuries.json', (json) => change(deepCut(json)));
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
+  });
+
+  test('whose leavesTrait is missing, or neither a key nor null, is refused', () => {
+    const missing = withJson('injuries.json', (json) => {
+      Reflect.deleteProperty(deepCut(json), 'leavesTrait');
+    });
+    const wrong = withJson('injuries.json', (json) => {
+      Object.assign(deepCut(json), { leavesTrait: 3 });
+    });
+
+    expect(refusalOf(() => parseContent(missing)).message).toMatch(/injuries\.json: deep-cut\.leavesTrait is missing/);
+    expect(refusalOf(() => parseContent(wrong)).message).toMatch(/injuries\.json: deep-cut\.leavesTrait is 3/);
+  });
+
+  test('is required: a set with none is refused', () => {
+    expect(refusalOf(() => parseContent(withText('injuries.json', '{}'))).message).toContain('injuries is empty');
   });
 });
 
@@ -239,6 +361,14 @@ describe('a file', () => {
     });
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(/stats\.json: wits\.area.*"emotional"/);
+  });
+
+  test('whose Disposition has a field the schema does not know is refused, naming it (M2-S9)', () => {
+    const files = withJson('dispositions.json', (json) => {
+      Object.assign(json['steady'] ?? {}, { riskAppetite: 0.2 });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/dispositions\.json: steady\.riskAppetite/);
   });
 
   test("with a Trait's effect set before any rule reads it is refused", () => {

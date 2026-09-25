@@ -5,18 +5,23 @@
 // current default; the harness passes its own; `rebase` adopts the current defaults (M2-S1).
 //
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
-// M1-S5 and M1-S6 the starting world (DL-19). Every "Min/Max" pair is an inclusive range drawn
-// with `int`.
+// M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
+// Engine and M2-S6 the Hero State Engine (DL-29). Every "Min/Max" pair is an inclusive range
+// drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet } from './content-types.js';
 import type { ModuleId } from './document.js';
 
 export interface GameConfig {
-  /** The World State schema this engine writes as `meta.version`; a load compares the two (M1-S8). */
+  /**
+   * The World State schema this engine writes as `meta.version`; a load compares the two and
+   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27).
+   */
   schemaVersion: number;
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
-   * records the old and the new (data-model §2, pre-M0 review D1).
+   * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
+   * pass (DL-35).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -71,11 +76,124 @@ export interface GameConfig {
   /** How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2). */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
+
+  // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
+  /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
+  upkeepEveryDays: number;
+  /**
+   * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
+   * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
+   * nothing (DL-35).
+   */
+  wagePerLevel: number;
+  /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
+  hallMaintenancePerGrade: number;
+  /** Wealth below this sets `belowFloorSince`; at or above it, `belowFloorSince` is cleared. */
+  bankruptcyFloor: number;
+  /** Days a Guild may stay below `bankruptcyFloor` before the Bankruptcy ending (read by M2-S10). */
+  bankruptcyGraceDays: number;
+  /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
+  fameFloor: number;
+  // ── Recruitment and the Unattached pool (M2-S8, INPUTS 3.7, 4.7, DL-27) ───────────────────
+  /** A signing fee is this, plus the per-Level part, plus the Stats part (`signingFee`). */
+  signingFeeBase: number;
+  /** Added to a signing fee for each of the Hero's Levels. */
+  signingFeePerLevel: number;
+  /** The sum of the Hero's base Stats is divided by this for a signing fee's Stats part. */
+  signingFeeStatDivisor: number;
+  /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
+  unattachedStayDays: number;
+  // ── The Board (M2-S3, INPUTS 4.1, 4.3, DL-25) ─────────────────────────────────────────────
+  /** Each morning's refresh draws Quests until the Board holds this many, and never more. */
+  boardSize: number;
+  /** Days a Quest stays on offer, the Day it is drawn included; it expires the next morning. */
+  questOfferDays: number;
+  /**
+   * The difficulty scale: a template's difficulty range is held inside it before the draw.
+   * Durations and rewards are the templates' own (INPUTS 4.2: per template).
+   */
+  questDifficultyMin: number;
+  questDifficultyMax: number;
+
+  // ── The stub Quest Engine (M2-S5, INPUTS 4.3, 4.4, 5.1, pre-M0 review A4, DL-29) ─────────
+  /**
+   * Where the bands start on the ratio of score to difficulty: below `successAtLeast` a Quest
+   * fails, from it up to and including `strongAbove` it succeeds, and above `strongAbove` it is a
+   * strong success. INPUTS 4.3's 0.8 and 1.2 scaled by 0.325 since the first balance pass, a
+   * Level-1 Party of the size a Quest requires scoring about a third of its difficulty (DL-35).
+   */
+  stubBands: Readonly<{ successAtLeast: number; strongAbove: number }>;
+  /** The one roll's reach: the score is scaled by 1 + a draw from −`stubVariance` to +`stubVariance`. */
+  stubVariance: number;
+  /** Added to the score for each rating point of a Quest's Skills held across the Party (R15). */
+  stubSkillBonusPerRating: number;
+  /** The chance, per band, that one Hero of the Party is injured. */
+  stubInjuryChance: Readonly<Record<QuestBand, number>>;
+  /** The chance, per band, that one Hero of the Party dies. */
+  stubDeathChance: Readonly<Record<QuestBand, number>>;
+  /**
+   * XP each surviving Hero gains, per point of the Quest's difficulty, by band, rounded down.
+   * M3-S2 replaces it with `xpPerDifficultyPoint × xpBandFactor`.
+   */
+  stubXpPerDifficulty: Readonly<Record<QuestBand, number>>;
+
+  // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
+  /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
+  moraleMin: number;
+  moraleMax: number;
+  /** How far Morale moves toward `moraleBaseline` each night, never past it. */
+  moraleDrift: number;
+  /**
+   * Where each Morale band starts: a Hero's band is the highest whose start their Morale has
+   * reached. Nightly drift emits `hero.morale-changed` only when it crosses from one to another.
+   */
+  moraleBands: Readonly<Record<MoraleBand, number>>;
+  /** Added to the Morale of every Hero left on a Roster when one of its Heroes dies (negative). */
+  moraleOnRosterDeath: number;
+  /** Added to the Morale of every Hero who comes home from a strong success. */
+  moraleOnStrongSuccess: number;
+  /** A Hero's Retirement check can first fire past this age. */
+  heroRetirementAge: number;
+  /** The yearly chance of Retirement for each whole year of age past `heroRetirementAge`. */
+  heroRetirementChancePerYear: number;
+  /** The Retirement chance is multiplied by this while the Hero is injured. */
+  heroRetirementInjuredMultiplier: number;
+  /**
+   * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
+   * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   */
+  infirmaryHealFactor: readonly number[];
+
+  // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
+  /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
+  guildmasterRetirementAge: number;
+  /** Whole Days after a Rival folds until a new Rival is founded in its place, at night. */
+  rivalReplacementDays: number;
+
+  // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
+  /**
+   * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
+   * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
+   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
+   * row. The harness's automatic policy has its own threshold (DL-34).
+   */
+  recruitWealthMultiple: number;
 }
 
+/** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
+export const questBands = ['fail', 'success', 'strong'] as const;
+
+export type QuestBand = (typeof questBands)[number];
+
+/** The named ranges Morale falls in, lowest first (M2-S6, pre-M0 review A7). */
+export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] as const;
+
+export type MoraleBand = (typeof moraleBandNames)[number];
+
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 1,
-  configVersion: 1,
+  schemaVersion: 2,
+  configVersion: 2,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -107,6 +225,43 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
+
+  upkeepEveryDays: 10,
+  wagePerLevel: 70,
+  hallMaintenancePerGrade: 10,
+  bankruptcyFloor: 0,
+  bankruptcyGraceDays: 30,
+  fameFloor: 0,
+  signingFeeBase: 50,
+  signingFeePerLevel: 25,
+  signingFeeStatDivisor: 4,
+  unattachedStayDays: 10,
+  boardSize: 6,
+  questOfferDays: 3,
+  questDifficultyMin: 10,
+  questDifficultyMax: 100,
+
+  stubBands: Object.freeze({ successAtLeast: 0.26, strongAbove: 0.39 }),
+  stubVariance: 0.2,
+  stubSkillBonusPerRating: 2,
+  stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
+  stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
+  stubXpPerDifficulty: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
+
+  moraleMin: 0,
+  moraleMax: 100,
+  moraleDrift: 1,
+  moraleBands: Object.freeze({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 }),
+  moraleOnRosterDeath: -10,
+  moraleOnStrongSuccess: 5,
+  heroRetirementAge: 45,
+  heroRetirementChancePerYear: 0.02,
+  heroRetirementInjuredMultiplier: 2,
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+
+  guildmasterRetirementAge: 65,
+  rivalReplacementDays: 30,
+  recruitWealthMultiple: 10,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

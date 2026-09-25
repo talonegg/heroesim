@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { isJsonSafe } from './json-safe.js';
-import { chance, createStreams, cyrb128, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
+import { chance, createStreams, cyrb128, ensureStreams, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
 import { plannedStreams } from './world.test-support.js';
 
 // A stream's state, reached through the function that draws from it rather than by its name
@@ -193,6 +193,33 @@ describe('named streams', () => {
   });
 });
 
+describe('ensureStreams, for a save made before a stream existed (M2-S3, DL-25)', () => {
+  test("gives the world each core stream it lacks, seeded as a new world's, and moves none it has", () => {
+    const fresh = createStreams(seed, streamNames);
+    const generation = advancedCopy(fresh.generation, 7);
+    // An M1 save: its generation stream drawn from, no board stream.
+    const world: { rng: Partial<typeof fresh> } = { rng: { generation } };
+
+    ensureStreams(world, seed);
+
+    expect(world.rng).toEqual({ ...fresh, generation: advancedCopy(fresh.generation, 7) });
+    expect(world.rng.generation).toBe(generation);
+    expect(Object.keys(world.rng).sort()).toEqual([...streamNames].sort());
+  });
+
+  test('changes nothing in a world that has every stream, and keeps a stream it does not know', () => {
+    const rng = { ...createStreams(seed, streamNames), ...createStreams(seed, ['market']) };
+    const board = advancedCopy(rng.board, 3);
+    const world = { rng: { ...rng, board } };
+    const before = structuredClone(world);
+
+    ensureStreams(world, seed);
+
+    expect(world).toEqual(before);
+    expect(world.rng.board).toBe(board);
+  });
+});
+
 describe('the all-zero state, which xoshiro never leaves', () => {
   test('is replaced when a hash produces it', () => {
     const replaced = nonZero([0, 0, 0, 0]);
@@ -222,7 +249,9 @@ describe('the all-zero state, which xoshiro never leaves', () => {
 // ── The draw functions ───────────────────────────────────────────────────────────────────────
 
 describe('next', () => {
-  test('draws fractions in [0, 1) spread evenly over ten bins', () => {
+  // 100,000 draws: about 0.5 s alone, 1.4 s in a full `npm test` on a busy machine; the timeout
+  // bounds a hang with room for a busier one, not the speed.
+  test('draws fractions in [0, 1) spread evenly over ten bins', { timeout: 30_000 }, () => {
     const state = generation('uniform-next');
     const bins = new Array<number>(10).fill(0);
     let sum = 0;
@@ -384,8 +413,9 @@ describe("rng.ts's state type", () => {
     const pattern = new RegExp(`\\b${typeName}\\b`);
     const owners = new Set(['rng.ts', 'document.ts']);
     const src = fileURLToPath(new URL('./', import.meta.url));
-    const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter((file) =>
-      file.endsWith('.ts'),
+    // boundary.test.ts writes and deletes probe files here while other tests run.
+    const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(
+      (file) => file.endsWith('.ts') && !/(^|[\\/])boundary-probe-/.test(file),
     );
 
     expect(files).toContain('rng.ts');

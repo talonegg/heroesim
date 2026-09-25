@@ -5,11 +5,20 @@
 export const defaultSeedCount = 1000;
 
 /**
- * The seed count `value` asks for: a whole number from 1, or the default when it is unset or
+ * Seeds in a play sweep when `HEROESIM_SEEDS` is unset: INPUTS 4.13's per-milestone run of 200
+ * seeds × 20 years. The tagged run sets `HEROESIM_SEEDS=1000` (M2-S12, DL-34).
+ */
+export const defaultPlaySeedCount = 200;
+
+/**
+ * The seed count `value` asks for: a whole number from 1, or `fallback` when it is unset or
  * blank. Throws on anything else, so a mistyped count fails the run rather than playing none.
  */
-export function seedCount(value: string | undefined = process.env.HEROESIM_SEEDS): number {
-  if (value === undefined || value.trim() === '') return defaultSeedCount;
+export function seedCount(
+  value: string | undefined = process.env.HEROESIM_SEEDS,
+  fallback: number = defaultSeedCount,
+): number {
+  if (value === undefined || value.trim() === '') return fallback;
   const count = Number(value.trim());
   if (!Number.isSafeInteger(count) || count < 1) {
     throw new RangeError(`HEROESIM_SEEDS must be a whole number from 1, not ${JSON.stringify(value)}`);

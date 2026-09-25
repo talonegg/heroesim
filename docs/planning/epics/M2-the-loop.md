@@ -4,7 +4,7 @@
 **Sessions:** 12–16 · **Depends on:** M1 · **Implements:** `plan.md` M2; approach §2 and §3; R2–R4, R11, R18, R20–R23, R25, R27, R34; ADR-0002, ADR-0003; requirements §5 open item on the stub (closed: weighted Stat demands, DL-06)
 **Gate:** `npm run harness` plays 200 seeds × 20 years to an ending and reports the counters; from the CLI a human runs `advance`, `dispatch`, `recruit`, `advance --until party-returns` and reads what happened
 
-**Status:** not started
+**Status:** done — 2026-09-26 (`m2-the-loop`)
 
 ## 0. What lands in M2
 
@@ -45,12 +45,12 @@ turn, config)` as selectors.
 
 **Acceptance:**
 
-- [ ] `advance` returns a new document whose `world` is not the input's (`!==`) while `meta`
+- [x] `advance` returns a new document whose `world` is not the input's (`!==`) while `meta`
       and `history` are (`===`)
-- [ ] The input document's `world` is deep-equal to what it was before the call
-- [ ] After three advances `dayOf(turn)` is 1 and `timeOfDay` is morning
-- [ ] CLI `advance [--turns n]` works and `show` reflects the Turn
-- [ ] A save created under `configVersion` 1 and loaded with defaults at version 2 still plays
+- [x] The input document's `world` is deep-equal to what it was before the call
+- [x] After three advances `dayOf(turn)` is 1 and `timeOfDay` is morning
+- [x] CLI `advance [--turns n]` works and `show` reflects the Turn
+- [x] A save created under `configVersion` 1 and loaded with defaults at version 2 still plays
       under version 1 until `rebase`, which rewrites `meta.config` and appends exactly one
       `world.rules-adopted`; a second `rebase` is rejected `already-current`
 
@@ -64,10 +64,10 @@ Guild of any Hero involved (data-model §4).
 
 **Acceptance:**
 
-- [ ] The phase list's names and times of day match approach §2 exactly; a test compares them
+- [x] The phase list's names and times of day match approach §2 exactly; a test compares them
       to a literal
-- [ ] A phase runs only on its time of day (spy counts over nine Turns)
-- [ ] `emit` adds a Hero's `guildId` to `participants` when only the `heroId` was given
+- [x] A phase runs only on its time of day (spy counts over nine Turns)
+- [x] `emit` adds a Hero's `guildId` to `participants` when only the `heroId` was given
 
 ### M2-S3 · Quest templates, Quest Generator, Board · 2 sessions
 
@@ -87,12 +87,12 @@ Config: `boardSize`, `questOfferDays`, `questDifficultyMin/Max`.
 
 **Acceptance:**
 
-- [ ] Each morning the Board is refilled to `boardSize` and never above
-- [ ] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
+- [x] Each morning the Board is refilled to `boardSize` and never above
+- [x] An offered Quest expires `questOfferDays` later with a `quest.expired` event and leaves
       `world.quests`
-- [ ] Every Quest's `demands` weights sum to 1 (content validation)
-- [ ] Only the `board` stream advances during refresh
-- [ ] CLI `show board`
+- [x] Every Quest's `demands` weights sum to 1 (content validation)
+- [x] Only the `board` stream advances during refresh
+- [x] CLI `show board`
 
 ### M2-S4 · Dispatch · 1–2 sessions
 
@@ -111,14 +111,16 @@ the Party is simply away until `returnsOnTurn`.
 
 **Acceptance:**
 
-- [ ] Every rejection has a test and none throws
-- [ ] A dispatched Hero cannot be dispatched again until the Party returns
-- [ ] The validator still accepts the document after dispatch (`quest.partyIds` ↔
+- [x] Every rejection has a test and none throws
+- [x] A dispatched Hero cannot be dispatched again until the Party returns
+- [x] The validator still accepts the document after dispatch (`quest.partyIds` ↔
       `party.questId`)
-- [ ] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
-- [ ] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
+- [x] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
+- [x] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
       `returnsOnTurn` equal to the night Turn of Day d + k, and its Heroes are dispatchable
       again on the morning of Day d + k + 1
+      _(M2-S4 proves the `returnsOnTurn` half for all three Turns of a Day; M2-S5's
+      `questsConclude` closes the morning-after half, DL-25 item 16, DL-29 item 15.)_
 
 ### M2-S5 · Stub Quest Engine · 1–2 sessions
 
@@ -139,13 +141,13 @@ Config: `stubBands`, `stubVariance`, `stubSkillBonusPerRating`, `stubInjuryChanc
 
 **Acceptance:**
 
-- [ ] A Party whose Stats exceed the demands by 2× strongly succeeds with variance 0
-- [ ] Two Parties with identical Stats differ in score by exactly `stubSkillBonusPerRating ×`
+- [x] A Party whose Stats exceed the demands by 2× strongly succeeds with variance 0
+- [x] Two Parties with identical Stats differ in score by exactly `stubSkillBonusPerRating ×`
       the difference in their summed ratings of the Quest's `skillKeys`
-- [ ] Wealth, Fame and XP move by the outcome; a dead Hero leaves the Roster, keeps their row,
+- [x] Wealth, Fame and XP move by the outcome; a dead Hero leaves the Roster, keeps their row,
       and appears in `history.byEntity`
-- [ ] All randomness in resolution draws from `quests`
-- [ ] A resolved Quest is gone from `world.quests` and present in `history.byType["quest.resolved"]`
+- [x] All randomness in resolution draws from `quests`
+- [x] A resolved Quest is gone from `world.quests` and present in `history.byType["quest.resolved"]`
 
 ### M2-S6 · Hero State Engine · 1 session
 
@@ -165,13 +167,13 @@ Config: `moraleDrift`, `moraleBands`, `moraleOnRosterDeath`, `moraleOnStrongSucc
 
 **Acceptance:**
 
-- [ ] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
-- [ ] Morale converges on the baseline over nights without overshooting
-- [ ] A year of drift with no band crossing appends nothing; a crossing appends exactly one
+- [x] An Injury heals on its Turn, not before; a type with `leavesTrait` adds the Trait once
+- [x] Morale converges on the baseline over nights without overshooting
+- [x] A year of drift with no band crossing appends nothing; a crossing appends exactly one
       `hero.morale-changed`
-- [ ] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
+- [x] Retirement never fires below `heroRetirementAge`; over 10,000 Hero-years past it the rate
       is within 20% of the configured chance
-- [ ] Only the `heroes` stream advances
+- [x] Only the `heroes` stream advances
 
 ### M2-S7 · Guild State Engine · 1 session
 
@@ -186,9 +188,9 @@ Config: `upkeepEveryDays`, `wagePerLevel`, `hallMaintenancePerGrade`, `bankruptc
 
 **Acceptance:**
 
-- [ ] Upkeep is deducted from Rivals and the player alike on the same Day
-- [ ] `upkeep()` is a selector: no `upkeep` field exists on the Guild row
-- [ ] A Guild that recovers above the floor loses `belowFloorSince`
+- [x] Upkeep is deducted from Rivals and the player alike on the same Day
+- [x] `upkeep()` is a selector: no `upkeep` field exists on the Guild row
+- [x] A Guild that recovers above the floor loses `belowFloorSince`
 
 ### M2-S8 · Recruitment and the pool · 1 session
 
@@ -205,13 +207,13 @@ Config: `signingFeeBase`, `signingFeePerLevel`, `signingFeeStatDivisor`, `unatta
 
 **Acceptance:**
 
-- [ ] Recruiting deducts exactly `signingFee` and moves the Hero; the validator accepts
-- [ ] A Hero who leaves the pool with only `hero.generated` and `hero.left-pool` entries is
+- [x] Recruiting deducts exactly `signingFee` and moves the Hero; the validator accepts
+- [x] A Hero who leaves the pool with only `hero.generated` and `hero.left-pool` entries is
       gone from `world.heroes`, and both entries still read with their labels; one named by any
       other entry stays (test with a synthetic non-passive entry, since release arrives in M6)
-- [ ] The pool table is bounded: after 20 simulated years of refresh with no recruitment,
+- [x] The pool table is bounded: after 20 simulated years of refresh with no recruitment,
       `world.heroes` holds no more Unattached rows than `unattachedPoolSize`
-- [ ] CLI `recruit --hero <id>`
+- [x] CLI `recruit --hero <id>`
 
 ### M2-S9 · The `steady` disposition · 1 session
 
@@ -226,10 +228,10 @@ engine change, approach §4).
 
 **Acceptance:**
 
-- [ ] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
+- [x] Rivals take Quests off the Board so the player sees fewer; the harness counts Quests
       taken per controller kind
-- [ ] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
-- [ ] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
+- [x] A Rival's choices go through `dispatch` and `recruit`, not a side path (spy)
+- [x] The `rivals` stream is the only one a disposition draws from (it draws none in `steady`;
       the test asserts no stream moved)
 
 ### M2-S10 · Endings · 1 session
@@ -250,10 +252,10 @@ Config: `guildmasterRetirementAge`, `rivalReplacementDays`.
 
 **Acceptance:**
 
-- [ ] Each of the three endings has a test that arranges it and asserts the event and
+- [x] Each of the three endings has a test that arranges it and asserts the event and
       `world.ended`
-- [ ] `advance` after an ending is a no-op with the typed stop
-- [ ] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
+- [x] `advance` after an ending is a no-op with the typed stop
+- [x] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
       same night, it is absent from `rankings()`, its controller emits nothing afterwards, and a
       new Rival exists `rivalReplacementDays` later with a `guild.founded` entry
 
@@ -269,11 +271,13 @@ when the caller lists it in `until`.
 
 **Acceptance:**
 
-- [ ] `until: ["party-returned"]` stops on the exact Turn the Party's `returnsOnTurn` falls
-- [ ] `maxTurns` always terminates
-- [ ] CLI `advance --until party-returns|ended|decision|pool-refreshed --max <n>` prints the
+- [x] `until: ["party-returned"]` stops on the exact Turn the Party's `returnsOnTurn` falls
+- [x] `maxTurns` always terminates
+- [x] CLI `advance --until party-returns|ended|decision|pool-refreshed --max <n>` prints the
       stop reason and the events since the last command; `pool-refreshed` never stops unless
       asked for
+      _(DL-33: `fastForward` takes `deps` and the watched `guildId`; `until` adds the opt-in
+      `pool-refreshed` and never narrows the always-on stops.)_
 
 ### M2-S12 · Automatic policy, counters and measures · 1–2 sessions
 
@@ -294,11 +298,38 @@ the decision log against `data-model.md` §7's targets, with the seed count.
 
 **Acceptance:**
 
-- [ ] 200 seeds × 20 years complete; no validator failure with `HEROESIM_VALIDATE=1`
-- [ ] The report is committed at `harness/reports/m2-<date>.md` and the measures are in a DL
+- [x] 200 seeds × 20 years complete; no validator failure with `HEROESIM_VALIDATE=1`
+- [x] The report is committed at `harness/reports/m2-<date>.md` and the measures are in a DL
       entry
-- [ ] Byte equality holds for one seed played twice under the policy (the policy is
+- [x] Byte equality holds for one seed played twice under the policy (the policy is
       deterministic: it draws no random numbers)
+      _(`harness/reports/m2-2026-09-26.md`, DL-34 and DL-35: the defaults' own run ended every
+      game in its first year, so DL-35 made the first balance pass before this run.)_
+
+## Measured
+
+`npm run harness -- play.harness`, 2026-09-26, **200 seeds × up to 20 years** (21,600 Turns),
+validated after every advance, config version 2 (after DL-35's balance pass), content version 4.
+Full report: `harness/reports/m2-2026-09-26.md`; decisions DL-34, DL-35, DL-39.
+
+| Counter or measure | Result |
+| --- | --- |
+| Games ending | 134 ran the full 20 years; 66 Bankruptcies (41 in year 0); 0 Retirements; 0 Roster wiped |
+| Years survived | mean 14.07, min 0.14, max 20 |
+| Quests, the player | 679,616 taken; 52.2% failed, 33.4% success, 14.4% strong |
+| Quests, the Rivals | 3,756,277 taken; 11.7% failed, 33.4% success, 54.9% strong |
+| Heroes a game, player / Rivals | died 88.4 / 109.8; recruited 91.2 / 172.9; retired 0 / 3.07 |
+| Rival folds | 0.95 a game (187 Bankruptcies, 3 Roster wiped) |
+| Validator refusals, policy actions refused | 0, 0 |
+| Byte equality | `seed-0004` played twice: identical (79,719,374 characters) |
+| `advance` per Turn | 1.27 ms in one process; 5.84 ms mean, p99 11.9 ms under 16 processes |
+| Fast forward a year | 1.37 s (target 1 s) |
+| Save after 20 years | about 75 MiB (target 20 MB; compression is M7's lever) |
+| Load a save | 1.04 s (target 1 s) |
+
+Before DL-35 the defaults ended all 200 games in Bankruptcy within the first year. The stub is
+harsh on the player's Heroes (88 deaths a game); M3's Levels and M4's Quest Engine are the next
+balance passes. Verified independently on 2026-09-26 (DL-39).
 
 ## 2. Configuration and events introduced
 

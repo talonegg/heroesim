@@ -34,9 +34,13 @@ export function isJsonSafe(value: unknown): boolean {
   return findJsonUnsafe(value) === null;
 }
 
-/** The first value in `value`, depth first, that is not JSON-safe; `null` when there is none. */
-export function findJsonUnsafe(value: unknown): JsonUnsafe | null {
-  const path: (string | number)[] = [];
+/**
+ * The first value in `value`, depth first, that is not JSON-safe; `null` when there is none. `at`
+ * is where `value` sits in the document, which the reported path begins with: the validator checks
+ * one History entry as `['history', 'entries', 12]` (M2-S12, DL-34).
+ */
+export function findJsonUnsafe(value: unknown, at: readonly (string | number)[] = []): JsonUnsafe | null {
+  const path: (string | number)[] = [...at];
   const kind = check(value, path, new Set());
   return kind === null ? null : { path: formatPath(path), kind };
 }

@@ -8,7 +8,11 @@ import type {
   BackgroundOwner,
   Class,
   ContentSet,
+  Disposition,
+  InjuryType,
   Names,
+  QuestTemplate,
+  QuestTemplateRequires,
   Skill,
   Sphere,
   Stat,
@@ -22,8 +26,12 @@ import { ContentError, validateContent } from './validate.js';
 
 /** The content set this package holds, as `meta.content` records it. */
 export const contentSetId = 'core';
-/** Raised whenever the content changes, so a document says which content it was created under. */
-export const contentVersion = 1;
+/**
+ * Raised whenever the content changes, so a document says which content it was created under:
+ * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
+ * from M2-S5, which added the Injury types.
+ */
+export const contentVersion = 4;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -34,6 +42,9 @@ export const contentFiles = [
   'backgrounds.json',
   'spheres.json',
   'names.json',
+  'quest-templates.json',
+  'dispositions.json',
+  'injuries.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -92,6 +103,38 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       name: row.string('name'),
     })),
     names: names(json('names.json'), problems),
+    questTemplates: table<QuestTemplate>(
+      'quest-templates.json',
+      json('quest-templates.json'),
+      problems,
+      'a Quest template',
+      (row) => ({
+        name: row.string('name'),
+        sphereKeys: row.strings('sphereKeys'),
+        tags: row.strings('tags'),
+        difficultyMin: row.integer('difficultyMin'),
+        difficultyMax: row.integer('difficultyMax'),
+        durationDaysMin: row.integer('durationDaysMin'),
+        durationDaysMax: row.integer('durationDaysMax'),
+        rewardPerDifficulty: row.number('rewardPerDifficulty'),
+        fameEffect: row.integer('fameEffect'),
+        partySizeMin: row.integer('partySizeMin'),
+        partySizeMax: row.integer('partySizeMax'),
+        demands: row.weightedKeys('demands'),
+        skillKeys: row.strings('skillKeys'),
+        requires: requires(row.child('requires')),
+        lootTableKey: row.null('lootTableKey'),
+      }),
+    ),
+    dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
+      name: row.string('name'),
+    })),
+    injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
+      name: row.string('name'),
+      healDaysMin: row.integer('healDaysMin'),
+      healDaysMax: row.integer('healDaysMax'),
+      leavesTrait: row.stringOrNull('leavesTrait'),
+    })),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -172,6 +215,14 @@ function names(json: unknown, problems: string[]): Names {
   return result;
 }
 
+/** A Quest template's `requires`: an optional Class and an optional Skill, and nothing else. */
+function requires(reader: RowReader): QuestTemplateRequires {
+  const classKey = reader.optionalString('classKey');
+  const skillKey = reader.optionalString('skillKey');
+  reader.refuseUnknown('what a Quest template requires');
+  return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
+}
+
 /**
  * Reads a row's fields, recording a problem for each that is missing or of the wrong type and
  * returning a stand-in so reading can go on and every problem be reported at once.
@@ -191,6 +242,14 @@ class RowReader {
     if (typeof value === 'string') return value;
     this.wrong(field, value, 'a string');
     return '';
+  }
+
+  /** A finite number, whole or not. */
+  number(field: string): number {
+    const value = this.field(field);
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    this.wrong(field, value, 'a number');
+    return 0;
   }
 
   integer(field: string): number {
@@ -214,6 +273,32 @@ class RowReader {
     return [];
   }
 
+  /** A string, or `null`: present either way. */
+  stringOrNull(field: string): string | null {
+    const value = this.field(field);
+    if (value === null || typeof value === 'string') return value;
+    this.wrong(field, value, 'a string or null');
+    return null;
+  }
+
+  /** A string, or `undefined` when the field is absent. */
+  optionalString(field: string): string | undefined {
+    const value = this.field(field);
+    if (value === undefined || typeof value === 'string') return value;
+    this.wrong(field, value, 'a string, or no such field');
+    return undefined;
+  }
+
+  /** A list of `[key, weight]` pairs, such as a Quest template's demands. */
+  weightedKeys(field: string): [string, number][] {
+    const value = this.field(field);
+    const isPair = (item: unknown): item is [string, number] =>
+      Array.isArray(item) && item.length === 2 && typeof item[0] === 'string' && typeof item[1] === 'number';
+    if (Array.isArray(value) && value.every(isPair)) return value.map(([key, weight]) => [key, weight]);
+    this.wrong(field, value, 'a list of [key, weight] pairs');
+    return [];
+  }
+
   numbers(field: string): Record<string, number> {
     const value = this.field(field);
     if (isObject(value) && Object.values(value).every((item) => typeof item === 'number')) {
@@ -234,6 +319,11 @@ class RowReader {
     if (isObject(value)) return value;
     this.wrong(field, value, 'an object');
     return {};
+  }
+
+  /** A reader for the object in `field`, reporting its problems under this row's path. */
+  child(field: string): RowReader {
+    return new RowReader(this.file, [...this.prefix, field], this.object(field), this.problems);
   }
 
   /** Record a problem for every field of the row that nothing read. */

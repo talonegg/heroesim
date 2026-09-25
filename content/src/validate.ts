@@ -25,6 +25,12 @@ export class ContentError extends Error {
  */
 export const growthSumTolerance = 0.001;
 
+/**
+ * How far a Quest template's demand weights may sum from 1 (M2-S3): written by hand, like growth,
+ * and read by the stub as proportions (M2-S5), so near 1 is as good as exactly 1.
+ */
+export const demandSumTolerance = 0.001;
+
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -44,6 +50,9 @@ export function validateContent(set: ContentSet): ContentSet {
     traits: set.traits,
     backgrounds: set.backgrounds,
     spheres: set.spheres,
+    questTemplates: set.questTemplates,
+    injuries: set.injuries,
+    dispositions: set.dispositions,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -74,6 +83,56 @@ export function validateContent(set: ContentSet): ContentSet {
     checkReferences(`${where}.gatedSkills`, it.gatedSkills, skills, 'a Skill', problems);
     checkReferences(`${where}.growth`, Object.keys(it.growth), heroStats, 'a Hero Stat', problems);
     checkGrowth(`${where}.growth`, it.growth, problems);
+  }
+
+  const spheres = new Set(Object.keys(set.spheres));
+  const classes = new Set(Object.keys(set.classes));
+  const served = new Set<string>();
+  for (const [key, template] of Object.entries(set.questTemplates)) {
+    const where = `questTemplates.${key}`;
+    if (template.sphereKeys.length === 0) problems.push(`${where}.sphereKeys is empty: no Patron offers it`);
+    checkReferences(`${where}.sphereKeys`, template.sphereKeys, spheres, 'a Sphere', problems);
+    for (const sphereKey of template.sphereKeys) served.add(sphereKey);
+    for (const tag of template.tags) {
+      if (!kebabCase.test(tag)) problems.push(`${where}.tags: "${tag}" is not kebab-case`);
+    }
+    for (const tag of repeated(template.tags)) problems.push(`${where}.tags: "${tag}" is listed twice`);
+    checkRange(where, 'difficulty', template.difficultyMin, template.difficultyMax, 1, problems);
+    checkRange(where, 'durationDays', template.durationDaysMin, template.durationDaysMax, 1, problems);
+    checkRange(where, 'partySize', template.partySizeMin, template.partySizeMax, 1, problems);
+    if (!(template.rewardPerDifficulty >= 0)) {
+      problems.push(`${where}.rewardPerDifficulty is ${template.rewardPerDifficulty}; it is a number of 0 or more`);
+    }
+    if (!(template.fameEffect >= 0)) {
+      problems.push(`${where}.fameEffect is ${template.fameEffect}; it is a whole number of 0 or more`);
+    }
+    checkDemands(`${where}.demands`, template.demands, heroStats, problems);
+    checkReferences(`${where}.skillKeys`, template.skillKeys, skills, 'a Skill', problems);
+    const { classKey, skillKey } = template.requires;
+    if (classKey !== undefined && !classes.has(classKey)) {
+      problems.push(`${where}.requires.classKey: "${classKey}" is not a Class`);
+    }
+    if (skillKey !== undefined && !skills.has(skillKey)) {
+      problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
+    }
+  }
+  // A Patron's Quests are found by Sphere when the Board is drawn (pre-M0 review D3): a Sphere no
+  // template serves would leave its Patrons offering nothing.
+  for (const sphereKey of spheres) {
+    if (!served.has(sphereKey)) problems.push(`spheres.${sphereKey}: no Quest template names it in sphereKeys`);
+  }
+
+  // The stub Quest Engine draws an Injury's type from these (M2-S5): at least one, each healing in
+  // a Day or more, and leaving no Trait or a Hero Trait content defines.
+  if (Object.keys(set.injuries).length === 0) problems.push('injuries is empty: the Quest Engine inflicts one of its types');
+  for (const [key, type] of Object.entries(set.injuries)) {
+    const where = `injuries.${key}`;
+    checkRange(where, 'healDays', type.healDaysMin, type.healDaysMax, 1, problems);
+    const trait = type.leavesTrait;
+    const row = trait === null || !Object.hasOwn(set.traits, trait) ? undefined : set.traits[trait];
+    if (trait !== null && row?.owner !== 'hero') {
+      problems.push(`${where}.leavesTrait: "${trait}" is not a Hero Trait`);
+    }
   }
 
   const lists: [string, string[]][] = [
@@ -115,6 +174,42 @@ function checkGrowth(where: string, growth: Readonly<Record<string, number>>, pr
     }
   }
   if (Math.abs(sum - 1) > growthSumTolerance) {
+    problems.push(`${where}: weights sum to ${Number(sum.toFixed(4))}, not 1`);
+  }
+}
+
+/** `min` and `max` are a range: `floor <= min <= max`. */
+function checkRange(where: string, field: string, min: number, max: number, floor: number, problems: string[]): void {
+  if (min < floor) problems.push(`${where}.${field}Min is ${min}; it is at least ${floor}`);
+  if (min > max) problems.push(`${where}.${field}Min ${min} is greater than ${field}Max ${max}`);
+}
+
+/**
+ * A Quest template's demands: at least one, each a Hero Stat once with a weight above 0, the
+ * weights summing to 1 within the tolerance (M2-S3's acceptance).
+ */
+function checkDemands(
+  where: string,
+  demands: readonly (readonly [string, number])[],
+  heroStats: ReadonlySet<string>,
+  problems: string[],
+): void {
+  if (demands.length === 0) problems.push(`${where} is empty: a Quest assesses at least one Stat`);
+  checkReferences(
+    where,
+    demands.map(([key]) => key),
+    heroStats,
+    'a Hero Stat',
+    problems,
+  );
+  let sum = 0;
+  for (const [key, weight] of demands) {
+    if (Number.isFinite(weight)) sum += weight;
+    if (!(Number.isFinite(weight) && weight > 0)) {
+      problems.push(`${where}: "${key}" has weight ${weight}; a demand's weight is above 0`);
+    }
+  }
+  if (demands.length > 0 && Math.abs(sum - 1) > demandSumTolerance) {
     problems.push(`${where}: weights sum to ${Number(sum.toFixed(4))}, not 1`);
   }
 }
