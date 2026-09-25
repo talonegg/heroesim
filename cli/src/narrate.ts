@@ -85,6 +85,16 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       const { guildId, partyId, questId, returnsOnTurn } = event.payload;
       return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}.`;
     }
+    case 'quest.encounter': {
+      // The roll and target are the engine's; the CLI says only how it went and what it cost.
+      const { partyId, encounterKey, outcome, injured, died } = event.payload;
+      const went = outcome === 'success' ? 'came through' : 'failed at';
+      const hurt = [
+        ...injured.map((id) => `${hero(event, id)} was injured`),
+        ...died.map((id) => `${hero(event, id)} was killed`),
+      ];
+      return `${partyId} ${went} ${nameIn(content.encounters, encounterKey)}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+    }
     case 'quest.resolved': {
       const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta } = event.payload;
       return (

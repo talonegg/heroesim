@@ -10,7 +10,7 @@ import { moraleBaselineFor } from '../morale.js';
 import { affordableImprovement, nextImprovement, playerGuild, upkeep } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { testDeps, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
 import { build, type BuildRejection } from './build.js';
 import { dispatch } from './dispatch.js';
@@ -273,15 +273,12 @@ describe('what a grade built does (M3-S6)', () => {
   });
 
   test('the infirmary at grade 1 halves a new Injury, by the factor it reads when the Injury is inflicted', () => {
-    // Every Quest fails and injures one Hero, and nobody dies; the infirmary's factors pinned.
-    const noHarm = { fail: 0, success: 0, strong: 0 };
-    const hurt = testDeps({
-      rivalCount: 0,
-      stubInjuryChance: { ...noHarm, fail: 1 },
-      stubDeathChance: noHarm,
-      stubBands: { successAtLeast: 100, strongAbove: 200 },
-      infirmaryHealFactor: [1, 1 / 2, 1 / 3],
-    });
+    // Every Check fails and injures the lone Hero sent, once, and nobody dies (M4-S2); the
+    // infirmary's factors pinned.
+    const hurt = testDeps(
+      { rivalCount: 0, infirmaryHealFactor: [1, 1 / 2, 1 / 3] },
+      withEncounters({ difficultyFactor: 1000, success: [], failure: [{ kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 }] }),
+    );
     /** The Days to heal of the one Injury a Party sent from `document` on its first Quest comes home with. */
     const healDays = (document: WorldDocument): number => {
       const guild = playerGuild(document.world) as Guild;

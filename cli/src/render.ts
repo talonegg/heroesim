@@ -422,14 +422,24 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
     ),
     '',
     ...table(
-      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }],
+      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
       quests.map((quest) => [
         quest.id,
         quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
         none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+        encounterKindsOf(quest, content),
       ]),
     ),
   ];
+}
+
+/**
+ * The kinds of a Quest's Encounters in the order it meets them (M4-S1), so the player can see what
+ * kind of work it is; a Quest drawn before M4 has its sequence drawn when it resolves (DL-42).
+ */
+function encounterKindsOf(quest: Pick<Quest, 'encounterKeys'>, content: ContentSet): string {
+  if (quest.encounterKeys.length === 0) return 'drawn on the way';
+  return quest.encounterKeys.map((key) => rowIn(content.encounters, key)?.kind ?? key).join(', ');
 }
 
 // ── History ──────────────────────────────────────────────────────────────────────────────────

@@ -26,8 +26,8 @@ export class ContentError extends Error {
 export const growthSumTolerance = 0.001;
 
 /**
- * How far a Quest template's demand weights may sum from 1 (M2-S3): written by hand, like growth,
- * and read by the stub as proportions (M2-S5), so near 1 is as good as exactly 1.
+ * How far a Quest template's, or an Encounter's, demand weights may sum from 1 (M2-S3, M4-S1):
+ * written by hand, like growth, and read as proportions, so near 1 is as good as exactly 1.
  */
 export const demandSumTolerance = 0.001;
 
@@ -128,7 +128,7 @@ export function validateContent(set: ContentSet): ContentSet {
     if (!served.has(sphereKey)) problems.push(`spheres.${sphereKey}: no Quest template names it in sphereKeys`);
   }
 
-  // The stub Quest Engine draws an Injury's type from these (M2-S5): at least one, each healing in
+  // The types an Encounter's injury consequence names (M2-S5, M4-S1): at least one, each healing in
   // a Day or more, and leaving no Trait or a Hero Trait content defines.
   if (Object.keys(set.injuries).length === 0) problems.push('injuries is empty: the Quest Engine inflicts one of its types');
   for (const [key, type] of Object.entries(set.injuries)) {

@@ -43,7 +43,7 @@ function event<Type extends EngineEventType>(type: Type, participants: string[],
   } as EngineEventOf<Type>;
 }
 
-const outcome = { score: 40, ratio: 1.1, xpPerHero: 30, injuries: [], deaths: [] };
+const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0, regardDelta: 0, injuries: [], deaths: [] };
 
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
@@ -64,6 +64,20 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     returnsOnTurn: 23,
+  }),
+  'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {
+    questId,
+    partyId,
+    guildId,
+    index: 1,
+    encounterKey: 'ambush-on-the-road',
+    kind: 'combat',
+    roll: 14.5,
+    target: 18,
+    margin: -3.5,
+    outcome: 'failure',
+    injured: [heroId],
+    died: [],
   }),
   'quest.resolved': event('quest.resolved', [questId, partyId, heroId, guildId], {
     ...outcome,
@@ -129,6 +143,12 @@ describe('narrate', () => {
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
     expect(narrate(samples['hero.declined'], content)).toBe('Brenna Ashcombe (hero-000007), at 41, lost 1 Endurance to age.');
     expect(narrate(samples['quest.resolved'], content)).toContain('and failed: Wealth 0, Fame -2.');
+    expect(narrate(samples['quest.encounter'], content)).toBe(
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name}: Brenna Ashcombe (hero-000007) was injured.`,
+    );
+    expect(narrate({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content)).toBe(
+      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name}.`,
+    );
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
     );

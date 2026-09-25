@@ -54,14 +54,16 @@ export * from './history.js';
 export * from './json-safe.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
+export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
+export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
 export {
   questBand,
   resolveQuest,
-  stubScore,
+  type EncounterResult,
   type QuestInjury,
   type QuestOutcome,
-  type StubDeps,
-} from './quest-engine/stub.js';
+  type Resolution,
+} from './quest-engine/resolve.js';
 export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';

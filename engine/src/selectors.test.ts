@@ -5,6 +5,7 @@ import { testDeps } from './world.test-support.js';
 import {
   baseStat,
   cheapestUnattached,
+  effectiveStats,
   offeredQuests,
   playerGuild,
   rankings,
@@ -117,6 +118,23 @@ describe('baseStat', () => {
 
   test("never reads a key of Object.prototype as a Stat's value", () => {
     expect(baseStat({}, { key: 'constructor', default: 7 })).toBe(7);
+  });
+});
+
+describe('effectiveStats (M4-S2)', () => {
+  test("is every Hero Stat content defines at its base until something modifies it, a Stat the Hero lacks reading the default, and no Guildmaster Stat", () => {
+    const deps = testDeps();
+    const { world } = createWorld('effective', setup, deps).document;
+    const hero = world.heroes[(playerGuild(world) as Guild).rosterIds[0] as Hero['id']] as Hero;
+    Reflect.deleteProperty(hero.stats, 'wits');
+    hero.stats['luck'] = 20;
+
+    const stats = effectiveStats(hero, world, deps);
+
+    const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');
+    expect(Object.keys(stats).sort()).toEqual(heroStats.map((stat) => stat.key).sort());
+    for (const stat of heroStats) expect(stats[stat.key], stat.key).toBe(baseStat(hero.stats, stat));
+    expect(stats['wits']).toBe(deps.content.stats['wits']?.default);
   });
 });
 

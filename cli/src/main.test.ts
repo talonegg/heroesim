@@ -304,6 +304,35 @@ describe('show', () => {
     }
   });
 
+  test('board says what kinds of Encounter each Quest is made of, in order (M4-S1)', () => {
+    const { world } = document();
+
+    const run = play(['show', 'board']);
+
+    expect(run.out).toMatch(/Encounters/);
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      expect(quest.encounterKeys.length).toBeGreaterThanOrEqual(2);
+      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
+      const lines = run.out.split('\n').filter((line) => line.startsWith(id));
+      expect(lines.some((line) => line.endsWith(kinds)), `${id}: ${kinds}`).toBe(true);
+    }
+  });
+
+  test('board says a Quest saved before M4 has its Encounters drawn on the way (DL-42)', () => {
+    const [questId] = document().world.board;
+    if (questId === undefined) throw new Error('An empty Board');
+    edit((edited) => {
+      const quest = edited.world.quests[questId];
+      if (quest !== undefined) quest.encounterKeys = [];
+    });
+
+    const lines = play(['show', 'board']).out.split('\n').filter((line) => line.startsWith(questId));
+
+    expect(lines.some((line) => line.endsWith('drawn on the way'))).toBe(true);
+  });
+
   test('board says so when the Board is empty', () => {
     edit((edited) => {
       edited.world.board = [];

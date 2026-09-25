@@ -9,7 +9,7 @@ import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { durationDaysOf, nightOf } from '../time.js';
-import { buildDocument, plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, harmlessContent, plannedStreams, testDeps, withValid } from '../world.test-support.js';
 import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.js';
 import { phaseContext } from './phase.js';
 
@@ -18,7 +18,6 @@ import { phaseContext } from './phase.js';
 // it moves from night to night.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-const noHarm = { fail: 0, success: 0, strong: 0 };
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -259,7 +258,7 @@ describe('Retirement', () => {
 
   test('checks a Hero away on the anniversary on the night their Party brings them home', () => {
     // No Rivals: they would take the Board's Quests and send Parties of their own (DL-30 item 11).
-    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0 }, harmlessContent);
     const start = created('away', deps);
     const ids = rosterOf(start.world);
     for (const heroId of ids) Object.assign(hero(start.world, heroId), { enteredTurn: 0, ageAtEntry: 60 });

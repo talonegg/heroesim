@@ -6,7 +6,7 @@
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
 import type { EngineDeps, GameConfig } from './config.js';
-import type { ContentSet, DispositionKey, Improvement, Stat } from './content-types.js';
+import type { ContentSet, DispositionKey, Improvement, Stat, StatKey } from './content-types.js';
 import {
   compareByCodeUnit,
   type FacilityKey,
@@ -185,6 +185,27 @@ export function rankings(world: Pick<World, 'guilds'>, by: RankingMeasure): Rank
  */
 export function baseStat(values: StatValues, stat: Pick<Stat, 'key' | 'default'>): number {
   return Object.hasOwn(values, stat.key) ? (values[stat.key] ?? stat.default) : stat.default;
+}
+
+/**
+ * A Hero's effective Stats: every Hero Stat content defines, as the Quest Engine's Check reads it
+ * (M4-S2, data-model rule 1: effective Stats are a selector, never stored). Until something modifies
+ * a Stat it is the base (`baseStat`); M5-S2 adds gear's modifiers here, and any later modifier
+ * belongs here too, so that the Check and every view read one value. Takes the world, which
+ * those modifiers read, though nothing reads it yet.
+ */
+export function effectiveStats(
+  hero: Pick<Hero, 'id' | 'stats' | 'guildId' | 'classKey'>,
+  world: Pick<World, 'guilds' | 'heroes'>,
+  deps: Pick<EngineDeps, 'content'>,
+): Record<StatKey, number> {
+  // Taken for M5-S2's gear, which is found through the world; no modifier reads it yet.
+  void world;
+  const stats: Record<StatKey, number> = {};
+  for (const stat of Object.values(deps.content.stats)) {
+    if (stat.owner === 'hero') stats[stat.key] = baseStat(hero.stats, stat);
+  }
+  return stats;
 }
 
 /**

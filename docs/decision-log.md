@@ -2252,7 +2252,7 @@ read at 200.
 after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
 with `HEROESIM_SEEDS=1000`.
 
-## DL-42 — Encounters and the drawn sequence (M4-S1)
+## DL-42 — Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1, M4-S2)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S1 and M4-S2's
 implementer)
@@ -2264,7 +2264,13 @@ unchanged (ADR-0009 as amended, pre-M0 review D7). INPUTS 6.1 says "count by dif
 leaves open: how a consequence is written in JSON and what each kind does; what content validation
 refuses beyond the first box; how the count follows difficulty and how a slot's Encounter is
 drawn; which draws come first; and how a Quest saved before M4, whose `encounterKeys` is `[]`, is
-resolved.
+resolved. M4-S2 names `quest-engine/check.ts` and its capability, `resolveQuest` as the sequence,
+`quest.encounter`, the band from the count of successes, the stub's deletion and three config
+fields (INPUTS 6.2: best or summed weighted Stats, Skill rating × 2, a Synergy bonus, a ±20% roll
+from `quests`). It leaves open: where effective Stats come from before gear; the shape of the two
+terms M4-S3 and M4-S4 fill; what the working outcome holds and when a Party stops; the draws; the
+events' payloads; what becomes of the stub's five fields and of `quest.resolved`'s `score` and
+`ratio`; and the defaults, which the story asks a balance pass to set.
 
 **Decision.**
 
@@ -2276,9 +2282,9 @@ resolved.
    `sum` (the whole Party bears it); finding a way, talking, opening a seal and slipping past are
    `best` (one Hero does it). Harm is only on a failure. Each row is `{ name, kind, demands,
    aggregate, skillKeys, difficultyFactor, consequences: { success, failure } }`, demands weighted
-   as a template's.
+   as a template's. The numbers are item 15's.
 2. **A consequence is a flat object with a `kind`**, `{ "kind": "injury", "typeKey": "deep-cut",
-   "chance": 0.25, "count": 1 }`, the engine's closed union `Consequence` (`content-types.ts`); a
+   "chance": 0.2, "count": 1 }`, the engine's closed union `Consequence` (`content-types.ts`); a
    new kind is an engine change. What each does, applied by the Quest Engine (M4-S2) to a working
    outcome in sequence order:
    - `injury { typeKey, chance, count }`: `count` times, with probability `chance`, one Hero is
@@ -2330,12 +2336,108 @@ resolved.
    Quests already away when the save is loaded, with one rule. A stored key content no longer
    defines is left out, and a Quest left with none draws afresh; the validator warns of such a key
    (`unknown-encounter`, data-model rule 5).
+8. **The Check** (`quest-engine/check.ts`): `capability(heroes, encounter, world, deps)` is, for
+   each demand, its weight times the best member's effective value of the Stat (`best`) or the
+   members' sum (`sum`); plus, for each of the Encounter's Skills, `skillBonusPerRating` times the
+   best rating any member holds, 0 when none does; plus the Synergy term; all times the teamwork
+   scalar. It takes `world` (for the teamwork scalar and effective Stats) and `deps`, not the epic's
+   `content, config`, as every entry point takes `deps`. A demand on a Stat, or a Skill, content no
+   longer defines counts for nothing (rule 5). `check(heroes, encounter, quest, world, deps)` rolls
+   `capability × (1 + r)`, `r` one draw from −`checkVariance` to +`checkVariance` from `quests`,
+   never below 0; succeeds when the roll is at least `difficultyFactor × quest.difficulty`; and
+   records `roll`, `target` and `margin = roll − target`.
+9. **Effective Stats are one selector**, `effectiveStats(hero, world, deps)` in `selectors.ts`:
+   every Hero Stat content defines, at its base (`baseStat`) until something modifies it. M5-S2 adds
+   gear there, and any other modifier belongs there (M4-S5's `classStatBonus` Trait effect names
+   `effectiveStats` too), so the Check and every view read one value. It takes the world, which
+   those modifiers read and nothing reads yet.
+10. **The two seams**, each a function in its own module returning its neutral value, with a
+    comment naming the story that fills it: **`synergyBonus(heroes, encounter, base, deps)`** in
+    `quest-engine/synergy.ts`, 0 until M4-S3, added to the capability before the scalar and given
+    `base` (the Stats and Skills term) so that a Synergy's `factor` can be read against it;
+    **`teamwork(heroes, world, deps)`** in `quest-engine/teamwork.ts`, 1 until M4-S4, multiplying
+    the whole. `heroes` is the Party's members still in the sequence.
+11. **The sequence** (`quest-engine/resolve.ts`): `resolveQuest(world, quest, party, deps)` returns
+    `{ outcome, encounters }`. For each Encounter in order, the living members are checked and the
+    outcome's consequences applied in content's order to a working outcome (item 2's rules). A
+    Hero killed takes no part in any later Check. **A Party with no one left stops**: the
+    Encounters it never reached are not checked, emit nothing, and count as not succeeded. The band
+    is `questBand(successes, the sequence's length, config)` over `bandBySuccessShare`
+    **`{ successAbove: 0.5, strongAtLeast: 1 }`**: all strong, a majority success, else fail, so a
+    Quest of two Encounters is strong or failed. M2's rules run through the band as before: the
+    reward on a success (times the wealth factors, rounded), nothing on a failure; the Fame effect
+    won or lost (plus the Encounters' Fame); XP by DL-36's `xpBandFactor` (times the XP factors,
+    rounded down); `moraleOnStrongSuccess` on a strong success; `moraleOnRosterDeath` for each Death.
+12. **Draws.** Everything but a pre-M4 Quest's sequence is drawn from `quests`: one draw a Check,
+    then, for each consequence of its outcome, three per `count` of an Injury (whether it lands, on
+    whom, its Days) and two for a Death (whether, on whom), taken whether or not they land, so tuning
+    a chance shifts no later draw. An Injury's Days are its type's range times
+    `infirmaryHealFactor` at the Guild's grade then, as DL-29 item 8. Parties resolve in id order.
+13. **Events.** `quest.encounter`, not a Milestone, one per Encounter checked, in sequence order,
+    all before `quest.resolved`: `{ questId, partyId, guildId, index, encounterKey, kind, roll,
+    target, margin, outcome, injured, died }` (`outcome` is `success` or `failure`), naming the
+    Quest, the Party, the Guild and any Hero it hurt. `quest.resolved`'s outcome loses the stub's
+    `score` and `ratio` and gains `successes`, `encounterCount`, `moraleDelta` and `regardDelta`.
+    `hero.morale-changed` gains the cause `encounters`: the Encounters' Morale, summed, one change a
+    Hero home, before any strong-success change, and none when the sum is 0. The CLI narrates
+    `quest.encounter` ("party-000004 failed at Ambush on the road: … was injured"), and `show board`
+    gains an Encounters column, each Quest's kinds in order ("drawn on the way" for a pre-M4 Quest).
+14. **The stub is deleted, and its fields leave the config**: `stubBands` for `bandBySuccessShare`,
+    `stubVariance` for **`checkVariance` 0.2**, `stubSkillBonusPerRating` for
+    **`skillBonusPerRating` 2** (INPUTS 6.2's ±20% and rating × 2), and `stubInjuryChance` and
+    `stubDeathChance` for each Encounter's consequences, which are content. A save's `meta.config`
+    that holds them keeps them, unread (data-model §2). Rivals resolve through the same engine: the
+    night's `questsConclude` resolves every Guild's Parties. `check.ts` names nothing of the
+    Guildmaster's, and a test reads the file to hold it so (M4's third risk).
+15. **The balance pass**, measured under the automatic policy (DL-34) on the core content, 16
+    seeds × 20 years, not validated, 16 processes (scratch runs, not committed; `countGame`'s
+    counters). *Before*, the engine at M3's end (v1.0-dev `8229670`, the stub, config version 3):
+    no game ended; the player failed 40.3% of 91,598 Quests, succeeded 37.3%, strongly 22.4%; the
+    Rivals 8.4% / 27.0% / 64.5% of 374,113; a game, the player's Heroes injured 1,110 times, 113
+    died, 117 recruited; the Rivals' 1,410, 100 and 749; Rivals folded 27.6 times a game; the
+    player's Roster at a mean Level 5.34. (DL-34's M2 run: the player 52.2 / 33.4 / 14.4, 797
+    injured, 88 died; the Rivals 11.7 / 33.4 / 54.9, 1,480 and 110.) *Trials*, 8 seeds × 3 to 5
+    years: the first factors (`sum` 0.3, `best` 0.18) bankrupted both of 2 seeds within a year, the
+    player failing 62% at Level 1; factors × 0.8 made two of every five Quests strong and halved
+    the Deaths; × 0.9 and × 0.85 with twice the Death chance gave 7 Deaths a year; a variance of 0.3
+    moved the bands by a point, so INPUTS 6.2's 0.2 stays. *Chosen*: every `sum` Encounter's
+    `difficultyFactor` **0.25** and every `best` Encounter's **0.15**; a Death's chance **0.03**
+    (on the three `combat` Encounters, `a-restless-power` and `the-trapped-passage`); Injury
+    chances **0.08 to 0.25**, one Hero a time but `hold-the-line`'s two. *After*: no game ended;
+    the player failed 37.5% of 91,808 Quests, succeeded 22.4%, strongly 40.2%; the Rivals 18.9% /
+    15.6% / 65.5% of 351,163; a game, the player's Heroes injured 931 times, 79 died, 83 recruited;
+    the Rivals' 2,080, 180 and 446; Rivals folded 20.9 times; the player's mean Level 5.34. The
+    player's Encounters succeeded 56% (`arcane`) to 69% (`stealth`), the Rivals' 75% to 82%.
+    Validated after every advance, 4 seeds × 2 years: no refusal, no warning. **`configVersion`
+    goes from 3 to 4** (the stub's defaults removed, the Quest Engine's added); no other default
+    changes.
 
-**Consequences.** Every Quest drawn from M4 on carries two to five Encounter keys, which a front
-end can show before dispatch. The `encounters` stream moves only when a Quest is generated or a
+**Consequences.** Every Quest drawn from M4 on carries two to five Encounter keys, which `show
+board` shows before dispatch. The `encounters` stream moves only when a Quest is generated or a
 pre-M4 Quest resolves. The Quest template's own `demands` and `skillKeys` stay: `partyFor` (the
-Rival controller's and the policy's staffing rule) and `show board` read them, and M4-S2's Check
-reads the Encounters' instead.
+Rival controller's and the policy's staffing rule) and `show board` read them, and the Check reads
+the Encounters' instead. A save made before this entry plays under config version 3 until the player
+rebases, and a loaded game resolves through the Encounters whatever its config, the stub's fields
+being unread.
+
+What the pass leaves for the owner: the player's Deaths fall to 79 a game, near M2's 88; the
+Rivals', who take four times the Quests on the easiest terms, rise to 180. Success and strong
+success have swapped places beside M2 (22% and 40%): a Party's Checks on one Quest share its Stats
+and its difficulty, so they tend to go all one way, and a Quest of two Encounters has no plain
+success; `bandBySuccessShare` is the dial, and the epic's "all strong, majority success" its
+default. The player's Wealth still grows without end (137,000 after 20 years, 207,000 before), which
+is M3's close to tune. **The History grows by about half** (283,610 entries a 20-year game, 201,677
+before): a `quest.encounter` for each of about three Encounters a Quest, as the epic asks; a lighter
+entry is the lever if §7's save size is chased. A game's Turns cost no more (a 3-year game alone:
+24.2 s before, 21.2 s after).
+
+**For M4-S3, M4-S4 and M4-S5.** M4-S3 fills `synergyBonus` and adds the Synergy keys to
+`quest.resolved`; M4-S4 fills `teamwork` and applies `outcome.regardDelta` (the Encounters' Regard,
+summed) beside `regardPerSharedQuest` with its band events; M4-S5's `classStatBonus` goes in
+`effectiveStats`. **For the M4-close counter task**: encounter outcomes by kind and outcome are the
+`quest.encounter` entries by `payload.kind` and `payload.outcome`, split by the controller kind of
+`payload.guildId`'s Guild (the harm each kind does is in its `injured` and `died`); Injuries by type
+are the `hero.injured` entries by `payload.typeKey`, joined to the Guild as DL-34 item 4 joins them.
 
 ---
 

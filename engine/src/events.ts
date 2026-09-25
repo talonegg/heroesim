@@ -17,7 +17,7 @@ import type {
   QuestId,
   Turn,
 } from './document.js';
-import type { QuestOutcome } from './quest-engine/stub.js';
+import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -109,13 +109,24 @@ export type QuestTaken = Entry<
   { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
 >;
 
-// ── The stub Quest Engine (M2-S5, DL-29) ─────────────────────────────────────────────────────
+// ── The Quest Engine (M2-S5, DL-29; M4-S2, DL-42) ────────────────────────────────────────────
 
 /**
- * A Party came home and its Quest was resolved by the stub Quest Engine: the payload is the
- * outcome (`QuestOutcome`) with the Quest's, Party's and Guild's ids and the template's key, which
- * names the Quest once its row is gone. Names the Quest, the Party, each Hero, the Guild and the
- * Patron. Not a Milestone: its Injuries and Deaths are entries of their own.
+ * One Encounter of a Quest's sequence was checked as the Party came home (M4-S2): its key and kind,
+ * the roll, the target it had to reach, the margin between them, the outcome, and whom its
+ * consequences injured or killed. One per Encounter reached, in sequence order (`index` from 0),
+ * all before the Quest's `quest.resolved`. Names the Quest, the Party and the Guild.
+ */
+export type QuestEncounter = Entry<
+  'quest.encounter',
+  EncounterResult & { questId: QuestId; partyId: PartyId; guildId: GuildId }
+>;
+
+/**
+ * A Party came home and its Quest was resolved by the Quest Engine: the payload is the outcome
+ * (`QuestOutcome`) with the Quest's, Party's and Guild's ids and the template's key, which names the
+ * Quest once its row is gone. Names the Quest, the Party, each Hero, the Guild and the Patron. Not a
+ * Milestone: its Injuries and Deaths are entries of their own.
  */
 export type QuestResolved = Entry<
   'quest.resolved',
@@ -145,8 +156,11 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
 
-/** What moved a Hero's Morale: a Death on their Roster, a strong success, or the nightly drift. */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift';
+/**
+ * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, or the
+ * Morale consequences of a Quest's Encounters, summed (M4-S2).
+ */
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters';
 
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
@@ -233,6 +247,7 @@ export type EngineEvent =
   | QuestOffered
   | QuestExpired
   | QuestTaken
+  | QuestEncounter
   | QuestResolved
   | HeroInjured
   | HeroDied
@@ -271,6 +286,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'quest.offered': false,
   'quest.expired': false,
   'quest.taken': false,
+  'quest.encounter': false,
   'quest.resolved': false,
   'hero.injured': false,
   'hero.died': true,

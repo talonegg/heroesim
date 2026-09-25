@@ -27,7 +27,7 @@
  * `ensureStreams` on its copy of `world` (M2-S3, DL-25). No migration is needed and no other
  * stream moves.
  *
- * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the stub Quest Engine's
+ * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the Quest Engine's
  * resolutions; `pool` (M2-S8) the Unattached pool's refill; `heroes` (M2-S6) the Hero State
  * Engine's Retirement checks; `progression` (M3-S1) the growth points of a Level gained (DL-36);
  * `encounters` (M4-S1) each Quest's Encounter sequence, drawn beside the Board's draws so that

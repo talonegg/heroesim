@@ -21,7 +21,7 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M4-S2's Quest Engine (DL-42).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -122,22 +122,26 @@ export interface GameConfig {
   questDifficultyMin: number;
   questDifficultyMax: number;
 
-  // ── The stub Quest Engine (M2-S5, INPUTS 4.3, 4.4, 5.1, pre-M0 review A4, DL-29) ─────────
+  // ── The Quest Engine (M4-S2, INPUTS 6.2, DL-42) ────────────────────────────────────────────
+  // The stub's fields (M2-S5, DL-29, DL-35) are gone: `stubBands` for `bandBySuccessShare`,
+  // `stubVariance` for `checkVariance`, `stubSkillBonusPerRating` for `skillBonusPerRating`, and
+  // `stubInjuryChance`/`stubDeathChance` for each Encounter's consequences, which are content.
   /**
-   * Where the bands start on the ratio of score to difficulty: below `successAtLeast` a Quest
-   * fails, from it up to and including `strongAbove` it succeeds, and above `strongAbove` it is a
-   * strong success. INPUTS 4.3's 0.8 and 1.2 scaled by 0.325 since the first balance pass, a
-   * Level-1 Party of the size a Quest requires scoring about a third of its difficulty (DL-35).
+   * A Check's roll: the Party's capability times 1 + a draw from −`checkVariance` up to
+   * +`checkVariance`, from the `quests` stream (INPUTS 6.2: ±20%).
    */
-  stubBands: Readonly<{ successAtLeast: number; strongAbove: number }>;
-  /** The one roll's reach: the score is scaled by 1 + a draw from −`stubVariance` to +`stubVariance`. */
-  stubVariance: number;
-  /** Added to the score for each rating point of a Quest's Skills held across the Party (R15). */
-  stubSkillBonusPerRating: number;
-  /** The chance, per band, that one Hero of the Party is injured. */
-  stubInjuryChance: Readonly<Record<QuestBand, number>>;
-  /** The chance, per band, that one Hero of the Party dies. */
-  stubDeathChance: Readonly<Record<QuestBand, number>>;
+  checkVariance: number;
+  /**
+   * Added to a Check's capability, for each of the Encounter's Skills, per rating point of the best
+   * rating any member holds (INPUTS 6.2: Skill rating × 2).
+   */
+  skillBonusPerRating: number;
+  /**
+   * A Quest's band from the share of its Encounters succeeded: `strong` at `strongAtLeast` or more,
+   * `success` above `successAbove`, else `fail` (M4-S2: all strong, a majority success). An
+   * Encounter a Party wiped out never reached counts as not succeeded.
+   */
+  bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -237,7 +241,7 @@ export interface GameConfig {
   xpPerTrainingDay: number;
 }
 
-/** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
+/** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
 export const questBands = ['fail', 'success', 'strong'] as const;
 
 export type QuestBand = (typeof questBands)[number];
@@ -254,7 +258,7 @@ export type PotentialHint = (typeof potentialHints)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 3,
+  configVersion: 4,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -303,11 +307,9 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questDifficultyMin: 10,
   questDifficultyMax: 100,
 
-  stubBands: Object.freeze({ successAtLeast: 0.26, strongAbove: 0.39 }),
-  stubVariance: 0.2,
-  stubSkillBonusPerRating: 2,
-  stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
-  stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
+  checkVariance: 0.2,
+  skillBonusPerRating: 2,
+  bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
 
   moraleMin: 0,
   moraleMax: 100,

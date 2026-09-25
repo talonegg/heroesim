@@ -145,7 +145,10 @@ export interface QuestTemplate {
   fameEffect: number;
   partySizeMin: number;
   partySizeMax: number;
-  /** The Hero Stats the stub assesses, each with a weight; the weights sum to 1 (DL-06). */
+  /**
+   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). A Party is
+   * chosen by them (`partyFor`); from M4-S2 the Check reads its Encounters' demands instead.
+   */
   demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
@@ -259,8 +262,8 @@ export interface Encounter {
 
 /**
  * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before an infirmary
- * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). The stub
- * Quest Engine draws a type for each Injury it inflicts.
+ * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). An
+ * Encounter's injury consequence names the type it inflicts (M4-S1).
  */
 export interface InjuryType {
   key: InjuryTypeKey;

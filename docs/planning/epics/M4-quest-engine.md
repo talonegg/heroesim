@@ -64,11 +64,11 @@ Config: `checkVariance`, `skillBonusPerRating`, `bandBySuccessShare`.
 
 **Acceptance:**
 
-- [ ] A Party lacking the encounter's Skills is beaten by one holding them at rating 3 on the
+- [x] A Party lacking the encounter's Skills is beaten by one holding them at rating 3 on the
       same Stats, with variance 0
-- [ ] A Hero killed in encounter 2 contributes nothing to encounter 3
-- [ ] `quest.encounter` events arrive in sequence order with the Quest's Turn
-- [ ] The harness's M2 counters still report; `quest.resolved` bands are still produced
+- [x] A Hero killed in encounter 2 contributes nothing to encounter 3
+- [x] `quest.encounter` events arrive in sequence order with the Quest's Turn
+- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced
 
 ### M4-S3 · Synergies · 1 session
 

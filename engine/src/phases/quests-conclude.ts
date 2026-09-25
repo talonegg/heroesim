@@ -1,14 +1,16 @@
 // Night, first: Quests concluding go to the Quest Engine and their outcomes are applied (approach
-// §2, M2-S5, DL-29). Each Party whose `returnsOnTurn` has come, in id order, is resolved by the
-// stub Quest Engine (quest-engine/stub.ts), which draws from the `quests` stream alone, and its
-// outcome applied here: the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's,
+// §2, M2-S5, DL-29; M4-S2, DL-42). Each Party whose `returnsOnTurn` has come, in id order, is
+// resolved by the Quest Engine (quest-engine/resolve.ts) through its Encounter sequence, drawing
+// from the `quests` stream (and, for a Quest generated before M4, `encounters`), and its outcome
+// applied here: one `quest.encounter` for each Encounter checked, in sequence order, then
+// `quest.resolved`; the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's,
 // later the same night); a Hero injured carries the Injury until its night; a Hero who died leaves
-// the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP (Level
-// stays 1 until M3); Morale moves on a strong success and on a Death in the Roster, each change
+// the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
+// moves by the Encounters' Morale, on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the survivors are free again (`partyId: null`); and the Party and
-// the Quest rows go, the History keeping their record. Every Guild alike (ADR-0002 as amended by
-// pre-M0 review A1), a folded Guild's Parties excepted, as every per-Guild rule skips a folded
-// Guild.
+// the Quest rows go, the History keeping their record. The Encounters' Regard is M4-S4's to apply.
+// Every Guild alike (ADR-0002 as amended by pre-M0 review A1), a folded Guild's Parties excepted,
+// as every per-Guild rule skips a folded Guild.
 //
 // A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
 // from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
@@ -16,7 +18,7 @@
 import { compareByCodeUnit, type Guild, type Party, type Quest, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { changeMorale } from '../morale.js';
-import { resolveQuest, type QuestOutcome } from '../quest-engine/stub.js';
+import { resolveQuest, type Resolution } from '../quest-engine/resolve.js';
 import { dayOf, nightOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
@@ -29,8 +31,8 @@ export const questsConclude: PhaseRun = (world, ctx) => {
     const guild = row(world.guilds, party.guildId);
     if (guild.foldedOnTurn !== null) continue;
     const quest = row(world.quests, party.questId);
-    const outcome = resolveQuest(world, quest, party, ctx);
-    events.push(...conclude(world, ctx, { party, guild, quest, outcome }));
+    const resolution = resolveQuest(world, quest, party, ctx);
+    events.push(...conclude(world, ctx, { party, guild, quest, resolution }));
   }
   return events;
 };
@@ -39,15 +41,24 @@ interface Concluding {
   party: Party;
   guild: Guild;
   quest: Quest;
-  outcome: QuestOutcome;
+  resolution: Resolution;
 }
 
-/** Applies `outcome` to the world and returns its events, in the order they happened. */
-function conclude(world: World, ctx: PhaseContext, { party, guild, quest, outcome }: Concluding): EngineEvent[] {
+/** Applies the resolution's outcome to the world and returns its events, in the order they happened. */
+function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolution }: Concluding): EngineEvent[] {
   const { config, emit, turn } = ctx;
+  const { outcome } = resolution;
   const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId));
-  // Emitted first, while the Quest and the Party are still rows to label.
+  // Emitted first, while the Quest and the Party are still rows to label: each Encounter in order,
+  // naming the Heroes it hurt, then the Quest.
   const events: EngineEvent[] = [
+    ...resolution.encounters.map((result) =>
+      emit({
+        type: 'quest.encounter',
+        participants: [quest.id, party.id, guild.id, ...result.injured, ...result.died],
+        payload: { questId: quest.id, partyId: party.id, guildId: guild.id, ...result },
+      }),
+    ),
     emit({
       type: 'quest.resolved',
       participants: [quest.id, party.id, ...party.heroIds, guild.id, quest.patronId],
@@ -93,6 +104,11 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, outcom
     );
   }
 
+  if (outcome.moraleDelta !== 0) {
+    for (const hero of survivors) {
+      events.push(changeMorale(hero, outcome.moraleDelta, 'encounters', config, emit));
+    }
+  }
   if (outcome.band === 'strong') {
     for (const hero of survivors) {
       events.push(changeMorale(hero, config.moraleOnStrongSuccess, 'strong-success', config, emit));

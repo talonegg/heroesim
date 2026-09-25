@@ -438,14 +438,15 @@ export function withEncounters(
 export const harmlessContent: ContentSet = withEncounters({ success: [], failure: [] });
 
 /**
- * Every failed Check injures one Hero with `bruised-ribs` and kills one, each certainly; a success
- * costs nothing (M4-S2): for tests of harm, which make the Check fail.
+ * Every failed Check kills one Hero and then injures one of the living with `broken-arm`, each
+ * certainly, so a Party of two or more sent through one failed Encounter loses one Hero and brings
+ * one home hurt; a success costs nothing (M4-S2). For tests of harm, which make the Check fail.
  */
 export const certainHarmContent: ContentSet = withEncounters({
   success: [],
   failure: [
-    { kind: 'injury', typeKey: 'bruised-ribs', chance: 1, count: 1 },
     { kind: 'death', chance: 1 },
+    { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
   ],
 });
 

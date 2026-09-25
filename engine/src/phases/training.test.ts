@@ -2,12 +2,13 @@ import { describe, expect, test } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
+import type { ContentSet } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf, timeOfDay } from '../time.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { harmlessContent, testContent, testDeps, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { training } from './training.js';
 
@@ -21,18 +22,21 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
  * watches (DL-30 item 11); Wealth enough that no Upkeep bankrupts the Guild in a year; and no
  * Retirement, of a Hero or the Guildmaster, to take a Hero off the Roster.
  */
-function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
-  return testDeps({
-    rivalCount: 0,
-    turnsPerYear: 1080,
-    startingWealth: 10_000_000,
-    heroRetirementChancePerYear: 0,
-    guildmasterRetirementAge: 200,
-    xpPerTrainingDay: 2,
-    xpCurveBase: 100,
-    xpCurveExponent: 2,
-    ...overrides,
-  });
+function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
+  return testDeps(
+    {
+      rivalCount: 0,
+      turnsPerYear: 1080,
+      startingWealth: 10_000_000,
+      heroRetirementChancePerYear: 0,
+      guildmasterRetirementAge: 200,
+      xpPerTrainingDay: 2,
+      xpCurveBase: 100,
+      xpCurveExponent: 2,
+      ...overrides,
+    },
+    content,
+  );
 }
 
 const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
@@ -123,7 +127,7 @@ describe('training', () => {
   });
 
   test('a Hero away on a Quest trains on none of its nights, the night they leave and the night they return included', () => {
-    const deps = soloDeps({ stubDeathChance: { fail: 0, success: 0, strong: 0 }, stubInjuryChance: { fail: 0, success: 0, strong: 0 } });
+    const deps = soloDeps({}, harmlessContent);
     const start = withYard('away', 1, deps);
     const open = start.world.board
       .map((id) => start.world.quests[id] as Quest)

@@ -10,7 +10,7 @@ import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, durationDaysOf, nightOf, timeOfDay } from '../time.js';
 import { validate } from '../validate.js';
-import { buildDocument, fixtureTurn, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
 import { dispatch, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
@@ -372,8 +372,7 @@ describe('a Party in play', () => {
   test('frees its Heroes on the night of Day d + k, so they are dispatchable again on the morning of Day d + k + 1, whichever Turn of Day d they left in', () => {
     // No harm, so the Heroes come home fit to go again, and no Rivals to empty the Board (DL-30
     // item 11): the timing is what is checked.
-    const noHarm = { fail: 0, success: 0, strong: 0 };
-    const unharmed = testDeps({ rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    const unharmed = testDeps({ rivalCount: 0 }, harmlessContent);
     for (const day of [0, 2]) {
       for (const turn of [3 * day, 3 * day + 1, 3 * day + 2]) {
         const document = playTo(createWorld(`again-${turn}`, setup, unharmed).document, turn, unharmed);
