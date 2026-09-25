@@ -98,8 +98,11 @@ function easiestStaffable(world: World, guild: Guild, content: ContentSet): Guil
  * the rest stay free for tomorrow's Board. A requirement is met by the strongest Hero who meets
  * it (one who meets both when there is one); the other places go to the strongest of the rest.
  * Strength is the Hero's Stats weighted by the Quest's demands (`strengthFor`), ties by Hero id.
+ *
+ * Exported as the one staffing rule: the harness's automatic policy (M2-S12, DL-34) sends the
+ * Party it names rather than keeping a copy. It reads nothing but its arguments and draws nothing.
  */
-function partyFor(quest: Quest, available: readonly Hero[], content: ContentSet): HeroId[] | null {
+export function partyFor(quest: Quest, available: readonly Hero[], content: ContentSet): HeroId[] | null {
   const strength = new Map(available.map((hero) => [hero.id, strengthFor(hero, quest, content)]));
   const ranked = [...available].sort(
     (a, b) => (strength.get(b.id) ?? 0) - (strength.get(a.id) ?? 0) || compareByCodeUnit(a.id, b.id),
