@@ -627,6 +627,35 @@ field lists, which the compiler demands. A later build allowing more Parties cha
 1,000-Hero world with about a thousand entries validates in about 11 ms, and M2-S12 measures a
 20-year save.
 
+## DL-22 — One fixture module for the engine's tests
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S10's implementer, at
+the orchestrator's request)
+
+**Context.** M1-S5/S6 and M1-S7/S8 were built in parallel, and each made its own test content:
+`engine/src/generators/test-content.ts` (DL-19's consequences), a fresh copy per call with
+`testDeps` and `testWorld`; and `engine/src/world.test-support.ts` (DL-20 item 12), a constant
+with `testMeta`, `buildDocument` and `withValid`. Two content sets that drift apart would let a
+generator test and a validator test disagree about what content holds.
+
+**Decision.**
+
+1. `engine/src/world.test-support.ts` is the one fixture module; `test-content.ts` is deleted and
+   its `testDeps` and `testWorld` moved in. It stays under DL-20 item 12's terms: not a test,
+   linted as engine source, not exported from the package.
+2. There is one content set, `testContent`, the union of the two: every Trait and Sphere of the
+   core, four Hero and three Guild Backgrounds, the generator set's name lists (long enough for
+   `createWorld` under `defaultConfig`), its growth weights (two thirds shared by the leading
+   Stats, DL-17 item 5), and the validator set's Quest template and Item tables. Its `id` is
+   `"test"`, since it is not the core set.
+3. It is a deep-frozen constant rather than a fresh copy per call: a test that changed shared
+   content throws at once instead of changing another test's input, and a test that needs other
+   content spreads a copy.
+
+**Consequences.** DL-19's and DL-20's references to where the fixtures live are read with this
+entry. No test's expectation changed: the generators read no Quest template or Item table, and
+no validator test names a key the union adds.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

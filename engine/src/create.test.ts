@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, type WorldSetup } from './create.js';
 import { makeId, tableNames, type Guild, type WorldDocument } from './document.js';
-import { testDeps } from './generators/test-content.js';
+import { testDeps } from './world.test-support.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 
