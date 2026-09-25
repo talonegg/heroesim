@@ -4,7 +4,7 @@
 **Sessions:** 12–14 · **Depends on:** M0 · **Implements:** `plan.md` M1; `data-model.md` in full; R1, R5, R7, R8, R12–R16, R27 (the pool's existence), R35, R36; ADR-0001, ADR-0006, ADR-0008, ADR-0009
 **Gate:** `heroesim new --seed x` then `show` prints Guilds, Rosters, the pool and Patrons; `save` then `load` round-trips byte-for-byte; the harness creates 1,000 worlds twice and every pair is byte-identical
 
-**Status:** in progress — M1-S1 done
+**Status:** in progress — M1-S1 to M1-S4 done
 
 ## 0. What lands in M1
 
