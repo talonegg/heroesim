@@ -68,12 +68,12 @@ shares an old stream (D7).
 
 **Acceptance:**
 
-- [ ] The same seed and name produce the same first thousand draws across two processes
-- [ ] Two names from one seed produce different sequences
-- [ ] `RngState` is JSON-safe and a state serialised and deserialised continues the sequence
+- [x] The same seed and name produce the same first thousand draws across two processes
+- [x] Two names from one seed produce different sequences
+- [x] `RngState` is JSON-safe and a state serialised and deserialised continues the sequence
       exactly
-- [ ] Drawing from `board` leaves `heroes` unchanged (deep-equal before and after)
-- [ ] Nothing in `engine/` imports `rng.ts`'s state type except through `world.rng`
+- [x] Drawing from `board` leaves `heroes` unchanged (deep-equal before and after)
+- [x] Nothing in `engine/` imports `rng.ts`'s state type except through `world.rng`
 
 ### M1-S3 · History append and indexes · 1 session
 

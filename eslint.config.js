@@ -97,6 +97,71 @@ function consumerImports(self, forbidden) {
   };
 }
 
+// The engine's own globals and syntax. A later block replaces an earlier block's options for the
+// same rule, so the engine's tests (the second engine block) restate what they keep.
+
+// Forbidding the `Date` global outright would also forbid `: Date` in a type and
+// `instanceof Date`. Forbid the ways of reading the clock instead. Date.now is left to
+// no-restricted-properties so that it is reported once.
+const readsOfTheClock = [
+  {
+    selector: "NewExpression[callee.name='Date']",
+    message: 'Time is injected: the engine never constructs `new Date()` (ADR-0001).',
+  },
+  {
+    selector: "CallExpression[callee.name='Date']",
+    message: 'Time is injected: the engine never calls `Date()` (ADR-0001).',
+  },
+  {
+    selector: "CallExpression[callee.object.name='Date'][callee.property.name!='now']",
+    message: 'Time is injected: the engine never calls a static `Date.*` method (ADR-0001).',
+  },
+];
+
+const dynamicImport = {
+  selector: 'ImportExpression',
+  message: "The engine's imports are static and inside itself: no dynamic `import()` (ADR-0007).",
+};
+
+// Not `no-console`: it cannot carry a message, and the message is what names the ADR.
+const noOutput = {
+  name: 'console',
+  message: 'The engine returns typed events, never output: no console (ADR-0003).',
+};
+
+/** The global object's names: through any of them, every global forbidden here is reachable. */
+const globalObjects = ['globalThis', 'global', 'window', 'self'];
+
+/** Globals that read a clock, a random source or the environment, and the global object (DL-16). */
+const readsOfTheOutsideWorld = [
+  {
+    name: 'performance',
+    message: 'Time is injected: the engine never reads a clock, performance.now() included (ADR-0001).',
+  },
+  {
+    name: 'crypto',
+    message:
+      'Randomness is injected: draw from a seeded stream, never crypto.randomUUID() or ' +
+      'crypto.getRandomValues() (ADR-0001).',
+  },
+  {
+    name: 'process',
+    message:
+      'The engine runs unchanged in Node and the browser and reads no environment or clock: ' +
+      'no process.env, process.hrtime or any other process.* (ADR-0001, ADR-0007).',
+  },
+  ...['setTimeout', 'setInterval', 'setImmediate'].map((name) => ({
+    name,
+    message: `Time advances only when \`advance\` is called; nothing waits on the clock: no ${name} (ADR-0001).`,
+  })),
+  ...globalObjects.map((name) => ({
+    name,
+    message:
+      `The engine reaches no global through \`${name}\`, which would bypass the rules on the ` +
+      'clock, randomness and the environment (ADR-0001, ADR-0007).',
+  })),
+];
+
 const restrictImports = (options) => ({
   'no-restricted-imports': 'off',
   '@typescript-eslint/no-restricted-imports': ['error', options],
@@ -130,9 +195,10 @@ export default defineConfig(
     },
   },
 
-  // The engine: no clock, no global random source (ADR-0001), no output (ADR-0003), nothing
-  // imported from outside itself (ADR-0007). Tests included, except that they may use Node and
-  // their tools to inspect the repository.
+  // The engine: no clock, no global random source and no environment (ADR-0001, DL-16), no output
+  // (ADR-0003), nothing imported from outside itself (ADR-0007). Tests included, except that
+  // they may use Node and its tools to inspect the repository, time what they measure and spawn
+  // processes: the second block gives them back what the first forbids for those reasons.
   {
     files: ['engine/**/*.ts'],
     rules: {
@@ -149,38 +215,18 @@ export default defineConfig(
           message: 'Time is injected: the engine never reads the clock with Date.now() (ADR-0001).',
         },
       ],
-      // Forbidding the `Date` global outright would also forbid `: Date` in a type and
-      // `instanceof Date`. Forbid the ways of reading the clock instead. Date.now is left to
-      // no-restricted-properties so that it is reported once.
-      'no-restricted-syntax': [
-        'error',
-        {
-          selector: "NewExpression[callee.name='Date']",
-          message: 'Time is injected: the engine never constructs `new Date()` (ADR-0001).',
-        },
-        {
-          selector: "CallExpression[callee.name='Date']",
-          message: 'Time is injected: the engine never calls `Date()` (ADR-0001).',
-        },
-        {
-          selector: "CallExpression[callee.object.name='Date'][callee.property.name!='now']",
-          message: 'Time is injected: the engine never calls a static `Date.*` method (ADR-0001).',
-        },
-      ],
-      // Not `no-console`: it cannot carry a message, and the message is what names the ADR.
-      'no-restricted-globals': [
-        'error',
-        {
-          name: 'console',
-          message: 'The engine returns typed events, never output: no console (ADR-0003).',
-        },
-      ],
+      'no-restricted-syntax': ['error', ...readsOfTheClock, dynamicImport],
+      'no-restricted-globals': ['error', noOutput, ...readsOfTheOutsideWorld],
       ...restrictImports(engineSource),
     },
   },
   {
     files: ['engine/**/*.test.ts'],
-    rules: restrictImports(engineTests),
+    rules: {
+      'no-restricted-syntax': ['error', ...readsOfTheClock],
+      'no-restricted-globals': ['error', noOutput],
+      ...restrictImports(engineTests),
+    },
   },
 
   {
