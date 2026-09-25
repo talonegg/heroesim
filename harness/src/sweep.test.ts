@@ -77,7 +77,7 @@ describe('sweepPlay', () => {
       expect(report).toContain('| Games the validator refused | 0 |');
       expect(report).toContain('`seed-0001`: identical');
       expect(report).toContain('| Advance one Turn | under 5 ms |');
-      expect(report).toContain('| Save after 20 years | under 20 MB |');
+      expect(report).toContain('| Save after 20 years | under 20 MiB |');
       expect(report).toContain(`Node ${process.version}`);
     });
 

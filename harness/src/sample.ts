@@ -76,6 +76,6 @@ if (import.meta.main) {
   console.log(
     `${sample.seed} (${sample.tried} ${sample.tried === 1 ? 'seed' : 'seeds'} played): stopped at Turn ${sample.turn} ` +
       `(${sample.ending ?? `${defaultYears} years played`}); ${sample.historyEntries} History entries, ` +
-      `${(sample.bytes / 1024 / 1024).toFixed(2)} MB\nWrote ${sample.path}`,
+      `${(sample.bytes / 1024 / 1024).toFixed(2)} MiB\nWrote ${sample.path}`,
   );
 }

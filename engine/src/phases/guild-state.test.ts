@@ -3,6 +3,7 @@ import { advance } from '../advance.js';
 import type { GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild } from '../document.js';
+import type { EngineEvent, EngineEventOf } from '../events.js';
 import { phases } from '../pipeline.js';
 import { dayOf, nightOf } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
@@ -55,7 +56,7 @@ describe('guildState', () => {
     }
   });
 
-  test('deducts Upkeep from the player and a Rival on the same Day, driven through advance', () => {
+  test('deducts Upkeep from the player and a Rival on the same Turn, the Upkeep night, driven through advance', () => {
     // The Rival's controller is stilled: from M2-S9 it recruits and dispatches each afternoon,
     // moving the Wealth this test watches Upkeep alone move.
     const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
@@ -75,8 +76,8 @@ describe('guildState', () => {
       Object.values(document.world.guilds).map((guild): [string, number] => [guild.id, guild.wealth]),
     );
 
-    const target = nightOf(9); // the first Upkeep Day's night Turn
-    let allEvents: { type: string }[] = [];
+    const target = nightOf(9); // the first Upkeep Day's night Turn (DL-26)
+    let allEvents: EngineEvent[] = [];
     for (let turn = 1; turn <= target; turn += 1) {
       const result = advance(document, deps);
       document = withValid(result.document, deps);
@@ -84,9 +85,16 @@ describe('guildState', () => {
     }
 
     expect(dayOf(document.world.turn)).toBe(9);
-    const paidEvents = allEvents.filter((event) => event.type === 'guild.upkeep-paid');
+    const paidEvents = allEvents.filter(
+      (event): event is EngineEventOf<'guild.upkeep-paid'> => event.type === 'guild.upkeep-paid',
+    );
     const guilds = Object.values(document.world.guilds);
     expect(paidEvents).toHaveLength(guilds.length);
+    // Every Guild's Upkeep falls on the same Turn, and that Turn is the Upkeep night DL-26's
+    // formula gives — not merely the same Day: a Rival paying a Day early must fail this.
+    for (const event of paidEvents) {
+      expect(event.turn).toBe(target);
+    }
     for (const guild of guilds) {
       const before = startingWealth[guild.id] as number;
       expect(guild.wealth).toBe(before - 5); // one Hero each, Level 1, no Hall grade

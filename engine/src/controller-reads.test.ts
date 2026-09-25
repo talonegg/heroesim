@@ -26,12 +26,26 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
     reads: 1,
     why: "plan.md §1: the player's ending ends the game, a Rival's folds that Guild (M2-S10)",
   },
+  'validate.ts': {
+    reads: 1,
+    why:
+      "`unknownDisposition`: warns when a Guild's Disposition key is not content the game knows; reads " +
+      "whether the Guild has one at all to know what to check, not which Guild kind it is (M2-S7)",
+  },
+  'controllers/rival.ts': {
+    reads: 1,
+    why:
+      "`rivalChoices`: reads a Guild's Disposition to run its rule — the same read `selectors.ts`'s own " +
+      "docstring names as the Rival controllers' (M2-S9, DL-30)",
+  },
 };
 
 /**
  * What counts as a read: `controller.kind` (optional chaining and spaces allowed), the bracketed
- * `controller['kind']`, destructuring `kind` out of a controller, `'…' in` a controller, and a call
- * of `playerGuild`, which reads it on the caller's behalf.
+ * `controller['kind']`, destructuring `kind` out of a controller, `'…' in` a controller, a call of
+ * `playerGuild`, which reads it on the caller's behalf, and a call of `dispositionOf`, which reads
+ * it on the caller's behalf too — a player check can hide behind either selector as easily as
+ * behind `controller.kind` itself.
  */
 const readPatterns: readonly RegExp[] = [
   /\bcontroller\s*\??\.\s*kind\b/g,
@@ -39,6 +53,7 @@ const readPatterns: readonly RegExp[] = [
   /\{[^{}]*\bkind\b[^{}]*\}\s*=\s*[\w$.?]*\bcontroller\b/g,
   /['"`]\w+['"`]\s+in\s+[\w$.?]*\bcontroller\b/g,
   /(?<!function\s+)\bplayerGuild\s*\(/g,
+  /(?<!function\s+)\bdispositionOf\s*\(/g,
 ];
 
 /** `source` without its comments, so that prose about `controller.kind` is not a read. */
@@ -83,6 +98,8 @@ describe('reads of controller.kind in the engine (plan.md §1)', () => {
     ["'disposition' in guild.controller", 1],
     ['const player = playerGuild(world);', 1],
     ['export function playerGuild(world: World) {}', 0],
+    ['const disposition = dispositionOf(guild);', 1],
+    ["export function dispositionOf(guild: Pick<Guild, 'controller'>): DispositionKey | null { return null; }", 0],
     ["const controller = { kind: 'rival', disposition: 'steady' };", 0],
     ["controller: { kind: 'player' },", 0],
     ['// the player reads guild.controller.kind here', 0],

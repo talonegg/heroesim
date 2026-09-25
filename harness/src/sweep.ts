@@ -446,8 +446,8 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt }: PlayR
         ],
         [
           'Save after 20 years',
-          'under 20 MB',
-          `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MB, max ${fixed(lengths.max / 1024 / 1024, 2)} MB (${sizeOf})`,
+          'under 20 MiB',
+          `mean ${fixed(lengths.mean / 1024 / 1024, 2)} MiB, max ${fixed(lengths.max / 1024 / 1024, 2)} MiB (${sizeOf})`,
         ],
         ['Load a save', `under ${targets.loadMs / 1000} s`, `mean ${fixed(loadMs.mean, 0)} ms, max ${fixed(loadMs.max, 0)} ms${load} (${sizeOf})`],
       ],
