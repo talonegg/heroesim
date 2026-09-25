@@ -296,11 +296,13 @@ the decision log against `data-model.md` §7's targets, with the seed count.
 
 **Acceptance:**
 
-- [ ] 200 seeds × 20 years complete; no validator failure with `HEROESIM_VALIDATE=1`
-- [ ] The report is committed at `harness/reports/m2-<date>.md` and the measures are in a DL
+- [x] 200 seeds × 20 years complete; no validator failure with `HEROESIM_VALIDATE=1`
+- [x] The report is committed at `harness/reports/m2-<date>.md` and the measures are in a DL
       entry
-- [ ] Byte equality holds for one seed played twice under the policy (the policy is
+- [x] Byte equality holds for one seed played twice under the policy (the policy is
       deterministic: it draws no random numbers)
+      _(`harness/reports/m2-2026-09-26.md`, DL-34 and DL-35: the defaults' own run ended every
+      game in its first year, so DL-35 made the first balance pass before this run.)_
 
 ## 2. Configuration and events introduced
 
