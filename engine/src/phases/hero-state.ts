@@ -14,7 +14,8 @@
 // - **Healing.** An Injury whose `healsOnTurn` has come is cleared, and its type's `leavesTrait`
 //   joins the Hero's Traits unless already there, with `hero.healed`.
 // - **Morale drift.** Morale moves `moraleDrift` toward the Hero's baseline, `moraleBaselineFor`
-//   (`moraleBaseline`, raised by the Guild's quarters from M3-S6), and stops there. Drift emits
+//   (`moraleBaseline`, raised by the Guild's quarters from M3-S6 and moved by its Guildmaster's
+//   Inspiration and Traits from M4-S5), and stops there. Drift emits
 //   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
 // - **Retirement.** Once a year, on the night of the Day each anniversary of the Hero's
@@ -78,7 +79,7 @@ function heal(hero: Hero, ctx: PhaseContext): EngineEvent[] {
 
 /** Moves Morale toward the Hero's baseline without passing it; an event only when a band is crossed. */
 function drift(hero: Hero, world: World, ctx: PhaseContext): EngineEvent[] {
-  const baseline = moraleBaselineFor(hero, world, ctx.config);
+  const baseline = moraleBaselineFor(hero, world, ctx.config, ctx.content);
   const step = ctx.config.moraleDrift;
   const before = hero.morale;
   hero.morale = before < baseline ? Math.min(baseline, before + step) : Math.max(baseline, before - step);

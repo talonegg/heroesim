@@ -90,7 +90,7 @@ export function automaticPolicy(
     actions.push(build);
   } else if (
     guild.rosterIds.length < policy.rosterLimit &&
-    guild.wealth > policy.recruitWealthMultiple * upkeep(guild, world, deps.config)
+    guild.wealth > policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)
   ) {
     const cheapest = cheapestUnattached(world, deps, guild);
     if (cheapest !== null && cheapest.fee <= guild.wealth) {

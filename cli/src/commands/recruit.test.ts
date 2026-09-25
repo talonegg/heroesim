@@ -8,6 +8,7 @@ import {
   defaultConfig,
   deserialise,
   makeId,
+  guildmasterOf,
   playerGuild,
   rankings,
   serialise,
@@ -64,14 +65,17 @@ function edit(change: (document: WorldDocument) => void): void {
   writeFileSync(current(), serialise(edited));
 }
 
-/** A new world, its player's Guild and the first Hero in its pool. */
+/**
+ * A new world, its player's Guild and the first Hero in its pool, with the fee the player's Guild
+ * pays for them: its Guildmaster's Negotiation applied (M4-S5).
+ */
 function newWorld(): { guild: Guild; hero: Hero; fee: number } {
   expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
   const created = document();
   const guild = playerGuild(created.world);
   const [hero] = unattachedHeroes(created.world);
   if (guild === undefined || hero === undefined) throw new Error('The world is incomplete');
-  return { guild, hero, fee: signingFee(hero, playDeps(created, content)) };
+  return { guild, hero, fee: signingFee(hero, playDeps(created, content), guildmasterOf(guild, created.world)) };
 }
 
 /** The line of `output` that starts with `id`: a row of a table keyed by id. */
@@ -170,13 +174,15 @@ describe('the views', () => {
     newWorld();
     const created = document();
     const deps = playDeps(created, content);
+    // The fee the player's Guild pays: its Guildmaster's Negotiation applied (M4-S5).
+    const buyer = guildmasterOf(playerGuild(created.world) as Guild, created.world);
 
     const run = play(['show', 'pool']);
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/\sFee\s+Signs\n/);
     for (const hero of unattachedHeroes(created.world)) {
-      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps)}\\s+yes$`));
+      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps, buyer)}\\s+yes$`));
     }
   });
 

@@ -337,7 +337,8 @@ describe('unsignableHeroes (M3-S5)', () => {
 });
 
 describe('cheapestUnattached (DL-38)', () => {
-  const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
+  // Negotiation still (M4-S5): these tests are about who is cheapest and who would sign.
+  const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4, negotiationRange: 0 });
 
   function pool() {
     const { document } = createWorld('cheapest', setup, deps);
@@ -346,7 +347,8 @@ describe('cheapestUnattached (DL-38)', () => {
     // Stats that set the fees: 50 + 25 × Level + the Stats' sum ÷ 4 (INPUTS 4.7).
     const statsAt = (value: number) => Object.fromEntries(Object.keys(heroes[0]?.stats ?? {}).map((key) => [key, value]));
     heroes.forEach((hero, index) => (hero.stats = statsAt([12, 8, 8, 10][index] ?? 10)));
-    return { world: document.world, heroes: heroes as [Hero, Hero, Hero, Hero] };
+    const guildmasterId = playerGuild(document.world)?.guildmasterId ?? makeId('guildmasters', 0);
+    return { world: document.world, heroes: heroes as [Hero, Hero, Hero, Hero], guildmasterId };
   }
 
   test('is the Hero with the lowest fee, the lowest id among equal fees, with that fee', () => {
@@ -358,24 +360,24 @@ describe('cheapestUnattached (DL-38)', () => {
   });
 
   test("given a Guild, passes over a Hero who would refuse its Fame, and is null when none would sign", () => {
-    const { world, heroes } = pool();
+    const { world, heroes, guildmasterId } = pool();
     const [first, second, third, fourth] = heroes;
     second.level = 2; // asks Fame 10, and now costs 25 more
     third.level = 2;
 
-    expect(cheapestUnattached(world, deps, { fame: 0 })?.hero).toBe(fourth);
-    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps, { fame: 0, guildmasterId })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps, { fame: 10, guildmasterId })?.hero).toBe(fourth);
     expect(cheapestUnattached(world, deps)?.hero).toBe(fourth);
     for (const hero of [first, fourth]) hero.level = 3;
-    expect(cheapestUnattached(world, deps, { fame: 0 })).toBeNull();
-    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(second);
+    expect(cheapestUnattached(world, deps, { fame: 0, guildmasterId })).toBeNull();
+    expect(cheapestUnattached(world, deps, { fame: 10, guildmasterId })?.hero).toBe(second);
     // Without a Guild, Fame is not asked: the cheapest in the pool, whoever they would sign for.
     expect(cheapestUnattached(world, deps)?.hero).toBe(second);
   });
 
   test('is null for an empty pool', () => {
-    expect(cheapestUnattached({ heroes: {} }, deps)).toBeNull();
-    expect(cheapestUnattached({ heroes: {} }, deps, { fame: 100 })).toBeNull();
+    expect(cheapestUnattached({ heroes: {}, guildmasters: {} }, deps)).toBeNull();
+    expect(cheapestUnattached({ heroes: {}, guildmasters: {} }, deps, { fame: 100, guildmasterId: makeId('guildmasters', 0) })).toBeNull();
   });
 });
 

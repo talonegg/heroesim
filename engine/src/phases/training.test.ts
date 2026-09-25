@@ -19,7 +19,8 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 /**
  * INPUTS 5.1's training XP and 5.2's curve, pinned. No Rivals, whose Parties would blur what a test
  * watches (DL-30 item 11); Wealth enough that no Upkeep bankrupts the Guild in a year; and no
- * Retirement, of a Hero or the Guildmaster, to take a Hero off the Roster.
+ * Retirement, of a Hero or the Guildmaster, to take a Hero off the Roster. The Guildmaster's Coaching
+ * still (M4-S5): it is tested with the other Guildmaster Stats (guildmaster.test.ts).
  */
 function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
   return testDeps({
@@ -31,6 +32,7 @@ function soloDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
     xpPerTrainingDay: 2,
     xpCurveBase: 100,
     xpCurveExponent: 2,
+    coachingFactor: 0,
     ...overrides,
   });
 }

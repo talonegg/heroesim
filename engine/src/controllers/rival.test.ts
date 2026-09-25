@@ -192,7 +192,8 @@ describe('steady: which Heroes', () => {
 describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6).
-  const noBuilding = { buildWealthMultiple: 1_000_000 };
+  // Negotiation still too (M4-S5): the fees are compared at the list price.
+  const noBuilding = { buildWealthMultiple: 1_000_000, negotiationRange: 0 };
   const deps = testDeps({ recruitWealthMultiple: 10, ...noBuilding });
 
   /** The Hero in the pool with the lowest fee, lowest id among equals. */
@@ -208,7 +209,7 @@ describe('steady: recruiting', () => {
 
   test('recruits the cheapest Unattached Hero only while Wealth exceeds recruitWealthMultiple Upkeeps', () => {
     const { world, rival } = scene('threshold', deps);
-    const threshold = deps.config.recruitWealthMultiple * upkeep(rival, world, deps.config);
+    const threshold = deps.config.recruitWealthMultiple * upkeep(rival, world, deps.config, deps.content);
     expect(threshold).toBeGreaterThan(0);
 
     rival.wealth = threshold;
@@ -222,7 +223,7 @@ describe('steady: recruiting', () => {
     // INPUTS 4.12 says three; DL-35 raised the default to ten.
     expect(testDeps().config.recruitWealthMultiple).toBe(10);
     const { world, rival } = scene('multiple', deps);
-    const wealth = 5 * upkeep(rival, world, deps.config);
+    const wealth = 5 * upkeep(rival, world, deps.config, deps.content);
     rival.wealth = wealth;
 
     expect(recruits(world, rival)).toEqual([]);
@@ -268,7 +269,7 @@ describe('steady: recruiting', () => {
   });
 
   test('recruits no one it cannot pay for, and no one from an empty pool', () => {
-    const noThreshold = testDeps({ recruitWealthMultiple: 0 });
+    const noThreshold = testDeps({ recruitWealthMultiple: 0, negotiationRange: 0 });
     const { world, rival } = scene('afford', noThreshold);
     const fee = signingFee(cheapest(world), noThreshold);
     const hires = () => rivalChoices(world, rival, noThreshold).filter((action) => action.kind === 'recruit');

@@ -4,7 +4,8 @@
 // through `applyDispatch`, the rule `dispatch` runs (DL-30). The Party is away until
 // `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's `questsAdvance` does
 // nothing with it until M4, and the night's `questsConclude` (M2-S5) resolves it. The choices
-// here are DL-25.
+// here are DL-25; M4-S5 names each requirement a Party misses and has the Guildmaster's
+// Negotiation set the reward agreed (DL-43).
 
 import type { EngineDeps } from '../config.js';
 import type { ClassKey, SkillKey } from '../content-types.js';
@@ -20,6 +21,7 @@ import {
   type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
+import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
 import { dayOf, durationDaysOf, nightOf } from '../time.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
@@ -58,18 +60,26 @@ export interface HeroUnavailable extends Rejection<'dispatch', 'hero-unavailable
   because: Unavailability;
 }
 
-/** The Party is smaller or larger than the Quest's bounds; any size within them is accepted. */
-export interface PartySize extends Rejection<'dispatch', 'party-size'> {
-  questId: QuestId;
-  size: number;
-  partySizeMin: number;
-  partySizeMax: number;
-}
+/** Which of a Quest's requirements a Party misses (M4-S5, pre-M0 review E6). */
+export type RequirementKind = 'party-size' | 'class' | 'skill';
 
-/** No Hero in the Party is of the Class, or holds the Skill, the Quest requires: those it lacks. */
+/**
+ * One requirement of a Quest a Party misses, named by `requirement`: its size is outside the
+ * Quest's bounds (any size within them is accepted), or no Hero in it is of the Class, or holds the
+ * Skill, the Quest requires.
+ */
+export type UnmetRequirement =
+  | { requirement: 'party-size'; size: number; partySizeMin: number; partySizeMax: number }
+  | { requirement: 'class'; classKey: ClassKey }
+  | { requirement: 'skill'; skillKey: SkillKey };
+
+/**
+ * The Party misses one or more of the Quest's requirements (M2-S4; M4-S5 names each): every one it
+ * misses, in the order party size, Class, Skill.
+ */
 export interface RequirementUnmet extends Rejection<'dispatch', 'requirement-unmet'> {
   questId: QuestId;
-  unmet: { classKey?: ClassKey; skillKey?: SkillKey };
+  unmet: UnmetRequirement[];
 }
 
 export type DispatchRejection =
@@ -77,7 +87,6 @@ export type DispatchRejection =
   | QuestNotOffered
   | HeroNotOnRoster
   | HeroUnavailable
-  | PartySize
   | RequirementUnmet;
 
 /**
@@ -85,13 +94,15 @@ export type DispatchRejection =
  * fails is the rejection (DL-25, DL-31): the Guild has not folded (`guild-folded`); the Quest is
  * on the Board (`quest-not-offered`); each Hero in turn is on the Guild's Roster
  * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, or in a
- * Party); the Party's size is within the Quest's bounds (`party-size`); and it meets the Quest's
- * required Class and Skill (`requirement-unmet`).
+ * Party); and the Party meets the Quest's requirements (`requirement-unmet`, naming each it
+ * misses: its size, its required Class, its required Skill; M4-S5, `unmetRequirements`).
  *
  * On success, a copy of `world` gains a `parties` row departing this Turn and returning on
  * `nightOf(dayOf(turn) + durationDays)`, a night Turn whichever Turn of the Day it left in
- * (pre-M0 review C4); the Quest is `taken`, lists the Party and leaves the Board; each Hero's
- * `partyId` is the Party's; and `quest.taken` is appended to the History and returned. The old
+ * (pre-M0 review C4); the Quest is `taken`, lists the Party and leaves the Board, and its reward
+ * becomes the reward agreed, the Guild's Guildmaster's Negotiation applied (`negotiatedReward`,
+ * M4-S5, R8), which the Quest Engine pays on a success; each Hero's `partyId` is the Party's; and
+ * `quest.taken`, carrying the reward agreed, is appended to the History and returned. The old
  * document's `world` is left as it was; `meta` and `history` are shared, as `advance` shares them.
  *
  * Throws on a programming error, as the validator would refuse the request: a Guild not in the
@@ -116,9 +127,6 @@ export function applyDispatch(
   request: DispatchRequest,
   deps: EngineDeps,
 ): WorldActionResult<DispatchRejection> {
-  // Taken as every entry point takes it (epics README §4); no rule of dispatch reads it until
-  // M4-S5's Negotiation scales the reward.
-  void deps;
   const { guildId, questId, heroIds } = request;
   const guild = own(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
@@ -141,15 +149,40 @@ export function applyDispatch(
   };
   quest.status = 'taken';
   quest.partyIds.push(partyId);
+  quest.reward = negotiatedReward(quest.reward, guildmasterOf(guild, world), deps.content, deps.config);
   world.board = world.board.filter((id) => id !== questId);
   for (const heroId of heroIds) (world.heroes[heroId] as Hero).partyId = partyId;
 
   const taken = eventEmitter(world)({
     type: 'quest.taken',
     participants: [questId, partyId, ...heroIds, guildId, quest.patronId],
-    payload: { questId, partyId, guildId, heroIds: [...heroIds], returnsOnTurn },
+    payload: { questId, partyId, guildId, heroIds: [...heroIds], returnsOnTurn, reward: quest.reward },
   });
   return { ok: true, events: [taken] };
+}
+
+/**
+ * Every requirement of `quest` a Party of `party` misses, in the order party size, Class, Skill
+ * (M4-S5, pre-M0 review E6): empty when it meets them all. `dispatch` refuses a Party that misses
+ * any with `requirement-unmet` listing them, and a front end's preview of a proposed Party lists
+ * them before it is sent. A Skill is held at any rating.
+ */
+export function unmetRequirements(
+  quest: Pick<Quest, 'requirements'>,
+  party: readonly Pick<Hero, 'classKey' | 'skills'>[],
+): UnmetRequirement[] {
+  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
+  const unmet: UnmetRequirement[] = [];
+  if (party.length < partySizeMin || party.length > partySizeMax) {
+    unmet.push({ requirement: 'party-size', size: party.length, partySizeMin, partySizeMax });
+  }
+  if (classKey !== undefined && !party.some((hero) => hero.classKey === classKey)) {
+    unmet.push({ requirement: 'class', classKey });
+  }
+  if (skillKey !== undefined && !party.some((hero) => Object.hasOwn(hero.skills, skillKey))) {
+    unmet.push({ requirement: 'skill', skillKey });
+  }
+  return unmet;
 }
 
 /** The first check `request` fails, in the order `dispatch` gives, or `null` when it passes them all. */
@@ -175,17 +208,8 @@ function refusal(world: World, guild: Guild, request: DispatchRequest): Dispatch
     party.push(hero);
   }
 
-  const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
-  if (heroIds.length < partySizeMin || heroIds.length > partySizeMax) {
-    return { action: 'dispatch', reason: 'party-size', questId, size: heroIds.length, partySizeMin, partySizeMax };
-  }
-
-  const classUnmet = classKey !== undefined && !party.some((hero) => hero.classKey === classKey);
-  const skillUnmet = skillKey !== undefined && !party.some((hero) => Object.hasOwn(hero.skills, skillKey));
-  if (classUnmet || skillUnmet) {
-    const unmet = { ...(classUnmet ? { classKey } : {}), ...(skillUnmet ? { skillKey } : {}) };
-    return { action: 'dispatch', reason: 'requirement-unmet', questId, unmet };
-  }
+  const unmet = unmetRequirements(quest, party);
+  if (unmet.length > 0) return { action: 'dispatch', reason: 'requirement-unmet', questId, unmet };
   return null;
 }
 

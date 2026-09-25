@@ -145,19 +145,19 @@ by band.
 
 **Acceptance:**
 
-- [ ] Each Guildmaster Regard writer has one test; a Patron whose Quests always fail ends in a
+- [x] Each Guildmaster Regard writer has one test; a Patron whose Quests always fail ends in a
       lower band than one whose always succeed
-- [ ] `show guildmaster` prints Regard as bands, never as numbers, for Patrons, Heroes and
+- [x] `show guildmaster` prints Regard as bands, never as numbers, for Patrons, Heroes and
       (from M6) Rival Guildmasters
 
-- [ ] Each Trait effect kind has one test showing its effect through the selector it lives in
+- [x] Each Trait effect kind has one test showing its effect through the selector it lives in
       and no effect elsewhere; a Rival Guildmaster's Trait affects the Rival's Heroes the same way
-- [ ] A Quest requiring a Healer rejects a Party without one, naming `class`
-- [ ] A Patron whose Quests always fail offers fewer over a year than one whose succeed
+- [x] A Quest requiring a Healer rejects a Party without one, naming `class`
+- [x] A Patron whose Quests always fail offers fewer over a year than one whose succeed
       (harness fixture, 50 seeds)
-- [ ] A Patron left at `cool` with no further dealings returns to `neutral` within
+- [x] A Patron left at `cool` with no further dealings returns to `neutral` within
       `1 / patronRegardRecoveryPerYear` years, emitting one `patron.regard-changed`
-- [ ] Each Guildmaster Stat has one test at the bottom and top of its range showing the effect
+- [x] Each Guildmaster Stat has one test at the bottom and top of its range showing the effect
       and no other
 
 ## 2. Configuration and events introduced

@@ -6,8 +6,9 @@
 //
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
-// Engine and M2-S6 the Hero State Engine (DL-29). Every "Min/Max" pair is an inclusive range
-// drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
+// Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
+// Guildmaster's Stat rules (DL-43). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -235,6 +236,75 @@ export interface GameConfig {
    * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
    */
   xpPerTrainingDay: number;
+
+  // ── Regard (M4-S5, data-model §3.2 and rule 10, DL-43) ───────────────────────────────────
+  /**
+   * Regard's scale: every Regard value, whoever holds it, is held inside `regardMin` to
+   * `regardMax`. Absence reads as 0, which is neutral (data-model §3.2). M4-S4's Regard between
+   * Heroes shares the scale and the bands.
+   */
+  regardMin: number;
+  regardMax: number;
+  /**
+   * Where each Regard band starts: a value's band is the highest whose start it has reached, and
+   * the lowest band for a value below every start (as `moraleBands`). A Regard change emits its
+   * event only when it takes the value from one band into another (data-model rule 10).
+   */
+  regardBands: Readonly<Record<RegardBand, number>>;
+
+  // ── Patron Regard and the Board (M4-S5, R22, pre-M0 review B5, DL-43) ─────────────────────
+  /** Added to a Patron's Regard for a Guild when the Guild's Party succeeds at one of their Quests. */
+  patronRegardOnSuccess: number;
+  /** Added (negative) when the Guild's Party fails one of their Quests. */
+  patronRegardOnFailure: number;
+  /** Added (negative) to the Patron's Regard for every Guild in play when their offer expires untaken. */
+  patronRegardOnExpiry: number;
+  /**
+   * The Patron State Engine: each night a Patron's Regard for each Guild moves toward neutral by
+   * this share of the scale's reach (the larger of `regardMax` and −`regardMin`) a year, spread
+   * evenly over the year's nights, and stops at neutral. So any value, even the scale's end, is
+   * neutral again within 1 / `patronRegardRecoveryPerYear` years. A drift: an event only on a band
+   * crossing (rule 10).
+   */
+  patronRegardRecoveryPerYear: number;
+  /**
+   * How strongly a Patron's mean Regard across the Guilds in play weights the Board's draw of
+   * Patrons (R22): the weight is 1 + this × the mean over the scale's reach on that side, never
+   * below 0. At 1 a Patron at the scale's top is drawn twice as often as a neutral one, and one at
+   * its bottom never; at 0 the draw is DL-25's uniform one.
+   */
+  boardRegardWeight: number;
+
+  // ── The Guildmaster's Stats (M4-S5, R8, INPUTS 6.5, pre-M0 review B6, D9, DL-43) ─────────
+  // Each Stat's rule reads where its value falls between the Stat's content `min` and `max`:
+  // Negotiation from −1 at the bottom to +1 at the top, the others from 0 to 1.
+  /**
+   * Negotiation: the reward agreed at dispatch is the Quest's reward × (1 + up to this), from −this
+   * at the bottom of the Stat's range to +this at the top; a signing fee (and, from M6-S2, a
+   * Transfer fee) × (1 − the same), inside the fee's selector (INPUTS 6.5: ±10%).
+   */
+  negotiationRange: number;
+  /** Inspiration: the Morale baseline of the Guild's Heroes is raised by up to this. */
+  inspirationMoraleShift: number;
+  /** Coaching: training XP × (1 + up to this). */
+  coachingFactor: number;
+  /** Influence: a gain in a Patron's Regard for the Guild × (1 + up to this). Losses are not scaled. */
+  influenceFactor: number;
+  /**
+   * Judgement: the Potential hint bands the Guildmaster reads are each narrowed, every start
+   * scaled by (1 − up to this), so a sharper judge sees promise in a smaller gap (pre-M0 review D9).
+   */
+  judgementHintSharpening: number;
+
+  // ── Guildmaster Regard (M4-S5, R9, pre-M0 review B3, DL-43) ───────────────────────────────
+  /** Added to a Guildmaster's Regard for a Patron when their Guild succeeds at one of the Patron's Quests. */
+  guildmasterRegardOnPatronSuccess: number;
+  /** Added (negative) when their Guild fails one of the Patron's Quests. */
+  guildmasterRegardOnPatronFailure: number;
+  /** Added to a Guildmaster's Regard for each Hero of the Party who comes home to the Roster from a success. */
+  guildmasterRegardOnHeroSuccess: number;
+  /** Added (negative) for each such Hero after a failure. */
+  guildmasterRegardOnHeroFailure: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -251,6 +321,11 @@ export type MoraleBand = (typeof moraleBandNames)[number];
 export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
 
 export type PotentialHint = (typeof potentialHints)[number];
+
+/** The named ranges Regard falls in, lowest first (M4-S4, M4-S5, `CONTEXT.md` Regard band). */
+export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] as const;
+
+export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
@@ -338,6 +413,24 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   xpPerDifficultyPoint: 1,
   xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
   xpPerTrainingDay: 2,
+
+  regardMin: -20,
+  regardMax: 20,
+  regardBands: Object.freeze({ hostile: -20, cool: -12, neutral: -4, warm: 4, close: 12 }),
+  patronRegardOnSuccess: 1,
+  patronRegardOnFailure: -2,
+  patronRegardOnExpiry: -1,
+  patronRegardRecoveryPerYear: 0.5,
+  boardRegardWeight: 1,
+  negotiationRange: 0.1,
+  inspirationMoraleShift: 10,
+  coachingFactor: 0.5,
+  influenceFactor: 0.5,
+  judgementHintSharpening: 0.25,
+  guildmasterRegardOnPatronSuccess: 1,
+  guildmasterRegardOnPatronFailure: -1,
+  guildmasterRegardOnHeroSuccess: 1,
+  guildmasterRegardOnHeroFailure: -1,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

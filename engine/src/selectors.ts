@@ -12,11 +12,13 @@ import {
   type FacilityKey,
   type Guild,
   type GuildId,
+  type Guildmaster,
   type Hero,
   type Quest,
   type StatValues,
   type World,
 } from './document.js';
+import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -45,22 +47,27 @@ export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
 /**
  * What a Guild pays to sign `hero` from the Unattached pool (INPUTS 4.7, DL-27): `signingFeeBase`,
  * plus `signingFeePerLevel` for each Level, plus the sum of the Hero's base Stats divided by
- * `signingFeeStatDivisor`, rounded down once, at the end, to a whole number. The sum runs over
- * content's Hero Stats through `baseStat`, so a Stat content no longer defines is ignored and one
- * the row lacks reads as the content's default (data-model rule 5).
+ * `signingFeeStatDivisor`, times the buying Guildmaster's Negotiation (1 − `negotiation`, M4-S5,
+ * pre-M0 review B6), rounded down once, at the end, to a whole number. The sum runs over content's
+ * Hero Stats through `baseStat`, so a Stat content no longer defines is ignored and one the row
+ * lacks reads as the content's default (data-model rule 5).
  *
- * The one place a fee is computed: M4-S5 scales it by the buying Guildmaster's Negotiation here,
- * and gives it the argument that needs, so every caller pays the same price.
+ * The one place a fee is computed, so every caller pays the same price (R8): `recruit` and
+ * `cheapestUnattached` pass the buying Guild's Guildmaster as `buyer`, and so do the front ends
+ * when they show the player a fee. With no `buyer` it is the list price, which no Guild pays.
  */
-export function signingFee(hero: Pick<Hero, 'level' | 'stats'>, deps: Pick<EngineDeps, 'config' | 'content'>): number {
+export function signingFee(
+  hero: Pick<Hero, 'level' | 'stats'>,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+  buyer?: Pick<Guildmaster, 'stats'>,
+): number {
   const { config, content } = deps;
   let statSum = 0;
   for (const stat of Object.values(content.stats)) {
     if (stat.owner === 'hero') statSum += baseStat(hero.stats, stat);
   }
-  return Math.floor(
-    config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor,
-  );
+  const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor;
+  return Math.floor(list * feeFactor(buyer, content, config));
 }
 
 /** Why an Unattached Hero refuses to sign for a Guild: its Fame is short of what their Level asks. */
@@ -114,23 +121,27 @@ export interface Hire {
 
 /**
  * The cheapest Hero in the Unattached pool and their fee (`signingFee`), the lowest id among equal
- * fees; `null` when there is none. Given `guild`, only a Hero who would sign for it counts
- * (`signingRefusal`), so one who would refuse its Fame is passed over, never asked (M3-S5).
+ * fees; `null` when there is none. Given `guild`, the fee is the one it would pay, its
+ * Guildmaster's Negotiation applied (M4-S5), and unless `heedFame` is false only a Hero who would
+ * sign for it counts (`signingRefusal`), so one who would refuse its Fame is passed over, never
+ * asked (M3-S5).
  *
  * The one statement of "the cheapest Hero" (DL-38): `steady` and the harness's policy recruit it
- * for their Guild; the Roster wiped ending asks it without a Guild, pricing a way back by the
- * cheapest Hero in the pool whoever they would sign for, since a refusal for Fame lasts only until
- * the pool turns over (DL-38).
+ * for their Guild; the Roster wiped ending asks it for the Guild at the Guild's price with
+ * `heedFame` false, pricing a way back by the cheapest Hero in the pool whoever they would sign
+ * for, since a refusal for Fame lasts only until the pool turns over (DL-38).
  */
 export function cheapestUnattached(
-  world: Pick<World, 'heroes'>,
+  world: Pick<World, 'heroes' | 'guildmasters'>,
   deps: Pick<EngineDeps, 'config' | 'content'>,
-  guild?: Pick<Guild, 'fame'>,
+  guild?: Pick<Guild, 'fame' | 'guildmasterId'>,
+  heedFame = true,
 ): Hire | null {
+  const buyer = guild === undefined ? undefined : guildmasterOf(guild, world);
   let cheapest: Hire | null = null;
   for (const hero of unattachedHeroes(world)) {
-    if (guild !== undefined && signingRefusal(guild, hero, deps.config) !== null) continue;
-    const fee = signingFee(hero, deps);
+    if (guild !== undefined && heedFame && signingRefusal(guild, hero, deps.config) !== null) continue;
+    const fee = signingFee(hero, deps, buyer);
     // The pool is in id order, so a strict comparison keeps the lowest id among equal fees.
     if (cheapest === null || fee < cheapest.fee) cheapest = { hero, fee };
   }
@@ -191,15 +202,22 @@ export function baseStat(values: StatValues, stat: Pick<Stat, 'key' | 'default'>
  * A Guild's Upkeep (M2-S7, INPUTS 4.6): `wagePerLevel` for each Level of each living Hero on the
  * Roster — a Hero away on a Quest still draws wages, since leaving is what takes a Hero off the
  * Roster (`CONTEXT.md`, Roster) — plus `hallMaintenancePerGrade` for each grade summed over every
- * Hall facility. Computed from the Roster and the Hall, never stored (data-model §3.2, rule 1).
- * Filters the Roster to Heroes with neither `diedOnTurn` nor `retiredOnTurn` set: belt and braces
- * over the invariant that a dead or retired Hero already left the Roster (`CONTEXT.md`, Roster;
- * data-model rule 8).
+ * Hall facility; the sum multiplied by the Guildmaster's `upkeepFactor` Traits (M4-S5, pre-M0
+ * review B2) and rounded to a whole Wealth. Computed from the Roster, the Hall and the Guildmaster,
+ * never stored (data-model §3.2, rule 1). Filters the Roster to Heroes with neither `diedOnTurn`
+ * nor `retiredOnTurn` set: belt and braces over the invariant that a dead or retired Hero already
+ * left the Roster (`CONTEXT.md`, Roster; data-model rule 8).
+ *
+ * The Guild State Engine charges it, and every controller and front end reads it, with `content`,
+ * whose Trait rows it needs. Without `content`, or given a Guild or world that lacks its
+ * Guildmaster, no Trait applies: the Upkeep as it stood before M4-S5, which tests written before
+ * it still ask for (DL-43).
  */
 export function upkeep(
-  guild: Pick<Guild, 'rosterIds' | 'hall'>,
-  world: Pick<World, 'heroes'>,
+  guild: Pick<Guild, 'rosterIds' | 'hall'> & Partial<Pick<Guild, 'guildmasterId'>>,
+  world: Pick<World, 'heroes'> & Partial<Pick<World, 'guildmasters'>>,
   config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
+  content?: Pick<ContentSet, 'traits'>,
 ): number {
   const wages = guild.rosterIds.reduce((total, heroId) => {
     const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
@@ -207,7 +225,37 @@ export function upkeep(
     return total + config.wagePerLevel * hero.level;
   }, 0);
   const hallGrades = Object.values(guild.hall).reduce((total, grade) => total + grade, 0);
-  return wages + config.hallMaintenancePerGrade * hallGrades;
+  const listed = wages + config.hallMaintenancePerGrade * hallGrades;
+  const { guildmasterId } = guild;
+  const { guildmasters } = world;
+  if (content === undefined || guildmasters === undefined || guildmasterId === undefined) return listed;
+  return Math.round(listed * traitUpkeepFactor(guildmasterOf({ guildmasterId }, { guildmasters }), content));
+}
+
+/**
+ * `hero`'s effective Stats (M4-S5, data-model rule 1): each of content's Hero Stats, its base value
+ * (`baseStat`) plus the `classStatBonus` Traits of the Guildmaster of the Hero's Guild for the
+ * Hero's Class, held inside the Stat's content range. A Hero on no Roster has only their base.
+ * Computed, never stored: `hero.stats` keeps base values only. Every Guild alike (ADR-0002), so a
+ * Rival's Guildmaster's Traits work on the Rival's Heroes as the player's work on the player's.
+ *
+ * The one statement of a Hero's Stats as a Quest assesses them, for the Quest Engine's check
+ * (M4-S2) to read; nothing Guild-side reads it: fees, Upkeep and growth read base Stats.
+ */
+export function effectiveStats(
+  hero: Pick<Hero, 'stats' | 'classKey' | 'guildId'>,
+  world: Pick<World, 'guilds' | 'guildmasters'>,
+  content: Pick<ContentSet, 'stats' | 'traits'>,
+): StatValues {
+  const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
+  const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
+  const effective: StatValues = {};
+  for (const stat of Object.values(content.stats)) {
+    if (stat.owner !== 'hero') continue;
+    const bonus = Object.hasOwn(bonuses, stat.key) ? (bonuses[stat.key] ?? 0) : 0;
+    effective[stat.key] = Math.min(stat.max, Math.max(stat.min, baseStat(hero.stats, stat) + bonus));
+  }
+  return effective;
 }
 
 /**
