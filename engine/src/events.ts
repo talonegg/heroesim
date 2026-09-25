@@ -4,7 +4,7 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand } from './config.js';
-import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
+import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
 import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
@@ -176,6 +176,19 @@ export type GuildFolded = Entry<'guild.folded', { guildId: GuildId; reason: Endi
  */
 export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: GuildId }>;
 
+// ── Progression (M3-S1, DL-36) ───────────────────────────────────────────────────────────────
+
+/**
+ * A Hero's XP reached the next Level and they gained it: `level` is the Level reached, one entry
+ * for each Level gained in a night. `statDeltas` holds each Stat that rose and by how much, and
+ * `pointsLost` the Level's growth points that fell on a Stat already at its Potential. A Milestone,
+ * naming the Hero and their Guild.
+ */
+export type HeroLevelled = Entry<
+  'hero.levelled',
+  { heroId: HeroId; guildId: GuildId; level: number; statDeltas: Record<StatKey, number>; pointsLost: number }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -199,7 +212,8 @@ export type EngineEvent =
   | HeroRetired
   | GameEnded
   | GuildFolded
-  | HeroLeftGuild;
+  | HeroLeftGuild
+  | HeroLevelled;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -235,4 +249,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'game.ended': true,
   'guild.folded': true,
   'hero.left-guild': false,
+  'hero.levelled': true,
 } satisfies Record<EngineEventType, boolean>);

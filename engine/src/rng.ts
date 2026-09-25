@@ -29,12 +29,13 @@
  *
  * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the stub Quest Engine's
  * resolutions; `pool` (M2-S8) the Unattached pool's refill; `heroes` (M2-S6) the Hero State
- * Engine's Retirement checks. `rivals` (M2-S9) is the Rival controllers' own: a Disposition draws
- * from it and from no other, and `steady` draws nothing (DL-30). The tuple keeps ADR-0009's
+ * Engine's Retirement checks; `progression` (M3-S1) the growth points of a Level gained (DL-36).
+ * `rivals` (M2-S9) is the Rival controllers' own: a Disposition draws from it and from no other,
+ * and `steady` draws nothing (DL-30). The tuple keeps ADR-0009's
  * order, which is also the order of a new world's `rng` keys; an old save gains a missing stream
  * wherever `ensureStreams` puts it.
  */
-export const streamNames = ['generation', 'board', 'quests', 'pool', 'heroes', 'rivals'] as const;
+export const streamNames = ['generation', 'board', 'quests', 'pool', 'heroes', 'progression', 'rivals'] as const;
 
 export type StreamName = (typeof streamNames)[number];
 

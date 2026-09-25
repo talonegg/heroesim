@@ -7,6 +7,7 @@
 // type, so the compiler refuses an event type or stop reason added without a line.
 
 import {
+  compareByCodeUnit,
   dayOf,
   type ContentSet,
   type EndingReason,
@@ -116,6 +117,14 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`;
     case 'hero.left-guild':
       return `${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`;
+    case 'hero.levelled': {
+      // The Stats that rose, never the points Potential took: Potential is shown only as a hint.
+      const { heroId, level, statDeltas } = event.payload;
+      const rose = Object.entries(statDeltas)
+        .sort(([a], [b]) => compareByCodeUnit(a, b))
+        .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${signed(delta)}`);
+      return `${hero(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
+    }
   }
 }
 

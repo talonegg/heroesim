@@ -179,6 +179,19 @@ export interface GameConfig {
    * row. The harness's automatic policy has its own threshold (DL-34).
    */
   recruitWealthMultiple: number;
+
+  // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
+  /**
+   * The XP curve: going from Level L to L + 1 takes `xpCurveBase × L^xpCurveExponent` XP, rounded
+   * to the nearest whole number (INPUTS 5.2: 100 × Level²). `hero.xp` is cumulative, so a Hero
+   * holds Level n once it reaches `xpForLevel(n)`, the sum of those steps below n (progression.ts).
+   */
+  xpCurveBase: number;
+  xpCurveExponent: number;
+  /** No Hero rises past this Level; XP still accrues beyond it. */
+  levelCap: number;
+  /** Stat points each Level applies, each drawn by the Class's growth weights (INPUTS 5.3). */
+  growthPointsPerLevel: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -262,6 +275,11 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
   recruitWealthMultiple: 10,
+
+  xpCurveBase: 100,
+  xpCurveExponent: 2,
+  levelCap: 20,
+  growthPointsPerLevel: 3,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

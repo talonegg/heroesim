@@ -1896,6 +1896,95 @@ keep their rows; their defaults now differ from the config's, as this entry reco
 
 ---
 
+## DL-36 — XP, Levels and growth; Quest XP and the training yard (M3-S1, M3-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S1 and M3-S2's
+implementer)
+
+**Context.** M3-S1 gives `xpForLevel`, the night phase `levelUps`, the `progression` stream (pre-M0
+review D7) and four config fields; M3-S2 the stub's new XP formula, the night phase `training` and
+three fields (INPUTS 5.1 to 5.3). They leave open: whether "XP for Level n" is cumulative or within
+the Level, and how `hero.xp` reads beside it; how a growth point is drawn; which Heroes level and
+train; where the two phases sit in the night; what becomes of DL-29's `stubXpPerDifficulty`; the
+event's payload; and whether `configVersion` moves.
+
+**Decision.**
+
+1. **XP is cumulative and never spent.** `hero.xp` is every XP the Hero has earned.
+   `xpToNextLevel(L)` is INPUTS 5.2's "XP to next Level", `xpCurveBase × L^xpCurveExponent` rounded
+   to the nearest whole number: 100 × L² by default. `xpForLevel(n)` is the XP a Hero has earned on
+   reaching Level n, the sum of `xpToNextLevel(L)` for L from 1 to n − 1: 0 at Level 1, 100 at 2,
+   500 at 3, 1,400 at 4, 247,000 at the cap, 20. A Hero holds Level n once `xp >= xpForLevel(n)`, as
+   the epic's test reads. Read the other way, XP within the Level and reset at each one, a Level-up
+   would spend XP, `hero.xp` would no longer say what a Hero has earned, and the XP M2 banked (DL-29
+   item 4) would mean something else. A Hero generated at a Level above the first (a caller's
+   option, which no rule uses yet) starts with `xpForLevel` of it, and no growth: the Stats drawn
+   stand for that Level. Levels never fall: a rebase to a steeper curve leaves a Level where it is.
+2. **`levelUps`** gives every Hero it covers each Level from the next up to `levelCap` whose
+   `xpForLevel` their XP has reached, several in a night if the XP reaches them, one at a time. XP
+   past the cap still accrues and waits for the cap to rise. Each Level applies
+   `growthPointsPerLevel` points, each one `next` draw from `progression` times the sum of the
+   Class's growth weights (content, DL-17), falling in one Stat's share of them taken in key
+   order. A point on a Stat already at its Potential, or at content's maximum should Potential ever
+   exceed it, is lost, not redirected (the epic), so Potential binds. Every point takes its draw
+   wherever it lands, so a night's draws depend only on the Levels gained; a Class content no longer
+   defines grows nothing and still draws (data-model rule 5). Each Level emits `hero.levelled`, a
+   Milestone naming the Hero and so their Guild, with `{ heroId, guildId, level, statDeltas,
+   pointsLost }`: the Level reached, each Stat that rose and by how much, and how many of the
+   Level's points Potential took. The CLI narrates the Stats that rose and never the points lost,
+   since Potential is shown only as a hint.
+3. **Which Heroes.** Every living Hero on the Roster of a Guild that has not folded, in Guild id and
+   Roster order, the player's and the Rivals' alike (ADR-0002), those away on a Quest included:
+   Level follows XP wherever the Hero is. **The Unattached pool is left out.** A pool Hero earns no
+   XP, from a Quest or a yard, so has no Level to gain, and a `hero.levelled` naming them would keep
+   their row for good (data-model rule 8), as DL-29 item 11 left the pool out of the Hero State
+   Engine. A Hero a fold released (DL-28) levelled on their Roster first; a Level a later rebase
+   makes due waits for the Guild that signs them.
+4. **The `progression` stream** joins `streamNames` after `heroes` and before `rivals`, ADR-0009's
+   order as amended; an old save gains it through `ensureStreams`. `levelUps` draws from it alone,
+   and nothing else draws from it.
+5. **Quest XP** (M3-S2): `xpPerHero` is `difficulty × xpPerDifficultyPoint × xpBandFactor[band]`,
+   rounded down, with `xpPerDifficultyPoint` **1** and `xpBandFactor` **`{ fail: 0.5, success: 1,
+   strong: 1 }`** (INPUTS 5.1; a strong success is a success). **`stubXpPerDifficulty` is removed**,
+   not renamed: the new fields' product equals it in every band, so every Quest gives the XP it gave,
+   and keeping it would leave a tunable that does nothing. A save's `meta.config` that holds it keeps
+   it, unread (data-model §2).
+6. **The training yard** (M3-S2). Night phase `training`: each living Hero on the Roster of a Guild
+   that has not folded, in no Party and carrying no Injury, gains `xpPerTrainingDay` (**2**) times
+   the Guild's `hall.trainingYard` grade as it stands that night; grade 0 gives nothing. Every Guild
+   alike (ADR-0002). No event: training XP is a drift (data-model rule 10), recorded by the
+   `hero.levelled` it causes; `hero.xp-gained` stays for Quest XP. It draws nothing.
+7. **The night's order: `training`, `questsConclude`, `levelUps`, then the Hero State Engine and the
+   rest.** Training runs first so that it covers the Day just ending as the Hero spent it: a Hero
+   whose Party comes home tonight is still in it, and gains nothing for a Day away; a Hero whose
+   Injury heals tonight, later in the Hero State Engine, spent the Day injured. A Party is away from
+   the night it leaves to the night it returns, both included, and trains on none of them.
+   `levelUps` comes straight after `questsConclude` (the epic) and after `training`, so a night's
+   Quest XP and training XP are levelled that night: at every night's end each covered Hero's Level
+   is the highest their XP reaches, up to the cap. Approach §2's night line names both.
+8. **Upkeep** already reads Level (`wagePerLevel`, DL-26, DL-35), so a Level gained costs its Guild
+   `wagePerLevel` more at each Upkeep from then on.
+9. **Config.** Seven fields are added with INPUTS 5.1 to 5.3's values (`xpCurveBase` **100**,
+   `xpCurveExponent` **2**, `levelCap` **20**, `growthPointsPerLevel` **3**, and item 5's and 6's),
+   and one removed with its effect kept, so no default's effect changes and `configVersion` stays
+   **2**, as DL-29 item 16 read adding fields. The growth weights are content's and already refused
+   unless they sum to 1 within 0.001 (`checkGrowth`, content's refusal test); the core's 0.1667 ×
+   4 + 0.0208 × 16 sums to 0.9996, and a draw weighs by the sum it finds.
+
+**Consequences.** Heroes grow now, on every Roster, and their wages with them, so M2's balance
+(DL-35) moves: the harness's next pass measures it. The curve means about 50,000 XP for Level 12 and
+247,000 for Level 20; a Hero taking a Quest of difficulty 50 every week earns some 2,500 a year from
+Quests and 720 more at yard grade 1, so the cap is far off in a 20-year game unless the curve or the
+XP is tuned (the epic's second risk; the harness reports mean Level by year). The M3 counters read:
+Levels gained per Guild-year, the `hero.levelled` entries by `payload.guildId` and `yearOf(turn)`;
+the mean Level of the player's Roster by year, and the Heroes with a Stat at Potential after 10
+years, from the World State at the year's end (`level`; a base Stat against `potential`), with
+`pointsLost` summing the growth Potential refused. M3-S6's `build` raises the yard's grade; until
+it lands only a test sets it. M3-S4's decline may lower a Stat that a later Level regrows, up to
+Potential.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

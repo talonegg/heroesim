@@ -92,6 +92,13 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
+  'hero.levelled': event('hero.levelled', [heroId, guildId], {
+    heroId,
+    guildId,
+    level: 3,
+    statDeltas: { strength: 1, courage: 2 },
+    pointsLost: 0,
+  }),
 };
 
 describe('narrate', () => {
@@ -113,6 +120,15 @@ describe('narrate', () => {
     );
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
     expect(narrate(samples['quest.resolved'], content)).toContain('and failed: Wealth 0, Fame -2.');
+    expect(narrate(samples['hero.levelled'], content)).toBe(
+      'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
+    );
+  });
+
+  test('says a Level gained without naming the points Potential took', () => {
+    const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
+
+    expect(narrate(allLost, content)).toBe('Brenna Ashcombe (hero-000007) reached Level 20.');
   });
 });
 

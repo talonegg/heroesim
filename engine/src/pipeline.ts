@@ -10,6 +10,7 @@ import { boardRefresh } from './phases/board-refresh.js';
 import { endings } from './phases/endings.js';
 import { guildState } from './phases/guild-state.js';
 import { heroState } from './phases/hero-state.js';
+import { levelUps } from './phases/level-ups.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import type { Phase, PhaseContext } from './phases/phase.js';
 import { poolRefresh } from './phases/pool-refresh.js';
@@ -29,9 +30,10 @@ export const phases: readonly Phase[] = [
   // Afternoon: the Rivals act on what the player left, then Quests in flight advance.
   { name: 'rivalControllers', timeOfDay: 'afternoon', run: rivalControllers },
   { name: 'questsAdvance', timeOfDay: 'afternoon', run: questsAdvance },
-  // Night: Quests conclude, the Hero and Guild State Engines run, the pool refreshes, and the
-  // ending checks come last.
+  // Night: Quests conclude, Heroes gain the Levels their XP has reached (DL-36), the Hero and Guild
+  // State Engines run, the pool refreshes, and the ending checks come last.
   { name: 'questsConclude', timeOfDay: 'night', run: questsConclude },
+  { name: 'levelUps', timeOfDay: 'night', run: levelUps },
   { name: 'heroState', timeOfDay: 'night', run: heroState },
   { name: 'guildState', timeOfDay: 'night', run: guildState },
   { name: 'poolRefresh', timeOfDay: 'night', run: poolRefresh },
