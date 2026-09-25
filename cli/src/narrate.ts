@@ -93,7 +93,7 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
     }
     case 'hero.injured': {
       const { heroId, typeKey, healsOnTurn } = event.payload;
-      return `${hero(event, heroId)} was hurt (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;
+      return `${hero(event, heroId)} was injured (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;
     }
     case 'hero.died':
       return `${hero(event, event.payload.heroId)} died on ${event.payload.questId}.`;

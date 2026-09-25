@@ -100,7 +100,7 @@ export function dispatchParty(
     lines: [
       `Dispatched ${party.id} from ${guild.name} on ${quest.id}, ${templateName(deps.content, quest.templateKey)}.`,
       `Party: ${party.heroIds.map((heroId) => heroName(result.document, heroId)).join(', ')}.`,
-      `A ${days}-Day Quest: it returns on the night of Day ${dayOf(party.returnsOnTurn)}, ` +
+      `${days === 1 ? 'One Day' : `${days} Days`} away: it returns on the night of Day ${dayOf(party.returnsOnTurn)}, ` +
         `${renderTime(party.returnsOnTurn, deps.config)}.`,
       rivalsReminder,
     ],

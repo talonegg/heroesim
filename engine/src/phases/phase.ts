@@ -19,7 +19,7 @@ export interface PhaseContext {
   /**
    * The History as it stood before this Turn, to read and never to write: `advance` appends the
    * Turn's events once the whole Turn has run (ADR-0008, DL-24). The pool refresh reads it for
-   * data-model rule 8 (DL-27).
+   * data-model rule 8 (DL-27), the Hero State Engine for when a Party set out (DL-29 item 14).
    */
   history: Readonly<History>;
   /**
@@ -31,8 +31,8 @@ export interface PhaseContext {
 
 /**
  * A phase's rule: changes `world`, the per-Turn copy, in place and returns the events that explain
- * the change, in the order they happened. It reads the World State, not the History, which holds
- * this Turn's events only once the whole Turn has run.
+ * the change, in the order they happened. For what happened earlier in this Turn it reads the World
+ * State, never the History, which holds this Turn's events only once the whole Turn has run.
  */
 export type PhaseRun = (world: World, ctx: PhaseContext) => EngineEvent[];
 
