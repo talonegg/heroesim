@@ -74,7 +74,9 @@ describe('generateHero', () => {
     expect(world.counters.guilds).toBe(1);
   });
 
-  test('over 10,000 Heroes every Stat stays in its content range and Potential is at least the base', () => {
+  // 10,000 Heroes generated: about 0.65 s alone, 1.7 s in a full `npm test` on a busy machine; the
+  // timeout bounds a hang with room for a busier one, not the speed.
+  test('over 10,000 Heroes every Stat stays in its content range and Potential is at least the base', { timeout: 30_000 }, () => {
     const deps = testDeps();
     const world = testWorld('ranges', deps);
     const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');

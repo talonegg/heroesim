@@ -249,7 +249,9 @@ describe('the all-zero state, which xoshiro never leaves', () => {
 // ── The draw functions ───────────────────────────────────────────────────────────────────────
 
 describe('next', () => {
-  test('draws fractions in [0, 1) spread evenly over ten bins', () => {
+  // 100,000 draws: about 0.5 s alone, 1.4 s in a full `npm test` on a busy machine; the timeout
+  // bounds a hang with room for a busier one, not the speed.
+  test('draws fractions in [0, 1) spread evenly over ten bins', { timeout: 30_000 }, () => {
     const state = generation('uniform-next');
     const bins = new Array<number>(10).fill(0);
     let sum = 0;

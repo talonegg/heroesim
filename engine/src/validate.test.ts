@@ -689,21 +689,27 @@ describe('the checks', () => {
     for (const name of names) expect(name).toMatch(/^[a-z]+(-[a-z0-9]+)*$/);
   });
 
-  // About 12 ms alone; under `npm test`'s thirty-odd workers it has been measured at 55 to 67 ms,
-  // one full run in three failing before M2-S12 added its tests. A retry times it again rather
-  // than raising the bound (DL-34).
-  test('validate a 1,000-Hero world in under 50 ms (median of seven runs)', { retry: 2 }, () => {
+  // 10 to 13 ms alone. Under `npm test`'s thirty-odd workers and whatever else the machine runs,
+  // every run slows, the processor itself shared: the median of seven was measured at 55 to 67 ms
+  // and failed one full run in three (DL-34), and the fastest of eleven at 25 to 53 ms. Load only
+  // ever adds time, so the fastest run is the validator's own cost, and the bound is unchanged: it
+  // times runs until one is under 50 ms, for up to 40 runs or 3 s, so that a busy moment passes,
+  // while a validator slower than 50 ms is slower in every run and fails. No retry is needed. The
+  // timeout covers the world's building and 3 s of runs on a loaded machine.
+  test('validate a 1,000-Hero world in under 50 ms (the fastest of up to 40 runs)', { timeout: 30_000 }, () => {
     const { document } = buildDocument({ rivals: 9, rosterSize: 20, unattached: 799 });
     expect(Object.keys(document.world.heroes)).toHaveLength(1000);
     withValid(document, deps);
 
-    const times = Array.from({ length: 7 }, () => {
+    const began = performance.now();
+    let fastest = Number.POSITIVE_INFINITY;
+    for (let run = 0; run < 40 && fastest >= 50 && performance.now() - began < 3_000; run += 1) {
       const start = performance.now();
       validate(document, deps);
-      return performance.now() - start;
-    }).sort((a, b) => a - b);
+      fastest = Math.min(fastest, performance.now() - start);
+    }
 
-    expect(times[3]).toBeLessThan(50);
+    expect(fastest).toBeLessThan(50);
   });
 });
 

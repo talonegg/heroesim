@@ -132,7 +132,9 @@ describe('Morale drift', () => {
     }
   });
 
-  test('a year of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', () => {
+  // Two years of Turns, 2,160 advances: 0.8 to 1.7 s alone, 4.5 s in a full `npm test` on a busy
+  // machine, against Vitest's default timeout of 5 s. The timeout bounds a hang, not the speed.
+  test('a year of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', { timeout: 60_000 }, () => {
     // Only the Hero State Engine runs, so every entry the year appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
     const deps = testDeps();
