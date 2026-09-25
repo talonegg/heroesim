@@ -4,7 +4,7 @@
 **Sessions:** 12–14 · **Depends on:** M0 · **Implements:** `plan.md` M1; `data-model.md` in full; R1, R5, R7, R8, R12–R16, R27 (the pool's existence), R35, R36; ADR-0001, ADR-0006, ADR-0008, ADR-0009
 **Gate:** `heroesim new --seed x` then `show` prints Guilds, Rosters, the pool and Patrons; `save` then `load` round-trips byte-for-byte; the harness creates 1,000 worlds twice and every pair is byte-identical
 
-**Status:** in progress — M1-S1 to M1-S10 built; verification pending
+**Status:** done — 2026-09-26 (`m1-world-state`)
 
 ## 0. What lands in M1
 
@@ -250,6 +250,25 @@ except the one committed at the tag).
       creation time per world)
 - [x] The report lists every Stat's mean per Class and no Class has a Stat outside its range
 - [x] `npm test` without the flag skips the harness project in under a second
+
+## Measured
+
+`npm run harness`, 2026-09-26, **1,000 seeds** (`seed-0001` to `seed-1000`), world creation only
+(no years are simulated before M2). Full report: `harness/reports/m1-2026-09-26.md`; decision
+DL-13.
+
+| Measure | Result |
+| --- | --- |
+| Worlds byte-identical when created again | 1,000 of 1,000 (fingerprint `82c1e94e…b8244`, reproduced after the M1 verification follow-ups) |
+| Worlds the validator refused / warnings | 0 / 0 |
+| Creation time per world | mean 0.494 ms, p99 1.131 ms |
+| Serialised world size | mean 54,348 characters (44,629 to 64,498) |
+| Player's Roster / a Rival's Roster | 4 / mean 5.97 (4 to 8) |
+| Rival Guilds / Unattached pool / Patrons | 4 / 8 / 12 |
+| Class and Stat pairs outside the Stat's range | 0 |
+
+Verified independently on 2026-09-26: every box proved, ten mutation tests each turned a test
+red; five low-severity follow-ups fixed in DL-23.
 
 ## 2. Configuration and events introduced
 
