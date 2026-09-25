@@ -203,10 +203,10 @@ the validator. A version with no chain refuses, naming both versions.
 
 **Acceptance:**
 
-- [ ] `serialise(deserialise(serialise(d)))` equals `serialise(d)` byte for byte
-- [ ] Two documents that differ only in key insertion order serialise identically
-- [ ] A document with `meta.version: 999` is refused with both versions in the reason
-- [ ] `structuredClone(world)` and `JSON.parse(JSON.stringify(world))` deep-equal
+- [x] `serialise(deserialise(serialise(d)))` equals `serialise(d)` byte for byte
+- [x] Two documents that differ only in key insertion order serialise identically
+- [x] A document with `meta.version: 999` is refused with both versions in the reason
+- [x] `structuredClone(world)` and `JSON.parse(JSON.stringify(world))` deep-equal
 
 ### M1-S9 · CLI: `new`, `show`, `save`, `load` · 1–2 sessions
 
