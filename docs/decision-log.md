@@ -1035,6 +1035,110 @@ for the missing stream (DL-19 item 2). A test of a phase that reads the History 
 years, 21,600 advances with only this phase live, in 4.5 to 6 s here (about 0.2 ms a Turn), so it
 runs in `npm test` at full length with a 60 s timeout. Fields were added and `schemaVersion` changed, no rule's default, so `configVersion` stays 1.
 
+## DL-28 — Endings: the checks, what a fold does, the replacement Rival, and Rankings pulled forward (M2-S10)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S10's implementer)
+
+**Context.** M2-S10 names the night phase `endings`, three endings, the player's ending setting
+`world.ended` and a Rival's folding it (pre-M0 review D6), `rivalReplacementDays` and
+`guildmasterRetirementAge`, and four events. It leaves open: when each ending falls precisely,
+which wins when a Guild meets two, whether a Rival Guildmaster's Retirement folds the Rival, what
+becomes of a folded Guild's Parties in flight, which stream the replacement draws from and how the
+phase knows a folded Rival has been replaced, the names the replacement takes (DL-19's
+consequences ask for "names or a rule for reuse"), and what the validator says of a folded Guild.
+Its acceptance asks that a folded Rival be absent from `rankings()`, which arrives in M3-S5, and
+the epic's risk table asks for a test that finds every read of `controller.kind`.
+
+**Decision.**
+
+1. **The checks.** Night, last, after the Guild State Engine and the pool refresh, over every
+   Guild not folded, the player's and each Rival's alike, in Guild id order (ADR-0002). A Guild
+   has reached the first of these that holds:
+   - **Retirement**: its Guildmaster's `ageOf` is at least `guildmasterRetirementAge`, **65**
+     (INPUTS 4.10). `ageOf` already reads a Guildmaster (`Aged`), so no new selector: the age
+     rises on the Turn a year completes and the ending falls on the first night after.
+   - **Bankruptcy**: `belowFloorSince` is set and `dayOf(turn) ≥ dayOf(belowFloorSince) +
+     bankruptcyGraceDays`: on the night `bankruptcyGraceDays` Days after the night Wealth first
+     fell below the floor, the ordinal reading DL-26 and DL-27 give Days. The Guild State Engine
+     runs first the same night, so a Guild back at the floor tonight has `belowFloorSince` cleared
+     and does not end. "At least", not "equal", so that a grace shortened by `rebase` ends the
+     Guild at once rather than never.
+   - **Roster wiped**: an empty Roster and Wealth below the cheapest `signingFee` in the pool as
+     tonight's refresh left it. With nobody in the pool no Hero can be signed at any price, so an
+     empty Roster is then wiped whatever the Wealth (the least of no fees is infinite).
+
+   One ending per Guild, the first in the story's order: Retirement, Bankruptcy, Roster wiped.
+   A Rival Guildmaster's Retirement folds that Rival: the same rules for every Guild.
+2. **The accepted exception, in one place.** `end` in `phases/endings.ts` is the phase's one read
+   of `controller.kind` (`plan.md` §1). The player's ending sets `world.ended` to `{ turn, reason
+   }`, once, and emits `game.ended`, a Milestone naming the Guild and its Guildmaster, payload
+   `{ guildId, reason }`. That Guild is not folded and keeps its Roster and Parties: the world
+   stops as it stands, and the Guild stays in the Rankings. A Rival's ending folds it (item 3).
+   The replacement reads no controller, since only a Rival folds.
+3. **The fold.** First the events, made before any row changes: `guild.folded`, a Milestone,
+   payload `{ guildId, reason }`, naming the Guild, its Guildmaster, and each Party the fold
+   disbands and each Quest it abandons, so that their History pages end with it; then
+   `hero.left-guild`, not a Milestone, payload `{ heroId, guildId }`, for each Hero on the Roster
+   in Roster order. Then **its Parties in flight are disbanded**: each Party row is removed, its
+   members' `partyId` cleared and its id taken off its Quest's `partyIds`; a Quest left with no
+   Party is removed from the world and the Board, unresolved (no reward, Fame, harm or XP), since
+   nobody is left to finish it or to be paid. Chosen over letting the Party finish because the
+   story releases every Hero the same night, and a Hero in the pool must be in no Party. Then
+   each Roster Hero is released: `guildId` null and `unattachedSince` the Turn (DL-27), keeping
+   their Injury, Level, XP and Morale. The Roster is emptied and `foldedOnTurn` set. The Guild
+   keeps its row, its Guildmaster, its Wealth (perhaps negative), Fame, Hall and
+   `belowFloorSince`, a record no rule reads again; its dead and retired Heroes keep it as their
+   `guildId`. `hero.left-guild` is not a passive entry, so a released Hero nobody re-signs keeps
+   their row, with `leftPoolOnTurn`, when they leave the pool (DL-27's consequences). M5-S4 lists
+   the folded Guild's unique Items on the Market; M6 settles its Transfer offers.
+4. **Out of play.** A folded Guild is skipped by every per-Guild rule: the Guild State Engine
+   (since M2-S7) and this phase; `recruit` refuses it `guild-folded` (DL-27); M2-S4's `dispatch`
+   and M2-S9's controller must refuse or skip it the same way. The validator gains
+   `folded-guild-in-play`, refusing a folded Guild with a Hero on its Roster or a Party of its
+   own, so that a later rule giving one a Hero fails in the tests; and `world.ended`, when set,
+   must have an integer `turn` and a string `reason`.
+5. **The replacement.** On the night of Day `dayOf(foldedOnTurn) + rivalReplacementDays`, one new
+   Rival for each Guild that folded that many Days before, in their id order, through
+   `generateRival`: the draws `createWorld` makes for each Rival (Roster size, then Wealth, then
+   `generateGuild` with the `steady` controller), now one function both call, so no seed's world
+   changes. It emits `guild.founded` (a Milestone), `guildmaster.generated` and a
+   `hero.generated` per Roster Hero. `rivalReplacementDays` is **30**, chosen, having no INPUTS
+   row: a month, as long as the Bankruptcy grace. It fires on exactly that night, so no field
+   records that a folded Rival has been replaced and the schema does not change; the cost is that
+   a `rebase` shortening `rivalReplacementDays` past a pending replacement's night leaves that
+   Rival unreplaced.
+6. **The stream.** The replacement draws from `generation`, the Guild Generator's own stream,
+   which nothing draws from once the world is created: a replacement moves no other subsystem's
+   draws (ADR-0009), and every save already has the stream, so it needs no `ensureStreams`.
+   `rivals` is M2-S9's controller's, and a new core stream would stray from pre-M0 review D7's
+   list. A fold draws nothing.
+7. **Guild names.** A generated Guild takes a name no Guild has ever had while one is left; once
+   every name in `names.guild` has been used, one that only folded Guilds have had, never the
+   name of a Guild in play. One draw either way, and with no folded Guild exactly DL-19 item 6's
+   draw. It throws only when every name belongs to a Guild in play: thirty names against five
+   Guilds in the core content.
+8. **Rankings, pulled forward from M3-S5.** `rankings(world, by: "fame" | "wealth")` in
+   `selectors.ts` returns M3-S5's shape, `{ guildId, value, rank }[]`: every Guild not folded,
+   highest first, ties by Guild id in code-unit order, `rank` its position from 1, so that no two
+   Guilds share a rank; never stored (rule 1). M3-S5 adds the CLI and whatever else its story
+   asks.
+9. **The reads of `controller.kind`.** `engine/src/controller-reads.test.ts` strips the comments
+   from every engine source file that is not a test and counts its reads: `controller.kind` (with
+   optional chaining), `controller['kind']`, `kind` destructured from a controller, a key tested
+   `in` a controller, and a call of `playerGuild`. Its allow-list, a file, a count and a reason,
+   holds today `selectors.ts` (1: `playerGuild`, how the front ends and the harness find the
+   player's Guild; no rule calls it) and `phases/endings.ts` (1). M2-S9's order and M6's Transfer
+   Generator add their lines; a fourth exception needs the owner first.
+10. **Config.** `guildmasterRetirementAge` 65 and `rivalReplacementDays` 30. Fields were added and
+    no default changed, so `configVersion` stays 1.
+
+**Consequences.** A game now ends, so M2-S12's `game.ended` counter has something to count; on
+this story's branch, with no Quest income, every game ends in Bankruptcy within its first Year. A Rival's fold grows the
+pool past `unattachedPoolSize` until its Heroes leave or are signed, and the refill waits until
+then. `world.guilds` grows by one row for each replacement over the life of a game. The engine
+exports `generateRival` and `rankings`. The CLI's `show` still lists a folded Guild among the
+Guilds, with its empty Roster; M3-S5's `show rankings` leaves it out.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

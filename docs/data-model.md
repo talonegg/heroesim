@@ -89,7 +89,8 @@ guildmasterId
 rosterIds:      HeroId[]                    ordered
 wealth, fame
 belowFloorSince: turn | null                set while Wealth is below the Bankruptcy floor
-foldedOnTurn:   turn | null                 a Guild that reached an ending; out of Rankings
+foldedOnTurn:   turn | null                 a Rival that reached an ending; out of play and out of
+                                            Rankings, its Roster released to the pool (DL-28)
 hall:           Record<FacilityKey, grade>  infirmary, trainingYard, quarters
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
 regard:         Record<EntityId, RegardEntry>
@@ -288,6 +289,7 @@ runs per Turn in play.
 | A Hero on two Rosters, or in two Parties, or on a Roster of a Guild other than `guildId` | refuse |
 | A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither | refuse |
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
+| A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |

@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { createWorld } from './create.js';
 import { makeId, type Guild, type Hero } from './document.js';
 import { testDeps } from './world.test-support.js';
-import { baseStat, playerGuild, signingFee, unattachedHeroes, upkeep } from './selectors.js';
+import { baseStat, playerGuild, rankings, signingFee, unattachedHeroes, upkeep } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
 
@@ -170,5 +170,56 @@ describe('upkeep', () => {
     for (const guild of Object.values(document.world.guilds)) {
       expect(Object.hasOwn(guild, 'upkeep')).toBe(false);
     }
+  });
+});
+
+describe('rankings (pulled forward from M3-S5, DL-28)', () => {
+  /** Five Guilds whose Fame and Wealth order them differently, with a tie in each. */
+  function ranked() {
+    const { document } = createWorld('rankings', setup, testDeps());
+    const guilds = Object.values(document.world.guilds);
+    const measures: [fame: number, wealth: number][] = [
+      [3, 100],
+      [7, 900],
+      [7, 400],
+      [1, 900],
+      [5, 50],
+    ];
+    guilds.forEach((guild, index) => {
+      const [fame, wealth] = measures[index] ?? [0, 0];
+      Object.assign(guild, { fame, wealth });
+    });
+    return { world: document.world, ids: guilds.map((guild) => guild.id) };
+  }
+
+  test('orders every Guild in play by Fame or by Wealth, highest first, ties by Guild id, ranked from 1', () => {
+    const { world, ids } = ranked();
+    const [g1, g2, g3, g4, g5] = ids;
+
+    expect(rankings(world, 'fame')).toEqual([
+      { guildId: g2, value: 7, rank: 1 },
+      { guildId: g3, value: 7, rank: 2 },
+      { guildId: g5, value: 5, rank: 3 },
+      { guildId: g1, value: 3, rank: 4 },
+      { guildId: g4, value: 1, rank: 5 },
+    ]);
+    expect(rankings(world, 'wealth').map((ranking) => ranking.guildId)).toEqual([g2, g4, g3, g1, g5]);
+    // The player's Guild, guild-000001, is ranked like any other.
+    expect(g1).toBe(makeId('guilds', 1));
+  });
+
+  test("leaves out a folded Guild, and does not depend on the Guilds' order in the table", () => {
+    const { world, ids } = ranked();
+    const [, g2, g3] = ids;
+    const folded = world.guilds[g2 ?? makeId('guilds', 0)] as Guild;
+    folded.foldedOnTurn = 8;
+
+    const byFame = rankings(world, 'fame');
+    expect(byFame.map((ranking) => ranking.guildId)).not.toContain(g2);
+    expect(byFame).toHaveLength(ids.length - 1);
+    expect(byFame[0]).toEqual({ guildId: g3, value: 7, rank: 1 });
+
+    const reversed = Object.fromEntries(Object.entries(world.guilds).reverse()) as typeof world.guilds;
+    expect(rankings({ guilds: reversed }, 'fame')).toEqual(byFame);
   });
 });

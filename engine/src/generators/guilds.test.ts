@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
 import type { StreamName } from '../rng.js';
-import { generateGuild, type GuildOptions } from './guilds.js';
+import { generateGuild, generateRival, type GuildOptions } from './guilds.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
 const player: Controller = { kind: 'player' };
@@ -140,6 +140,36 @@ describe('generateGuild', () => {
     expect(world).toEqual(before);
   });
 
+  test("draws a name no Guild has had over a folded Guild's while one is left (DL-28)", () => {
+    const deps = testDeps();
+    const names = deps.content.names.guild;
+    for (let round = 0; round < 20; round += 1) {
+      const world = testWorld(`fresh-${round}`, deps);
+      for (let i = 0; i < names.length - 1; i += 1) generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+      for (const guild of Object.values(world.guilds).slice(0, 3)) guild.foldedOnTurn = 2;
+      const [unused] = names.filter((name) => !Object.values(world.guilds).some((guild) => guild.name === name));
+
+      expect(generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 }).guild.name).toBe(unused);
+    }
+  });
+
+  test("once every name has been used, reuses a folded Guild's, never a name a Guild in play has (DL-28)", () => {
+    const deps = testDeps();
+    const world = testWorld('reused', deps);
+    const names = deps.content.names.guild;
+    for (let i = 0; i < names.length; i += 1) generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+    const [first, second] = Object.values(world.guilds);
+    if (first === undefined || second === undefined) throw new Error('Too few Guilds');
+    first.foldedOnTurn = 2;
+    second.foldedOnTurn = 5;
+
+    const reused = [0, 1].map(() => generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 }).guild.name);
+
+    expect(reused.sort()).toEqual([first.name, second.name].sort());
+    // Every name is a Guild in play's again: nothing is left to draw.
+    expect(() => generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 })).toThrow(/Guild name/);
+  });
+
   test('emits guild.founded as a Milestone, guildmaster.generated, then hero.generated per Roster Hero', () => {
     const deps = testDeps();
     const world = testWorld('events', deps);
@@ -211,5 +241,29 @@ describe('generateGuild', () => {
     expect(() => generateGuild(world, deps, { ...base, rosterSize: 2.5 })).toThrow(RangeError);
     expect(() => generateGuild(world, deps, { ...base, wealth: Number.NaN })).toThrow(RangeError);
     expect(world).toEqual(before);
+  });
+});
+
+describe('generateRival', () => {
+  test("draws a Roster size and Wealth from the Rival ranges, then a steady Rival, from the caller's stream", () => {
+    const deps = testDeps({ rivalRosterMin: 2, rivalRosterMax: 5, rivalStartingWealthMin: 100, rivalStartingWealthMax: 200 });
+    const sizes = new Set<number>();
+    for (let round = 0; round < 40; round += 1) {
+      const world = testWorld(`rival-${round}`, deps);
+      world.turn = 11;
+      const before = structuredClone(world.rng);
+      const { guild, events } = generateRival(world, deps);
+
+      expect(guild).toMatchObject({ controller: rival, foundedTurn: 11, foldedOnTurn: null });
+      expect(guild.wealth).toBeGreaterThanOrEqual(100);
+      expect(guild.wealth).toBeLessThanOrEqual(200);
+      expect(guild.rosterIds.length).toBeGreaterThanOrEqual(2);
+      expect(guild.rosterIds.length).toBeLessThanOrEqual(5);
+      expect(events[0]).toMatchObject({ type: 'guild.founded', turn: 11, milestone: true });
+      expect(world.rng.generation).not.toEqual(before.generation);
+      expect(world.rng.pool).toEqual(before.pool);
+      sizes.add(guild.rosterIds.length);
+    }
+    expect(sizes.size).toBeGreaterThan(1);
   });
 });
