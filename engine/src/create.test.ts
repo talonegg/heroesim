@@ -1,9 +1,10 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, type WorldSetup } from './create.js';
 import { makeId, tableNames, type Guild, type WorldDocument } from './document.js';
-import { testDeps } from './world.test-support.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
+import { validate } from './validate.js';
+import { testDeps, withValid } from './world.test-support.js';
 
 const playerId = makeId('guilds', 1);
 
@@ -166,6 +167,16 @@ describe('createWorld', () => {
 
   test('returns a JSON-safe document', () => {
     expect(isJsonSafe(createWorld('json', setup, testDeps()).document)).toBe(true);
+  });
+
+  test('returns a document the validator accepts, with no warning', () => {
+    // M1-S6's first box. harness/src/creation.test.ts checks the same against the core content.
+    const deps = testDeps();
+    for (const seed of ['valid-1', 'valid-2', 'valid-3']) {
+      const { document } = createWorld(seed, setup, deps);
+      expect(validate(document, deps.content)).toEqual({ ok: true, warnings: [] });
+      expect(withValid(document, deps.content)).toBe(document);
+    }
   });
 
   test('reads its counts from the config it is given', () => {
