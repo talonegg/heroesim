@@ -3,7 +3,7 @@
 // is the command's to check, once the save and the content are open. Whether a word has the form
 // of an id is checked here, by the engine's `isId`.
 
-import { isId, type HeroId, type QuestId } from '@heroesim/engine';
+import { isId, type HeroId, type QuestId, type StopCondition } from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -20,6 +20,14 @@ Commands:
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
+  advance --until <stops> [--max <n>]      or      advance --max <n>
+      Fast forward: play Turns until one gives a reason to stop, then print the reason and
+      what happened. These always stop it: a Party of the player's comes home, a decision
+      is needed (no Party is out, and a Quest the Guild could take reaches the Board), and
+      the game ends. <stops> names any of party-returns, decision, ended and
+      pool-refreshed, joined by commas; pool-refreshed (new Heroes in the Unattached pool)
+      stops it only when named. --max caps the Turns played: one year of Turns unless
+      given.
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
@@ -65,6 +73,7 @@ export type Command =
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number }
+  | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'rebase'; save: string }
@@ -78,7 +87,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
   show: { save: 'value' },
-  advance: { save: 'value', turns: 'value' },
+  advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
   rebase: { save: 'value' },
@@ -136,6 +145,27 @@ function wholeFromOne(flag: string, value: string): number {
   return /^\d+$/.test(value) && Number.isSafeInteger(n) && n >= 1
     ? n
     : refuse(`${flag} needs a whole number from 1; got "${value}"`);
+}
+
+/** The words `--until` takes, and the engine's stop condition each names (DL-33). */
+const untilWords: Readonly<Record<string, StopCondition>> = Object.freeze({
+  'party-returns': 'party-returned',
+  decision: 'decision-needed',
+  ended: 'ended',
+  'pool-refreshed': 'pool-refreshed',
+});
+
+/** `--until`: stop conditions by the CLI's words, joined by commas, each once. */
+function stopList(value: string): StopCondition[] {
+  const words = value.split(',').map((word) => word.trim());
+  for (const word of words) {
+    if (!Object.hasOwn(untilWords, word)) {
+      refuse(`--until takes ${Object.keys(untilWords).join(', ')}, joined by commas; got "${word}"`);
+    }
+  }
+  const twice = words.find((word, index) => words.indexOf(word) !== index);
+  if (twice !== undefined) refuse(`--until names ${twice} twice`);
+  return words.map((word) => untilWords[word] as StopCondition);
 }
 
 /** `--heroes`: Hero ids joined by commas, each once. */
@@ -219,7 +249,18 @@ function parse(argv: readonly string[]): Command {
     case 'advance': {
       atMost(positional, 0, 'advance');
       const turns = flags.get('turns');
-      return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
+      const until = flags.get('until');
+      const max = flags.get('max');
+      if (until === undefined && max === undefined) {
+        return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
+      }
+      if (turns !== undefined) refuse('advance takes --turns, or --until and --max, not both');
+      return {
+        name,
+        save,
+        until: until === undefined ? [] : stopList(until),
+        ...(max === undefined ? {} : { max: wholeFromOne('--max', max) }),
+      };
     }
     case 'recruit':
       atMost(positional, 0, 'recruit');

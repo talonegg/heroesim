@@ -56,6 +56,17 @@ describe('parseArgs', () => {
     expect(command('rebase')).toEqual({ name: 'rebase', save: 'current' });
   });
 
+  test('reads advance --until and --max as a fast forward, in the CLI words for the stops (M2-S11)', () => {
+    expect(command('advance', '--until', 'party-returns')).toEqual({ name: 'advance', save: 'current', until: ['party-returned'] });
+    expect(command('advance', '--until', 'decision,ended, pool-refreshed', '--max', '40', '--save', 'demo')).toEqual({
+      name: 'advance',
+      save: 'demo',
+      until: ['decision-needed', 'ended', 'pool-refreshed'],
+      max: 40,
+    });
+    expect(command('advance', '--max=7')).toEqual({ name: 'advance', save: 'current', until: [], max: 7 });
+  });
+
   test('reads dispatch: a Quest id and Hero ids joined by commas (M2-S4)', () => {
     expect(command('dispatch', '--quest', 'quest-000003', '--heroes', 'hero-000001,hero-000002')).toEqual({
       name: 'dispatch',
@@ -100,6 +111,13 @@ describe('parseArgs', () => {
       `--turns needs a whole number from 1; got "${turns}"`,
     ]),
     [['advance', 'three'], 'does not take "three"'],
+    [['advance', '--turns', '2', '--until', 'ended'], 'advance takes --turns, or --until and --max, not both'],
+    [['advance', '--turns', '2', '--max', '5'], 'not both'],
+    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, ended, pool-refreshed, joined by commas; got "party-returned"'],
+    [['advance', '--until', 'ended,,decision'], 'got ""'],
+    [['advance', '--until', 'ended,ended'], '--until names ended twice'],
+    [['advance', '--until', 'ended', '--max', '0'], '--max needs a whole number from 1; got "0"'],
+    [['advance', '--until'], '--until needs a value'],
     [['rebase', '--turns', '2'], 'rebase takes no flag --turns'],
     [['dispatch', '--heroes', 'hero-000001'], 'dispatch needs --quest'],
     [['dispatch', '--quest', 'quest-000001'], 'dispatch needs --heroes'],

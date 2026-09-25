@@ -1551,6 +1551,104 @@ both orders.
 
 **Consequences.** DL-29 is read with these corrections. No rule changed.
 
+## DL-33 — Fast forward: always-on and opt-in stops, the watched Guild, and the CLI's `--until` (M2-S11)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S11's implementer)
+
+**Context.** M2-S11 names `fastForward(document, { until, maxTurns }, content)` calling `advance`
+in a loop, five stop reasons, `pool-refreshed` opt-in (pre-M0 review B7), and the CLI's `advance
+--until … --max <n>`. Approach §2 says some stops *always* stop fast forward (a Party returns, an
+ending, a Transfer offer, a module asking for a decision) and others the caller opts into;
+principle 10 and R2 say the engine stops when a decision is needed. The story leaves open: whether
+`until` can narrow the always-on set; whose Party and whose decision stop it, when ADR-0002 forbids
+a rule asking which Guild is the player's (`controller-reads.test.ts` holds the engine to the three
+accepted reads); what "returned" and "a decision is needed" mean exactly; what `advance` itself
+reports; the shapes of the reasons; how several reasons on one Turn are ordered; the CLI's cap
+without `--max`; and how it prints what happened. DL-28 also left the CLI listing a folded Guild
+among the Guilds, and DL-31 added `dispatch`'s `guild-folded` for the CLI to put in words.
+
+**Decision.**
+
+1. **Signature.** `fastForward(document, { guildId, until, maxTurns }, deps)` in
+   `engine/src/fast-forward.ts` returns `{ document, events, stoppedBecause }`: every event of every
+   Turn played, in order, and one `StopReason`, never null. `deps` where the epic wrote `content`,
+   as every entry point takes it. It plays each Turn through `advance` and adds no rule, so it lands
+   exactly where the same number of `advance` calls would (a test compares the saves).
+2. **The watched Guild.** `guildId` names the Guild whose Parties and decisions stop it; the CLI
+   passes the player's (`playerGuild`, a front end's read). The engine never asks whose Guild it is,
+   so no fourth read of `controller.kind` is needed and the stops are the same rules for any Guild
+   (ADR-0002). A Rival's Party therefore never stops the player's fast forward. Chosen over reading
+   the player's Guild inside the engine, which `plan.md` §1 would make a fourth accepted exception
+   needing the owner.
+3. **Always on, and `until` does not narrow them.** `ended`, `party-returned` and `decision-needed`
+   always stop it (`alwaysStops` in `engine/src/stops.ts`, a record keyed by every condition so a new
+   one must say which it is); `pool-refreshed` only when listed in `until`. Naming an always-on
+   condition in `until` is accepted and changes nothing. Approach §2's "always" is the owner's word
+   (B7), and principle 10 says fast forward without the decision stop is unsafe; a player who wants
+   Turns played regardless has `advance --turns n`. M6's `transfer-offer` and M8's `module` join as
+   always-on. `max-turns` is not a condition: `maxTurns` sets it.
+4. **`party-returned`**: a `quest.resolved` this Turn naming the watched Guild, the Party home and
+   resolved, so it falls on the Party's `returnsOnTurn` exactly. It carries `{ guildId, partyIds }`
+   in resolution order. A Party a fold disbands has not returned; only a Rival folds.
+5. **`decision-needed`, the M2 reading**: the watched Guild's Roster is idle, no Hero on it away in
+   a Party, and the Board holds Quests it could staff that it could not before the Turn. "Could
+   staff" is `staffableQuests(world, guild, content)` in `controllers/rival.ts`: the Quests on offer
+   for which `partyFor`, `steady`'s own Party-maker, finds a Party of the Heroes `dispatch`'s
+   `unavailability` leaves free (`availableHeroes`); a test finds that `dispatch` accepts the Party
+   for every Quest the stop names. It carries `{ guildId, questIds }` in Board order.
+   - *Idle Roster.* The epic's "and the Roster is idle" is read as a clause of its own: while any
+     Party of the Guild is out, its return is the next thing to wait for, and no decision stops
+     fast forward, even with Heroes at home. Otherwise `advance --until party-returns`, the M2
+     gate's command, would stop every morning that new Quests arrive for the Heroes kept at home.
+   - *New, not standing.* Only Quests that became staffable this Turn count: new on the Board, or
+     within reach because the last Party came home or a Hero healed. A Quest the caller could
+     already staff when the Turn began has been seen and passed over; were it counted, fast forward
+     from an idle Guild would stop after every Turn and be useless (B7's own objection).
+   So an idle Guild is stopped on the mornings new Quests it can staff arrive, and on the night its
+   last Party returns when the Board holds one it can staff (after `party-returned`).
+6. **`pool-refreshed`**: Heroes in the Unattached pool after the Turn who were not in it before,
+   the night's refill and a fold's released Heroes alike, carrying `{ heroIds }` in id order.
+   `ended` carries nothing more (`world.ended` says why); `max-turns` nothing.
+7. **Several reasons on one Turn** are reported in the order `ended`, `party-returned`,
+   `decision-needed`, `pool-refreshed` (`stopConditions`); fast forward stops with the first it is
+   listening for. `stopsOfTurn(turn, guildId, deps, conditions)` returns every reason a played Turn
+   gives among the conditions asked, one detector per condition in `stops.ts`, the one place each
+   is detected.
+8. **What `advance` reports.** `advance` has no watched Guild, and `pool-refreshed` is opt-in, so
+   its `stoppedBecause` stays what DL-24 made it: `ended` or null, now from the same detector
+   (`endedStop`). `StopReason` moves from `advance.ts` to `stops.ts` with fields added, as DL-24
+   allowed.
+9. **`maxTurns`** must be a whole number from 0, or fast forward throws `RangeError`, a
+   programming error, as it does for a condition that is not one or a Guild not in the world. It
+   always terminates: 0 returns the same document, no events, `max-turns`. An ended world returns
+   the same document with `ended` whatever `maxTurns`, since no Turn can follow.
+10. **The CLI.** `advance --until <stops> [--max <n>]`, or `advance --max <n>` alone, fast forwards
+    for the player's Guild; `<stops>` is any of `party-returns`, `decision`, `ended`,
+    `pool-refreshed` (the epic's words, mapped to the engine's conditions), joined by commas, each
+    once; `--max` is a whole number from 1; `--turns` cannot be combined with either (exit 2). Without
+    `--max` the cap is **one year of Turns**, the save's `turnsPerYear` (1,080 by default): longer
+    than any Quest many times over, and data-model §7's own measure of a fast forward. It prints the
+    Turns played, where time stands, a `Stopped: …` line for the reason, and every event of those
+    Turns, one line each in the CLI's words (`cli/src/narrate.ts`: typed event in, line out, a
+    switch the compiler holds to every event type and stop reason, and a test with one event of
+    each type). Plain `advance` and `--turns` print the same narrated lines in place of the
+    event-type table. A game already over is refused, as `--turns` refuses it.
+11. **Folded Guilds in the CLI (DL-28's follow-up).** `show` lists only the Guilds in play and
+    counts the folded ones ("4 Guilds in play and 1 folded (show guilds lists them)"); `show guilds`
+    lists every Guild and, once any has folded, adds a last column marking each folded one "on Day
+    N". The CLI's map of `dispatch`'s rejections already puts `guild-folded` (DL-31) in words; a test
+    now proves it.
+
+**Consequences.** `staffableQuests` and `partyFor` are exported from `controllers/rival.ts`, and
+`easiestStaffable` shares their Board walk (`offeredQuests`); `steady`'s choices are unchanged. The
+engine exports `fastForward`, `stopsOfTurn`, `alwaysStops` and the detectors. A year of fast forward
+on a created world with four Rivals, 1,080 Turns, took 0.6 to 0.9 s here under Vitest, within
+data-model §7's 1 s; the stop checks add under a tenth to `advance`'s own cost, which M2-S12
+measures. Listening to every condition from an idle Guild stops about 400 times a year, most of them
+the pool, which is why it is opt-in. M7's web front end offers the conditions as buttons and names
+the watched Guild as the CLI does; a later milestone that widens "a decision is needed" (M4's
+Regard, M6's offers) changes `decisionNeededStop` alone.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

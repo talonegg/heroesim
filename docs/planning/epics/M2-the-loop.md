@@ -271,11 +271,13 @@ when the caller lists it in `until`.
 
 **Acceptance:**
 
-- [ ] `until: ["party-returned"]` stops on the exact Turn the Party's `returnsOnTurn` falls
-- [ ] `maxTurns` always terminates
-- [ ] CLI `advance --until party-returns|ended|decision|pool-refreshed --max <n>` prints the
+- [x] `until: ["party-returned"]` stops on the exact Turn the Party's `returnsOnTurn` falls
+- [x] `maxTurns` always terminates
+- [x] CLI `advance --until party-returns|ended|decision|pool-refreshed --max <n>` prints the
       stop reason and the events since the last command; `pool-refreshed` never stops unless
       asked for
+      _(DL-33: `fastForward` takes `deps` and the watched `guildId`; `until` adds the opt-in
+      `pool-refreshed` and never narrows the always-on stops.)_
 
 ### M2-S12 · Automatic policy, counters and measures · 1–2 sessions
 

@@ -70,7 +70,7 @@ function fields(pairs: readonly (readonly [string, string])[]): string[] {
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
 /** A content row's display name; a key the content does not define is shown as it is (rule 5). */
-function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
+export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
   return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
 }
 
@@ -106,10 +106,14 @@ function controllerOf(guild: Guild): string {
   return guild.controller.kind === 'player' ? 'Player' : `Rival (${guild.controller.disposition})`;
 }
 
-function guildTable(document: WorldDocument, deps: EngineDeps): string[] {
+/**
+ * The Guilds as a table. When any has folded, a last column marks each folded one with the Day it
+ * folded (DL-28, DL-33): its row stays, out of play, with an empty Roster.
+ */
+function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
   const { content, config } = deps;
-  const guilds = Object.values(world.guilds);
+  const anyFolded = !guilds.every(inPlay);
   return table(
     [
       { heading: 'Id' },
@@ -121,6 +125,7 @@ function guildTable(document: WorldDocument, deps: EngineDeps): string[] {
       { heading: 'Wealth', align: 'right' },
       { heading: 'Fame', align: 'right' },
       { heading: 'Upkeep', align: 'right' },
+      ...(anyFolded ? [{ heading: 'Folded' }] : []),
     ],
     guilds.map((guild) => [
       guild.id,
@@ -132,16 +137,27 @@ function guildTable(document: WorldDocument, deps: EngineDeps): string[] {
       String(guild.wealth),
       String(guild.fame),
       String(upkeep(guild, world, config)),
+      ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
     ]),
   );
 }
 
-/** `show`: the seed, the Turn, every Guild, and how many of everything there are. */
+function inPlay(guild: Guild): boolean {
+  return guild.foldedOnTurn === null;
+}
+
+/**
+ * `show`: the seed, the Turn, the Guilds in play, and how many of everything there are. A folded
+ * Guild is counted, and listed by `show guilds` (DL-33).
+ */
 export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
   const { meta, world, history } = document;
   const heroes = Object.keys(world.heroes).length;
+  const guilds = Object.values(world.guilds);
+  const playing = guilds.filter(inPlay);
+  const folded = guilds.length - playing.length;
   const counts = [
-    `${Object.keys(world.guilds).length} Guilds`,
+    `${playing.length} Guilds in play${folded === 0 ? '' : ` and ${folded} folded (show guilds lists them)`}`,
     `${heroes} Heroes (${unattachedHeroes(world).length} Unattached)`,
     `${Object.keys(world.patrons).length} Patrons`,
     `${history.entries.length} History entries`,
@@ -149,15 +165,15 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
-    ...guildTable(document, deps),
+    ...guildTable(playing, document, deps),
     '',
     counts.join(', '),
   ];
 }
 
-/** `show guilds`. */
+/** `show guilds`: every Guild, a folded one marked with the Day it folded. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
-  return ['Guilds', '', ...guildTable(document, deps)];
+  return ['Guilds', '', ...guildTable(Object.values(document.world.guilds), document, deps)];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
@@ -367,23 +383,5 @@ export function renderHistory(heading: string, entries: readonly Entry[]): strin
         entry.participants.map((id) => entry.labels[id] ?? id).join(', '),
       ]),
     ),
-  ];
-}
-
-// ── Advancing ────────────────────────────────────────────────────────────────────────────────
-
-/** `advance`: how many Turns were played, where time stands now, and the events they made. */
-export function renderAdvance(
-  played: number,
-  events: readonly Entry[],
-  document: WorldDocument,
-  deps: EngineDeps,
-): string[] {
-  const { turn, ended } = document.world;
-  return [
-    `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
-    ...(ended === null ? [] : [`The game ended on Turn ${ended.turn}: ${ended.reason}.`]),
-    '',
-    ...(events.length === 0 ? ['No events.'] : renderHistory(`Events: ${events.length}, oldest first`, events)),
   ];
 }

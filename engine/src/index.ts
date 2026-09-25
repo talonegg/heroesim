@@ -30,10 +30,11 @@ export * from './actions/result.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
-export { availableHeroes, rivalChoices, type DispositionRule } from './controllers/rival.js';
+export { availableHeroes, rivalChoices, staffableQuests, type DispositionRule } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';
+export * from './fast-forward.js';
 export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
@@ -51,6 +52,7 @@ export {
 } from './quest-engine/stub.js';
 export * from './selectors.js';
 export * from './serialise.js';
+export * from './stops.js';
 export * from './time.js';
 export * from './validate.js';
 // A stream's state type stays inside the engine: nothing reaches it except through `world.rng`.
