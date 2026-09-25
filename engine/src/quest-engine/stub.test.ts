@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import type { GameConfig } from '../config.js';
+import { defaultConfig, type GameConfig } from '../config.js';
 import type { Guild, Hero, HeroId, Party, PartyId, Quest, QuestId, SkillRating, World } from '../document.js';
 import { createStreams, next } from '../rng.js';
 import { buildDocument, heroStatKeys, plannedStreams, testDeps } from '../world.test-support.js';
@@ -49,8 +49,14 @@ function party(guild: Guild, heroIds: HeroId[]): Party {
   return { id: 'party-000900' as PartyId, questId: 'quest-000900' as QuestId, guildId: guild.id, heroIds, departedOnTurn: 0, returnsOnTurn: 8 };
 }
 
+/**
+ * INPUTS 4.3's bands, which these tests are written against: fail below 0.8, strong above 1.2. The
+ * default moved in the first balance pass (DL-35), so they are pinned here.
+ */
+const inputsBands = { successAtLeast: 0.8, strongAbove: 1.2 };
+
 function deps(overrides: Partial<GameConfig> = {}) {
-  return testDeps({ stubVariance: 0, ...overrides });
+  return testDeps({ stubVariance: 0, stubBands: inputsBands, ...overrides });
 }
 
 describe('stubScore', () => {
@@ -96,6 +102,18 @@ describe('stubScore', () => {
 });
 
 describe('questBand', () => {
+  test('defaults to INPUTS 4.3 scaled by 0.325 since the first balance pass: 0.26 and 0.39 (DL-35)', () => {
+    expect(defaultConfig.stubBands).toEqual({ successAtLeast: 0.26, strongAbove: 0.39 });
+    const { successAtLeast, strongAbove } = defaultConfig.stubBands;
+    expect(strongAbove / successAtLeast).toBeCloseTo(inputsBands.strongAbove / inputsBands.successAtLeast, 10);
+    expect([0.25, 0.26, 0.39, 0.4].map((ratio) => questBand(ratio, defaultConfig))).toEqual([
+      'fail',
+      'success',
+      'success',
+      'strong',
+    ]);
+  });
+
   test('fails below 0.8, succeeds from 0.8 to 1.2 inclusive, succeeds strongly above 1.2 (INPUTS 4.3)', () => {
     const { config } = deps();
 

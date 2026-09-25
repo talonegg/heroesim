@@ -37,6 +37,13 @@ vi.mock('../actions/recruit.js', async (importOriginal) => {
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
+/**
+ * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
+ * recruit on its first afternoon: the tests that watch a recruit pin them, since the first balance
+ * pass raised both defaults (DL-35).
+ */
+const recruitingDeps = (): EngineDeps => testDeps({ wagePerLevel: 5, recruitWealthMultiple: 3 });
+
 afterEach(() => {
   vi.mocked(applyDispatch).mockClear();
   vi.mocked(applyRecruit).mockClear();
@@ -125,7 +132,7 @@ describe('rivalControllers', () => {
   });
 
   test("apply each choice through the player's dispatch and recruit rules, and emit only what those return", () => {
-    const deps = testDeps();
+    const deps = recruitingDeps();
     const document = created('through-the-actions', deps);
     // Each Rival's choices as it will make them, in Guild id order, on the world each leaves the next.
     const world = structuredClone(document.world);
@@ -181,7 +188,7 @@ describe('rivalControllers', () => {
   });
 
   test("drops a refused choice, changing nothing, and applies the Guild's next", () => {
-    const deps = testDeps();
+    const deps = recruitingDeps();
     const document = created('refused', deps);
     const world = structuredClone(document.world);
     world.turn += 1;
@@ -200,7 +207,7 @@ describe('rivalControllers', () => {
   });
 
   test('moves no random stream: steady draws nothing, from rivals or any other', () => {
-    const deps = testDeps();
+    const deps = recruitingDeps();
     const document = created('streams', deps);
     const world = structuredClone(document.world);
     // Every planned stream, so that each can be seen to stand still.
