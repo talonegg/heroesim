@@ -55,7 +55,7 @@ rather than investigated beforehand.
 
 | # | Milestone | Done when | Status |
 | --- | --- | --- | --- |
-| M0 | Skeleton | `npm test` runs; the lint rule fails a deliberate `Math.random` in `engine/`; CI green; decision log exists | |
+| M0 | Skeleton | `npm test` runs; the lint rule fails a deliberate `Math.random` in `engine/`; CI green; decision log exists | Done 2026-09-26 (`m0-skeleton`) |
 | M1 | World State | A seeded world of Guilds, Heroes, Patrons and an Unattached pool is created, validated, saved, loaded and shown; 1,000 worlds byte-identical across two runs | |
 | M2 | The loop | The harness plays whole games to an ending under an automatic policy; a human can advance, dispatch and recruit from the CLI | |
 | M3 | Progression | Heroes gain Levels toward their Potential and decline with age; Rankings order Guilds by Fame and Wealth; Hall Improvements are bought | |
@@ -208,16 +208,5 @@ to prove next.
 
 ## 5. Decisions this plan rests on
 
-Recorded here until `docs/decision-log.md` exists in M0, then copied there.
-
-- Session-sized increments grouped into milestones, over week-sized increments (owner).
-- Harness and a thin CLI from M1 are the bar for working software (owner).
-- Rivals act from M2 with one trivial disposition (owner).
-- Module contract last in the first build; ADR-0005 amended for timing (owner).
-- Progression before the Quest Engine before Items before Rivals (owner).
-- The stub Quest Engine scores weighted Stat demands carried on the Quest template, closing the
-  open item in `requirements.md` §5 (owner).
-- `content/` exists from M1, not extracted later (owner).
-- No timeboxed spikes; measures recorded in the first milestone that can take them (owner).
-- One GitHub issue per milestone, opened lazily; git tag per milestone (owner).
-- Cloudflare Pages deploy is part of M7's done (owner).
+The decisions this plan was settled from are recorded as DL-01 to DL-10 in
+[`decision-log.md`](./decision-log.md), in the order this plan reached them.

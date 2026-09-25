@@ -4,7 +4,7 @@
 **Sessions:** 3–4 · **Depends on:** nothing · **Implements:** `plan.md` M0; ADR-0007
 **Gate:** `npm test` and `npm run lint` pass locally and in CI; a deliberate `Math.random()` in `engine/` fails lint; `docs/decision-log.md` exists with DL-01 to DL-10
 
-**Status:** not started
+**Status:** done — 2026-09-26
 
 ## 0. What lands in M0
 
@@ -41,9 +41,9 @@ are left untouched as v1's history.
 
 **Acceptance:**
 
-- [ ] `v1.0-release` exists on GitHub and its tree matches `planv2`'s at the moment of creation
-- [ ] `v1.0-dev` exists, tracks `origin/v1.0-dev`, and is the checked-out branch
-- [ ] The repository's default branch on GitHub is left as `master` unless the owner asks
+- [x] `v1.0-release` exists on GitHub and its tree matches `planv2`'s at the moment of creation
+- [x] `v1.0-dev` exists, tracks `origin/v1.0-dev`, and is the checked-out branch
+- [x] The repository's default branch on GitHub is left as `master` unless the owner asks
       otherwise (asked separately; not assumed by this story)
 
 ### M0-S1 · Workspaces and TypeScript · 1 session
@@ -61,10 +61,10 @@ Dev dependencies, pinned exactly: `typescript`, `vitest`, `tsx`, `@types/node`, 
 
 **Acceptance:**
 
-- [ ] `npm install` then `npm test` runs five placeholder tests, one per package, and passes
-- [ ] `npm run typecheck` passes with no emitted files committed (`dist/` ignored)
-- [ ] `engine/package.json` has no `dependencies` and no `devDependencies`
-- [ ] `.node-version`, `.npmrc` (`save-exact=true`, `engine-strict=true`), `.editorconfig`
+- [x] `npm install` then `npm test` runs five placeholder tests, one per package, and passes
+- [x] `npm run typecheck` passes with no emitted files committed (`dist/` ignored)
+- [x] `engine/package.json` has no `dependencies` and no `devDependencies`
+- [x] `.node-version`, `.npmrc` (`save-exact=true`, `engine-strict=true`), `.editorconfig`
       (2-space, LF, final newline) and `.gitignore` (`node_modules/`, `dist/`, `coverage/`,
       `.saves/`, `web/dist/`, `test-results/`, `playwright-report/`, `harness/samples/`,
       `.wrangler/`) exist
@@ -88,11 +88,11 @@ asserts no dependency keys.
 
 **Acceptance:**
 
-- [ ] `npm run lint` passes on the skeleton
-- [ ] The boundary test fails lint on `Math.random`, `Date.now()`, `new Date()`, `console.log`,
+- [x] `npm run lint` passes on the skeleton
+- [x] The boundary test fails lint on `Math.random`, `Date.now()`, `new Date()`, `console.log`,
       `import fs from "node:fs"` and `import x from "@heroesim/content"` inside `engine/`, each
       with the message naming the ADR
-- [ ] `npm test` runs the boundary test as part of the ordinary run
+- [x] `npm test` runs the boundary test as part of the ordinary run
 
 ### M0-S3 · CI · 0.5–1 session
 
@@ -104,10 +104,10 @@ cache; `npm ci`; `npm run lint`;
 
 **Acceptance:**
 
-- [ ] The workflow is green on the first push after this story
-- [ ] A pushed commit that breaks the boundary test turns CI red (tried once, then reverted, and
+- [x] The workflow is green on the first push after this story
+- [x] A pushed commit that breaks the boundary test turns CI red (tried once, then reverted, and
       the two commits named in DL-11)
-- [ ] The workflow file contains no `secrets.` reference
+- [x] The workflow file contains no `secrets.` reference
 
 ### M0-S4 · Decision log · 0.5 session
 
@@ -118,9 +118,13 @@ pointer to the log. README's map gains the log.
 
 **Acceptance:**
 
-- [ ] `docs/decision-log.md` exists with ten entries matching `plan.md` §5 as it stood
-- [ ] `plan.md` §5 points at the log and repeats nothing
-- [ ] `README.md` lists the log
+- [x] `docs/decision-log.md` exists with ten entries matching `plan.md` §5 as it stood
+- [x] `plan.md` §5 points at the log and repeats nothing
+- [x] `README.md` lists the log
+
+`docs/decision-log.md` also gains a "Pre-M0 review decisions" section, copying every decision
+from `docs/planning/PRE-M0-TO-ACTION.md` (43 items, A1–F4) under the review's own IDs, without
+consuming a DL number; `PRE-M0-TO-ACTION.md` is then deleted, as it said it would be.
 
 ## 2. Configuration and events introduced
 

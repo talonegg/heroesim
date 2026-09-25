@@ -1,0 +1,11 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "dist",
+    // Node's types serve the tests (the boundary test reads and writes files). The engine's
+    // own source may not import Node: ESLint forbids it (ADR-0007).
+    "types": ["node"]
+  },
+  "include": ["src"]
+}
