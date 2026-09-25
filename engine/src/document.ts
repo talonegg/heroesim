@@ -270,8 +270,18 @@ export interface Hero {
   /** With `ageAtEntry`: age now = ageAtEntry + (turn − enteredTurn) / turnsPerYear. */
   enteredTurn: Turn;
   ageAtEntry: number;
-  /** `null` means Unattached. */
+  /** `null` means on no Roster: in the Unattached pool, or gone from it (`leftPoolOnTurn`). */
   guildId: GuildId | null;
+  /**
+   * The Turn the Hero last entered the Unattached pool; `null` on a Roster and once they have
+   * left the pool. The pool is the Heroes for whom it is set (DL-27).
+   */
+  unattachedSince: Turn | null;
+  /**
+   * Set when the Hero left the pool unrecruited and a History entry kept their row (rule 8):
+   * then on no Roster and in no pool, out of play (DL-27).
+   */
+  leftPoolOnTurn: Turn | null;
   partyId: PartyId | null;
   /** Base values only; effective Stats are a selector (data-model rule 1). */
   stats: StatValues;

@@ -312,6 +312,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       enteredTurn: 0,
       ageAtEntry: 18 + (n % 15),
       guildId,
+      unattachedSince: guildId === null ? 0 : null,
+      leftPoolOnTurn: null,
       partyId: null,
       stats,
       potential: Object.fromEntries(Object.entries(stats).map(([key, value]) => [key, value + 2])),

@@ -49,7 +49,7 @@ export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResul
 
   const world = structuredClone(document.world);
   world.turn += 1;
-  const events = runTurn(world, phaseContext(world, deps));
+  const events = runTurn(world, phaseContext(world, deps, document.history));
   for (const event of events) append(document.history, event);
 
   return {

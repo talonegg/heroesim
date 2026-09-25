@@ -55,10 +55,33 @@ export interface SavedDocument {
 export type Migration = (document: SavedDocument) => SavedDocument;
 
 /**
- * The chain: `migrations[n]` turns a version-n document into version n + 1. Empty until a
- * milestone changes the schema and adds its step with the new `schemaVersion` (data-model §6).
+ * The chain: `migrations[n]` turns a version-n document into version n + 1. A milestone that
+ * changes the schema adds its step with the new `schemaVersion` (data-model §6).
  */
-export const migrations: Readonly<Record<number, Migration>> = Object.freeze({});
+export const migrations: Readonly<Record<number, Migration>> = Object.freeze({ 1: unattachedPoolFields });
+
+/**
+ * Version 1 to 2 (M2-S8, DL-27): every Hero gains `unattachedSince` and `leftPoolOnTurn`. In a
+ * version-1 world only generation put a Hero in the pool, so a living, unretired Hero with no
+ * Guild entered it at `enteredTurn`; no Hero had yet left it. Changes nothing it does not
+ * recognise, leaving a damaged save for the validator to refuse, and never changes its input.
+ */
+function unattachedPoolFields(document: SavedDocument): SavedDocument {
+  const { world } = document;
+  if (!isObject(world) || !isObject(world.heroes)) return document;
+  const heroes = Object.fromEntries(
+    Object.entries(world.heroes).map(([id, hero]) => {
+      if (!isObject(hero)) return [id, hero];
+      const inPool = hero.guildId === null && hero.diedOnTurn === null && hero.retiredOnTurn === null;
+      return [id, { ...hero, unattachedSince: inPool ? hero.enteredTurn : null, leftPoolOnTurn: null }];
+    }),
+  );
+  return { ...document, world: { ...world, heroes } };
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
 
 /** Why a save does not load. `message` is prose for a front end; tests assert on the rest. */
 export type LoadRefusal =

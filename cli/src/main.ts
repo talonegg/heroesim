@@ -34,6 +34,7 @@ import {
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
+import { recruitHero } from './commands/recruit.js';
 import {
   renderAdvance,
   renderGuilds,
@@ -68,9 +69,9 @@ export interface CliIo {
  */
 export const exitCodes = { ok: 0, refused: 1, usage: 2 } as const;
 
-type Exit = (typeof exitCodes)[keyof typeof exitCodes];
+export type Exit = (typeof exitCodes)[keyof typeof exitCodes];
 
-interface Context {
+export interface Context {
   io: CliIo;
   content: ContentSet;
   /** The save the command reads and writes. */
@@ -112,6 +113,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return show(command.view, context);
     case 'advance':
       return advanceTurns(command.turns, context);
+    case 'recruit':
+      return recruitHero(command.hero, context);
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -123,12 +126,12 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
 
 // ── Output ───────────────────────────────────────────────────────────────────────────────────
 
-function say(io: CliIo, lines: readonly string[]): Exit {
+export function say(io: CliIo, lines: readonly string[]): Exit {
   io.stdout(`${lines.join('\n')}\n`);
   return exitCodes.ok;
 }
 
-function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
+export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exit {
   io.stderr(`${problem}\n`);
   return code;
 }
@@ -138,7 +141,7 @@ function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refused): Exi
  * printing why it does not load. Content keys the content does not define are warned about and
  * the save still loads (data-model rule 5).
  */
-function open(io: CliIo, path: string, content: ContentSet): { document: WorldDocument; deps: EngineDeps } | undefined {
+export function open(io: CliIo, path: string, content: ContentSet): { document: WorldDocument; deps: EngineDeps } | undefined {
   const read = readSave(path, content);
   if (!read.ok) {
     const { reason } = read;

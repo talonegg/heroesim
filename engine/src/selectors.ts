@@ -5,7 +5,7 @@
 // M1-S9 adds the first three, for the CLI's views; later stories add Rankings, Upkeep and the
 // rest beside them. Time's selectors, `ageOf` among them, are in time.ts.
 
-import type { GameConfig } from './config.js';
+import type { EngineDeps, GameConfig } from './config.js';
 import type { Stat } from './content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type StatValues, type World } from './document.js';
 
@@ -14,11 +14,35 @@ export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
   return Object.values(world.guilds).find((guild) => guild.controller.kind === 'player');
 }
 
-/** The Unattached pool: every Hero on no Roster (`guildId: null`), in id order. */
+/**
+ * The Unattached pool, in id order: every Hero with `unattachedSince` set. A Hero on no Roster who
+ * has left the pool, and whose row an entry kept (data-model rule 8), is not in it (DL-27).
+ */
 export function unattachedHeroes(world: Pick<World, 'heroes'>): Hero[] {
   return Object.values(world.heroes)
-    .filter((hero) => hero.guildId === null)
+    .filter((hero) => hero.unattachedSince !== null)
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
+}
+
+/**
+ * What a Guild pays to sign `hero` from the Unattached pool (INPUTS 4.7, DL-27): `signingFeeBase`,
+ * plus `signingFeePerLevel` for each Level, plus the sum of the Hero's base Stats divided by
+ * `signingFeeStatDivisor`, rounded down once, at the end, to a whole number. The sum runs over
+ * content's Hero Stats through `baseStat`, so a Stat content no longer defines is ignored and one
+ * the row lacks reads as the content's default (data-model rule 5).
+ *
+ * The one place a fee is computed: M4-S5 scales it by the buying Guildmaster's Negotiation here,
+ * and gives it the argument that needs, so every caller pays the same price.
+ */
+export function signingFee(hero: Pick<Hero, 'level' | 'stats'>, deps: Pick<EngineDeps, 'config' | 'content'>): number {
+  const { config, content } = deps;
+  let statSum = 0;
+  for (const stat of Object.values(content.stats)) {
+    if (stat.owner === 'hero') statSum += baseStat(hero.stats, stat);
+  }
+  return Math.floor(
+    config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor,
+  );
 }
 
 /**

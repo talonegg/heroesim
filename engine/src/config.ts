@@ -12,7 +12,10 @@ import type { ContentSet } from './content-types.js';
 import type { ModuleId } from './document.js';
 
 export interface GameConfig {
-  /** The World State schema this engine writes as `meta.version`; a load compares the two (M1-S8). */
+  /**
+   * The World State schema this engine writes as `meta.version`; a load compares the two and
+   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27).
+   */
   schemaVersion: number;
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
@@ -85,10 +88,19 @@ export interface GameConfig {
   bankruptcyGraceDays: number;
   /** Fame never falls below this (pre-M0 review D10.3: an explicit floor, not negative Fame). */
   fameFloor: number;
+  // ── Recruitment and the Unattached pool (M2-S8, INPUTS 3.7, 4.7, DL-27) ───────────────────
+  /** A signing fee is this, plus the per-Level part, plus the Stats part (`signingFee`). */
+  signingFeeBase: number;
+  /** Added to a signing fee for each of the Hero's Levels. */
+  signingFeePerLevel: number;
+  /** The sum of the Hero's base Stats is divided by this for a signing fee's Stats part. */
+  signingFeeStatDivisor: number;
+  /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
+  unattachedStayDays: number;
 }
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 1,
+  schemaVersion: 2,
   configVersion: 1,
   turnsPerYear: 1080,
 
@@ -128,6 +140,10 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   bankruptcyFloor: 0,
   bankruptcyGraceDays: 30,
   fameFloor: 0,
+  signingFeeBase: 50,
+  signingFeePerLevel: 25,
+  signingFeeStatDivisor: 4,
+  unattachedStayDays: 10,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

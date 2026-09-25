@@ -2,7 +2,7 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { createWorld } from './create.js';
 import { makeId, type Guild, type Hero } from './document.js';
 import { testDeps } from './world.test-support.js';
-import { baseStat, playerGuild, unattachedHeroes, upkeep } from './selectors.js';
+import { baseStat, playerGuild, signingFee, unattachedHeroes, upkeep } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
 
@@ -37,6 +37,59 @@ describe('unattachedHeroes', () => {
 
     const reversed = Object.fromEntries(Object.entries(world.heroes).reverse()) as Record<string, Hero>;
     expect(unattachedHeroes({ heroes: reversed })).toEqual(pool);
+  });
+
+  test('leaves out a Hero on no Roster who has left the pool and whose row stayed (DL-27)', () => {
+    const { document } = createWorld('selectors', setup, testDeps({ unattachedPoolSize: 3 }));
+    const [first, ...rest] = unattachedHeroes(document.world);
+    if (first === undefined) throw new Error('The pool is empty');
+
+    Object.assign(first, { unattachedSince: null, leftPoolOnTurn: 32 });
+
+    expect(unattachedHeroes(document.world)).toEqual(rest);
+  });
+});
+
+describe('signingFee', () => {
+  const deps = testDeps();
+  const heroStats = Object.values(deps.content.stats).filter((stat) => stat.owner === 'hero');
+
+  /** A Hero of `level` with every Hero Stat at `value`, and `extra` on top. */
+  function hero(level: number, value: number, extra: Record<string, number> = {}): Pick<Hero, 'level' | 'stats'> {
+    return { level, stats: { ...Object.fromEntries(heroStats.map((stat) => [stat.key, value])), ...extra } };
+  }
+
+  test('is 50 + 25 × Level + the sum of the Stats ÷ 4 with the defaults (INPUTS 4.7)', () => {
+    expect(heroStats).toHaveLength(20);
+    // Twenty Stats at 8 sum to 160: 50 + 25 + 40.
+    expect(signingFee(hero(1, 8), deps)).toBe(115);
+    // At Level 3: 50 + 75 + 40.
+    expect(signingFee(hero(3, 8), deps)).toBe(165);
+  });
+
+  test('rounds down to a whole number, once, at the end', () => {
+    const fees = [0, 1, 2, 3, 4].map((more) => signingFee(hero(1, 8, { strength: 8 + more }), deps));
+    // The sum is 160 to 164: a quarter of it is 40, 40.25, 40.5, 40.75, 41.
+    expect(fees).toEqual([115, 115, 115, 115, 116]);
+    expect(fees.every(Number.isInteger)).toBe(true);
+  });
+
+  test('reads every number from config', () => {
+    const tuned = testDeps({ signingFeeBase: 10, signingFeePerLevel: 7, signingFeeStatDivisor: 3 });
+    // 10 + 2 × 7 + floor(20 × 5 / 3) = 10 + 14 + 33.
+    expect(signingFee(hero(2, 5), tuned)).toBe(57);
+  });
+
+  test("ignores a Stat content lacks, and reads one the Hero lacks as content's default (rule 5)", () => {
+    const withUnknown = hero(1, 8, { luck: 100 });
+    expect(signingFee(withUnknown, deps)).toBe(115);
+
+    const lacking = hero(1, 8);
+    Reflect.deleteProperty(lacking.stats, 'strength');
+    // Strength reads as its default, 10: the sum is 162, a quarter 40.5.
+    expect(signingFee(lacking, deps)).toBe(115);
+    Reflect.deleteProperty(lacking.stats, 'dexterity');
+    expect(signingFee(lacking, deps)).toBe(116);
   });
 });
 

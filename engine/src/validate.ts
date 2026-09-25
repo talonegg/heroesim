@@ -49,6 +49,7 @@ export const refusalChecks = [
   'dangling-reference',
   'hero-on-two-rosters',
   'roster-guild-mismatch',
+  'unattached-mismatch',
   'hero-in-two-parties',
   'party-member-mismatch',
   'guildmaster-guild-mismatch',
@@ -130,6 +131,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   danglingReference,
   heroOnTwoRosters,
   rosterGuildMismatch,
+  unattachedMismatch,
   heroInTwoParties,
   partyMemberMismatch,
   guildmasterGuildMismatch,
@@ -297,6 +299,8 @@ const heroFields: Shape<Hero> = {
   enteredTurn: 'integer',
   ageAtEntry: 'number',
   guildId: 'string-or-null',
+  unattachedSince: 'integer-or-null',
+  leftPoolOnTurn: 'integer-or-null',
   partyId: 'string-or-null',
   stats: 'map',
   potential: 'map',
@@ -661,6 +665,30 @@ function rosterGuildMismatch({ world }: WorldDocument): ValidationFailure[] {
         detail: `${heroId} has guildId ${hero.guildId} but is not on its Roster`,
       });
     }
+  }
+  return failures;
+}
+
+/**
+ * A Hero's pool fields agree with their Guild (DL-27): a Hero with a Guild has neither
+ * `unattachedSince` nor `leftPoolOnTurn`; a Hero with none is in the pool (`unattachedSince`) or
+ * gone from play (`leftPoolOnTurn`, `diedOnTurn` or `retiredOnTurn`), never both, never neither.
+ */
+function unattachedMismatch({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [heroId, hero] of Object.entries(world.heroes)) {
+    const inPool = hero.unattachedSince !== null;
+    const gone = hero.leftPoolOnTurn !== null || hero.diedOnTurn !== null || hero.retiredOnTurn !== null;
+    let detail: string | undefined;
+    if (hero.guildId !== null && (inPool || hero.leftPoolOnTurn !== null)) {
+      const fields = `unattachedSince ${q(hero.unattachedSince)}, leftPoolOnTurn ${q(hero.leftPoolOnTurn)}`;
+      detail = `${heroId} has guildId ${hero.guildId}, so neither pool field, but ${fields}`;
+    } else if (hero.guildId === null && inPool === gone) {
+      detail = inPool
+        ? `${heroId} is in the Unattached pool but has left play`
+        : `${heroId} has no Guild, is not in the Unattached pool and has not left play`;
+    }
+    if (detail !== undefined) failures.push({ check: 'unattached-mismatch', id: heroId, detail });
   }
   return failures;
 }

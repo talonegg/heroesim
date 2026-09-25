@@ -18,6 +18,9 @@ Commands:
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
+  recruit --hero <heroId>
+      Sign an Unattached Hero to the player's Guild for their signing fee, shown by
+      show pool, and print the fee and the new Roster size.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -55,6 +58,7 @@ export type Command =
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number }
+  | { name: 'recruit'; save: string; hero: string }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -67,6 +71,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
   show: { save: 'value' },
   advance: { save: 'value', turns: 'value' },
+  recruit: { save: 'value', hero: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -195,6 +200,9 @@ function parse(argv: readonly string[]): Command {
       const turns = flags.get('turns');
       return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
     }
+    case 'recruit':
+      atMost(positional, 0, 'recruit');
+      return { name, save, hero: required(flags, name, 'hero') };
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

@@ -152,7 +152,12 @@ describe('§6: an id referenced by a row that does not exist in its table', () =
       // Their Guild names them, and their guildId is not that Guild.
       [failure('guildmaster-guild-mismatch', ids.playerGuildmaster)],
     ],
-    ["a Hero's Guild", (d) => (hero(d, unattachedHero).guildId = nowhere.guild), unattachedHero],
+    [
+      "a Hero's Guild",
+      // Out of the pool as well, as recruiting would leave them, so only the Guild is wrong.
+      (d) => Object.assign(hero(d, unattachedHero), { guildId: nowhere.guild, unattachedSince: null }),
+      unattachedHero,
+    ],
     ["a Hero's Party", (d) => (hero(d, idleHero).partyId = nowhere.party), idleHero],
     ["a Quest's Patron", (d) => (quest(d, ids.offeredQuest).patronId = nowhere.patron), ids.offeredQuest],
     ["a Quest's Parties", (d) => quest(d, ids.offeredQuest).partyIds.push(nowhere.party), ids.offeredQuest],
@@ -235,6 +240,42 @@ describe('§6: a Hero on two Rosters, or in two Parties, or on a Roster of a Gui
     expect(refusals((d) => (hero(d, ids.partyHero).partyId = null))).toEqual([
       failure('party-member-mismatch', ids.partyHero),
     ]);
+  });
+});
+
+describe("§6: a Hero's pool fields disagree with their Guild (DL-27)", () => {
+  test.each<[string, Mutation, string]>([
+    [
+      'a Hero on a Roster still in the pool',
+      (d) => {
+        hero(d, unattachedHero).guildId = ids.rivalGuild;
+        guild(d, ids.rivalGuild).rosterIds.push(unattachedHero);
+      },
+      unattachedHero,
+    ],
+    ['a Hero on a Roster marked as gone from the pool', (d) => (hero(d, idleHero).leftPoolOnTurn = 30), idleHero],
+    ['a pool Hero marked as gone from it too', (d) => (hero(d, unattachedHero).leftPoolOnTurn = 30), unattachedHero],
+    ['a pool Hero who has retired', (d) => (hero(d, unattachedHero).retiredOnTurn = 30), unattachedHero],
+    [
+      'a Hero with no Guild, not in the pool, not gone',
+      (d) => (hero(d, unattachedHero).unattachedSince = null),
+      unattachedHero,
+    ],
+  ])('%s is refused', (_, mutate, id) => {
+    expect(refusals(mutate)).toEqual([failure('unattached-mismatch', id)]);
+  });
+
+  test.each<[string, Mutation]>([
+    [
+      'a Hero who left the pool and whose row an entry kept',
+      (d) => Object.assign(hero(d, unattachedHero), { unattachedSince: null, leftPoolOnTurn: 30 }),
+    ],
+    [
+      'a Hero with no Guild who retired out of the pool',
+      (d) => Object.assign(hero(d, unattachedHero), { unattachedSince: null, retiredOnTurn: 30 }),
+    ],
+  ])('%s is accepted', (_, mutate) => {
+    expect(refusals(mutate)).toEqual([]);
   });
 });
 

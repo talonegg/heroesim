@@ -205,13 +205,13 @@ Config: `signingFeeBase`, `signingFeePerLevel`, `signingFeeStatDivisor`, `unatta
 
 **Acceptance:**
 
-- [ ] Recruiting deducts exactly `signingFee` and moves the Hero; the validator accepts
-- [ ] A Hero who leaves the pool with only `hero.generated` and `hero.left-pool` entries is
+- [x] Recruiting deducts exactly `signingFee` and moves the Hero; the validator accepts
+- [x] A Hero who leaves the pool with only `hero.generated` and `hero.left-pool` entries is
       gone from `world.heroes`, and both entries still read with their labels; one named by any
       other entry stays (test with a synthetic non-passive entry, since release arrives in M6)
-- [ ] The pool table is bounded: after 20 simulated years of refresh with no recruitment,
+- [x] The pool table is bounded: after 20 simulated years of refresh with no recruitment,
       `world.heroes` holds no more Unattached rows than `unattachedPoolSize`
-- [ ] CLI `recruit --hero <id>`
+- [x] CLI `recruit --hero <id>`
 
 ### M2-S9 · The `steady` disposition · 1 session
 
