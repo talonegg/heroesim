@@ -165,6 +165,15 @@ export interface GameConfig {
    */
   infirmaryHealFactor: readonly number[];
 
+  // ── Potential hints and ageing (M3-S3, M3-S4, INPUTS 5.4, 5.5, DL-37) ─────────────────────
+  /**
+   * Where each Potential hint starts on the gap from a Stat's base to its Potential, in Stat
+   * points: a Stat's hint is the highest whose start its gap has reached, and the lowest for a gap
+   * below every start, so the three cover every gap (`potentialHint`). M4-S5's Judgement narrows
+   * them (pre-M0 review D9).
+   */
+  potentialHintBands: Readonly<Record<PotentialHint, number>>;
+
   // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
   /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
   guildmasterRetirementAge: number;
@@ -190,6 +199,11 @@ export type QuestBand = (typeof questBands)[number];
 export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] as const;
 
 export type MoraleBand = (typeof moraleBandNames)[number];
+
+/** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
+export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
+
+export type PotentialHint = (typeof potentialHints)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
@@ -258,6 +272,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
   infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+
+  potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,

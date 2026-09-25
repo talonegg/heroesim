@@ -70,8 +70,8 @@ Config: `potentialHintBands`.
 
 **Acceptance:**
 
-- [ ] The three bands partition the gap range with no hole
-- [ ] `show hero` output contains hints and no Potential number (the M1 grep test extended)
+- [x] The three bands partition the gap range with no hole
+- [x] `show hero` output contains hints and no Potential number (the M1 grep test extended)
 
 ### M3-S4 · Ageing decline · 1 session
 
