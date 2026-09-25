@@ -306,6 +306,42 @@ line 567).
 
 **Consequences.** DL-05 and E2 are read with these corrections. No decision changes.
 
+## DL-16 — Engine lint forbids performance, crypto, process, timers, the global object and dynamic import
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S2's implementer,
+closing a gap the M0 verification found)
+
+**Context.** ADR-0001 forbids the engine the platform's clock and random source; ADR-0007 has the
+engine run unchanged in Node, in a browser and in a test, importing nothing outside itself.
+M0-S2's lint enforced `Math.random`, `Date`'s clock reads, `console` and static imports. The M0
+verifier found that `performance.now()`, `crypto.randomUUID()`, `crypto.getRandomValues()`,
+`process.env`, `process.hrtime`, `setTimeout`, `setInterval` and dynamic `import()` all passed
+lint in engine source.
+
+**Decision.** `eslint.config.js` additionally forbids, in engine source (`engine/**/*.ts`), each
+with a message naming its ADR:
+
+1. With `no-restricted-globals`: `performance` and `crypto` (ADR-0001); `process` (ADR-0001,
+   ADR-0007); `setTimeout`, `setInterval` and `setImmediate` (ADR-0001: time advances only when
+   `advance` is called); and the global object's four names, `globalThis`, `global`, `window`
+   and `self`, through which every forbidden global, `Math.random` included, would otherwise
+   be reachable.
+2. With `no-restricted-syntax`: `ImportExpression`, the dynamic `import()` (ADR-0007).
+
+Engine tests (`engine/**/*.test.ts`) keep the bans on `Math.random`, `Date`'s clock reads and
+`console`, and may use everything this entry forbids, because they time what they measure
+(M1-S3, M1-S7), spawn processes (M1-S2's cross-process test) and inspect the repository.
+`queueMicrotask` is left alone: it reads no clock. `engine/src/boundary.test.ts` proves each new
+rule fires once in source with its ADR, and that a test file may use them.
+
+**Consequences.** Lint guards against the accidental read; it is not a sandbox, and a deliberate
+way round it (the `Function` constructor, say) is left to review. Browser globals that reach the
+environment — `fetch`, `localStorage`, `navigator`, `document` — still pass lint, and they
+type-check because `tsconfig.base.json` sets no `lib`, so the engine compiles against the DOM
+library (`tsc -p engine --listFilesOnly` lists `lib.dom.d.ts`). Forbidding them, or narrowing
+`lib` for the engine, is a later decision if a change ever reaches for one. A helper that engine
+tests share but that is not itself a `*.test.ts` file is linted as source.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

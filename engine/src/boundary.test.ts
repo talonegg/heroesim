@@ -41,6 +41,30 @@ describe('engine/ source', { timeout: 30_000 }, () => {
     ['Date()', 'export const today = Date();', 'no-restricted-syntax', 'ADR-0001'],
     ['Date.parse()', "export const then = Date.parse('2026-09-25');", 'no-restricted-syntax', 'ADR-0001'],
     ['console.log', "console.log('a Quest resolved');", 'no-restricted-globals', 'ADR-0003'],
+    // DL-16: the clock, random sources and the environment by other names.
+    ['performance.now()', 'export const now = performance.now();', 'no-restricted-globals', 'ADR-0001'],
+    ['crypto.randomUUID()', 'export const id = crypto.randomUUID();', 'no-restricted-globals', 'ADR-0001'],
+    [
+      'crypto.getRandomValues()',
+      'export const words = crypto.getRandomValues(new Uint32Array(4));',
+      'no-restricted-globals',
+      'ADR-0001',
+    ],
+    ['process.env', "export const home = process.env['HOME'];", 'no-restricted-globals', 'ADR-0007'],
+    ['process.hrtime', 'export const now = process.hrtime.bigint();', 'no-restricted-globals', 'ADR-0001'],
+    ['setTimeout', 'setTimeout(() => undefined, 0);', 'no-restricted-globals', 'ADR-0001'],
+    ['setInterval', 'export const tick = setInterval(() => undefined, 1000);', 'no-restricted-globals', 'ADR-0001'],
+    ['setImmediate', 'setImmediate(() => undefined);', 'no-restricted-globals', 'ADR-0001'],
+    ['globalThis.Math.random()', 'export const roll = globalThis.Math.random();', 'no-restricted-globals', 'ADR-0001'],
+    ['global.process', 'export const env = global.process.env;', 'no-restricted-globals', 'ADR-0007'],
+    ['window.performance', 'export const now = window.performance.now();', 'no-restricted-globals', 'ADR-0001'],
+    ['self.crypto', 'export const id = self.crypto.randomUUID();', 'no-restricted-globals', 'ADR-0001'],
+    [
+      'a dynamic import()',
+      "export const load = () => import('./sibling.js');",
+      'no-restricted-syntax',
+      'ADR-0007',
+    ],
     ['import from "node:fs"', "import fs from 'node:fs';\nexport { fs };", restrictedImports, 'ADR-0007'],
     ['import from "fs"', "import fs from 'fs';\nexport { fs };", restrictedImports, 'ADR-0007'],
     ['import from "path"', "import path from 'path';\nexport { path };", restrictedImports, 'ADR-0007'],
@@ -81,6 +105,44 @@ describe('engine/ source', { timeout: 30_000 }, () => {
     );
 
     expect(errors).toEqual([]);
+  });
+});
+
+describe('engine/ tests', { timeout: 30_000 }, () => {
+  // Linted as text under a test file's path, so no probe test file is ever written where Vitest
+  // could collect it.
+  async function lintTestProbe(code: string): Promise<Linter.LintMessage[]> {
+    const [result] = await eslint.lintText(code, {
+      filePath: `${root}engine/src/boundary-probe-${randomUUID()}.test.ts`,
+    });
+    return errorsIn(result);
+  }
+
+  test('may time what they measure, spawn processes and reach Node through the global object', async () => {
+    const errors = await lintTestProbe(
+      [
+        'export const started = performance.now();',
+        'export const node = process.execPath;',
+        'export const id = crypto.randomUUID();',
+        'export const later = setTimeout(() => undefined, 0);',
+        "export const load = () => import('./sibling.js');",
+        'export const root = globalThis;',
+      ].join('\n'),
+    );
+
+    expect(errors).toEqual([]);
+  });
+
+  test.each([
+    ['Math.random()', 'export const roll = Math.random();', 'no-restricted-properties', 'ADR-0001'],
+    ['new Date()', 'export const today = new Date();', 'no-restricted-syntax', 'ADR-0001'],
+    ['console.log', "console.log('a Quest resolved');", 'no-restricted-globals', 'ADR-0003'],
+  ])('still may not use %s', async (_name, code, ruleId, adr) => {
+    const errors = await lintTestProbe(code);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(ruleId);
+    expect(errors[0]?.message).toContain(adr);
   });
 });
 
