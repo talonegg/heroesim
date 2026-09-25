@@ -25,6 +25,7 @@ export {
   type InsufficientWealthRejection,
   type RecruitAction,
   type RecruitRejection,
+  type SigningRefusedRejection,
 } from './actions/recruit.js';
 export * from './actions/result.js';
 export * from './advance.js';

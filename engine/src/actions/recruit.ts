@@ -6,7 +6,7 @@
 import type { EngineDeps } from '../config.js';
 import type { Guild, GuildId, Hero, HeroId, World, WorldDocument } from '../document.js';
 import { eventEmitter } from '../emit.js';
-import { signingFee } from '../selectors.js';
+import { signingFee, signingRefusal, type SigningRefusal } from '../selectors.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
 export interface RecruitAction {
@@ -27,6 +27,14 @@ export interface HeroNotUnattachedRejection extends Rejection<'recruit', 'hero-n
   heroId: HeroId;
 }
 
+/**
+ * The Hero refuses to sign for the Guild, whose Fame is below what the Hero's Level asks (M3-S5,
+ * pre-M0 review B4): the Fame asked, the Guild's, and the shortfall (`signingRefusal`).
+ */
+export interface SigningRefusedRejection extends Rejection<'recruit', 'signing-refused'>, SigningRefusal {
+  heroId: HeroId;
+}
+
 /** The Guild's Wealth is below the Hero's signing fee. */
 export interface InsufficientWealthRejection extends Rejection<'recruit', 'insufficient-wealth'> {
   fee: number;
@@ -34,7 +42,11 @@ export interface InsufficientWealthRejection extends Rejection<'recruit', 'insuf
 }
 
 /** Why a Guild could not sign a Hero. */
-export type RecruitRejection = GuildFoldedRejection | HeroNotUnattachedRejection | InsufficientWealthRejection;
+export type RecruitRejection =
+  | GuildFoldedRejection
+  | HeroNotUnattachedRejection
+  | SigningRefusedRejection
+  | InsufficientWealthRejection;
 
 /**
  * `guildId` signs `heroId` from the Unattached pool: deducts exactly `signingFee(hero, deps)` from
@@ -43,8 +55,9 @@ export type RecruitRejection = GuildFoldedRejection | HeroNotUnattachedRejection
  * the Guild. Wealth equal to the fee is enough.
  *
  * Refused, changing nothing: `guild-folded`, `hero-not-unattached` (a Hero with no row included,
- * since a Hero who left the pool has an id the History still shows), `insufficient-wealth`, in
- * that order. Throws only on a Guild id the world does not hold: Guild rows are never removed,
+ * since a Hero who left the pool has an id the History still shows), `signing-refused` (the Hero
+ * asks more Fame of the Guild than it has, M3-S5), `insufficient-wealth`, in that order: a Hero
+ * who will not sign refuses whatever the Guild could pay (DL-38). Throws only on a Guild id the world does not hold: Guild rows are never removed,
  * so no front end or controller can offer one, and it is a programming error.
  *
  * The returned document has a new `world`, a copy, so a document that shares the old one is left
@@ -77,6 +90,10 @@ export function applyRecruit(
   const hero: Hero | undefined = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
   if (hero === undefined || hero.unattachedSince === null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'hero-not-unattached', heroId } };
+  }
+  const refusal = signingRefusal(guild, hero, deps.config);
+  if (refusal !== null) {
+    return { ok: false, rejection: { action: 'recruit', reason: 'signing-refused', heroId, ...refusal } };
   }
   const fee = signingFee(hero, deps);
   if (guild.wealth < fee) {

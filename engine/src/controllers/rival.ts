@@ -13,7 +13,7 @@ import { unavailability } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, DispositionKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
-import { baseStat, dispositionOf, signingFee, unattachedHeroes, upkeep } from '../selectors.js';
+import { baseStat, dispositionOf, signingFee, signingRefusal, unattachedHeroes, upkeep } from '../selectors.js';
 
 /** A Disposition's rule: the actions its Guild takes this afternoon, on the world as it stands. */
 export type DispositionRule = (world: World, guild: Guild, deps: EngineDeps) => GuildAction[];
@@ -173,15 +173,17 @@ function strengthFor(hero: Hero, quest: Quest, content: ContentSet): number {
 }
 
 /**
- * A recruit of the cheapest Hero in the Unattached pool, lowest id among equal fees, when
- * `guild`'s Wealth is above `recruitWealthMultiple` times its Upkeep and covers the fee; `null`
- * otherwise, and when the pool is empty.
+ * A recruit of the cheapest Hero in the Unattached pool who would sign for `guild`
+ * (`signingRefusal`, M3-S5), lowest id among equal fees, when `guild`'s Wealth is above
+ * `recruitWealthMultiple` times its Upkeep and covers the fee; `null` otherwise, and when no Hero
+ * in the pool would sign. A Hero who would refuse the Guild's Fame is passed over, never asked.
  */
 function cheapestHire(world: World, guild: Guild, deps: EngineDeps): GuildAction | null {
   const threshold = deps.config.recruitWealthMultiple * upkeep(guild, world, deps.config);
   if (!(guild.wealth > threshold)) return null;
   let cheapest: { heroId: HeroId; fee: number } | null = null;
   for (const hero of unattachedHeroes(world)) {
+    if (signingRefusal(guild, hero, deps.config) !== null) continue;
     const fee = signingFee(hero, deps);
     if (cheapest === null || fee < cheapest.fee) cheapest = { heroId: hero.id, fee };
   }

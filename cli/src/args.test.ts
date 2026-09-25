@@ -41,6 +41,9 @@ describe('parseArgs', () => {
     expect(command('show', 'pool')).toMatchObject({ view: { kind: 'pool' } });
     expect(command('show', 'patrons')).toMatchObject({ view: { kind: 'patrons' } });
     expect(command('show', 'board')).toMatchObject({ view: { kind: 'board' } });
+    expect(command('show', 'rankings')).toMatchObject({ view: { kind: 'rankings', by: 'fame' } });
+    expect(command('show', 'rankings', '--by', 'wealth')).toMatchObject({ view: { kind: 'rankings', by: 'wealth' } });
+    expect(command('show', 'rankings', '--by=fame')).toMatchObject({ view: { kind: 'rankings', by: 'fame' } });
     expect(command('show', 'hero', 'hero-000001')).toMatchObject({ view: { kind: 'hero', heroId: 'hero-000001' } });
     expect(command('show', 'history')).toMatchObject({ view: { kind: 'history' } });
     expect(command('show', 'history', 'hero-000001', '--save', 'demo')).toMatchObject({
@@ -97,6 +100,10 @@ describe('parseArgs', () => {
     [['show', 'market'], 'no view "market"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
+    [['show', 'rankings', '--by', 'level'], '--by takes fame or wealth; got "level"'],
+    [['show', 'rankings', 'wealth'], 'does not take "wealth"'],
+    [['show', 'pool', '--by', 'wealth'], '--by is taken by show rankings alone'],
+    [['show', '--by', 'wealth'], '--by is taken by show rankings alone'],
     [['new', '--master', 'Ada'], 'new needs --guild'],
     [['new', '--guild', 'G', '--master'], '--master needs a value'],
     [['new', '--guild', '--master', 'Ada'], '--guild needs a value'],

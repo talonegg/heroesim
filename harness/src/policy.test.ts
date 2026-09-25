@@ -8,6 +8,7 @@ import {
   playerGuild,
   serialise,
   signingFee,
+  signingRefusal,
   unattachedHeroes,
   upkeep,
   type EngineDeps,
@@ -145,6 +146,32 @@ describe('automaticPolicy', () => {
       const fees = unattachedHeroes(above.document.world).map((hero) => signingFee(hero, deps));
       expect(Math.min(...fees)).toBeGreaterThan(61);
       expect(automaticPolicy(above.document, deps)).toEqual([]);
+    });
+
+    test("passing over a Hero who would refuse the Guild's Fame for the cheapest who would sign, by the engine's own test (M3-S5)", () => {
+      const gated: EngineDeps = { ...deps, config: { ...deps.config, fameRequiredPerLevel: 10 } };
+      const { document, guild } = recruiting(10_000);
+      guild.fame = 0;
+      const pool = unattachedHeroes(document.world);
+      const [first, second] = pool;
+      if (first === undefined || second === undefined) throw new Error('A short pool');
+      // The first the cheapest by far, at Level 3, which asks Fame 20 of a Guild; the second next.
+      const statsAt = (value: number) => Object.fromEntries(Object.keys(first.stats).map((key) => [key, value]));
+      for (const hero of pool) hero.stats = statsAt(20);
+      first.stats = statsAt(1);
+      first.level = 3;
+      second.stats = statsAt(12);
+      expect(signingFee(first, gated)).toBeLessThan(signingFee(second, gated));
+      expect(signingRefusal(guild, first, gated.config)).toEqual({ fameRequired: 20, fame: 0, shortfall: 20 });
+
+      expect(automaticPolicy(document, gated)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: second.id }]);
+
+      guild.fame = 20;
+      expect(automaticPolicy(document, gated)).toEqual([{ kind: 'recruit', guildId: guild.id, heroId: first.id }]);
+
+      guild.fame = 0;
+      for (const hero of pool) hero.level = 2;
+      expect(automaticPolicy(document, gated)).toEqual([]);
     });
 
     test('only while the Roster is below the limit, 8 unless the policy says otherwise', () => {

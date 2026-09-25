@@ -13,6 +13,7 @@ import {
   partyFor,
   playerGuild,
   signingFee,
+  signingRefusal,
   unattachedHeroes,
   upkeep,
   type EngineDeps,
@@ -44,8 +45,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   Hero has both), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
  *   passed over for the next.
  * - **Recruit.** When the Roster is below `rosterLimit` and Wealth is above
- *   `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool, lowest id among
- *   equal fees, if Wealth covers the fee. One a Turn.
+ *   `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
+ *   the Guild (the engine's `signingRefusal`, M3-S5), lowest id among equal fees, if Wealth covers
+ *   the fee. One a Turn. A Hero who would refuse the Guild's Fame is passed over, never asked.
  * - **Never transfer** (until M6).
  *
  * Each choice is made on `document` as it stands: a dispatch moves no Wealth and a recruit sends
@@ -79,6 +81,7 @@ export function automaticPolicy(
   ) {
     let cheapest: { heroId: HeroId; fee: number } | null = null;
     for (const hero of unattachedHeroes(world)) {
+      if (signingRefusal(guild, hero, deps.config) !== null) continue;
       const fee = signingFee(hero, deps);
       if (cheapest === null || fee < cheapest.fee) cheapest = { heroId: hero.id, fee };
     }

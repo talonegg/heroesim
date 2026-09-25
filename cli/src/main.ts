@@ -46,6 +46,7 @@ import {
   renderHistory,
   renderPatrons,
   renderPool,
+  renderRankings,
   renderRoster,
   renderSummary,
   rowIn,
@@ -253,6 +254,8 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderPatrons(document, deps));
     case 'board':
       return say(io, renderBoard(document, deps));
+    case 'rankings':
+      return say(io, renderRankings(document, deps, view.by));
     case 'hero': {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);

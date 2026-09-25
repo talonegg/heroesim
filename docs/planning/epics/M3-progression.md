@@ -106,9 +106,9 @@ Config: `fameRequiredPerLevel`.
 
 **Acceptance:**
 
-- [ ] Every Guild appears once, ordered, with the player's Guild not special-cased
-- [ ] `by: "wealth"` and `by: "fame"` differ on a fixture built to make them differ
-- [ ] A Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero with the
+- [x] Every Guild appears once, ordered, with the player's Guild not special-cased
+- [x] `by: "wealth"` and `by: "fame"` differ on a fixture built to make them differ
+- [x] A Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero with the
       default; raising Fame past the threshold flips the refusal
 - [ ] The harness counts signings refused by Fame per controller kind
 

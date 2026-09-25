@@ -226,6 +226,25 @@ describe("the player's ending ends the game", () => {
     expect(document.world.ended).toBeNull();
   });
 
+  test("an empty Roster is wiped when every Hero it could pay for would refuse its Fame (M3-S5, DL-38)", () => {
+    // No Rivals, so that nobody signs from the pool before night.
+    const refusing = testDeps({ rivalCount: 0, fameRequiredPerLevel: 10 });
+    const start = created('wiped-by-fame', refusing);
+    const player = thePlayer(start.world);
+    wipeRoster(start.world, player);
+    player.wealth = 1_000_000;
+    player.fame = 0;
+    for (const hero of unattachedHeroes(start.world)) hero.level = 2;
+
+    expect(playTo(structuredClone(start), nightOf(0), refusing).document.world.ended).toEqual({
+      turn: nightOf(0),
+      reason: 'roster-wiped',
+    });
+    // Under a rule that asks no Fame, the same Heroes would sign, and the Guild plays on.
+    const unasked = testDeps({ rivalCount: 0, fameRequiredPerLevel: 0 });
+    expect(playTo(start, nightOf(0), unasked).document.world.ended).toBeNull();
+  });
+
   test('an empty Roster with nobody in the pool to sign is wiped, whatever the Wealth', () => {
     const deps = testDeps({ unattachedPoolSize: 0 });
     const start = created('empty-pool', deps);

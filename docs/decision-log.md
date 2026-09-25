@@ -1894,6 +1894,67 @@ are the levers there. The policy's Heroes die at four a year. M3's Levels change
 and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
 keep their rows; their defaults now differ from the config's, as this entry records.
 
+## DL-38 — Rankings are read, not narrated; Fame gates who will sign, by one test (M3-S5)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S5's implementer)
+
+**Context.** M3-S5 asks for the CLI's `show rankings`, an entry recording that Rankings are read and
+not narrated, and Fame's first rule (R10 as amended, pre-M0 review B4): a `signing-refused`
+rejection with the shortfall, `show pool` marking whom the player cannot yet sign, the automatic
+policy and `steady` skipping such Heroes, every Guild gated alike, and a harness counter of
+"signings refused by Fame per controller kind". It leaves open where the test of a signing lives,
+the rejection's payload and its place among `recruit`'s checks, whether a refusal the policy or
+`steady` never meet because they skip counts, how the counter is measured, and whether the Roster
+wiped ending (DL-28 item 1), which asks whether a Guild can still sign anyone, should heed Fame.
+
+**Decision.**
+
+1. **Rankings are read, not narrated.** `rankings(world, by)` already has the epic's shape (DL-28
+   item 8): every Guild not folded, highest first, ties by Guild id, `rank` its place from 1, the
+   player's Guild not special-cased. Rank is never stored (rule 1), and M3 emits no
+   `guild.rank-changed`: nothing reads one, a change of rank follows from Fame and Wealth moving,
+   which have their entries already (`quest.resolved`, `guild.upkeep-paid`, `hero.recruited`), and
+   an event per Guild per change of place would add entries on most nights to a History already
+   four times its size target (DL-34). A front end that wants to tell the player they climbed
+   compares two readings; the event is added when a front end asks for it.
+2. **`show rankings [--by fame|wealth]`**, by Fame unless given: rank, id, name, controller and the
+   measure, straight from `rankings`. `--by` on any other view is a bad command line (exit 2).
+3. **One test of a signing: `signingRefusal(guild, hero, config)`** in `selectors.ts`, `null` when
+   the Hero would sign and otherwise `{ fameRequired, fame, shortfall }`, where `fameRequired` is
+   `fameRequiredPerLevel × (level − 1)` and Fame equal to it is enough. `fameRequiredPerLevel` is
+   **10** (INPUTS 5.6). `recruit`, `steady`, the automatic policy, the CLI's `show pool` and the
+   Roster wiped ending all ask it, and no other code works the threshold out. It asks nothing of
+   Wealth, which stays the fee's check.
+4. **`recruit`'s checks** are now `guild-folded`, `hero-not-unattached`, **`signing-refused`**,
+   `insufficient-wealth`, in that order: the Hero refuses before a fee is asked, so a Guild short of
+   both Fame and Wealth is told of the Fame, not sent away to save up for a Hero who would still
+   refuse it. The rejection carries `{ heroId, fameRequired, fame, shortfall }`. It is the same
+   rule for the player and every Rival (ADR-0002); the CLI puts it as "will not sign for a Guild
+   with less than 40 Fame; The Test has 0, 40 short".
+5. **`steady` and the policy pass over** a Hero who would refuse, and recruit the cheapest who would
+   sign; they never ask one who would not, so neither meets `signing-refused` (a Rival's refused
+   action is a bug, DL-30 item 3; the harness fails a run on one, DL-34 item 2).
+6. **Roster wiped counts only Heroes who would sign.** DL-28's check, an empty Roster and Wealth
+   below the cheapest fee in the pool, now takes the cheapest among the Heroes who would sign for
+   that Guild: an empty Roster whose Wealth reaches only Heroes who refuse it has no way back. The
+   pool refills with Level 1 Heroes, who sign anywhere, so this seldom differs from before.
+7. **The counter, for the M3-close counter task** (not added to the harness here). "Signings refused
+   by Fame" counts the refusals a Guild meets **whether or not it asks**: because the policy and
+   `steady` skip, the `signing-refused` rejections they return are zero by construction and would say
+   nothing about how Fame gates a Guild. It is measured with `unsignableHeroes(world, guild,
+   config)` (`selectors.ts`, the pool's Heroes for whom `signingRefusal` is not null): once a Day,
+   on the morning Turn before the policy acts, for every Guild in play, the count is added to its
+   controller kind's total. The report gives, per controller kind, that total (Hero-Days refused),
+   its mean per Guild-Day, and the Guild-Days on which at least one pool Hero refused. Beside it,
+   the `signing-refused` rejections actually returned, which must be 0. No event is needed: the
+   pool and every Guild's Fame are in `world`.
+
+**Consequences.** `configVersion` stays 2: a field was added and no default changed (DL-28 item 10's
+reading). Until M3-S1 gives Heroes Levels, every Hero is Level 1 and nothing is refused; after it, a
+pool Hero above Level 1 is one a folded Guild released (DL-28 item 3), the generator making Level 1
+Heroes, so the counter measures how often a fallen Rival's veterans are out of a Guild's reach. A
+Guild at Fame 0 signs only Level 1 Heroes and needs Fame 40 for a Level 5.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

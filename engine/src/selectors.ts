@@ -54,6 +54,48 @@ export function signingFee(hero: Pick<Hero, 'level' | 'stats'>, deps: Pick<Engin
   );
 }
 
+/** Why an Unattached Hero refuses to sign for a Guild: its Fame is short of what their Level asks. */
+export interface SigningRefusal {
+  /** The Fame the Hero asks of a Guild: `fameRequiredPerLevel × (level − 1)`. */
+  fameRequired: number;
+  /** The Guild's Fame. */
+  fame: number;
+  /** The Fame the Guild lacks, `fameRequired − fame`: always above 0. */
+  shortfall: number;
+}
+
+/**
+ * Whether `hero` would sign for `guild`: `null` when they would, or why they refuse (M3-S5, R10 as
+ * amended, pre-M0 review B4, INPUTS 5.6, DL-38). A Hero refuses a Guild whose Fame is below
+ * `fameRequiredPerLevel × (level − 1)`, so a Level 1 Hero signs anywhere; Fame at the threshold is
+ * enough. Every Guild is asked alike (ADR-0002).
+ *
+ * The one test of it: `recruit` refuses `signing-refused` on it, `steady` and the harness's policy
+ * pass over the Heroes it refuses, the Roster-wiped ending counts only the Heroes who would sign,
+ * and the CLI's `show pool` marks the rest. It asks nothing of Wealth, which is the fee's business.
+ */
+export function signingRefusal(
+  guild: Pick<Guild, 'fame'>,
+  hero: Pick<Hero, 'level'>,
+  config: Pick<GameConfig, 'fameRequiredPerLevel'>,
+): SigningRefusal | null {
+  const fameRequired = config.fameRequiredPerLevel * Math.max(0, hero.level - 1);
+  if (guild.fame >= fameRequired) return null;
+  return { fameRequired, fame: guild.fame, shortfall: fameRequired - guild.fame };
+}
+
+/**
+ * The Unattached Heroes who would refuse to sign for `guild` (`signingRefusal`), in id order:
+ * what the M3 harness counts as signings refused by Fame (DL-38), whether or not the Guild asked.
+ */
+export function unsignableHeroes(
+  world: Pick<World, 'heroes'>,
+  guild: Pick<Guild, 'fame'>,
+  config: Pick<GameConfig, 'fameRequiredPerLevel'>,
+): Hero[] {
+  return unattachedHeroes(world).filter((hero) => signingRefusal(guild, hero, config) !== null);
+}
+
 /** A Guild statistic the Rankings order by (R10). */
 export type RankingMeasure = 'fame' | 'wealth';
 
@@ -72,7 +114,8 @@ export interface Ranking {
  * not in them (pre-M0 review D6). Computed, never stored (data-model rule 1).
  *
  * Pulled forward from M3-S5 by M2-S10, whose acceptance needs a folded Rival to be absent from
- * them (DL-28); M3-S5 adds the CLI and whatever else its story asks.
+ * them (DL-28); M3-S5 adds the CLI's `show rankings`. Rankings are read, not narrated: no event
+ * marks a change of rank, until a front end asks for one (DL-38).
  */
 export function rankings(world: Pick<World, 'guilds'>, by: RankingMeasure): Ranking[] {
   return Object.values(world.guilds)

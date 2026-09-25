@@ -238,6 +238,32 @@ describe('steady: recruiting', () => {
     expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: lowestId?.id }]);
   });
 
+  test("passes over a Hero who would refuse its Fame for the cheapest who would sign (M3-S5), and asks no one when none would", () => {
+    const gated = testDeps({ recruitWealthMultiple: 10, fameRequiredPerLevel: 10 });
+    const { world, rival } = scene('fame-skip', gated);
+    rival.wealth = 100_000;
+    rival.fame = 0;
+    const first = cheapest(world);
+    // Level 2 asks Fame 10 of a Guild and costs 25 more, so give the others dearer Stats to keep it cheapest.
+    first.level = 2;
+    for (const hero of unattachedHeroes(world)) {
+      if (hero.id !== first.id) hero.stats = Object.fromEntries(Object.keys(hero.stats).map((key) => [key, 20]));
+    }
+    expect(cheapest(world).id).toBe(first.id);
+    const hires = () => rivalChoices(world, rival, gated).filter((action) => action.kind === 'recruit');
+
+    const [hire] = hires();
+    expect(hire).toMatchObject({ kind: 'recruit', guildId: rival.id });
+    expect(hire?.kind === 'recruit' && hire.heroId).not.toBe(first.id);
+
+    rival.fame = 10;
+    expect(hires()).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: first.id }]);
+
+    rival.fame = 0;
+    for (const hero of unattachedHeroes(world)) hero.level = 3;
+    expect(hires()).toEqual([]);
+  });
+
   test('recruits no one it cannot pay for, and no one from an empty pool', () => {
     const noThreshold = testDeps({ recruitWealthMultiple: 0 });
     const { world, rival } = scene('afford', noThreshold);

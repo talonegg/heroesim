@@ -9,6 +9,7 @@ import {
   deserialise,
   makeId,
   playerGuild,
+  rankings,
   serialise,
   signingFee,
   unattachedHeroes,
@@ -132,6 +133,38 @@ describe('recruit', () => {
   });
 });
 
+/** Pins the save's `fameRequiredPerLevel` at 10, the value these tests are written against. */
+function pinFame(): void {
+  edit((edited) => {
+    edited.meta.config.fameRequiredPerLevel = 10;
+  });
+}
+
+describe('recruit and Fame (M3-S5)', () => {
+  test("refuses a Hero who will not sign for the player's Guild's Fame, naming the Fame asked, and writes nothing", () => {
+    const { guild, hero } = newWorld();
+    pinFame();
+    edit((edited) => {
+      const row = edited.world.heroes[hero.id];
+      if (row !== undefined) row.level = 5;
+    });
+    const before = saved();
+
+    const refused = play(['recruit', '--hero', hero.id]);
+
+    expect(refused.code).toBe(exitCodes.refused);
+    expect(refused.err).toContain(`${hero.name} (${hero.id}) will not sign for a Guild with less than 40 Fame`);
+    expect(refused.err).toContain(`${guild.name} has 0, 40 short`);
+    expect(saved()).toBe(before);
+
+    edit((edited) => {
+      const player = edited.world.guilds[guild.id];
+      if (player !== undefined) player.fame = 40;
+    });
+    expect(play(['recruit', '--hero', hero.id]).code).toBe(exitCodes.ok);
+  });
+});
+
 describe('the views', () => {
   test("show pool prints each Hero's signing fee from the engine's selector", () => {
     newWorld();
@@ -141,10 +174,59 @@ describe('the views', () => {
     const run = play(['show', 'pool']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(run.out).toMatch(/\sFee\n/);
+    expect(run.out).toMatch(/\sFee\s+Signs\n/);
     for (const hero of unattachedHeroes(created.world)) {
-      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps)}$`));
+      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps)}\\s+yes$`));
     }
+  });
+
+  test("show pool marks the Heroes who will not yet sign for the player's Guild with the Fame they ask (M3-S5)", () => {
+    const { guild, hero } = newWorld();
+    pinFame();
+    edit((edited) => {
+      const row = edited.world.heroes[hero.id];
+      if (row !== undefined) row.level = 5;
+    });
+
+    const run = play(['show', 'pool']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(rowOf(run.out, hero.id)).toMatch(/\sneeds Fame 40$/);
+    const others = unattachedHeroes(document().world).filter((each) => each.id !== hero.id);
+    expect(others.length).toBeGreaterThan(0);
+    for (const other of others) expect(rowOf(run.out, other.id)).toMatch(/\syes$/);
+    expect(run.out).toContain(`${guild.name} has 0 Fame.`);
+  });
+
+  test('show rankings orders every Guild in play by Fame, and by Wealth with --by wealth, as the engine ranks them', () => {
+    newWorld();
+    edit((edited) => {
+      Object.values(edited.world.guilds).forEach((each, index) => {
+        each.fame = 10 * index;
+        each.wealth = 1_000 - 10 * index;
+      });
+    });
+    const { world } = document();
+
+    for (const [argv, by, heading] of [
+      [['show', 'rankings'], 'fame', 'Rankings by Fame'],
+      [['show', 'rankings', '--by', 'wealth'], 'wealth', 'Rankings by Wealth'],
+    ] as const) {
+      const run = play([...argv]);
+      expect(run.code).toBe(exitCodes.ok);
+      expect(run.out).toContain(heading);
+      const ranked = rankings(world, by);
+      expect(ranked).toHaveLength(Object.keys(world.guilds).length);
+      const lines = run.out.split('\n');
+      const order = ranked.map((ranking) => lines.findIndex((line) => line.includes(ranking.guildId)));
+      expect(order.every((index) => index > 0)).toBe(true);
+      expect(order).toEqual([...order].sort((a, b) => a - b));
+      for (const ranking of ranked) {
+        expect(lines[order[ranking.rank - 1] ?? 0]).toMatch(new RegExp(`^\\s*${ranking.rank}\\s+${ranking.guildId}\\s.*\\s${ranking.value}$`));
+      }
+    }
+    // The two orders differ on this save: the player's Guild, first created, is last by Fame and first by Wealth.
+    expect(rankings(world, 'fame').at(-1)?.guildId).toBe(rankings(world, 'wealth')[0]?.guildId);
   });
 
   test('show hero says when a Hero whose row stayed left the pool', () => {

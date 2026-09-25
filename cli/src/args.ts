@@ -3,7 +3,7 @@
 // is the command's to check, once the save and the content are open. Whether a word has the form
 // of an id is checked here, by the engine's `isId`.
 
-import { isId, type HeroId, type QuestId, type StopCondition } from '@heroesim/engine';
+import { isId, type HeroId, type QuestId, type RankingMeasure, type StopCondition } from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -13,10 +13,13 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | board | hero <heroId> | history [entityId]]
+  show [guilds | roster [guildId] | pool | patrons | board | rankings [--by fame|wealth]
+        | hero <heroId> | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; board shows the Quests on offer; history shows
-      the whole History unless given an id.
+      player's Guild unless given another; pool marks the Heroes who will not yet sign for
+      the player's Guild's Fame; board shows the Quests on offer; rankings orders the
+      Guilds in play by Fame, or by Wealth with --by wealth; history shows the whole
+      History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -57,6 +60,7 @@ export type View =
   | { kind: 'pool' }
   | { kind: 'patrons' }
   | { kind: 'board' }
+  | { kind: 'rankings'; by: RankingMeasure }
   | { kind: 'hero'; heroId: string }
   | { kind: 'history'; entityId?: string };
 
@@ -86,7 +90,7 @@ export type Parsed = { ok: true; command: Command } | { ok: false; problem: stri
 const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
-  show: { save: 'value' },
+  show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
@@ -183,8 +187,21 @@ function atMost(positional: readonly string[], count: number, command: string): 
   if (positional.length > count) refuse(`${command} does not take "${positional[count] ?? ''}"`);
 }
 
-function parseView(positional: readonly string[]): View {
+/** The words `--by` takes: the measures the Rankings order by (M3-S5). */
+const rankingMeasures: Readonly<Record<RankingMeasure, true>> = Object.freeze({ fame: true, wealth: true });
+
+/** `show rankings --by`: `fame` unless given. */
+function rankingMeasure(by: string | undefined): RankingMeasure {
+  if (by === undefined) return 'fame';
+  if (!Object.hasOwn(rankingMeasures, by)) {
+    refuse(`--by takes ${Object.keys(rankingMeasures).join(' or ')}; got "${by}"`);
+  }
+  return by as RankingMeasure;
+}
+
+function parseView(positional: readonly string[], by: string | undefined): View {
   const [view, id] = positional;
+  if (by !== undefined && view !== 'rankings') refuse('--by is taken by show rankings alone');
   switch (view) {
     case undefined:
       return { kind: 'summary' };
@@ -197,6 +214,9 @@ function parseView(positional: readonly string[]): View {
     case 'roster':
       atMost(positional, 2, 'show roster');
       return id === undefined ? { kind: 'roster' } : { kind: 'roster', guildId: id };
+    case 'rankings':
+      atMost(positional, 1, 'show rankings');
+      return { kind: 'rankings', by: rankingMeasure(by) };
     case 'hero':
       atMost(positional, 2, 'show hero');
       return id === undefined ? refuse('show hero needs a Hero id') : { kind: 'hero', heroId: id };
@@ -245,7 +265,7 @@ function parse(argv: readonly string[]): Command {
       };
     }
     case 'show':
-      return { name, save, view: parseView(positional) };
+      return { name, save, view: parseView(positional, flags.get('by')) };
     case 'advance': {
       atMost(positional, 0, 'advance');
       const turns = flags.get('turns');
