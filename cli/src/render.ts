@@ -1,0 +1,269 @@
+// Everything the CLI prints about a world, as plain lines: aligned text tables, no colour, no
+// cursor control, nothing that waits for a key.
+//
+// The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
+// Morale, a Turn), the size of a document table or list, or the result of an engine selector
+// (`ageOf`, `baseStat`, `unattachedHeroes`); every name is a document field or a content row's
+// display name. Where the engine has no selector for something a view needs, the selector goes
+// into the engine, not here.
+//
+// Potential is stored plainly and never shown (data-model rule 9): no view reads
+// `hero.potential`, and main.test.ts checks the printed Hero for it.
+
+import {
+  ageOf,
+  baseStat,
+  unattachedHeroes,
+  type ContentSet,
+  type EngineDeps,
+  type Entry,
+  type Guild,
+  type Hero,
+  type Patron,
+  type WorldDocument,
+} from '@heroesim/engine';
+
+// ── Tables ───────────────────────────────────────────────────────────────────────────────────
+
+export interface Column {
+  heading: string;
+  /** Numbers read best right-aligned. */
+  align?: 'left' | 'right';
+}
+
+const gap = '  ';
+
+/** A table: a heading row, a rule of dashes under each heading, then the rows, columns aligned. */
+export function table(columns: readonly Column[], rows: readonly (readonly string[])[]): string[] {
+  const widths = columns.map((column, index) =>
+    Math.max(column.heading.length, ...rows.map((row) => (row[index] ?? '').length)),
+  );
+  const line = (cells: readonly string[]): string =>
+    columns
+      .map((column, index) => {
+        const cell = cells[index] ?? '';
+        const width = widths[index] ?? 0;
+        return column.align === 'right' ? cell.padStart(width) : cell.padEnd(width);
+      })
+      .join(gap)
+      .trimEnd();
+  return [
+    line(columns.map((column) => column.heading)),
+    line(widths.map((width) => '-'.repeat(width))),
+    ...rows.map(line),
+  ];
+}
+
+/** Label and value pairs, the labels padded to one width. */
+function fields(pairs: readonly (readonly [string, string])[]): string[] {
+  const width = Math.max(...pairs.map(([label]) => label.length));
+  return pairs.map(([label, value]) => `${label.padEnd(width)}${gap}${value}`.trimEnd());
+}
+
+// ── Names ────────────────────────────────────────────────────────────────────────────────────
+
+/** A content row's display name; a key the content does not define is shown as it is (rule 5). */
+function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
+  return Object.hasOwn(rows, key) ? (rows[key]?.name ?? key) : key;
+}
+
+function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
+  return Object.hasOwn(rows, id) ? rows[id] : undefined;
+}
+
+function capitalised(word: string): string {
+  return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+function none(list: readonly string[]): string {
+  return list.length === 0 ? 'none' : list.join(', ');
+}
+
+// ── Guilds and the summary ───────────────────────────────────────────────────────────────────
+
+function controllerOf(guild: Guild): string {
+  return guild.controller.kind === 'player' ? 'Player' : `Rival (${guild.controller.disposition})`;
+}
+
+function guildTable(document: WorldDocument, content: ContentSet): string[] {
+  const { world } = document;
+  const guilds = Object.values(world.guilds);
+  return table(
+    [
+      { heading: 'Id' },
+      { heading: 'Guild' },
+      { heading: 'Controller' },
+      { heading: 'Guildmaster' },
+      { heading: 'Background' },
+      { heading: 'Roster', align: 'right' },
+      { heading: 'Wealth', align: 'right' },
+      { heading: 'Fame', align: 'right' },
+    ],
+    guilds.map((guild) => [
+      guild.id,
+      guild.name,
+      controllerOf(guild),
+      rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
+      nameIn(content.backgrounds, guild.backgroundKey),
+      String(guild.rosterIds.length),
+      String(guild.wealth),
+      String(guild.fame),
+    ]),
+  );
+}
+
+/** `show`: the seed, the Turn, every Guild, and how many of everything there are. */
+export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
+  const { meta, world, history } = document;
+  const heroes = Object.keys(world.heroes).length;
+  const counts = [
+    `${Object.keys(world.guilds).length} Guilds`,
+    `${heroes} Heroes (${unattachedHeroes(world).length} Unattached)`,
+    `${Object.keys(world.patrons).length} Patrons`,
+    `${history.entries.length} History entries`,
+  ];
+  return [
+    `Seed ${meta.seed}, Turn ${world.turn}, created ${meta.createdAt}`,
+    '',
+    ...guildTable(document, deps.content),
+    '',
+    counts.join(', '),
+  ];
+}
+
+/** `show guilds`. */
+export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
+  return ['Guilds', '', ...guildTable(document, deps.content)];
+}
+
+// ── Heroes ───────────────────────────────────────────────────────────────────────────────────
+
+function heroTable(heroes: readonly Hero[], document: WorldDocument, deps: EngineDeps): string[] {
+  const { content, config } = deps;
+  const { turn } = document.world;
+  return table(
+    [
+      { heading: 'Id' },
+      { heading: 'Name' },
+      { heading: 'Class' },
+      { heading: 'Level', align: 'right' },
+      { heading: 'Age', align: 'right' },
+      { heading: 'Morale', align: 'right' },
+      { heading: 'Background' },
+    ],
+    heroes.map((hero) => [
+      hero.id,
+      hero.name,
+      nameIn(content.classes, hero.classKey),
+      String(hero.level),
+      String(ageOf(hero, turn, config)),
+      String(hero.morale),
+      nameIn(content.backgrounds, hero.backgroundKey),
+    ]),
+  );
+}
+
+/** `show roster [guildId]`: the Guild's Roster in its own order. */
+export function renderRoster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
+  const heroes = guild.rosterIds.flatMap((id) => rowIn(document.world.heroes, id) ?? []);
+  return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
+}
+
+/** `show pool`: the Unattached Heroes. */
+export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
+  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps)];
+}
+
+/**
+ * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
+ * Stats shown are base values, read through `baseStat`.
+ */
+export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
+  const { content, config } = deps;
+  const { world } = document;
+  const guild = hero.guildId === null ? undefined : rowIn(world.guilds, hero.guildId);
+
+  const attributes: [string, string][] = [
+    ['Sex', hero.sex],
+    ['Age', String(ageOf(hero, world.turn, config))],
+    ['Class', nameIn(content.classes, hero.classKey)],
+    ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
+    ['Guild', hero.guildId === null ? 'Unattached' : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
+    ['Level', String(hero.level)],
+    ['XP', String(hero.xp)],
+    ['Morale', String(hero.morale)],
+    ['Injury', hero.injury === null ? 'none' : `${hero.injury.typeKey}, heals on Turn ${hero.injury.healsOnTurn}`],
+    ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
+  ];
+  if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
+  if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
+  if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);
+
+  let lastArea = '';
+  const stats = Object.values(content.stats)
+    .filter((stat) => stat.owner === 'hero')
+    .map((stat) => {
+      const area = stat.area === lastArea ? '' : capitalised(stat.area);
+      lastArea = stat.area;
+      return [area, stat.name, String(baseStat(hero.stats, stat))];
+    });
+
+  const skillKeys = Object.keys(hero.skills);
+  const inContentOrder = [
+    ...Object.keys(content.skills).filter((key) => skillKeys.includes(key)),
+    ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
+  ];
+  const skills = inContentOrder.map((key) => [nameIn(content.skills, key), String(hero.skills[key])]);
+
+  return [
+    `${hero.name} (${hero.id})`,
+    '',
+    ...fields(attributes),
+    '',
+    'Stats',
+    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }], stats),
+    '',
+    'Skills',
+    ...(skills.length === 0
+      ? ['none']
+      : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+  ];
+}
+
+// ── Patrons ──────────────────────────────────────────────────────────────────────────────────
+
+/** `show patrons`. */
+export function renderPatrons(document: WorldDocument, deps: EngineDeps): string[] {
+  const patrons: Patron[] = Object.values(document.world.patrons);
+  return [
+    'Patrons',
+    '',
+    ...table(
+      [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }],
+      patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey)]),
+    ),
+  ];
+}
+
+// ── History ──────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `show history [entityId]`: entries as the engine's History readers return them, under a
+ * heading that says which and in what order. Each names its participants by the labels it was
+ * written with, so a Hero since removed still reads.
+ */
+export function renderHistory(heading: string, entries: readonly Entry[]): string[] {
+  return [
+    heading,
+    '',
+    ...table(
+      [{ heading: 'Turn', align: 'right' }, { heading: 'Event' }, { heading: 'Milestone' }, { heading: 'Who' }],
+      entries.map((entry) => [
+        String(entry.turn),
+        entry.type,
+        entry.milestone ? 'yes' : '',
+        entry.participants.map((id) => entry.labels[id] ?? id).join(', '),
+      ]),
+    ),
+  ];
+}

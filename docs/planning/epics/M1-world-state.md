@@ -225,11 +225,11 @@ outside the engine).
 
 **Acceptance:**
 
-- [ ] `new`, `show roster`, `show pool`, `show patrons`, `show hero <id>` work end to end on a
+- [x] `new`, `show roster`, `show pool`, `show patrons`, `show hero <id>` work end to end on a
       real file
-- [ ] `show hero` never prints Potential (rule 9); a test greps the output
-- [ ] A refused load prints the reason and exits non-zero
-- [ ] `cli/` contains no rule: every number shown comes from a document field or an engine
+- [x] `show hero` never prints Potential (rule 9); a test greps the output
+- [x] A refused load prints the reason and exits non-zero
+- [x] `cli/` contains no rule: every number shown comes from a document field or an engine
       selector
 
 ### M1-S10 · Harness skeleton and the determinism measure · 1 session

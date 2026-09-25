@@ -627,6 +627,78 @@ field lists, which the compiler demands. A later build allowing more Parties cha
 1,000-Hero world with about a thousand entries validates in about 11 ms, and M2-S12 measures a
 20-year save.
 
+## DL-21 — The CLI's command line, save files, and the selectors it reads through (M1-S9)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S9's implementer)
+
+**Context.** M1-S9 names the CLI's commands, its save location (INPUTS 3.12, §9) and how it
+builds `deps.config` (data-model §2, pre-M0 review D3), and says `cli/` holds no rule. It leaves
+open how the runner is shaped and tested, what a `<file>` on the command line means, what `new`
+does without `--background` or over an existing save, what `save --as` and `load` write, the exit
+codes, and where the numbers a view needs, such as a Hero's age, come from.
+
+**Decision.**
+
+1. **The runner.** `cli/src/main.ts` exports `main(argv, io)`, returning the exit code, with `io`
+   the output streams, the working directory, the environment, the clock and a random source; its
+   last line runs it with Node's when the file is the entry (`import.meta.main`). Tests run it in
+   process against a temporary directory and real files. `play` runs `tsx cli/src/main.ts`
+   (DL-14 item 6); the placeholder `cli/src/index.ts` and its test are gone, and the package
+   exports `main.ts`. Output goes through `render.ts` as plain text tables.
+2. **Exit codes.** 0 done; 1 refused (no save, a save that does not load, an id the save lacks, a
+   save `new` would replace, a file-system error); 2 a bad command line (an unknown command, flag
+   or view, a flag without its value or given twice, a missing argument, a blank name, a key that
+   is not a Guild Background, a word that is not an id), printed with the usage when the command
+   line does not parse, and with what is expected when a value is wrong.
+3. **Save files.** `--save`, `save --as` and `load` take a `<file>`: one with no slash and no
+   `.json` is a name, `<dir>/<name>.json`, where `<dir>` is `HEROESIM_SAVE_DIR` resolved against
+   the working directory or else `.saves/` in it; anything else is a path from the working
+   directory. `--save` defaults to `current`.
+4. **Reading a save** is `openSave` in `cli/src/saves.ts`: `deserialise` with
+   `deps.config = defaultConfig` (DL-20 item 11), then, only after the load, the play deps
+   `{ config: { ...defaultConfig, ...meta.config }, content }`, which every view reads (a Hero's
+   age uses the save's `turnsPerYear`). Content keys the content lacks print a warning and the
+   save still loads (rule 5).
+5. **What is written.** A command writes only when the World State it names changes: `new`
+   writes the new world, `load` writes the loaded document to `--save`, `save --as` writes to its
+   target; `show` only reads, since writing back what it read would change nothing. What is
+   written is always `serialise` of a document that loaded or was just created, so `save --as`
+   refuses to copy a save that does not load, `load` changes nothing when it refuses, and a save
+   copied then loaded back is byte for byte the original (the M1 gate).
+6. **`new`.** Without `--background`, the setup leaves `backgroundKey` out and `createWorld`
+   draws it from the seed as it does a Rival's (DL-19 item 1), rather than the CLI taking the
+   first Guild Background in content order, which would be a rule outside the engine, or
+   refusing, which makes a flag the epic lists as optional compulsory. A given key must be an
+   `owner: "guild"` Background; otherwise the choices are listed. Names are trimmed and a blank
+   one refused, since `createWorld` throws on one. `createdAt` is the CLI's clock as an ISO
+   string (D10.1), and a new world is created under `defaultConfig`. `new` refuses to replace an
+   existing save unless given `--force`, a flag the epic does not list: with no prompts, a
+   repeated `new` would otherwise lose a game silently. `save --as` replaces its target, since
+   naming it is the request.
+7. **The made-up seed** (INPUTS 3.1) is `<adjective>-<animal>-<four digits>` from two lists of
+   sixteen words in `cli/src/seed.ts`, drawn with `Math.random`: 2,560,000 seeds, each readable
+   and typeable. To the engine it is any string.
+8. **The views.** `show` alone prints the seed, the Turn, the Guilds table and counts of Guilds,
+   Heroes, Unattached Heroes, Patrons and History entries. `show history` prints the whole
+   History oldest first (`entriesBetween(history, 0, Infinity)`), `show history <id>` one
+   entity's entries newest first (`entriesFor`, DL-18), each row the Turn, the type, a Milestone
+   mark and the participants' labels. `show roster` without an id is the player's Guild. A
+   content key the content lacks is shown as the key. `show hero` shows base Stats and never
+   reads `potential` (rule 9).
+9. **Selectors added to the engine**, so that every number the CLI prints is a document field,
+   a table's size or a selector's result: `ageOf(person, turn, config)` in `engine/src/time.ts`,
+   a Hero's or Guildmaster's age in whole years, `ageAtEntry` plus the years completed since
+   `enteredTurn`, rising on the Turn a year completes and throwing for a Turn before entry
+   (M2-S1 adds `dayOf`, `timeOfDay` and `yearOf` beside it); and in `engine/src/selectors.ts`
+   `playerGuild(world)`, `unattachedHeroes(world)` in id order, and `baseStat(values, stat)`,
+   the stored value or the content's default for a Stat the row lacks (rule 5).
+
+**Consequences.** M2-S1's `advance` command follows the same shape: open the save, act through
+the play deps, write it back. A rule reading age should call `ageOf` rather than the fractional
+formula in data-model §3.2, or add a selector beside it and say which it uses. The web (M7-S2)
+builds its deps the same two-step way and can share the selectors. Replacing a save with `new`
+needs `--force`; nothing else in the CLI asks for confirmation.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
