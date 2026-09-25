@@ -254,6 +254,57 @@ line 567).
 
 **Consequences.** DL-05 and E2 are read with these corrections. No decision changes.
 
+## DL-18 — The History's range bounds and paging, what `append` checks, and no freezing
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S3)
+
+**Context.** M1-S3 names the functions of `engine/src/history.ts` (ADR-0008, data-model §4)
+but leaves open the bounds of `entriesBetween`, the meaning of `entriesFor`'s `{ from, limit }`,
+how much `append` checks, and whether it freezes what it stores; the acceptance box "a test
+freezes every entry after append and reads back unchanged" reads either way. `advance` (M2-S1),
+the CLI's `show history` (M1-S9) and the web's Hero pages (M7) build on these contracts.
+
+**Decision.**
+
+1. `entriesBetween(history, fromTurn, toTurn)` is half-open, `fromTurn` included and `toTurn`
+   excluded, like `Array.prototype.slice`, so consecutive ranges tile: Turn `t` alone is
+   `(t, t + 1)`, Day `d` is `(3d, 3d + 3)`, year `y` is `(y × turnsPerYear, (y + 1) ×
+   turnsPerYear)`. Either bound may be an infinity; an empty or reversed range returns `[]`; a
+   NaN bound throws.
+2. `entriesFor(history, entityId, { from = 0, limit })` returns newest first; `from` is how many
+   of the newest entries to skip and `limit` the most to return (all when omitted), each a whole
+   number from 0 or it throws. `{ from: 20, limit: 10 }` is the third page of ten.
+3. `append` checks, before changing anything, only what its indexes and the binary search rely
+   on: the type contains a dot (what `EventType` promises), each participant is an id of the
+   data-model §3.1 form (what `EntityId` promises, and what the validator refuses otherwise), and
+   the Turn is a whole number from 0 not below the last entry's. Because a type always has a dot
+   and an id is always `<table>-<six digits>`, no index key can be a key of `Object.prototype`
+   such as `__proto__` or `constructor`; the readers also look keys up with `Object.hasOwn`, so
+   any string reads as absent unless indexed, in a History parsed from JSON too. The indexes stay
+   ordinary `{}` objects rather than null-prototype ones, because a loaded save gives ordinary
+   objects and the two must behave alike.
+4. `append` does not check that the entry is JSON-safe. The validator runs on every load and,
+   in tests, after every `advance` (data-model §6), and reuses `isJsonSafe`; walking every
+   payload on every append would repeat that in play. For this to hold, **M1-S7's validator runs
+   `isJsonSafe` over `history`**.
+5. `append` stores the entry as given, neither copied nor frozen. Measured here, a deep freeze
+   costs about 0.4 µs an entry against about 0.07 µs for the checks in item 3, and data-model
+   §7's harness target (1,000 games of 20 years in 10 minutes) leaves about 27 µs a Turn:
+   freezing ten entries a Turn would spend some 15% of it. Freezing would also guard only the
+   entries appended in the running process, since `JSON.parse` and `structuredClone` return
+   unfrozen copies, so a loaded game would behave unlike a new one; and it would freeze objects
+   the caller still holds (the events `advance` returns are the same objects). Immutability after
+   append rests instead on the module's shape and its tests: `append` is the only export that
+   writes, the readers return new arrays, one test deep-freezes every entry after append and
+   reads everything back unchanged, and another runs every reader on a wholly frozen History.
+6. An entity listed twice among one entry's participants is indexed once; the entry itself is
+   stored as given. `append` returns the new entry's position, its sequence number.
+
+**Consequences.** Code that changes an entry after appending it, or one a reader returned,
+rewrites the past for every document sharing the History, and does so silently unless a test
+has frozen that entry. If such a bug turns up, freezing in `append` is a small change to weigh
+against the per-Turn cost M2-S12 measures.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
