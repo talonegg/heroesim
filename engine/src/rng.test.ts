@@ -411,8 +411,9 @@ describe("rng.ts's state type", () => {
     const pattern = new RegExp(`\\b${typeName}\\b`);
     const owners = new Set(['rng.ts', 'document.ts']);
     const src = fileURLToPath(new URL('./', import.meta.url));
-    const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter((file) =>
-      file.endsWith('.ts'),
+    // boundary.test.ts writes and deletes probe files here while other tests run.
+    const files = readdirSync(src, { recursive: true, encoding: 'utf8' }).filter(
+      (file) => file.endsWith('.ts') && !/(^|[\\/])boundary-probe-/.test(file),
     );
 
     expect(files).toContain('rng.ts');

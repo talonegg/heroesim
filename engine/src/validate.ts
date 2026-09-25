@@ -17,6 +17,7 @@ import {
   maxIdNumber,
   parseId,
   tableNames,
+  type Ending,
   type Entry,
   type EventType,
   type Guild,
@@ -53,6 +54,7 @@ export const refusalChecks = [
   'hero-in-two-parties',
   'party-member-mismatch',
   'guildmaster-guild-mismatch',
+  'folded-guild-in-play',
   'quest-party-mismatch',
   'too-many-parties',
   'duplicate-stack',
@@ -135,6 +137,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   heroInTwoParties,
   partyMemberMismatch,
   guildmasterGuildMismatch,
+  foldedGuildInPlay,
   questPartyMismatch,
   tooManyParties,
   duplicateStack,
@@ -250,6 +253,8 @@ const worldFields: Shape<World> = {
   offers: 'map',
   modules: 'map',
 };
+
+const endingFields: Shape<Ending> = { turn: 'integer', reason: 'string' };
 
 const historyFields: Shape<History> = { entries: 'list', byEntity: 'map', byType: 'map', milestones: 'list' };
 
@@ -445,6 +450,7 @@ function documentShape(document: unknown): ValidationFailure[] {
   const { meta, world, history } = document;
   fields(meta, metaFields, ['meta']);
   if (fields(world, worldFields, ['world'])) {
+    if (world.ended !== null) fields(world.ended, endingFields, ['world', 'ended']);
     for (const table of tableNames) {
       for (const [id, row] of Object.entries(world[table] as Record<string, unknown>)) {
         if (fields(row, rowFields[table], ['world', table, id])) rowParts(table, id, row);
@@ -741,6 +747,34 @@ function guildmasterGuildMismatch({ world }: WorldDocument): ValidationFailure[]
         check: 'guildmaster-guild-mismatch',
         id: guild.guildmasterId,
         detail: `${guildId} names ${guild.guildmasterId} as Guildmaster, whose guildId is ${q(guildmaster.guildId)}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/**
+ * A folded Guild is out of play (DL-28): no Hero is on its Roster and no Party is its own. Its row
+ * and its Guildmaster's stay, and its dead or retired Heroes keep it as their `guildId`.
+ */
+function foldedGuildInPlay({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [guildId, guild] of Object.entries(world.guilds)) {
+    if (guild.foldedOnTurn !== null && guild.rosterIds.length > 0) {
+      failures.push({
+        check: 'folded-guild-in-play',
+        id: guildId,
+        detail: `${guildId} folded on Turn ${guild.foldedOnTurn} but has ${guild.rosterIds.length} Heroes on its Roster`,
+      });
+    }
+  }
+  for (const [partyId, party] of Object.entries(world.parties)) {
+    const guild = rowOf(world.guilds, party.guildId);
+    if (guild !== undefined && guild.foldedOnTurn !== null) {
+      failures.push({
+        check: 'folded-guild-in-play',
+        id: partyId,
+        detail: `${partyId} is ${party.guildId}'s, which folded on Turn ${guild.foldedOnTurn}`,
       });
     }
   }

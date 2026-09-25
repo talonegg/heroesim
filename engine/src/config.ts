@@ -108,6 +108,12 @@ export interface GameConfig {
    */
   questDifficultyMin: number;
   questDifficultyMax: number;
+
+  // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
+  /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
+  guildmasterRetirementAge: number;
+  /** Whole Days after a Rival folds until a new Rival is founded in its place, at night. */
+  rivalReplacementDays: number;
 }
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
@@ -159,6 +165,9 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questOfferDays: 3,
   questDifficultyMin: 10,
   questDifficultyMax: 100,
+
+  guildmasterRetirementAge: 65,
+  rivalReplacementDays: 30,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

@@ -4,17 +4,17 @@
 // Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
 import type { EngineDeps } from './config.js';
-import type { BackgroundKey, DispositionKey } from './content-types.js';
+import type { BackgroundKey } from './content-types.js';
 import { emptyDocument, type Meta, type WorldDocument } from './document.js';
 import type { EngineEvent, WorldCreated } from './events.js';
 import { dealEvenly, sortedKeys, streamOf } from './generators/draw.js';
-import { generateGuild } from './generators/guilds.js';
+import { generateGuild, generateRival } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { phaseContext } from './phases/phase.js';
-import { createStreams, int, streamNames } from './rng.js';
+import { createStreams, streamNames } from './rng.js';
 
 /** What the player chooses before a game begins. */
 export interface WorldSetup {
@@ -31,12 +31,6 @@ export interface CreatedWorld {
   /** Every entry the History starts with, in order: the same objects, `world.created` first. */
   events: EngineEvent[];
 }
-
-/**
- * Every Rival's Disposition at creation: M2's one Disposition (INPUTS 4.12), a content key from
- * M2-S9. M6 adds the others.
- */
-const firstDisposition: DispositionKey = 'steady';
 
 /**
  * Creates a world from `seed` and the player's `setup`, under `deps.config` and `deps.content`
@@ -73,11 +67,9 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   });
   generated.push(...player.events);
 
+  // Each Rival draws its Roster size and Wealth before it is generated (DL-19 item 9).
   for (let rival = 0; rival < config.rivalCount; rival += 1) {
-    const rosterSize = int(generation, config.rivalRosterMin, config.rivalRosterMax);
-    const wealth = int(generation, config.rivalStartingWealthMin, config.rivalStartingWealthMax);
-    const controller = { kind: 'rival', disposition: firstDisposition } as const;
-    generated.push(...generateGuild(world, deps, { controller, rosterSize, wealth }).events);
+    generated.push(...generateRival(world, deps).events);
   }
 
   for (const sphereKey of dealEvenly(generation, sortedKeys(content.spheres), config.patronCount)) {

@@ -7,7 +7,7 @@
 
 import type { EngineDeps, GameConfig } from './config.js';
 import type { Stat } from './content-types.js';
-import { compareByCodeUnit, type Guild, type Hero, type StatValues, type World } from './document.js';
+import { compareByCodeUnit, type Guild, type GuildId, type Hero, type StatValues, type World } from './document.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -43,6 +43,33 @@ export function signingFee(hero: Pick<Hero, 'level' | 'stats'>, deps: Pick<Engin
   return Math.floor(
     config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor,
   );
+}
+
+/** A Guild statistic the Rankings order by (R10). */
+export type RankingMeasure = 'fame' | 'wealth';
+
+/** One Guild's place in the Rankings. */
+export interface Ranking {
+  guildId: GuildId;
+  /** The Guild's Fame or Wealth, whichever the Rankings are by. */
+  value: number;
+  /** 1 for the first place; each Guild has its own, ties being ordered by Guild id. */
+  rank: number;
+}
+
+/**
+ * The Rankings (R10, `CONTEXT.md`): every Guild in play, the player's and each Rival's alike,
+ * ordered by `by` from highest to lowest, ties by Guild id in code-unit order. A folded Guild is
+ * not in them (pre-M0 review D6). Computed, never stored (data-model rule 1).
+ *
+ * Pulled forward from M3-S5 by M2-S10, whose acceptance needs a folded Rival to be absent from
+ * them (DL-28); M3-S5 adds the CLI and whatever else its story asks.
+ */
+export function rankings(world: Pick<World, 'guilds'>, by: RankingMeasure): Ranking[] {
+  return Object.values(world.guilds)
+    .filter((guild) => guild.foldedOnTurn === null)
+    .sort((a, b) => b[by] - a[by] || compareByCodeUnit(a.id, b.id))
+    .map((guild, index) => ({ guildId: guild.id, value: guild[by], rank: index + 1 }));
 }
 
 /**

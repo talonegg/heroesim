@@ -287,6 +287,39 @@ describe('§6: a Guildmaster whose guildId differs from the Guild that names the
   });
 });
 
+describe('§6: a folded Guild with a Hero on its Roster or a Party of its own (DL-28)', () => {
+  /** Folds the Rival as the endings phase does: its Roster released into the pool. */
+  const foldRival = (d: Doc): void => {
+    const rival = guild(d, ids.rivalGuild);
+    for (const heroId of rival.rosterIds) Object.assign(hero(d, heroId), { guildId: null, unattachedSince: 38 });
+    rival.rosterIds = [];
+    rival.foldedOnTurn = 38;
+    // The Transfer offer was for one of its Heroes: M6 settles what a fold does to an offer.
+    Reflect.deleteProperty(d.world.offers, ids.offer);
+  };
+
+  test('a folded Guild with an empty Roster, its Guildmaster kept, and its Heroes in the pool is accepted', () => {
+    const { document } = buildDocument();
+    foldRival(document);
+    expect(guildmaster(document, guild(document, ids.rivalGuild).guildmasterId).guildId).toBe(ids.rivalGuild);
+    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
+  });
+
+  test('a folded Guild with a Hero still on its Roster is refused, naming the Guild', () => {
+    expect(refusals((d) => (guild(d, ids.rivalGuild).foldedOnTurn = 38))).toEqual([
+      failure('folded-guild-in-play', ids.rivalGuild),
+    ]);
+  });
+
+  test('a Party of a folded Guild is refused, naming the Party', () => {
+    const fold = (d: Doc): void => {
+      foldRival(d);
+      party(d, ids.party).guildId = ids.rivalGuild;
+    };
+    expect(refusals(fold)).toEqual([failure('folded-guild-in-play', ids.party)]);
+  });
+});
+
 describe('§6: quest.partyIds and party.questId disagree, or more Parties than the build allows', () => {
   test("a Party whose questId is another Quest's", () => {
     expect(refusals((d) => (party(d, ids.party).questId = ids.offeredQuest))).toEqual([
@@ -463,6 +496,7 @@ describe('document-shape', () => {
       (d) => set(item(d, ids.item), 'holder', { kind: 'market' }),
       `${itemPath}.holder.kind`,
     ],
+    ['an ending without its reason', (d) => set(d.world, 'ended', { turn: 3 }), '$.world.ended.reason'],
     [
       'a holder without its slot',
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),

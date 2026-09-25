@@ -252,10 +252,10 @@ Config: `guildmasterRetirementAge`, `rivalReplacementDays`.
 
 **Acceptance:**
 
-- [ ] Each of the three endings has a test that arranges it and asserts the event and
+- [x] Each of the three endings has a test that arranges it and asserts the event and
       `world.ended`
-- [ ] `advance` after an ending is a no-op with the typed stop
-- [ ] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
+- [x] `advance` after an ending is a no-op with the typed stop
+- [x] A Rival that goes bankrupt folds without ending the game: its Heroes are Unattached the
       same night, it is absent from `rankings()`, its controller emits nothing afterwards, and a
       new Rival exists `rivalReplacementDays` later with a `guild.founded` entry
 

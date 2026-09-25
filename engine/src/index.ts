@@ -29,7 +29,7 @@ export * from './content-types.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';
-export { generateGuild, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
+export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';

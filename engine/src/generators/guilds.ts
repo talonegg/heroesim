@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps } from '../config.js';
-import type { BackgroundKey } from '../content-types.js';
+import type { BackgroundKey, DispositionKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -49,7 +49,7 @@ export interface GuildOptions extends DrawsFrom {
   /** Heroes generated onto the Roster, their Classes dealt evenly (DL-19 item 7). */
   rosterSize: number;
   wealth: number;
-  /** Drawn from content's Guild names that no Guild in the world has, when omitted. */
+  /** Drawn from content's Guild names when omitted: one no Guild has had, while any is left (DL-28). */
   name?: string;
   /** A Background with `owner: "guild"`; drawn from those when omitted. */
   backgroundKey?: BackgroundKey;
@@ -72,7 +72,8 @@ export interface GeneratedGuild {
  *
  * Throws, changing nothing, on a programming error: a blank name, a key that is not a Guild
  * Background, a Roster size that is not a whole number from 0, a Wealth that is not a finite
- * number, a stream the world does not have, or no Guild name in content left unused.
+ * number, a stream the world does not have, or every Guild name in content held by a Guild in
+ * play (`drawGuildName`).
  */
 export function generateGuild(world: World, deps: EngineDeps, options: GuildOptions): GeneratedGuild {
   const { content } = deps;
@@ -89,8 +90,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   if (!Number.isFinite(wealth)) throw new RangeError(`A Guild's Wealth is a finite number; got ${wealth}`);
   const state = streamOf(world, options.stream);
 
-  const usedNames = new Set(Object.values(world.guilds).map((guild) => guild.name));
-  const name = options.name ?? pickUnused(state, content.names.guild, usedNames, 'Guild');
+  const name = options.name ?? drawGuildName(state, content.names.guild, Object.values(world.guilds));
   const backgroundKey =
     options.backgroundKey ?? pick(state, sortedKeys(content.backgrounds, (row) => row.owner === 'guild'));
 
@@ -148,6 +148,42 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     events.push(...generateHero(world, deps, { classKey, guildId, ...stream }).events);
   }
   return { guild, guildmaster, events };
+}
+
+/**
+ * Every Rival's Disposition when it is generated: M2's one Disposition (INPUTS 4.12), a content
+ * key from M2-S9. M6 adds the others.
+ */
+const rivalDisposition: DispositionKey = 'steady';
+
+/**
+ * A Rival Guild, as `createWorld` makes each of its Rivals (DL-19 item 9) and the endings phase
+ * makes one to replace a Rival that folded (DL-28): its Roster size drawn from
+ * `rivalRosterMin/Max`, then its Wealth from `rivalStartingWealthMin/Max`, then the Guild through
+ * `generateGuild` with the `steady` controller, every draw from `options.stream` (`generation` by
+ * default). Throws as `generateGuild` does.
+ */
+export function generateRival(world: World, deps: EngineDeps, options: DrawsFrom = {}): GeneratedGuild {
+  const { config } = deps;
+  const state = streamOf(world, options.stream);
+  const rosterSize = int(state, config.rivalRosterMin, config.rivalRosterMax);
+  const wealth = int(state, config.rivalStartingWealthMin, config.rivalStartingWealthMax);
+  const controller: Controller = { kind: 'rival', disposition: rivalDisposition };
+  const stream = options.stream === undefined ? {} : { stream: options.stream };
+  return generateGuild(world, deps, { controller, rosterSize, wealth, ...stream });
+}
+
+/**
+ * A Guild's name from `names` (DL-19 item 6, DL-28): one no Guild in `guilds` has ever had, while
+ * any is left; once every name has been used, one only folded Guilds have had, so a Rival founded
+ * to replace one that folded never finds the list exhausted. Never the name of a Guild in play.
+ * One draw either way; with no folded Guild it is DL-19's draw exactly.
+ */
+function drawGuildName(state: Stream, names: readonly string[], guilds: readonly Guild[]): string {
+  const everUsed = new Set(guilds.map((guild) => guild.name));
+  const inPlay = new Set(guilds.filter((guild) => guild.foldedOnTurn === null).map((guild) => guild.name));
+  const anyFresh = names.some((name) => !everUsed.has(name));
+  return pickUnused(state, names, anyFresh ? everUsed : inPlay, 'Guild');
 }
 
 interface GuildmasterSetup {
