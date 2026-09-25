@@ -56,9 +56,9 @@ Config: `xpPerDifficultyPoint`, `xpBandFactor`, `xpPerTrainingDay`.
 
 **Acceptance:**
 
-- [ ] A Hero idle at grade 1 for a year has gained `360 × xpPerTrainingDay` XP
-- [ ] An injured or away Hero gains no training XP
-- [ ] `history.entries` grows by zero per night from training
+- [x] A Hero idle at grade 1 for a year has gained `360 × xpPerTrainingDay` XP
+- [x] An injured or away Hero gains no training XP
+- [x] `history.entries` grows by zero per night from training
 
 ### M3-S3 · Potential hints · 0.5 session
 

@@ -17,6 +17,7 @@ import { poolRefresh } from './phases/pool-refresh.js';
 import { questsAdvance } from './phases/quests-advance.js';
 import { questsConclude } from './phases/quests-conclude.js';
 import { rivalControllers } from './phases/rival-controllers.js';
+import { training } from './phases/training.js';
 import { timeOfDay } from './time.js';
 
 /**
@@ -30,8 +31,10 @@ export const phases: readonly Phase[] = [
   // Afternoon: the Rivals act on what the player left, then Quests in flight advance.
   { name: 'rivalControllers', timeOfDay: 'afternoon', run: rivalControllers },
   { name: 'questsAdvance', timeOfDay: 'afternoon', run: questsAdvance },
-  // Night: Quests conclude, Heroes gain the Levels their XP has reached (DL-36), the Hero and Guild
-  // State Engines run, the pool refreshes, and the ending checks come last.
+  // Night: the training yard's XP for the Day just spent at the Hall, Quests conclude, Heroes gain
+  // the Levels their XP has reached (DL-36), the Hero and Guild State Engines run, the pool
+  // refreshes, and the ending checks come last.
+  { name: 'training', timeOfDay: 'night', run: training },
   { name: 'questsConclude', timeOfDay: 'night', run: questsConclude },
   { name: 'levelUps', timeOfDay: 'night', run: levelUps },
   { name: 'heroState', timeOfDay: 'night', run: heroState },

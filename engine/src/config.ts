@@ -131,11 +131,6 @@ export interface GameConfig {
   stubInjuryChance: Readonly<Record<QuestBand, number>>;
   /** The chance, per band, that one Hero of the Party dies. */
   stubDeathChance: Readonly<Record<QuestBand, number>>;
-  /**
-   * XP each surviving Hero gains, per point of the Quest's difficulty, by band, rounded down.
-   * M3-S2 replaces it with `xpPerDifficultyPoint × xpBandFactor`.
-   */
-  stubXpPerDifficulty: Readonly<Record<QuestBand, number>>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -192,6 +187,17 @@ export interface GameConfig {
   levelCap: number;
   /** Stat points each Level applies, each drawn by the Class's growth weights (INPUTS 5.3). */
   growthPointsPerLevel: number;
+  /**
+   * Quest XP: each Hero home alive gains the Quest's difficulty × `xpPerDifficultyPoint` ×
+   * `xpBandFactor` of the band, rounded down (INPUTS 5.1: 1 a point on a success, half on a failure).
+   */
+  xpPerDifficultyPoint: number;
+  xpBandFactor: Readonly<Record<QuestBand, number>>;
+  /**
+   * Training XP: each night, a Hero on a Roster, in no Party and not injured, gains this times the
+   * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
+   */
+  xpPerTrainingDay: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -259,7 +265,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   stubSkillBonusPerRating: 2,
   stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
   stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
-  stubXpPerDifficulty: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
 
   moraleMin: 0,
   moraleMax: 100,
@@ -280,6 +285,9 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   xpCurveExponent: 2,
   levelCap: 20,
   growthPointsPerLevel: 3,
+  xpPerDifficultyPoint: 1,
+  xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
+  xpPerTrainingDay: 2,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */
