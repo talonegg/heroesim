@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance, type StopReason } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
@@ -13,6 +13,7 @@ import {
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
+import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild, rankings, signingFee, unattachedHeroes } from '../selectors.js';
 import { nightOf } from '../time.js';
@@ -24,6 +25,22 @@ import { phaseContext } from './phase.js';
 // through `advance`; every document a test inspects is held to the validator.
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+/**
+ * Stills every Rival's controller until the returned spy is restored. From M2-S9 each Rival
+ * dispatches and recruits every afternoon (DL-30), changing the Roster, the Parties and the pool
+ * that a test arranges before an ending; a test whose subject is not the Rivals' choices stills
+ * them, as DL-30 item 11 does.
+ */
+function stillRivalControllers() {
+  const rivalControllers = phases.find((phase) => phase.name === 'rivalControllers');
+  if (rivalControllers === undefined) throw new Error('No rivalControllers phase');
+  return vi.spyOn(rivalControllers, 'run').mockReturnValue([]);
+}
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
   return createWorld(seed, setup, deps).document;
@@ -195,7 +212,9 @@ describe("the player's ending ends the game", () => {
   });
 
   test('an empty Roster with Wealth for the cheapest Hero in the pool is not wiped', () => {
-    const deps = testDeps();
+    // No Rivals: from M2-S9 a Rival signs the cheapest Hero in the afternoon, and the player's
+    // Wealth, the fee of the cheapest at Turn 0, no longer covers the cheapest left by night.
+    const deps = testDeps({ rivalCount: 0 });
     const start = created('not-wiped', deps);
     const player = thePlayer(start.world);
     wipeRoster(start.world, player);
@@ -276,7 +295,14 @@ describe('advance after the ending', () => {
 
 describe("a Rival's ending folds it (pre-M0 review D6)", () => {
   test('a bankrupt Rival folds without ending the game: its Heroes are Unattached that night, it leaves the Rankings, it acts no more, and a new Rival is founded rivalReplacementDays later', () => {
-    const deps = testDeps({ rivalCount: 2, bankruptcyGraceDays: 2, rivalReplacementDays: 5 });
+    const deps = testDeps({
+      rivalCount: 2,
+      bankruptcyGraceDays: 2,
+      rivalReplacementDays: 5,
+      // Out of every Rival's reach, so that none re-signs the released Heroes (M2-S9 recruits
+      // above this many Upkeeps), whose leaving the pool the test watches.
+      recruitWealthMultiple: 1_000_000,
+    });
     const start = created('fold', deps);
     const player = thePlayer(start.world);
     const rival = firstRival(start.world);
@@ -284,10 +310,14 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const roster: HeroId[] = [...rival.rosterIds];
     const foldNight = nightOf(2); // below the floor from the night of Day 0, then two Days' grace
 
+    // Until the fold the Rivals' controllers are stilled: from M2-S9 the bankrupt Rival still sends
+    // a Party each afternoon, and a fold with Parties in flight is a test of its own, below.
+    const stilled = stillRivalControllers();
     const before = playTo(start, nightOf(1), deps);
     expect(guildOf(before.document.world, rival.id).foldedOnTurn).toBeNull();
     const night = playTo(before.document, foldNight, deps);
     const { world } = night.document;
+    stilled.mockRestore();
 
     // The game goes on.
     expect(world.ended).toBeNull();
@@ -322,7 +352,8 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       expect(new Set(ranked)).toEqual(new Set(Object.keys(world.guilds).filter((id) => id !== rival.id)));
     }
 
-    // It acts no more: no event names it and no rule touches its row.
+    // It acts no more, the Rivals' controllers running again: no event names it and no rule
+    // touches its row.
     const replacementNight = nightOf(2 + deps.config.rivalReplacementDays);
     const waiting = playTo(night.document, replacementNight - 3, deps);
     expect(ofType(waiting.events, 'guild.founded')).toEqual([]);
@@ -349,6 +380,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const beyond = playTo(replaced.document, nightOf(12), deps);
     const afterwards = [...waiting.events, ...replaced.events, ...beyond.events];
     expect(afterwards.filter((event) => event.participants.includes(rival.id))).toEqual([]);
+    expect(ofType(afterwards, 'quest.taken').length).toBeGreaterThan(0); // the other Rivals did act
     expect(guildOf(beyond.document.world, rival.id)).toEqual(folded);
     const paid = ofType(beyond.events, 'guild.upkeep-paid').map((event) => event.payload.guildId);
     expect(new Set(paid)).toEqual(new Set(rankings(beyond.document.world, 'fame').map((ranking) => ranking.guildId)));
@@ -361,6 +393,9 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
 
   test.each(reasons)('%s arranged on a Rival folds it and the game goes on', (reason) => {
     const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
+    // The Rival's controller is stilled: from M2-S9 it signs a Hero in the afternoon, onto the
+    // Roster recorded here at Turn 0.
+    stillRivalControllers();
     const start = created(`rival-${reason}`, deps);
     const rival = firstRival(start.world);
     const roster = [...rival.rosterIds];
@@ -377,6 +412,9 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
 
   test("a folded Rival's Party in flight is disbanded: its Quest is abandoned unresolved and its Heroes are in the pool that night", () => {
     const deps = testDeps({ rivalCount: 1 });
+    // The Rival's controller is stilled: from M2-S9 it sends a Party of its own in the afternoon,
+    // which the fold would disband beside the one made here.
+    stillRivalControllers();
     const start = created('party', deps);
     const { world } = start;
     const rival = firstRival(world);

@@ -2,8 +2,11 @@
 
 export * from './actions/action.js';
 export {
+  applyDispatch,
   dispatch,
+  unavailability,
   type DispatchAction,
+  type DispatchGuildFolded,
   type DispatchRejection,
   type DispatchRequest,
   type HeroNotOnRoster,
@@ -15,6 +18,7 @@ export {
 } from './actions/dispatch.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export {
+  applyRecruit,
   recruit,
   type GuildFoldedRejection,
   type HeroNotUnattachedRejection,
@@ -26,6 +30,7 @@ export * from './actions/result.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
+export { availableHeroes, rivalChoices, type DispositionRule } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';

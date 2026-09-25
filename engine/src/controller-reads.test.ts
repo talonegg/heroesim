@@ -4,10 +4,11 @@ import { describe, expect, test } from 'vitest';
 
 // No engine rule asks whether a Guild is the player's (ADR-0002), except the three the owner
 // accepted on 2026-09-25 (`plan.md` §1): the player's ending ends the game while a Rival's folds it
-// (M2-S10); on the Board the player's controller acts before the Rivals' (M2-S9); and the Transfer
-// Generator never takes from the player's Guild (M6). The M2 epic's risk table asks for a test
-// that greps for them: this one finds every read of a Guild's `controller.kind` in the engine's
-// source and holds each file to the reads listed below (DL-28).
+// (M2-S10); on the Board the player's controller acts before the Rivals', the player's choices
+// being the player's and a Rival's its Disposition's (M2-S9); and the Transfer Generator never
+// takes from the player's Guild (M6). The M2 epic's risk table asks for a test that greps for
+// them: this one finds every read of a Guild's `controller.kind` in the engine's source and holds
+// each file to the reads listed below (DL-28, DL-30).
 //
 // A story that lands an accepted read adds its file here, with the count and the reason. A read
 // outside the three exceptions needs an owner's decision first, not a line in this list.
@@ -15,8 +16,11 @@ import { describe, expect, test } from 'vitest';
 /** Where the engine may read `controller.kind`, how many times, and why. Paths are from `src/`. */
 const acceptedReads: Record<string, { reads: number; why: string }> = {
   'selectors.ts': {
-    reads: 1,
-    why: "`playerGuild`: how a front end and the harness find the player's Guild; no rule calls it",
+    reads: 2,
+    why:
+      "`playerGuild`: how a front end and the harness find the player's Guild, and no rule calls it; " +
+      "`dispositionOf`: plan.md §1, the player's controller acts before the Rivals' — where a Guild's " +
+      'choices come from, the player or its Disposition, read by the Rival controllers (M2-S9, DL-30)',
   },
   'phases/endings.ts': {
     reads: 1,

@@ -41,6 +41,8 @@ function templateName(content: ContentSet, key: string): string {
 /** The engine's rejection in words. */
 function explain(rejection: DispatchRejection, document: WorldDocument, content: ContentSet): string {
   switch (rejection.reason) {
+    case 'guild-folded':
+      return `${guildName(document, rejection.guildId)} has folded and sends no one.`;
     case 'quest-not-offered':
       return `${rejection.questId} is not on the Board: it has been taken or has expired, or was never offered.`;
     case 'hero-not-on-roster':

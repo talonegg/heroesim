@@ -1279,6 +1279,127 @@ then. `world.guilds` grows by one row for each replacement over the life of a ga
 exports `generateRival` and `rankings`. The CLI's `show` still lists a folded Guild among the
 Guilds, with its empty Roster; M3-S5's `show rankings` leaves it out.
 
+## DL-30 — The `steady` Disposition, and a Rival acting through the player's actions (M2-S9)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S9's implementer)
+
+**Context.** M2-S9 names `rivalChoices(world, guild, deps)`, the afternoon phase
+`rivalControllers`, `content/dispositions.json` with one entry, and INPUTS 4.12's rule: take the
+easiest Quest it can staff, and recruit the cheapest Hero when Wealth exceeds three Upkeeps. It
+leaves open how a phase, which changes the Turn's copy of the world in place, applies actions
+that take and return documents; which Heroes `steady` sends and how many; how much a Rival does
+in one afternoon; what becomes of a refused Rival action; what a Disposition's row holds; where
+the three lives; and where the engine reads `controller.kind` to find the Rivals.
+
+**Decision.**
+
+1. **One rule per action, two ways in.** `dispatch` and `recruit` are each split into their
+   rule, `applyDispatch(world, request, deps)` and `applyRecruit(world, request, deps)`, which
+   check and then change a world in place and return `{ ok: true, events } | { ok: false,
+   rejection }` without appending (`WorldActionResult`), and the document-level action, which
+   runs the rule on a copy through `applyToCopy(document, rule)` (`actions/result.ts`) and
+   appends the events. Checks, their order, rejections, throws and events are unchanged, and the
+   actions' tests pass unchanged; a refused document-level call now copies the world before
+   refusing and drops the copy. `applyGuildAction(world, action, deps)` in `actions/action.ts`
+   switches over `GuildAction`, `dispatch | recruit`: the actions a Guild takes, `rebase` being
+   the save's. Rejected: wrapping the Turn's world in a transient document, which copies the
+   whole world per Rival action, copies it back, and needs a `meta` a phase does not have.
+2. **The phase** walks every Guild in id order and applies what `rivalChoices` returns through
+   `applyGuildAction` on the Turn's world, so a later Rival chooses from what an earlier one
+   left; it returns the rules' events in order and `advance` appends them. It adds no event
+   type. The spy test watches `applyDispatch` and `applyRecruit`, the rules `dispatch` and
+   `recruit` run, and finds every Rival choice there and the afternoon's events theirs.
+3. **A refused Rival action is dropped silently**, the world unchanged, and the Guild's next
+   choice applied. `steady` chooses only what the rules accept on the world it reads, so a
+   refusal is a bug, not a move; a test plays ten Days and finds none. Not thrown, because a
+   later controller that chooses several things from one world (M6: buying and recruiting from
+   one Wealth) may lose one to another, and a player's game should not stop on a Rival's
+   mistake; not an event, because the epic lists none and nothing would read it.
+4. **`steady`** makes at most one dispatch and one recruit an afternoon, the dispatch first, both
+   chosen on the world as the afternoon found it: a dispatch moves no Wealth and a recruit sends no
+   one. It draws nothing.
+   - *Which Quest:* the offered Quests on the Board by difficulty, lowest first, then Quest id;
+     the first it can staff.
+   - *Which Heroes:* those on its Roster and free to go by `dispatch`'s own test
+     (`unavailability`, now exported; `availableHeroes` in `controllers/rival.ts`). The fewest the
+     Quest allows: `partySizeMin`, or two when it requires a Class and a Skill and no one Hero has
+     both. A requirement goes to the strongest Hero who meets it (one who meets both, if any),
+     every other place to the strongest of the rest. A Hero's strength for a Quest is the sum of
+     its demand weights times the Hero's base Stats, the stub's own measure less its Skill bonus;
+     ties by Hero id; the Party is listed strongest first. Few Heroes keeps the rest free and the
+     Board contested (`plan.md` §1); small Parties will fail more often under the stub, which
+     M2-S12 measures and M6-S1's `questRiskAppetite` revisits.
+   - *Recruiting:* when Wealth is strictly above `recruitWealthMultiple × upkeep(guild)` ("exceeds"),
+     the Unattached Hero with the lowest `signingFee`, lowest id among equal fees, and only if
+     Wealth covers the fee, since `recruit` would refuse it. No Roster cap: INPUTS 4.12 names
+     none, where 4.14's policy does.
+5. **Config.** `recruitWealthMultiple` 3 (INPUTS 4.12), named for the rule rather than for
+   `steady`, so that M2-S12's policy, whose threshold is the same three Upkeeps (INPUTS 4.14),
+   can read it; M6-S1 moves each Disposition's threshold into its row. A field was added and no
+   default changed, so `configVersion` stays 1.
+6. **Content.** `content/dispositions.json`, content table `dispositions`, holds one row,
+   `steady: { name: "Steady" }`: a name only, the rule being code keyed by it (`dispositionRules`,
+   approach §4). The content validator holds its keys to kebab-case and to their rows;
+   `contentVersion` is 3. The engine's validator warns `unknown-disposition` for a Rival whose
+   Disposition the content lacks (rule 5), and `rivalChoices` returns nothing for that Rival, nor
+   for one whose Disposition content defines and the engine has no rule for.
+7. **The `rivals` stream** is appended to `streamNames` now, after `pool`; merging with M2-S5 and
+   M2-S6 puts the tuple in ADR-0009's order. `steady` draws from no stream: the test runs the phase
+   with every planned stream present, choices made, and finds none moved.
+8. **`controller.kind`** is read in one new place, `dispositionOf(guild)` in `selectors.ts`
+   beside `playerGuild`'s existing read: the Disposition that makes a Guild's choices, or `null`
+   for the player's. `rivalChoices` and the new warning call it; the phase reads no controller.
+   It is `plan.md` §1's accepted exception for the source of a Guild's choices.
+9. **`rivalChoices` returns `GuildAction[]`**, the epic's `Action[]` narrowed to what a Guild
+   does; every value is an `Action` a front end produces. The player's Guild and a folded Guild
+   get none.
+10. **The counter.** `questsTakenByController(document)` in `harness/src/counters.ts` counts
+    `history.byType['quest.taken']` by the kind of controller of the Guild each entry names. It
+    is the harness's, for M2-S12's report: a measure, not a rule, and no read of the engine's.
+11. **Tests of one phase that play Turns** (the Board refresh, the pool refresh, dispatch's
+    Parties in play) now create worlds with `rivalCount: 0`, and the Guild State test that needs a
+    Rival stills its controller with a spy, since Rivals now take Quests and recruit each afternoon.
+
+**Consequences.** On the first afternoon of a default world the four Rivals take most of the
+Board and recruit a Hero each (seed `s9-smoke`: four of six Quests, four recruits). A Rival
+recruits every afternoon that its Wealth is above three Upkeeps, so Rival Rosters grow as Quest
+rewards arrive (M2-S5) and the pool, refilled each night, is drawn on daily; M2-S12 measures
+Roster sizes and the per-Turn copy cost, and `recruitWealthMultiple` is the dial. A merged story
+whose tests play Turns on a created world meets the Rivals too, and stills them as item 11 does
+when it watches something else. M2-S11's `decision-needed` and M2-S12's policy can use
+`availableHeroes`. M6-S1 replaces `dispositionRules` with one rule reading weights from the rows.
+
+## DL-31 — Merging M2-S9 with M2-S10: `dispatch` refuses a folded Guild, and the endings' tests still the Rivals
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the merge of M2-S9 into
+`v1.0-dev`)
+
+**Context.** M2-S9 (DL-30) and M2-S10 (DL-28) were built side by side. Merged, the Rivals act
+every afternoon in the endings' tests, which were written when they did not: a Rival signs the
+cheapest Hero, so the player's Wealth arranged at Turn 0 no longer covers the cheapest left; a
+bankrupt Rival still sends Parties, which its fold disbands; a Rival's Roster grows by a recruit
+after the test records it; and released Heroes are re-signed. DL-28 item 4 says `dispatch` must
+refuse a folded Guild as `recruit` does; `dispatch` had no such check, and refused one only by
+the accident of its empty Roster.
+
+**Decision.**
+
+1. **`dispatch` refuses a folded Guild `guild-folded`**, payload `{ guildId }`, before every
+   other check, as `recruit` does; `DispatchGuildFolded` joins `DispatchRejection`, and the
+   CLI narrates it. The Rival controllers already skip a folded Guild (`rivalChoices`), so this
+   is the rules' own guard, not the controllers'.
+2. **The endings' tests still the Rivals that are not their subject**, in DL-30 item 11's style:
+   the player's "not wiped" test plays with `rivalCount: 0`; the Rival fold tests still the
+   `rivalControllers` phase with a spy. The bankrupt-Rival test stills it only until the fold,
+   then lets the Rivals act again with `recruitWealthMultiple` out of reach, so that "it acts no
+   more" is proved against running controllers while no one re-signs the released Heroes.
+3. `controller-reads.test.ts` allows `selectors.ts` its two reads: `playerGuild` and
+   `dispositionOf` (DL-30 item 8). No assertion was weakened and no other engine rule changed.
+
+**Consequences.** Both actions a Guild takes refuse a folded Guild by name. A later story whose
+tests play Turns on a created world meets the Rivals, and stills them when it watches something
+else.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

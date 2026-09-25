@@ -1,13 +1,13 @@
 // `recruit` (M2-S8, R27, DL-27): a Guild signs a Hero from the Unattached pool for the signing
-// fee. Every Guild recruits through this one function, the player's front end and a Rival's
-// controller alike (ADR-0002), so every Guild pays the same price by the same rule.
+// fee. Every Guild recruits through this one rule, the player's front end by `recruit` and a
+// Rival's controller by `applyRecruit`, the rule `recruit` runs (ADR-0002, DL-30), so every Guild
+// pays the same price by the same rule.
 
 import type { EngineDeps } from '../config.js';
-import type { Guild, GuildId, Hero, HeroId, WorldDocument } from '../document.js';
+import type { Guild, GuildId, Hero, HeroId, World, WorldDocument } from '../document.js';
 import { eventEmitter } from '../emit.js';
-import { append } from '../history.js';
 import { signingFee } from '../selectors.js';
-import type { ActionResult, Rejection } from './result.js';
+import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
 export interface RecruitAction {
   kind: 'recruit';
@@ -52,27 +52,37 @@ export type RecruitRejection = GuildFoldedRejection | HeroNotUnattachedRejection
  */
 export function recruit(
   document: WorldDocument,
-  { guildId, heroId }: Pick<RecruitAction, 'guildId' | 'heroId'>,
+  request: Pick<RecruitAction, 'guildId' | 'heroId'>,
   deps: EngineDeps,
 ): ActionResult<RecruitRejection> {
-  const { meta, world: before, history } = document;
-  const known = Object.hasOwn(before.guilds, guildId) ? before.guilds[guildId] : undefined;
-  if (known === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
-  if (known.foldedOnTurn !== null) {
+  return applyToCopy(document, (world) => applyRecruit(world, request, deps));
+}
+
+/**
+ * `recruit`'s rule on a world it changes in place: the same checks in the same order, the same
+ * changes and the same `hero.recruited`, which it returns rather than appends. `recruit` runs it
+ * on a copy of a document's world; a Rival controller runs it on the Turn's copy (M2-S9, DL-30).
+ * A refusal changes nothing. Throws on the programming error `recruit` throws on.
+ */
+export function applyRecruit(
+  world: World,
+  { guildId, heroId }: Pick<RecruitAction, 'guildId' | 'heroId'>,
+  deps: EngineDeps,
+): WorldActionResult<RecruitRejection> {
+  const guild: Guild | undefined = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
+  if (guild === undefined) throw new RangeError(`No Guild in the world has the id ${guildId}`);
+  if (guild.foldedOnTurn !== null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'guild-folded', guildId } };
   }
-  const candidate = Object.hasOwn(before.heroes, heroId) ? before.heroes[heroId] : undefined;
-  if (candidate === undefined || candidate.unattachedSince === null) {
+  const hero: Hero | undefined = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+  if (hero === undefined || hero.unattachedSince === null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'hero-not-unattached', heroId } };
   }
-  const fee = signingFee(candidate, deps);
-  if (known.wealth < fee) {
-    return { ok: false, rejection: { action: 'recruit', reason: 'insufficient-wealth', fee, wealth: known.wealth } };
+  const fee = signingFee(hero, deps);
+  if (guild.wealth < fee) {
+    return { ok: false, rejection: { action: 'recruit', reason: 'insufficient-wealth', fee, wealth: guild.wealth } };
   }
 
-  const world = structuredClone(before);
-  const guild = world.guilds[guildId] as Guild;
-  const hero = world.heroes[heroId] as Hero;
   guild.wealth -= fee;
   hero.guildId = guildId;
   hero.unattachedSince = null;
@@ -83,6 +93,5 @@ export function recruit(
     participants: [heroId, guildId],
     payload: { heroId, guildId, fee },
   });
-  append(history, recruited);
-  return { ok: true, document: { meta, world, history }, events: [recruited] };
+  return { ok: true, events: [recruited] };
 }

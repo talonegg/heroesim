@@ -51,6 +51,7 @@ export function validateContent(set: ContentSet): ContentSet {
     backgrounds: set.backgrounds,
     spheres: set.spheres,
     questTemplates: set.questTemplates,
+    dispositions: set.dispositions,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
