@@ -48,6 +48,13 @@ describe('parseArgs', () => {
     });
   });
 
+  test('reads advance, one Turn unless given more, and rebase', () => {
+    expect(command('advance')).toEqual({ name: 'advance', save: 'current', turns: 1 });
+    expect(command('advance', '--turns', '12', '--save', 'demo')).toEqual({ name: 'advance', save: 'demo', turns: 12 });
+    expect(command('advance', '--turns=3')).toMatchObject({ turns: 3 });
+    expect(command('rebase')).toEqual({ name: 'rebase', save: 'current' });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -71,6 +78,12 @@ describe('parseArgs', () => {
     [['save', '--as='], '--as needs a value'],
     [['load'], 'load needs a file'],
     [['load', 'a', 'b'], 'does not take "b"'],
+    ...['0', '-1', '1.5', 'three', '1e3', ' 2'].map((turns): [string[], string] => [
+      ['advance', `--turns=${turns}`],
+      `--turns needs a whole number from 1; got "${turns}"`,
+    ]),
+    [['advance', 'three'], 'does not take "three"'],
+    [['rebase', '--turns', '2'], 'rebase takes no flag --turns'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

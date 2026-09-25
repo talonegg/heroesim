@@ -15,6 +15,12 @@ Commands:
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another; history shows the whole History unless given
       an id.
+  advance [--turns <n>]
+      Play the next n Turns, 1 unless given, and print what happened. Time moves only
+      here; every other command acts within the current Turn. Stops early if the game ends.
+  rebase
+      Adopt this release's default rules. A save plays under the rules it was created
+      with until it is rebased; the History records when it was.
   save --as <file>
       Copy the save to <file>.
   load <file>
@@ -48,6 +54,8 @@ export type Command =
       force: boolean;
     }
   | { name: 'show'; save: string; view: View }
+  | { name: 'advance'; save: string; turns: number }
+  | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
 
@@ -58,6 +66,8 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
   show: { save: 'value' },
+  advance: { save: 'value', turns: 'value' },
+  rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
 };
@@ -104,6 +114,14 @@ function split(command: Command['name'], words: readonly string[]): { flags: Map
 
 function required(flags: Map<string, string>, command: string, name: string): string {
   return flags.get(name) ?? refuse(`${command} needs --${name}`);
+}
+
+/** `value` as a whole number from 1, written in digits. */
+function wholeFromOne(flag: string, value: string): number {
+  const n = Number(value);
+  return /^\d+$/.test(value) && Number.isSafeInteger(n) && n >= 1
+    ? n
+    : refuse(`${flag} needs a whole number from 1; got "${value}"`);
 }
 
 function atMost(positional: readonly string[], count: number, command: string): void {
@@ -172,6 +190,14 @@ function parse(argv: readonly string[]): Command {
     }
     case 'show':
       return { name, save, view: parseView(positional) };
+    case 'advance': {
+      atMost(positional, 0, 'advance');
+      const turns = flags.get('turns');
+      return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
+    }
+    case 'rebase':
+      atMost(positional, 0, 'rebase');
+      return { name, save };
     case 'save':
       atMost(positional, 0, 'save');
       return { name, save, as: required(flags, name, 'as') };

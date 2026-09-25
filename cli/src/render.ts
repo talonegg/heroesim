@@ -13,7 +13,10 @@
 import {
   ageOf,
   baseStat,
+  dayOf,
+  timeOfDay,
   unattachedHeroes,
+  yearOf,
   type ContentSet,
   type EngineDeps,
   type Entry,
@@ -79,6 +82,16 @@ function none(list: readonly string[]): string {
   return list.length === 0 ? 'none' : list.join(', ');
 }
 
+// ── Time ─────────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * The Turn and where it falls: `Turn 3 (Day 1, morning, Year 0)`. Day and Year count from 0, as
+ * the Turn does, and come from the engine's selectors under the rules the save plays under.
+ */
+export function renderTime(turn: number, config: EngineDeps['config']): string {
+  return `Turn ${turn} (Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)})`;
+}
+
 // ── Guilds and the summary ───────────────────────────────────────────────────────────────────
 
 function controllerOf(guild: Guild): string {
@@ -123,7 +136,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     `${history.entries.length} History entries`,
   ];
   return [
-    `Seed ${meta.seed}, Turn ${world.turn}, created ${meta.createdAt}`,
+    `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
     ...guildTable(document, deps.content),
     '',
@@ -265,5 +278,23 @@ export function renderHistory(heading: string, entries: readonly Entry[]): strin
         entry.participants.map((id) => entry.labels[id] ?? id).join(', '),
       ]),
     ),
+  ];
+}
+
+// ── Advancing ────────────────────────────────────────────────────────────────────────────────
+
+/** `advance`: how many Turns were played, where time stands now, and the events they made. */
+export function renderAdvance(
+  played: number,
+  events: readonly Entry[],
+  document: WorldDocument,
+  deps: EngineDeps,
+): string[] {
+  const { turn, ended } = document.world;
+  return [
+    `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
+    ...(ended === null ? [] : [`The game ended on Turn ${ended.turn}: ${ended.reason}.`]),
+    '',
+    ...(events.length === 0 ? ['No events.'] : renderHistory(`Events: ${events.length}, oldest first`, events)),
   ];
 }

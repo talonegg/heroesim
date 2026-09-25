@@ -15,14 +15,17 @@
 
 import { existsSync } from 'node:fs';
 import {
+  advance,
   createWorld,
   defaultConfig,
   entriesBetween,
   entriesFor,
   parseId,
   playerGuild,
+  rebase,
   type ContentSet,
   type EngineDeps,
+  type EngineEvent,
   type EntityId,
   type Guild,
   type Hero,
@@ -32,6 +35,7 @@ import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import {
+  renderAdvance,
   renderGuilds,
   renderHero,
   renderHistory,
@@ -105,6 +109,10 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return newWorld(command, context);
     case 'show':
       return show(command.view, context);
+    case 'advance':
+      return advanceTurns(command.turns, context);
+    case 'rebase':
+      return rebaseRules(context);
     case 'save':
       return saveAs(command.as, context);
     case 'load':
@@ -234,6 +242,51 @@ function show(view: View, { io, content, path }: Context): Exit {
       return say(io, renderHistory(`History of ${who}: ${entries.length} entries, newest first`, entries));
     }
   }
+}
+
+// ── advance and rebase ───────────────────────────────────────────────────────────────────────
+
+/**
+ * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping
+ * early if the game ends, writes the save and prints what happened. A game that has already ended
+ * is refused and nothing is written.
+ */
+function advanceTurns(turns: number, { io, content, path }: Context): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const { deps } = opened;
+  let { document } = opened;
+  const { ended } = document.world;
+  if (ended !== null) return refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+
+  const events: EngineEvent[] = [];
+  let played = 0;
+  while (played < turns) {
+    const result = advance(document, deps);
+    document = result.document;
+    events.push(...result.events);
+    played += 1;
+    if (result.stoppedBecause?.kind === 'ended') break;
+  }
+  writeSave(path, document);
+  return say(io, renderAdvance(played, events, document, deps));
+}
+
+/**
+ * `rebase`: the save adopts this release's `defaultConfig`. Not the play deps `open` gives, whose
+ * config is the save's own filled forward and carries the save's `configVersion`: under those
+ * every save would already be current. Refused, writing nothing, when it is.
+ */
+function rebaseRules({ io, content, path }: Context): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const was = opened.document.meta.config.configVersion;
+  const result = rebase(opened.document, { config: defaultConfig, content });
+  if (!result.ok) {
+    return refuse(io, `${path} already plays under this release's rules, configVersion ${was}.`);
+  }
+  writeSave(path, result.document);
+  return say(io, [`Adopted this release's rules: configVersion ${was} to ${result.document.meta.config.configVersion}.`]);
 }
 
 // ── save and load ────────────────────────────────────────────────────────────────────────────

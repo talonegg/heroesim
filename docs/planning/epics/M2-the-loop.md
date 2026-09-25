@@ -4,7 +4,7 @@
 **Sessions:** 12–16 · **Depends on:** M1 · **Implements:** `plan.md` M2; approach §2 and §3; R2–R4, R11, R18, R20–R23, R25, R27, R34; ADR-0002, ADR-0003; requirements §5 open item on the stub (closed: weighted Stat demands, DL-06)
 **Gate:** `npm run harness` plays 200 seeds × 20 years to an ending and reports the counters; from the CLI a human runs `advance`, `dispatch`, `recruit`, `advance --until party-returns` and reads what happened
 
-**Status:** not started
+**Status:** in progress — M2-S1 and S2 done
 
 ## 0. What lands in M2
 
@@ -45,12 +45,12 @@ turn, config)` as selectors.
 
 **Acceptance:**
 
-- [ ] `advance` returns a new document whose `world` is not the input's (`!==`) while `meta`
+- [x] `advance` returns a new document whose `world` is not the input's (`!==`) while `meta`
       and `history` are (`===`)
-- [ ] The input document's `world` is deep-equal to what it was before the call
-- [ ] After three advances `dayOf(turn)` is 1 and `timeOfDay` is morning
-- [ ] CLI `advance [--turns n]` works and `show` reflects the Turn
-- [ ] A save created under `configVersion` 1 and loaded with defaults at version 2 still plays
+- [x] The input document's `world` is deep-equal to what it was before the call
+- [x] After three advances `dayOf(turn)` is 1 and `timeOfDay` is morning
+- [x] CLI `advance [--turns n]` works and `show` reflects the Turn
+- [x] A save created under `configVersion` 1 and loaded with defaults at version 2 still plays
       under version 1 until `rebase`, which rewrites `meta.config` and appends exactly one
       `world.rules-adopted`; a second `rebase` is rejected `already-current`
 
@@ -64,10 +64,10 @@ Guild of any Hero involved (data-model §4).
 
 **Acceptance:**
 
-- [ ] The phase list's names and times of day match approach §2 exactly; a test compares them
+- [x] The phase list's names and times of day match approach §2 exactly; a test compares them
       to a literal
-- [ ] A phase runs only on its time of day (spy counts over nine Turns)
-- [ ] `emit` adds a Hero's `guildId` to `participants` when only the `heroId` was given
+- [x] A phase runs only on its time of day (spy counts over nine Turns)
+- [x] `emit` adds a Hero's `guildId` to `participants` when only the `heroId` was given
 
 ### M2-S3 · Quest templates, Quest Generator, Board · 2 sessions
 
