@@ -535,6 +535,98 @@ not unique. Any change to the draw order in items 3–9 changes every seed's wor
 under DL-12. M1-S6's first acceptance box, that the validator accepts what `createWorld`
 returns, waits for M1-S7.
 
+## DL-20 — What the validator checks beyond §6's table, and how a save is written and read
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M1-S7 and M1-S8)
+
+**Context.** Data-model §6 lists what the validator refuses and warns about; rules 5 to 8 and
+DL-18 item 4 add to it; M1-S7 and M1-S8 name the functions. Left open: how a failure is reported,
+how a document of the wrong shape is refused without the validator throwing, what "more Parties
+than the build allows" is, what a counter is compared with, how Quest template and Item keys are
+checked before content has either, how the migration chain runs, and which `schemaVersion` a load
+compares against.
+
+**Decision.**
+
+1. **Reports.** `validate(document, content)` (`engine/src/validate.ts`) returns
+   `{ ok: true, warnings }` or `{ ok: false, failures }`. A failure is `{ check, id, detail }` and a
+   warning `{ check, id, key, detail }`: `check` is a kebab-case name from `refusalChecks` or
+   `warningChecks`, each the function of the same name in camelCase; `id` is the offending row or
+   entity, or, where no row is at fault, the path of the offending value (`$.world.counters.heroes`,
+   `$.history.byType["quest.resolved"]`); `key` is the unknown content key; `detail` is prose for
+   a front end. Tests assert on `check`, `id` and `key`, never on `detail`. Warnings are reported
+   only when nothing is refused.
+2. **Shape first.** `document-shape` checks that every section, table, row and History entry is a
+   plain object carrying each field of its interface with the right kind (string, number,
+   integer, list, map, or nullable), and every list and map a later check walks. The field lists
+   are typed `Record<keyof Row, FieldKind>`, so the compiler refuses one that drifts from
+   `document.ts`. When the shape fails, only it and `json-safe` report, so no later check can throw
+   on a missing field: a damaged or hand-made save is refused and never crashes a load. A field no
+   interface names is kept and ignored (rule 5). Enumerated values and numeric ranges are not
+   checked; §6 does not ask for them.
+3. **Beyond the table's rows.** `json-safe` covers the whole document, the History included
+   (rule 6, DL-18 item 4), naming the first offending path. `id-format` covers each table's keys,
+   `row.id` equal to its key, Regard keys, History participants and `byEntity` keys.
+   `roster-guild-mismatch` also refuses a living, unretired Hero whose Guild's Roster does not
+   list them; dead and retired Heroes leave the Roster and keep `guildId` (M2-S5, M2-S6).
+   `party-member-mismatch` holds `hero.partyId` and `party.heroIds` to agree, as
+   `quest-party-mismatch` holds `quest.partyIds` and `party.questId`. `history-index-mismatch`
+   checks each index list ascends strictly and points at entries of its entity, type or Milestone
+   flag, and that the lists' lengths account for every entry (counting, linear, no rebuild).
+   `history-turn-order` refuses an entry out of Turn order, before Turn 0 or after `world.turn`.
+4. **Rule 8.** `passiveEntryTypes` is `['hero.generated', 'hero.left-pool']`.
+   `removed-hero-in-history` refuses a Hero id absent from `world.heroes` that any other entry
+   names. It is about Heroes only: Quests, Parties, offers and stacks are removed while the History
+   keeps their ids, and that is not refused.
+5. **Parties.** "More Parties than the build allows" is `maxPartiesPerQuest = 1`, a named constant
+   and not a `GameConfig` field: it is a limit of the first build's rules, not a balance number,
+   and the later "at most one per Guild" changes the check, not a value.
+6. **Counters.** A counter is the next id number (`emptyDocument` starts each at 1), so
+   `counter-range` refuses one that is missing, not a whole number, past 999,999, or not above the
+   highest id of its table in use, among the table's own keys or in the History's `byEntity`
+   keys: the next id must never repeat a removed Quest's. The last usable id is 999,998.
+7. **Offers.** Expired means `expiresOnTurn < world.turn`: an offer is live through its expiry
+   Turn and removed that night (M6-S2).
+8. **Content keys** warn by owner: a Hero's Stats, Potential, Traits and Background must be
+   content rows with `owner: "hero"`, a Guildmaster's Stats and Traits `"guildmaster"`, a Guild's
+   Background `"guild"`. Quest demands, Skill keys and requirements are checked too. Quest
+   template and Item keys are looked up in content tables named `questTemplates` and `items`,
+   which M2-S3 and M5-S1 add to `ContentSet`; until one exists, content defines no such key and
+   every one warns, as §6 says. Injury types, Dispositions, Encounters, Loot tables, slots and tags
+   are not checked until their content exists.
+9. **Serialisation** writes object keys in `Array.prototype.sort`'s default order (UTF-16 code
+   units, the same in every JavaScript engine), arrays in their own order, scalars by
+   `JSON.stringify`, and no whitespace. `serialise` throws on a document that is not JSON-safe,
+   naming the path: a programming error, since the engine makes only JSON-safe documents.
+10. **Loading.** `deserialise(text, deps)` never throws on its input; it refuses with a typed
+    `reason` whose `kind` is `malformed-json`, `not-a-document` (no whole-number `meta.version`),
+    `unsupported-version` (naming `documentVersion` and `schemaVersion`, when no chain leads from
+    one to the other, including from a newer save) or `invalid` (carrying the validator's
+    failures). On success it returns the validator's `warnings` beside the document, so a front
+    end can show them (rule 5). `migrations[n]` turns a version-n document into version n + 1; the
+    runner checks every step exists before running any, and sets `meta.version` after each, so a
+    step cannot forget. `meta.config` is left alone: only `rebase` rewrites it.
+11. **The version a load compares is `deps.config.schemaVersion`, and the `deps` given to
+    `deserialise` carry the engine's own `defaultConfig`, not a config merged from the save.** A
+    config built as `{ ...defaultConfig, ...meta.config }` carries the save's own
+    `schemaVersion`, which equals its `meta.version`, and would skip every migration. Front ends
+    (M1-S9, M7-S2) build that merged config for play, after the load.
+12. **Test support.** `withValid(document, content, { allowWarnings })` and the fixtures (a small
+    content set mirroring the real keys, with Quest template and Item tables, and `buildDocument`,
+    a valid document using every table and lifecycle) are in `engine/src/world.test-support.ts`:
+    not run as a test, linted as engine source (DL-16), not exported from the package. The engine's
+    tests cannot load the real content (ADR-0007). `withValid` throws on a failure, and on a
+    warning unless allowed, since a document the engine makes from content should hold only that
+    content's keys.
+
+**Consequences.** M2-S3 and M5-S1 should name their content tables `questTemplates` and `items`
+or change the two lookups in `validate.ts`; a mismatch shows as a warning on every Quest or Item,
+which `withValid` turns into a failing test. A new row field needs its kind in the validator's
+field lists, which the compiler demands. A later build allowing more Parties changes
+`tooManyParties`. The validator walks the History a few times, each pass linear; measured here, a
+1,000-Hero world with about a thousand entries validates in about 11 ms, and M2-S12 measures a
+20-year save.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
