@@ -85,12 +85,12 @@ other mutator.
 
 **Acceptance:**
 
-- [ ] After N appends, `entries.length === N` and every index position points at an entry of the
+- [x] After N appends, `entries.length === N` and every index position points at an entry of the
       right entity or type
-- [ ] Appending an entry with a lower `turn` than the last throws (programming error, rule 1 of
+- [x] Appending an entry with a lower `turn` than the last throws (programming error, rule 1 of
       §4)
-- [ ] A test freezes every entry after append and reads back unchanged
-- [ ] `entriesBetween` on 10,000 entries returns the right slice and runs under 1 ms
+- [x] A test freezes every entry after append and reads back unchanged
+- [x] `entriesBetween` on 10,000 entries returns the right slice and runs under 1 ms
 
 ### M1-S4 · Content set and loader · 2 sessions
 
