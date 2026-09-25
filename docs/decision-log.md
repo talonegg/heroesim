@@ -166,12 +166,76 @@ no CI secrets in the first build.
 
 **Consequences.** M7's "done" line includes a live URL, not only a passing Playwright suite.
 
+## DL-11 — CI proved to fail on a boundary break
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M0-S3, as specified by
+the owner's plan)
+
+**Context.** M0-S3's acceptance requires more than a green workflow: "A pushed commit that
+breaks the boundary test turns CI red (tried once, then reverted, and the two commits named in
+DL-11)."
+
+**Decision.** Commit `378fdc7f4412baa766adb11c893a4772ac6d9f79` added
+`export const r = Math.random();` to `engine/src/index.ts` and was pushed to `v1.0-dev`; CI run
+[36150346701](https://github.com/talonegg/heroesim/actions/runs/36150346701) failed on
+`npm run lint`, on both Node legs, with the ADR-0001 message. Commit
+`a2e2b0d24340184fd1684641b6e88441baac0c15` (`git revert 378fdc7f`) removed it and was pushed; CI
+run [36150443076](https://github.com/talonegg/heroesim/actions/runs/36150443076) passed on both
+legs.
+
+**Consequences.** The workflow added by M0-S3 (`.github/workflows/check.yml`) is proved to fail
+on the rule it exists to enforce, not merely assumed to. M0-S3's three acceptance boxes are met.
+
 ---
 
-DL-11, DL-12 and DL-13 are reserved by the epics and are not written here: DL-11 is M0-S3's CI
-red/green proof, DL-12 is M1-S2's PRNG choice, and DL-13 is M1-S10's determinism measure
-(renumbered from a collision by pre-M0 review E1). The next writer of a new decision uses DL-14
+DL-12 and DL-13 remain reserved by the epics and are not yet written here: DL-12 is M1-S2's PRNG
+choice and DL-13 is M1-S10's determinism measure (renumbered from a collision by pre-M0 review
+E1). DL-11 above and DL-14 below are now written. The next writer of a new decision uses DL-15
 onward.
+
+---
+
+## DL-14 — Toolchain pins and boundary-rule choices made in M0-S1/S2
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent
+
+**Context.** M0-S1 and M0-S2 built the workspace skeleton and the engine's lint boundary. Their
+implementer reported several departures from the epic's literal text that were not separately
+logged at the time; each is verified against the repository below rather than taken on trust.
+
+**Decision.**
+
+1. TypeScript is pinned at 6.0.3, not the current 7.0.2 (npm registry, checked 2026-09-26),
+   because `typescript-eslint` 8.70.1's `peerDependencies` requires
+   `typescript: ">=4.8.4 <6.1.0"` (`package-lock.json`). Vitest 5.0.2 requires `vite` as a
+   non-optional peer (`"vite": { "optional": false }` on the `vitest` entry in
+   `package-lock.json`); `vite` is resolved in the lockfile but is not a `devDependencies` entry
+   in `package.json`.
+2. `engine/**/*.ts` bans the `console` global with `no-restricted-globals` rather than
+   `no-console`, because `no-console` cannot carry the custom message that names the ADR
+   (ADR-0003); `no-restricted-globals` can (`eslint.config.js`).
+3. `engine/**/*.ts` (source) bans every bare-specifier import (`regex: '^[^./]'`), wider than the
+   epic's named list (`@heroesim/*`, `node:*`, `fs`, `path`), so any npm dependency is caught
+   too. `engine/**/*.test.ts` may still import `node:*` and other npm tooling, but not
+   `@heroesim/*` (`eslint.config.js`, `engineSource` and `engineTests`). `engine/tsconfig.json`
+   sets `"types": ["node"]` so the tests, which read and write files, type-check, while lint
+   still refuses `node:*` in the engine's own source.
+4. `harness/**` is given a rule the epic did not state for it by name: like `cli`, it may import
+   `engine` and `content` by package name only and may not import `web`
+   (`consumerImports('harness', ['cli', 'web'])` in `eslint.config.js`).
+5. The harness run is a separate `harness-run` Vitest project (`vitest.config.ts`) that exists
+   only when `HEROESIM_HARNESS` is set; `harness/run.mjs` sets that variable itself via
+   `spawnSync`, with no `cross-env`-style dependency, because inline `VAR=1 vitest run` syntax
+   fails on Windows shells.
+6. `play` currently runs `tsx cli/src/index.ts` (`package.json`); M1-S9 is expected to repoint it
+   to `main.ts` once the CLI exists.
+7. M1-S4 will need to allow `@heroesim/content/node` as a named exception to the subpath ban
+   (`noSubpath` in `eslint.config.js`); the config already carries a comment anticipating this.
+
+**Consequences.** Items 1–5 are built and verified in the repository as it stands
+(`package.json`, `package-lock.json`, `eslint.config.js`, `engine/tsconfig.json`,
+`vitest.config.ts`, `harness/run.mjs`). Items 6 and 7 are forward notes for M1-S9 and M1-S4, not
+yet built.
 
 ---
 
