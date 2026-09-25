@@ -140,6 +140,7 @@ export function validateContent(set: ContentSet): ContentSet {
   }
 
   checkImprovements(set.improvements, problems);
+  checkTraitEffects(set.traits, classes, heroStats, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -181,6 +182,51 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
       problems.push(
         `improvements: the grades of ${facility} are ${sorted.join(', ')}; they run 1 to ${sorted.length}, each once`,
       );
+    }
+  }
+}
+
+/**
+ * Trait effects (M4-S5, pre-M0 review B2, DL-43): a Guildmaster Trait carries one effect of the
+ * closed union and a Hero Trait none, since no rule reads a Hero Trait in the first build. A
+ * `classStatBonus` names a Class and a Hero Stat and moves it by a whole number other than 0; a
+ * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0.
+ */
+function checkTraitEffects(
+  traits: ContentSet['traits'],
+  classes: ReadonlySet<string>,
+  heroStats: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, trait] of Object.entries(traits)) {
+    const where = `traits.${key}.effect`;
+    const { effect } = trait;
+    if (trait.owner === 'hero') {
+      if (effect !== null) problems.push(`${where}: a Hero Trait has no effect in the first build; it is null`);
+      continue;
+    }
+    if (effect === null) {
+      problems.push(`${where}: a Guildmaster Trait carries one effect (classStatBonus, guildMoraleShift or upkeepFactor)`);
+      continue;
+    }
+    switch (effect.kind) {
+      case 'classStatBonus':
+        if (!classes.has(effect.classKey)) problems.push(`${where}.classKey: "${effect.classKey}" is not a Class`);
+        if (!heroStats.has(effect.statKey)) problems.push(`${where}.statKey: "${effect.statKey}" is not a Hero Stat`);
+        if (!(Number.isInteger(effect.delta) && effect.delta !== 0)) {
+          problems.push(`${where}.delta is ${effect.delta}; it is a whole number other than 0`);
+        }
+        break;
+      case 'guildMoraleShift':
+        if (!(Number.isFinite(effect.delta) && effect.delta !== 0)) {
+          problems.push(`${where}.delta is ${effect.delta}; it is a number other than 0`);
+        }
+        break;
+      case 'upkeepFactor':
+        if (!(Number.isFinite(effect.factor) && effect.factor > 0)) {
+          problems.push(`${where}.factor is ${effect.factor}; it is a number above 0`);
+        }
+        break;
     }
   }
 }

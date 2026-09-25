@@ -21,6 +21,8 @@ import type {
   Stat,
   StatArea,
   StatOwner,
+  Trait,
+  TraitEffect,
 } from './content-types.js';
 import {
   emptyDocument,
@@ -147,6 +149,11 @@ function questTemplate(
   ];
 }
 
+/** A Guildmaster Trait with its one effect (M4-S5), keyed by `key` and named after it. */
+function guildmasterTrait(key: string, effect: TraitEffect): Record<string, Trait> {
+  return { [key]: { key, name: title(key), owner: 'guildmaster', effect } };
+}
+
 /** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
 function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], leavesTrait: string | null): [string, InjuryType] {
   return [key, { key, name: title(key), healDaysMin, healDaysMax, leavesTrait }];
@@ -213,11 +220,14 @@ export const testContent: ContentSet = deepFreeze(
         ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
         ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
       ),
+      // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties.
       traits: {
-        ...keyed(
-          { owner: 'guildmaster' as const, effect: null },
-          ...['old-soldier', 'well-liked', 'thrifty', 'miser', 'spendthrift', 'mistrusts-magic'],
-        ),
+        ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }),
+        ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }),
+        ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }),
+        ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }),
+        ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }),
+        ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }),
         ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
       },
       backgrounds: {

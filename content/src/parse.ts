@@ -21,6 +21,8 @@ import type {
   StatArea,
   StatOwner,
   Trait,
+  TraitEffect,
+  TraitEffectKind,
   TraitOwner,
 } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
@@ -31,9 +33,10 @@ export const contentSetId = 'core';
 /**
  * Raised whenever the content changes, so a document says which content it was created under:
  * 2 from M2-S3, which added the Quest templates; 3 from M2-S9, which added the Dispositions; 4
- * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements.
+ * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from
+ * M4-S5, which gave the Guildmaster Traits their effects (DL-43).
  */
-export const contentVersion = 5;
+export const contentVersion = 6;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -57,6 +60,7 @@ export type ContentFileName = (typeof contentFiles)[number];
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const traitOwners: Record<TraitOwner, true> = { hero: true, guildmaster: true };
+const traitEffectKinds: Record<TraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
 
@@ -94,7 +98,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     traits: table<Trait>('traits.json', json('traits.json'), problems, 'a Trait', (row) => ({
       name: row.string('name'),
       owner: row.oneOf('owner', traitOwners),
-      effect: row.null('effect'),
+      effect: traitEffect(row.nullableChild('effect')),
     })),
     backgrounds: table<Background>(
       'backgrounds.json',
@@ -231,6 +235,29 @@ function names(json: unknown, problems: string[]): Names {
   return result;
 }
 
+/**
+ * A Trait's `effect` (M4-S5): `null`, or one of the closed union's kinds with exactly its fields.
+ * Which owner may carry which is `validateContent`'s rule.
+ */
+function traitEffect(reader: RowReader | null): TraitEffect | null {
+  if (reader === null) return null;
+  const kind = reader.oneOf('kind', traitEffectKinds);
+  let effect: TraitEffect;
+  switch (kind) {
+    case 'classStatBonus':
+      effect = { kind, classKey: reader.string('classKey'), statKey: reader.string('statKey'), delta: reader.integer('delta') };
+      break;
+    case 'guildMoraleShift':
+      effect = { kind, delta: reader.number('delta') };
+      break;
+    case 'upkeepFactor':
+      effect = { kind, factor: reader.number('factor') };
+      break;
+  }
+  reader.refuseUnknown(`a ${kind} effect`);
+  return effect;
+}
+
 /** A Quest template's `requires`: an optional Class and an optional Skill, and nothing else. */
 function requires(reader: RowReader): QuestTemplateRequires {
   const classKey = reader.optionalString('classKey');
@@ -335,6 +362,15 @@ class RowReader {
     if (isObject(value)) return value;
     this.wrong(field, value, 'an object');
     return {};
+  }
+
+  /** A reader for the object in `field`, or `null` when the field is `null`: present either way. */
+  nullableChild(field: string): RowReader | null {
+    const value = this.field(field);
+    if (value === null) return null;
+    if (isObject(value)) return new RowReader(this.file, [...this.prefix, field], value, this.problems);
+    this.wrong(field, value, 'an object or null');
+    return null;
   }
 
   /** A reader for the object in `field`, reporting its problems under this row's path. */
