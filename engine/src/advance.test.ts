@@ -6,7 +6,7 @@ import type { EngineEvent } from './events.js';
 import { phases } from './pipeline.js';
 import type { Phase, PhaseContext } from './phases/phase.js';
 import { dayOf, timeOfDay } from './time.js';
-import { testContent, testDeps, withValid } from './world.test-support.js';
+import { testDeps, withValid } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const deps = testDeps();
@@ -35,7 +35,7 @@ describe('advance', () => {
     expect(next.world).not.toBe(document.world);
     expect(next.meta).toBe(document.meta);
     expect(next.history).toBe(document.history);
-    expect(withValid(next, testContent)).toBe(next);
+    expect(withValid(next, testDeps())).toBe(next);
   });
 
   test("leaves the input document's world as it was", () => {
@@ -52,7 +52,7 @@ describe('advance', () => {
     expect(document.world.turn).toBe(0);
 
     for (let call = 1; call <= 3; call += 1) {
-      document = withValid(advance(document, deps).document, testContent);
+      document = withValid(advance(document, deps).document, testDeps());
       expect(document.world.turn).toBe(call);
     }
 

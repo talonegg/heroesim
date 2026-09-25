@@ -52,12 +52,12 @@ describe('a save under older rules', () => {
 
     const before = rulesOfTheNextTurn(document, playDeps(document, laterDefaults));
     expect(before.config).toMatchObject({ configVersion: 1, turnsPerYear: defaultConfig.turnsPerYear });
-    document = withValid(before.document, testContent);
+    document = withValid(before.document, testDeps());
     expect(document.meta.config.configVersion).toBe(1);
 
     const rebased = rebase(document, { config: laterDefaults, content: testContent });
     if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
-    document = withValid(rebased.document, testContent);
+    document = withValid(rebased.document, testDeps());
 
     expect(document.meta.config).toEqual(laterDefaults);
     expect(count(document.history, 'world.rules-adopted')).toBe(1);

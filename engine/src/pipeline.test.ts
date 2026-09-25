@@ -4,7 +4,7 @@ import { createWorld } from './create.js';
 import { phases, runTurn } from './pipeline.js';
 import { phaseContext } from './phases/phase.js';
 import { timeOfDay } from './time.js';
-import { testContent, testDeps, withValid } from './world.test-support.js';
+import { testDeps, withValid } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const deps = testDeps();
@@ -40,7 +40,7 @@ describe('runTurn', () => {
     );
     let { document } = createWorld('nine-turns', setup, deps);
 
-    for (let turn = 1; turn <= 9; turn += 1) document = withValid(advance(document, deps).document, testContent);
+    for (let turn = 1; turn <= 9; turn += 1) document = withValid(advance(document, deps).document, testDeps());
 
     // Nine Turns from Turn 0 are three of each time of day, so every phase runs three times.
     for (const spy of spies) expect(spy).toHaveBeenCalledTimes(3);
