@@ -6,21 +6,24 @@
 
 import type { EngineDeps } from '../config.js';
 import type { WorldDocument } from '../document.js';
+import { dispatch, type DispatchAction, type DispatchRejection } from './dispatch.js';
 import { rebase, type RebaseAction, type RebaseRejection } from './rebase.js';
 import type { ActionResult } from './result.js';
 
 /** Every action, told apart by `kind`. */
-export type Action = RebaseAction;
+export type Action = RebaseAction | DispatchAction;
 
 export type ActionKind = Action['kind'];
 
 /** Every way an action can be refused, told apart by `action` and then `reason`. */
-export type ActionRejection = RebaseRejection;
+export type ActionRejection = RebaseRejection | DispatchRejection;
 
 /** Applies `action` to `document` through the action's own function. */
 export function applyAction(document: WorldDocument, action: Action, deps: EngineDeps): ActionResult<ActionRejection> {
   switch (action.kind) {
     case 'rebase':
       return rebase(document, deps);
+    case 'dispatch':
+      return dispatch(document, action, deps);
   }
 }

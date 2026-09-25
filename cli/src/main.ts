@@ -34,6 +34,8 @@ import {
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
+import { dispatchParty } from './commands/dispatch.js';
+import type { CommandOutcome } from './commands/outcome.js';
 import {
   renderAdvance,
   renderBoard,
@@ -113,6 +115,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return show(command.view, context);
     case 'advance':
       return advanceTurns(command.turns, context);
+    case 'dispatch':
+      return act(context, (document, deps) => dispatchParty(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -153,6 +157,23 @@ function open(io: CliIo, path: string, content: ContentSet): { document: WorldDo
   }
   for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
   return { document: read.document, deps: read.deps };
+}
+
+/**
+ * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
+ * `change` under the save's own deps, and on success writes the new document and prints its lines;
+ * on a refusal prints the problem and writes nothing.
+ */
+function act(
+  { io, content, path }: Context,
+  change: (document: WorldDocument, deps: EngineDeps) => CommandOutcome,
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const outcome = change(opened.document, opened.deps);
+  if (!outcome.ok) return refuse(io, outcome.problem);
+  writeSave(path, outcome.document);
+  return say(io, outcome.lines);
 }
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────

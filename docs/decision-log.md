@@ -916,7 +916,8 @@ an offer expires; how Patrons are weighted, given that R22 weights them by Regar
 Guild while every Guild draws from one Board; whether `createWorld` draws the first Board (DL-24's
 consequences: otherwise a new game opens on an empty Board until Turn 3); how a save made before
 the `board` stream plays on (the text requires M1 saves to keep working); the events' payloads;
-and the CLI's `show board`.
+the order and shape of dispatch's rejections and what it throws on; and the CLI's `show board`
+and `dispatch`.
 
 **Decision.**
 
@@ -995,14 +996,53 @@ and the CLI's `show board`.
     name, its Patron, difficulty, Days (`durationDaysOf`, a selector added to `time.ts`), reward,
     Fame, Party size, required Class or Skill, and the last Day it is on offer; then each Quest's
     weighted demands and the Skills that help.
+12. **Dispatch's checks, in order.** `dispatch(document, { guildId, questId, heroIds }, deps)` in
+    `engine/src/actions/dispatch.ts` rejects on the first check that fails: the Quest is offered
+    and on the Board (`quest-not-offered`, naming it; taken, expired, resolved and never offered
+    read alike); then each Hero, in the order given, is the Guild's (`hero-not-on-roster`, naming
+    the Hero and the Guild: another Guild's, Unattached, or no row at all) and free to go
+    (`hero-unavailable`, whose `because` is `dead`, `retired`, `injured` or `in-party`); then the
+    Party's size is within the Quest's bounds (`party-size`, naming `size`, `partySizeMin` and
+    `partySizeMax`); then some Hero in the Party is of the required Class and some holds the
+    required Skill, at any rating (`requirement-unmet`, whose `unmet` names whichever of
+    `classKey` and `skillKey` the Party lacks). Death and Retirement are checked before the Roster,
+    since a dead or retired Hero has left it and keeps `guildId` (DL-20 item 3), so they read as
+    unavailable rather than as strangers. Retirement is not in the epic's list; it is Death's case.
+    M4-S5 gives `requirement-unmet` its own reason field on top of this shape.
+13. **Programming errors throw** rather than reject: a Guild not in the world, and a Hero named
+    twice. The CLI refuses a repeated Hero, and a word without an id's form, as a bad command line
+    before it calls.
+14. **On success** `dispatch` copies `world` (DL-24's consequences), adds a `parties` row
+    departing this Turn with `returnsOnTurn = nightOf(dayOf(turn) + durationDaysOf(quest))`, a
+    night whichever Turn of the Day it left in (pre-M0 review C4); sets the Quest `taken`, lists
+    the Party in `partyIds` and takes it off the Board; sets each Hero's `partyId`; and appends and
+    returns `quest.taken`, not a Milestone, naming the Quest, the Party, each Hero, the Guild and
+    the Patron, with payload `{ questId, partyId, guildId, heroIds, returnsOnTurn }`. `meta` and
+    `history` are shared, as `advance` shares them. `deps` is taken, as by every entry point, and
+    read by no rule of dispatch until M4-S5's Negotiation scales the reward. `dispatch` joins the
+    `Action` union and `applyAction`. The afternoon's `questsAdvance` stays a no-op.
+15. **The CLI's `dispatch --quest <id> --heroes <id,id>`** sends Heroes of the player's Guild and
+    prints the Party, the Quest's template name, its length in Days and the night it returns
+    (Day and Turn), then after every dispatch: "Rivals take Quests from the Board each afternoon: a
+    Quest left on it may be gone by then." A rejection is put into words, exits 1 and writes
+    nothing. The command's logic is `cli/src/commands/dispatch.ts`, which returns an outcome;
+    `main.ts` registers it through a new `act`, which opens the save, applies a command's change
+    under the save's deps, and writes and prints, or refuses, for M2-S8's `recruit` to share.
+16. **M2-S4's last box is half proved.** A test dispatches in each of the three Turns of three
+    Days and finds `returnsOnTurn` on the night of Day d + k each time. That the Heroes are
+    dispatchable again on the morning of Day d + k + 1 needs M2-S5's `questsConclude` to bring the
+    Party back, so the box stays unticked until then. The test that a dispatched Hero cannot go
+    again checks every Turn before `returnsOnTurn`; that night itself is M2-S5's.
 
 **Consequences.** A template changed in content reaches only Quests drawn after the change
 (data-model §3.2). The shipped templates' ranges are INPUTS values held in content, so tuning
 them is a content change with a `contentVersion` bump rather than a `configVersion` one; only the
 difficulty scale, the Board's size and the offer's length are config. M2-S5 reads `fameEffect` as
-a magnitude and `durationDaysOf` for a Quest's Days. M4-S5 replaces the uniform Patron draw with
-Regard weights, changing what every seed's Board draws from Day 1. A template requirement the
-Party cannot meet is M2-S4's `requirement-unmet`.
+a magnitude and `durationDaysOf` for a Quest's Days, and frees the Party's Heroes by clearing
+their `partyId` when it removes the Party; a taken Quest's `expiresOnTurn` is never read again, so
+it cannot expire under a Party. M2-S9's Rival controller and M2-S12's policy produce `dispatch`
+actions and meet the same rejections. M4-S5 replaces the uniform Patron draw with Regard weights,
+changing what every seed's Board draws from Day 1.
 
 ---
 

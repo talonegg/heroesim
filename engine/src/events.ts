@@ -4,7 +4,7 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { ClassKey, QuestTemplateKey, SphereKey } from './content-types.js';
-import type { Entry, GuildId, GuildmasterId, HeroId, PatronId, QuestId } from './document.js';
+import type { Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -64,6 +64,17 @@ export type QuestExpired = Entry<
   { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
 >;
 
+// ── Dispatch (M2-S4, DL-25) ──────────────────────────────────────────────────────────────────
+
+/**
+ * A Guild sent a Party on a Quest from the Board: the Quest is taken and the Party away until
+ * `returnsOnTurn`, a night. Names the Quest, the Party, each Hero, the Guild and the Patron.
+ */
+export type QuestTaken = Entry<
+  'quest.taken',
+  { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -73,7 +84,8 @@ export type EngineEvent =
   | PatronGenerated
   | WorldRulesAdopted
   | QuestOffered
-  | QuestExpired;
+  | QuestExpired
+  | QuestTaken;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -95,4 +107,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'world.rules-adopted': true,
   'quest.offered': false,
   'quest.expired': false,
+  'quest.taken': false,
 } satisfies Record<EngineEventType, boolean>);

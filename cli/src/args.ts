@@ -1,7 +1,9 @@
 // The command line, `heroesim <command> [flags]`, parsed into a typed command or refused with a
 // reason. Nothing here reads a save or the content: whether a Guild Background or an id exists
-// is the command's to check, once the save and the content are open.
+// is the command's to check, once the save and the content are open. Whether a word has the form
+// of an id is checked here, by the engine's `isId`.
 
+import { isId, type HeroId, type QuestId } from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -18,6 +20,10 @@ Commands:
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
+  dispatch --quest <questId> --heroes <heroId,heroId,...>
+      Send a Party of the player's Heroes on a Quest from the Board, within the current
+      Turn, and print the Party and the Day it returns. Rivals take Quests from the Board
+      each afternoon.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -56,6 +62,7 @@ export type Command =
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number }
+  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -68,6 +75,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
   show: { save: 'value' },
   advance: { save: 'value', turns: 'value' },
+  dispatch: { save: 'value', quest: 'value', heroes: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -123,6 +131,17 @@ function wholeFromOne(flag: string, value: string): number {
   return /^\d+$/.test(value) && Number.isSafeInteger(n) && n >= 1
     ? n
     : refuse(`${flag} needs a whole number from 1; got "${value}"`);
+}
+
+/** `--heroes`: Hero ids joined by commas, each once. */
+function heroList(value: string): HeroId[] {
+  const heroes = value.split(',').map((word) => word.trim());
+  for (const word of heroes) {
+    if (!isId('heroes', word)) refuse(`--heroes needs Hero ids such as hero-000001, joined by commas; got "${word}"`);
+  }
+  const twice = heroes.find((word, index) => heroes.indexOf(word) !== index);
+  if (twice !== undefined) refuse(`--heroes names ${twice} twice`);
+  return heroes as HeroId[];
 }
 
 function atMost(positional: readonly string[], count: number, command: string): void {
@@ -196,6 +215,12 @@ function parse(argv: readonly string[]): Command {
       atMost(positional, 0, 'advance');
       const turns = flags.get('turns');
       return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
+    }
+    case 'dispatch': {
+      atMost(positional, 0, 'dispatch');
+      const quest = required(flags, name, 'quest');
+      if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
+      return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
     }
     case 'rebase':
       atMost(positional, 0, 'rebase');

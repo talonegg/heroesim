@@ -9,12 +9,17 @@ import {
   ageOf,
   count,
   createWorld,
+  dayOf,
   defaultConfig,
   deserialise,
+  dispatch,
   makeId,
   serialise,
   type EntityId,
   type Hero,
+  type HeroId,
+  type Quest,
+  type QuestId,
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
@@ -478,6 +483,90 @@ describe('advance', () => {
   test('refuses a bad --turns as a bad command line', () => {
     expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
     expect(document().world.turn).toBe(0);
+  });
+});
+
+describe('dispatch (M2-S4)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  /** The first Quest on the Board the player's first Heroes can take: no Class or Skill asked, and a size they make. */
+  function openQuest(world: WorldDocument['world']): { questId: QuestId; heroIds: HeroId[] } {
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    for (const questId of world.board) {
+      const { requirements } = world.quests[questId] as Quest;
+      if (requirements.classKey === undefined && requirements.skillKey === undefined) {
+        return { questId, heroIds: roster.slice(0, requirements.partySizeMin) };
+      }
+    }
+    throw new Error('No open Quest on the Board');
+  }
+
+  test('sends the Party the engine sends, saves it, and prints the Party, the return Day and the Rivals reminder', () => {
+    const before = document();
+    const { questId, heroIds } = openQuest(before.world);
+    const expected = dispatch(
+      before,
+      { guildId: playerId, questId, heroIds },
+      { config: { ...defaultConfig, ...before.meta.config }, content },
+    );
+    if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
+    const party = Object.values(expected.document.world.parties)[0];
+    if (party === undefined) throw new Error('No Party');
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(run.out).toContain(`Dispatched ${party.id} from The Test on ${questId}`);
+    for (const heroId of heroIds) expect(run.out).toContain(`${before.world.heroes[heroId]?.name} (${heroId})`);
+    expect(run.out).toContain(`returns on the night of Day ${dayOf(party.returnsOnTurn)}, Turn ${party.returnsOnTurn} `);
+    expect(run.out).toContain('Rivals take Quests from the Board each afternoon');
+    expect(play(['show', 'board']).out).not.toContain(questId);
+  });
+
+  test("refuses a Quest not on the Board, a Hero away and another Guild's Hero, writing nothing", () => {
+    const { questId, heroIds } = openQuest(document().world);
+    expect(play(['dispatch', '--quest', questId, '--heroes', heroIds.join(',')]).code).toBe(exitCodes.ok);
+    const original = saved();
+    const { world } = document();
+    const next = openQuest(world);
+    const idle = (world.guilds[playerId]?.rosterIds ?? []).filter((id) => !heroIds.includes(id));
+    const rivalHero = world.guilds[makeId('guilds', 2)]?.rosterIds[0] as HeroId;
+
+    const cases: [string[], RegExp][] = [
+      [['--quest', questId, '--heroes', idle.join(',')], new RegExp(`${questId} is not on the Board`)],
+      [['--quest', next.questId, '--heroes', heroIds.join(',')], /is away with a Party and cannot go/],
+      [['--quest', next.questId, '--heroes', rivalHero], new RegExp(`\\(${rivalHero}\\) is not on the Roster of The Test`)],
+    ];
+    for (const [flags, problem] of cases) {
+      const run = play(['dispatch', ...flags]);
+      expect(run.code, flags.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toMatch(problem);
+      expect(saved()).toBe(original);
+    }
+  });
+
+  test('refuses a Party larger than the Quest takes, naming its bounds, writing nothing', () => {
+    const { world } = document();
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const questId = world.board.find((id) => (world.quests[id]?.requirements.partySizeMax ?? 0) < roster.length);
+    if (questId === undefined) throw new Error('Every Quest on the Board takes the whole Roster');
+    const { partySizeMin, partySizeMax } = (world.quests[questId] as Quest).requirements;
+    const original = saved();
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', roster.join(',')]);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(
+      `${questId} takes a Party of ${partySizeMin} to ${partySizeMax} Heroes; ${roster.length} were named.`,
+    );
+    expect(saved()).toBe(original);
+  });
+
+  test('refuses a word that is not an id as a bad command line', () => {
+    expect(play(['dispatch', '--quest', 'the-barrow', '--heroes', 'hero-000001']).code).toBe(exitCodes.usage);
   });
 });
 

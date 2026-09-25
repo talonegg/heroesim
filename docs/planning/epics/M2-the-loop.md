@@ -111,14 +111,16 @@ the Party is simply away until `returnsOnTurn`.
 
 **Acceptance:**
 
-- [ ] Every rejection has a test and none throws
-- [ ] A dispatched Hero cannot be dispatched again until the Party returns
-- [ ] The validator still accepts the document after dispatch (`quest.partyIds` ↔
+- [x] Every rejection has a test and none throws
+- [x] A dispatched Hero cannot be dispatched again until the Party returns
+- [x] The validator still accepts the document after dispatch (`quest.partyIds` ↔
       `party.questId`)
-- [ ] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
+- [x] CLI `dispatch --quest <id> --heroes <id,id>` prints the Party and the return Day
 - [ ] A Party dispatched in any of the three Turns of Day d on a k-Day Quest has
       `returnsOnTurn` equal to the night Turn of Day d + k, and its Heroes are dispatchable
       again on the morning of Day d + k + 1
+      _(M2-S4 proves the `returnsOnTurn` half for all three Turns of a Day; the morning-after
+      half waits for M2-S5's `questsConclude`, DL-25 item 16.)_
 
 ### M2-S5 · Stub Quest Engine · 1–2 sessions
 
