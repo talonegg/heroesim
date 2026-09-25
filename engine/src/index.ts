@@ -1,5 +1,9 @@
 // @heroesim/engine: pure rules, state, generators and engines; imports nothing outside itself.
 
+export * from './actions/action.js';
+export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
+export * from './actions/result.js';
+export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
 export * from './create.js';

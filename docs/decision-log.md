@@ -827,6 +827,83 @@ entry's correction; DL-19 itself is not edited, and neither is DL-20 (item 1 nam
 `validate(document, content)`, item 12 `withValid(document, content, …)`), per this log's
 append-only rule — both are read with this correction instead.
 
+## DL-24 — `advance`, the Turn pipeline, `emit`, actions and `rebase` (M2-S1, M2-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M2-S1 and M2-S2's
+implementer)
+
+**Context.** M2-S1 and M2-S2 name `advance`, `rebase`, the `Action` union, the time selectors,
+the pipeline and its `emit`, and lay the ground every later M2 story builds on. They leave open
+which Turn's phases `advance` runs and how Days and Years are counted; where the phases live
+before their stories fill them; what `emit` labels and when it refuses; the shapes of
+`StopReason`, a rejection and `ActionResult`; how `rebase` treats `meta` and a config field the
+new rules lack; and the CLI's `advance` and `rebase`.
+
+**Decision.**
+
+1. **Time.** Turn 0, where `createWorld` leaves a world, is the morning of Day 0 in Year 0: Day,
+   time of day and Year count from 0, as the Turn does (`dayOf`, `timeOfDay`, `yearOf` and
+   `nightOf(day)` in `engine/src/time.ts`, each throwing on a value that is not a whole number
+   from 0). `advance` increments the Turn and then runs the phases of the *new* Turn's time of
+   day, so the first `advance` plays the afternoon of Day 0 and Turn 0's morning phases never
+   run. Three Turns a Day is `turnsPerDay`, the length of `timesOfDay`: the calendar, not a
+   balance number, so not a `GameConfig` field.
+2. **The pipeline.** `phases` in `engine/src/pipeline.ts` is a literal list of `{ name,
+   timeOfDay, run }`, and each `run` is in a file of its own under `engine/src/phases/`, declared
+   now as a stub that changes nothing and returns no events: morning `boardRefresh` (M2-S3),
+   `marketRefresh` (M5-S4); afternoon `rivalControllers` (M2-S9), `questsAdvance` (M4); night
+   `questsConclude` (M2-S5), `heroState` (M2-S6), `guildState` (M2-S7), `poolRefresh` (M2-S8),
+   `endings` (M2-S10). `marketRefresh` is declared before M5 because approach §2 lists it; the
+   module hook positions are M8's. `runTurn` returns the phases' events in the order they ran,
+   and `advance` appends them once the whole Turn has run, so a phase reads the World State,
+   never the History, for what happened earlier in the same Turn.
+3. **`emit`** (`engine/src/emit.ts`; `ctx.emit` in a phase, `eventEmitter(world)` in an action)
+   completes a draft `{ type, participants, payload }`: `turn` is `world.turn`; the participants
+   keep their order, each once, followed by the Guild of each Hero among them who has one and
+   whose Guild is not listed; `labels` hold the `name` of each participant whose row has one
+   (Guild, Guildmaster, Hero, Patron), while a row with no name of its own (Quest, Party, offer,
+   Item, stack) gets no label and a front end shows its id, until content gives it a name;
+   `milestone` is `milestoneTypes[type]`, a record keyed by every `EngineEventType`, so the
+   compiler refuses an event type added without its flag. `emit` throws on a participant that is
+   not an id or whose row is not in the world: a rule emits before it removes a row. It makes the
+   event; appending it is the caller's.
+4. **Stops.** `StopReason` is `{ kind }` over `party-returned`, `ended`, `decision-needed`,
+   `max-turns` and `pool-refreshed`, with no fields until M2-S11 needs some. `advance` on a world
+   whose `ended` is set returns the same document object, no events and `{ kind: 'ended' }`; it
+   reports `ended` too for the Turn whose phases set `world.ended`, and nothing else yet.
+5. **Actions.** `Action` (`engine/src/actions/action.ts`) is a union on `kind`, only `{ kind:
+   'rebase' }` so far, and `applyAction(document, action, deps)` switches over it exhaustively.
+   Each action's file defines its action and its rejection; a story adding an action adds both to
+   the unions and a case to the switch. A rejection is `{ action, reason, …what the reason names
+   }`, data and no prose (ADR-0003), naming its action so two actions' reasons never collide;
+   `ActionResult<R>` is `{ ok: true, document, events } | { ok: false, rejection: R }`.
+6. **`rebase(document, deps)`** refuses `already-current`, carrying the version, when
+   `meta.config.configVersion` equals `deps.config.configVersion`, and only then: a lower version
+   in `deps` is adopted as a higher one is. It returns a new `meta` whose `config` is a copy of
+   `deps.config`, whole (a field the save had and `deps.config` lacks is dropped: `rebase`
+   rewrites, it does not merge), and never writes to the old `meta`, which the documents of
+   earlier Turns share. `world` does not change and is shared, like `history`.
+   `world.rules-adopted` is a Milestone at `world.turn` naming no participant, the rules being the
+   whole world's, with payload `{ oldConfigVersion, newConfigVersion }`.
+7. **The CLI.** `advance [--turns n]`, `n` a whole number from 1 and 1 by default, plays under
+   the play deps `openSave` builds, stops early when the game ends, writes the save and prints the
+   Turns played, where time stands and the events; on a game already ended it refuses (exit 1)
+   and writes nothing. `rebase` passes `{ config: defaultConfig, content }`, never the play deps:
+   their config is the save's own, carrying its `configVersion`, under which every save would be
+   `already-current`. `already-current` exits 1 and writes nothing. `show`'s first line and
+   `advance`'s output print `Turn t (Day d, <time of day>, Year y)` from the engine's selectors,
+   the Year under the save's own `turnsPerYear`.
+
+**Consequences.** The Board is empty at Turn 0 and first refills on Turn 3, the morning of Day 1,
+unless M2-S3 has `createWorld` draw one: that is M2-S3's call. Filling a phase changes only its
+file; adding one (M3's `training` and `ageing`, M6's `transfers`) is a line in `phases` and in
+the literal `pipeline.test.ts` holds it to. The generators still set `milestone` by hand; a test
+holds what `createWorld` emits to `milestoneTypes`. An action that changes `world` (M2-S4's
+`dispatch`, M2-S8's `recruit`) copies it first, as `advance` does, since documents share it.
+M2-S11 gives a `StopReason` fields if it needs them, and makes `advance` detect the other
+reasons; until then the CLI's `advance` stops early only on `ended`. No `GameConfig` field was
+added and no default changed, so `configVersion` stays 1.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

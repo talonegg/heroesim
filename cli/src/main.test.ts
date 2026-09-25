@@ -5,7 +5,9 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  advance,
   ageOf,
+  count,
   createWorld,
   defaultConfig,
   deserialise,
@@ -376,6 +378,90 @@ describe('show', () => {
     const { entries } = document().history;
     expect(entries.length).toBeGreaterThan(1);
     expect(all.out).toContain(`${entries.length} entries, oldest first`);
+  });
+});
+
+describe('advance', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  test('plays one Turn, saves the document the engine returns, and show reflects the Turn', () => {
+    const before = document();
+    const expected = advance(before, { config: { ...defaultConfig, ...before.meta.config }, content }).document;
+
+    const run = play(['advance']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected));
+    expect(run.out).toContain('Played 1 Turn. Now Turn 1 (Day 0, afternoon, Year 0).');
+    expect(play(['show']).out).toContain('Seed demo, Turn 1 (Day 0, afternoon, Year 0)');
+  });
+
+  test('--turns plays that many Turns: three from a new world is the morning of Day 1', () => {
+    const run = play(['advance', '--turns', '3']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain('Played 3 Turns. Now Turn 3 (Day 1, morning, Year 0).');
+    expect(document().world.turn).toBe(3);
+    expect(play(['show']).out).toContain('Seed demo, Turn 3 (Day 1, morning, Year 0)');
+  });
+
+  test('refuses a game that has ended, writing nothing', () => {
+    edit((edited) => {
+      edited.world.ended = { turn: 0, reason: 'bankruptcy' };
+    });
+    const original = saved();
+
+    const run = play(['advance', '--turns', '2']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain('The game ended on Turn 0: bankruptcy');
+    expect(saved()).toBe(original);
+  });
+
+  test('refuses a bad --turns as a bad command line', () => {
+    expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
+    expect(document().world.turn).toBe(0);
+  });
+});
+
+describe('rebase', () => {
+  const adopted = (): number => count(document().history, 'world.rules-adopted');
+
+  test('refuses a save already under the current rules, writing nothing', () => {
+    newDemo();
+    const original = saved();
+
+    const run = play(['rebase']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain(`already plays under this release's rules, configVersion ${defaultConfig.configVersion}`);
+    expect(saved()).toBe(original);
+  });
+
+  test("a save made under older rules plays under them until rebase adopts this release's, once", () => {
+    newDemo();
+    // A save from a release whose rules were one version older, with a year of three Turns.
+    edit((edited) => {
+      edited.meta.config.configVersion = defaultConfig.configVersion - 1;
+      edited.meta.config.turnsPerYear = 3;
+    });
+
+    expect(play(['advance', '--turns', '3']).out).toContain('Now Turn 3 (Day 1, morning, Year 1).');
+    expect(document().meta.config.turnsPerYear).toBe(3);
+
+    const run = play(['rebase']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain(`configVersion ${defaultConfig.configVersion - 1} to ${defaultConfig.configVersion}`);
+    expect(document().meta.config).toEqual(defaultConfig);
+    expect(adopted()).toBe(1);
+    expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
+    expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+yes/m);
+
+    expect(play(['rebase']).code).toBe(exitCodes.refused);
+    expect(adopted()).toBe(1);
   });
 });
 

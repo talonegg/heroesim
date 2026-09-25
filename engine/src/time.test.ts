@@ -1,6 +1,42 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from './config.js';
-import { ageOf } from './time.js';
+import { ageOf, dayOf, nightOf, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
+
+describe('Days and times of day', () => {
+  test('a Day is three Turns, morning, afternoon and night, counted from Turn 0', () => {
+    expect(turnsPerDay).toBe(3);
+    expect(timesOfDay).toEqual(['morning', 'afternoon', 'night']);
+    expect([0, 1, 2, 3, 4, 5, 6].map(dayOf)).toEqual([0, 0, 0, 1, 1, 1, 2]);
+    expect([0, 1, 2, 3, 4, 5].map(timeOfDay)).toEqual(['morning', 'afternoon', 'night', 'morning', 'afternoon', 'night']);
+  });
+
+  test('the night of a Day is its third Turn, whatever Turn of the Day it is reached from', () => {
+    expect(nightOf(0)).toBe(2);
+    expect(nightOf(13)).toBe(41);
+    for (const turn of [39, 40, 41]) {
+      expect(timeOfDay(nightOf(dayOf(turn) + 4))).toBe('night');
+      expect(dayOf(nightOf(dayOf(turn) + 4))).toBe(17);
+    }
+  });
+
+  test('refuses a Turn or a Day that is not a whole number from 0', () => {
+    for (const bad of [-1, 1.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() => dayOf(bad)).toThrow(RangeError);
+      expect(() => timeOfDay(bad)).toThrow(RangeError);
+      expect(() => yearOf(bad, defaultConfig)).toThrow(RangeError);
+      expect(() => nightOf(bad)).toThrow(RangeError);
+    }
+  });
+});
+
+describe('yearOf', () => {
+  test('counts whole years of the config it is given, from Year 0', () => {
+    expect(yearOf(0, defaultConfig)).toBe(0);
+    expect(yearOf(defaultConfig.turnsPerYear - 1, defaultConfig)).toBe(0);
+    expect(yearOf(defaultConfig.turnsPerYear, defaultConfig)).toBe(1);
+    expect(yearOf(25, { turnsPerYear: 12 })).toBe(2);
+  });
+});
 
 describe('ageOf', () => {
   const year = { turnsPerYear: 12 };
