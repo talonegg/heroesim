@@ -4,7 +4,7 @@
 **Sessions:** 6–7 · **Depends on:** M2 · **Implements:** `plan.md` M3; R10, R17, R33; principle 2 (growth is the pull)
 **Gate:** Heroes gain Levels toward their Potential and decline with age; `show rankings` orders Guilds by Fame and by Wealth; a Hall facility can be raised with `build`; the harness reports Levels gained, Heroes at Potential and Improvement grades reached
 
-**Status:** not started
+**Status:** done — 2026-09-26 (`m3-progression`)
 
 ## 0. What lands in M3
 
@@ -139,6 +139,30 @@ Config: `quartersMoraleBonus`.
       gains `xpPerTrainingDay` a night and a twin at grade 0 none (`cli/src/commands/build.test.ts`,
       DL-40)
 - [x] CLI `build --facility infirmary`
+
+## Measured
+
+`npm run harness -- play.harness`, 2026-09-26, **200 seeds × up to 20 years**, validated after
+every advance, config version 4 (after DL-41's balance pass), content version 5. Full report:
+`harness/reports/m3-2026-09-26.md`; decisions DL-40, DL-41, DL-53.
+
+| Counter or measure | The player's Guild | The Rivals |
+| --- | --- | --- |
+| Levels gained a Guild-year | 19.0 | 6.9 |
+| Mean Level after 10 years | 4.95 | 4.94 |
+| Heroes with a Stat at Potential after 10 years | 22.0% | 20.6% |
+| Declines a Guild-year | 0.13 | 0.28 |
+| Retirements (all aged 45–54) | 1 | 24 |
+| Signings refused by Fame | 0 | 450 Hero-Days of 5.7 million Guild-Days |
+| Improvements by year 10 | every infirmary at grade 3; no training yard or quarters built (the policy and `steady` build only the infirmary) | the same |
+| Endings | no Bankruptcy in 200 games | 3.08 folds a game (27.3 before DL-41) |
+
+Measures: `advance` 1.60 ms a Turn alone (3.50 ms under load); fast forward a year 1.73 s; save
+after 20 years 47.1 MiB; load 1.31 s. No validator refusal, no policy action refused, the replay
+byte-identical, all 200 saves round-trip. Levels keep rising after a Roster's first decline
+(M3-S4's third box, DL-40). Verified independently on 2026-09-26 by six lenses and 90 mutations;
+17 confirmed defects fixed in DL-53, which also moved the infirmary's heal factors to
+`[1, 1/2, 1/3, 1/4]` (config version 5) after this run; M4's run measures it.
 
 ## 2. Configuration and events introduced
 
