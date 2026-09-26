@@ -60,7 +60,7 @@ rather than investigated beforehand.
 | M2 | The loop | The harness plays whole games to an ending under an automatic policy; a human can advance, dispatch and recruit from the CLI | Done 2026-09-26 (`m2-the-loop`) |
 | M3 | Progression | Heroes gain Levels toward their Potential and decline with age; Rankings order Guilds by Fame and Wealth; Hall Improvements are bought | Done 2026-09-26 (`m3-progression`) |
 | M4 | Quest Engine | The stub is replaced by typed encounters and checks reading Skills, Relationship and Synergies | Done 2026-09-26 (`m4-quest-engine`) |
-| M5 | Items | Gear, consumables, the Market and Loot exist and are bought, sold, equipped and expended | |
+| M5 | Items | Gear, consumables, the Market and Loot exist and are bought, sold, equipped and expended | Done 2026-09-27 (`m5-items`) |
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | |
 | M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | |
