@@ -181,6 +181,8 @@ describe('§6: an id referenced by a row that does not exist in its table', () =
       (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: nowhere.hero, slot: 'armour' }),
       ids.heroStack,
     ],
+    // M5-S3 (DL-50): a Party's consumables go home as it is removed, so none is held by a removed Party.
+    ["a Party's consumables' holder", (d) => (stack(d, ids.partyStack).holder = { kind: 'party', id: nowhere.party }), ids.partyStack],
     ['a Regard key', (d) => (hero(d, ids.partyHero).regard[nowhere.patron] = regard()), ids.partyHero],
     ['the Board', (d) => d.world.board.push(nowhere.quest), '$.world.board'],
   ])('in %s', (_, mutate, id, also = []) => {

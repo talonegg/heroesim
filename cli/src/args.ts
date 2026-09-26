@@ -5,6 +5,7 @@
 
 import {
   isId,
+  type ConsumableRequest,
   type FacilityKey,
   type HeroId,
   type QuestId,
@@ -43,14 +44,17 @@ Commands:
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
-  preview --quest <questId> --heroes <heroId,heroId,...>
+  preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
-      is sent: each requirement met or missed, any Hero who cannot go, the reward the
-      Guildmaster would agree, and whether dispatch would send it. Changes nothing.
-  dispatch --quest <questId> --heroes <heroId,heroId,...>
+      is sent: each requirement met or missed, any Hero who cannot go, the consumables it
+      would carry, the reward the Guildmaster would agree, and whether dispatch would send
+      it. Changes nothing.
+  dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
-      Turn, and print the Party, the reward agreed and the Day it returns. Rivals take
-      Quests from the Board each afternoon.
+      Turn, and print the Party, the reward agreed and the Day it returns. With
+      --consumables the Party carries n of each consumable key from the Guild's holding;
+      what it does not use comes home with it. Rivals take Quests from the Board each
+      afternoon.
   build --facility <infirmary | training-yard | quarters>
       Raise a facility of the player's Guild's Hall by one grade, for the next grade's
       cost, and print what was built, the Wealth left and what the next grade costs.
@@ -96,8 +100,8 @@ export type Command =
   | { name: 'advance'; save: string; turns: number }
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
-  | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[] }
-  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
+  | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
+  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'build'; save: string; facility: FacilityKey }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
@@ -112,8 +116,8 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
-  preview: { save: 'value', quest: 'value', heroes: 'value' },
-  dispatch: { save: 'value', quest: 'value', heroes: 'value' },
+  preview: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
+  dispatch: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   build: { save: 'value', facility: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
@@ -217,6 +221,25 @@ function heroList(value: string): HeroId[] {
   const twice = heroes.find((word, index) => heroes.indexOf(word) !== index);
   if (twice !== undefined) refuse(`--heroes names ${twice} twice`);
   return heroes as HeroId[];
+}
+
+/**
+ * `--consumables` (M5-S3): a consumable's key and how many, `key:n`, joined by commas, each key
+ * once. Whether the key names a consumable the Guild holds is `dispatch`'s to say.
+ */
+function consumableList(value: string): ConsumableRequest[] {
+  const pairs = value.split(',').map((word) => word.trim());
+  const requests = pairs.map((word): ConsumableRequest => {
+    const match = /^([a-z0-9]+(?:-[a-z0-9]+)*):(\d+)$/.exec(word);
+    if (match?.[1] === undefined || match[2] === undefined) {
+      refuse(`--consumables needs key:n pairs such as healing-draught:2, joined by commas; got "${word}"`);
+    }
+    return { definitionKey: match[1], quantity: wholeFromOne(`--consumables ${match[1]}`, match[2]) };
+  });
+  const keys = requests.map((request) => request.definitionKey);
+  const twice = keys.find((key, index) => keys.indexOf(key) !== index);
+  if (twice !== undefined) refuse(`--consumables names ${twice} twice`);
+  return requests;
 }
 
 function atMost(positional: readonly string[], count: number, command: string): void {
@@ -329,7 +352,14 @@ function parse(argv: readonly string[]): Command {
       atMost(positional, 0, name);
       const quest = required(flags, name, 'quest');
       if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
-      return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
+      const consumables = flags.get('consumables');
+      return {
+        name,
+        save,
+        quest,
+        heroes: heroList(required(flags, name, 'heroes')),
+        ...(consumables === undefined ? {} : { consumables: consumableList(consumables) }),
+      };
     }
     case 'build':
       atMost(positional, 0, 'build');

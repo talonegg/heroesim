@@ -68,9 +68,9 @@ return to the Guild on the Party's return. Emits `item.expended`.
 
 **Acceptance:**
 
-- [ ] A `reroll` consumable turns exactly one failure into a second roll and is gone after
-- [ ] Unused consumables are back with the Guild after `quest.resolved`
-- [ ] The Party's holdings are empty after resolution (validator: no stack held by a removed
+- [x] A `reroll` consumable turns exactly one failure into a second roll and is gone after
+- [x] Unused consumables are back with the Guild after `quest.resolved`
+- [x] The Party's holdings are empty after resolution (validator: no stack held by a removed
       Party)
 
 ### M5-S4 · The Market · 1–2 sessions

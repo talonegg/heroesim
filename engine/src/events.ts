@@ -8,6 +8,7 @@ import type {
   ClassKey,
   ImprovementKey,
   InjuryTypeKey,
+  ItemDefinitionKey,
   QuestTemplateKey,
   SphereKey,
   StatKey,
@@ -27,6 +28,7 @@ import type {
   QuestId,
   Turn,
 } from './document.js';
+import type { ConsumableUse } from './quest-engine/consumables.js';
 import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
@@ -127,6 +129,11 @@ export type QuestTaken = Entry<
      * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before M4-S5.
      */
     reward?: number;
+    /**
+     * The consumables the Party carries from the Guild's holding (M5-S3, DL-50), in the order asked:
+     * `[]` for none. Absent from an entry written before M5-S3.
+     */
+    consumables?: { definitionKey: ItemDefinitionKey; quantity: number }[];
   }
 >;
 
@@ -333,6 +340,18 @@ export type HeroRegardChanged = Entry<
   }
 >;
 
+// ── Items (M5) ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One consumable a Party carried was used on its Quest and expended from its stack (M5-S3, DL-50):
+ * a `bonus` added `flat` to the Check of Encounter `encounterIndex`; a `reroll` had that Encounter's
+ * failed Check, `firstRoll`, rolled again (its `quest.encounter` records the second roll); a `heal`
+ * took `days` Days off `heroId`'s Injury. One entry an Item, in the order used, after the Quest's
+ * `quest.encounter` entries and before its `quest.resolved`. Names the Quest, the Party, the Guild
+ * and, for a heal, the Hero. Not a Milestone.
+ */
+export type ItemExpended = Entry<'item.expended', ConsumableUse & { questId: QuestId; partyId: PartyId; guildId: GuildId }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -363,7 +382,8 @@ export type EngineEvent =
   | HeroLevelled
   | PatronRegardChanged
   | GuildmasterRegardChanged
-  | HeroRegardChanged;
+  | HeroRegardChanged
+  | ItemExpended;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -406,4 +426,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,
   'hero.regard-changed': false,
+  'item.expended': false,
 } satisfies Record<EngineEventType, boolean>);

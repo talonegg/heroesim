@@ -1,6 +1,7 @@
-// `dispatch --quest <id> --heroes <id,id>` (M2-S4): the player's Guild sends a Party on a Quest
-// from the Board, within the current Turn (pre-M0 review D2). What the command does to an open
-// save and what it prints; `main.ts` opens the save, and writes it back only when this succeeds.
+// `dispatch --quest <id> --heroes <id,id> [--consumables <key:n,...>]` (M2-S4; M5-S3's consumables):
+// the player's Guild sends a Party on a Quest from the Board, within the current Turn (pre-M0 review
+// D2). What the command does to an open save and what it prints; `main.ts` opens the save, and
+// writes it back only when this succeeds.
 //
 // The CLI holds no rule: the engine's `dispatch` decides, and a refusal is its typed rejection
 // put into words here (ADR-0003).
@@ -10,6 +11,7 @@ import {
   dispatch,
   durationDaysOf,
   playerGuild,
+  type ConsumableRequest,
   type ContentSet,
   type DispatchRejection,
   type EngineDeps,
@@ -19,7 +21,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { renderTime, rowIn } from '../render.js';
+import { nameIn, renderTime, rowIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** Printed after every dispatch: Rivals act on what the player leaves (pre-M0 review D2, M2-S9). */
@@ -38,6 +40,11 @@ function guildName(document: WorldDocument, guildId: string): string {
 
 function templateName(content: ContentSet, key: string): string {
   return rowIn(content.questTemplates, key)?.name ?? key;
+}
+
+/** Consumables as the CLI lists them (M5-S3): `Whetstone ×2, Healing draught ×1`. */
+export function consumableWords(consumables: readonly ConsumableRequest[], content: ContentSet): string {
+  return consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`).join(', ');
 }
 
 /** Why a Hero cannot go, in words, after their name. */
@@ -61,6 +68,19 @@ export function explain(rejection: DispatchRejection, document: WorldDocument, c
       return `${heroName(document, rejection.heroId)} ${unavailableWords[rejection.because]} and cannot go.`;
     case 'requirement-unmet':
       return `${rejection.questId} needs ${rejection.unmet.map((unmet) => requirementWords(unmet, content)).join(' and ')}.`;
+    case 'not-consumable': {
+      const item = rowIn(content.items, rejection.definitionKey);
+      return item === undefined
+        ? `No Item is called "${rejection.definitionKey}".`
+        : `${item.name} is gear, not a consumable: a Party carries consumables only.`;
+    }
+    case 'not-held-by-guild':
+      return `${guildName(document, rejection.guildId)} holds no ${nameIn(content.items, rejection.definitionKey)} to carry.`;
+    case 'insufficient-quantity':
+      return (
+        `${guildName(document, rejection.guildId)} holds ${rejection.held} of ` +
+        `${nameIn(content.items, rejection.definitionKey)}, not the ${rejection.requested} asked.`
+      );
   }
 }
 
@@ -81,8 +101,9 @@ export function requirementWords(unmet: UnmetRequirement, content: ContentSet): 
 
 /**
  * Dispatches the named Heroes of the player's Guild on the named Quest under the save's own deps,
- * and says what happened: the Party, the Quest, the reward agreed (the Guildmaster's Negotiation
- * applied, M4-S5), the night it returns, and the reminder that Rivals act in the afternoon.
+ * carrying the consumables named (M5-S3), and says what happened: the Party, what it carries, the
+ * Quest, the reward agreed (the Guildmaster's Negotiation applied, M4-S5), the night it returns, and
+ * the reminder that Rivals act in the afternoon.
  */
 export function dispatchParty(
   command: Extract<Command, { name: 'dispatch' }>,
@@ -93,7 +114,9 @@ export function dispatchParty(
   if (guild === undefined) return { ok: false, problem: "The save has no player's Guild." };
 
   const offered = rowIn(document.world.quests, command.quest)?.reward;
-  const result = dispatch(document, { guildId: guild.id, questId: command.quest, heroIds: command.heroes }, deps);
+  const consumables = command.consumables ?? [];
+  const request = { guildId: guild.id, questId: command.quest, heroIds: command.heroes, consumables };
+  const result = dispatch(document, request, deps);
   if (!result.ok) return { ok: false, problem: explain(result.rejection, document, deps.content) };
 
   const { world } = result.document;
@@ -108,6 +131,7 @@ export function dispatchParty(
     lines: [
       `Dispatched ${party.id} from ${guild.name} on ${quest.id}, ${templateName(deps.content, quest.templateKey)}.`,
       `Party: ${party.heroIds.map((heroId) => heroName(result.document, heroId)).join(', ')}.`,
+      ...(consumables.length === 0 ? [] : [`Carrying: ${consumableWords(consumables, deps.content)}.`]),
       `Reward agreed: ${quest.reward} Wealth on a success, ${offered} offered.`,
       `${days === 1 ? 'One Day' : `${days} Days`} away: it returns on the night of Day ${dayOf(party.returnsOnTurn)}, ` +
         `${renderTime(party.returnsOnTurn, deps.config)}.`,
