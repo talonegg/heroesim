@@ -1037,7 +1037,8 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
       `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +
       `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
-      `${sweep.policy.buyWealthMultiple} times their cost (DL-62); never sell; never transfer.`,
+      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${sweep.policy.consumableReserveUpkeeps} ` +
+      `Upkeeps (DL-62); never sell; never transfer.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,
