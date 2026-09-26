@@ -227,7 +227,7 @@ describe('resolveQuest', () => {
 describe("the Quest Engine's config (DL-42)", () => {
   test("defaults to INPUTS 6.2's ±20% and Skill rating × 2, all strong and a majority success, and the stub's fields are gone", () => {
     expect(defaultConfig).toMatchObject({
-      configVersion: 4,
+      configVersion: 7,
       checkVariance: 0.2,
       skillBonusPerRating: 2,
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },

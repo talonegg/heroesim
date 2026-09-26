@@ -8,8 +8,8 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S5 Loot (DL-52). Every "Min/Max" pair is an inclusive range drawn with `int`. A
-// field holding an object or a list is frozen with `defaultConfig`.
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52). Every "Min/Max" pair is an
+// inclusive range drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -23,7 +23,11 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M4-S2's Quest Engine (DL-42).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
+   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
+   * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
+   * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
+   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -169,7 +173,8 @@ export interface GameConfig {
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds; and grade 3,
+   * content's top, a quarter, so that each grade built does something: DL-53).
    */
   infirmaryHealFactor: readonly number[];
   /**
@@ -207,8 +212,9 @@ export interface GameConfig {
   /**
    * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
    * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
-   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
-   * row. The harness's automatic policy has its own threshold (DL-34).
+   * more than a month's Upkeep in hand, DL-35; sixty since Heroes gain Levels, so that a Rival stops
+   * recruiting before its Roster's rising wages outrun its one Quest a day, DL-41). M6-S1 moves the
+   * threshold into each Disposition's row. The harness's automatic policy has its own (DL-34).
    */
   recruitWealthMultiple: number;
   /**
@@ -400,7 +406,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 4,
+  configVersion: 7,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -462,7 +468,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementAge: 45,
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
-  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3, 1 / 4]),
   quartersMoraleBonus: 5,
 
   potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),
@@ -472,7 +478,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 10,
+  recruitWealthMultiple: 60,
   buildWealthMultiple: 3,
 
   xpCurveBase: 100,

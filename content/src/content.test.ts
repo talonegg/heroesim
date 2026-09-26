@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 10 since the Loot tables (M5-S5)', () => {
+  test('is the core content set, version 11 since merging the Loot tables with the main line (DL-61)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(10);
+    expect(content.version).toBe(11);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {

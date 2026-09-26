@@ -284,6 +284,17 @@ export function nextImprovement(
 }
 
 /**
+ * What an Injury's Days to heal are multiplied by when it is inflicted on a Hero of `guild`
+ * (INPUTS 4.5): `infirmaryHealFactor` at the Guild's infirmary grade now, index 0 being no
+ * infirmary, and a grade past the list reading its last factor (DL-29 item 8). The Quest Engine
+ * reads it; the defaults give every grade content defines a factor of its own (DL-53).
+ */
+export function healFactor(guild: Pick<Guild, 'hall'>, config: Pick<GameConfig, 'infirmaryHealFactor'>): number {
+  const factors = config.infirmaryHealFactor;
+  return factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
+}
+
+/**
  * The next Improvement of `facility` (`nextImprovement`) when `guild`'s Wealth is above
  * `wealthMultiple` times its cost and covers it; `null` otherwise, and at the top grade. How a
  * controller decides to build: `steady` with the game's `buildWealthMultiple`, the harness's policy

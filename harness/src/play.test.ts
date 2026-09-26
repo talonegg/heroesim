@@ -1,6 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, playerGuild, serialise, type EngineDeps } from '@heroesim/engine';
+import { defaultConfig, playerGuild, serialise, type EngineDeps, type Guild } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import { regardSnapshot } from './counters.js';
 import { measureDocument, playGame, recordGame, validatingEveryTurn } from './play.js';
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
@@ -73,6 +74,35 @@ describe('playGame', () => {
   });
 });
 
+describe('playGame observes the World State (M3, DL-40)', () => {
+  test('each morning before the policy acts, and as each year begins, the last year of a full game included', () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 30 } };
+    const game = playGame('play-a', shortYears, { years: 2 });
+    expect(game.turnsPlayed).toBe(60);
+    expect(game.document.world.ended).toBeNull();
+
+    const { fameGate, rosters } = game.observations;
+    expect(fameGate.player.guildDays).toBe(20);
+    expect(rosters).toHaveLength(3);
+    expect(rosters[0]?.player).toMatchObject({ heroes: 4, levels: 4 });
+    const guild = playerGuild(game.document.world) as Guild;
+    const levels = guild.rosterIds.reduce((sum, id) => sum + (game.document.world.heroes[id]?.level ?? 0), 0);
+    expect(rosters[2]?.player).toMatchObject({ heroes: guild.rosterIds.length, levels });
+    expect(game.observations.regardAtCountedYear).toBeNull();
+  });
+
+  test("the player's Guild's Regard as year 10 begins, from the world as the last Turn left it (M4, DL-55)", () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 12 } };
+    const game = playGame('play-a', shortYears, { years: 10 });
+    expect(game.document.world.turn).toBe(120);
+    expect(game.observations.rosters).toHaveLength(11);
+    expect(game.observations.regardAtCountedYear).toEqual(regardSnapshot(game.document.world, shortYears.config));
+    const pairs = (n: number): number => (n * (n - 1)) / 2;
+    const counted = Object.values(game.observations.regardAtCountedYear?.relationships ?? {}).reduce((a, b) => a + b, 0);
+    expect(counted).toBe(pairs((playerGuild(game.document.world) as Guild).rosterIds.length));
+  });
+});
+
 describe('recordGame and measureDocument', () => {
   test('reduce a game to its counters and the measures of its last document, which loads back', () => {
     const { record, advanceMs } = recordGame('play-a', deps, { years });
@@ -80,6 +110,9 @@ describe('recordGame and measureDocument', () => {
     expect(record).toMatchObject({ seed: 'play-a', turnsPlayed: 60, ranFullLength: true, refusals: [], invalid: null });
     expect(record.counters.ending).toBeNull();
     expect(record.counters.lastTurn).toBe(60);
+    expect(record.counters.guildYears.player).toEqual([60 / deps.config.turnsPerYear]);
+    expect(record.observations.fameGate.player.guildDays).toBe(20);
+    expect(record.observations.rosters).toHaveLength(1);
     expect(record.measures.roundTrips).toBe(true);
 
     const { document } = playGame('play-a', deps, { years });

@@ -68,7 +68,12 @@ Config: `checkVariance`, `skillBonusPerRating`, `bandBySuccessShare`.
       same Stats, with variance 0
 - [x] A Hero killed in encounter 2 contributes nothing to encounter 3
 - [x] `quest.encounter` events arrive in sequence order with the Quest's Turn
-- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced
+- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced — M4's
+      200 × 20 run, validated after every advance: M2's counters (Quests taken and resolved by
+      band, Injuries, Deaths, recruits, Retirements, endings and folds) report beside M3's and
+      M4's, and each of the 4,801,729 Quests resolved has its band: the player's 37.7% failed,
+      21.2% succeeded, 41.1% strongly; the Rivals' 11.7%, 8.1%, 80.2%
+      (`harness/reports/m4-2026-09-26.md`, DL-55)
 
 ### M4-S3 · Synergies · 1 session
 

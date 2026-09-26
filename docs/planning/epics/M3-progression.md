@@ -4,7 +4,7 @@
 **Sessions:** 6–7 · **Depends on:** M2 · **Implements:** `plan.md` M3; R10, R17, R33; principle 2 (growth is the pull)
 **Gate:** Heroes gain Levels toward their Potential and decline with age; `show rankings` orders Guilds by Fame and by Wealth; a Hall facility can be raised with `build`; the harness reports Levels gained, Heroes at Potential and Improvement grades reached
 
-**Status:** not started
+**Status:** done — 2026-09-26 (`m3-progression`)
 
 ## 0. What lands in M3
 
@@ -85,9 +85,11 @@ Config: `declineAge`, `declinePerYear`, `declineAreas`.
 
 - [x] No decline before `declineAge`; exactly one Stat per year after it
 - [x] Only Stats in `declineAreas` decline
-- [ ] The harness's Levels-gained counter still rises after decline starts (growth outpaces
-      decline for a young Roster) — open: needs M3-S1's `levelUps` and the M3 harness counters,
-      built in parallel; closed after they merge (DL-37)
+- [x] The harness's Levels-gained counter still rises after decline starts (growth outpaces
+      decline for a young Roster) — M3's 200 × 20 run: on the 128 player's Guilds with a decline,
+      17.8 Levels a Guild-year after the first (19.6 before), adding 52.5 Stat points against 0.43
+      declined; the 650 Rivals, 6.6 after (8.2 before), 19.5 against 0.93
+      (`harness/reports/m3-2026-09-26.md`, DL-37, DL-40)
 
 ### M3-S5 · Rankings, and Fame gating signings · 1–2 sessions
 
@@ -111,7 +113,10 @@ Config: `fameRequiredPerLevel`.
 - [x] `by: "wealth"` and `by: "fame"` differ on a fixture built to make them differ
 - [x] A Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero with the
       default; raising Fame past the threshold flips the refusal
-- [ ] The harness counts signings refused by Fame per controller kind
+- [x] The harness counts signings refused by Fame per controller kind — each morning before the
+      policy acts, `unsignableHeroes` for every Guild in play, by controller kind, beside the
+      `signing-refused` rejections returned (`observe` in `harness/src/counters.ts`, tested in
+      `counters.test.ts`; reported in `harness/reports/m3-*.md`, DL-40)
 
 ### M3-S6 · Hall Improvements · 1 session
 
@@ -128,9 +133,36 @@ Config: `quartersMoraleBonus`.
 
 - [x] Each facility climbs from 0 to its top grade with the right cumulative cost and refuses
       beyond
-- [ ] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
-      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury
+- [x] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
+      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury — the
+      yard end to end: `build --facility training-yard`, then five idle Days, every Roster Hero
+      gains `xpPerTrainingDay` a night and a twin at grade 0 none (`cli/src/commands/build.test.ts`,
+      DL-40)
 - [x] CLI `build --facility infirmary`
+
+## Measured
+
+`npm run harness -- play.harness`, 2026-09-26, **200 seeds × up to 20 years**, validated after
+every advance, config version 4 (after DL-41's balance pass), content version 5. Full report:
+`harness/reports/m3-2026-09-26.md`; decisions DL-40, DL-41, DL-53.
+
+| Counter or measure | The player's Guild | The Rivals |
+| --- | --- | --- |
+| Levels gained a Guild-year | 19.0 | 6.9 |
+| Mean Level after 10 years | 4.95 | 4.94 |
+| Heroes with a Stat at Potential after 10 years | 22.0% | 20.6% |
+| Declines a Guild-year | 0.13 | 0.28 |
+| Retirements (all aged 45–54) | 1 | 24 |
+| Signings refused by Fame | 0 | 450 Hero-Days of 5.7 million Guild-Days |
+| Improvements by year 10 | every infirmary at grade 3; no training yard or quarters built (the policy and `steady` build only the infirmary) | the same |
+| Endings | no Bankruptcy in 200 games | 3.08 folds a game (27.3 before DL-41) |
+
+Measures: `advance` 1.60 ms a Turn alone (3.50 ms under load); fast forward a year 1.73 s; save
+after 20 years 47.1 MiB; load 1.31 s. No validator refusal, no policy action refused, the replay
+byte-identical, all 200 saves round-trip. Levels keep rising after a Roster's first decline
+(M3-S4's third box, DL-40). Verified independently on 2026-09-26 by six lenses and 90 mutations;
+17 confirmed defects fixed in DL-53, which also moved the infirmary's heal factors to
+`[1, 1/2, 1/3, 1/4]` (config version 5) after this run; M4's run measures it.
 
 ## 2. Configuration and events introduced
 

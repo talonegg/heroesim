@@ -253,6 +253,10 @@ describe('narrate', () => {
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
     );
+    const quarters = event('guild.improved', [guildId], { guildId, facility: 'quarters', grade: 1, improvementKey: 'quarters-1', cost: 200 });
+    expect(narrate(quarters, content)).toBe(
+      `The Kestrel Guild built ${content.improvements['quarters-1']?.name} for 200 Wealth: its quarters are now grade 1.`,
+    );
     expect(narrate(samples['hero.levelled'], content)).toBe(
       'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
     );
