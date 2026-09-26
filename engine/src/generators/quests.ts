@@ -50,8 +50,9 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * of that kind (`drawSequence`), stored as `encounterKeys`. The `board` stream's draws are the
  * three above, as before M4, so the Board a seed produces is unchanged.
  *
- * The reward is the difficulty times the template's `rewardPerDifficulty`, rounded; the rest is
- * copied. The Quest is offered on the world's Turn and stays on offer through the night of the
+ * The reward is the difficulty times the template's `rewardPerDifficulty`, rounded; the template's
+ * Loot table is copied when its `difficultyMin` is above `lootDifficultyThreshold`, and is `null`
+ * otherwise (M5-S5, DL-52); the rest is copied. The Quest is offered on the world's Turn and stays on offer through the night of the
  * `questOfferDays`th Day, its `expiresOnTurn`: offered on Day d, the next morning's refresh after
  * the night of Day d + questOfferDays − 1 expires it.
  *
@@ -106,7 +107,7 @@ export function generateQuest(
     skillKeys: [...template.skillKeys],
     encounterKeys,
     requirements: requirementsOf(template),
-    lootTableKey: template.lootTableKey,
+    lootTableKey: template.difficultyMin > config.lootDifficultyThreshold ? template.lootTableKey : null,
     status: 'offered',
     offeredOnTurn: world.turn,
     expiresOnTurn: nightOf(dayOf(world.turn) + config.questOfferDays - 1),

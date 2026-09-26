@@ -4,11 +4,18 @@
 // of an id is checked here, by the engine's `isId`.
 
 import {
+  gearSlotKeys,
   isId,
+  type ConsumableRequest,
   type FacilityKey,
+  type GearRef,
   type HeroId,
+  type ItemDefinitionKey,
+  type ItemId,
   type QuestId,
   type RankingMeasure,
+  type SlotKey,
+  type StackId,
   type StopCondition,
 } from '@heroesim/engine';
 import { currentSave } from './saves.js';
@@ -21,15 +28,17 @@ Commands:
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
-        | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | history [entityId]]
+        | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
+        | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another, and so does hall, each facility's grade and
       what the next grade costs; pool marks the Heroes who will not yet sign for the
       player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
       board shows the Quests on offer; rankings orders the Guilds in play by Fame, or by
       Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
-      Guild's, with their Stats, Traits and Regard; history shows the whole History unless
-      given an id.
+      Guild's, with their Stats, Traits and Regard; market shows what the Market has for
+      sale and at what price, and what the player's Guild holds and what each would sell
+      for; history shows the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -44,18 +53,34 @@ Commands:
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
-  preview --quest <questId> --heroes <heroId,heroId,...>
+  preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
       is sent: each requirement met or missed, any Hero who cannot go, the Synergies it
-      would have and on how many of the Quest's Encounters, the reward the Guildmaster would
-      agree, and whether dispatch would send it. Changes nothing.
-  dispatch --quest <questId> --heroes <heroId,heroId,...>
+      would have and on how many of the Quest's Encounters, the consumables it would
+      carry, the reward the Guildmaster would agree, and whether dispatch would send it.
+      Changes nothing.
+  dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
-      Turn, and print the Party, the reward agreed and the Day it returns. Rivals take
-      Quests from the Board each afternoon.
+      Turn, and print the Party, the reward agreed and the Day it returns. With
+      --consumables the Party carries n of each consumable key from the Guild's holding;
+      what it does not use comes home with it. Rivals take Quests from the Board each
+      afternoon.
   build --facility <infirmary | training-yard | quarters>
       Raise a facility of the player's Guild's Hall by one grade, for the next grade's
       cost, and print what was built, the Wealth left and what the next grade costs.
+  equip --hero <heroId> (--item <itemId> | --stack <stackId>)
+      Put gear the player's Guild holds, listed with its ids by show roster, into its slot
+      on one of the Guild's Heroes: a unique Item by --item, or one from a stack by --stack.
+      The slot must be empty. Prints the Hero's effective Stats the gear changed.
+  unequip --hero <heroId> --slot <weapon | armour | trinket>
+      Take the gear in a slot of one of the player's Heroes back into the Guild's holding.
+  buy --item <key> [--quantity <n>]
+      Buy n of an Item the Market has for sale, 1 unless given, named by the key show
+      market lists, for its price each, and print the cost and the Wealth left.
+  sell --stack <stackId> [--quantity <n>]      or      sell --item <itemId>
+      Sell n Items of a stack the player's Guild holds, 1 unless given, or one of its unique
+      Items, to the Market for what show market says each sells for. An Item a Hero carries
+      is unequipped first. The Market's stock is drawn afresh each morning.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -82,6 +107,7 @@ export type View =
   | { kind: 'rankings'; by: RankingMeasure }
   | { kind: 'hero'; heroId: string }
   | { kind: 'guildmaster'; guildId?: string }
+  | { kind: 'market' }
   | { kind: 'history'; entityId?: string };
 
 export type Command =
@@ -99,9 +125,14 @@ export type Command =
   | { name: 'advance'; save: string; turns: number }
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
-  | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[] }
-  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
+  | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
+  | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'build'; save: string; facility: FacilityKey }
+  | { name: 'equip'; save: string; hero: HeroId; gear: GearRef }
+  | { name: 'unequip'; save: string; hero: HeroId; slot: SlotKey }
+  | { name: 'buy'; save: string; item: ItemDefinitionKey; quantity: number }
+  | { name: 'sell'; save: string; stack: StackId; quantity: number }
+  | { name: 'sell'; save: string; item: ItemId }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -115,9 +146,13 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
-  preview: { save: 'value', quest: 'value', heroes: 'value' },
-  dispatch: { save: 'value', quest: 'value', heroes: 'value' },
+  preview: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
+  dispatch: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   build: { save: 'value', facility: 'value' },
+  equip: { save: 'value', hero: 'value', item: 'value', stack: 'value' },
+  unequip: { save: 'value', hero: 'value', slot: 'value' },
+  buy: { save: 'value', item: 'value', quantity: 'value' },
+  sell: { save: 'value', stack: 'value', item: 'value', quantity: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -211,6 +246,29 @@ function facility(value: string): FacilityKey {
   return facilityWords[value] as FacilityKey;
 }
 
+/** `--hero` for `equip` and `unequip`: one Hero id (M5-S2). */
+function heroId(value: string): HeroId {
+  return isId('heroes', value) ? value : refuse(`--hero needs a Hero id such as hero-000001; got "${value}"`);
+}
+
+/** `--slot`: one of the gear slots (M5-S2). */
+function slotKey(value: string): SlotKey {
+  const slots: readonly string[] = gearSlotKeys;
+  return slots.includes(value) ? (value as SlotKey) : refuse(`--slot takes ${gearSlotKeys.join(', ')}; got "${value}"`);
+}
+
+/** `equip`'s gear: a unique Item by `--item`, or a stack by `--stack`, and one of them only (M5-S2). */
+function gearRef(flags: Map<string, string>): GearRef {
+  const item = flags.get('item');
+  const stack = flags.get('stack');
+  if ((item === undefined) === (stack === undefined)) refuse('equip needs --item or --stack, and one of them only');
+  if (item !== undefined) {
+    return isId('items', item) ? { itemId: item } : refuse(`--item needs an Item id such as item-000001; got "${item}"`);
+  }
+  const id = stack ?? '';
+  return isId('stacks', id) ? { stackId: id } : refuse(`--stack needs a stack id such as stack-000001; got "${id}"`);
+}
+
 /** `--heroes`: Hero ids joined by commas, each once. */
 function heroList(value: string): HeroId[] {
   const heroes = value.split(',').map((word) => word.trim());
@@ -220,6 +278,25 @@ function heroList(value: string): HeroId[] {
   const twice = heroes.find((word, index) => heroes.indexOf(word) !== index);
   if (twice !== undefined) refuse(`--heroes names ${twice} twice`);
   return heroes as HeroId[];
+}
+
+/**
+ * `--consumables` (M5-S3): a consumable's key and how many, `key:n`, joined by commas, each key
+ * once. Whether the key names a consumable the Guild holds is `dispatch`'s to say.
+ */
+function consumableList(value: string): ConsumableRequest[] {
+  const pairs = value.split(',').map((word) => word.trim());
+  const requests = pairs.map((word): ConsumableRequest => {
+    const match = /^([a-z0-9]+(?:-[a-z0-9]+)*):(\d+)$/.exec(word);
+    if (match?.[1] === undefined || match[2] === undefined) {
+      refuse(`--consumables needs key:n pairs such as healing-draught:2, joined by commas; got "${word}"`);
+    }
+    return { definitionKey: match[1], quantity: wholeFromOne(`--consumables ${match[1]}`, match[2]) };
+  });
+  const keys = requests.map((request) => request.definitionKey);
+  const twice = keys.find((key, index) => keys.indexOf(key) !== index);
+  if (twice !== undefined) refuse(`--consumables names ${twice} twice`);
+  return requests;
 }
 
 function atMost(positional: readonly string[], count: number, command: string): void {
@@ -248,6 +325,7 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'pool':
     case 'patrons':
     case 'board':
+    case 'market':
       atMost(positional, 1, `show ${view}`);
       return { kind: view };
     case 'roster':
@@ -271,6 +349,22 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     default:
       return refuse(`show has no view "${view}"`);
   }
+}
+
+/** `sell`: `--stack` with an optional `--quantity`, or `--item`, never both (M5-S4). */
+function sale(save: string, flags: Map<string, string>): Extract<Command, { name: 'sell' }> {
+  const stack = flags.get('stack');
+  const item = flags.get('item');
+  const quantity = flags.get('quantity');
+  if (stack !== undefined && item !== undefined) refuse('sell takes --stack or --item, not both');
+  if (item !== undefined) {
+    if (quantity !== undefined) refuse('sell --item sells one unique Item; --quantity goes with --stack');
+    if (!isId('items', item)) refuse(`--item needs a unique Item's id such as item-000001; got "${item}"`);
+    return { name: 'sell', save, item };
+  }
+  if (stack === undefined) refuse('sell needs --stack or --item');
+  if (!isId('stacks', stack)) refuse(`--stack needs a stack id such as stack-000001; got "${stack}"`);
+  return { name: 'sell', save, stack, quantity: quantity === undefined ? 1 : wholeFromOne('--quantity', quantity) };
 }
 
 /** The command `argv` names, or the problem with it. */
@@ -335,11 +429,33 @@ function parse(argv: readonly string[]): Command {
       atMost(positional, 0, name);
       const quest = required(flags, name, 'quest');
       if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
-      return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
+      const consumables = flags.get('consumables');
+      return {
+        name,
+        save,
+        quest,
+        heroes: heroList(required(flags, name, 'heroes')),
+        ...(consumables === undefined ? {} : { consumables: consumableList(consumables) }),
+      };
     }
     case 'build':
       atMost(positional, 0, 'build');
       return { name, save, facility: facility(required(flags, name, 'facility')) };
+    case 'equip':
+      atMost(positional, 0, 'equip');
+      return { name, save, hero: heroId(required(flags, name, 'hero')), gear: gearRef(flags) };
+    case 'unequip':
+      atMost(positional, 0, 'unequip');
+      return { name, save, hero: heroId(required(flags, name, 'hero')), slot: slotKey(required(flags, name, 'slot')) };
+    case 'buy': {
+      atMost(positional, 0, 'buy');
+      const quantity = flags.get('quantity');
+      const item = required(flags, name, 'item');
+      return { name, save, item, quantity: quantity === undefined ? 1 : wholeFromOne('--quantity', quantity) };
+    }
+    case 'sell':
+      atMost(positional, 0, 'sell');
+      return sale(save, flags);
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

@@ -22,21 +22,34 @@ import {
   type RegardBand,
 } from '@heroesim/engine';
 import {
+  consumableEffects,
   controllerKinds,
   countedYear,
+  difficultyBandWidth,
   encounterOutcomes,
   endingReasons,
+  gearReturnCauses,
   noBands,
+  noConsumables,
+  noDifficulty,
+  noGear,
+  noWealth,
+  saleCauses,
   type ByController,
   type ByYear,
+  type ConsumableTally,
   type ControllerKind,
+  type DifficultyTally,
   type EncounterCounts,
   type FameGate,
+  type GearTally,
   type GradeCounts,
   type GrowthAgainstDecline,
+  type LootTally,
   type RegardSnapshot,
   type RosterCensus,
   type SynergyTally,
+  type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -245,6 +258,14 @@ export interface SweepTotals {
   silentPatronYears: number[];
   /** The player's Guild's Regard after `countedYear` years, summed over the games in play then, and how many were. */
   regardAtCountedYear: { games: number } & RegardSnapshot;
+  // M5's counters (DL-62).
+  wealth: Record<ControllerKind, WealthFlows>;
+  loot: Record<ControllerKind, Record<string, LootTally>>;
+  consumables: Record<ControllerKind, ConsumableTally>;
+  gear: Record<ControllerKind, GearTally>;
+  /** The player's Quests by difficulty band and by year, summed over the games that recorded them. */
+  playerQuestsByDifficulty: DifficultyTally[];
+  playerQuestsByYear: DifficultyTally[];
 }
 
 const zero = (): ByController => ({ player: 0, rival: 0 });
@@ -278,6 +299,30 @@ const noEncounters = (): EncounterCounts =>
   Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
 const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
+/** Adds one game's Wealth flows to the sweep's. */
+function addWealth(into: WealthFlows, from: WealthFlows): void {
+  const { sales, itemsSold, ...flat } = from;
+  addFields(into, flat as WealthFlows);
+  addFields(into.sales, sales);
+  addFields(into.itemsSold, itemsSold);
+}
+
+/** Adds one game's consumables to the sweep's. */
+function addConsumables(into: ConsumableTally, from: ConsumableTally): void {
+  const { byEffect, byDefinition, ...flat } = from;
+  addFields(into, flat as ConsumableTally);
+  addFields(into.byEffect, byEffect);
+  addFields(into.byDefinition, byDefinition);
+}
+
+/** Adds each tally of `from` to the same index of `into`, lengthening `into` to reach it. */
+function addTallies(into: DifficultyTally[], from: readonly DifficultyTally[] | null): void {
+  (from ?? []).forEach((tally, index) => {
+    while (into.length <= index) into.push(noDifficulty());
+    addFields(into[index] as DifficultyTally, tally);
+  });
+}
+
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
     games: sweep.games.length,
@@ -309,9 +354,25 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     patronYears: [],
     silentPatronYears: [],
     regardAtCountedYear: { games: 0, relationships: noBands(), guildmasterForPatrons: noBands(), guildmasterForHeroes: noBands() },
+    wealth: { player: noWealth(), rival: noWealth() },
+    loot: { player: {}, rival: {} },
+    consumables: { player: noConsumables(), rival: noConsumables() },
+    gear: { player: noGear(), rival: noGear() },
+    playerQuestsByDifficulty: [],
+    playerQuestsByYear: [],
   };
   for (const { counters, observations, refusals, invalid } of sweep.games) {
+    addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
+    addTallies(totals.playerQuestsByYear, counters.playerQuestsByYear);
     for (const kind of controllerKinds) {
+      addWealth(totals.wealth[kind], counters.wealth[kind]);
+      for (const [table, tally] of Object.entries(counters.loot[kind])) {
+        addFields((totals.loot[kind][table] ??= { awards: 0, items: 0, unique: 0 }), tally);
+      }
+      addConsumables(totals.consumables[kind], counters.consumables[kind]);
+      const { returned, ...moves } = counters.gear[kind];
+      addFields(totals.gear[kind], moves as GearTally);
+      addFields(totals.gear[kind].returned, returned);
       totals.questsTaken[kind] += counters.questsTaken[kind];
       totals.heroesInjured[kind] += counters.heroesInjured[kind];
       totals.heroesDied[kind] += counters.heroesDied[kind];
@@ -390,6 +451,8 @@ const targets = {
 const listed = 20;
 
 const kindLabel = (kind: ControllerKind): string => (kind === 'player' ? "The player's Guild" : 'The Rivals');
+
+const rosterOf = (kind: ControllerKind): string => (kind === 'player' ? "the player's Guild" : 'the Rivals');
 
 /** `n / of` to `digits` places, a dash when `of` is 0. */
 const ratio = (n: number, of: number, digits = 2): string => (of === 0 ? '—' : fixed(n / of, digits));
@@ -601,7 +664,7 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
 }
 
 /** Keys a table lists: content's, in key order, then any other a count names. */
-function keysOf(known: readonly string[], ...counts: readonly Record<string, number>[]): string[] {
+function keysOf(known: readonly string[], ...counts: readonly Record<string, unknown>[]): string[] {
   const extra = counts.flatMap((count) => Object.keys(count)).filter((key) => !known.includes(key));
   return [...new Set([...[...known].sort(compareByCodeUnit), ...extra.sort(compareByCodeUnit)])];
 }
@@ -726,6 +789,174 @@ function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
   ];
 }
 
+/**
+ * M5's counters (the epic's §2, DL-62): Wealth spent by category and taken from Quests and the
+ * Market, Loot by table beside the player's Quest difficulty, consumables carried and expended a
+ * Quest, and gear moved.
+ */
+function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
+  const guildYears = (kind: ControllerKind): number => sum(totals.guildYears[kind]);
+  const perYear = (kind: ControllerKind, n: number): string[] => [whole(n), ratio(n, guildYears(kind), 1)];
+  const flowRow = (label: string, read: (flows: WealthFlows) => number): string[] => [
+    label,
+    ...controllerKinds.flatMap((kind) => perYear(kind, read(totals.wealth[kind]))),
+  ];
+  const spent = (flows: WealthFlows): number => flows.signing + flows.items + flows.improvements + flows.upkeep;
+  const taken = (flows: WealthFlows): number => flows.questRewards + sum(saleCauses.map((cause) => flows.sales[cause]));
+  const shareRow = controllerKinds.flatMap((kind) => {
+    const flows = totals.wealth[kind];
+    const all = spent(flows);
+    return [
+      `${kindLabel(kind)}: signing ${percent(flows.signing, all)}, Items ${percent(flows.items, all)}, ` +
+        `Improvements ${percent(flows.improvements, all)}, Upkeep ${percent(flows.upkeep, all)}`,
+    ];
+  });
+
+  const tables = keysOf(Object.keys(deps.content.lootTables), totals.loot.player, totals.loot.rival);
+  const lootAll = (kind: ControllerKind): LootTally => {
+    const all: LootTally = { awards: 0, items: 0, unique: 0 };
+    for (const tally of Object.values(totals.loot[kind])) addFields(all, tally);
+    return all;
+  };
+  const lootCells = (kind: ControllerKind, tally: LootTally | undefined): string[] => {
+    const { awards, items, unique } = tally ?? { awards: 0, items: 0, unique: 0 };
+    return [whole(awards), ratio(awards, guildYears(kind), 1), whole(items), whole(unique)];
+  };
+  const lootRows = [
+    ...tables.map((table) => [`\`${table}\``, ...controllerKinds.flatMap((kind) => lootCells(kind, totals.loot[kind][table]))]),
+    ['Every table', ...controllerKinds.flatMap((kind) => lootCells(kind, lootAll(kind)))],
+  ];
+  const resolvedBy = (kind: ControllerKind): number => totals.consumables[kind].quests;
+  const lootPerQuest = controllerKinds
+    .map((kind) => `${rosterOf(kind)} ${ratio(lootAll(kind).awards, resolvedBy(kind), 3)} an award a Quest resolved`)
+    .join('; ');
+
+  const difficultyCells = (tally: DifficultyTally): string[] => [
+    whole(tally.quests),
+    ratio(tally.difficulty, tally.quests, 1),
+    `${whole(tally.strong)} (${percent(tally.strong, tally.quests)})`,
+    whole(tally.loot),
+    ratio(tally.loot, tally.quests, 3),
+    whole(tally.unique),
+  ];
+  const bandRows = totals.playerQuestsByDifficulty.flatMap((tally, band) =>
+    tally.quests === 0 ? [] : [[`${band * difficultyBandWidth} to ${band * difficultyBandWidth + difficultyBandWidth - 1}`, ...difficultyCells(tally)]],
+  );
+  const yearRows = totals.playerQuestsByYear.map((tally, year) => [whole(year), ...difficultyCells(tally)]);
+  const allDifficulty = noDifficulty();
+  for (const tally of totals.playerQuestsByDifficulty) addFields(allDifficulty, tally);
+  const difficultyHeader = ['Quests resolved', 'Mean difficulty', 'Strong', 'Loot awards', 'Loot a Quest', 'Unique'];
+  const difficultyLines =
+    allDifficulty.quests === 0
+      ? ["No player's Quest with a recorded difficulty was resolved."]
+      : [
+          `The player's Quests by the difficulty the policy saw as it dispatched (no entry records it), ` +
+            `${whole(allDifficulty.quests)} resolved, mean difficulty ${ratio(allDifficulty.difficulty, allDifficulty.quests, 1)}, ` +
+            `${whole(allDifficulty.loot)} Loot awards (${ratio(allDifficulty.loot, allDifficulty.quests, 3)} a Quest). ` +
+            `By the Quest's difficulty (M5-S5's third box):`,
+          '',
+          markdownTable(['Difficulty', ...difficultyHeader], bandRows, ['left', ...difficultyHeader.map(() => 'right' as const)]),
+          '',
+          'By the year resolved in (year 0 is the first):',
+          '',
+          markdownTable(['Year', ...difficultyHeader], yearRows, ['right', ...difficultyHeader.map(() => 'right' as const)]),
+        ];
+
+  const consumableRows = controllerKinds.map((kind) => {
+    const tally = totals.consumables[kind];
+    return [
+      kindLabel(kind),
+      whole(tally.quests),
+      whole(tally.carried),
+      ratio(tally.carried, tally.quests, 3),
+      whole(tally.expended),
+      ratio(tally.expended, tally.quests, 3),
+      `${whole(tally.questsWithAny)} (${percent(tally.questsWithAny, tally.quests)})`,
+      ...consumableEffects.map((effect) => whole(tally.byEffect[effect])),
+    ];
+  });
+  const definitions = keysOf(
+    Object.values(deps.content.items)
+      .filter((definition) => definition.kind === 'consumable')
+      .map((definition) => definition.key),
+    totals.consumables.player.byDefinition,
+    totals.consumables.rival.byDefinition,
+  );
+  const definitionRows = definitions.map((key) => [
+    `\`${key}\``,
+    ...controllerKinds.map((kind) => whole(totals.consumables[kind].byDefinition[key] ?? 0)),
+  ]);
+
+  const gearRows = controllerKinds.map((kind) => {
+    const tally = totals.gear[kind];
+    return [
+      kindLabel(kind),
+      ...perYear(kind, tally.equipped),
+      whole(tally.unequipped),
+      ...gearReturnCauses.map((cause) => whole(tally.returned[cause])),
+    ];
+  });
+
+  const kindHeaders = controllerKinds.flatMap((kind) => [kind === 'player' ? "Player's" : "Rivals'", 'a Guild-year']);
+  return [
+    '## Items (M5)',
+    '',
+    'Wealth spent by category and taken, by the Guild each entry names; a Guild-year as in M3\'s table. Transfers ' +
+      'have no event until M6, so none is counted.',
+    '',
+    markdownTable(
+      ['Wealth', ...kindHeaders],
+      [
+        flowRow('Spent: signing fees (`hero.recruited` `fee`)', (flows) => flows.signing),
+        ['Spent: Transfers', ...controllerKinds.flatMap(() => ['none until M6', '—'])],
+        flowRow('Spent: Items (`item.bought` `cost`)', (flows) => flows.items),
+        flowRow('Spent: Improvements (`guild.improved` `cost`)', (flows) => flows.improvements),
+        flowRow('Spent: Upkeep (`guild.upkeep-paid` `amount`)', (flows) => flows.upkeep),
+        flowRow('Spent in all', spent),
+        flowRow('Taken: Quest rewards (`quest.resolved` `wealthDelta`)', (flows) => flows.questRewards),
+        ...saleCauses.map((cause) => flowRow(`Taken: the Market, \`item.sold\` \`${cause}\` (\`proceeds\`)`, (flows) => flows.sales[cause])),
+        flowRow('Taken in all', taken),
+        flowRow('Items bought (`item.bought` `quantity`)', (flows) => flows.itemsBought),
+        ...saleCauses.map((cause) => flowRow(`Items sold, \`${cause}\``, (flows) => flows.itemsSold[cause])),
+      ],
+      ['left', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    `Shares of the Wealth spent: ${shareRow.join('; ')}.`,
+    '',
+    'Loot awarded by table (`quest.loot` by `lootTableKey`): awards, the Items they gave, and the awards of a unique Item:',
+    '',
+    markdownTable(
+      ['Loot table', "Player's awards", 'a Guild-year', 'Items', 'Unique', "Rivals' awards", 'a Guild-year', 'Items', 'Unique'],
+      lootRows,
+      ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    `Loot a Quest resolved: ${lootPerQuest}.`,
+    '',
+    ...difficultyLines,
+    '',
+    "Consumables carried (`quest.taken`'s `consumables`) and expended (`item.expended`) against the Quests resolved:",
+    '',
+    markdownTable(
+      ['Consumables', 'Quests resolved', 'Carried', 'a Quest', 'Expended', 'a Quest', 'Quests with one or more', ...consumableEffects],
+      consumableRows,
+      ['left', 'right', 'right', 'right', 'right', 'right', 'right', ...consumableEffects.map(() => 'right' as const)],
+    ),
+    '',
+    markdownTable(['Expended, by definition', "Player's", "Rivals'"], definitionRows, ['left', 'right', 'right']),
+    '',
+    'Gear moved (`item.equipped`, `item.unequipped`, and `item.returned` by its `cause`):',
+    '',
+    markdownTable(
+      ['Gear', 'Equipped', 'a Guild-year', 'Unequipped', ...gearReturnCauses.map((cause) => `Returned: ${cause}`)],
+      gearRows,
+      ['left', 'right', 'right', 'right', ...gearReturnCauses.map(() => 'right' as const)],
+    ),
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
   const { config, content } = deps;
@@ -799,10 +1030,15 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `config version ${config.configVersion}, schema version ${config.schemaVersion} · ` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
-    `Policy (INPUTS 4.14): the highest-reward Quest it can staff, the strongest Party of the size it requires; ` +
-      `one purchase a Turn: the infirmary's next grade while Wealth exceeds ${sweep.policy.buildWealthMultiple} times ` +
-      `its cost (M3-S6), else the cheapest Hero who would sign while Wealth exceeds ` +
-      `${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}; never transfer.`,
+    `Policy (INPUTS 4.14): first the gear it holds onto Heroes with the slot empty (M5-S2); the highest-reward ` +
+      `Quest it can staff, the strongest Party of the size it requires, carrying one of each consumable held that ` +
+      `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
+      `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
+      `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
+      `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +
+      `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
+      `${sweep.policy.buyWealthMultiple} times their cost and, once paid, ${sweep.policy.consumableReserveUpkeeps} ` +
+      `Upkeeps (DL-62); never sell; never transfer.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,
@@ -869,6 +1105,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     '',
     ...progressionSection(totals, deps),
     ...questEngineSection(totals, deps),
+    ...itemsSection(totals, deps),
     '## Measures',
     '',
     markdownTable(

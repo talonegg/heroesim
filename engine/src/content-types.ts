@@ -5,7 +5,8 @@
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
 // `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`; M3-S6
-// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`. Later milestones add theirs (M5-S1 Items).
+// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`; M5-S1 `ItemDefinition`; M5-S5 `LootTable`.
+// Later milestones add theirs.
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -35,12 +36,22 @@ export type InjuryTypeKey = string;
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
-/** A Loot table (M5). */
+/** A Loot table (M5-S5, `loot-tables.json`). */
 export type LootTableKey = string;
-/** An Item definition, for unique Items and common stacks alike (M5). */
+/** An Item definition, for unique Items and common stacks alike (M5-S1, `items.json`). */
 export type ItemDefinitionKey = string;
-/** A gear slot on a Hero (M5). */
-export type SlotKey = string;
+/** A tag an Item definition carries (M5-S1): a kebab-case word for display and later rules. */
+export type ItemTagKey = string;
+
+/**
+ * The gear slots an Item can be made for (M5-S1, INPUTS 7.1): a closed list, as the Encounter kinds
+ * are, so content validation refuses a slot no Hero could have. Which of them a Hero has is
+ * `GameConfig.gearSlots` (all three by default). A new slot is an engine change (DL-48).
+ */
+export const gearSlotKeys = ['weapon', 'armour', 'trinket'] as const;
+
+/** A gear slot on a Hero: one of `gearSlotKeys` (M5-S1). */
+export type SlotKey = (typeof gearSlotKeys)[number];
 /** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
 export type ImprovementKey = string;
 /** A Synergy, a bonus for a combination of Classes or Skills in a Party (M4-S3, `synergies.json`). */
@@ -174,8 +185,13 @@ export interface QuestTemplate {
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
-  /** `null` until Loot tables exist (M5). */
-  lootTableKey: null;
+  /**
+   * The Loot table a Quest of this kind awards from on a band in `lootOnBands` (M5-S5, INPUTS 7.4,
+   * DL-52): a table content defines, chosen by the template's difficulty band, or `null` for none.
+   * The Quest Generator copies it onto a Quest only when `difficultyMin` is above
+   * `lootDifficultyThreshold`, so the threshold is config's and the table content's.
+   */
+  lootTableKey: LootTableKey | null;
   /**
    * The kinds of Encounter a Quest of this kind is drawn with (M4-S1): each of its Encounters is
    * of one of these, at least one listed, none twice, and content holding an Encounter of each.
@@ -357,6 +373,91 @@ export interface Improvement {
   cost: number;
 }
 
+/** An Item is permanent gear a Hero carries in a slot, or a consumable that is used up (R30). */
+export type ItemKind = 'gear' | 'consumable';
+
+/**
+ * What a consumable does when the Quest Engine expends it (M5-S1, M5-S3): a closed union, so a new
+ * kind is an engine change and earns a decision (M5 risks).
+ *
+ * - `reroll`: the first failed Check of an Encounter of one of `kinds` is rolled again, once;
+ * - `bonus`: `flat` is added to the capability of the first Check of an Encounter of one of `kinds`;
+ * - `heal`: an Injury taken on the Quest heals `days` Days sooner.
+ *
+ * `kinds` holds one or more Encounter kinds, none twice; `flat` is above 0; `days` a whole number
+ * from 1.
+ */
+export type ConsumableEffect =
+  | { kind: 'reroll'; kinds: EncounterKind[] }
+  | { kind: 'bonus'; flat: number; kinds: EncounterKind[] }
+  | { kind: 'heal'; days: number };
+
+/** The kinds of `ConsumableEffect`. */
+export type ConsumableEffectKind = ConsumableEffect['kind'];
+
+/** What every Item definition has, gear or consumable. */
+interface ItemDefinitionBase {
+  key: ItemDefinitionKey;
+  name: string;
+  /**
+   * A Unique Item is an individual with one holder, a row of `world.items`; a Common Item is held in
+   * stacks with a quantity, rows of `world.stacks` (data-model §3.3). Only gear may be unique.
+   */
+  unique: boolean;
+  /**
+   * The Wealth one costs at the Market, a whole number above 0; `null` for an Item the Market never
+   * stocks, found only as Loot. The Market's refresh draws stacks, so it never stocks a unique Item,
+   * whatever its price (DL-48).
+   */
+  buyPrice: number | null;
+  /** Kebab-case words, none twice; may be none. */
+  tags: ItemTagKey[];
+}
+
+/** Permanent gear (R30): carried by a Hero in its slot, it adds its modifiers to their Stats (M5-S2). */
+export interface GearDefinition extends ItemDefinitionBase {
+  kind: 'gear';
+  slot: SlotKey;
+  /** Whole numbers other than 0 by Hero Stat, at least one; a penalty is negative. */
+  statModifiers: Record<StatKey, number>;
+}
+
+/** A consumable (R30): always common, taken on a Quest by a Party and expended by the Quest Engine (M5-S3). */
+export interface ConsumableDefinition extends ItemDefinitionBase {
+  kind: 'consumable';
+  effect: ConsumableEffect;
+}
+
+/**
+ * An Item definition (M5-S1, `items.json`): the row a unique Item or a stack names by
+ * `definitionKey`. Gear has a slot and Stat modifiers and no effect; a consumable an effect and no
+ * slot. Content validation refuses a row with the other kind's fields.
+ */
+export type ItemDefinition = GearDefinition | ConsumableDefinition;
+
+/**
+ * One entry of a Loot table (M5-S5, DL-52): an Item definition content defines, its weight in the
+ * draw, and the quantity awarded, an inclusive range drawn with `int`.
+ */
+export interface LootEntry {
+  definitionKey: ItemDefinitionKey;
+  /** Drawn in proportion to it among the table's entries: a number above 0. */
+  weight: number;
+  /** Whole numbers from 1, `quantityMin` at most `quantityMax`; both 1 for a unique Item. */
+  quantityMin: number;
+  quantityMax: number;
+}
+
+/**
+ * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables.json`): what a Quest whose template names it
+ * may leave behind. The Quest Engine draws one entry on a band in `lootOnBands` and the Guild's
+ * holding receives it (`quest-engine/loot.ts`). At least one entry, each definition once.
+ */
+export interface LootTable {
+  key: LootTableKey;
+  entries: LootEntry[];
+}
+
 /** The name lists the generators draw from (INPUTS 3.9; `names.json`). No list is empty. */
 export interface Names {
   /** Given names for Heroes and Guildmasters, by sex. */
@@ -391,6 +492,10 @@ export interface ContentSet {
   encounters: Record<EncounterKey, Encounter>;
   /** The Synergies a Party's Classes and Skills can earn on a Check (M4-S3). */
   synergies: Record<SynergyKey, Synergy>;
+  /** The Item definitions: gear and consumables, common and unique (M5-S1, DL-20's table name). */
+  items: Record<ItemDefinitionKey, ItemDefinition>;
+  /** The Loot tables Quest templates name, each a weighted list of Item definitions (M5-S5). */
+  lootTables: Record<LootTableKey, LootTable>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

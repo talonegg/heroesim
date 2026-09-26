@@ -103,6 +103,42 @@ describe('playGame observes the World State (M3, DL-40)', () => {
   });
 });
 
+describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () => {
+  test('one for every Quest the policy took, read from the Quest as it was taken, which the counters join to its resolution', () => {
+    const game = playGame('play-a', deps, { years });
+    const { history } = game.document;
+    const guild = playerGuild(game.document.world) as Guild;
+    const payloads = (type: 'quest.taken' | 'quest.resolved') =>
+      (history.byType[type] ?? []).map((position) => history.entries[position]?.payload as { questId: string; guildId: string; templateKey?: string });
+    const taken = payloads('quest.taken').filter((payload) => payload.guildId === guild.id);
+    expect(taken.length).toBeGreaterThan(0);
+    expect([...game.playerQuestDifficulty.keys()].sort()).toEqual(taken.map((payload) => payload.questId).sort());
+
+    // Each difficulty lies in its template's range; the template is named by the Quest's quest.offered.
+    const offered = new Map(
+      (history.byType['quest.offered'] ?? []).map((position) => {
+        const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
+        return [payload.questId, payload.templateKey];
+      }),
+    );
+    for (const [questId, difficulty] of game.playerQuestDifficulty) {
+      const template = content.questTemplates[offered.get(questId) ?? ''];
+      expect(template, questId).toBeDefined();
+      expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
+      expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
+    }
+
+    const { record } = recordGame('play-a', deps, { years });
+    const resolved = payloads('quest.resolved').filter((payload) => payload.guildId === guild.id).length;
+    const byBand = record.counters.playerQuestsByDifficulty ?? [];
+    expect(byBand.reduce((sum, tally) => sum + tally.quests, 0)).toBe(resolved);
+    const sum = [...game.playerQuestDifficulty]
+      .filter(([questId]) => payloads('quest.resolved').some((payload) => payload.questId === questId))
+      .reduce((total, [, difficulty]) => total + difficulty, 0);
+    expect(byBand.reduce((total, tally) => total + tally.difficulty, 0)).toBe(sum);
+  });
+});
+
 describe('recordGame and measureDocument', () => {
   test('reduce a game to its counters and the measures of its last document, which loads back', () => {
     const { record, advanceMs } = recordGame('play-a', deps, { years });

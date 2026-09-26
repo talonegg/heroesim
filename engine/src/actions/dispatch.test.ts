@@ -2,18 +2,19 @@ import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
-import type { Guild, GuildId, Hero, HeroId, PartyId, Quest, QuestId, World, WorldDocument } from '../document.js';
+import type { Guild, GuildId, Hero, HeroId, Holder, PartyId, Quest, QuestId, World, WorldDocument } from '../document.js';
 import { negotiatedReward } from '../guildmaster.js';
 import { count } from '../history.js';
+import { addStack, holdings } from '../items.js';
 import { phaseContext } from '../phases/phase.js';
 import { questsAdvance } from '../phases/quests-advance.js';
 import { playerGuild } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, durationDaysOf, nightOf, timeOfDay } from '../time.js';
 import { validate } from '../validate.js';
-import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, fixtureTurn, harmlessContent, testDeps, withValid, type FixtureIds } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { dispatch, type DispatchRejection, type DispatchRequest } from './dispatch.js';
+import { dispatch, type ConsumableRequest, type DispatchRejection, type DispatchRequest } from './dispatch.js';
 
 // No Rivals in a created world: from M2-S9 they take Quests off the Board each afternoon, and
 // these tests play Turns to watch the player's own Parties.
@@ -92,7 +93,7 @@ describe('dispatch', () => {
           [quest.patronId]: world.patrons[quest.patronId]?.name,
         },
         milestone: false,
-        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed },
+        payload: { questId, partyId, guildId: ids.playerGuild, heroIds: [rogue, mage], returnsOnTurn, reward: agreed, consumables: [] },
       },
     ]);
     // The reward agreed is the offer's, the Guildmaster's Negotiation applied (M4-S5), and the Quest carries it.
@@ -309,6 +310,112 @@ describe('dispatch', () => {
     expect(() =>
       dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: [rogue, rogue] }, deps),
     ).toThrow(new RegExp(rogue));
+  });
+});
+
+// M5-S3 (DL-50): the fixture's player Guild holds a stack of three healing draughts.
+describe('dispatch with consumables', () => {
+  /** The built document, the player's Guild also holding two whetstones. */
+  function stocked() {
+    const { document, ids, rogue, mage } = built();
+    const stocked = structuredClone(document);
+    const whetstones = addStack(stocked.world, 'whetstone', 2, { kind: 'guild', id: ids.playerGuild });
+    return { document: withValid(stocked, deps), ids, whetstones, heroIds: [rogue, mage] };
+  }
+
+  const guildHolder = (ids: FixtureIds): Holder => ({ kind: 'guild', id: ids.playerGuild });
+
+  test("moves each from the Guild's holding to the Party's, splitting a stack or moving it whole, and quest.taken lists them", () => {
+    const { document, ids, whetstones, heroIds } = stocked();
+    const worldBefore = structuredClone(document.world);
+    const consumables = [
+      { definitionKey: 'healing-draught', quantity: 2 },
+      { definitionKey: 'whetstone', quantity: 2 },
+    ];
+
+    const result = dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
+
+    if (!result.ok) throw new Error(`Rejected ${result.rejection.reason}`);
+    const { world } = withValid(result.document, deps);
+    const [partyId] = questOf(world, ids.offeredQuest).partyIds;
+    if (partyId === undefined) throw new Error('No Party');
+    // Two of the three draughts leave; the whetstones' whole stack moves and keeps its id.
+    expect(holdings(world, guildHolder(ids)).stacks.map(({ definitionKey, quantity }) => [definitionKey, quantity])).toEqual([
+      ['healing-draught', 1],
+    ]);
+    const carried = holdings(world, { kind: 'party', id: partyId }).stacks;
+    expect(carried.map(({ definitionKey, quantity }) => [definitionKey, quantity])).toEqual([
+      ['whetstone', 2],
+      ['healing-draught', 2],
+    ]);
+    expect(carried[0]?.id).toBe(whetstones);
+    expect(result.events[0]?.type === 'quest.taken' && result.events[0].payload.consumables).toEqual(consumables);
+    expect(document.world).toEqual(worldBefore);
+  });
+
+  test('rejects, typed and changing nothing: not-consumable, not-held-by-guild, insufficient-quantity', () => {
+    const { document, ids, heroIds } = stocked();
+    const carrying = (definitionKey: string, quantity: number): DispatchRequest => ({
+      guildId: ids.playerGuild,
+      questId: ids.offeredQuest,
+      heroIds,
+      consumables: [{ definitionKey, quantity }],
+    });
+
+    // Gear, and a key content lacks, are no consumables.
+    expect(rejected(document, carrying('padded-jack', 1))).toEqual({ action: 'dispatch', reason: 'not-consumable', definitionKey: 'padded-jack' });
+    expect(rejected(document, carrying('no-such-item', 1))).toMatchObject({ reason: 'not-consumable', definitionKey: 'no-such-item' });
+    // The fixture's Party Hero carries a padded jack; the Guild itself holds no lockpicks.
+    expect(rejected(document, carrying('lockpicks', 1))).toEqual({
+      action: 'dispatch',
+      reason: 'not-held-by-guild',
+      definitionKey: 'lockpicks',
+      guildId: ids.playerGuild,
+    });
+    // The Party's own stack of draughts (the fixture's) is not the Guild's to give.
+    expect(rejected(document, carrying('healing-draught', 4))).toEqual({
+      action: 'dispatch',
+      reason: 'insufficient-quantity',
+      definitionKey: 'healing-draught',
+      guildId: ids.playerGuild,
+      held: 3,
+      requested: 4,
+    });
+    expect(dispatch(document, carrying('healing-draught', 3), deps).ok).toBe(true);
+  });
+
+  test('checks the consumables after the requirements, each in the order given', () => {
+    const { document, ids, heroIds } = stocked();
+    const consumables = [
+      { definitionKey: 'whetstone', quantity: 3 },
+      { definitionKey: 'short-sword', quantity: 1 },
+    ];
+
+    expect(rejected(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds: heroIds.slice(0, 1), consumables }).reason).toBe(
+      'requirement-unmet',
+    );
+    expect(rejected(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }).reason).toBe(
+      'insufficient-quantity',
+    );
+    expect(
+      rejected(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables: consumables.slice().reverse() }).reason,
+    ).toBe('not-consumable');
+  });
+
+  test('throws on a programming error: a consumable named twice, or a quantity that is not a whole number from 1', () => {
+    const { document, ids, heroIds } = stocked();
+    const carrying = (consumables: ConsumableRequest[]) => () =>
+      dispatch(document, { guildId: ids.playerGuild, questId: ids.offeredQuest, heroIds, consumables }, deps);
+
+    expect(
+      carrying([
+        { definitionKey: 'whetstone', quantity: 1 },
+        { definitionKey: 'whetstone', quantity: 1 },
+      ]),
+    ).toThrow(/whetstone twice/);
+    for (const quantity of [0, -1, 1.5, Number.NaN]) {
+      expect(carrying([{ definitionKey: 'whetstone', quantity }]), String(quantity)).toThrow(RangeError);
+    }
   });
 });
 

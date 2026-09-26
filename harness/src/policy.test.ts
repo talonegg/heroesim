@@ -1,9 +1,15 @@
 import { loadContent } from '@heroesim/content/node';
 import {
+  addStack,
+  advance,
   applyAction,
   availableHeroes,
   createWorld,
   defaultConfig,
+  gearChoices,
+  holdings,
+  makeId,
+  marketHolder,
   partyFor,
   playerGuild,
   serialise,
@@ -22,11 +28,13 @@ import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 // M2-S12: the harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
-// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults.
+// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
+// Market is empty (`marketSize: 0`) unless a test stocks it, so that the armour and consumables it
+// would buy (M5-S4, DL-62) stay out of the tests of building and recruiting.
 
 const content = loadContent();
 const deps: EngineDeps = {
-  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50 },
+  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50, marketSize: 0 },
   content,
 };
 
@@ -265,6 +273,256 @@ describe('automaticPolicy', () => {
       );
       const game = { ...deps, config: { ...deps.config, buildWealthMultiple: 100 } };
       expect(automaticPolicy(document, game)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'infirmary' });
+    });
+  });
+
+  test('equips the gear its Guild holds first, by the engine’s gearChoices, before sending anyone away (M5-S2, DL-49)', () => {
+    const scened = scene('policy-gear');
+    const { guild, quests } = scened;
+    let { document } = scened;
+    openBoard(quests);
+    const vault = { kind: 'guild', id: guild.id } as const;
+    addStack(document.world, 'mail-shirt', 2, vault);
+    addStack(document.world, 'short-sword', 1, vault);
+
+    const actions = automaticPolicy(document, deps, noBuilding);
+    const gear = gearChoices(document.world, guild, deps);
+
+    expect(gear).toHaveLength(3);
+    expect(actions.slice(0, gear.length)).toEqual(gear);
+    expect(dispatches(actions).length).toBeGreaterThan(0);
+    // Applied in order, every one is accepted: the equipped Heroes are still home to be sent.
+    for (const action of actions) {
+      const result = applyAction(document, action, deps);
+      expect(result.ok, action.kind).toBe(true);
+      if (result.ok) document = result.document;
+    }
+    expect(holdings(document.world, vault)).toEqual({ items: [], stacks: [] });
+  });
+
+  describe('buys armour (M5-S4)', () => {
+    /**
+     * The player's Guild with `wealth`, its infirmary at the top grade so that it builds nothing, an
+     * empty Board, and a Market holding two of each common armour and nothing else.
+     */
+    function shopping(wealth: number) {
+      const { document, guild } = scene();
+      document.world.board = [];
+      guild.wealth = wealth;
+      guild.hall.infirmary = 3;
+      for (const key of ['padded-jack', 'mail-shirt', 'plate-harness', 'short-sword']) {
+        addStack(document.world, key, 2, marketHolder);
+      }
+      return { document, guild };
+    }
+
+    const buying = (guildId: string, definitionKey: string) => ({ kind: 'buy', guildId, definitionKey, quantity: 1 });
+
+    test('one piece, the dearest armour on the Market whose price Wealth is above three times, in place of a recruit', () => {
+      expect(defaultPolicyConfig.buyWealthMultiple).toBe(3);
+      const rich = shopping(3 * 300 + 1);
+      expect(automaticPolicy(rich.document, deps)).toEqual([buying(rich.guild.id, 'plate-harness')]);
+      const at = shopping(3 * 300);
+      expect(automaticPolicy(at.document, deps)).toEqual([buying(at.guild.id, 'mail-shirt')]);
+      const poor = shopping(3 * 40);
+      expect(automaticPolicy(poor.document, deps)).not.toContainEqual(expect.objectContaining({ kind: 'buy' }));
+    });
+
+    test('is a purchase the rules accept', () => {
+      const { document, guild } = shopping(1_000);
+      const [action] = automaticPolicy(document, deps);
+
+      const result = action === undefined ? null : applyAction(document, action, deps);
+
+      expect(result?.ok).toBe(true);
+      expect(result?.ok && playerGuild(result.document.world)?.wealth).toBe(1_000 - 300);
+      expect(guild.rosterIds.length).toBeGreaterThan(0);
+    });
+
+    test('a build comes first, and nothing once every Hero is armoured or has armour waiting', () => {
+      const { document, guild } = shopping(10_000);
+      guild.hall.infirmary = 0;
+      expect(automaticPolicy(document, deps)).toEqual([{ kind: 'build', guildId: guild.id, facility: 'infirmary' }]);
+      guild.hall.infirmary = 3;
+
+      // Armour held for all but one Hero, then worn by that one: then it recruits. The armour held
+      // is put on first, by gearChoices (M5-S2, DL-54), and the purchase is for the Hero left bare.
+      const [first, ...rest] = guild.rosterIds;
+      addStack(document.world, 'padded-jack', rest.length, { kind: 'guild', id: guild.id });
+      const held = gearChoices(document.world, guild, deps);
+      expect(held).toHaveLength(rest.length);
+      expect(automaticPolicy(document, deps)).toEqual([...held, buying(guild.id, 'plate-harness')]);
+      if (first === undefined) throw new Error('An empty Roster');
+      addStack(document.world, 'mail-shirt', 1, { kind: 'hero', id: first, slot: 'armour' });
+      const worn = gearChoices(document.world, guild, deps);
+      expect(worn.map((action) => action.heroId)).toEqual(rest);
+      expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual([...worn.map(() => 'equip'), 'recruit']);
+    });
+
+    test('the armour it buys is worn: its first choice the next Turn puts it on a bare Hero (DL-54)', () => {
+      const { document, guild } = shopping(3 * 300 + 1);
+      const [first] = guild.rosterIds;
+      if (first === undefined) throw new Error('An empty Roster');
+      let current = document;
+      const apply = (actions: GuildAction[]) => {
+        for (const action of actions) {
+          const result = applyAction(current, action, deps);
+          expect(result.ok, action.kind).toBe(true);
+          if (result.ok) current = result.document;
+        }
+      };
+
+      apply(automaticPolicy(current, deps));
+      const [bought] = holdings(current.world, { kind: 'guild', id: guild.id }).stacks;
+      expect(bought?.definitionKey).toBe('plate-harness');
+      current = advance(current, deps).document;
+      const next = automaticPolicy(current, deps);
+      apply(next);
+
+      expect(next[0]).toEqual({ kind: 'equip', guildId: guild.id, heroId: first, stackId: bought?.id });
+      const armour = holdings(current.world, { kind: 'hero', id: first, slot: 'armour' });
+      expect(armour.stacks.map((stack) => stack.definitionKey)).toEqual(['plate-harness']);
+    });
+
+    test('nothing when the Market has no armour, or it reads its own multiple', () => {
+      const { document, guild } = scene();
+      document.world.board = [];
+      guild.wealth = 10_000;
+      guild.hall.infirmary = 3;
+      addStack(document.world, 'short-sword', 2, marketHolder);
+      expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);
+
+      addStack(document.world, 'padded-jack', 1, marketHolder);
+      const choices = automaticPolicy(document, deps, { ...defaultPolicyConfig, buyWealthMultiple: 1_000 });
+      expect(choices.map((action) => action.kind)).toEqual(['recruit']);
+    });
+  });
+
+  describe('carries and buys consumables (the M5 close, DL-62)', () => {
+    test('each Party carries one of each consumable held that serves its Quest, never more than the Guild holds that Turn', () => {
+      const scened = scene('policy-consumables');
+      const { guild, quests } = scened;
+      let { document } = scened;
+      openBoard(quests);
+      // Two Quests at the top of the Board, highest reward first: a fight on the road, then a quiet word.
+      const [second, first] = quests.slice(-2);
+      if (first === undefined || second === undefined) throw new Error('Fewer than two Quests');
+      first.encounterKeys = ['ambush-on-the-road', 'the-long-march'];
+      second.encounterKeys = ['a-hostile-reeve', 'the-patrons-steward'];
+      const vault = { kind: 'guild', id: guild.id } as const;
+      addStack(document.world, 'whetstone', 3, vault); // combat: the fight's
+      addStack(document.world, 'lockpicks', 3, vault); // stealth: neither's
+      addStack(document.world, 'grappling-line', 1, vault); // travel: the fight's
+      addStack(document.world, 'blessed-candle', 2, vault); // social: the quiet word's
+      addStack(document.world, 'healing-draught', 1, vault); // a heal serves any Quest: the first sent
+
+      const actions = automaticPolicy(document, deps, noBuilding);
+
+      const sent = dispatches(actions);
+      expect(sent.slice(0, 2).map((action) => action.questId)).toEqual([first.id, second.id]);
+      expect(sent[0]?.consumables).toEqual([
+        { definitionKey: 'grappling-line', quantity: 1 },
+        { definitionKey: 'healing-draught', quantity: 1 },
+        { definitionKey: 'whetstone', quantity: 1 },
+      ]);
+      expect(sent[1]?.consumables).toEqual([{ definitionKey: 'blessed-candle', quantity: 1 }]);
+      // Applied in order, every one is accepted, and what was not carried stays at home.
+      for (const action of actions) {
+        const result = applyAction(document, action, deps);
+        expect(result.ok, action.kind).toBe(true);
+        if (result.ok) document = result.document;
+      }
+      const home = holdings(document.world, vault).stacks.map((stack) => [stack.definitionKey, stack.quantity]);
+      expect(home).toEqual(
+        expect.arrayContaining([
+          ['whetstone', 2],
+          ['lockpicks', 3],
+          ['blessed-candle', 1],
+        ]),
+      );
+      expect(home.map(([key]) => key)).not.toContain('healing-draught');
+    });
+
+    test('a Party of a Guild holding no consumable carries none, and its dispatch names none', () => {
+      const { document, quests } = scene('policy-consumables-none');
+      openBoard(quests);
+      for (const action of dispatches(automaticPolicy(document, deps, noBuilding))) {
+        expect(Object.hasOwn(action, 'consumables')).toBe(false);
+      }
+    });
+
+    /**
+     * The player's Guild with `wealth`, nothing to build, no one to recruit and no armour to buy: its
+     * infirmary at the top grade, every Hero in a padded jack, a Roster at the policy's limit, an
+     * empty Board, and a Market holding `stock`.
+     */
+    function stocking(wealth: number, stock: [string, number][]) {
+      const { document, guild } = scene('policy-stocking');
+      document.world.board = [];
+      guild.wealth = wealth;
+      guild.hall.infirmary = 3;
+      for (const heroId of guild.rosterIds) addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+      for (const [key, quantity] of stock) addStack(document.world, key, quantity, marketHolder);
+      const policy: PolicyConfig = { ...defaultPolicyConfig, rosterLimit: guild.rosterIds.length };
+      return { document, guild, policy };
+    }
+
+    test('buys, when nothing else is bought, the consumable it has fewest of, as many as it lacks and the Market has', () => {
+      expect(defaultPolicyConfig.consumableStock).toBe(2);
+      const { document, guild, policy } = stocking(10_000, [
+        ['whetstone', 5],
+        ['healing-draught', 1],
+        ['physicians-kit', 4],
+      ]);
+      const vault = { kind: 'guild', id: guild.id } as const;
+      addStack(document.world, 'healing-draught', 1, vault);
+      addStack(document.world, 'physicians-kit', 1, vault);
+      // Fewest held: whetstone, none; two lacking, and the Market has five.
+      expect(automaticPolicy(document, deps, policy)).toEqual([{ kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: 2 }]);
+
+      // With two whetstones held, the healing draught and the physician's kit each lack one: the lower key.
+      addStack(document.world, 'whetstone', 2, vault);
+      const [action] = automaticPolicy(document, deps, policy);
+      expect(action).toEqual({ kind: 'buy', guildId: guild.id, definitionKey: 'healing-draught', quantity: 1 });
+      const result = action === undefined ? null : applyAction(document, action, deps);
+      expect(result?.ok).toBe(true);
+    });
+
+    test('counts what its Parties carry, buys nothing once stocked, and reads its own multiple and stock', () => {
+      const { document, guild, policy } = stocking(10_000, [['whetstone', 5]]);
+      const vault = { kind: 'guild', id: guild.id } as const;
+      addStack(document.world, 'whetstone', 1, vault);
+      // A Party away with one more makes two: stocked.
+      const [heroId] = guild.rosterIds;
+      if (heroId === undefined) throw new Error('An empty Roster');
+      const partyId = makeId('parties', 77);
+      document.world.parties[partyId] = { id: partyId, questId: makeId('quests', 77), guildId: guild.id, heroIds: [heroId], departedOnTurn: 0, returnsOnTurn: 5 };
+      addStack(document.world, 'whetstone', 1, { kind: 'party', id: partyId });
+      expect(automaticPolicy(document, deps, policy)).toEqual([]);
+
+      expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([
+        { kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: 2 },
+      ]);
+      // Two whetstones cost 50: Wealth must be above three times that, with no reserve asked for.
+      const unreserved = { ...policy, consumableStock: 4, consumableReserveUpkeeps: 0 };
+      guild.wealth = 150;
+      expect(automaticPolicy(document, deps, unreserved)).toEqual([]);
+      guild.wealth = 151;
+      expect(automaticPolicy(document, deps, unreserved)).toHaveLength(1);
+      // And, once paid, leave more than twenty Upkeeps, the policy's reserve for consumables.
+      expect(defaultPolicyConfig.consumableReserveUpkeeps).toBe(20);
+      const reserve = 20 * upkeep(guild, document.world, deps.config, deps.content);
+      expect(reserve + 50).toBeGreaterThan(3 * 50); // so the reserve, not the multiple, is the bar
+      guild.wealth = reserve + 50;
+      expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([]);
+      guild.wealth = reserve + 51;
+      expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toHaveLength(1);
+    });
+
+    test('a recruit comes first', () => {
+      const { document, guild, policy } = stocking(10_000, [['whetstone', 5]]);
+      const choices = automaticPolicy(document, deps, { ...policy, rosterLimit: 8 });
+      expect(choices).toEqual([expect.objectContaining({ kind: 'recruit', guildId: guild.id })]);
     });
   });
 

@@ -149,7 +149,8 @@ demands:        [StatKey, weight][]         copied from the template at generati
 skillKeys:      SkillKey[]                  copied from the template at generation
 encounterKeys:  string[]                    drawn at generation (M4); empty before
 requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
-lootTableKey:   string | null
+lootTableKey:   string | null               the template's, copied at generation when its difficultyMin is
+                                            above lootDifficultyThreshold, else null (M5-S5, DL-52)
 status:         "offered" | "taken" | "resolved"
 offeredOnTurn, expiresOnTurn
 partyIds:       PartyId[]                   first build: at most one; later, at most one per Guild
@@ -198,16 +199,22 @@ with exactly one holder. The row carries its holder in both cases; nothing else 
 **items** (unique)
 ```
 id, definitionKey
-holder:         { kind: "hero", id, slot } | { kind: "guild", id } | { kind: "party", id }
+holder:         { kind: "hero", id, slot } | { kind: "guild", id } | { kind: "party", id } | { kind: "market" }
 ```
 
 **stacks** (common)
 ```
-id, definitionKey, quantity
+id, definitionKey
+quantity:       integer                     at least 1; an emptied stack is removed
 holder:         { kind: "hero", id, slot } | { kind: "guild", id } | { kind: "party", id } | { kind: "market" }
 ```
 One stack per (definition, holder, slot); the validator refuses duplicates. "What is Brenna
-carrying" is a filter over both tables; cache an index only if the harness shows it slow.
+carrying" is a filter over both tables; cache an index only if the harness shows it slow. Both
+tables share one holder type: the Market holds a folded Guild's unique Items as well as stacks
+(pre-M0 review D6, DL-48). A Hero's `slot` is one of `config.gearSlots`, and a slot holds one
+Item at most: one unique Item or one stack of 1. `engine/src/items.ts` moves Items between
+holders and keeps these rules. The Market's stacks are replaced each morning from the `market`
+stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
 
 ### 3.4 Module slices
 
@@ -295,10 +302,12 @@ runs per Turn in play.
 | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |
+| A stack whose quantity is below 1; a Hero's gear slot holding more than one Item (DL-48) | refuse |
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
+| An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
 
 A refused document names the failed check. Nothing is repaired silently.
 

@@ -13,14 +13,19 @@ import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   Class,
   Consequence,
+  ConsumableEffect,
   ContentSet,
   Encounter,
   EncounterAggregate,
   EncounterKind,
   Improvement,
   InjuryType,
+  ItemDefinition,
+  LootEntry,
+  LootTable,
   QuestTemplate,
   QuestTemplateRequires,
+  SlotKey,
   SphereKey,
   Stat,
   StatArea,
@@ -52,7 +57,6 @@ import {
   type QuestId,
   type RegardEntry,
   type SkillRating,
-  type StackHolder,
   type StackId,
   type TableName,
   type World,
@@ -133,10 +137,24 @@ const templateEncounters: Readonly<Record<string, [EncounterKind[], number, numb
 };
 
 /**
+ * Each test template's Loot table (M5-S5, DL-52), as the core's: the six whose `difficultyMin` is
+ * above the default `lootDifficultyThreshold` (25), `lesser-loot` below 45 and `greater-loot` from
+ * it; the rest none.
+ */
+const templateLoot: Readonly<Record<string, string>> = {
+  'clear-the-barrow': 'lesser-loot',
+  'the-beast-of-the-fells': 'lesser-loot',
+  'lay-the-restless-dead': 'lesser-loot',
+  'the-counting-house-job': 'greater-loot',
+  'hold-the-border-fort': 'greater-loot',
+  'break-the-sealed-vault': 'greater-loot',
+};
+
+/**
  * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
  * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
  * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
- * `templateEncounters`'.
+ * `templateEncounters`', and its Loot table `templateLoot`'s.
  */
 function questTemplate(
   key: string,
@@ -170,7 +188,7 @@ function questTemplate(
       }),
       skillKeys: skills.split(' '),
       requires,
-      lootTableKey: null,
+      lootTableKey: templateLoot[key] ?? null,
       encounterKinds: [...encounterKinds],
       encountersMin,
       encountersMax,
@@ -225,6 +243,37 @@ function guildmasterTrait(key: string, effect: TraitEffect): Record<string, Trai
   return { [key]: { key, name: title(key), owner: 'guildmaster', effect } };
 }
 
+/**
+ * A gear definition (M5-S1) from its slot, its Stat modifiers as `stat:delta` pairs in a
+ * space-separated list, its price (`null` for Loot only) and its tags; unique when `unique`.
+ */
+function gear(
+  key: string,
+  slot: SlotKey,
+  modifiers: string,
+  buyPrice: number | null,
+  tags: string[],
+  unique = false,
+): [string, ItemDefinition] {
+  const statModifiers = Object.fromEntries(demandsOf(modifiers));
+  return [key, { key, name: title(key), kind: 'gear', unique, slot, statModifiers, buyPrice, tags }];
+}
+
+/** A common consumable definition (M5-S1) from its effect, its price and its tags. */
+function consumable(key: string, effect: ConsumableEffect, buyPrice: number, tags: string[]): [string, ItemDefinition] {
+  return [key, { key, name: title(key), kind: 'consumable', unique: false, effect, buyPrice, tags }];
+}
+
+/** A Loot table (M5-S5) from its entries, each `definition:weight:min-max` in a space-separated list. */
+function lootTable(key: string, entries: string): [string, LootTable] {
+  const parsed = entries.split(' ').map((written): LootEntry => {
+    const [definitionKey = '', weight = '', range = ''] = written.split(':');
+    const [quantityMin = '', quantityMax = quantityMin] = range.split('-');
+    return { definitionKey, weight: Number(weight), quantityMin: Number(quantityMin), quantityMax: Number(quantityMax) };
+  });
+  return [key, { key, entries: parsed }];
+}
+
 /** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
 function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], leavesTrait: string | null): [string, InjuryType] {
   return [key, { key, name: title(key), healDaysMin, healDaysMax, leavesTrait }];
@@ -266,142 +315,175 @@ export function deepFreeze<T>(value: T): T {
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
  * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
  * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6), the core's twelve
- * Encounter keys, two or more of each kind (M4-S1), and the core's six Synergies (M4-S3). It also
- * carries the Item table M5-S1 adds, so that fixture Items raise no warning.
+ * Encounter keys, two or more of each kind (M4-S1), the core's six Synergies (M4-S3), the
+ * core's twenty Item definitions (M5-S1), so that fixture Items raise no warning, and the core's two
+ * Loot tables, named by the six templates above the default Loot threshold (M5-S5).
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
  */
-export const testContent: ContentSet = deepFreeze(
-  Object.assign(
-    {
-      id: 'test',
-      version: 1,
-      stats: Object.fromEntries([
-        ...Object.entries(heroStats).flatMap(([area, keys]) => keys.map((key) => stat(key, area as StatArea, 'hero'))),
-        ...Object.entries(guildmasterStats).map(([key, area]) => stat(key, area, 'guildmaster')),
-      ]),
-      classes: Object.fromEntries([
-        heroClass('warrior', 'strength weaponry constitution courage', 'swordcraft shieldwork tactics'),
-        heroClass('rogue', 'dexterity perception wits adaptability', 'lockpicking stealth trapcraft'),
-        heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
-        heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
-      ]),
-      skills: keyed(
-        {},
-        ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
-        ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
-      ),
-      // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties.
-      traits: {
-        ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }),
-        ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }),
-        ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }),
-        ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }),
-        ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }),
-        ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }),
-        ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
-      },
-      backgrounds: {
-        ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
-        ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
-      },
-      spheres: keyed({}, 'crown', 'church', 'merchants', 'villages', 'scholars', 'underworld'),
-      names: {
-        given: {
-          female: ['Aldith', 'Brynja', 'Cwen', 'Dagny', 'Edda', 'Frida', 'Gyda', 'Hild'],
-          male: ['Aldred', 'Bram', 'Cenric', 'Dag', 'Egil', 'Finn', 'Grim', 'Hakon'],
-        },
-        family: ['Ashcombe', 'Barrowby', 'Carrick', 'Dalby', 'Fenwick', 'Garside', 'Hallam', 'Ingleby'],
-        guild: [
-          ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
-          ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
-        ],
-        patron: [
-          ...['Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow'],
-          ...['Florian Keld', 'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'],
-          ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
-        ],
-      },
-      // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
-      questTemplates: Object.fromEntries([
-        questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
-          'strength:0.5 courage:0.5', 'swordcraft benediction'),
-        questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
-          'strength:0.5 leadership:0.5', 'tactics shieldwork', { classKey: 'warrior' }),
-        questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
-          'endurance:0.5 perception:0.5', 'tactics field-surgery'),
-        questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
-          'spirit:0.4 willpower:0.3 courage:0.3', 'benediction warding', { classKey: 'healer' }),
-        questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
-          'weaponry:0.5 perception:0.5', 'tactics trapcraft'),
-        questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
-          'dexterity:0.4 wits:0.3 adaptability:0.3', 'lockpicking trapcraft'),
-        questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
-          'strength:0.5 perception:0.5', 'swordcraft stealth'),
-        questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
-          'knowledge:0.4 willpower:0.3 charisma:0.3', 'herbalism field-surgery'),
-        questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
-          'intelligence:0.5 perception:0.5', 'runecraft trapcraft'),
-        questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
-          'arcana:0.5 spelllore:0.5', 'warding runecraft', { classKey: 'mage' }),
-        questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
-          'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
-        questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
-          'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
-      ]),
-      // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
-      injuries: Object.fromEntries([
-        injuryType('bruised-ribs', [5, 8], null),
-        injuryType('broken-arm', [15, 25], null),
-        injuryType('deep-cut', [6, 12], 'scarred'),
-        injuryType('shattered-knee', [20, 30], 'lame'),
-      ]),
-      dispositions: keyed({}, 'steady'),
-      improvements: improvements(),
-      // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
-      // the core's twelve keys, simpler demands, and harm only on a failure.
-      encounters: Object.fromEntries([
-        encounter('ambush-on-the-road', 'combat', 'sum', 'weaponry:0.5 strength:0.5', 'swordcraft tactics', 0.3,
-          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.25, count: 1 }, { kind: 'death', chance: 0.02 }]),
-        encounter('the-restless-dead', 'combat', 'sum', 'spirit:0.5 courage:0.5', 'benediction swordcraft', 0.3,
-          [{ kind: 'fame', delta: 1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }, { kind: 'morale', delta: -3 }]),
-        encounter('hold-the-line', 'combat', 'sum', 'strength:0.5 constitution:0.5', 'shieldwork tactics', 0.3,
-          [{ kind: 'regard', between: 'party', delta: 1 }], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.3, count: 2 }]),
-        encounter('the-long-march', 'travel', 'sum', 'endurance:0.5 constitution:0.5', 'field-surgery herbalism', 0.3,
-          [], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.15, count: 1 }, { kind: 'morale', delta: -2 }]),
-        encounter('the-flooded-ford', 'travel', 'best', 'strength:0.5 perception:0.5', 'tactics', 0.18,
-          [], [{ kind: 'wealth', factor: 0.9 }]),
-        encounter('lost-in-the-fells', 'travel', 'best', 'perception:0.5 wits:0.5', 'herbalism stealth', 0.18,
-          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'shattered-knee', chance: 0.1, count: 1 }]),
-        encounter('a-hostile-reeve', 'social', 'best', 'diplomacy:0.5 charisma:0.5', 'benediction', 0.18,
-          [{ kind: 'fame', delta: 1 }], [{ kind: 'fame', delta: -1 }]),
-        encounter('the-patrons-steward', 'social', 'best', 'leadership:0.5 diplomacy:0.5', '', 0.18,
-          [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'wealth', factor: 0.9 }]),
-        encounter('the-sealed-door', 'arcane', 'best', 'arcana:0.5 spelllore:0.5', 'runecraft warding', 0.18,
-          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.15, count: 1 }]),
-        encounter('a-restless-power', 'arcane', 'sum', 'power:0.5 resistance:0.5', 'warding evocation', 0.3,
-          [{ kind: 'fame', delta: 1 }], [{ kind: 'death', chance: 0.02 }]),
-        encounter('past-the-watch', 'stealth', 'best', 'dexterity:0.5 wits:0.5', 'stealth lockpicking', 0.18,
-          [], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 }, { kind: 'fame', delta: -1 }]),
-        encounter('the-trapped-passage', 'stealth', 'best', 'dexterity:0.5 perception:0.5', 'trapcraft lockpicking', 0.18,
-          [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }]),
-      ]),
-      // The core's six (M4-S3, DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
-      synergies: Object.fromEntries([
-        synergy('sword-and-salve', { classes: { warrior: 1, healer: 1 } }, { flat: 2 }, ['combat', 'travel']),
-        synergy('shadow-and-spell', { classes: { rogue: 1, mage: 1 } }, { factor: 1.1 }, ['stealth', 'arcane']),
-        synergy('shield-wall', { classes: { warrior: 3 } }, { factor: 1.15 }, ['combat']),
-        synergy('a-full-company', { classes: { warrior: 1, rogue: 1, mage: 1, healer: 1 } }, { flat: 1, factor: 1.05 }),
-        synergy('wards-and-blessings', { skills: ['warding', 'benediction'] }, { flat: 3 }, ['arcane', 'combat']),
-        synergy('scouting-ahead', { skills: ['tactics', 'stealth'] }, { flat: 2 }, ['travel', 'stealth']),
-      ]),
-    },
-    {
-      items: keyed({}, 'healing-draught', 'lantern-of-stannary'),
-    },
+export const testContent: ContentSet = deepFreeze({
+  id: 'test',
+  version: 1,
+  stats: Object.fromEntries([
+    ...Object.entries(heroStats).flatMap(([area, keys]) => keys.map((key) => stat(key, area as StatArea, 'hero'))),
+    ...Object.entries(guildmasterStats).map(([key, area]) => stat(key, area, 'guildmaster')),
+  ]),
+  classes: Object.fromEntries([
+    heroClass('warrior', 'strength weaponry constitution courage', 'swordcraft shieldwork tactics'),
+    heroClass('rogue', 'dexterity perception wits adaptability', 'lockpicking stealth trapcraft'),
+    heroClass('mage', 'intelligence arcana power spelllore', 'evocation warding runecraft'),
+    heroClass('healer', 'knowledge willpower spirit charisma', 'field-surgery herbalism benediction'),
+  ]),
+  skills: keyed(
+    {},
+    ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
+    ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
   ),
-);
+  // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties.
+  traits: {
+    ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }),
+    ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }),
+    ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }),
+    ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }),
+    ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }),
+    ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }),
+    ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
+  },
+  backgrounds: {
+    ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
+    ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
+  },
+  spheres: keyed({}, 'crown', 'church', 'merchants', 'villages', 'scholars', 'underworld'),
+  names: {
+    given: {
+      female: ['Aldith', 'Brynja', 'Cwen', 'Dagny', 'Edda', 'Frida', 'Gyda', 'Hild'],
+      male: ['Aldred', 'Bram', 'Cenric', 'Dag', 'Egil', 'Finn', 'Grim', 'Hakon'],
+    },
+    family: ['Ashcombe', 'Barrowby', 'Carrick', 'Dalby', 'Fenwick', 'Garside', 'Hallam', 'Ingleby'],
+    guild: [
+      ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
+      ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
+    ],
+    patron: [
+      ...['Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow'],
+      ...['Florian Keld', 'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'],
+      ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
+    ],
+  },
+  // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
+  questTemplates: Object.fromEntries([
+    questTemplate('clear-the-barrow', 'crown', [30, 70], [3, 6], [2, 4],
+      'strength:0.5 courage:0.5', 'swordcraft benediction'),
+    questTemplate('hold-the-border-fort', 'crown', [50, 90], [5, 9], [3, 4],
+      'strength:0.5 leadership:0.5', 'tactics shieldwork', { classKey: 'warrior' }),
+    questTemplate('escort-the-tithe', 'church', [10, 35], [2, 4], [1, 3],
+      'endurance:0.5 perception:0.5', 'tactics field-surgery'),
+    questTemplate('lay-the-restless-dead', 'church', [40, 80], [3, 6], [2, 4],
+      'spirit:0.4 willpower:0.3 courage:0.3', 'benediction warding', { classKey: 'healer' }),
+    questTemplate('guard-the-caravan', 'merchants', [20, 55], [3, 7], [2, 4],
+      'weaponry:0.5 perception:0.5', 'tactics trapcraft'),
+    questTemplate('recover-the-strongbox', 'merchants', [25, 60], [2, 5], [1, 3],
+      'dexterity:0.4 wits:0.3 adaptability:0.3', 'lockpicking trapcraft'),
+    questTemplate('the-beast-of-the-fells', 'villages', [35, 75], [3, 7], [2, 4],
+      'strength:0.5 perception:0.5', 'swordcraft stealth'),
+    questTemplate('the-sickness-at-the-mill', 'villages', [10, 30], [2, 3], [1, 2],
+      'knowledge:0.4 willpower:0.3 charisma:0.3', 'herbalism field-surgery'),
+    questTemplate('survey-the-old-workings', 'scholars', [25, 60], [3, 6], [2, 3],
+      'intelligence:0.5 perception:0.5', 'runecraft trapcraft'),
+    questTemplate('break-the-sealed-vault', 'scholars', [60, 100], [5, 10], [3, 5],
+      'arcana:0.5 spelllore:0.5', 'warding runecraft', { classKey: 'mage' }),
+    questTemplate('a-quiet-word', 'underworld', [15, 45], [2, 4], [1, 2],
+      'wits:0.5 diplomacy:0.5', 'stealth lockpicking'),
+    questTemplate('the-counting-house-job', 'underworld', [45, 85], [3, 6], [2, 4],
+      'dexterity:0.5 wits:0.5', 'lockpicking stealth', { skillKey: 'lockpicking' }),
+  ]),
+  // key, Days to heal, the Trait it leaves (M2-S5): some leave a Hero Trait, some none.
+  injuries: Object.fromEntries([
+    injuryType('bruised-ribs', [5, 8], null),
+    injuryType('broken-arm', [15, 25], null),
+    injuryType('deep-cut', [6, 12], 'scarred'),
+    injuryType('shattered-knee', [20, 30], 'lame'),
+  ]),
+  dispositions: keyed({}, 'steady'),
+  improvements: improvements(),
+  // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
+  // the core's twelve keys, simpler demands, and harm only on a failure.
+  encounters: Object.fromEntries([
+    encounter('ambush-on-the-road', 'combat', 'sum', 'weaponry:0.5 strength:0.5', 'swordcraft tactics', 0.3,
+      [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.25, count: 1 }, { kind: 'death', chance: 0.02 }]),
+    encounter('the-restless-dead', 'combat', 'sum', 'spirit:0.5 courage:0.5', 'benediction swordcraft', 0.3,
+      [{ kind: 'fame', delta: 1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }, { kind: 'morale', delta: -3 }]),
+    encounter('hold-the-line', 'combat', 'sum', 'strength:0.5 constitution:0.5', 'shieldwork tactics', 0.3,
+      [{ kind: 'regard', between: 'party', delta: 1 }], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.3, count: 2 }]),
+    encounter('the-long-march', 'travel', 'sum', 'endurance:0.5 constitution:0.5', 'field-surgery herbalism', 0.3,
+      [], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.15, count: 1 }, { kind: 'morale', delta: -2 }]),
+    encounter('the-flooded-ford', 'travel', 'best', 'strength:0.5 perception:0.5', 'tactics', 0.18,
+      [], [{ kind: 'wealth', factor: 0.9 }]),
+    encounter('lost-in-the-fells', 'travel', 'best', 'perception:0.5 wits:0.5', 'herbalism stealth', 0.18,
+      [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'shattered-knee', chance: 0.1, count: 1 }]),
+    encounter('a-hostile-reeve', 'social', 'best', 'diplomacy:0.5 charisma:0.5', 'benediction', 0.18,
+      [{ kind: 'fame', delta: 1 }], [{ kind: 'fame', delta: -1 }]),
+    encounter('the-patrons-steward', 'social', 'best', 'leadership:0.5 diplomacy:0.5', '', 0.18,
+      [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'wealth', factor: 0.9 }]),
+    encounter('the-sealed-door', 'arcane', 'best', 'arcana:0.5 spelllore:0.5', 'runecraft warding', 0.18,
+      [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.15, count: 1 }]),
+    encounter('a-restless-power', 'arcane', 'sum', 'power:0.5 resistance:0.5', 'warding evocation', 0.3,
+      [{ kind: 'fame', delta: 1 }], [{ kind: 'death', chance: 0.02 }]),
+    encounter('past-the-watch', 'stealth', 'best', 'dexterity:0.5 wits:0.5', 'stealth lockpicking', 0.18,
+      [], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 }, { kind: 'fame', delta: -1 }]),
+    encounter('the-trapped-passage', 'stealth', 'best', 'dexterity:0.5 perception:0.5', 'trapcraft lockpicking', 0.18,
+      [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }]),
+  ]),
+  // The core's six (M4-S3, DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
+  synergies: Object.fromEntries([
+    synergy('sword-and-salve', { classes: { warrior: 1, healer: 1 } }, { flat: 2 }, ['combat', 'travel']),
+    synergy('shadow-and-spell', { classes: { rogue: 1, mage: 1 } }, { factor: 1.1 }, ['stealth', 'arcane']),
+    synergy('shield-wall', { classes: { warrior: 3 } }, { factor: 1.15 }, ['combat']),
+    synergy('a-full-company', { classes: { warrior: 1, rogue: 1, mage: 1, healer: 1 } }, { flat: 1, factor: 1.05 }),
+    synergy('wards-and-blessings', { skills: ['warding', 'benediction'] }, { flat: 3 }, ['arcane', 'combat']),
+    synergy('scouting-ahead', { skills: ['tactics', 'stealth'] }, { flat: 2 }, ['travel', 'stealth']),
+  ]),
+  // The core's twenty (M5-S1, DL-48): nine common gear, three a slot at three grades; six common
+  // consumables, two of each effect; five unique gear, Loot only.
+  items: Object.fromEntries([
+    gear('short-sword', 'weapon', 'weaponry:1', 40, ['plain']),
+    gear('arming-sword', 'weapon', 'weaponry:2 strength:1', 120, ['fine']),
+    gear('masterwork-blade', 'weapon', 'weaponry:3 strength:2', 300, ['masterwork']),
+    gear('padded-jack', 'armour', 'constitution:1', 40, ['plain']),
+    gear('mail-shirt', 'armour', 'constitution:2 endurance:1', 120, ['fine']),
+    gear('plate-harness', 'armour', 'constitution:3 endurance:2 dexterity:-1', 300, ['masterwork']),
+    gear('lucky-charm', 'trinket', 'courage:1', 40, ['plain']),
+    gear('silver-amulet', 'trinket', 'willpower:2 spirit:1', 120, ['fine']),
+    gear('runed-circlet', 'trinket', 'arcana:3 spelllore:2', 300, ['masterwork']),
+    consumable('whetstone', { kind: 'bonus', flat: 3, kinds: ['combat'] }, 25, ['tool']),
+    consumable('lockpicks', { kind: 'bonus', flat: 3, kinds: ['stealth'] }, 25, ['tool']),
+    consumable('grappling-line', { kind: 'reroll', kinds: ['travel', 'stealth'] }, 45, ['tool']),
+    consumable('blessed-candle', { kind: 'reroll', kinds: ['arcane', 'social'] }, 60, ['holy']),
+    consumable('healing-draught', { kind: 'heal', days: 5 }, 30, ['potion']),
+    consumable('physicians-kit', { kind: 'heal', days: 10 }, 70, ['tool']),
+    gear('barrow-kings-blade', 'weapon', 'weaponry:4 strength:2 courage:1', null, ['relic'], true),
+    gear('vault-wardens-staff', 'weapon', 'arcana:3 power:3', null, ['relic'], true),
+    gear('mantle-of-the-fells', 'armour', 'endurance:3 constitution:2 adaptability:1', null, ['relic'], true),
+    gear('lantern-of-stannary', 'trinket', 'perception:3 wits:2', null, ['relic'], true),
+    gear('abbots-reliquary', 'trinket', 'spirit:3 willpower:2 resistance:1', null, ['relic', 'holy'], true),
+  ]),
+  // The core's two (M5-S5, DL-52), by difficulty band: each entry `definition:weight:quantity range`.
+  lootTables: Object.fromEntries([
+    lootTable(
+      'lesser-loot',
+      'whetstone:16:1-3 lockpicks:16:1-3 healing-draught:16:1-3 grappling-line:10:1-2 blessed-candle:8:1-2 ' +
+        'physicians-kit:8:1 arming-sword:7:1 mail-shirt:7:1 silver-amulet:6:1 ' +
+        'barrow-kings-blade:2:1 mantle-of-the-fells:2:1 abbots-reliquary:2:1',
+    ),
+    lootTable(
+      'greater-loot',
+      'healing-draught:13:2-4 physicians-kit:12:1-2 grappling-line:9:1-3 blessed-candle:9:1-3 ' +
+        'arming-sword:6:1 mail-shirt:6:1 silver-amulet:6:1 masterwork-blade:8:1 plate-harness:8:1 runed-circlet:8:1 ' +
+        'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
+    ),
+  ]),
+});
 
 const classKeys = Object.keys(testContent.classes);
 const ratings: readonly SkillRating[] = [1, 2, 3];
@@ -737,7 +819,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   const item = next('items');
   const trinket: Holder = { kind: 'hero', id: partyHero, slot: 'trinket' };
   world.items[item] = { id: item, definitionKey: 'lantern-of-stannary', holder: trinket };
-  const stack = (definitionKey: string, quantity: number, holder: StackHolder): StackId => {
+  const stack = (definitionKey: string, quantity: number, holder: Holder): StackId => {
     const id = next('stacks');
     world.stacks[id] = { id, definitionKey, quantity, holder };
     return id;
@@ -745,7 +827,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   const marketStack = stack('healing-draught', 12, { kind: 'market' });
   const guildStack = stack('healing-draught', 3, { kind: 'guild', id: playerGuild });
   const partyStack = stack('healing-draught', 2, { kind: 'party', id: party });
-  const heroStack = stack('healing-draught', 1, { kind: 'hero', id: partyHero, slot: 'belt' });
+  const heroStack = stack('padded-jack', 1, { kind: 'hero', id: partyHero, slot: 'armour' });
 
   // Regard in each kind of row that holds it.
   const regard = (): RegardEntry => ({ value: 12, since: 30, reason: 'quest.resolved' });

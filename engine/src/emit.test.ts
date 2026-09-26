@@ -1,8 +1,8 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld } from './create.js';
-import type { EntityId, HeroId } from './document.js';
+import type { EntityId, HeroId, StackId } from './document.js';
 import { eventEmitter } from './emit.js';
-import { milestoneTypes } from './events.js';
+import { isMilestone, milestoneTypes, milestoneWhen } from './events.js';
 import { buildDocument, fixtureTurn, testDeps } from './world.test-support.js';
 
 function fixture() {
@@ -94,5 +94,35 @@ describe('milestoneTypes', () => {
 
     for (const event of events) expect(event.milestone).toBe(milestoneTypes[event.type]);
     expect(events.some((event) => event.milestone)).toBe(true);
+  });
+});
+
+// M5-S5 (DL-52): `quest.loot` is a Milestone when its Item is unique, and only then.
+describe('milestoneWhen', () => {
+  test('makes quest.loot a Milestone for a unique Item and not for a common one, through emit', () => {
+    const { ids, emit } = fixture();
+    const common = {
+      questId: ids.takenQuest,
+      partyId: ids.party,
+      guildId: ids.playerGuild,
+      lootTableKey: 'lesser-loot',
+      definitionKey: 'whetstone',
+      quantity: 2,
+      itemId: null,
+      stackId: ids.guildStack as StackId,
+    };
+    const unique = { ...common, definitionKey: 'lantern-of-stannary', quantity: 1, itemId: ids.item, stackId: null };
+    const participants = [ids.takenQuest, ids.party, ids.playerGuild];
+
+    expect(emit({ type: 'quest.loot', participants, payload: common }).milestone).toBe(false);
+    expect(emit({ type: 'quest.loot', participants: [...participants, ids.item], payload: unique }).milestone).toBe(true);
+    expect(isMilestone('quest.loot', unique)).toBe(true);
+    expect(milestoneTypes['quest.loot']).toBe(false);
+  });
+
+  test('names only types milestoneTypes holds false, and leaves every other type to milestoneTypes', () => {
+    for (const type of Object.keys(milestoneWhen) as (keyof typeof milestoneTypes)[]) expect(milestoneTypes[type], type).toBe(false);
+    expect(isMilestone('hero.died', { heroId: 'hero-000001' as HeroId, questId: 'quest-000001' as never })).toBe(true);
+    expect(isMilestone('quest.resolved', {} as never)).toBe(false);
   });
 });

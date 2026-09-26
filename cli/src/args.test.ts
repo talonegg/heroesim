@@ -101,6 +101,22 @@ describe('parseArgs', () => {
     expect(parseArgs(['preview', '--quest', 'quest-000001']).ok).toBe(false);
   });
 
+  test('reads --consumables on dispatch and preview: key:n pairs joined by commas, each key once (M5-S3)', () => {
+    const consumables = [
+      { definitionKey: 'healing-draught', quantity: 2 },
+      { definitionKey: 'whetstone', quantity: 1 },
+    ];
+    for (const name of ['dispatch', 'preview']) {
+      expect(command(name, '--quest', 'quest-000003', '--heroes', 'hero-000001', '--consumables', 'healing-draught:2, whetstone:1')).toEqual({
+        name,
+        save: 'current',
+        quest: 'quest-000003',
+        heroes: ['hero-000001'],
+        consumables,
+      });
+    }
+  });
+
   test('reads build: a facility in the CLI’s words (M3-S6)', () => {
     expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
@@ -109,6 +125,20 @@ describe('parseArgs', () => {
       facility: 'trainingYard',
     });
     expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
+  });
+
+  test('reads show market, buy and sell (M5-S4)', () => {
+    expect(command('show', 'market')).toEqual({ name: 'show', save: 'current', view: { kind: 'market' } });
+    expect(command('buy', '--item', 'padded-jack')).toEqual({ name: 'buy', save: 'current', item: 'padded-jack', quantity: 1 });
+    expect(command('buy', '--item=whetstone', '--quantity', '3', '--save', 'demo')).toEqual({
+      name: 'buy',
+      save: 'demo',
+      item: 'whetstone',
+      quantity: 3,
+    });
+    expect(command('sell', '--stack', 'stack-000004')).toEqual({ name: 'sell', save: 'current', stack: 'stack-000004', quantity: 1 });
+    expect(command('sell', '--stack', 'stack-000004', '--quantity', '2')).toMatchObject({ quantity: 2 });
+    expect(command('sell', '--item', 'item-000002')).toEqual({ name: 'sell', save: 'current', item: 'item-000002' });
   });
 
   test('reads save, load and help', () => {
@@ -122,7 +152,7 @@ describe('parseArgs', () => {
     [[], 'No command'],
     [['play'], 'Unknown command "play"'],
     [['show', '--verbose'], 'show takes no flag --verbose'],
-    [['show', 'market'], 'no view "market"'],
+    [['show', 'bazaar'], 'no view "bazaar"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
     [['show', 'rankings', '--by', 'level'], '--by takes fame or wealth; got "level"'],
@@ -158,10 +188,26 @@ describe('parseArgs', () => {
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'Brenna'], 'got "Brenna"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,hero-000001'], '--heroes names hero-000001 twice'],
     [['dispatch', 'quest-000001'], 'does not take "quest-000001"'],
+    ...(['whetstone', 'Whetstone:1', 'whetstone:', 'whetstone:x', ':2', 'whetstone:1,,lockpicks:1'].map((value) => [
+      ['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', value],
+      '--consumables needs key:n pairs such as healing-draught:2, joined by commas',
+    ]) as [string[], string][]),
+    [['preview', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:0'], '--consumables whetstone needs a whole number from 1; got "0"'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:1,whetstone:2'], '--consumables names whetstone twice'],
     [['build'], 'build needs --facility'],
     [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
     [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
     [['build', 'infirmary'], 'does not take "infirmary"'],
+    [['show', 'market', 'extra'], 'does not take "extra"'],
+    [['buy'], 'buy needs --item'],
+    [['buy', '--item', 'whetstone', '--quantity', '0'], '--quantity needs a whole number from 1; got "0"'],
+    [['buy', 'whetstone'], 'does not take "whetstone"'],
+    [['sell'], 'sell needs --stack or --item'],
+    [['sell', '--stack', 'stack-000001', '--item', 'item-000001'], 'sell takes --stack or --item, not both'],
+    [['sell', '--item', 'item-000001', '--quantity', '2'], '--quantity goes with --stack'],
+    [['sell', '--stack', 'item-000001'], '--stack needs a stack id such as stack-000001; got "item-000001"'],
+    [['sell', '--item', 'healing-draught'], 'such as item-000001; got "healing-draught"'],
+    [['sell', '--stack', 'stack-000001', '--quantity', 'all'], '--quantity needs a whole number from 1; got "all"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

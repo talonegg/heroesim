@@ -13,6 +13,12 @@
 // Synergies each Quest applied, Injuries by type and the Patrons silent in a year; and, from the
 // World State as year 10 begins, the Relationships within the player's Roster and its
 // Guildmaster's Regard, by band, which the History records only as band crossings.
+//
+// M5's counters (the epic's §2, DL-62) add, from the History, the Wealth each kind of Guild spent by
+// category and took from Quests and the Market, the Loot awarded by table, the consumables carried
+// and expended, and the gear moved; and, joined to the difficulty of each Quest the player's Guild
+// took, which no entry records and the play loop reads as it dispatches, the player's Loot by the
+// difficulty of the Quest that won it.
 
 import {
   baseStat,
@@ -35,9 +41,11 @@ import {
   type Entry,
   type EventType,
   type FacilityKey,
+  type GearReturnCause,
   type Guild,
   type GuildId,
   type Hero,
+  type ItemSaleCause,
   type QuestBand,
   type RegardBand,
   type RegardMap,
@@ -196,7 +204,123 @@ export interface GameCounters {
   patronYears: number[];
   /** Of those, the Patrons that offered no Quest in the year (no `quest.offered` naming them). */
   silentPatronYears: number[];
+  // M5's (DL-62).
+  /** Wealth spent by category, and taken from Quests and the Market, by the controller of the Guild. */
+  wealth: Record<ControllerKind, WealthFlows>;
+  /** `quest.loot` by the controller of the Guild awarded, then by the table drawn from. */
+  loot: Record<ControllerKind, Record<string, LootTally>>;
+  /** The consumables Parties carried and expended, by the controller of the Party's Guild. */
+  consumables: Record<ControllerKind, ConsumableTally>;
+  /** Gear moved between a Hero's slots and the Guild's holding, by controller. */
+  gear: Record<ControllerKind, GearTally>;
+  /**
+   * The player's resolved Quests whose difficulty the play loop recorded at dispatch, by the
+   * difficulty's band of `difficultyBandWidth` (index 0 is 0 to 9), and by the year resolved in;
+   * `null` when no difficulties were given.
+   */
+  playerQuestsByDifficulty: DifficultyTally[] | null;
+  playerQuestsByYear: DifficultyTally[] | null;
 }
+
+// ── M5's shapes (DL-62) ─────────────────────────────────────────────────────────────────────
+
+/** Why Items went to the Market (M5-S4): a sale, or a folding Guild's (DL-51). */
+export const saleCauses = ['sale', 'fold'] as const satisfies readonly ItemSaleCause[];
+
+/** Why gear went back to a Guild without an `unequip` (M5-S2, DL-49). */
+export const gearReturnCauses = ['died', 'retired', 'guild-folded'] as const satisfies readonly GearReturnCause[];
+
+/** What a consumable did when it was expended (M5-S3, DL-50). */
+export const consumableEffects = ['bonus', 'reroll', 'heal'] as const;
+
+export type ConsumableEffectName = (typeof consumableEffects)[number];
+
+/**
+ * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Items bought from the
+ * Market (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and Upkeep
+ * (`guild.upkeep-paid`'s `amount`); taken from Quests (`quest.resolved`'s `wealthDelta`) and from
+ * the Market (`item.sold`'s `proceeds`, by its `cause`). Transfers have no event until M6.
+ */
+export interface WealthFlows {
+  signing: number;
+  items: number;
+  /** The Items `item.bought` moved, summed over its `quantity`. */
+  itemsBought: number;
+  improvements: number;
+  upkeep: number;
+  questRewards: number;
+  sales: Record<ItemSaleCause, number>;
+  /** The Items `item.sold` moved, by cause. */
+  itemsSold: Record<ItemSaleCause, number>;
+}
+
+/** One Loot table's awards (M5-S5): how many, how many Items they gave, and how many were unique. */
+export interface LootTally {
+  awards: number;
+  /** The Items awarded, summed over each award's `quantity`. */
+  items: number;
+  /** Awards of a unique Item (`itemId` not null), counted apart as well as among `awards`. */
+  unique: number;
+}
+
+/** A kind of Guild's consumables (M5-S3). */
+export interface ConsumableTally {
+  /** Quests resolved (`quest.resolved`), the denominator. */
+  quests: number;
+  /** Items the Parties carried from the Guild's holding (`quest.taken`'s `consumables`, by quantity). */
+  carried: number;
+  /** Items expended, one `item.expended` each. */
+  expended: number;
+  /** The Quests on which one or more was expended. */
+  questsWithAny: number;
+  byEffect: Record<ConsumableEffectName, number>;
+  /** Items expended, by definition. */
+  byDefinition: Record<string, number>;
+}
+
+/** A kind of Guild's gear moves (M5-S2): `item.equipped`, `item.unequipped`, `item.returned` by cause. */
+export interface GearTally {
+  equipped: number;
+  unequipped: number;
+  returned: Record<GearReturnCause, number>;
+}
+
+/** The player's Quests in a band of difficulty, or a year: resolved, strong, their difficulty summed, and the Loot they won. */
+export interface DifficultyTally {
+  quests: number;
+  difficulty: number;
+  strong: number;
+  /** `quest.loot` awards, and the unique among them. */
+  loot: number;
+  unique: number;
+}
+
+/** The width of the player's difficulty bands (M5-S5's third box): 0 to 9, 10 to 19, and so on. */
+export const difficultyBandWidth = 10;
+
+export const noWealth = (): WealthFlows => ({
+  signing: 0,
+  items: 0,
+  itemsBought: 0,
+  improvements: 0,
+  upkeep: 0,
+  questRewards: 0,
+  sales: { sale: 0, fold: 0 },
+  itemsSold: { sale: 0, fold: 0 },
+});
+
+export const noConsumables = (): ConsumableTally => ({
+  quests: 0,
+  carried: 0,
+  expended: 0,
+  questsWithAny: 0,
+  byEffect: { bonus: 0, reroll: 0, heal: 0 },
+  byDefinition: {},
+});
+
+export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0 } });
+
+export const noDifficulty = (): DifficultyTally => ({ quests: 0, difficulty: 0, strong: 0, loot: 0, unique: 0 });
 
 /** The two outcomes of an Encounter's Check (M4-S2). */
 export const encounterOutcomes = ['success', 'failure'] as const satisfies readonly EncounterOutcome[];
@@ -482,15 +606,195 @@ function patronSilence(
   return { patronYears, silentPatronYears };
 }
 
+// ── M5's counters from the History (DL-62) ──────────────────────────────────────────────────
+
+/** A number field of an entry's payload. */
+function numberField(entry: Entry, field: string, what: string): number {
+  const value = payloadField(entry, field);
+  if (typeof value !== 'number') throw new Error(`${what} has no ${field}`);
+  return value;
+}
+
+function isSaleCause(value: unknown): value is ItemSaleCause {
+  return (saleCauses as readonly unknown[]).includes(value);
+}
+
+function isReturnCause(value: unknown): value is GearReturnCause {
+  return (gearReturnCauses as readonly unknown[]).includes(value);
+}
+
+function isEffect(value: unknown): value is ConsumableEffectName {
+  return (consumableEffects as readonly unknown[]).includes(value);
+}
+
+/** Wealth spent and taken by category, by the controller of the Guild each entry names. */
+function wealthCounters(document: WorldDocument): Record<ControllerKind, WealthFlows> {
+  const flows = { player: noWealth(), rival: noWealth() };
+  const each = (type: EventType, apply: (into: WealthFlows, entry: Entry, what: string) => void): void => {
+    entriesOf(document, type).forEach((entry, index) => {
+      apply(flows[guildOf(document, entry, `${index}`).controller.kind], entry, `${type} entry ${index}`);
+    });
+  };
+  each('hero.recruited', (into, entry, what) => {
+    into.signing += numberField(entry, 'fee', what);
+  });
+  each('item.bought', (into, entry, what) => {
+    into.items += numberField(entry, 'cost', what);
+    into.itemsBought += numberField(entry, 'quantity', what);
+  });
+  each('guild.improved', (into, entry, what) => {
+    into.improvements += numberField(entry, 'cost', what);
+  });
+  each('guild.upkeep-paid', (into, entry, what) => {
+    into.upkeep += numberField(entry, 'amount', what);
+  });
+  each('quest.resolved', (into, entry, what) => {
+    into.questRewards += numberField(entry, 'wealthDelta', what);
+  });
+  each('item.sold', (into, entry, what) => {
+    const cause = payloadField(entry, 'cause');
+    if (!isSaleCause(cause)) throw new Error(`${what} has no cause`);
+    into.sales[cause] += numberField(entry, 'proceeds', what);
+    into.itemsSold[cause] += numberField(entry, 'quantity', what);
+  });
+  return flows;
+}
+
+/** `quest.loot` by controller and `lootTableKey`: awards, Items, and the unique among them. */
+function lootCounters(document: WorldDocument): Record<ControllerKind, Record<string, LootTally>> {
+  const counts: Record<ControllerKind, Record<string, LootTally>> = { player: {}, rival: {} };
+  entriesOf(document, 'quest.loot').forEach((entry, index) => {
+    const what = `quest.loot entry ${index}`;
+    const table = payloadField(entry, 'lootTableKey');
+    if (typeof table !== 'string') throw new Error(`${what} has no lootTableKey`);
+    const byTable = counts[guildOf(document, entry, `${index}`).controller.kind];
+    const tally = (byTable[table] ??= { awards: 0, items: 0, unique: 0 });
+    tally.awards += 1;
+    tally.items += numberField(entry, 'quantity', what);
+    if (payloadField(entry, 'itemId') !== null) tally.unique += 1;
+  });
+  return counts;
+}
+
+/** A `quest.taken` entry's consumables carried, summed over their quantities; none when absent (before M5-S3). */
+function carriedBy(entry: Entry, what: string): number {
+  const carried = payloadField(entry, 'consumables') ?? [];
+  if (!Array.isArray(carried)) throw new Error(`${what} has consumables that are not a list`);
+  let total = 0;
+  for (const it of carried as unknown[]) {
+    const quantity = typeof it === 'object' && it !== null ? Reflect.get(it, 'quantity') : undefined;
+    if (typeof quantity !== 'number') throw new Error(`${what} carries a consumable without a quantity`);
+    total += quantity;
+  }
+  return total;
+}
+
+/** Consumables carried (`quest.taken`) and expended (`item.expended`) against the Quests resolved, by controller. */
+function consumableCounters(document: WorldDocument): Record<ControllerKind, ConsumableTally> {
+  const counts = { player: noConsumables(), rival: noConsumables() };
+  entriesOf(document, 'quest.resolved').forEach((entry, index) => {
+    counts[guildOf(document, entry, `${index}`).controller.kind].quests += 1;
+  });
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    counts[guildOf(document, entry, `${index}`).controller.kind].carried += carriedBy(entry, `quest.taken entry ${index}`);
+  });
+  const quests: Record<ControllerKind, Set<string>> = { player: new Set(), rival: new Set() };
+  entriesOf(document, 'item.expended').forEach((entry, index) => {
+    const what = `item.expended entry ${index}`;
+    const effect = payloadField(entry, 'effect');
+    const definitionKey = payloadField(entry, 'definitionKey');
+    const questId = payloadField(entry, 'questId');
+    if (!isEffect(effect) || typeof definitionKey !== 'string' || typeof questId !== 'string') {
+      throw new Error(`${what} has no effect, definitionKey or questId`);
+    }
+    const kind = guildOf(document, entry, `${index}`).controller.kind;
+    const tally = counts[kind];
+    tally.expended += 1;
+    tally.byEffect[effect] += 1;
+    tally.byDefinition[definitionKey] = (tally.byDefinition[definitionKey] ?? 0) + 1;
+    quests[kind].add(questId);
+  });
+  for (const kind of controllerKinds) counts[kind].questsWithAny = quests[kind].size;
+  return counts;
+}
+
+/** `item.equipped`, `item.unequipped` and `item.returned` by its `cause`, by controller. */
+function gearCounters(document: WorldDocument): Record<ControllerKind, GearTally> {
+  const counts = { player: noGear(), rival: noGear() };
+  entriesOf(document, 'item.equipped').forEach((entry, index) => {
+    counts[guildOf(document, entry, `${index}`).controller.kind].equipped += 1;
+  });
+  entriesOf(document, 'item.unequipped').forEach((entry, index) => {
+    counts[guildOf(document, entry, `${index}`).controller.kind].unequipped += 1;
+  });
+  entriesOf(document, 'item.returned').forEach((entry, index) => {
+    const cause = payloadField(entry, 'cause');
+    if (!isReturnCause(cause)) throw new Error(`item.returned entry ${index} has no cause`);
+    counts[guildOf(document, entry, `${index}`).controller.kind].returned[cause] += 1;
+  });
+  return counts;
+}
+
+/**
+ * The player's resolved Quests whose difficulty `difficulties` holds (the play loop's record of each
+ * Quest the policy sent a Party on, read from the Quest's row as it dispatched), tallied by the
+ * difficulty's band and by the year of the `quest.resolved`, with the `quest.loot` each won counted
+ * in the same band and year. A Quest the map does not hold counts in neither.
+ */
+function playerDifficulty(
+  document: WorldDocument,
+  turnsPerYear: number,
+  difficulties: ReadonlyMap<string, number>,
+): { byBand: DifficultyTally[]; byYear: DifficultyTally[] } {
+  const byBand: DifficultyTally[] = [];
+  const byYear: DifficultyTally[] = [];
+  const at = (series: DifficultyTally[], index: number): DifficultyTally => {
+    while (series.length <= index) series.push(noDifficulty());
+    return series[index] as DifficultyTally;
+  };
+  const placed = new Map<string, DifficultyTally[]>();
+  entriesOf(document, 'quest.resolved').forEach((entry, index) => {
+    if (guildOf(document, entry, `${index}`).controller.kind !== 'player') return;
+    const questId = payloadField(entry, 'questId');
+    if (typeof questId !== 'string') throw new Error(`quest.resolved entry ${index} has no questId`);
+    const difficulty = difficulties.get(questId);
+    if (difficulty === undefined) return;
+    const tallies = [at(byBand, Math.floor(difficulty / difficultyBandWidth)), at(byYear, yearOf(entry.turn, { turnsPerYear }))];
+    for (const tally of tallies) {
+      tally.quests += 1;
+      tally.difficulty += difficulty;
+      if (payloadField(entry, 'band') === 'strong') tally.strong += 1;
+    }
+    placed.set(questId, tallies);
+  });
+  entriesOf(document, 'quest.loot').forEach((entry, index) => {
+    if (guildOf(document, entry, `${index}`).controller.kind !== 'player') return;
+    const questId = payloadField(entry, 'questId');
+    const tallies = typeof questId === 'string' ? placed.get(questId) : undefined;
+    for (const tally of tallies ?? []) {
+      tally.loot += 1;
+      if (payloadField(entry, 'itemId') !== null) tally.unique += 1;
+    }
+  });
+  return { byBand, byYear };
+}
+
 /**
  * Every counter of a harness game, read from `document`'s History through `byType` and joined to
  * the World State for the Guild each entry is about.
  *
  * @throws Error on an entry the engine would not have made: one naming no Guild the world holds,
  * a `quest.resolved` without a band, an ending without a reason, a `hero.retired` without an age,
- * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like
+ * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like.
+ * `playerQuestDifficulty`, the difficulty of each Quest the player's Guild took by Quest id, which
+ * no entry records (the play loop keeps it), gives the player's Quests by difficulty (M5, DL-62);
+ * without it those two counters are `null`.
  */
-export function countGame(document: WorldDocument, deps: EngineDeps): GameCounters {
+export function countGame(
+  document: WorldDocument,
+  deps: EngineDeps,
+  playerQuestDifficulty?: ReadonlyMap<string, number>,
+): GameCounters {
   const { turnsPerYear } = deps.config;
   const questsResolved: GameCounters['questsResolved'] = {
     player: { fail: 0, success: 0, strong: 0 },
@@ -532,6 +836,7 @@ export function countGame(document: WorldDocument, deps: EngineDeps): GameCounte
   });
 
   const { levelsGained, declines, growthAgainstDecline } = progressionCounters(document, turnsPerYear, lastTurn);
+  const difficulty = playerQuestDifficulty === undefined ? undefined : playerDifficulty(document, turnsPerYear, playerQuestDifficulty);
   return {
     questsTaken: questsTakenByController(document),
     questsResolved,
@@ -552,6 +857,12 @@ export function countGame(document: WorldDocument, deps: EngineDeps): GameCounte
     synergies: synergyCounters(document),
     injuriesByType: injuryCounters(document),
     ...patronSilence(document, turnsPerYear, lastTurn),
+    wealth: wealthCounters(document),
+    loot: lootCounters(document),
+    consumables: consumableCounters(document),
+    gear: gearCounters(document),
+    playerQuestsByDifficulty: difficulty?.byBand ?? null,
+    playerQuestsByYear: difficulty?.byYear ?? null,
   };
 }
 

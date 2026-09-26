@@ -38,10 +38,10 @@ Config: `gearSlots`.
 
 **Acceptance:**
 
-- [ ] Moving 3 of a stack of 5 to a holder that already has 2 leaves stacks of 2 and 5
-- [ ] The validator's duplicate-stack check fires on a hand-built duplicate and never after
+- [x] Moving 3 of a stack of 5 to a holder that already has 2 leaves stacks of 2 and 5
+- [x] The validator's duplicate-stack check fires on a hand-built duplicate and never after
       `moveStack`
-- [ ] Content validation refuses gear without a slot and consumables with one
+- [x] Content validation refuses gear without a slot and consumables with one
 
 ### M5-S2 · Equip and effective Stats · 1 session
 
@@ -53,10 +53,10 @@ holding at night with `item.returned`.
 
 **Acceptance:**
 
-- [ ] Equipping a +2 Strength weapon raises the effective Stat and not the base
-- [ ] The check uses effective Stats (a geared Party beats an identical bare one, variance 0)
-- [ ] A Hero's gear is back with the Guild the night after their Death
-- [ ] CLI `equip --hero <id> --item <id>` and `unequip`
+- [x] Equipping a +2 Strength weapon raises the effective Stat and not the base
+- [x] The check uses effective Stats (a geared Party beats an identical bare one, variance 0)
+- [x] A Hero's gear is back with the Guild the night after their Death
+- [x] CLI `equip --hero <id> --item <id>` and `unequip`
 
 ### M5-S3 · Consumables at dispatch and in the check · 1–2 sessions
 
@@ -68,9 +68,9 @@ return to the Guild on the Party's return. Emits `item.expended`.
 
 **Acceptance:**
 
-- [ ] A `reroll` consumable turns exactly one failure into a second roll and is gone after
-- [ ] Unused consumables are back with the Guild after `quest.resolved`
-- [ ] The Party's holdings are empty after resolution (validator: no stack held by a removed
+- [x] A `reroll` consumable turns exactly one failure into a second roll and is gone after
+- [x] Unused consumables are back with the Guild after `quest.resolved`
+- [x] The Party's holdings are empty after resolution (validator: no stack held by a removed
       Party)
 
 ### M5-S4 · The Market · 1–2 sessions
@@ -87,10 +87,10 @@ Config: `marketSize`, `marketStackMin/Max`, `sellRatio`.
 
 **Acceptance:**
 
-- [ ] Buying deducts `buyPrice × quantity` and moves the stack; selling credits at `sellRatio`
-- [ ] Only the `market` stream advances during refresh
-- [ ] CLI `show market`, `buy`, `sell`
-- [ ] Rivals' Wealth is unaffected by the Market in M5 (`steady` ignores it; a test asserts)
+- [x] Buying deducts `buyPrice × quantity` and moves the stack; selling credits at `sellRatio`
+- [x] Only the `market` stream advances during refresh
+- [x] CLI `show market`, `buy`, `sell`
+- [x] Rivals' Wealth is unaffected by the Market in M5 (`steady` ignores it; a test asserts)
 
 ### M5-S5 · Loot · 1 session
 
@@ -104,9 +104,13 @@ Config: `lootDifficultyThreshold`, `lootOnBands`.
 
 **Acceptance:**
 
-- [ ] Loot appears only on the configured bands and only from templates with a table
-- [ ] A unique Loot Item exists once in `world.items` with the Guild as holder
-- [ ] The harness's Loot counter rises with the player's mean Quest difficulty
+- [x] Loot appears only on the configured bands and only from templates with a table
+- [x] A unique Loot Item exists once in `world.items` with the Guild as holder
+- [x] The harness's Loot counter rises with the player's mean Quest difficulty (proved in the engine,
+      `quest-engine/loot.test.ts`, DL-52; and in the M5 run, `harness/reports/m5-2026-09-26.md`, DL-62:
+      the player's Loot a Quest resolved is none below difficulty 40, then 0.051 at 40 to 49 (mean
+      44.7), 0.108 at 50 to 59, 0.184 at 60 to 69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at
+      90 to 99 (mean 94.1))
 
 ### M5-S6 · (moved) Hall Improvements
 

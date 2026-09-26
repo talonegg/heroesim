@@ -3096,6 +3096,539 @@ multiple of ten; neither has been measured with the other, nor with DL-43 to DL-
 close's 200 × 20 run judges them together (DL-55). A save made under version 3 or either 4 plays
 under its own config until the player rebases.
 
+## DL-48 — Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S1's implementer)
+
+**Context.** M5-S1 names `content/items.json` and its row `{ key, name, kind: "gear" | "consumable",
+unique, slot?: "weapon" | "armour" | "trinket", statModifiers?, effect?: ConsumableEffect, buyPrice,
+tags }`, the effect union `reroll { kinds }`, `bonus { flat, kinds }`, `heal { days }`, twenty
+definitions (nine gear, three a slot at three grades; six consumables; five unique gear as Loot only,
+`buyPrice: null`), `engine/src/items.ts` with `holdings`, `moveStack` and `moveItem`, the config field
+`gearSlots`, and three boxes. M5-S2 to S5 build on it in parallel. Left open: the typed shape; whether
+the slots are content's or config's; what content validation refuses beyond a slot on the wrong kind;
+whether a consumable may be unique; what the validator checks beyond §6's duplicate stacks; how a new
+stack gets its id; and what else the next stories need from `items.ts`. And one contradiction:
+data-model §3.3 lets only a stack be held by the Market, while the owner's pre-M0 review D6 and M5-S4
+put a folded Guild's unique Items on the Market.
+
+**Decision.**
+
+1. **The row** (`content-types.ts`). `ItemDefinition` is a union on `kind`: `GearDefinition` has
+   `slot` and `statModifiers`, `ConsumableDefinition` has `effect`, and both have `name`, `unique`,
+   `buyPrice` (a whole number above 0, or `null` for an Item found only as Loot) and `tags`
+   (`ItemTagKey[]`, kebab-case, none twice, may be none). A union rather than the epic's optional
+   fields, so that M5-S2 reads a gear's slot and M5-S3 a consumable's effect without a check the
+   compiler cannot see. `statModifiers` is required on gear, at least one, each a Hero Stat and a
+   whole number other than 0 (a penalty is negative): R30's gear modifies Stats. `ConsumableEffect`
+   is the epic's closed union, `kinds` one or more Encounter kinds, none twice; `flat` above 0; `days`
+   a whole number from 1. `ContentSet.items`, the table name DL-20 set, so `unknown-item` reads it.
+   **`contentVersion` becomes 9.**
+2. **Slots are a closed list; which a Hero has is config.** `gearSlotKeys = ['weapon', 'armour',
+   'trinket']` sits beside `encounterKinds`, and `SlotKey` is its union, so content validation refuses
+   a slot no Hero could have (it cannot read config). `GameConfig.gearSlots` (default the three,
+   frozen; INPUTS 7.1) is the slots every Hero has, in the order a front end lists them; rules read
+   only these. A fourth slot is an engine change, as a new Encounter kind is. **`configVersion` stays
+   4**: a field is added and no default changes (DL-38's reading).
+3. **Content refuses** (the parser the shape, `validateContent` the rest, in memory as well): gear
+   without a slot or with one outside the three, or with an `effect`; a consumable with a `slot` or
+   `statModifiers`, or without an `effect`; an effect of a kind outside the union or with a field its
+   kind lacks; an Encounter kind that is not one, none, or one twice; a modifier that is empty, on a
+   Stat that is no Hero Stat, 0 or not whole; a price of 0 or less or not whole; a tag not in
+   kebab-case or listed twice; `unique` that is not a boolean. **A unique consumable is refused**: a
+   consumable is expended from a stack, M5-S3's dispatch names consumables by definition and
+   quantity, which a unique row cannot answer, and no rule would expend an individual; a one-off
+   potion is a common definition of which one exists. **Unique gear with a price is not refused**: the
+   core's five have none, and M5-S4, which must price a folded Guild's unique Items (D6), may want one.
+   So `buyPrice: null` means the Market never stocks it; the Market's refresh draws stacks and so
+   never stocks a unique definition whatever its price, and **M5-S4's draw filters on both `!unique`
+   and `buyPrice !== null`**. `items.json` is required and may be `{}`.
+4. **One holder type** (`document.ts`). `Holder` is hero-with-slot, guild, party or market, for
+   unique Items and stacks alike, and `StackHolder` is gone: D6 (owner, 2026-09-26) is later than
+   data-model §3.3 (2026-09-25) and needs the Market to hold a unique Item, so §3.3 now says so. The
+   validator's shape check accepts a unique Item on the Market; the test that refused it now accepts.
+5. **`items.ts`**, world-level primitives for the rules M5-S2 to S5 write. They emit nothing and
+   check no rule of play (a free slot, a Guild owning the Item, a price paid): the action does, and
+   rejects. They throw a `RangeError` only on a programming error. Each copies the holder it is given,
+   so rows share no object. Ids come from `world.counters` through `takeId`.
+   - `holdings(world, holder: HolderQuery): { items, stacks }`, each in id order; a `HolderQuery` is a
+     `Holder` or `{ kind: 'hero', id }`, which reads the Hero in every slot.
+   - `findStack(world, definitionKey, holder)`: the holder's one stack of a definition, or none.
+   - `moveStack(world, stackId, quantity, toHolder): StackId`: `quantity` from 1 to the stack's; joins
+     the target's stack of the definition, or becomes a new stack; a whole stack moving where there is
+     none keeps its id; the emptied source is removed; to its own holder, nothing changes. Returns the
+     stack the quantity is now in.
+   - `moveItem(world, itemId, toHolder)`.
+   - `addStack(world, definitionKey, quantity, holder): StackId`: merges into the holder's stack or
+     creates one (a Market refresh, a purchase, common Loot).
+   - `removeFromStack(world, stackId, quantity)`: removes an emptied stack (expended, sold, cleared).
+   - `createItem(world, definitionKey, holder): ItemId` (unique Loot).
+   - `sameHolder(a, b)`: kind, row and, for a Hero, slot. `itemDefinition(content, key)`: the row,
+     or `undefined` for a key content lacks.
+6. **The validator.** §6's `duplicate-stack` and `dangling-reference`'s holder check stood. It gains
+   two refusals: `empty-stack`, a stack whose quantity is below 1 (the shape check already holds it
+   whole), and `gear-slot-overfull`, a Hero's slot holding more than one Item (unique Items plus stack
+   quantities), once per slot, naming the Hero: M5-S2's `slot-occupied` as an invariant. And two
+   warnings, which rule 5 makes of a key that may drift under a live save (DL-20 item 8 already named
+   slots among them): `unknown-slot`, an Item a Hero holds in a slot `deps.config.gearSlots` does not
+   list (key: the slot), and `misplaced-item`, an Item a Hero holds that is not gear for its slot
+   (key: the definition). The warning checks now receive `deps.config` beside the content.
+7. **The twenty** (`content/items.json`; the engine's test content carries the same). A grade is a
+   tag, `plain`, `fine` or `masterwork`, not a field no rule reads.
+
+   | Slot / kind | plain (40) | fine (120) | masterwork (300) |
+   | --- | --- | --- | --- |
+   | weapon | Short sword: Weaponry +1 | Arming sword: Weaponry +2, Strength +1 | Masterwork blade: Weaponry +3, Strength +2 |
+   | armour | Padded jack: Constitution +1 | Mail shirt: Constitution +2, Endurance +1 | Plate harness: Constitution +3, Endurance +2, Dexterity −1 |
+   | trinket | Lucky charm: Courage +1 | Silver amulet: Willpower +2, Spirit +1 | Runed circlet: Arcana +3, Spelllore +2 |
+
+   Consumables, two of each effect: Whetstone (+3 on combat, 25), Set of lockpicks (+3 on stealth,
+   25), Grappling line (reroll travel or stealth, 45), Blessed candle (reroll arcane or social, 60),
+   Healing draught (heal 5 Days, 30), Physician's kit (heal 10 Days, 70). Unique gear, Loot only: the
+   Barrow King's blade (weapon: Weaponry +4, Strength +2, Courage +1), the Vault Warden's staff
+   (weapon: Arcana +3, Power +3), Mantle of the Fells (armour: Endurance +3, Constitution +2,
+   Adaptability +1), the Lantern of Stannary (trinket: Perception +3, Wits +2), the Abbot's reliquary
+   (trinket: Spirit +3, Willpower +2, Resistance +1). The scale: Stats run 1 to 20 with bases of 3 to
+   14; a flat of 3 is worth about what DL-45's Synergy flats are (5 to 20% of a capability); Injuries
+   heal in 5 to 30 Days; prices sit against rewards of 40 to 450 and a signing fee near 100. No rule
+   reads any of it until M5-S2 to S5, so the values are untested; the M5 close measures them.
+8. **Test support.** The fixture's Hero stack was a healing draught in a `belt` slot, which is no
+   slot; it is now a Padded jack in the Party Hero's armour slot.
+
+**Consequences.** M5-S2's `equip` checks `holdings(world, slotHolder)` is empty, the definition is
+gear for that slot and the slot is in `config.gearSlots`, then calls `moveItem` or `moveStack(…, 1,
+slotHolder)`; `effectiveStats` reads `holdings(world, { kind: 'hero', id })` for the slots
+`gearSlots` lists, skipping a misplaced Item. M5-S3 moves consumables with `moveStack` Guild → Party
+and back, and expends with `removeFromStack`. M5-S4 refreshes with `removeFromStack`/`addStack` on
+`{ kind: 'market' }`, moves bought and sold stacks with `moveStack` and a folded Guild's unique Items
+with `moveItem`, and settles what a unique Item sells for. M5-S5 awards with `createItem` or
+`addStack`. S1 adds no event, so it gives the M5-close counter task nothing to count. A new slot or
+effect kind is an engine change and earns a decision; a new Item is content only.
+
+## DL-49 — Equip and unequip, gear in effective Stats, gear going back to its Guild, and the controllers equipping (M5-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S2's implementer)
+
+**Context.** M5-S2 names `equip(document, { guildId, heroId, itemId | stackId, slot })` and `unequip`,
+the rejections `not-gear`, `slot-occupied`, `hero-unavailable` and `not-held-by-guild`, gear's
+modifiers inside `effectiveStats(hero, world, content)` (the selector the Check reads, DL-44), base
+and effective Stats side by side in `show hero`, and gear on a dead or retired Hero returning to the
+Guild's holding at night with `item.returned`. It leaves open: the other rejections and their order;
+whether `slot` is needed; whether equipping emits an event; the order of the modifiers and the hold
+to the Stat's range; which night phase returns gear, and when; what becomes of the gear of a folding
+Rival's Heroes, while M5-S4 (built in parallel) lists a folding Guild's unique Items on the Market
+and discards its stacks; how M6's Transfer will return a Hero's gear; and whether `steady` or the
+automatic policy equip. The epic's risk table has the policy buy armour (M5-S4); unworn, it would do
+nothing.
+
+**Decision.**
+
+1. **Two actions, one file** (`engine/src/actions/equip.ts`), each a world-level rule and a
+   document-level wrapper (DL-30): `applyEquip`/`equip` and `applyUnequip`/`unequip`, in the
+   `Action` and `GuildAction` unions and `applyAction`/`applyGuildAction`. `equip`'s request is
+   `{ guildId, heroId, slot?, itemId | stackId }`, exactly one of the two ids (neither or both
+   throws, as a programming error). **`slot` is optional**: the gear's definition names its slot, so
+   it defaults to that and, when given, must be it. `unequip`'s request is `{ guildId, heroId, slot }`.
+2. **`equip`'s rejections, in the order it checks**: `guild-folded`; `hero-not-on-roster` (read as
+   `dispatch` reads it: a dead or retired Hero who kept the Guild's id is the Guild's, and refused
+   next); `hero-unavailable`, `because` `dead`, `retired` or `in-party` — **an injured Hero may be
+   equipped**, being at the Hall, and a Hero away has their gear with them; `not-held-by-guild` (no
+   such row, or not in this Guild's holding: gear on another Hero is unequipped first, the Market's
+   bought first); `not-gear` (a consumable, or a definition content lacks); **`wrong-slot`** (a slot
+   asked that is not the gear's own, or the gear's own not among `config.gearSlots`; it carries the
+   slot asked, the gear's slot and the Heroes' slots); and `slot-occupied`, naming the occupant:
+   **`equip` never swaps**. `unequip`'s: `guild-folded`, `hero-not-on-roster`, `hero-unavailable`,
+   **`slot-empty`**. A Guild the world lacks throws.
+3. **Moves.** A unique Item moves whole (`moveItem`). **Common gear takes one unit**
+   (`moveStack(…, 1, heroSlot)`), the rest staying in the holding; the last unit moves the stack
+   itself, which keeps its id. `unequip` moves whatever the slot holds to the Guild's holding, a
+   stack joining the Guild's stack of its definition. `unequip` empties any slot, one
+   `config.gearSlots` no longer lists included, so such gear can always be recovered.
+4. **Events.** Beside the epic's `item.returned`, **`item.equipped` and `item.unequipped`** (not in
+   the epic's list; data-model rule 10 makes every discrete change an entry). All three carry a
+   `GearMove` — `heroId`, `guildId`, `slot`, `definitionKey`, and `itemId` for a unique Item or
+   `stackId` for a common one (the stack the unit is in after the move), the other `null` — and name
+   the Hero, the Guild and the Item or stack. `item.returned` adds `cause`: `died`, `retired` or
+   `guild-folded` (M6 adds its Transfer's). None is a Milestone: the Death, Retirement or fold is.
+5. **Effective Stats** (`selectors.ts`): the base, **plus** the Guildmaster's `classStatBonus`
+   (DL-43), **plus** the Stat modifiers of the gear the Hero carries (`gearModifiers`,
+   `engine/src/gear.ts`), **summed first and held inside the Stat's content range once**, at the end,
+   so the order of the modifiers never matters and none is lost to an early hold (a Mage with Arcana
+   1, Mistrusts magic and a Runed circlet reads 3). Gear counts when its definition is gear made for
+   the slot it is in; a misplaced Item, or a definition content lacks, counts for nothing. The
+   signature stays the epic's `(hero, world, content)` (DL-44) and the Check's call is unchanged;
+   `hero` now needs its `id`, `world` its `items` and `stacks`, `content` its `items`. **It reads no
+   config**, so it does not ask whether a slot is among `config.gearSlots`: `equip` alone does, and
+   fills no other. This **supersedes the clause of DL-48 item 2** "rules read only these", and that
+   entry's consequence that `effectiveStats` reads only the listed slots: gear already in a slot a
+   rebased config drops still counts until it is unequipped, and the validator still warns
+   `unknown-slot`. A config parameter would have changed the Check's call in `check.ts`, which M5-S3
+   is changing in parallel, for a case only a change to `gearSlots` under a live save can make.
+6. **The return at night is a phase of its own, `gearReturn`**, after `ageing` and before
+   `guildState`. Every Item held by a Hero who is dead or retired goes to the holding of the Guild
+   their row keeps (`guildId`, DL-20 item 3), with `item.returned`, Heroes in id order and each Hero's
+   Items in slot order (`gearSlotKeys`), then id. A Hero dies in `questsConclude` and retires in
+   `heroState` earlier the same night, so **the gear is back the night of the Death**, and no Turn
+   begins with gear on a Hero who can never carry it again. A phase rather than a line in each rule
+   that kills or retires, so that those rules stay as they were and one sweep catches every case. It
+   draws nothing. `approach.md` §2's night line names it.
+7. **A fold returns the Roster's gear first.** `fold` (`phases/endings.ts`) now begins by returning
+   the gear of each Hero on the Roster, in Roster order, with `item.returned` for `guild-folded`,
+   **before `guild.folded`** and before any row changes, so that the Heroes enter the pool carrying
+   nothing and whatever the fold then does with the Guild's holding — M5-S4 lists its unique Items on
+   the Market and discards its stacks — finds that gear there. `gearReturn` runs before `endings`, so
+   a Hero who died on the night their Guild folds has returned theirs too. A folding Guild's Parties'
+   consumables are M5-S3's and M5-S4's.
+8. **One reusable return**: `returnGear(world, hero, cause, emit)` (`gear.ts`), which `gearReturn`
+   and the fold call, and which **M6's Transfer calls before the Hero's Guild changes**. It throws on
+   a Hero who carries gear and has no Guild, which no rule makes.
+9. **The controllers equip.** One engine helper, `gearChoices(world, guild, deps)` (`gear.ts`), which
+   `steady` and the harness's automatic policy both put **first** among their choices, before any
+   dispatch, since equipping moves no Wealth and sends no one, and is refused for a Hero away. Its
+   rule: every piece of gear in the Guild's holding for a slot `config.gearSlots` lists whose
+   modifiers sum above 0, best first (that sum, then id; each unit of a stack a piece), each to the
+   first Hero in Roster order whom `equip` would accept with that slot empty; no swaps, no draw.
+   Applied in order, every action it names is accepted. So the armour M5-S4's policy buys, and Loot
+   (M5-S5), is worn from the next Turn. Rivals do not buy in M5 (M5-S4), but they wear their Loot.
+10. **CLI.** `equip --hero <id> --item <id> | --stack <id>` (no `--slot`: the gear's own) and
+    `unequip --hero <id> --slot <weapon | armour | trinket>`, each printing its event's line and the
+    effective Stats that changed. `show hero` shows Base and Effective side by side, never Potential,
+    and a Gear table by slot; `show roster` lists what the Guild holds, with the ids `equip` takes.
+    `narrate.ts` has a line for each new event.
+11. **No config field and no default change**: `configVersion` stays 4, `contentVersion` 9.
+
+**Consequences.** A smoke run (4 seeds × 5 years under the default config, the automatic policy,
+every Guild handed three mail shirts, two arming swords and a unique trinket at creation, validated
+after every advance) equipped 45 to 65 Items a game and returned 33 to 59 from the dead and the
+folded, with no action refused and no document refused or warned about. Until M5-S4 or M5-S5 gives a
+Guild gear, a harness game equips nothing. For the M5-close counter task: `item.equipped`,
+`item.unequipped` and `item.returned` by `cause` and by Guild; gear worn at year 10 is `carriedGear`
+over the player's Roster on the world at that Turn.
+
+## DL-50 — Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S3's implementer)
+
+**Context.** M5-S3 says `dispatch` accepts `consumables: [{ definitionKey, quantity }]`, moving
+stacks from the Guild's holding to the Party's; that a `bonus` consumable adds its flat bonus to the
+first Encounter of a matching kind and is expended, a `reroll` re-rolls the first failed matching
+Encounter once, and a `heal` shortens an Injury taken on the Quest; that unused consumables return to
+the Guild on the Party's return, the Party holding nothing after resolution; and that the Quest
+Engine emits `item.expended`. It leaves open: the rejections' names; whether Rivals and the
+automatic policy carry any; where the rules live, given `check.ts` must stay free of Guild-side
+rules; how a `bonus` combines with the Check, and a second Item of it; where a `reroll` draws from
+and what it costs the stream; which Injury a `heal` shortens and by how much; what becomes of a
+disbanded Party's consumables (a fold, M2-S10, DL-28); what the History records; and the CLI's
+words. DL-48's primitives (`moveStack`, `removeFromStack`, `holdings`) are what it builds on.
+
+**Decision.**
+
+1. **The request.** `DispatchRequest` gains an optional `consumables: ConsumableRequest[]`,
+   `{ definitionKey, quantity }`, each definition once and a quantity a whole number from 1 (either
+   broken is a programming error and throws, as a Hero named twice does); absent means none. After
+   the requirements (DL-25's order, then M4-S5's), each consumable in the order given is checked,
+   and the first failure is the rejection: **`not-consumable`** (content defines no consumable of the
+   key: it is gear, or no Item at all; `{ definitionKey }`), **`not-held-by-guild`** (the Guild's
+   holding has no stack of it; `{ definitionKey, guildId }`) and **`insufficient-quantity`** (its
+   stack holds fewer than asked; `{ definitionKey, guildId, held, requested }`). The names follow M5-S2's
+   `not-gear`/`not-held-by-guild` and M5-S4's `insufficient-quantity`; each is typed per action
+   (`Rejection<'dispatch', …>`, exported as `DispatchNotConsumable`, `DispatchNotHeldByGuild`,
+   `DispatchInsufficientQuantity`), so the other actions' own rejections of the same reason do not
+   clash. On success each is moved with `moveStack` from `{ kind: 'guild' }` to `{ kind: 'party' }`,
+   and `quest.taken` gains `consumables`, the list carried (`[]` for none; absent from an older
+   entry). No limit on how many a Party carries: nothing in the epic or INPUTS asks for one.
+2. **Rivals and the automatic policy carry none.** Neither holds a consumable: M5 defers Rivals'
+   buying to M6, and the policy's one Market rule (M5-S4) buys armour. A rule to carry what the Guild
+   holds would be dead code today; `consumables` is optional so neither changes. So under the
+   harness the M5 counter "consumables expended per Quest" reads 0 until a policy buys consumables;
+   that is the M5 close's to judge.
+3. **Where the rules live.** `engine/src/quest-engine/consumables.ts`, the Party's consumables from
+   the moment they are carried: `kitOf(world, party, content)`, the kit the Quest Engine uses as it
+   resolves (read-only: it records the Items used and changes no row), `expendUsed` (removes them
+   from their stacks and emits `item.expended`) and `sendHome` (every row the Party holds to its
+   Guild's holding). A consumable is the Party's own, so it sits with the Quest Engine; it reads
+   nothing of the Guild's leader or dealings, and a test reads the file for the word, as for
+   `check.ts`. `check.ts` gains one parameter, a flat `bonus` added to the capability before the
+   roll (0 by default), and no rule; `resolve.ts` asks the kit for the bonus and the reroll around
+   the Check and for the heals after the sequence, and returns the uses beside the outcome
+   (`Resolution.consumables`, not in `QuestOutcome`, so `quest.resolved`'s payload is unchanged).
+   A stack whose definition content lacks, or is not a consumable, is carried and used for nothing
+   (data-model rule 5), and goes home.
+4. **`bonus`.** Before each Check, each carried bonus definition with an Item left whose `kinds`
+   hold the Encounter's kind gives one Item and its `flat`, added to the capability after the
+   teamwork scalar and before the roll (S1's reading: "added to the capability of the first Check").
+   One Item per definition per Check, so a second Item of the same definition goes to the next
+   Encounter of its kinds, and two definitions matching one kind both add. The Item is spent on the
+   Check whatever its outcome. No draw.
+5. **`reroll`.** After a failed Check, the first carried reroll definition (in key order) with an
+   Item left whose `kinds` hold the Encounter's kind gives one Item, and the Check is rolled again:
+   the same capability, the bonus of item 4 included, and **one more draw from `quests`, taken
+   straight after the failed Check's draw and before any consequence's draws**. The second roll
+   stands, success or failure: an Encounter is rolled again at most once, however many Items are
+   carried, and a further Item waits for the next failed Encounter of its kinds. The consequences
+   are the second roll's outcome's. So a Party carrying no reroll draws exactly as M4 did (DL-42
+   item 12), and a reroll shifts the later draws of its own Quest by one.
+6. **`heal`.** After the sequence, when the Injuries are final (a Hero who died has none), the heal
+   Items carried are given out one at a time, the definition healing most Days first (ties by key),
+   each to **the Injury with the most Days** among those not yet treated (ties to the one taken
+   first), shortening it by the definition's `days` **to no fewer than 1 Day** — the Injury is
+   shortened, not cured, so `hero.injured`, its night and any Trait it leaves on healing still
+   follow (DL-29). The Days shortened are those after the infirmary (DL-29 item 8). **One Item per
+   Injury**; an Injury at 1 Day takes none; Items left over go home. No draw.
+7. **Expended and sent home.** `questsConclude`, after the Quest's `quest.encounter` entries and
+   before its `quest.resolved`, removes each Item used from its stack (`removeFromStack`) and emits
+   one **`item.expended`** an Item, in the order used; then, as the Party's row goes, `sendHome`
+   moves every stack (and any unique Item) the Party still holds to its Guild's holding
+   (`moveStack`, merging with the Guild's stack of the definition). A fold (DL-28) calls `sendHome`
+   for each Party it disbands before removing it, so the folded Guild holds them, and M5-S4's rule
+   for a folding Guild's stacks decides what then becomes of them. **No event for a return**: the
+   Party's return is `quest.resolved` and a fold is `guild.folded`, and M5-S2's `item.returned` is
+   gear's. So no stack is ever held by a removed Party, which the validator's
+   `dangling-reference` holder check (DL-48 item 6) refuses; a test now holds it for a Party.
+8. **`item.expended`** (not a Milestone), payload `{ questId, partyId, guildId, stackId,
+   definitionKey }` and by `effect`: `bonus` with `encounterIndex` and `flat`; `reroll` with
+   `encounterIndex` and `firstRoll` (the failed roll it replaced; the Encounter's own entry records
+   the second); `heal` with `heroId` and `days` (the Days it took off). It names the Quest, the
+   Party, the Guild and, for a heal, the Hero. `stackId` names a stack that may since have gone, as
+   the History keeps other removed rows' ids.
+9. **CLI.** `dispatch` and `preview` take `--consumables <key:n,...>` (a kebab-case key and a whole
+   number from 1, joined by commas, each key once). `dispatch` prints what the Party carries; each
+   new rejection is put into words. `preview` gains a Consumables section: for each asked, how many,
+   how many the Guild holds, what it does and on how many of the Quest's Encounters; with none asked,
+   the consumables the Guild holds that could be carried. `narrate.ts` gains `item.expended`, and
+   `quest.taken` names what was carried.
+
+**Consequences.** No config field and no content change: `configVersion` stays 4 and the content
+version 9. A Quest drawn and resolved with nothing carried draws and resolves as before. **For the
+M5-close counter task**: consumables expended per Quest are the `item.expended` entries grouped by
+`payload.questId` (by `payload.effect` and `payload.definitionKey` for the detail), divided by the
+`quest.resolved` entries, split by the controller kind of `payload.guildId`'s Guild; the
+consumables carried are `quest.taken`'s `payload.consumables`, so carried minus expended is what
+went home.
+
+## DL-51 — The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the policy's armour (M5-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S4's implementer)
+
+**Context.** M5-S4 names the morning phase `marketRefresh` after `boardRefresh`, which clears the
+Market's stacks and draws `marketSize` stacks of 1 to 5 from the `market` stream over definitions
+that are not Loot only; `buy(document, { guildId, definitionKey, quantity })` and `sell(document, {
+guildId, stackId | itemId, quantity })` at `buyPrice` and `buyPrice × sellRatio`; the rejections
+`not-in-market`, `insufficient-wealth` and `insufficient-quantity`; the events `item.bought` and
+`item.sold`; a folding Guild's unique Items listed on the Market at sell price with `item.sold` and
+its stacks discarded (pre-M0 review D6); the config `marketSize`, `marketStackMin/Max`, `sellRatio`
+(INPUTS 7.2: 10 stacks, half, each morning); the CLI's `show market`, `buy` and `sell`; `steady`
+ignoring the Market; and, from the epic's risk table, the automatic policy buying "one armour per
+un-armoured Hero when Wealth allows", recorded with the counters before and after. DL-48 left it to
+M5-S4 to decide what a unique Item sells for, since the core's five have no `buyPrice`, and required
+the draw to filter on `!unique && buyPrice !== null`. Left open besides: how the draw avoids two
+stacks of one definition (which `addStack` would merge), whether the refresh runs at Turn 0 and what
+it emits, how the sell price rounds, what a Guild may sell and where a sold Item goes, whether a
+unique Item on the Market is cleared each morning and what a Guild pays for one, the other
+rejections, the events' payloads, and whom the fold's sale pays.
+
+**Decision.**
+
+1. **The stream and the draw.** `market` is appended to `streamNames`, last, as ADR-0009's order
+   puts it; `ensureStreams` gives an older save the stream a new world has. The refresh
+   (`phases/market-refresh.ts`) removes every stack the Market holds, then takes the definitions the
+   Market stocks (`stockedDefinitions`: common, with a `buyPrice`, in key order), shuffles them from
+   `market` and puts the first `marketSize` on the Market, each a new stack of
+   `int(marketStackMin, marketStackMax)` drawn in the shuffle's order. So `marketSize` stacks of
+   **different definitions**, or every stocked definition once when content has fewer: drawing with
+   replacement would merge a repeat into one stack and leave fewer than `marketSize`. Draws: one fewer
+   than the stocked definitions for the shuffle and one per stack, all from `market`; a Market of
+   size 0 draws nothing. **The refresh keeps the unique Items the Market lists**: a folded Guild's are
+   sold to it at night (item 6), and a refresh that cleared them the next morning would leave them
+   unsold and the listing pointless. `createWorld` runs the refresh at Turn 0 as it runs the Board's
+   (DL-25), after it, so a new game opens on a stocked Market; it draws from `market` alone, so no
+   other stream and no other part of a seed's world moves (the stack counter does). **It emits
+   nothing**: what the Market holds is World State, and what a Guild buys or sells there is the
+   History's.
+2. **Prices** (`market.ts`, the Market Engine of `CONTEXT.md`). `marketPrice(key, deps)` is the
+   definition's `buyPrice`, or **`lootOnlyPrice`, 600**, for one with none (Loot only, DL-48); `null`
+   for a key content lacks, which the Market cannot price and rules ignore (data-model rule 5).
+   `sellPrice` is `floor(marketPrice × sellRatio)`, **rounded down for each Item**, so that selling
+   several is selling one several times and the Market never pays a fraction: a Whetstone (25) sells
+   for 12. R31 holds while `sellRatio` is below 1; a test checks every core Item under the defaults.
+   600 is twice the dearest Item the Market stocks (masterwork, 300, five modifier points); the
+   uniques carry five to seven, and one sells for 300, a masterwork's price. One flat number rather
+   than a price from the modifiers: no rule but the Market's reads it, and the M5 close can tune one
+   number.
+3. **`buy`** (`actions/buy.ts`) moves `quantity` of the definition from the Market to the Guild's own
+   holding, each at `marketPrice`: a common one from the Market's stack into the Guild's stack of it
+   (`moveStack`), a unique one as that many of the Items the Market lists, lowest id first
+   (`moveItem`). **A unique Item listed on the Market is bought at its Market price, not its sell
+   price**: D6's "at sell price" is what the folding Guild is paid (item 6), and a Market that sold at
+   the price it paid would break R31's spread and let a Guild buy back what it sold at no loss.
+   Refused, changing nothing, in this order: `guild-folded`; `not-in-market` (no stack of a common
+   definition, no Item of a unique one, or a key content lacks: rule 5, the listing ignores it);
+   `insufficient-quantity` (`{ definitionKey, quantity, available }`); `insufficient-wealth`
+   (`{ cost, wealth }`; Wealth equal to the cost is enough). A quantity that is not a whole number
+   from 1 throws, a programming error a front end checks.
+4. **`sell`** (`actions/sell.ts`) takes `{ guildId, stackId, quantity }` or `{ guildId, itemId }` (a
+   unique Item is one Item) from **the Guild's own holding only** and moves it to the Market, where a
+   stack joins the Market's stack of its definition: **a sold Item is listed**, a stack until the
+   next morning's refresh clears it, a unique Item until a Guild buys it, keeping its id and its
+   History. Refused, changing nothing, in this order: `guild-folded`; `not-held-by-guild` (`{ id }`:
+   another holder, a Party of the Guild's, or no row, since a stack sold, merged or expended leaves
+   an id a front end may still show, as `recruit`'s `hero-not-unattached` treats a departed Hero);
+   `equipped` (`{ id, heroId, slot }`: a Hero of the Guild carries it; it is unequipped first, M5-S2,
+   rather than sold off a Hero's back); `unknown-item` (`{ definitionKey }`: no price);
+   `insufficient-quantity` (`{ stackId, quantity, available }`). A quantity that is not a whole number
+   from 1 throws.
+5. **Events.** `item.bought` `{ guildId, definitionKey, quantity, unitPrice, cost, itemIds }` and
+   `item.sold` `{ guildId, definitionKey, quantity, unitPrice, proceeds, itemIds, cause }`, `cause`
+   `'sale' | 'fold'`; `itemIds` the unique Items, `[]` for a common one. Participants: the Guild and
+   each unique Item, so that a unique Item's page shows where it went; not a stack, whose id splits,
+   merges and goes. Neither is a Milestone. Both actions join `Action`, `GuildAction`, `applyAction`
+   and `applyGuildAction`, with `applyBuy` and `applySell` for a controller (DL-30).
+6. **A folding Guild's Items** (`sellFoldedGuildItems` in `market.ts`, called by `fold` in
+   `phases/endings.ts` after `hero.left-guild` and before its Parties are disbanded and its Heroes
+   released, while the rows still say whose they are). Every unique Item held by the Guild, by a
+   Party of its own, or by a Hero whose `guildId` is the Guild (its Roster, and its dead and retired)
+   in any slot is **sold to the Market**, one `item.sold` (`cause: 'fold'`) each in id order, at
+   `sellPrice`, **the proceeds credited to the folded Guild's Wealth**: D6's "its Items go to the
+   Market at sell price" read as a sale, as the event names it; that Wealth is a record no rule reads
+   again (DL-28). A unique Item content does not define sells for 0. Then every stack those holders
+   hold is removed, without an event of its own: `guild.folded` explains it. So a released Hero joins
+   the pool carrying nothing of the Guild's, and a Party disbanded in flight leaves no stack behind
+   (the validator's holder check). The sweep reads every holder itself and does not depend on M5-S2's
+   nightly return of a dead Hero's gear.
+7. **Config**: `marketSize` 10, `marketStackMin` 1, `marketStackMax` 5, `sellRatio` 0.5 (INPUTS 7.2
+   and the epic), `lootOnlyPrice` 600. Fields are added and no default changes, so **`configVersion`
+   stays 4** (DL-48 item 2's reading).
+8. **The Rivals.** `steady` neither buys nor sells in M5 (M6-S4 retires this); the Market Engine
+   still runs every morning for the whole world (ADR-0002). A test plays four Rivals for twenty Days
+   with a stocked Market and a purchase by the player, and again with `marketSize` 0 and none, and
+   finds every Rival's Wealth and Roster the same and no `item.bought` or `item.sold` naming a Rival.
+   A Rival's fold does sell its unique Items (item 6), as any Guild's would.
+9. **The automatic policy** (`harness/src/policy.ts`). Its one purchase a Turn is now the first of:
+   build the infirmary (M3-S6), **buy armour**, recruit. It buys while the Roster's Heroes with an
+   empty armour slot outnumber the armour in the Guild's own holding: one piece, the dearest armour
+   the Market lists whose price Wealth is above `buyWealthMultiple` (3, the policy's own, like its
+   building multiple) times, lowest key among equal prices. Armour before recruiting because it is
+   cheap beside a signing fee and protects the Heroes the Guild has, and it takes a Turn's purchase
+   at most once per un-armoured Hero; the dearest affordable rather than the cheapest, as a player
+   would. Equipping it is M5-S2's rule (the policy and `steady` equip held gear). On this story's
+   branch, before that merge, the armour bought waits in the Guild's holding, so the counters below
+   show what it costs and not yet what it does; the M5 close measures both.
+
+   Counters for the player's Guild, per game, from a scratch run of `playGame` (core content,
+   `defaultConfig`, 12 seeds × 5 years, the policy with `buyWealthMultiple` infinite and at 3; not
+   the harness sweep):
+
+   | Per game | Before | After |
+   | --- | --- | --- |
+   | Wealth spent: signing | 2,232 | 2,491 |
+   | Wealth spent: Items | 0 | 527 |
+   | Wealth spent: Improvements | 1,700 | 1,700 |
+   | Wealth spent: Upkeep | 135,811 | 131,096 |
+   | Armour bought | 0 | 8.0 |
+   | Quests fail / success / strong | 533 / 330 / 646 | 548 / 325 / 612 |
+   | Heroes died / injured / recruited | 16.4 / 228 / 20.4 | 18.9 / 236 / 22.9 |
+   | Games ended in 5 years | 0 of 12 | 0 of 12 |
+   | Policy actions refused | 0 | 0 |
+
+   The Market is now exercised, about 8 pieces and 530 Wealth a game in five years, a small share
+   beside Upkeep. Unequipped, the armour changes the outcomes only through what the purchase moves
+   (a Turn's purchase taken, a Hero signed later), which is within the noise of 12 seeds; the M5
+   close measures it again with M5-S2's equip.
+
+**Consequences.** The Market is a stack holder no Guild owns, restocked every morning, and a
+standing list of unique Items that grows by a folded Guild's and a sold one's until bought. M5-S2's
+equip makes the armour bought useful, and its `unequip` is what `sell`'s `equipped` refusal asks
+for. M5-S5's unique Loot, held by any Guild, is sold to the Market when that Guild folds. **For the
+M5-close counter task: Wealth spent by category**, per Guild (by `payload.guildId`, joined to its
+controller): signing, `hero.recruited.fee`; Items, `item.bought.cost`; Improvements,
+`guild.improved.cost`; Upkeep, `guild.upkeep-paid.amount`; Transfers arrive with M6. The Wealth the
+Market pays is `item.sold.proceeds`, `cause` telling a sale from a fold.
+
+## DL-52 — Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S5's implementer)
+
+**Context.** M5-S5 names `content/loot-tables.json` with rows `{ key, entries: [{ definitionKey, weight,
+quantityMin/Max }] }`, Quest templates' `lootTableKey` "set for templates with `difficultyMin` above
+`lootDifficultyThreshold`", one entry drawn from `quests` on a strong success and awarded to the Guild's
+holding (a unique Item with a fresh id), the event `quest.loot` ("Milestone when unique"), the config
+fields `lootDifficultyThreshold` and `lootOnBands`, and three boxes. INPUTS 7.4's default: Loot on strong
+success only, the table chosen by difficulty band. It leaves open: what content refuses; how a config
+threshold and content's templates agree, since content validation cannot read config (DL-48 item 2);
+when the draws are taken; whether a unique Item may be awarded twice; how an event type is a Milestone
+for some payloads only, when `milestoneTypes` is one boolean a type (DL-24); and where the award is
+applied, since the Quest Engine changes nothing but the streams (DL-42).
+
+**Decision.**
+
+1. **The row** (`content-types.ts`). `LootTable { key, entries: LootEntry[] }`, `LootEntry {
+   definitionKey, weight, quantityMin, quantityMax }`, as the epic writes it, no name (no rule or front
+   end shows a table). `ContentSet.lootTables`; `QuestTemplate.lootTableKey` becomes `LootTableKey |
+   null`. `loot-tables.json` is required and may be `{}`. **`contentVersion` becomes 10.**
+2. **Content refuses** (the parser the shape, `validateContent` the rest): a table with no entries; an
+   entry whose definition content lacks; a definition listed twice in one table; a weight that is not a
+   number above 0; a quantity that is not a whole number from 1, or a range upside down; a unique Item
+   with a quantity other than 1 at either end, since a unique Item is an individual; a field the row
+   lacks; and a template naming a table content lacks. A table no template names is allowed.
+3. **The threshold is applied at generation.** The Quest Generator copies the template's
+   `lootTableKey` onto the Quest when the template's `difficultyMin` is above `lootDifficultyThreshold`,
+   and `null` otherwise; nothing else reads the threshold. So content says which table a template's
+   Quests award from, config says from which difficulty a Quest awards Loot at all, and the Quest row
+   stays self-contained, as data-model §3.2 has it: a Quest offered keeps what it was offered with.
+   Not a validator rule, which cannot read config; not a resolution rule, which would read the template
+   again. The core names a table for exactly the templates the default threshold admits, and the
+   harness's `creation.test.ts`, which loads both, holds that agreement. The default threshold is
+   **25**: the six templates whose `difficultyMin` is 30 to 60 carry Loot, the six from 10 to 25 none.
+   Lowering it admits a template only where content names it a table.
+4. **Two tables, by difficulty band** (INPUTS 7.4): `lesser-loot` for a `difficultyMin` from 26 to 44
+   (Clear the barrow, The beast of the fells, Lay the restless dead) and `greater-loot` from 45 (The
+   counting-house job, Hold the border fort, Break the sealed vault). Weights total 100 in each. The
+   lesser: consumables at 74 (whetstone, lockpicks and healing draught 16 each, 1 to 3; grappling line
+   10 and blessed candle 8, 1 to 2; physician's kit 8, 1), fine gear at 20 (arming sword 7, mail shirt
+   7, silver amulet 6) and three unique Items at 2 each (the Barrow King's blade, Mantle of the Fells,
+   the Abbot's reliquary). The greater: consumables at 43 in larger quantities (healing draught 13,
+   2 to 4; physician's kit 12, 1 to 2; grappling line and blessed candle 9 each, 1 to 3), fine gear at
+   18, masterwork gear at 24 (8 each) and all five unique Items at 3 each. No other rule reads them, so
+   the values are untested; the M5 close measures them. The engine's test content carries the same.
+5. **`lootOnBands`** is a list of bands, default `['strong']` (INPUTS 7.4), frozen. **`configVersion`
+   stays 4**: two fields are added and no default changes (DL-38's reading).
+6. **The draw** (`quest-engine/loot.ts`, `drawLoot`), the Quest Engine's last step, one line in
+   `resolveQuest` beside the Encounters so that M5-S3's consumables and this touch that file apart.
+   `Resolution` gains `loot: LootDraw | null`, beside the outcome rather than in it, so `quest.resolved`'s
+   payload is unchanged. For a Quest whose table content defines: two draws from `quests`, the entry by
+   `weightedPick` over the weights, then its quantity by `int`, **taken whatever the band**, so tuning
+   `lootOnBands` never shifts a later draw (`chance`'s promise, rng.ts). A Quest with no table draws
+   nothing; one naming a table content lacks draws nothing and the validator warns, `unknown-loot-table`
+   (rule 5). Loot is awarded only on a band in `lootOnBands`.
+7. **One of each unique Item in a world.** A unique definition already in `world.items`, whoever holds
+   it (a Hero, a Guild, a Party or the Market), is drawn with weight 0, so it is never awarded twice;
+   when every entry of the table is such, the draw (uniform then, as `weightedPick` is when every weight
+   is 0) is taken and awards nothing. A unique Item is an individual (data-model §3.3) and the core's
+   five are named relics: a second Barrow King's blade would contradict its name, and re-drawing would
+   make the draw count depend on the world. Two Parties home the same night are resolved and awarded one
+   after the other, in id order, so the second's draw sees the first's Item.
+8. **The award** (`awardLoot`, applied by `questsConclude` right after `quest.resolved`, one line): to
+   `{ kind: 'guild', id }` of the Party's Guild, a unique Item by `createItem` with a fresh id, a common
+   Item by `addStack`, which joins the Guild's stack of it. Every Guild alike (ADR-0002); a folded
+   Guild's Party is never resolved.
+9. **`quest.loot`**: `{ questId, partyId, guildId, lootTableKey, definitionKey, quantity, itemId |
+   null, stackId | null }`, naming the Quest, the Party, the Guild and, for a unique Item, the Item, so
+   an Item's own History begins with its finding. A stack is not named: it is a quantity, not an
+   individual. **A Milestone when unique:** `events.ts` gains `milestoneWhen`, a rule by payload for the
+   event types that are Milestones for some payloads only (`quest.loot`: `itemId !== null`), where
+   `milestoneTypes` holds `false`; `emit` reads both through `isMilestone`. The CLI narrates it
+   ("The Kestrel Guild found Loot on quest-000003: The Barrow King's blade (item-000006).").
+
+**Consequences.** M5-S5's third box, "the harness's Loot counter rises with the player's mean Quest
+difficulty", is proved in the engine before the counter exists: `loot.test.ts` plays eight seeds for 90
+Days each under two regimes, the player sending every free Hero the Quest allows on the easiest or the
+hardest Quest it can staff; measured when written, a mean difficulty of 24 to 27 gave 20 Loot in all and
+46 to 75 gave 46. The M5 close's counter task computes **Loot awarded by table**: the `quest.loot` entries
+(`history.byType['quest.loot']`) grouped by `payload.lootTableKey`, for the player's Guild and for all,
+with unique ones (`itemId !== null`) apart; beside the player's mean Quest difficulty, which it can read
+from the resolved Quests. A unique Item sold to the Market stays in `world.items`, so it is still never
+awarded again; one M5-S4 removed would be. Balance of the tables and the threshold is the M5 close's.
+
 ## DL-53 — M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions after the end; errata to DL-40 and DL-41
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3 verification's fixer),
@@ -3172,6 +3705,96 @@ defaults version 5 (the M3 close merged into M4, DL-47 there). Git would merge t
 `configVersion: 5` lines without a conflict, so whoever merges this entry into M4 must give the
 merged defaults a version of their own. M4's Quest Engine reads the infirmary's factor with its own
 copy of the rule and should read `healFactor`.
+
+## DL-54 — Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not about it (M5 integration)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 integration's merger)
+
+**Context.** Three M5 stories, built side by side, each changed what a Rival's fold does (M2-S10,
+DL-28). M5-S2 returns the Roster's gear to the Guild first, before `guild.folded` (DL-49 item 7);
+M5-S3 sends a disbanded Party's consumables home as the Party is removed (DL-50 item 7); M5-S4 sells
+the Guild's unique Items to the Market and discards its stacks, after `hero.left-guild` and before the
+Parties are disbanded, sweeping its Parties and Heroes itself (DL-51 item 6). Merged as each wrote it,
+the fold returned gear, told `guild.folded` and `hero.left-guild`, sold and discarded, and only then
+disbanded its Parties, whose stacks the sale had already deleted where they lay: one function, three
+stories' orders. The automatic policy likewise gained `gearChoices` first (DL-49 item 9) and "buy
+armour" between building and recruiting (DL-51 item 9), which must agree on when bought armour is
+worn. And `createWorld` now stocks the Market, so every new world holds stacks of common definitions
+from Turn 0, which tests written before M5-S4 did not expect.
+
+**Decision.**
+
+1. **The fold, in one order, every Guild alike** (`fold` in `phases/endings.ts`):
+   1. its Parties in flight are disbanded, in id order, each sending what it carried home to the
+      Guild's holding (`sendHome`), a Quest left with no Party removed unresolved;
+   2. the gear each Hero on the Roster carries goes back to the Guild's holding, in Roster order,
+      with `item.returned` for `guild-folded` (`returnGear`);
+   3. every unique Item in the Guild's holding is sold to the Market, one `item.sold` (`cause:
+      'fold'`) each in id order, at sell price, to the Guild's credit;
+   4. every stack in its holding is discarded;
+   5. its Heroes are released to the pool, each with `hero.left-guild`, in Roster order; the Roster
+      is emptied and `foldedOnTurn` set;
+   6. `guild.folded`.
+
+   So the History reads `item.returned`…, `item.sold`…, `hero.left-guild`…, `guild.folded`: each
+   step's events where the step happens, and the Milestone closing the fold. `guild.folded` names
+   the Parties it disbanded and the Quests it abandoned, and `emit` refuses a participant with no
+   row, so it is made before step 1 and told last. This **supersedes the order of DL-28 item 3**
+   (`guild.folded`, then `hero.left-guild`, every event before any row changes), **DL-49 item 7's
+   "before `guild.folded`"** (the gear still comes back before the Guild's holding is sold), and
+   **DL-51 item 6's placement** (after `hero.left-guild`, before the Parties are disbanded).
+2. **The sale reads the Guild's own holding only** (`sellFoldedGuildItems`, `market.ts`). Steps 1
+   and 2 bring a disbanded Party's stacks and the Roster's gear home, and the night's `gearReturn`,
+   which runs before `endings`, has brought home the gear of the Guild's dead and retired Heroes
+   (DL-49 item 6): the Guild's holding is then everything it had, so no Item is sold twice or
+   missed. This supersedes DL-51 item 6's sweep over the Guild's Parties and Heroes, not its prices
+   or whom the sale pays.
+3. **The policy's order** (`harness/src/policy.ts`): equip (`gearChoices`), dispatch, then one
+   purchase, the first of build the infirmary, buy armour, recruit; each chosen on the document as
+   it stands, as before. **The armour bought is worn from the next Turn**: it waits in the Guild's
+   holding, and the next Turn's first choice, the equip, puts it on the first Hero in Roster order
+   whose armour slot is bare and who is home; a Hero sent away the Turn it was bought gets it when
+   back, and the purchase rule counts that Hero as one the held armour is for, so it does not buy
+   twice. Considered and not taken: buying, then equipping the same Turn, which needs the policy to
+   apply the purchase to learn the stack's id; a Turn's wait costs nothing measurable, and the policy
+   keeps choosing on one document. `steady` is unchanged, equip, dispatch, then build or recruit:
+   it neither buys nor sells in M5 (M5-S4's box, `market.test.ts`; M6-S4 retires it), and
+   `gearChoices` still puts on a Rival's Heroes the Loot it wins.
+4. **An empty Market where a test is not about it.** A test that counts a definition's stacks, or
+   that finds none of one anywhere, pins `marketSize: 0` (`actions/equip.test.ts`; the reroll and
+   fold tests of `phases/quests-conclude.test.ts`); no assertion is weakened. M5-S3's fold test,
+   written before M5-S4, found a disbanded Party's whetstones in the Guild's holding after the fold;
+   they are discarded with the Guild's stacks now, and it asserts that none is left anywhere and
+   that the Guild holds nothing.
+5. **Tests.** `phases/endings.test.ts` folds a Rival holding a Party in flight carrying
+   consumables, a Hero wearing a unique Item and common gear, and unique Items and stacks in its
+   holding, and asserts the exact event order and that it is the night's last, every unique Item on
+   the Market exactly once at sell price, no Item or stack left with the Guild, a Party of its own or
+   a Hero who was on its Roster, and every document valid. `market.test.ts`'s order assertion
+   follows item 1. `policy.test.ts` asserts that held armour is equipped before the purchase and
+   that the armour bought is put on by the next Turn's first choice.
+6. No config field and no default changes: `configVersion` stays 4, the content version 9.
+
+**Consequences.** The fold is one list of steps in one function; a later story that adds to it
+(M6 settles a folded Guild's Transfer offers, DL-28 item 3) adds a step to the list. A smoke run of
+the merged M5 (core content, `defaultConfig`, the automatic policy, seeds `seed-0001` to
+`seed-0006`, 5 years each, validated after every advance; a scratch script, not the harness sweep)
+found, per game:
+
+| Per game (6 games) | Mean | Range |
+| --- | --- | --- |
+| Armour the player bought / Wealth on Items | 7.7 / 563 | 7–8 / 360–820 |
+| Armour equipped by the player (bought and Loot) | 25 | 19–32 |
+| Player's Roster wearing armour at year 5 | 8 of 8 | every game |
+| Loot awarded, all Guilds / the player's / unique | 1,638 / 271 / 5 | 1,540–1,749 / 173–325 / 5 |
+| Consumables expended | 0 | no controller carries any (DL-50 item 2) |
+| `item.sold`: sale / fold (Wealth to folded Guilds) | 0 / 4 (1,200) | 0 / 3–5 |
+| Rivals folded / unique Items left listed on the Market | 4.7 / 4 | 4–5 / 3–5 |
+| Rivals' purchases and sales / equips (of unique Loot) | 0 / 378 (4.3) | 0 / 359–402 |
+| Policy actions refused / documents refused or warned about | 0 / 0 | |
+
+No game ended in five years. Every unique Item a folded Guild held was listed once; the Loot tables'
+yield (about 1,600 awards a game across the world) is the M5 close's to balance (DL-52).
 
 ## DL-55 — M4 close: M3's verification merged (`configVersion` 6), the M4 counters, and the M4 run
 
@@ -3325,6 +3948,207 @@ box has the run's evidence in the epic. The M4-S5 box on Patrons stays proved by
 - **The Rivals' Heroes now grow old.** They live long enough to decline 0.75 times a Guild-year
   and to retire 104 times in 200 games. The Rivals' mean Level peaks at 6.76 after 15 years and
   falls to 6.26 by 20. DL-40's "nobody grows old" no longer holds for them.
+
+## DL-61 — Merging the main line's M4 close into M5: `configVersion` 7, content version 11
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 close, merging
+v1.0-dev `c1161b5` into `m5-integration`)
+
+**Context.** M5's five stories (DL-48 to DL-52, merged by DL-54) were built on `af62040`, an early
+M4 (M4-S4 merged, before M4's close). v1.0-dev then gained M4's close and M3's verification: DL-47
+and DL-55 (`configVersion` 5, then 6), DL-53 (`infirmaryHealFactor` `[1, 1/2, 1/3, 1/4]`, the
+`healFactor` selector the Quest Engine reads, the CLI's `show hall` and its refusal of actions
+once the game has ended), the M3 and M4 counters and census in the harness, the two reports and the
+CPU-time timing test. Its content stayed at version 8. On this line the content went to 9 (the Item
+definitions, DL-48) and 10 (the Loot tables, DL-52), and `configVersion` stayed 4 although M5 added
+`gearSlots`, `lootDifficultyThreshold`, `lootOnBands`, `marketSize`, `marketStackMin`,
+`marketStackMax`, `sellRatio` and `lootOnlyPrice`. (DL-54 item 6 says the content version stayed 9;
+it was 10, from DL-52.)
+
+**Decision.**
+
+1. **The merged `defaultConfig` carries both lines**: every value DL-55 item 1 lists (the
+   multiple of 60, the four infirmary factors, the Quest Engine's fields and none of the stub's),
+   and every field M5 added, at its M5 default. No value is chosen here.
+2. **`configVersion` is 7.** A save made on this line says 4 and lacks the main line's changes; a
+   save made on the main line says 6 and lacks M5's fields. Neither may read as current.
+3. **The content version is 11**, not 10: the other lines in flight have used 10 and 11 for other
+   content, and 11 is the number the orchestrator assigned this merge, so that no document made
+   under an earlier content set on either line reads as this one. The content itself is this
+   line's (the main line changed none).
+4. **Four conflicts, each resolved by keeping both sides**: the CLI's help lists `show hall` and
+   `show market` (`args.ts`); `render.ts`'s header names both lines' selectors; `resolve.ts`'s
+   comment names `healFactor` (DL-53) and the consumables' `kitOf` (DL-50), whose code merged
+   cleanly (an Injury's Days use `healFactor`, then the Party's heals shorten them); and this log,
+   in number order. M5's code never referred to the stub, which was gone before M5 began. M5's
+   `equip`, `unequip`, `buy` and `sell` commands go through the CLI's `act`, so DL-53's refusal of
+   an action after the end covers them.
+5. **Tests that pinned the versions stay pinned**, at the new numbers: the wage test and the Quest
+   Engine's config test pin `configVersion` 7; the content test pins 11. No test was loosened and
+   no other test leaned on a default either line changed.
+
+**Consequences.** M5's rules have not yet been measured beside a multiple of 60 and the fourth
+infirmary factor, nor M4's close's balance beside Items. The M5 close's 200 × 20 run judges them
+together (DL-62).
+
+## DL-62 — M5 close: the M5 counters, the policy's consumables, Loot for hard Quests (`configVersion` 8, content version 12), and the M5 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 close), choosing a
+policy rule and two Loot values; the owner has not seen them
+
+**Context.** Four things close M5. (a) The epic's §2 names the counters: Wealth spent by category
+(signing, Transfer, Items, Improvements, Upkeep), Loot awarded by table, and consumables expended per
+Quest; M5-S5's third box wants the Loot counter to rise with the player's mean Quest difficulty, and
+DL-49 to DL-52 said which events carry what. (b) DL-50 item 2 left no controller carrying a
+consumable, so the counter would read 0, "the M5 close's to judge". (c) DL-54's smoke run saw about
+330 Loot awards a game-year, "the M5 close's to balance"; the task allowed one balance pass on content
+and config values, never on rule code. (d) The merges: DL-61 took M4's close in; v1.0-dev then gained
+M4's verification (DL-70: the Board's Skills, `preview`'s help, stronger tests; no version change), merged
+again at `2999cb0`, where the help for `preview` now names its Synergies and the consumables it would
+carry, and the CLI test that reads that help looks for both.
+
+**Decision.**
+
+1. **The counters** (`harness/src/counters.ts`, each with a fixture test in `counters.test.ts`; totals
+   and the report's section "Items (M5)" in `sweep.ts`). From the History, each entry counting for the
+   controller of the Guild its payload names (DL-34 item 4):
+   - *Wealth spent by category*: signing `hero.recruited` `fee`; Items `item.bought` `cost` (and the
+     Items bought, by `quantity`); Improvements `guild.improved` `cost`; Upkeep `guild.upkeep-paid`
+     `amount`. Transfers have no event until M6 and the report says so. Beside them what is taken:
+     Quest rewards `quest.resolved` `wealthDelta`, and the Market's income `item.sold` `proceeds` by
+     its `cause` (`sale`, `fold`), with the Items sold. With the starting Wealth these are every flow
+     of a Guild's Wealth the engine has.
+   - *Loot awarded by table*: `quest.loot` by `lootTableKey`: awards, the Items they gave (`quantity`),
+     and the awards of a unique Item (`itemId` not null) counted apart.
+   - *Consumables per Quest*: `quest.taken`'s `consumables` carried and `item.expended` expended, each
+     against `quest.resolved`; the Quests with one or more expended (distinct `questId`); by effect and
+     by definition.
+   - *Gear moved*: `item.equipped`, `item.unequipped`, and `item.returned` by its `cause`.
+2. **The player's Quest difficulty is read at dispatch.** No entry records a Quest's difficulty, and a
+   resolved Quest's row is removed. The play loop (`play.ts`) records, for each dispatch of the
+   policy's that the rules accept, the Quest's `difficulty` from its row as it stood
+   (`playerQuestDifficulty`), and `countGame` joins it by `questId` to the player's `quest.resolved` and
+   `quest.loot`: the Quests resolved, their difficulty, the strong ones and the Loot they won, by bands
+   of 10 and by the year resolved. A Rival's Quest is not recorded; M5-S5's box is about the player.
+   Considered and not taken: a `difficulty` on `quest.taken`, an engine change for a counter.
+3. **The policy carries and buys consumables** (`harness/src/policy.ts`). Each Party carries one of
+   each consumable the Guild holds that could serve its Quest: a `bonus` or `reroll` whose kinds hold
+   the kind of one of the Quest's Encounters, and any `heal`, taken in key order from what the Parties
+   sent before it that Turn left. The one purchase a Turn gains a fourth choice, after the recruit: buy
+   toward `consumableStock` (2) of each consumable, counting the Guild's holding and its Parties'
+   together; of those the Market has for sale and the Guild lacks, the one it has fewest of, lowest key
+   among equals, as many as it lacks and the Market has, while Wealth is above `buyWealthMultiple` (3)
+   times their cost and, once paid, above `consumableReserveUpkeeps` (**20**) Upkeeps. Why: without the
+   rule the counter reads 0, Loot's consumables pile up unused, and Items are 0.2% of the Wealth the
+   player spends; with it the harness exercises M5-S3's three effects and the Market's consumables, as
+   the armour rule (DL-51 item 9) does its armour. The purchase comes after the recruit so that it never
+   keeps a Roster short. `steady` is unchanged: M6's Dispositions decide what Rivals carry and buy
+   (DL-50 item 2).
+   - *The reserve, from two failures.* With no reserve, `seed-0001`'s player bought itself into
+     Bankruptcy in year 2 of a 32-seed trial. With three Upkeeps, the reserve recruiting keeps, the first
+     validated 200 × 20 run ended one game: `seed-0188`, Bankruptcy on Turn 3,779, its Guild having
+     spent 27,280 on Items against Quest rewards of 126,979 and Upkeep of 98,978. Without buying, that
+     Guild plays five years; with twenty Upkeeps, it and `seed-0001` play five years and earn more than
+     without buying (`seed-0188`: 225,316 in Quest rewards over five years, against 188,940). That run
+     was set aside and the gate run again. The trials of items 4 and 5 used three Upkeeps; the reserve does not touch Loot.
+4. **The run was degenerate in its Loot, and not elsewhere.** 32 seeds, 20 years, the final policy,
+   before the pass (content 11, config 7):
+   - *Unique Items.* Every game awarded all five, and 48 of the 53 that the player's Guild found were
+     found in year 0. A unique Item is a Milestone and one of a kind in a world (DL-52 item 7); one of
+     each by the end of the first year leaves nothing unique to find in the other nineteen.
+   - *Loot volume.* The player won Loot on 0.279 of its Quests, 92 awards a Guild-year, and the Rivals
+     on 0.194, 43 a Guild-year: about 265 awards and 424 Items a game-year, most of them Loot from
+     Clear the barrow and The beast of the fells, whose lowest difficulty is 30 and 35.
+   - *Not degenerate: Wealth.* No controller sells, so Loot adds no Wealth; the player's Wealth after 20
+     years was 268,472 (M4's run, DL-55: 267,608), and Items became 14.2% of what it spent.
+   - *Not degenerate: armour.* No Quest became a formality: the player's Checks succeeded 77.9% and its
+     Quests failed 21.8%. The Rivals folded 2.69 times a game (M4: 2.24).
+5. **The balance pass** (content version 12, `configVersion` 8):
+   - `lootDifficultyThreshold` 25 → **35**, and Clear the barrow (30) and The beast of the fells (35)
+     name no Loot table, so that content and config still agree (DL-52 item 3; `creation.test.ts`). Loot
+     is for the four templates whose lowest difficulty is 40 or more; `lesser-loot` is Lay the restless
+     dead's.
+   - The Loot tables' weights are ten times what they were, but the unique Items': 1 each in
+     `lesser-loot` (0.3% of its weight, from 6%) and 3 each in `greater-loot` (1.7%, from 15%).
+   - Same 32 seeds, 20 years, unvalidated, before and after:
+
+     | Measure | Before | After |
+     | --- | ---: | ---: |
+     | Loot awards a Guild-year, the player's / a Rival's | 92.3 / 43.4 | 41.0 / 13.6 |
+     | Loot a Quest resolved, the player / the Rivals | 0.279 / 0.194 | 0.124 / 0.060 |
+     | Items awarded as Loot, all Guilds | 271,175 | 97,152 |
+     | Unique Items awarded (a game); the player's in year 0 | 160 (5.0); 48 of 53 | 158 (4.9); 15 of 82 |
+     | Consumables expended a player's Quest | 0.885 | 0.834 |
+     | Items, a share of the player's Wealth spent | 14.2% | 16.7% |
+     | The player's Checks succeeded; Quests failed | 77.9%; 21.8% | 76.9%; 23.0% |
+     | Deaths a game, the player's / the Rivals' | 43.6 / 45.6 | 45.0 / 49.6 |
+     | The player's Wealth after 10 and 20 years | 152,662; 268,472 | 136,705; 238,664 |
+     | A Rival's Wealth after 10 and 20 years | 41,603; 22,976 | 42,507; 23,186 |
+     | Rival folds a game | 2.69 | 2.34 |
+
+   The unique Items are now found across the game (the player's: 15, 16 and 13 in years 0 to 2, then
+   a few a year to year 17), and Loot about a third as often.
+6. **Tests.** The wage test and the Quest Engine's config test pin `configVersion` 8; the content test
+   pins version 12. The engine's Loot tests pin `lootDifficultyThreshold` 25 and use the fixture
+   content, so the pass does not reach them; `creation.test.ts` holds the new agreement. No assertion
+   was loosened. `npm test` gained 15 tests.
+7. **The run, 2026-09-26** (`harness/reports/m5-2026-09-26.md`, committed with this entry): 200 seeds,
+   `seed-0001` to `seed-0200`, each up to 20 years, validated after every advance
+   (`HEROESIM_VALIDATE=1`), config version 8, content version 12, the policy of item 3. It ran in 16
+   processes on DL-13's machine, which other agents' work shared, and took 65 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, and all 200 last documents load
+     and serialise back alike. `seed-0001` played twice more: identical, 95,318,788 characters.
+   - **Every game ran 20 years.** Rivals folded 2.36 times a game.
+   - **The M5 counters.** The player's Guild spent 47,043 a Guild-year: Upkeep 83.4%, Items 15.9%
+     (7,477, 228 Items), signing 0.6% and Improvements 0.2%, against Quest rewards of 58,657. The Rivals
+     spent 29,382 a Guild-year, 99.3% of it Upkeep, and bought nothing; folding Guilds' unique Items
+     brought them 68,100 in 200 games. Loot: the player's Guild 40.3 awards a Guild-year (0.122 a Quest
+     resolved), the Rivals 13.3 (0.059); 981 unique Items in 200 games (4.9 a game), the player's found
+     76, 68 and 62 in years 0 to 2 and fewer each year after, 3 in year 19. The player's Loot a Quest is
+     none below difficulty 40 and rises with it, 0.051 at 40 to 49, 0.108 at 50 to 59, 0.184 at 60 to
+     69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at 90 to 99. Consumables: the player's Parties
+     carried 2.71 a Quest and expended 0.803 (59.7% of Quests used one or more: 681,824 bonuses, 285,557
+     rerolls, 95,994 heals); the Rivals none. Gear: the player equipped 7.7 pieces a Guild-year and 25,813
+     came back from the dead; the Rivals 2.5, with 7,423 back from folding Guilds' Rosters.
+   - **Beside M4's run** (DL-55):
+
+     | Measure | M4 | M5 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 1, a Bankruptcy | 0 |
+     | Rival folds a game | 2.24 | 2.36 |
+     | The player's Quests failed / succeeded / strong | 37.7 / 21.2 / 41.1% | 23.1 / 19.0 / 57.9% |
+     | The Rivals' Quests | 11.7 / 8.1 / 80.2% | 9.2 / 7.2 / 83.6% |
+     | The player's Checks succeeded; the Rivals' | 63.7%; 87.7% | 76.9%; 90.1% |
+     | Deaths a game, the player's / the Rivals' | 83.5 / 62.6 | 46.1 / 50.1 |
+     | Injuries a game | 1,021 / 794 | 577 / 619 |
+     | Levels gained a Guild-year | 17.3 / 6.0 | 13.4 / 5.8 |
+     | Mean Level after 10 years | 5.42 / 6.22 | 7.01 / 6.62 |
+     | The player's Wealth after 10 and 20 years | 141,831; 267,608 | 135,206; 232,781 |
+     | A Rival's Wealth after 10 and 20 years | 36,594; 26,041 | 40,766; 24,808 |
+     | Save after 20 years, mean (max) | 92.9 (109.7) MiB | 99.8 (118.9) MiB |
+     | History entries after 20 years, mean | 246,597 | 263,189 |
+     | A Turn alone, mean (p99) | 0.98 (2.1) ms | 1.08 (2.5) ms |
+
+   - **Measures.** Under the run's load `advance` averaged 5.00 ms a Turn; alone (`seed-0001` replayed)
+     1.08 ms, so a year is 1.16 s, over data-model §7's 1 s as M4's was. At this run's rate 1,000 games
+     of 20 years would take 319 minutes (M4's run, 389).
+
+**Consequences.** M5's gate has its run: the harness reports Wealth spent by category, and M5-S5's
+third box has the run's evidence in the epic. For the owner:
+
+- **Items make the player markedly stronger than M4 did.** In 32-seed trials of 10 years (before the
+  pass), the player's Checks succeeded 64.7% with no Loot and no consumables (M4's run: 63.7%), 71.0%
+  with Loot's gear, and 76.2% with the policy's consumables as well; its failed Quests fell from 36.4%
+  to 23.9%, and its Deaths by 45%. Gear goes into empty slots only (`gearChoices`, DL-49), and Loot's
+  gear fills them within about a year. That is M5's rules and the policy using all of them, not a value
+  out of line, so the pass leaves it; M6's Dispositions and a player's choices will decide how much of
+  it is used.
+- **Consumables are now the player's second cost after Upkeep**, about a sixth of what it spends, and
+  a Guild with a poor start can buy itself into trouble without the reserve.
+- **Rivals neither carry nor buy** consumables; their Loot consumables pile up in their holdings
+  until M6.
+- **Surplus Loot gear piles up**: nothing sells it and `gearChoices` never replaces worn gear with
+  better.
 
 ## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
 

@@ -8,7 +8,10 @@ import type {
   ClassKey,
   ImprovementKey,
   InjuryTypeKey,
+  ItemDefinitionKey,
+  LootTableKey,
   QuestTemplateKey,
+  SlotKey,
   SphereKey,
   StatKey,
   SynergyKey,
@@ -22,11 +25,14 @@ import type {
   GuildId,
   GuildmasterId,
   HeroId,
+  ItemId,
   PartyId,
   PatronId,
   QuestId,
+  StackId,
   Turn,
 } from './document.js';
+import type { ConsumableUse } from './quest-engine/consumables.js';
 import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
@@ -127,6 +133,11 @@ export type QuestTaken = Entry<
      * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before M4-S5.
      */
     reward?: number;
+    /**
+     * The consumables the Party carries from the Guild's holding (M5-S3, DL-50), in the order asked:
+     * `[]` for none. Absent from an entry written before M5-S3.
+     */
+    consumables?: { definitionKey: ItemDefinitionKey; quantity: number }[];
   }
 >;
 
@@ -162,6 +173,29 @@ export type QuestResolved = Entry<
     guildId: GuildId;
     heroIds: HeroId[];
     templateKey: QuestTemplateKey;
+  }
+>;
+
+/**
+ * A Quest's outcome left Loot (M5-S5, DL-52): one entry of the Quest's Loot table, drawn by the Quest
+ * Engine on a band in `lootOnBands`, now in the Guild's holding. A unique Item is a new row,
+ * `itemId`; a common Item joined the Guild's stack of its definition, `stackId`, by `quantity`. A
+ * Milestone when the Item is unique (`milestoneWhen`). Names the Quest, the Party, the Guild and, for
+ * a unique Item, the Item.
+ */
+export type QuestLoot = Entry<
+  'quest.loot',
+  {
+    questId: QuestId;
+    partyId: PartyId;
+    guildId: GuildId;
+    lootTableKey: LootTableKey;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    /** The unique Item created; `null` for a common Item. */
+    itemId: ItemId | null;
+    /** The Guild's stack the common Item joined; `null` for a unique Item. */
+    stackId: StackId | null;
   }
 >;
 
@@ -333,6 +367,103 @@ export type HeroRegardChanged = Entry<
   }
 >;
 
+// ── Items (M5) ───────────────────────────────────────────────────────────────────────────────
+
+/**
+ * One consumable a Party carried was used on its Quest and expended from its stack (M5-S3, DL-50):
+ * a `bonus` added `flat` to the Check of Encounter `encounterIndex`; a `reroll` had that Encounter's
+ * failed Check, `firstRoll`, rolled again (its `quest.encounter` records the second roll); a `heal`
+ * took `days` Days off `heroId`'s Injury. One entry an Item, in the order used, after the Quest's
+ * `quest.encounter` entries and before its `quest.resolved`. Names the Quest, the Party, the Guild
+ * and, for a heal, the Hero. Not a Milestone.
+ */
+export type ItemExpended = Entry<'item.expended', ConsumableUse & { questId: QuestId; partyId: PartyId; guildId: GuildId }>;
+
+// ── Gear (M5-S2, DL-49) ──────────────────────────────────────────────────────────────────────
+
+/**
+ * An Item of gear moving between a Hero's slot and their Guild's holding: the Hero, the Guild, the
+ * slot, the definition, and the row moved — the unique Item (`itemId`, `stackId` null), or for a
+ * Common Item the stack the unit is in after the move (`stackId`, `itemId` null), which is the
+ * Hero's own stack on equipping and the Guild's stack it joined on the way back.
+ */
+export interface GearMove {
+  heroId: HeroId;
+  guildId: GuildId;
+  slot: SlotKey;
+  definitionKey: ItemDefinitionKey;
+  itemId: ItemId | null;
+  stackId: StackId | null;
+}
+
+/**
+ * A Guild put gear from its holding into a Hero's slot through `equip`. Names the Hero, the Guild
+ * and the Item or stack. Not a Milestone.
+ */
+export type ItemEquipped = Entry<'item.equipped', GearMove>;
+
+/**
+ * A Guild took gear out of a Hero's slot back into its holding through `unequip`. Names the Hero,
+ * the Guild and the Item or stack. Not a Milestone.
+ */
+export type ItemUnequipped = Entry<'item.unequipped', GearMove>;
+
+/**
+ * Why gear went back from a Hero to their Guild's holding without an `unequip` (DL-49): the Hero
+ * died or retired (the night's `gearReturn`), or the Guild folded (its gear is back before the
+ * fold does anything with the Guild's holding). M6's Transfers add theirs.
+ */
+export type GearReturnCause = 'died' | 'retired' | 'guild-folded';
+
+/**
+ * Gear a Hero carried went back to their Guild's holding, for `cause`, one entry per Item. Names the
+ * Hero, the Guild and the Item or stack. Not a Milestone: the Death, Retirement or fold is.
+ */
+export type ItemReturned = Entry<'item.returned', GearMove & { cause: GearReturnCause }>;
+// ── The Market (M5-S4, R31, pre-M0 review D6, DL-51) ────────────────────────────────────────
+
+/**
+ * A Guild bought `quantity` Items of `definitionKey` from the Market through `buy`, at `unitPrice`
+ * each, for `cost` Wealth in all; `itemIds` are the unique Items bought, in id order, and `[]` for a
+ * common Item, whose quantity joined the Guild's stack of it. Names the Guild and each unique Item.
+ */
+export type ItemBought = Entry<
+  'item.bought',
+  {
+    guildId: GuildId;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    unitPrice: number;
+    cost: number;
+    itemIds: ItemId[];
+  }
+>;
+
+/**
+ * Why Items went to the Market: a Guild sold them through `sell`, or a folding Guild's unique Items
+ * were sold for it (pre-M0 review D6, DL-51).
+ */
+export type ItemSaleCause = 'sale' | 'fold';
+
+/**
+ * A Guild sold `quantity` Items of `definitionKey` to the Market, at `unitPrice` each, for
+ * `proceeds` Wealth in all, and the Market lists them: through `sell`, or, with `cause: 'fold'`, one
+ * unique Item of a folding Guild at a time. `itemIds` are the unique Items sold and `[]` for a
+ * common Item. Names the Guild and each unique Item.
+ */
+export type ItemSold = Entry<
+  'item.sold',
+  {
+    guildId: GuildId;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    unitPrice: number;
+    proceeds: number;
+    itemIds: ItemId[];
+    cause: ItemSaleCause;
+  }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -349,6 +480,7 @@ export type EngineEvent =
   | QuestTaken
   | QuestEncounter
   | QuestResolved
+  | QuestLoot
   | HeroInjured
   | HeroDied
   | HeroXpGained
@@ -363,7 +495,13 @@ export type EngineEvent =
   | HeroLevelled
   | PatronRegardChanged
   | GuildmasterRegardChanged
-  | HeroRegardChanged;
+  | HeroRegardChanged
+  | ItemExpended
+  | ItemEquipped
+  | ItemUnequipped
+  | ItemReturned
+  | ItemBought
+  | ItemSold;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -374,7 +512,9 @@ export type EngineEventOf<Type extends EngineEventType> = Extract<EngineEvent, {
 /**
  * Whether each event type is a Milestone (`CONTEXT.md`): the entries a front end picks out of the
  * History. Keyed by every event type and by nothing else, so the compiler refuses an event type
- * added to `EngineEvent` without saying which it is. `emit` reads it (DL-24).
+ * added to `EngineEvent` without saying which it is. `emit` reads it (DL-24) through `isMilestone`,
+ * which lets `milestoneWhen` decide a type that is a Milestone for some payloads only; such a type
+ * is `false` here.
  */
 export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object.freeze({
   'world.created': false,
@@ -391,6 +531,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'quest.taken': false,
   'quest.encounter': false,
   'quest.resolved': false,
+  'quest.loot': false,
   'hero.injured': false,
   'hero.died': true,
   'hero.xp-gained': false,
@@ -406,4 +547,27 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,
   'hero.regard-changed': false,
+  'item.expended': false,
+  'item.equipped': false,
+  'item.unequipped': false,
+  'item.returned': false,
+  'item.bought': false,
+  'item.sold': false,
 } satisfies Record<EngineEventType, boolean>);
+
+/** A rule saying, from its payload, whether an entry of `Type` is a Milestone. */
+type MilestoneRule<Type extends EngineEventType> = (payload: EngineEventOf<Type>['payload']) => boolean;
+
+/**
+ * The event types that are Milestones for some payloads only, each with the rule that says which
+ * (M5-S5, DL-52): `quest.loot` when its Item is unique. `milestoneTypes` holds `false` for them.
+ */
+export const milestoneWhen: { readonly [Type in EngineEventType]?: MilestoneRule<Type> } = Object.freeze({
+  'quest.loot': (payload: QuestLoot['payload']) => payload.itemId !== null,
+});
+
+/** Whether an event of `type` with `payload` is a Milestone: `milestoneWhen`'s rule, or else `milestoneTypes`. */
+export function isMilestone<Type extends EngineEventType>(type: Type, payload: EngineEventOf<Type>['payload']): boolean {
+  const rule = milestoneWhen[type] as MilestoneRule<Type> | undefined;
+  return rule === undefined ? milestoneTypes[type] : rule(payload);
+}

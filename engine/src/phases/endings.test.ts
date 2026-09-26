@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
 import type { EngineDeps } from '../config.js';
+import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import {
   takeId,
@@ -9,11 +11,15 @@ import {
   type Guild,
   type GuildId,
   type HeroId,
+  type Holder,
+  type QuestId,
   type World,
   type WorldDocument,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
+import { addStack, createItem, holdings } from '../items.js';
+import { marketHolder, sellPrice } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
@@ -516,6 +522,113 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
         else expect(rng[name], name).toEqual(before[name]);
       }
+    }
+  });
+});
+
+// ── The fold's one order (M5, DL-54) ─────────────────────────────────────────────────────────
+
+describe("a fold's one order (DL-54)", () => {
+  /** What a test reads of a fold's event: its type and the Hero, Item, stack or Guild it concerns. */
+  const told = (event: EngineEvent): string[] => {
+    switch (event.type) {
+      case 'item.returned':
+        return [event.type, event.payload.heroId, event.payload.itemId ?? event.payload.stackId ?? ''];
+      case 'item.sold':
+        return [event.type, event.payload.cause, ...event.payload.itemIds];
+      case 'hero.left-guild':
+        return [event.type, event.payload.heroId];
+      case 'guild.folded':
+        return [event.type, ...event.participants];
+      default:
+        return [event.type];
+    }
+  };
+  const foldTypes: ReadonlySet<string> = new Set(['item.returned', 'item.sold', 'hero.left-guild', 'guild.folded']);
+
+  test("Parties home, the Roster's gear back, unique Items sold, stacks discarded, Heroes released, then guild.folded", () => {
+    // One Rival; an empty Market, so that whatever it lists the fold put there; the prices pinned.
+    const deps = testDeps({
+      rivalCount: 1,
+      marketSize: 0,
+      sellRatio: 0.5,
+      lootOnlyPrice: 600,
+      gearSlots: ['weapon', 'armour', 'trinket'],
+    });
+    stillRivalControllers();
+    const start = created('one-order', deps);
+    const { world } = start;
+    const rival = firstRival(world);
+    arrange.retirement(world, rival, deps); // it folds on the first night
+    const vault: Holder = { kind: 'guild', id: rival.id };
+
+    // In its holding: two unique Items, and stacks, some of which a Party carries away.
+    const lantern = createItem(world, 'lantern-of-stannary', vault);
+    const mantle = createItem(world, 'mantle-of-the-fells', vault);
+    addStack(world, 'whetstone', 3, vault);
+    addStack(world, 'healing-draught', 3, vault);
+    // A Party in flight, its first member wearing a unique Item and common gear.
+    const staffing = (questId: QuestId) => {
+      const quest = world.quests[questId];
+      const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(world, rival), deps.content);
+      return quest === undefined || heroIds === null ? [] : [{ quest, heroIds }];
+    };
+    const [staffed] = world.board.flatMap(staffing);
+    if (staffed === undefined) throw new Error('The Rival can staff no Quest');
+    const { quest, heroIds } = staffed;
+    const [wearer] = heroIds as [HeroId];
+    const blade = createItem(world, 'barrow-kings-blade', { kind: 'hero', id: wearer, slot: 'weapon' });
+    const shirt = addStack(world, 'mail-shirt', 1, { kind: 'hero', id: wearer, slot: 'armour' });
+    const consumables = [
+      { definitionKey: 'healing-draught', quantity: 2 },
+      { definitionKey: 'whetstone', quantity: 1 },
+    ];
+    const sent = dispatch(start, { guildId: rival.id, questId: quest.id, heroIds, consumables }, deps);
+    if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
+    const eve = withValid(sent.document, deps);
+    const party = Object.values(eve.world.parties).find((it) => it.guildId === rival.id);
+    if (party === undefined) throw new Error('No Party');
+    expect(party.returnsOnTurn).toBeGreaterThan(nightOf(0)); // still away on the night it folds
+    expect(holdings(eve.world, { kind: 'party', id: party.id }).stacks).toHaveLength(2);
+    const roster = [...guildOf(eve.world, rival.id).rosterIds];
+    const uniques = [lantern, mantle, blade]; // in id order, as made
+
+    // playTo holds the document to the validator.
+    const { document, events } = playTo(eve, nightOf(0), deps);
+    const after = document.world;
+
+    // The fold's events, in its order, and the night's last.
+    const expected = [
+      ['item.returned', wearer, blade],
+      ['item.returned', wearer, shirt],
+      ...uniques.map((itemId) => ['item.sold', 'fold', itemId]),
+      ...roster.map((heroId) => ['hero.left-guild', heroId]),
+      ['guild.folded', rival.id, rival.guildmasterId, party.id, quest.id],
+    ];
+    expect(events.filter((event) => foldTypes.has(event.type)).map(told)).toEqual(expected);
+    expect(events.slice(-expected.length).map(told)).toEqual(expected);
+    expect(guildOf(after, rival.id)).toMatchObject({ foldedOnTurn: nightOf(0), rosterIds: [] });
+
+    // Every unique Item is on the Market exactly once, sold at sell price to the folded Guild's
+    // credit; the Market lists nothing else.
+    expect(holdings(after, marketHolder)).toEqual({ items: uniques.map((itemId) => after.items[itemId]), stacks: [] });
+    const sold = ofType(events, 'item.sold');
+    expect(sold.flatMap((event) => event.payload.itemIds)).toEqual(uniques);
+    for (const event of sold) {
+      expect(event.payload).toMatchObject({ guildId: rival.id, quantity: 1, unitPrice: sellPrice(event.payload.definitionKey, deps) });
+    }
+
+    // Nothing is left with the Guild, a Party of its own, or a Hero who was on its Roster: the Party
+    // and its Quest are gone, and what it carried went home and was discarded with the Guild's stacks.
+    expect(after.parties).not.toHaveProperty(party.id);
+    expect(after.quests).not.toHaveProperty(quest.id);
+    const ours = (holder: Holder): boolean =>
+      (holder.kind === 'guild' && holder.id === rival.id) ||
+      (holder.kind === 'party' && (holder.id === party.id || after.parties[holder.id]?.guildId === rival.id)) ||
+      (holder.kind === 'hero' && (roster.includes(holder.id) || after.heroes[holder.id]?.guildId === rival.id));
+    expect([...Object.values(after.items), ...Object.values(after.stacks)].filter((row) => ours(row.holder))).toEqual([]);
+    for (const heroId of roster) {
+      expect(after.heroes[heroId]).toMatchObject({ guildId: null, partyId: null, unattachedSince: nightOf(0) });
     }
   });
 });

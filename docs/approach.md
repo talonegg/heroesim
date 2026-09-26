@@ -60,7 +60,7 @@ afternoon  Rival controllers act, on what the player left · Quests in flight ad
            [modules: onAfternoon]
 night      Training yard XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
            Hero State Engine (heal, Morale, Regard decay, Retirement checks) · ageing (decline
-           on those nights)
+           on those nights) · gear of the dead and retired back to their Guilds
            Guild State Engine (Upkeep on its Day, Fame, Rankings)
            Patron State Engine (Patron Regard recovering toward neutral)
            Unattached pool refresh · [modules: onNight — Random Events, when built]
