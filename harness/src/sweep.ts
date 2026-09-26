@@ -1030,10 +1030,14 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       `config version ${config.configVersion}, schema version ${config.schemaVersion} · ` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
-    `Policy (INPUTS 4.14): the highest-reward Quest it can staff, the strongest Party of the size it requires; ` +
-      `one purchase a Turn: the infirmary's next grade while Wealth exceeds ${sweep.policy.buildWealthMultiple} times ` +
-      `its cost (M3-S6), else the cheapest Hero who would sign while Wealth exceeds ` +
-      `${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}; never transfer.`,
+    `Policy (INPUTS 4.14): first the gear it holds onto Heroes with the slot empty (M5-S2); the highest-reward ` +
+      `Quest it can staff, the strongest Party of the size it requires, carrying one of each consumable held that ` +
+      `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
+      `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
+      `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +
+      `Wealth exceeds ${sweep.policy.recruitWealthMultiple} Upkeeps and the Roster is below ${sweep.policy.rosterLimit}, ` +
+      `else consumables toward ${sweep.policy.consumableStock} of each while Wealth exceeds ` +
+      `${sweep.policy.buyWealthMultiple} times their cost (DL-62); never sell; never transfer.`,
     '',
     `Machine: Node ${machine.node} · ${machine.os} ${machine.arch} · ${machine.cpu} (${machine.cores} logical cores) · ` +
       `games shared among ${sweep.workers} ${sweep.workers === 1 ? 'process' : 'processes'}`,
