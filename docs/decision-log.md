@@ -4844,12 +4844,13 @@ migration. Both lines had used 11 and 12 for different content.
 and the thinner Loot of DL-62; the M6 close's run (DL-69) measures them together. The M5 report's
 Transfers row and the M6 counters remain the close's work.
 
-## DL-69 — M6 close: the M6 counters, the balance pass, and the M6 run
+## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
-**Status:** Draft — items 1 to 3 (the counters) are written; the balance pass and the M6 run append
-their items and the Consequences before the entry is accepted · **Date:** 2026-09-27 · **Decided
-by:** an agent (the M6 close's counter task), choosing how each counter reads the History and the
-World State; the owner has not seen them
+**Status:** Draft — items 1 to 8 (the counters and the balance pass) are written; the M6 run appends its
+items and the Consequences before the entry is accepted · **Date:** 2026-09-27 · **Decided by:** an
+agent (the M6 close's counter and balance tasks), choosing how each counter reads the History and the
+World State, the balance pass's targets, and the four Disposition rows' and the Transfer lock's values;
+the owner has not seen them
 
 **Context.** The epic's §2 names M6's counters: Transfers by direction and by controller kind, Rival
 Roster size and Wealth by year, and the Rankings position of the player's Guild by year under the
@@ -4859,7 +4860,10 @@ phase never changes the player's Roster (DL-59), and M6-S4's Rival Market purcha
 four rows; DL-57 to DL-60 each said what its entries carry. The M5 report's "Spent: Transfers" row read
 "none until M6". Two things M6 needs are in no entry: the difficulty of a Quest a Rival takes
 (`quest.taken` carries none), and which action made a Transfer (`hero.transferred` names the offer, if
-any, and nothing else).
+any, and nothing else). DL-56 to DL-60 each left the Disposition rows' values, and DL-60 its new
+config values, to be tuned on these counters; the close allows one balance pass on content rows and
+config defaults (a rule only where one is found faulty, fixed with a test), then the M6 run of 200 seeds
+× 20 years, validated, beside M5's (DL-62). DL-60's Consequences left `steady` folding the most.
 
 **Decision.**
 
@@ -4934,8 +4938,159 @@ any, and nothing else).
    the seller in debt), 14 of them back to a Guild that had sold the Hero; 18 offers for the player's
    Heroes (`ambitious` 6, `reckless` 12), all declined; 2 Rival folds. `npm test` gained 15 tests.
 
-*For the M6 close's balance pass and run to complete:* the balance pass on the Disposition rows (and
-any config default it moves, with its versions), the 200 × 20 run and its figures beside M5's, and the
+4. **The targets**, set before the first trial from the M6-S1 and M6-S4 boxes and the plausibility the
+   M6 close asked for. They are measured over 32 seeds × 20 years, then the run:
+   - *Four characters* (M6-S1 box 1, M6-S4 box 1): `reckless`'s mean difficulty taken at least 10 above
+     `miserly`'s and its Deaths a Guild-year at least 1.25 times (DL-56 item 9's margins); `ambitious`'s
+     Hall the first built, `miserly`'s the last.
+   - *Folds*: 1.5 to 3.5 Rival folds a game, the range M3 to M5 saw (3.08, 2.24, 2.36); no Disposition's
+     folds a Guild-year above 1.5 times the mean of the other three's unless `reckless`'s, whose
+     character explains it; `steady`'s never the most.
+   - *Rosters*: at least 80% of Rival year-starts within `rivalRosterMin` to `rivalRosterMax` (4 to 8),
+     each Disposition's median within them, and none above 8 at more than 30% of its year-starts.
+   - *Wealth*: no Disposition at the floor (4 Heroes or fewer) with more than 20 Upkeeps in hand at half
+     its year-starts or more (hoarding with a starving Roster), nor below 3 Upkeeps at 10% or more
+     (spending itself into a fold).
+   - *Transfers*: Rival to Rival at a modest rate, 2 to 30 a game and some in every five-year block; no
+     seller taken below `rivalRosterMin` (item 5's chain); under 15% of them back to a Guild that had
+     sold the Hero, and none within 90 Days of that sale (ping-pong).
+5. **What the counters showed before the pass**: 32 seeds, `seed-0001` to `seed-0032`, 20 years,
+   validated after every advance, content version 13, `configVersion` 9 (DL-63), 16 minutes. No refusal,
+   no broken assertion, the replay identical. Against item 4:
+   - *Folds*: 120, 3.75 a game, every one a Bankruptcy: `steady` 60 (0.094 a Guild-year; 30 of its 32
+     founding Rivals), `reckless` 25, `ambitious` 18, `miserly` 17. Read Rival by Rival in a scratch
+     trace of four seeds, a `steady` Rival's Heroes rise to Level 7 or 8 and its wages with them, while
+     the easiest Quest it can staff (mean difficulty 27.5; a reward is `rewardPerDifficulty` × difficulty)
+     pays what it paid in year 1: its Wealth peaks in years 2 to 5 and falls to the fold, at a Roster of 4
+     in 48 of the 60. DL-60's Consequences saw the same.
+   - *Transfers*: 858 Rival to Rival (26.8 a game), 762 of them between `ambitious` and `reckless`, 240
+     (28%) back to a Guild that had sold the Hero. A Rival consents to let a Hero go while (its Roster −
+     1) × `transferAppetite` ≥ 1 (DL-57 item 3), so `ambitious` (0.75) and `reckless` (0.5) sold from a
+     Roster of 4, fell below `rivalRosterMin`, bought back by need (DL-60 item 1) from the other, which
+     then did the same: 203 of the 858 took the seller to 3 Heroes or fewer, and 271 buyers were hiring
+     by need. DL-60's 30-Day lock spaced the chain out; it did not stop it.
+   - *Rosters*: 88% of year-starts within 4 to 8; above 8, `ambitious` 22% and `reckless` 25%.
+   - *Wealth*: `miserly` at the floor with more than 20 Upkeeps at 66% of its year-starts (a mean Roster of
+     4.5 and 21,087 Wealth: its 80 Upkeeps are never reached, and it hires only by need); `steady` below 3
+     Upkeeps at 9%.
+   - *Characters*: held — mean difficulty `reckless` 56.6, `ambitious` 42.3, `miserly` 31.9, `steady`
+     27.5; Deaths a Guild-year 1.75, 0.85, 0.53, 0.28; Hall grades at year 1 `ambitious` 9.0, `steady`
+     9.0, `reckless` 8.3, `miserly` 5.7.
+6. **The pass, trial by trial.** A scratch script (not committed) plays the harness's games — the same
+   play loop, policy, setup and seeds, unvalidated — and reads, beside the report's counters, what the
+   report does not give: the Roster sizes of both Guilds before each Transfer, the Days since a Hero
+   returning to a former seller was sold, and each Rival's Upkeep at a year-start. On the baseline it
+   gives the report's 120 folds and 858 Transfers exactly. Screening on 16 seeds (`seed-0001` to
+   `seed-0016`, harsher than 32: 4.63 folds a game at the baseline), then 32. "Back" is the Transfers to
+   a Guild that had sold the Hero, "(≤ 90)" those within 90 Days of the sale; "Below 4" the Transfers
+   that took the seller under `rivalRosterMin`; "Hoarding" `miserly`'s year-starts at the floor with
+   more than 20 Upkeeps. Each trial changes the row before it unless it says otherwise:
+
+   | Trial | Seeds | Folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | Rival to Rival a game | Back (≤ 90) | Below 4 | Within 4–8; above 8, `ambitious` / `reckless` | Hoarding |
+   | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |
+   | Baseline | 16 | 4.63 (14 / 9 / 17 / 34) | 23.5 | 71 | 105 | 88%; 19% / 26% | 72% |
+   | `steady` `questRiskAppetite` 0 → 0.4 (from the baseline) | 16 | 3.50 (13 / 14 / 10 / 19) | 24.4 | 118 | 91 | 88%; 17% / 28% | 53% |
+   | `transferAppetite` `ambitious` 0.75 → 0.3, `reckless` 0.5 → 0.25, `steady` 0.25 → 0.2 (from the baseline) | 16 | 4.63 (10 / 11 / 14 / 39) | 6.6 | 13 | 1 | 87%; 16% / 31% | 56% |
+   | Both | 16 | 3.69 (9 / 15 / 12 / 23) | 4.8 | 6 | 0 | 86%; 28% / 27% | 55% |
+   | … and `steady` `buildThreshold` 3 → 8 | 16 | 3.63 (11 / 10 / 14 / 23) | 5.4 | 10 | 0 | 85%; 28% / 26% | 50% |
+   | … or `hallMaintenancePerGrade` 10 → 5 | 16 | 2.38 (11 / 6 / 7 / 14) | 10.9 | 32 | 0 | 80%; 44% / 33% | 49% |
+   | Both, `steady` 0.5 for 0.4 | 16 | 3.31 (12 / 16 / 17 / 8) | 5.0 | 6 | 0 | 84%; 27% / 28% | 47% |
+   | `miserly` `questRiskAppetite` 0.25 → 0.35, `recruitThreshold` 80 → 50 | 16 | 3.50 (14 / 16 / 12 / 14) | 9.0 | 29 (0) | 0 | 82%; 30% / 31% | 37% |
+   | … and `recruitThreshold` `ambitious` 40 → 55, `reckless` 30 → 40 | 16 | 2.56 (5 / 17 / 6 / 13) | 2.4 | 4 (0) | 0 | 88%; 17% / 19% | 31% |
+   | … or `ambitious` 40 → 45, `reckless` 30 → 35 | 16 | 3.06 (9 / 14 / 13 / 13) | 5.6 | 21 (3) | 1 | 85%; 21% / 25% | 40% |
+   | `ambitious` `questRiskAppetite` 0.6 → 0.7 | 16 | 3.19 (9 / 18 / 9 / 15) | 4.3 | 2 (0) | 0 | 88%; 15% / 23% | 35% |
+   | `miserly` `buildThreshold` 20 → 40 | 16 | 3.19 (8 / 13 / 15 / 15) | 4.7 | 4 (0) | 0 | 85%; 26% / 22% | 31% |
+   | Baseline | 32 | 3.75 (18 / 17 / 25 / 60) | 26.8 | 240 | 203 | 88%; 22% / 25% | 66% |
+   | Every `recruitThreshold` lower (`ambitious` 25, `miserly` 40, `reckless` 20, `steady` 30), with `steady` 0.35 and the second row's appetites (the first trial) | 32 | 4.84 (35 / 33 / 42 / 45) | 12.7 | 42 | 0 | 73%; 46% / 31% | 22% |
+   | The 16-seed trials' last row | 32 | 3.03 (14 / 28 / 29 / 26) | 4.7 | 6 (0) | 0 | 85%; 25% / 20% | 24% |
+   | … and `steady` `recruitThreshold` 60 → 45 | 32 | 3.16 (14 / 29 / 28 / 30) | 6.1 | 15 (0) | 0 | 83%; 27% / 17% | 24% |
+   | … or `miserly` `recruitThreshold` 50 → 60 | 32 | 2.91 (16 / 24 / 30 / 23) | 4.6 | 10 (0) | 0 | 86%; 25% / 24% | 36% |
+   | … or `miserly` 50 → 70 | 32 | 2.81 (17 / 18 / 29 / 26) | 5.7 | 17 (4) | 0 | 87%; 27% / 20% | 44% |
+   | … and `transferLockDays` 30 → 90 | 32 | 2.78 (17 / 17 / 29 / 26) | 5.5 | 18 (0) | 0 | 87%; 27% / 20% | 45% |
+
+   What each step showed:
+   - *`steady`'s appetite is its folds.* Taking the middle of the Quests it can staff, its income follows
+     the Board's harder half; its `buildThreshold` changed nothing (8.8 grades of 9 by year 2 at 8, 9 at
+     3), and a lower `recruitThreshold` (45) did not help (30 folds against 26).
+   - *Every `transferAppetite` below a third ends the chain.* At an appetite under 1/3 a Rival lets a Hero
+     go only from a Roster of 5 (it keeps 4, `rivalRosterMin`), and takes one in only at 4 or more, so a
+     Rival hiring by need recruits from the pool rather than buying: the Transfers below 4 go from 203 to
+     none, and those back to a former seller from 28% to 10%. The appetite is still the chance of seeking
+     a Transfer and orders the Generator's bidder, `ambitious` 0.3 over `reckless` 0.25 over `steady` 0.2
+     over `miserly` 0.1.
+   - *Lower hiring bars overreach.* With every `recruitThreshold` lowered, `ambitious` grew to 12 Heroes by
+     year 5 and every Disposition folded more (4.84 a game): Heroes past what one dispatch an afternoon can
+     use add wages, not income. Raising `ambitious`'s and `reckless`'s bars (55, 40) cut the Rosters above
+     8 and the folds, but left 2.4 Transfers a game; 45 and 35 keep both near the targets.
+   - *`miserly` is the next to fold* once `steady` is not: the Rivals share one Board, and the cautious end
+     of it pays least as its Heroes' Levels rise. Its `questRiskAppetite` barely moves its choices: a
+     place along the Quests it can staff rounds the same at 0.25 and 0.35 unless it can staff 6, 9 or 10
+     or more (its mean difficulty 31.9 before, 30.8 after), and 0.35 stays from that trial. What helps is
+     a smaller Hall (`buildThreshold` 40: fewer grades to maintain and a slower training yard) and the
+     higher hiring bar its name asks, 70 over `steady`'s 60, which also cut its folds (28 to 18 over 32
+     seeds).
+   - *A season's lock ends the ping-pong.* The returns left are the two rich traders buying each other's
+     dearest Hero; at a 30-Day lock 4 of 17 came within 90 Days of the sale, 3 of them within 60, and at 90
+     none can. Elsewhere a lock of 90 or 180 Days left two screening trials exactly as they were and a
+     third within their noise.
+   - *Not taken*: `hallMaintenancePerGrade` 5 (the fewest folds, 2.38 on the harsher seeds, but a value
+     the player pays too, set by M3 on the player's measures, and it let `ambitious` above 8 at 44% of its
+     year-starts); a rule change keeping a seller at `rivalRosterMin` in `transferAnswer` (the Generator's
+     guard, DL-59 item 5), since the appetites reach the same Transfers with no code change; and
+     `transferGeneratorChance` (the Generator's bids wait on its bidder hiring, DL-59: 9 of its
+     Transfers in the 32 games at 0.5).
+7. **The values** (content version 14; `configVersion` 10 for the lock):
+
+   | | `questRiskAppetite` | `recruitThreshold` | `buildThreshold` | `gearThreshold` | `transferAppetite` |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | `steady` | 0 → **0.5** | 60 | 3 | 3 | 0.25 → **0.2** |
+   | `ambitious` | 0.6 → **0.7** | 40 → **45** | 1.5 | 2 | 0.75 → **0.3** |
+   | `miserly` | 0.25 → **0.35** | 80 → **70** | 20 → **40** | 10 | 0.1 |
+   | `reckless` | 1 | 30 → **35** | 4 | 3 | 0.5 → **0.25** |
+
+   and `transferLockDays` 30 → **90** (DL-60 item 2's value, which it left to this close). The four
+   characters: `miserly` takes the cautious third of what it can staff, hires last, builds last and
+   least, and never deals at the Rosters it keeps; `steady` takes the middle, builds and outfits early,
+   and deals rarely; `ambitious` builds first and hires and deals most; `reckless` takes the hardest,
+   replaces its losses soonest and deals. This supersedes DL-56 item 4's "`steady` keeps its rule"
+   (appetite 0, DL-30's easiest): under M6's whole Hall (DL-58) and its Levels that rule is the fold.
+8. **Tests.** `content.test.ts` pins content version 14 and the four rows; the wage test and the Quest
+   Engine's config test pin `configVersion` 10. Nothing else moved: the CLI's Transfer tests and the
+   harness's tests that read the core's rows passed unchanged, and the tests of the lock pin their own
+   `transferLockDays`. The engine's test content keeps M6-S1 to S4's rows as a fixture of the one rule:
+   its tests' margins (DL-56 item 9, DL-58 item 8, DL-59 item 8) were measured on them, so DL-56 item
+   5's "the test content mirrors the core's four rows" no longer holds, and `world.test-support.ts`
+   says so. No assertion was loosened; `npm test` 1,727 tests.
+
+   The same 32 seeds, validated, after the pass (content 14, config 10; 15.5 minutes; no refusal, no
+   broken assertion, the replay identical), from the two reports:
+
+   | 32 games × 20 years | Before | After |
+   | --- | ---: | ---: |
+   | Rival folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | 3.75 (18 / 17 / 25 / 60) | 2.78 (17 / 17 / 29 / 26) |
+   | Folds a Guild-year, same order | 0.028 / 0.027 / 0.039 / 0.094 | 0.027 / 0.027 / 0.045 / 0.041 |
+   | Mean difficulty taken, same order | 42.3 / 31.9 / 56.6 / 27.5 | 45.6 / 30.8 / 54.4 / 41.4 |
+   | Deaths a Guild-year, same order | 0.85 / 0.53 / 1.75 / 0.28 | 1.03 / 0.46 / 1.50 / 0.58 |
+   | Recruits a Guild-year, same order | 0.67 / 0.41 / 1.76 / 0.18 | 1.02 / 0.34 / 1.47 / 0.47 |
+   | Rival to Rival Transfers (a game); back to a former seller | 858 (26.8); 240 | 177 (5.5); 18 |
+   | … bought by `ambitious` / `reckless` / `steady`; sold, same order | 447 / 411 / 0; 344 / 418 / 96 | 82 / 87 / 8; 89 / 68 / 20 |
+   | … by the Generator | 28 | 9 |
+   | Transfer Offers for the player's Heroes (all declined) | 110 | 31 |
+   | Rival Rosters at year-starts: mean; median; above 8 | 5.57; 4; 11.5% | 5.76; 5; 12.0% |
+   | Roster mean (median), same order | 6.5 (5) / 4.5 (4) / 6.7 (5) / 4.6 (4) | 7.0 (6) / 4.9 (4) / 6.3 (5) / 4.8 (4) |
+   | Wealth at year-starts, mean, same order | 25,715 / 21,087 / 18,052 / 8,585 | 29,954 / 24,150 / 17,754 / 18,073 |
+   | Hall mean grade by year 10: `miserly`'s facilities / the others' | 2.69–2.75 / 2.87–3.00 | 2.29–2.32 / 2.98–3.00 |
+   | Rival Market purchases a Guild-year | 1.70 | 1.47 |
+   | Wealth spent on Transfers, the Rivals' share | 0.6% | 0.1% |
+   | The player's mean place by Fame; by Wealth | 1.36; 1.13 | 1.14; 1.15 |
+
+   From the scratch script on the same seeds: Rival year-starts within 4 to 8 88% → 87%; `miserly` at the
+   floor with more than 20 Upkeeps 66% → 45%, `steady` 23% → 34%; below 3 Upkeeps at 2.2% to 4.9%
+   of each Disposition's year-starts (`steady` 9% before); Hall grades at year 1 `ambitious` 9.0, `steady` 9.0,
+   `reckless` 8.7, `miserly` 3.0; no Transfer took a seller below 4 (203 before); none went back within
+   90 Days of a sale, 11 of the 18 returns more than a year after it. Every target of item 4 is met.
+
+*For the M6 run to complete:* the 200 × 20 run and its figures beside M5's, the measures, and the
 Consequences.
 
 ## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants

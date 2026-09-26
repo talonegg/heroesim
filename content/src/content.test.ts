@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 13 since the merge of M5's close with M6's Dispositions (DL-63)", () => {
+  test("is the core content set, version 14 since the M6 close's balance pass on the Dispositions (DL-69)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(13);
+    expect(content.version).toBe(14);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -35,17 +35,17 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test('has the four named Dispositions (INPUTS 7.5), their weights as DL-56 sets them and DL-58 retunes one', () => {
+  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69)', () => {
     const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
       ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
     expect(content.dispositions).toEqual({
-      // `steady` keeps M2 to M5's rule: the easiest Quest, sixty Upkeeps to recruit (DL-41), three
-      // times the cost to build (DL-38), which were config fields until the row replaced them.
-      steady: { key: 'steady', name: 'Steady', ...weights(0, 60, 3, 3, 0.25) },
-      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.6, 40, 1.5, 2, 0.75) },
-      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.25, 80, 20, 10, 0.1) },
-      // reckless's gearThreshold was 1.5 until M6-S4 gave the weight a rule and retuned it (DL-58).
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.5) },
+      // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
+      // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
+      // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
+      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 3, 3, 0.2) },
+      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 70, 40, 10, 0.1) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 35, 4, 3, 0.25) },
     });
   });
 

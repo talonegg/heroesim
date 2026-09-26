@@ -239,9 +239,10 @@ describe('resolveQuest', () => {
 describe("the Quest Engine's config (DL-42)", () => {
   test("defaults to INPUTS 6.2's ±20% and Skill rating × 2, all strong and a majority success, and the stub's fields are gone", () => {
     // configVersion 4 from DL-42; 8 on the main line by the M5 close (DL-62) and 5 on M6's from M6-S1,
-    // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63).
+    // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
+    // Transfer lock (DL-69).
     expect(defaultConfig).toMatchObject({
-      configVersion: 9,
+      configVersion: 10,
       checkVariance: 0.2,
       skillBonusPerRating: 2,
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },

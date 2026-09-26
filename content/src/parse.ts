@@ -59,9 +59,10 @@ export const contentSetId = 'core';
  * every number a line in flight has used for other content (DL-61); 12 from the M5 close's Loot,
  * rarer unique Items and two templates without a table (DL-62), and, on a parallel branch, from
  * M6-S1, which added the four named Dispositions and their weights (DL-56), and M6-S4, which gave
- * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63).
+ * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63);
+ * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69).
  */
-export const contentVersion = 13;
+export const contentVersion = 14;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

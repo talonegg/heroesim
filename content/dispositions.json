@@ -1,34 +1,34 @@
 {
   "steady": {
     "name": "Steady",
-    "questRiskAppetite": 0,
+    "questRiskAppetite": 0.5,
     "recruitThreshold": 60,
     "buildThreshold": 3,
     "gearThreshold": 3,
-    "transferAppetite": 0.25
+    "transferAppetite": 0.2
   },
   "ambitious": {
     "name": "Ambitious",
-    "questRiskAppetite": 0.6,
-    "recruitThreshold": 40,
+    "questRiskAppetite": 0.7,
+    "recruitThreshold": 45,
     "buildThreshold": 1.5,
     "gearThreshold": 2,
-    "transferAppetite": 0.75
+    "transferAppetite": 0.3
   },
   "miserly": {
     "name": "Miserly",
-    "questRiskAppetite": 0.25,
-    "recruitThreshold": 80,
-    "buildThreshold": 20,
+    "questRiskAppetite": 0.35,
+    "recruitThreshold": 70,
+    "buildThreshold": 40,
     "gearThreshold": 10,
     "transferAppetite": 0.1
   },
   "reckless": {
     "name": "Reckless",
     "questRiskAppetite": 1,
-    "recruitThreshold": 30,
+    "recruitThreshold": 35,
     "buildThreshold": 4,
     "gearThreshold": 3,
-    "transferAppetite": 0.5
+    "transferAppetite": 0.25
   }
 }

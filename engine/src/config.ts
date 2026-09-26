@@ -32,7 +32,8 @@ export interface GameConfig {
    * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
    * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
-   * with that 5, so that no save made under either reads as current (DL-63).
+   * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
+   * Transfer lock of a season (DL-69).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -386,7 +387,8 @@ export interface GameConfig {
    * Days after a Hero's Transfer before they may be transferred again (DL-60): a Transfer on Day `d`
    * holds them on their new Roster through Day `d + transferLockDays − 1`, whoever asks, by any
    * Transfer action, so that no Guild sells a Hero back, or on, the afternoon it bought them. 0 locks
-   * no one.
+   * no one. 90 since the M6 close (DL-69), for 30: a season, so that no Hero goes back to a Guild
+   * that sold them within one.
    */
   transferLockDays: number;
 
@@ -455,7 +457,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 3,
-  configVersion: 9,
+  configVersion: 10,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -566,7 +568,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   transferOfferDays: 3,
   transferGeneratorEveryDays: 7,
   transferGeneratorChance: 0.5,
-  transferLockDays: 30,
+  transferLockDays: 90,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 

@@ -357,7 +357,8 @@ export interface Disposition {
   name: string;
   /**
    * Which of the Quests it can staff it takes, from 0 to 1: its place along those Quests ranked
-   * by difficulty, 0 the easiest and 1 the hardest (M6-S1). `steady`'s 0 is DL-30's "easiest".
+   * by difficulty, 0 the easiest and 1 the hardest (M6-S1). 0 is DL-30's "easiest", `steady`'s until
+   * the M6 close moved it to the middle, 0.5 (DL-69).
    */
   questRiskAppetite: number;
   /**

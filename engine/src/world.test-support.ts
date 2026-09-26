@@ -419,9 +419,10 @@ export const testContent: ContentSet = deepFreeze({
     injuryType('deep-cut', [6, 12], 'scarred'),
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
-  // The core's four Dispositions and their weights (INPUTS 7.5, M6-S1, DL-56; reckless's
+  // The four Dispositions (INPUTS 7.5) with the weights M6-S1 gave the core (DL-56; reckless's
   // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
-  // gearThreshold, transferAppetite.
+  // gearThreshold, transferAppetite. The M6 close retuned the core's rows (DL-69); the engine's tests
+  // keep these, on which their margins were measured, as a fixture of the one rule.
   dispositions: {
     ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75),
     ...disposition('miserly', 0.25, 80, 20, 10, 0.1),
