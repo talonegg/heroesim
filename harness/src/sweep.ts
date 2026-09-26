@@ -10,18 +10,33 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { facilityKeys, serialise, type EngineDeps, type FacilityKey, type QuestBand } from '@heroesim/engine';
+import {
+  compareByCodeUnit,
+  encounterKinds,
+  facilityKeys,
+  regardBandNames,
+  serialise,
+  type EngineDeps,
+  type FacilityKey,
+  type QuestBand,
+  type RegardBand,
+} from '@heroesim/engine';
 import {
   controllerKinds,
   countedYear,
+  encounterOutcomes,
   endingReasons,
+  noBands,
   type ByController,
   type ByYear,
   type ControllerKind,
+  type EncounterCounts,
   type FameGate,
   type GradeCounts,
   type GrowthAgainstDecline,
+  type RegardSnapshot,
   type RosterCensus,
+  type SynergyTally,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
@@ -221,6 +236,15 @@ export interface SweepTotals {
   signingRefused: number;
   /** The Rosters as each year begins, summed over the games in play then, and how many were. */
   rosters: ({ games: number } & Record<ControllerKind, RosterCensus>)[];
+  // M4's counters (DL-55).
+  encounters: Record<ControllerKind, EncounterCounts>;
+  synergies: Record<ControllerKind, SynergyTally>;
+  injuriesByType: Record<ControllerKind, Record<string, number>>;
+  /** Patron-years in each year played in full, and the silent ones, summed over the games that played it. */
+  patronYears: number[];
+  silentPatronYears: number[];
+  /** The player's Guild's Regard after `countedYear` years, summed over the games in play then, and how many were. */
+  regardAtCountedYear: { games: number } & RegardSnapshot;
 }
 
 const zero = (): ByController => ({ player: 0, rival: 0 });
@@ -250,6 +274,9 @@ const noGrowth = (): GrowthAgainstDecline => ({
 });
 const noGrades = (): GradeCounts => Object.fromEntries(facilityKeys.map((facility) => [facility, []])) as unknown as GradeCounts;
 const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
+const noEncounters = (): EncounterCounts =>
+  Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
+const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
@@ -276,6 +303,12 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     fameGate: { player: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 }, rival: { heroDays: 0, guildDays: 0, guildDaysWithAny: 0 } },
     signingRefused: 0,
     rosters: [],
+    encounters: { player: noEncounters(), rival: noEncounters() },
+    synergies: { player: noSynergies(), rival: noSynergies() },
+    injuriesByType: { player: {}, rival: {} },
+    patronYears: [],
+    silentPatronYears: [],
+    regardAtCountedYear: { games: 0, relationships: noBands(), guildmasterForPatrons: noBands(), guildmasterForHeroes: noBands() },
   };
   for (const { counters, observations, refusals, invalid } of sweep.games) {
     for (const kind of controllerKinds) {
@@ -297,6 +330,22 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
         const grades = counters.improvementGrades?.[kind][facility];
         if (grades !== undefined) addSeries(totals.improvementGrades[kind][facility], grades);
       }
+      for (const encounterKind of encounterKinds) addFields(totals.encounters[kind][encounterKind], counters.encounters[kind][encounterKind]);
+      const synergies = totals.synergies[kind];
+      synergies.quests += counters.synergies[kind].quests;
+      synergies.withAny += counters.synergies[kind].withAny;
+      synergies.applied += counters.synergies[kind].applied;
+      addFields(synergies.byKey, counters.synergies[kind].byKey);
+      addFields(totals.injuriesByType[kind], counters.injuriesByType[kind]);
+    }
+    addSeries(totals.patronYears, counters.patronYears);
+    addSeries(totals.silentPatronYears, counters.silentPatronYears);
+    const regard = observations.regardAtCountedYear;
+    if (regard !== null) {
+      totals.regardAtCountedYear.games += 1;
+      addFields(totals.regardAtCountedYear.relationships, regard.relationships);
+      addFields(totals.regardAtCountedYear.guildmasterForPatrons, regard.guildmasterForPatrons);
+      addFields(totals.regardAtCountedYear.guildmasterForHeroes, regard.guildmasterForHeroes);
     }
     if (counters.improvementGrades !== null) totals.gamesAtCountedYear += 1;
     observations.rosters.forEach((census, year) => {
@@ -551,6 +600,132 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
   ];
 }
 
+/** Keys a table lists: content's, in key order, then any other a count names. */
+function keysOf(known: readonly string[], ...counts: readonly Record<string, number>[]): string[] {
+  const extra = counts.flatMap((count) => Object.keys(count)).filter((key) => !known.includes(key));
+  return [...new Set([...[...known].sort(compareByCodeUnit), ...extra.sort(compareByCodeUnit)])];
+}
+
+type EncounterTally = EncounterCounts[keyof EncounterCounts];
+
+/**
+ * M4's counters (the epic's §2, DL-55): the Encounters' outcomes by kind, the Synergies applied a
+ * Quest, Injuries by type, the Patrons silent in a year, and the player's Guild's Regard by band
+ * after 10 years.
+ */
+function questEngineSection(totals: SweepTotals, deps: EngineDeps): string[] {
+  const kindTotal = (kind: ControllerKind): EncounterTally => {
+    const all: EncounterTally = { success: 0, failure: 0, injured: 0, died: 0 };
+    for (const encounterKind of encounterKinds) addFields(all, totals.encounters[kind][encounterKind]);
+    return all;
+  };
+  const encounterCells = (tally: EncounterTally): string[] => {
+    const checks = sum(encounterOutcomes.map((outcome) => tally[outcome]));
+    return [
+      whole(checks),
+      `${whole(tally.success)} (${percent(tally.success, checks)})`,
+      `${whole(tally.failure)} (${percent(tally.failure, checks)})`,
+      ratio(tally.injured, checks, 3),
+      ratio(tally.died, checks, 3),
+    ];
+  };
+  const encounterRows = controllerKinds.flatMap((kind) => [
+    ...encounterKinds.map((encounterKind) => [`${kindLabel(kind)}: ${encounterKind}`, ...encounterCells(totals.encounters[kind][encounterKind])]),
+    [`${kindLabel(kind)}: every kind`, ...encounterCells(kindTotal(kind))],
+  ]);
+
+  const synergyRows = controllerKinds.map((kind) => {
+    const tally = totals.synergies[kind];
+    return [kindLabel(kind), whole(tally.quests), `${whole(tally.withAny)} (${percent(tally.withAny, tally.quests)})`, ratio(tally.applied, tally.quests, 3)];
+  });
+  const synergyKeys = keysOf(Object.keys(deps.content.synergies), totals.synergies.player.byKey, totals.synergies.rival.byKey);
+  const byKeyRows = synergyKeys.map((key) => [
+    `\`${key}\``,
+    ...controllerKinds.map((kind) => {
+      const n = totals.synergies[kind].byKey[key] ?? 0;
+      return `${whole(n)} (${percent(n, totals.synergies[kind].quests)})`;
+    }),
+  ]);
+
+  const injuryKeys = keysOf(Object.keys(deps.content.injuries), totals.injuriesByType.player, totals.injuriesByType.rival);
+  const injuryTotal = (kind: ControllerKind): number => sum(Object.values(totals.injuriesByType[kind]));
+  const injuryRows = [
+    ...injuryKeys.map((key) => [
+      `\`${key}\``,
+      ...controllerKinds.map((kind) => {
+        const n = totals.injuriesByType[kind][key] ?? 0;
+        return `${whole(n)} (${percent(n, injuryTotal(kind))})`;
+      }),
+    ]),
+    ['Every type', ...controllerKinds.map((kind) => whole(injuryTotal(kind)))],
+  ];
+
+  const patronYears = sum(totals.patronYears);
+  const silent = sum(totals.silentPatronYears);
+  const silentRows = totals.patronYears.map((n, year) => [
+    whole(year),
+    whole(n),
+    `${whole(totals.silentPatronYears[year] ?? 0)} (${percent(totals.silentPatronYears[year] ?? 0, n)})`,
+  ]);
+
+  const regard = totals.regardAtCountedYear;
+  const bandCells = (counts: Record<RegardBand, number>): string[] => {
+    const all = sum(Object.values(counts));
+    return [whole(all), ...regardBandNames.map((band) => `${whole(counts[band])} (${percent(counts[band], all)})`)];
+  };
+  const regardLines =
+    regard.games === 0
+      ? [`No player's game was in play after ${countedYear} years: no Regard to count.`]
+      : [
+          `The player's Guild's Regard after ${countedYear} years, over the ${whole(regard.games)} games in play then, by band ` +
+            "(a Relationship is the mean of two Heroes' Regard for each other, each unordered pair of the Roster once; the " +
+            "Guildmaster's Regard is each entry of its map, which nothing reads in the first build):",
+          '',
+          markdownTable(
+            ['Regard', 'Counted', ...regardBandNames],
+            [
+              ["Relationships within the player's Roster", ...bandCells(regard.relationships)],
+              ["The player's Guildmaster for Patrons", ...bandCells(regard.guildmasterForPatrons)],
+              ["The player's Guildmaster for Heroes", ...bandCells(regard.guildmasterForHeroes)],
+            ],
+            ['left', 'right', ...regardBandNames.map(() => 'right' as const)],
+          ),
+        ];
+
+  return [
+    '## The Quest Engine (M4)',
+    '',
+    'Encounter outcomes by kind (`quest.encounter`), by the Guild that sent the Party, with the Heroes its ' +
+      'consequences injured and killed a Check:',
+    '',
+    markdownTable(
+      ['Controller: kind', 'Checks', 'Succeeded', 'Failed', 'Injured a Check', 'Killed a Check'],
+      encounterRows,
+      ['left', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    "Synergies applied per Quest (`quest.resolved`'s `synergyKeys`; a Quest names each Synergy once):",
+    '',
+    markdownTable(['Synergies', 'Quests resolved', 'With one or more', 'Synergies a Quest'], synergyRows, ['left', 'right', 'right', 'right']),
+    '',
+    markdownTable(['Quests applying it', "Player's", "Rivals'"], byKeyRows, ['left', 'right', 'right']),
+    '',
+    'Injuries by type (`hero.injured`), by the Guild the Hero was on:',
+    '',
+    markdownTable(['Injury type', "Player's", "Rivals'"], injuryRows, ['left', 'right', 'right']),
+    '',
+    'Patrons silent: in each year played in full, the Patrons in the world as it began that offered no Quest in it ' +
+      `(no \`quest.offered\` naming them): ${whole(silent)} of ${whole(patronYears)} Patron-years (${percent(silent, patronYears)}).`,
+    '',
+    ...(silentRows.length === 0
+      ? ['No year was played in full.']
+      : [markdownTable(['Year', 'Patron-years', 'Silent'], silentRows, ['right', 'right', 'right'])]),
+    '',
+    ...regardLines,
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
   const { config, content } = deps;
@@ -693,6 +868,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     `Games ending in each year (year 0 is the first): ${totals.endedInYear.map((n, year) => `${year}: ${n}`).join(', ')}.`,
     '',
     ...progressionSection(totals, deps),
+    ...questEngineSection(totals, deps),
     '## Measures',
     '',
     markdownTable(
