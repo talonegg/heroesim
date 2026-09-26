@@ -3880,6 +3880,122 @@ task**: Market purchases by controller kind read `item.bought` (`guildId` joined
 `item.bought.cost` and `guild.improved.cost`; Hall grades by year and Disposition are snapshots of each
 Rival's `hall`; a Disposition's first Improvement reads `guild.improved`.
 
+## DL-59 — The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range kept, and what the boxes read (M6-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S3's implementer); the phase,
+its weekly cadence, the pairs, the draw and the appetite-heavier bidder are the epic's, the Generator
+never taking from the player is the owner's (`plan.md` §1, 2026-09-25), the rest is the agent's, for
+the owner to tune on the M6-close counters
+
+**Context.** M6-S3 names a night phase `transfers`, weekly (`transferGeneratorEveryDays`): for each pair
+of Rivals the `rivals` stream decides (`transferGeneratorChance`) whether the more
+`transferAppetite`-heavy one bids for a Hero of the other, through `transferIn` under the same consent
+rule, iterating only Guilds whose controller is a Rival's (ADR-0002's third accepted exception). Its
+boxes: over 100 seeds × 20 years Rival-to-Rival Transfers occur and the Roster-size distribution across
+Rivals stays within the generation range; the player's Roster is never changed by the phase. Left open:
+where the phase sits and which night is weekly; the pairs' order and when a pair draws; the tie between
+equal appetites; which Hero is bid for; whether the bidder must itself be willing to hire, as a Rival
+taking a Hero in must be (DL-57 item 3); what "stays within the generation range" asserts, when other
+rules already move single Rosters out of it (DL-58: 39% below and 20% above at the years' ends); and
+how a test of 100 seeds × 20 years fits `npm test`.
+
+**Decision.**
+
+1. **The phase** (`phases/transfers.ts`) runs at night right after the Guild State Engine, so a bidder's
+   Wealth is tonight's after Upkeep, and before the Patron State Engine, the pool refresh, the offers'
+   expiry and the ending checks. `pipeline.test.ts`'s literal and `approach.md` §2 name it;
+   `patron-state.test.ts`'s check that `patronState` sits next to `guildState`, and `poolRefresh` next to
+   it, becomes after and before, the literal holding the order.
+2. **Its night** is that of each Day `d` with `d mod transferGeneratorEveryDays = transferGeneratorEveryDays − 1`,
+   as DL-26 names the Upkeep Day: with the default **7**, Days 6, 13, 20 and so on. On other nights it
+   does nothing and draws nothing.
+3. **The pairs.** The Guilds whose `controller.kind` is `rival` and that have not folded, in Guild id
+   order, each with every later one. **Each pair takes one draw from `rivals`**,
+   `chance(transferGeneratorChance)` (default **0.5**: a coin for each pair each week), whether or not it
+   has a bid to make, so the Generator advances `rivals` by exactly C(n, 2) draws on its nights; the bid,
+   when the draw falls under the chance, is applied by `applyTransferIn` on the world the pairs before it
+   left. A refusal would be dropped, as the Rival controllers drop theirs (DL-30); the bid names only
+   what `transferIn` accepts.
+4. **The bidder** (`transferBid`, `controllers/rival.ts`) is the Rival of the pair whose Disposition has the
+   greater `transferAppetite`; of two alike, the one with fewer Heroes, then the lower Guild id. It bids
+   for the **dearest Hero of the other it can pay for**, at home, the lowest Hero id among equal fees:
+   `dearestWanted`, M6-S2's `transferChoice` rule moved into one function both call, its choices
+   unchanged.
+5. **The bid** is made only when:
+   - **the generation range is kept**: the bidder's Roster is below `rivalRosterMax` and the other's above
+     `rivalRosterMin`, so the Generator's own moves never take a Roster out of the range a Rival is
+     generated with; and
+   - **both answer as they answer any Transfer** (`transferAnswer`, DL-57): the other lets a Hero go
+     (`out`, the consent `transferIn` asks), and the bidder takes one in (`in`: its appetite and Roster
+     size, and a Wealth above its `recruitThreshold` times its Upkeep). A bid is a hire, and a Rival hires
+     only while its Disposition would.
+
+   Considered and not taken, measured below: the bidder bidding whenever it can pay (the epic's words read
+   narrowly, the draw being its only choice), with or without a reserve of Upkeeps kept after the fee (a
+   new config field). Both made the Generator busy, some 20 to 33 Transfers a game, and `ambitious`,
+   the bidder in each of its pairs, took Heroes it would not have hired: its folds rose from 45 to 75–84
+   in 100 games, and its mean Roster to the range's top or above. Also not taken: no range check, under
+   which the Generator took `reckless` down to two Heroes for `ambitious`, the moves the box is about.
+6. **The player.** The phase's filter is the third accepted read of `controller.kind` (`plan.md` §1);
+   `controller-reads.test.ts` allows it in `phases/transfers.ts`, naming the exception. `transferBid`
+   also names no bid for a pair with a Guild that has no Disposition, so the player is excluded twice.
+7. **What the boxes read.** "Rival-to-Rival Transfers occur": the Generator's own Transfers, and those of
+   the afternoon (M6-S2), in play. "The distribution stays within the generation range": each of the
+   Generator's Transfers leaves both Rosters within `rivalRosterMin` to `rivalRosterMax`, and at every
+   year's end the median and the mean Roster size across the Rivals in play lie within the range. Not
+   every Rival at every year's end: Deaths, recruits, the afternoon's Transfers and folds put single
+   Rosters outside it with the Generator off (32% below and 17% above on the core, below), and the
+   Generator does not undo them.
+8. **Tests.** `phases/transfers.test.ts`: the night (weekly, fortnightly); one draw a pair, no other
+   stream, a folded Rival and the player in no pair; chance 0 and 1; the heavier bidder and the dearest
+   Hero it can pay for, exactly what `transferIn` makes, Wealth balanced, the document valid; the tie; a
+   Hero away passed over; no bid at each guard's boundary (the range's floor and ceiling, the seller's
+   appetite, the bidder's `recruitThreshold`, an appetite of 0, a fee it cannot pay, no Hero at home, an
+   unknown Disposition, a pair with the player); the player's rows untouched. The boxes,
+   `controllers/transfer-generator.test.ts`: seeds played in place for twenty years (DL-56's method, with
+   M6-S4's one pin: every Check asks 0.15 of the difficulty), the phase wrapped to snapshot the player's
+   Guild, its Guildmaster and its Heroes around every run and to replay the Rosters' sizes through its
+   Transfers; Rival-to-Rival Transfers occur, the Generator's go to the heavier appetite within the range,
+   the median and mean at every year's end lie within 4 to 8, the player's rows never change; and a second
+   test over 100 seeds runs the phase alone on ten Generator nights with every Rival rich and every pair
+   bidding: the player's rows never change, and the Rivals deal in most seeds. **`npm test` plays four
+   seeds × 20 years; the box's 100 × 20 runs with the harness flag**
+   (`HEROESIM_HARNESS=1 npx vitest run engine/src/controllers/transfer-generator.test.ts`: some nine
+   minutes on an idle machine; it passed in 36 beside another sweep), which asserts the Generator's own
+   Transfers too: the four seeds hold none of them, since the
+   test content's Rivals seldom would hire (20 of the hundred seeds do, 24 Transfers).
+9. **Versions.** Two config fields (`transferGeneratorEveryDays` 7, `transferGeneratorChance` 0.5) and no
+   default changed: `configVersion` stays 5 (DL-57 item 11's reading). No content and no new event: the
+   Generator's Transfers are M6-S2's `hero.transferred`, which `narrate.ts` already narrates, and the
+   story names no CLI command.
+
+**Consequences.** A scratch script (core content, `defaultConfig`, the player idle and rich, seeds
+`seed-0001` to `seed-0100` × 20 years, played in place, not validated), by the bidder's rule:
+
+| 100 games × 20 years | Generator off | This rule | Bids whenever it can pay | Same, chance 0.25 | Same, 10 Upkeeps kept |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Generator Transfers (games with one) | 0 | 92 (53) | 3,305 (100) | 2,853 (100) | 2,384 (100) |
+| Afternoon Rival-to-Rival Transfers | 3,820 | 3,414 | 4,241 | 4,086 | 3,353 |
+| Rival folds (`ambitious`'s) | 347 (45) | 351 (50) | 375 (84) | 368 (75) | 366 (84) |
+| Rosters at the years' ends: below 4 / 4 to 8 / above 8 | 32% / 51% / 17% | 32% / 51% / 17% | 34% / 47% / 19% | 32% / 49% / 19% | 33% / 50% / 17% |
+| Median; mean | 4; 5.5 | 4; 5.5 | 5; 5.9 | 5; 5.9 | 4; 5.7 |
+| Year-end medians; means, over the 20 years | 4–5; 4.4–6.5 | 4–5; 4.4–6.3 | 4–6; 4.4–6.4 | 4–6; 4.5–6.3 | 4–5; 4.4–6.2 |
+| `ambitious`'s mean Roster | 7.1 | 7.2 | 8.6 | 8.5 | 8.1 |
+
+Under this rule the Generator is quiet, about one Transfer a game in twenty years beside some 34 of the
+afternoon's, because a Rival seldom would hire: M6-S4's Hall weighs on its Wealth (DL-58), and a Rival
+that would hire has usually taken a Hero that afternoon already. Its chance matters little while that
+binds (1 against 0.5 roughly doubled it, 65 against 31 in 32 games), and the range check halves it (69
+against 31). The distribution is the game's, unchanged by the Generator. On the test content, the test's
+own hundred seeds: 24 Generator Transfers in 20 seeds, 456 of the afternoon's, 658 folds, Rosters 2%
+below the range, 90% within and 9% above, the median 6 at every year's end and the mean 5.9 to 6.7.
+**For the M6 close:** lowering `recruitThreshold` wakes the Generator with the afternoon's hiring;
+`transferGeneratorChance` is the Generator's own dial. **For the M6-close counter task:** the Generator's
+Transfers are the `hero.transferred` between two Rivals on a night Turn (Rivals choose only in the
+afternoon, and a player's own Transfer names the player's Guild); the epic's "harness assertion" that the
+player's Roster is never changed by the phase reads, under the automatic policy (which makes no Transfer
+and declines every offer, DL-57 item 9), as no `hero.transferred` naming the player's Guild.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

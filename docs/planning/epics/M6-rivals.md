@@ -80,9 +80,12 @@ Config: `transferGeneratorEveryDays`, `transferGeneratorChance`.
 
 **Acceptance:**
 
-- [ ] Over 100 seeds × 20 years, Rival-to-Rival Transfers occur and the Roster-size
-      distribution across Rivals stays within the generation range
-- [ ] The player's Roster is never changed by this phase (harness assertion)
+- [x] Over 100 seeds × 20 years, Rival-to-Rival Transfers occur and the Roster-size
+      distribution across Rivals stays within the generation range — `controllers/transfer-generator.test.ts`:
+      `npm test` plays 4 seeds × 20 years, the 100 × 20 runs with the harness flag set (DL-59)
+- [x] The player's Roster is never changed by this phase (harness assertion) — proved by an engine
+      test around every run of the phase, over 100 seeds and the twenty-year sweep; the harness
+      assertion itself comes with the M6-close counters (DL-59)
 
 ### M6-S4 · Rivals build and buy · 0.5–1 session
 

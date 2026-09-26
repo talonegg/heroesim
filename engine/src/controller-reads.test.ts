@@ -32,6 +32,12 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
       "`unknownDisposition`: warns when a Guild's Disposition key is not content the game knows; reads " +
       "whether the Guild has one at all to know what to check, not which Guild kind it is (M2-S7)",
   },
+  'phases/transfers.ts': {
+    reads: 1,
+    why:
+      "plan.md §1, the third accepted exception: the Transfer Generator iterates only the Guilds whose " +
+      "controller is a Rival's, so it never takes from the player's Guild (M6-S3, DL-59)",
+  },
   'controllers/rival.ts': {
     reads: 1,
     why:

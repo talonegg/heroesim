@@ -351,6 +351,17 @@ export interface GameConfig {
    * and is removed then, with `guild.transfer-offer-expired`, unless answered first.
    */
   transferOfferDays: number;
+  /**
+   * The Transfer Generator (M6-S3, DL-59) runs on the night of every Day this many apart: the Days
+   * `d` with `d mod transferGeneratorEveryDays` equal to `transferGeneratorEveryDays − 1`, as
+   * `upkeepEveryDays` names its Days (DL-26). Weekly: 7.
+   */
+  transferGeneratorEveryDays: number;
+  /**
+   * On a Transfer Generator night, the chance, one draw from `rivals` for each pair of Rivals in play,
+   * that the one of the pair with the greater `transferAppetite` bids for a Hero of the other.
+   */
+  transferGeneratorChance: number;
 
   // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
   /**
@@ -525,6 +536,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   transferRegardBand: 'warm',
   guildmasterRegardPerTransferDeal: 2,
   transferOfferDays: 3,
+  transferGeneratorEveryDays: 7,
+  transferGeneratorChance: 0.5,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 

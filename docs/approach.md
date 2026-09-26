@@ -63,6 +63,7 @@ night      Training yard XP · Quests concluding → Quest Engine → outcomes a
            Hero State Engine (heal, Morale, Regard decay, Retirement checks) · ageing (decline
            on those nights) · gear of the dead and retired back to their Guilds
            Guild State Engine (Upkeep on its Day, Fame, Rankings)
+           Transfer Generator (weekly: Rivals bid for one another's Heroes)
            Patron State Engine (Patron Regard recovering toward neutral)
            Unattached pool refresh · [modules: onNight — Random Events, when built]
            Transfer Offers past their night, or whose Hero has left, removed

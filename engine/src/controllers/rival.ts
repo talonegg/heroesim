@@ -7,13 +7,15 @@
 // choices were DL-30's for `steady`; DL-56 turns them into weights. M6-S2 adds Transfers: a Rival
 // seeks a Hero from another Guild, lets one go when in debt, and answers a Transfer asked of it by its
 // Disposition (`transferAnswer`, DL-57). M6-S4 has it build every facility of its Hall and buy gear
-// at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58).
+// at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58). M6-S3's Transfer
+// Generator asks `transferBid` which of two Rivals bids for which Hero of the other (DL-59).
 //
 // A rule reads the world and writes nothing to it but the draws it takes from the `rivals`
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
 import { unavailability, type DispatchAction } from '../actions/dispatch.js';
+import type { TransferInAction } from '../actions/transfer.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, SlotKey } from '../content-types.js';
 import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
@@ -181,22 +183,81 @@ function transferable(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterId
 function transferChoice(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
   if (!transferAnswer(world, guild, 'in', deps).consents) return null;
   if (Object.values(world.offers).some((offer) => offer.toGuildId === guild.id)) return null;
-  const guildmaster = guildmasterOf(guild, world);
-  let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
-  for (const other of otherGuilds(world, guild)) {
+  const sellers = otherGuilds(world, guild).flatMap((other) => {
     const answer = transferAnswer(world, other, 'out', deps);
-    if (!answer.consents && answer.because !== 'answers-offers') continue;
-    for (const hero of transferable(world, other)) {
-      const fee = transferFee(hero, guildmaster, deps);
-      if (fee > guild.wealth) continue;
-      if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
-        wanted = { hero, fee, byOffer: !answer.consents };
-      }
-    }
-  }
+    return answer.consents || answer.because === 'answers-offers' ? [{ guild: other, byOffer: !answer.consents }] : [];
+  });
+  const wanted = dearestWanted(world, guild, sellers, deps);
   if (wanted === null || !chance(streamOf(world, 'rivals'), disposition.transferAppetite)) return null;
   const heroId = wanted.hero.id;
   return wanted.byOffer ? { kind: 'offerTransfer', guildId: guild.id, heroId } : { kind: 'transferIn', guildId: guild.id, heroId };
+}
+
+/**
+ * The Hero `buyer` wants of those `sellers` hold, or `null`: the dearest it can pay for (`transferFee`
+ * at its Guildmaster's Negotiation, no more than its Wealth), the lowest Hero id among equal fees,
+ * among the Heroes in no Party on the sellers' Rosters (`transferable`). With it, whether their Guild
+ * answers only offers (`byOffer`), as the seller was given. Reads, never writes, and draws nothing.
+ * The one statement of whom a Rival wants, for its afternoon's `transferChoice` and the Transfer
+ * Generator's bid (`transferBid`).
+ */
+function dearestWanted(
+  world: Pick<World, 'heroes' | 'guildmasters'>,
+  buyer: Guild,
+  sellers: readonly { guild: Guild; byOffer: boolean }[],
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): { hero: Hero; byOffer: boolean } | null {
+  const guildmaster = guildmasterOf(buyer, world);
+  let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
+  for (const { guild, byOffer } of sellers) {
+    for (const hero of transferable(world, guild)) {
+      const fee = transferFee(hero, guildmaster, deps);
+      if (fee > buyer.wealth) continue;
+      if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
+        wanted = { hero, fee, byOffer };
+      }
+    }
+  }
+  return wanted;
+}
+
+/**
+ * The Transfer Generator's bid between two Rivals (M6-S3, DL-59), or `null`. The one of `pair` whose
+ * Disposition has the greater `transferAppetite` is the bidder — of two alike, the one with fewer
+ * Heroes on its Roster, then the lower Guild id — and bids by `transferIn` for the Hero of the other
+ * it wants (`dearestWanted`: the dearest it can pay for, at home). It bids only when:
+ *
+ * - the Transfer keeps both Rosters within the range a Rival is generated with: the bidder's below
+ *   `rivalRosterMax` and the other's above `rivalRosterMin`, so the Generator's own moves never take a
+ *   Roster out of it (the epic's box, DL-59);
+ * - both answer as they answer any Transfer asked of them (`transferAnswer`, DL-57), the consent
+ *   rule every Transfer keeps: the other lets a Hero go (`out`: its appetite and its Roster size), the
+ *   consent `transferIn` itself asks, and the bidder takes one in (`in`: its appetite and its Roster
+ *   size, and a Wealth above its `recruitThreshold` times its Upkeep). A bid is a hire, and a Rival
+ *   hires only while its Disposition would: M6-S3's measure found a Generator that bid without that
+ *   Wealth doubling `ambitious`'s folds over twenty years (DL-59).
+ *
+ * `null` too when either Guild has no Disposition content defines. Whether the pair deals this night
+ * at all is the Generator's draw (phases/transfers.ts), not this rule's: this reads, never writes,
+ * and draws nothing.
+ */
+export function transferBid(world: World, pair: readonly [Guild, Guild], deps: EngineDeps): TransferInAction | null {
+  const [a, b] = pair;
+  const rowA = chooser(a, deps.content);
+  const rowB = chooser(b, deps.content);
+  if (rowA === 'own' || rowA === null || rowB === 'own' || rowB === null) return null;
+  const aBids =
+    rowA.transferAppetite !== rowB.transferAppetite
+      ? rowA.transferAppetite > rowB.transferAppetite
+      : a.rosterIds.length !== b.rosterIds.length
+        ? a.rosterIds.length < b.rosterIds.length
+        : compareByCodeUnit(a.id, b.id) < 0;
+  const [bidder, seller] = aBids ? [a, b] : [b, a];
+  const { rivalRosterMin, rivalRosterMax } = deps.config;
+  if (!(bidder.rosterIds.length < rivalRosterMax && seller.rosterIds.length > rivalRosterMin)) return null;
+  if (!transferAnswer(world, bidder, 'in', deps).consents || !transferAnswer(world, seller, 'out', deps).consents) return null;
+  const wanted = dearestWanted(world, bidder, [{ guild: seller, byOffer: false }], deps);
+  return wanted === null ? null : { kind: 'transferIn', guildId: bidder.id, heroId: wanted.hero.id };
 }
 
 /**
