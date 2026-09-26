@@ -5,10 +5,11 @@
 // `returnsOnTurn`, always a night Turn (pre-M0 review C4); the afternoon's `questsAdvance` does
 // nothing with it until M4, and the night's `questsConclude` (M2-S5) resolves it. The choices
 // here are DL-25; M4-S5 names each requirement a Party misses and has the Guildmaster's
-// Negotiation set the reward agreed (DL-43).
+// Negotiation set the reward agreed (DL-43); M5-S3 has the Party carry consumables from the Guild's
+// holding (DL-50).
 
 import type { EngineDeps } from '../config.js';
-import type { ClassKey, SkillKey } from '../content-types.js';
+import type { ClassKey, ItemDefinitionKey, SkillKey } from '../content-types.js';
 import {
   takeId,
   type Guild,
@@ -17,11 +18,13 @@ import {
   type HeroId,
   type Quest,
   type QuestId,
+  type Stack,
   type World,
   type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf, negotiatedReward } from '../guildmaster.js';
+import { findStack, itemDefinition, moveStack } from '../items.js';
 import { dayOf, durationDaysOf, nightOf } from '../time.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
@@ -31,6 +34,17 @@ export interface DispatchAction {
   questId: QuestId;
   /** The Party, in the order given; each Hero once. */
   heroIds: HeroId[];
+  /**
+   * The consumables the Party carries, taken from the Guild's holding (M5-S3, DL-50), each
+   * definition once; none when absent.
+   */
+  consumables?: ConsumableRequest[];
+}
+
+/** A consumable a Party is to carry (M5-S3): a definition and how many, a whole number from 1. */
+export interface ConsumableRequest {
+  definitionKey: ItemDefinitionKey;
+  quantity: number;
 }
 
 /** What `dispatch` is asked: the action without its `kind`. */
@@ -82,31 +96,57 @@ export interface RequirementUnmet extends Rejection<'dispatch', 'requirement-unm
   unmet: UnmetRequirement[];
 }
 
+/** Content defines no consumable of the key: it is gear, or no Item at all (M5-S3). */
+export interface DispatchNotConsumable extends Rejection<'dispatch', 'not-consumable'> {
+  definitionKey: ItemDefinitionKey;
+}
+
+/** The Guild's holding has no stack of the consumable (M5-S3). */
+export interface DispatchNotHeldByGuild extends Rejection<'dispatch', 'not-held-by-guild'> {
+  definitionKey: ItemDefinitionKey;
+  guildId: GuildId;
+}
+
+/** The Guild holds fewer of the consumable than the Party is to carry (M5-S3). */
+export interface DispatchInsufficientQuantity extends Rejection<'dispatch', 'insufficient-quantity'> {
+  definitionKey: ItemDefinitionKey;
+  guildId: GuildId;
+  held: number;
+  requested: number;
+}
+
 export type DispatchRejection =
   | DispatchGuildFolded
   | QuestNotOffered
   | HeroNotOnRoster
   | HeroUnavailable
-  | RequirementUnmet;
+  | RequirementUnmet
+  | DispatchNotConsumable
+  | DispatchNotHeldByGuild
+  | DispatchInsufficientQuantity;
 
 /**
  * Sends `heroIds` of `guildId` on `questId`. The checks run in this order, and the first that
  * fails is the rejection (DL-25, DL-31): the Guild has not folded (`guild-folded`); the Quest is
  * on the Board (`quest-not-offered`); each Hero in turn is on the Guild's Roster
  * (`hero-not-on-roster`) and free to go (`hero-unavailable`: dead, retired, injured, or in a
- * Party); and the Party meets the Quest's requirements (`requirement-unmet`, naming each it
- * misses: its size, its required Class, its required Skill; M4-S5, `unmetRequirements`).
+ * Party); the Party meets the Quest's requirements (`requirement-unmet`, naming each it
+ * misses: its size, its required Class, its required Skill; M4-S5, `unmetRequirements`); and each
+ * consumable, in the order given, is a consumable (`not-consumable`), held by the Guild
+ * (`not-held-by-guild`) in the quantity asked (`insufficient-quantity`; M5-S3, DL-50).
  *
  * On success, a copy of `world` gains a `parties` row departing this Turn and returning on
  * `nightOf(dayOf(turn) + durationDays)`, a night Turn whichever Turn of the Day it left in
  * (pre-M0 review C4); the Quest is `taken`, lists the Party and leaves the Board, and its reward
  * becomes the reward agreed, the Guild's Guildmaster's Negotiation applied (`negotiatedReward`,
- * M4-S5, R8), which the Quest Engine pays on a success; each Hero's `partyId` is the Party's; and
- * `quest.taken`, carrying the reward agreed, is appended to the History and returned. The old
+ * M4-S5, R8), which the Quest Engine pays on a success; each Hero's `partyId` is the Party's; each
+ * consumable moves from the Guild's holding to the Party's (M5-S3); and `quest.taken`, carrying the
+ * reward agreed and the consumables carried, is appended to the History and returned. The old
  * document's `world` is left as it was; `meta` and `history` are shared, as `advance` shares them.
  *
  * Throws on a programming error, as the validator would refuse the request: a Guild not in the
- * world, or a Hero named twice.
+ * world, a Hero named twice, or a consumable named twice or in a quantity that is not a whole
+ * number from 1.
  */
 export function dispatch(
   document: WorldDocument,
@@ -127,13 +167,18 @@ export function applyDispatch(
   request: DispatchRequest,
   deps: EngineDeps,
 ): WorldActionResult<DispatchRejection> {
-  const { guildId, questId, heroIds } = request;
+  const { guildId, questId, heroIds, consumables = [] } = request;
   const guild = own(world.guilds, guildId);
   if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
   const repeated = heroIds.find((heroId, index) => heroIds.indexOf(heroId) !== index);
   if (repeated !== undefined) throw new RangeError(`A Party names ${repeated} twice`);
+  const keys = consumables.map((it) => it.definitionKey);
+  const twice = keys.find((key, index) => keys.indexOf(key) !== index);
+  if (twice !== undefined) throw new RangeError(`A Party's consumables name ${twice} twice`);
+  const odd = consumables.find(({ quantity }) => !Number.isSafeInteger(quantity) || quantity < 1);
+  if (odd !== undefined) throw new RangeError(`A Party carries a whole number of ${odd.definitionKey} from 1, not ${odd.quantity}`);
 
-  const rejection = refusal(world, guild, request);
+  const rejection = refusal(world, guild, request, deps);
   if (rejection !== null) return { ok: false, rejection };
 
   const quest = world.quests[questId] as Quest;
@@ -152,11 +197,24 @@ export function applyDispatch(
   quest.reward = negotiatedReward(quest.reward, guildmasterOf(guild, world), deps.content, deps.config);
   world.board = world.board.filter((id) => id !== questId);
   for (const heroId of heroIds) (world.heroes[heroId] as Hero).partyId = partyId;
+  // M5-S3: the consumables go from the Guild's holding to the Party's.
+  for (const { definitionKey, quantity } of consumables) {
+    const stack = findStack(world, definitionKey, { kind: 'guild', id: guildId }) as Stack;
+    moveStack(world, stack.id, quantity, { kind: 'party', id: partyId });
+  }
 
   const taken = eventEmitter(world)({
     type: 'quest.taken',
     participants: [questId, partyId, ...heroIds, guildId, quest.patronId],
-    payload: { questId, partyId, guildId, heroIds: [...heroIds], returnsOnTurn, reward: quest.reward },
+    payload: {
+      questId,
+      partyId,
+      guildId,
+      heroIds: [...heroIds],
+      returnsOnTurn,
+      reward: quest.reward,
+      consumables: consumables.map(({ definitionKey, quantity }) => ({ definitionKey, quantity })),
+    },
   });
   return { ok: true, events: [taken] };
 }
@@ -186,8 +244,8 @@ export function unmetRequirements(
 }
 
 /** The first check `request` fails, in the order `dispatch` gives, or `null` when it passes them all. */
-function refusal(world: World, guild: Guild, request: DispatchRequest): DispatchRejection | null {
-  const { guildId, questId, heroIds } = request;
+function refusal(world: World, guild: Guild, request: DispatchRequest, deps: EngineDeps): DispatchRejection | null {
+  const { guildId, questId, heroIds, consumables = [] } = request;
   if (guild.foldedOnTurn !== null) return { action: 'dispatch', reason: 'guild-folded', guildId };
   const quest = own(world.quests, questId);
   if (quest === undefined || quest.status !== 'offered' || !world.board.includes(questId)) {
@@ -210,6 +268,17 @@ function refusal(world: World, guild: Guild, request: DispatchRequest): Dispatch
 
   const unmet = unmetRequirements(quest, party);
   if (unmet.length > 0) return { action: 'dispatch', reason: 'requirement-unmet', questId, unmet };
+
+  for (const { definitionKey, quantity } of consumables) {
+    if (itemDefinition(deps.content, definitionKey)?.kind !== 'consumable') {
+      return { action: 'dispatch', reason: 'not-consumable', definitionKey };
+    }
+    const held = findStack(world, definitionKey, { kind: 'guild', id: guildId })?.quantity ?? 0;
+    if (held === 0) return { action: 'dispatch', reason: 'not-held-by-guild', definitionKey, guildId };
+    if (held < quantity) {
+      return { action: 'dispatch', reason: 'insufficient-quantity', definitionKey, guildId, held, requested: quantity };
+    }
+  }
   return null;
 }
 

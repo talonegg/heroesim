@@ -1,6 +1,6 @@
-// `preview --quest <id> --heroes <id,id>` (M4-S5, pre-M0 review E6): what a proposed Party of the
-// player's Heroes would meet on a Quest from the Board, before it is sent. It changes nothing and
-// writes nothing.
+// `preview --quest <id> --heroes <id,id> [--consumables <key:n,...>]` (M4-S5, pre-M0 review E6; M5-S3's
+// consumables): what a proposed Party of the player's Heroes would meet on a Quest from the Board,
+// and what it would carry, before it is sent. It changes nothing and writes nothing.
 //
 // The CLI holds no rule: each requirement met or missed is the engine's `unmetRequirements`, each
 // Hero who cannot go its `unavailability`, the Synergies the Party would have its `synergiesFor`
@@ -12,11 +12,14 @@ import {
   appliesOn,
   applyDispatch,
   guildmasterOf,
+  holdings,
   negotiatedReward,
   playerGuild,
   synergiesFor,
   unavailability,
   unmetRequirements,
+  type ConsumableEffect,
+  type ConsumableRequest,
   type EncounterKind,
   type EngineDeps,
   type Guild,
@@ -102,11 +105,58 @@ function synergyLines({ quest, heroes, deps }: Proposal): string[] {
   return ['Synergies', ...lines];
 }
 
+/** What a consumable does, in words (M5-S3, DL-50). */
+function effectWords(effect: ConsumableEffect): string {
+  switch (effect.kind) {
+    case 'bonus':
+      return `+${effect.flat} to a Check on ${listWords(effect.kinds)} Encounters, one a Check`;
+    case 'reroll':
+      return `a failed Check on ${listWords(effect.kinds)} Encounters rolled again, one a Check`;
+    case 'heal':
+      return `an Injury taken on the Quest heals ${effect.days} Days sooner, one an Injury`;
+  }
+}
+
+/**
+ * What the Party would carry (M5-S3): each consumable named, how many, how many the Guild holds,
+ * what it does and, for a bonus or a reroll, on how many of this Quest's Encounters; or, with none
+ * named, the consumables the Guild holds that it could carry.
+ */
+function consumableLines({ document, deps, guild, quest }: Proposal, named: readonly ConsumableRequest[]): string[] {
+  const { content } = deps;
+  const held = holdings(document.world, { kind: 'guild', id: guild.id }).stacks.filter(
+    (stack) => rowIn(content.items, stack.definitionKey)?.kind === 'consumable',
+  );
+  if (named.length === 0) {
+    const holding = held.map((stack) => `${nameIn(content.items, stack.definitionKey)} ×${stack.quantity} (${stack.definitionKey})`);
+    return [
+      'Consumables',
+      '  None carried.',
+      ...(holding.length === 0 ? [] : [`  The Guild holds ${holding.join(', ')}: name them with --consumables <key:n,...>.`]),
+    ];
+  }
+  const kinds: EncounterKind[] = quest.encounterKeys.flatMap((key) => rowIn(content.encounters, key)?.kind ?? []);
+  const lines = named.map(({ definitionKey, quantity }) => {
+    const item = rowIn(content.items, definitionKey);
+    if (item?.kind !== 'consumable') return `  ${item?.name ?? definitionKey} ×${quantity}: not a consumable.`;
+    const holds = held.find((stack) => stack.definitionKey === definitionKey)?.quantity ?? 0;
+    const { effect } = item;
+    const reach =
+      effect.kind === 'heal'
+        ? ''
+        : kinds.length === 0
+          ? "; this Quest's Encounters are drawn on the way"
+          : `; ${kinds.filter((kind) => effect.kinds.includes(kind)).length} of this Quest's ${kinds.length}`;
+    return `  ${item.name} ×${quantity}, of ${holds} the Guild holds: ${effectWords(effect)}${reach}.`;
+  });
+  return ['Consumables', ...lines];
+}
+
 /**
  * Previews the named Heroes of the player's Guild on the named Quest under the save's own deps:
- * the requirements, any Hero who cannot go, the Synergies they would have, the reward the player's
- * Guildmaster would agree, and whether `dispatch` would send the Party or why not. The save is left
- * as it was.
+ * the requirements, any Hero who cannot go, the Synergies they would have, the consumables they
+ * would carry, the reward the player's Guildmaster would agree, and whether `dispatch` would send
+ * the Party or why not. The save is left as it was.
  */
 export function previewParty(
   command: Extract<Command, { name: 'preview' }>,
@@ -124,7 +174,8 @@ export function previewParty(
   const proposal: Proposal = { document, deps, guild, quest, heroes };
 
   const agreed = negotiatedReward(quest.reward, guildmasterOf(guild, world), deps.content, deps.config);
-  const request = { guildId: guild.id, questId: quest.id, heroIds: command.heroes };
+  const consumables = command.consumables ?? [];
+  const request = { guildId: guild.id, questId: quest.id, heroIds: command.heroes, consumables };
   // dispatch's own rule, on a copy that is thrown away: the verdict is the rule's, never a copy of it.
   const verdict = applyDispatch(structuredClone(world), request, deps);
   const unmet = unmetRequirements(quest, heroes);
@@ -137,6 +188,7 @@ export function previewParty(
     requirementLines(proposal),
     heroLines(proposal, command.heroes),
     synergyLines(proposal),
+    consumableLines(proposal, consumables),
     [`Reward agreed on a success: ${agreed} Wealth, ${quest.reward} offered.`],
     [
       verdict.ok

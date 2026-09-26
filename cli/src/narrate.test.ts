@@ -66,6 +66,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     returnsOnTurn: 23,
+    consumables: [{ definitionKey: 'whetstone', quantity: 2 }],
   }),
   'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {
     questId,
@@ -151,6 +152,16 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'warm',
     bandAfter: 'close',
   }),
+  'item.expended': event('item.expended', [questId, partyId, guildId, heroId], {
+    questId,
+    partyId,
+    guildId,
+    stackId: 'stack-000006' as never,
+    definitionKey: 'healing-draught',
+    effect: 'heal',
+    heroId,
+    days: 5,
+  }),
 };
 
 describe('narrate', () => {
@@ -223,6 +234,26 @@ describe('narrate', () => {
     );
     // The ids are the commands'; no Regard value is printed.
     for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
+  });
+
+  test('says what a Party carried, and each consumable it used, by name, counting Encounters from 1 (M5-S3)', () => {
+    const ids = { questId, partyId, guildId, stackId: 'stack-000006' as never };
+    const used = (payload: EngineEventOf<'item.expended'>['payload']) => narrate(event('item.expended', [questId, partyId, guildId], payload), content);
+
+    expect(narrate(samples['quest.taken'], content)).toBe(
+      'The Kestrel Guild sent party-000004 on quest-000003, back on the night of Day 7, carrying Whetstone ×2.',
+    );
+    const bare = { ...samples['quest.taken'], payload: { ...samples['quest.taken'].payload, consumables: [] } };
+    expect(narrate(bare, content)).toBe('The Kestrel Guild sent party-000004 on quest-000003, back on the night of Day 7.');
+    expect(used({ ...ids, definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 1, flat: 3 })).toBe(
+      "The Kestrel Guild's party-000004 used one Whetstone on Encounter 2: +3 to its Check.",
+    );
+    expect(used({ ...ids, definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 0, firstRoll: 12.5 })).toBe(
+      "The Kestrel Guild's party-000004 used one Grappling line to try Encounter 1 again.",
+    );
+    expect(narrate(samples['item.expended'], content)).toBe(
+      "The Kestrel Guild's party-000004 used one Healing draught on Brenna Ashcombe (hero-000007): their Injury heals 5 Days sooner.",
+    );
   });
 
   test('says a Level gained without naming the points Potential took', () => {

@@ -106,8 +106,11 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${called(event, patronId)}'s ${nameIn(content.questTemplates, templateKey)} (${questId}) expired untaken.`;
     }
     case 'quest.taken': {
-      const { guildId, partyId, questId, returnsOnTurn } = event.payload;
-      return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}.`;
+      // What the Party carries (M5-S3), when it carries anything; an entry from before M5-S3 has none.
+      const { guildId, partyId, questId, returnsOnTurn, consumables = [] } = event.payload;
+      const carrying = consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`);
+      const carried = carrying.length === 0 ? '' : `, carrying ${listed(carrying)}`;
+      return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}${carried}.`;
     }
     case 'quest.encounter': {
       // The roll and target are the engine's; the CLI says only how it went and what it cost.
@@ -189,6 +192,19 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         `${hero(event, heroId)}'s Regard for ${hero(event, entityId)} ${crossed(bandBefore, bandAfter)} ` +
         `${heroRegardWords[cause]}.`
       );
+    }
+    case 'item.expended': {
+      // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).
+      const { payload } = event;
+      const used = `${called(event, payload.guildId)}'s ${payload.partyId} used one ${nameIn(content.items, payload.definitionKey)}`;
+      switch (payload.effect) {
+        case 'bonus':
+          return `${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
+        case 'reroll':
+          return `${used} to try Encounter ${payload.encounterIndex + 1} again.`;
+        case 'heal':
+          return `${used} on ${hero(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
+      }
     }
   }
 }

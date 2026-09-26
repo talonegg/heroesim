@@ -99,6 +99,22 @@ describe('parseArgs', () => {
     expect(parseArgs(['preview', '--quest', 'quest-000001']).ok).toBe(false);
   });
 
+  test('reads --consumables on dispatch and preview: key:n pairs joined by commas, each key once (M5-S3)', () => {
+    const consumables = [
+      { definitionKey: 'healing-draught', quantity: 2 },
+      { definitionKey: 'whetstone', quantity: 1 },
+    ];
+    for (const name of ['dispatch', 'preview']) {
+      expect(command(name, '--quest', 'quest-000003', '--heroes', 'hero-000001', '--consumables', 'healing-draught:2, whetstone:1')).toEqual({
+        name,
+        save: 'current',
+        quest: 'quest-000003',
+        heroes: ['hero-000001'],
+        consumables,
+      });
+    }
+  });
+
   test('reads build: a facility in the CLI’s words (M3-S6)', () => {
     expect(command('build', '--facility', 'infirmary')).toEqual({ name: 'build', save: 'current', facility: 'infirmary' });
     expect(command('build', '--facility=training-yard', '--save', 'demo')).toEqual({
@@ -156,6 +172,12 @@ describe('parseArgs', () => {
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'Brenna'], 'got "Brenna"'],
     [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001,hero-000001'], '--heroes names hero-000001 twice'],
     [['dispatch', 'quest-000001'], 'does not take "quest-000001"'],
+    ...(['whetstone', 'Whetstone:1', 'whetstone:', 'whetstone:x', ':2', 'whetstone:1,,lockpicks:1'].map((value) => [
+      ['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', value],
+      '--consumables needs key:n pairs such as healing-draught:2, joined by commas',
+    ]) as [string[], string][]),
+    [['preview', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:0'], '--consumables whetstone needs a whole number from 1; got "0"'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--consumables', 'whetstone:1,whetstone:2'], '--consumables names whetstone twice'],
     [['build'], 'build needs --facility'],
     [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
     [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],

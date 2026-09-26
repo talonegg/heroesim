@@ -2956,6 +2956,107 @@ with `moveItem`, and settles what a unique Item sells for. M5-S5 awards with `cr
 `addStack`. S1 adds no event, so it gives the M5-close counter task nothing to count. A new slot or
 effect kind is an engine change and earns a decision; a new Item is content only.
 
+## DL-50 — Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S3's implementer)
+
+**Context.** M5-S3 says `dispatch` accepts `consumables: [{ definitionKey, quantity }]`, moving
+stacks from the Guild's holding to the Party's; that a `bonus` consumable adds its flat bonus to the
+first Encounter of a matching kind and is expended, a `reroll` re-rolls the first failed matching
+Encounter once, and a `heal` shortens an Injury taken on the Quest; that unused consumables return to
+the Guild on the Party's return, the Party holding nothing after resolution; and that the Quest
+Engine emits `item.expended`. It leaves open: the rejections' names; whether Rivals and the
+automatic policy carry any; where the rules live, given `check.ts` must stay free of Guild-side
+rules; how a `bonus` combines with the Check, and a second Item of it; where a `reroll` draws from
+and what it costs the stream; which Injury a `heal` shortens and by how much; what becomes of a
+disbanded Party's consumables (a fold, M2-S10, DL-28); what the History records; and the CLI's
+words. DL-48's primitives (`moveStack`, `removeFromStack`, `holdings`) are what it builds on.
+
+**Decision.**
+
+1. **The request.** `DispatchRequest` gains an optional `consumables: ConsumableRequest[]`,
+   `{ definitionKey, quantity }`, each definition once and a quantity a whole number from 1 (either
+   broken is a programming error and throws, as a Hero named twice does); absent means none. After
+   the requirements (DL-25's order, then M4-S5's), each consumable in the order given is checked,
+   and the first failure is the rejection: **`not-consumable`** (content defines no consumable of the
+   key: it is gear, or no Item at all; `{ definitionKey }`), **`not-held-by-guild`** (the Guild's
+   holding has no stack of it; `{ definitionKey, guildId }`) and **`insufficient-quantity`** (its
+   stack holds fewer than asked; `{ definitionKey, guildId, held, requested }`). The names follow M5-S2's
+   `not-gear`/`not-held-by-guild` and M5-S4's `insufficient-quantity`; each is typed per action
+   (`Rejection<'dispatch', …>`, exported as `DispatchNotConsumable`, `DispatchNotHeldByGuild`,
+   `DispatchInsufficientQuantity`), so the other actions' own rejections of the same reason do not
+   clash. On success each is moved with `moveStack` from `{ kind: 'guild' }` to `{ kind: 'party' }`,
+   and `quest.taken` gains `consumables`, the list carried (`[]` for none; absent from an older
+   entry). No limit on how many a Party carries: nothing in the epic or INPUTS asks for one.
+2. **Rivals and the automatic policy carry none.** Neither holds a consumable: M5 defers Rivals'
+   buying to M6, and the policy's one Market rule (M5-S4) buys armour. A rule to carry what the Guild
+   holds would be dead code today; `consumables` is optional so neither changes. So under the
+   harness the M5 counter "consumables expended per Quest" reads 0 until a policy buys consumables;
+   that is the M5 close's to judge.
+3. **Where the rules live.** `engine/src/quest-engine/consumables.ts`, the Party's consumables from
+   the moment they are carried: `kitOf(world, party, content)`, the kit the Quest Engine uses as it
+   resolves (read-only: it records the Items used and changes no row), `expendUsed` (removes them
+   from their stacks and emits `item.expended`) and `sendHome` (every row the Party holds to its
+   Guild's holding). A consumable is the Party's own, so it sits with the Quest Engine; it reads
+   nothing of the Guild's leader or dealings, and a test reads the file for the word, as for
+   `check.ts`. `check.ts` gains one parameter, a flat `bonus` added to the capability before the
+   roll (0 by default), and no rule; `resolve.ts` asks the kit for the bonus and the reroll around
+   the Check and for the heals after the sequence, and returns the uses beside the outcome
+   (`Resolution.consumables`, not in `QuestOutcome`, so `quest.resolved`'s payload is unchanged).
+   A stack whose definition content lacks, or is not a consumable, is carried and used for nothing
+   (data-model rule 5), and goes home.
+4. **`bonus`.** Before each Check, each carried bonus definition with an Item left whose `kinds`
+   hold the Encounter's kind gives one Item and its `flat`, added to the capability after the
+   teamwork scalar and before the roll (S1's reading: "added to the capability of the first Check").
+   One Item per definition per Check, so a second Item of the same definition goes to the next
+   Encounter of its kinds, and two definitions matching one kind both add. The Item is spent on the
+   Check whatever its outcome. No draw.
+5. **`reroll`.** After a failed Check, the first carried reroll definition (in key order) with an
+   Item left whose `kinds` hold the Encounter's kind gives one Item, and the Check is rolled again:
+   the same capability, the bonus of item 4 included, and **one more draw from `quests`, taken
+   straight after the failed Check's draw and before any consequence's draws**. The second roll
+   stands, success or failure: an Encounter is rolled again at most once, however many Items are
+   carried, and a further Item waits for the next failed Encounter of its kinds. The consequences
+   are the second roll's outcome's. So a Party carrying no reroll draws exactly as M4 did (DL-42
+   item 12), and a reroll shifts the later draws of its own Quest by one.
+6. **`heal`.** After the sequence, when the Injuries are final (a Hero who died has none), the heal
+   Items carried are given out one at a time, the definition healing most Days first (ties by key),
+   each to **the Injury with the most Days** among those not yet treated (ties to the one taken
+   first), shortening it by the definition's `days` **to no fewer than 1 Day** — the Injury is
+   shortened, not cured, so `hero.injured`, its night and any Trait it leaves on healing still
+   follow (DL-29). The Days shortened are those after the infirmary (DL-29 item 8). **One Item per
+   Injury**; an Injury at 1 Day takes none; Items left over go home. No draw.
+7. **Expended and sent home.** `questsConclude`, after the Quest's `quest.encounter` entries and
+   before its `quest.resolved`, removes each Item used from its stack (`removeFromStack`) and emits
+   one **`item.expended`** an Item, in the order used; then, as the Party's row goes, `sendHome`
+   moves every stack (and any unique Item) the Party still holds to its Guild's holding
+   (`moveStack`, merging with the Guild's stack of the definition). A fold (DL-28) calls `sendHome`
+   for each Party it disbands before removing it, so the folded Guild holds them, and M5-S4's rule
+   for a folding Guild's stacks decides what then becomes of them. **No event for a return**: the
+   Party's return is `quest.resolved` and a fold is `guild.folded`, and M5-S2's `item.returned` is
+   gear's. So no stack is ever held by a removed Party, which the validator's
+   `dangling-reference` holder check (DL-48 item 6) refuses; a test now holds it for a Party.
+8. **`item.expended`** (not a Milestone), payload `{ questId, partyId, guildId, stackId,
+   definitionKey }` and by `effect`: `bonus` with `encounterIndex` and `flat`; `reroll` with
+   `encounterIndex` and `firstRoll` (the failed roll it replaced; the Encounter's own entry records
+   the second); `heal` with `heroId` and `days` (the Days it took off). It names the Quest, the
+   Party, the Guild and, for a heal, the Hero. `stackId` names a stack that may since have gone, as
+   the History keeps other removed rows' ids.
+9. **CLI.** `dispatch` and `preview` take `--consumables <key:n,...>` (a kebab-case key and a whole
+   number from 1, joined by commas, each key once). `dispatch` prints what the Party carries; each
+   new rejection is put into words. `preview` gains a Consumables section: for each asked, how many,
+   how many the Guild holds, what it does and on how many of the Quest's Encounters; with none asked,
+   the consumables the Guild holds that could be carried. `narrate.ts` gains `item.expended`, and
+   `quest.taken` names what was carried.
+
+**Consequences.** No config field and no content change: `configVersion` stays 4 and the content
+version 9. A Quest drawn and resolved with nothing carried draws and resolves as before. **For the
+M5-close counter task**: consumables expended per Quest are the `item.expended` entries grouped by
+`payload.questId` (by `payload.effect` and `payload.definitionKey` for the detail), divided by the
+`quest.resolved` entries, split by the controller kind of `payload.guildId`'s Guild; the
+consumables carried are `quest.taken`'s `payload.consumables`, so carried minus expended is what
+went home.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

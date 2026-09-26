@@ -14,6 +14,11 @@
 // Days), a Death two (whether, on whom); taken whether or not they land, so tuning a chance never
 // shifts a later draw, as `chance` promises for one (rng.ts).
 //
+// The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to a Check, roll a
+// failed Check again, and shorten the Injuries once the sequence is over. Only a reroll draws: one
+// more from `quests`, straight after the Check it rolls again, so a Party carrying none draws as
+// above. The Items used are returned beside the outcome, for `questsConclude` to expend.
+//
 // It reads the World State and changes nothing but the streams: applying the outcome is the night
 // phase `questsConclude`'s. Rivals' Parties resolve through it exactly as the player's do
 // (ADR-0002 as amended by pre-M0 review A1).
@@ -24,6 +29,7 @@ import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type
 import { streamOf, type Stream } from '../generators/draw.js';
 import { chance, int } from '../rng.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
+import { kitOf, type ConsumableUse } from './consumables.js';
 import { sequenceFor } from './encounters.js';
 import { synergiesOn } from './synergy.js';
 
@@ -81,6 +87,11 @@ export interface QuestOutcome {
 export interface Resolution {
   outcome: QuestOutcome;
   encounters: EncounterResult[];
+  /**
+   * The consumables the Party used, one entry an Item, in the order used (M5-S3, consumables.ts):
+   * for `questsConclude` to expend. None when it carried none, or none applied.
+   */
+  consumables: ConsumableUse[];
 }
 
 /**
@@ -121,7 +132,9 @@ interface Working {
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
  * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, rounded
  * down. An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
- * the Guild's infirmary grade now, rounded to the nearest Day and at least 1 (INPUTS 4.5).
+ * the Guild's infirmary grade now, rounded to the nearest Day and at least 1 (INPUTS 4.5). The
+ * consumables the Party carries add to a Check, roll a failed one again, and then shorten the
+ * Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
  * difficulty that is not above 0, an Injury type content lacks, or a world without the `quests`
@@ -134,6 +147,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const guild = row<Guild>(world.guilds, party.guildId, 'guilds');
   const state = streamOf(world, 'quests');
   const sequence = sequenceFor(world, quest, deps);
+  const kit = kitOf(world, party, deps.content);
 
   const working: Working = {
     alive: [...heroes],
@@ -151,7 +165,12 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     if (working.alive.length === 0) break;
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(working.alive, encounter, deps.content)) synergyKeys.add(synergy.key);
-    const result = check(working.alive, encounter, quest, world, deps);
+    // M5-S3: a bonus the Party carries adds to the Check; a reroll it carries rolls a failure again, once.
+    const bonus = kit.bonus(encounter.kind, index);
+    let result = check(working.alive, encounter, quest, world, deps, bonus);
+    if (result.outcome === 'failure' && kit.reroll(encounter.kind, index, result.roll)) {
+      result = check(working.alive, encounter, quest, world, deps, bonus);
+    }
     const harm: Harm = { injured: [], died: [] };
     for (const consequence of encounter.consequences[result.outcome]) {
       apply(consequence, working, harm, state, guild, deps);
@@ -167,6 +186,8 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       ...harm,
     });
   }
+  // M5-S3: the heals the Party carries shorten the Injuries it comes home with.
+  kit.heal(working.injuries);
 
   const successes = encounters.filter((result) => result.outcome === 'success').length;
   const band = questBand(successes, sequence.length, config);
@@ -188,6 +209,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       synergyKeys: [...synergyKeys].sort(compareByCodeUnit),
     },
     encounters,
+    consumables: kit.used,
   };
 }
 

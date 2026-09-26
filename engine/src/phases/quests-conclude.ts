@@ -11,9 +11,10 @@
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
 // Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
 // Quest (M4-S4, hero-regard.ts, events only on a band crossing); the survivors are free again
-// (`partyId: null`); and the Party and the Quest rows go, the History keeping their record. Every
-// Guild alike (ADR-0002 as amended by pre-M0 review A1), a folded Guild's Parties excepted, as every
-// per-Guild rule skips a folded Guild.
+// (`partyId: null`); the consumables the Party used are expended, each an `item.expended` after the
+// Encounters, and the rest go home to the Guild's holding (M5-S3, DL-50); and the Party and the
+// Quest rows go, the History keeping their record. Every Guild alike (ADR-0002 as amended by
+// pre-M0 review A1), a folded Guild's Parties excepted, as every per-Guild rule skips a folded Guild.
 //
 // A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
 // from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
@@ -22,6 +23,7 @@ import { compareByCodeUnit, type Guild, type Party, type Quest, type World } fro
 import type { EngineEvent } from '../events.js';
 import { regardOnSharedQuest } from '../hero-regard.js';
 import { changeMorale } from '../morale.js';
+import { expendUsed, sendHome } from '../quest-engine/consumables.js';
 import { resolveQuest, type Resolution } from '../quest-engine/resolve.js';
 import { regardOnQuestResolved } from '../regard.js';
 import { dayOf, nightOf } from '../time.js';
@@ -55,7 +57,8 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   const { outcome } = resolution;
   const heroes = party.heroIds.map((heroId) => row(world.heroes, heroId));
   // Emitted first, while the Quest and the Party are still rows to label: each Encounter in order,
-  // naming the Heroes it hurt, then the Quest.
+  // naming the Heroes it hurt, then each consumable used, expended from its stack (M5-S3), then the
+  // Quest.
   const events: EngineEvent[] = [
     ...resolution.encounters.map((result) =>
       emit({
@@ -64,6 +67,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
         payload: { questId: quest.id, partyId: party.id, guildId: guild.id, ...result },
       }),
     ),
+    ...expendUsed(world, emit, { party, quest }, resolution.consumables),
     emit({
       type: 'quest.resolved',
       participants: [quest.id, party.id, ...party.heroIds, guild.id, quest.patronId],
@@ -138,6 +142,8 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   events.push(...regardOnSharedQuest(survivors, ctx, { succeeded: outcome.band !== 'fail', regardDelta: outcome.regardDelta }));
 
   for (const hero of survivors) hero.partyId = null;
+  // M5-S3: what the Party carried and did not use goes home to the Guild's holding.
+  sendHome(world, party);
   delete world.parties[party.id];
   delete world.quests[quest.id];
   return events;

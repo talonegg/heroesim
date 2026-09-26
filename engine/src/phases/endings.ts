@@ -23,6 +23,7 @@ import {
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { generateRival } from '../generators/guilds.js';
+import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
 import { ageOf, dayOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
@@ -100,7 +101,8 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
  * A Rival folds (pre-M0 review D6, DL-28): `guild.folded`, naming the Guild, its Guildmaster, each
  * Party it disbands and each Quest it abandons; then `hero.left-guild` for each Hero on the Roster,
  * in Roster order, every event made before the rows change. Its Parties in flight are disbanded and
- * a Quest left with no Party is removed unresolved, since nobody is left to finish it or be paid.
+ * a Quest left with no Party is removed unresolved, since nobody is left to finish it or be paid;
+ * what a disbanded Party carried goes back to the Guild's holding first (M5-S3, DL-50).
  * Its Heroes join the Unattached pool tonight, keeping their Injuries, Levels and Morale; the Roster
  * is emptied and `foldedOnTurn` set. The Guild and its Guildmaster keep their rows, as a record
  * no rule reads again.
@@ -131,6 +133,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     }
     const quest = world.quests[party.questId];
     if (quest !== undefined) quest.partyIds = quest.partyIds.filter((partyId) => partyId !== party.id);
+    sendHome(world, party);
     delete world.parties[party.id];
   }
   for (const questId of abandoned) delete world.quests[questId];

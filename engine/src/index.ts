@@ -16,8 +16,12 @@ export {
   dispatch,
   unavailability,
   unmetRequirements,
+  type ConsumableRequest,
   type DispatchAction,
   type DispatchGuildFolded,
+  type DispatchInsufficientQuantity,
+  type DispatchNotConsumable,
+  type DispatchNotHeldByGuild,
   type DispatchRejection,
   type DispatchRequest,
   type HeroNotOnRoster,
@@ -61,6 +65,7 @@ export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
+export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
 export { teamwork } from './quest-engine/teamwork.js';
 export {
