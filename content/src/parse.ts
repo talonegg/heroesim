@@ -56,9 +56,10 @@ export const contentSetId = 'core';
  * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
  * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
  * the Quest templates' tables (DL-52); 11 from merging those with the main line's 8, taken past
- * every number a line in flight has used for other content (DL-61).
+ * every number a line in flight has used for other content (DL-61); 12 from the M5 close's Loot,
+ * rarer unique Items and two templates without a table (DL-62).
  */
-export const contentVersion = 11;
+export const contentVersion = 12;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

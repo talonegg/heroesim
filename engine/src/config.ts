@@ -27,7 +27,8 @@ export interface GameConfig {
    * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
    * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
    * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
-   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61).
+   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
+   * M5 close's Loot threshold (DL-62).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -355,7 +356,7 @@ export interface GameConfig {
    * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
    * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
    * chooses each template's table by its difficulty band; this says from which difficulty a Quest
-   * awards Loot at all.
+   * awards Loot at all. 35 since the M5 close, so that Loot is for hard Quests (DL-62; 25 before).
    */
   lootDifficultyThreshold: number;
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
@@ -406,7 +407,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 7,
+  configVersion: 8,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -513,7 +514,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 
-  lootDifficultyThreshold: 25,
+  lootDifficultyThreshold: 35,
   lootOnBands: Object.freeze(['strong' as const]),
 
   marketSize: 10,
