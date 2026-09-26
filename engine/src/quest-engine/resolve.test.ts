@@ -128,6 +128,18 @@ describe('resolveQuest', () => {
     expect(outcome).toMatchObject({ band: 'fail', successes: 0, encounterCount: 3, deaths: party.heroIds });
   });
 
+  test("a Party wiped out after succeeding is banded over the whole sequence, not the Encounters it reached", () => {
+    // It comes through the first Encounter and dies of it: one success of three is a failure, where
+    // one of the one it reached would be strong (M4 verification, DL-42 item 11).
+    const content = contentWith(encounter('pyrrhic', true, [], [{ kind: 'death', chance: 1 }]), encounter('easy', true));
+    const { world, quest, party, deps } = scene('pyrrhic', content, ['pyrrhic', 'easy', 'easy'], { size: 1 });
+
+    const { encounters, outcome } = resolveQuest(world, quest, party, deps);
+
+    expect(encounters.map((it) => [it.encounterKey, it.outcome])).toEqual([['pyrrhic', 'success']]);
+    expect(outcome).toMatchObject({ band: 'fail', successes: 1, encounterCount: 3, deaths: party.heroIds, wealthDelta: 0 });
+  });
+
   test('pays the reward times the wealth factors on a success, nothing on a failure; Fame by the band plus the Encounters; XP by band times the XP factors', () => {
     const rich: Consequence[] = [
       { kind: 'wealth', factor: 1.5 },

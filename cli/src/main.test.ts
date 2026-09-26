@@ -323,6 +323,26 @@ describe('show', () => {
     }
   });
 
+  test("board's Skills that help are the Skills its Encounters' Checks read, not its template's (M4 verification)", () => {
+    const { world } = document();
+
+    const run = play(['show', 'board']);
+
+    let told = 0;
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.skillKeys ?? []))];
+      const skills = keys.length === 0 ? 'none' : keys.map((key) => content.skills[key]?.name).join(', ');
+      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
+      const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));
+      expect(line?.split(/\s{2,}/).at(-2), id).toBe(skills);
+      if (quest.skillKeys.some((key) => !keys.includes(key))) told += 1;
+    }
+    // Some Quest's template names a Skill none of its Encounters reads, which the Board no longer claims helps.
+    expect(told).toBeGreaterThan(0);
+  });
+
   test('board says a Quest saved before M4 has its Encounters drawn on the way (DL-42)', () => {
     const [questId] = document().world.board;
     if (questId === undefined) throw new Error('An empty Board');
@@ -1253,5 +1273,8 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
+    // Each section preview prints is named in its help, the Synergies (M4-S3) among them.
+    const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
+    for (const part of ['requirement', 'cannot go', 'Synergies', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 });
