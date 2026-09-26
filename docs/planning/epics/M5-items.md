@@ -104,9 +104,10 @@ Config: `lootDifficultyThreshold`, `lootOnBands`.
 
 **Acceptance:**
 
-- [ ] Loot appears only on the configured bands and only from templates with a table
-- [ ] A unique Loot Item exists once in `world.items` with the Guild as holder
-- [ ] The harness's Loot counter rises with the player's mean Quest difficulty
+- [x] Loot appears only on the configured bands and only from templates with a table
+- [x] A unique Loot Item exists once in `world.items` with the Guild as holder
+- [x] The harness's Loot counter rises with the player's mean Quest difficulty (proved in the engine,
+      `quest-engine/loot.test.ts`, before the counter exists; the M5 close's counter task adds it, DL-52)
 
 ### M5-S6 · (moved) Hall Improvements
 

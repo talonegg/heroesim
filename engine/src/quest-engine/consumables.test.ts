@@ -81,7 +81,7 @@ function scene(
     hero.skills = {};
   }
   const offered = world.quests[world.board[0] as Quest['id']] as Quest;
-  const quest: Quest = { ...structuredClone(offered), difficulty: 40, reward: 200, fameEffect: 3, encounterKeys: keys };
+  const quest: Quest = { ...structuredClone(offered), difficulty: 40, reward: 200, fameEffect: 3, encounterKeys: keys, lootTableKey: null }; // no Loot draws (M5-S5): these tests count the reroll's
   const party: Party = {
     id: makeId('parties', 99),
     questId: quest.id,

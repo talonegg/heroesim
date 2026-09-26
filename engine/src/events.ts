@@ -9,6 +9,7 @@ import type {
   ImprovementKey,
   InjuryTypeKey,
   ItemDefinitionKey,
+  LootTableKey,
   QuestTemplateKey,
   SphereKey,
   StatKey,
@@ -23,9 +24,11 @@ import type {
   GuildId,
   GuildmasterId,
   HeroId,
+  ItemId,
   PartyId,
   PatronId,
   QuestId,
+  StackId,
   Turn,
 } from './document.js';
 import type { ConsumableUse } from './quest-engine/consumables.js';
@@ -169,6 +172,29 @@ export type QuestResolved = Entry<
     guildId: GuildId;
     heroIds: HeroId[];
     templateKey: QuestTemplateKey;
+  }
+>;
+
+/**
+ * A Quest's outcome left Loot (M5-S5, DL-52): one entry of the Quest's Loot table, drawn by the Quest
+ * Engine on a band in `lootOnBands`, now in the Guild's holding. A unique Item is a new row,
+ * `itemId`; a common Item joined the Guild's stack of its definition, `stackId`, by `quantity`. A
+ * Milestone when the Item is unique (`milestoneWhen`). Names the Quest, the Party, the Guild and, for
+ * a unique Item, the Item.
+ */
+export type QuestLoot = Entry<
+  'quest.loot',
+  {
+    questId: QuestId;
+    partyId: PartyId;
+    guildId: GuildId;
+    lootTableKey: LootTableKey;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    /** The unique Item created; `null` for a common Item. */
+    itemId: ItemId | null;
+    /** The Guild's stack the common Item joined; `null` for a unique Item. */
+    stackId: StackId | null;
   }
 >;
 
@@ -368,6 +394,7 @@ export type EngineEvent =
   | QuestTaken
   | QuestEncounter
   | QuestResolved
+  | QuestLoot
   | HeroInjured
   | HeroDied
   | HeroXpGained
@@ -394,7 +421,9 @@ export type EngineEventOf<Type extends EngineEventType> = Extract<EngineEvent, {
 /**
  * Whether each event type is a Milestone (`CONTEXT.md`): the entries a front end picks out of the
  * History. Keyed by every event type and by nothing else, so the compiler refuses an event type
- * added to `EngineEvent` without saying which it is. `emit` reads it (DL-24).
+ * added to `EngineEvent` without saying which it is. `emit` reads it (DL-24) through `isMilestone`,
+ * which lets `milestoneWhen` decide a type that is a Milestone for some payloads only; such a type
+ * is `false` here.
  */
 export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object.freeze({
   'world.created': false,
@@ -411,6 +440,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'quest.taken': false,
   'quest.encounter': false,
   'quest.resolved': false,
+  'quest.loot': false,
   'hero.injured': false,
   'hero.died': true,
   'hero.xp-gained': false,
@@ -428,3 +458,20 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.regard-changed': false,
   'item.expended': false,
 } satisfies Record<EngineEventType, boolean>);
+
+/** A rule saying, from its payload, whether an entry of `Type` is a Milestone. */
+type MilestoneRule<Type extends EngineEventType> = (payload: EngineEventOf<Type>['payload']) => boolean;
+
+/**
+ * The event types that are Milestones for some payloads only, each with the rule that says which
+ * (M5-S5, DL-52): `quest.loot` when its Item is unique. `milestoneTypes` holds `false` for them.
+ */
+export const milestoneWhen: { readonly [Type in EngineEventType]?: MilestoneRule<Type> } = Object.freeze({
+  'quest.loot': (payload: QuestLoot['payload']) => payload.itemId !== null,
+});
+
+/** Whether an event of `type` with `payload` is a Milestone: `milestoneWhen`'s rule, or else `milestoneTypes`. */
+export function isMilestone<Type extends EngineEventType>(type: Type, payload: EngineEventOf<Type>['payload']): boolean {
+  const rule = milestoneWhen[type] as MilestoneRule<Type> | undefined;
+  return rule === undefined ? milestoneTypes[type] : rule(payload);
+}

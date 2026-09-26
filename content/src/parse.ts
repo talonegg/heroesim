@@ -23,6 +23,8 @@ import type {
   InjuryType,
   ItemDefinition,
   ItemKind,
+  LootEntry,
+  LootTable,
   Names,
   QuestTemplate,
   QuestTemplateRequires,
@@ -52,9 +54,10 @@ export const contentSetId = 'core';
  * M4-S1, which added the Encounters and each Quest template's Encounter kinds and counts, and, on
  * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
  * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
- * M5-S1, which added the Item definitions (DL-48).
+ * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
+ * the Quest templates' tables (DL-52).
  */
-export const contentVersion = 9;
+export const contentVersion = 10;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -72,6 +75,7 @@ export const contentFiles = [
   'encounters.json',
   'synergies.json',
   'items.json',
+  'loot-tables.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -167,7 +171,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         demands: row.weightedKeys('demands'),
         skillKeys: row.strings('skillKeys'),
         requires: requires(row.child('requires')),
-        lootTableKey: row.null('lootTableKey'),
+        lootTableKey: row.stringOrNull('lootTableKey'),
         encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
         encountersMin: row.integer('encountersMin'),
         encountersMax: row.integer('encountersMax'),
@@ -213,6 +217,9 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       return kinds === undefined ? shape : { ...shape, kinds };
     }),
     items: table<ItemDefinition>('items.json', json('items.json'), problems, 'an Item', itemDefinition),
+    lootTables: table<LootTable>('loot-tables.json', json('loot-tables.json'), problems, 'a Loot table', (row) => ({
+      entries: row.children('entries').map(lootEntry),
+    })),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -358,6 +365,21 @@ function consumableEffect(reader: RowReader): ConsumableEffect {
   }
   reader.refuseUnknown(`a ${kind} effect`);
   return effect;
+}
+
+/**
+ * One entry of a Loot table (M5-S5): an Item definition's key, a weight and a whole quantity range,
+ * and nothing else. What they may be is `validateContent`'s.
+ */
+function lootEntry(reader: RowReader): LootEntry {
+  const entry = {
+    definitionKey: reader.string('definitionKey'),
+    weight: reader.number('weight'),
+    quantityMin: reader.integer('quantityMin'),
+    quantityMax: reader.integer('quantityMax'),
+  };
+  reader.refuseUnknown('a Loot table entry');
+  return entry;
 }
 
 /** A Quest template's `requires`: an optional Class and an optional Skill, and nothing else. */
@@ -542,12 +564,6 @@ class RowReader {
     }
     this.wrong(field, value, 'an object of numbers');
     return {};
-  }
-
-  null(field: string): null {
-    const value = this.field(field);
-    if (value !== null) this.wrong(field, value, 'null until a rule reads it');
-    return null;
   }
 
   object(field: string): Record<string, unknown> {

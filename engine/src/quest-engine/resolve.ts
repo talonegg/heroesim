@@ -13,6 +13,8 @@
 // outcome's consequences in order: an Injury three per `count` (whether it lands, on whom, its
 // Days), a Death two (whether, on whom); taken whether or not they land, so tuning a chance never
 // shifts a later draw, as `chance` promises for one (rng.ts).
+// After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
+// loot.ts, DL-52).
 //
 // The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to a Check, roll a
 // failed Check again, and shorten the Injuries once the sequence is over. Only a reroll draws: one
@@ -31,6 +33,7 @@ import { chance, int } from '../rng.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { sequenceFor } from './encounters.js';
+import { drawLoot, type LootDraw } from './loot.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -92,6 +95,8 @@ export interface Resolution {
    * for `questsConclude` to expend. None when it carried none, or none applied.
    */
   consumables: ConsumableUse[];
+  /** The Loot the outcome leaves, drawn last (M5-S5, loot.ts, DL-52); `null` for none. */
+  loot: LootDraw | null;
 }
 
 /**
@@ -210,6 +215,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     },
     encounters,
     consumables: kit.used,
+    loot: drawLoot(world, quest, band, deps), // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52)
   };
 }
 

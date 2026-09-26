@@ -3057,6 +3057,91 @@ M5-close counter task**: consumables expended per Quest are the `item.expended` 
 consumables carried are `quest.taken`'s `payload.consumables`, so carried minus expended is what
 went home.
 
+## DL-52 — Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S5's implementer)
+
+**Context.** M5-S5 names `content/loot-tables.json` with rows `{ key, entries: [{ definitionKey, weight,
+quantityMin/Max }] }`, Quest templates' `lootTableKey` "set for templates with `difficultyMin` above
+`lootDifficultyThreshold`", one entry drawn from `quests` on a strong success and awarded to the Guild's
+holding (a unique Item with a fresh id), the event `quest.loot` ("Milestone when unique"), the config
+fields `lootDifficultyThreshold` and `lootOnBands`, and three boxes. INPUTS 7.4's default: Loot on strong
+success only, the table chosen by difficulty band. It leaves open: what content refuses; how a config
+threshold and content's templates agree, since content validation cannot read config (DL-48 item 2);
+when the draws are taken; whether a unique Item may be awarded twice; how an event type is a Milestone
+for some payloads only, when `milestoneTypes` is one boolean a type (DL-24); and where the award is
+applied, since the Quest Engine changes nothing but the streams (DL-42).
+
+**Decision.**
+
+1. **The row** (`content-types.ts`). `LootTable { key, entries: LootEntry[] }`, `LootEntry {
+   definitionKey, weight, quantityMin, quantityMax }`, as the epic writes it, no name (no rule or front
+   end shows a table). `ContentSet.lootTables`; `QuestTemplate.lootTableKey` becomes `LootTableKey |
+   null`. `loot-tables.json` is required and may be `{}`. **`contentVersion` becomes 10.**
+2. **Content refuses** (the parser the shape, `validateContent` the rest): a table with no entries; an
+   entry whose definition content lacks; a definition listed twice in one table; a weight that is not a
+   number above 0; a quantity that is not a whole number from 1, or a range upside down; a unique Item
+   with a quantity other than 1 at either end, since a unique Item is an individual; a field the row
+   lacks; and a template naming a table content lacks. A table no template names is allowed.
+3. **The threshold is applied at generation.** The Quest Generator copies the template's
+   `lootTableKey` onto the Quest when the template's `difficultyMin` is above `lootDifficultyThreshold`,
+   and `null` otherwise; nothing else reads the threshold. So content says which table a template's
+   Quests award from, config says from which difficulty a Quest awards Loot at all, and the Quest row
+   stays self-contained, as data-model §3.2 has it: a Quest offered keeps what it was offered with.
+   Not a validator rule, which cannot read config; not a resolution rule, which would read the template
+   again. The core names a table for exactly the templates the default threshold admits, and the
+   harness's `creation.test.ts`, which loads both, holds that agreement. The default threshold is
+   **25**: the six templates whose `difficultyMin` is 30 to 60 carry Loot, the six from 10 to 25 none.
+   Lowering it admits a template only where content names it a table.
+4. **Two tables, by difficulty band** (INPUTS 7.4): `lesser-loot` for a `difficultyMin` from 26 to 44
+   (Clear the barrow, The beast of the fells, Lay the restless dead) and `greater-loot` from 45 (The
+   counting-house job, Hold the border fort, Break the sealed vault). Weights total 100 in each. The
+   lesser: consumables at 74 (whetstone, lockpicks and healing draught 16 each, 1 to 3; grappling line
+   10 and blessed candle 8, 1 to 2; physician's kit 8, 1), fine gear at 20 (arming sword 7, mail shirt
+   7, silver amulet 6) and three unique Items at 2 each (the Barrow King's blade, Mantle of the Fells,
+   the Abbot's reliquary). The greater: consumables at 43 in larger quantities (healing draught 13,
+   2 to 4; physician's kit 12, 1 to 2; grappling line and blessed candle 9 each, 1 to 3), fine gear at
+   18, masterwork gear at 24 (8 each) and all five unique Items at 3 each. No other rule reads them, so
+   the values are untested; the M5 close measures them. The engine's test content carries the same.
+5. **`lootOnBands`** is a list of bands, default `['strong']` (INPUTS 7.4), frozen. **`configVersion`
+   stays 4**: two fields are added and no default changes (DL-38's reading).
+6. **The draw** (`quest-engine/loot.ts`, `drawLoot`), the Quest Engine's last step, one line in
+   `resolveQuest` beside the Encounters so that M5-S3's consumables and this touch that file apart.
+   `Resolution` gains `loot: LootDraw | null`, beside the outcome rather than in it, so `quest.resolved`'s
+   payload is unchanged. For a Quest whose table content defines: two draws from `quests`, the entry by
+   `weightedPick` over the weights, then its quantity by `int`, **taken whatever the band**, so tuning
+   `lootOnBands` never shifts a later draw (`chance`'s promise, rng.ts). A Quest with no table draws
+   nothing; one naming a table content lacks draws nothing and the validator warns, `unknown-loot-table`
+   (rule 5). Loot is awarded only on a band in `lootOnBands`.
+7. **One of each unique Item in a world.** A unique definition already in `world.items`, whoever holds
+   it (a Hero, a Guild, a Party or the Market), is drawn with weight 0, so it is never awarded twice;
+   when every entry of the table is such, the draw (uniform then, as `weightedPick` is when every weight
+   is 0) is taken and awards nothing. A unique Item is an individual (data-model §3.3) and the core's
+   five are named relics: a second Barrow King's blade would contradict its name, and re-drawing would
+   make the draw count depend on the world. Two Parties home the same night are resolved and awarded one
+   after the other, in id order, so the second's draw sees the first's Item.
+8. **The award** (`awardLoot`, applied by `questsConclude` right after `quest.resolved`, one line): to
+   `{ kind: 'guild', id }` of the Party's Guild, a unique Item by `createItem` with a fresh id, a common
+   Item by `addStack`, which joins the Guild's stack of it. Every Guild alike (ADR-0002); a folded
+   Guild's Party is never resolved.
+9. **`quest.loot`**: `{ questId, partyId, guildId, lootTableKey, definitionKey, quantity, itemId |
+   null, stackId | null }`, naming the Quest, the Party, the Guild and, for a unique Item, the Item, so
+   an Item's own History begins with its finding. A stack is not named: it is a quantity, not an
+   individual. **A Milestone when unique:** `events.ts` gains `milestoneWhen`, a rule by payload for the
+   event types that are Milestones for some payloads only (`quest.loot`: `itemId !== null`), where
+   `milestoneTypes` holds `false`; `emit` reads both through `isMilestone`. The CLI narrates it
+   ("The Kestrel Guild found Loot on quest-000003: The Barrow King's blade (item-000006).").
+
+**Consequences.** M5-S5's third box, "the harness's Loot counter rises with the player's mean Quest
+difficulty", is proved in the engine before the counter exists: `loot.test.ts` plays eight seeds for 90
+Days each under two regimes, the player sending every free Hero the Quest allows on the easiest or the
+hardest Quest it can staff; measured when written, a mean difficulty of 24 to 27 gave 20 Loot in all and
+46 to 75 gave 46. The M5 close's counter task computes **Loot awarded by table**: the `quest.loot` entries
+(`history.byType['quest.loot']`) grouped by `payload.lootTableKey`, for the player's Guild and for all,
+with unique ones (`itemId !== null`) apart; beside the player's mean Quest difficulty, which it can read
+from the resolved Quests. A unique Item sold to the Market stays in `world.items`, so it is still never
+awarded again; one M5-S4 removed would be. Balance of the tables and the threshold is the M5 close's.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

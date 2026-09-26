@@ -149,7 +149,8 @@ demands:        [StatKey, weight][]         copied from the template at generati
 skillKeys:      SkillKey[]                  copied from the template at generation
 encounterKeys:  string[]                    drawn at generation (M4); empty before
 requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
-lootTableKey:   string | null
+lootTableKey:   string | null               the template's, copied at generation when its difficultyMin is
+                                            above lootDifficultyThreshold, else null (M5-S5, DL-52)
 status:         "offered" | "taken" | "resolved"
 offeredOnTurn, expiresOnTurn
 partyIds:       PartyId[]                   first build: at most one; later, at most one per Guild

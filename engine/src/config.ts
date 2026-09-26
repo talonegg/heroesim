@@ -8,7 +8,7 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// gear slots (DL-48); M5-S5 Loot (DL-52). Every "Min/Max" pair is an inclusive range drawn with `int`. A
 // field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
@@ -343,6 +343,17 @@ export interface GameConfig {
    * by rules.
    */
   gearSlots: readonly SlotKey[];
+
+  // ── Loot (M5-S5, R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────
+  /**
+   * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
+   * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
+   * chooses each template's table by its difficulty band; this says from which difficulty a Quest
+   * awards Loot at all.
+   */
+  lootDifficultyThreshold: number;
+  /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
+  lootOnBands: readonly QuestBand[];
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
@@ -473,6 +484,9 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRegardOnHeroFailure: -1,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
+
+  lootDifficultyThreshold: 25,
+  lootOnBands: Object.freeze(['strong' as const]),
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

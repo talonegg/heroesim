@@ -131,6 +131,13 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`
       );
     }
+    case 'quest.loot': {
+      // A unique Item by name and id, a common one by name, quantity and the stack it joined (M5-S5).
+      const { guildId, questId, definitionKey, quantity, itemId, stackId } = event.payload;
+      const item = nameIn(content.items, definitionKey);
+      const what = itemId === null ? `${item} x${quantity} (${stackId ?? 'no stack'})` : `${item} (${itemId})`;
+      return `${called(event, guildId)} found Loot on ${questId}: ${what}.`;
+    }
     case 'hero.injured': {
       const { heroId, typeKey, healsOnTurn } = event.payload;
       return `${hero(event, heroId)} was injured (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;

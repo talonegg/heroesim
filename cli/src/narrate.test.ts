@@ -5,8 +5,10 @@ import {
   type EntityId,
   type GuildId,
   type HeroId,
+  type ItemId,
   type PartyId,
   type QuestId,
+  type StackId,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -92,6 +94,16 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     templateKey: 'guard-the-caravan',
+  }),
+  'quest.loot': event('quest.loot', [questId, partyId, guildId, 'item-000006'], {
+    questId,
+    partyId,
+    guildId,
+    lootTableKey: 'lesser-loot',
+    definitionKey: 'barrow-kings-blade',
+    quantity: 1,
+    itemId: 'item-000006' as ItemId,
+    stackId: null,
   }),
   'hero.injured': event('hero.injured', [heroId, questId], { heroId, questId, typeKey: 'deep-cut', healsOnTurn: 41 }),
   'hero.died': event('hero.died', [heroId, questId], { heroId, questId }),
@@ -199,6 +211,14 @@ describe('narrate', () => {
     );
     expect(narrate(samples['hero.levelled'], content)).toBe(
       'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
+    );
+    // M5-S5: a unique Item by name and id; a common one by name, quantity and the stack it joined.
+    expect(narrate(samples['quest.loot'], content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: ${content.items['barrow-kings-blade']?.name} (item-000006).`,
+    );
+    const common = { ...samples['quest.loot'].payload, definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId };
+    expect(narrate({ ...samples['quest.loot'], payload: common }, content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} x3 (stack-000008).`,
     );
   });
 

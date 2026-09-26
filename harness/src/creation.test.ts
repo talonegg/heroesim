@@ -26,6 +26,21 @@ describe('createWorld with the core content', () => {
   });
 });
 
+// M5-S5 (DL-52): content names a template's Loot table and config says from which difficulty a
+// Quest carries it. Content validation cannot read config, so their agreement is held here, where
+// both are loaded: the core names a table for exactly the templates the default threshold admits.
+describe('the core content and the default Loot threshold', () => {
+  test('agree: a template names a Loot table exactly when its difficultyMin is above the threshold', () => {
+    const templates = Object.values(content.questTemplates);
+    const above = templates.filter((it) => it.difficultyMin > defaultConfig.lootDifficultyThreshold);
+    const named = templates.filter((it) => it.lootTableKey !== null);
+
+    expect(named.map((it) => it.key).sort()).toEqual(above.map((it) => it.key).sort());
+    expect(named.length).toBeGreaterThanOrEqual(2);
+    expect(named.length).toBeLessThan(templates.length);
+  });
+});
+
 describe('sweepCreation', () => {
   const seeds = seedNames(3);
   const sweep = sweepCreation(seeds, deps, { now: tickingClock() });
