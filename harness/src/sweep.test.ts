@@ -1,7 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { controllerKinds } from './counters.js';
+import { controllerKinds, rivalTransferWays, transferDirections } from './counters.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -129,6 +129,41 @@ describe('sweepPlay', () => {
     expect(totals.playerQuestsByYear.reduce((total, tally) => total + tally.quests, 0)).toBe(byBand);
   });
 
+  test("totals M6's counters: each game's Transfers, offers, Dispositions and purchases summed, and the Rivals and Rankings as the year began", () => {
+    const sumOf = (read: (game: GameRecord) => number): number => sweep.games.reduce((total, game) => total + read(game), 0);
+    for (const direction of transferDirections) {
+      expect(totals.transfers[direction].transfers).toBe(sumOf((game) => game.counters.transfers[direction].transfers));
+      expect(totals.transfers[direction].fees).toBe(sumOf((game) => game.counters.transfers[direction].fees));
+    }
+    for (const way of rivalTransferWays) expect(totals.rivalTransfers[way].transfers).toBe(sumOf((game) => game.counters.rivalTransfers[way].transfers));
+    const r2r = rivalTransferWays.reduce((total, way) => total + totals.rivalTransfers[way].transfers, 0);
+    expect(r2r).toBe(totals.transfers['rival-to-rival'].transfers);
+    // Every Transfer's fee is spent by one Guild and taken by another.
+    const paid = controllerKinds.reduce((total, kind) => total + totals.wealth[kind].transferFeesPaid, 0);
+    const taken = controllerKinds.reduce((total, kind) => total + totals.wealth[kind].transferFeesTaken, 0);
+    expect(paid).toBe(taken);
+    expect(paid).toBe(transferDirections.reduce((total, direction) => total + totals.transfers[direction].fees, 0));
+    // The policy makes no Transfer, and the Generator takes none from it.
+    expect(totals.transfers.in.transfers + totals.transfers.out.transfers).toBe(0);
+    expect(totals.assertionGames).toBe(0);
+    const dispositions = Object.values(totals.dispositions);
+    expect(Object.keys(totals.dispositions).sort()).toEqual(Object.keys(content.dispositions).sort());
+    expect(dispositions.reduce((total, tally) => total + tally.questsTaken, 0)).toBe(totals.questsTaken.rival);
+    expect(dispositions.reduce((total, tally) => total + tally.questsWithDifficulty, 0)).toBe(totals.questsTaken.rival);
+    expect(dispositions.reduce((total, tally) => total + tally.deaths, 0)).toBe(totals.heroesDied.rival);
+    expect(dispositions.reduce((total, tally) => total + tally.recruits, 0)).toBe(totals.heroesRecruited.rival);
+    expect(totals.marketPurchases.player?.cost ?? 0).toBe(totals.wealth.player.items);
+    const rivalCost = Object.keys(content.dispositions).reduce((total, key) => total + (totals.marketPurchases[key]?.cost ?? 0), 0);
+    expect(rivalCost).toBe(totals.wealth.rival.items);
+    // Twenty Days: the new world's year-start only, four Rivals and the player's place in each game.
+    expect(totals.rivalYearStarts).toHaveLength(1);
+    const starts = Object.values(totals.rivalYearStarts[0] ?? {});
+    expect(starts.reduce((total, start) => total + start.heroes.length, 0)).toBe(2 * deps.config.rivalCount);
+    expect(totals.rankings).toHaveLength(1);
+    expect(totals.rankings[0]?.games).toBe(2);
+    expect(totals.rankings[0]?.fame.reduce((a, b) => a + b, 0)).toBe(2);
+  });
+
   describe('its report', () => {
     const context = { deps, machine: machine(), startedAt: new Date(2026, 8, 26, 12), milestone: 'm4' };
     const report = playReport(sweep, context);
@@ -174,7 +209,8 @@ describe('sweepPlay', () => {
       expect(report).toContain('## Items (M5)');
       const player = totals.wealth.player;
       expect(report).toContain(`| Spent: signing fees (\`hero.recruited\` \`fee\`) | ${player.signing.toLocaleString('en-GB')} |`);
-      expect(report).toContain('| Spent: Transfers | none until M6 | — | none until M6 | — |');
+      expect(report).toContain(`| Spent: Transfers (\`hero.transferred\` \`fee\`, the buying Guild) | ${player.transferFeesPaid.toLocaleString('en-GB')} |`);
+      expect(report).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) |');
       expect(report).toContain(`| Spent: Items (\`item.bought\` \`cost\`) | ${player.items.toLocaleString('en-GB')} |`);
       expect(report).toContain('| Taken: the Market, `item.sold` `fold` (`proceeds`) |');
       // Every Loot table and consumable content holds is listed, awarded or expended or not.
@@ -186,6 +222,57 @@ describe('sweepPlay', () => {
       expect(report).toContain('By the Quest\'s difficulty (M5-S5\'s third box):');
       expect(report).toContain('| Consumables | Quests resolved | Carried | a Quest | Expended | a Quest |');
       expect(report).toContain('| Gear | Equipped | a Guild-year | Unequipped | Returned: died | Returned: retired | Returned: guild-folded | Returned: transferred |');
+    });
+
+    test("gives M6's counters: the Transfers, the offers, the Rivals against the generation range, the Rankings, the purchases and the four characters", () => {
+      expect(report).toContain('## Rivals (M6)');
+      expect(report).toContain("`hero.transferred` entries naming the player's Guild, 0; games it stopped, 0.");
+      expect(report).toContain('| Games a harness assertion stopped | 0 |');
+      expect(report).not.toContain('## Harness assertions broken');
+      expect(report).toContain("| Into the player's Guild | 0 | 0.00 | 0 | — |");
+      const r2r = totals.transfers['rival-to-rival'];
+      expect(report).toContain(`| Rival to Rival | ${r2r.transfers.toLocaleString('en-GB')} |`);
+      expect(report).toContain('| A night: the Transfer Generator |');
+      expect(report).toContain("| An afternoon, the seller in debt: the buyer's choice or the seller's debt sale (`debtTransfer`) |");
+      expect(report).toContain('the entries cannot tell those two apart');
+      expect(report).toContain('| Side | Bought | Fees paid | Sold | Fees taken | Net Heroes |');
+      expect(report).toContain("| Sold by, bought by | The player's Guild | `ambitious` | `miserly` | `reckless` | `steady` |");
+      // The generation range read from the config, not written in.
+      const { rivalRosterMin, rivalRosterMax, rivalStartingWealthMin, rivalStartingWealthMax } = deps.config;
+      expect(report).toContain(`| below ${rivalRosterMin} | above ${rivalRosterMax} | Wealth, mean | median | below ${rivalStartingWealthMin} | above ${rivalStartingWealthMax} |`);
+      expect(report).toContain('| Year | Games | Mean place | Place 1 |');
+      expect(report).toContain('| Market purchases | Purchases | a Guild-year | Items | Cost | Mean cost |');
+      for (const key of Object.keys(content.dispositions)) {
+        expect(report).toContain(`| The Rivals, \`${key}\`: infirmary | 0 | — |`);
+        expect(report).toContain(`| The Rivals, \`${key}\` |`);
+        // Two games, one Rival of each Disposition in each.
+        expect(report).toMatch(new RegExp(`\\| \`${key}\` \\| 2 \\| 0\\.1 \\| `));
+      }
+    });
+
+    test("computes the Rivals' medians and shares against the range, and the Rankings' mean place and distribution", () => {
+      const [first, second] = sweep.games;
+      if (first === undefined || second === undefined) throw new Error('Fewer than two games');
+      const rival = (disposition: string, heroes: number, wealth: number) => ({ disposition, heroes, wealth });
+      const made: PlaySweep = {
+        ...sweep,
+        games: [
+          { ...first, observations: { ...first.observations, rivals: [[rival('ambitious', 3, 200), rival('miserly', 9, 500)]], rankings: [{ fame: 1, wealth: 3, guilds: 3 }] } },
+          { ...second, observations: { ...second.observations, rivals: [[rival('ambitious', 5, 800)]], rankings: [{ fame: 2, wealth: 3, guilds: 3 }] } },
+        ],
+      };
+      const summed = sweepTotals(made, deps.config.turnsPerYear);
+      expect(summed.rivalYearStarts).toEqual([{ ambitious: { heroes: [3, 5], wealth: [200, 800] }, miserly: { heroes: [9], wealth: [500] } }]);
+      expect(summed.rankings).toEqual([{ games: 2, fame: [1, 1], wealth: [0, 0, 2] }]);
+
+      const text = playReport(made, { ...context, deps: { ...deps, config: { ...deps.config, rivalRosterMin: 4, rivalRosterMax: 8, rivalStartingWealthMin: 300, rivalStartingWealthMax: 700 } } });
+      // Every Rival: Rosters 3, 5, 9 (median 5, one below 4 and one above 8); Wealth 200, 500, 800.
+      expect(text).toContain('| 0 | 3 | 5.67 | 5 | 33.3% | 33.3% | 500 | 500 | 33.3% | 33.3% |');
+      expect(text).toContain('| `ambitious` | 0 | 2 | 4.00 | 3 | 50.0% | 0.0% | 500 | 200 | 50.0% | 50.0% |');
+      expect(text).toContain('| Every Rival | 3 | 5.67 | 5 | 33.3% | 33.3% | 500 | 500 | 33.3% | 33.3% |');
+      // By Fame: first and second once each; by Wealth: third both times.
+      expect(text).toContain('| 0 | 2 | 1.50 | 1 (50.0%) | 1 (50.0%) | 0 (0.0%) |');
+      expect(text).toContain('| 0 | 2 | 3.00 | 0 (0.0%) | 0 (0.0%) | 2 (100.0%) |');
     });
 
     test('sums the Patron-years and the Regard after 10 years over the games that reached them', () => {

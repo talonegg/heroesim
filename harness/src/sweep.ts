@@ -32,23 +32,37 @@ import {
   noBands,
   noConsumables,
   noDifficulty,
+  noDisposition,
   noGear,
+  noOffers,
+  noPurchases,
+  noTransfers,
   noWealth,
+  offerEndCauses,
+  playerSide,
+  rivalTransferWays,
   saleCauses,
+  transferDirections,
   type ByController,
   type ByYear,
   type ConsumableTally,
   type ControllerKind,
   type DifficultyTally,
+  type DispositionTally,
   type EncounterCounts,
   type FameGate,
   type GearTally,
   type GradeCounts,
   type GrowthAgainstDecline,
   type LootTally,
+  type MarketTally,
+  type OfferTally,
   type RegardSnapshot,
+  type RivalTransferWay,
   type RosterCensus,
   type SynergyTally,
+  type TransferDirection,
+  type TransferTally,
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
@@ -266,6 +280,35 @@ export interface SweepTotals {
   /** The player's Quests by difficulty band and by year, summed over the games that recorded them. */
   playerQuestsByDifficulty: DifficultyTally[];
   playerQuestsByYear: DifficultyTally[];
+  // M6's counters (DL-69).
+  transfers: Record<TransferDirection, TransferTally>;
+  rivalTransfers: Record<RivalTransferWay, TransferTally>;
+  transfersBySide: Record<string, Record<string, TransferTally>>;
+  transfersBack: number;
+  offers: Record<string, Record<string, OfferTally>>;
+  dispositions: Record<string, DispositionTally>;
+  marketPurchases: Record<string, MarketTally>;
+  /** The Improvement grades by Disposition, summed over the games that reached year `countedYear`. */
+  improvementGradesByDisposition: Record<string, GradeCounts>;
+  /** For each year, 0 the new world, each Disposition's Rivals in play as it began, over the games in play then. */
+  rivalYearStarts: Record<string, RivalYearStarts>[];
+  /** For each year, the player's Guild's places in the Rankings as it began, over the games in play then. */
+  rankings: RankingTally[];
+  /** Games a harness assertion stopped (DL-69). */
+  assertionGames: number;
+}
+
+/** Rivals as a year began: each one's Roster size and Wealth. */
+export interface RivalYearStarts {
+  heroes: number[];
+  wealth: number[];
+}
+
+/** The player's Guild's places as a year began, over `games`: index k counts the games where it stood k + 1st. */
+export interface RankingTally {
+  games: number;
+  fame: number[];
+  wealth: number[];
 }
 
 const zero = (): ByController => ({ player: 0, rival: 0 });
@@ -323,6 +366,31 @@ function addTallies(into: DifficultyTally[], from: readonly DifficultyTally[] | 
   });
 }
 
+/** Adds one game's counts by side, then side again, to the sweep's, each made by `none` where the sweep has none. */
+function addBySides<T extends object>(
+  into: Record<string, Record<string, T>>,
+  from: Readonly<Record<string, Readonly<Record<string, T>>>>,
+  none: () => T,
+  add: (into: T, from: T) => void,
+): void {
+  for (const [first, inner] of Object.entries(from)) {
+    for (const [second, tally] of Object.entries(inner)) add(((into[first] ??= {})[second] ??= none()), tally);
+  }
+}
+
+function addOffers(into: OfferTally, from: OfferTally): void {
+  const { ended, ...flat } = from;
+  addFields(into, flat as OfferTally);
+  addFields(into.ended, ended);
+}
+
+function addDisposition(into: DispositionTally, from: DispositionTally): void {
+  const { questsResolved, folds, ...flat } = from;
+  addFields(into, flat as DispositionTally);
+  addFields(into.questsResolved, questsResolved);
+  addFields(into.folds, folds);
+}
+
 export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals {
   const totals: SweepTotals = {
     games: sweep.games.length,
@@ -360,10 +428,48 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     gear: { player: noGear(), rival: noGear() },
     playerQuestsByDifficulty: [],
     playerQuestsByYear: [],
+    transfers: Object.fromEntries(transferDirections.map((direction) => [direction, noTransfers()])) as Record<TransferDirection, TransferTally>,
+    rivalTransfers: Object.fromEntries(rivalTransferWays.map((way) => [way, noTransfers()])) as Record<RivalTransferWay, TransferTally>,
+    transfersBySide: {},
+    transfersBack: 0,
+    offers: {},
+    dispositions: {},
+    marketPurchases: {},
+    improvementGradesByDisposition: {},
+    rivalYearStarts: [],
+    rankings: [],
+    assertionGames: 0,
   };
-  for (const { counters, observations, refusals, invalid } of sweep.games) {
+  for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
     addTallies(totals.playerQuestsByYear, counters.playerQuestsByYear);
+    for (const direction of transferDirections) addFields(totals.transfers[direction], counters.transfers[direction]);
+    for (const way of rivalTransferWays) addFields(totals.rivalTransfers[way], counters.rivalTransfers[way]);
+    addBySides(totals.transfersBySide, counters.transfersBySide, noTransfers, addFields);
+    totals.transfersBack += counters.transfersBack;
+    addBySides(totals.offers, counters.offers, noOffers, addOffers);
+    for (const [disposition, tally] of Object.entries(counters.dispositions)) addDisposition((totals.dispositions[disposition] ??= noDisposition()), tally);
+    for (const [side, tally] of Object.entries(counters.marketPurchases)) addFields((totals.marketPurchases[side] ??= noPurchases()), tally);
+    for (const [disposition, grades] of Object.entries(counters.improvementGradesByDisposition ?? {})) {
+      const into = (totals.improvementGradesByDisposition[disposition] ??= noGrades());
+      for (const facility of facilityKeys) addSeries(into[facility], grades[facility]);
+    }
+    observations.rivals.forEach((rivals, year) => {
+      const byDisposition = (totals.rivalYearStarts[year] ??= {});
+      for (const { disposition, heroes, wealth } of rivals) {
+        const starts = (byDisposition[disposition] ??= { heroes: [], wealth: [] });
+        starts.heroes.push(heroes);
+        starts.wealth.push(wealth);
+      }
+    });
+    observations.rankings.forEach((ranking, year) => {
+      if (ranking === null) return;
+      const tally = (totals.rankings[year] ??= { games: 0, fame: [], wealth: [] });
+      tally.games += 1;
+      addSeries(tally.fame, Array.from({ length: ranking.fame }, (_, index) => (index === ranking.fame - 1 ? 1 : 0)));
+      addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
+    });
+    if (assertion !== null) totals.assertionGames += 1;
     for (const kind of controllerKinds) {
       addWealth(totals.wealth[kind], counters.wealth[kind]);
       for (const [table, tally] of Object.entries(counters.loot[kind])) {
@@ -549,19 +655,22 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
   });
 
   const grades = Array.from({ length: topGrade(deps) + 1 }, (_, grade) => grade);
-  const gradeRows = controllerKinds.flatMap((kind) =>
-    facilityKeys.map((facility: FacilityKey) => {
-      const counts = totals.improvementGrades[kind][facility];
-      const guilds = sum(counts);
-      const graded = counts.reduce((total, n, grade) => total + n * grade, 0);
-      return [
-        `${kindLabel(kind)}: ${facility}`,
-        whole(guilds),
-        ratio(graded, guilds),
-        ...grades.map((grade) => whole(counts[grade] ?? 0)),
-      ];
-    }),
-  );
+  const gradeRow = (label: string, counts: readonly number[]): string[] => {
+    const guilds = sum(counts);
+    const graded = counts.reduce((total, n, grade) => total + n * grade, 0);
+    return [label, whole(guilds), ratio(graded, guilds), ...grades.map((grade) => whole(counts[grade] ?? 0))];
+  };
+  const gradeRows = [
+    ...controllerKinds.flatMap((kind) =>
+      facilityKeys.map((facility: FacilityKey) => gradeRow(`${kindLabel(kind)}: ${facility}`, totals.improvementGrades[kind][facility])),
+    ),
+    // M6's Dispositions (DL-69): the Rivals' rows again, by Disposition.
+    ...dispositionKeys(totals, deps).flatMap((disposition) =>
+      facilityKeys.map((facility: FacilityKey) =>
+        gradeRow(`The Rivals, \`${disposition}\`: ${facility}`, totals.improvementGradesByDisposition[disposition]?.[facility] ?? []),
+      ),
+    ),
+  ];
 
   return [
     '## Progression, Fame and the Hall (M3)',
@@ -652,7 +761,7 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
     '',
     `Improvement grades reached by year ${countedYear} (M3-S6, DL-38 item 15), over the ${whole(totals.gamesAtCountedYear)} ` +
       'games that reached it: the Guilds founded before it, replacement Rivals included, by the highest grade each ' +
-      'facility reached before it:',
+      "facility reached before it; the Rivals' rows again by Disposition (M6, DL-69):",
     '',
     markdownTable(
       ['Controller: facility', 'Guilds', 'Mean grade', ...grades.map((grade) => `Grade ${grade}`)],
@@ -667,6 +776,11 @@ function progressionSection(totals: SweepTotals, deps: EngineDeps): string[] {
 function keysOf(known: readonly string[], ...counts: readonly Record<string, unknown>[]): string[] {
   const extra = counts.flatMap((count) => Object.keys(count)).filter((key) => !known.includes(key));
   return [...new Set([...[...known].sort(compareByCodeUnit), ...extra.sort(compareByCodeUnit)])];
+}
+
+/** The Dispositions a table lists: content's, in key order, then any other a Rival of the sweep had. */
+function dispositionKeys(totals: SweepTotals, deps: EngineDeps): string[] {
+  return keysOf(Object.keys(deps.content.dispositions), totals.dispositions, totals.improvementGradesByDisposition, ...totals.rivalYearStarts);
 }
 
 type EncounterTally = EncounterCounts[keyof EncounterCounts];
@@ -801,14 +915,15 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
     label,
     ...controllerKinds.flatMap((kind) => perYear(kind, read(totals.wealth[kind]))),
   ];
-  const spent = (flows: WealthFlows): number => flows.signing + flows.items + flows.improvements + flows.upkeep;
-  const taken = (flows: WealthFlows): number => flows.questRewards + sum(saleCauses.map((cause) => flows.sales[cause]));
+  const spent = (flows: WealthFlows): number => flows.signing + flows.transferFeesPaid + flows.items + flows.improvements + flows.upkeep;
+  const taken = (flows: WealthFlows): number =>
+    flows.questRewards + flows.transferFeesTaken + sum(saleCauses.map((cause) => flows.sales[cause]));
   const shareRow = controllerKinds.flatMap((kind) => {
     const flows = totals.wealth[kind];
     const all = spent(flows);
     return [
-      `${kindLabel(kind)}: signing ${percent(flows.signing, all)}, Items ${percent(flows.items, all)}, ` +
-        `Improvements ${percent(flows.improvements, all)}, Upkeep ${percent(flows.upkeep, all)}`,
+      `${kindLabel(kind)}: signing ${percent(flows.signing, all)}, Transfers ${percent(flows.transferFeesPaid, all)}, ` +
+        `Items ${percent(flows.items, all)}, Improvements ${percent(flows.improvements, all)}, Upkeep ${percent(flows.upkeep, all)}`,
     ];
   });
 
@@ -901,19 +1016,20 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   return [
     '## Items (M5)',
     '',
-    'Wealth spent by category and taken, by the Guild each entry names; a Guild-year as in M3\'s table. Transfers ' +
-      'have no event until M6, so none is counted.',
+    'Wealth spent by category and taken, by the Guild each entry names; a Guild-year as in M3\'s table. A ' +
+      "Transfer's fee (M6) is spent by the Guild the Hero joins and taken by the Guild they leave.",
     '',
     markdownTable(
       ['Wealth', ...kindHeaders],
       [
         flowRow('Spent: signing fees (`hero.recruited` `fee`)', (flows) => flows.signing),
-        ['Spent: Transfers', ...controllerKinds.flatMap(() => ['none until M6', '—'])],
+        flowRow('Spent: Transfers (`hero.transferred` `fee`, the buying Guild)', (flows) => flows.transferFeesPaid),
         flowRow('Spent: Items (`item.bought` `cost`)', (flows) => flows.items),
         flowRow('Spent: Improvements (`guild.improved` `cost`)', (flows) => flows.improvements),
         flowRow('Spent: Upkeep (`guild.upkeep-paid` `amount`)', (flows) => flows.upkeep),
         flowRow('Spent in all', spent),
         flowRow('Taken: Quest rewards (`quest.resolved` `wealthDelta`)', (flows) => flows.questRewards),
+        flowRow('Taken: Transfers (`hero.transferred` `fee`, the selling Guild)', (flows) => flows.transferFeesTaken),
         ...saleCauses.map((cause) => flowRow(`Taken: the Market, \`item.sold\` \`${cause}\` (\`proceeds\`)`, (flows) => flows.sales[cause])),
         flowRow('Taken in all', taken),
         flowRow('Items bought (`item.bought` `quantity`)', (flows) => flows.itemsBought),
@@ -952,6 +1068,322 @@ function itemsSection(totals: SweepTotals, deps: EngineDeps): string[] {
       ['Gear', 'Equipped', 'a Guild-year', 'Unequipped', ...gearReturnCauses.map((cause) => `Returned: ${cause}`)],
       gearRows,
       ['left', 'right', 'right', 'right', ...gearReturnCauses.map(() => 'right' as const)],
+    ),
+    '',
+  ];
+}
+
+/**
+ * M6's counters (the epic's §2, DL-69): the Transfers by direction, by how those between two Rivals
+ * happened and by the selling and the buying Guild; the Transfer Offers; each Rival's Roster and
+ * Wealth as each year began against the generation range; the player's Guild's place in the
+ * Rankings; the Market purchases by buyer; each Disposition's Quests, Deaths, recruits and folds; and
+ * the M6-S3 harness assertion.
+ */
+function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
+  const { config } = deps;
+  const dispositions = dispositionKeys(totals, deps);
+  const sides = [
+    playerSide,
+    ...keysOf(dispositions, totals.transfersBySide, ...Object.values(totals.transfersBySide), totals.offers, ...Object.values(totals.offers), totals.marketPurchases).filter(
+      (side) => side !== playerSide,
+    ),
+  ];
+  const sideLabel = (side: string): string => (side === playerSide ? "the player's Guild" : `\`${side}\``);
+  const capital = (text: string): string => `${text.charAt(0).toUpperCase()}${text.slice(1)}`;
+  const perGame = (n: number): string => ratio(n, totals.games);
+
+  // Transfers.
+  const transferCells = (tally: TransferTally): string[] => [
+    whole(tally.transfers),
+    perGame(tally.transfers),
+    whole(tally.fees),
+    ratio(tally.fees, tally.transfers, 0),
+  ];
+  const everyTransfer = noTransfers();
+  for (const direction of transferDirections) addFields(everyTransfer, totals.transfers[direction]);
+  const directionLabels: Record<TransferDirection, string> = {
+    in: "Into the player's Guild",
+    out: "Out of the player's Guild",
+    'rival-to-rival': 'Rival to Rival',
+  };
+  const directionRows = [
+    ...transferDirections.map((direction) => [directionLabels[direction], ...transferCells(totals.transfers[direction])]),
+    ['Every Transfer', ...transferCells(everyTransfer)],
+  ];
+  const wayLabels: Record<RivalTransferWay, string> = {
+    afternoon: "An afternoon, the seller out of debt: the buyer's choice (`transferChoice`)",
+    'afternoon-seller-in-debt': "An afternoon, the seller in debt: the buyer's choice or the seller's debt sale (`debtTransfer`)",
+    generator: 'A night: the Transfer Generator',
+    'accepted-offer': 'An accepted Transfer Offer (`offerId` set)',
+  };
+  const wayRows = rivalTransferWays.map((way) => [wayLabels[way], ...transferCells(totals.rivalTransfers[way])]);
+  const pair = (seller: string, buyer: string): TransferTally => totals.transfersBySide[seller]?.[buyer] ?? noTransfers();
+  const sideRows = sides.map((side) => {
+    const bought = noTransfers();
+    const sold = noTransfers();
+    for (const other of sides) {
+      addFields(bought, pair(other, side));
+      addFields(sold, pair(side, other));
+    }
+    return [
+      capital(sideLabel(side)),
+      whole(bought.transfers),
+      whole(bought.fees),
+      whole(sold.transfers),
+      whole(sold.fees),
+      whole(bought.transfers - sold.transfers),
+    ];
+  });
+  const matrixRows = sides.map((seller) => [capital(sideLabel(seller)), ...sides.map((buyer) => whole(pair(seller, buyer).transfers))]);
+
+  // Offers.
+  const offerRows = sides.flatMap((maker) =>
+    sides.flatMap((asked) => {
+      const tally = totals.offers[maker]?.[asked];
+      if (tally === undefined) return [];
+      const ended = sum(offerEndCauses.map((cause) => tally.ended[cause]));
+      return [
+        [
+          `${capital(sideLabel(maker))} to ${sideLabel(asked)}`,
+          whole(tally.made),
+          ratio(tally.fees, tally.made, 0),
+          whole(tally.accepted),
+          whole(tally.declined),
+          ...offerEndCauses.map((cause) => whole(tally.ended[cause])),
+          whole(tally.made - tally.accepted - tally.declined - ended),
+        ],
+      ];
+    }),
+  );
+
+  // Rival Rosters and Wealth as each year began, against the generation range.
+  const rangeCells = (starts: RivalYearStarts): string[] => {
+    const { heroes, wealth } = starts;
+    const count = (values: readonly number[], test: (n: number) => boolean): number => values.filter(test).length;
+    const rosters = summarise(heroes);
+    const wealths = summarise(wealth);
+    return [
+      whole(heroes.length),
+      fixed(rosters.mean),
+      whole(rosters.p50),
+      percent(count(heroes, (n) => n < config.rivalRosterMin), heroes.length),
+      percent(count(heroes, (n) => n > config.rivalRosterMax), heroes.length),
+      whole(wealths.mean),
+      whole(wealths.p50),
+      percent(count(wealth, (n) => n < config.rivalStartingWealthMin), wealth.length),
+      percent(count(wealth, (n) => n > config.rivalStartingWealthMax), wealth.length),
+    ];
+  };
+  const merged = (parts: readonly RivalYearStarts[]): RivalYearStarts => ({
+    heroes: parts.flatMap((part) => part.heroes),
+    wealth: parts.flatMap((part) => part.wealth),
+  });
+  const rangeHeader = [
+    'Rival year-starts',
+    'Roster, mean',
+    'median',
+    `below ${whole(config.rivalRosterMin)}`,
+    `above ${whole(config.rivalRosterMax)}`,
+    'Wealth, mean',
+    'median',
+    `below ${whole(config.rivalStartingWealthMin)}`,
+    `above ${whole(config.rivalStartingWealthMax)}`,
+  ];
+  const rangeAlign = rangeHeader.map(() => 'right' as const);
+  const allYearRows = totals.rivalYearStarts.map((byDisposition, year) => [whole(year), ...rangeCells(merged(Object.values(byDisposition)))]);
+  const dispositionYearRows = dispositions.flatMap((disposition) =>
+    totals.rivalYearStarts.flatMap((byDisposition, year) => {
+      const starts = byDisposition[disposition];
+      return starts === undefined ? [] : [[`\`${disposition}\``, whole(year), ...rangeCells(starts)]];
+    }),
+  );
+  const everyStart = (disposition?: string): RivalYearStarts =>
+    merged(totals.rivalYearStarts.flatMap((byDisposition) => (disposition === undefined ? Object.values(byDisposition) : [byDisposition[disposition] ?? { heroes: [], wealth: [] }])));
+  const overallRows = [
+    ...dispositions.map((disposition) => [`\`${disposition}\``, ...rangeCells(everyStart(disposition))]),
+    ['Every Rival', ...rangeCells(everyStart())],
+  ];
+
+  // The player's Guild's place in the Rankings.
+  const places = Math.max(0, ...totals.rankings.flatMap((tally) => [tally.fame.length, tally.wealth.length]));
+  const placeNumbers = Array.from({ length: places }, (_, index) => index + 1);
+  const meanPlace = (counts: readonly number[]): number => counts.reduce((total, n, index) => total + n * (index + 1), 0);
+  const rankingRows = (by: 'fame' | 'wealth'): string[][] => {
+    const all = { games: 0, counts: [] as number[] };
+    const rows = totals.rankings.map((tally, year) => {
+      all.games += tally.games;
+      addSeries(all.counts, tally[by]);
+      return [
+        whole(year),
+        whole(tally.games),
+        ratio(meanPlace(tally[by]), tally.games),
+        ...placeNumbers.map((place) => `${whole(tally[by][place - 1] ?? 0)} (${percent(tally[by][place - 1] ?? 0, tally.games)})`),
+      ];
+    });
+    return [
+      ...rows,
+      [
+        'Every year',
+        whole(all.games),
+        ratio(meanPlace(all.counts), all.games),
+        ...placeNumbers.map((place) => `${whole(all.counts[place - 1] ?? 0)} (${percent(all.counts[place - 1] ?? 0, all.games)})`),
+      ],
+    ];
+  };
+  const rankingHeader = ['Year', 'Games', 'Mean place', ...placeNumbers.map((place) => `Place ${place}`)];
+  const rankingAlign = rankingHeader.map(() => 'right' as const);
+
+  // Market purchases by buyer.
+  const purchasesOf = (keys: readonly string[]): MarketTally => {
+    const all = noPurchases();
+    for (const key of keys) addFields(all, totals.marketPurchases[key] ?? noPurchases());
+    return all;
+  };
+  const purchaseCells = (tally: MarketTally, guildYears: number): string[] => [
+    whole(tally.purchases),
+    ratio(tally.purchases, guildYears),
+    whole(tally.items),
+    whole(tally.cost),
+    ratio(tally.cost, tally.purchases, 0),
+  ];
+  const rivalSides = sides.filter((side) => side !== playerSide);
+  const purchaseRows = [
+    ["The player's Guild", ...purchaseCells(purchasesOf([playerSide]), sum(totals.guildYears.player))],
+    ['The Rivals', ...purchaseCells(purchasesOf(rivalSides), sum(totals.guildYears.rival))],
+    ...dispositions.map((disposition) => [
+      `The Rivals, \`${disposition}\``,
+      ...purchaseCells(purchasesOf([disposition]), totals.dispositions[disposition]?.guildYears ?? 0),
+    ]),
+  ];
+
+  // The four characters.
+  const characterRows = dispositions.map((disposition) => {
+    const tally = totals.dispositions[disposition] ?? noDisposition();
+    const resolved = sum(Object.values(tally.questsResolved));
+    const folds = sum(Object.values(tally.folds));
+    const starts = everyStart(disposition);
+    return [
+      `\`${disposition}\``,
+      whole(tally.guilds),
+      fixed(tally.guildYears, 1),
+      ratio(tally.questsTaken, tally.guildYears, 1),
+      ratio(tally.difficulty, tally.questsWithDifficulty, 1),
+      percent(tally.questsResolved.fail, resolved),
+      ratio(tally.deaths, tally.guildYears),
+      ratio(tally.recruits, tally.guildYears),
+      `${whole(folds)} (${endingReasons.map((reason) => whole(tally.folds[reason])).join(' / ')})`,
+      ratio(folds, tally.guildYears, 3),
+      ratio(sum(starts.heroes), starts.heroes.length, 1),
+      ratio(sum(starts.wealth), starts.wealth.length, 0),
+    ];
+  });
+  const withDifficulty = sum(dispositions.map((disposition) => totals.dispositions[disposition]?.questsWithDifficulty ?? 0));
+  const taken = sum(dispositions.map((disposition) => totals.dispositions[disposition]?.questsTaken ?? 0));
+  const playerTransfers = totals.transfers.in.transfers + totals.transfers.out.transfers;
+
+  return [
+    '## Rivals (M6)',
+    '',
+    "Read from each game's History as before, a Transfer counting for both its Guilds (`hero.transferred`'s " +
+      '`fromGuildId`, the seller, and `toGuildId`, the buyer); a side is the player\'s Guild or a Rival\'s Disposition. ' +
+      'What no entry records the play loop reads from the world each `advance` begins with: the difficulty of each Quest ' +
+      "a Rival takes, and whether an afternoon Transfer's seller was in debt.",
+    '',
+    `The M6-S3 harness assertion: \`hero.transferred\` entries naming the player's Guild, ${whole(playerTransfers)}; ` +
+      `games it stopped, ${whole(totals.assertionGames)}. The automatic policy declines every Transfer Offer and never ` +
+      'transfers, and the Transfer Generator never takes from the player, so any such entry is a harness failure: it ' +
+      'stops its game and is listed under "Harness assertions broken", as a validator refusal is under its own heading.',
+    '',
+    'Transfers by direction:',
+    '',
+    markdownTable(['Transfers', 'Count', 'a game', 'Fees', 'Mean fee'], directionRows, ['left', 'right', 'right', 'right', 'right']),
+    '',
+    'Rival to Rival, by how each happened. No entry says which action made a Transfer: an accepted offer names it, a ' +
+      "night's is the Generator's (Rivals choose in the afternoon), and an afternoon's is the buyer's choice unless the " +
+      'seller was in debt as the afternoon began, when it may be the seller\'s debt sale instead; the entries cannot tell ' +
+      'those two apart.',
+    '',
+    markdownTable(['Rival to Rival', 'Count', 'a game', 'Fees', 'Mean fee'], wayRows, ['left', 'right', 'right', 'right', 'right']),
+    '',
+    `Transfers that took a Hero to a Guild that had sold them before (DL-60's lock): ${whole(totals.transfersBack)}.`,
+    '',
+    'By side, bought and sold:',
+    '',
+    markdownTable(['Side', 'Bought', 'Fees paid', 'Sold', 'Fees taken', 'Net Heroes'], sideRows, ['left', 'right', 'right', 'right', 'right', 'right']),
+    '',
+    markdownTable(
+      ['Sold by, bought by', ...sides.map((side) => capital(sideLabel(side)))],
+      matrixRows,
+      ['left', ...sides.map(() => 'right' as const)],
+    ),
+    '',
+    ...(offerRows.length === 0
+      ? ['No Transfer Offer was made.']
+      : [
+          'Transfer Offers, by the Guild that made them and the Guild asked: made (`guild.transfer-offered`), accepted ' +
+            '(a `hero.transferred` naming the offer), declined (`guild.transfer-offer-declined`), ended unanswered ' +
+            '(`guild.transfer-offer-expired` by its `cause`), and standing when the game stopped:',
+          '',
+          markdownTable(
+            ['Offers', 'Made', 'Mean fee', 'Accepted', 'Declined', ...offerEndCauses.map((cause) => `Ended: ${cause}`), 'Standing'],
+            offerRows,
+            ['left', 'right', 'right', 'right', 'right', ...offerEndCauses.map(() => 'right' as const), 'right'],
+          ),
+        ]),
+    '',
+    `The Rivals in play as each year began, before the policy acts (0 is the new world): each Roster's size against ` +
+      `the range a Rival is generated with (\`rivalRosterMin\` ${whole(config.rivalRosterMin)} to \`rivalRosterMax\` ` +
+      `${whole(config.rivalRosterMax)}), and its Wealth against its starting range (\`rivalStartingWealthMin\` ` +
+      `${whole(config.rivalStartingWealthMin)} to \`rivalStartingWealthMax\` ${whole(config.rivalStartingWealthMax)}); ` +
+      'a median is the middle year-start, the lower of two:',
+    '',
+    markdownTable(['Year', ...rangeHeader], allYearRows, ['right', ...rangeAlign]),
+    '',
+    'By Disposition, over every year-start, then year by year:',
+    '',
+    markdownTable(['Disposition', ...rangeHeader], overallRows, ['left', ...rangeAlign]),
+    '',
+    markdownTable(['Disposition', 'Year', ...rangeHeader], dispositionYearRows, ['left', 'right', ...rangeAlign]),
+    '',
+    "The player's Guild's place in the Rankings (the engine's `rankings`, every Guild in play) as each year began, by Fame:",
+    '',
+    markdownTable(rankingHeader, rankingRows('fame'), rankingAlign),
+    '',
+    'By Wealth:',
+    '',
+    markdownTable(rankingHeader, rankingRows('wealth'), rankingAlign),
+    '',
+    'Market purchases (`item.bought`), by the buying Guild:',
+    '',
+    markdownTable(
+      ['Market purchases', 'Purchases', 'a Guild-year', 'Items', 'Cost', 'Mean cost'],
+      purchaseRows,
+      ['left', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    `Each Disposition's character: its Rivals (replacements included) and their years in play; the Quests they took ` +
+      `(\`quest.taken\`) and the mean difficulty of the ${whole(withDifficulty)} of ${whole(taken)} whose difficulty the ` +
+      'play loop read; the share failed of those resolved; Deaths (`hero.died`) and recruits (`hero.recruited`) a ' +
+      `Guild-year; folds (\`guild.folded\`, ${endingReasons.join(' / ')}); and the Roster and Wealth at a year-start:`,
+    '',
+    markdownTable(
+      [
+        'Disposition',
+        'Rivals',
+        'Guild-years',
+        'Quests a Guild-year',
+        'Mean difficulty',
+        'Failed',
+        'Deaths a Guild-year',
+        'Recruits a Guild-year',
+        'Folds',
+        'Folds a Guild-year',
+        'Roster',
+        'Wealth',
+      ],
+      characterRows,
+      ['left', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right', 'right'],
     ),
     '',
   ];
@@ -1063,6 +1495,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
         ['Rival folds', `${whole(totalFolds)}, ${perGame(totalFolds)} a game`],
         ['Policy actions the rules refused', whole(totals.refusals)],
         ['Games the validator refused', sweep.validated ? whole(totals.invalidGames) : 'not validated'],
+        ['Games a harness assertion stopped', whole(totals.assertionGames)],
         [
           'Byte equality, one seed played twice',
           sweep.replay === null
@@ -1107,6 +1540,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     ...progressionSection(totals, deps),
     ...questEngineSection(totals, deps),
     ...itemsSection(totals, deps),
+    ...rivalsSection(totals, deps),
     '## Measures',
     '',
     markdownTable(
@@ -1194,6 +1628,18 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
             return named.map(({ check, id }) => [`\`${seed}\``, whole(turn), check, `\`${id}\``]);
           })
           .slice(0, listed),
+      ),
+      '',
+    );
+  }
+  const broken = sweep.games.flatMap(({ seed, assertion }) => (assertion === null ? [] : [{ seed, ...assertion }]));
+  if (broken.length > 0) {
+    lines.push(
+      '## Harness assertions broken',
+      '',
+      markdownTable(
+        ['Seed', 'Turn', 'Check', 'Id'],
+        broken.slice(0, listed).map(({ seed, turn, check, id }) => [`\`${seed}\``, whole(turn), check, `\`${id}\``]),
       ),
       '',
     );

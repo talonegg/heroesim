@@ -1,8 +1,28 @@
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, playerGuild, serialise, type EngineDeps, type Guild } from '@heroesim/engine';
+import {
+  append,
+  applyAction,
+  createWorld,
+  defaultConfig,
+  dispositionOf,
+  playerGuild,
+  serialise,
+  timeOfDay,
+  type EngineDeps,
+  type Guild,
+  type GuildAction,
+  type GuildId,
+  type HeroId,
+  type WorldDocument,
+} from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { regardSnapshot } from './counters.js';
-import { measureDocument, playGame, recordGame, validatingEveryTurn } from './play.js';
+import { harnessSetup } from './creation.js';
+import { markHistory, measureDocument, playerTransferred, playGame, readAdvance, recordGame, validatingEveryTurn } from './play.js';
+import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
+import { machine } from './report.js';
+import { summarise } from './stats.js';
+import { playReport } from './sweep.js';
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
 // sweep is play.harness.test.ts, behind HEROESIM_HARNESS (M2-S12, DL-34).
@@ -136,6 +156,130 @@ describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () =
       .filter(([questId]) => payloads('quest.resolved').some((payload) => payload.questId === questId))
       .reduce((total, [, difficulty]) => total + difficulty, 0);
     expect(byBand.reduce((total, tally) => total + tally.difficulty, 0)).toBe(sum);
+  });
+});
+
+describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
+  test("the difficulty of every Quest a Rival took, as the afternoon found it, which the counters give each Disposition", () => {
+    const game = playGame('play-a', deps, { years });
+    const { history, world } = game.document;
+    const offered = new Map(
+      (history.byType['quest.offered'] ?? []).map((position) => {
+        const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
+        return [payload.questId, payload.templateKey];
+      }),
+    );
+    const rivalTaken = (history.byType['quest.taken'] ?? [])
+      .map((position) => history.entries[position]?.payload as { questId: string; guildId: GuildId })
+      .filter((payload) => dispositionOf(world.guilds[payload.guildId] as Guild) !== null);
+    expect(rivalTaken.length).toBeGreaterThan(0);
+    expect([...game.rivalQuestDifficulty.keys()].sort()).toEqual(rivalTaken.map((payload) => payload.questId).sort());
+    for (const [questId, difficulty] of game.rivalQuestDifficulty) {
+      const template = content.questTemplates[offered.get(questId) ?? ''];
+      expect(template, questId).toBeDefined();
+      expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
+      expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
+    }
+
+    const { record } = recordGame('play-a', deps, { years });
+    const tallies = Object.values(record.counters.dispositions);
+    expect(tallies.reduce((sum, tally) => sum + tally.questsWithDifficulty, 0)).toBe(rivalTaken.length);
+    expect(tallies.reduce((sum, tally) => sum + tally.questsTaken, 0)).toBe(rivalTaken.length);
+    expect(tallies.reduce((sum, tally) => sum + tally.difficulty, 0)).toBe([...game.rivalQuestDifficulty.values()].reduce((a, b) => a + b, 0));
+  });
+
+  test('readAdvance: of the Transfers an afternoon made, those whose seller was in debt as it began, and none on a night', () => {
+    // `advance` plays the Turn after the world's on a copy, appending to the same History: here by hand.
+    const before = createWorld('play-debt', harnessSetup, deps).document;
+    const [debtor, sound] = Object.values(before.world.guilds).filter((guild) => dispositionOf(guild) !== null);
+    if (debtor === undefined || sound === undefined) throw new Error('Fewer than two Rivals');
+    debtor.belowFloorSince = 0;
+    const mark = markHistory(before);
+    const after = { ...before, world: structuredClone(before.world) };
+    after.world.turn = before.world.turn + 1;
+    expect(timeOfDay(after.world.turn)).toBe('afternoon');
+    const moved = (from: Guild, to: Guild): number => {
+      const position = before.history.entries.length;
+      const heroId = from.rosterIds[0] as HeroId;
+      append(before.history, {
+        turn: after.world.turn,
+        type: 'hero.transferred',
+        participants: [heroId, from.id, to.id],
+        labels: {},
+        milestone: true,
+        payload: { heroId, fromGuildId: from.id, toGuildId: to.id, fee: 100, offerId: null },
+      });
+      return position;
+    };
+    const fromDebtor = moved(debtor, sound);
+    moved(sound, debtor);
+
+    const difficulties = new Map<string, number>();
+    const sellerInDebt = new Set<number>();
+    readAdvance(before, mark, after, difficulties, sellerInDebt);
+    expect([...sellerInDebt]).toEqual([fromDebtor]);
+    // Read again from after them, nothing more.
+    readAdvance(before, markHistory(before), after, difficulties, sellerInDebt);
+    expect([...sellerInDebt]).toEqual([fromDebtor]);
+
+    // On a night, whatever the debt, none: the Generator's Transfers are not the afternoon's.
+    const none = new Set<number>();
+    readAdvance(before, mark, { ...after, world: { ...after.world, turn: after.world.turn + 1 } }, difficulties, none);
+    expect(none.size).toBe(0);
+  });
+});
+
+describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
+  test('holds under the automatic policy', () => {
+    const game = playGame('play-a', deps, { years });
+    expect(game.assertion).toBeNull();
+    expect(playerTransferred(game.document)).toBeNull();
+  });
+
+  test("fires on a Transfer into the player's Guild, stopping the game as a validator refusal does, and the report lists it", () => {
+    // A player's choices that take a Rival's Hero in on the first Turn, then play as the policy does.
+    // Each try is on a copy: an accepted action appends to the History it shares (ADR-0008).
+    const takeOne = (document: WorldDocument, given: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction[] => {
+      const guild = playerGuild(document.world) as Guild;
+      if (document.world.turn !== 0) return automaticPolicy(document, given, policy);
+      for (const rival of Object.values(document.world.guilds).filter((other) => other.id !== guild.id)) {
+        for (const heroId of rival.rosterIds) {
+          const action: GuildAction = { kind: 'transferIn', guildId: guild.id, heroId };
+          if (applyAction(structuredClone(document), action, given).ok) return [action];
+        }
+      }
+      throw new Error('No Rival would let a Hero go');
+    };
+    const game = playGame('play-a', deps, { years, validate: true, choose: takeOne });
+
+    expect(game.refusals).toEqual([]);
+    expect(game.invalid).toBeNull();
+    const [position] = game.document.history.byType['hero.transferred'] ?? [];
+    expect(game.assertion).toEqual({ turn: 0, check: 'player-transferred', id: `$.history.entries[${position}]`, detail: expect.any(String) });
+    expect(game.turnsPlayed).toBe(1);
+    expect(playerTransferred(game.document, 1)).toBeNull();
+
+    const { record } = recordGame('play-a', deps, { years, choose: takeOne });
+    expect(record.assertion).toEqual(game.assertion);
+    expect(record.counters.transfers.in.transfers).toBe(1);
+    const sweep = {
+      seeds: ['play-a'],
+      years,
+      validated: false,
+      policy: defaultPolicyConfig,
+      workers: 1,
+      games: [record],
+      advance: summarise([1]),
+      validation: summarise([]),
+      replay: null,
+      totalMs: 1,
+      gamesMs: 1,
+    };
+    const report = playReport(sweep, { deps, machine: machine(), startedAt: new Date(2026, 8, 27, 12), milestone: 'm6' });
+    expect(report).toContain('| Games a harness assertion stopped | 1 |');
+    expect(report).toContain('## Harness assertions broken');
+    expect(report).toContain(`| \`play-a\` | 0 | player-transferred | \`$.history.entries[${position}]\` |`);
+    expect(report).toContain("`hero.transferred` entries naming the player's Guild, 1; games it stopped, 1.");
   });
 });
 

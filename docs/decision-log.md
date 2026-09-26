@@ -4844,6 +4844,100 @@ migration. Both lines had used 11 and 12 for different content.
 and the thinner Loot of DL-62; the M6 close's run (DL-69) measures them together. The M5 report's
 Transfers row and the M6 counters remain the close's work.
 
+## DL-69 — M6 close: the M6 counters, the balance pass, and the M6 run
+
+**Status:** Draft — items 1 to 3 (the counters) are written; the balance pass and the M6 run append
+their items and the Consequences before the entry is accepted · **Date:** 2026-09-27 · **Decided
+by:** an agent (the M6 close's counter task), choosing how each counter reads the History and the
+World State; the owner has not seen them
+
+**Context.** The epic's §2 names M6's counters: Transfers by direction and by controller kind, Rival
+Roster size and Wealth by year, and the Rankings position of the player's Guild by year under the
+automatic policy. Two boxes left theirs to the close: M6-S3's harness assertion that the `transfers`
+phase never changes the player's Roster (DL-59), and M6-S4's Rival Market purchases by controller kind
+(DL-58). DL-56 asked for the M2–M5 Rival counters split by Disposition, so that the owner can tune the
+four rows; DL-57 to DL-60 each said what its entries carry. The M5 report's "Spent: Transfers" row read
+"none until M6". Two things M6 needs are in no entry: the difficulty of a Quest a Rival takes
+(`quest.taken` carries none), and which action made a Transfer (`hero.transferred` names the offer, if
+any, and nothing else).
+
+**Decision.**
+
+1. **The counters** (`harness/src/counters.ts`, each with a fixture test in `counters.test.ts`; the
+   play loop's reads and the assertion in `play.ts`, tested in `play.test.ts`; totals and the report's
+   section "Rivals (M6)" in `sweep.ts`, tested in `sweep.test.ts`). A **side** is the player's Guild
+   (`player`) or a Rival's Disposition's key (`dispositionOf`); a replacement Rival counts under the
+   Disposition it inherits (DL-56 item 7). From the History:
+   - *Transfers* (`hero.transferred`): by direction, from `fromGuildId` (the seller) and `toGuildId`
+     (the buyer) joined to their Guilds' controllers — into the player's Guild, out of it, or Rival to
+     Rival — with the count and the fees summed; by the selling side and the buying side; and the
+     Transfers that took a Hero to a Guild that had sold them before (DL-60's lock at work).
+   - *How a Transfer between Rivals happened*: **an accepted offer** when the entry's `offerId` is set;
+     **the Transfer Generator** when its Turn is a night, since Rivals choose only in the afternoon
+     (DL-59's reading); otherwise **the afternoon**, where the entries cannot tell the buyer's
+     `transferChoice` from the seller's `debtTransfer` (DL-57 item 5). The report says so and does not
+     guess. It parts the afternoon's by what the play loop saw (item 2): a seller out of debt as the
+     afternoon began could only have been chosen by the buyer; a seller in debt may have sold or been
+     chosen, and is counted as that. Considered and not taken: naming the action in the payload (an
+     engine change for a counter, as DL-62 item 2 declined for difficulty); inferring the actor from the
+     order of the afternoon's entries (a guess).
+   - *Wealth*: M5's flows gain `transferFeesPaid` (the buyer's) and `transferFeesTaken` (the seller's):
+     "Spent: Transfers" is filled and "Taken: Transfers" added, and both join "in all" and the shares,
+     so Wealth spent and taken stay complete. Over all Guilds the two are equal: a fee moves Wealth.
+   - *Transfer Offers*: by the side that made the offer (the terms' `toGuildId`, which would pay) and
+     the side asked (`fromGuildId`): made (`guild.transfer-offered`, with the fees offered), accepted (a
+     `hero.transferred` naming it), declined (`guild.transfer-offer-declined`), ended unanswered
+     (`guild.transfer-offer-expired` by `cause`: `expired`, `hero-left`, `guild-folded`), and standing
+     when the game stopped (the rest).
+   - *Market purchases* (`item.bought`, the buying Guild): purchases, Items (`quantity`) and `cost`, for
+     the player's Guild, the Rivals, and each Disposition, a Guild-year.
+   - *Each Disposition's character*: its Rivals the world holds and their years in play (founding to
+     fold or the game's last Turn); `quest.taken`, and the mean difficulty of those the play loop read;
+     `quest.resolved` by band; `hero.died` (the Guild the Hero was on then), `hero.recruited`, and
+     `guild.folded` by reason, each a Guild-year.
+   - *Improvement grades by year 10*: M3's rule (DL-40), the Rivals' rows again by Disposition, added to
+     M3's table.
+2. **What the play loop reads that no entry records** (`readAdvance`, `play.ts`). `advance` plays the
+   Turn after the world's on a copy and appends to the same History (ADR-0008), so the loop marks the
+   History's length before each `advance` and reads what it appended, against the world the `advance`
+   began with, which is the world the afternoon's Rivals read:
+   - for every `quest.taken` it appended (the player's are taken between Turns, never in it), the
+     Quest's `difficulty` from its row — "the Quest's row the Turn it is taken" (DL-56);
+   - when the Turn it played is an afternoon, each `hero.transferred` whose seller had
+     `belowFloorSince` set, the condition of a `debtTransfer`; only the night's Guild State Engine sets
+     or clears it.
+   `countGame` takes these as `RivalAfternoons`; without them no difficulty is counted and every
+   afternoon Transfer counts as the buyer's choice. From the World State, with M3's census as each year
+   begins (before the policy acts): **each Rival in play**, its Disposition, Roster size
+   (`rosterIds.length`) and Wealth; and **the player's Guild's place** by Fame and by Wealth from the
+   engine's `rankings`, with the number of Guilds ranked. The report gives, for every Rival and for each
+   Disposition, by year and over every year-start: the mean, the median (nearest rank, the lower of two
+   middles, as `summarise` has it) and the share of year-starts below the generation range's minimum and
+   above its maximum — `rivalRosterMin` to `rivalRosterMax` for the Roster and `rivalStartingWealthMin`
+   to `rivalStartingWealthMax` for Wealth, read from the config the run played under; and the player's
+   mean place and its distribution by year.
+3. **The M6-S3 harness assertion** (`playerTransferred`, `play.ts`): after every `advance`, every
+   `hero.transferred` since the last check, the policy's own included, is read; one naming the player's
+   Guild is a failure `{ turn, check: 'player-transferred', id: '$.history.entries[n]' }`, which stops
+   the game as a validator refusal does, counts in the summary ("Games a harness assertion stopped"),
+   and is listed under "Harness assertions broken" as refusals are under theirs; the harness run
+   expects none. Under the automatic policy, which declines every Transfer Offer first and never
+   transfers (DL-57 item 9, DL-63 item 3), and the Generator, which never takes from the player (DL-59
+   item 6), any such entry is a defect. `PlayOptions.choose` (the policy unless a test gives its own)
+   lets a test take a Rival's Hero in on the first Turn and see the assertion stop the game on Turn 0
+   and the report list it. The run is M6's: `play.harness.test.ts` writes `m6-<date>.md`, and the
+   report's policy line states the whole policy as DL-63 left it.
+
+   A small check, not the run: 4 seeds × 2 years, validated after every advance (17 s): no refusal, no
+   broken assertion, the replay identical, every table rendered. 8 seeds × 6 years, not validated: 92
+   Transfers between Rivals (89 an afternoon's with the seller out of debt, 3 the Generator's, none with
+   the seller in debt), 14 of them back to a Guild that had sold the Hero; 18 offers for the player's
+   Heroes (`ambitious` 6, `reckless` 12), all declined; 2 Rival folds. `npm test` gained 15 tests.
+
+*For the M6 close's balance pass and run to complete:* the balance pass on the Disposition rows (and
+any config default it moves, with its versions), the 200 × 20 run and its figures beside M5's, and the
+Consequences.
+
 ## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 verification's fixer),

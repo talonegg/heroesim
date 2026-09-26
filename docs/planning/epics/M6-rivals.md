@@ -85,7 +85,8 @@ Config: `transferGeneratorEveryDays`, `transferGeneratorChance`.
       `npm test` plays 4 seeds × 20 years, the 100 × 20 runs with the harness flag set (DL-59)
 - [x] The player's Roster is never changed by this phase (harness assertion) — proved by an engine
       test around every run of the phase, over 100 seeds and the twenty-year sweep; the harness
-      assertion itself comes with the M6-close counters (DL-59)
+      assertion itself came with the M6-close counters: `playerTransferred` in `harness/src/play.ts`,
+      checked after every `advance` (DL-59, DL-69)
 
 ### M6-S4 · Rivals build and buy · 0.5–1 session
 
@@ -97,8 +98,9 @@ DL.
 
 - [x] Rival Hall grades rise over 20 years under `ambitious`; `miserly` stays at 0 longest
 - [x] Market stacks are bought by Rivals (harness counter by controller kind) — proved by
-      `item.bought` by controller kind in an engine test; the harness counter itself comes with
-      the M6-close counters (DL-58)
+      `item.bought` by controller kind in an engine test; the harness counter itself came with
+      the M6-close counters: Market purchases by buyer, by controller kind and by Disposition, in
+      the report's "Rivals (M6)" (DL-58, DL-69)
 
 ## 2. Configuration and events introduced
 

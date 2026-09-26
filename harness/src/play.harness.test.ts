@@ -6,15 +6,16 @@ import { machine, reportPath, writeReport } from './report.js';
 import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
 import { defaultWorkers, playReport, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
-// The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62), collected only
-// by the harness-run project, which exists when HEROESIM_HARNESS is set (`npm run harness`): play
-// HEROESIM_SEEDS games (200 by default, INPUTS 4.13) from `seed-0001` onward for 20 years or to
-// their ending, under the automatic policy, the core content and `defaultConfig`, shared among child
-// processes (half the logical processors); with HEROESIM_VALIDATE=1, validate after every advance;
-// replay the first seed and compare the two games byte for byte; and write the counters and
-// measures to harness/reports/m5-<date>.md.
+// The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
+// M6's, DL-69), collected only by the harness-run project, which exists when HEROESIM_HARNESS is set
+// (`npm run harness`): play HEROESIM_SEEDS games (200 by default, INPUTS 4.13) from `seed-0001`
+// onward for 20 years or to their ending, under the automatic policy, the core content and
+// `defaultConfig`, shared among child processes (half the logical processors); with
+// HEROESIM_VALIDATE=1, validate after every advance; check M6-S3's harness assertion, that no
+// `hero.transferred` names the player's Guild; replay the first seed and compare the two games byte
+// for byte; and write the counters and measures to harness/reports/m6-<date>.md.
 
-const milestone = 'm5';
+const milestone = 'm6';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const validate = validatingEveryTurn();
 
@@ -37,6 +38,7 @@ test(`${seeds.length} games of 20 years play to an ending or their last Turn`, {
   expect(totals.refusals).toBe(0);
   expect(totals.signingRefused).toBe(0);
   expect(sweep.games.filter((game) => game.invalid !== null).map((game) => game.seed)).toEqual([]);
+  expect(sweep.games.filter((game) => game.assertion !== null).map((game) => game.seed)).toEqual([]);
   expect(sweep.games.filter((game) => !game.measures.roundTrips).map((game) => game.seed)).toEqual([]);
   expect(sweep.replay?.identical).toBe(true);
 });
