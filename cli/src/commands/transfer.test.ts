@@ -8,6 +8,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  addStack,
   applyAction,
   defaultConfig,
   deserialise,
@@ -202,8 +203,16 @@ describe('Transfer Offers (M6-S2)', () => {
   test('fast forward stops with transfer-offer, says so with the offer, and show offers lists it', () => {
     newWorld((world) => {
       // A rich ambitious Rival, and one of the player's Heroes the dearest in the world: when it
-      // weighs a Transfer (three times in four, once its infirmary is built), it offers for them.
-      guildOf(world, ambitious).wealth = 1_000_000;
+      // weighs a Transfer (three times in four), it offers for them. Its Hall is built and its Heroes
+      // are outfitted, since it builds and buys gear before it weighs a Transfer (M6-S4, DL-58).
+      const rival = guildOf(world, ambitious);
+      rival.wealth = 1_000_000;
+      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
+      for (const heroId of rival.rosterIds) {
+        for (const [slot, key] of [['weapon', 'short-sword'], ['armour', 'padded-jack'], ['trinket', 'lucky-charm']] as const) {
+          addStack(world, key, 1, { kind: 'hero', id: heroId, slot });
+        }
+      }
       const [heroId] = thePlayer(world).rosterIds as [HeroId];
       const hero = heroOf(world, heroId);
       for (const key of Object.keys(hero.stats)) hero.stats[key] = 20;

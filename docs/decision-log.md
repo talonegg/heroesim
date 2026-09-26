@@ -3761,6 +3761,125 @@ snapshots of the world at each year's end. M6-S3's Generator should make its Tra
 `applyTransferIn` so that consent, fee and effects stay one rule, and may retune `transferAppetite`
 once its own frequency is measured beside `transferChoice`'s.
 
+## DL-58 — Rivals build every facility and buy gear, armour first; one gear-buying rule with the policy; `reckless`'s `gearThreshold`; M5's Market test retired; the twenty-year test (M6-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S4's implementer); the rule's
+shape is the epic's ("`build` and `buy`, armour first, by `gearThreshold`"), the rest the agent's, for the
+owner to tune on the M6-close counters
+
+**Context.** M6-S4 names `rivalChoices` emitting `build` and `buy` (armour first, by `gearThreshold`),
+Rival demand for M5's Market, the retirement with a DL of M5's test that Rivals ignore the Market, and two
+boxes: Rival Hall grades rise over twenty years under `ambitious` and `miserly` stays at grade 0 longest;
+Market stacks are bought by Rivals, a harness counter by controller kind, which the orchestrator left to
+the M6-close task while asking for an engine test that proves the purchases. DL-56 built only the
+infirmary "until M6-S4" and left `gearThreshold` a placeholder M6-S4 "may retune". Left open: which
+facilities and in what order; what "armour first" orders; which piece, how many, and for whom; where
+buying sits in the one purchase an afternoon; whether it draws; the policy's own armour rule (DL-51 item
+9) beside the Rival's; and how a twenty-year engine test is made to run in reasonable time and to be about
+the Dispositions.
+
+**Decision.**
+
+1. **Every facility, in the Hall's order** (`hallBuild`, `controllers/rival.ts`): the first of
+   `facilityKeys` (infirmary, training yard, quarters) whose next grade `affordableImprovement` names at
+   the Disposition's `buildThreshold`. The infirmary comes first, as it came alone in M3-S6 (DL-38 item
+   13); a dearer grade out of reach gives way to a cheaper grade of the next facility, so a Rival saving
+   for the Physicians' wing builds its practice yard meanwhile. Considered and not taken: the cheapest
+   grade first (the same Hall in the end, in another order); the infirmary alone (M3-S6's rule, under
+   which the boxes hold too, but a Rival's Hall stops at three grades of nine, and DL-56 deferred the rest
+   to this story); the infirmary and the quarters without the training yard (the kindest to Rival
+   economies, below, but an exclusion no row expresses).
+2. **Gear, armour first** (`gearBuy`): one piece an afternoon, from `gearPurchase` over the slots in
+   `purchaseOrder`: armour, then the other slots of `config.gearSlots` in its order (weapon, trinket). A
+   slot wants a piece while the Roster's Heroes with nothing in it outnumber the pieces for it in the
+   Guild's own holding (a Hero away with a Party counts: the piece waits for them, DL-54); the piece is the
+   dearest for the slot the Market lists, unique Items a fold left there included, that `gearChoices`
+   would put on a Hero (gear for a listed slot whose modifiers sum above 0), whose price the Guild's Wealth
+   is above `gearThreshold` times and covers, the lowest key among equal prices. A slot the Market cannot
+   serve within those means gives way to the next: "first" is a priority, not a gate. The piece is worn
+   from the next afternoon, `gearChoices` being a Rival's first choice as it is the policy's (DL-54 item
+   3), and no piece is ever swapped for a better (DL-49). Rivals never sell.
+3. **The one purchase an afternoon** is now the first of build, buy, `transferChoice`, recruit and
+   `debtTransfer`: the policy's order (build, buy armour, recruit: DL-51 item 9), with M6-S2's Transfers
+   where DL-57 put them. Gear before hiring, as DL-51 put armour before recruiting: it is cheap beside a
+   fee and protects the Heroes a Guild has. Neither a build nor a purchase draws, so `rivals` still
+   advances one draw for each dispatch and each weighed Transfer (M6-S1's third box's test now runs with
+   both on).
+4. **One rule for buying gear, the Rival's and the policy's** (DL-38 item 7): `gearPurchase(world, guild,
+   slots, wealthMultiple, deps)` in `gear.ts`. The policy's `armourPurchase` is it for `['armour']` at the
+   policy's own `buyWealthMultiple`, the same choices under the core content (its tests pass unchanged); the
+   one difference, for content that has none, is that a piece `gearChoices` would never put on is neither
+   bought nor counted as held. It reads the world once for all its slots, and `gearChoices` now reads which
+   slots each Hero fills in one pass rather than one per Hero, the same choices: Rivals holding gear made
+   both hot (a twenty-year seed took 12.8 s before, 8.2 s after, in a sweep of 16 processes).
+5. **`reckless`'s `gearThreshold` 1.5 → 3**, content version 12; the other rows stand. At 1.5 a piece could
+   take two thirds of its Wealth, and buying kept it below its first grade's 800 for months: over 16 core
+   seeds × 20 years its first Improvement came on Turn 157 on the mean, against 33 before this story, and
+   after `miserly`'s in 3 seeds. At 3, a third of its Wealth a piece at most as for `steady`: Turn 119, and
+   1 seed (4 gave 105 and 1). `thriftyRivals` gains `gearThreshold: 1_000_000`.
+6. **M5's test is retired.** `market.test.ts`'s "Rivals' Wealth is unaffected by the Market: steady neither
+   buys nor sells, whatever the Market holds" (M5-S4's box, DL-51 item 8, DL-54 item 3) gives way to
+   "Rivals buy gear from the Market and sell none; with an empty Market they buy nothing". This supersedes
+   DL-51 item 8's and DL-54 item 3's "`steady` neither buys nor sells", and nothing else in them.
+7. **Tests.** `controllers/rival.test.ts`: armour first, the dearest, a piece for each Hero, then weapons,
+   then trinkets; each Disposition exactly at its row's `gearThreshold`; a slot giving way to the next;
+   pieces worn or held counted, a Hero away still lacking one; an unlisted slot and a consumable; build,
+   then buy, then recruit; no draw; the fifth Disposition's `gearThreshold` read with no code change; every
+   facility in order, and a cheaper grade of the next facility while a dearer one is out of reach.
+   `gear.test.ts`: `gearPurchase` itself. `phases/rival-controllers.test.ts`: the spy test watches
+   `applyBuy` too, so a Rival's purchase reaches the player's `buy` and nothing else, and ten Days of play
+   find every purchase accepted. Tests whose subject is recruiting, building or Transfers still gear with
+   `gearThreshold` 1,000,000, as DL-57 stilled Transfers; the CLI's `transfer-offer` test gives its
+   `ambitious` Rival a built Hall and outfitted Heroes, since it now builds and buys before it weighs a
+   Transfer.
+8. **The boxes' test** (`controllers/rivals-build-and-buy.test.ts`): four seeds, a default world each, the
+   player idle and rich (its Guildmaster young enough not to retire), twenty years played in place
+   (DL-56's method), the History's last year and the World State validated. One pin: every Encounter's
+   Check asks 0.15 of the Quest's difficulty. At the test content's own 0.18 and 0.3 its Rivals fold 22
+   times a seed in twenty years (`reckless`'s ten), whatever this story does, and the miserly measure is
+   swamped by replacements founded with next to nothing (`miserly`'s first Improvement the last in 10 seeds
+   of 16); at 0.15 they fold about seven times a seed and live off their Quests as the core's do. It
+   asserts: every Rival's Hall rises a grade at a time and never falls; the `ambitious` Rival dealt at
+   creation has the whole Hall, nine grades, within its first year, and every `ambitious` Rival holds it at
+   each year's end a year or more after its founding; in every seed `miserly`'s first Improvement is the
+   last of the four, and over the seeds its Rivals spend the most nights with a bare Hall; in every seed
+   Rivals bought Market stacks (`item.bought` by controller kind, the idle player's none), every
+   Disposition bought, and most Rival Heroes wear armour at the end. It takes about 41 s, the whole suite
+   about 48 s. The same assertions held on 48 other seeds (16 two to a file, 32 four to a file); two
+   stronger ones did not and were dropped: that an `ambitious` Rival builds on its first afternoon (one
+   founded with exactly 300 Wealth cannot, 1.5 × 200), and that `miserly`'s nights with a bare Hall are the
+   most in every seed (a `reckless` Rival that folds and is replaced twice can spend more).
+
+**Consequences.** A scratch script (core content, `defaultConfig`, the player idle and rich, 16 seeds × 20
+years, not validated), before this story (f2a3507) and after:
+
+| 16 games × 20 years | Before | After |
+| --- | --- | --- |
+| Rival folds: all (ambitious / miserly / reckless / steady) | 22 (3 / 1 / 8 / 10) | 48 (6 / 8 / 13 / 21) |
+| Rival Rosters at the years' ends: median; below 4 / 4 to 8 / above 8 | 8; 10% / 47% / 42% | 4; 39% / 42% / 20% |
+| Roster at year 20, mean: ambitious / miserly / reckless / steady | 6.4 / 7.4 / 7.1 / 7.5 | 6.5 / 5.0 / 7.3 / 3.1 |
+| Wealth at year 20, mean: same order | 31,800 / 46,800 / 20,100 / 33,600 | 31,300 / 37,800 / 23,600 / 10,200 |
+| Hall grades at year 1, mean: same order | 3.0 / 2.1 / 3.0 / 3.0 | 9.0 / 5.8 / 7.8 / 8.8 |
+| First Improvement, Turn, mean: same order | 1 / 207 / 33 / 13 | 1 / 256 / 119 / 51 |
+| Market stacks bought a game: same order | 0 | 22 / 25 / 31 / 39 |
+| `steady`'s recruits a game | 19 | 1 |
+
+Rivals now build and buy, and a whole Hall weighs on them: its upkeep (90 each ten Days for nine grades)
+and the training yard's Levels, whose wages a Rival's income follows only if, like `reckless`, it takes
+harder Quests as its Heroes grow. `steady` suffers most: it takes the easiest Quests, and its sixty Upkeeps
+before it recruits rise with the Hall's maintenance (5,400 Wealth for a whole Hall), so it all but stops
+recruiting and shrinks; Rival folds double. In the same sweep, the infirmary and the quarters alone, with
+buying, left folds near where they were (27, `reckless` at 4), and buying with the infirmary alone left
+them as they were (24, `reckless` at 1.5): the training yard is the heavy facility. Tuning is the M6 close's, on the counters
+(`buildThreshold`, `recruitThreshold`, `hallMaintenancePerGrade`, or which facilities a Disposition wants,
+which would be a new weight). **For M6-S3**: its box "the Roster-size distribution across Rivals stays
+within the generation range" now meets smaller Rival Rosters: at the years' ends 42% within 4 to 8, 39%
+below and 20% above, where before this story 47% were within, 10% below and 42% above. **For the M6-close counter
+task**: Market purchases by controller kind read `item.bought` (`guildId` joined to the Guild's controller;
+`itemIds` empty for a stack); Wealth on Items and on Improvements by controller kind and Disposition read
+`item.bought.cost` and `guild.improved.cost`; Hall grades by year and Disposition are snapshots of each
+Rival's `hall`; a Disposition's first Improvement reads `guild.improved`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

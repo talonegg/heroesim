@@ -56,9 +56,9 @@ export const contentSetId = 'core';
  * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
  * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
  * the Quest templates' tables (DL-52); 11 from M6-S1, which added the four named Dispositions and
- * their weights (DL-56).
+ * their weights (DL-56); 12 from M6-S4, which gave `reckless` a `gearThreshold` of 3 for 1.5 (DL-58).
  */
-export const contentVersion = 11;
+export const contentVersion = 12;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

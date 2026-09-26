@@ -92,8 +92,10 @@ DL.
 
 **Acceptance:**
 
-- [ ] Rival Hall grades rise over 20 years under `ambitious`; `miserly` stays at 0 longest
-- [ ] Market stacks are bought by Rivals (harness counter by controller kind)
+- [x] Rival Hall grades rise over 20 years under `ambitious`; `miserly` stays at 0 longest
+- [x] Market stacks are bought by Rivals (harness counter by controller kind) — proved by
+      `item.bought` by controller kind in an engine test; the harness counter itself comes with
+      the M6-close counters (DL-58)
 
 ## 2. Configuration and events introduced
 

@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 11 since the named Dispositions (M6-S1)', () => {
+  test("is the core content set, version 12 since M6-S4 retuned reckless's gearThreshold", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(11);
+    expect(content.version).toBe(12);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -35,7 +35,7 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test('has the four named Dispositions (INPUTS 7.5), their weights as DL-56 sets them', () => {
+  test('has the four named Dispositions (INPUTS 7.5), their weights as DL-56 sets them and DL-58 retunes one', () => {
     const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
       ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
     expect(content.dispositions).toEqual({
@@ -44,7 +44,8 @@ describe('loadContent()', () => {
       steady: { key: 'steady', name: 'Steady', ...weights(0, 60, 3, 3, 0.25) },
       ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.6, 40, 1.5, 2, 0.75) },
       miserly: { key: 'miserly', name: 'Miserly', ...weights(0.25, 80, 20, 10, 0.1) },
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 1.5, 0.5) },
+      // reckless's gearThreshold was 1.5 until M6-S4 gave the weight a rule and retuned it (DL-58).
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.5) },
     });
   });
 

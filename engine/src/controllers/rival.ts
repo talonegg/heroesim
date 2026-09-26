@@ -6,7 +6,8 @@
 // Dispositions are four rows, not four code paths, and a fifth row plays with no change here. The
 // choices were DL-30's for `steady`; DL-56 turns them into weights. M6-S2 adds Transfers: a Rival
 // seeks a Hero from another Guild, lets one go when in debt, and answers a Transfer asked of it by its
-// Disposition (`transferAnswer`, DL-57).
+// Disposition (`transferAnswer`, DL-57). M6-S4 has it build every facility of its Hall and buy gear
+// at the Market, armour first, by its `buildThreshold` and `gearThreshold` (DL-58).
 //
 // A rule reads the world and writes nothing to it but the draws it takes from the `rivals`
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
@@ -14,9 +15,9 @@
 import type { GuildAction } from '../actions/action.js';
 import { unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
-import type { ContentSet, Disposition } from '../content-types.js';
-import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
-import { gearChoices } from '../gear.js';
+import type { ContentSet, Disposition, SlotKey } from '../content-types.js';
+import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
+import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { chance, pick } from '../rng.js';
@@ -38,20 +39,27 @@ import {
  *    which moves no Wealth and sends no one;
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it can staff
  *    (`preferredQuest`), drawing from `rivals` to choose among Quests of the same difficulty;
- * 3. make one purchase: build the infirmary's next grade while its Wealth is above
- *    `buildThreshold` times that grade's cost (M3-S6); or else, while it would hire (its Wealth above
- *    `recruitThreshold` times its Upkeep and its Roster room enough by `transferAppetite`), seek the
- *    Hero it wants from another Guild with the chance `transferAppetite`, one draw from `rivals`
- *    (`transferChoice`, M6-S2): `transferIn` from a Guild whose Disposition consents, or a Transfer
- *    Offer to a Guild whose controller answers for itself; or else recruit the cheapest Unattached
- *    Hero who would sign while its Wealth is above `recruitThreshold` times its Upkeep; or else,
- *    while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
- *    pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
+ * 3. make one purchase, the first of these that applies:
+ *    - build the next grade of the first facility of its Hall, in the Hall's order (the infirmary,
+ *      the training yard, the quarters), whose next grade's cost its Wealth is above `buildThreshold`
+ *      times (`hallBuild`: M3-S6 built the infirmary alone, M6-S4 every facility);
+ *    - buy one piece of gear at the Market for its Heroes who lack it, armour first, then the other
+ *      slots in `config.gearSlots`'s order: the dearest whose price its Wealth is above `gearThreshold`
+ *      times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
+ *    - while it would hire (its Wealth above `recruitThreshold` times its Upkeep and its Roster room
+ *      enough by `transferAppetite`), seek the Hero it wants from another Guild with the chance
+ *      `transferAppetite`, one draw from `rivals` (`transferChoice`, M6-S2): `transferIn` from a Guild
+ *      whose Disposition consents, or a Transfer Offer to a Guild whose controller answers for itself;
+ *    - recruit the cheapest Unattached Hero who would sign while its Wealth is above
+ *      `recruitThreshold` times its Upkeep;
+ *    - while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
+ *      pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
  *
  * At most one dispatch and one purchase an afternoon. The dispatch and the purchase do not depend on
  * each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen on the same
  * world (a Hero is transferred out only if the dispatch leaves them at home); one purchase, so that the second
- * never finds the Wealth the first spent.
+ * never finds the Wealth the first spent. The gear bought waits in the Guild's holding for the next
+ * afternoon's first choice, the equip, as the policy's does (DL-54).
  *
  * None for the player's Guild, whose choices are the player's; none for a folded Guild, which has
  * left play (M2-S10); and none for a Disposition content does not define (data-model rule 5: the
@@ -67,7 +75,8 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
   const quest = preferredQuest(world, guild, disposition, deps.content);
   if (quest !== null) choices.push(quest);
   const purchase =
-    infirmaryBuild(guild, disposition, deps) ??
+    hallBuild(guild, disposition, deps) ??
+    gearBuy(world, guild, disposition, deps) ??
     transferChoice(world, guild, disposition, deps) ??
     cheapestHire(world, guild, disposition, deps) ??
     debtTransfer(world, guild, new Set(quest?.heroIds ?? []), deps);
@@ -273,13 +282,40 @@ function preferredQuest(world: World, guild: Guild, disposition: Disposition, co
 }
 
 /**
- * A build of the infirmary's next grade when `guild`'s Wealth is above its Disposition's
- * `buildThreshold` times its cost (`affordableImprovement`); `null` otherwise, and once the
- * infirmary is at its top grade (M3-S6, DL-38). Only the infirmary until M6-S4.
+ * A build of the next grade of the first facility of `guild`'s Hall, in the Hall's order
+ * (`facilityKeys`: the infirmary, the training yard, the quarters), whose next grade's cost its Wealth
+ * is above its Disposition's `buildThreshold` times (`affordableImprovement`); `null` when there is
+ * none, every facility being at its top grade or dearer than its Wealth allows (M6-S4, DL-58). The
+ * infirmary comes first, as it came alone in M3-S6 (DL-38); a dearer grade of it that is out of reach
+ * does not stop a cheaper grade of another facility, so a Rival saving for the Physicians' wing builds
+ * its practice yard meanwhile. Draws nothing.
  */
-function infirmaryBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  const next = affordableImprovement(guild, 'infirmary', disposition.buildThreshold, deps.content);
-  return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
+function hallBuild(guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+  const facility = facilityKeys.find(
+    (key) => affordableImprovement(guild, key, disposition.buildThreshold, deps.content) !== null,
+  );
+  return facility === undefined ? null : { kind: 'build', guildId: guild.id, facility };
+}
+
+/**
+ * The slots a Rival buys gear for, in the order it buys: armour first (M6-S4), then the other slots
+ * `config.gearSlots` lists, in its order. Armour first because it keeps the Heroes the Guild has alive
+ * and on their feet, as the harness's policy buys armour before it recruits (DL-51).
+ */
+function purchaseOrder(slots: readonly SlotKey[]): SlotKey[] {
+  return [...slots.filter((slot) => slot === 'armour'), ...slots.filter((slot) => slot !== 'armour')];
+}
+
+/**
+ * One piece of gear `guild` buys at the Market this afternoon, or `null` (M6-S4, DL-58): the engine's
+ * `gearPurchase` over the slots in `purchaseOrder`, armour first, with its Disposition's
+ * `gearThreshold` — for the first slot whose Heroes lacking it outnumber the pieces the Guild holds
+ * for them, the dearest piece the Market has for sale whose price its Wealth is above `gearThreshold`
+ * times, the lowest key among equal prices. A slot with nothing to buy for it, or nothing within its
+ * means, gives way to the next. Draws nothing.
+ */
+function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+  return gearPurchase(world, guild, purchaseOrder(deps.config.gearSlots), disposition.gearThreshold, deps);
 }
 
 /**

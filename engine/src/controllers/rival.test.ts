@@ -5,6 +5,8 @@ import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
+import { addStack, holdings } from '../items.js';
+import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild, signingFee, unattachedHeroes, upkeep } from '../selectors.js';
 import { deepFreeze, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
@@ -81,6 +83,14 @@ function dispatchOf(world: World, guild: Guild, deps: EngineDeps): DispatchActio
 function takenDifficulty(world: World, guild: Guild, deps: EngineDeps): number | undefined {
   const questId = dispatchOf(world, guild, deps)?.questId;
   return questId === undefined ? undefined : world.quests[questId]?.difficulty;
+}
+
+/** Empties the Market of every stack and Item and stocks it with `stacks` alone (M6-S4's tests). */
+function stockMarket(world: World, stacks: readonly (readonly [string, number])[]): void {
+  const held = holdings(world, marketHolder);
+  for (const stack of held.stacks) delete world.stacks[stack.id];
+  for (const item of held.items) delete world.items[item.id];
+  for (const [definitionKey, quantity] of stacks) addStack(world, definitionKey, quantity, marketHolder);
 }
 
 /** How much a Hero brings to a Quest, worked out here as DL-30 states it: demand weight × Stat. */
@@ -260,8 +270,9 @@ describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6). Both
   // on the row (DL-56). Negotiation still too (M4-S5): the fees are compared at the list price.
-  // Transfers stilled too (M6-S2, DL-57): a Rival that would hire weighs a Transfer before a recruit.
-  const noBuilding = { buildThreshold: 1_000_000, transferAppetite: 0 };
+  // Transfers stilled too (M6-S2, DL-57): a Rival that would hire weighs a Transfer before a recruit;
+  // and gear, which it buys before it hires (M6-S4, DL-58).
+  const noBuilding = { buildThreshold: 1_000_000, gearThreshold: 1_000_000, transferAppetite: 0 };
   const still = { negotiationRange: 0 };
   const deps = testDeps(still, withDispositions({ recruitThreshold: 10, ...noBuilding }));
 
@@ -340,7 +351,7 @@ describe('steady: recruiting', () => {
   });
 
   test('recruits no one it cannot pay for, and no one from an empty pool', () => {
-    const noThreshold = testDeps(still, withDispositions({ recruitThreshold: 0 }));
+    const noThreshold = testDeps(still, withDispositions({ recruitThreshold: 0, gearThreshold: 1_000_000 }));
     const { world, rival } = scene('afford', noThreshold);
     const fee = signingFee(cheapest(world), noThreshold);
     const hires = () => rivalChoices(world, rival, noThreshold).filter((action) => action.kind === 'recruit');
@@ -354,10 +365,11 @@ describe('steady: recruiting', () => {
   });
 });
 
-describe('steady: building (M3-S6)', () => {
+describe('steady: building (M3-S6, M6-S4)', () => {
   // Pinned: three times the cost, and a recruit threshold low enough that recruiting is on offer;
-  // Transfers stilled, which a Rival that would hire weighs before a recruit (M6-S2, DL-57).
-  const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1, transferAppetite: 0 }));
+  // Transfers stilled, which a Rival that would hire weighs before a recruit (M6-S2, DL-57); and gear,
+  // which it buys after it builds and before it hires (M6-S4, DL-58).
+  const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1, gearThreshold: 1_000_000, transferAppetite: 0 }));
   const purchases = (world: World, guild: Guild) => rivalChoices(world, guild, deps).filter((action) => action.kind !== 'dispatch');
 
   test("builds the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
@@ -369,43 +381,68 @@ describe('steady: building (M3-S6)', () => {
     rival.wealth = 3 * 200 + 1;
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
 
-    rival.hall.infirmary = 1; // the next grade costs 500
+    // The next grade costs 500; the other facilities built to their top, so that the infirmary is the
+    // only one with a grade to build (M6-S4 builds every facility, the next test).
+    rival.hall = { infirmary: 1, trainingYard: 3, quarters: 3 };
     rival.wealth = 3 * 500;
     expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
     rival.wealth = 3 * 500 + 1;
     expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
   });
 
-  test('builds nothing once the infirmary is at its top grade, and no other facility', () => {
+  // M6-S4 (DL-58): M3-S6's Rival built the infirmary alone; it now builds every facility of its Hall.
+  test('builds the next facility in the Hall’s order once the infirmary is at its top grade, and nothing once all are', () => {
     const { world, rival } = scene('build-top', deps);
     rival.wealth = 1_000_000;
-    rival.hall = { infirmary: 3, trainingYard: 0, quarters: 0 };
 
+    rival.hall = { infirmary: 3, trainingYard: 0, quarters: 0 };
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'trainingYard' }]);
+    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 1 };
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'quarters' }]);
+    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
     expect(purchases(world, rival).map((action) => action.kind)).toEqual(['recruit']);
   });
 
-  test('its build is accepted by the rule, and climbs the infirmary afternoon by afternoon', () => {
+  test("a dearer grade out of its reach gives way to a cheaper grade of the next facility, each at its own threshold", () => {
+    const { world, rival } = scene('build-next', deps);
+    rival.hall = { infirmary: 1, trainingYard: 0, quarters: 0 }; // the infirmary's next grade costs 500
+
+    rival.wealth = 3 * 200;
+    expect(purchases(world, rival)).toEqual([expect.objectContaining({ kind: 'recruit' })]);
+    rival.wealth = 3 * 200 + 1; // below 3 × 500, above 3 × 200: the practice yard, not the infirmary ward
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'trainingYard' }]);
+    rival.wealth = 3 * 500 + 1;
+    expect(purchases(world, rival)).toEqual([{ kind: 'build', guildId: rival.id, facility: 'infirmary' }]);
+  });
+
+  test('its builds are accepted by the rule, and climb the whole Hall afternoon by afternoon, facility by facility', () => {
     const { world, rival } = scene('build-climb', deps);
     rival.wealth = 100_000;
+    const built: string[] = [];
 
-    for (const grade of [1, 2, 3]) {
+    for (let afternoon = 0; afternoon < 9; afternoon += 1) {
       const [build] = purchases(world, rival);
-      expect(build).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
-      if (build === undefined) throw new Error('No build');
+      if (build?.kind !== 'build') throw new Error(`No build on afternoon ${afternoon}`);
       expect(applyGuildAction(world, build, deps)).toMatchObject({ ok: true });
-      expect(rival.hall.infirmary).toBe(grade);
+      built.push(`${build.facility} ${rival.hall[build.facility]}`);
     }
-    expect(rival.wealth).toBe(100_000 - 1700);
+    expect(built).toEqual([
+      'infirmary 1', 'infirmary 2', 'infirmary 3',
+      'trainingYard 1', 'trainingYard 2', 'trainingYard 3',
+      'quarters 1', 'quarters 2', 'quarters 3',
+    ]);
+    expect(rival.wealth).toBe(100_000 - 3 * 1700);
     expect(purchases(world, rival).map((action) => action.kind)).toEqual(['recruit']);
   });
 });
 
 describe('rivalChoices', () => {
   test('dispatches, then recruits, as Action values a front end would produce', () => {
-    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57).
-    const { world, rival, deps } = scene('both', testDeps({}, withDispositions({ transferAppetite: 0 })));
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57);
+    // and gear, which it buys before it hires (M6-S4, DL-58).
+    const { world, rival, deps } = scene('both', testDeps({}, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 })));
     rival.wealth = 100_000;
-    rival.hall.infirmary = 3; // built to its top (M3-S6), so that its purchase is a recruit
+    rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 }; // built to the top (M6-S4), so that its purchase is a recruit
 
     const choices = rivalChoices(world, rival, deps);
 
@@ -487,8 +524,9 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
   });
 
   test("each Disposition recruits above its row's recruitThreshold of Upkeeps and builds above its buildThreshold times the cost", () => {
-    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57).
-    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ transferAppetite: 0 }));
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57);
+    // gear too, which it buys before it hires (M6-S4: its gearThreshold's own test is below).
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }));
     for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
       const { world, rival } = scene(`thresholds-${disposition}`, deps, disposition);
       const row = rowOf(rival, deps);
@@ -500,8 +538,8 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       rival.wealth = row.buildThreshold * 200 + 1;
       expect(purchase(), disposition).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
 
-      // Recruiting, with the infirmary built to its top.
-      rival.hall.infirmary = 3;
+      // Recruiting, with the Hall built to its top (M6-S4 builds every facility).
+      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
       const threshold = row.recruitThreshold * upkeep(rival, world, deps.config, deps.content);
       rival.wealth = threshold;
       expect(purchase(), disposition).toBeUndefined();
@@ -546,19 +584,33 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       // 0.75 of the way along six: the fifth, 60; no other Disposition's place.
       expect(takenDifficulty(world, rival, deps)).toBe(60);
 
-      // Transfers stilled for the purchase: a Rival that would hire weighs one first (M6-S2, DL-57).
-      const still = testDeps({ rivalCount: 5, negotiationRange: 0 }, withDispositions({ transferAppetite: 0 }, withFifth()));
+      // Transfers stilled for the purchase: a Rival that would hire weighs one first (M6-S2, DL-57);
+      // gear too, which it buys before it hires (M6-S4, DL-58), until its own threshold is tried below.
+      const still = testDeps(
+        { rivalCount: 5, negotiationRange: 0 },
+        withDispositions({ transferAppetite: 0, gearThreshold: 1_000_000 }, withFifth()),
+      );
       const purchase = () => rivalChoices(world, rival, still).find((action) => action.kind === 'build' || action.kind === 'recruit');
       rival.wealth = 2.5 * 200;
       expect(purchase()?.kind).not.toBe('build');
       rival.wealth = 2.5 * 200 + 1;
       expect(purchase()).toEqual({ kind: 'build', guildId: rival.id, facility: 'infirmary' });
-      rival.hall.infirmary = 3;
+      rival.hall = { infirmary: 3, trainingYard: 3, quarters: 3 };
       const threshold = 7 * upkeep(rival, world, deps.config, deps.content);
       rival.wealth = threshold;
       expect(purchase()).toBeUndefined();
       rival.wealth = threshold + 1;
       expect(purchase()).toMatchObject({ kind: 'recruit', guildId: rival.id });
+
+      // Its gearThreshold, 4, read as every row's is (M6-S4): armour at four times its price, and no
+      // more, with nothing else to buy. A Market of padded jacks alone; it would not hire.
+      const gearing = testDeps({ rivalCount: 5, negotiationRange: 0 }, withDispositions({ transferAppetite: 0, recruitThreshold: 1_000_000 }, withFifth()));
+      stockMarket(world, [['padded-jack', 5]]);
+      const buys = () => rivalChoices(world, rival, gearing).filter((action) => action.kind === 'buy');
+      rival.wealth = 4 * 40;
+      expect(buys()).toEqual([]);
+      rival.wealth = 4 * 40 + 1;
+      expect(buys()).toEqual([{ kind: 'buy', guildId: rival.id, definitionKey: 'padded-jack', quantity: 1 }]);
 
       // Other weights in the same row, other choices: the row is what decides.
       const bolder = testDeps({ rivalCount: 5, negotiationRange: 0 }, withFifth({ ...cautious, questRiskAppetite: 1 }));
@@ -582,5 +634,162 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       expect(acts).toContain('quest.taken');
       expect(acts.has('hero.recruited') || acts.has('guild.improved')).toBe(true);
     });
+  });
+});
+
+// ── M6-S4: buying gear at the Market, armour first, by the row's gearThreshold (DL-58) ──────────
+
+describe('buying gear at the Market (M6-S4)', () => {
+  /** Nothing else on offer: no hiring and no Transfer (M6-S2), Negotiation still (M4-S5). */
+  const buying = (gearThreshold: number, config: Partial<EngineDeps['config']> = {}): EngineDeps =>
+    testDeps(
+      { negotiationRange: 0, ...config },
+      withDispositions({ gearThreshold, recruitThreshold: 1_000_000, transferAppetite: 0 }),
+    );
+  const fullHall = { infirmary: 3, trainingYard: 3, quarters: 3 } as const;
+
+  /** A `disposition` Rival with its Hall built (nothing left to build first), rich, and the Market holding `stacks` alone. */
+  function outfitting(
+    seed: string,
+    deps: EngineDeps,
+    stacks: readonly (readonly [string, number])[],
+    disposition: DispositionKey = 'steady',
+  ): Scene {
+    const found = scene(seed, deps, disposition);
+    found.rival.hall = { ...fullHall };
+    found.rival.wealth = 100_000;
+    stockMarket(found.world, stacks);
+    return found;
+  }
+
+  const buysOf = (world: World, guild: Guild, deps: EngineDeps) =>
+    rivalChoices(world, guild, deps).filter((action) => action.kind === 'buy');
+
+  test('buys armour first, the dearest the Market has, a piece for each Hero who lacks it; then weapons, then trinkets', () => {
+    const deps = buying(3);
+    const { world, rival } = outfitting('armour-first', deps, [
+      ['lucky-charm', 20],
+      ['masterwork-blade', 20],
+      ['padded-jack', 20],
+      ['plate-harness', 2],
+      ['mail-shirt', 20],
+    ]);
+    const heroes = rival.rosterIds.length;
+    expect(heroes).toBeGreaterThanOrEqual(3);
+    const bought: string[] = [];
+
+    for (let afternoon = 0; afternoon < 4 * heroes; afternoon += 1) {
+      const [buy] = buysOf(world, rival, deps);
+      if (buy === undefined) break;
+      expect(applyGuildAction(world, buy, deps)).toMatchObject({ ok: true });
+      bought.push(buy.definitionKey);
+    }
+
+    // The Market's two plate harnesses, then mail, the next dearest armour; a blade and a charm each;
+    // then nothing, every Hero having a piece for every slot waiting in the holding.
+    expect(bought).toEqual([
+      'plate-harness',
+      'plate-harness',
+      ...Array<string>(heroes - 2).fill('mail-shirt'),
+      ...Array<string>(heroes).fill('masterwork-blade'),
+      ...Array<string>(heroes).fill('lucky-charm'),
+    ]);
+    expect(buysOf(world, rival, deps)).toEqual([]);
+  });
+
+  test("each Disposition buys only what its Wealth is above its row's gearThreshold times, the dearest such", () => {
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ recruitThreshold: 1_000_000, transferAppetite: 0 }));
+    for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
+      const stacks = [['padded-jack', 5], ['mail-shirt', 5], ['plate-harness', 5]] as const;
+      const { world, rival } = outfitting(`means-${disposition}`, deps, stacks, disposition);
+      const { gearThreshold } = rowOf(rival, deps);
+      const bought = () => buysOf(world, rival, deps).map((buy) => buy.definitionKey);
+
+      rival.wealth = gearThreshold * 40;
+      expect(bought(), disposition).toEqual([]);
+      rival.wealth = gearThreshold * 40 + 1;
+      expect(bought(), disposition).toEqual(['padded-jack']);
+      rival.wealth = gearThreshold * 300;
+      expect(bought(), disposition).toEqual(['mail-shirt']);
+      rival.wealth = gearThreshold * 300 + 1;
+      expect(bought(), disposition).toEqual(['plate-harness']);
+    }
+    // The rows differ (DL-56, DL-58): gear is dearest to miserly, cheapest to ambitious.
+    const thresholds = Object.fromEntries(Object.values(testContent.dispositions).map((row) => [row.key, row.gearThreshold]));
+    expect(thresholds).toEqual({ ambitious: 2, miserly: 10, reckless: 3, steady: 3 });
+  });
+
+  test('a slot the Market has nothing for within its means gives way to the next: no armour, then a weapon', () => {
+    const deps = buying(3);
+    const { world, rival } = outfitting('fall-through', deps, [['masterwork-blade', 5], ['short-sword', 5]]);
+    const bought = () => buysOf(world, rival, deps).map((buy) => buy.definitionKey);
+
+    expect(bought()).toEqual(['masterwork-blade']);
+    rival.wealth = 3 * 300; // the blade out of reach
+    expect(bought()).toEqual(['short-sword']);
+    rival.wealth = 3 * 40;
+    expect(bought()).toEqual([]);
+  });
+
+  test('buys for no Hero twice: a piece worn or held counts, and a Hero away with a Party still lacks one', () => {
+    const deps = buying(3);
+    const { world, rival } = outfitting('held', deps, [['padded-jack', 20]]);
+    const [first, ...rest] = rival.rosterIds as [HeroId, ...HeroId[]];
+    const bought = () => buysOf(world, rival, deps).map((buy) => buy.definitionKey);
+    // Every Hero but the first wears armour: one piece to buy, the first's.
+    for (const heroId of rest) addStack(world, 'mail-shirt', 1, { kind: 'hero', id: heroId, slot: 'armour' });
+    expect(bought()).toEqual(['padded-jack']);
+
+    // Away with a Party, the first still lacks it: equipped when home (DL-54).
+    heroOf(world, first).partyId = 'party-000001' as Hero['partyId'];
+    expect(bought()).toEqual(['padded-jack']);
+
+    // A piece held for them is theirs: nothing more to buy, the Market having no weapon or trinket.
+    addStack(world, 'padded-jack', 1, { kind: 'guild', id: rival.id });
+    expect(bought()).toEqual([]);
+  });
+
+  test('buys nothing for a slot the config does not list, and nothing that is not gear', () => {
+    const noArmour = buying(3, { gearSlots: ['weapon', 'trinket'] });
+    const { world, rival } = outfitting('no-armour-slot', noArmour, [['plate-harness', 5], ['short-sword', 5]]);
+
+    expect(buysOf(world, rival, noArmour).map((buy) => buy.definitionKey)).toEqual(['short-sword']);
+    stockMarket(world, [['plate-harness', 5], ['whetstone', 5]]); // a consumable is not gear
+    expect(buysOf(world, rival, noArmour)).toEqual([]);
+  });
+
+  test('buys after it builds and before it hires: build, then buy, then recruit', () => {
+    const deps = testDeps(
+      { negotiationRange: 0 },
+      withDispositions({ buildThreshold: 3, gearThreshold: 3, recruitThreshold: 1, transferAppetite: 0 }),
+    );
+    const { world, rival } = scene('purchase-order', deps);
+    rival.wealth = 100_000;
+    stockMarket(world, [['padded-jack', 20]]);
+    const purchase = () =>
+      rivalChoices(world, rival, deps)
+        .filter((action) => action.kind !== 'dispatch' && action.kind !== 'equip')
+        .map((action) => action.kind);
+
+    expect(purchase()).toEqual(['build']);
+    rival.hall = { ...fullHall };
+    expect(purchase()).toEqual(['buy']);
+    addStack(world, 'padded-jack', rival.rosterIds.length, { kind: 'guild', id: rival.id }); // a jack held for every Hero
+    expect(purchase()).toEqual(['recruit']);
+  });
+
+  test('changes nothing in the world but the rivals stream when it buys, which only its dispatch draws from', () => {
+    const deps = buying(3);
+    const { world, rival } = outfitting('pure-buy', deps, [['mail-shirt', 5]]);
+    const before = structuredClone(world);
+    for (const [key, value] of Object.entries(world)) if (key !== 'rng') deepFreeze(value);
+    for (const [name, state] of Object.entries(world.rng)) if (name !== 'rivals') deepFreeze(state);
+    Object.freeze(world.rng);
+    Object.freeze(world);
+
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['dispatch', 'buy']);
+    const drawn = structuredClone(before.rng.rivals);
+    next(drawn);
+    expect(world).toEqual({ ...before, rng: { ...before.rng, rivals: drawn } });
   });
 });

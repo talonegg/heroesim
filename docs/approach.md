@@ -56,8 +56,9 @@ at defined Turn phases. The core runs with none installed.
 ```
 morning    Board refresh (drawing from Patrons) · Market refresh · [modules: onMorning]
            (the player acts through standalone actions in any Turn; time does not move)
-afternoon  Rival controllers act, on what the player left (Transfers and Transfer Offers
-           among their choices) · Quests in flight advance · [modules: onAfternoon]
+afternoon  Rival controllers act, on what the player left (Improvements, Market purchases,
+           Transfers and Transfer Offers among their choices) · Quests in flight advance
+           · [modules: onAfternoon]
 night      Training yard XP · Quests concluding → Quest Engine → outcomes applied → Level-ups
            Hero State Engine (heal, Morale, Regard decay, Retirement checks) · ageing (decline
            on those nights) · gear of the dead and retired back to their Guilds

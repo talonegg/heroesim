@@ -367,12 +367,14 @@ export interface Disposition {
   recruitThreshold: number;
   /**
    * It builds a facility's next grade only while its Wealth is above this many times that
-   * grade's cost (M6-S1: M3-S6's `buildWealthMultiple`, which the row replaces, DL-56). 0 or more.
+   * grade's cost (M6-S1: M3-S6's `buildWealthMultiple`, which the row replaces, DL-56; every
+   * facility of the Hall from M6-S4, DL-58). 0 or more.
    */
   buildThreshold: number;
   /**
-   * It buys gear only while its Wealth is above this many times the price (M6-S4 reads it). 0 or
-   * more.
+   * It buys a piece of gear at the Market only while its Wealth is above this many times the price
+   * (M6-S4, DL-58: a piece an afternoon for its Heroes who lack one, armour first, the dearest within
+   * those means; `gearPurchase`). 0 or more.
    */
   gearThreshold: number;
   /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */

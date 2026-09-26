@@ -418,12 +418,13 @@ export const testContent: ContentSet = deepFreeze({
     injuryType('deep-cut', [6, 12], 'scarred'),
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
-  // The core's four Dispositions and their weights (INPUTS 7.5, M6-S1, DL-56): questRiskAppetite,
-  // recruitThreshold, buildThreshold, gearThreshold, transferAppetite.
+  // The core's four Dispositions and their weights (INPUTS 7.5, M6-S1, DL-56; reckless's
+  // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
+  // gearThreshold, transferAppetite.
   dispositions: {
     ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75),
     ...disposition('miserly', 0.25, 80, 20, 10, 0.1),
-    ...disposition('reckless', 1, 30, 4, 1.5, 0.5),
+    ...disposition('reckless', 1, 30, 4, 3, 0.5),
     ...disposition('steady', 0, 60, 3, 3, 0.25),
   },
   improvements: improvements(),
@@ -577,11 +578,12 @@ export function withDispositions(
 }
 
 /**
- * Rivals who never recruit or build, whatever their Wealth, but still equip and take Quests as their
- * Dispositions say: for a test that watches the pool, a Hall or Wealth and must not meet a Rival's
- * purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once did).
+ * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
+ * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
+ * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
+ * did; `gearThreshold` from M6-S4, DL-58).
  */
-export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000 } as const;
+export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 } as const;
 
 /** No consequence on either outcome: nobody is hurt and nothing but the band moves the outcome. */
 export const harmlessContent: ContentSet = withEncounters({ success: [], failure: [] });

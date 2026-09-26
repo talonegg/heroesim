@@ -13,9 +13,7 @@ import {
   cheapestUnattached,
   compareByCodeUnit,
   gearChoices,
-  holdings,
-  itemDefinition,
-  marketStock,
+  gearPurchase,
   offeredQuests,
   offersTo,
   partyFor,
@@ -140,7 +138,9 @@ function infirmaryBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyC
  * One piece of armour to buy (M5-S4, DL-51): while the Roster's Heroes with an empty armour slot
  * outnumber the armour in the Guild's own holding, the dearest armour on the Market whose price the
  * Guild's Wealth is above `buyWealthMultiple` times, the lowest key among equal prices; `null`
- * when none is wanted or none is affordable, and when Heroes have no armour slot.
+ * when none is wanted or none is affordable, and when Heroes have no armour slot. The engine's
+ * `gearPurchase` for the armour slot alone: the rule a Rival buys by too, with its Disposition's
+ * `gearThreshold` and every slot, armour first (M6-S4, DL-58).
  */
 function armourPurchase(
   { world }: WorldDocument,
@@ -148,25 +148,7 @@ function armourPurchase(
   deps: EngineDeps,
   policy: Readonly<PolicyConfig>,
 ): GuildAction | null {
-  if (!deps.config.gearSlots.includes('armour')) return null;
-  const isArmour = (definitionKey: string): boolean => {
-    const definition = itemDefinition(deps.content, definitionKey);
-    return definition?.kind === 'gear' && definition.slot === 'armour';
-  };
-  const unarmoured = guild.rosterIds.filter((id) => {
-    const worn = holdings(world, { kind: 'hero', id, slot: 'armour' });
-    return worn.items.length === 0 && worn.stacks.length === 0;
-  }).length;
-  const held = holdings(world, { kind: 'guild', id: guild.id });
-  const spare =
-    held.items.filter((item) => isArmour(item.definitionKey)).length +
-    held.stacks.filter((stack) => isArmour(stack.definitionKey)).reduce((sum, stack) => sum + stack.quantity, 0);
-  if (unarmoured <= spare) return null;
-
-  const [best] = marketStock(world, deps)
-    .filter(({ definition, price }) => isArmour(definition.key) && guild.wealth > policy.buyWealthMultiple * price)
-    .sort((a, b) => b.price - a.price || compareByCodeUnit(a.definition.key, b.definition.key));
-  return best === undefined ? null : { kind: 'buy', guildId: guild.id, definitionKey: best.definition.key, quantity: 1 };
+  return gearPurchase(world, guild, ['armour'], policy.buyWealthMultiple, deps);
 }
 
 /** The offered Quests on the Board (the engine's `offeredQuests`), highest reward first, ties by Quest id. */
