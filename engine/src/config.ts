@@ -23,8 +23,9 @@ export interface GameConfig {
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
    * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
-   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 from merging the two, so
-   * that no save made under either 4 reads as current under the other's defaults (DL-47).
+   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
+   * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
+   * merging those, so that no save made under either 5 reads as current (DL-55).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -170,7 +171,8 @@ export interface GameConfig {
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds; and grade 3,
+   * content's top, a quarter, so that each grade built does something: DL-53).
    */
   infirmaryHealFactor: readonly number[];
   /**
@@ -360,7 +362,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 5,
+  configVersion: 6,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -422,7 +424,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementAge: 45,
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
-  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3, 1 / 4]),
   quartersMoraleBonus: 5,
 
   potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),

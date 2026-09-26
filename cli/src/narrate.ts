@@ -22,7 +22,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
+import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
 
 /** A participant by the label the event carries, or its id when it has none. */
 function called(event: EngineEvent, id: EntityId): string {
@@ -161,7 +161,7 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       const { guildId, facility, grade, improvementKey, cost } = event.payload;
       return (
         `${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: ` +
-        `its ${facilityNames[facility]} is now grade ${grade}.`
+        `its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`
       );
     }
     case 'hero.levelled': {

@@ -20,11 +20,12 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | board | rankings [--by fame|wealth]
-        | hero <heroId> | guildmaster [guildId] | history [entityId]]
+  show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
+        | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; pool marks the Heroes who will not yet sign for
-      the player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
+      player's Guild unless given another, and so does hall, each facility's grade and
+      what the next grade costs; pool marks the Heroes who will not yet sign for the
+      player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
       board shows the Quests on offer; rankings orders the Guilds in play by Fame, or by
       Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
       Guild's, with their Stats, Traits and Regard; history shows the whole History unless
@@ -73,6 +74,7 @@ export type View =
   | { kind: 'summary' }
   | { kind: 'guilds' }
   | { kind: 'roster'; guildId?: string }
+  | { kind: 'hall'; guildId?: string }
   | { kind: 'pool' }
   | { kind: 'patrons' }
   | { kind: 'board' }
@@ -250,6 +252,9 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'roster':
       atMost(positional, 2, 'show roster');
       return id === undefined ? { kind: 'roster' } : { kind: 'roster', guildId: id };
+    case 'hall':
+      atMost(positional, 2, 'show hall');
+      return id === undefined ? { kind: 'hall' } : { kind: 'hall', guildId: id };
     case 'rankings':
       atMost(positional, 1, 'show rankings');
       return { kind: 'rankings', by: rankingMeasure(by) };

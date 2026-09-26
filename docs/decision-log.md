@@ -2361,10 +2361,10 @@ read in a game that ended first; how to show growth outpacing decline; and what 
       | Fast forward a year | under 1 s | 1.73 s (mean alone × 1,080 Turns): over |
       | Harness: 1,000 games of 20 years | under 10 min | 230 min at this run's rate (16 processes, validated): over |
       | Save after 20 years | under 20 MB | mean 47.1 MiB (49.4 million characters, 137,929 entries), max 57.9 MiB: about 2.4 times over |
+      | Load a save | under 1 s | alone: 1.31 s (serialising it 1.09 s); loaded: mean 3.7 s |
 
       The report's own "replayed alone" row, 4.10 ms, was timed while the defaults' run still held
       16 processes, so the figure above was taken again afterwards.
-      | Load a save | under 1 s | alone: 1.31 s (serialising it 1.09 s); loaded: mean 3.7 s |
 
 **Consequences.** M3's gate has its run and the epic's boxes their evidence (M3-S4's third from item
 11's growth against decline; M3-S5's fourth from item 6; M3-S6's second from item 10). What the run
@@ -3095,6 +3095,83 @@ line's old values: M3's has the stub's fields and a multiple of 60, M4's a multi
 multiple of ten; neither has been measured with the other, nor with DL-43 to DL-46's rules. The M4
 close's 200 × 20 run judges them together (DL-55). A save made under version 3 or either 4 plays
 under its own config until the player rebases.
+
+## DL-53 — M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions after the end; errata to DL-40 and DL-41
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3 verification's fixer),
+on findings the verifiers confirmed; the one default changed is the owner's to revisit
+
+**Context.** M3 was verified after its close (`4eaa606`) by mutation, acceptance, decision, harness
+and CLI passes. Among the confirmed findings, one is a default that leaves a content row doing
+nothing, one is a CLI that goes on accepting actions after it says the game is over, and three are
+figures or layout in DL-40 and DL-41, accepted entries this log does not edit. DL-42 to DL-52 are
+taken or reserved by the M4 and M5 lines of work, built in parallel, so this entry is DL-53.
+
+**Decision.**
+
+1. **The infirmary's third grade quarters an Injury.** `infirmaryHealFactor` becomes
+   `[1, 1/2, 1/3, 1/4]`, and `configVersion` goes from 4 to 5. Content offers three grades of each
+   facility (INPUTS 7.3; the Physicians' wing costs 1,000 Wealth), but INPUTS 4.5 gave the
+   infirmary factors for two ("grade 1 halves, grade 2 thirds"), and DL-29 item 8's rule that a
+   grade past the list reads its last factor made grade 3 heal exactly as grade 2 did. The third
+   grade therefore cost 1,000 Wealth and 10 more Upkeep every 10 Days for nothing, and DL-40's run
+   shows every player's Guild and 1,024 of 1,045 Rivals buying it by year 10. A quarter carries
+   INPUTS 4.5's sequence on. Cutting the infirmary to two grades was the other way, and was not
+   taken: it goes against INPUTS 7.3's three grades a facility and changes the content version.
+   The stub reads the factor through a new selector, `healFactor(guild, config)`, whose rule is
+   DL-29 item 8's, unchanged. A test holds the defaults to content: under the default rules, each
+   grade content defines does more than the grade below it, for every facility (the infirmary's
+   factor falls, the quarters' Morale baseline and the yard's nightly XP rise).
+2. **The CLI refuses an action once the game has ended.** DL-28 says the world stops as it stands
+   at the player's ending, and `advance` refused, but `dispatch`, `build` and `recruit` were still
+   taken. A Party could be sent that would never come home, and Milestones were written after
+   `game.ended`. Each is now refused with "The game ended on Turn n: reason. Nothing more can be
+   done in it.", and nothing is written. The engine's actions are unchanged and have no
+   `game-ended` rejection: the only other caller, the harness's policy, already stops acting once
+   the game has ended.
+3. **Errata.** These are corrections to DL-40 and DL-41. The decisions in both stand.
+   - DL-41 says "A Rival recruited 755 Heroes a game" (Context) and "a Rival recruited 99 Heroes a
+     game" (After). Both figures are totals for every Rival in a game: the report's Rivals'
+     `hero.recruited` a game, which `countByController` sums over every Rival Guild. The correct
+     wording is that **the Rivals** recruited 755 Heroes a game before and 99 after. Per Rival,
+     that is about 24 each before (about 31 Rivals founded a game) and about 14 after (about 7:
+     four, and 3.08 replacements), or 1.2 a Rival-year (19,756 over 15,948.7 Rival-years). The fall compares
+     like with like.
+   - DL-40's Consequences say "Heroes die at about five a year on each Roster". That is true of
+     the player's Roster of eight, which lost 20,829 Heroes over 4,000.0 Guild-years (5.2 a year).
+     It is not true of a Rival's Roster of three to six, which lost 22,484 over 15,948.7 Guild-years
+     (1.4 a year). A Rival's Hero lives roughly three times as long as the player's, so the Rivals
+     are where ageing shows first: 24 of the 25 Retirements, and 0.28 declines a Guild-year against
+     0.13. Ageing still barely binds under M3's Quests.
+   - In DL-40 item 11's measures table, the Load a save row had been written after the note that
+     follows the table, so it rendered as text. The row now sits in the table and the note below
+     it. Only the layout changed, not a word or a figure. The note's "figure above" is Advance one
+     Turn's figure played alone. The save target stays "under 20 MB", as `data-model.md` §7 writes
+     it.
+
+The verification also found tests too weak to fail when the code changes. Each is fixed with a test
+and needs no decision. New tests kill five mutants:
+- a Party sent on an anniversary night itself is not checked again when it comes home;
+- a `declinePerYear` above 1, and one of 0;
+- a `declineAge` other than 40;
+- the declining Stat drawn in key order;
+- training XP at `levelCap`.
+
+Other fixes:
+- The quarters are plural in `build`'s and the narration's lines.
+- `show hero` names an Injury by content and gives the night it heals.
+- `show hall [guildId]` gives each facility's grade, what is built and what the next grade costs,
+  and `show` names the player's grades.
+
+**Consequences.** A save made before this entry plays under version 4, with its third infirmary
+grade inert, until the player rebases. M3's harness run (DL-40, `harness/reports/m3-2026-09-26.md`)
+was made under version 4 and is not run again: the change shortens only Injuries inflicted at
+infirmary grade 3, from a third of their Days to a quarter, and the next milestone's run measures
+it. M4's line of work also names its
+defaults version 5 (the M3 close merged into M4, DL-47 there). Git would merge the two identical
+`configVersion: 5` lines without a conflict, so whoever merges this entry into M4 must give the
+merged defaults a version of their own. M4's Quest Engine reads the infirmary's factor with its own
+copy of the rule and should read `healFactor`.
 
 ---
 

@@ -708,12 +708,19 @@ describe('the checks', () => {
     expect(Object.keys(document.world.heroes)).toHaveLength(1000);
     withValid(document, deps);
 
+    // Timed in this process's CPU time, not wall-clock time: another process busy on the machine
+    // delays the run without adding to its CPU time, so load no longer fails the test, while a
+    // validator that does more than 50 ms of work still does in every run.
+    const cpuMs = (since: NodeJS.CpuUsage): number => {
+      const { user, system } = process.cpuUsage(since);
+      return (user + system) / 1_000;
+    };
     const began = performance.now();
     let fastest = Number.POSITIVE_INFINITY;
     for (let run = 0; run < 40 && fastest >= 50 && performance.now() - began < 3_000; run += 1) {
-      const start = performance.now();
+      const start = process.cpuUsage();
       validate(document, deps);
-      fastest = Math.min(fastest, performance.now() - start);
+      fastest = Math.min(fastest, cpuMs(start));
     }
 
     expect(fastest).toBeLessThan(50);
