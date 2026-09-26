@@ -3,7 +3,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
-import { facilityKeys, makeId, type FacilityKey, type Guild, type Hero, type World, type WorldDocument } from '../document.js';
+import { facilityKeys, makeId, type FacilityKey, type Guild, type Guildmaster, type Hero, type World, type WorldDocument } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { count } from '../history.js';
 import { moraleBaselineFor } from '../morale.js';
@@ -12,7 +12,7 @@ import { training } from '../phases/training.js';
 import { affordableImprovement, healFactor, nextImprovement, playerGuild, upkeep } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
-import { testDeps, withValid } from '../world.test-support.js';
+import { testContent, testDeps, withEncounters, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
 import { build, type BuildRejection } from './build.js';
 import { dispatch } from './dispatch.js';
@@ -243,20 +243,22 @@ function playTo(document: WorldDocument, turn: number, with_: EngineDeps): { doc
 
 describe('what a grade built does (M3-S6)', () => {
   test('quarters at grade 1 shift the Morale baseline by quartersMoraleBonus, and nightly drift follows it', () => {
-    const pinned = testDeps({ rivalCount: 0, moraleBaseline: 60, quartersMoraleBonus: 5, moraleDrift: 1 });
+    // The Guildmaster's Inspiration and Traits stilled (M4-S5): this test is about the quarters.
+    const pinned = testDeps({ rivalCount: 0, moraleBaseline: 60, quartersMoraleBonus: 5, moraleDrift: 1, inspirationMoraleShift: 0 });
     const { document, guild } = scene('quarters', 10_000, pinned);
+    (document.world.guildmasters[guild.guildmasterId] as Guildmaster).traits = [];
     const [heroId] = guild.rosterIds;
     const hero = heroId === undefined ? undefined : document.world.heroes[heroId];
     if (hero === undefined) throw new Error('No Hero');
     expect(hero.morale).toBe(60);
-    expect(moraleBaselineFor(hero, document.world, pinned.config)).toBe(60);
+    expect(moraleBaselineFor(hero, document.world, pinned.config, pinned.content)).toBe(60);
     // A twin with a History of its own: documents share theirs (ADR-0008), and each is played on.
     const twin = structuredClone(document);
 
     const built = build(document, { guildId: guild.id, facility: 'quarters' }, pinned);
     if (!built.ok) throw new Error(`Refused: ${built.rejection.reason}`);
 
-    expect(moraleBaselineFor(hero, built.document.world, pinned.config)).toBe(65);
+    expect(moraleBaselineFor(hero, built.document.world, pinned.config, pinned.content)).toBe(65);
     // Five nights of drift at 1 a night take a Hero at 60 to 65, and the sixth holds them there.
     const { document: later } = playTo(built.document, nightOf(5), pinned);
     const { document: unbuilt } = playTo(twin, nightOf(5), pinned);
@@ -267,23 +269,21 @@ describe('what a grade built does (M3-S6)', () => {
   });
 
   test('the baseline is held inside the Morale scale, and a Hero on no Roster has no quarters', () => {
-    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100 };
-    const world = { guilds: { [makeId('guilds', 1)]: { hall: { infirmary: 0, trainingYard: 0, quarters: 2 } } } } as never;
+    const config = { moraleBaseline: 60, quartersMoraleBonus: 30, moraleMin: 0, moraleMax: 100, inspirationMoraleShift: 0 };
+    const hall = { infirmary: 0, trainingYard: 0, quarters: 2 };
+    const world = { guilds: { [makeId('guilds', 1)]: { hall, guildmasterId: makeId('guildmasters', 1) } }, guildmasters: {} } as never;
 
-    expect(moraleBaselineFor({ guildId: makeId('guilds', 1) }, world, config)).toBe(100);
-    expect(moraleBaselineFor({ guildId: null }, world, config)).toBe(60);
+    expect(moraleBaselineFor({ guildId: makeId('guilds', 1) }, world, config, testContent)).toBe(100);
+    expect(moraleBaselineFor({ guildId: null }, world, config, testContent)).toBe(60);
   });
 
   test('the infirmary at grade 1 halves a new Injury, by the factor it reads when the Injury is inflicted', () => {
-    // Every Quest fails and injures one Hero, and nobody dies; the infirmary's factors pinned.
-    const noHarm = { fail: 0, success: 0, strong: 0 };
-    const hurt = testDeps({
-      rivalCount: 0,
-      stubInjuryChance: { ...noHarm, fail: 1 },
-      stubDeathChance: noHarm,
-      stubBands: { successAtLeast: 100, strongAbove: 200 },
-      infirmaryHealFactor: [1, 1 / 2, 1 / 3],
-    });
+    // Every Check fails and injures the lone Hero sent, once, and nobody dies (M4-S2); the
+    // infirmary's factors pinned.
+    const hurt = testDeps(
+      { rivalCount: 0, infirmaryHealFactor: [1, 1 / 2, 1 / 3] },
+      withEncounters({ difficultyFactor: 1000, success: [], failure: [{ kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 }] }),
+    );
     /** The Days to heal of the one Injury a Party sent from `document` on its first Quest comes home with. */
     const healDays = (document: WorldDocument): number => {
       const guild = playerGuild(document.world) as Guild;
@@ -339,7 +339,7 @@ describe('what a grade built does (M3-S6)', () => {
     };
 
     const heal = byGrade('infirmary', (grade) => healFactor({ hall: { ...guild.hall, infirmary: grade } }, config));
-    const baseline = byGrade('quarters', (grade) => moraleBaselineFor(at('quarters', grade).heroes[heroId] as Hero, at('quarters', grade), config));
+    const baseline = byGrade('quarters', (grade) => moraleBaselineFor(at('quarters', grade).heroes[heroId] as Hero, at('quarters', grade), config, content));
     const trainingXp = byGrade('trainingYard', (grade) => {
       const world = at('trainingYard', grade);
       world.turn = nightOf(0);

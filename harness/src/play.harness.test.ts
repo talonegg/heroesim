@@ -6,15 +6,15 @@ import { machine, reportPath, writeReport } from './report.js';
 import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
 import { defaultWorkers, playReport, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
-// The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40), collected only by the
-// harness-run project, which exists when HEROESIM_HARNESS is set (`npm run harness`): play
+// The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55), collected only
+// by the harness-run project, which exists when HEROESIM_HARNESS is set (`npm run harness`): play
 // HEROESIM_SEEDS games (200 by default, INPUTS 4.13) from `seed-0001` onward for 20 years or to
 // their ending, under the automatic policy, the core content and `defaultConfig`, shared among child
 // processes (half the logical processors); with HEROESIM_VALIDATE=1, validate after every advance;
 // replay the first seed and compare the two games byte for byte; and write the counters and
-// measures to harness/reports/m3-<date>.md.
+// measures to harness/reports/m4-<date>.md.
 
-const milestone = 'm3';
+const milestone = 'm4';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const validate = validatingEveryTurn();
 

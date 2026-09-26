@@ -4,7 +4,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
 import { isJsonSafe } from './json-safe.js';
-import { chance, createStreams, cyrb128, ensureStreams, int, next, nonZero, pick, shuffle, streamNames } from './rng.js';
+import { chance, createStreams, cyrb128, ensureStreams, int, next, nonZero, pick, shuffle, streamNames, weightedPick } from './rng.js';
 import { plannedStreams } from './world.test-support.js';
 
 // A stream's state, reached through the function that draws from it rather than by its name
@@ -401,6 +401,41 @@ describe('chance', () => {
     expect(() => chance(state, -0.1)).toThrow(RangeError);
     expect(() => chance(state, 1.1)).toThrow(RangeError);
     expect(() => chance(state, Number.NaN)).toThrow(RangeError);
+  });
+});
+
+describe('weightedPick (M4-S5, DL-43)', () => {
+  test('takes one draw, and with every weight 1 picks what pick picks from the same state', () => {
+    const items = ['a', 'b', 'c', 'd', 'e', 'f', 'g'];
+    const ones = items.map(() => 1);
+    const weighted = generation('weighted-even');
+    const uniform = generation('weighted-even');
+    for (let i = 0; i < 1000; i += 1) {
+      const afterOne = advancedCopy(weighted, 1);
+      expect(weightedPick(weighted, items, ones)).toBe(pick(uniform, items));
+      expect(weighted).toEqual(afterOne);
+    }
+  });
+
+  test('draws in proportion to the weights, never a weight of 0, and uniformly when every weight is 0', () => {
+    const state = generation('weighted-rate');
+    const counts = { a: 0, b: 0, c: 0 };
+    for (let i = 0; i < 60_000; i += 1) counts[weightedPick(state, ['a', 'b', 'c'] as const, [3, 0, 1])] += 1;
+    expect(counts.b).toBe(0);
+    expect(Math.abs(counts.a / 60_000 - 0.75)).toBeLessThan(0.01);
+
+    const zero = { a: 0, b: 0 };
+    for (let i = 0; i < 20_000; i += 1) zero[weightedPick(state, ['a', 'b'] as const, [0, 0])] += 1;
+    expect(Math.abs(zero.a / 20_000 - 0.5)).toBeLessThan(0.02);
+  });
+
+  test('refuses an empty list, lists of different lengths, and a weight below 0 or not finite', () => {
+    const state = generation();
+
+    expect(() => weightedPick(state, [], [])).toThrow(RangeError);
+    expect(() => weightedPick(state, ['a'], [1, 1])).toThrow(RangeError);
+    expect(() => weightedPick(state, ['a', 'b'], [1, -1])).toThrow(RangeError);
+    expect(() => weightedPick(state, ['a'], [Number.POSITIVE_INFINITY])).toThrow(RangeError);
   });
 });
 

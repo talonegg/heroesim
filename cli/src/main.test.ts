@@ -15,6 +15,8 @@ import {
   dispatch,
   fastForward,
   makeId,
+  guildmasterOf,
+  judgedHintBands,
   nightOf,
   potentialHint,
   potentialHints,
@@ -195,7 +197,7 @@ describe('show', () => {
       expect(row).toContain(guild.name);
       expect(row).toContain(world.guildmasters[guild.guildmasterId]?.name);
       expect(row).toContain(content.backgrounds[guild.backgroundKey]?.name);
-      const due = upkeep(guild, world, defaultConfig);
+      const due = upkeep(guild, world, defaultConfig, content);
       expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
@@ -305,6 +307,35 @@ describe('show', () => {
     }
   });
 
+  test('board says what kinds of Encounter each Quest is made of, in order (M4-S1)', () => {
+    const { world } = document();
+
+    const run = play(['show', 'board']);
+
+    expect(run.out).toMatch(/Encounters/);
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      expect(quest.encounterKeys.length).toBeGreaterThanOrEqual(2);
+      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
+      const lines = run.out.split('\n').filter((line) => line.startsWith(id));
+      expect(lines.some((line) => line.endsWith(kinds)), `${id}: ${kinds}`).toBe(true);
+    }
+  });
+
+  test('board says a Quest saved before M4 has its Encounters drawn on the way (DL-42)', () => {
+    const [questId] = document().world.board;
+    if (questId === undefined) throw new Error('An empty Board');
+    edit((edited) => {
+      const quest = edited.world.quests[questId];
+      if (quest !== undefined) quest.encounterKeys = [];
+    });
+
+    const lines = play(['show', 'board']).out.split('\n').filter((line) => line.startsWith(questId));
+
+    expect(lines.some((line) => line.endsWith('drawn on the way'))).toBe(true);
+  });
+
   test('board says so when the Board is empty', () => {
     edit((edited) => {
       edited.world.board = [];
@@ -329,8 +360,11 @@ describe('show', () => {
     expect(run.out).toMatch(new RegExp(`^Age\\s+${ageOf(hero, world.turn, defaultConfig)}$`, 'm'));
     expect(run.out).toMatch(new RegExp(`^Class\\s+${content.classes[hero.classKey]?.name}$`, 'm'));
     expect(run.out).toMatch(/^Guild\s+The Test \(guild-000001\)$/m);
+    // The hints the player's Guildmaster reads: their Judgement narrows the bands (M4-S5).
+    const reader = guildmasterOf(world.guilds[playerId] as Guild, world);
+    const bands = { potentialHintBands: judgedHintBands(reader, content, defaultConfig) };
     for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
-      const hint = potentialHint(hero, stat.key, defaultConfig);
+      const hint = potentialHint(hero, stat.key, bands);
       expect(run.out).toMatch(new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${hint}$`, 'm'));
     }
     for (const [key, rating] of Object.entries(hero.skills)) {
@@ -365,6 +399,8 @@ describe('show', () => {
     const stats = Object.values(content.stats).filter((row) => row.owner === 'hero').slice(0, gaps.length);
     edit((edited) => {
       edited.meta.config.potentialHintBands = potentialHintBands;
+      // Judgement still (M4-S5), so the save's bands are the bands read.
+      edited.meta.config.judgementHintSharpening = 0;
       const hero = edited.world.heroes[id] as Hero;
       stats.forEach((stat, index) => {
         hero.stats[stat.key] = 5;
@@ -439,6 +475,49 @@ describe('show', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/^Background\s+sea-born$/m);
     expect(run.err).toContain('Warning');
+  });
+
+  test("hero lists each other Hero on the Roster with the Hero's Regard for them and their Relationship, as bands and never as numbers (M4-S4)", () => {
+    const guild = document().world.guilds[playerId] as Guild;
+    const [heroId, closeId, coolId, ...rest] = guild.rosterIds as [HeroId, HeroId, HeroId, ...HeroId[]];
+    edit((edited) => {
+      const hero = edited.world.heroes[heroId] as Hero;
+      hero.regard[closeId] = { value: 17.25, since: 0, reason: 'quest.resolved' };
+      (edited.world.heroes[closeId] as Hero).regard[heroId] = { value: 13.75, since: 0, reason: 'quest.resolved' };
+      // One way only: the Hero's Regard is cool, and the Relationship, the mean with none held back, neutral.
+      hero.regard[coolId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
+    });
+
+    const run = play(['show', 'hero', heroId]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const lines = run.out.split('\n');
+    const start = lines.indexOf('Relationships on the Roster');
+    expect(start).toBeGreaterThan(-1);
+    // The heading, the table's head and its rule, then a row for each other Hero on the Roster.
+    const rows = lines.slice(start + 3).filter((line) => line !== '');
+    expect(rows).toHaveLength(guild.rosterIds.length - 1);
+    expect(rowOf(run.out, closeId)).toMatch(/\sclose\s+close$/);
+    expect(rowOf(run.out, coolId)).toMatch(/\scool\s+neutral$/);
+    for (const id of rest) expect(rowOf(run.out, id)).toMatch(/\sneutral\s+neutral$/);
+    for (const row of rows) expect(row.replace(/^\S+/, ''), row).not.toMatch(/\d/);
+    for (const number of ['17.25', '13.75', '15.5', '7.5', '3.75']) expect(run.out).not.toContain(number);
+  });
+
+  test('hero lists no Relationships for a Hero on no Roster', () => {
+    const id = makeId('heroes', 1);
+    edit((edited) => {
+      const hero = edited.world.heroes[id] as Hero;
+      const guild = edited.world.guilds[playerId] as Guild;
+      guild.rosterIds = guild.rosterIds.filter((heroId) => heroId !== id);
+      hero.guildId = null;
+      hero.unattachedSince = edited.world.turn;
+    });
+
+    const run = play(['show', 'hero', id]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).not.toContain('Relationships');
   });
 
   test("ages a Hero under the save's own config, not the current defaults", () => {
@@ -791,7 +870,7 @@ describe('dispatch (M2-S4)', () => {
 
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain(
-      `${questId} takes a Party of ${partySizeMin} to ${partySizeMax} Heroes; ${roster.length} were named.`,
+      `${questId} needs a Party of ${partySizeMin} to ${partySizeMax} Heroes (${roster.length} named).`,
     );
     expect(saved()).toBe(original);
   });
@@ -914,6 +993,230 @@ describe('save and load', () => {
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('`new`');
     expect(existsSync(join(dir, '.saves', 'backup.json'))).toBe(false);
+  });
+});
+
+describe('show guildmaster, show patrons and preview (M4-S5)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  const bandWords = ['hostile', 'cool', 'neutral', 'warm', 'close'];
+
+  /** The rows of the section of `output` headed `heading`, up to the blank line after its table. */
+  function section(output: string, heading: string): string[] {
+    const lines = output.split('\n');
+    const start = lines.indexOf(heading);
+    if (start === -1) throw new Error(`No section ${heading} in:\n${output}`);
+    const end = lines.indexOf('', start);
+    return lines.slice(start + 3, end === -1 ? undefined : end);
+  }
+
+  test("show guildmaster prints the player's Guildmaster's Stats, Traits and Regard, the Regard as bands and never as numbers", () => {
+    const { world } = document();
+    const guild = world.guilds[playerId] as Guild;
+    const guildmasterId = guild.guildmasterId;
+    const [patronId] = Object.keys(world.patrons) as EntityId[];
+    const [heroId] = guild.rosterIds;
+    const rival = world.guilds[makeId('guilds', 2)] as Guild;
+    edit((edited) => {
+      const guildmaster = edited.world.guildmasters[guildmasterId];
+      if (guildmaster === undefined) throw new Error('No Guildmaster');
+      guildmaster.traits = ['old-soldier', 'thrifty'];
+      guildmaster.regard[patronId as EntityId] = { value: 13.25, since: 0, reason: 'quest.resolved' };
+      guildmaster.regard[heroId as EntityId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
+      // M6-S2 writes Regard between Guildmasters; the view reads it for a Guild through its Guildmaster.
+      guildmaster.regard[rival.guildmasterId] = { value: 5, since: 0, reason: 'test' };
+    });
+
+    const run = play(['show', 'guildmaster']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const master = world.guildmasters[guildmasterId];
+    expect(run.out).toContain(`${master?.name} (${guildmasterId}), Guildmaster of The Test (${playerId})`);
+    for (const stat of Object.values(content.stats).filter((row) => row.owner === 'guildmaster')) {
+      expect(run.out).toMatch(new RegExp(`^${stat.name}\\s+${master?.stats[stat.key]}\\s`, 'm'));
+    }
+    expect(run.out).toMatch(/^Old soldier\s+\+1 Weaponry to Warriors$/m);
+    expect(run.out).toMatch(/^Thrifty\s+Upkeep ×0\.9$/m);
+
+    const patrons = section(run.out, 'Regard for Patrons');
+    const heroes = section(run.out, 'Regard for Heroes on the Roster');
+    const guilds = section(run.out, 'Regard for the other Guilds, through their Guildmasters');
+    expect(patrons).toHaveLength(Object.keys(world.patrons).length);
+    expect(heroes).toHaveLength(guild.rosterIds.length);
+    expect(rowOf(run.out, patronId as string)).toMatch(/\sclose$/);
+    expect(rowOf(run.out, heroId as string)).toMatch(/\scool$/);
+    expect(rowOf(run.out, rival.id)).toMatch(/\swarm$/);
+    for (const row of [...patrons, ...heroes, ...guilds]) {
+      expect(bandWords, row).toContain(row.trim().split(/\s+/).at(-1));
+      // Beyond the row's id, not a digit: Regard is shown as its band only.
+      expect(row.replace(/^\S+/, ''), row).not.toMatch(/\d/);
+    }
+    for (const number of ['13.25', '13', '7.5', '-7.5']) expect(run.out).not.toContain(` ${number}\n`);
+  });
+
+  test("show guildmaster <guildId> prints another Guild's Guildmaster, and refuses a Guild the save lacks", () => {
+    const rivalId = makeId('guilds', 2);
+    const { world } = document();
+    const rival = world.guilds[rivalId] as Guild;
+
+    const run = play(['show', 'guildmaster', rivalId]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toContain(`Guildmaster of ${rival.name} (${rivalId})`);
+    expect(rowOf(run.out, playerId)).toMatch(/\sneutral$/);
+    expect(play(['show', 'guildmaster', makeId('guilds', 99)]).code).toBe(exitCodes.refused);
+  });
+
+  test("show patrons prints each Patron's Regard for the player's Guild as a band", () => {
+    const { world } = document();
+    const [first, second] = Object.keys(world.patrons) as EntityId[];
+    edit((edited) => {
+      const patron = edited.world.patrons[first as keyof typeof edited.world.patrons];
+      if (patron === undefined) throw new Error('No Patron');
+      patron.regard[playerId] = { value: -13, since: 0, reason: 'quest.resolved' };
+    });
+
+    const run = play(['show', 'patrons']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toMatch(/Regard for us/);
+    expect(rowOf(run.out, first as string)).toMatch(/\shostile$/);
+    expect(rowOf(run.out, second as string)).toMatch(/\sneutral$/);
+    expect(run.out).not.toContain('-13');
+  });
+
+  test('preview says which requirement a proposed Party misses, naming the Class, and writes nothing', () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const heroes = roster.map((id) => world.heroes[id] as Hero);
+    const healer = heroes.find((hero) => hero.classKey === 'healer');
+    const others = heroes.filter((hero) => hero.classKey !== 'healer').slice(0, 2);
+    if (questId === undefined || healer === undefined || others.length < 2) throw new Error('The demo world has changed');
+    edit((edited) => {
+      (edited.world.quests[questId] as Quest).requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'healer' };
+    });
+    const original = saved();
+
+    const without = play(['preview', '--quest', questId, '--heroes', others.map((hero) => hero.id).join(',')]);
+
+    expect(without).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(without.out).toMatch(/^ {2}A Party of 2 to 4: met \(2 named\)$/m);
+    expect(without.out).toMatch(/^ {2}A Healer: missed$/m);
+    expect(without.out).toContain('Dispatch would refuse it: it needs a Healer in the Party.');
+    expect(saved()).toBe(original);
+
+    const withHealer = play(['preview', '--quest', questId, '--heroes', [others[0]?.id, healer.id].join(',')]);
+
+    expect(withHealer.code).toBe(exitCodes.ok);
+    expect(withHealer.out).toMatch(/^ {2}A Healer: met$/m);
+    expect(withHealer.out).toMatch(/^Reward agreed on a success: \d+ Wealth, \d+ offered\.$/m);
+    expect(withHealer.out).toContain('Dispatch would send this Party.');
+    expect(saved()).toBe(original);
+  });
+
+  test('preview names a Hero who cannot go, and refuses a Quest not on the Board', () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const [first, second] = world.guilds[playerId]?.rosterIds ?? [];
+    if (questId === undefined || first === undefined || second === undefined) throw new Error('The demo world has changed');
+    edit((edited) => {
+      (edited.world.heroes[first] as Hero).injury = { typeKey: 'deep-cut', healsOnTurn: 30 };
+    });
+
+    const run = play(['preview', '--quest', questId, '--heroes', `${first},${second}`]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toMatch(new RegExp(`\\(${first}\\) is injured and cannot go\\.`));
+    expect(run.out).toMatch(/Dispatch would refuse it: .* is injured and cannot go\./);
+    expect(play(['preview', '--quest', makeId('quests', 999), '--heroes', first]).code).toBe(exitCodes.refused);
+  });
+
+  test("dispatch prints the reward agreed, the player's Guildmaster's Negotiation applied", () => {
+    const { world } = document();
+    const roster = world.guilds[playerId]?.rosterIds ?? [];
+    const questId = (world.board as QuestId[]).find((id) => {
+      const { requirements } = world.quests[id] as Quest;
+      return requirements.classKey === undefined && requirements.skillKey === undefined;
+    });
+    if (questId === undefined) throw new Error('No open Quest on the Board');
+    const quest = world.quests[questId] as Quest;
+
+    const run = play(['dispatch', '--quest', questId, '--heroes', roster.slice(0, quest.requirements.partySizeMin).join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const agreed = document().world.quests[questId]?.reward;
+    expect(run.out).toContain(`Reward agreed: ${agreed} Wealth on a success, ${quest.reward} offered.`);
+  });
+});
+
+// M4-S3's third box: the epic's `show party` is M4-S5's `preview --quest --heroes` (DL-43, DL-45).
+describe('preview lists the Synergies a proposed Party would have (M4-S3)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  /** The Board's first Quest, drawn with `encounterKeys`, and the first `classKeys.length` of the Roster made those Classes, with no Skill. */
+  function proposed(encounterKeys: string[], ...classKeys: string[]): { questId: QuestId; heroIds: HeroId[] } {
+    const { world } = document();
+    const questId = (world.board as QuestId[])[0];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, classKeys.length);
+    if (questId === undefined || heroIds.length < classKeys.length) throw new Error('The demo world has changed');
+    edit((edited) => {
+      const quest = edited.world.quests[questId] as Quest;
+      quest.encounterKeys = encounterKeys;
+      quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      heroIds.forEach((id, index) => {
+        const hero = edited.world.heroes[id] as Hero;
+        hero.classKey = classKeys[index] ?? 'warrior';
+        hero.skills = {};
+      });
+    });
+    return { questId, heroIds };
+  }
+
+  /** The lines of `output`'s Synergies section, up to the blank line after it. */
+  function synergies(output: string): string[] {
+    const lines = output.split('\n');
+    const start = lines.indexOf('Synergies');
+    if (start === -1) throw new Error(`No Synergies section in:\n${output}`);
+    const end = lines.indexOf('', start);
+    return lines.slice(start + 1, end === -1 ? undefined : end);
+  }
+
+  test("names each Synergy, its bonus, its kinds and how many of the Quest's Encounters it adds to, and writes nothing", () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road', 'a-hostile-reeve', 'the-long-march'], 'warrior', 'healer', 'rogue', 'mage');
+    const original = saved();
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(synergies(run.out)).toEqual([
+      '  A full company: +1 and ×1.05 on every Encounter; 3 of this Quest\'s 3.',
+      '  Shadow and spell: ×1.1 on stealth and arcane Encounters; 0 of this Quest\'s 3.',
+      '  Sword and salve: +2 on combat and travel Encounters; 2 of this Quest\'s 3.',
+    ]);
+    expect(run.out).toContain('Dispatch would send this Party.');
+    expect(saved()).toBe(original);
+  });
+
+  test('says when a Party meets none, one member short of one', () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road', 'hold-the-line'], 'warrior', 'warrior', 'rogue');
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(synergies(run.out)).toEqual(['  None: this Party meets no Synergy.']);
+  });
+
+  test('says a Quest drawn before M4 has its Encounters drawn on the way', () => {
+    const { questId, heroIds } = proposed([], 'warrior', 'warrior', 'warrior');
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
   });
 });
 

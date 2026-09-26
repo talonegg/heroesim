@@ -189,7 +189,7 @@ function strengthFor(hero: Hero, quest: Quest, content: ContentSet): number {
  * would refuse the Guild's Fame is passed over, never asked.
  */
 function cheapestHire(world: World, guild: Guild, deps: EngineDeps): GuildAction | null {
-  const threshold = deps.config.recruitWealthMultiple * upkeep(guild, world, deps.config);
+  const threshold = deps.config.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content);
   if (!(guild.wealth > threshold)) return null;
   const cheapest = cheapestUnattached(world, deps, guild);
   if (cheapest === null || cheapest.fee > guild.wealth) return null;

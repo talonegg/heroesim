@@ -41,9 +41,9 @@ principle be told what kind of work it is.
 
 **Acceptance:**
 
-- [ ] Content validation refuses an encounter naming an unknown Stat, Skill or injury type
-- [ ] Every generated Quest's `encounterKeys` are within its template's kinds and count
-- [ ] Twelve encounters ship, at least two per kind
+- [x] Content validation refuses an encounter naming an unknown Stat, Skill or injury type
+- [x] Every generated Quest's `encounterKeys` are within its template's kinds and count
+- [x] Twelve encounters ship, at least two per kind
 
 ### M4-S2 · The check · 2 sessions
 
@@ -64,11 +64,16 @@ Config: `checkVariance`, `skillBonusPerRating`, `bandBySuccessShare`.
 
 **Acceptance:**
 
-- [ ] A Party lacking the encounter's Skills is beaten by one holding them at rating 3 on the
+- [x] A Party lacking the encounter's Skills is beaten by one holding them at rating 3 on the
       same Stats, with variance 0
-- [ ] A Hero killed in encounter 2 contributes nothing to encounter 3
-- [ ] `quest.encounter` events arrive in sequence order with the Quest's Turn
-- [ ] The harness's M2 counters still report; `quest.resolved` bands are still produced
+- [x] A Hero killed in encounter 2 contributes nothing to encounter 3
+- [x] `quest.encounter` events arrive in sequence order with the Quest's Turn
+- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced — M4's
+      200 × 20 run, validated after every advance: M2's counters (Quests taken and resolved by
+      band, Injuries, Deaths, recruits, Retirements, endings and folds) report beside M3's and
+      M4's, and each of the 4,801,729 Quests resolved has its band: the player's 37.7% failed,
+      21.2% succeeded, 41.1% strongly; the Rivals' 11.7%, 8.1%, 80.2%
+      (`harness/reports/m4-2026-09-26.md`, DL-55)
 
 ### M4-S3 · Synergies · 1 session
 
@@ -79,9 +84,9 @@ nothing per encounter but `quest.resolved` payload lists the Synergy keys that a
 
 **Acceptance:**
 
-- [ ] A Party matching a Synergy's requirement scores the bonus; one member short scores none
-- [ ] A Synergy restricted to `kinds` applies only to those encounters
-- [ ] `show party` (new CLI subcommand, before dispatch: `preview --heroes`) lists the
+- [x] A Party matching a Synergy's requirement scores the bonus; one member short scores none
+- [x] A Synergy restricted to `kinds` applies only to those encounters
+- [x] `show party` (new CLI subcommand, before dispatch: `preview --heroes`) lists the
       Synergies a proposed Party would have
 
 ### M4-S4 · Regard between Heroes and Relationship · 1–2 sessions
@@ -99,10 +104,10 @@ Config: `regardPerSharedQuest`, `regardOnSuccessBonus`, `regardBands`, `regardDe
 
 **Acceptance:**
 
-- [ ] Two Heroes after ten shared successful Quests are `close`; the event fired at each band
+- [x] Two Heroes after ten shared successful Quests are `close`; the event fired at each band
       crossing and not otherwise
-- [ ] `relationship` is symmetric and never stored (no field; test by grep of the type)
-- [ ] A `close` Party out-scores a `hostile` one on identical Stats with variance 0
+- [x] `relationship` is symmetric and never stored (no field; test by grep of the type)
+- [x] A `close` Party out-scores a `hostile` one on identical Stats with variance 0
 
 ### M4-S5 · Requirements, Patron Regard, and the Guildmaster's Stats and Traits · 2 sessions
 
@@ -145,19 +150,19 @@ by band.
 
 **Acceptance:**
 
-- [ ] Each Guildmaster Regard writer has one test; a Patron whose Quests always fail ends in a
+- [x] Each Guildmaster Regard writer has one test; a Patron whose Quests always fail ends in a
       lower band than one whose always succeed
-- [ ] `show guildmaster` prints Regard as bands, never as numbers, for Patrons, Heroes and
+- [x] `show guildmaster` prints Regard as bands, never as numbers, for Patrons, Heroes and
       (from M6) Rival Guildmasters
 
-- [ ] Each Trait effect kind has one test showing its effect through the selector it lives in
+- [x] Each Trait effect kind has one test showing its effect through the selector it lives in
       and no effect elsewhere; a Rival Guildmaster's Trait affects the Rival's Heroes the same way
-- [ ] A Quest requiring a Healer rejects a Party without one, naming `class`
-- [ ] A Patron whose Quests always fail offers fewer over a year than one whose succeed
+- [x] A Quest requiring a Healer rejects a Party without one, naming `class`
+- [x] A Patron whose Quests always fail offers fewer over a year than one whose succeed
       (harness fixture, 50 seeds)
-- [ ] A Patron left at `cool` with no further dealings returns to `neutral` within
+- [x] A Patron left at `cool` with no further dealings returns to `neutral` within
       `1 / patronRegardRecoveryPerYear` years, emitting one `patron.regard-changed`
-- [ ] Each Guildmaster Stat has one test at the bottom and top of its range showing the effect
+- [x] Each Guildmaster Stat has one test at the bottom and top of its range showing the effect
       and no other
 
 ## 2. Configuration and events introduced

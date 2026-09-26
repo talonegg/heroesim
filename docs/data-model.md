@@ -135,7 +135,10 @@ id, name, sphereKey
 regard:         Record<EntityId, RegardEntry>
 ```
 A Patron's Quest templates are looked up by `sphereKey` in content at draw time, never
-stored (rule 1), so a content change reaches every Patron without a migration.
+stored (rule 1), so a content change reaches every Patron without a migration. A Patron's
+Regard is for Guilds, keyed by Guild id; a Guildmaster's is for Patrons, Heroes and other
+Guildmasters, and their Regard for a Guild is read through its Guildmaster, never stored
+(M4-S5, DL-43).
 
 **quests**
 ```

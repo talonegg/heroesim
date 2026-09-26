@@ -12,7 +12,11 @@
 import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   Class,
+  Consequence,
   ContentSet,
+  Encounter,
+  EncounterAggregate,
+  EncounterKind,
   Improvement,
   InjuryType,
   QuestTemplate,
@@ -21,6 +25,9 @@ import type {
   Stat,
   StatArea,
   StatOwner,
+  Synergy,
+  Trait,
+  TraitEffect,
 } from './content-types.js';
 import {
   emptyDocument,
@@ -107,9 +114,29 @@ interface Named {
 }
 
 /**
+ * Each test template's Encounter kinds and count range (M4-S1), as the core's: kinds a template of
+ * its tags would meet, and counts that rise with its difficulty, 2 to 5 (INPUTS 6.1).
+ */
+const templateEncounters: Readonly<Record<string, [EncounterKind[], number, number]>> = {
+  'clear-the-barrow': [['combat', 'stealth', 'travel'], 2, 4],
+  'hold-the-border-fort': [['combat', 'travel'], 3, 5],
+  'escort-the-tithe': [['travel', 'combat', 'social'], 2, 3],
+  'lay-the-restless-dead': [['combat', 'arcane'], 3, 4],
+  'guard-the-caravan': [['travel', 'combat'], 2, 4],
+  'recover-the-strongbox': [['travel', 'stealth'], 2, 3],
+  'the-beast-of-the-fells': [['travel', 'combat', 'stealth'], 2, 4],
+  'the-sickness-at-the-mill': [['social', 'arcane'], 2, 2],
+  'survey-the-old-workings': [['travel', 'arcane', 'stealth'], 2, 4],
+  'break-the-sealed-vault': [['arcane', 'stealth', 'combat'], 4, 5],
+  'a-quiet-word': [['social', 'stealth'], 2, 3],
+  'the-counting-house-job': [['stealth', 'social'], 3, 5],
+};
+
+/**
  * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
  * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
- * and the Fame effect 2, as INPUTS 4.2's defaults put them.
+ * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
+ * `templateEncounters`'.
  */
 function questTemplate(
   key: string,
@@ -121,6 +148,7 @@ function questTemplate(
   skills: string,
   requires: QuestTemplateRequires = {},
 ): [string, QuestTemplate] {
+  const [encounterKinds, encountersMin, encountersMax] = templateEncounters[key] ?? [['combat'], 2, 2];
   return [
     key,
     {
@@ -143,8 +171,58 @@ function questTemplate(
       skillKeys: skills.split(' '),
       requires,
       lootTableKey: null,
+      encounterKinds: [...encounterKinds],
+      encountersMin,
+      encountersMax,
     },
   ];
+}
+
+/** Demands written as `stat:weight` pairs in a space-separated list. */
+function demandsOf(demands: string): [string, number][] {
+  return demands.split(' ').map((pair) => {
+    const [statKey = '', weight = ''] = pair.split(':');
+    return [statKey, Number(weight)];
+  });
+}
+
+/**
+ * An Encounter (M4-S1) from its kind, aggregate, demands as `stat:weight` pairs, Skills as a
+ * space-separated list (or none), difficulty factor and consequences.
+ */
+function encounter(
+  key: string,
+  kind: EncounterKind,
+  aggregate: EncounterAggregate,
+  demands: string,
+  skills: string,
+  difficultyFactor: number,
+  success: Consequence[],
+  failure: Consequence[],
+): [string, Encounter] {
+  return [
+    key,
+    {
+      key,
+      name: title(key),
+      kind,
+      demands: demandsOf(demands),
+      aggregate,
+      skillKeys: skills === '' ? [] : skills.split(' '),
+      difficultyFactor,
+      consequences: { success, failure },
+    },
+  ];
+}
+
+/** A Synergy (M4-S3) from what it requires, its bonus and, when it has them, its kinds. */
+function synergy(key: string, requires: Synergy['requires'], bonus: Synergy['bonus'], kinds?: EncounterKind[]): [string, Synergy] {
+  return [key, { key, name: title(key), requires, bonus, ...(kinds === undefined ? {} : { kinds }) }];
+}
+
+/** A Guildmaster Trait with its one effect (M4-S5), keyed by `key` and named after it. */
+function guildmasterTrait(key: string, effect: TraitEffect): Record<string, Trait> {
+  return { [key]: { key, name: title(key), owner: 'guildmaster', effect } };
 }
 
 /** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
@@ -187,8 +265,9 @@ export function deepFreeze<T>(value: T): T {
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
  * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
- * Disposition, `steady` (M2-S9), and the core's nine Hall Improvements (M3-S6). It also carries the Item table M5-S1 adds, so that fixture Items
- * raise no warning.
+ * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6), the core's twelve
+ * Encounter keys, two or more of each kind (M4-S1), and the core's six Synergies (M4-S3). It also
+ * carries the Item table M5-S1 adds, so that fixture Items raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -213,11 +292,14 @@ export const testContent: ContentSet = deepFreeze(
         ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
         ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
       ),
+      // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties.
       traits: {
-        ...keyed(
-          { owner: 'guildmaster' as const, effect: null },
-          ...['old-soldier', 'well-liked', 'thrifty', 'miser', 'spendthrift', 'mistrusts-magic'],
-        ),
+        ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }),
+        ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }),
+        ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }),
+        ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }),
+        ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }),
+        ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }),
         ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
       },
       backgrounds: {
@@ -277,6 +359,43 @@ export const testContent: ContentSet = deepFreeze(
       ]),
       dispositions: keyed({}, 'steady'),
       improvements: improvements(),
+      // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
+      // the core's twelve keys, simpler demands, and harm only on a failure.
+      encounters: Object.fromEntries([
+        encounter('ambush-on-the-road', 'combat', 'sum', 'weaponry:0.5 strength:0.5', 'swordcraft tactics', 0.3,
+          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.25, count: 1 }, { kind: 'death', chance: 0.02 }]),
+        encounter('the-restless-dead', 'combat', 'sum', 'spirit:0.5 courage:0.5', 'benediction swordcraft', 0.3,
+          [{ kind: 'fame', delta: 1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }, { kind: 'morale', delta: -3 }]),
+        encounter('hold-the-line', 'combat', 'sum', 'strength:0.5 constitution:0.5', 'shieldwork tactics', 0.3,
+          [{ kind: 'regard', between: 'party', delta: 1 }], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.3, count: 2 }]),
+        encounter('the-long-march', 'travel', 'sum', 'endurance:0.5 constitution:0.5', 'field-surgery herbalism', 0.3,
+          [], [{ kind: 'injury', typeKey: 'bruised-ribs', chance: 0.15, count: 1 }, { kind: 'morale', delta: -2 }]),
+        encounter('the-flooded-ford', 'travel', 'best', 'strength:0.5 perception:0.5', 'tactics', 0.18,
+          [], [{ kind: 'wealth', factor: 0.9 }]),
+        encounter('lost-in-the-fells', 'travel', 'best', 'perception:0.5 wits:0.5', 'herbalism stealth', 0.18,
+          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'shattered-knee', chance: 0.1, count: 1 }]),
+        encounter('a-hostile-reeve', 'social', 'best', 'diplomacy:0.5 charisma:0.5', 'benediction', 0.18,
+          [{ kind: 'fame', delta: 1 }], [{ kind: 'fame', delta: -1 }]),
+        encounter('the-patrons-steward', 'social', 'best', 'leadership:0.5 diplomacy:0.5', '', 0.18,
+          [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'wealth', factor: 0.9 }]),
+        encounter('the-sealed-door', 'arcane', 'best', 'arcana:0.5 spelllore:0.5', 'runecraft warding', 0.18,
+          [{ kind: 'xp', factor: 1.1 }], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.15, count: 1 }]),
+        encounter('a-restless-power', 'arcane', 'sum', 'power:0.5 resistance:0.5', 'warding evocation', 0.3,
+          [{ kind: 'fame', delta: 1 }], [{ kind: 'death', chance: 0.02 }]),
+        encounter('past-the-watch', 'stealth', 'best', 'dexterity:0.5 wits:0.5', 'stealth lockpicking', 0.18,
+          [], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 }, { kind: 'fame', delta: -1 }]),
+        encounter('the-trapped-passage', 'stealth', 'best', 'dexterity:0.5 perception:0.5', 'trapcraft lockpicking', 0.18,
+          [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }]),
+      ]),
+      // The core's six (M4-S3, DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
+      synergies: Object.fromEntries([
+        synergy('sword-and-salve', { classes: { warrior: 1, healer: 1 } }, { flat: 2 }, ['combat', 'travel']),
+        synergy('shadow-and-spell', { classes: { rogue: 1, mage: 1 } }, { factor: 1.1 }, ['stealth', 'arcane']),
+        synergy('shield-wall', { classes: { warrior: 3 } }, { factor: 1.15 }, ['combat']),
+        synergy('a-full-company', { classes: { warrior: 1, rogue: 1, mage: 1, healer: 1 } }, { flat: 1, factor: 1.05 }),
+        synergy('wards-and-blessings', { skills: ['warding', 'benediction'] }, { flat: 3 }, ['arcane', 'combat']),
+        synergy('scouting-ahead', { skills: ['tactics', 'stealth'] }, { flat: 2 }, ['travel', 'stealth']),
+      ]),
     },
     {
       items: keyed({}, 'healing-draught', 'lantern-of-stannary'),
@@ -306,10 +425,55 @@ export const plannedStreams = [
   'market',
 ] as const;
 
-/** The test content with the default config, or with `overrides` on it. */
-export function testDeps(overrides: Partial<GameConfig> = {}): EngineDeps {
-  return { config: { ...defaultConfig, ...overrides }, content: testContent };
+/** The test content, or `content`, with the default config, or with `overrides` on it. */
+export function testDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = testContent): EngineDeps {
+  return { config: { ...defaultConfig, ...overrides }, content };
 }
+
+/**
+ * `content` (the test content by default) with `fields` set on every Encounter, frozen: for a test
+ * that must say what every Check does or what every outcome costs, whichever Encounters a Quest is
+ * drawn with (M4-S2). `consequences` replaces both lists; `success` or `failure` replaces one.
+ */
+export function withEncounters(
+  fields: Partial<Pick<Encounter, 'demands' | 'aggregate' | 'skillKeys' | 'difficultyFactor'>> & {
+    success?: Consequence[];
+    failure?: Consequence[];
+  },
+  content: ContentSet = testContent,
+): ContentSet {
+  const { success, failure, ...rest } = fields;
+  const encounters = Object.fromEntries(
+    Object.entries(content.encounters).map(([key, row]): [string, Encounter] => [
+      key,
+      {
+        ...structuredClone(row),
+        ...structuredClone(rest),
+        consequences: {
+          success: structuredClone(success ?? row.consequences.success),
+          failure: structuredClone(failure ?? row.consequences.failure),
+        },
+      },
+    ]),
+  );
+  return deepFreeze({ ...content, encounters });
+}
+
+/** No consequence on either outcome: nobody is hurt and nothing but the band moves the outcome. */
+export const harmlessContent: ContentSet = withEncounters({ success: [], failure: [] });
+
+/**
+ * Every failed Check kills one Hero and then injures one of the living with `broken-arm`, each
+ * certainly, so a Party of two or more sent through one failed Encounter loses one Hero and brings
+ * one home hurt; a success costs nothing (M4-S2). For tests of harm, which make the Check fail.
+ */
+export const certainHarmContent: ContentSet = withEncounters({
+  success: [],
+  failure: [
+    { kind: 'death', chance: 1 },
+    { kind: 'injury', typeKey: 'broken-arm', chance: 1, count: 1 },
+  ],
+});
 
 /**
  * An empty world at Turn 0 with a stream for each of `names`, seeded from `seed`: the core's

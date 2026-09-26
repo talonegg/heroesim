@@ -10,7 +10,7 @@ import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { durationDaysOf, nightOf } from '../time.js';
-import { buildDocument, plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { buildDocument, harmlessContent, plannedStreams, testDeps, withValid } from '../world.test-support.js';
 import { heroState, lastAnniversaryNight, retirementChance } from './hero-state.js';
 import { phaseContext } from './phase.js';
 
@@ -19,14 +19,19 @@ import { phaseContext } from './phase.js';
 // it moves from night to night.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
-const noHarm = { fail: 0, success: 0, strong: 0 };
 
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/**
+ * A created world whose Guildmasters hold no Traits: from M4-S5 a `guildMoraleShift` Trait moves the
+ * Morale baseline, which these tests read as `moraleBaseline` (the Traits are guildmaster.test.ts's).
+ */
 function created(seed: string, deps: EngineDeps): WorldDocument {
-  return createWorld(seed, setup, deps).document;
+  const { document } = createWorld(seed, setup, deps);
+  for (const guildmaster of Object.values(document.world.guildmasters)) guildmaster.traits = [];
+  return document;
 }
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
@@ -108,7 +113,8 @@ describe('healing', () => {
 
 describe('Morale drift', () => {
   test('converges on the baseline over nights from either side, never passing it', () => {
-    const deps = testDeps({ moraleDrift: 3 });
+    // Inspiration still (M4-S5): the baseline is moraleBaseline.
+    const deps = testDeps({ moraleDrift: 3, inspirationMoraleShift: 0 });
     const { world } = created('converge', deps);
     const baseline = deps.config.moraleBaseline;
     const starts = [100, 71, 61, 59, 50.5, 0];
@@ -138,7 +144,8 @@ describe('Morale drift', () => {
   test('a year of drift that crosses no band appends nothing; one crossing appends exactly one hero.morale-changed', { timeout: 60_000 }, () => {
     // Only the Hero State Engine runs, so every entry the year appends is its own.
     for (const phase of phases) if (phase.name !== 'heroState') vi.spyOn(phase, 'run').mockReturnValue([]);
-    const deps = testDeps();
+    // Inspiration still (M4-S5): the baseline is moraleBaseline.
+    const deps = testDeps({ inspirationMoraleShift: 0 });
     expect(deps.config.moraleBands).toEqual({ wretched: 0, low: 20, steady: 40, high: 75, elated: 90 });
     const start = created('drift-year', deps);
     const [quiet, falling, rising] = rosterOf(start.world) as [HeroId, HeroId, HeroId];
@@ -260,7 +267,7 @@ describe('Retirement', () => {
 
   test('checks a Hero away on the anniversary on the night their Party brings them home', () => {
     // No Rivals: they would take the Board's Quests and send Parties of their own (DL-30 item 11).
-    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0, stubInjuryChance: noHarm, stubDeathChance: noHarm });
+    const deps = testDeps({ ...certain, turnsPerYear: 30, rivalCount: 0 }, harmlessContent);
     const start = created('away', deps);
     const ids = rosterOf(start.world);
     for (const heroId of ids) Object.assign(hero(start.world, heroId), { enteredTurn: 0, ageAtEntry: 60 });

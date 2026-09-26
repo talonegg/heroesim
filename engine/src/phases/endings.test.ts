@@ -101,8 +101,10 @@ function wipeRoster(world: World, guild: Guild): void {
   guild.rosterIds = [];
 }
 
-function cheapestFee(world: World, deps: EngineDeps): number {
-  return Math.min(...unattachedHeroes(world).map((hero) => signingFee(hero, deps)));
+/** The cheapest fee in the pool at the price `guild` pays: its Guildmaster's Negotiation applied (M4-S5). */
+function cheapestFee(world: World, deps: EngineDeps, guild: Guild): number {
+  const buyer = world.guildmasters[guild.guildmasterId];
+  return Math.min(...unattachedHeroes(world).map((hero) => signingFee(hero, deps, buyer)));
 }
 
 const reasons = ['retirement', 'bankruptcy', 'roster-wiped'] as const satisfies readonly EndingReason[];
@@ -201,7 +203,7 @@ describe("the player's ending ends the game", () => {
     const start = created('wiped', deps);
     const player = thePlayer(start.world);
     wipeRoster(start.world, player);
-    player.wealth = cheapestFee(start.world, deps) - 1;
+    player.wealth = cheapestFee(start.world, deps, player) - 1;
 
     const { document, events, stoppedBecause } = playTo(start, nightOf(0), deps);
 
@@ -219,7 +221,7 @@ describe("the player's ending ends the game", () => {
     const start = created('not-wiped', deps);
     const player = thePlayer(start.world);
     wipeRoster(start.world, player);
-    player.wealth = cheapestFee(start.world, deps);
+    player.wealth = cheapestFee(start.world, deps, player);
 
     const { document } = playTo(start, nightOf(1), deps);
 
@@ -236,7 +238,7 @@ describe("the player's ending ends the game", () => {
     const pool = unattachedHeroes(start.world);
     for (const hero of pool) hero.level = 2;
     expect(pool.every((hero) => signingRefusal(player, hero, refusing.config) !== null)).toBe(true);
-    player.wealth = cheapestFee(start.world, refusing);
+    player.wealth = cheapestFee(start.world, refusing, player);
 
     expect(playTo(structuredClone(start), nightOf(0), refusing).document.world.ended).toBeNull();
     // A fee short of every Hero in the pool is wiped, as before: Fame is not what ends a Guild.

@@ -8,16 +8,28 @@
 // before; and two the History cannot give, read from the World State while the game is played
 // (`observe`): how many pool Heroes refuse each Guild for its Fame each morning, and the Rosters'
 // Levels and Heroes at Potential as each year begins.
+//
+// M4's counters (the epic's §2, DL-55) add, from the History, the Encounters' outcomes by kind, the
+// Synergies each Quest applied, Injuries by type and the Patrons silent in a year; and, from the
+// World State as year 10 begins, the Relationships within the player's Roster and its
+// Guildmaster's Regard, by band, which the History records only as band crossings.
 
 import {
   baseStat,
+  encounterKinds,
   facilityKeys,
   isId,
+  playerGuild,
   questBands,
+  regardBandCounts,
+  regardBandNames,
+  relationshipBandCounts,
   timeOfDay,
   unsignableHeroes,
   yearOf,
   type Controller,
+  type EncounterKind,
+  type EncounterOutcome,
   type EndingReason,
   type EngineDeps,
   type Entry,
@@ -27,6 +39,8 @@ import {
   type GuildId,
   type Hero,
   type QuestBand,
+  type RegardBand,
+  type RegardMap,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -171,7 +185,47 @@ export interface GameCounters {
    * `null` for a game that stopped before year `countedYear` (DL-38 item 15).
    */
   improvementGrades: Record<ControllerKind, GradeCounts> | null;
+  // M4's (DL-55).
+  /** `quest.encounter`, by the controller of the Guild it names, then by the Encounter's kind. */
+  encounters: Record<ControllerKind, EncounterCounts>;
+  /** `quest.resolved`'s `synergyKeys`, by the controller of the resolving Guild. */
+  synergies: Record<ControllerKind, SynergyTally>;
+  /** `hero.injured`, by the controller of the Hero's Guild then, then by the Injury type's key. */
+  injuriesByType: Record<ControllerKind, Record<string, number>>;
+  /** For each year played in full, 0 first, the Patrons in the world as it began. */
+  patronYears: number[];
+  /** Of those, the Patrons that offered no Quest in the year (no `quest.offered` naming them). */
+  silentPatronYears: number[];
 }
+
+/** The two outcomes of an Encounter's Check (M4-S2). */
+export const encounterOutcomes = ['success', 'failure'] as const satisfies readonly EncounterOutcome[];
+
+/** One kind of Encounter's Checks: how many went each way, and the harm their consequences did. */
+export interface EncounterTally extends Record<EncounterOutcome, number> {
+  /** Heroes its consequences injured (the entries' `injured`), and killed (`died`). */
+  injured: number;
+  died: number;
+}
+
+export type EncounterCounts = Record<EncounterKind, EncounterTally>;
+
+/** The Synergies a kind of Guild's resolved Quests applied (M4-S3, DL-45). */
+export interface SynergyTally {
+  /** Quests resolved. */
+  quests: number;
+  /** Those that applied at least one Synergy. */
+  withAny: number;
+  /** Synergies applied, summed over the Quests: each Quest names a Synergy once. */
+  applied: number;
+  /** How many Quests applied each Synergy, by its key. */
+  byKey: Record<string, number>;
+}
+
+const noEncounters = (): EncounterCounts =>
+  Object.fromEntries(encounterKinds.map((kind) => [kind, { success: 0, failure: 0, injured: 0, died: 0 }])) as EncounterCounts;
+
+const noSynergies = (): SynergyTally => ({ quests: 0, withAny: 0, applied: 0, byKey: {} });
 
 /** A count for each ending. */
 function byReason(): Record<EndingReason, number> {
@@ -332,12 +386,109 @@ function improvementGrades(document: WorldDocument, deps: EngineDeps, lastTurn: 
   return grades;
 }
 
+// ── M4's counters from the History (DL-55) ──────────────────────────────────────────────────
+
+function isEncounterKind(value: unknown): value is EncounterKind {
+  return (encounterKinds as readonly unknown[]).includes(value);
+}
+
+function isEncounterOutcome(value: unknown): value is EncounterOutcome {
+  return (encounterOutcomes as readonly unknown[]).includes(value);
+}
+
+/** The length of an entry's payload list `field`. */
+function listLength(entry: Entry, field: string, what: string): number {
+  const list = payloadField(entry, field);
+  if (!Array.isArray(list)) throw new Error(`${what} has no ${field} list`);
+  return list.length;
+}
+
+/** `quest.encounter` by controller and kind: each Check's outcome, and whom its consequences harmed. */
+function encounterCounters(document: WorldDocument): Record<ControllerKind, EncounterCounts> {
+  const counts = { player: noEncounters(), rival: noEncounters() };
+  entriesOf(document, 'quest.encounter').forEach((entry, index) => {
+    const what = `quest.encounter entry ${index}`;
+    const kind = payloadField(entry, 'kind');
+    const outcome = payloadField(entry, 'outcome');
+    if (!isEncounterKind(kind) || !isEncounterOutcome(outcome)) throw new Error(`${what} has no kind or outcome`);
+    const tally = counts[guildOf(document, entry, `${index}`).controller.kind][kind];
+    tally[outcome] += 1;
+    tally.injured += listLength(entry, 'injured', what);
+    tally.died += listLength(entry, 'died', what);
+  });
+  return counts;
+}
+
+/** `quest.resolved`'s `synergyKeys` by controller: an entry without them applied none (DL-45). */
+function synergyCounters(document: WorldDocument): Record<ControllerKind, SynergyTally> {
+  const counts = { player: noSynergies(), rival: noSynergies() };
+  entriesOf(document, 'quest.resolved').forEach((entry, index) => {
+    const keys = payloadField(entry, 'synergyKeys') ?? [];
+    if (!Array.isArray(keys) || !keys.every((key) => typeof key === 'string')) {
+      throw new Error(`quest.resolved entry ${index} has synergyKeys that are not a list of keys`);
+    }
+    const tally = counts[guildOf(document, entry, `${index}`).controller.kind];
+    tally.quests += 1;
+    if (keys.length > 0) tally.withAny += 1;
+    tally.applied += keys.length;
+    for (const key of keys as string[]) tally.byKey[key] = (tally.byKey[key] ?? 0) + 1;
+  });
+  return counts;
+}
+
+/** `hero.injured` by the controller of the Hero's Guild then (`guildOf`), and the Injury type. */
+function injuryCounters(document: WorldDocument): Record<ControllerKind, Record<string, number>> {
+  const counts: Record<ControllerKind, Record<string, number>> = { player: {}, rival: {} };
+  entriesOf(document, 'hero.injured').forEach((entry, index) => {
+    const typeKey = payloadField(entry, 'typeKey');
+    if (typeof typeKey !== 'string') throw new Error(`hero.injured entry ${index} has no typeKey`);
+    const byType = counts[guildOf(document, entry, `${index}`).controller.kind];
+    byType[typeKey] = (byType[typeKey] ?? 0) + 1;
+  });
+  return counts;
+}
+
+/**
+ * For each year played in full (its last Turn reached by `lastTurn`), the Patrons generated by the
+ * Turn it began (`patron.generated`), and how many of them no `quest.offered` of the year names.
+ */
+function patronSilence(
+  document: WorldDocument,
+  turnsPerYear: number,
+  lastTurn: number,
+): Pick<GameCounters, 'patronYears' | 'silentPatronYears'> {
+  const fullYears = Math.floor(lastTurn / turnsPerYear);
+  const generatedOn = new Map<string, number>();
+  entriesOf(document, 'patron.generated').forEach((entry, index) => {
+    const patronId = payloadField(entry, 'patronId');
+    if (typeof patronId !== 'string') throw new Error(`patron.generated entry ${index} has no patronId`);
+    generatedOn.set(patronId, entry.turn);
+  });
+  const offered = Array.from({ length: fullYears }, () => new Set<string>());
+  entriesOf(document, 'quest.offered').forEach((entry, index) => {
+    const patronId = payloadField(entry, 'patronId');
+    if (typeof patronId !== 'string') throw new Error(`quest.offered entry ${index} has no patronId`);
+    offered[Math.floor(entry.turn / turnsPerYear)]?.add(patronId);
+  });
+  const patronYears = Array.from({ length: fullYears }, () => 0);
+  const silentPatronYears = Array.from({ length: fullYears }, () => 0);
+  for (let year = 0; year < fullYears; year += 1) {
+    for (const [patronId, turn] of generatedOn) {
+      if (turn > year * turnsPerYear) continue;
+      patronYears[year] = (patronYears[year] ?? 0) + 1;
+      if (!offered[year]?.has(patronId)) silentPatronYears[year] = (silentPatronYears[year] ?? 0) + 1;
+    }
+  }
+  return { patronYears, silentPatronYears };
+}
+
 /**
  * Every counter of a harness game, read from `document`'s History through `byType` and joined to
  * the World State for the Guild each entry is about.
  *
  * @throws Error on an entry the engine would not have made: one naming no Guild the world holds,
- * a `quest.resolved` without a band, an ending without a reason, a `hero.retired` without an age
+ * a `quest.resolved` without a band, an ending without a reason, a `hero.retired` without an age,
+ * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like
  */
 export function countGame(document: WorldDocument, deps: EngineDeps): GameCounters {
   const { turnsPerYear } = deps.config;
@@ -397,6 +548,10 @@ export function countGame(document: WorldDocument, deps: EngineDeps): GameCounte
     retirementAges,
     growthAgainstDecline,
     improvementGrades: improvementGrades(document, deps, lastTurn),
+    encounters: encounterCounters(document),
+    synergies: synergyCounters(document),
+    injuriesByType: injuryCounters(document),
+    ...patronSilence(document, turnsPerYear, lastTurn),
   };
 }
 
@@ -424,18 +579,58 @@ export interface RosterCensus {
   atPotential: number;
 }
 
+/**
+ * The player's Guild's Regard as year `countedYear` begins (M4, DL-55), by band, every band listed:
+ * what the History, which records a Regard only when it crosses a band, cannot give.
+ */
+export interface RegardSnapshot {
+  /** Each unordered pair of the player's Roster once, by the band of their Relationship (`relationshipBandCounts`). */
+  relationships: Record<RegardBand, number>;
+  /** The player's Guildmaster's Regard entries (`regardBandCounts`), for Patrons and for Heroes apart. */
+  guildmasterForPatrons: Record<RegardBand, number>;
+  guildmasterForHeroes: Record<RegardBand, number>;
+}
+
 /** What a game's World State showed while it was played: what its History cannot give. */
 export interface GameObservations {
   fameGate: Record<ControllerKind, FameGate>;
   /** The Rosters as each year begins, before the policy acts: index k is after k years, 0 the new world. */
   rosters: Record<ControllerKind, RosterCensus>[];
+  /** Taken with the census after `countedYear` years; `null` until then, and for a game that stopped first. */
+  regardAtCountedYear: RegardSnapshot | null;
 }
 
 const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
 const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function emptyObservations(): GameObservations {
-  return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [] };
+  return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [], regardAtCountedYear: null };
+}
+
+/** Every Regard band at 0. */
+export const noBands = (): Record<RegardBand, number> =>
+  Object.fromEntries(regardBandNames.map((band) => [band, 0])) as Record<RegardBand, number>;
+
+/** The entries of `map` whose key is an id of `table`. */
+function entriesFor(map: Readonly<RegardMap>, table: 'patrons' | 'heroes'): RegardMap {
+  return Object.fromEntries(Object.entries(map).filter(([id]) => isId(table, id)));
+}
+
+/**
+ * The player's Guild's Regard in `world`, by band: the Relationships within its Roster, and its
+ * Guildmaster's Regard for Patrons and for Heroes; every band 0 where it has no Roster or
+ * Guildmaster row.
+ */
+export function regardSnapshot(world: World, config: EngineDeps['config']): RegardSnapshot {
+  const guild = playerGuild(world);
+  const guildmaster =
+    guild !== undefined && Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+  const regard: Readonly<RegardMap> = guildmaster?.regard ?? {};
+  return {
+    relationships: guild === undefined ? noBands() : relationshipBandCounts(guild.rosterIds, world, config),
+    guildmasterForPatrons: regardBandCounts(entriesFor(regard, 'patrons'), config),
+    guildmasterForHeroes: regardBandCounts(entriesFor(regard, 'heroes'), config),
+  };
 }
 
 /** The Guilds in play: not folded. */
@@ -450,11 +645,13 @@ function hasStatAtPotential(hero: Hero, content: EngineDeps['content']): boolean
 
 /**
  * On the first Turn of a year not yet counted, a census of every Roster of a Guild in play, added
- * as the next entry of `observations.rosters`; nothing on any other Turn, so it may be asked on
- * every Turn and once more when a game stops.
+ * as the next entry of `observations.rosters`, and after `countedYear` years the player's Guild's
+ * Regard (`regardSnapshot`); nothing on any other Turn, so it may be asked on every Turn and once
+ * more when a game stops.
  */
 export function takeCensus(observations: GameObservations, world: World, deps: EngineDeps): void {
   if (world.turn !== observations.rosters.length * deps.config.turnsPerYear) return;
+  if (observations.rosters.length === countedYear) observations.regardAtCountedYear = regardSnapshot(world, deps.config);
   const census = { player: noCensus(), rival: noCensus() };
   for (const guild of guildsInPlay(world)) {
     const counts = census[guild.controller.kind];

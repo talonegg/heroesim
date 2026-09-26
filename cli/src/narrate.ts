@@ -9,12 +9,16 @@
 import {
   compareByCodeUnit,
   dayOf,
+  regardBandNames,
   type ContentSet,
   type EndingReason,
   type EngineDeps,
   type EngineEvent,
   type EntityId,
+  type HeroRegardCause,
+  type PatronRegardCause,
   type QuestBand,
+  type RegardBand,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -48,6 +52,26 @@ const endingWords: Readonly<Record<EndingReason, string>> = {
   bankruptcy: 'went bankrupt',
   'roster-wiped': 'had its Roster wiped out',
 };
+
+/** What moved a Patron's Regard, after the band it reached. */
+const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
+  'quest-success': 'after a Quest of theirs succeeded',
+  'quest-failure': 'after a Quest of theirs failed',
+  'offer-expired': 'when an offer of theirs went untaken',
+  recovery: 'as time passed',
+};
+
+/** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
+const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
+  'shared-quest': 'after a Quest together',
+  decay: 'as time passed apart',
+};
+
+/** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
+function crossed(before: RegardBand, after: RegardBand): string {
+  const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
+  return `${way} from ${before} to ${after}`;
+}
 
 /** One line for `event`, in the CLI's words. */
 export function narrate(event: EngineEvent, content: ContentSet): string {
@@ -85,11 +109,23 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       const { guildId, partyId, questId, returnsOnTurn } = event.payload;
       return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}.`;
     }
+    case 'quest.encounter': {
+      // The roll and target are the engine's; the CLI says only how it went and what it cost.
+      const { partyId, encounterKey, outcome, injured, died } = event.payload;
+      const went = outcome === 'success' ? 'came through' : 'failed at';
+      const hurt = [
+        ...injured.map((id) => `${hero(event, id)} was injured`),
+        ...died.map((id) => `${hero(event, id)} was killed`),
+      ];
+      return `${partyId} ${went} ${nameIn(content.encounters, encounterKey)}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+    }
     case 'quest.resolved': {
-      const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta } = event.payload;
+      const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
+      // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
+      const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
       return (
         `${called(event, guildId)}'s ${partyId} came home from ${nameIn(content.questTemplates, templateKey)} ` +
-        `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.`
+        `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`
       );
     }
     case 'hero.injured': {
@@ -135,6 +171,24 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         .sort(([a], [b]) => compareByCodeUnit(a, b))
         .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${signed(delta)}`);
       return `${hero(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
+    }
+    case 'patron.regard-changed': {
+      const { patronId, guildId, cause, bandBefore, bandAfter } = event.payload;
+      return (
+        `${called(event, patronId)}'s Regard for ${called(event, guildId)} ${crossed(bandBefore, bandAfter)} ` +
+        `${patronRegardWords[cause]}.`
+      );
+    }
+    case 'guildmaster.regard-changed': {
+      const { guildmasterId, entityId, bandBefore, bandAfter } = event.payload;
+      return `${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
+    }
+    case 'hero.regard-changed': {
+      const { heroId, entityId, cause, bandBefore, bandAfter } = event.payload;
+      return (
+        `${hero(event, heroId)}'s Regard for ${hero(event, entityId)} ${crossed(bandBefore, bandAfter)} ` +
+        `${heroRegardWords[cause]}.`
+      );
     }
   }
 }

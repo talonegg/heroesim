@@ -66,7 +66,7 @@ export function buildImprovement(
     document: result.document,
     lines: [
       `Built ${nameIn(deps.content.improvements, improvementKey)} for ${cost} Wealth: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
-      `Wealth ${built.wealth}; Upkeep ${upkeep(built, world, deps.config)} every ${deps.config.upkeepEveryDays} Days.`,
+      `Wealth ${built.wealth}; Upkeep ${upkeep(built, world, deps.config, deps.content)} every ${deps.config.upkeepEveryDays} Days.`,
       next === null
         ? `The ${name} ${is} now at the highest grade.`
         : `The next grade, ${next.name}, costs ${next.cost} Wealth.`,

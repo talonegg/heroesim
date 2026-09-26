@@ -1,7 +1,8 @@
 // Night, first: the training yard (M3-S2, INPUTS 5.1, DL-36). Every living Hero on the Roster of a
 // Guild that has not folded, in no Party and carrying no Injury, gains `xpPerTrainingDay` times the
-// Guild's training yard grade, read tonight; grade 0 gives nothing. The player's Guild and the
-// Rivals' alike (ADR-0002).
+// Guild's training yard grade, read tonight, times its Guildmaster's Coaching (`coachingMultiplier`,
+// 1 to 1 + `coachingFactor`: M4-S5, R8, DL-43), rounded down; grade 0 gives nothing. The player's
+// Guild and the Rivals' alike (ADR-0002).
 //
 // Training XP is a nightly drift (data-model rule 10): no event, recomputable from the Hero's Level
 // history and the yard's grade, and recorded by the `hero.levelled` it eventually causes, later
@@ -11,12 +12,14 @@
 // whose Party comes home tonight is still in the Party and gains nothing for a Day away, and a Hero
 // whose Injury heals tonight (the Hero State Engine, later) spent the Day injured. It draws nothing.
 
+import { coachingMultiplier, guildmasterOf } from '../guildmaster.js';
 import type { PhaseRun } from './phase.js';
 
 export const training: PhaseRun = (world, ctx) => {
   for (const guild of Object.values(world.guilds)) {
     if (guild.foldedOnTurn !== null) continue;
-    const xp = ctx.config.xpPerTrainingDay * guild.hall.trainingYard;
+    const coached = coachingMultiplier(guildmasterOf(guild, world), ctx.content, ctx.config);
+    const xp = Math.floor(ctx.config.xpPerTrainingDay * guild.hall.trainingYard * coached);
     if (xp === 0) continue;
     for (const heroId of guild.rosterIds) {
       const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
