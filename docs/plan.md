@@ -59,7 +59,7 @@ rather than investigated beforehand.
 | M1 | World State | A seeded world of Guilds, Heroes, Patrons and an Unattached pool is created, validated, saved, loaded and shown; 1,000 worlds byte-identical across two runs | Done 2026-09-26 (`m1-world-state`) |
 | M2 | The loop | The harness plays whole games to an ending under an automatic policy; a human can advance, dispatch and recruit from the CLI | Done 2026-09-26 (`m2-the-loop`) |
 | M3 | Progression | Heroes gain Levels toward their Potential and decline with age; Rankings order Guilds by Fame and Wealth; Hall Improvements are bought | Done 2026-09-26 (`m3-progression`) |
-| M4 | Quest Engine | The stub is replaced by typed encounters and checks reading Skills, Relationship and Synergies | |
+| M4 | Quest Engine | The stub is replaced by typed encounters and checks reading Skills, Relationship and Synergies | Done 2026-09-26 (`m4-quest-engine`) |
 | M5 | Items | Gear, consumables, the Market and Loot exist and are bought, sold, equipped and expended | |
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | |
