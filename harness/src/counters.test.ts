@@ -23,7 +23,17 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
-import { countGame, emptyObservations, observe, questsTakenByController, regardSnapshot, takeCensus } from './counters.js';
+import {
+  countGame,
+  emptyObservations,
+  noConsumables,
+  noGear,
+  noWealth,
+  observe,
+  questsTakenByController,
+  regardSnapshot,
+  takeCensus,
+} from './counters.js';
 
 // M2-S9's counter, against the core content: the player's Quests and the Rivals' counted apart.
 
@@ -381,6 +391,7 @@ describe("M4's counters, from the History", () => {
     const resolved = (turn: number, guild: Guild, synergyKeys?: string[]): void => {
       add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
         band: 'success',
+        wealthDelta: 0,
         ...(synergyKeys === undefined ? {} : { synergyKeys }),
         questId,
         partyId,
@@ -543,5 +554,301 @@ describe("M4's counters, from the World State as year 10 begins", () => {
     takeCensus(observations, world, regardDeps);
     expect(observations.rosters).toHaveLength(12);
     expect(observations.regardAtCountedYear?.relationships.close).toBe(1);
+  });
+});
+
+// M5's counters (DL-62), on the same fixture games: the History given by hand the entries each
+// counter reads, in the engine's shapes, each naming its Guild in its payload as `emit` does.
+
+describe("M5's counters, from the History", () => {
+  const questId = makeId('quests', 900);
+  const partyId = makeId('parties', 900);
+
+  test('a new world has spent and taken nothing, awarded no Loot and moved no Item', () => {
+    const { document } = fixture('counters-m5-new');
+    const counted = countGame(document, shortYears);
+
+    expect(counted.wealth).toEqual({ player: noWealth(), rival: noWealth() });
+    expect(counted.loot).toEqual({ player: {}, rival: {} });
+    expect(counted.consumables).toEqual({ player: noConsumables(), rival: noConsumables() });
+    expect(counted.gear).toEqual({ player: noGear(), rival: noGear() });
+    expect(counted.playerQuestsByDifficulty).toBeNull();
+    expect(counted.playerQuestsByYear).toBeNull();
+  });
+
+  test('Wealth spent by category and taken from Quests and the Market, by controller', () => {
+    const { document, player, rivals } = fixture('counters-wealth');
+    const heroId = firstHero(player);
+    add(document, 3, 'hero.recruited', [heroId, player.id], { heroId, guildId: player.id, fee: 120 });
+    add(document, 4, 'hero.recruited', [heroId, rivals[0].id], { heroId, guildId: rivals[0].id, fee: 80 });
+    const bought = (turn: number, guild: Guild, quantity: number, unitPrice: number): void => {
+      add(document, turn, 'item.bought', [guild.id], {
+        guildId: guild.id,
+        definitionKey: 'padded-jack',
+        quantity,
+        unitPrice,
+        cost: quantity * unitPrice,
+        itemIds: [],
+      });
+    };
+    bought(5, player, 2, 40);
+    bought(6, player, 1, 120);
+    improved(document, 7, player, 'infirmary', 1);
+    improved(document, 8, rivals[1], 'quarters', 1);
+    const upkeep = (turn: number, guild: Guild, amount: number): void => {
+      add(document, turn, 'guild.upkeep-paid', [guild.id], { guildId: guild.id, amount, wealthAfter: 1000 });
+    };
+    upkeep(9, player, 70);
+    upkeep(9, rivals[0], 90);
+    upkeep(9, rivals[1], 60);
+    const resolved = (turn: number, guild: Guild, wealthDelta: number): void => {
+      add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
+        band: wealthDelta > 0 ? 'success' : 'fail',
+        wealthDelta,
+        questId,
+        partyId,
+        guildId: guild.id,
+        heroIds: [],
+        templateKey: 'escort-the-tithe',
+      });
+    };
+    resolved(10, player, 150);
+    resolved(11, player, 0);
+    resolved(12, rivals[0], 90);
+    const sold = (turn: number, guild: Guild, cause: 'sale' | 'fold', quantity: number, unitPrice: number): void => {
+      add(document, turn, 'item.sold', [guild.id], {
+        guildId: guild.id,
+        definitionKey: 'mail-shirt',
+        quantity,
+        unitPrice,
+        proceeds: quantity * unitPrice,
+        itemIds: [],
+        cause,
+      });
+    };
+    sold(13, player, 'sale', 2, 60);
+    sold(14, rivals[1], 'fold', 1, 300);
+    document.world.turn = 20;
+
+    const { wealth } = countGame(document, shortYears);
+
+    expect(wealth).toEqual({
+      player: {
+        signing: 120,
+        items: 200,
+        itemsBought: 3,
+        improvements: 200,
+        upkeep: 70,
+        questRewards: 150,
+        sales: { sale: 120, fold: 0 },
+        itemsSold: { sale: 2, fold: 0 },
+      },
+      rival: {
+        signing: 80,
+        items: 0,
+        itemsBought: 0,
+        improvements: 200,
+        upkeep: 150,
+        questRewards: 90,
+        sales: { sale: 0, fold: 300 },
+        itemsSold: { sale: 0, fold: 1 },
+      },
+    });
+  });
+
+  test('Loot awarded by controller and table: awards, the Items they gave, and the unique counted apart', () => {
+    const { document, player, rivals } = fixture('counters-loot');
+    const loot = (turn: number, guild: Guild, lootTableKey: string, quantity: number, unique = false): void => {
+      const itemId = unique ? makeId('items', turn) : null;
+      add(document, turn, 'quest.loot', [questId, partyId, guild.id, ...(itemId === null ? [] : [itemId])], {
+        questId,
+        partyId,
+        guildId: guild.id,
+        lootTableKey,
+        definitionKey: unique ? 'barrow-kings-blade' : 'whetstone',
+        quantity,
+        itemId,
+        stackId: unique ? null : makeId('stacks', turn),
+      });
+    };
+    loot(5, player, 'lesser-loot', 3);
+    loot(6, player, 'lesser-loot', 1, true);
+    loot(7, player, 'greater-loot', 2);
+    loot(8, rivals[0], 'greater-loot', 1, true);
+    loot(9, rivals[1], 'greater-loot', 4);
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).loot).toEqual({
+      player: { 'lesser-loot': { awards: 2, items: 4, unique: 1 }, 'greater-loot': { awards: 1, items: 2, unique: 0 } },
+      rival: { 'greater-loot': { awards: 2, items: 5, unique: 1 } },
+    });
+  });
+
+  test('consumables carried and expended against the Quests resolved, by controller, effect and definition', () => {
+    const { document, player, rivals } = fixture('counters-consumables');
+    const heroId = firstHero(player);
+    const other = makeId('quests', 901);
+    const taken = (turn: number, guild: Guild, id: EntityId, consumables?: { definitionKey: string; quantity: number }[]): void => {
+      add(document, turn, 'quest.taken', [id, partyId, guild.id], {
+        questId: id,
+        partyId,
+        guildId: guild.id,
+        heroIds: [heroId],
+        returnsOnTurn: turn + 5,
+        reward: 100,
+        ...(consumables === undefined ? {} : { consumables }),
+      });
+    };
+    taken(3, player, questId, [
+      { definitionKey: 'whetstone', quantity: 2 },
+      { definitionKey: 'healing-draught', quantity: 1 },
+    ]);
+    taken(4, player, other, []);
+    // An entry written before M5-S3 carries nothing.
+    taken(5, rivals[0], makeId('quests', 902));
+    const expended = (turn: number, id: EntityId, use: object): void => {
+      add(document, turn, 'item.expended', [id, partyId, player.id], {
+        questId: id,
+        partyId,
+        guildId: player.id,
+        stackId: makeId('stacks', 1),
+        ...use,
+      });
+    };
+    expended(8, questId, { definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 0, flat: 3 });
+    expended(8, questId, { definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 2, flat: 3 });
+    expended(8, questId, { definitionKey: 'healing-draught', effect: 'heal', heroId, days: 5 });
+    expended(9, other, { definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 1, firstRoll: 4 });
+    const resolvers: [number, Guild][] = [
+      [10, player],
+      [11, player],
+      [12, player],
+      [13, rivals[1]],
+    ];
+    for (const [turn, guild] of resolvers) {
+      add(document, turn, 'quest.resolved', [questId, partyId, guild.id], {
+        band: 'success',
+        wealthDelta: 0,
+        questId,
+        partyId,
+        guildId: guild.id,
+        heroIds: [],
+        templateKey: 'escort-the-tithe',
+      });
+    }
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).consumables).toEqual({
+      player: {
+        quests: 3,
+        carried: 3,
+        expended: 4,
+        questsWithAny: 2,
+        byEffect: { bonus: 2, reroll: 1, heal: 1 },
+        byDefinition: { whetstone: 2, 'healing-draught': 1, 'grappling-line': 1 },
+      },
+      rival: { ...noConsumables(), quests: 1 },
+    });
+  });
+
+  test('gear equipped, unequipped and returned by cause, by controller', () => {
+    const { document, player, rivals } = fixture('counters-gear');
+    const move = (turn: number, type: EngineEventType, guild: Guild, cause?: string): void => {
+      const heroId = firstHero(guild);
+      const stackId = makeId('stacks', turn);
+      add(document, turn, type, [heroId, guild.id, stackId], {
+        heroId,
+        guildId: guild.id,
+        slot: 'armour',
+        definitionKey: 'padded-jack',
+        itemId: null,
+        stackId,
+        ...(cause === undefined ? {} : { cause }),
+      });
+    };
+    move(3, 'item.equipped', player);
+    move(4, 'item.equipped', player);
+    move(5, 'item.unequipped', player);
+    move(6, 'item.returned', player, 'died');
+    move(7, 'item.equipped', rivals[0]);
+    move(8, 'item.returned', rivals[0], 'retired');
+    move(9, 'item.returned', rivals[1], 'guild-folded');
+    move(10, 'item.returned', rivals[1], 'guild-folded');
+    document.world.turn = 20;
+
+    expect(countGame(document, shortYears).gear).toEqual({
+      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0 } },
+      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2 } },
+    });
+  });
+
+  test("the player's Quests by the difficulty recorded at dispatch and by year, with the Loot each won; a Rival's and an unrecorded Quest count in neither", () => {
+    const { document, player, rivals } = fixture('counters-difficulty');
+    const quest = (n: number): EntityId => makeId('quests', n);
+    const resolved = (turn: number, guild: Guild, id: EntityId, band: 'fail' | 'success' | 'strong'): void => {
+      add(document, turn, 'quest.resolved', [id, partyId, guild.id], {
+        band,
+        wealthDelta: 0,
+        questId: id,
+        partyId,
+        guildId: guild.id,
+        heroIds: [],
+        templateKey: 'escort-the-tithe',
+      });
+    };
+    const loot = (turn: number, guild: Guild, id: EntityId, unique: boolean): void => {
+      add(document, turn, 'quest.loot', [id, partyId, guild.id], {
+        questId: id,
+        partyId,
+        guildId: guild.id,
+        lootTableKey: 'lesser-loot',
+        definitionKey: 'whetstone',
+        quantity: 1,
+        itemId: unique ? makeId('items', turn) : null,
+        stackId: unique ? null : makeId('stacks', turn),
+      });
+    };
+    // Year 0 (a year of 30 Turns): an easy Quest, and a hard one that won Loot.
+    resolved(5, player, quest(1), 'success');
+    resolved(8, player, quest(2), 'strong');
+    loot(8, player, quest(2), false);
+    // Year 1: a hard Quest winning a unique Item, a harder one failed, and a Quest the loop did not record.
+    resolved(35, player, quest(3), 'strong');
+    loot(35, player, quest(3), true);
+    resolved(38, player, quest(4), 'fail');
+    resolved(40, player, quest(5), 'strong');
+    loot(40, player, quest(5), false);
+    // A Rival's Quest, though the map holds its id, counts nowhere here.
+    resolved(41, rivals[0], quest(1), 'strong');
+    loot(41, rivals[0], quest(1), false);
+    document.world.turn = 60;
+    const difficulties = new Map<string, number>([
+      [quest(1), 14],
+      [quest(2), 55],
+      [quest(3), 58],
+      [quest(4), 61],
+    ]);
+
+    const counted = countGame(document, shortYears, difficulties);
+
+    const tally = (quests: number, difficulty: number, strong: number, loot: number, unique: number) => ({ quests, difficulty, strong, loot, unique });
+    const none = tally(0, 0, 0, 0, 0);
+    expect(counted.playerQuestsByDifficulty).toEqual([none, tally(1, 14, 0, 0, 0), none, none, none, tally(2, 113, 2, 2, 1), tally(1, 61, 0, 0, 0)]);
+    expect(counted.playerQuestsByYear).toEqual([tally(2, 69, 1, 1, 0), tally(2, 119, 1, 1, 1)]);
+    // The table counts every award, recorded or not.
+    expect(counted.loot.player['lesser-loot']).toEqual({ awards: 3, items: 3, unique: 1 });
+  });
+
+  test('refuses an item.sold without a cause, a quest.loot without a table, and an item.expended without an effect', () => {
+    const cases: [EngineEventType, object, RegExp][] = [
+      ['item.sold', { definitionKey: 'mail-shirt', quantity: 1, unitPrice: 60, proceeds: 60, itemIds: [] }, /item.sold entry 0 has no cause/],
+      ['quest.loot', { questId, partyId, definitionKey: 'whetstone', quantity: 1, itemId: null, stackId: null }, /quest.loot entry 0 has no lootTableKey/],
+      ['item.expended', { questId, partyId, stackId: makeId('stacks', 1), definitionKey: 'whetstone' }, /item.expended entry 0 has no effect/],
+    ];
+    for (const [type, payload, message] of cases) {
+      const { document, player } = fixture(`counters-malformed-${type}`);
+      add(document, 5, type, [player.id], { guildId: player.id, ...payload });
+      expect(() => countGame(document, shortYears), type).toThrow(message);
+    }
   });
 });
