@@ -1,10 +1,18 @@
 {
-  "old-soldier": { "name": "Old soldier", "owner": "guildmaster", "effect": null },
-  "well-liked": { "name": "Well liked", "owner": "guildmaster", "effect": null },
-  "thrifty": { "name": "Thrifty", "owner": "guildmaster", "effect": null },
-  "miser": { "name": "Miser", "owner": "guildmaster", "effect": null },
-  "spendthrift": { "name": "Spendthrift", "owner": "guildmaster", "effect": null },
-  "mistrusts-magic": { "name": "Mistrusts magic", "owner": "guildmaster", "effect": null },
+  "old-soldier": {
+    "name": "Old soldier",
+    "owner": "guildmaster",
+    "effect": { "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }
+  },
+  "well-liked": { "name": "Well liked", "owner": "guildmaster", "effect": { "kind": "guildMoraleShift", "delta": 5 } },
+  "thrifty": { "name": "Thrifty", "owner": "guildmaster", "effect": { "kind": "upkeepFactor", "factor": 0.9 } },
+  "miser": { "name": "Miser", "owner": "guildmaster", "effect": { "kind": "guildMoraleShift", "delta": -5 } },
+  "spendthrift": { "name": "Spendthrift", "owner": "guildmaster", "effect": { "kind": "upkeepFactor", "factor": 1.1 } },
+  "mistrusts-magic": {
+    "name": "Mistrusts magic",
+    "owner": "guildmaster",
+    "effect": { "kind": "classStatBonus", "classKey": "mage", "statKey": "arcana", "delta": -1 }
+  },
 
   "scarred": { "name": "Scarred", "owner": "hero", "effect": null },
   "lame": { "name": "Lame", "owner": "hero", "effect": null },

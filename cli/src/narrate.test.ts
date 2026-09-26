@@ -22,12 +22,14 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
+const otherHeroId = 'hero-000009' as HeroId;
 
 const labels: Record<string, string> = {
   [guildId]: 'The Kestrel Guild',
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [otherHeroId]: 'Aldred Barrowby',
 };
 
 /** An event of `type` as the engine would make it, labelled from `labels`. */
@@ -43,7 +45,7 @@ function event<Type extends EngineEventType>(type: Type, participants: string[],
   } as EngineEventOf<Type>;
 }
 
-const outcome = { score: 40, ratio: 1.1, xpPerHero: 30, injuries: [], deaths: [] };
+const outcome = { successes: 1, encounterCount: 3, xpPerHero: 30, moraleDelta: 0, regardDelta: 0, injuries: [], deaths: [] };
 
 /** One of every event type: the compiler refuses a type left out, or one the engine lacks. */
 const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
@@ -64,6 +66,20 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     returnsOnTurn: 23,
+  }),
+  'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {
+    questId,
+    partyId,
+    guildId,
+    index: 1,
+    encounterKey: 'ambush-on-the-road',
+    kind: 'combat',
+    roll: 14.5,
+    target: 18,
+    margin: -3.5,
+    outcome: 'failure',
+    injured: [heroId],
+    died: [],
   }),
   'quest.resolved': event('quest.resolved', [questId, partyId, heroId, guildId], {
     ...outcome,
@@ -107,6 +123,34 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     statDeltas: { strength: 1, courage: 2 },
     pointsLost: 0,
   }),
+  'patron.regard-changed': event('patron.regard-changed', [patronId, guildId], {
+    patronId: patronId as never,
+    guildId,
+    cause: 'quest-failure',
+    before: -3,
+    after: -5,
+    bandBefore: 'neutral',
+    bandAfter: 'cool',
+  }),
+  'guildmaster.regard-changed': event('guildmaster.regard-changed', [guildmasterId, heroId, guildId], {
+    guildmasterId: guildmasterId as never,
+    guildId,
+    entityId: heroId,
+    cause: 'quest-success',
+    before: 3.5,
+    after: 4.5,
+    bandBefore: 'neutral',
+    bandAfter: 'warm',
+  }),
+  'hero.regard-changed': event('hero.regard-changed', [heroId, otherHeroId, guildId], {
+    heroId,
+    entityId: otherHeroId,
+    cause: 'shared-quest',
+    before: 11,
+    after: 12.5,
+    bandBefore: 'warm',
+    bandAfter: 'close',
+  }),
 };
 
 describe('narrate', () => {
@@ -128,7 +172,17 @@ describe('narrate', () => {
     );
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
     expect(narrate(samples['hero.declined'], content)).toBe('Brenna Ashcombe (hero-000007), at 41, lost 1 Endurance to age.');
-    expect(narrate(samples['quest.resolved'], content)).toContain('and failed: Wealth 0, Fame -2.');
+    expect(narrate(samples['quest.resolved'], content)).toMatch(/and failed: Wealth 0, Fame -2\.$/);
+    // M4-S3: the Synergies that applied, by name, when any did; none, or an entry from before M4-S3, says nothing.
+    const withSynergies = { ...samples['quest.resolved'], payload: { ...samples['quest.resolved'].payload, synergyKeys: ['shield-wall', 'sword-and-salve'] } };
+    expect(narrate(withSynergies, content)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
+    expect(narrate({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content)).toMatch(/Fame -2\.$/);
+    expect(narrate(samples['quest.encounter'], content)).toBe(
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name}: Brenna Ashcombe (hero-000007) was injured.`,
+    );
+    expect(narrate({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content)).toBe(
+      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name}.`,
+    );
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
     );
@@ -139,6 +193,40 @@ describe('narrate', () => {
     expect(narrate(samples['hero.levelled'], content)).toBe(
       'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
     );
+  });
+
+  test('says a Regard band crossed, never the number, and what moved a Patron (M4-S5)', () => {
+    const patron = narrate(samples['patron.regard-changed'], content);
+    const guildmaster = narrate(samples['guildmaster.regard-changed'], content);
+
+    expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
+    expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.");
+    for (const line of [patron, guildmaster]) expect(line).not.toMatch(/\d/);
+  });
+
+  test("says a Hero's Regard for another Hero crossed a band, never the number, and what moved it (M4-S4)", () => {
+    const shared = narrate(samples['hero.regard-changed'], content);
+    const decayed = narrate(
+      event('hero.regard-changed', [heroId, otherHeroId, guildId], {
+        heroId,
+        entityId: otherHeroId,
+        cause: 'decay',
+        before: 4,
+        after: 3.99,
+        bandBefore: 'warm',
+        bandAfter: 'neutral',
+      }),
+      content,
+    );
+
+    expect(shared).toBe(
+      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) rose from warm to close after a Quest together.",
+    );
+    expect(decayed).toBe(
+      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) fell from warm to neutral as time passed apart.",
+    );
+    // The ids are the commands'; no Regard value is printed.
+    for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
   });
 
   test('says a Level gained without naming the points Potential took', () => {

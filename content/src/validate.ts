@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { ContentSet, FacilityKey } from '@heroesim/engine';
+import type { Consequence, ContentSet, EncounterKind, FacilityKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -26,13 +26,16 @@ export class ContentError extends Error {
 export const growthSumTolerance = 0.001;
 
 /**
- * How far a Quest template's demand weights may sum from 1 (M2-S3): written by hand, like growth,
- * and read by the stub as proportions (M2-S5), so near 1 is as good as exactly 1.
+ * How far a Quest template's, or an Encounter's, demand weights may sum from 1 (M2-S3, M4-S1):
+ * written by hand, like growth, and read as proportions, so near 1 is as good as exactly 1.
  */
 export const demandSumTolerance = 0.001;
 
 /** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
 const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
+
+/** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
+const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
 
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
@@ -57,6 +60,8 @@ export function validateContent(set: ContentSet): ContentSet {
     injuries: set.injuries,
     dispositions: set.dispositions,
     improvements: set.improvements,
+    encounters: set.encounters,
+    synergies: set.synergies,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -119,6 +124,7 @@ export function validateContent(set: ContentSet): ContentSet {
     if (skillKey !== undefined && !skills.has(skillKey)) {
       problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
     }
+    checkEncounterDraw(where, template, set.encounters, problems);
   }
   // A Patron's Quests are found by Sphere when the Board is drawn (pre-M0 review D3): a Sphere no
   // template serves would leave its Patrons offering nothing.
@@ -126,7 +132,7 @@ export function validateContent(set: ContentSet): ContentSet {
     if (!served.has(sphereKey)) problems.push(`spheres.${sphereKey}: no Quest template names it in sphereKeys`);
   }
 
-  // The stub Quest Engine draws an Injury's type from these (M2-S5): at least one, each healing in
+  // The types an Encounter's injury consequence names (M2-S5, M4-S1): at least one, each healing in
   // a Day or more, and leaving no Trait or a Hero Trait content defines.
   if (Object.keys(set.injuries).length === 0) problems.push('injuries is empty: the Quest Engine inflicts one of its types');
   for (const [key, type] of Object.entries(set.injuries)) {
@@ -140,6 +146,9 @@ export function validateContent(set: ContentSet): ContentSet {
   }
 
   checkImprovements(set.improvements, problems);
+  checkEncounters(set, heroStats, skills, problems);
+  checkTraitEffects(set.traits, classes, heroStats, problems);
+  checkSynergies(set.synergies, classes, skills, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -181,6 +190,175 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
       problems.push(
         `improvements: the grades of ${facility} are ${sorted.join(', ')}; they run 1 to ${sorted.length}, each once`,
       );
+    }
+  }
+}
+
+/**
+ * What a Quest template's Encounter sequence is drawn by (M4-S1): at least one kind, none twice,
+ * each with an Encounter in content to draw, and a count range from 1 that is not upside down.
+ */
+function checkEncounterDraw(
+  where: string,
+  template: ContentSet['questTemplates'][string],
+  encounters: ContentSet['encounters'],
+  problems: string[],
+): void {
+  if (template.encounterKinds.length === 0) problems.push(`${where}.encounterKinds is empty: a Quest is drawn with Encounters`);
+  for (const kind of repeated(template.encounterKinds)) problems.push(`${where}.encounterKinds: "${kind}" is listed twice`);
+  for (const kind of new Set(template.encounterKinds)) {
+    if (!Object.values(encounters).some((encounter) => encounter.kind === kind)) {
+      problems.push(`${where}.encounterKinds: no Encounter is of kind "${kind}"`);
+    }
+  }
+  checkRange(where, 'encounters', template.encountersMin, template.encountersMax, 1, problems);
+}
+
+/**
+ * The Encounters (M4-S1): demands on Hero Stats weighted as a Quest template's are, Skills that
+ * exist, a difficulty factor above 0, and consequences each within its kind's bounds, an Injury
+ * naming a type content defines. The epic's first box: an unknown Stat, Skill or Injury type is
+ * refused.
+ */
+function checkEncounters(
+  set: ContentSet,
+  heroStats: ReadonlySet<string>,
+  skills: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, encounter] of Object.entries(set.encounters)) {
+    const where = `encounters.${key}`;
+    checkDemands(`${where}.demands`, encounter.demands, heroStats, problems);
+    checkReferences(`${where}.skillKeys`, encounter.skillKeys, skills, 'a Skill', problems);
+    if (!(Number.isFinite(encounter.difficultyFactor) && encounter.difficultyFactor > 0)) {
+      problems.push(`${where}.difficultyFactor is ${encounter.difficultyFactor}; it is a number above 0`);
+    }
+    for (const outcome of ['success', 'failure'] as const) {
+      encounter.consequences[outcome].forEach((consequence, index) => {
+        checkConsequence(`${where}.consequences.${outcome}.${index}`, consequence, set, problems);
+      });
+    }
+  }
+}
+
+/** One consequence's fields, by its kind. */
+function checkConsequence(where: string, consequence: Consequence, set: ContentSet, problems: string[]): void {
+  const probability = (value: number): void => {
+    if (!(value >= 0 && value <= 1)) problems.push(`${where}.chance is ${value}; it is a probability from 0 to 1`);
+  };
+  const factor = (value: number): void => {
+    if (!(Number.isFinite(value) && value >= 0)) problems.push(`${where}.factor is ${value}; it is a number of 0 or more`);
+  };
+  switch (consequence.kind) {
+    case 'injury':
+      if (!Object.hasOwn(set.injuries, consequence.typeKey)) {
+        problems.push(`${where}.typeKey: "${consequence.typeKey}" is not an Injury type`);
+      }
+      probability(consequence.chance);
+      if (!(Number.isInteger(consequence.count) && consequence.count >= 1)) {
+        problems.push(`${where}.count is ${consequence.count}; it is a whole number from 1`);
+      }
+      return;
+    case 'death':
+      probability(consequence.chance);
+      return;
+    case 'xp':
+    case 'wealth':
+      factor(consequence.factor);
+      return;
+    case 'morale':
+    case 'regard':
+    case 'fame':
+      return;
+  }
+}
+
+/**
+ * Trait effects (M4-S5, pre-M0 review B2, DL-43): a Guildmaster Trait carries one effect of the
+ * closed union and a Hero Trait none, since no rule reads a Hero Trait in the first build. A
+ * `classStatBonus` names a Class and a Hero Stat and moves it by a whole number other than 0; a
+ * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0.
+ */
+function checkTraitEffects(
+  traits: ContentSet['traits'],
+  classes: ReadonlySet<string>,
+  heroStats: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, trait] of Object.entries(traits)) {
+    const where = `traits.${key}.effect`;
+    const { effect } = trait;
+    if (trait.owner === 'hero') {
+      if (effect !== null) problems.push(`${where}: a Hero Trait has no effect in the first build; it is null`);
+      continue;
+    }
+    if (effect === null) {
+      problems.push(`${where}: a Guildmaster Trait carries one effect (classStatBonus, guildMoraleShift or upkeepFactor)`);
+      continue;
+    }
+    switch (effect.kind) {
+      case 'classStatBonus':
+        if (!classes.has(effect.classKey)) problems.push(`${where}.classKey: "${effect.classKey}" is not a Class`);
+        if (!heroStats.has(effect.statKey)) problems.push(`${where}.statKey: "${effect.statKey}" is not a Hero Stat`);
+        if (!(Number.isInteger(effect.delta) && effect.delta !== 0)) {
+          problems.push(`${where}.delta is ${effect.delta}; it is a whole number other than 0`);
+        }
+        break;
+      case 'guildMoraleShift':
+        if (!(Number.isFinite(effect.delta) && effect.delta !== 0)) {
+          problems.push(`${where}.delta is ${effect.delta}; it is a number other than 0`);
+        }
+        break;
+      case 'upkeepFactor':
+        if (!(Number.isFinite(effect.factor) && effect.factor > 0)) {
+          problems.push(`${where}.factor is ${effect.factor}; it is a number above 0`);
+        }
+        break;
+    }
+  }
+}
+
+/**
+ * The Synergies (M4-S3, DL-45): each requires at least one Class or Skill, every Class content
+ * defines with a count that is a whole number from 1, every Skill content defines and none twice;
+ * adds a `flat` above 0, a `factor` above 1 or both, a Synergy being a bonus and a factor in content
+ * a multiplier; and names, if any, one or more Encounter kinds, none twice.
+ */
+function checkSynergies(
+  synergies: ContentSet['synergies'],
+  classes: ReadonlySet<string>,
+  skills: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, synergy] of Object.entries(synergies)) {
+    const where = `synergies.${key}`;
+    const { requires, bonus, kinds } = synergy;
+    const counts = Object.entries(requires.classes ?? {});
+    if (counts.length === 0 && (requires.skills ?? []).length === 0) {
+      problems.push(`${where}.requires names no Class and no Skill: a Synergy is for a combination of them`);
+    }
+    for (const [classKey, count] of counts) {
+      if (!classes.has(classKey)) problems.push(`${where}.requires.classes: "${classKey}" is not a Class`);
+      if (!(Number.isInteger(count) && count >= 1)) {
+        problems.push(`${where}.requires.classes.${classKey} is ${count}; a count is a whole number from 1`);
+      }
+    }
+    checkReferences(`${where}.requires.skills`, requires.skills ?? [], skills, 'a Skill', problems);
+    if (bonus.flat === undefined && bonus.factor === undefined) {
+      problems.push(`${where}.bonus is empty: a Synergy adds a flat, a factor or both`);
+    }
+    if (bonus.flat !== undefined && !(Number.isFinite(bonus.flat) && bonus.flat > 0)) {
+      problems.push(`${where}.bonus.flat is ${bonus.flat}; it is a number above 0`);
+    }
+    if (bonus.factor !== undefined && !(Number.isFinite(bonus.factor) && bonus.factor > 1)) {
+      problems.push(`${where}.bonus.factor is ${bonus.factor}; it multiplies, so it is a number above 1`);
+    }
+    if (kinds !== undefined) {
+      if (kinds.length === 0) problems.push(`${where}.kinds is empty: leave it out for a Synergy on every kind`);
+      for (const kind of kinds) {
+        if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+      }
+      for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
   }
 }

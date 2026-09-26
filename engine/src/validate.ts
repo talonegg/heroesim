@@ -85,6 +85,7 @@ export const warningChecks = [
   'unknown-template',
   'unknown-injury',
   'unknown-disposition',
+  'unknown-encounter',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -190,6 +191,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownTemplate,
   unknownInjury,
   unknownDisposition,
+  unknownEncounter,
 ];
 
 /**
@@ -1293,6 +1295,21 @@ function laterTable(
 ): object {
   const table: unknown = Reflect.get(content, name);
   return isMap(table) ? table : {};
+}
+
+/**
+ * A Quest's Encounter sequence (M4-S1, DL-42): each key an Encounter content defines. One it does
+ * not is left out when the Quest resolves (`sequenceFor`). Content without an Encounter table, as
+ * content before M4 has, defines none.
+ */
+function unknownEncounter({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-encounter', 'an Encounter');
+  const table: unknown = Reflect.get(content, 'encounters');
+  const encounters = isMap(table) ? table : {};
+  for (const [id, quest] of Object.entries(world.quests)) {
+    for (const key of quest.encounterKeys) known(id, 'encounterKeys', encounters, key);
+  }
+  return warnings;
 }
 
 /** A Rival's Disposition (M2-S9). The player's Guild names none. */

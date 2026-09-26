@@ -7,7 +7,7 @@
 // never touches a document a caller still holds (data-model §1).
 //
 // Every draw function takes a fixed number of draws, whatever its arguments: one each for
-// `next`, `int`, `pick` and `chance`, and `length - 1` for `shuffle`. A rule's draw count, and
+// `next`, `int`, `pick`, `chance` and `weightedPick`, and `length - 1` for `shuffle`. A rule's draw count, and
 // so every later draw, then depends only on which calls it makes, never on the values it
 // passes.
 //
@@ -27,15 +27,26 @@
  * `ensureStreams` on its copy of `world` (M2-S3, DL-25). No migration is needed and no other
  * stream moves.
  *
- * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the stub Quest Engine's
+ * `board` (M2-S3) draws the Quests the Board offers; `quests` (M2-S5) the Quest Engine's
  * resolutions; `pool` (M2-S8) the Unattached pool's refill; `heroes` (M2-S6) the Hero State
- * Engine's Retirement checks; `progression` (M3-S1) the growth points of a Level gained (DL-36).
+ * Engine's Retirement checks; `progression` (M3-S1) the growth points of a Level gained (DL-36);
+ * `encounters` (M4-S1) each Quest's Encounter sequence, drawn beside the Board's draws so that
+ * the Board a seed produces is what it was before M4 (DL-42).
  * `rivals` (M2-S9) is the Rival controllers' own: a Disposition draws from it and from no other,
  * and `steady` draws nothing (DL-30). The tuple keeps ADR-0009's
  * order, which is also the order of a new world's `rng` keys; an old save gains a missing stream
  * wherever `ensureStreams` puts it.
  */
-export const streamNames = ['generation', 'board', 'quests', 'pool', 'heroes', 'progression', 'rivals'] as const;
+export const streamNames = [
+  'generation',
+  'board',
+  'quests',
+  'encounters',
+  'pool',
+  'heroes',
+  'progression',
+  'rivals',
+] as const;
 
 export type StreamName = (typeof streamNames)[number];
 
@@ -205,4 +216,37 @@ export function shuffle<T>(state: RngState, items: readonly T[]): T[] {
 export function chance(state: RngState, p: number): boolean {
   if (!(p >= 0 && p <= 1)) throw new RangeError(`chance needs a probability from 0 to 1; got ${p}`);
   return next(state) < p;
+}
+
+/**
+ * One element of `items`, each drawn in proportion to its weight in `weights` (the same length),
+ * from one draw (M4-S5, DL-43). A weight of 0 is never drawn; when every weight is 0 the draw is
+ * uniform, as `pick`'s. With every weight equal to 1 it draws exactly what `pick` draws from the
+ * same state, so a Board whose Patrons all stand at neutral is drawn as DL-25's uniform one was.
+ * Throws on an empty list, lists of different lengths, or a weight that is negative or not finite.
+ */
+export function weightedPick<T>(state: RngState, items: readonly T[], weights: readonly number[]): T {
+  if (items.length === 0) throw new RangeError('weightedPick needs at least one item');
+  if (weights.length !== items.length) {
+    throw new RangeError(`weightedPick needs a weight for each of ${items.length} items; got ${weights.length}`);
+  }
+  let total = 0;
+  for (const weight of weights) {
+    if (!(Number.isFinite(weight) && weight >= 0)) throw new RangeError(`A weight is 0 or more; got ${weight}`);
+    total += weight;
+  }
+  const draw = next(state);
+  if (total === 0) return items[Math.floor(draw * items.length)] as T;
+  const target = draw * total;
+  let reached = 0;
+  let last = 0;
+  for (let index = 0; index < items.length; index += 1) {
+    const weight = weights[index] as number;
+    if (weight === 0) continue;
+    reached += weight;
+    last = index;
+    if (target < reached) return items[index] as T;
+  }
+  // Only rounding leaves the target at the total: the last item that can be drawn.
+  return items[last] as T;
 }

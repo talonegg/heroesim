@@ -6,8 +6,9 @@
 //
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
-// Engine and M2-S6 the Hero State Engine (DL-29). Every "Min/Max" pair is an inclusive range
-// drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
+// Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
+// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -21,8 +22,10 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M3's Rival reserve (DL-41); 5 from
-   * the infirmary's factor for its third grade (DL-53).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
+   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
+   * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
+   * merging those, so that no save made under either 5 reads as current (DL-55).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -123,22 +126,26 @@ export interface GameConfig {
   questDifficultyMin: number;
   questDifficultyMax: number;
 
-  // ── The stub Quest Engine (M2-S5, INPUTS 4.3, 4.4, 5.1, pre-M0 review A4, DL-29) ─────────
+  // ── The Quest Engine (M4-S2, INPUTS 6.2, DL-42) ────────────────────────────────────────────
+  // The stub's fields (M2-S5, DL-29, DL-35) are gone: `stubBands` for `bandBySuccessShare`,
+  // `stubVariance` for `checkVariance`, `stubSkillBonusPerRating` for `skillBonusPerRating`, and
+  // `stubInjuryChance`/`stubDeathChance` for each Encounter's consequences, which are content.
   /**
-   * Where the bands start on the ratio of score to difficulty: below `successAtLeast` a Quest
-   * fails, from it up to and including `strongAbove` it succeeds, and above `strongAbove` it is a
-   * strong success. INPUTS 4.3's 0.8 and 1.2 scaled by 0.325 since the first balance pass, a
-   * Level-1 Party of the size a Quest requires scoring about a third of its difficulty (DL-35).
+   * A Check's roll: the Party's capability times 1 + a draw from −`checkVariance` up to
+   * +`checkVariance`, from the `quests` stream (INPUTS 6.2: ±20%).
    */
-  stubBands: Readonly<{ successAtLeast: number; strongAbove: number }>;
-  /** The one roll's reach: the score is scaled by 1 + a draw from −`stubVariance` to +`stubVariance`. */
-  stubVariance: number;
-  /** Added to the score for each rating point of a Quest's Skills held across the Party (R15). */
-  stubSkillBonusPerRating: number;
-  /** The chance, per band, that one Hero of the Party is injured. */
-  stubInjuryChance: Readonly<Record<QuestBand, number>>;
-  /** The chance, per band, that one Hero of the Party dies. */
-  stubDeathChance: Readonly<Record<QuestBand, number>>;
+  checkVariance: number;
+  /**
+   * Added to a Check's capability, for each of the Encounter's Skills, per rating point of the best
+   * rating any member holds (INPUTS 6.2: Skill rating × 2).
+   */
+  skillBonusPerRating: number;
+  /**
+   * A Quest's band from the share of its Encounters succeeded: `strong` at `strongAtLeast` or more,
+   * `success` above `successAbove`, else `fail` (M4-S2: all strong, a majority success). An
+   * Encounter a Party wiped out never reached counts as not succeeded.
+   */
+  bandBySuccessShare: Readonly<{ successAbove: number; strongAtLeast: number }>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -238,9 +245,102 @@ export interface GameConfig {
    * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
    */
   xpPerTrainingDay: number;
+
+  // ── Regard (M4-S5, data-model §3.2 and rule 10, DL-43) ───────────────────────────────────
+  /**
+   * Regard's scale: every Regard value, whoever holds it, is held inside `regardMin` to
+   * `regardMax`. Absence reads as 0, which is neutral (data-model §3.2). M4-S4's Regard between
+   * Heroes, and the Relationship read from it, share the scale and the bands (DL-46).
+   */
+  regardMin: number;
+  regardMax: number;
+  /**
+   * Where each Regard band starts: a value's band is the highest whose start it has reached, and
+   * the lowest band for a value below every start (as `moraleBands`). A Regard change emits its
+   * event only when it takes the value from one band into another (data-model rule 10).
+   */
+  regardBands: Readonly<Record<RegardBand, number>>;
+
+  // ── Regard between Heroes and Relationship (M4-S4, R24, INPUTS 6.3, DL-46) ─────────────────
+  /**
+   * Added to each Hero's Regard for each other Hero of the Party who came home alive with them,
+   * once for each resolved Quest, whatever its band; with `regardOnSuccessBonus` on a success and
+   * the Encounters' `regard` consequences, summed, in the same one change.
+   */
+  regardPerSharedQuest: number;
+  /** Added beside `regardPerSharedQuest` when the shared Quest succeeded (any band but `fail`). */
+  regardOnSuccessBonus: number;
+  /**
+   * Each night a Hero on a Roster's Regard for another Hero moves toward neutral by this share of
+   * the scale's reach a year, spread evenly over the year's nights, once a whole year
+   * (`turnsPerYear` Turns) has passed since the two last shared a Quest (the entry's `since`); it
+   * stops at neutral, where the entry goes. The unit is `patronRegardRecoveryPerYear`'s. A drift:
+   * an event only on a band crossing (rule 10).
+   */
+  regardDecayPerYear: number;
+  /**
+   * The teamwork scalar a Check's capability is multiplied by (`teamwork`): 1 plus this times the
+   * Party's mean pairwise Relationship as a share of the scale's reach on its side, so from
+   * 1 − this at the scale's bottom to 1 + this at its top (INPUTS 6.3: ×0.9 to ×1.1).
+   */
+  teamworkRange: number;
+
+  // ── Patron Regard and the Board (M4-S5, R22, pre-M0 review B5, DL-43) ─────────────────────
+  /** Added to a Patron's Regard for a Guild when the Guild's Party succeeds at one of their Quests. */
+  patronRegardOnSuccess: number;
+  /** Added (negative) when the Guild's Party fails one of their Quests. */
+  patronRegardOnFailure: number;
+  /** Added (negative) to the Patron's Regard for every Guild in play when their offer expires untaken. */
+  patronRegardOnExpiry: number;
+  /**
+   * The Patron State Engine: each night a Patron's Regard for each Guild moves toward neutral by
+   * this share of the scale's reach (the larger of `regardMax` and −`regardMin`) a year, spread
+   * evenly over the year's nights, and stops at neutral. So any value, even the scale's end, is
+   * neutral again within 1 / `patronRegardRecoveryPerYear` years. A drift: an event only on a band
+   * crossing (rule 10).
+   */
+  patronRegardRecoveryPerYear: number;
+  /**
+   * How strongly a Patron's mean Regard across the Guilds in play weights the Board's draw of
+   * Patrons (R22): the weight is 1 + this × the mean over the scale's reach on that side, never
+   * below 0. At 1 a Patron at the scale's top is drawn twice as often as a neutral one, and one at
+   * its bottom never; at 0 the draw is DL-25's uniform one.
+   */
+  boardRegardWeight: number;
+
+  // ── The Guildmaster's Stats (M4-S5, R8, INPUTS 6.5, pre-M0 review B6, D9, DL-43) ─────────
+  // Each Stat's rule reads where its value falls between the Stat's content `min` and `max`:
+  // Negotiation from −1 at the bottom to +1 at the top, the others from 0 to 1.
+  /**
+   * Negotiation: the reward agreed at dispatch is the Quest's reward × (1 + up to this), from −this
+   * at the bottom of the Stat's range to +this at the top; a signing fee (and, from M6-S2, a
+   * Transfer fee) × (1 − the same), inside the fee's selector (INPUTS 6.5: ±10%).
+   */
+  negotiationRange: number;
+  /** Inspiration: the Morale baseline of the Guild's Heroes is raised by up to this. */
+  inspirationMoraleShift: number;
+  /** Coaching: training XP × (1 + up to this). */
+  coachingFactor: number;
+  /** Influence: a gain in a Patron's Regard for the Guild × (1 + up to this). Losses are not scaled. */
+  influenceFactor: number;
+  /**
+   * Judgement: the Potential hint bands the Guildmaster reads are each narrowed, every start
+   * scaled by (1 − up to this), so a sharper judge sees promise in a smaller gap (pre-M0 review D9).
+   */
+  judgementHintSharpening: number;
+
+  // ── Guildmaster Regard (M4-S5, R9, pre-M0 review B3, DL-43) ───────────────────────────────
+  /** Added to a Guildmaster's Regard for a Patron when their Guild succeeds at one of the Patron's Quests. */
+  guildmasterRegardOnPatronSuccess: number;
+  /** Added (negative) when their Guild fails one of the Patron's Quests. */
+  guildmasterRegardOnPatronFailure: number;
+  /** Added to a Guildmaster's Regard for each Hero of the Party who comes home to the Roster from a success. */
+  guildmasterRegardOnHeroSuccess: number;
+  /** Added (negative) for each such Hero after a failure. */
+  guildmasterRegardOnHeroFailure: number;
 }
 
-/** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
+/** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
 export const questBands = ['fail', 'success', 'strong'] as const;
 
 export type QuestBand = (typeof questBands)[number];
@@ -255,9 +355,14 @@ export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
 
 export type PotentialHint = (typeof potentialHints)[number];
 
+/** The named ranges Regard falls in, lowest first (M4-S4, M4-S5, `CONTEXT.md` Regard band). */
+export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] as const;
+
+export type RegardBand = (typeof regardBandNames)[number];
+
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 5,
+  configVersion: 6,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -306,11 +411,9 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questDifficultyMin: 10,
   questDifficultyMax: 100,
 
-  stubBands: Object.freeze({ successAtLeast: 0.26, strongAbove: 0.39 }),
-  stubVariance: 0.2,
-  stubSkillBonusPerRating: 2,
-  stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
-  stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
+  checkVariance: 0.2,
+  skillBonusPerRating: 2,
+  bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
 
   moraleMin: 0,
   moraleMax: 100,
@@ -341,6 +444,28 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   xpPerDifficultyPoint: 1,
   xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
   xpPerTrainingDay: 2,
+
+  regardMin: -20,
+  regardMax: 20,
+  regardBands: Object.freeze({ hostile: -20, cool: -12, neutral: -4, warm: 4, close: 12 }),
+  regardPerSharedQuest: 1,
+  regardOnSuccessBonus: 0.5,
+  regardDecayPerYear: 0.25,
+  teamworkRange: 0.1,
+  patronRegardOnSuccess: 1,
+  patronRegardOnFailure: -2,
+  patronRegardOnExpiry: -1,
+  patronRegardRecoveryPerYear: 0.5,
+  boardRegardWeight: 1,
+  negotiationRange: 0.1,
+  inspirationMoraleShift: 10,
+  coachingFactor: 0.5,
+  influenceFactor: 0.5,
+  judgementHintSharpening: 0.25,
+  guildmasterRegardOnPatronSuccess: 1,
+  guildmasterRegardOnPatronFailure: -1,
+  guildmasterRegardOnHeroSuccess: 1,
+  guildmasterRegardOnHeroFailure: -1,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

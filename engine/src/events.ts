@@ -3,10 +3,20 @@
 // with a payload of ids and content keys, never copies of rows (data-model §4). Each story adds
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
-import type { MoraleBand } from './config.js';
-import type { ClassKey, ImprovementKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
+import type { MoraleBand, RegardBand } from './config.js';
+import type {
+  ClassKey,
+  ImprovementKey,
+  InjuryTypeKey,
+  QuestTemplateKey,
+  SphereKey,
+  StatKey,
+  SynergyKey,
+  TraitKey,
+} from './content-types.js';
 import type {
   EndingReason,
+  EntityId,
   Entry,
   FacilityKey,
   GuildId,
@@ -17,7 +27,7 @@ import type {
   QuestId,
   Turn,
 } from './document.js';
-import type { QuestOutcome } from './quest-engine/stub.js';
+import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
 
@@ -106,20 +116,47 @@ export type QuestExpired = Entry<
  */
 export type QuestTaken = Entry<
   'quest.taken',
-  { questId: QuestId; partyId: PartyId; guildId: GuildId; heroIds: HeroId[]; returnsOnTurn: Turn }
+  {
+    questId: QuestId;
+    partyId: PartyId;
+    guildId: GuildId;
+    heroIds: HeroId[];
+    returnsOnTurn: Turn;
+    /**
+     * The reward agreed: the Quest's reward as the Guildmaster's Negotiation set it at dispatch,
+     * which the Quest now carries (M4-S5, DL-43). Absent from an entry written before M4-S5.
+     */
+    reward?: number;
+  }
 >;
 
-// ── The stub Quest Engine (M2-S5, DL-29) ─────────────────────────────────────────────────────
+// ── The Quest Engine (M2-S5, DL-29; M4-S2, DL-42) ────────────────────────────────────────────
 
 /**
- * A Party came home and its Quest was resolved by the stub Quest Engine: the payload is the
- * outcome (`QuestOutcome`) with the Quest's, Party's and Guild's ids and the template's key, which
- * names the Quest once its row is gone. Names the Quest, the Party, each Hero, the Guild and the
- * Patron. Not a Milestone: its Injuries and Deaths are entries of their own.
+ * One Encounter of a Quest's sequence was checked as the Party came home (M4-S2): its key and kind,
+ * the roll, the target it had to reach, the margin between them, the outcome, and whom its
+ * consequences injured or killed. One per Encounter reached, in sequence order (`index` from 0),
+ * all before the Quest's `quest.resolved`. Names the Quest, the Party and the Guild.
+ */
+export type QuestEncounter = Entry<
+  'quest.encounter',
+  EncounterResult & { questId: QuestId; partyId: PartyId; guildId: GuildId }
+>;
+
+/**
+ * A Party came home and its Quest was resolved by the Quest Engine: the payload is the outcome
+ * (`QuestOutcome`) with the Quest's, Party's and Guild's ids and the template's key, which names the
+ * Quest once its row is gone. Names the Quest, the Party, each Hero, the Guild and the Patron. Not a
+ * Milestone: its Injuries and Deaths are entries of their own.
  */
 export type QuestResolved = Entry<
   'quest.resolved',
-  QuestOutcome & {
+  Omit<QuestOutcome, 'synergyKeys'> & {
+    /**
+     * The Synergies that added to any of the Quest's Checks, in key order (M4-S3, DL-45): none is
+     * `[]`. Absent from an entry written before M4-S3, which reads as none.
+     */
+    synergyKeys?: SynergyKey[];
     questId: QuestId;
     partyId: PartyId;
     guildId: GuildId;
@@ -145,8 +182,11 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
 
-/** What moved a Hero's Morale: a Death on their Roster, a strong success, or the nightly drift. */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift';
+/**
+ * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, or the
+ * Morale consequences of a Quest's Encounters, summed (M4-S2).
+ */
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters';
 
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
@@ -219,6 +259,80 @@ export type HeroLevelled = Entry<
   { heroId: HeroId; guildId: GuildId; level: number; statDeltas: Record<StatKey, number>; pointsLost: number }
 >;
 
+// ── Regard (M4-S5, data-model rule 10, DL-43) ───────────────────────────────────────────────
+
+/** What moved a Patron's Regard for a Guild: a Quest of theirs resolved, an offer expired untaken, or the nightly recovery. */
+export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expired' | 'recovery';
+
+/**
+ * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
+ * discrete change and for the nightly recovery alike, and only on a crossing (data-model rule 10).
+ * `before` and `after` are the values, which a front end shows as bands. Names the Patron and the
+ * Guild.
+ */
+export type PatronRegardChanged = Entry<
+  'patron.regard-changed',
+  {
+    patronId: PatronId;
+    guildId: GuildId;
+    cause: PatronRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
+/** What moved a Guildmaster's Regard: in M4, a Quest their Guild resolved (M6-S2 adds Transfer deals). */
+export type GuildmasterRegardCause = 'quest-success' | 'quest-failure';
+
+/**
+ * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
+ * from one of `regardBands` into another; only on a crossing (data-model rule 10, pre-M0 review
+ * B3). Names the Guildmaster, the entity and the Guildmaster's Guild.
+ */
+export type GuildmasterRegardChanged = Entry<
+  'guildmaster.regard-changed',
+  {
+    guildmasterId: GuildmasterId;
+    guildId: GuildId;
+    entityId: EntityId;
+    cause: GuildmasterRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
+// ── Regard between Heroes (M4-S4, data-model rule 10, DL-46) ────────────────────────────────
+
+/**
+ * What moved a Hero's Regard for another Hero: a Quest the two shared and came home from alive, or
+ * the nightly decay toward neutral once a year has passed without one.
+ */
+export type HeroRegardCause = 'shared-quest' | 'decay';
+
+/**
+ * A Hero's Regard for `entityId`, another Hero, crossed from one of `regardBands` into another:
+ * emitted for a shared Quest's change and for the nightly decay alike, and only on a crossing
+ * (data-model rule 10), one entry for each Hero whose Regard crossed, so the two of a pair each
+ * have their own. `before` and `after` are the values, which a front end shows as bands. Names the
+ * Hero, the other Hero, and their Guilds. Not a Milestone.
+ */
+export type HeroRegardChanged = Entry<
+  'hero.regard-changed',
+  {
+    heroId: HeroId;
+    entityId: EntityId;
+    cause: HeroRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -233,6 +347,7 @@ export type EngineEvent =
   | QuestOffered
   | QuestExpired
   | QuestTaken
+  | QuestEncounter
   | QuestResolved
   | HeroInjured
   | HeroDied
@@ -245,7 +360,10 @@ export type EngineEvent =
   | GuildFolded
   | HeroLeftGuild
   | GuildImproved
-  | HeroLevelled;
+  | HeroLevelled
+  | PatronRegardChanged
+  | GuildmasterRegardChanged
+  | HeroRegardChanged;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -271,6 +389,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'quest.offered': false,
   'quest.expired': false,
   'quest.taken': false,
+  'quest.encounter': false,
   'quest.resolved': false,
   'hero.injured': false,
   'hero.died': true,
@@ -284,4 +403,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.left-guild': false,
   'guild.improved': true,
   'hero.levelled': true,
+  'patron.regard-changed': false,
+  'guildmaster.regard-changed': false,
+  'hero.regard-changed': false,
 } satisfies Record<EngineEventType, boolean>);

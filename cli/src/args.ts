@@ -21,13 +21,15 @@ Commands:
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
-        | rankings [--by fame|wealth] | hero <heroId> | history [entityId]]
+        | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another, and so does hall, each facility's grade and
-      what the next grade costs; pool marks the Heroes who will not yet sign for
-      the player's Guild's Fame; board shows the Quests on offer; rankings orders the
-      Guilds in play by Fame, or by Wealth with --by wealth; history shows the whole
-      History unless given an id.
+      what the next grade costs; pool marks the Heroes who will not yet sign for the
+      player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
+      board shows the Quests on offer; rankings orders the Guilds in play by Fame, or by
+      Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
+      Guild's, with their Stats, Traits and Regard; history shows the whole History unless
+      given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -42,10 +44,15 @@ Commands:
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
+  preview --quest <questId> --heroes <heroId,heroId,...>
+      Say what a Party of the player's Heroes would meet on a Quest from the Board before it
+      is sent: each requirement met or missed, any Hero who cannot go, the Synergies it
+      would have and on how many of the Quest's Encounters, the reward the Guildmaster would
+      agree, and whether dispatch would send it. Changes nothing.
   dispatch --quest <questId> --heroes <heroId,heroId,...>
       Send a Party of the player's Heroes on a Quest from the Board, within the current
-      Turn, and print the Party and the Day it returns. Rivals take Quests from the Board
-      each afternoon.
+      Turn, and print the Party, the reward agreed and the Day it returns. Rivals take
+      Quests from the Board each afternoon.
   build --facility <infirmary | training-yard | quarters>
       Raise a facility of the player's Guild's Hall by one grade, for the next grade's
       cost, and print what was built, the Wealth left and what the next grade costs.
@@ -74,6 +81,7 @@ export type View =
   | { kind: 'board' }
   | { kind: 'rankings'; by: RankingMeasure }
   | { kind: 'hero'; heroId: string }
+  | { kind: 'guildmaster'; guildId?: string }
   | { kind: 'history'; entityId?: string };
 
 export type Command =
@@ -91,6 +99,7 @@ export type Command =
   | { name: 'advance'; save: string; turns: number }
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
+  | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'build'; save: string; facility: FacilityKey }
   | { name: 'rebase'; save: string }
@@ -106,6 +115,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
+  preview: { save: 'value', quest: 'value', heroes: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
   build: { save: 'value', facility: 'value' },
   rebase: { save: 'value' },
@@ -252,6 +262,9 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'hero':
       atMost(positional, 2, 'show hero');
       return id === undefined ? refuse('show hero needs a Hero id') : { kind: 'hero', heroId: id };
+    case 'guildmaster':
+      atMost(positional, 2, 'show guildmaster');
+      return id === undefined ? { kind: 'guildmaster' } : { kind: 'guildmaster', guildId: id };
     case 'history':
       atMost(positional, 2, 'show history');
       return id === undefined ? { kind: 'history' } : { kind: 'history', entityId: id };
@@ -317,8 +330,9 @@ function parse(argv: readonly string[]): Command {
     case 'recruit':
       atMost(positional, 0, 'recruit');
       return { name, save, hero: required(flags, name, 'hero') };
+    case 'preview':
     case 'dispatch': {
-      atMost(positional, 0, 'dispatch');
+      atMost(positional, 0, name);
       const quest = required(flags, name, 'quest');
       if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
       return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };

@@ -24,7 +24,7 @@ export const guildState: PhaseRun = (world, ctx) => {
     if (guild.foldedOnTurn !== null) continue;
 
     if (isUpkeepDay) {
-      const amount = upkeep(guild, world, ctx.config);
+      const amount = upkeep(guild, world, ctx.config, ctx.content);
       guild.wealth -= amount;
       events.push(
         ctx.emit({

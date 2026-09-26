@@ -5,7 +5,7 @@
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
 // `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`; M3-S6
-// `Improvement`. Later milestones add theirs (M5-S1 Items).
+// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`. Later milestones add theirs (M5-S1 Items).
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -43,6 +43,8 @@ export type ItemDefinitionKey = string;
 export type SlotKey = string;
 /** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
 export type ImprovementKey = string;
+/** A Synergy, a bonus for a combination of Classes or Skills in a Party (M4-S3, `synergies.json`). */
+export type SynergyKey = string;
 
 /** The four areas a Stat belongs to, used for display (R14). */
 export type StatArea = 'physical' | 'mental' | 'magical' | 'social';
@@ -87,16 +89,35 @@ export interface Skill {
 /** Whose Trait it is: a Hero's lasting mark (R16) or a Guildmaster's buff or penalty (R8). */
 export type TraitOwner = 'hero' | 'guildmaster';
 
+/**
+ * What a Guildmaster Trait does (M4-S5, R8, pre-M0 review B2, DL-43): one effect from a closed
+ * union, each applied inside the one selector that already works its quantity out, for every Guild
+ * alike (ADR-0002). A new kind is an engine change and earns a decision-log entry.
+ *
+ * - `classStatBonus`: `delta` added to the Stat `statKey` of each Hero of the Class `classKey` on
+ *   the Guildmaster's Guild, in `effectiveStats`, held inside the Stat's range;
+ * - `guildMoraleShift`: `delta` added to the Morale baseline of the Guild's Heroes, in
+ *   `moraleBaselineFor`;
+ * - `upkeepFactor`: the Guild's Upkeep multiplied by `factor`, in `upkeep`.
+ */
+export type TraitEffect =
+  | { kind: 'classStatBonus'; classKey: ClassKey; statKey: StatKey; delta: number }
+  | { kind: 'guildMoraleShift'; delta: number }
+  | { kind: 'upkeepFactor'; factor: number };
+
+/** The kinds of `TraitEffect`. */
+export type TraitEffectKind = TraitEffect['kind'];
+
 /** A Trait (R8, R16; `traits.json`). */
 export interface Trait {
   key: TraitKey;
   name: string;
   owner: TraitOwner;
   /**
-   * `null` until a rule reads it: M4-S5 gives the Guildmaster's Traits one effect each from a
-   * closed union (pre-M0 review B2).
+   * A Guildmaster Trait's one effect (M4-S5); `null` for a Hero Trait, which no rule reads in the
+   * first build. Content validation holds each owner to its own.
    */
-  effect: null;
+  effect: TraitEffect | null;
 }
 
 /** Whose Background it is: a Hero's, or the narrative history of a Guild (INPUTS 3.10). */
@@ -145,19 +166,159 @@ export interface QuestTemplate {
   fameEffect: number;
   partySizeMin: number;
   partySizeMax: number;
-  /** The Hero Stats the stub assesses, each with a weight; the weights sum to 1 (DL-06). */
+  /**
+   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). A Party is
+   * chosen by them (`partyFor`); from M4-S2 the Check reads its Encounters' demands instead.
+   */
   demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
   /** `null` until Loot tables exist (M5). */
   lootTableKey: null;
+  /**
+   * The kinds of Encounter a Quest of this kind is drawn with (M4-S1): each of its Encounters is
+   * of one of these, at least one listed, none twice, and content holding an Encounter of each.
+   */
+  encounterKinds: EncounterKind[];
+  /**
+   * How many Encounters a Quest of this kind is drawn with, from `encountersMin` at the bottom of
+   * its difficulty range to `encountersMax` at the top (INPUTS 6.1: 2 to 5 by difficulty); each at
+   * least 1.
+   */
+  encountersMin: number;
+  encountersMax: number;
+}
+
+/** The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from. */
+export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const;
+
+export type EncounterKind = (typeof encounterKinds)[number];
+
+/**
+ * How a Check reads the Party's Stats on an Encounter's demands (M4-S2): `best` takes the best
+ * Hero's value of each Stat, `sum` the Party's sum of it.
+ */
+export type EncounterAggregate = 'best' | 'sum';
+
+/**
+ * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
+ * each among the living who carry no Injury from this Quest yet.
+ */
+export interface InjuryConsequence {
+  kind: 'injury';
+  typeKey: InjuryTypeKey;
+  chance: number;
+  count: number;
+}
+
+/** With probability `chance` one living Hero of the Party dies, and takes no part in what follows. */
+export interface DeathConsequence {
+  kind: 'death';
+  chance: number;
+}
+
+/** Each Hero who comes home has their Morale moved by `delta`. */
+export interface MoraleConsequence {
+  kind: 'morale';
+  delta: number;
+}
+
+/** Every pair in the Party has its Regard for each other moved by `delta` (applied from M4-S4). */
+export interface RegardConsequence {
+  kind: 'regard';
+  between: 'party';
+  delta: number;
+}
+
+/** The Quest's XP for each Hero is multiplied by `factor`. */
+export interface XpConsequence {
+  kind: 'xp';
+  factor: number;
+}
+
+/** The Quest's reward, paid only if the Quest succeeds, is multiplied by `factor`. */
+export interface WealthConsequence {
+  kind: 'wealth';
+  factor: number;
+}
+
+/** The Guild's Fame moves by `delta`, beside the Quest's own Fame effect. */
+export interface FameConsequence {
+  kind: 'fame';
+  delta: number;
+}
+
+/** What an Encounter's outcome does (M4-S1): a closed union, so a new kind is an engine change. */
+export type Consequence =
+  | InjuryConsequence
+  | DeathConsequence
+  | MoraleConsequence
+  | RegardConsequence
+  | XpConsequence
+  | WealthConsequence
+  | FameConsequence;
+
+export type ConsequenceKind = Consequence['kind'];
+
+/**
+ * One typed step of a Quest (M4-S1, `encounters.json`), resolved by a Check (M4-S2): the Party's
+ * capability on the weighted `demands`, aggregated by `aggregate`, with a bonus for the best rating
+ * held of each of `skillKeys`, against `difficultyFactor` times the Quest's difficulty. Its
+ * `consequences` are applied by outcome.
+ */
+export interface Encounter {
+  key: EncounterKey;
+  name: string;
+  kind: EncounterKind;
+  /** Hero Stats with weights summing to 1, as a Quest template's demands. */
+  demands: [statKey: StatKey, weight: number][];
+  aggregate: EncounterAggregate;
+  /** The Skills that help; may be none. */
+  skillKeys: SkillKey[];
+  /** The Check's target is this times the Quest's difficulty; above 0. */
+  difficultyFactor: number;
+  consequences: { success: Consequence[]; failure: Consequence[] };
+}
+
+/**
+ * What a Party must hold for a Synergy to apply (M4-S3): at least `count` members of each Class
+ * named, and each Skill named held, at any rating, by at least one member. At least one Class or
+ * Skill in all; content validation refuses a count below 1.
+ */
+export interface SynergyRequires {
+  classes?: Record<ClassKey, number>;
+  skills?: SkillKey[];
+}
+
+/**
+ * What a Synergy adds to a Check's capability (M4-S3, DL-45): `flat` added as it stands, and
+ * `factor` multiplying the capability's Stats and Skills (`base`), as every `factor` in content
+ * multiplies. At least one of the two; `flat` above 0 and `factor` above 1, a Synergy being a bonus.
+ */
+export interface SynergyBonus {
+  flat?: number;
+  factor?: number;
+}
+
+/**
+ * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party holding a
+ * combination of Classes or Skills, added to each Check of an Encounter of one of its `kinds`, or
+ * of every kind when it names none. Relationship between the members is teamwork's, apart (M4-S4).
+ */
+export interface Synergy {
+  key: SynergyKey;
+  name: string;
+  requires: SynergyRequires;
+  bonus: SynergyBonus;
+  /** The Encounter kinds it applies on, at least one and none twice; absent for every kind. */
+  kinds?: EncounterKind[];
 }
 
 /**
  * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before an infirmary
- * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). The stub
- * Quest Engine draws a type for each Injury it inflicts.
+ * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). An
+ * Encounter's injury consequence names the type it inflicts (M4-S1).
  */
 export interface InjuryType {
   key: InjuryTypeKey;
@@ -226,6 +387,10 @@ export interface ContentSet {
   dispositions: Record<DispositionKey, Disposition>;
   /** The Hall Improvements, each one grade of one facility and its cost (M3-S6). */
   improvements: Record<ImprovementKey, Improvement>;
+  /** The Encounters a Quest's sequence is drawn from, by the kinds its template names (M4-S1). */
+  encounters: Record<EncounterKey, Encounter>;
+  /** The Synergies a Party's Classes and Skills can earn on a Check (M4-S3). */
+  synergies: Record<SynergyKey, Synergy>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

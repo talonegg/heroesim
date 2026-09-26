@@ -9,6 +9,7 @@ import type { ContentSet, QuestTemplate, QuestTemplateKey, SphereKey } from '../
 import { takeId, type Demand, type Patron, type Quest, type QuestRequirements, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import type { QuestOffered } from '../events.js';
+import { drawSequence, encounterCount, encounterPools, encounterStream } from '../quest-engine/encounters.js';
 import { int, pick, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { clamp, sortedRows, streamOf, type DrawsFrom } from './draw.js';
@@ -44,13 +45,19 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * 2. the difficulty, `int` over the template's range held inside `questDifficultyMin/Max`;
  * 3. the duration in Days, `int` over the template's range, stored as `durationTurns`.
  *
+ * Then, from the `encounters` stream and no other, the Quest's Encounter sequence (M4-S1, DL-42):
+ * `encounterCount` Encounters at this difficulty, each a kind of the template's then an Encounter
+ * of that kind (`drawSequence`), stored as `encounterKeys`. The `board` stream's draws are the
+ * three above, as before M4, so the Board a seed produces is unchanged.
+ *
  * The reward is the difficulty times the template's `rewardPerDifficulty`, rounded; the rest is
  * copied. The Quest is offered on the world's Turn and stays on offer through the night of the
  * `questOfferDays`th Day, its `expiresOnTurn`: offered on Day d, the next morning's refresh after
  * the night of Day d + questOfferDays − 1 expires it.
  *
  * Throws, changing nothing, on a programming error: a Patron not in the world, a Sphere no
- * template serves, a `templateKey` that is not one of the Patron's, or a stream the world lacks.
+ * template serves, a `templateKey` that is not one of the Patron's, a stream the world lacks, or
+ * an Encounter kind of the Patron's templates that content has no Encounter of.
  */
 export function generateQuest(
   world: World,
@@ -70,11 +77,20 @@ export function generateQuest(
     throw new RangeError(`${patron.id} offers no Quest template keyed ${JSON.stringify(given)}`);
   }
   const state = streamOf(world, options.stream ?? boardStream);
+  const sequenceState = streamOf(world, encounterStream);
+  // Checked for every template the Patron offers before any draw, so a throw changes nothing.
+  const pools = new Map(offered.map((template) => [template.key, encounterPools(template, content)]));
 
   const template = givenTemplate ?? pick(state, offered);
   const scale = (value: number): number => clamp(value, config.questDifficultyMin, config.questDifficultyMax);
   const difficulty = int(state, scale(template.difficultyMin), scale(template.difficultyMax));
   const durationDays = int(state, template.durationDaysMin, template.durationDaysMax);
+  // The sequence beside the Board's draws, from its own stream (M4-S1, DL-42).
+  const encounterKeys = drawSequence(
+    sequenceState,
+    pools.get(template.key) ?? [],
+    encounterCount(template, difficulty, config),
+  );
 
   const id = takeId(world, 'quests');
   const quest: Quest = {
@@ -88,7 +104,7 @@ export function generateQuest(
     durationTurns: durationDays * turnsPerDay,
     demands: template.demands.map(([statKey, weight]): Demand => [statKey, weight]),
     skillKeys: [...template.skillKeys],
-    encounterKeys: [],
+    encounterKeys,
     requirements: requirementsOf(template),
     lootTableKey: template.lootTableKey,
     status: 'offered',

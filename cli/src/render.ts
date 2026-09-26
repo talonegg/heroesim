@@ -10,20 +10,31 @@
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
-// printed Hero for it.
+// printed Hero for it. Regard is shown as its band, never its number (M4-S5): no view prints a
+// `RegardEntry`'s value, only the engine's `regardBand` word for it, nor a Relationship's (M4-S4).
+//
+// What the player sees is what the player's Guildmaster sees and pays (M4-S5): fees at their
+// Negotiation, hints through their Judgement.
 
 import {
   ageOf,
   baseStat,
   dayOf,
+  guildmasterOf,
+  guildmasterRegardForGuild,
+  judgedHintBands,
+  patronRegardFor,
   facilityKeys,
   nextImprovement,
   playerGuild,
+  regardBand,
+  regardValue,
   rankings,
   signingFee,
   signingRefusal,
   durationDaysOf,
   potentialHint,
+  relationship,
   timeOfDay,
   unattachedHeroes,
   upkeep,
@@ -33,10 +44,12 @@ import {
   type Entry,
   type FacilityKey,
   type Guild,
+  type Guildmaster,
   type Hero,
   type Patron,
   type Quest,
   type RankingMeasure,
+  type TraitEffect,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -160,7 +173,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       String(guild.rosterIds.length),
       String(guild.wealth),
       String(guild.fame),
-      String(upkeep(guild, world, config)),
+      String(upkeep(guild, world, config, content)),
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
     ]),
   );
@@ -305,7 +318,9 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
  */
 export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
   const guild = playerGuild(document.world);
-  const columns: HeroColumn[] = [{ heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) }];
+  // The fee the player's Guild would pay: its Guildmaster's Negotiation applied (M4-S5).
+  const buyer = guild === undefined ? undefined : guildmasterOf(guild, document.world);
+  const columns: HeroColumn[] = [{ heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps, buyer)) }];
   if (guild !== undefined) {
     columns.push({
       heading: 'Signs',
@@ -325,12 +340,18 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
 /**
  * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
  * Stats shown are base values, read through `baseStat`, each with its Potential hint beside it
- * under "Outlook", the word `potentialHint` gives (M3-S3).
+ * under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
+ * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
+ * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
+ * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads.
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
   const { world } = document;
   const guild = hero.guildId === null ? undefined : rowIn(world.guilds, hero.guildId);
+  const player = playerGuild(world);
+  const reader = player === undefined ? undefined : guildmasterOf(player, world);
+  const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
 
   const attributes: [string, string][] = [
     ['Sex', hero.sex],
@@ -361,7 +382,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     .map((stat) => {
       const area = stat.area === lastArea ? '' : capitalised(stat.area);
       lastArea = stat.area;
-      return [area, stat.name, String(baseStat(hero.stats, stat)), potentialHint(hero, stat.key, config)];
+      return [area, stat.name, String(baseStat(hero.stats, stat)), potentialHint(hero, stat.key, bands)];
     });
 
   const skillKeys = Object.keys(hero.skills);
@@ -370,6 +391,31 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
   ];
   const skills = inContentOrder.map((key) => [nameIn(content.skills, key), String(hero.skills[key])]);
+
+  // Relationships on the Roster (M4-S4): bands only.
+  const onRoster = guild?.rosterIds.includes(hero.id) === true;
+  const mates = (onRoster ? (guild?.rosterIds ?? []) : []).flatMap((id) => {
+    const mate = id === hero.id ? undefined : rowIn(world.heroes, id);
+    if (mate === undefined) return [];
+    return [
+      [
+        mate.id,
+        mate.name,
+        nameIn(content.classes, mate.classKey),
+        regardBand(regardValue(hero.regard, mate.id), config),
+        regardBand(relationship(hero.id, mate.id, world, config), config),
+      ],
+    ];
+  });
+  const relationships = onRoster
+    ? [
+        '',
+        'Relationships on the Roster',
+        ...(mates.length === 0
+          ? ['none']
+          : table([{ heading: 'Id' }, { heading: 'Hero' }, { heading: 'Class' }, { heading: 'Regard' }, { heading: 'Relationship' }], mates)),
+      ]
+    : [];
 
   return [
     `${hero.name} (${hero.id})`,
@@ -383,6 +429,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...(skills.length === 0
       ? ['none']
       : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+    ...relationships,
   ];
 }
 
@@ -423,16 +470,122 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
 
 // ── Patrons ──────────────────────────────────────────────────────────────────────────────────
 
-/** `show patrons`. */
+/**
+ * `show patrons`: each Patron, their Sphere and, when there is a player's Guild, their Regard for
+ * it as a band (M4-S5), which weighs on how often they post to the Board and recovers toward
+ * neutral with time.
+ */
 export function renderPatrons(document: WorldDocument, deps: EngineDeps): string[] {
   const patrons: Patron[] = Object.values(document.world.patrons);
+  const guild = playerGuild(document.world);
+  const regard = (patron: Patron): string[] =>
+    guild === undefined ? [] : [regardBand(patronRegardFor(patron, guild.id), deps.config)];
+  const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }];
+  if (guild !== undefined) columns.push({ heading: 'Regard for us' });
   return [
     'Patrons',
     '',
     ...table(
-      [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }],
-      patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey)]),
+      columns,
+      patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey), ...regard(patron)]),
     ),
+  ];
+}
+
+// ── The Guildmaster ──────────────────────────────────────────────────────────────────────────
+
+/** What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key. */
+const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
+  negotiation: 'the reward agreed and the fees paid',
+  inspiration: 'the Morale baseline of the Heroes',
+  coaching: 'the XP of the training yard',
+  influence: "the Regard a Patron's Quest earns",
+  judgement: 'how sharp the Potential hints read',
+});
+
+/** A Guildmaster Trait's effect in words (M4-S5): `+1 Weaponry to Warriors`, `Upkeep ×0.9`. */
+export function traitEffectWords(effect: TraitEffect | null, content: ContentSet): string {
+  if (effect === null) return 'no effect';
+  const signed = (n: number): string => (n > 0 ? `+${n}` : String(n));
+  switch (effect.kind) {
+    case 'classStatBonus':
+      return `${signed(effect.delta)} ${nameIn(content.stats, effect.statKey)} to ${nameIn(content.classes, effect.classKey)}s`;
+    case 'guildMoraleShift':
+      return `Morale baseline ${signed(effect.delta)}`;
+    case 'upkeepFactor':
+      return `Upkeep ×${effect.factor}`;
+  }
+}
+
+/**
+ * `show guildmaster [guildId]` (M4-S5, R8, R9): the Guildmaster of the player's Guild, or of the
+ * Guild named; their Stats and what each bears on, their Traits and what each does, and their
+ * Regard for every Patron, for each Hero on their Roster and for each other Guild in play, as
+ * bands and never as numbers (pre-M0 review B3). Regard for another Guild is Regard for its
+ * Guildmaster (`guildmasterRegardForGuild`), which nothing writes before M6.
+ */
+export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
+  const { world } = document;
+  const { content, config } = deps;
+  const guildmaster: Guildmaster | undefined = guildmasterOf(guild, world);
+  if (guildmaster === undefined) return [`${guild.name} (${guild.id}) has no Guildmaster.`];
+  const band = (value: number): string => regardBand(value, config);
+
+  const stats = Object.values(content.stats)
+    .filter((stat) => stat.owner === 'guildmaster')
+    .map((stat) => [stat.name, String(baseStat(guildmaster.stats, stat)), guildmasterRules[stat.key] ?? '']);
+  const traits = guildmaster.traits.map((key) => [
+    nameIn(content.traits, key),
+    traitEffectWords(rowIn(content.traits, key)?.effect ?? null, content),
+  ]);
+  const patrons = Object.values(world.patrons).map((patron) => [
+    patron.id,
+    patron.name,
+    nameIn(content.spheres, patron.sphereKey),
+    band(regardValue(guildmaster.regard, patron.id)),
+  ]);
+  const heroes = guild.rosterIds.flatMap((heroId) => {
+    const hero = rowIn(world.heroes, heroId);
+    if (hero === undefined) return [];
+    return [[hero.id, hero.name, nameIn(content.classes, hero.classKey), band(regardValue(guildmaster.regard, hero.id))]];
+  });
+  const others = Object.values(world.guilds)
+    .filter((other) => other.id !== guild.id && other.foldedOnTurn === null)
+    .map((other) => [
+      other.id,
+      other.name,
+      rowIn(world.guildmasters, other.guildmasterId)?.name ?? other.guildmasterId,
+      band(guildmasterRegardForGuild(guildmaster, other.id, world)),
+    ]);
+  const regardColumns = (kind: string, detail: string): Column[] => [
+    { heading: 'Id' },
+    { heading: kind },
+    { heading: detail },
+    { heading: 'Regard' },
+  ];
+
+  return [
+    `${guildmaster.name} (${guildmaster.id}), Guildmaster of ${guild.name} (${guild.id})`,
+    '',
+    ...fields([
+      ['Sex', guildmaster.sex],
+      ['Age', String(ageOf(guildmaster, world.turn, config))],
+    ]),
+    '',
+    'Stats',
+    ...table([{ heading: 'Stat' }, { heading: 'Value', align: 'right' }, { heading: 'Bears on' }], stats),
+    '',
+    'Traits',
+    ...(traits.length === 0 ? ['none'] : table([{ heading: 'Trait' }, { heading: 'Effect' }], traits)),
+    '',
+    'Regard for Patrons',
+    ...table(regardColumns('Patron', 'Sphere'), patrons),
+    '',
+    'Regard for Heroes on the Roster',
+    ...(heroes.length === 0 ? ['none'] : table(regardColumns('Hero', 'Class'), heroes)),
+    '',
+    'Regard for the other Guilds, through their Guildmasters',
+    ...(others.length === 0 ? ['none'] : table(regardColumns('Guild', 'Guildmaster'), others)),
   ];
 }
 
@@ -450,8 +603,8 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then what each demands and the Skills
- * that help (M2-S3).
+ * Patron, its terms and the last Day it stays on offer; then what each demands (M2-S3), the Skills
+ * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1, M4 verification).
  */
 export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -490,14 +643,38 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
     ),
     '',
     ...table(
-      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }],
+      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
       quests.map((quest) => [
         quest.id,
         quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+        skillsThatHelp(quest, content),
+        encounterKindsOf(quest, content),
       ]),
     ),
   ];
+}
+
+/**
+ * The Skills that help on a Quest: from M4 the Checks read its Encounters' Skills and not the
+ * template's (DL-42), so each Skill any of its Encounters names, once, in the order the Quest meets
+ * them, a key content lacks left out (rule 5). A Quest drawn before M4, whose Encounters are drawn on
+ * the way, shows its template's Skills, the kind of work it is.
+ */
+function skillsThatHelp(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
+  const keys =
+    quest.encounterKeys.length === 0
+      ? quest.skillKeys
+      : [...new Set(quest.encounterKeys.flatMap((key) => rowIn(content.encounters, key)?.skillKeys ?? []))];
+  return none(keys.filter((key) => Object.hasOwn(content.skills, key)).map((key) => nameIn(content.skills, key)));
+}
+
+/**
+ * The kinds of a Quest's Encounters in the order it meets them (M4-S1), so the player can see what
+ * kind of work it is; a Quest drawn before M4 has its sequence drawn when it resolves (DL-42).
+ */
+function encounterKindsOf(quest: Pick<Quest, 'encounterKeys'>, content: ContentSet): string {
+  if (quest.encounterKeys.length === 0) return 'drawn on the way';
+  return quest.encounterKeys.map((key) => rowIn(content.encounters, key)?.kind ?? key).join(', ');
 }
 
 // ── History ──────────────────────────────────────────────────────────────────────────────────

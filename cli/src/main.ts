@@ -38,10 +38,12 @@ import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
 import { recruitHero } from './commands/recruit.js';
 import { dispatchParty } from './commands/dispatch.js';
+import { previewParty } from './commands/preview.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { narrateStop, renderAdvance } from './narrate.js';
 import {
   renderBoard,
+  renderGuildmaster,
   renderGuilds,
   renderHall,
   renderHero,
@@ -122,6 +124,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return 'until' in command ? fastForwardTurns(command, context) : advanceTurns(command.turns, context);
     case 'recruit':
       return recruitHero(command.hero, context);
+    case 'preview':
+      return look(context, (document, deps) => previewParty(command, document, deps));
     case 'dispatch':
       return act(context, (document, deps) => dispatchParty(command, document, deps));
     case 'build':
@@ -185,6 +189,20 @@ function act(
   if (!outcome.ok) return refuse(io, outcome.problem);
   writeSave(path, outcome.document);
   return say(io, outcome.lines);
+}
+
+/**
+ * A command that only looks (M4-S5's `preview`): opens the save, asks `ask` of it under the save's
+ * own deps, and prints its lines or its problem. The save is never written.
+ */
+function look(
+  { io, content, path }: Context,
+  ask: (document: WorldDocument, deps: EngineDeps) => { ok: true; lines: string[] } | { ok: false; problem: string },
+): Exit {
+  const opened = open(io, path, content);
+  if (opened === undefined) return exitCodes.refused;
+  const answer = ask(opened.document, opened.deps);
+  return answer.ok ? say(io, answer.lines) : refuse(io, answer.problem);
 }
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────
@@ -274,6 +292,14 @@ function show(view: View, { io, content, path }: Context): Exit {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);
       return say(io, renderHero(hero, document, deps));
+    }
+    case 'guildmaster': {
+      const guild: Guild | undefined =
+        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
+      if (guild === undefined) {
+        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
+      }
+      return say(io, renderGuildmaster(guild, document, deps));
     }
     case 'history': {
       if (view.entityId === undefined) {

@@ -49,8 +49,9 @@ export type RecruitRejection =
   | InsufficientWealthRejection;
 
 /**
- * `guildId` signs `heroId` from the Unattached pool: deducts exactly `signingFee(hero, deps)` from
- * the Guild's Wealth, sets the Hero's `guildId`, takes them out of the pool (`unattachedSince`
+ * `guildId` signs `heroId` from the Unattached pool: deducts exactly `signingFee(hero, deps,
+ * guildmaster)`, the fee at the Guild's Guildmaster's Negotiation (M4-S5), from the Guild's Wealth,
+ * sets the Hero's `guildId`, takes them out of the pool (`unattachedSince`
  * null), appends them to the Roster, and emits `hero.recruited`, a Milestone naming the Hero and
  * the Guild. Wealth equal to the fee is enough.
  *
@@ -95,7 +96,9 @@ export function applyRecruit(
   if (refusal !== null) {
     return { ok: false, rejection: { action: 'recruit', reason: 'signing-refused', heroId, ...refusal } };
   }
-  const fee = signingFee(hero, deps);
+  // The fee this Guild pays: its Guildmaster's Negotiation applied (M4-S5, R8).
+  const buyer = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+  const fee = signingFee(hero, deps, buyer);
   if (guild.wealth < fee) {
     return { ok: false, rejection: { action: 'recruit', reason: 'insufficient-wealth', fee, wealth: guild.wealth } };
   }

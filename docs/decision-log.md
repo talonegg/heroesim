@@ -2465,6 +2465,637 @@ takes (the epic's risk table), are where a Rival's income should grow with its H
 then raise the wage, or give it a base and a smaller per-Level part (DL-36 item 10). M4's Quest
 Engine replaces the stub and its bands and calls for the next pass.
 
+## DL-42 — Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1, M4-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S1 and M4-S2's
+implementer)
+
+**Context.** M4-S1 names `content/encounters.json` and its row, the typed `Consequence` union, the
+templates' `encounterKinds` and `encountersMin/Max`, and the sequence drawn at generation from the
+new `encounters` stream and stored as `encounterKeys`, so that the Board a seed produces is
+unchanged (ADR-0009 as amended, pre-M0 review D7). INPUTS 6.1 says "count by difficulty", 2 to 5. It
+leaves open: how a consequence is written in JSON and what each kind does; what content validation
+refuses beyond the first box; how the count follows difficulty and how a slot's Encounter is
+drawn; which draws come first; and how a Quest saved before M4, whose `encounterKeys` is `[]`, is
+resolved. M4-S2 names `quest-engine/check.ts` and its capability, `resolveQuest` as the sequence,
+`quest.encounter`, the band from the count of successes, the stub's deletion and three config
+fields (INPUTS 6.2: best or summed weighted Stats, Skill rating × 2, a Synergy bonus, a ±20% roll
+from `quests`). It leaves open: where effective Stats come from before gear; the shape of the two
+terms M4-S3 and M4-S4 fill; what the working outcome holds and when a Party stops; the draws; the
+events' payloads; what becomes of the stub's five fields and of `quest.resolved`'s `score` and
+`ratio`; and the defaults, which the story asks a balance pass to set.
+
+**Decision.**
+
+1. **Twelve Encounters**, `content/encounters.json`, content table `encounters`: three `combat`
+   (`ambush-on-the-road`, `the-restless-dead`, `hold-the-line`), three `travel` (`the-long-march`,
+   `the-flooded-ford`, `lost-in-the-fells`), two `social` (`a-hostile-reeve`,
+   `the-patrons-steward`), two `arcane` (`the-sealed-door`, `a-restless-power`) and two `stealth`
+   (`past-the-watch`, `the-trapped-passage`). Fighting, marching and holding back a power are
+   `sum` (the whole Party bears it); finding a way, talking, opening a seal and slipping past are
+   `best` (one Hero does it). Harm is only on a failure. Each row is `{ name, kind, demands,
+   aggregate, skillKeys, difficultyFactor, consequences: { success, failure } }`, demands weighted
+   as a template's. The numbers are item 15's.
+2. **A consequence is a flat object with a `kind`**, `{ "kind": "injury", "typeKey": "deep-cut",
+   "chance": 0.2, "count": 1 }`, the engine's closed union `Consequence` (`content-types.ts`); a
+   new kind is an engine change. What each does, applied by the Quest Engine (M4-S2) to a working
+   outcome in sequence order:
+   - `injury { typeKey, chance, count }`: `count` times, with probability `chance`, one Hero is
+     injured with that type, drawn among the Party's living members who carry no Injury from this
+     Quest yet (a Hero comes home with at most one, as `hero.injury` holds one);
+   - `death { chance }`: with probability `chance` one living member dies and takes no part in the
+     rest of the sequence; an Injury they took earlier on the Quest is dropped (no Hero is both,
+     DL-29 item 5);
+   - `morale { delta }`: summed over the sequence, applied once to each Hero who comes home;
+   - `regard { between: "party", delta }`: summed into the outcome for M4-S4, which gives Regard
+     between Heroes its writer and band events; until then nothing applies it;
+   - `xp { factor }` and `wealth { factor }`: multiplied together over the sequence, then applied to
+     the Quest's XP and to its reward (which a failed Quest does not pay, so a wealth factor matters
+     only on a Quest that succeeds);
+   - `fame { delta }`: summed, beside the Quest's own Fame effect.
+3. **Content validation refuses** (the first box, and the rest of the row): a demand on an unknown
+   or Guildmaster Stat, a repeated one, one weighing 0 or less, weights not summing to 1 within
+   `demandSumTolerance`, or none; an unknown or repeated Skill; a `difficultyFactor` not above 0;
+   an injury consequence naming an unknown Injury type or a `count` below 1; a `chance` outside 0
+   to 1; a factor below 0; a kind, aggregate or consequence kind outside its choices; a field a
+   consequence's kind lacks; and in a template, no `encounterKinds`, one listed twice, one that is
+   not a kind, one no Encounter is of, or an `encountersMin/Max` range upside down or below 1. Morale
+   and Fame deltas are whole numbers; a Regard delta is any number, its scale being M4-S4's.
+4. **Template kinds and counts** (`quest-templates.json`): each template lists the kinds its tags
+   suggest, two or three, and counts rising with its difficulty: `the-sickness-at-the-mill` 2,
+   `escort-the-tithe`, `recover-the-strongbox` and `a-quiet-word` 2 to 3, `clear-the-barrow`,
+   `guard-the-caravan`, `the-beast-of-the-fells` and `survey-the-old-workings` 2 to 4,
+   `lay-the-restless-dead` 3 to 4, `hold-the-border-fort` and `the-counting-house-job` 3 to 5,
+   `break-the-sealed-vault` 4 to 5. A content test holds them to INPUTS 6.1's 2 to 5.
+   `contentVersion` becomes **6**; the engine's test content carries the same twelve keys and kinds.
+5. **The count follows difficulty, with no draw** (`encounterCount`): `encountersMin` at the bottom
+   of the template's difficulty range, `encountersMax` at the top, in proportion between, rounded
+   to the nearest whole number; the range is the one the difficulty was drawn over, held inside
+   `questDifficultyMin/Max`, and a range of one value gives `encountersMin`. "By difficulty" read
+   as a rule, not a chance: a harder Quest of a kind is always at least as long.
+6. **The draw.** After the Board's three draws (template, difficulty, Days — DL-25 item 4,
+   unchanged), `generateQuest` draws the sequence from `encounters` and no other stream, two draws
+   an Encounter: a kind uniformly among the template's `encounterKinds` as listed, then an Encounter
+   uniformly among content's of that kind in key order (`drawSequence`). A kind a Patron's
+   templates name that content has no Encounter of throws before any draw, as the generator's other
+   programming errors do. `encounters` joins `streamNames` after `quests` (ADR-0009's order); an old
+   save gains it through `ensureStreams`. **The Board is unchanged**: a test pins, from the engine
+   at M3's end, a seed's first Board, the Board after 30 Days of refreshes and expiries (no Rivals,
+   no Party sent) and the `board` stream's state then, and M4's engine draws them the same.
+7. **A Quest saved before M4** (its `encounterKeys` `[]`, offered or already taken) is resolved
+   through a sequence drawn when it resolves (`sequenceFor`), from `encounters`, by the same rule
+   and its template's kinds and count at its difficulty; for a template content no longer defines,
+   one Encounter drawn among all of content's. Drawing at resolution rather than at dispatch covers
+   Quests already away when the save is loaded, with one rule. A stored key content no longer
+   defines is left out, and a Quest left with none draws afresh; the validator warns of such a key
+   (`unknown-encounter`, data-model rule 5).
+8. **The Check** (`quest-engine/check.ts`): `capability(heroes, encounter, world, deps)` is, for
+   each demand, its weight times the best member's effective value of the Stat (`best`) or the
+   members' sum (`sum`); plus, for each of the Encounter's Skills, `skillBonusPerRating` times the
+   best rating any member holds, 0 when none does; plus the Synergy term; all times the teamwork
+   scalar. It takes `world` (for the teamwork scalar and effective Stats) and `deps`, not the epic's
+   `content, config`, as every entry point takes `deps`. A demand on a Stat, or a Skill, content no
+   longer defines counts for nothing (rule 5). `check(heroes, encounter, quest, world, deps)` rolls
+   `capability × (1 + r)`, `r` one draw from −`checkVariance` to +`checkVariance` from `quests`,
+   never below 0; succeeds when the roll is at least `difficultyFactor × quest.difficulty`; and
+   records `roll`, `target` and `margin = roll − target`.
+9. **Effective Stats are one selector**, `effectiveStats(hero, world, deps)` in `selectors.ts`:
+   every Hero Stat content defines, at its base (`baseStat`) until something modifies it. M5-S2 adds
+   gear there, and any other modifier belongs there (M4-S5's `classStatBonus` Trait effect names
+   `effectiveStats` too), so the Check and every view read one value. It takes the world, which
+   those modifiers read and nothing reads yet.
+10. **The two seams**, each a function in its own module returning its neutral value, with a
+    comment naming the story that fills it: **`synergyBonus(heroes, encounter, base, deps)`** in
+    `quest-engine/synergy.ts`, 0 until M4-S3, added to the capability before the scalar and given
+    `base` (the Stats and Skills term) so that a Synergy's `factor` can be read against it;
+    **`teamwork(heroes, world, deps)`** in `quest-engine/teamwork.ts`, 1 until M4-S4, multiplying
+    the whole. `heroes` is the Party's members still in the sequence.
+11. **The sequence** (`quest-engine/resolve.ts`): `resolveQuest(world, quest, party, deps)` returns
+    `{ outcome, encounters }`. For each Encounter in order, the living members are checked and the
+    outcome's consequences applied in content's order to a working outcome (item 2's rules). A
+    Hero killed takes no part in any later Check. **A Party with no one left stops**: the
+    Encounters it never reached are not checked, emit nothing, and count as not succeeded. The band
+    is `questBand(successes, the sequence's length, config)` over `bandBySuccessShare`
+    **`{ successAbove: 0.5, strongAtLeast: 1 }`**: all strong, a majority success, else fail, so a
+    Quest of two Encounters is strong or failed. M2's rules run through the band as before: the
+    reward on a success (times the wealth factors, rounded), nothing on a failure; the Fame effect
+    won or lost (plus the Encounters' Fame); XP by DL-36's `xpBandFactor` (times the XP factors,
+    rounded down); `moraleOnStrongSuccess` on a strong success; `moraleOnRosterDeath` for each Death.
+12. **Draws.** Everything but a pre-M4 Quest's sequence is drawn from `quests`: one draw a Check,
+    then, for each consequence of its outcome, three per `count` of an Injury (whether it lands, on
+    whom, its Days) and two for a Death (whether, on whom), taken whether or not they land, so tuning
+    a chance shifts no later draw. An Injury's Days are its type's range times
+    `infirmaryHealFactor` at the Guild's grade then, as DL-29 item 8. Parties resolve in id order.
+13. **Events.** `quest.encounter`, not a Milestone, one per Encounter checked, in sequence order,
+    all before `quest.resolved`: `{ questId, partyId, guildId, index, encounterKey, kind, roll,
+    target, margin, outcome, injured, died }` (`outcome` is `success` or `failure`), naming the
+    Quest, the Party, the Guild and any Hero it hurt. `quest.resolved`'s outcome loses the stub's
+    `score` and `ratio` and gains `successes`, `encounterCount`, `moraleDelta` and `regardDelta`.
+    `hero.morale-changed` gains the cause `encounters`: the Encounters' Morale, summed, one change a
+    Hero home, before any strong-success change, and none when the sum is 0. The CLI narrates
+    `quest.encounter` ("party-000004 failed at Ambush on the road: … was injured"), and `show board`
+    gains an Encounters column, each Quest's kinds in order ("drawn on the way" for a pre-M4 Quest).
+14. **The stub is deleted, and its fields leave the config**: `stubBands` for `bandBySuccessShare`,
+    `stubVariance` for **`checkVariance` 0.2**, `stubSkillBonusPerRating` for
+    **`skillBonusPerRating` 2** (INPUTS 6.2's ±20% and rating × 2), and `stubInjuryChance` and
+    `stubDeathChance` for each Encounter's consequences, which are content. A save's `meta.config`
+    that holds them keeps them, unread (data-model §2). Rivals resolve through the same engine: the
+    night's `questsConclude` resolves every Guild's Parties. `check.ts` names nothing of the
+    Guildmaster's, and a test reads the file to hold it so (M4's third risk).
+15. **The balance pass**, measured under the automatic policy (DL-34) on the core content, 16
+    seeds × 20 years, not validated, 16 processes (scratch runs, not committed; `countGame`'s
+    counters). *Before*, the engine at M3's end (v1.0-dev `8229670`, the stub, config version 3):
+    no game ended; the player failed 40.3% of 91,598 Quests, succeeded 37.3%, strongly 22.4%; the
+    Rivals 8.4% / 27.0% / 64.5% of 374,113; a game, the player's Heroes injured 1,110 times, 113
+    died, 117 recruited; the Rivals' 1,410, 100 and 749; Rivals folded 27.6 times a game; the
+    player's Roster at a mean Level 5.34. (DL-34's M2 run: the player 52.2 / 33.4 / 14.4, 797
+    injured, 88 died; the Rivals 11.7 / 33.4 / 54.9, 1,480 and 110.) *Trials*, 8 seeds × 3 to 5
+    years: the first factors (`sum` 0.3, `best` 0.18) bankrupted both of 2 seeds within a year, the
+    player failing 62% at Level 1; factors × 0.8 made two of every five Quests strong and halved
+    the Deaths; × 0.9 and × 0.85 with twice the Death chance gave 7 Deaths a year; a variance of 0.3
+    moved the bands by a point, so INPUTS 6.2's 0.2 stays. *Chosen*: every `sum` Encounter's
+    `difficultyFactor` **0.25** and every `best` Encounter's **0.15**; a Death's chance **0.03**
+    (on the three `combat` Encounters, `a-restless-power` and `the-trapped-passage`); Injury
+    chances **0.08 to 0.25**, one Hero a time but `hold-the-line`'s two. *After*: no game ended;
+    the player failed 37.5% of 91,808 Quests, succeeded 22.4%, strongly 40.2%; the Rivals 18.9% /
+    15.6% / 65.5% of 351,163; a game, the player's Heroes injured 931 times, 79 died, 83 recruited;
+    the Rivals' 2,080, 180 and 446; Rivals folded 20.9 times; the player's mean Level 5.34. The
+    player's Encounters succeeded 56% (`arcane`) to 69% (`stealth`), the Rivals' 75% to 82%.
+    Validated after every advance, 4 seeds × 2 years: no refusal, no warning. **`configVersion`
+    goes from 3 to 4** (the stub's defaults removed, the Quest Engine's added); no other default
+    changes.
+
+**Consequences.** Every Quest drawn from M4 on carries two to five Encounter keys, which `show
+board` shows before dispatch. The `encounters` stream moves only when a Quest is generated or a
+pre-M4 Quest resolves. The Quest template's own `demands` and `skillKeys` stay: `partyFor` (the
+Rival controller's and the policy's staffing rule) and `show board` read them, and the Check reads
+the Encounters' instead. A save made before this entry plays under config version 3 until the player
+rebases, and a loaded game resolves through the Encounters whatever its config, the stub's fields
+being unread.
+
+What the pass leaves for the owner: the player's Deaths fall to 79 a game, near M2's 88; the
+Rivals', who take four times the Quests on the easiest terms, rise to 180. Success and strong
+success have swapped places beside M2 (22% and 40%): a Party's Checks on one Quest share its Stats
+and its difficulty, so they tend to go all one way, and a Quest of two Encounters has no plain
+success; `bandBySuccessShare` is the dial, and the epic's "all strong, majority success" its
+default. The player's Wealth still grows without end (137,000 after 20 years, 207,000 before), which
+is M3's close to tune. **The History grows by about half** (283,610 entries a 20-year game, 201,677
+before): a `quest.encounter` for each of about three Encounters a Quest, as the epic asks; a lighter
+entry is the lever if §7's save size is chased. A game's Turns cost no more (a 3-year game alone:
+24.2 s before, 21.2 s after).
+
+**For M4-S3, M4-S4 and M4-S5.** M4-S3 fills `synergyBonus` and adds the Synergy keys to
+`quest.resolved`; M4-S4 fills `teamwork` and applies `outcome.regardDelta` (the Encounters' Regard,
+summed) beside `regardPerSharedQuest` with its band events; M4-S5's `classStatBonus` goes in
+`effectiveStats`. **For the M4-close counter task**: encounter outcomes by kind and outcome are the
+`quest.encounter` entries by `payload.kind` and `payload.outcome`, split by the controller kind of
+`payload.guildId`'s Guild (the harm each kind does is in its `injured` and `died`); Injuries by type
+are the `hero.injured` entries by `payload.typeKey`, joined to the Guild as DL-34 item 4 joins them.
+
+## DL-43 — Requirements by reason, Patron Regard and the Board, the Guildmaster's Stats and Traits, and Guildmaster Regard (M4-S5)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S5's implementer)
+
+**Context.** M4-S5 asks for a reason on `dispatch`'s `requirement-unmet` (`class`, `skill`,
+`party-size`) and a CLI `preview`; Patron Regard for each Guild written on Quest outcomes (+1, −2,
+and −1 "when their offer expires untaken by anyone"), a Board refresh weighting Patrons by their
+mean Regard across Guilds (closing DL-25's uniform draw), and a nightly recovery toward neutral
+(pre-M0 review B5); one rule for each Guildmaster Stat, Guild-side and inside the selector or phase
+the table names (R8, B6, D9, INPUTS 6.5); the closed Trait effect union with the six starter
+Traits' effects (B2, INPUTS 3.13); Guildmaster Regard writers for Patrons and Roster Heroes with
+band-crossing events and "Regard for a Guild is a selector over Regard for its Guildmaster" (B3);
+and `show guildmaster`. It leaves open: the shape of the reason; Regard's scale and bands, which
+M4-S4 names (`regardBands`) but this story needs first; how an expiry "untaken by anyone" is
+charged across Guilds; how the mean weights the draw; what "within 1 / `patronRegardRecoveryPerYear`
+years" makes the rate's unit; how each Stat reads "across the Stat range" and "up to"; what
+"narrowing" hint bands means; where Negotiation meets the reward; the Traits' effects when INPUTS
+3.13's example gives Miser two; and how the 50-seed acceptance is run.
+
+**Decision.**
+
+1. **Requirements by reason.** `requirement-unmet` carries `unmet: UnmetRequirement[]`, every
+   requirement the Party misses in the order party size, Class, Skill, each named by
+   `requirement: 'party-size' | 'class' | 'skill'` with its detail (`size`, `partySizeMin/Max`;
+   `classKey`; `skillKey`). The separate `party-size` rejection of M2-S4 is folded into it, as the
+   epic lists party size among the reasons: `dispatch`'s checks are now `guild-folded`,
+   `quest-not-offered`, `hero-not-on-roster`, `hero-unavailable`, `requirement-unmet`. The one test
+   is `unmetRequirements(quest, party)` (actions/dispatch.ts), which the CLI's `preview` reads too.
+2. **One Regard scale for every holder**, `regardMin` −20 to `regardMax` 20, neutral 0 (absence),
+   and one set of bands, `regardBands` `{ hostile: −20, cool: −12, neutral: −4, warm: 4, close: 12 }`,
+   read as Morale's are (the highest start reached). M4-S4's Regard between Heroes is meant to
+   share both; its story may retune them. `adjustRegard` holds a value in the scale and sets
+   `since` and `reason` (an event type: `quest.resolved`, `quest.expired`); a drift leaves them, and
+   an entry drifted back to 0 is removed. **Every** Regard change, discrete or drift, emits its event
+   only on a band crossing, as the epic has M4-S4's `hero.regard-changed` do.
+3. **Where Regard is kept.** A Patron's Regard for a Guild is `patron.regard[guildId]`, as the
+   M1 fixture already had it. "Regard for a Guild is a selector over Regard for its Guildmaster" is
+   read as R9's Guildmaster Regard for a Guild: `guildmasterRegardForGuild(guildmaster, guildId,
+   world)` returns their Regard for that Guild's Guildmaster, and nothing is stored under a Guild's
+   id in a Guildmaster's map. Guildmaster Regard is keyed by the Patron's, Hero's or (M6-S2)
+   Guildmaster's id.
+4. **The writers** (regard.ts), for every Guild alike, player's and Rivals' (ADR-0002). A success is
+   any band but `fail`. On a resolution (`questsConclude` calls `regardOnQuestResolved`): the
+   Patron's Regard for the Guild `patronRegardOnSuccess` 1 × Influence, or `patronRegardOnFailure`
+   −2; the Guildmaster's Regard for the Patron `guildmasterRegardOnPatronSuccess/Failure` 1 / −1;
+   and for each Hero of the Party home on the Roster (the dead excluded) `…OnHeroSuccess/Failure`
+   1 / −1. **An offer expiring untaken** costs `patronRegardOnExpiry` −1 with **every Guild in
+   play**: no Guild took it, so each passed it over and each is charged alike; a folded Guild is out
+   of play and is not. The alternative, only the Guilds that could have staffed it, would need a
+   staffing test for every Guild at every expiry and gives the same mean in the common case.
+   Events: `patron.regard-changed` `{ patronId, guildId, cause, before, after, bandBefore,
+   bandAfter }` naming the Patron and the Guild, `cause` one of `quest-success`, `quest-failure`,
+   `offer-expired`, `recovery`; `guildmaster.regard-changed` `{ guildmasterId, guildId, entityId,
+   cause, before, after, bandBefore, bandAfter }` naming the Guildmaster, the entity and the
+   Guildmaster's Guild. Neither is a Milestone.
+5. **The Board's weighting** (R22). Each refresh reads, once, after its expiries, each Patron's mean
+   Regard across the Guilds in play and draws Patrons in proportion to
+   `max(0, 1 + boardRegardWeight × mean / reach)`, the reach being `regardMax` for a positive mean
+   and −`regardMin` for a negative one. **`boardRegardWeight`** is a new field, default 1: a Patron at
+   the scale's top posts twice as often as one at neutral, one at its bottom never; 0 restores
+   DL-25's uniform draw. The draw is `weightedPick` (rng.ts, one draw), which with every weight 1 draws
+   what `pick` draws: a new world opens on the Board it opened on before this story, and a seed's
+   Boards change only once Regard moves, which is expected.
+6. **The Patron State Engine** is the night phase `patronState`, after `guildState` and before
+   `poolRefresh` (approach §2). Each night every Patron's Regard for each Guild in play moves toward
+   neutral by `patronRegardRecoveryPerYear` × the scale's reach ÷ the year's nights, from either
+   side, and stops there. The rate is a **share of the scale's reach a year**, so that the epic's
+   bound holds for any start: even the scale's end is neutral within 1 / `patronRegardRecoveryPerYear`
+   years. Default **0.5** (ten points a year): a bad year is gone within two.
+7. **The Guildmaster's Stats** (guildmaster.ts). Each rule reads where the Stat falls between its
+   content `min` and `max`: Negotiation from −1 at the bottom to +1 at the top ("±10% across the
+   range", INPUTS 6.5), the other four from 0 at the bottom to 1 at the top ("up to"). A Stat content
+   does not define has no effect. Defaults: **`negotiationRange` 0.1** (INPUTS 6.5),
+   **`inspirationMoraleShift` 10**, **`coachingFactor` 0.5**, **`influenceFactor` 0.5**,
+   **`judgementHintSharpening` 0.25**. Where each lives:
+   - *Negotiation* at dispatch: `applyDispatch` writes the reward agreed,
+     `negotiatedReward(reward, guildmaster)` rounded, onto the Quest it takes, which the Quest Engine
+     pays on a success; `quest.taken` carries it as `reward`. And in `signingFee(hero, deps, buyer)`,
+     × (1 − the same), before the fee's one rounding down: `recruit` passes the buying Guild's
+     Guildmaster, `cheapestUnattached` does so given a Guild (so `steady` and the automatic policy
+     pay the same price), and the Roster wiped ending now prices a way back at the Guild's own fee
+     (`cheapestUnattached(world, deps, guild, heedFame = false)`, keeping DL-38 item 6). With no
+     buyer it is the list price, which only callers from before this story ask for. M6-S2's
+     `transferFee` multiplies by the same `feeFactor`.
+   - *Inspiration* and `guildMoraleShift` Traits in `moraleBaselineFor(hero, world, config,
+     content)`, the sum rounded to a whole number so that Morale stays whole.
+   - *Coaching* in `training`: `xpPerTrainingDay × grade × (1 + up to coachingFactor)`, rounded down,
+     as Quest XP is.
+   - *Influence* on the gains in a Patron's Regard for the Guild only; losses are not scaled.
+   - *Judgement* by `judgedHintBands`: each start of `potentialHintBands` × (1 − up to
+     `judgementHintSharpening`). "Narrowed" is read literally: every band but the open last one is
+     narrower, so a sharper judge calls a smaller gap promising or exceptional. `potentialHint` is
+     unchanged (DL-37 item 4); `show hero` passes the player's Guildmaster's bands.
+8. **The Trait effects**: the closed union `classStatBonus { classKey, statKey, delta }`,
+   `guildMoraleShift { delta }`, `upkeepFactor { factor }` (`TraitEffect`, content-types.ts), one
+   effect a Guildmaster Trait, none a Hero Trait; content validation refuses an unknown kind or
+   field, a Class or Hero Stat content lacks, a bonus or shift of 0, a factor of 0 or less, a
+   Guildmaster Trait without an effect and a Hero Trait with one. The six: *Old soldier* +1 Weaponry
+   to Warriors, *Well liked* Morale baseline +5, *Thrifty* Upkeep ×0.9 (buffs); *Miser* Morale
+   baseline −5, *Spendthrift* Upkeep ×1.1, *Mistrusts magic* −1 Arcana to Mages (penalties). INPUTS
+   3.13's example gives Miser both Upkeep ×0.9 and baseline −5; the epic allows one effect a Trait,
+   so Miser keeps the penalty and Thrifty carries the saving. `contentVersion` is **6**; the
+   engine's test content carries the same six. `classStatBonus` is applied in **`effectiveStats(hero,
+   world, content)`** (selectors.ts), held inside the Stat's range, for Heroes of the Class on the
+   Guildmaster's Guild; M4-S2's check, built in parallel, should read Stats through it (the stub in
+   `quest-engine/`, which this story does not touch, still reads base Stats). `upkeepFactor` is in
+   `upkeep(guild, world, config, content)`, the product rounded to a whole Wealth; `content` is
+   optional so that tests written before this story still compile, and every rule, controller and
+   front end passes it (the harness's policy included).
+9. **The CLI.** `show guildmaster [guildId]` prints the Guildmaster's Stats with what each bears on,
+   their Traits with each effect in words, and their Regard for every Patron, each Hero on the
+   Roster and each other Guild in play (through its Guildmaster), as bands only; `show patrons` adds
+   each Patron's Regard for the player's Guild as a band; `preview --quest --heroes` prints each
+   requirement met or missed, any Hero who cannot go, the reward agreed and `dispatch`'s own verdict
+   (its rule run on a copy), writing nothing, as a list of sections M4-S3 extends with Synergies;
+   `dispatch` prints the reward agreed. `narrate` has a line for each new event, naming bands only.
+10. **The 50-seed acceptance** is an engine test (`phases/patron-offers.test.ts`), as the
+    orchestrator asked, not a harness run: 50 seeds, a year each of the Board refresh and the
+    Patron State Engine, the player taking every Quest two chosen Patrons post, one's always failing
+    and the other's always succeeding, the rest expiring. The failing Patron offered 1,082 Quests in
+    all against 56,445, fewer in every seed.
+11. **Versions.** `configVersion` stays 3: fields are added and no default changes (DL-38's reading).
+
+**Consequences.** Tests that watch a fee, a Morale baseline or training XP pin
+`negotiationRange`, `inspirationMoraleShift` or `coachingFactor` to 0, or clear the generated
+Guildmasters' Traits, and say so; `effectiveStats` and M4-S2's own Stats selector are to be
+reconciled at merge. A scratch run of the automatic policy (4 seeds × 3 years, default config)
+saw about 8% of offers expire, no Patron silent in years 0 to 2, 101 to 213 offers per Patron in
+year 2, most Patrons neutral or cool with the Rivals and cool or hostile with the player, and the
+player's Guildmaster's Regard mostly warm or close by year 3 (nothing decays it): the M4 counters
+should watch these. **For the M4-close counter task:** *Patrons silent* reads
+`history.byType['quest.offered']` by `payload.patronId` per year of `turn` and counts the Patrons
+with none, over the years the game played through whole; *the player's Guildmaster's
+Regard band distribution at year 10* is `regardBandCounts(guildmaster.regard, config)` on the world
+at Turn `10 × turnsPerYear` (or the crossings in `guildmaster.regard-changed`, `bandAfter` by
+`entityId`), split by the entity's table (Patrons, Heroes).
+
+## DL-44 — Merging M4-S2's Quest Engine with M4-S5's Guildmaster rules: one effective Stats selector, content version 7
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 integration merge)
+
+**Context.** M4-S1 and M4-S2 (DL-42) and M4-S5 (DL-43) were built in parallel from v1.0-dev
+`8229670`. Each added an `effectiveStats` selector to `selectors.ts`: M4-S2's `(hero, world, deps)`,
+base Stats only, which its Check reads; M4-S5's `(hero, world, content)`, which applies the
+Guildmaster's `classStatBonus` Traits and which nothing but its own tests read, since the stub it
+knew still read base Stats. Both raised `contentVersion` to 6 for different content. M4-S5 folded
+`party-size` into `requirement-unmet`'s `unmet[]` and wrote Patron and Guildmaster Regard from the
+stub's outcome in `questsConclude`, which M4-S2 had rewritten around the Encounter sequence. M4-S5's
+Board weighting by Patron Regard moved a Board that M4-S2 pins as M3's.
+
+**Decision.**
+
+1. **One `effectiveStats(hero, world, content)`**, in `selectors.ts`: M4-S5's body (base Stat plus
+   the Class Stat bonuses of the Guildmaster of the Hero's Guild for the Hero's Class, held inside
+   the Stat's range; a Hero on no Roster, or of a Guild whose Guildmaster has no row, has only their
+   base) under M5-S2's epic signature `(hero, world, content)`, which M5-S2 extends with gear. M4-S2's
+   `(hero, world, deps)` is gone, superseding DL-42 item 9's signature, not its rule: the Check's
+   `capability` reads every member's Stats through it (`effectiveStats(hero, world, content)`), so a
+   Guildmaster Trait's Class Stat bonus now moves Quest outcomes for that Guild's Heroes of that
+   Class and no other, every Guild alike. `check.ts` still names nothing of the Guildmaster's (M4's
+   third risk): the rule lives in the selector. A base Stat is always inside its range, so for a
+   Guild with no such Trait the Check reads what DL-42 measured. Tests: `check.test.ts` shows Old
+   soldier lifting the capability of its own Guild's Warrior by 1 and turning a Check at the edge,
+   and nobody else's, for the player's Guild and a Rival's; Mistrusts magic lowering its own Mages'
+   Arcana only.
+2. **`contentVersion` is 7**: the core content holds both M4-S1's Encounters and M4-S5's Trait
+   effects, which no version 6 held. **`configVersion` stays 4** (DL-42): the merge changes no
+   default.
+3. **Requirements.** The Quest Engine tests no requirement: `dispatch` alone does, through
+   `unmetRequirements` (DL-43 item 1). The staffing rule `partyFor`, which `steady` and the
+   harness's policy share, is held to it by a test (`rival.test.ts`): every Party it names meets
+   `unmetRequirements`, size, Class and Skill, so neither is refused on `party-size`, now one
+   reason among `unmet[]`.
+4. **Patron and Guildmaster Regard are written once per resolved Quest**, in `questsConclude`'s
+   `conclude`, after the Encounter sequence's outcome is applied: `regardOnQuestResolved` with
+   `succeeded` for any band but `fail` of DL-42 item 11's `questBand`, the Heroes home on the Roster,
+   for every Guild's Party alike. A test (`quests-conclude.test.ts`) resolves a strong and a failed
+   Quest for the player's Guild and for a Rival's and finds the Patron's Regard for that Guild moved
+   by `patronRegardOnSuccess` or `patronRegardOnFailure` once, the Guildmaster's for the Patron by
+   one writer's delta once, and no other Guild's Regard moved.
+5. **The Encounters' Regard stays unapplied.** `outcome.regardDelta` (the Encounters' `regard`
+   consequences, summed, between Heroes) is M4-S4's to apply (DL-42 item 2); M4-S5's writers read
+   the band, never `regardDelta`, so nothing is counted twice. M4-S4 applies it on DL-43 item 2's
+   scale and bands, or retunes them.
+6. **The pre-M4 Board test pins `boardRegardWeight` 0.** Offers expiring over its 30 Days move
+   Patron Regard, which DL-43 item 5's weighting reads, so the Patrons drawn change, as DL-43
+   expects; with the weight at 0 (DL-25's uniform draw) the pinned Board, and the `board` stream's
+   state, are M3's still, which is what the test holds M4-S1's new stream to.
+
+**Consequences.** DL-42's balance pass was measured without M4-S5's rules: the reward agreed
+through Negotiation (±10%), the six Traits (Old soldier's Weaponry and Mistrusts magic's Arcana
+now reach the Check; Thrifty and Spendthrift move Upkeep), Coaching, and the Board's weighting. Only
+a smoke run is made here: 4 seeds × 5 years, the automatic policy, validated after every advance.
+The M4 close's balance pass measures them together.
+
+## DL-45 — Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S3's implementer)
+
+**Context.** M4-S3 names `content/synergies.json` and its row `{ key, name, requires: { classes?:
+Record<ClassKey, count>, skills?: SkillKey[] }, bonus: { flat?, factor? }, kinds?: EncounterKind[] }`,
+six starter Synergies written by the agent (INPUTS 6.4: "e.g. Warrior + Healer, Rogue + Mage, three
+Warriors"), a `synergiesFor(party heroes, content)` selector, the bonus applied in the Check through
+DL-42's seam `synergyBonus(heroes, encounter, base, deps)`, `quest.resolved` listing the Synergy keys
+that applied and nothing emitted per Encounter, and a CLI view of a proposed Party's Synergies, which
+the box calls `show party` and M4-S5 built as `preview --quest --heroes` for this story to extend
+(DL-43 item 9). It leaves open: what meeting a count or a Skill means; what `factor` is, and how
+`flat`, `factor`, `base` and several Synergies combine; which members are matched on an Encounter;
+what "applied" means for the Quest's list; what content validation refuses; and the values.
+
+**Decision.**
+
+1. **The match** (`quest-engine/synergy.ts`, beside the seam; exported from the engine). A Party
+   meets a Synergy (`meetsRequirement`) when it has **at least** the count named of each Class, and
+   each Skill named is held, at any rating, by at least one member; different members may hold
+   different Skills, and a Hero counts once, for their Class. `synergiesFor(heroes, content)` is
+   every Synergy met, in key order, whatever the Encounter: the selector a front end shows for a
+   proposed Party. `synergiesOn(heroes, encounter, content)` narrows it to those whose `kinds` hold
+   the Encounter's kind, or that name none (`appliesOn`: every kind). `synergiesFor` lives with the
+   seam rather than in `selectors.ts`, as `unmetRequirements` lives with `dispatch`.
+2. **The bonus.** `factor` is a **multiplier**, as every `factor` in content is (the Encounters' `xp`
+   and `wealth` consequences, `upkeepFactor`): 1.1 is +10%. On an Encounter, the factors of the
+   Synergies that apply are **multiplied together and scale `base`** (the capability's Stats and
+   Skills term) and nothing else; their **`flat`s are summed and added unscaled**; a missing `factor`
+   is 1 and a missing `flat` 0. The seam returns `base × (∏ factor − 1) + Σ flat`, so the capability
+   is `(base × ∏ factor + Σ flat) × teamwork` (DL-42 item 10). No Synergy's bonus is read against
+   another's, so the order Synergies are listed in never matters; a flat is worth the same to any
+   Party, a factor more to a stronger one. Multiplying the factors follows the Encounters' factors
+   (DL-42 item 2); with the starter values, multiplying and adding differ by under half a point of
+   capability. No config field: a Synergy's numbers are content (principle 6).
+3. **Who is matched**: the members still in the sequence, whom the Check reads (DL-42 items 10, 11).
+   A Synergy lost with a member who died adds to no later Encounter.
+4. **The Quest's record.** `QuestOutcome.synergyKeys`, and so `quest.resolved`'s payload, lists each
+   Synergy that added to at least one Check of the sequence (met by the members checked, on an
+   Encounter of its kinds), once, in key order, `[]` for none. A Synergy the Party met only on kinds
+   its Quest did not have is not listed. `quest.encounter` gains nothing (the epic: "emits nothing
+   per encounter"). The event type makes the field optional: an entry written before this story lacks
+   it, and reads as none. The CLI's narration of `quest.resolved` names them ("Synergies: Shield wall,
+   Sword and salve."), and says nothing when there are none.
+5. **Content validation refuses** (the parser the shape, `validateContent` the rest): a requirement
+   naming no Class and no Skill; a Class or Skill content lacks; a count that is not a whole number
+   from 1; a Skill listed twice; a bonus with neither `flat` nor `factor`; a `flat` of 0 or less; a
+   `factor` of 1 or less, a Synergy being a bonus and a factor a multiplier, so that a factor written
+   as a share (0.1 meaning +10%) is caught; `kinds` listed empty (it is left out for every kind),
+   naming a kind that is not one of the five, or naming one twice; and a field the row, its
+   `requires` or its `bonus` does not have. `synergies.json` is required and may be `{}`. A Synergy no
+   Party could meet (counts above every template's Party size) is not refused.
+6. **The six** (`content/synergies.json`, table `synergies`); the engine's test content carries the
+   same six, and no earlier test's outcome changed with them:
+
+   | Key | Requires | Bonus | Kinds |
+   | --- | --- | --- | --- |
+   | `sword-and-salve` | a Warrior and a Healer | +2 | combat, travel |
+   | `shadow-and-spell` | a Rogue and a Mage | ×1.1 | stealth, arcane |
+   | `shield-wall` | three Warriors | ×1.15 | combat |
+   | `a-full-company` | one of each Class | +1 and ×1.05 | every kind |
+   | `wards-and-blessings` | Warding and Benediction | +3 | arcane, combat |
+   | `scouting-ahead` | Tactics and Stealth | +2 | travel, stealth |
+
+   Against DL-42's scale (a `sum` Encounter's target is 0.25 × difficulty, a `best` one's 0.15 ×,
+   and a Party's base is a few tens on `sum`, ten to twenty on `best`), a flat of 2 or 3 is worth
+   about 5 to 20% of a capability and a factor its stated share. **`contentVersion` becomes 8**;
+   **`configVersion` stays 4**, no config field being added or changed.
+7. **The preview.** `preview --quest --heroes` gains a Synergies section: each Synergy the named Heroes
+   would have (`synergiesFor`), its bonus, its kinds, and how many of the Quest's drawn Encounters are
+   of them ("Sword and salve: +2 on combat and travel Encounters; 2 of this Quest's 3."), "drawn on
+   the way" for a Quest drawn before M4 (DL-42 item 7), or "None: this Party meets no Synergy." This
+   meets the epic's `show party` box, as DL-43 item 9 intended.
+8. **The balance check** (scratch runs, not committed): 12 seeds × 5 years under the automatic
+   policy (DL-34) and the default config, the core content with its six Synergies and with none,
+   the run with them validated after every advance (no refusal, no warning, no policy action
+   refused). *With them*: a Synergy applied on 17.3% of the player's 18,373 Quests (0.18 a Quest:
+   3,031 Quests with one, 149 with two) and on 15.0% of the Rivals' 70,834 (0.15 a Quest); by key,
+   the player's Sword and salve 1,383, Scouting ahead 821, Shadow and spell 807, Shield wall 204,
+   Wards and blessings 114, and A full company never (`partyFor`, which the policy and `steady`
+   share, sends the fewest Heroes a Quest allows, one to three in the core templates, so never four
+   of four Classes). *Shift*: the player's Quests
+   succeeded 60.6% without and 62.9% with (strong 38.9% to 41.3%, failed 39.4% to 37.1%), its
+   Encounters 60.9% to 63.3%; the Rivals' Quests 82.9% to 83.0%, their Encounters 80.6% to 80.8%; the
+   player's Deaths a game 22.3 to 21.2, its Injuries 264 to 239. A bonus on about one Quest in six
+   that moves success by two points is a flavour, not a new balance, so **no value was adjusted**; a
+   player who composes Parties for them will see more, which is the point of showing them in
+   `preview`.
+
+**Consequences.** A Party's Classes and Skills now move its Checks beyond its Stats, for every Guild
+alike (ADR-0002); neither the automatic policy nor `steady` chooses a Party for its Synergies
+(`partyFor` staffs by the template's demands), so the rates above are what chance composition earns,
+and a Synergy-seeking policy would earn more. A new Synergy is a content change with no engine change
+(principle 6); a new kind of bonus is an engine change and earns a decision. The M4 close's balance
+pass measures Synergies beside M4-S4's teamwork. **For the M4-close counter task**: *Synergies
+applied per Quest* is, for each `quest.resolved` entry, the length of `payload.synergyKeys` (absent,
+in an entry from before this story, is none), reported as the share of Quests with at least one, the
+mean per Quest and the count by key, split by the controller kind of `payload.guildId`'s Guild, as
+DL-34 item 4 joins entries to Guilds.
+
+## DL-46 — Regard between Heroes: its writer, its decay and the dead; Relationship; the teamwork scalar (M4-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S4's implementer)
+
+**Context.** M4-S4 gives Regard between Heroes its first writer (after a Quest every pair of the
+Party gains `regardPerSharedQuest`, more on success), emitting `hero.regard-changed` only on a band
+crossing; `relationship(a, b, world)`, the mean of the two Regards, clamped, never stored;
+`teamwork(party, world, config)`, a scalar over the Party's mean pairwise Relationship (INPUTS 6.3:
+×0.9 to ×1.1 across the Relationship range); and, in the night's `heroState`, decay toward neutral
+at `regardDecayPerYear` for pairs who have not shared a Quest that year. DL-42 left the Encounters'
+`regard` consequences summed in `outcome.regardDelta`, applied by nothing, and the `teamwork` seam
+at 1; DL-43 set one Regard scale and one set of bands for every holder. The story leaves open:
+whether a Hero killed on the Quest takes part; what "that year" means and the decay rate's unit;
+what becomes of the Regard of, and for, dead, retired and Unattached Heroes; a Party of one's
+teamwork; the event's shape; the defaults; and whether `show hero` shows Regard.
+
+**Decision.**
+
+1. **One scale.** Regard between Heroes and the Relationship read from it use DL-43's `regardMin`
+   −20 to `regardMax` 20 and its `regardBands` (hostile, cool, neutral, warm, close) unchanged, and
+   its `adjustRegard`, `recoverRegard` and `regardBand`; no second scale. New module
+   `hero-regard.ts`.
+2. **The writer** (`regardOnSharedQuest`), called by `questsConclude` after the Patron's and the
+   Guildmaster's Regard (DL-44 item 4), for every Guild's Party alike: once for each resolved Quest,
+   each Hero who came home alive gains, for each other who did, **one** change of
+   `regardPerSharedQuest` + `regardOnSuccessBonus` (for any band but `fail`) + `outcome.regardDelta`
+   (the Encounters' Regard, now applied, closing DL-42 item 2 and DL-44 item 5). One `adjustRegard`
+   each way, so a Quest makes at most one event each way; `since` is the return night and `reason`
+   `quest.resolved`, even for a change of 0 (the two shared the Quest, which the decay reads).
+3. **The dead take no part.** A Hero killed on the Quest gains no Regard and nobody's for them
+   moves: Relationship with the dead is never read (no Party can hold them), and writing it would
+   only grow the maps and the History. Their own map stays as it stood (rule 8: dead Heroes stay,
+   with their State).
+4. **`hero.regard-changed`** `{ heroId, entityId, cause, before, after, bandBefore, bandAfter }`,
+   `cause` `shared-quest` or `decay`, one entry for each Hero whose Regard crossed: Regard is held
+   one way, and a pair's two values part once one of them leaves the Roster. It names both Heroes
+   (and, through `emit`, their Guilds); not a Milestone. `entityId` is any entity, as
+   `guildmaster.regard-changed`'s is, so that a later writer of a Hero's Regard for another kind of
+   entity shares the event.
+5. **The decay** (`decayHeroRegard`), in the Hero State Engine after Morale drift, for each Hero on
+   the Roster of a Guild in play, every Guild alike. "Not shared a Quest that year" is read as **a
+   whole year, `turnsPerYear` Turns, since the entry's `since`**, the last shared Quest, not a
+   calendar year, so two Heroes home on a year's last night do not begin to drift on the next. From
+   then on each night moves the value toward neutral by `regardDecayPerYear` × the scale's reach ÷
+   the year's nights, the unit of DL-43's `patronRegardRecoveryPerYear`; it stops at neutral, where
+   the entry goes, and `since` and `reason` stay. Only entries keyed by a Hero the world holds
+   decay; a Hero's Regard for anyone else is another rule's. Due entries are visited in id order, so
+   that a loaded save, whose maps come back with sorted keys, emits what the unsaved game would.
+   Default **`regardDecayPerYear` 0.25**: five points a year, so a pair at the scale's top is
+   neutral again about four years after their last Quest together (a year's grace, then 16 points).
+6. **The Regard of the dead, the retired and the Unattached is left; Regard for them decays.** The
+   Hero State Engine reaches no Hero off a Roster, so a dead or retired Hero's Regard stays as it
+   stood, and a pool Hero's waits until a Guild signs them. A living Hero's Regard for any of them
+   decays as for anyone they no longer quest with and goes at neutral, so a Roster Hero's map holds
+   only the Heroes they shared a Quest with in the last four years or so: the bound on the epic's
+   risk that the maps grow quadratically.
+7. **Relationship** (`relationship(a, b, world, config)`): the mean of `a`'s Regard for `b` and
+   `b`'s for `a`, each neutral when not held, held inside the scale; symmetric by construction. It
+   takes `config` beside the epic's `(a, b, world)` for the clamp. It reads any two entities that
+   hold Regard (Guilds, Guildmasters, Heroes, Patrons; any other id, or a row the world lacks, holds
+   none), as CONTEXT.md defines Relationship between entities; the first build reads it between
+   Heroes. `relationshipBetween(a, b, config)` does the same for two rows in hand, and
+   `relationshipBandCounts(heroIds, world, config)` counts each pair's band. **Never stored**: a
+   test reads `document.ts` for a field named for it, checks the Regard-holding rows' keys, and
+   checks a saved game's text after ten shared Quests.
+8. **Teamwork** (`quest-engine/teamwork.ts`, DL-42's seam, signature unchanged `(heroes, world,
+   deps)`): **`1 + teamworkRange × regardShare(mean pairwise Relationship)`**, `regardShare`
+   (regard.ts) being the value over the scale's reach on its side. Default **`teamworkRange` 0.1**,
+   INPUTS 6.3's ×0.9 to ×1.1. **A Party of one**, or a Party down to one in the sequence, has no
+   pair and is at 1: a lone Hero neither gains nor loses for working alone. The members read are
+   those still alive in the sequence (DL-42 item 10).
+9. **Defaults**: **`regardPerSharedQuest` 1** and **`regardOnSuccessBonus` 0.5**, 1.5 a successful
+   Quest: warm after three, close after eight, so the epic's "close after ten shared successful
+   Quests" holds with room. A failed Quest shared still counts 1 ("more on success"). The core
+   content's Encounter Regard (+1 on `hold-the-line`'s success, −1 on `a-hostile-reeve`'s failure)
+   moves a Quest's change between 0 and 2.5. `configVersion` stays **4**: fields are added and no
+   default changes (DL-43 item 11's reading).
+10. **The CLI.** `narrate` has a line for `hero.regard-changed`, bands only ("…'s Regard for … rose
+    from warm to close after a Quest together", "… fell from warm to neutral as time passed apart").
+    `show hero`, for a Hero on a Roster, lists "Relationships on the Roster": each other Hero on it,
+    with the Hero's Regard for them and their Relationship, both as bands, never numbers (the
+    story's option, taken: it is what a Party's teamwork reads, and the player picks Parties from
+    it).
+
+**Consequences.** A scratch run (not committed) played four seeds, `seed-0001` to `seed-0004`, 20
+years each under the automatic policy (DL-34), the core content and `defaultConfig`, and read the
+world at each year's end. **Regard maps.** Across every Hero row the world keeps, the entries a Hero
+holds for other Heroes numbered 3,431 to 4,126 at year 10 and 6,999 to 7,434 at year 20, over 820 to
+911 rows. Heroes on a Roster, of all five Guilds, held 448 to 829 of them at year 20: a mean of 5.2
+to 11 a Roster Hero at any year's end, and 25 at the most for any one Hero in any year. The rest,
+about 6,400 to 6,600, are the frozen maps of the dead, the retired and the departed, about eight a
+Hero, growing with the Heroes who leave play and not with the pairs: linear, not quadratic. The same
+seed with the new rules stilled (no Quest Regard, no decay, no teamwork, the Encounters' ±1 still
+applied) reached a map of 56 and 12.4 a Roster Hero by year 20: the decay is what bounds them.
+**Relationship in the player's Roster at year 10**, 28 pairs each: neutral 4, 7, 9, 16; warm 3, 13,
+13, 7; close 21, 8, 6, 5; none cool or hostile, since only the Encounters' −1 lowers Regard between
+Heroes and turnover and decay return the rest to neutral. **The History** gained 7,619 to 8,130
+`hero.regard-changed` entries a game (the stilled run 1,518), about 2.5% of some 315,000 entries.
+**Outcomes**: the player failed 33.5 to 43.1% of Quests and succeeded strongly 35.5 to 43.6%; the
+Rivals failed 16.5 to 17.2%; on `seed-0001` the stilled run gave the player 32.5 / 23.2 / 44.3 and
+the Rivals 18.1 / 14.0 / 67.8 against 33.5 / 22.9 / 43.6 and 16.5 / 14.1 / 69.4: teamwork's ±10%
+moves the Rivals' failures by under two points, and no game ended. **Time**: a 4-year game of
+`seed-0001` took 55 to 62 s with the rules and 54 to 59 s without, on a machine shared with other
+runs: within the noise. The M4 close's balance pass measures these with M4-S3's Synergies.
+
+**For the M4-close counter task.** The Relationship band distribution within the player's Roster at
+year 10 is `relationshipBandCounts(playerGuild(world).rosterIds, world, config)` on the world at
+Turn `10 × turnsPerYear`: each unordered pair of the Roster once (the Roster holds only the living),
+the five bands always listed. It cannot be rebuilt from the History alone, since a Relationship is
+the mean of two values whose entries record only band crossings; the counter reads a snapshot of the
+world at year 10, as DL-43's Guildmaster Regard counter does. `hero.regard-changed` entries, by
+`cause` and `bandAfter`, are there for any count of crossings.
+
+## DL-47 — Merging M3's close into M4: both version-4 defaults kept, `configVersion` 5
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 close, merging
+v1.0-dev into `m4-integration`)
+
+**Context.** M3's close (DL-40, DL-41) and M4's five stories (DL-42 to DL-46) were built on two
+lines from v1.0-dev `8229670`, and each raised `configVersion` from 3 to 4 for a different change
+to `defaultConfig`: DL-41 raised `recruitWealthMultiple` from 10 to 60 and kept `wagePerLevel` at
+20; DL-42 removed the stub Quest Engine's five fields (`stubBands`, `stubVariance`,
+`stubSkillBonusPerRating`, `stubInjuryChance`, `stubDeathChance`) and added the Quest Engine's
+(`checkVariance` 0.2, `skillBonusPerRating` 2, `bandBySuccessShare` 0.5/1). DL-43 to DL-46 added
+fields and changed no default. A save made on either line says version 4 and holds the other
+line's old values: M3's has the stub's fields and a multiple of 60, M4's a multiple of 10.
+
+**Decision.**
+
+1. **The merged `defaultConfig` carries both changes**: `recruitWealthMultiple` **60** (DL-41),
+   `wagePerLevel` 20, the Quest Engine's three fields and none of the stub's (DL-42), and every
+   field DL-43 to DL-46 added, at their defaults. No value is chosen here.
+2. **`configVersion` is 5.** Two different sets of defaults may not share a number: a version-4
+   save from either line would otherwise read as current (`rebase` refuses `already-current`) and
+   never adopt the other line's change. At 5, `rebase` offers both. `contentVersion` stays 8: M3's
+   close changed no content.
+3. **Tests that pinned the defaults stay pinned.** The wage test (`level-ups.test.ts`) pins
+   `wagePerLevel` 20 beside configVersion **5**; the Quest Engine's config test (`resolve.test.ts`)
+   pins its three fields beside configVersion **5**; the Rival test of the default multiple
+   expects 60 (DL-41). None was loosened; no other test leaned on a changed default.
+4. **The harness is M3's close plus M4's one change** (`upkeep` takes content, DL-43): DL-40's
+   counters, census and report merged cleanly. M4's counters are the M4 close's (DL-55).
+5. **The decision log** holds DL-40 to DL-46 in number order.
+
+**Consequences.** DL-41's sixty was measured under the stub, and DL-42's Encounter factors under a
+multiple of ten; neither has been measured with the other, nor with DL-43 to DL-46's rules. The M4
+close's 200 × 20 run judges them together (DL-55). A save made under version 3 or either 4 plays
+under its own config until the player rebases.
+
 ## DL-53 — M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions after the end; errata to DL-40 and DL-41
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3 verification's fixer),
@@ -2541,6 +3172,208 @@ defaults version 5 (the M3 close merged into M4, DL-47 there). Git would merge t
 `configVersion: 5` lines without a conflict, so whoever merges this entry into M4 must give the
 merged defaults a version of their own. M4's Quest Engine reads the infirmary's factor with its own
 copy of the rule and should read `healFactor`.
+
+## DL-55 — M4 close: M3's verification merged (`configVersion` 6), the M4 counters, and the M4 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 close), recording a
+merge, a method and a measure; it chooses no default value
+
+**Context.** Three things close M4. (a) After DL-47's merge, v1.0-dev gained M3's verification
+(DL-53: the infirmary's third grade quarters an Injury, `configVersion` 5, a `healFactor` selector
+read by the stub, the CLI's Hall view and its refusals once the game has ended), the validator's
+timing test on CPU time, and M3's tag (`a7877bb`). DL-47 had called the merged defaults 5 as well,
+and DL-53 asks whoever merges it into M4 to give the defaults a version of their own and to make
+the Quest Engine read `healFactor`. (b) The epic's §2 names five counters, and M4-S5 a sixth, the
+player's Guildmaster's Regard by band at year 10; DL-42, DL-43, DL-45 and DL-46 said what each
+reads, and M4-S2's fourth box asks that M2's counters still report. (c) The Check, Synergies,
+teamwork, the Guildmaster's Traits in the Check, Negotiation and the Board's weighting had not been
+measured together at 200 × 20 (DL-44 to DL-46); the task allowed one balance pass on default and
+content values if the run was degenerate.
+
+**Decision.**
+
+1. **`configVersion` is 6** (merge `39ea2f4`). The merged `defaultConfig` holds
+   `recruitWealthMultiple` 60 (DL-41), the Quest Engine's fields and none of the stub's (DL-42),
+   `infirmaryHealFactor` `[1, 1/2, 1/3, 1/4]` (DL-53), and the fields DL-43 to DL-46 added. Both
+   lines called their defaults 5, so a version-5 save from either would otherwise read as current.
+   The stub stays deleted. The Quest Engine's Injury consequence reads `healFactor(guild, config)`
+   in place of its own copy of the same rule. DL-53's test that each grade does more than the one
+   below passes content to `moraleBaselineFor`, whose M4-S5 signature takes it. The wage test and
+   the Quest Engine's config test pin 6. The CLI's help lists `show hall` and `show guildmaster`,
+   and `build`'s line keeps DL-53's plural and M4-S5's Upkeep with the Guildmaster's Traits. No
+   test was loosened.
+2. **The counters** (`harness/src/counters.ts`, each with a fixture test; totals and the report in
+   `sweep.ts`). From the History, each entry counting for the controller of the Guild it names
+   (DL-34 item 4):
+   - *Encounter outcomes*: `quest.encounter` by `payload.kind` and `payload.outcome`, with the
+     Heroes its `injured` and `died` name, the harm each kind does.
+   - *Synergies applied per Quest*: `quest.resolved`'s `payload.synergyKeys`, where absent is none
+     (DL-45): the Quests resolved, those with one or more, the Synergies summed, and the Quests by key.
+   - *Injuries by type*: `hero.injured` by `payload.typeKey`, for the Guild the Hero was on then.
+   - *Patrons silent*: for each year the game played in full, the Patrons generated by the Turn it
+     began (`patron.generated`), and of those the ones no `quest.offered` of the year names. A
+     Patron generated during a year counts from the next, and a year a game stopped in is not
+     counted.
+
+   From the World State, taken with DL-40's census as year 10 begins (Turn 10 × `turnsPerYear`,
+   before the policy acts), because the History records a Regard only when it crosses a band:
+   - *Relationships within the player's Roster*:
+     `relationshipBandCounts(playerGuild(world).rosterIds, world, config)`.
+   - *The player's Guildmaster's Regard*: `regardBandCounts` of its map, split by the table of the
+     entity each entry names (Patrons, Heroes; anything else counts in neither).
+
+   A game that stopped before year 10 has neither. The report sums over the games in play then,
+   gains a section "The Quest Engine (M4)", and is written as `harness/reports/m4-<date>.md`.
+   `npm test` gained 11 tests and about a quarter of a second.
+3. **The run, 2026-09-26** (`harness/reports/m4-2026-09-26.md`, committed with this entry): 200
+   seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+   advance (`HEROESIM_VALIDATE=1`), config version 6, content version 8. It ran in 16 processes on
+   DL-13's machine, which other agents' work shared, and took 79 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, and all 200 last documents
+     load and serialise back alike. `seed-0001` played twice more: identical, 95,908,796 characters.
+   - **Beside M3's run** (DL-40, config version 4, the stub):
+
+     | Measure | M3 | M4 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 0 | 1, a Bankruptcy |
+     | Rival folds a game (Bankruptcies, wiped Rosters) | 3.08 (443, 173) | 2.24 (441, 7) |
+     | The player's Quests failed / succeeded / strong | 37.0 / 38.3 / 24.7% | 37.7 / 21.2 / 41.1% |
+     | The Rivals' Quests | 16.3 / 29.8 / 53.9% | 11.7 / 8.1 / 80.2% |
+     | Deaths a game, the player's / the Rivals' | 104.2 / 112.4 | 83.5 / 62.6 |
+     | Injuries a game | 1,013 / 1,267 | 1,021 / 794 |
+     | Levels gained a Guild-year | 19.0 / 6.9 | 17.3 / 6.0 |
+     | Mean Level after 10 years | 4.95 / 4.94 | 5.42 / 6.22 |
+     | The player's Wealth after 10 and 20 years | 114,951; 218,386 | 141,831; 267,608 |
+     | A Rival's Wealth after 10 and 20 years | 26,303; 26,404 | 36,594; 26,041 |
+     | Heroes a Rival after 10 years | 5.8 | 7.0 |
+     | Declines a Guild-year | 0.13 / 0.28 | 0.23 / 0.75 |
+     | Retirements in 200 games | 1 / 24 | 5 / 104 |
+     | Save after 20 years, mean (max) | 47.1 (57.9) MiB | 92.9 (109.7) MiB |
+     | History entries after 20 years, mean | 137,929 | 246,597 |
+
+   - **Encounter outcomes.** The player's 4,245,409 Checks succeeded 63.7%, from 56.8% (social) to
+     68.4% (combat, stealth). The Rivals' 9,007,403 succeeded 87.7%, from 83.5% (stealth) to 94.5%
+     (social). The player's combat Checks injure 0.089 Heroes each and kill 0.009. Travel and
+     social Checks kill no one, since content gives them no Death.
+   - **Synergies.** At least one applied on 15.6% of the player's Quests (0.162 a Quest) and on 11.2%
+     of the Rivals' (0.113). By key, as a share of the player's Quests: Sword and salve 6.0%,
+     Shadow and spell 5.1%, Scouting ahead 3.5%, Wards and blessings 1.0%, Shield wall 0.6%, and A
+     full company never (DL-45 item 8).
+   - **Injuries by type, the player's.** Bruised ribs and deep cut 23.0% each, broken arm 20.4%,
+     lung fever 17.7%, sprained ankle 7.6%, shattered knee 5.0%, eye wound 3.4%.
+   - **Patrons silent.** None in 47,796 Patron-years.
+   - **Relationships within the player's Roster after 10 years**, 5,572 pairs in 199 games:
+     neutral 37.4%, warm 26.3%, close 36.3%, none cool or hostile.
+   - **The player's Guildmaster's Regard after 10 years.** For Patrons (2,388 entries): close
+     78.7%, warm 7.0%, neutral 5.2%, cool 4.2%, hostile 4.8%. For Heroes (10,117, the dead and
+     departed included): close 42.2%, warm 15.2%, neutral 27.1%, cool 10.0%, hostile 5.4%.
+   - **Measures.** Under the run's load, `advance` averaged 6.99 ms a Turn (p99 17.8 ms). Alone:
+     `seed-0001` was played again in one process on a nearly idle machine, twice. Each time it ran
+     back to back with M3's tag (`a7877bb`, config version 5, extracted from git outside the
+     repository). Against the tag:
+
+     | Measure | M3's tag | M4 |
+     | --- | ---: | ---: |
+     | A Turn, mean (p99) | 0.69 to 0.71 (1.4 to 1.5) ms | 0.98 (2.1) ms |
+     | A year | 0.74 to 0.76 s | 1.06 s, over §7's 1 s |
+     | The save | 49.2 MiB, 143,725 entries | 91.5 MiB, 245,894 entries |
+     | Serialised in | 0.58 s | 0.82 s |
+     | Loaded in | 0.64 to 0.71 s | 1.10 to 1.16 s |
+
+     `quest.encounter` is 30.7% of the characters of `seed-0001`'s 84 MiB History.
+     `hero.morale-changed` entries more than doubled, 17,091 to 41,465: a discrete change always
+     emits (DL-29), and M4 adds the Encounters' Morale beside more strong successes. At this run's
+     rate, 1,000 games of 20 years would take 389 minutes (M3's run, 230).
+4. **No balance pass.** Judged against M3's run, the M4 run is not degenerate, so `configVersion`
+   stays 6.
+   - **The player's side is as steady as before.** 199 of 200 games ran 20 years. Levels fell by a
+     tenth, Deaths by a fifth, and Wealth rose by under a quarter.
+   - **The one ending has a cause.** In `seed-0016` the Parties failed more than half their Quests
+     from the first year, under a Spendthrift Guildmaster (Upkeep × 1.1), and the Guild went
+     bankrupt on Turn 3,329.
+   - **The Rivals are healthier.** They fold less, and their Rosters are almost never wiped (7
+     against 173), because their Heroes die little more than half as often. Their 88% of Checks
+     is `steady` taking the easiest Quest it can staff (DL-30) with Rosters that now keep their
+     Heroes.
+   - **The epic's first risk did not happen.** No chain of Encounters makes hard Quests lethal:
+     the player's Deaths, 83.5 a game, are below M2's baseline of 88 (DL-34).
+   - **No Encounter kind is a wall or a formality** for the player.
+   - **What remains is not for a value to mend.** Each item below is a missing rule, or a measure
+     recorded and not chased (DL-08).
+
+**Consequences.** M4's gate has its run: encounter outcomes are reported by kind. M4-S2's fourth
+box has the run's evidence in the epic. The M4-S5 box on Patrons stays proved by DL-43 item 10's
+50-seed engine test. For the owner:
+
+- **Guildmaster Regard saturates.** Nothing decays it, and it moves ±1 a Quest. After 10 years
+  the player's Guildmaster is close with 79% of Patrons and hostile to 5%. It has no reader in the
+  first build (pre-M0 review B3). Before a module reads it, it needs a recovery like the Patrons'
+  (`patronRegardRecoveryPerYear`) or the Heroes' decay. That is a rule, which a balance pass on
+  values could not give it.
+- **Relationship never falls below neutral within the player's Roster.** Only one Encounter's
+  failure lowers Regard between Heroes (DL-46), so teamwork in practice rewards a Roster kept
+  together, by up to × 1.1, and never penalises one. A source of friction between Heroes would be
+  a content or rule change.
+- **No Patron fell silent.** At the Regard values play reaches, R22's weighting thins a disliked
+  Patron's offers but never stops them.
+- **The plain success band is thin.** Plain success is 21.2% of the player's Quests and 8.1% of
+  the Rivals'. That is DL-42's reading of `bandBySuccessShare`, and it stands.
+- **The player's Wealth still grows without end**, and one game in 200 ended. That is DL-41's
+  finding, for M6's Dispositions.
+- **The save doubled, and a year alone is now just over a second.** A lighter `quest.encounter`
+  entry is the lever DL-42 named, if data-model §7 is chased.
+- **The Rivals' Heroes now grow old.** They live long enough to decline 0.75 times a Guild-year
+  and to retire 104 times in 200 games. The Rivals' mean Level peaks at 6.76 after 15 years and
+  falls to 6.26 by 20. DL-40's "nobody grows old" no longer holds for them.
+
+## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 verification's fixer),
+on findings it confirmed; no rule, default or content value changes
+
+**Context.** M4 was verified after its merge into v1.0-dev (`c1161b5`) by gate, acceptance, mutation,
+design, decision-log and CLI passes. The mutation pass ran 79 mutants of M4's rules; 73 were killed
+and 6 survived. The CLI pass found two problems. `show board` names Skills that help in no Check.
+The help for `preview` leaves out its Synergies section. DL-61 to DL-64 are reserved for other lines
+of work, so this entry is DL-70.
+
+**Decision.**
+
+1. **`show board`'s "Skills that help" lists the Skills of the Quest's Encounters.** Each is listed
+   once, in the order the Quest meets them, and a key content lacks is left out (data-model rule 5).
+   A Quest drawn before M4 has its Encounters drawn on the way (DL-42 item 7), so it still shows its
+   template's Skills.
+   - *Why.* From DL-42 on, the Check reads each Encounter's `skillKeys` and never the Quest's own,
+     which are copied from its template. The column therefore named Skills that help in no Check.
+     On Guard the caravan (travel and combat) it named Trapcraft, and on The sickness at the mill
+     (social and arcane) Herbalism and Field surgery. It also left out the Skills that do help.
+   - *What it supersedes.* The sentence of DL-42's Consequences that has `show board` read the
+     template's `skillKeys`.
+   - *What stays.* `partyFor` still reads the template's `skillKeys`. The Board's "Demands" column
+     still shows the template's demands: a summary of the kind of work, while each Check weighs its
+     own Encounter's demands.
+   - *Versions.* `configVersion` stays 6 and `contentVersion` stays 8.
+2. **`help` names `preview`'s Synergies section** (DL-45 item 7) beside its other sections.
+3. **Tests that were too weak.** Each surviving mutant is now killed by a new or stronger test; no
+   assertion was loosened.
+   - *The band over the whole sequence* (DL-42 item 11). A band read over only the Encounters a
+     Party reached passed every test. A new test sends a Party that comes through its first
+     Encounter and dies of it: one success of three is a failure.
+   - *The Guildmaster Regard writers* (DL-43 item 4). All four amounts were pinned at ±1, so a Hero
+     written with a Patron's amount passed. The one-test-each tests now pin the four apart.
+   - *A plain success* (DL-43 item 4, DL-46 item 2: a success is any band but `fail`). Three mutants
+     passed because every test resolved a strong success or a failure:
+     - the Patron's Regard written as on a failure;
+     - the Heroes' success bonus kept for a strong success only;
+     - the Guildmaster's Regard written for a Hero killed on the Quest.
+
+     A new `questsConclude` test resolves two Encounters of three, with a Death. It pins every
+     amount apart and checks each Regard, and that the dead Hero gets none.
+   - *`heroRegardDecays`.* Its Hero-only condition is unreachable through `decayHeroRegard`, which
+     visits only Heroes the world holds. The exported predicate is now tested directly.
+
+**Consequences.** No rule or value changes, so DL-55's run and report stand. The first build's other
+front end (M7) should take the Skills that help from the Encounters too.
 
 ---
 
