@@ -15,6 +15,8 @@ import {
   type EngineDeps,
   type EngineEvent,
   type EntityId,
+  type GearMove,
+  type GearReturnCause,
   type HeroRegardCause,
   type PatronRegardCause,
   type QuestBand,
@@ -66,6 +68,18 @@ const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
 };
+
+/** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
+const gearReturnWords: Readonly<Record<GearReturnCause, string>> = {
+  died: ', who died',
+  retired: ', who retired',
+  'guild-folded': ' as the Guild folded',
+};
+
+/** An Item of gear that moved, by content's name and the id a command takes: `Arming sword (stack-000004)`. */
+function gearMoved(move: GearMove, content: ContentSet): string {
+  return `${nameIn(content.items, move.definitionKey)} (${move.itemId ?? move.stackId ?? ''})`;
+}
 
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
 function crossed(before: RegardBand, after: RegardBand): string {
@@ -198,6 +212,21 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return (
         `${hero(event, heroId)}'s Regard for ${hero(event, entityId)} ${crossed(bandBefore, bandAfter)} ` +
         `${heroRegardWords[cause]}.`
+      );
+    }
+    case 'item.equipped': {
+      const { guildId, heroId, slot } = event.payload;
+      return `${called(event, guildId)} put ${gearMoved(event.payload, content)} in ${hero(event, heroId)}'s ${slot} slot.`;
+    }
+    case 'item.unequipped': {
+      const { guildId, heroId, slot } = event.payload;
+      return `${called(event, guildId)} took ${gearMoved(event.payload, content)} from ${hero(event, heroId)}'s ${slot} slot.`;
+    }
+    case 'item.returned': {
+      const { guildId, heroId, cause } = event.payload;
+      return (
+        `${gearMoved(event.payload, content)} went back to ${called(event, guildId)} from ${hero(event, heroId)}` +
+        `${gearReturnWords[cause]}.`
       );
     }
     case 'item.expended': {

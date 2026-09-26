@@ -14,6 +14,7 @@ import {
   defaultConfig,
   deserialise,
   dispatch,
+  effectiveStats,
   fastForward,
   makeId,
   guildmasterOf,
@@ -363,9 +364,13 @@ describe('show', () => {
     // The hints the player's Guildmaster reads: their Judgement narrows the bands (M4-S5).
     const reader = guildmasterOf(world.guilds[playerId] as Guild, world);
     const bands = { potentialHintBands: judgedHintBands(reader, content, defaultConfig) };
+    // Base and effective side by side (M5-S2): the effective value is the engine's selector's.
+    const effective = effectiveStats(hero, world, content);
     for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
       const hint = potentialHint(hero, stat.key, bands);
-      expect(run.out).toMatch(new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${hint}$`, 'm'));
+      expect(run.out).toMatch(
+        new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${effective[stat.key]}\\s+${hint}$`, 'm'),
+      );
     }
     for (const [key, rating] of Object.entries(hero.skills)) {
       expect(run.out).toMatch(new RegExp(`^${content.skills[key]?.name}\\s+${rating}$`, 'm'));
@@ -373,20 +378,26 @@ describe('show', () => {
   });
 
   test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', () => {
-    for (const hero of Object.values(document().world.heroes)) {
+    const { world } = document();
+    for (const hero of Object.values(world.heroes)) {
       const run = play(['show', 'hero', hero.id]);
       expect(run.code).toBe(exitCodes.ok);
       expect(run.out).not.toMatch(/potential/i);
+      const effective = effectiveStats(hero, world, content);
 
       for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
         const row = run.out.split('\n').find((line) => new RegExp(`\\s${stat.name}\\s`).test(line)) ?? '';
-        // Every Stat row ends in one of the three hint words, the base before it.
-        const [value, hint] = row.trim().split(/\s+/).slice(-2);
+        // Every Stat row ends in one of the three hint words, the base and the effective value before
+        // it (M5-S2).
+        const [base, value, hint] = row.trim().split(/\s+/).slice(-3);
         expect(potentialHints, `${hero.id} ${stat.key}: ${row}`).toContain(hint);
-        expect(value).toBe(String(hero.stats[stat.key]));
-        // Where the Potential differs from the base, its number is nowhere in the row.
+        expect(base).toBe(String(hero.stats[stat.key]));
+        expect(value).toBe(String(effective[stat.key]));
+        // Where the Potential differs from both values shown, its number is nowhere in the row.
         const potential = hero.potential[stat.key];
-        if (potential !== hero.stats[stat.key]) expect(row).not.toMatch(new RegExp(`\\b${potential}\\b`));
+        if (potential !== hero.stats[stat.key] && potential !== effective[stat.key]) {
+          expect(row).not.toMatch(new RegExp(`\\b${potential}\\b`));
+        }
       }
     }
   });

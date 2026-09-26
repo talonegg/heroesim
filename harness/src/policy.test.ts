@@ -1,9 +1,12 @@
 import { loadContent } from '@heroesim/content/node';
 import {
+  addStack,
   applyAction,
   availableHeroes,
   createWorld,
   defaultConfig,
+  gearChoices,
+  holdings,
   partyFor,
   playerGuild,
   serialise,
@@ -266,6 +269,30 @@ describe('automaticPolicy', () => {
       const game = { ...deps, config: { ...deps.config, buildWealthMultiple: 100 } };
       expect(automaticPolicy(document, game)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'infirmary' });
     });
+  });
+
+  test('equips the gear its Guild holds first, by the engine’s gearChoices, before sending anyone away (M5-S2, DL-49)', () => {
+    const scened = scene('policy-gear');
+    const { guild, quests } = scened;
+    let { document } = scened;
+    openBoard(quests);
+    const vault = { kind: 'guild', id: guild.id } as const;
+    addStack(document.world, 'mail-shirt', 2, vault);
+    addStack(document.world, 'short-sword', 1, vault);
+
+    const actions = automaticPolicy(document, deps, noBuilding);
+    const gear = gearChoices(document.world, guild, deps);
+
+    expect(gear).toHaveLength(3);
+    expect(actions.slice(0, gear.length)).toEqual(gear);
+    expect(dispatches(actions).length).toBeGreaterThan(0);
+    // Applied in order, every one is accepted: the equipped Heroes are still home to be sent.
+    for (const action of actions) {
+      const result = applyAction(document, action, deps);
+      expect(result.ok, action.kind).toBe(true);
+      if (result.ok) document = result.document;
+    }
+    expect(holdings(document.world, vault)).toEqual({ items: [], stacks: [] });
   });
 
   test('chooses nothing once the game has ended', () => {

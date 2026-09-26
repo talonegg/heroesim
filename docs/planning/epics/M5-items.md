@@ -53,10 +53,10 @@ holding at night with `item.returned`.
 
 **Acceptance:**
 
-- [ ] Equipping a +2 Strength weapon raises the effective Stat and not the base
-- [ ] The check uses effective Stats (a geared Party beats an identical bare one, variance 0)
-- [ ] A Hero's gear is back with the Guild the night after their Death
-- [ ] CLI `equip --hero <id> --item <id>` and `unequip`
+- [x] Equipping a +2 Strength weapon raises the effective Stat and not the base
+- [x] The check uses effective Stats (a geared Party beats an identical bare one, variance 0)
+- [x] A Hero's gear is back with the Guild the night after their Death
+- [x] CLI `equip --hero <id> --item <id>` and `unequip`
 
 ### M5-S3 · Consumables at dispatch and in the check · 1–2 sessions
 

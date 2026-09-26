@@ -2956,6 +2956,106 @@ with `moveItem`, and settles what a unique Item sells for. M5-S5 awards with `cr
 `addStack`. S1 adds no event, so it gives the M5-close counter task nothing to count. A new slot or
 effect kind is an engine change and earns a decision; a new Item is content only.
 
+## DL-49 — Equip and unequip, gear in effective Stats, gear going back to its Guild, and the controllers equipping (M5-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S2's implementer)
+
+**Context.** M5-S2 names `equip(document, { guildId, heroId, itemId | stackId, slot })` and `unequip`,
+the rejections `not-gear`, `slot-occupied`, `hero-unavailable` and `not-held-by-guild`, gear's
+modifiers inside `effectiveStats(hero, world, content)` (the selector the Check reads, DL-44), base
+and effective Stats side by side in `show hero`, and gear on a dead or retired Hero returning to the
+Guild's holding at night with `item.returned`. It leaves open: the other rejections and their order;
+whether `slot` is needed; whether equipping emits an event; the order of the modifiers and the hold
+to the Stat's range; which night phase returns gear, and when; what becomes of the gear of a folding
+Rival's Heroes, while M5-S4 (built in parallel) lists a folding Guild's unique Items on the Market
+and discards its stacks; how M6's Transfer will return a Hero's gear; and whether `steady` or the
+automatic policy equip. The epic's risk table has the policy buy armour (M5-S4); unworn, it would do
+nothing.
+
+**Decision.**
+
+1. **Two actions, one file** (`engine/src/actions/equip.ts`), each a world-level rule and a
+   document-level wrapper (DL-30): `applyEquip`/`equip` and `applyUnequip`/`unequip`, in the
+   `Action` and `GuildAction` unions and `applyAction`/`applyGuildAction`. `equip`'s request is
+   `{ guildId, heroId, slot?, itemId | stackId }`, exactly one of the two ids (neither or both
+   throws, as a programming error). **`slot` is optional**: the gear's definition names its slot, so
+   it defaults to that and, when given, must be it. `unequip`'s request is `{ guildId, heroId, slot }`.
+2. **`equip`'s rejections, in the order it checks**: `guild-folded`; `hero-not-on-roster` (read as
+   `dispatch` reads it: a dead or retired Hero who kept the Guild's id is the Guild's, and refused
+   next); `hero-unavailable`, `because` `dead`, `retired` or `in-party` — **an injured Hero may be
+   equipped**, being at the Hall, and a Hero away has their gear with them; `not-held-by-guild` (no
+   such row, or not in this Guild's holding: gear on another Hero is unequipped first, the Market's
+   bought first); `not-gear` (a consumable, or a definition content lacks); **`wrong-slot`** (a slot
+   asked that is not the gear's own, or the gear's own not among `config.gearSlots`; it carries the
+   slot asked, the gear's slot and the Heroes' slots); and `slot-occupied`, naming the occupant:
+   **`equip` never swaps**. `unequip`'s: `guild-folded`, `hero-not-on-roster`, `hero-unavailable`,
+   **`slot-empty`**. A Guild the world lacks throws.
+3. **Moves.** A unique Item moves whole (`moveItem`). **Common gear takes one unit**
+   (`moveStack(…, 1, heroSlot)`), the rest staying in the holding; the last unit moves the stack
+   itself, which keeps its id. `unequip` moves whatever the slot holds to the Guild's holding, a
+   stack joining the Guild's stack of its definition. `unequip` empties any slot, one
+   `config.gearSlots` no longer lists included, so such gear can always be recovered.
+4. **Events.** Beside the epic's `item.returned`, **`item.equipped` and `item.unequipped`** (not in
+   the epic's list; data-model rule 10 makes every discrete change an entry). All three carry a
+   `GearMove` — `heroId`, `guildId`, `slot`, `definitionKey`, and `itemId` for a unique Item or
+   `stackId` for a common one (the stack the unit is in after the move), the other `null` — and name
+   the Hero, the Guild and the Item or stack. `item.returned` adds `cause`: `died`, `retired` or
+   `guild-folded` (M6 adds its Transfer's). None is a Milestone: the Death, Retirement or fold is.
+5. **Effective Stats** (`selectors.ts`): the base, **plus** the Guildmaster's `classStatBonus`
+   (DL-43), **plus** the Stat modifiers of the gear the Hero carries (`gearModifiers`,
+   `engine/src/gear.ts`), **summed first and held inside the Stat's content range once**, at the end,
+   so the order of the modifiers never matters and none is lost to an early hold (a Mage with Arcana
+   1, Mistrusts magic and a Runed circlet reads 3). Gear counts when its definition is gear made for
+   the slot it is in; a misplaced Item, or a definition content lacks, counts for nothing. The
+   signature stays the epic's `(hero, world, content)` (DL-44) and the Check's call is unchanged;
+   `hero` now needs its `id`, `world` its `items` and `stacks`, `content` its `items`. **It reads no
+   config**, so it does not ask whether a slot is among `config.gearSlots`: `equip` alone does, and
+   fills no other. This **supersedes the clause of DL-48 item 2** "rules read only these", and that
+   entry's consequence that `effectiveStats` reads only the listed slots: gear already in a slot a
+   rebased config drops still counts until it is unequipped, and the validator still warns
+   `unknown-slot`. A config parameter would have changed the Check's call in `check.ts`, which M5-S3
+   is changing in parallel, for a case only a change to `gearSlots` under a live save can make.
+6. **The return at night is a phase of its own, `gearReturn`**, after `ageing` and before
+   `guildState`. Every Item held by a Hero who is dead or retired goes to the holding of the Guild
+   their row keeps (`guildId`, DL-20 item 3), with `item.returned`, Heroes in id order and each Hero's
+   Items in slot order (`gearSlotKeys`), then id. A Hero dies in `questsConclude` and retires in
+   `heroState` earlier the same night, so **the gear is back the night of the Death**, and no Turn
+   begins with gear on a Hero who can never carry it again. A phase rather than a line in each rule
+   that kills or retires, so that those rules stay as they were and one sweep catches every case. It
+   draws nothing. `approach.md` §2's night line names it.
+7. **A fold returns the Roster's gear first.** `fold` (`phases/endings.ts`) now begins by returning
+   the gear of each Hero on the Roster, in Roster order, with `item.returned` for `guild-folded`,
+   **before `guild.folded`** and before any row changes, so that the Heroes enter the pool carrying
+   nothing and whatever the fold then does with the Guild's holding — M5-S4 lists its unique Items on
+   the Market and discards its stacks — finds that gear there. `gearReturn` runs before `endings`, so
+   a Hero who died on the night their Guild folds has returned theirs too. A folding Guild's Parties'
+   consumables are M5-S3's and M5-S4's.
+8. **One reusable return**: `returnGear(world, hero, cause, emit)` (`gear.ts`), which `gearReturn`
+   and the fold call, and which **M6's Transfer calls before the Hero's Guild changes**. It throws on
+   a Hero who carries gear and has no Guild, which no rule makes.
+9. **The controllers equip.** One engine helper, `gearChoices(world, guild, deps)` (`gear.ts`), which
+   `steady` and the harness's automatic policy both put **first** among their choices, before any
+   dispatch, since equipping moves no Wealth and sends no one, and is refused for a Hero away. Its
+   rule: every piece of gear in the Guild's holding for a slot `config.gearSlots` lists whose
+   modifiers sum above 0, best first (that sum, then id; each unit of a stack a piece), each to the
+   first Hero in Roster order whom `equip` would accept with that slot empty; no swaps, no draw.
+   Applied in order, every action it names is accepted. So the armour M5-S4's policy buys, and Loot
+   (M5-S5), is worn from the next Turn. Rivals do not buy in M5 (M5-S4), but they wear their Loot.
+10. **CLI.** `equip --hero <id> --item <id> | --stack <id>` (no `--slot`: the gear's own) and
+    `unequip --hero <id> --slot <weapon | armour | trinket>`, each printing its event's line and the
+    effective Stats that changed. `show hero` shows Base and Effective side by side, never Potential,
+    and a Gear table by slot; `show roster` lists what the Guild holds, with the ids `equip` takes.
+    `narrate.ts` has a line for each new event.
+11. **No config field and no default change**: `configVersion` stays 4, `contentVersion` 9.
+
+**Consequences.** A smoke run (4 seeds × 5 years under the default config, the automatic policy,
+every Guild handed three mail shirts, two arming swords and a unique trinket at creation, validated
+after every advance) equipped 45 to 65 Items a game and returned 33 to 59 from the dead and the
+folded, with no action refused and no document refused or warned about. Until M5-S4 or M5-S5 gives a
+Guild gear, a harness game equips nothing. For the M5-close counter task: `item.equipped`,
+`item.unequipped` and `item.returned` by `cause` and by Guild; gear worn at year 10 is `carriedGear`
+over the player's Roster on the world at that Turn.
+
 ## DL-50 — Consumables carried at dispatch, used by the Quest Engine, expended or sent home (M5-S3)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S3's implementer)

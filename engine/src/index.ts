@@ -32,6 +32,30 @@ export {
   type UnmetRequirement,
   type Unavailability,
 } from './actions/dispatch.js';
+export {
+  applyEquip,
+  applyUnequip,
+  equip,
+  unequip,
+  type EquipAction,
+  type EquipGuildFolded,
+  type EquipHeroNotOnRoster,
+  type EquipHeroUnavailable,
+  type EquipRejection,
+  type EquipRequest,
+  type GearRef,
+  type NotGear,
+  type NotHeldByGuild,
+  type SlotEmpty,
+  type SlotOccupied,
+  type UnequipAction,
+  type UnequipGuildFolded,
+  type UnequipHeroNotOnRoster,
+  type UnequipHeroUnavailable,
+  type UnequipRejection,
+  type UnequipRequest,
+  type WrongSlot,
+} from './actions/equip.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export {
   applyRecruit,
@@ -52,6 +76,7 @@ export * from './create.js';
 export * from './document.js';
 export * from './events.js';
 export * from './fast-forward.js';
+export * from './gear.js';
 export * from './guildmaster.js';
 export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';

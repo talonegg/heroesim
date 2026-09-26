@@ -12,6 +12,7 @@ import {
   availableHeroes,
   cheapestUnattached,
   compareByCodeUnit,
+  gearChoices,
   offeredQuests,
   partyFor,
   playerGuild,
@@ -46,6 +47,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 /**
  * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34):
  *
+ * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
+ *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch.** The offered Quests on the Board by reward, highest first, then Quest id; to each
  *   in turn, the strongest Party of the size it requires that the Guild's available Heroes can
  *   make (`partyFor`: `partySizeMin`, or two when a Class and a Skill are required and no one
@@ -60,8 +63,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
  * - **Never transfer** (until M6).
  *
- * Each choice is made on `document` as it stands: a dispatch moves no Wealth and a purchase sends
- * no one, and there is one purchase, so the choices do not depend on one another, and every one
+ * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
+ * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices do not depend on one another, and every one
  * is an action the rules accept on it when applied in order. None once the game has ended, and
  * none for a world without a player's Guild.
  */
@@ -74,7 +77,7 @@ export function automaticPolicy(
   const guild = playerGuild(world);
   if (world.ended !== null || guild === undefined || guild.foldedOnTurn !== null) return [];
 
-  const actions: GuildAction[] = [];
+  const actions: GuildAction[] = [...gearChoices(world, guild, deps)];
   let available = availableHeroes(world, guild);
   for (const quest of byReward(document)) {
     if (available.length === 0) break;

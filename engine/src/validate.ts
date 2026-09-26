@@ -1387,7 +1387,8 @@ function unknownItem({ world }: WorldDocument, content: ContentSet): ValidationW
 /**
  * A Hero holds Items only in the gear slots `config.gearSlots` lists (M5-S1, DL-48). The key is the
  * slot. A slot the config no longer lists is a warning, not a refusal, as an unknown content key is
- * (rule 5, DL-20 item 8): the Item is kept, and rules, which read only the listed slots, ignore it.
+ * (rule 5, DL-20 item 8): the Item is kept, and `equip` never fills such a slot; gear already in
+ * it still counts in `effectiveStats` until it is unequipped, which any slot may be (DL-49).
  */
 function unknownSlot({ world }: WorldDocument, _content: ContentSet, config: GameConfig): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];

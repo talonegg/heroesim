@@ -11,6 +11,7 @@ import type {
   ItemDefinitionKey,
   LootTableKey,
   QuestTemplateKey,
+  SlotKey,
   SphereKey,
   StatKey,
   SynergyKey,
@@ -378,6 +379,48 @@ export type HeroRegardChanged = Entry<
  */
 export type ItemExpended = Entry<'item.expended', ConsumableUse & { questId: QuestId; partyId: PartyId; guildId: GuildId }>;
 
+// ── Gear (M5-S2, DL-49) ──────────────────────────────────────────────────────────────────────
+
+/**
+ * An Item of gear moving between a Hero's slot and their Guild's holding: the Hero, the Guild, the
+ * slot, the definition, and the row moved — the unique Item (`itemId`, `stackId` null), or for a
+ * Common Item the stack the unit is in after the move (`stackId`, `itemId` null), which is the
+ * Hero's own stack on equipping and the Guild's stack it joined on the way back.
+ */
+export interface GearMove {
+  heroId: HeroId;
+  guildId: GuildId;
+  slot: SlotKey;
+  definitionKey: ItemDefinitionKey;
+  itemId: ItemId | null;
+  stackId: StackId | null;
+}
+
+/**
+ * A Guild put gear from its holding into a Hero's slot through `equip`. Names the Hero, the Guild
+ * and the Item or stack. Not a Milestone.
+ */
+export type ItemEquipped = Entry<'item.equipped', GearMove>;
+
+/**
+ * A Guild took gear out of a Hero's slot back into its holding through `unequip`. Names the Hero,
+ * the Guild and the Item or stack. Not a Milestone.
+ */
+export type ItemUnequipped = Entry<'item.unequipped', GearMove>;
+
+/**
+ * Why gear went back from a Hero to their Guild's holding without an `unequip` (DL-49): the Hero
+ * died or retired (the night's `gearReturn`), or the Guild folded (its gear is back before the
+ * fold does anything with the Guild's holding). M6's Transfers add theirs.
+ */
+export type GearReturnCause = 'died' | 'retired' | 'guild-folded';
+
+/**
+ * Gear a Hero carried went back to their Guild's holding, for `cause`, one entry per Item. Names the
+ * Hero, the Guild and the Item or stack. Not a Milestone: the Death, Retirement or fold is.
+ */
+export type ItemReturned = Entry<'item.returned', GearMove & { cause: GearReturnCause }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -410,7 +453,10 @@ export type EngineEvent =
   | PatronRegardChanged
   | GuildmasterRegardChanged
   | HeroRegardChanged
-  | ItemExpended;
+  | ItemExpended
+  | ItemEquipped
+  | ItemUnequipped
+  | ItemReturned;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -457,6 +503,9 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guildmaster.regard-changed': false,
   'hero.regard-changed': false,
   'item.expended': false,
+  'item.equipped': false,
+  'item.unequipped': false,
+  'item.returned': false,
 } satisfies Record<EngineEventType, boolean>);
 
 /** A rule saying, from its payload, whether an entry of `Type` is a Milestone. */

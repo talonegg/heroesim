@@ -339,8 +339,8 @@ export interface GameConfig {
   /**
    * The gear slots every Hero has, in the order a front end lists them: each one of content's
    * `gearSlotKeys`, none twice (INPUTS 7.1: weapon, armour, trinket). A Hero holds at most one Item
-   * in each; an Item held in a slot not listed here is warned about by the validator and ignored
-   * by rules.
+   * in each; `equip` fills only these, and an Item held in a slot not listed here is warned about
+   * by the validator (DL-49).
    */
   gearSlots: readonly SlotKey[];
 

@@ -22,6 +22,7 @@ import {
   type World,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
+import { returnGear } from '../gear.js';
 import { generateRival } from '../generators/guilds.js';
 import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
@@ -98,7 +99,10 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
 }
 
 /**
- * A Rival folds (pre-M0 review D6, DL-28): `guild.folded`, naming the Guild, its Guildmaster, each
+ * A Rival folds (pre-M0 review D6, DL-28): first the gear each Hero on the Roster carries goes back
+ * to the Guild's holding, in Roster order, with `item.returned` for `guild-folded` (DL-49), so that
+ * the Heroes enter the pool carrying nothing and whatever the fold does with the Guild's holding
+ * finds that gear there; then `guild.folded`, naming the Guild, its Guildmaster, each
  * Party it disbands and each Quest it abandons; then `hero.left-guild` for each Hero on the Roster,
  * in Roster order, every event made before the rows change. Its Parties in flight are disbanded and
  * a Quest left with no Party is removed unresolved, since nobody is left to finish it or be paid;
@@ -113,13 +117,18 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
   const abandoned = abandonedQuests(world, parties);
 
-  const events: EngineEvent[] = [
+  const events: EngineEvent[] = [];
+  for (const heroId of guild.rosterIds) {
+    const hero = world.heroes[heroId];
+    if (hero !== undefined) events.push(...returnGear(world, hero, 'guild-folded', ctx.emit));
+  }
+  events.push(
     ctx.emit({
       type: 'guild.folded',
       participants: [guild.id, guild.guildmasterId, ...parties.map((party) => party.id), ...abandoned],
       payload: { guildId: guild.id, reason },
     }),
-  ];
+  );
   for (const heroId of guild.rosterIds) {
     events.push(
       ctx.emit({ type: 'hero.left-guild', participants: [heroId, guild.id], payload: { heroId, guildId: guild.id } }),

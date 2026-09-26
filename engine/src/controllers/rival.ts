@@ -13,6 +13,7 @@ import { unavailability } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, DispositionKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
+import { gearChoices } from '../gear.js';
 import {
   affordableImprovement,
   baseStat,
@@ -80,16 +81,17 @@ export function staffableQuests(
 // ── steady ───────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `steady` (INPUTS 4.12, DL-30, DL-38): dispatch to the easiest Quest on the Board it can staff,
- * then make one purchase: build the infirmary's next grade while its Wealth is above
- * `buildWealthMultiple` times that grade's cost (M3-S6), or else recruit the cheapest Unattached
+ * `steady` (INPUTS 4.12, DL-30, DL-38): first put the gear its Guild holds on its Heroes with the
+ * slot empty (`gearChoices`, M5-S2, DL-49), which moves no Wealth and sends no one; then dispatch
+ * to the easiest Quest on the Board it can staff, then make one purchase: build the infirmary's
+ * next grade while its Wealth is above `buildWealthMultiple` times that grade's cost (M3-S6), or else recruit the cheapest Unattached
  * Hero who would sign while its Wealth is above `recruitWealthMultiple` times its Upkeep. At most
  * one dispatch and one purchase an afternoon, and no draw. The dispatch and the purchase do not
  * depend on each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen
  * on the same world; one purchase, so that the second never finds the Wealth the first spent.
  */
 function steady(world: World, guild: Guild, deps: EngineDeps): GuildAction[] {
-  const choices: GuildAction[] = [];
+  const choices: GuildAction[] = [...gearChoices(world, guild, deps)];
   const quest = easiestStaffable(world, guild, deps.content);
   if (quest !== null) choices.push(quest);
   const purchase = infirmaryBuild(guild, deps) ?? cheapestHire(world, guild, deps);
