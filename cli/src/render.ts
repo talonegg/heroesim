@@ -10,7 +10,7 @@
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
 // printed Hero for it. Regard is shown as its band, never its number (M4-S5): no view prints a
-// `RegardEntry`'s value, only the engine's `regardBand` word for it.
+// `RegardEntry`'s value, only the engine's `regardBand` word for it, nor a Relationship's (M4-S4).
 //
 // What the player sees is what the player's Guildmaster sees and pays (M4-S5): fees at their
 // Negotiation, hints through their Judgement.
@@ -31,6 +31,7 @@ import {
   signingRefusal,
   durationDaysOf,
   potentialHint,
+  relationship,
   timeOfDay,
   unattachedHeroes,
   upkeep,
@@ -278,7 +279,9 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
  * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
  * Stats shown are base values, read through `baseStat`, each with its Potential hint beside it
  * under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
- * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5).
+ * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
+ * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
+ * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads.
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
@@ -321,6 +324,31 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
   ];
   const skills = inContentOrder.map((key) => [nameIn(content.skills, key), String(hero.skills[key])]);
 
+  // Relationships on the Roster (M4-S4): bands only.
+  const onRoster = guild?.rosterIds.includes(hero.id) === true;
+  const mates = (onRoster ? (guild?.rosterIds ?? []) : []).flatMap((id) => {
+    const mate = id === hero.id ? undefined : rowIn(world.heroes, id);
+    if (mate === undefined) return [];
+    return [
+      [
+        mate.id,
+        mate.name,
+        nameIn(content.classes, mate.classKey),
+        regardBand(regardValue(hero.regard, mate.id), config),
+        regardBand(relationship(hero.id, mate.id, world, config), config),
+      ],
+    ];
+  });
+  const relationships = onRoster
+    ? [
+        '',
+        'Relationships on the Roster',
+        ...(mates.length === 0
+          ? ['none']
+          : table([{ heading: 'Id' }, { heading: 'Hero' }, { heading: 'Class' }, { heading: 'Regard' }, { heading: 'Relationship' }], mates)),
+      ]
+    : [];
+
   return [
     `${hero.name} (${hero.id})`,
     '',
@@ -333,6 +361,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...(skills.length === 0
       ? ['none']
       : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+    ...relationships,
   ];
 }
 

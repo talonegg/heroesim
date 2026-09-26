@@ -15,6 +15,7 @@ import {
   type EngineDeps,
   type EngineEvent,
   type EntityId,
+  type HeroRegardCause,
   type PatronRegardCause,
   type QuestBand,
   type RegardBand,
@@ -58,6 +59,12 @@ const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-failure': 'after a Quest of theirs failed',
   'offer-expired': 'when an offer of theirs went untaken',
   recovery: 'as time passed',
+};
+
+/** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
+const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
+  'shared-quest': 'after a Quest together',
+  decay: 'as time passed apart',
 };
 
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
@@ -173,6 +180,13 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
     case 'guildmaster.regard-changed': {
       const { guildmasterId, entityId, bandBefore, bandAfter } = event.payload;
       return `${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
+    }
+    case 'hero.regard-changed': {
+      const { heroId, entityId, cause, bandBefore, bandAfter } = event.payload;
+      return (
+        `${hero(event, heroId)}'s Regard for ${hero(event, entityId)} ${crossed(bandBefore, bandAfter)} ` +
+        `${heroRegardWords[cause]}.`
+      );
     }
   }
 }

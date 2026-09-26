@@ -22,12 +22,14 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
+const otherHeroId = 'hero-000009' as HeroId;
 
 const labels: Record<string, string> = {
   [guildId]: 'The Kestrel Guild',
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [otherHeroId]: 'Aldred Barrowby',
 };
 
 /** An event of `type` as the engine would make it, labelled from `labels`. */
@@ -140,6 +142,15 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'neutral',
     bandAfter: 'warm',
   }),
+  'hero.regard-changed': event('hero.regard-changed', [heroId, otherHeroId, guildId], {
+    heroId,
+    entityId: otherHeroId,
+    cause: 'shared-quest',
+    before: 11,
+    after: 12.5,
+    bandBefore: 'warm',
+    bandAfter: 'close',
+  }),
 };
 
 describe('narrate', () => {
@@ -183,6 +194,31 @@ describe('narrate', () => {
     expect(patron).toBe("Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.");
     expect(guildmaster).toBe("Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.");
     for (const line of [patron, guildmaster]) expect(line).not.toMatch(/\d/);
+  });
+
+  test("says a Hero's Regard for another Hero crossed a band, never the number, and what moved it (M4-S4)", () => {
+    const shared = narrate(samples['hero.regard-changed'], content);
+    const decayed = narrate(
+      event('hero.regard-changed', [heroId, otherHeroId, guildId], {
+        heroId,
+        entityId: otherHeroId,
+        cause: 'decay',
+        before: 4,
+        after: 3.99,
+        bandBefore: 'warm',
+        bandAfter: 'neutral',
+      }),
+      content,
+    );
+
+    expect(shared).toBe(
+      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) rose from warm to close after a Quest together.",
+    );
+    expect(decayed).toBe(
+      "Brenna Ashcombe (hero-000007)'s Regard for Aldred Barrowby (hero-000009) fell from warm to neutral as time passed apart.",
+    );
+    // The ids are the commands'; no Regard value is printed.
+    for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
   });
 
   test('says a Level gained without naming the points Potential took', () => {

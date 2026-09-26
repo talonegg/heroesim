@@ -8,17 +8,19 @@
 // the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
 // moves by the Encounters' Morale, on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
-// resolved Quest (M4-S5, regard.ts, events only on a band crossing); the survivors are free again
-// (`partyId: null`); and the Party and the Quest rows go, the History keeping their record. The
-// Encounters' Regard between Heroes (`outcome.regardDelta`) is M4-S4's to apply. Every Guild alike
-// (ADR-0002 as amended by pre-M0 review A1), a folded Guild's Parties excepted, as every per-Guild
-// rule skips a folded Guild.
+// resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
+// Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
+// Quest (M4-S4, hero-regard.ts, events only on a band crossing); the survivors are free again
+// (`partyId: null`); and the Party and the Quest rows go, the History keeping their record. Every
+// Guild alike (ADR-0002 as amended by pre-M0 review A1), a folded Guild's Parties excepted, as every
+// per-Guild rule skips a folded Guild.
 //
 // A Party comes home on a night, so its Heroes are free from that night's end: dispatchable again
 // from the next morning (pre-M0 review C4), or by an action taken on the return night itself.
 
 import { compareByCodeUnit, type Guild, type Party, type Quest, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
+import { regardOnSharedQuest } from '../hero-regard.js';
 import { changeMorale } from '../morale.js';
 import { resolveQuest, type Resolution } from '../quest-engine/resolve.js';
 import { regardOnQuestResolved } from '../regard.js';
@@ -131,6 +133,9 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   const home = survivors.filter((hero) => guild.rosterIds.includes(hero.id)).map((hero) => hero.id);
   const resolved = { patronId: quest.patronId, guild, heroIds: home, succeeded: outcome.band !== 'fail' };
   events.push(...regardOnQuestResolved(world, ctx, resolved));
+  // Regard between the Heroes who came home alive, each for each other, once for the Quest, the
+  // Encounters' Regard in the same change; the dead take no part (M4-S4, hero-regard.ts, DL-46).
+  events.push(...regardOnSharedQuest(survivors, ctx, { succeeded: outcome.band !== 'fail', regardDelta: outcome.regardDelta }));
 
   for (const hero of survivors) hero.partyId = null;
   delete world.parties[party.id];
