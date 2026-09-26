@@ -38,10 +38,10 @@ Config: `gearSlots`.
 
 **Acceptance:**
 
-- [ ] Moving 3 of a stack of 5 to a holder that already has 2 leaves stacks of 2 and 5
-- [ ] The validator's duplicate-stack check fires on a hand-built duplicate and never after
+- [x] Moving 3 of a stack of 5 to a holder that already has 2 leaves stacks of 2 and 5
+- [x] The validator's duplicate-stack check fires on a hand-built duplicate and never after
       `moveStack`
-- [ ] Content validation refuses gear without a slot and consumables with one
+- [x] Content validation refuses gear without a slot and consumables with one
 
 ### M5-S2 · Equip and effective Stats · 1 session
 

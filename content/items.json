@@ -1,0 +1,26 @@
+{
+  "short-sword": { "name": "Short sword", "kind": "gear", "unique": false, "slot": "weapon", "statModifiers": { "weaponry": 1 }, "buyPrice": 40, "tags": ["plain"] },
+  "arming-sword": { "name": "Arming sword", "kind": "gear", "unique": false, "slot": "weapon", "statModifiers": { "weaponry": 2, "strength": 1 }, "buyPrice": 120, "tags": ["fine"] },
+  "masterwork-blade": { "name": "Masterwork blade", "kind": "gear", "unique": false, "slot": "weapon", "statModifiers": { "weaponry": 3, "strength": 2 }, "buyPrice": 300, "tags": ["masterwork"] },
+
+  "padded-jack": { "name": "Padded jack", "kind": "gear", "unique": false, "slot": "armour", "statModifiers": { "constitution": 1 }, "buyPrice": 40, "tags": ["plain"] },
+  "mail-shirt": { "name": "Mail shirt", "kind": "gear", "unique": false, "slot": "armour", "statModifiers": { "constitution": 2, "endurance": 1 }, "buyPrice": 120, "tags": ["fine"] },
+  "plate-harness": { "name": "Plate harness", "kind": "gear", "unique": false, "slot": "armour", "statModifiers": { "constitution": 3, "endurance": 2, "dexterity": -1 }, "buyPrice": 300, "tags": ["masterwork"] },
+
+  "lucky-charm": { "name": "Lucky charm", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "courage": 1 }, "buyPrice": 40, "tags": ["plain"] },
+  "silver-amulet": { "name": "Silver amulet", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "willpower": 2, "spirit": 1 }, "buyPrice": 120, "tags": ["fine"] },
+  "runed-circlet": { "name": "Runed circlet", "kind": "gear", "unique": false, "slot": "trinket", "statModifiers": { "arcana": 3, "spelllore": 2 }, "buyPrice": 300, "tags": ["masterwork"] },
+
+  "whetstone": { "name": "Whetstone", "kind": "consumable", "unique": false, "effect": { "kind": "bonus", "flat": 3, "kinds": ["combat"] }, "buyPrice": 25, "tags": ["tool"] },
+  "lockpicks": { "name": "Set of lockpicks", "kind": "consumable", "unique": false, "effect": { "kind": "bonus", "flat": 3, "kinds": ["stealth"] }, "buyPrice": 25, "tags": ["tool"] },
+  "grappling-line": { "name": "Grappling line", "kind": "consumable", "unique": false, "effect": { "kind": "reroll", "kinds": ["travel", "stealth"] }, "buyPrice": 45, "tags": ["tool"] },
+  "blessed-candle": { "name": "Blessed candle", "kind": "consumable", "unique": false, "effect": { "kind": "reroll", "kinds": ["arcane", "social"] }, "buyPrice": 60, "tags": ["holy"] },
+  "healing-draught": { "name": "Healing draught", "kind": "consumable", "unique": false, "effect": { "kind": "heal", "days": 5 }, "buyPrice": 30, "tags": ["potion"] },
+  "physicians-kit": { "name": "Physician's kit", "kind": "consumable", "unique": false, "effect": { "kind": "heal", "days": 10 }, "buyPrice": 70, "tags": ["tool"] },
+
+  "barrow-kings-blade": { "name": "The Barrow King's blade", "kind": "gear", "unique": true, "slot": "weapon", "statModifiers": { "weaponry": 4, "strength": 2, "courage": 1 }, "buyPrice": null, "tags": ["relic"] },
+  "vault-wardens-staff": { "name": "The Vault Warden's staff", "kind": "gear", "unique": true, "slot": "weapon", "statModifiers": { "arcana": 3, "power": 3 }, "buyPrice": null, "tags": ["relic"] },
+  "mantle-of-the-fells": { "name": "Mantle of the Fells", "kind": "gear", "unique": true, "slot": "armour", "statModifiers": { "endurance": 3, "constitution": 2, "adaptability": 1 }, "buyPrice": null, "tags": ["relic"] },
+  "lantern-of-stannary": { "name": "The Lantern of Stannary", "kind": "gear", "unique": true, "slot": "trinket", "statModifiers": { "perception": 3, "wits": 2 }, "buyPrice": null, "tags": ["relic"] },
+  "abbots-reliquary": { "name": "The Abbot's reliquary", "kind": "gear", "unique": true, "slot": "trinket", "statModifiers": { "spirit": 3, "willpower": 2, "resistance": 1 }, "buyPrice": null, "tags": ["relic", "holy"] }
+}

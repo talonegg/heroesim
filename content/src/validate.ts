@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { Consequence, ContentSet, EncounterKind, FacilityKey } from '@heroesim/engine';
+import type { Consequence, ConsumableEffect, ContentSet, EncounterKind, FacilityKey, SlotKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -37,6 +37,9 @@ const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, train
 /** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
 const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
 
+/** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
+const gearSlots: Readonly<Record<SlotKey, true>> = { weapon: true, armour: true, trinket: true };
+
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -62,6 +65,7 @@ export function validateContent(set: ContentSet): ContentSet {
     improvements: set.improvements,
     encounters: set.encounters,
     synergies: set.synergies,
+    items: set.items,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -149,6 +153,7 @@ export function validateContent(set: ContentSet): ContentSet {
   checkEncounters(set, heroStats, skills, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
   checkSynergies(set.synergies, classes, skills, problems);
+  checkItems(set.items, heroStats, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -360,6 +365,78 @@ function checkSynergies(
       }
       for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
+  }
+}
+
+/**
+ * The Item definitions (M5-S1, DL-48). Every Item: a price that is a whole number above 0, or `null`
+ * for Loot only; tags in kebab-case, none twice. Gear: a slot of the three and no effect; Stat
+ * modifiers, at least one, each on a Hero Stat, each a whole number other than 0. A consumable: not
+ * unique, since it is expended from a stack; no slot and no modifiers; an effect within its kind's
+ * bounds. The parser refuses the other kind's fields in a file; these catch them in a set built in
+ * memory too.
+ */
+function checkItems(items: ContentSet['items'], heroStats: ReadonlySet<string>, problems: string[]): void {
+  for (const [key, item] of Object.entries(items)) {
+    const where = `items.${key}`;
+    const { buyPrice } = item;
+    if (buyPrice !== null && !(Number.isInteger(buyPrice) && buyPrice > 0)) {
+      problems.push(`${where}.buyPrice is ${buyPrice}; it is a whole number above 0, or null for an Item found only as Loot`);
+    }
+    for (const tag of item.tags) {
+      if (!kebabCase.test(tag)) problems.push(`${where}.tags: "${tag}" is not kebab-case`);
+    }
+    for (const tag of repeated(item.tags)) problems.push(`${where}.tags: "${tag}" is listed twice`);
+    switch (item.kind) {
+      case 'gear': {
+        if (!Object.hasOwn(gearSlots, item.slot)) {
+          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${Object.keys(gearSlots).join(', ')})`);
+        }
+        if (Reflect.has(item, 'effect')) problems.push(`${where}.effect: gear has no effect; only a consumable has one`);
+        const modifiers = Object.entries(item.statModifiers);
+        if (modifiers.length === 0) problems.push(`${where}.statModifiers is empty: gear modifies at least one Stat`);
+        for (const [statKey, delta] of modifiers) {
+          if (!heroStats.has(statKey)) problems.push(`${where}.statModifiers: "${statKey}" is not a Hero Stat`);
+          if (!(Number.isInteger(delta) && delta !== 0)) {
+            problems.push(`${where}.statModifiers.${statKey} is ${delta}; it is a whole number other than 0`);
+          }
+        }
+        break;
+      }
+      case 'consumable':
+        if (item.unique) problems.push(`${where}.unique is true; a consumable is common, expended from a stack`);
+        if (Reflect.has(item, 'slot')) problems.push(`${where}.slot: a consumable has no slot; only gear has one`);
+        if (Reflect.has(item, 'statModifiers')) problems.push(`${where}.statModifiers: a consumable modifies no Stat`);
+        checkConsumableEffect(`${where}.effect`, item.effect, problems);
+        break;
+      default:
+        problems.push(`${where}.kind is ${JSON.stringify((item as { kind: unknown }).kind)}; it is gear or consumable`);
+    }
+  }
+}
+
+/** A consumable's effect: Encounter kinds named, `flat` above 0, `days` a whole number from 1. */
+function checkConsumableEffect(where: string, effect: ConsumableEffect, problems: string[]): void {
+  const kinds = (listed: readonly string[]): void => {
+    if (listed.length === 0) problems.push(`${where}.kinds is empty: the effect works on the Encounter kinds it names`);
+    for (const kind of listed) {
+      if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+    }
+    for (const kind of repeated(listed)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
+  };
+  switch (effect.kind) {
+    case 'reroll':
+      kinds(effect.kinds);
+      return;
+    case 'bonus':
+      if (!(Number.isFinite(effect.flat) && effect.flat > 0)) problems.push(`${where}.flat is ${effect.flat}; it is a number above 0`);
+      kinds(effect.kinds);
+      return;
+    case 'heal':
+      if (!(Number.isInteger(effect.days) && effect.days >= 1)) problems.push(`${where}.days is ${effect.days}; it is a whole number from 1`);
+      return;
+    default:
+      problems.push(`${where}.kind is ${JSON.stringify((effect as { kind: unknown }).kind)}; it is reroll, bonus or heal`);
   }
 }
 

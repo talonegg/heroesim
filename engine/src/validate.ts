@@ -14,8 +14,8 @@
 // `historyFrom`, and the History's checks then read only the entries appended since it last
 // validated, so validating every Turn of a game is not quadratic in its History (DL-34).
 
-import type { EngineDeps } from './config.js';
-import type { ContentSet } from './content-types.js';
+import type { EngineDeps, GameConfig } from './config.js';
+import type { ContentSet, ItemDefinition } from './content-types.js';
 import {
   isId,
   maxIdNumber,
@@ -29,6 +29,7 @@ import {
   type Hero,
   type HeroId,
   type History,
+  type Holder,
   type Meta,
   type Party,
   type PartyId,
@@ -63,6 +64,8 @@ export const refusalChecks = [
   'quest-party-mismatch',
   'too-many-parties',
   'duplicate-stack',
+  'empty-stack',
+  'gear-slot-overfull',
   'offer-hero-not-on-roster',
   'offer-expired',
   'history-position-out-of-range',
@@ -86,6 +89,8 @@ export const warningChecks = [
   'unknown-injury',
   'unknown-disposition',
   'unknown-encounter',
+  'unknown-slot',
+  'misplaced-item',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -155,7 +160,7 @@ export interface ValidateOptions {
 
 /** A check, given the first History position it must read (0 for the whole History). */
 type Check = (document: WorldDocument, from: number) => ValidationFailure[];
-type ContentCheck = (document: WorldDocument, content: ContentSet) => ValidationWarning[];
+type ContentCheck = (document: WorldDocument, content: ContentSet, config: GameConfig) => ValidationWarning[];
 
 /** The checks that run once the shape is known to be right, in the order they report. */
 const checksOfAWellShapedDocument: readonly Check[] = [
@@ -172,6 +177,8 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   questPartyMismatch,
   tooManyParties,
   duplicateStack,
+  emptyStack,
+  gearSlotOverfull,
   offerHeroNotOnRoster,
   offerExpired,
   historyPositionOutOfRange,
@@ -192,6 +199,8 @@ const contentChecks: readonly ContentCheck[] = [
   unknownInjury,
   unknownDisposition,
   unknownEncounter,
+  unknownSlot,
+  misplacedItem,
 ];
 
 /**
@@ -202,7 +211,7 @@ const contentChecks: readonly ContentCheck[] = [
  * (epics README §4): M8's modules will need `deps.modules` to validate their own state slices.
  */
 export function validate(document: unknown, deps: EngineDeps, options: ValidateOptions = {}): ValidationResult {
-  const { content } = deps;
+  const { content, config } = deps;
   const { historyFrom = 0 } = options;
   if (!Number.isSafeInteger(historyFrom) || historyFrom < 0) {
     throw new RangeError(`historyFrom is a whole number from 0, not ${historyFrom}`);
@@ -216,7 +225,7 @@ export function validate(document: unknown, deps: EngineDeps, options: ValidateO
   const wellShaped = document as WorldDocument;
   for (const check of checksOfAWellShapedDocument) failures.push(...check(wellShaped, from));
   if (failures.length > 0) return { ok: false, failures };
-  return { ok: true, warnings: contentChecks.flatMap((check) => check(wellShaped, content)) };
+  return { ok: true, warnings: contentChecks.flatMap((check) => check(wellShaped, content, config)) };
 }
 
 /**
@@ -490,9 +499,12 @@ const rowFields: Record<TableName, Record<string, FieldKind>> = {
   stacks: stackFields,
 };
 
-/** Which holders each table's rows may have (data-model §3.3), and the fields each kind carries. */
+/**
+ * Which holders each table's rows may have (data-model §3.3), and the fields each kind carries: the
+ * same for both, the Market holding a folded Guild's unique Items (pre-M0 review D6, DL-48).
+ */
 const holderKinds = {
-  items: ['hero', 'guild', 'party'],
+  items: ['hero', 'guild', 'party', 'market'],
   stacks: ['hero', 'guild', 'party', 'market'],
 } as const;
 
@@ -981,6 +993,46 @@ function duplicateStack({ world }: WorldDocument): ValidationFailure[] {
   return failures;
 }
 
+/**
+ * Every stack holds at least one Item (data-model §3.3, DL-48): an emptied stack is removed
+ * (`removeFromStack`), so a quantity of 0 or less is a rule that forgot to. The shape check has
+ * already held it to a whole number.
+ */
+function emptyStack({ world }: WorldDocument): ValidationFailure[] {
+  return Object.entries(world.stacks)
+    .filter(([, stack]) => stack.quantity < 1)
+    .map(([stackId, stack]) => ({
+      check: 'empty-stack',
+      id: stackId,
+      detail: `${stackId} holds ${stack.quantity} of ${stack.definitionKey}; a stack holds at least one, or is removed`,
+    }));
+}
+
+/**
+ * A Hero's gear slot holds one Item at most (M5-S2's `slot-occupied`, DL-48): one unique Item, or
+ * one stack of quantity 1, never both, never two. Reported once per slot, naming the Hero.
+ */
+function gearSlotOverfull({ world }: WorldDocument): ValidationFailure[] {
+  const bySlot = new Map<string, { heroId: string; slot: string; count: number; rows: string[] }>();
+  const add = (key: string, holder: Holder, count: number): void => {
+    if (holder.kind !== 'hero') return;
+    const signature = JSON.stringify([holder.id, holder.slot]);
+    const found = bySlot.get(signature) ?? { heroId: holder.id, slot: holder.slot, count: 0, rows: [] };
+    found.count += count;
+    found.rows.push(key);
+    bySlot.set(signature, found);
+  };
+  for (const [key, item] of Object.entries(world.items)) add(key, item.holder, 1);
+  for (const [key, stack] of Object.entries(world.stacks)) add(key, stack.holder, stack.quantity);
+  return [...bySlot.values()]
+    .filter(({ count }) => count > 1)
+    .map(({ heroId, slot, count, rows }) => ({
+      check: 'gear-slot-overfull',
+      id: heroId,
+      detail: `${heroId}'s ${slot} slot holds ${count} Items (${rows.join(', ')}); a slot holds one`,
+    }));
+}
+
 /** An offer's Hero is on the Roster of the Guild it would take them from. */
 function offerHeroNotOnRoster({ world }: WorldDocument): ValidationFailure[] {
   const failures: ValidationFailure[] = [];
@@ -1327,6 +1379,40 @@ function unknownItem({ world }: WorldDocument, content: ContentSet): ValidationW
   const { warnings, known } = keyWarnings('unknown-item', 'an Item');
   const items = laterTable(content, 'items');
   for (const [id, row] of heldRows(world)) known(id, 'definitionKey', items, row.definitionKey);
+  return warnings;
+}
+
+/**
+ * A Hero holds Items only in the gear slots `config.gearSlots` lists (M5-S1, DL-48). The key is the
+ * slot. A slot the config no longer lists is a warning, not a refusal, as an unknown content key is
+ * (rule 5, DL-20 item 8): the Item is kept, and rules, which read only the listed slots, ignore it.
+ */
+function unknownSlot({ world }: WorldDocument, _content: ContentSet, config: GameConfig): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+  for (const [id, { holder }] of heldRows(world)) {
+    if (holder.kind !== 'hero' || config.gearSlots.includes(holder.slot)) continue;
+    const detail = `${id} is held by ${holder.id} in the slot ${q(holder.slot)}, which gearSlots does not list`;
+    warnings.push({ check: 'unknown-slot', id, key: holder.slot, detail });
+  }
+  return warnings;
+}
+
+/**
+ * An Item a Hero holds is gear made for the slot it is in (M5-S1, DL-48): not a consumable, and not
+ * gear of another slot. The key is the Item's definition. A definition content lacks is
+ * `unknown-item`'s. A warning, since content may change a definition under a live save (rule 5).
+ */
+function misplacedItem({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+  const items = laterTable(content, 'items') as Record<string, ItemDefinition>;
+  for (const [id, { definitionKey, holder }] of heldRows(world)) {
+    if (holder.kind !== 'hero' || !has(items, definitionKey)) continue;
+    const definition = items[definitionKey] as ItemDefinition;
+    if (definition.kind === 'gear' && definition.slot === holder.slot) continue;
+    const made = definition.kind === 'gear' ? `gear for the ${definition.slot} slot` : 'a consumable';
+    const detail = `${id} is held by ${holder.id} in the ${holder.slot} slot, but ${definitionKey} is ${made}`;
+    warnings.push({ check: 'misplaced-item', id, key: definitionKey, detail });
+  }
   return warnings;
 }
 

@@ -35,7 +35,6 @@ import {
   type QuestId,
   type RegardEntry,
   type Stack,
-  type StackHolder,
   type StackId,
   type TransferOffer,
   type UniqueItem,
@@ -609,9 +608,12 @@ describe('the types match data-model.md', () => {
   });
 
   test('the unions data-model §3 spells out are the types', () => {
-    expectTypeOf<Holder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party'>();
-    expectTypeOf<StackHolder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party' | 'market'>();
+    // One holder type for both tables: the Market holds a folded Guild's unique Items (D6, DL-48).
+    expectTypeOf<Holder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party' | 'market'>();
+    expectTypeOf<UniqueItem['holder']>().toEqualTypeOf<Holder>();
+    expectTypeOf<Stack['holder']>().toEqualTypeOf<Holder>();
     expectTypeOf<Extract<Holder, { kind: 'hero' }>>().toHaveProperty('slot');
+    expectTypeOf<Extract<Holder, { kind: 'hero' }>['slot']>().toEqualTypeOf<'weapon' | 'armour' | 'trinket'>();
     expectTypeOf<Controller['kind']>().toEqualTypeOf<'player' | 'rival'>();
     expectTypeOf<Extract<Controller, { kind: 'rival' }>>().toHaveProperty('disposition');
     expectTypeOf<Quest['status']>().toEqualTypeOf<'offered' | 'taken' | 'resolved'>();

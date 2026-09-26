@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 8 since the Synergies (M4-S3)', () => {
+  test('is the core content set, version 9 since the Item definitions (M5-S1)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(8);
+    expect(content.version).toBe(9);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -242,6 +242,63 @@ describe('loadContent()', () => {
       expect(synergies.some((it) => it.bonus.factor !== undefined)).toBe(true);
       expect(synergies.some((it) => it.kinds === undefined)).toBe(true);
       expect(synergies.some((it) => it.kinds !== undefined)).toBe(true);
+    });
+  });
+
+  // M5-S1: twenty to start, nine gear three a slot at three grades, six consumables, five unique gear
+  // as Loot only (DL-48).
+  describe('Item definitions (M5-S1)', () => {
+    const items = Object.values(content.items);
+    const gear = items.filter((it) => it.kind === 'gear');
+    const consumables = items.filter((it) => it.kind === 'consumable');
+    const grades = ['plain', 'fine', 'masterwork'];
+
+    test('are twenty: nine common gear, six consumables and five unique gear', () => {
+      expect(items).toHaveLength(20);
+      expect(gear.filter((it) => !it.unique)).toHaveLength(9);
+      expect(consumables).toHaveLength(6);
+      expect(gear.filter((it) => it.unique)).toHaveLength(5);
+      for (const it of items) expect(it.name.length, it.key).toBeGreaterThan(0);
+    });
+
+    test('hold three common gear to each slot, one of each grade, dearer and stronger by grade (INPUTS 7.1)', () => {
+      for (const slot of ['weapon', 'armour', 'trinket'] as const) {
+        const line = gear
+          .filter((it) => !it.unique && it.slot === slot)
+          .sort((a, b) => grades.indexOf(a.tags[0] ?? '') - grades.indexOf(b.tags[0] ?? ''));
+        const strength = line.map((it) => Object.values(it.statModifiers).reduce((sum, delta) => sum + delta, 0));
+        const prices = line.map((it) => it.buyPrice ?? 0);
+
+        expect(line.map((it) => it.tags), slot).toEqual(grades.map((grade) => [grade]));
+        expect(strength, slot).toEqual([...strength].sort((a, b) => a - b));
+        expect(new Set(strength).size, slot).toBe(3);
+        expect(prices, slot).toEqual([...prices].sort((a, b) => a - b));
+        expect(new Set(prices).size, slot).toBe(3);
+      }
+    });
+
+    test('give gear modifiers on Hero Stats, and every common Item a price', () => {
+      for (const it of gear) {
+        for (const statKey of Object.keys(it.statModifiers)) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
+      }
+      for (const it of items.filter((item) => !item.unique)) expect(it.buyPrice, it.key).toBeGreaterThan(0);
+    });
+
+    test('make the unique gear Loot only, among them one of each slot', () => {
+      const unique = gear.filter((it) => it.unique);
+      for (const it of unique) expect(it.buyPrice, it.key).toBeNull();
+      expect(new Set(unique.map((it) => it.slot))).toEqual(new Set(['weapon', 'armour', 'trinket']));
+    });
+
+    test('have two consumables of each effect, common, their kinds Encounter kinds content has', () => {
+      const kinds = new Set(Object.values(content.encounters).map((it) => it.kind));
+      for (const effect of ['reroll', 'bonus', 'heal']) {
+        expect(consumables.filter((it) => it.effect.kind === effect), effect).toHaveLength(2);
+      }
+      for (const it of consumables) {
+        expect(it.unique, it.key).toBe(false);
+        if (it.effect.kind !== 'heal') for (const kind of it.effect.kinds) expect(kinds.has(kind), `${it.key} ${kind}`).toBe(true);
+      }
     });
   });
 

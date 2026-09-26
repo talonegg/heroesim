@@ -55,6 +55,7 @@ export { generatePatron, type GeneratedPatron, type PatronOptions } from './gene
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './hero-regard.js';
 export * from './history.js';
+export * from './items.js';
 export * from './json-safe.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';

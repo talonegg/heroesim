@@ -7,10 +7,11 @@
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
-// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
+// gear slots (DL-48). Every "Min/Max" pair is an inclusive range drawn with `int`. A
 // field holding an object or a list is frozen with `defaultConfig`.
 
-import type { ContentSet, StatArea } from './content-types.js';
+import type { ContentSet, SlotKey, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
 
 export interface GameConfig {
@@ -333,6 +334,15 @@ export interface GameConfig {
   guildmasterRegardOnHeroSuccess: number;
   /** Added (negative) for each such Hero after a failure. */
   guildmasterRegardOnHeroFailure: number;
+
+  // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
+  /**
+   * The gear slots every Hero has, in the order a front end lists them: each one of content's
+   * `gearSlotKeys`, none twice (INPUTS 7.1: weapon, armour, trinket). A Hero holds at most one Item
+   * in each; an Item held in a slot not listed here is warned about by the validator and ignored
+   * by rules.
+   */
+  gearSlots: readonly SlotKey[];
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
@@ -461,6 +471,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRegardOnPatronFailure: -1,
   guildmasterRegardOnHeroSuccess: 1,
   guildmasterRegardOnHeroFailure: -1,
+
+  gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

@@ -2847,6 +2847,115 @@ the mean of two values whose entries record only band crossings; the counter rea
 world at year 10, as DL-43's Guildmaster Regard counter does. `hero.regard-changed` entries, by
 `cause` and `bandAfter`, are there for any count of crossings.
 
+## DL-48 — Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S1's implementer)
+
+**Context.** M5-S1 names `content/items.json` and its row `{ key, name, kind: "gear" | "consumable",
+unique, slot?: "weapon" | "armour" | "trinket", statModifiers?, effect?: ConsumableEffect, buyPrice,
+tags }`, the effect union `reroll { kinds }`, `bonus { flat, kinds }`, `heal { days }`, twenty
+definitions (nine gear, three a slot at three grades; six consumables; five unique gear as Loot only,
+`buyPrice: null`), `engine/src/items.ts` with `holdings`, `moveStack` and `moveItem`, the config field
+`gearSlots`, and three boxes. M5-S2 to S5 build on it in parallel. Left open: the typed shape; whether
+the slots are content's or config's; what content validation refuses beyond a slot on the wrong kind;
+whether a consumable may be unique; what the validator checks beyond §6's duplicate stacks; how a new
+stack gets its id; and what else the next stories need from `items.ts`. And one contradiction:
+data-model §3.3 lets only a stack be held by the Market, while the owner's pre-M0 review D6 and M5-S4
+put a folded Guild's unique Items on the Market.
+
+**Decision.**
+
+1. **The row** (`content-types.ts`). `ItemDefinition` is a union on `kind`: `GearDefinition` has
+   `slot` and `statModifiers`, `ConsumableDefinition` has `effect`, and both have `name`, `unique`,
+   `buyPrice` (a whole number above 0, or `null` for an Item found only as Loot) and `tags`
+   (`ItemTagKey[]`, kebab-case, none twice, may be none). A union rather than the epic's optional
+   fields, so that M5-S2 reads a gear's slot and M5-S3 a consumable's effect without a check the
+   compiler cannot see. `statModifiers` is required on gear, at least one, each a Hero Stat and a
+   whole number other than 0 (a penalty is negative): R30's gear modifies Stats. `ConsumableEffect`
+   is the epic's closed union, `kinds` one or more Encounter kinds, none twice; `flat` above 0; `days`
+   a whole number from 1. `ContentSet.items`, the table name DL-20 set, so `unknown-item` reads it.
+   **`contentVersion` becomes 9.**
+2. **Slots are a closed list; which a Hero has is config.** `gearSlotKeys = ['weapon', 'armour',
+   'trinket']` sits beside `encounterKinds`, and `SlotKey` is its union, so content validation refuses
+   a slot no Hero could have (it cannot read config). `GameConfig.gearSlots` (default the three,
+   frozen; INPUTS 7.1) is the slots every Hero has, in the order a front end lists them; rules read
+   only these. A fourth slot is an engine change, as a new Encounter kind is. **`configVersion` stays
+   4**: a field is added and no default changes (DL-38's reading).
+3. **Content refuses** (the parser the shape, `validateContent` the rest, in memory as well): gear
+   without a slot or with one outside the three, or with an `effect`; a consumable with a `slot` or
+   `statModifiers`, or without an `effect`; an effect of a kind outside the union or with a field its
+   kind lacks; an Encounter kind that is not one, none, or one twice; a modifier that is empty, on a
+   Stat that is no Hero Stat, 0 or not whole; a price of 0 or less or not whole; a tag not in
+   kebab-case or listed twice; `unique` that is not a boolean. **A unique consumable is refused**: a
+   consumable is expended from a stack, M5-S3's dispatch names consumables by definition and
+   quantity, which a unique row cannot answer, and no rule would expend an individual; a one-off
+   potion is a common definition of which one exists. **Unique gear with a price is not refused**: the
+   core's five have none, and M5-S4, which must price a folded Guild's unique Items (D6), may want one.
+   So `buyPrice: null` means the Market never stocks it; the Market's refresh draws stacks and so
+   never stocks a unique definition whatever its price, and **M5-S4's draw filters on both `!unique`
+   and `buyPrice !== null`**. `items.json` is required and may be `{}`.
+4. **One holder type** (`document.ts`). `Holder` is hero-with-slot, guild, party or market, for
+   unique Items and stacks alike, and `StackHolder` is gone: D6 (owner, 2026-09-26) is later than
+   data-model §3.3 (2026-09-25) and needs the Market to hold a unique Item, so §3.3 now says so. The
+   validator's shape check accepts a unique Item on the Market; the test that refused it now accepts.
+5. **`items.ts`**, world-level primitives for the rules M5-S2 to S5 write. They emit nothing and
+   check no rule of play (a free slot, a Guild owning the Item, a price paid): the action does, and
+   rejects. They throw a `RangeError` only on a programming error. Each copies the holder it is given,
+   so rows share no object. Ids come from `world.counters` through `takeId`.
+   - `holdings(world, holder: HolderQuery): { items, stacks }`, each in id order; a `HolderQuery` is a
+     `Holder` or `{ kind: 'hero', id }`, which reads the Hero in every slot.
+   - `findStack(world, definitionKey, holder)`: the holder's one stack of a definition, or none.
+   - `moveStack(world, stackId, quantity, toHolder): StackId`: `quantity` from 1 to the stack's; joins
+     the target's stack of the definition, or becomes a new stack; a whole stack moving where there is
+     none keeps its id; the emptied source is removed; to its own holder, nothing changes. Returns the
+     stack the quantity is now in.
+   - `moveItem(world, itemId, toHolder)`.
+   - `addStack(world, definitionKey, quantity, holder): StackId`: merges into the holder's stack or
+     creates one (a Market refresh, a purchase, common Loot).
+   - `removeFromStack(world, stackId, quantity)`: removes an emptied stack (expended, sold, cleared).
+   - `createItem(world, definitionKey, holder): ItemId` (unique Loot).
+   - `sameHolder(a, b)`: kind, row and, for a Hero, slot. `itemDefinition(content, key)`: the row,
+     or `undefined` for a key content lacks.
+6. **The validator.** §6's `duplicate-stack` and `dangling-reference`'s holder check stood. It gains
+   two refusals: `empty-stack`, a stack whose quantity is below 1 (the shape check already holds it
+   whole), and `gear-slot-overfull`, a Hero's slot holding more than one Item (unique Items plus stack
+   quantities), once per slot, naming the Hero: M5-S2's `slot-occupied` as an invariant. And two
+   warnings, which rule 5 makes of a key that may drift under a live save (DL-20 item 8 already named
+   slots among them): `unknown-slot`, an Item a Hero holds in a slot `deps.config.gearSlots` does not
+   list (key: the slot), and `misplaced-item`, an Item a Hero holds that is not gear for its slot
+   (key: the definition). The warning checks now receive `deps.config` beside the content.
+7. **The twenty** (`content/items.json`; the engine's test content carries the same). A grade is a
+   tag, `plain`, `fine` or `masterwork`, not a field no rule reads.
+
+   | Slot / kind | plain (40) | fine (120) | masterwork (300) |
+   | --- | --- | --- | --- |
+   | weapon | Short sword: Weaponry +1 | Arming sword: Weaponry +2, Strength +1 | Masterwork blade: Weaponry +3, Strength +2 |
+   | armour | Padded jack: Constitution +1 | Mail shirt: Constitution +2, Endurance +1 | Plate harness: Constitution +3, Endurance +2, Dexterity −1 |
+   | trinket | Lucky charm: Courage +1 | Silver amulet: Willpower +2, Spirit +1 | Runed circlet: Arcana +3, Spelllore +2 |
+
+   Consumables, two of each effect: Whetstone (+3 on combat, 25), Set of lockpicks (+3 on stealth,
+   25), Grappling line (reroll travel or stealth, 45), Blessed candle (reroll arcane or social, 60),
+   Healing draught (heal 5 Days, 30), Physician's kit (heal 10 Days, 70). Unique gear, Loot only: the
+   Barrow King's blade (weapon: Weaponry +4, Strength +2, Courage +1), the Vault Warden's staff
+   (weapon: Arcana +3, Power +3), Mantle of the Fells (armour: Endurance +3, Constitution +2,
+   Adaptability +1), the Lantern of Stannary (trinket: Perception +3, Wits +2), the Abbot's reliquary
+   (trinket: Spirit +3, Willpower +2, Resistance +1). The scale: Stats run 1 to 20 with bases of 3 to
+   14; a flat of 3 is worth about what DL-45's Synergy flats are (5 to 20% of a capability); Injuries
+   heal in 5 to 30 Days; prices sit against rewards of 40 to 450 and a signing fee near 100. No rule
+   reads any of it until M5-S2 to S5, so the values are untested; the M5 close measures them.
+8. **Test support.** The fixture's Hero stack was a healing draught in a `belt` slot, which is no
+   slot; it is now a Padded jack in the Party Hero's armour slot.
+
+**Consequences.** M5-S2's `equip` checks `holdings(world, slotHolder)` is empty, the definition is
+gear for that slot and the slot is in `config.gearSlots`, then calls `moveItem` or `moveStack(…, 1,
+slotHolder)`; `effectiveStats` reads `holdings(world, { kind: 'hero', id })` for the slots
+`gearSlots` lists, skipping a misplaced Item. M5-S3 moves consumables with `moveStack` Guild → Party
+and back, and expends with `removeFromStack`. M5-S4 refreshes with `removeFromStack`/`addStack` on
+`{ kind: 'market' }`, moves bought and sold stacks with `moveStack` and a folded Guild's unique Items
+with `moveItem`, and settles what a unique Item sells for. M5-S5 awards with `createItem` or
+`addStack`. S1 adds no event, so it gives the M5-close counter task nothing to count. A new slot or
+effect kind is an engine change and earns a decision; a new Item is content only.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

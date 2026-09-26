@@ -13,6 +13,7 @@ import {
   type Guild,
   type Guildmaster,
   type Hero,
+  type Holder,
   type Party,
   type Patron,
   type Quest,
@@ -177,7 +178,7 @@ describe('§6: an id referenced by a row that does not exist in its table', () =
     ["a unique Item's holder", (d) => (item(d, ids.item).holder = { kind: 'party', id: nowhere.party }), ids.item],
     [
       "a stack's holder",
-      (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: nowhere.hero, slot: 'belt' }),
+      (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: nowhere.hero, slot: 'armour' }),
       ids.heroStack,
     ],
     ['a Regard key', (d) => (hero(d, ids.partyHero).regard[nowhere.patron] = regard()), ids.partyHero],
@@ -346,18 +347,70 @@ describe('§6: quest.partyIds and party.questId disagree, or more Parties than t
 });
 
 describe('§6: two stacks with the same definition, holder and slot', () => {
-  const copyInSlot = (slot: string) => (d: Doc) => {
+  /** A hand-built copy of stack `from`, held by `holder`: what `moveStack` never makes (items.test.ts). */
+  const copyTo = (from: Stack['id'], holder: Holder) => (d: Doc) => {
     const id = makeId('stacks', d.world.counters.stacks++);
-    d.world.stacks[id] = { ...stack(d, ids.heroStack), id, holder: { kind: 'hero', id: ids.partyHero, slot } };
+    d.world.stacks[id] = { ...stack(d, from), id, holder };
   };
+  const second = makeId('stacks', buildDocument().document.world.counters.stacks);
 
+  // M5-S1's second box, its first half.
   test('are refused, naming the second', () => {
-    const second = makeId('stacks', buildDocument().document.world.counters.stacks);
-    expect(refusals(copyInSlot('belt'))).toEqual([failure('duplicate-stack', second)]);
+    expect(refusals(copyTo(ids.guildStack, { kind: 'guild', id: ids.playerGuild }))).toEqual([
+      failure('duplicate-stack', second),
+    ]);
+    expect(refusals(copyTo(ids.marketStack, { kind: 'market' }))).toEqual([failure('duplicate-stack', second)]);
   });
 
-  test('in two slots of one Hero are accepted', () => {
-    expect(refusals(copyInSlot('pack'))).toEqual([]);
+  test('in one slot of a Hero are refused, and overfill the slot', () => {
+    expect(refusals(copyTo(ids.heroStack, { kind: 'hero', id: ids.partyHero, slot: 'armour' }))).toEqual([
+      failure('duplicate-stack', second),
+      failure('gear-slot-overfull', ids.partyHero),
+    ]);
+  });
+
+  test('in two slots of one Hero, or held by two holders, are accepted', () => {
+    expect(refusals(copyTo(ids.heroStack, { kind: 'hero', id: ids.partyHero, slot: 'weapon' }))).toEqual([]);
+    expect(refusals(copyTo(ids.guildStack, { kind: 'guild', id: ids.rivalGuild }))).toEqual([]);
+  });
+});
+
+describe('a stack of no Items (data-model §3.3, DL-48)', () => {
+  test.each([0, -2])('holding %d is refused, naming the stack', (quantity) => {
+    expect(refusals((d) => (stack(d, ids.guildStack).quantity = quantity))).toEqual([failure('empty-stack', ids.guildStack)]);
+  });
+
+  test('holding a quantity that is not whole is refused by document-shape', () => {
+    expect(refusals((d) => (stack(d, ids.guildStack).quantity = 1.5))).toEqual([
+      failure('document-shape', `$.world.stacks["${ids.guildStack}"].quantity`),
+    ]);
+  });
+});
+
+describe("a Hero's gear slot holding more than one Item (M5-S2's slot-occupied, DL-48)", () => {
+  const armour = { kind: 'hero', id: ids.partyHero, slot: 'armour' } as const;
+
+  test.each<[string, Mutation]>([
+    ['a stack of two', (d) => (stack(d, ids.heroStack).quantity = 2)],
+    ['a unique Item beside a stack', (d) => (item(d, ids.item).holder = { ...armour })],
+    ['a second stack of another definition', (d) => (stack(d, ids.guildStack).holder = { ...armour })],
+    [
+      'two unique Items',
+      (d) => {
+        const id = makeId('items', d.world.counters.items++);
+        d.world.items[id] = { id, definitionKey: 'lucky-charm', holder: { kind: 'hero', id: ids.partyHero, slot: 'trinket' } };
+      },
+    ],
+  ])('%s is refused once, naming the Hero', (_, mutate) => {
+    expect(refusals(mutate)).toEqual([failure('gear-slot-overfull', ids.partyHero)]);
+  });
+
+  test("one Item in each of a Hero's slots is accepted", () => {
+    const three = (d: Doc): void => {
+      const id = makeId('stacks', d.world.counters.stacks++);
+      d.world.stacks[id] = { id, definitionKey: 'short-sword', quantity: 1, holder: { kind: 'hero', id: ids.partyHero, slot: 'weapon' } };
+    };
+    expect(refusals(three)).toEqual([]);
   });
 });
 
@@ -494,8 +547,8 @@ describe('document-shape', () => {
       `$.world.quests["${ids.takenQuest}"].demands[0]`,
     ],
     [
-      'a unique Item held by the Market',
-      (d) => set(item(d, ids.item), 'holder', { kind: 'market' }),
+      'a holder of no kind the tables know',
+      (d) => set(item(d, ids.item), 'holder', { kind: 'vault' }),
       `${itemPath}.holder.kind`,
     ],
     ['an ending without its reason', (d) => set(d.world, 'ended', { turn: 3 }), '$.world.ended.reason'],
@@ -506,6 +559,10 @@ describe('document-shape', () => {
     ],
   ])('%s is refused, and no other check runs on it', (_, mutate, path) => {
     expect(refusals(mutate)).toEqual([failure('document-shape', path)]);
+  });
+
+  test("a unique Item held by the Market is accepted: a folded Guild's are listed there (D6, DL-48)", () => {
+    expect(refusals((d) => set(item(d, ids.item), 'holder', { kind: 'market' }))).toEqual([]);
   });
 
   test('a field no interface names is kept and ignored (rule 5)', () => {
@@ -661,6 +718,20 @@ describe('a key the content does not define warns and never refuses', () => {
       'reckless',
     ],
     [
+      'gear a Hero holds in a slot it is not made for (M5-S1)',
+      (d) => (stack(d, ids.heroStack).holder = { kind: 'hero', id: ids.partyHero, slot: 'weapon' }),
+      'misplaced-item',
+      ids.heroStack,
+      'padded-jack',
+    ],
+    [
+      'a consumable a Hero holds in a slot (M5-S1)',
+      (d) => (stack(d, ids.heroStack).definitionKey = 'healing-draught'),
+      'misplaced-item',
+      ids.heroStack,
+      'healing-draught',
+    ],
+    [
       "an Encounter in a Quest's sequence (M4-S1)",
       (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
@@ -669,6 +740,15 @@ describe('a key the content does not define warns and never refuses', () => {
     ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
+  });
+
+  test('an Item a Hero holds in a slot the config does not list warns, naming the slot (M5-S1)', () => {
+    const { document } = buildDocument();
+    const result = validate(document, testDeps({ gearSlots: ['weapon', 'armour'] }));
+
+    expect(result.ok && result.warnings.map(({ check, id, key }) => ({ check, id, key }))).toEqual([
+      { check: 'unknown-slot', id: ids.item, key: 'trinket' },
+    ]);
   });
 
   test('before content has Quest templates, Dispositions or Items, every such key warns', () => {

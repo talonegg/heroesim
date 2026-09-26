@@ -7,6 +7,9 @@ import type {
   Background,
   BackgroundOwner,
   Class,
+  ConsumableDefinition,
+  ConsumableEffect,
+  ConsumableEffectKind,
   ContentSet,
   Consequence,
   ConsequenceKind,
@@ -15,12 +18,16 @@ import type {
   EncounterAggregate,
   EncounterKind,
   FacilityKey,
+  GearDefinition,
   Improvement,
   InjuryType,
+  ItemDefinition,
+  ItemKind,
   Names,
   QuestTemplate,
   QuestTemplateRequires,
   Skill,
+  SlotKey,
   Sphere,
   Stat,
   StatArea,
@@ -44,9 +51,10 @@ export const contentSetId = 'core';
  * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from
  * M4-S1, which added the Encounters and each Quest template's Encounter kinds and counts, and, on
  * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
- * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45).
+ * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
+ * M5-S1, which added the Item definitions (DL-48).
  */
-export const contentVersion = 8;
+export const contentVersion = 9;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -63,6 +71,7 @@ export const contentFiles = [
   'improvements.json',
   'encounters.json',
   'synergies.json',
+  'items.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -87,6 +96,9 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
   fame: true,
 };
 const regardBetween: Record<'party', true> = { party: true };
+const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
+const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
+const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -200,6 +212,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
       return kinds === undefined ? shape : { ...shape, kinds };
     }),
+    items: table<ItemDefinition>('items.json', json('items.json'), problems, 'an Item', itemDefinition),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -297,6 +310,50 @@ function traitEffect(reader: RowReader | null): TraitEffect | null {
       break;
     case 'upkeepFactor':
       effect = { kind, factor: reader.number('factor') };
+      break;
+  }
+  reader.refuseUnknown(`a ${kind} effect`);
+  return effect;
+}
+
+/**
+ * An Item definition (M5-S1): the fields every Item has, then its `kind`'s. Gear has a `slot`, one of
+ * the three, and `statModifiers`; a consumable an `effect`. A row with the other kind's field is
+ * refused here, naming the field and why; gear without a slot is refused as a missing field. What
+ * the values may be is `validateContent`'s.
+ */
+function itemDefinition(row: RowReader): Omit<GearDefinition, 'key'> | Omit<ConsumableDefinition, 'key'> {
+  const common = {
+    name: row.string('name'),
+    unique: row.boolean('unique'),
+    buyPrice: row.integerOrNull('buyPrice'),
+    tags: row.strings('tags'),
+  };
+  const kind = row.oneOf('kind', itemKinds);
+  switch (kind) {
+    case 'gear':
+      row.forbid('effect', 'is not a field of gear: only a consumable has an effect');
+      return { ...common, kind, slot: row.oneOf('slot', gearSlots), statModifiers: row.numbers('statModifiers') };
+    case 'consumable':
+      row.forbid('slot', 'is not a field of a consumable: only gear has a slot');
+      row.forbid('statModifiers', 'is not a field of a consumable: only gear modifies Stats');
+      return { ...common, kind, effect: consumableEffect(row.child('effect')) };
+  }
+}
+
+/** A consumable's `effect` (M5-S1): one of the closed union's kinds with exactly its fields. */
+function consumableEffect(reader: RowReader): ConsumableEffect {
+  const kind = reader.oneOf('kind', consumableEffectKinds);
+  let effect: ConsumableEffect;
+  switch (kind) {
+    case 'reroll':
+      effect = { kind, kinds: reader.oneOfEach('kinds', encounterKinds) };
+      break;
+    case 'bonus':
+      effect = { kind, flat: reader.number('flat'), kinds: reader.oneOfEach('kinds', encounterKinds) };
+      break;
+    case 'heal':
+      effect = { kind, days: reader.integer('days') };
       break;
   }
   reader.refuseUnknown(`a ${kind} effect`);
@@ -412,6 +469,26 @@ class RowReader {
     if (Array.isArray(value) && value.every((item) => typeof item === 'string')) return value;
     this.wrong(field, value, 'a list of strings');
     return [];
+  }
+
+  boolean(field: string): boolean {
+    const value = this.field(field);
+    if (typeof value === 'boolean') return value;
+    this.wrong(field, value, 'true or false');
+    return false;
+  }
+
+  /** A whole number, or `null`: present either way. */
+  integerOrNull(field: string): number | null {
+    const value = this.field(field);
+    if (value === null || Number.isInteger(value)) return value as number | null;
+    this.wrong(field, value, 'a whole number or null');
+    return null;
+  }
+
+  /** Record a problem, saying `why`, when the row has `field`, which it must not. */
+  forbid(field: string, why: string): void {
+    if (this.field(field) !== undefined) this.problems.push(`${this.path(field)} ${why}`);
   }
 
   /** A string, or `null`: present either way. */
