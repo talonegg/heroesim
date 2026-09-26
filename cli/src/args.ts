@@ -10,9 +10,12 @@ import {
   type FacilityKey,
   type GearRef,
   type HeroId,
+  type ItemDefinitionKey,
+  type ItemId,
   type QuestId,
   type RankingMeasure,
   type SlotKey,
+  type StackId,
   type StopCondition,
 } from '@heroesim/engine';
 import { currentSave } from './saves.js';
@@ -25,14 +28,15 @@ Commands:
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
   show [guilds | roster [guildId] | pool | patrons | board | rankings [--by fame|wealth]
-        | hero <heroId> | guildmaster [guildId] | history [entityId]]
+        | hero <heroId> | guildmaster [guildId] | market | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another; pool marks the Heroes who will not yet sign for
       the player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
       board shows the Quests on offer; rankings orders the Guilds in play by Fame, or by
       Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
-      Guild's, with their Stats, Traits and Regard; history shows the whole History unless
-      given an id.
+      Guild's, with their Stats, Traits and Regard; market shows what the Market has for
+      sale and at what price, and what the player's Guild holds and what each would sell
+      for; history shows the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -67,6 +71,13 @@ Commands:
       The slot must be empty. Prints the Hero's effective Stats the gear changed.
   unequip --hero <heroId> --slot <weapon | armour | trinket>
       Take the gear in a slot of one of the player's Heroes back into the Guild's holding.
+  buy --item <key> [--quantity <n>]
+      Buy n of an Item the Market has for sale, 1 unless given, named by the key show
+      market lists, for its price each, and print the cost and the Wealth left.
+  sell --stack <stackId> [--quantity <n>]      or      sell --item <itemId>
+      Sell n Items of a stack the player's Guild holds, 1 unless given, or one of its unique
+      Items, to the Market for what show market says each sells for. An Item a Hero carries
+      is unequipped first. The Market's stock is drawn afresh each morning.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -92,6 +103,7 @@ export type View =
   | { kind: 'rankings'; by: RankingMeasure }
   | { kind: 'hero'; heroId: string }
   | { kind: 'guildmaster'; guildId?: string }
+  | { kind: 'market' }
   | { kind: 'history'; entityId?: string };
 
 export type Command =
@@ -114,6 +126,9 @@ export type Command =
   | { name: 'build'; save: string; facility: FacilityKey }
   | { name: 'equip'; save: string; hero: HeroId; gear: GearRef }
   | { name: 'unequip'; save: string; hero: HeroId; slot: SlotKey }
+  | { name: 'buy'; save: string; item: ItemDefinitionKey; quantity: number }
+  | { name: 'sell'; save: string; stack: StackId; quantity: number }
+  | { name: 'sell'; save: string; item: ItemId }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -132,6 +147,8 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   build: { save: 'value', facility: 'value' },
   equip: { save: 'value', hero: 'value', item: 'value', stack: 'value' },
   unequip: { save: 'value', hero: 'value', slot: 'value' },
+  buy: { save: 'value', item: 'value', quantity: 'value' },
+  sell: { save: 'value', stack: 'value', item: 'value', quantity: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -304,6 +321,7 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'pool':
     case 'patrons':
     case 'board':
+    case 'market':
       atMost(positional, 1, `show ${view}`);
       return { kind: view };
     case 'roster':
@@ -324,6 +342,22 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     default:
       return refuse(`show has no view "${view}"`);
   }
+}
+
+/** `sell`: `--stack` with an optional `--quantity`, or `--item`, never both (M5-S4). */
+function sale(save: string, flags: Map<string, string>): Extract<Command, { name: 'sell' }> {
+  const stack = flags.get('stack');
+  const item = flags.get('item');
+  const quantity = flags.get('quantity');
+  if (stack !== undefined && item !== undefined) refuse('sell takes --stack or --item, not both');
+  if (item !== undefined) {
+    if (quantity !== undefined) refuse('sell --item sells one unique Item; --quantity goes with --stack');
+    if (!isId('items', item)) refuse(`--item needs a unique Item's id such as item-000001; got "${item}"`);
+    return { name: 'sell', save, item };
+  }
+  if (stack === undefined) refuse('sell needs --stack or --item');
+  if (!isId('stacks', stack)) refuse(`--stack needs a stack id such as stack-000001; got "${stack}"`);
+  return { name: 'sell', save, stack, quantity: quantity === undefined ? 1 : wholeFromOne('--quantity', quantity) };
 }
 
 /** The command `argv` names, or the problem with it. */
@@ -406,6 +440,15 @@ function parse(argv: readonly string[]): Command {
     case 'unequip':
       atMost(positional, 0, 'unequip');
       return { name, save, hero: heroId(required(flags, name, 'hero')), slot: slotKey(required(flags, name, 'slot')) };
+    case 'buy': {
+      atMost(positional, 0, 'buy');
+      const quantity = flags.get('quantity');
+      const item = required(flags, name, 'item');
+      return { name, save, item, quantity: quantity === undefined ? 1 : wholeFromOne('--quantity', quantity) };
+    }
+    case 'sell':
+      atMost(positional, 0, 'sell');
+      return sale(save, flags);
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

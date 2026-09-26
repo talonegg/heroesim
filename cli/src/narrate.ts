@@ -87,6 +87,16 @@ function crossed(before: RegardBand, after: RegardBand): string {
   return `${way} from ${before} to ${after}`;
 }
 
+/**
+ * Items as a line names them (M5-S4): `Whetstone`, `3 × Whetstone`, and a unique Item with its id,
+ * `Barrow King's blade (item-000002)`, which the commands take.
+ */
+function items(content: ContentSet, definitionKey: string, quantity: number, itemIds: readonly string[]): string {
+  const name = nameIn(content.items, definitionKey);
+  const counted = quantity === 1 ? name : `${quantity} × ${name}`;
+  return itemIds.length === 0 ? counted : `${counted} (${itemIds.join(', ')})`;
+}
+
 /** One line for `event`, in the CLI's words. */
 export function narrate(event: EngineEvent, content: ContentSet): string {
   switch (event.type) {
@@ -228,6 +238,17 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         `${gearMoved(event.payload, content)} went back to ${called(event, guildId)} from ${hero(event, heroId)}` +
         `${gearReturnWords[cause]}.`
       );
+    }
+    case 'item.bought': {
+      const { guildId, definitionKey, quantity, cost, itemIds } = event.payload;
+      return `${called(event, guildId)} bought ${items(content, definitionKey, quantity, itemIds)} at the Market for ${cost} Wealth.`;
+    }
+    case 'item.sold': {
+      const { guildId, definitionKey, quantity, proceeds, itemIds, cause } = event.payload;
+      const what = items(content, definitionKey, quantity, itemIds);
+      return cause === 'fold'
+        ? `${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
+        : `${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
     }
     case 'item.expended': {
       // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).

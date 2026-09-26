@@ -342,8 +342,18 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1) and rivals (M2-S9), in ADR-0009 order', () => {
-    expect(streamNames).toEqual(['generation', 'board', 'quests', 'encounters', 'pool', 'heroes', 'progression', 'rivals']);
+  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1), rivals (M2-S9) and market (M5-S4), in ADR-0009 order', () => {
+    expect(streamNames).toEqual([
+      'generation',
+      'board',
+      'quests',
+      'encounters',
+      'pool',
+      'heroes',
+      'progression',
+      'rivals',
+      'market',
+    ]);
   });
 
   test('the Hall has the three facilities of data-model §3.2', () => {

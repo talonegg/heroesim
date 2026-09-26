@@ -17,8 +17,11 @@ import { equip, unequip, type EquipRejection, type EquipRequest, type UnequipRej
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
-/** No Rivals, and the three slots pinned (INPUTS 7.1). */
-const deps = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'armour', 'trinket'] });
+/**
+ * No Rivals, the three slots pinned (INPUTS 7.1), and an empty Market (M5-S4), so that the only
+ * stacks of a definition are the ones a test hands the Guild.
+ */
+const deps = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'armour', 'trinket'], marketSize: 0 });
 
 interface Scene {
   document: WorldDocument;

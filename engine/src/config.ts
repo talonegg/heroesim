@@ -354,6 +354,28 @@ export interface GameConfig {
   lootDifficultyThreshold: number;
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
   lootOnBands: readonly QuestBand[];
+
+  // ── The Market (M5-S4, R31, INPUTS 7.2, DL-51) ────────────────────────────────────────────
+  /**
+   * How many stacks each morning's refresh puts on the Market, each of a different definition, or
+   * every definition the Market stocks when there are fewer (INPUTS 7.2: 10).
+   */
+  marketSize: number;
+  /** The fewest Items in a stack the refresh draws. */
+  marketStackMin: number;
+  /** The most Items in a stack the refresh draws. */
+  marketStackMax: number;
+  /**
+   * What the Market pays for an Item as a share of its Market price, rounded down for each Item
+   * (INPUTS 7.2: half). Below 1, so that an Item sells for less than it costs (R31).
+   */
+  sellRatio: number;
+  /**
+   * The Market price of an Item whose definition has no `buyPrice`, found only as Loot (DL-48): what
+   * a Guild pays for such an Item listed on the Market, as a folded Guild's unique Items are (pre-M0
+   * review D6), and, × `sellRatio`, what the Market pays for one.
+   */
+  lootOnlyPrice: number;
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
@@ -487,6 +509,12 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   lootDifficultyThreshold: 25,
   lootOnBands: Object.freeze(['strong' as const]),
+
+  marketSize: 10,
+  marketStackMin: 1,
+  marketStackMax: 5,
+  sellRatio: 0.5,
+  lootOnlyPrice: 600,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

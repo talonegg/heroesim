@@ -125,6 +125,20 @@ describe('parseArgs', () => {
     expect(command('build', '--facility', 'quarters')).toMatchObject({ facility: 'quarters' });
   });
 
+  test('reads show market, buy and sell (M5-S4)', () => {
+    expect(command('show', 'market')).toEqual({ name: 'show', save: 'current', view: { kind: 'market' } });
+    expect(command('buy', '--item', 'padded-jack')).toEqual({ name: 'buy', save: 'current', item: 'padded-jack', quantity: 1 });
+    expect(command('buy', '--item=whetstone', '--quantity', '3', '--save', 'demo')).toEqual({
+      name: 'buy',
+      save: 'demo',
+      item: 'whetstone',
+      quantity: 3,
+    });
+    expect(command('sell', '--stack', 'stack-000004')).toEqual({ name: 'sell', save: 'current', stack: 'stack-000004', quantity: 1 });
+    expect(command('sell', '--stack', 'stack-000004', '--quantity', '2')).toMatchObject({ quantity: 2 });
+    expect(command('sell', '--item', 'item-000002')).toEqual({ name: 'sell', save: 'current', item: 'item-000002' });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -136,7 +150,7 @@ describe('parseArgs', () => {
     [[], 'No command'],
     [['play'], 'Unknown command "play"'],
     [['show', '--verbose'], 'show takes no flag --verbose'],
-    [['show', 'market'], 'no view "market"'],
+    [['show', 'bazaar'], 'no view "bazaar"'],
     [['show', 'pool', 'extra'], 'does not take "extra"'],
     [['show', 'hero'], 'needs a Hero id'],
     [['show', 'rankings', '--by', 'level'], '--by takes fame or wealth; got "level"'],
@@ -182,6 +196,16 @@ describe('parseArgs', () => {
     [['build', '--facility', 'stables'], '--facility takes infirmary, training-yard, quarters; got "stables"'],
     [['build', '--facility', 'trainingYard'], 'got "trainingYard"'],
     [['build', 'infirmary'], 'does not take "infirmary"'],
+    [['show', 'market', 'extra'], 'does not take "extra"'],
+    [['buy'], 'buy needs --item'],
+    [['buy', '--item', 'whetstone', '--quantity', '0'], '--quantity needs a whole number from 1; got "0"'],
+    [['buy', 'whetstone'], 'does not take "whetstone"'],
+    [['sell'], 'sell needs --stack or --item'],
+    [['sell', '--stack', 'stack-000001', '--item', 'item-000001'], 'sell takes --stack or --item, not both'],
+    [['sell', '--item', 'item-000001', '--quantity', '2'], '--quantity goes with --stack'],
+    [['sell', '--stack', 'item-000001'], '--stack needs a stack id such as stack-000001; got "item-000001"'],
+    [['sell', '--item', 'healing-draught'], 'such as item-000001; got "healing-draught"'],
+    [['sell', '--stack', 'stack-000001', '--quantity', 'all'], '--quantity needs a whole number from 1; got "all"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

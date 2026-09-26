@@ -201,6 +201,23 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     stackId,
     cause: 'died',
   }),
+  'item.bought': event('item.bought', [guildId], {
+    guildId,
+    definitionKey: 'whetstone',
+    quantity: 3,
+    unitPrice: 25,
+    cost: 75,
+    itemIds: [],
+  }),
+  'item.sold': event('item.sold', [guildId, 'item-000002'], {
+    guildId,
+    definitionKey: 'barrow-kings-blade',
+    quantity: 1,
+    unitPrice: 300,
+    proceeds: 300,
+    itemIds: ['item-000002' as never],
+    cause: 'fold',
+  }),
 };
 
 describe('narrate', () => {
@@ -321,6 +338,29 @@ describe('narrate', () => {
     const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
 
     expect(narrate(allLost, content)).toBe('Brenna Ashcombe (hero-000007) reached Level 20.');
+  });
+});
+
+describe('the Market (M5-S4)', () => {
+  test('names what was bought and sold, how many, and the Wealth that changed hands', () => {
+    const sold = narrate(
+      event('item.sold', [guildId], {
+        guildId,
+        definitionKey: 'healing-draught',
+        quantity: 1,
+        unitPrice: 15,
+        proceeds: 15,
+        itemIds: [],
+        cause: 'sale',
+      }),
+      content,
+    );
+
+    expect(narrate(samples['item.bought'], content)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
+    expect(sold).toBe('The Kestrel Guild sold Healing draught at the Market for 15 Wealth.');
+    expect(narrate(samples['item.sold'], content)).toBe(
+      `The Kestrel Guild's ${content.items['barrow-kings-blade']?.name} (item-000002) went to the Market for 300 Wealth as the Guild folded.`,
+    );
   });
 });
 

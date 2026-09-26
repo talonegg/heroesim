@@ -3157,6 +3157,144 @@ M5-close counter task**: consumables expended per Quest are the `item.expended` 
 consumables carried are `quest.taken`'s `payload.consumables`, so carried minus expended is what
 went home.
 
+## DL-51 — The Market: its morning refresh, its prices, `buy` and `sell`, a folding Guild's Items, and the policy's armour (M5-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S4's implementer)
+
+**Context.** M5-S4 names the morning phase `marketRefresh` after `boardRefresh`, which clears the
+Market's stacks and draws `marketSize` stacks of 1 to 5 from the `market` stream over definitions
+that are not Loot only; `buy(document, { guildId, definitionKey, quantity })` and `sell(document, {
+guildId, stackId | itemId, quantity })` at `buyPrice` and `buyPrice × sellRatio`; the rejections
+`not-in-market`, `insufficient-wealth` and `insufficient-quantity`; the events `item.bought` and
+`item.sold`; a folding Guild's unique Items listed on the Market at sell price with `item.sold` and
+its stacks discarded (pre-M0 review D6); the config `marketSize`, `marketStackMin/Max`, `sellRatio`
+(INPUTS 7.2: 10 stacks, half, each morning); the CLI's `show market`, `buy` and `sell`; `steady`
+ignoring the Market; and, from the epic's risk table, the automatic policy buying "one armour per
+un-armoured Hero when Wealth allows", recorded with the counters before and after. DL-48 left it to
+M5-S4 to decide what a unique Item sells for, since the core's five have no `buyPrice`, and required
+the draw to filter on `!unique && buyPrice !== null`. Left open besides: how the draw avoids two
+stacks of one definition (which `addStack` would merge), whether the refresh runs at Turn 0 and what
+it emits, how the sell price rounds, what a Guild may sell and where a sold Item goes, whether a
+unique Item on the Market is cleared each morning and what a Guild pays for one, the other
+rejections, the events' payloads, and whom the fold's sale pays.
+
+**Decision.**
+
+1. **The stream and the draw.** `market` is appended to `streamNames`, last, as ADR-0009's order
+   puts it; `ensureStreams` gives an older save the stream a new world has. The refresh
+   (`phases/market-refresh.ts`) removes every stack the Market holds, then takes the definitions the
+   Market stocks (`stockedDefinitions`: common, with a `buyPrice`, in key order), shuffles them from
+   `market` and puts the first `marketSize` on the Market, each a new stack of
+   `int(marketStackMin, marketStackMax)` drawn in the shuffle's order. So `marketSize` stacks of
+   **different definitions**, or every stocked definition once when content has fewer: drawing with
+   replacement would merge a repeat into one stack and leave fewer than `marketSize`. Draws: one fewer
+   than the stocked definitions for the shuffle and one per stack, all from `market`; a Market of
+   size 0 draws nothing. **The refresh keeps the unique Items the Market lists**: a folded Guild's are
+   sold to it at night (item 6), and a refresh that cleared them the next morning would leave them
+   unsold and the listing pointless. `createWorld` runs the refresh at Turn 0 as it runs the Board's
+   (DL-25), after it, so a new game opens on a stocked Market; it draws from `market` alone, so no
+   other stream and no other part of a seed's world moves (the stack counter does). **It emits
+   nothing**: what the Market holds is World State, and what a Guild buys or sells there is the
+   History's.
+2. **Prices** (`market.ts`, the Market Engine of `CONTEXT.md`). `marketPrice(key, deps)` is the
+   definition's `buyPrice`, or **`lootOnlyPrice`, 600**, for one with none (Loot only, DL-48); `null`
+   for a key content lacks, which the Market cannot price and rules ignore (data-model rule 5).
+   `sellPrice` is `floor(marketPrice × sellRatio)`, **rounded down for each Item**, so that selling
+   several is selling one several times and the Market never pays a fraction: a Whetstone (25) sells
+   for 12. R31 holds while `sellRatio` is below 1; a test checks every core Item under the defaults.
+   600 is twice the dearest Item the Market stocks (masterwork, 300, five modifier points); the
+   uniques carry five to seven, and one sells for 300, a masterwork's price. One flat number rather
+   than a price from the modifiers: no rule but the Market's reads it, and the M5 close can tune one
+   number.
+3. **`buy`** (`actions/buy.ts`) moves `quantity` of the definition from the Market to the Guild's own
+   holding, each at `marketPrice`: a common one from the Market's stack into the Guild's stack of it
+   (`moveStack`), a unique one as that many of the Items the Market lists, lowest id first
+   (`moveItem`). **A unique Item listed on the Market is bought at its Market price, not its sell
+   price**: D6's "at sell price" is what the folding Guild is paid (item 6), and a Market that sold at
+   the price it paid would break R31's spread and let a Guild buy back what it sold at no loss.
+   Refused, changing nothing, in this order: `guild-folded`; `not-in-market` (no stack of a common
+   definition, no Item of a unique one, or a key content lacks: rule 5, the listing ignores it);
+   `insufficient-quantity` (`{ definitionKey, quantity, available }`); `insufficient-wealth`
+   (`{ cost, wealth }`; Wealth equal to the cost is enough). A quantity that is not a whole number
+   from 1 throws, a programming error a front end checks.
+4. **`sell`** (`actions/sell.ts`) takes `{ guildId, stackId, quantity }` or `{ guildId, itemId }` (a
+   unique Item is one Item) from **the Guild's own holding only** and moves it to the Market, where a
+   stack joins the Market's stack of its definition: **a sold Item is listed**, a stack until the
+   next morning's refresh clears it, a unique Item until a Guild buys it, keeping its id and its
+   History. Refused, changing nothing, in this order: `guild-folded`; `not-held-by-guild` (`{ id }`:
+   another holder, a Party of the Guild's, or no row, since a stack sold, merged or expended leaves
+   an id a front end may still show, as `recruit`'s `hero-not-unattached` treats a departed Hero);
+   `equipped` (`{ id, heroId, slot }`: a Hero of the Guild carries it; it is unequipped first, M5-S2,
+   rather than sold off a Hero's back); `unknown-item` (`{ definitionKey }`: no price);
+   `insufficient-quantity` (`{ stackId, quantity, available }`). A quantity that is not a whole number
+   from 1 throws.
+5. **Events.** `item.bought` `{ guildId, definitionKey, quantity, unitPrice, cost, itemIds }` and
+   `item.sold` `{ guildId, definitionKey, quantity, unitPrice, proceeds, itemIds, cause }`, `cause`
+   `'sale' | 'fold'`; `itemIds` the unique Items, `[]` for a common one. Participants: the Guild and
+   each unique Item, so that a unique Item's page shows where it went; not a stack, whose id splits,
+   merges and goes. Neither is a Milestone. Both actions join `Action`, `GuildAction`, `applyAction`
+   and `applyGuildAction`, with `applyBuy` and `applySell` for a controller (DL-30).
+6. **A folding Guild's Items** (`sellFoldedGuildItems` in `market.ts`, called by `fold` in
+   `phases/endings.ts` after `hero.left-guild` and before its Parties are disbanded and its Heroes
+   released, while the rows still say whose they are). Every unique Item held by the Guild, by a
+   Party of its own, or by a Hero whose `guildId` is the Guild (its Roster, and its dead and retired)
+   in any slot is **sold to the Market**, one `item.sold` (`cause: 'fold'`) each in id order, at
+   `sellPrice`, **the proceeds credited to the folded Guild's Wealth**: D6's "its Items go to the
+   Market at sell price" read as a sale, as the event names it; that Wealth is a record no rule reads
+   again (DL-28). A unique Item content does not define sells for 0. Then every stack those holders
+   hold is removed, without an event of its own: `guild.folded` explains it. So a released Hero joins
+   the pool carrying nothing of the Guild's, and a Party disbanded in flight leaves no stack behind
+   (the validator's holder check). The sweep reads every holder itself and does not depend on M5-S2's
+   nightly return of a dead Hero's gear.
+7. **Config**: `marketSize` 10, `marketStackMin` 1, `marketStackMax` 5, `sellRatio` 0.5 (INPUTS 7.2
+   and the epic), `lootOnlyPrice` 600. Fields are added and no default changes, so **`configVersion`
+   stays 4** (DL-48 item 2's reading).
+8. **The Rivals.** `steady` neither buys nor sells in M5 (M6-S4 retires this); the Market Engine
+   still runs every morning for the whole world (ADR-0002). A test plays four Rivals for twenty Days
+   with a stocked Market and a purchase by the player, and again with `marketSize` 0 and none, and
+   finds every Rival's Wealth and Roster the same and no `item.bought` or `item.sold` naming a Rival.
+   A Rival's fold does sell its unique Items (item 6), as any Guild's would.
+9. **The automatic policy** (`harness/src/policy.ts`). Its one purchase a Turn is now the first of:
+   build the infirmary (M3-S6), **buy armour**, recruit. It buys while the Roster's Heroes with an
+   empty armour slot outnumber the armour in the Guild's own holding: one piece, the dearest armour
+   the Market lists whose price Wealth is above `buyWealthMultiple` (3, the policy's own, like its
+   building multiple) times, lowest key among equal prices. Armour before recruiting because it is
+   cheap beside a signing fee and protects the Heroes the Guild has, and it takes a Turn's purchase
+   at most once per un-armoured Hero; the dearest affordable rather than the cheapest, as a player
+   would. Equipping it is M5-S2's rule (the policy and `steady` equip held gear). On this story's
+   branch, before that merge, the armour bought waits in the Guild's holding, so the counters below
+   show what it costs and not yet what it does; the M5 close measures both.
+
+   Counters for the player's Guild, per game, from a scratch run of `playGame` (core content,
+   `defaultConfig`, 12 seeds × 5 years, the policy with `buyWealthMultiple` infinite and at 3; not
+   the harness sweep):
+
+   | Per game | Before | After |
+   | --- | --- | --- |
+   | Wealth spent: signing | 2,232 | 2,491 |
+   | Wealth spent: Items | 0 | 527 |
+   | Wealth spent: Improvements | 1,700 | 1,700 |
+   | Wealth spent: Upkeep | 135,811 | 131,096 |
+   | Armour bought | 0 | 8.0 |
+   | Quests fail / success / strong | 533 / 330 / 646 | 548 / 325 / 612 |
+   | Heroes died / injured / recruited | 16.4 / 228 / 20.4 | 18.9 / 236 / 22.9 |
+   | Games ended in 5 years | 0 of 12 | 0 of 12 |
+   | Policy actions refused | 0 | 0 |
+
+   The Market is now exercised, about 8 pieces and 530 Wealth a game in five years, a small share
+   beside Upkeep. Unequipped, the armour changes the outcomes only through what the purchase moves
+   (a Turn's purchase taken, a Hero signed later), which is within the noise of 12 seeds; the M5
+   close measures it again with M5-S2's equip.
+
+**Consequences.** The Market is a stack holder no Guild owns, restocked every morning, and a
+standing list of unique Items that grows by a folded Guild's and a sold one's until bought. M5-S2's
+equip makes the armour bought useful, and its `unequip` is what `sell`'s `equipped` refusal asks
+for. M5-S5's unique Loot, held by any Guild, is sold to the Market when that Guild folds. **For the
+M5-close counter task: Wealth spent by category**, per Guild (by `payload.guildId`, joined to its
+controller): signing, `hero.recruited.fee`; Items, `item.bought.cost`; Improvements,
+`guild.improved.cost`; Upkeep, `guild.upkeep-paid.amount`; Transfers arrive with M6. The Wealth the
+Market pays is `item.sold.proceeds`, `cause` telling a sale from a fold.
+
 ## DL-52 — Loot: the tables, where the threshold is applied, the draw, and one of each unique Item (M5-S5)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S5's implementer)
@@ -3241,6 +3379,96 @@ hardest Quest it can staff; measured when written, a mean difficulty of 24 to 27
 with unique ones (`itemId !== null`) apart; beside the player's mean Quest difficulty, which it can read
 from the resolved Quests. A unique Item sold to the Market stays in `world.items`, so it is still never
 awarded again; one M5-S4 removed would be. Balance of the tables and the threshold is the M5 close's.
+
+## DL-54 — Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not about it (M5 integration)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 integration's merger)
+
+**Context.** Three M5 stories, built side by side, each changed what a Rival's fold does (M2-S10,
+DL-28). M5-S2 returns the Roster's gear to the Guild first, before `guild.folded` (DL-49 item 7);
+M5-S3 sends a disbanded Party's consumables home as the Party is removed (DL-50 item 7); M5-S4 sells
+the Guild's unique Items to the Market and discards its stacks, after `hero.left-guild` and before the
+Parties are disbanded, sweeping its Parties and Heroes itself (DL-51 item 6). Merged as each wrote it,
+the fold returned gear, told `guild.folded` and `hero.left-guild`, sold and discarded, and only then
+disbanded its Parties, whose stacks the sale had already deleted where they lay: one function, three
+stories' orders. The automatic policy likewise gained `gearChoices` first (DL-49 item 9) and "buy
+armour" between building and recruiting (DL-51 item 9), which must agree on when bought armour is
+worn. And `createWorld` now stocks the Market, so every new world holds stacks of common definitions
+from Turn 0, which tests written before M5-S4 did not expect.
+
+**Decision.**
+
+1. **The fold, in one order, every Guild alike** (`fold` in `phases/endings.ts`):
+   1. its Parties in flight are disbanded, in id order, each sending what it carried home to the
+      Guild's holding (`sendHome`), a Quest left with no Party removed unresolved;
+   2. the gear each Hero on the Roster carries goes back to the Guild's holding, in Roster order,
+      with `item.returned` for `guild-folded` (`returnGear`);
+   3. every unique Item in the Guild's holding is sold to the Market, one `item.sold` (`cause:
+      'fold'`) each in id order, at sell price, to the Guild's credit;
+   4. every stack in its holding is discarded;
+   5. its Heroes are released to the pool, each with `hero.left-guild`, in Roster order; the Roster
+      is emptied and `foldedOnTurn` set;
+   6. `guild.folded`.
+
+   So the History reads `item.returned`…, `item.sold`…, `hero.left-guild`…, `guild.folded`: each
+   step's events where the step happens, and the Milestone closing the fold. `guild.folded` names
+   the Parties it disbanded and the Quests it abandoned, and `emit` refuses a participant with no
+   row, so it is made before step 1 and told last. This **supersedes the order of DL-28 item 3**
+   (`guild.folded`, then `hero.left-guild`, every event before any row changes), **DL-49 item 7's
+   "before `guild.folded`"** (the gear still comes back before the Guild's holding is sold), and
+   **DL-51 item 6's placement** (after `hero.left-guild`, before the Parties are disbanded).
+2. **The sale reads the Guild's own holding only** (`sellFoldedGuildItems`, `market.ts`). Steps 1
+   and 2 bring a disbanded Party's stacks and the Roster's gear home, and the night's `gearReturn`,
+   which runs before `endings`, has brought home the gear of the Guild's dead and retired Heroes
+   (DL-49 item 6): the Guild's holding is then everything it had, so no Item is sold twice or
+   missed. This supersedes DL-51 item 6's sweep over the Guild's Parties and Heroes, not its prices
+   or whom the sale pays.
+3. **The policy's order** (`harness/src/policy.ts`): equip (`gearChoices`), dispatch, then one
+   purchase, the first of build the infirmary, buy armour, recruit; each chosen on the document as
+   it stands, as before. **The armour bought is worn from the next Turn**: it waits in the Guild's
+   holding, and the next Turn's first choice, the equip, puts it on the first Hero in Roster order
+   whose armour slot is bare and who is home; a Hero sent away the Turn it was bought gets it when
+   back, and the purchase rule counts that Hero as one the held armour is for, so it does not buy
+   twice. Considered and not taken: buying, then equipping the same Turn, which needs the policy to
+   apply the purchase to learn the stack's id; a Turn's wait costs nothing measurable, and the policy
+   keeps choosing on one document. `steady` is unchanged, equip, dispatch, then build or recruit:
+   it neither buys nor sells in M5 (M5-S4's box, `market.test.ts`; M6-S4 retires it), and
+   `gearChoices` still puts on a Rival's Heroes the Loot it wins.
+4. **An empty Market where a test is not about it.** A test that counts a definition's stacks, or
+   that finds none of one anywhere, pins `marketSize: 0` (`actions/equip.test.ts`; the reroll and
+   fold tests of `phases/quests-conclude.test.ts`); no assertion is weakened. M5-S3's fold test,
+   written before M5-S4, found a disbanded Party's whetstones in the Guild's holding after the fold;
+   they are discarded with the Guild's stacks now, and it asserts that none is left anywhere and
+   that the Guild holds nothing.
+5. **Tests.** `phases/endings.test.ts` folds a Rival holding a Party in flight carrying
+   consumables, a Hero wearing a unique Item and common gear, and unique Items and stacks in its
+   holding, and asserts the exact event order and that it is the night's last, every unique Item on
+   the Market exactly once at sell price, no Item or stack left with the Guild, a Party of its own or
+   a Hero who was on its Roster, and every document valid. `market.test.ts`'s order assertion
+   follows item 1. `policy.test.ts` asserts that held armour is equipped before the purchase and
+   that the armour bought is put on by the next Turn's first choice.
+6. No config field and no default changes: `configVersion` stays 4, the content version 9.
+
+**Consequences.** The fold is one list of steps in one function; a later story that adds to it
+(M6 settles a folded Guild's Transfer offers, DL-28 item 3) adds a step to the list. A smoke run of
+the merged M5 (core content, `defaultConfig`, the automatic policy, seeds `seed-0001` to
+`seed-0006`, 5 years each, validated after every advance; a scratch script, not the harness sweep)
+found, per game:
+
+| Per game (6 games) | Mean | Range |
+| --- | --- | --- |
+| Armour the player bought / Wealth on Items | 7.7 / 563 | 7–8 / 360–820 |
+| Armour equipped by the player (bought and Loot) | 25 | 19–32 |
+| Player's Roster wearing armour at year 5 | 8 of 8 | every game |
+| Loot awarded, all Guilds / the player's / unique | 1,638 / 271 / 5 | 1,540–1,749 / 173–325 / 5 |
+| Consumables expended | 0 | no controller carries any (DL-50 item 2) |
+| `item.sold`: sale / fold (Wealth to folded Guilds) | 0 / 4 (1,200) | 0 / 3–5 |
+| Rivals folded / unique Items left listed on the Market | 4.7 / 4 | 4–5 / 3–5 |
+| Rivals' purchases and sales / equips (of unique Loot) | 0 / 378 (4.3) | 0 / 359–402 |
+| Policy actions refused / documents refused or warned about | 0 / 0 | |
+
+No game ended in five years. Every unique Item a folded Guild held was listed once; the Loot tables'
+yield (about 1,600 awards a game across the world) is the M5 close's to balance (DL-52).
 
 ---
 

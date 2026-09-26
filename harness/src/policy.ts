@@ -13,6 +13,9 @@ import {
   cheapestUnattached,
   compareByCodeUnit,
   gearChoices,
+  holdings,
+  itemDefinition,
+  marketStock,
   offeredQuests,
   partyFor,
   playerGuild,
@@ -36,16 +39,23 @@ export interface PolicyConfig {
    * "when Wealth exceeds three times its cost", DL-38).
    */
   buildWealthMultiple: number;
+  /**
+   * Buy a piece of armour only while Wealth is above this many times its price (M5-S4, the M5 risk
+   * table: "buy one armour per un-armoured Hero when Wealth allows", DL-51).
+   */
+  buyWealthMultiple: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
   recruitWealthMultiple: 3,
   rosterLimit: 8,
   buildWealthMultiple: 3,
+  buyWealthMultiple: 3,
 });
 
 /**
- * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34):
+ * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54): equip,
+ * dispatch, then one purchase.
  *
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
@@ -57,6 +67,11 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
  *     (M3-S6, DL-38), until the infirmary is at its top grade.
+ *   - **Buy armour** while the Roster has more Heroes with nothing in their armour slot than the
+ *     Guild holds armour to give them (M5-S4, DL-51): one piece, the dearest armour the Market has
+ *     for sale whose price Wealth is above `buyWealthMultiple` times, lowest key among equal prices.
+ *     The armour bought waits in the Guild's holding for the next Turn's first choice, the equip,
+ *     which puts it on a Hero with the slot bare who is home (DL-54).
  *   - **Recruit** when the Roster is below `rosterLimit` and Wealth is above
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
@@ -64,9 +79,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  * - **Never transfer** (until M6).
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
- * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices do not depend on one another, and every one
- * is an action the rules accept on it when applied in order. None once the game has ended, and
- * none for a world without a player's Guild.
+ * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices
+ * do not depend on one another, and every one is an action the rules accept on it when applied in
+ * order. None once the game has ended, and none for a world without a player's Guild.
  */
 export function automaticPolicy(
   document: WorldDocument,
@@ -88,9 +103,9 @@ export function automaticPolicy(
     available = available.filter((hero) => !sent.has(hero.id));
   }
 
-  const build = infirmaryBuild(guild, deps, policy);
-  if (build !== null) {
-    actions.push(build);
+  const purchase = infirmaryBuild(guild, deps, policy) ?? armourPurchase(document, guild, deps, policy);
+  if (purchase !== null) {
+    actions.push(purchase);
   } else if (
     guild.rosterIds.length < policy.rosterLimit &&
     guild.wealth > policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)
@@ -111,6 +126,39 @@ export function automaticPolicy(
 function infirmaryBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
   const next = affordableImprovement(guild, 'infirmary', policy.buildWealthMultiple, deps.content);
   return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
+}
+
+/**
+ * One piece of armour to buy (M5-S4, DL-51): while the Roster's Heroes with an empty armour slot
+ * outnumber the armour in the Guild's own holding, the dearest armour on the Market whose price the
+ * Guild's Wealth is above `buyWealthMultiple` times, the lowest key among equal prices; `null`
+ * when none is wanted or none is affordable, and when Heroes have no armour slot.
+ */
+function armourPurchase(
+  { world }: WorldDocument,
+  guild: Guild,
+  deps: EngineDeps,
+  policy: Readonly<PolicyConfig>,
+): GuildAction | null {
+  if (!deps.config.gearSlots.includes('armour')) return null;
+  const isArmour = (definitionKey: string): boolean => {
+    const definition = itemDefinition(deps.content, definitionKey);
+    return definition?.kind === 'gear' && definition.slot === 'armour';
+  };
+  const unarmoured = guild.rosterIds.filter((id) => {
+    const worn = holdings(world, { kind: 'hero', id, slot: 'armour' });
+    return worn.items.length === 0 && worn.stacks.length === 0;
+  }).length;
+  const held = holdings(world, { kind: 'guild', id: guild.id });
+  const spare =
+    held.items.filter((item) => isArmour(item.definitionKey)).length +
+    held.stacks.filter((stack) => isArmour(stack.definitionKey)).reduce((sum, stack) => sum + stack.quantity, 0);
+  if (unarmoured <= spare) return null;
+
+  const [best] = marketStock(world, deps)
+    .filter(({ definition, price }) => isArmour(definition.key) && guild.wealth > policy.buyWealthMultiple * price)
+    .sort((a, b) => b.price - a.price || compareByCodeUnit(a.definition.key, b.definition.key));
+  return best === undefined ? null : { kind: 'buy', guildId: guild.id, definitionKey: best.definition.key, quantity: 1 };
 }
 
 /** The offered Quests on the Board (the engine's `offeredQuests`), highest reward first, ties by Quest id. */

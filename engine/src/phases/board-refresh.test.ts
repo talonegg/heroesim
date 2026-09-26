@@ -120,7 +120,8 @@ describe('boardRefresh', () => {
   });
 
   test("advances the board stream and, for the new Quests' Encounter sequences, the encounters stream, and no other", () => {
-    const deps = testDeps(noRivals);
+    // The morning's Market refresh draws from `market` (M5-S4): a Market of size 0 draws nothing.
+    const deps = testDeps({ ...noRivals, marketSize: 0 });
     const document = created('streams', deps);
     const others = plannedStreams.filter((name) => !Object.hasOwn(document.world.rng, name));
     Object.assign(document.world.rng, createStreams(document.meta.seed, others));

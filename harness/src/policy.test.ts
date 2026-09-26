@@ -1,12 +1,14 @@
 import { loadContent } from '@heroesim/content/node';
 import {
   addStack,
+  advance,
   applyAction,
   availableHeroes,
   createWorld,
   defaultConfig,
   gearChoices,
   holdings,
+  marketHolder,
   partyFor,
   playerGuild,
   serialise,
@@ -25,11 +27,13 @@ import { harnessSetup } from './creation.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 // M2-S12: the harness's automatic policy (INPUTS 4.14, DL-34) against the core content. The
-// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults.
+// Upkeep and fee numbers these tests rely on are pinned here, not read from the defaults. The
+// Market is empty (`marketSize: 0`) unless a test stocks it, so that the armour it would buy
+// (M5-S4) stays out of the tests of building and recruiting.
 
 const content = loadContent();
 const deps: EngineDeps = {
-  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50 },
+  config: { ...defaultConfig, wagePerLevel: 5, hallMaintenancePerGrade: 10, signingFeeBase: 50, marketSize: 0 },
   content,
 };
 
@@ -293,6 +297,104 @@ describe('automaticPolicy', () => {
       if (result.ok) document = result.document;
     }
     expect(holdings(document.world, vault)).toEqual({ items: [], stacks: [] });
+  });
+
+  describe('buys armour (M5-S4)', () => {
+    /**
+     * The player's Guild with `wealth`, its infirmary at the top grade so that it builds nothing, an
+     * empty Board, and a Market holding two of each common armour and nothing else.
+     */
+    function shopping(wealth: number) {
+      const { document, guild } = scene();
+      document.world.board = [];
+      guild.wealth = wealth;
+      guild.hall.infirmary = 3;
+      for (const key of ['padded-jack', 'mail-shirt', 'plate-harness', 'short-sword']) {
+        addStack(document.world, key, 2, marketHolder);
+      }
+      return { document, guild };
+    }
+
+    const buying = (guildId: string, definitionKey: string) => ({ kind: 'buy', guildId, definitionKey, quantity: 1 });
+
+    test('one piece, the dearest armour on the Market whose price Wealth is above three times, in place of a recruit', () => {
+      expect(defaultPolicyConfig.buyWealthMultiple).toBe(3);
+      const rich = shopping(3 * 300 + 1);
+      expect(automaticPolicy(rich.document, deps)).toEqual([buying(rich.guild.id, 'plate-harness')]);
+      const at = shopping(3 * 300);
+      expect(automaticPolicy(at.document, deps)).toEqual([buying(at.guild.id, 'mail-shirt')]);
+      const poor = shopping(3 * 40);
+      expect(automaticPolicy(poor.document, deps)).not.toContainEqual(expect.objectContaining({ kind: 'buy' }));
+    });
+
+    test('is a purchase the rules accept', () => {
+      const { document, guild } = shopping(1_000);
+      const [action] = automaticPolicy(document, deps);
+
+      const result = action === undefined ? null : applyAction(document, action, deps);
+
+      expect(result?.ok).toBe(true);
+      expect(result?.ok && playerGuild(result.document.world)?.wealth).toBe(1_000 - 300);
+      expect(guild.rosterIds.length).toBeGreaterThan(0);
+    });
+
+    test('a build comes first, and nothing once every Hero is armoured or has armour waiting', () => {
+      const { document, guild } = shopping(10_000);
+      guild.hall.infirmary = 0;
+      expect(automaticPolicy(document, deps)).toEqual([{ kind: 'build', guildId: guild.id, facility: 'infirmary' }]);
+      guild.hall.infirmary = 3;
+
+      // Armour held for all but one Hero, then worn by that one: then it recruits. The armour held
+      // is put on first, by gearChoices (M5-S2, DL-54), and the purchase is for the Hero left bare.
+      const [first, ...rest] = guild.rosterIds;
+      addStack(document.world, 'padded-jack', rest.length, { kind: 'guild', id: guild.id });
+      const held = gearChoices(document.world, guild, deps);
+      expect(held).toHaveLength(rest.length);
+      expect(automaticPolicy(document, deps)).toEqual([...held, buying(guild.id, 'plate-harness')]);
+      if (first === undefined) throw new Error('An empty Roster');
+      addStack(document.world, 'mail-shirt', 1, { kind: 'hero', id: first, slot: 'armour' });
+      const worn = gearChoices(document.world, guild, deps);
+      expect(worn.map((action) => action.heroId)).toEqual(rest);
+      expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual([...worn.map(() => 'equip'), 'recruit']);
+    });
+
+    test('the armour it buys is worn: its first choice the next Turn puts it on a bare Hero (DL-54)', () => {
+      const { document, guild } = shopping(3 * 300 + 1);
+      const [first] = guild.rosterIds;
+      if (first === undefined) throw new Error('An empty Roster');
+      let current = document;
+      const apply = (actions: GuildAction[]) => {
+        for (const action of actions) {
+          const result = applyAction(current, action, deps);
+          expect(result.ok, action.kind).toBe(true);
+          if (result.ok) current = result.document;
+        }
+      };
+
+      apply(automaticPolicy(current, deps));
+      const [bought] = holdings(current.world, { kind: 'guild', id: guild.id }).stacks;
+      expect(bought?.definitionKey).toBe('plate-harness');
+      current = advance(current, deps).document;
+      const next = automaticPolicy(current, deps);
+      apply(next);
+
+      expect(next[0]).toEqual({ kind: 'equip', guildId: guild.id, heroId: first, stackId: bought?.id });
+      const armour = holdings(current.world, { kind: 'hero', id: first, slot: 'armour' });
+      expect(armour.stacks.map((stack) => stack.definitionKey)).toEqual(['plate-harness']);
+    });
+
+    test('nothing when the Market has no armour, or it reads its own multiple', () => {
+      const { document, guild } = scene();
+      document.world.board = [];
+      guild.wealth = 10_000;
+      guild.hall.infirmary = 3;
+      addStack(document.world, 'short-sword', 2, marketHolder);
+      expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);
+
+      addStack(document.world, 'padded-jack', 1, marketHolder);
+      const choices = automaticPolicy(document, deps, { ...defaultPolicyConfig, buyWealthMultiple: 1_000 });
+      expect(choices.map((action) => action.kind)).toEqual(['recruit']);
+    });
   });
 
   test('chooses nothing once the game has ended', () => {

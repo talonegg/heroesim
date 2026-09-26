@@ -538,7 +538,8 @@ describe('questsConclude and the consumables a Party carried', () => {
 
   // M5-S3's first box, in the world: the reroll's second roll is consumables.test.ts's.
   test('a reroll used on a failed Check is gone after: expended, and no stack of it anywhere', () => {
-    const deps = soloDeps({}, harmlessContent);
+    // An empty Market (M5-S4), so that the only grappling line in the world is the one carried.
+    const deps = soloDeps({ marketSize: 0 }, harmlessContent);
     const { eve, party, guildId } = sentAway('rerolled', deps, {
       difficulty: 5000,
       encounterKeys: ['the-flooded-ford'],
@@ -634,10 +635,11 @@ describe("a folded Rival's Party", () => {
     expect(document.world.quests).not.toHaveProperty(quest.id);
   });
 
-  // M5-S3 (DL-50): a disbanded Party holds nothing after; what its Guild's fold then does with the
-  // Guild's own stacks is M5-S4's rule.
+  // M5-S3 (DL-50): a disbanded Party holds nothing after. What it carried goes home to the Guild,
+  // whose stacks the fold then discards (M5-S4, DL-51; the fold's order is DL-54's, endings.test.ts).
   test("is disbanded with its consumables sent back to the Guild's holding: no stack is left held by the removed Party", () => {
-    const deps = testDeps({ rivalCount: 1 });
+    // An empty Market (M5-S4), so that the only whetstones in the world are the ones carried.
+    const deps = testDeps({ rivalCount: 1, marketSize: 0 });
     stillRivalControllers();
     const away = sentAway('fold-carried', deps, { rival: true, daysEarly: 1, consumables: [['whetstone', 2]] });
     const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
@@ -651,9 +653,9 @@ describe("a folded Rival's Party", () => {
     expect(ofType(events, 'guild.folded')).toHaveLength(1);
     expect(document.world.parties).not.toHaveProperty(party.id);
     expect(holdings(document.world, { kind: 'party', id: party.id })).toEqual({ items: [], stacks: [] });
-    for (const stack of Object.values(document.world.stacks).filter((it) => it.definitionKey === 'whetstone')) {
-      expect(stack.holder).toEqual({ kind: 'guild', id: guildId });
-    }
+    // Sent home, then discarded with the folded Guild's stacks: no whetstone is left anywhere.
+    expect(holdings(document.world, { kind: 'guild', id: guildId })).toEqual({ items: [], stacks: [] });
+    expect(Object.values(document.world.stacks).filter((it) => it.definitionKey === 'whetstone')).toEqual([]);
     expect(ofType(events, 'item.expended')).toEqual([]);
   });
 

@@ -213,7 +213,8 @@ carrying" is a filter over both tables; cache an index only if the harness shows
 tables share one holder type: the Market holds a folded Guild's unique Items as well as stacks
 (pre-M0 review D6, DL-48). A Hero's `slot` is one of `config.gearSlots`, and a slot holds one
 Item at most: one unique Item or one stack of 1. `engine/src/items.ts` moves Items between
-holders and keeps these rules.
+holders and keeps these rules. The Market's stacks are replaced each morning from the `market`
+stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
 
 ### 3.4 Module slices
 

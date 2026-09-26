@@ -1279,7 +1279,7 @@ describe('the command line', () => {
     expect(run.err).toContain('EISDIR');
   });
 
-  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'market']], [['new', '--seed', 'x']]])(
+  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'bazaar']], [['new', '--seed', 'x']]])(
     '%j prints the usage and exits non-zero',
     (argv) => {
       const run = play(argv);
