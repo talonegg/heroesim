@@ -23,13 +23,14 @@ import {
   type OfferId,
   type PartyId,
   type TransferOffer,
+  type Turn,
   type World,
   type WorldDocument,
 } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { transferFee } from '../selectors.js';
-import { makeTransfer, offerExpiresOnTurn, offerParticipants, offerTerms } from '../transfer.js';
+import { makeTransfer, offerExpiresOnTurn, offerParticipants, offerTerms, transferLock } from '../transfer.js';
 import { applyToCopy, type ActionResult, type Rejection, type WorldActionResult } from './result.js';
 
 // ── Actions ──────────────────────────────────────────────────────────────────────────────────
@@ -112,6 +113,16 @@ export interface TransferHeroInParty<Action extends Kind = Kind> extends Rejecti
 }
 
 /**
+ * The Hero was transferred too lately to move again (`transferLock`, DL-60): the Turn of their last
+ * Transfer, and the first Turn a Transfer may move them.
+ */
+export interface TransferHeroRecentlyTransferred<Action extends Kind = Kind> extends Rejection<Action, 'recently-transferred'> {
+  heroId: HeroId;
+  transferredOnTurn: Turn;
+  untilTurn: Turn;
+}
+
+/**
  * The other Guild does not consent now (`transferAnswer`): it names the Guild, the side it was asked
  * to take, and why: its Roster too small for its appetite, its Wealth too low to hire, a Disposition
  * content lacks, or a controller that answers only offers.
@@ -154,6 +165,7 @@ export type TransferInRejection =
   | TransferHeroNotOnRoster<'transferIn'>
   | TransferSameGuild<'transferIn'>
   | TransferHeroInParty<'transferIn'>
+  | TransferHeroRecentlyTransferred<'transferIn'>
   | TransferRefused<'transferIn'>
   | TransferInsufficientWealth<'transferIn'>;
 
@@ -163,6 +175,7 @@ export type TransferOutRejection =
   | TransferSameGuild<'transferOut'>
   | TransferHeroNotOnRoster<'transferOut'>
   | TransferHeroInParty<'transferOut'>
+  | TransferHeroRecentlyTransferred<'transferOut'>
   | TransferRefused<'transferOut'>
   | TransferInsufficientWealth<'transferOut'>;
 
@@ -172,6 +185,7 @@ export type OfferTransferRejection =
   | TransferHeroNotOnRoster<'offerTransfer'>
   | TransferSameGuild<'offerTransfer'>
   | TransferHeroInParty<'offerTransfer'>
+  | TransferHeroRecentlyTransferred<'offerTransfer'>
   | NoOfferNeeded
   | OfferPending
   | TransferInsufficientWealth<'offerTransfer'>;
@@ -212,6 +226,17 @@ function onRoster(world: Pick<World, 'heroes' | 'guilds'>, heroId: HeroId): { he
   return { hero, guild };
 }
 
+/** The refusal of a Transfer of `hero` while a recent one holds them (`transferLock`), or `null` when they may move. */
+function locked<Action extends Kind>(
+  action: Action,
+  hero: Hero,
+  world: Pick<World, 'turn'>,
+  deps: EngineDeps,
+): TransferHeroRecentlyTransferred<Action> | null {
+  const lock = transferLock(hero, world.turn, deps.config);
+  return lock === null ? null : { action, reason: 'recently-transferred', heroId: hero.id, ...lock };
+}
+
 /** The fee `to` pays for `hero`: `transferFee` at its Guildmaster's Negotiation. */
 function feeFor(world: Pick<World, 'guildmasters'>, hero: Hero, to: Guild, deps: EngineDeps): number {
   return transferFee(hero, guildmasterOf(to, world), deps);
@@ -225,9 +250,10 @@ function feeFor(world: Pick<World, 'guildmasters'>, hero: Hero, to: Guild, deps:
  * its Disposition's `transferAppetite` and its Roster size); then everything `makeTransfer` does.
  *
  * Refused, changing nothing: `guild-folded`, `hero-not-on-roster` (on no other Guild's Roster),
- * `same-guild` (the Guild's own Hero), `hero-in-party`, `transfer-refused` (the other Guild does not
- * consent, or answers only offers), `insufficient-wealth`, in that order. Throws only on a Guild id
- * the world does not hold. The returned document has a new `world`, a copy (DL-24).
+ * `same-guild` (the Guild's own Hero), `hero-in-party`, `recently-transferred` (`transferLock`),
+ * `transfer-refused` (the other Guild does not consent, or answers only offers),
+ * `insufficient-wealth`, in that order. Throws only on a Guild id the world does not hold. The
+ * returned document has a new `world`, a copy (DL-24).
  */
 export function transferIn(
   document: WorldDocument,
@@ -251,6 +277,8 @@ export function applyTransferIn(
   const { hero, guild: from } = found;
   if (from.id === to.id) return { ok: false, rejection: { action, reason: 'same-guild', guildId } };
   if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
+  const lockedIn = locked(action, hero, world, deps);
+  if (lockedIn !== null) return { ok: false, rejection: lockedIn };
   const answer = transferAnswer(world, from, 'out', deps);
   if (!answer.consents) {
     return { ok: false, rejection: { action, reason: 'transfer-refused', guildId: from.id, heroId, side: 'out', because: answer.because } };
@@ -266,13 +294,15 @@ export function applyTransferIn(
 // ── transferOut ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * `guildId` sends `heroId`, on its Roster, to `toGuildId`, which must consent now (`transferAnswer`,
- * `in`: its Disposition's `transferAppetite`, its Roster size, and a Wealth at which it would hire)
- * and pays `transferFee` at its own Guildmaster's Negotiation; then everything `makeTransfer` does.
+ * `guildId` sends `heroId`, on its Roster, to `toGuildId`, which must consent now
+ * (`transferAnswer`, `in`: its Disposition's `transferAppetite`, its Roster size, and a Wealth at
+ * which it would hire) and pays `transferFee` at its own Guildmaster's Negotiation; then everything
+ * `makeTransfer` does.
  *
  * Refused, changing nothing: `guild-folded` (either Guild), `same-guild`, `hero-not-on-roster`,
- * `hero-in-party`, `transfer-refused`, `insufficient-wealth` (of the Guild taking the Hero), in that order. Throws only
- * on a Guild id the world does not hold, which a front end checks first.
+ * `hero-in-party`, `recently-transferred`, `transfer-refused`, `insufficient-wealth` (of the Guild
+ * taking the Hero), in that order. Throws only on a Guild id the world does not hold, which a front
+ * end checks first.
  */
 export function transferOut(
   document: WorldDocument,
@@ -300,6 +330,8 @@ export function applyTransferOut(
   }
   const { hero } = found;
   if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
+  const lockedOut = locked(action, hero, world, deps);
+  if (lockedOut !== null) return { ok: false, rejection: lockedOut };
   const answer = transferAnswer(world, to, 'in', deps);
   if (!answer.consents) {
     return { ok: false, rejection: { action, reason: 'transfer-refused', guildId: toGuildId, heroId, side: 'in', because: answer.because } };
@@ -315,15 +347,16 @@ export function applyTransferOut(
 // ── offerTransfer ────────────────────────────────────────────────────────────────────────────
 
 /**
- * `guildId` offers `transferFee`, at its Guildmaster's Negotiation, for `heroId`, on the Roster of a
- * Guild whose controller answers for itself (`transferAnswer`: `answers-offers`): a Transfer Offer
- * in `world.offers` (data-model §3.2), standing through the night of its `transferOfferDays`-th Day
- * (`offerExpiresOnTurn`), with `guild.transfer-offered`. The fee is fixed when offered; nothing is
- * paid until the offer is accepted.
+ * `guildId` offers `transferFee`, at its Guildmaster's Negotiation, for `heroId`, on the Roster of
+ * a Guild whose controller answers for itself (`transferAnswer`: `answers-offers`): a Transfer
+ * Offer in `world.offers` (data-model §3.2), standing through the night of its
+ * `transferOfferDays`-th Day (`offerExpiresOnTurn`), with `guild.transfer-offered`. The fee is
+ * fixed when offered; nothing is paid until the offer is accepted.
  *
  * Refused, changing nothing: `guild-folded`, `hero-not-on-roster`, `same-guild`, `hero-in-party`,
- * `no-offer-needed` (the Hero's Guild answers at once, by its Disposition: `transferIn` asks it),
- * `offer-pending` (the Guild's own offer for the Hero stands), `insufficient-wealth`, in that order.
+ * `recently-transferred`, `no-offer-needed` (the Hero's Guild answers at once, by its Disposition:
+ * `transferIn` asks it), `offer-pending` (the Guild's own offer for the Hero stands),
+ * `insufficient-wealth`, in that order.
  */
 export function offerTransfer(
   document: WorldDocument,
@@ -347,6 +380,8 @@ export function applyOfferTransfer(
   const { hero, guild: from } = found;
   if (from.id === to.id) return { ok: false, rejection: { action, reason: 'same-guild', guildId } };
   if (hero.partyId !== null) return { ok: false, rejection: { action, reason: 'hero-in-party', heroId, partyId: hero.partyId } };
+  const lockedOffer = locked(action, hero, world, deps);
+  if (lockedOffer !== null) return { ok: false, rejection: lockedOffer };
   const answer = transferAnswer(world, from, 'out', deps);
   if (answer.consents || answer.because !== 'answers-offers') {
     return { ok: false, rejection: { action, reason: 'no-offer-needed', guildId: from.id } };
@@ -388,7 +423,9 @@ function offerTo(world: Pick<World, 'offers'>, guildId: GuildId, offerId: OfferI
 /**
  * `guildId` accepts the Transfer Offer `offerId` for a Hero on its Roster: the offering Guild pays the
  * fee it offered, and the Transfer is made (`makeTransfer`), the offer removed and named by
- * `hero.transferred`. The offering Guild's consent was its offer; it is not asked again.
+ * `hero.transferred`. The offering Guild's consent was its offer; it is not asked again. No lock
+ * (`transferLock`) is checked here: `offerTransfer` refuses a Hero a recent Transfer holds, and a
+ * Transfer of the Hero while the offer stands withdraws it (`hero-left`).
  *
  * Refused, changing nothing and leaving the offer to stand: `guild-folded` (either Guild),
  * `offer-not-found` (no such offer pending, or one asking another Guild), `hero-in-party` (the Hero

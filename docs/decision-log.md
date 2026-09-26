@@ -3996,6 +3996,103 @@ afternoon, and a player's own Transfer names the player's Guild); the epic's "ha
 player's Roster is never changed by the phase reads, under the automatic policy (which makes no Transfer
 and declines every offer, DL-57 item 9), as no `hero.transferred` naming the player's Guild.
 
+## DL-60 — M6 verification: a Rival below `rivalRosterMin` hires by need, a Transfer holds its Hero for `transferLockDays`, the Transfer fee shown before it is paid, schema version 3
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M6's verification fixer), on
+defects the verification confirmed; the rules' shapes are the agent's, and their values are for the
+owner to tune on the M6-close counters
+
+**Context.** M6's verification confirmed three defects that change a rule. (1) Rivals stop hiring:
+the one bar for hiring, `recruitThreshold` times Upkeep (DL-56), rises with the Heroes' Levels and,
+since M6-S4, with the Hall's upkeep (DL-58), so that over 6 seeds × 10 years `steady` and `miserly`
+recruited no one and took no one in, their Rosters falling to two and three while they held 13,000 to
+30,000 Wealth; the same bar gates a Rival's consent to take a Hero in and the Generator's bids (DL-59).
+DL-58 and DL-59 recorded the effect and left it to the M6 close. (2) Heroes ping-pong between Rivals:
+every buyer wants the dearest Hero it can pay for (DL-57, DL-59) and nothing remembers a sale, so 15 of
+50 Rival-to-Rival Transfers returned a Hero to the Guild that had sold them, some the same afternoon,
+each costing the seller's Roster Morale for nothing and inflating the counters the M6 close tunes on.
+(3) The CLI showed no Transfer fee before `transfer --in` charged it. The verification's other
+defects were gaps in the tests, closed with tests and no rule change.
+
+**Decision.**
+
+1. **A Rival hires by choice or by need** (`hiringBudget`, `controllers/rival.ts`), one rule for every
+   Disposition:
+   - *choice*: while its Wealth is above its Disposition's `recruitThreshold` times its Upkeep, it
+     hires as DL-56 has it, spending up to all its Wealth;
+   - *need*: while its Roster is below **`rivalRosterMin`** (4, the fewest Heroes a Rival is founded
+     with), it hires with what it holds above **`rivalHireReserveUpkeeps`** (a new config field, **3**,
+     the harness policy's three Upkeeps, INPUTS 4.14) times its Upkeep, so that it replaces the Heroes
+     it loses and keeps enough to pay its way.
+
+   The budget is read wherever a Rival hires: its recruit from the pool (`cheapestHire`, the fee no
+   more than it), its consent to take a Hero in (`transferAnswer`, `in`: `wealth` when it would hire no
+   one), the Hero it seeks by Transfer and the Generator's bid (`dearestWanted`, no fee above it), and
+   the buyer a Rival in debt sells to (`debtTransfer`). DL-58's purchase order stands (build, buy,
+   `transferChoice`, recruit, `debtTransfer`): a Rival below the floor still builds and outfits first
+   when its Wealth allows. The rows are unchanged, and so is the content version. Considered and not
+   taken: judging every hire by its fee and a reserve (DL-41 measured Rival Rosters past twenty and 27
+   folds a game at ten Upkeeps); retuning the rows alone (the bar rises with Levels and the Hall
+   whatever the row, and the M6 close tunes the rows on its counters); a floor of each Disposition's
+   own (a new content weight, where the generation range's floor serves every row alike).
+2. **A Transfer holds its Hero** (`transferLock`, `transfer.ts`). A Hero gains **`transferredOnTurn`**
+   (`Turn | null`), set by `makeTransfer`; a Hero transferred on Day `d` is not transferred again
+   before the morning of Day `d + transferLockDays` (a new config field, **30**), whichever Guild asks.
+   `transferIn`, `transferOut` and `offerTransfer` refuse such a Hero with **`recently-transferred`**
+   (`heroId`, `transferredOnTurn`, `untilTurn`), after `hero-in-party` and before `transfer-refused`;
+   `acceptTransfer` needs no check, since `offerTransfer` refuses a Hero held and a Transfer withdraws
+   every other offer for its Hero (DL-57 item 4). The Rival controllers never name a Hero held
+   (`transferable`), so none of their choices is refused (DL-30). The lock is the player's too
+   (ADR-0002), which also closes a round trip a player could make between Guildmasters of different
+   Negotiation, buying low from one Rival and selling high to another the same afternoon. Considered
+   and not taken: a lock in the controllers only (that round trip stays open); reading the last
+   Transfer from the History (a phase reads it as it stood before the Turn, DL-24 item 2, so the
+   same afternoon's round trips, the worst, go unseen); each Guild remembering whom it sold (more
+   state, and the Hero still bounces on to a third). 30 Days, because longer locks change little: over 8 games × 10 years
+   a lock of 30, 90, 180 or 360 Days left no return within a Day in any, and 131, 141, 131 and 107
+   Rival-to-Rival Transfers, of which 30, 35, 28 and 15 went back to the seller a month or more later.
+3. **Schema version 3.** `defaultConfig.schemaVersion` 2 → 3, and `migrations[2]` sets each Hero's
+   `transferredOnTurn` to the Turn of the last `hero.transferred` naming them in the save's History,
+   `null` for none. `data-model.md` §3.2 names the field and the validator checks it is an integer or
+   null. `configVersion` stays 5: `schemaVersion` is the format the engine writes (DL-27 item 1's
+   reading), and the two new fields change no default.
+4. **The CLI shows the fee before it is paid.** `show roster <guildId>` for another Guild adds a
+   Transfer fee column, and `show hero` a Transfer fee line for a Hero on another Guild's Roster: the
+   engine's `transferFee` at the player's Guildmaster's Negotiation, what `transfer --in` charges. The
+   player's own Heroes show none, since each Rival pays at its own Guildmaster's. The refusal
+   `recently-transferred` names the Day of the Transfer and the Day the Hero may move again.
+5. **Tests.** `controllers/rival.test.ts`: the need's boundaries (the fee with the reserve, one short
+   of it, at the floor), every row alike, the consent and the budget of a Transfer by need, and a
+   Rival of each Disposition cut to two Heroes recruiting back to four in ten Days;
+   `harness/src/rivals.test.ts` the same on the core content; `transfer.test.ts` a Rival in debt
+   selling to a buyer by need, and the lock in the Rivals' choices and over twenty Days of dealing (no
+   Hero moved twice within it, some moved again once it ran out); `phases/transfers.test.ts` the
+   Generator's bid by need and past a Hero held; `actions/transfer.test.ts` the lock's refusals, its
+   last Turn and its end, and a lock of 0; `serialise.test.ts` the version-2 step; the CLI's fee
+   columns and refusal.
+
+**Consequences.** The verifier's measure (core content, `defaultConfig`, the automatic policy, seeds
+`verify-01` to `verify-16` × 10 years, played in place, not validated), before this entry (87ff594) and
+after:
+
+| 16 games × 10 years | Before | After |
+| --- | ---: | ---: |
+| Recruits: ambitious / miserly / reckless / steady | 171 / 7 / 139 / 21 | 103 / 48 / 377 / 48 |
+| Seeds in which `miserly` / `steady` ever recruit | 3 / 1 | 11 / 14 |
+| Rival folds: ambitious / miserly / reckless / steady | 0 / 3 / 11 / 14 | 0 / 3 / 3 / 10 |
+| Rival year-ends with a Roster below 4 | 231 of 640 | 0 of 639 |
+| Rosters at year 10, mean: same order | 8.6 / 3.1 / 4.3 / 4.6 | 7.4 / 4.6 / 8.3 / 4.6 |
+| Rival-to-Rival Transfers; back to the seller (within a Day) | 193; 99 (54) | 242; 62 (0) |
+| Transfer offers for the player's Heroes | 75 | 115 |
+| The player's Wealth at year 10 | 123,000 to 317,000 | 137,000 to 275,000 |
+
+No Rival's Roster ends a year below the floor, `steady` and `miserly` draw from the pool, and folds
+fall from 28 to 16. For the M6 close: `reckless` now keeps its Roster up and loses more Heroes (317
+Deaths against 208), and `steady` still folds the most, its easy Quests paying less than its Levels'
+wages, which is the rows' tuning (`recruitThreshold`, `questRiskAppetite`) and the Hall's
+(`hallMaintenancePerGrade`), not this rule's. The counter task can read the lock's effect as returns
+to the seller from `hero.transferred`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

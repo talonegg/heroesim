@@ -112,6 +112,7 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     morale: config.moraleBaseline,
     diedOnTurn: null,
     retiredOnTurn: null,
+    transferredOnTurn: null,
     regard: {},
   };
   world.heroes[id] = hero;

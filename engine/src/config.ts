@@ -37,9 +37,20 @@ export interface GameConfig {
   startingWealth: number;
   /** Rival Guilds generated with the world. */
   rivalCount: number;
-  /** Each Rival's starting Roster size is drawn from this range. */
+  /**
+   * Each Rival's starting Roster size is drawn from this range. A Rival whose Roster falls below
+   * `rivalRosterMin` hires back towards it while it can keep `rivalHireReserveUpkeeps` Upkeeps
+   * (DL-60), and the Transfer Generator keeps its moves within the range (DL-59).
+   */
   rivalRosterMin: number;
   rivalRosterMax: number;
+  /**
+   * A Rival whose Roster is below `rivalRosterMin` hires, from the pool or by Transfer, whenever its
+   * Wealth covers the fee with this many times its Upkeep left over, whatever its Disposition's
+   * `recruitThreshold` says (DL-60): the need of a Roster too small to staff its Quests, beside the
+   * choice of a Disposition that hires above its threshold.
+   */
+  rivalHireReserveUpkeeps: number;
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;
@@ -362,6 +373,13 @@ export interface GameConfig {
    * that the one of the pair with the greater `transferAppetite` bids for a Hero of the other.
    */
   transferGeneratorChance: number;
+  /**
+   * Days after a Hero's Transfer before they may be transferred again (DL-60): a Transfer on Day `d`
+   * holds them on their new Roster through Day `d + transferLockDays − 1`, whoever asks, by any
+   * Transfer action, so that no Guild sells a Hero back, or on, the afternoon it bought them. 0 locks
+   * no one.
+   */
+  transferLockDays: number;
 
   // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
   /**
@@ -427,7 +445,7 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 2,
+  schemaVersion: 3,
   configVersion: 5,
   turnsPerYear: 1080,
 
@@ -436,6 +454,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   rivalCount: 4,
   rivalRosterMin: 4,
   rivalRosterMax: 8,
+  rivalHireReserveUpkeeps: 3,
   rivalStartingWealthMin: 300,
   rivalStartingWealthMax: 700,
   patronCount: 12,
@@ -538,6 +557,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   transferOfferDays: 3,
   transferGeneratorEveryDays: 7,
   transferGeneratorChance: 0.5,
+  transferLockDays: 30,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 

@@ -9,6 +9,7 @@
 
 import {
   acceptTransfer,
+  dayOf,
   declineTransfer,
   offersTo,
   playerGuild,
@@ -72,6 +73,8 @@ function explain(rejection: Refusal, player: Guild, world: World): string {
         : `That Hero is already on ${player.name}'s Roster.`;
     case 'hero-in-party':
       return `${heroCalled(world, rejection.heroId)} is away with ${rejection.partyId}; a Hero is transferred only from the Hall.`;
+    case 'recently-transferred':
+      return `${heroCalled(world, rejection.heroId)} was transferred on Day ${dayOf(rejection.transferredOnTurn)} and cannot be transferred again before Day ${dayOf(rejection.untilTurn)}.`;
     case 'transfer-refused': {
       const other = rowIn(world.guilds, rejection.guildId);
       const way = rejection.side === 'out' ? 'part with' : 'take';

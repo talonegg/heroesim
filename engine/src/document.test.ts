@@ -135,6 +135,7 @@ const hero: Hero = {
   morale: 60,
   diedOnTurn: null,
   retiredOnTurn: null,
+  transferredOnTurn: 21,
   regard: { [guildmasterId]: regardEntry },
 };
 

@@ -440,6 +440,7 @@ const heroFields: Shape<Hero> = {
   morale: 'number',
   diedOnTurn: 'integer-or-null',
   retiredOnTurn: 'integer-or-null',
+  transferredOnTurn: 'integer-or-null',
   regard: 'map',
 };
 

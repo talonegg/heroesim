@@ -1,10 +1,12 @@
 import { describe, expect, test } from 'vitest';
+import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import {
   compareByCodeUnit,
   type Guild,
   type GuildId,
+  type Guildmaster,
   type Hero,
   type HeroId,
   type OfferId,
@@ -37,11 +39,13 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 const pins: Partial<GameConfig> = {
   negotiationRange: 0,
   marketSize: 0,
+  startingRosterSize: 4,
   transferFeeFactor: 2,
   transferMoraleCost: -15,
   transferRegardBand: 'warm',
   guildmasterRegardPerTransferDeal: 2,
   transferOfferDays: 3,
+  transferLockDays: 30,
   moraleMin: 0,
   moraleMax: 100,
   moraleBands: { wretched: 0, low: 20, steady: 40, high: 75, elated: 90 },
@@ -144,6 +148,10 @@ describe('a Transfer out (M6-S2)', () => {
     if (leaving === undefined || close === undefined || warm === undefined || cool === undefined || stranger === undefined) {
       throw new Error('Too few Heroes');
     }
+    // The first four on the player's Roster, the fifth on the Rival's: the cool one stays behind with
+    // the friends, so that their Morale standing still is the rule's doing, not their Roster's.
+    expect(guild.rosterIds.slice(0, 4)).toEqual([leaving.id, close.id, warm.id, cool.id]);
+    expect(rival.rosterIds).toContain(stranger.id);
     // Two friends: one close, one warm (the band's start, the lowest that pays); one who is cool
     // toward them; a Rival's Hero who is close to them but on another Roster. The leaving Hero is
     // close to the cool one, which is Regard held one way and costs the cool one nothing.
@@ -194,6 +202,23 @@ describe('a Transfer out (M6-S2)', () => {
     expect(transferred?.milestone).toBe(true);
     // The document given is left as it was (DL-24).
     expect(heroOf(document.world, hero.id).guildId).toBe(guild.id);
+  });
+
+  test('the cost holds Morale at moraleMin: a close friend at 5 ends at 0, still wretched, and nothing is told of it', () => {
+    const document = created('floor');
+    const { world } = document;
+    const guild = player(world);
+    const rival = firstRival(world);
+    rival.wealth = 10_000;
+    const [leaving, friend] = rosterOf(world, guild) as [Hero, Hero];
+    regardFor(friend, leaving.id, 15);
+    friend.morale = deps.config.moraleMin + 5;
+
+    const { document: after, events } = accepted(transferOut(document, { guildId: guild.id, heroId: leaving.id, toGuildId: rival.id }, deps));
+
+    expect(heroOf(after.world, friend.id).morale).toBe(deps.config.moraleMin);
+    // 5 and 0 are both wretched (the pinned bands): no band crossed, so no event.
+    expect(ofType(events, 'hero.morale-changed')).toEqual([]);
   });
 
   test('the gear the Hero carries stays with the Guild they leave (DL-49 item 8)', () => {
@@ -308,6 +333,72 @@ describe('a Transfer in (M6-S2)', () => {
     });
   });
 
+  test('is refused, changing nothing, in its order: folded, same Guild, a Hero away in a Party, refused, too poor', () => {
+    const document = created('in-refusals');
+    const { world } = document;
+    const guild = player(world);
+    guild.wealth = 10_000;
+    const rival = firstRival(world);
+    const [theirs] = rosterOf(world, rival) as [Hero];
+    const [ours] = rosterOf(world, guild) as [Hero];
+    const noAppetite = testDeps(pins, withDispositions({ transferAppetite: 0, recruitThreshold: 0 }));
+    const take = (heroId: HeroId, with_ = deps) => refused(document, () => transferIn(document, { guildId: guild.id, heroId }, with_));
+
+    // A Rival's Hero away on a Quest stays with its Party (the epic: `partyId` must be null), whether
+    // or not the Rival would let them go and whether or not the fee could be paid.
+    theirs.partyId = 'party-000099' as PartyId;
+    expect(take(theirs.id)).toEqual({ action: 'transferIn', reason: 'hero-in-party', heroId: theirs.id, partyId: 'party-000099' });
+    expect(take(theirs.id, noAppetite)).toMatchObject({ reason: 'hero-in-party' });
+    guild.wealth = 0;
+    expect(take(theirs.id)).toMatchObject({ reason: 'hero-in-party' });
+    theirs.partyId = null;
+    // At home, the Rival asked first, and the fee after.
+    expect(take(theirs.id, noAppetite)).toEqual({
+      action: 'transferIn',
+      reason: 'transfer-refused',
+      guildId: rival.id,
+      heroId: theirs.id,
+      side: 'out',
+      because: 'roster-size',
+    });
+    expect(take(theirs.id)).toMatchObject({ reason: 'insufficient-wealth', guildId: guild.id, wealth: 0 });
+    guild.wealth = 10_000;
+    expect(take(ours.id)).toEqual({ action: 'transferIn', reason: 'same-guild', guildId: guild.id });
+    // A folded Guild takes no one, first of all.
+    guild.foldedOnTurn = 0;
+    expect(take(theirs.id)).toEqual({ action: 'transferIn', reason: 'guild-folded', guildId: guild.id });
+    expect(take(ours.id)).toEqual({ action: 'transferIn', reason: 'guild-folded', guildId: guild.id });
+  });
+
+  test('a Guild whose Disposition content does not define consents to nothing: no Hero taken from it, none sent to it (data-model rule 5)', () => {
+    const document = created('unknown-disposition');
+    const { world } = document;
+    const guild = player(world);
+    guild.wealth = 10_000;
+    const rival = firstRival(world);
+    rival.wealth = 10_000;
+    rival.controller = { kind: 'rival', disposition: 'unheard-of' };
+    const [theirs] = rosterOf(world, rival) as [Hero];
+    const [ours] = rosterOf(world, guild) as [Hero];
+
+    expect(refused(document, () => transferIn(document, { guildId: guild.id, heroId: theirs.id }, deps))).toEqual({
+      action: 'transferIn',
+      reason: 'transfer-refused',
+      guildId: rival.id,
+      heroId: theirs.id,
+      side: 'out',
+      because: 'unknown-disposition',
+    });
+    expect(refused(document, () => transferOut(document, { guildId: guild.id, heroId: ours.id, toGuildId: rival.id }, deps))).toEqual({
+      action: 'transferOut',
+      reason: 'transfer-refused',
+      guildId: rival.id,
+      heroId: ours.id,
+      side: 'in',
+      because: 'unknown-disposition',
+    });
+  });
+
   test("is refused a Hero of a Guild that answers for itself: a Rival cannot take the player's Hero, only make an offer", () => {
     const document = created('in-player');
     const guild = player(document.world);
@@ -339,6 +430,82 @@ describe('a Transfer in (M6-S2)', () => {
   });
 });
 
+describe('a Hero just transferred is held on their new Roster for transferLockDays (DL-60)', () => {
+  /** Rivals who neither deal, hire, build nor buy while Days pass: the lock is the only thing that changes. */
+  const still = testDeps(pins, withDispositions({ transferAppetite: 0, recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }));
+
+  test('taken in, they are not sent back, sold on or offered for until the morning of the Day the lock runs out', () => {
+    let document = created('lock');
+    const guild = player(document.world);
+    guild.wealth = 10_000;
+    const [rival, other] = rivals(document.world) as [Guild, Guild];
+    rival.wealth = 10_000;
+    other.wealth = 10_000;
+    const [hero] = rosterOf(document.world, rival) as [Hero];
+    document = accepted(transferIn(document, { guildId: guild.id, heroId: hero.id }, deps)).document;
+    expect(heroOf(document.world, hero.id).transferredOnTurn).toBe(0);
+    // Transferred on Day 0: held through Day 29, free from the morning of Day 30, Turn 90.
+    const lock = { heroId: hero.id, transferredOnTurn: 0, untilTurn: 90 };
+    const back = (at: WorldDocument) => transferOut(at, { guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, deps);
+
+    expect(refused(document, () => back(document))).toEqual({ action: 'transferOut', reason: 'recently-transferred', ...lock });
+    expect(refused(document, () => transferOut(document, { guildId: guild.id, heroId: hero.id, toGuildId: other.id }, deps))).toEqual({
+      action: 'transferOut',
+      reason: 'recently-transferred',
+      ...lock,
+    });
+    expect(refused(document, () => offerTransfer(document, { guildId: other.id, heroId: hero.id }, deps))).toEqual({
+      action: 'offerTransfer',
+      reason: 'recently-transferred',
+      ...lock,
+    });
+    // Held before the Rival is asked: one with no appetite at all still hears of the lock first.
+    const noAppetite = testDeps(pins, withDispositions({ transferAppetite: 0, recruitThreshold: 0 }));
+    expect(refused(document, () => transferOut(document, { guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, noAppetite))).toMatchObject({
+      reason: 'recently-transferred',
+    });
+
+    while (document.world.turn < 89) document = withValid(advance(document, still).document, still);
+    expect(refused(document, () => back(document))).toMatchObject({ reason: 'recently-transferred', untilTurn: 90 });
+    document = withValid(advance(document, still).document, still);
+    const { events } = accepted(back(document));
+    expect(ofType(events, 'hero.transferred').map((event) => [event.payload.heroId, event.payload.toGuildId])).toEqual([[hero.id, rival.id]]);
+  });
+
+  test("a Rival's Hero another Rival has just taken is held there: the player's transferIn is refused", () => {
+    const document = created('lock-rivals');
+    const guild = player(document.world);
+    guild.wealth = 10_000;
+    const [rival, other] = rivals(document.world) as [Guild, Guild];
+    other.wealth = 10_000;
+    const [hero] = rosterOf(document.world, rival) as [Hero];
+    const moved = accepted(transferIn(document, { guildId: other.id, heroId: hero.id }, deps)).document;
+
+    expect(refused(moved, () => transferIn(moved, { guildId: guild.id, heroId: hero.id }, deps))).toEqual({
+      action: 'transferIn',
+      reason: 'recently-transferred',
+      heroId: hero.id,
+      transferredOnTurn: 0,
+      untilTurn: 90,
+    });
+  });
+
+  test('a lock of 0 Days holds no one: a Hero taken can be sent back at once', () => {
+    const unlocked = testDeps({ ...pins, transferLockDays: 0 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 }));
+    const document = created('no-lock', unlocked);
+    const guild = player(document.world);
+    guild.wealth = 10_000;
+    const rival = firstRival(document.world);
+    rival.wealth = 10_000;
+    const [hero] = rosterOf(document.world, rival) as [Hero];
+    const taken = accepted(transferIn(document, { guildId: guild.id, heroId: hero.id }, unlocked), unlocked).document;
+
+    const back = accepted(transferOut(taken, { guildId: guild.id, heroId: hero.id, toGuildId: rival.id }, unlocked), unlocked);
+
+    expect(heroOf(back.document.world, hero.id).guildId).toBe(rival.id);
+  });
+});
+
 describe('transferFee (INPUTS 7.6, DL-43, DL-57)', () => {
   test("is the signing fee's list price times transferFeeFactor, times the paying Guildmaster's Negotiation exactly as signingFee, rounded down once", () => {
     const negotiating = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 2 });
@@ -355,6 +522,49 @@ describe('transferFee (INPUTS 7.6, DL-43, DL-57)', () => {
     expect(signingFee(hero, negotiating, shrewd)).toBe(Math.floor(list * 0.9));
     const triple = testDeps({ ...pins, negotiationRange: 0.1, transferFeeFactor: 3 });
     expect(transferFee(hero, shrewd, triple)).toBe(Math.floor(list * 3 * 0.9));
+  });
+});
+
+describe("the fee every action charges is at the paying Guildmaster's Negotiation (M6-S2, DL-43, DL-57)", () => {
+  test("transferIn, transferOut and offerTransfer each price the Hero at the Negotiation of the Guild that pays: not the one paid, not the list price", () => {
+    const negotiating = testDeps({ ...pins, negotiationRange: 0.1 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 }));
+    const document = created('negotiated', negotiating);
+    const { world } = document;
+    const guild = player(world);
+    const [rival, other] = rivals(world) as [Guild, Guild];
+    // The player's Guildmaster drives the hardest bargain there is, the Rivals' the softest.
+    const gm = (of: Guild): Guildmaster => {
+      const row = world.guildmasters[of.guildmasterId];
+      if (row === undefined) throw new Error(`No Guildmaster for ${of.id}`);
+      return row;
+    };
+    gm(guild).stats['negotiation'] = 20;
+    gm(rival).stats['negotiation'] = 1;
+    gm(other).stats['negotiation'] = 1;
+    for (const each of [guild, rival, other]) each.wealth = 100_000;
+    /** The fee `payer` would pay for `hero`, having checked it differs from the payee's price and the list price. */
+    const priced = (hero: Hero, payer: Guild, payee: Guild): number => {
+      const fee = transferFee(hero, gm(payer), negotiating);
+      expect(new Set([fee, transferFee(hero, gm(payee), negotiating), transferFee(hero, undefined, negotiating)]).size).toBe(3);
+      return fee;
+    };
+    const [theirs] = rosterOf(world, rival) as [Hero];
+    const [sold, asked] = rosterOf(world, guild) as [Hero, Hero];
+    const feeIn = priced(theirs, guild, rival);
+    const feeOut = priced(sold, rival, guild);
+    const feeOffered = priced(asked, other, guild);
+
+    // The player takes a Rival's Hero: the player pays, at its own Guildmaster's Negotiation.
+    const taken = accepted(transferIn(document, { guildId: guild.id, heroId: theirs.id }, negotiating), negotiating);
+    expect(ofType(taken.events, 'hero.transferred').map((event) => event.payload.fee)).toEqual([feeIn]);
+    expect(guildOf(taken.document.world, guild.id).wealth).toBe(100_000 - feeIn);
+    // The player sends a Hero to a Rival: the Rival pays, at its Guildmaster's.
+    const sent = accepted(transferOut(taken.document, { guildId: guild.id, heroId: sold.id, toGuildId: rival.id }, negotiating), negotiating);
+    expect(ofType(sent.events, 'hero.transferred').map((event) => event.payload.fee)).toEqual([feeOut]);
+    expect(guildOf(sent.document.world, rival.id).wealth).toBe(100_000 + feeIn - feeOut);
+    // A Rival offers for a Hero of the player: the fee offered is at the offering Guild's.
+    const offer = accepted(offerTransfer(sent.document, { guildId: other.id, heroId: asked.id }, negotiating), negotiating);
+    expect(Object.values(offer.document.world.offers).map((row) => row.fee)).toEqual([feeOffered]);
   });
 });
 
@@ -426,7 +636,7 @@ describe('Transfer Offers (data-model §3.2)', () => {
     const second = accepted(offerTransfer(document, { guildId: other.id, heroId: hero.id }, deps));
     const [secondId] = Object.keys(second.document.world.offers).filter((id) => id !== offerId) as [OfferId];
     const fee = second.document.world.offers[offerId]?.fee ?? 0;
-    // The fee is the one offered, whatever the Rival's Negotiation would ask now.
+    // The fee is the one offered (that it is not what the Hero would cost now is the next test's).
     const total = totalWealth(second.document.world);
 
     const { document: after, events } = accepted(acceptTransfer(second.document, { guildId: guild.id, offerId }, deps));
@@ -441,6 +651,22 @@ describe('Transfer Offers (data-model §3.2)', () => {
     expect(ofType(events, 'guild.transfer-offer-expired').map((event) => [event.payload.offerId, event.payload.cause])).toEqual([
       [secondId, 'hero-left'],
     ]);
+  });
+
+  test('accepted, the offering Guild pays the fee it offered, though the Hero would cost more now (DL-57 item 2)', () => {
+    const { document, guild, rival, hero, offerId } = offered('accept-fixed');
+    const fee = document.world.offers[offerId]?.fee ?? Number.NaN;
+    // The Hero gains Levels while the offer stands, so that their price today is dearer than the one offered.
+    heroOf(document.world, hero.id).level += 3;
+    const today = transferFee(heroOf(document.world, hero.id), document.world.guildmasters[rival.guildmasterId], deps);
+    expect(today).toBeGreaterThan(fee);
+    const wealth = { asked: guildOf(document.world, guild.id).wealth, offering: guildOf(document.world, rival.id).wealth };
+
+    const { document: after, events } = accepted(acceptTransfer(document, { guildId: guild.id, offerId }, deps));
+
+    expect(guildOf(after.world, rival.id).wealth).toBe(wealth.offering - fee);
+    expect(guildOf(after.world, guild.id).wealth).toBe(wealth.asked + fee);
+    expect(ofType(events, 'hero.transferred').map((event) => event.payload.fee)).toEqual([fee]);
   });
 
   test('declined, the offer goes with guild.transfer-offer-declined and nothing else changes', () => {
@@ -480,6 +706,13 @@ describe('Transfer Offers (data-model §3.2)', () => {
     heroOf(document.world, hero.id).partyId = 'party-000099' as PartyId;
     expect(refused(document, () => acceptTransfer(document, { guildId: guild.id, offerId }, deps))).toMatchObject({ reason: 'hero-in-party' });
     expect(document.world.offers[offerId]).toBeDefined();
+    // Nor is an offer made for a Hero away.
+    expect(refused(document, () => offerTransfer(document, { guildId: other.id, heroId: hero.id }, deps))).toEqual({
+      action: 'offerTransfer',
+      reason: 'hero-in-party',
+      heroId: hero.id,
+      partyId: 'party-000099',
+    });
   });
 
   test('every Transfer action is an Action value a front end or controller applies alike', () => {

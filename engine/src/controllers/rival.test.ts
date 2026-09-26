@@ -4,13 +4,15 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
-import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
+import { compareByCodeUnit, facilityKeys, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
 import { addStack, holdings } from '../items.js';
 import { marketHolder } from '../market.js';
 import { createStreams, next } from '../rng.js';
-import { dispositionOf, playerGuild, signingFee, unattachedHeroes, upkeep } from '../selectors.js';
-import { deepFreeze, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
-import { applyGuildAction } from '../actions/action.js';
+import { dispositionOf, playerGuild, signingFee, transferFee, unattachedHeroes, upkeep } from '../selectors.js';
+import { guildmasterOf } from '../guildmaster.js';
+import { applyTransferOut } from '../actions/transfer.js';
+import { deepFreeze, harmlessContent, testContent, testDeps, withDispositions, withValid } from '../world.test-support.js';
+import { applyGuildAction, type GuildAction } from '../actions/action.js';
 import { availableHeroes, partyFor, rivalChoices } from './rival.js';
 
 // M2-S9: the Rivals' choices (INPUTS 4.12, DL-30), read off a world, which they change only by the
@@ -362,6 +364,130 @@ describe('steady: recruiting', () => {
     expect(hires()).toHaveLength(1);
     for (const hero of unattachedHeroes(world)) hero.unattachedSince = null;
     expect(hires()).toEqual([]);
+  });
+});
+
+describe('a Rival whose Roster is below rivalRosterMin hires by need (DL-60)', () => {
+  // A threshold out of any Rival's reach, so that only the need hires; Negotiation, building, gear and
+  // Transfers stilled, as for `steady`'s recruiting above; an empty Board, so that no Rival dispatches.
+  const pins = { negotiationRange: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 };
+  const unreachable = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000, transferAppetite: 0 };
+  const deps = testDeps(pins, withDispositions(unreachable));
+
+  /** `rival`'s Roster cut to its first `size` Heroes, the others dead (off the Roster, out of the pool). */
+  function cut(world: World, rival: Guild, size: number): void {
+    for (const heroId of rival.rosterIds.splice(size)) heroOf(world, heroId).diedOnTurn = world.turn;
+  }
+
+  /** The fee of the cheapest Hero in the pool, and what `rival` must hold to hire them by need: the fee and its reserve. */
+  function needed(world: World, rival: Guild, with_: EngineDeps): { heroId: HeroId; wealth: number } {
+    const [hero] = [...unattachedHeroes(world)].sort((a, b) => signingFee(a, with_) - signingFee(b, with_) || compareByCodeUnit(a.id, b.id));
+    if (hero === undefined) throw new Error('The pool is empty');
+    const reserve = with_.config.rivalHireReserveUpkeeps * upkeep(rival, world, with_.config, with_.content);
+    return { heroId: hero.id, wealth: signingFee(hero, with_) + reserve };
+  }
+
+  test('below it, recruits the cheapest who would sign while its Wealth covers the fee with rivalHireReserveUpkeeps Upkeeps to spare', () => {
+    const { world, rival } = scene('need', deps);
+    world.board = [];
+    cut(world, rival, 3);
+    const { heroId, wealth } = needed(world, rival, deps);
+    expect(wealth).toBeLessThan(rowOf(rival, deps).recruitThreshold * upkeep(rival, world, deps.config, deps.content));
+
+    rival.wealth = wealth - 1;
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    rival.wealth = wealth;
+    expect(rivalChoices(world, rival, deps)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+  });
+
+  test('in play, a Rival of every Disposition cut to two Heroes recruits back to rivalRosterMin within ten Days, under its own row', () => {
+    // The rows as content has them (the test content's are the core's, DL-56), with a Wealth under every
+    // one's threshold: only the need hires. Every Hall built to its top, so that none spends the Wealth
+    // on a build first (DL-58's order); harmless Encounters, so that no Hero is lost meanwhile.
+    const rows = testDeps({ negotiationRange: 0, marketSize: 0, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 }, harmlessContent);
+    const top = Object.fromEntries(facilityKeys.map((key) => [key, Math.max(...Object.values(rows.content.improvements).filter((row) => row.facility === key).map((row) => row.grade))]));
+    let document = createWorld('need-play', setup, rows).document;
+    for (const rival of rivalsOf(document.world)) {
+      cut(document.world, rival, 2);
+      rival.hall = { ...rival.hall, ...top };
+      rival.wealth = 1_000;
+      expect(rival.wealth, dispositionOf(rival) ?? '').toBeLessThan(rowOf(rival, rows).recruitThreshold * upkeep(rival, document.world, rows.config, rows.content));
+    }
+    document = withValid(document, rows);
+    const recruited = new Map<string, number>();
+    while (document.world.turn < 30) {
+      const result = advance(document, rows);
+      document = withValid(result.document, rows);
+      for (const event of result.events) {
+        if (event.type === 'hero.recruited') recruited.set(event.payload.guildId, (recruited.get(event.payload.guildId) ?? 0) + 1);
+      }
+    }
+
+    for (const rival of rivalsOf(document.world)) {
+      const disposition = dispositionOf(rival) ?? '';
+      expect(recruited.get(rival.id) ?? 0, disposition).toBeGreaterThan(0);
+      expect(rival.rosterIds.length, disposition).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  test('at rivalRosterMin, hires only by its threshold, however rich', () => {
+    const { world, rival } = scene('need-met', deps);
+    world.board = [];
+    cut(world, rival, 4);
+    rival.wealth = 100_000;
+
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    cut(world, rival, 3);
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['recruit']);
+  });
+
+  test('every Disposition hires by need alike: one rule, whatever the row', () => {
+    for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
+      const { world, rival } = scene(`need-${disposition}`, deps, disposition);
+      world.board = [];
+      cut(world, rival, 2);
+      const { heroId, wealth } = needed(world, rival, deps);
+      rival.wealth = wealth;
+
+      expect(rivalChoices(world, rival, deps), disposition).toEqual([{ kind: 'recruit', guildId: rival.id, heroId }]);
+    }
+  });
+
+  test('takes a Hero in by Transfer by need too: it consents to a transferOut to it below rivalRosterMin, and not at it', () => {
+    const dealing = testDeps(pins, withDispositions({ ...unreachable, transferAppetite: 1 }));
+    const document = createWorld('need-transfer', setup, dealing).document;
+    const { world } = document;
+    const [rival] = rivalsOf(world);
+    const player = playerGuild(world);
+    if (rival === undefined || player === undefined) throw new Error('No Rival or player');
+    rival.wealth = 10_000;
+    const [heroId] = player.rosterIds as [HeroId];
+    const send = () => applyTransferOut(structuredClone(world), { guildId: player.id, heroId, toGuildId: rival.id }, dealing);
+
+    cut(world, rival, 4);
+    expect(send()).toMatchObject({ ok: false, rejection: { reason: 'transfer-refused', side: 'in', because: 'wealth' } });
+    cut(world, rival, 3);
+    expect(send()).toMatchObject({ ok: true });
+  });
+
+  test('seeks a Transfer by need with no more than it would spend: never the Hero whose fee would eat its reserve', () => {
+    const dealing = testDeps(pins, withDispositions({ ...unreachable, transferAppetite: 1 }));
+    const { world, rival } = scene('need-budget', dealing);
+    world.board = [];
+    cut(world, rival, 3);
+    const reserve = dealing.config.rivalHireReserveUpkeeps * upkeep(rival, world, dealing.config, dealing.content);
+    const other = rivalsOf(world).find((guild) => guild.id !== rival.id) as Guild;
+    const [dearest] = other.rosterIds as [HeroId];
+    for (const key of Object.keys(heroOf(world, dearest).stats)) heroOf(world, dearest).stats[key] = 20;
+    const fee = transferFee(heroOf(world, dearest), guildmasterOf(rival, world), dealing);
+    // Enough for the dearest Hero's fee, but not with the reserve kept.
+    rival.wealth = fee + reserve - 1;
+
+    const [choice] = rivalChoices(world, rival, dealing) as [Extract<GuildAction, { heroId: HeroId }>];
+
+    expect(choice.heroId).not.toBe(dearest);
+    expect(applyGuildAction(world, choice, dealing)).toMatchObject({ ok: true });
+    expect(rival.wealth).toBeGreaterThanOrEqual(reserve);
   });
 });
 

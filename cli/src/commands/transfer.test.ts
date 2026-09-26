@@ -14,6 +14,7 @@ import {
   deserialise,
   playerGuild,
   serialise,
+  transferFee,
   type Guild,
   type GuildId,
   type Hero,
@@ -115,6 +116,34 @@ describe('transfer (M6-S2)', () => {
     expect(thePlayer(after.world).rosterIds).not.toContain(heroId);
   });
 
+  test("show roster <guildId> and show hero give a Rival's Hero the fee the player's Guild would pay, which transfer --in then charges", () => {
+    expect(play(['new', '--seed', 'demo', '--guild', 'The Test', '--master', 'Ada']).code).toBe(exitCodes.ok);
+    const edited = document();
+    // Negotiation in play and the player's Guildmaster at its best: the fee shown is theirs, not the list price.
+    edited.meta.config.negotiationRange = 0.1;
+    const player = thePlayer(edited.world);
+    const guildmaster = edited.world.guildmasters[player.guildmasterId];
+    if (guildmaster === undefined) throw new Error('No Guildmaster');
+    guildmaster.stats['negotiation'] = 20;
+    player.wealth = 10_000;
+    writeFileSync(current(), serialise(edited));
+    const [heroId] = guildOf(edited.world, reckless).rosterIds as [HeroId];
+    const [ownId] = player.rosterIds as [HeroId];
+    const listPrice = transferFee(heroOf(edited.world, heroId), undefined, { config: { ...defaultConfig, ...edited.meta.config }, content });
+
+    const roster = play(['show', 'roster', reckless]).out.split(/\r?\n/);
+    const shown = Number(roster.find((line) => line.startsWith(heroId))?.trim().split(/\s+/).at(-1));
+
+    expect(roster.some((line) => line.endsWith('Transfer fee'))).toBe(true);
+    expect(shown).toBeGreaterThan(0);
+    expect(shown).not.toBe(listPrice);
+    expect(play(['show', 'hero', heroId]).out).toMatch(new RegExp(`^Transfer fee +${shown}$`, 'm'));
+    // The player's own Heroes have no one fee: each Rival pays at its own Guildmaster's Negotiation.
+    expect(play(['show', 'roster']).out).not.toContain('Transfer fee');
+    expect(play(['show', 'hero', ownId]).out).not.toContain('Transfer fee');
+    expect(play(['transfer', '--hero', heroId, '--in']).out).toContain(`from ${guildOf(edited.world, reckless).name} for ${shown} Wealth.`);
+  });
+
   test('a Rival that will not take the Hero, or a Guild the save lacks, is refused and nothing is written', () => {
     const before = newWorld();
     const [heroId] = thePlayer(before.world).rosterIds as [HeroId];
@@ -145,6 +174,25 @@ describe('transfer (M6-S2)', () => {
     expect(run.out).toContain(`The Test took ${hero.name} (${heroId}) from ${guildOf(before.world, reckless).name} for ${fee} Wealth.`);
     expect(heroOf(after.world, heroId).guildId).toBe(thePlayer(after.world).id);
     expect(guildOf(after.world, reckless).wealth).toBe(guildOf(before.world, reckless).wealth + fee);
+  });
+
+  test('a Hero just transferred is refused a second Transfer, the refusal saying when they may move again (DL-60)', () => {
+    const before = newWorld((world) => {
+      thePlayer(world).wealth = 10_000;
+    });
+    // The lock the test reads, pinned in the save's rules.
+    const pinned = document();
+    pinned.meta.config.transferLockDays = 30;
+    writeFileSync(current(), serialise(pinned));
+    const [heroId] = guildOf(before.world, reckless).rosterIds as [HeroId];
+    expect(play(['transfer', '--hero', heroId, '--in']).code).toBe(exitCodes.ok);
+    const saved = readFileSync(current(), 'utf8');
+
+    const back = play(['transfer', '--hero', heroId, '--to', reckless]);
+
+    expect(back.code).toBe(exitCodes.refused);
+    expect(back.err).toContain(`${heroOf(before.world, heroId).name} (${heroId}) was transferred on Day 0 and cannot be transferred again before Day 30.`);
+    expect(readFileSync(current(), 'utf8')).toBe(saved);
   });
 });
 

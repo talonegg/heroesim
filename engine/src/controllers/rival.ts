@@ -23,6 +23,7 @@ import { gearChoices, gearPurchase } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
 import { guildmasterOf } from '../guildmaster.js';
 import { chance, pick } from '../rng.js';
+import { transferLock } from '../transfer.js';
 import {
   affordableImprovement,
   baseStat,
@@ -48,12 +49,14 @@ import {
  *    - buy one piece of gear at the Market for its Heroes who lack it, armour first, then the other
  *      slots in `config.gearSlots`'s order: the dearest whose price its Wealth is above `gearThreshold`
  *      times (`gearBuy`, the engine's `gearPurchase`, M6-S4);
- *    - while it would hire (its Wealth above `recruitThreshold` times its Upkeep and its Roster room
- *      enough by `transferAppetite`), seek the Hero it wants from another Guild with the chance
- *      `transferAppetite`, one draw from `rivals` (`transferChoice`, M6-S2): `transferIn` from a Guild
- *      whose Disposition consents, or a Transfer Offer to a Guild whose controller answers for itself;
- *    - recruit the cheapest Unattached Hero who would sign while its Wealth is above
- *      `recruitThreshold` times its Upkeep;
+ *    - while it would hire (`hiringBudget`: its Wealth above `recruitThreshold` times its Upkeep, or
+ *      its Roster below `rivalRosterMin` with `rivalHireReserveUpkeeps` Upkeeps to keep, DL-60) and its
+ *      Roster has room enough by `transferAppetite`, seek the Hero it wants from another Guild with the
+ *      chance `transferAppetite`, one draw from `rivals` (`transferChoice`, M6-S2): `transferIn` from a
+ *      Guild whose Disposition consents, or a Transfer Offer to a Guild whose controller answers for
+ *      itself;
+ *    - recruit the cheapest Unattached Hero who would sign while it would hire, for no more than it
+ *      would spend (`cheapestHire`);
  *    - while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
  *      pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
  *
@@ -80,7 +83,7 @@ export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): Guil
     hallBuild(guild, disposition, deps) ??
     gearBuy(world, guild, disposition, deps) ??
     transferChoice(world, guild, disposition, deps) ??
-    cheapestHire(world, guild, disposition, deps) ??
+    cheapestHire(world, guild, deps) ??
     debtTransfer(world, guild, new Set(quest?.heroIds ?? []), deps);
   if (purchase !== null) choices.push(purchase);
   return choices;
@@ -111,8 +114,8 @@ export type TransferSide = 'out' | 'in';
  * Why a Guild refuses a Transfer asked of it:
  * - `roster-size`: the Heroes it would keep through the deal times its `transferAppetite` are fewer
  *   than one, too few for its appetite (an appetite of 0 never deals);
- * - `wealth`: asked to take a Hero in, its Wealth is not above `recruitThreshold` times its Upkeep,
- *   so it would not hire now;
+ * - `wealth`: asked to take a Hero in, it would not hire now (`hiringBudget`): its Wealth not above
+ *   `recruitThreshold` times its Upkeep, nor its Roster below `rivalRosterMin` with Wealth to spare;
  * - `unknown-disposition`: its Disposition is not one content defines, and makes no choice (rule 5);
  * - `answers-offers`: it has no Disposition; its controller answers for itself, through a Transfer
  *   Offer (`offerTransfer`, then `acceptTransfer` or `declineTransfer`), never at once.
@@ -131,8 +134,10 @@ export type TransferAnswer = { consents: true } | { consents: false; because: Tr
  *   out, its whole Roster when one comes in) times `transferAppetite` reach one: an appetite of 0.25
  *   lets a Hero go from a Roster of five and takes one into a Roster of four, 0.75 from three and into
  *   two, and 1 lets any Hero go but its last;
- * - it takes a Hero in only while it would recruit: its Wealth above `recruitThreshold` times its
- *   Upkeep, as `cheapestHire` reads it. Whether it can pay the fee is the action's to check.
+ * - it takes a Hero in only while it would hire (`hiringBudget`, as `cheapestHire` reads it: its
+ *   Wealth above `recruitThreshold` times its Upkeep, or its Roster below `rivalRosterMin` and its
+ *   Wealth above `rivalHireReserveUpkeeps` Upkeeps, DL-60). Whether it can pay the fee is the action's
+ *   to check.
  *
  * A Guild with no Disposition answers `answers-offers`: its controller answers for itself, through an
  * offer (ADR-0002: what differs is the controller). Reads, never writes, and draws nothing.
@@ -148,10 +153,40 @@ export function transferAnswer(
   if (disposition === null) return { consents: false, because: 'unknown-disposition' };
   const kept = side === 'out' ? guild.rosterIds.length - 1 : guild.rosterIds.length;
   if (!(kept * disposition.transferAppetite >= 1)) return { consents: false, because: 'roster-size' };
-  if (side === 'in' && !(guild.wealth > disposition.recruitThreshold * upkeep(guild, world, deps.config, deps.content))) {
-    return { consents: false, because: 'wealth' };
-  }
+  if (side === 'in' && hiringBudget(world, guild, disposition, deps) === null) return { consents: false, because: 'wealth' };
   return { consents: true };
+}
+
+/**
+ * The most `guild` would spend on one hire now, from the pool or by Transfer, or `null` when it would
+ * hire no one (DL-56, DL-60). Two reasons to hire, one rule for every Disposition:
+ *
+ * - **choice**: while its Wealth is above its Disposition's `recruitThreshold` times its Upkeep, it
+ *   hires as its row says, spending up to all its Wealth (DL-56's rule);
+ * - **need**: while its Roster is below `rivalRosterMin`, the fewest Heroes a Rival is founded with,
+ *   it hires back towards it with what it holds above `rivalHireReserveUpkeeps` times its Upkeep, so
+ *   that a Rival whose threshold its Levels and Hall have raised out of reach (DL-58) still replaces
+ *   the Heroes it loses, and keeps enough to pay its way.
+ *
+ * Reads, never writes, and draws nothing.
+ */
+function hiringBudget(
+  world: Pick<World, 'heroes'>,
+  guild: Guild,
+  disposition: Disposition,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): number | null {
+  const upkeepNow = upkeep(guild, world, deps.config, deps.content);
+  if (guild.wealth > disposition.recruitThreshold * upkeepNow) return guild.wealth;
+  if (guild.rosterIds.length >= deps.config.rivalRosterMin) return null;
+  const spare = guild.wealth - deps.config.rivalHireReserveUpkeeps * upkeepNow;
+  return spare > 0 ? spare : null;
+}
+
+/** `hiringBudget` for a Guild whatever its controller: `null` for one with no Disposition content defines. */
+function budgetOf(world: Pick<World, 'heroes'>, guild: Guild, deps: Pick<EngineDeps, 'config' | 'content'>): number | null {
+  const disposition = chooser(guild, deps.content);
+  return disposition === 'own' || disposition === null ? null : hiringBudget(world, guild, disposition, deps);
 }
 
 /** The Guilds in play but `guild`, in id order. */
@@ -161,58 +196,66 @@ function otherGuilds(world: Pick<World, 'guilds'>, guild: Pick<Guild, 'id'>): Gu
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
 }
 
-/** The Heroes on `guild`'s Roster a Transfer could move now, in Roster order: those in no Party. */
-function transferable(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
+/**
+ * The Heroes on `guild`'s Roster a Transfer could move now, in Roster order: those in no Party and not
+ * held by a recent Transfer (`transferLock`, DL-60), so that a Rival never names a Hero the Transfer
+ * actions refuse, and no Rival buys back, or sells on, a Hero bought within the lock.
+ */
+function transferable(world: Pick<World, 'heroes' | 'turn'>, guild: Pick<Guild, 'rosterIds'>, config: EngineDeps['config']): Hero[] {
   return guild.rosterIds.flatMap((heroId) => {
     const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-    return hero !== undefined && hero.partyId === null ? [hero] : [];
+    return hero !== undefined && hero.partyId === null && transferLock(hero, world.turn, config) === null ? [hero] : [];
   });
 }
 
 /**
- * A Transfer `guild` seeks this afternoon, or `null` (M6-S2, DL-57). Only while it would hire by its
- * own answer (`transferAnswer`, `in`) and has no Transfer Offer of its own awaiting an answer. The
- * Hero it wants is the dearest it can pay for (`transferFee` at its Guildmaster's Negotiation, the
- * lowest Hero id among equal fees) among the Heroes in no Party on the Rosters of the other Guilds in
- * play that would part with one: a Guild whose Disposition consents to let one go, or one that answers
- * offers. When there is such a Hero, a draw from `rivals` decides, with the chance `transferAppetite`,
- * whether it seeks them this afternoon, so that its appetite is the share of its hiring it does by
- * Transfer; it does so by `transferIn` from a consenting Guild, or by a Transfer Offer to one that
- * answers for itself (`offerTransfer`). No draw when there is no such Hero.
+ * A Transfer `guild` seeks this afternoon, or `null` (M6-S2, DL-57). Only while it would hire by
+ * its own answer (`transferAnswer`, `in`) and has no Transfer Offer of its own awaiting an answer.
+ * The Hero it wants is the dearest it would pay for (`transferFee` at its Guildmaster's
+ * Negotiation, no more than `hiringBudget`, the lowest Hero id among equal fees) among the Heroes a
+ * Transfer could move now on the Rosters of the other Guilds in play that would part with one: a
+ * Guild whose Disposition consents to let one go, or one that answers offers. When there is such a
+ * Hero, a draw from `rivals` decides, with the chance `transferAppetite`, whether it seeks them
+ * this afternoon, so that its appetite is the share of its hiring it does by Transfer; it does so
+ * by `transferIn` from a consenting Guild, or by a Transfer Offer to one that answers for itself
+ * (`offerTransfer`). No draw when there is no such Hero.
  */
 function transferChoice(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  if (!transferAnswer(world, guild, 'in', deps).consents) return null;
+  const budget = hiringBudget(world, guild, disposition, deps);
+  if (budget === null || !transferAnswer(world, guild, 'in', deps).consents) return null;
   if (Object.values(world.offers).some((offer) => offer.toGuildId === guild.id)) return null;
   const sellers = otherGuilds(world, guild).flatMap((other) => {
     const answer = transferAnswer(world, other, 'out', deps);
     return answer.consents || answer.because === 'answers-offers' ? [{ guild: other, byOffer: !answer.consents }] : [];
   });
-  const wanted = dearestWanted(world, guild, sellers, deps);
+  const wanted = dearestWanted(world, guild, sellers, budget, deps);
   if (wanted === null || !chance(streamOf(world, 'rivals'), disposition.transferAppetite)) return null;
   const heroId = wanted.hero.id;
   return wanted.byOffer ? { kind: 'offerTransfer', guildId: guild.id, heroId } : { kind: 'transferIn', guildId: guild.id, heroId };
 }
 
 /**
- * The Hero `buyer` wants of those `sellers` hold, or `null`: the dearest it can pay for (`transferFee`
- * at its Guildmaster's Negotiation, no more than its Wealth), the lowest Hero id among equal fees,
- * among the Heroes in no Party on the sellers' Rosters (`transferable`). With it, whether their Guild
- * answers only offers (`byOffer`), as the seller was given. Reads, never writes, and draws nothing.
- * The one statement of whom a Rival wants, for its afternoon's `transferChoice` and the Transfer
- * Generator's bid (`transferBid`).
+ * The Hero `buyer` wants of those `sellers` hold, or `null`: the dearest it would pay for
+ * (`transferFee` at its Guildmaster's Negotiation, no more than `budget`), the lowest Hero id among
+ * equal fees, among the Heroes on the sellers' Rosters a Transfer could move now (`transferable`:
+ * in no Party, not held by a recent Transfer). With it, whether their Guild answers only offers
+ * (`byOffer`), as the seller was given. Reads, never writes, and draws nothing. The one statement
+ * of whom a Rival wants, for its afternoon's `transferChoice` and the Transfer Generator's bid
+ * (`transferBid`).
  */
 function dearestWanted(
-  world: Pick<World, 'heroes' | 'guildmasters'>,
+  world: Pick<World, 'heroes' | 'guildmasters' | 'turn'>,
   buyer: Guild,
   sellers: readonly { guild: Guild; byOffer: boolean }[],
+  budget: number,
   deps: Pick<EngineDeps, 'config' | 'content'>,
 ): { hero: Hero; byOffer: boolean } | null {
   const guildmaster = guildmasterOf(buyer, world);
   let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
   for (const { guild, byOffer } of sellers) {
-    for (const hero of transferable(world, guild)) {
+    for (const hero of transferable(world, guild, deps.config)) {
       const fee = transferFee(hero, guildmaster, deps);
-      if (fee > buyer.wealth) continue;
+      if (fee > budget) continue;
       if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
         wanted = { hero, fee, byOffer };
       }
@@ -225,7 +268,7 @@ function dearestWanted(
  * The Transfer Generator's bid between two Rivals (M6-S3, DL-59), or `null`. The one of `pair` whose
  * Disposition has the greater `transferAppetite` is the bidder — of two alike, the one with fewer
  * Heroes on its Roster, then the lower Guild id — and bids by `transferIn` for the Hero of the other
- * it wants (`dearestWanted`: the dearest it can pay for, at home). It bids only when:
+ * it wants (`dearestWanted`: the dearest it would pay for, `hiringBudget`, at home). It bids only when:
  *
  * - the Transfer keeps both Rosters within the range a Rival is generated with: the bidder's below
  *   `rivalRosterMax` and the other's above `rivalRosterMin`, so the Generator's own moves never take a
@@ -233,7 +276,7 @@ function dearestWanted(
  * - both answer as they answer any Transfer asked of them (`transferAnswer`, DL-57), the consent
  *   rule every Transfer keeps: the other lets a Hero go (`out`: its appetite and its Roster size), the
  *   consent `transferIn` itself asks, and the bidder takes one in (`in`: its appetite and its Roster
- *   size, and a Wealth above its `recruitThreshold` times its Upkeep). A bid is a hire, and a Rival
+ *   size, and a Wealth at which it would hire, `hiringBudget`). A bid is a hire, and a Rival
  *   hires only while its Disposition would: M6-S3's measure found a Generator that bid without that
  *   Wealth doubling `ambitious`'s folds over twenty years (DL-59).
  *
@@ -256,28 +299,32 @@ export function transferBid(world: World, pair: readonly [Guild, Guild], deps: E
   const { rivalRosterMin, rivalRosterMax } = deps.config;
   if (!(bidder.rosterIds.length < rivalRosterMax && seller.rosterIds.length > rivalRosterMin)) return null;
   if (!transferAnswer(world, bidder, 'in', deps).consents || !transferAnswer(world, seller, 'out', deps).consents) return null;
-  const wanted = dearestWanted(world, bidder, [{ guild: seller, byOffer: false }], deps);
+  const budget = hiringBudget(world, bidder, aBids ? rowA : rowB, deps);
+  if (budget === null) return null;
+  const wanted = dearestWanted(world, bidder, [{ guild: seller, byOffer: false }], budget, deps);
   return wanted === null ? null : { kind: 'transferIn', guildId: bidder.id, heroId: wanted.hero.id };
 }
 
 /**
- * A Transfer out `guild` makes to pay its way while it is in debt (`belowFloorSince` set, M2-S7), or
- * `null` (M6-S2, DL-57): only when its own Disposition would let a Hero go (`transferAnswer`, `out`),
- * its dearest Hero in no Party and not in `dispatched`, to the Guild in play that consents to take
- * them in, can pay, and pays most, by `transferOut`: the dearest fee first, then the lowest Hero id,
- * then the lowest Guild id. A Guild that answers offers is never offered one, since that would need
- * an offer the other way, which the first build does not make. Draws nothing.
+ * A Transfer out `guild` makes to pay its way while it is in debt (`belowFloorSince` set, M2-S7),
+ * or `null` (M6-S2, DL-57): only when its own Disposition would let a Hero go (`transferAnswer`,
+ * `out`), its dearest Hero in no Party, not in `dispatched` and not held by a recent Transfer, to
+ * the Guild in play that consents to take them in, would pay (`hiringBudget`), and pays most, by
+ * `transferOut`: the dearest fee first, then the lowest Hero id, then the lowest Guild id. A Guild
+ * that answers offers is never offered one, since that would need an offer the other way, which the
+ * first build does not make. Draws nothing.
  */
 function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId>, deps: EngineDeps): GuildAction | null {
   if (guild.belowFloorSince === null || !transferAnswer(world, guild, 'out', deps).consents) return null;
-  const heroes = transferable(world, guild).filter((hero) => !dispatched.has(hero.id));
+  const heroes = transferable(world, guild, deps.config).filter((hero) => !dispatched.has(hero.id));
   let best: { heroId: HeroId; toGuildId: Guild['id']; fee: number } | null = null;
   for (const other of otherGuilds(world, guild)) {
-    if (!transferAnswer(world, other, 'in', deps).consents) continue;
+    const budget = budgetOf(world, other, deps);
+    if (budget === null || !transferAnswer(world, other, 'in', deps).consents) continue;
     const guildmaster = guildmasterOf(other, world);
     for (const hero of heroes) {
       const fee = transferFee(hero, guildmaster, deps);
-      if (fee > other.wealth) continue;
+      if (fee > budget) continue;
       if (best === null || fee > best.fee || (fee === best.fee && compareByCodeUnit(hero.id, best.heroId) < 0)) {
         best = { heroId: hero.id, toGuildId: other.id, fee };
       }
@@ -441,14 +488,15 @@ function strengthFor(hero: Hero, quest: Quest, content: ContentSet): number {
 /**
  * A recruit of the cheapest Hero in the Unattached pool who would sign for `guild`
  * (`cheapestUnattached`, M3-S5: DL-38's one statement of the cheapest, the lowest id among equal
- * fees), when `guild`'s Wealth is above its Disposition's `recruitThreshold` times its Upkeep and
- * covers the fee; `null` otherwise, and when no Hero in the pool would sign. A Hero who would refuse
- * the Guild's Fame is passed over, never asked.
+ * fees), while it would hire and the fee is no more than it would spend (`hiringBudget`: by its
+ * Disposition's `recruitThreshold`, or by the need of a Roster below `rivalRosterMin`, DL-60);
+ * `null` otherwise, and when no Hero in the pool would sign. A Hero who would refuse the Guild's Fame
+ * is passed over, never asked.
  */
-function cheapestHire(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
-  const threshold = disposition.recruitThreshold * upkeep(guild, world, deps.config, deps.content);
-  if (!(guild.wealth > threshold)) return null;
+function cheapestHire(world: World, guild: Guild, deps: EngineDeps): GuildAction | null {
+  const budget = budgetOf(world, guild, deps);
+  if (budget === null) return null;
   const cheapest = cheapestUnattached(world, deps, guild);
-  if (cheapest === null || cheapest.fee > guild.wealth) return null;
+  if (cheapest === null || cheapest.fee > budget) return null;
   return { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id };
 }

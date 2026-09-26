@@ -29,6 +29,7 @@ const pins: Partial<GameConfig> = {
   transferGeneratorChance: 1,
   rivalRosterMin: 0,
   rivalRosterMax: 100,
+  transferLockDays: 30,
 };
 
 /** The test content with each Disposition's `transferAppetite` as given, frozen. */
@@ -114,12 +115,15 @@ function drawn(state: World['rng']['rivals'], draws: number): World['rng']['riva
   return copy;
 }
 
-/** The Hero of `seller` that `bidder` wants: the dearest it can pay for at home, the lowest id among equal fees. */
+/**
+ * The Hero of `seller` that `bidder` wants: the dearest it can pay for at home and never transferred
+ * (so no lock holds them), the lowest id among equal fees.
+ */
 function dearest(world: World, bidder: Guild, seller: Guild, with_: EngineDeps): { heroId: HeroId; fee: number } {
   const guildmaster = guildmasterOf(bidder, world);
   const offers = seller.rosterIds
     .map((heroId) => heroOf(world, heroId))
-    .filter((hero) => hero.partyId === null)
+    .filter((hero) => hero.partyId === null && hero.transferredOnTurn === null)
     .map((hero) => ({ heroId: hero.id, fee: transferFee(hero, guildmaster, with_) }))
     .filter(({ fee }) => fee <= bidder.wealth)
     .sort((a, b) => b.fee - a.fee || compareByCodeUnit(a.heroId, b.heroId));
@@ -204,8 +208,10 @@ describe('one draw from rivals for each pair of Rivals in play (M6-S3)', () => {
   });
 
   test('at a chance of 0 no Rival bids; at 1 every pair with a bid to make deals', () => {
+    // The same world, as rich as the one below that deals six times: only the chance keeps it quiet.
     const still = deps({ transferGeneratorChance: 0 });
     const quiet = created('chance', still).world;
+    for (const rival of rivals(quiet)) rival.wealth = 1_000_000;
     expect(run(quiet, still)).toEqual([]);
 
     const with_ = deps();
@@ -276,6 +282,44 @@ describe('the bid (M6-S3)', () => {
 
     expect(transferred(run(world, with_)).map((event) => event.payload.heroId)).toEqual([second.heroId]);
     expect(second.heroId).not.toBe(first.heroId);
+  });
+});
+
+describe('the bid passes over a Hero a recent Transfer holds (DL-60)', () => {
+  test('the dearest, bought the afternoon before, stays; the next dearest is bid for', () => {
+    const with_ = deps({}, withAppetites({ ambitious: 1, miserly: 0.5 }));
+    const { world, ambitious, miserly } = pairWorld('held', with_);
+    const first = dearest(world, ambitious, miserly, with_);
+    // Bought by the seller on the afternoon of the Generator's Day: held for transferLockDays from it.
+    heroOf(world, first.heroId).transferredOnTurn = generatorNight - 1;
+    const second = dearest(world, ambitious, miserly, with_);
+
+    expect(transferred(run(world, with_)).map((event) => event.payload.heroId)).toEqual([second.heroId]);
+    expect(second.heroId).not.toBe(first.heroId);
+    expect(heroOf(world, first.heroId).guildId).toBe(miserly.id);
+  });
+});
+
+describe('a bidder hiring by need (DL-60)', () => {
+  test('below rivalRosterMin and under its threshold, bids only for a Hero whose fee leaves it its reserve', () => {
+    const with_ = deps(
+      { rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 },
+      withRecruitThreshold(withAppetites({ ambitious: 1, miserly: 0.5 }), 1_000_000),
+    );
+    const { world, ambitious, miserly } = pairWorld('need-bid', with_);
+    const spare = playerGuild(world) as Guild;
+    resize(world, ambitious, 3, spare);
+    resize(world, miserly, 6, spare);
+    const reserve = with_.config.rivalHireReserveUpkeeps * upkeep(ambitious, world, with_.config, with_.content);
+    const top = dearest(world, ambitious, miserly, with_);
+    // What it would spend: a Wealth one short of the dearest fee and its reserve together.
+    ambitious.wealth = top.fee - 1;
+    const wanted = dearest(world, ambitious, miserly, with_);
+    ambitious.wealth = top.fee + reserve - 1;
+
+    expect(transferred(run(world, with_)).map((event) => event.payload.heroId)).toEqual([wanted.heroId]);
+    expect(wanted.heroId).not.toBe(top.heroId);
+    expect(ambitious.wealth).toBeGreaterThanOrEqual(reserve);
   });
 });
 

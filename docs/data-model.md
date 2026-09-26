@@ -125,6 +125,8 @@ injury:         { typeKey, healsOnTurn } | null
 morale:         number
 diedOnTurn:     integer | null
 retiredOnTurn:  integer | null
+transferredOnTurn: integer | null           the Turn of the Hero's last Transfer; null if never. No
+                                            Transfer moves them within transferLockDays of it (DL-60)
 regard:         Record<EntityId, RegardEntry>
 ```
 Equipment is not on the Hero: it is the unique Items whose holder is this Hero (3.3).

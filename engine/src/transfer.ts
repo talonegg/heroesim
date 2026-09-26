@@ -44,8 +44,9 @@ export interface Deal {
  *    item 8), `item.returned` for `transferred`, while the Hero is still that Guild's;
  * 2. the Guild they join pays the fee to the Guild they leave, so the two hold as much Wealth
  *    together as before;
- * 3. the Hero leaves the one Roster and joins the end of the other, and `hero.transferred`, a
- *    Milestone, names the Hero, both Guilds and the offer accepted;
+ * 3. the Hero leaves the one Roster and joins the end of the other, their `transferredOnTurn` set to
+ *    this Turn (the lock, `transferLock`, DL-60), and `hero.transferred`, a Milestone, names the Hero,
+ *    both Guilds and the offer accepted;
  * 4. each Hero left on the Roster they leave whose own Regard for the Hero is in `transferRegardBand`
  *    or above loses `transferMoraleCost` Morale, in Roster order, with `hero.morale-changed` only
  *    when a band is crossed (pre-M0 review D5: pairwise; the epic's rule for this cost); nobody
@@ -54,9 +55,9 @@ export interface Deal {
  * 6. the offer accepted is removed, and any other offer for the Hero is withdrawn with
  *    `guild.transfer-offer-expired` for `hero-left`, since its Hero is no longer on that Roster.
  *
- * The caller has checked that the deal may be made (the Hero on `from`'s Roster, in no Party, and
- * `to` able to pay): this changes the world as told and throws only on a Hero carrying gear with no
- * Guild, which no rule makes.
+ * The caller has checked that the deal may be made (the Hero on `from`'s Roster, in no Party, not
+ * held by a recent Transfer, and `to` able to pay): this changes the world as told and throws only on
+ * a Hero carrying gear with no Guild, which no rule makes.
  */
 export function makeTransfer(world: World, deal: Deal, deps: Pick<EngineDeps, 'config' | 'content'>, emit: Emit): EngineEvent[] {
   const { hero, from, to, fee, offerId } = deal;
@@ -68,6 +69,7 @@ export function makeTransfer(world: World, deal: Deal, deps: Pick<EngineDeps, 'c
   from.rosterIds = from.rosterIds.filter((heroId) => heroId !== hero.id);
   to.rosterIds.push(hero.id);
   hero.guildId = to.id;
+  hero.transferredOnTurn = world.turn;
   events.push(
     emit({
       type: 'hero.transferred',
@@ -113,6 +115,30 @@ function transferMoraleCost(
     }
   }
   return events;
+}
+
+/** A Hero held on their Roster by a recent Transfer: the Turn of it, and the first Turn they may move again. */
+export interface TransferLock {
+  transferredOnTurn: Turn;
+  untilTurn: Turn;
+}
+
+/**
+ * Whether `hero` is held on their Roster at `turn` by their last Transfer (DL-60): a Hero transferred
+ * on Day `d` is not transferred again before the morning of Day `d + transferLockDays`, whichever
+ * Guild asks and by whichever action, so no Guild sells a Hero back, or on, the afternoon it bought
+ * them. `null` for a Hero free to move: never transferred, or their lock run out (a lock of 0 Days
+ * never holds). Reads the Hero only.
+ */
+export function transferLock(
+  hero: Pick<Hero, 'transferredOnTurn'>,
+  turn: Turn,
+  config: Pick<GameConfig, 'transferLockDays'>,
+): TransferLock | null {
+  const { transferredOnTurn } = hero;
+  if (transferredOnTurn === null) return null;
+  const untilTurn = (dayOf(transferredOnTurn) + config.transferLockDays) * turnsPerDay;
+  return turn < untilTurn ? { transferredOnTurn, untilTurn } : null;
 }
 
 // ── Transfer Offers ──────────────────────────────────────────────────────────────────────────

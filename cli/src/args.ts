@@ -85,7 +85,8 @@ Commands:
   transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in
       Transfer a Hero for a fee, twice their signing fee at the buying Guildmaster's
       Negotiation. --to sends one of the player's Heroes to another Guild, which pays; --in
-      takes a Hero from another Guild's Roster, and the player's Guild pays. The other Guild
+      takes a Hero from another Guild's Roster, and the player's Guild pays the fee show
+      roster <guildId> and show hero <heroId> give for them. The other Guild
       must be willing, by its Disposition's appetite for Transfers, its Roster and, to buy,
       its Wealth. The Hero must be at the Hall; their gear stays with the Guild they leave,
       and the Heroes left behind who held them in high Regard lose Morale.

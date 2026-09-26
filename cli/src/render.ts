@@ -3,8 +3,8 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `effectiveStats`, `signingFee`, `signingRefusal`, `rankings`,
-// `unattachedHeroes`, `holdings`, `carriedGear`); every
+// (`ageOf`, `baseStat`, `effectiveStats`, `signingFee`, `transferFee`, `signingRefusal`,
+// `rankings`, `unattachedHeroes`, `holdings`, `carriedGear`); every
 // name is a document field or a content row's display name. Where the engine has no selector for
 // something a view needs, the selector goes into the engine, not here.
 //
@@ -34,6 +34,7 @@ import {
   rankings,
   signingFee,
   signingRefusal,
+  transferFee,
   durationDaysOf,
   potentialHint,
   relationship,
@@ -252,10 +253,18 @@ function heroTable(
 
 /**
  * `show roster [guildId]`: the Guild's Roster in its own order, then what the Guild holds (M5-S2):
- * each unique Item and stack in its holding, with the id `equip` takes.
+ * each unique Item and stack in its holding, with the id `equip` takes. Another Guild's Roster adds
+ * each Hero's Transfer fee, what the player's Guild would pay to take them (`transfer --in`): the
+ * engine's `transferFee` at the player's Guildmaster's Negotiation (M6-S2), shown before it is paid.
  */
 export function renderRoster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
   const heroes = guild.rosterIds.flatMap((id) => rowIn(document.world.heroes, id) ?? []);
+  const player = playerGuild(document.world);
+  const buyer = player === undefined ? undefined : guildmasterOf(player, document.world);
+  const fees: HeroColumn[] =
+    player === undefined || player.id === guild.id
+      ? []
+      : [{ heading: 'Transfer fee', align: 'right', cell: (hero) => String(transferFee(hero, buyer, deps)) }];
   const held = holdings(document.world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
     const definition = itemDefinition(deps.content, row.definitionKey);
@@ -270,7 +279,7 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [
     `Roster of ${guild.name} (${guild.id})`,
     '',
-    ...heroTable(heroes, document, deps),
+    ...heroTable(heroes, document, deps, fees),
     '',
     `Held by ${guild.name}`,
     ...(rows.length === 0
@@ -349,7 +358,8 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
  * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
  * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
  * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
- * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads.
+ * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads. For a Hero
+ * on another Guild's Roster, the Transfer fee the player's Guild would pay to take them (M6-S2).
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
@@ -371,6 +381,10 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Injury', hero.injury === null ? 'none' : `${hero.injury.typeKey}, heals on Turn ${hero.injury.healsOnTurn}`],
     ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
   ];
+  // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
+  if (player !== undefined && guild !== undefined && guild.id !== player.id && guild.rosterIds.includes(hero.id)) {
+    attributes.push(['Transfer fee', String(transferFee(hero, reader, deps))]);
+  }
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
   if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);

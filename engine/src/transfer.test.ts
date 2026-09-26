@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { applyGuildAction } from './actions/action.js';
+import { applyGuildAction, type GuildAction } from './actions/action.js';
 import { applyOfferTransfer } from './actions/transfer.js';
 import { advance } from './advance.js';
 import type { EngineDeps, GameConfig } from './config.js';
@@ -18,12 +18,13 @@ import {
 } from './document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
 import { fastForward } from './fast-forward.js';
+import { guildmasterOf } from './guildmaster.js';
 import { offerExpiry } from './phases/offer-expiry.js';
 import { phaseContext } from './phases/phase.js';
 import { next } from './rng.js';
-import { playerGuild, transferFee } from './selectors.js';
+import { playerGuild, transferFee, upkeep } from './selectors.js';
 import { transferOfferStop } from './stops.js';
-import { nightOf, timeOfDay } from './time.js';
+import { dayOf, nightOf, timeOfDay } from './time.js';
 import { deepFreeze, heroStatKeys, testDeps, thriftyRivals, withDispositions, withValid } from './world.test-support.js';
 
 // M6-S2 beyond the actions (actions/transfer.test.ts): Transfer Offers expiring at night and lapsing
@@ -33,7 +34,8 @@ import { deepFreeze, heroStatKeys, testDeps, thriftyRivals, withDispositions, wi
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
-const pins: Partial<GameConfig> = { negotiationRange: 0, marketSize: 0, transferFeeFactor: 2, transferOfferDays: 3 };
+/** The config the tests rely on, pinned; a lock of five Days, so that twenty Days see Heroes move more than once. */
+const pins: Partial<GameConfig> = { negotiationRange: 0, marketSize: 0, transferFeeFactor: 2, transferOfferDays: 3, transferLockDays: 5 };
 
 /** Rivals who deal whenever they would hire, and would hire at any Wealth: every weighing a Transfer. */
 const dealing = withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000 });
@@ -291,6 +293,150 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
     expect(world.rng.rivals).toEqual(rng);
   });
 
+  test('seeks a Transfer with the chance transferAppetite, one draw: at or above it the Rival recruits from the pool, below it takes the Hero', () => {
+    // An appetite strictly between 0 and 1, so that the draw decides (DL-57 item 5).
+    const half = testDeps(pins, withDispositions({ transferAppetite: 0.5, recruitThreshold: 0, buildThreshold: 1_000_000 }));
+    for (const [below, kind] of [
+      [false, 'recruit'],
+      [true, 'transferIn'],
+    ] as const) {
+      const { world, rival, other } = scene(`rival-appetite-${below}`, half);
+      const [wanted] = other.rosterIds as [HeroId];
+      dearest(heroOf(world, wanted));
+      // `rivals` moved on until its next draw falls on the side of the appetite this case is about.
+      while (next(structuredClone(world.rng.rivals)) < 0.5 !== below) next(world.rng.rivals);
+      const once = structuredClone(world.rng.rivals);
+      next(once);
+
+      const choices = rivalChoices(world, rival, half);
+
+      expect(choices.map((action) => action.kind), `a draw ${below ? 'below' : 'at or above'} the appetite`).toEqual([kind]);
+      if (below) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+      expect(world.rng.rivals).toEqual(once);
+    }
+  });
+
+  test("wants a Hero at its own Guildmaster's Negotiation: a shrewd buyer takes the dearest it can pay for only at its discount, a soft one passes them over", () => {
+    const negotiating = testDeps({ ...pins, negotiationRange: 0.1 }, dealing);
+    for (const negotiation of [20, 1]) {
+      const { world, rival, other } = scene(`rival-negotiates-${negotiation}`, negotiating);
+      const guildmaster = guildmasterOf(rival, world);
+      if (guildmaster === undefined) throw new Error('No Guildmaster');
+      guildmaster.stats['negotiation'] = negotiation;
+      const [wanted] = other.rosterIds as [HeroId];
+      dearest(heroOf(world, wanted));
+      const own = transferFee(heroOf(world, wanted), guildmaster, negotiating);
+      const list = transferFee(heroOf(world, wanted), undefined, negotiating);
+      expect(own === list).toBe(false);
+      // Exactly its own price when that is below the list price; exactly the list price when its own is above.
+      rival.wealth = Math.min(own, list);
+
+      const choices = rivalChoices(world, rival, negotiating);
+
+      const [choice] = choices as [Extract<(typeof choices)[number], { heroId: HeroId }>];
+      if (negotiation === 20) expect(choices).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+      else expect(choice.heroId).not.toBe(wanted);
+      // Whichever it wants, the rules accept: it never picks a Hero it cannot pay for.
+      expect(applyGuildAction(world, choice, negotiating)).toMatchObject({ ok: true });
+    }
+  });
+
+  test('wants no Hero a recent Transfer holds (DL-60): the dearest, just bought by another Guild, is passed over', () => {
+    const deps = testDeps(pins, dealing);
+    const { world, rival, other } = scene('rival-lock', deps);
+    const [wanted] = other.rosterIds as [HeroId];
+    dearest(heroOf(world, wanted));
+    expect(rivalChoices(structuredClone(world), structuredClone(rival), deps)).toEqual([{ kind: 'transferIn', guildId: rival.id, heroId: wanted }]);
+    heroOf(world, wanted).transferredOnTurn = world.turn;
+
+    const choices = rivalChoices(world, rival, deps);
+
+    const [choice] = choices as [Extract<(typeof choices)[number], { heroId: HeroId }>];
+    expect(choice.heroId).not.toBe(wanted);
+    expect(applyGuildAction(world, choice, deps)).toMatchObject({ ok: true });
+  });
+
+  test('in debt, lets go its dearest Hero at home that no recent Transfer holds (DL-60)', () => {
+    const deps = testDeps(pins, dealing);
+    const { world, rival } = scene('rival-debt-lock', deps);
+    rival.wealth = -100;
+    rival.belowFloorSince = 0;
+    const [, bought, next] = rival.rosterIds as [HeroId, HeroId, HeroId];
+    dearest(heroOf(world, bought));
+    for (const key of heroStatKeys) heroOf(world, next).stats[key] = 19;
+    for (const other of rivals(world)) if (other.id !== rival.id) other.wealth = 10_000;
+    // Bought this Turn: held, so the next dearest goes.
+    heroOf(world, bought).transferredOnTurn = world.turn;
+
+    const choices = rivalChoices(world, rival, deps);
+
+    expect(choices).toMatchObject([{ kind: 'transferOut', guildId: rival.id, heroId: next }]);
+    expect(applyGuildAction(world, choices[0] as never, deps)).toMatchObject({ ok: true });
+  });
+
+  test('in debt, sells to a Rival hiring by need only a Hero whose fee leaves it its reserve (DL-60)', () => {
+    // No threshold any Rival reaches: the only buyer is the one whose Roster is below rivalRosterMin.
+    const deps = testDeps(
+      { ...pins, rivalRosterMin: 4, rivalHireReserveUpkeeps: 3 },
+      withDispositions({ transferAppetite: 1, recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }),
+    );
+    const { world, rival } = scene('rival-debt-need', deps);
+    rival.wealth = -100;
+    rival.belowFloorSince = 0;
+    const [, leaving] = rival.rosterIds as [HeroId, HeroId];
+    dearest(heroOf(world, leaving));
+    const [buyer] = rivals(world).filter((guild) => guild.id !== rival.id) as [Guild];
+    for (const heroId of buyer.rosterIds.splice(3)) heroOf(world, heroId).diedOnTurn = world.turn;
+    const reserve = deps.config.rivalHireReserveUpkeeps * upkeep(buyer, world, deps.config, deps.content);
+    const fee = transferFee(heroOf(world, leaving), guildmasterOf(buyer, world), deps);
+
+    buyer.wealth = fee + reserve;
+    expect(rivalChoices(structuredClone(world), rival, deps)).toEqual([{ kind: 'transferOut', guildId: rival.id, heroId: leaving, toGuildId: buyer.id }]);
+    // A Wealth short of the fee and the reserve: a cheaper Hero goes, and the buyer keeps its reserve.
+    buyer.wealth = fee + reserve - 1;
+    const [choice] = rivalChoices(world, rival, deps) as [Extract<GuildAction, { heroId: HeroId }>];
+    expect(choice).toMatchObject({ kind: 'transferOut', toGuildId: buyer.id });
+    expect(choice.heroId).not.toBe(leaving);
+    expect(applyGuildAction(world, choice, deps)).toMatchObject({ ok: true });
+    expect(buyer.wealth).toBeGreaterThanOrEqual(reserve);
+  });
+
+  test('not in debt, lets no Hero go, though it has nothing else to do and others would pay', () => {
+    const deps = testDeps(pins, dealing);
+    const { world, rival } = scene('rival-solvent', deps);
+    // No Wealth above nothing, so it hires no one; no debt, so it sells no one.
+    rival.wealth = 0;
+    rival.belowFloorSince = null;
+    const [, dearestHome] = rival.rosterIds as [HeroId, HeroId];
+    dearest(heroOf(world, dearestHome));
+    for (const other of rivals(world)) if (other.id !== rival.id) other.wealth = 10_000;
+
+    expect(rivalChoices(world, rival, deps)).toEqual([]);
+    // The same Rival in debt would: the debt, not the scene, is what holds it back.
+    rival.belowFloorSince = 0;
+    expect(rivalChoices(world, rival, deps).map((action) => action.kind)).toEqual(['transferOut']);
+  });
+
+  test("in debt, sells to the Guild that pays most at its own Guildmaster's Negotiation", () => {
+    const negotiating = testDeps({ ...pins, negotiationRange: 0.1 }, dealing);
+    const { world, rival } = scene('rival-debt-negotiated', negotiating);
+    rival.wealth = -100;
+    rival.belowFloorSince = 0;
+    const [, leaving] = rival.rosterIds as [HeroId, HeroId];
+    dearest(heroOf(world, leaving));
+    const others = rivals(world).filter((guild) => guild.id !== rival.id);
+    const soft = others.at(-1) as Guild;
+    for (const other of others) {
+      other.wealth = 10_000;
+      const guildmaster = guildmasterOf(other, world);
+      if (guildmaster === undefined) throw new Error('No Guildmaster');
+      // Every buyer shrewd but the last Guild, whose Guildmaster pays over the odds.
+      guildmaster.stats['negotiation'] = other.id === soft.id ? 1 : 20;
+    }
+
+    expect(rivalChoices(world, rival, negotiating)).toEqual([{ kind: 'transferOut', guildId: rival.id, heroId: leaving, toGuildId: soft.id }]);
+  });
+
   test('in debt, transfers its dearest Hero at home out to the Guild that consents and pays most, by transferOut', () => {
     const deps = testDeps(pins, dealing);
     const { world, rival } = scene('rival-debt', deps);
@@ -341,6 +487,19 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
 
     const transferred = ofType(events, 'hero.transferred');
     expect(transferred.length).toBeGreaterThan(0);
+    // No Hero moves again within the lock (DL-60): each Transfer of a Hero is transferLockDays after
+    // their last or later, and some Heroes did move again once it ran out.
+    const last = new Map<HeroId, number>();
+    let again = 0;
+    for (const event of transferred) {
+      const before = last.get(event.payload.heroId);
+      if (before !== undefined) {
+        again += 1;
+        expect(dayOf(event.turn) - dayOf(before), `${event.payload.heroId} on Turn ${event.turn}`).toBeGreaterThanOrEqual(deps.config.transferLockDays);
+      }
+      last.set(event.payload.heroId, event.turn);
+    }
+    expect(again).toBeGreaterThan(0);
     // The player's Guild, idle, answers no offer, so no Hero leaves it or joins it.
     const playerId = player(document.world).id;
     expect(transferred.every((event) => event.payload.fromGuildId !== playerId && event.payload.toGuildId !== playerId)).toBe(true);

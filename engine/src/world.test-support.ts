@@ -726,6 +726,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       morale: 50,
       diedOnTurn: null,
       retiredOnTurn: null,
+      transferredOnTurn: null,
       regard: {},
     };
     world.heroes[id] = row;
