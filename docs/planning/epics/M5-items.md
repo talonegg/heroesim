@@ -87,10 +87,10 @@ Config: `marketSize`, `marketStackMin/Max`, `sellRatio`.
 
 **Acceptance:**
 
-- [ ] Buying deducts `buyPrice × quantity` and moves the stack; selling credits at `sellRatio`
-- [ ] Only the `market` stream advances during refresh
-- [ ] CLI `show market`, `buy`, `sell`
-- [ ] Rivals' Wealth is unaffected by the Market in M5 (`steady` ignores it; a test asserts)
+- [x] Buying deducts `buyPrice × quantity` and moves the stack; selling credits at `sellRatio`
+- [x] Only the `market` stream advances during refresh
+- [x] CLI `show market`, `buy`, `sell`
+- [x] Rivals' Wealth is unaffected by the Market in M5 (`steady` ignores it; a test asserts)
 
 ### M5-S5 · Loot · 1 session
 

@@ -12,6 +12,17 @@ export {
   type MaxGrade,
 } from './actions/build.js';
 export {
+  applyBuy,
+  buy,
+  type BuyAction,
+  type BuyGuildFolded,
+  type BuyInsufficientQuantity,
+  type BuyInsufficientWealth,
+  type BuyRejection,
+  type BuyRequest,
+  type NotInMarket,
+} from './actions/buy.js';
+export {
   applyDispatch,
   dispatch,
   unavailability,
@@ -40,6 +51,20 @@ export {
   type SigningRefusedRejection,
 } from './actions/recruit.js';
 export * from './actions/result.js';
+export {
+  applySell,
+  sell,
+  type SellAction,
+  type SellEquipped,
+  type SellGuildFolded,
+  type SellInsufficientQuantity,
+  type SellItemAction,
+  type SellNotHeldByGuild,
+  type SellRejection,
+  type SellRequest,
+  type SellStackAction,
+  type SellUnknownItem,
+} from './actions/sell.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
@@ -57,6 +82,7 @@ export * from './hero-regard.js';
 export * from './history.js';
 export * from './items.js';
 export * from './json-safe.js';
+export * from './market.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';

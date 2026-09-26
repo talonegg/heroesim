@@ -36,6 +36,7 @@ import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
 import { buildImprovement } from './commands/build.js';
+import { buyItems, renderMarket, sellItems } from './commands/market.js';
 import { recruitHero } from './commands/recruit.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
@@ -129,6 +130,10 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return act(context, (document, deps) => dispatchParty(command, document, deps));
     case 'build':
       return act(context, (document, deps) => buildImprovement(command, document, deps));
+    case 'buy':
+      return act(context, (document, deps) => buyItems(command, document, deps));
+    case 'sell':
+      return act(context, (document, deps) => sellItems(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -290,6 +295,8 @@ function show(view: View, { io, content, path }: Context): Exit {
       }
       return say(io, renderGuildmaster(guild, document, deps));
     }
+    case 'market':
+      return say(io, renderMarket(document, deps));
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);

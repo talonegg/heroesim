@@ -255,7 +255,7 @@ describe('generateQuest', () => {
     expect(() => generateQuest(world, { ...patron, id: 'patron-000009' as Patron['id'] }, deps)).toThrow(/patron-000009/);
     expect(() => generateQuest(world, patron, unserved)).toThrow(/crown/);
     expect(() => generateQuest(world, patron, deps, { templateKey: 'a-quiet-word' })).toThrow(/a-quiet-word/);
-    expect(() => generateQuest(world, patron, deps, { stream: 'market' as string as StreamName })).toThrow(/market/);
+    expect(() => generateQuest(world, patron, deps, { stream: 'a-module' as string as StreamName })).toThrow(/a-module/);
     expect(world).toEqual(before);
   });
 

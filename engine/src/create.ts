@@ -13,6 +13,7 @@ import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
 import { boardRefresh } from './phases/board-refresh.js';
+import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
 import { createStreams, streamNames } from './rng.js';
 
@@ -37,7 +38,8 @@ export interface CreatedWorld {
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), then `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
- * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25). Appends
+ * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
+ * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends
  * `world.created` and every generator's events to the new History and returns them.
  *
  * Throws on a programming error: a blank name, or a `backgroundKey` that is not a Guild
@@ -83,6 +85,8 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   // Turn 0 is a morning whose phases never run (DL-24), so its Board is drawn here, by the same
   // refresh, from `board` alone: the world above is what it was before M2-S3.
   generated.push(...boardRefresh(world, phaseContext(world, deps)));
+  // The Market likewise (M5-S4, DL-51), from `market` alone, after the Board as on every morning.
+  generated.push(...marketRefresh(world, phaseContext(world, deps)));
 
   const created: WorldCreated = {
     turn: world.turn,

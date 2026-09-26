@@ -23,6 +23,7 @@ import {
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { generateRival } from '../generators/guilds.js';
+import { sellFoldedGuildItems } from '../market.js';
 import { cheapestUnattached } from '../selectors.js';
 import { ageOf, dayOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
@@ -99,7 +100,9 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
 /**
  * A Rival folds (pre-M0 review D6, DL-28): `guild.folded`, naming the Guild, its Guildmaster, each
  * Party it disbands and each Quest it abandons; then `hero.left-guild` for each Hero on the Roster,
- * in Roster order, every event made before the rows change. Its Parties in flight are disbanded and
+ * in Roster order, every event made before the rows change. Its unique Items, wherever its own hold
+ * them, are sold to the Market (`item.sold`) and its stacks discarded (M5-S4, `sellFoldedGuildItems`,
+ * DL-51), so its Heroes leave with nothing of the Guild's. Its Parties in flight are disbanded and
  * a Quest left with no Party is removed unresolved, since nobody is left to finish it or be paid.
  * Its Heroes join the Unattached pool tonight, keeping their Injuries, Levels and Morale; the Roster
  * is emptied and `foldedOnTurn` set. The Guild and its Guildmaster keep their rows, as a record
@@ -123,6 +126,8 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
       ctx.emit({ type: 'hero.left-guild', participants: [heroId, guild.id], payload: { heroId, guildId: guild.id } }),
     );
   }
+  // Its Items, while its Parties and Heroes still say whose they are (M5-S4, D6, DL-51).
+  events.push(...sellFoldedGuildItems(world, guild, ctx.emit, ctx));
 
   for (const party of parties) {
     for (const heroId of party.heroIds) {

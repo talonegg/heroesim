@@ -8,6 +8,7 @@ import type {
   ClassKey,
   ImprovementKey,
   InjuryTypeKey,
+  ItemDefinitionKey,
   QuestTemplateKey,
   SphereKey,
   StatKey,
@@ -22,6 +23,7 @@ import type {
   GuildId,
   GuildmasterId,
   HeroId,
+  ItemId,
   PartyId,
   PatronId,
   QuestId,
@@ -333,6 +335,50 @@ export type HeroRegardChanged = Entry<
   }
 >;
 
+// ── The Market (M5-S4, R31, pre-M0 review D6, DL-51) ────────────────────────────────────────
+
+/**
+ * A Guild bought `quantity` Items of `definitionKey` from the Market through `buy`, at `unitPrice`
+ * each, for `cost` Wealth in all; `itemIds` are the unique Items bought, in id order, and `[]` for a
+ * common Item, whose quantity joined the Guild's stack of it. Names the Guild and each unique Item.
+ */
+export type ItemBought = Entry<
+  'item.bought',
+  {
+    guildId: GuildId;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    unitPrice: number;
+    cost: number;
+    itemIds: ItemId[];
+  }
+>;
+
+/**
+ * Why Items went to the Market: a Guild sold them through `sell`, or a folding Guild's unique Items
+ * were sold for it (pre-M0 review D6, DL-51).
+ */
+export type ItemSaleCause = 'sale' | 'fold';
+
+/**
+ * A Guild sold `quantity` Items of `definitionKey` to the Market, at `unitPrice` each, for
+ * `proceeds` Wealth in all, and the Market lists them: through `sell`, or, with `cause: 'fold'`, one
+ * unique Item of a folding Guild at a time. `itemIds` are the unique Items sold and `[]` for a
+ * common Item. Names the Guild and each unique Item.
+ */
+export type ItemSold = Entry<
+  'item.sold',
+  {
+    guildId: GuildId;
+    definitionKey: ItemDefinitionKey;
+    quantity: number;
+    unitPrice: number;
+    proceeds: number;
+    itemIds: ItemId[];
+    cause: ItemSaleCause;
+  }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -363,7 +409,9 @@ export type EngineEvent =
   | HeroLevelled
   | PatronRegardChanged
   | GuildmasterRegardChanged
-  | HeroRegardChanged;
+  | HeroRegardChanged
+  | ItemBought
+  | ItemSold;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -406,4 +454,6 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,
   'hero.regard-changed': false,
+  'item.bought': false,
+  'item.sold': false,
 } satisfies Record<EngineEventType, boolean>);
