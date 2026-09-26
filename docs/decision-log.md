@@ -3991,6 +3991,55 @@ it was 10, from DL-52.)
 infirmary factor, nor M4's close's balance beside Items. The M5 close's 200 × 20 run judges them
 together (DL-62).
 
+## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 verification's fixer),
+on findings it confirmed; no rule, default or content value changes
+
+**Context.** M4 was verified after its merge into v1.0-dev (`c1161b5`) by gate, acceptance, mutation,
+design, decision-log and CLI passes. The mutation pass ran 79 mutants of M4's rules; 73 were killed
+and 6 survived. The CLI pass found two problems. `show board` names Skills that help in no Check.
+The help for `preview` leaves out its Synergies section. DL-61 to DL-64 are reserved for other lines
+of work, so this entry is DL-70.
+
+**Decision.**
+
+1. **`show board`'s "Skills that help" lists the Skills of the Quest's Encounters.** Each is listed
+   once, in the order the Quest meets them, and a key content lacks is left out (data-model rule 5).
+   A Quest drawn before M4 has its Encounters drawn on the way (DL-42 item 7), so it still shows its
+   template's Skills.
+   - *Why.* From DL-42 on, the Check reads each Encounter's `skillKeys` and never the Quest's own,
+     which are copied from its template. The column therefore named Skills that help in no Check.
+     On Guard the caravan (travel and combat) it named Trapcraft, and on The sickness at the mill
+     (social and arcane) Herbalism and Field surgery. It also left out the Skills that do help.
+   - *What it supersedes.* The sentence of DL-42's Consequences that has `show board` read the
+     template's `skillKeys`.
+   - *What stays.* `partyFor` still reads the template's `skillKeys`. The Board's "Demands" column
+     still shows the template's demands: a summary of the kind of work, while each Check weighs its
+     own Encounter's demands.
+   - *Versions.* `configVersion` stays 6 and `contentVersion` stays 8.
+2. **`help` names `preview`'s Synergies section** (DL-45 item 7) beside its other sections.
+3. **Tests that were too weak.** Each surviving mutant is now killed by a new or stronger test; no
+   assertion was loosened.
+   - *The band over the whole sequence* (DL-42 item 11). A band read over only the Encounters a
+     Party reached passed every test. A new test sends a Party that comes through its first
+     Encounter and dies of it: one success of three is a failure.
+   - *The Guildmaster Regard writers* (DL-43 item 4). All four amounts were pinned at ±1, so a Hero
+     written with a Patron's amount passed. The one-test-each tests now pin the four apart.
+   - *A plain success* (DL-43 item 4, DL-46 item 2: a success is any band but `fail`). Three mutants
+     passed because every test resolved a strong success or a failure:
+     - the Patron's Regard written as on a failure;
+     - the Heroes' success bonus kept for a strong success only;
+     - the Guildmaster's Regard written for a Hero killed on the Quest.
+
+     A new `questsConclude` test resolves two Encounters of three, with a Death. It pins every
+     amount apart and checks each Regard, and that the dead Hero gets none.
+   - *`heroRegardDecays`.* Its Hero-only condition is unreachable through `decayHeroRegard`, which
+     visits only Heroes the world holds. The exported predicate is now tested directly.
+
+**Consequences.** No rule or value changes, so DL-55's run and report stand. The first build's other
+front end (M7) should take the Skills that help from the Encounters too.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

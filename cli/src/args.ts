@@ -55,9 +55,10 @@ Commands:
       show pool, and print the fee and the new Roster size.
   preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
-      is sent: each requirement met or missed, any Hero who cannot go, the consumables it
-      would carry, the reward the Guildmaster would agree, and whether dispatch would send
-      it. Changes nothing.
+      is sent: each requirement met or missed, any Hero who cannot go, the Synergies it
+      would have and on how many of the Quest's Encounters, the consumables it would
+      carry, the reward the Guildmaster would agree, and whether dispatch would send it.
+      Changes nothing.
   dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party, the reward agreed and the Day it returns. With

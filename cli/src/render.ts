@@ -690,8 +690,8 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then what each demands and the Skills
- * that help (M2-S3).
+ * Patron, its terms and the last Day it stays on offer; then what each demands (M2-S3), the Skills
+ * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1, M4 verification).
  */
 export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -734,11 +734,25 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
       quests.map((quest) => [
         quest.id,
         quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+        skillsThatHelp(quest, content),
         encounterKindsOf(quest, content),
       ]),
     ),
   ];
+}
+
+/**
+ * The Skills that help on a Quest: from M4 the Checks read its Encounters' Skills and not the
+ * template's (DL-42), so each Skill any of its Encounters names, once, in the order the Quest meets
+ * them, a key content lacks left out (rule 5). A Quest drawn before M4, whose Encounters are drawn on
+ * the way, shows its template's Skills, the kind of work it is.
+ */
+function skillsThatHelp(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
+  const keys =
+    quest.encounterKeys.length === 0
+      ? quest.skillKeys
+      : [...new Set(quest.encounterKeys.flatMap((key) => rowIn(content.encounters, key)?.skillKeys ?? []))];
+  return none(keys.filter((key) => Object.hasOwn(content.skills, key)).map((key) => nameIn(content.skills, key)));
 }
 
 /**

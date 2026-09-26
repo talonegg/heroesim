@@ -11,6 +11,7 @@ import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
 import {
   decayHeroRegard,
   heroRegardDecayStep,
+  heroRegardDecays,
   meanPairwiseRelationship,
   regardOnSharedQuest,
   relationship,
@@ -478,6 +479,10 @@ describe('the Hero State Engine decays Regard between Heroes who have not shared
     expect(a.regard[b.id]).toEqual(entry(10, nightOf(100)));
     expect(a.regard[c.id]).toEqual(entry(9, nightOf(0)));
     expect(a.regard[guildmasterId]).toEqual(entry(10, nightOf(0)));
+    // The predicate itself: due a year after the shared Quest, and only for an entry keyed by a Hero.
+    expect(heroRegardDecays(entry(10, nightOf(0)), c.id, nightOf(400), fast.config)).toBe(true);
+    expect(heroRegardDecays(entry(10, nightOf(100)), b.id, nightOf(400), fast.config)).toBe(false);
+    expect(heroRegardDecays(entry(10, nightOf(0)), guildmasterId, nightOf(400), fast.config)).toBe(false);
     withValid({ ...document, world }, fast);
   });
 
