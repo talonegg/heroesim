@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** not started
+**Status:** in progress — M7-S1 done
 
 ## 0. What lands in M7
 
@@ -41,10 +41,10 @@ ESLint: `web/**` may import `@heroesim/engine` and `@heroesim/content` by name o
 
 **Acceptance:**
 
-- [ ] `npm run build -w web` produces `web/dist/` that opens from the filesystem
-- [ ] The bundle gate fails a build containing a deliberate `fetch(` (tried, reverted, DL)
-- [ ] The browser content set deep-equals the Node entry's for the same files (test)
-- [ ] `engine/` still has zero dependencies (the M0 test still passes with React installed at
+- [x] `npm run build -w web` produces `web/dist/` that opens from the filesystem
+- [x] The bundle gate fails a build containing a deliberate `fetch(` (tried, reverted, DL)
+- [x] The browser content set deep-equals the Node entry's for the same files (test)
+- [x] `engine/` still has zero dependencies (the M0 test still passes with React installed at
       the root)
 
 ### M7-S2 · State: one reducer · 1 session

@@ -18,6 +18,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc -b",
     "lint": "eslint .",
+    "build": "npm run build -w web",
+    "e2e": "npm run e2e -w web",
     "harness": "node harness/run.mjs",
     "harness:sample": "tsx harness/src/sample.ts",
     "play": "tsx cli/src/main.ts"

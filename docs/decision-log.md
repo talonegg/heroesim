@@ -3470,6 +3470,111 @@ found, per game:
 No game ended in five years. Every unique Item a folded Guild held was listed once; the Loot tables'
 yield (about 1,600 awards a game across the world) is the M5 close's to balance (DL-52).
 
+## DL-64 — The web workspace: its pins, a build that opens from the filesystem, the bundle gate and what it covers (M7-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M7-S1's implementer)
+
+**Context.** M7-S1 makes `web/` a Vite + React application (INPUTS 7.7). The epic has it harvest
+v1's `check-bundle.mjs`, its `vite.config.ts` with `base: './'`, its `import.meta.glob` content
+load and its Playwright project (`feature/poc`, E8). The boxes: `npm run build -w web` produces a
+`web/dist/` that opens from the filesystem; the bundle gate fails a build containing a deliberate
+`fetch(`; the browser's content set deep-equals the Node entry's; the engine still has no
+dependency. v1's DL-29 measured that a Vite build does **not** open from the filesystem in Chromium
+and left the box's wording to the owner; the v2 epic states the box again.
+
+**Decision.**
+
+1. **Pins** (`web/package.json`, exact; npm's `latest` on 2026-09-26). `dependencies`: `react` and
+   `react-dom` 19.3.0. `devDependencies`: `vite` 8.3.1, `@vitejs/plugin-react` 6.1.1, `@types/react`
+   and `@types/react-dom` 19.3.0, `jsdom` 30.1.1, `@testing-library/react` 16.3.3,
+   `@playwright/test` 1.63.0. **Pins a peer forced:** `@testing-library/dom` 10.4.2 is added, because
+   it is a required peer of `@testing-library/react` that npm would otherwise install unpinned; `vite`
+   8.3.1 is the version the lockfile already held as Vitest 5.0.2's required peer (DL-14 item 1),
+   now declared, and satisfies `@vitejs/plugin-react`'s `^8.0.0`. No package here constrains
+   TypeScript, which stays 6.0.3 (DL-14 item 1). npm hoists all of it to the root `node_modules`;
+   `engine/package.json` still declares nothing, and M0's "declares no dependency of any kind" test
+   passes.
+2. **Installing the tooling now needs Node 22.22.2 or later.** `jsdom` 30.1.1 and three of its
+   dependencies declare `node: ^22.22.2 || ^24.15.0 || >=26.0.0`, and `.npmrc` sets
+   `engine-strict=true`, so `npm ci` refuses an older Node 22. The effective floor was already 22.13
+   (ESLint 10). `engines` stays `>=22` (ADR-0007): the page needs no Node at all, and CI's
+   `node-version: '22'` takes the latest 22 (22.23.3, released 2026-09-23). Should CI ever need an
+   older 22, `jsdom` 29.1.1 (`^22.13.0`) is the fallback.
+3. **The build is one classic script, so `web/dist/` opens from the filesystem.** Measured again in
+   Playwright's Chromium (153) on `file://…/web/dist/index.html`: Vite's `<script type="module"
+   crossorigin>` is refused ("blocked by CORS policy: Cross origin requests are only supported for
+   protocol schemes: … http, https") and `#root` stays empty, as v1 found. `vite.config.ts` therefore
+   builds one IIFE (`build.rolldownOptions.output.format: 'iife'`), and a build-only plugin rewrites
+   the entry tag to `<script defer src="./assets/index-….js">`. A classic script is not fetched
+   under CORS from `file://`, and `defer` runs it after the document is parsed, as a module script
+   runs. A stylesheet is injected by the script in this format (tried with a probe stylesheet from
+   `file://`: applied). The price is no code splitting and no top-level `await` in the page; M7
+   needs neither (no router, §0). The dev server is unchanged. `base: './'` and
+   `modulePreload: { polyfill: false }` are kept from v1.
+4. **The content load.** `web/src/content.ts` globs `../../content/*.json` as raw text, excluding
+   `package.json` and `tsconfig.json` by negative pattern so the package's manifests never enter the
+   bundle, keys each file by its name and calls `parseContent`. It does not call `validateContent` a
+   second time: `parseContent` returns `validateContent(set)` (`content/src/parse.ts`), which is all
+   the Node entry's `loadContent` does, so the browser runs the Node path exactly. The epic's
+   "`parseContent` + `validateContent`" is that one call.
+5. **The bundle gate** is v1's `check-bundle.mjs`, refusing what it refused: `fetch(`,
+   `XMLHttpRequest`, a quoted `node:` specifier, `process.env`, and any `http(s)://` literal off the
+   allow-list, comments stripped first. One change: it takes the directory to check as an optional
+   argument (`web/dist` by default), so a test can gate a build made elsewhere. v1's allow-list is
+   kept whole and is still exactly what React 19.3's production build carries: the four W3C
+   namespace URIs, which are identifiers passed to `createElementNS`, and `https://react.dev/errors/`,
+   which appears only in an error's text. The bundle holds no other URL. Quoting the `node:`
+   pattern is what keeps minified React's `{node:n}` from tripping it.
+6. **The gate, tried.** With `onClick={() => void fetch("/api/save")}` added to the placeholder's
+   heading, `npm run build -w web` exited **1**, naming the file and the call:
+   ``assets\index-YFwz47Zm.js: contains fetch( — …onClick:()=>void fetch(`/api/save`)…``.
+   Reverted, it exited **0**: `check-bundle: 2 built files, no network or filesystem reference.`
+   `web/src/bundle.test.ts` keeps this proved: it runs
+   `vite build` into a temporary directory, without Vitest's `NODE_ENV=test` (which would bundle
+   React's development build and gate a different page), and the gate over the result; and it
+   fails fixture bundles holding each refused pattern. Being a Vitest test, the gate runs in CI,
+   which runs no `npm run build`.
+7. **What the gate adds to DL-16.** DL-16 left `fetch`, `localStorage`, `navigator` and `document`
+   passing the engine's lint, because the engine compiles against the DOM library. The gate now
+   refuses `fetch(` and `XMLHttpRequest` in engine code the page bundles, and only there: Rolldown
+   drops what the page does not import, and in M7-S1 the page imports content's pure entry and the
+   engine's types only, so no engine code is in the bundle yet. From M7-S2 the reducer imports the
+   actions and `advance`, which reach every phase, so every rule a player can set off is gated.
+   Engine code no page path reaches, and every Node run (CLI, harness, tests), stay unguarded, and
+   the gate knows nothing of `localStorage`, `navigator` or `document`. The gap is narrowed for
+   what the browser runs, not closed; closing it (restricted globals for those names in engine
+   source) is still DL-16's later decision, not taken here.
+8. **Lint.** `web/**` keeps M0's rule: engine and content by name, no subpath, no relative path into
+   another package, never the CLI. `web/src/**` source, `.ts` and `.tsx`, also imports no Node
+   built-in: the page runs in a browser. `web/src/**/*.test.{ts,tsx}`, which run on Node, may import
+   Node built-ins and `@heroesim/content/node`, the only way to compare the bundled content with the
+   Node entry's. The ignores for Playwright's output now match under `web/`.
+   `engine/src/boundary.test.ts` and `content/src/imports.test.ts` prove each rule on `.tsx` and
+   `.ts` probes.
+9. **Typecheck and tests.** `web/tsconfig.json` is a composite project with `noEmit` (Vite
+   compiles), `moduleResolution: Bundler`, `jsx: react-jsx`, the DOM libraries and `vite/client`'s
+   types; `tsc -b` checks `src`, `e2e` and both configuration files and writes nothing to
+   `web/dist`. The root `vitest.config.ts`'s `web` project has the React plugin, `jsdom` and
+   `src/**/*.test.{ts,tsx}`; a test that needs Node's `URL` (the content comparison) or a child
+   process (the build) declares `@vitest-environment node`.
+10. **Scripts.** `web`: `dev` (`vite`); `build` (`vite build && node scripts/check-bundle.mjs`);
+    `preview`; `e2e` (`npm run build && playwright test`, building first so a spec never runs
+    against a stale bundle). The root's `build` and `e2e` delegate to them. `playwright.config.ts` is
+    v1's, trimmed to Chromium at 360×800 and 1280×800; `e2e/smoke.spec.ts` renders the built page
+    served by `vite preview` and opened from `file://` (4 passed locally). CI is unchanged:
+    `@playwright/test` and `playwright` have no install script, so `npm ci` downloads no browser
+    (checked: a fresh `npm ci` left the browser cache as it was); browsers come only from
+    `npx playwright install` (INPUTS 7.10).
+
+**Consequences.** `web/` builds, gates and renders a placeholder that names the content set it
+loaded; M7-S2 adds the reducer and M7-S3 the views. A later story that wants code splitting undoes
+item 3 and loses the filesystem, and must say so. Checked under Node 22.23.3 with its npm 10.9.9 as
+well as 26.9.0 with npm 11.19.1: `npm ci`, lint and typecheck pass. `npm test` passed whole on 26.9.0
+(83 files, 1,547 tests); later runs on either version failed one test, the validator's 1,000-Hero
+timing (58 to 72 ms against 50), while other builds held the machine at 83% CPU. It fails the same
+way at `m5-integration`'s tip without this change and with the web project left out, and passes on
+its own: load, not this story.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
