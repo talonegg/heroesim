@@ -63,6 +63,7 @@ describe('marketRefresh', () => {
     const kept = addStack(world, 'whetstone', 2, { kind: 'guild', id: guildId });
     const listed = createItem(world, 'barrow-kings-blade', marketHolder);
     const seen = new Set<string>();
+    const quantities = new Set<number>();
 
     for (let day = 1; day <= 20; day += 1) {
       const before = holdings(document.world, marketHolder).stacks.map((stack) => stack.id);
@@ -79,12 +80,15 @@ describe('marketRefresh', () => {
         expect(stack.quantity).toBeGreaterThanOrEqual(1);
         expect(stack.quantity).toBeLessThanOrEqual(5);
         seen.add(stack.definitionKey);
+        quantities.add(stack.quantity);
       }
       expect(items.map((item) => item.id)).toEqual([listed]);
       expect(document.world.stacks[kept]).toMatchObject({ definitionKey: 'whetstone', quantity: 2 });
     }
     // Twenty draws of ten from fifteen reach them all; no unique or unpriced definition among them.
     expect([...seen].sort()).toEqual(stocked);
+    // And each stack's quantity is drawn: two hundred stacks take every quantity from 1 to 5.
+    expect([...quantities].sort()).toEqual([1, 2, 3, 4, 5]);
   });
 
   test('draws from the market stream and no other, and emits nothing', () => {
@@ -121,6 +125,23 @@ describe('marketRefresh', () => {
 
     expect(holdings(world, marketHolder).stacks).toEqual([]);
     expect(world.rng).toEqual(before);
+  });
+
+  test('never stocks a unique definition, even one with a price (DL-48 item 3): a unique Item is an individual, never a stack', () => {
+    const blade = testContent.items['barrow-kings-blade'];
+    if (blade === undefined) throw new Error('No barrow-kings-blade in the test content');
+    const priced: ContentSet = deepFreeze({
+      ...testContent,
+      items: Object.fromEntries(
+        Object.entries({ ...testContent.items, 'barrow-kings-blade': { ...blade, buyPrice: 500 } }).filter(([key]) =>
+          ['whetstone', 'padded-jack', 'barrow-kings-blade'].includes(key),
+        ),
+      ),
+    });
+
+    expect(stockedDefinitions(priced).map((definition) => definition.key)).toEqual(['padded-jack', 'whetstone']);
+    const { world } = created('priced-unique', testDeps(market, priced));
+    expect(holdings(world, marketHolder).stacks.map((stack) => stack.definitionKey).sort()).toEqual(['padded-jack', 'whetstone']);
   });
 
   test('stocks every definition once when content stocks fewer than marketSize', () => {

@@ -137,14 +137,16 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}${carried}.`;
     }
     case 'quest.encounter': {
-      // The roll and target are the engine's; the CLI says only how it went and what it cost.
-      const { partyId, encounterKey, outcome, injured, died } = event.payload;
+      // The roll and target are the engine's; the CLI says only how it went and what it cost, and
+      // which Encounter it was, counted from 1 as a consumable's line counts them (item.expended).
+      const { partyId, index, encounterKey, outcome, injured, died } = event.payload;
       const went = outcome === 'success' ? 'came through' : 'failed at';
       const hurt = [
         ...injured.map((id) => `${hero(event, id)} was injured`),
         ...died.map((id) => `${hero(event, id)} was killed`),
       ];
-      return `${partyId} ${went} ${nameIn(content.encounters, encounterKey)}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+      const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
+      return `${partyId} ${went} ${which}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
     }
     case 'quest.resolved': {
       const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
@@ -159,7 +161,7 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       // A unique Item by name and id, a common one by name, quantity and the stack it joined (M5-S5).
       const { guildId, questId, definitionKey, quantity, itemId, stackId } = event.payload;
       const item = nameIn(content.items, definitionKey);
-      const what = itemId === null ? `${item} x${quantity} (${stackId ?? 'no stack'})` : `${item} (${itemId})`;
+      const what = itemId === null ? `${items(content, definitionKey, quantity, [])} (${stackId ?? 'no stack'})` : `${item} (${itemId})`;
       return `${called(event, guildId)} found Loot on ${questId}: ${what}.`;
     }
     case 'hero.injured': {

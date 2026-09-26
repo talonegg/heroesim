@@ -245,10 +245,10 @@ describe('narrate', () => {
     expect(narrate(withSynergies, content)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
     expect(narrate({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content)).toMatch(/Fame -2\.$/);
     expect(narrate(samples['quest.encounter'], content)).toBe(
-      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name}: Brenna Ashcombe (hero-000007) was injured.`,
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2): Brenna Ashcombe (hero-000007) was injured.`,
     );
     expect(narrate({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content)).toBe(
-      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name}.`,
+      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2).`,
     );
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
@@ -266,7 +266,11 @@ describe('narrate', () => {
     );
     const common = { ...samples['quest.loot'].payload, definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId };
     expect(narrate({ ...samples['quest.loot'], payload: common }, content)).toBe(
-      `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} x3 (stack-000008).`,
+      `The Kestrel Guild found Loot on quest-000003: 3 × ${content.items['healing-draught']?.name} (stack-000008).`,
+    );
+    // One common Item is named without a count, as a purchase is.
+    expect(narrate({ ...samples['quest.loot'], payload: { ...common, quantity: 1 } }, content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} (stack-000008).`,
     );
   });
 

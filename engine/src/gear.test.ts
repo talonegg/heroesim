@@ -116,6 +116,32 @@ describe('effectiveStats with gear (DL-49)', () => {
     expect(warrior.stats['weaponry']).toBe(17);
   });
 
+  test('two pieces of gear on one Stat add together', () => {
+    const { document, heroes } = scene('gear-overlap');
+    const [hero] = heroes as [Hero];
+    const { world } = document;
+    createItem(world, 'barrow-kings-blade', slotOf(hero.id, 'weapon')); // Courage +1
+    addStack(world, 'lucky-charm', 1, slotOf(hero.id, 'trinket')); // Courage +1
+    withValid(document, deps);
+
+    expect(gearModifiers(hero.id, world, deps.content)['courage']).toBe(2);
+    expect(effectiveStats(hero, world, deps.content)['courage']).toBe(8 + 1 + 1);
+  });
+
+  test("a Guildmaster's penalty is taken from the sum with gear, not from gear already held at the top of the range", () => {
+    const { document, heroes } = scene('gear-top');
+    const [, mage] = heroes as [Hero, Hero];
+    const { world } = document;
+    mage.classKey = 'mage';
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = ['mistrusts-magic'];
+    addStack(world, 'runed-circlet', 1, slotOf(mage.id, 'trinket')); // Arcana +3
+    mage.stats['arcana'] = 19;
+    withValid(document, deps);
+
+    // 19 − 1 (Mistrusts magic) + 3 = 21, held at 20 once; holding 19 + 3 at 20 first would leave 19.
+    expect(effectiveStats(mage, world, deps.content)['arcana']).toBe(20);
+  });
+
   test('an Item in a slot not its own, or of a definition content lacks, counts for nothing', () => {
     const { document, heroes } = scene('gear-misplaced');
     const [hero] = heroes as [Hero];

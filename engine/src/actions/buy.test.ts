@@ -135,6 +135,8 @@ describe('buy', () => {
     ['insufficient-quantity', 1_000, 'healing-draught', 6, false],
     ['insufficient-quantity', 1_000, 'barrow-kings-blade', 2, false],
     ['insufficient-wealth', 149, 'healing-draught', 5, false],
+    // DL-51 item 3's order: more than the Market has is refused as such, whatever the Wealth.
+    ['insufficient-quantity', 149, 'healing-draught', 6, false],
   ] as const)('refuses %s (Wealth %i, %s × %i), changing nothing', (reason, wealth, definitionKey, quantity, folded) => {
     const { document, guildId } = scene(wealth);
     if (folded) (document.world.guilds[guildId] as Guild).foldedOnTurn = 0;

@@ -127,7 +127,7 @@ diedOnTurn:     integer | null
 retiredOnTurn:  integer | null
 regard:         Record<EntityId, RegardEntry>
 ```
-Equipment is not on the Hero: it is the unique Items whose holder is this Hero (3.3).
+A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot (3.3).
 
 **patrons**
 ```
