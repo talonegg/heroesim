@@ -16,7 +16,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { facilityNames, nameIn } from '../render.js';
+import { facilityIs, facilityNames, nameIn } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** The engine's rejection in words. */
@@ -25,7 +25,10 @@ function explain(rejection: BuildRejection, guildName: string): string {
     case 'guild-folded':
       return `${guildName} has folded and builds nothing.`;
     case 'max-grade':
-      return `${guildName}'s ${facilityNames[rejection.facility]} is at grade ${rejection.grade}, the highest there is.`;
+      return (
+        `${guildName}'s ${facilityNames[rejection.facility]} ${facilityIs[rejection.facility]} at grade ${rejection.grade}, ` +
+        'the highest there is.'
+      );
     case 'insufficient-wealth':
       return (
         `The next grade of ${guildName}'s ${facilityNames[rejection.facility]} costs ${rejection.cost} Wealth; ` +
@@ -56,15 +59,16 @@ export function buildImprovement(
   if (built === undefined || improved === undefined) throw new Error('build succeeded but left no Improvement');
   const { facility, grade, improvementKey, cost } = improved.payload;
   const name = facilityNames[facility];
+  const is = facilityIs[facility];
   const next = nextImprovement(built, facility, deps.content);
   return {
     ok: true,
     document: result.document,
     lines: [
-      `Built ${nameIn(deps.content.improvements, improvementKey)} for ${cost} Wealth: ${guild.name}'s ${name} is now grade ${grade}.`,
+      `Built ${nameIn(deps.content.improvements, improvementKey)} for ${cost} Wealth: ${guild.name}'s ${name} ${is} now grade ${grade}.`,
       `Wealth ${built.wealth}; Upkeep ${upkeep(built, world, deps.config)} every ${deps.config.upkeepEveryDays} Days.`,
       next === null
-        ? `The ${name} is at its highest grade.`
+        ? `The ${name} ${is} now at the highest grade.`
         : `The next grade, ${next.name}, costs ${next.cost} Wealth.`,
     ],
   };

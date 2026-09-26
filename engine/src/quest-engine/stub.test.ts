@@ -260,7 +260,8 @@ describe('resolveQuest', () => {
   });
 
   test("shortens an Injury by the Guild's infirmary grade: halved at 1, a third at 2, the last factor beyond", () => {
-    const certain = { stubInjuryChance: { ...noHarm, fail: 1 } };
+    // The factors pinned to INPUTS 4.5's two grades, so that grade 7 is past the list.
+    const certain = { stubInjuryChance: { ...noHarm, fail: 1 }, infirmaryHealFactor: [1, 1 / 2, 1 / 3] };
     const healDays = (grade: number): number => {
       const { world: w, heroIds, guild } = world(1);
       guild.hall.infirmary = grade;

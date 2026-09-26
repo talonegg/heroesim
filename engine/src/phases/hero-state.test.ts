@@ -3,8 +3,9 @@ import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
-import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
+import { makeId, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import { append, createHistory } from '../history.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { playerGuild } from '../selectors.js';
@@ -293,6 +294,44 @@ describe('Retirement', () => {
     const retiredLater = ofType(home.events, 'hero.retired');
     expect(retiredLater.map((event) => [event.turn, event.payload.heroId])).toEqual(away.map((heroId) => [returnsOnTurn, heroId]));
     expect(ofType(home.events, 'quest.resolved')).toHaveLength(1);
+  });
+
+  test('a Hero sent out on the anniversary night itself was checked that night, and is not checked again on coming home', () => {
+    // An action may be taken in any Turn (pre-M0 review D2), the night's included: a Party that
+    // leaves on an anniversary night leaves after that night's check, so its homecoming takes no
+    // draw. A chance of 0 still draws on each due check, so the heroes stream shows every check.
+    const deps = testDeps({ heroRetirementChancePerYear: 0, turnsPerYear: 30, rivalCount: 0 });
+    const { world } = created('left-on-the-night', deps);
+    const guild = playerGuild(world) as Guild;
+    const [sent] = guild.rosterIds as [HeroId];
+    const history = createHistory();
+    const at = (day: number): EngineEvent[] => {
+      world.turn = nightOf(day);
+      return heroState(world, phaseContext(world, deps, history));
+    };
+
+    const beforeAnniversary = structuredClone(world.rng.heroes);
+    at(10);
+    expect(world.rng.heroes).not.toEqual(beforeAnniversary);
+    // Sent during the night of Day 10, after the night's phases; home on the night of Day 12.
+    const partyId = makeId('parties', 99);
+    append(history, {
+      turn: nightOf(10),
+      type: 'quest.taken',
+      participants: [sent],
+      labels: {},
+      milestone: false,
+      payload: { questId: makeId('quests', 99), partyId, guildId: guild.id, heroIds: [sent], returnsOnTurn: nightOf(12) },
+    });
+    hero(world, sent).partyId = partyId;
+    at(11);
+    hero(world, sent).partyId = null;
+    const beforeHomecoming = structuredClone(world.rng.heroes);
+
+    const events = at(12);
+
+    expect(ofType(events, 'hero.retired')).toEqual([]);
+    expect(world.rng.heroes).toEqual(beforeHomecoming);
   });
 });
 

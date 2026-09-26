@@ -5,6 +5,7 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import { xpForLevel } from '../progression.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf, timeOfDay } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
@@ -208,6 +209,24 @@ describe('training', () => {
     expect(xpOf(world, rival.rosterIds)).toEqual(rival.rosterIds.map(() => 4));
     expect(xpOf(world, folded.rosterIds)).toEqual(folded.rosterIds.map(() => 0));
     expect(pool.map((row) => row.xp)).toEqual(pool.map(() => 0));
+  });
+
+  test('a Hero at levelCap still gains xpPerTrainingDay a night, and no Level (DL-36 item 2)', () => {
+    const deps = soloDeps({ levelCap: 3 });
+    const start = withYard('capped', 1, deps);
+    const [heroId] = player(start.world).rosterIds as [HeroId];
+    hero(start.world, heroId).xp = xpForLevel(10, deps.config);
+    // The first night takes the Hero to the cap, Level 3, with that night's training XP on top.
+    let current = playTo(start, nightOf(0), deps).document;
+    expect(hero(current.world, heroId)).toMatchObject({ level: 3, xp: xpForLevel(10, deps.config) + 2 });
+
+    for (let day = 1; day <= 5; day += 1) {
+      const before = hero(current.world, heroId).xp;
+      const { document, events } = playTo(current, nightOf(day), deps);
+      expect(hero(document.world, heroId), `Day ${day}`).toMatchObject({ level: 3, xp: before + 2 });
+      expect(ofType(events, 'hero.levelled').filter((event) => event.payload.heroId === heroId)).toEqual([]);
+      current = document;
+    }
   });
 
   test('a Hero whose training XP crosses a threshold levels up that night', () => {

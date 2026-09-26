@@ -3,11 +3,13 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
-import { facilityKeys, makeId, type FacilityKey, type Guild, type WorldDocument } from '../document.js';
+import { facilityKeys, makeId, type FacilityKey, type Guild, type Hero, type World, type WorldDocument } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { count } from '../history.js';
 import { moraleBaselineFor } from '../morale.js';
-import { affordableImprovement, nextImprovement, playerGuild, upkeep } from '../selectors.js';
+import { phaseContext } from '../phases/phase.js';
+import { training } from '../phases/training.js';
+import { affordableImprovement, healFactor, nextImprovement, playerGuild, upkeep } from '../selectors.js';
 import { serialise } from '../serialise.js';
 import { dayOf, nightOf } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
@@ -313,6 +315,42 @@ describe('what a grade built does (M3-S6)', () => {
     expect(without).toBeGreaterThanOrEqual(5);
     expect(withInfirmary).toBe(Math.max(1, Math.round(without / 2)));
     expect(withInfirmary).toBeLessThan(without);
+  });
+
+  test('under the default rules, every grade content defines does more than the grade below it (DL-53)', () => {
+    // The defaults on purpose, not pinned values: what is checked is that they give each grade a
+    // player can pay for an effect of its own. The test content carries the core's three grades.
+    const defaults = testDeps({ rivalCount: 0 });
+    const { config, content } = defaults;
+    const { document, guild } = scene('every-grade', 10_000, defaults);
+    const [heroId] = guild.rosterIds;
+    if (heroId === undefined) throw new Error('No Hero');
+    /** The effect of `facility` at each grade from 0 to content's top grade. */
+    const byGrade = (facility: FacilityKey, effect: (grade: number) => number): number[] => {
+      const top = Math.max(...Object.values(content.improvements).filter((it) => it.facility === facility).map((it) => it.grade));
+      return Array.from({ length: top + 1 }, (_, grade) => effect(grade));
+    };
+    const falling = (values: readonly number[]): boolean => values.every((value, index) => index === 0 || value < (values[index - 1] ?? 0));
+    const rising = (values: readonly number[]): boolean => values.every((value, index) => index === 0 || value > (values[index - 1] ?? 0));
+    const at = (facility: FacilityKey, grade: number): World => {
+      const world = structuredClone(document.world);
+      (world.guilds[guild.id] as Guild).hall[facility] = grade;
+      return world;
+    };
+
+    const heal = byGrade('infirmary', (grade) => healFactor({ hall: { ...guild.hall, infirmary: grade } }, config));
+    const baseline = byGrade('quarters', (grade) => moraleBaselineFor(at('quarters', grade).heroes[heroId] as Hero, at('quarters', grade), config));
+    const trainingXp = byGrade('trainingYard', (grade) => {
+      const world = at('trainingYard', grade);
+      world.turn = nightOf(0);
+      training(world, phaseContext(world, defaults));
+      return (world.heroes[heroId] as Hero).xp;
+    });
+
+    expect([heal.length, baseline.length, trainingXp.length]).toEqual([4, 4, 4]);
+    expect(heal, `infirmary ${heal.join(', ')}`).toSatisfy(falling);
+    expect(baseline, `quarters ${baseline.join(', ')}`).toSatisfy(rising);
+    expect(trainingXp, `training yard ${trainingXp.join(', ')}`).toSatisfy(rising);
   });
 
   test('the training yard at grade 1 is on the Guild row the night’s training reads (M3-S2)', () => {
