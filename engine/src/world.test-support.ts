@@ -25,6 +25,7 @@ import type {
   Stat,
   StatArea,
   StatOwner,
+  Synergy,
   Trait,
   TraitEffect,
 } from './content-types.js';
@@ -214,6 +215,11 @@ function encounter(
   ];
 }
 
+/** A Synergy (M4-S3) from what it requires, its bonus and, when it has them, its kinds. */
+function synergy(key: string, requires: Synergy['requires'], bonus: Synergy['bonus'], kinds?: EncounterKind[]): [string, Synergy] {
+  return [key, { key, name: title(key), requires, bonus, ...(kinds === undefined ? {} : { kinds }) }];
+}
+
 /** A Guildmaster Trait with its one effect (M4-S5), keyed by `key` and named after it. */
 function guildmasterTrait(key: string, effect: TraitEffect): Record<string, Trait> {
   return { [key]: { key, name: title(key), owner: 'guildmaster', effect } };
@@ -259,9 +265,9 @@ export function deepFreeze<T>(value: T): T {
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
  * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
- * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6) and the core's twelve
- * Encounter keys, two or more of each kind (M4-S1). It also carries the Item table M5-S1 adds, so that fixture Items
- * raise no warning.
+ * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6), the core's twelve
+ * Encounter keys, two or more of each kind (M4-S1), and the core's six Synergies (M4-S3). It also
+ * carries the Item table M5-S1 adds, so that fixture Items raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -380,6 +386,15 @@ export const testContent: ContentSet = deepFreeze(
           [], [{ kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 }, { kind: 'fame', delta: -1 }]),
         encounter('the-trapped-passage', 'stealth', 'best', 'dexterity:0.5 perception:0.5', 'trapcraft lockpicking', 0.18,
           [{ kind: 'wealth', factor: 1.1 }], [{ kind: 'injury', typeKey: 'broken-arm', chance: 0.2, count: 1 }]),
+      ]),
+      // The core's six (M4-S3, DL-45): key, requirement, bonus, and the Encounter kinds when it has them.
+      synergies: Object.fromEntries([
+        synergy('sword-and-salve', { classes: { warrior: 1, healer: 1 } }, { flat: 2 }, ['combat', 'travel']),
+        synergy('shadow-and-spell', { classes: { rogue: 1, mage: 1 } }, { factor: 1.1 }, ['stealth', 'arcane']),
+        synergy('shield-wall', { classes: { warrior: 3 } }, { factor: 1.15 }, ['combat']),
+        synergy('a-full-company', { classes: { warrior: 1, rogue: 1, mage: 1, healer: 1 } }, { flat: 1, factor: 1.05 }),
+        synergy('wards-and-blessings', { skills: ['warding', 'benediction'] }, { flat: 3 }, ['arcane', 'combat']),
+        synergy('scouting-ahead', { skills: ['tactics', 'stealth'] }, { flat: 2 }, ['travel', 'stealth']),
       ]),
     },
     {

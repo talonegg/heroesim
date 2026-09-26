@@ -25,6 +25,9 @@ import type {
   Stat,
   StatArea,
   StatOwner,
+  Synergy,
+  SynergyBonus,
+  SynergyRequires,
   Trait,
   TraitEffect,
   TraitEffectKind,
@@ -41,9 +44,9 @@ export const contentSetId = 'core';
  * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from
  * M4-S1, which added the Encounters and each Quest template's Encounter kinds and counts, and, on
  * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
- * their merge, which holds both (DL-44).
+ * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45).
  */
-export const contentVersion = 7;
+export const contentVersion = 8;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -59,6 +62,7 @@ export const contentFiles = [
   'injuries.json',
   'improvements.json',
   'encounters.json',
+  'synergies.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -187,6 +191,15 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       difficultyFactor: row.number('difficultyFactor'),
       consequences: outcomes(row.child('consequences')),
     })),
+    synergies: table<Synergy>('synergies.json', json('synergies.json'), problems, 'a Synergy', (row) => {
+      const shape = {
+        name: row.string('name'),
+        requires: synergyRequires(row.child('requires')),
+        bonus: synergyBonus(row.child('bonus')),
+      };
+      const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
+      return kinds === undefined ? shape : { ...shape, kinds };
+    }),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -298,6 +311,25 @@ function requires(reader: RowReader): QuestTemplateRequires {
   return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
 }
 
+/**
+ * What a Synergy requires (M4-S3): a count for each Class it names, the Skills it names, either or
+ * both, and nothing else. What they must name, and that they name something, is `validateContent`'s.
+ */
+function synergyRequires(reader: RowReader): SynergyRequires {
+  const classes = reader.optional('classes', (field) => reader.numbers(field));
+  const skills = reader.optional('skills', (field) => reader.strings(field));
+  reader.refuseUnknown('what a Synergy requires');
+  return { ...(classes === undefined ? {} : { classes }), ...(skills === undefined ? {} : { skills }) };
+}
+
+/** A Synergy's bonus (M4-S3): a `flat`, a `factor`, either or both, and nothing else. */
+function synergyBonus(reader: RowReader): SynergyBonus {
+  const flat = reader.optional('flat', (field) => reader.number(field));
+  const factor = reader.optional('factor', (field) => reader.number(field));
+  reader.refuseUnknown("a Synergy's bonus");
+  return { ...(flat === undefined ? {} : { flat }), ...(factor === undefined ? {} : { factor }) };
+}
+
 /** An Encounter's consequences: a list for each outcome, and nothing else (M4-S1). */
 function outcomes(reader: RowReader): Encounter['consequences'] {
   const result = {
@@ -388,6 +420,15 @@ class RowReader {
     if (value === null || typeof value === 'string') return value;
     this.wrong(field, value, 'a string or null');
     return null;
+  }
+
+  /** `read`'s value of `field`, or `undefined` when the field is absent: an optional field of any type. */
+  optional<Value>(field: string, read: (field: string) => Value): Value | undefined {
+    if (this.raw[field] === undefined) {
+      this.read.add(field);
+      return undefined;
+    }
+    return read(field);
   }
 
   /** A string, or `undefined` when the field is absent. */

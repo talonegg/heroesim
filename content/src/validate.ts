@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { Consequence, ContentSet, FacilityKey } from '@heroesim/engine';
+import type { Consequence, ContentSet, EncounterKind, FacilityKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -34,6 +34,9 @@ export const demandSumTolerance = 0.001;
 /** The Hall's facilities an Improvement may raise (`FacilityKey`): the compiler holds it to the union. */
 const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
 
+/** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
+const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
+
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -58,6 +61,7 @@ export function validateContent(set: ContentSet): ContentSet {
     dispositions: set.dispositions,
     improvements: set.improvements,
     encounters: set.encounters,
+    synergies: set.synergies,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -144,6 +148,7 @@ export function validateContent(set: ContentSet): ContentSet {
   checkImprovements(set.improvements, problems);
   checkEncounters(set, heroStats, skills, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
+  checkSynergies(set.synergies, classes, skills, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -309,6 +314,51 @@ function checkTraitEffects(
           problems.push(`${where}.factor is ${effect.factor}; it is a number above 0`);
         }
         break;
+    }
+  }
+}
+
+/**
+ * The Synergies (M4-S3, DL-45): each requires at least one Class or Skill, every Class content
+ * defines with a count that is a whole number from 1, every Skill content defines and none twice;
+ * adds a `flat` above 0, a `factor` above 1 or both, a Synergy being a bonus and a factor in content
+ * a multiplier; and names, if any, one or more Encounter kinds, none twice.
+ */
+function checkSynergies(
+  synergies: ContentSet['synergies'],
+  classes: ReadonlySet<string>,
+  skills: ReadonlySet<string>,
+  problems: string[],
+): void {
+  for (const [key, synergy] of Object.entries(synergies)) {
+    const where = `synergies.${key}`;
+    const { requires, bonus, kinds } = synergy;
+    const counts = Object.entries(requires.classes ?? {});
+    if (counts.length === 0 && (requires.skills ?? []).length === 0) {
+      problems.push(`${where}.requires names no Class and no Skill: a Synergy is for a combination of them`);
+    }
+    for (const [classKey, count] of counts) {
+      if (!classes.has(classKey)) problems.push(`${where}.requires.classes: "${classKey}" is not a Class`);
+      if (!(Number.isInteger(count) && count >= 1)) {
+        problems.push(`${where}.requires.classes.${classKey} is ${count}; a count is a whole number from 1`);
+      }
+    }
+    checkReferences(`${where}.requires.skills`, requires.skills ?? [], skills, 'a Skill', problems);
+    if (bonus.flat === undefined && bonus.factor === undefined) {
+      problems.push(`${where}.bonus is empty: a Synergy adds a flat, a factor or both`);
+    }
+    if (bonus.flat !== undefined && !(Number.isFinite(bonus.flat) && bonus.flat > 0)) {
+      problems.push(`${where}.bonus.flat is ${bonus.flat}; it is a number above 0`);
+    }
+    if (bonus.factor !== undefined && !(Number.isFinite(bonus.factor) && bonus.factor > 1)) {
+      problems.push(`${where}.bonus.factor is ${bonus.factor}; it multiplies, so it is a number above 1`);
+    }
+    if (kinds !== undefined) {
+      if (kinds.length === 0) problems.push(`${where}.kinds is empty: leave it out for a Synergy on every kind`);
+      for (const kind of kinds) {
+        if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+      }
+      for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
   }
 }

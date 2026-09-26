@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 7 since the Encounters (M4-S1) and the Trait effects (M4-S5) merged', () => {
+  test('is the core content set, version 8 since the Synergies (M4-S3)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(7);
+    expect(content.version).toBe(8);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -216,6 +216,32 @@ describe('loadContent()', () => {
         encounters.flatMap((it) => [...it.consequences.success, ...it.consequences.failure].map((consequence) => consequence.kind)),
       );
       expect(used).toEqual(new Set(['injury', 'death', 'morale', 'regard', 'xp', 'wealth', 'fame']));
+    });
+  });
+
+  // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors.
+  describe('Synergies (M4-S3)', () => {
+    const synergies = Object.values(content.synergies);
+
+    test('are six, among them Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
+      expect(synergies).toHaveLength(6);
+      const byClasses = synergies.map((it) => it.requires.classes);
+      expect(byClasses).toContainEqual({ warrior: 1, healer: 1 });
+      expect(byClasses).toContainEqual({ rogue: 1, mage: 1 });
+      expect(byClasses).toContainEqual({ warrior: 3 });
+      for (const it of synergies) expect(it.name.length, it.key).toBeGreaterThan(0);
+    });
+
+    test('require Classes or Skills content has, add a flat or a factor, some on named kinds and some on every kind', () => {
+      for (const it of synergies) {
+        for (const classKey of Object.keys(it.requires.classes ?? {})) expect(content.classes[classKey], it.key).toBeDefined();
+        for (const skillKey of it.requires.skills ?? []) expect(content.skills[skillKey], it.key).toBeDefined();
+      }
+      expect(synergies.some((it) => (it.requires.skills ?? []).length > 0)).toBe(true);
+      expect(synergies.some((it) => it.bonus.flat !== undefined)).toBe(true);
+      expect(synergies.some((it) => it.bonus.factor !== undefined)).toBe(true);
+      expect(synergies.some((it) => it.kinds === undefined)).toBe(true);
+      expect(synergies.some((it) => it.kinds !== undefined)).toBe(true);
     });
   });
 

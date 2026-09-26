@@ -4,7 +4,16 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand, RegardBand } from './config.js';
-import type { ClassKey, ImprovementKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
+import type {
+  ClassKey,
+  ImprovementKey,
+  InjuryTypeKey,
+  QuestTemplateKey,
+  SphereKey,
+  StatKey,
+  SynergyKey,
+  TraitKey,
+} from './content-types.js';
 import type {
   EndingReason,
   EntityId,
@@ -142,7 +151,12 @@ export type QuestEncounter = Entry<
  */
 export type QuestResolved = Entry<
   'quest.resolved',
-  QuestOutcome & {
+  Omit<QuestOutcome, 'synergyKeys'> & {
+    /**
+     * The Synergies that added to any of the Quest's Checks, in key order (M4-S3, DL-45): none is
+     * `[]`. Absent from an entry written before M4-S3, which reads as none.
+     */
+    synergyKeys?: SynergyKey[];
     questId: QuestId;
     partyId: PartyId;
     guildId: GuildId;

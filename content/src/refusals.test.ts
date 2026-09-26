@@ -11,6 +11,7 @@ import type {
   Skill,
   Sphere,
   Stat,
+  Synergy,
   Trait,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -35,6 +36,7 @@ interface Files {
   'injuries.json': Rows<InjuryType>;
   'dispositions.json': Rows<Disposition>;
   'encounters.json': Rows<Encounter>;
+  'synergies.json': Rows<Synergy>;
 }
 
 function realFiles(): Record<string, string> {
@@ -396,6 +398,80 @@ describe('an Encounter (M4-S1)', () => {
   });
 });
 
+// M4-S3: a Synergy naming an unknown Class, Skill or Encounter kind is refused, as is a count below
+// 1, a bonus that is not one, and a requirement of nothing (DL-45).
+describe('a Synergy (M4-S3)', () => {
+  type Row = Omit<Synergy, 'key'>;
+  const salve = (json: Files['synergies.json']) => json['sword-and-salve'] as Row;
+  const classes = (it: Row): Record<string, number> => (it.requires.classes ??= {});
+
+  test.each<[string, (it: Row) => void, RegExp]>([
+    ['a Class that does not exist', (it) => (classes(it)['paladin'] = 1), /synergies\.sword-and-salve\.requires\.classes: "paladin" is not a Class/],
+    ['a Skill that does not exist', (it) => (it.requires.skills = ['axemanship']), /synergies\.sword-and-salve\.requires\.skills: "axemanship" is not a Skill/],
+    ['a Skill listed twice', (it) => (it.requires.skills = ['tactics', 'tactics']), /sword-and-salve\.requires\.skills: "tactics" is listed twice/],
+    ['a count of 0', (it) => (classes(it)['warrior'] = 0), /sword-and-salve\.requires\.classes\.warrior is 0; a count is a whole number from 1/],
+    ['a negative count', (it) => (classes(it)['healer'] = -1), /sword-and-salve\.requires\.classes\.healer is -1; a count is a whole number from 1/],
+    ['a count that is not whole', (it) => (classes(it)['warrior'] = 1.5), /sword-and-salve\.requires\.classes\.warrior is 1\.5; a count is a whole number from 1/],
+    ['a requirement of nothing', (it) => (it.requires = {}), /sword-and-salve\.requires names no Class and no Skill/],
+    ['a requirement listed empty', (it) => (it.requires = { classes: {}, skills: [] }), /sword-and-salve\.requires names no Class and no Skill/],
+    ['no bonus', (it) => (it.bonus = {}), /sword-and-salve\.bonus is empty/],
+    ['a flat of 0', (it) => (it.bonus = { flat: 0 }), /sword-and-salve\.bonus\.flat is 0; it is a number above 0/],
+    ['a factor of 1', (it) => (it.bonus = { factor: 1 }), /sword-and-salve\.bonus\.factor is 1; it multiplies, so it is a number above 1/],
+    ['a factor written as a share', (it) => (it.bonus = { flat: 2, factor: 0.1 }), /sword-and-salve\.bonus\.factor is 0\.1/],
+    ['no kinds, listed empty', (it) => (it.kinds = []), /sword-and-salve\.kinds is empty/],
+    ['a kind listed twice', (it) => (it.kinds = ['combat', 'combat']), /sword-and-salve\.kinds: "combat" is listed twice/],
+  ])('with %s is refused, naming the Synergy', (_, change, problem) => {
+    const files = withJson('synergies.json', (json) => change(salve(json)));
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
+  });
+
+  test('with a kind that is not one of the five is refused, naming the field and the choices', () => {
+    const files = withJson('synergies.json', (json) => {
+      Object.assign(salve(json), { kinds: ['combat', 'naval'] });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(
+      /synergies\.json: sword-and-salve\.kinds is \["combat","naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/,
+    );
+  });
+
+  test('with a field its row, requirement or bonus lacks, or a count that is not a number, is refused, naming it', () => {
+    const row = withJson('synergies.json', (json) => void Object.assign(salve(json), { chance: 0.5 }));
+    const requires = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { traits: ['scarred'] }));
+    const bonus = withJson('synergies.json', (json) => void Object.assign(salve(json).bonus, { delta: 2 }));
+    const count = withJson('synergies.json', (json) => void Object.assign(salve(json).requires, { classes: { warrior: 'two' } }));
+
+    expect(refusalOf(() => parseContent(row)).message).toMatch(/synergies\.json: sword-and-salve\.chance is not a field of a Synergy/);
+    expect(refusalOf(() => parseContent(requires)).message).toMatch(/sword-and-salve\.requires\.traits is not a field of what a Synergy requires/);
+    expect(refusalOf(() => parseContent(bonus)).message).toMatch(/sword-and-salve\.bonus\.delta is not a field of a Synergy's bonus/);
+    expect(refusalOf(() => parseContent(count)).message).toMatch(/sword-and-salve\.requires\.classes is \{"warrior":"two"\}; expected an object of numbers/);
+  });
+
+  test('with no requires or bonus is refused, and without kinds is accepted, for every kind', () => {
+    const missing = withJson('synergies.json', (json) => {
+      Reflect.deleteProperty(salve(json), 'requires');
+      Reflect.deleteProperty(salve(json), 'bonus');
+    });
+    const everyKind = withJson('synergies.json', (json) => {
+      Reflect.deleteProperty(salve(json), 'kinds');
+    });
+
+    const { message } = refusalOf(() => parseContent(missing));
+    expect(message).toMatch(/sword-and-salve\.requires is missing/);
+    expect(message).toMatch(/sword-and-salve\.bonus is missing/);
+    expect(parseContent(everyKind).synergies['sword-and-salve']).not.toHaveProperty('kinds');
+  });
+
+  test('the file is required, and may hold none', () => {
+    const files = realFiles();
+    delete files['synergies.json'];
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('synergies.json: missing');
+    expect(parseContent(withText('synergies.json', '{}')).synergies).toEqual({});
+  });
+});
+
 describe('an Injury type (M2-S5)', () => {
   const deepCut = (json: Files['injuries.json']) => json['deep-cut'] as Omit<InjuryType, 'key'>;
 
@@ -529,6 +605,14 @@ describe('validateContent on a set built in memory', () => {
     if (strength) strength.key = 'might';
 
     expect(refusalOf(() => validateContent(content)).message).toMatch(/stats\.strength.*"might"/);
+  });
+
+  test('refuses a Synergy on a kind of Encounter that is not one, which the parser cannot see in memory (M4-S3)', () => {
+    const content = loadContent();
+    const salve = content.synergies['sword-and-salve'];
+    if (salve) Object.assign(salve, { kinds: ['naval'] });
+
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/synergies\.sword-and-salve\.kinds: "naval" is not a kind of Encounter/);
   });
 
   test('reports every problem at once', () => {

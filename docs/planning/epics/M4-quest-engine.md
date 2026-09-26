@@ -79,9 +79,9 @@ nothing per encounter but `quest.resolved` payload lists the Synergy keys that a
 
 **Acceptance:**
 
-- [ ] A Party matching a Synergy's requirement scores the bonus; one member short scores none
-- [ ] A Synergy restricted to `kinds` applies only to those encounters
-- [ ] `show party` (new CLI subcommand, before dispatch: `preview --heroes`) lists the
+- [x] A Party matching a Synergy's requirement scores the bonus; one member short scores none
+- [x] A Synergy restricted to `kinds` applies only to those encounters
+- [x] `show party` (new CLI subcommand, before dispatch: `preview --heroes`) lists the
       Synergies a proposed Party would have
 
 ### M4-S4 · Regard between Heroes and Relationship · 1–2 sessions
