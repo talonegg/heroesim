@@ -5,8 +5,10 @@ import {
   type EntityId,
   type GuildId,
   type HeroId,
+  type ItemId,
   type PartyId,
   type QuestId,
+  type StackId,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -23,6 +25,8 @@ const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
 const otherHeroId = 'hero-000009' as HeroId;
+const stackId = 'stack-000004' as StackId;
+const itemId = 'item-000002' as ItemId;
 
 const labels: Record<string, string> = {
   [guildId]: 'The Kestrel Guild',
@@ -151,6 +155,31 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'warm',
     bandAfter: 'close',
   }),
+  'item.equipped': event('item.equipped', [heroId, guildId, stackId], {
+    heroId,
+    guildId,
+    slot: 'weapon',
+    definitionKey: 'arming-sword',
+    itemId: null,
+    stackId,
+  }),
+  'item.unequipped': event('item.unequipped', [heroId, guildId, itemId], {
+    heroId,
+    guildId,
+    slot: 'trinket',
+    definitionKey: 'lantern-of-stannary',
+    itemId,
+    stackId: null,
+  }),
+  'item.returned': event('item.returned', [heroId, guildId, stackId], {
+    heroId,
+    guildId,
+    slot: 'armour',
+    definitionKey: 'mail-shirt',
+    itemId: null,
+    stackId,
+    cause: 'died',
+  }),
 };
 
 describe('narrate', () => {
@@ -223,6 +252,20 @@ describe('narrate', () => {
     );
     // The ids are the commands'; no Regard value is printed.
     for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
+  });
+
+  test('names gear by content and by the id equip and unequip take, and says why it went back (M5-S2)', () => {
+    expect(narrate(samples['item.equipped'], content)).toBe(
+      "The Kestrel Guild put Arming sword (stack-000004) in Brenna Ashcombe (hero-000007)'s weapon slot.",
+    );
+    expect(narrate(samples['item.unequipped'], content)).toBe(
+      `The Kestrel Guild took ${content.items['lantern-of-stannary']?.name} (item-000002) from Brenna Ashcombe (hero-000007)'s trinket slot.`,
+    );
+    expect(narrate(samples['item.returned'], content)).toBe(
+      'Mail shirt (stack-000004) went back to The Kestrel Guild from Brenna Ashcombe (hero-000007), who died.',
+    );
+    const folded = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'guild-folded' as const } };
+    expect(narrate(folded, content)).toMatch(/from Brenna Ashcombe \(hero-000007\) as the Guild folded\.$/);
   });
 
   test('says a Level gained without naming the points Potential took', () => {

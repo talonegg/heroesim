@@ -4,11 +4,14 @@
 // of an id is checked here, by the engine's `isId`.
 
 import {
+  gearSlotKeys,
   isId,
   type FacilityKey,
+  type GearRef,
   type HeroId,
   type QuestId,
   type RankingMeasure,
+  type SlotKey,
   type StopCondition,
 } from '@heroesim/engine';
 import { currentSave } from './saves.js';
@@ -54,6 +57,12 @@ Commands:
   build --facility <infirmary | training-yard | quarters>
       Raise a facility of the player's Guild's Hall by one grade, for the next grade's
       cost, and print what was built, the Wealth left and what the next grade costs.
+  equip --hero <heroId> (--item <itemId> | --stack <stackId>)
+      Put gear the player's Guild holds, listed with its ids by show roster, into its slot
+      on one of the Guild's Heroes: a unique Item by --item, or one from a stack by --stack.
+      The slot must be empty. Prints the Hero's effective Stats the gear changed.
+  unequip --hero <heroId> --slot <weapon | armour | trinket>
+      Take the gear in a slot of one of the player's Heroes back into the Guild's holding.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -99,6 +108,8 @@ export type Command =
   | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
   | { name: 'build'; save: string; facility: FacilityKey }
+  | { name: 'equip'; save: string; hero: HeroId; gear: GearRef }
+  | { name: 'unequip'; save: string; hero: HeroId; slot: SlotKey }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -115,6 +126,8 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   preview: { save: 'value', quest: 'value', heroes: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
   build: { save: 'value', facility: 'value' },
+  equip: { save: 'value', hero: 'value', item: 'value', stack: 'value' },
+  unequip: { save: 'value', hero: 'value', slot: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -206,6 +219,29 @@ function facility(value: string): FacilityKey {
     refuse(`--facility takes ${Object.keys(facilityWords).join(', ')}; got "${value}"`);
   }
   return facilityWords[value] as FacilityKey;
+}
+
+/** `--hero` for `equip` and `unequip`: one Hero id (M5-S2). */
+function heroId(value: string): HeroId {
+  return isId('heroes', value) ? value : refuse(`--hero needs a Hero id such as hero-000001; got "${value}"`);
+}
+
+/** `--slot`: one of the gear slots (M5-S2). */
+function slotKey(value: string): SlotKey {
+  const slots: readonly string[] = gearSlotKeys;
+  return slots.includes(value) ? (value as SlotKey) : refuse(`--slot takes ${gearSlotKeys.join(', ')}; got "${value}"`);
+}
+
+/** `equip`'s gear: a unique Item by `--item`, or a stack by `--stack`, and one of them only (M5-S2). */
+function gearRef(flags: Map<string, string>): GearRef {
+  const item = flags.get('item');
+  const stack = flags.get('stack');
+  if ((item === undefined) === (stack === undefined)) refuse('equip needs --item or --stack, and one of them only');
+  if (item !== undefined) {
+    return isId('items', item) ? { itemId: item } : refuse(`--item needs an Item id such as item-000001; got "${item}"`);
+  }
+  const id = stack ?? '';
+  return isId('stacks', id) ? { stackId: id } : refuse(`--stack needs a stack id such as stack-000001; got "${id}"`);
 }
 
 /** `--heroes`: Hero ids joined by commas, each once. */
@@ -334,6 +370,12 @@ function parse(argv: readonly string[]): Command {
     case 'build':
       atMost(positional, 0, 'build');
       return { name, save, facility: facility(required(flags, name, 'facility')) };
+    case 'equip':
+      atMost(positional, 0, 'equip');
+      return { name, save, hero: heroId(required(flags, name, 'hero')), gear: gearRef(flags) };
+    case 'unequip':
+      atMost(positional, 0, 'unequip');
+      return { name, save, hero: heroId(required(flags, name, 'hero')), slot: slotKey(required(flags, name, 'slot')) };
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };
