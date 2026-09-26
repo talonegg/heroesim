@@ -503,10 +503,18 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([
         { kind: 'buy', guildId: guild.id, definitionKey: 'whetstone', quantity: 2 },
       ]);
-      // Two whetstones cost 50: Wealth must be above three times that.
+      // Two whetstones cost 50: Wealth must be above three times that, with no reserve asked for.
+      const unreserved = { ...policy, consumableStock: 4, recruitWealthMultiple: 0 };
       guild.wealth = 150;
-      expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([]);
+      expect(automaticPolicy(document, deps, unreserved)).toEqual([]);
       guild.wealth = 151;
+      expect(automaticPolicy(document, deps, unreserved)).toHaveLength(1);
+      // And, once paid, leave more than three Upkeeps, the reserve recruiting keeps.
+      const reserve = 3 * upkeep(guild, document.world, deps.config, deps.content);
+      expect(reserve + 50).toBeGreaterThan(3 * 50); // so the reserve, not the multiple, is the bar
+      guild.wealth = reserve + 50;
+      expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toEqual([]);
+      guild.wealth = reserve + 51;
       expect(automaticPolicy(document, deps, { ...policy, consumableStock: 4 })).toHaveLength(1);
     });
 

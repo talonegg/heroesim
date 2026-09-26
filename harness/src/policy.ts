@@ -50,7 +50,8 @@ export interface PolicyConfig {
   /**
    * Keep this many of each consumable, at home and carried by the Guild's Parties together, buying
    * toward it when nothing else is bought (the M5 close, DL-62). Its price is read with
-   * `buyWealthMultiple`, as armour's is.
+   * `buyWealthMultiple`, as armour's is, and the purchase leaves more than `recruitWealthMultiple`
+   * Upkeeps, the reserve recruiting keeps.
    */
   consumableStock: number;
 }
@@ -90,7 +91,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
  *   - **Buy consumables** toward `consumableStock` of each (DL-62): of the consumables the Market
  *     has for sale, the one the Guild has fewest of, lowest key among equals, as many as it lacks
- *     and the Market has, when Wealth is above `buyWealthMultiple` times their cost.
+ *     and the Market has, when Wealth is above `buyWealthMultiple` times their cost and would stay
+ *     above `recruitWealthMultiple` Upkeeps after paying it.
  * - **Never transfer** (until M6).
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
@@ -183,8 +185,10 @@ function consumablesFor(quest: Quest, heroIds: readonly HeroId[], left: Map<Item
  * Consumables to buy toward `consumableStock` of each (DL-62): the Guild's count of a definition is
  * its own holding's and its Parties' together, since what a Party carries comes home unless used. Of
  * the consumables on the Market it has fewer of, the one it has fewest of, lowest key among equals,
- * as many as it lacks and the Market has, when Wealth is above `buyWealthMultiple` times their cost;
- * `null` when none is lacking, for sale or affordable.
+ * as many as it lacks and the Market has, when Wealth is above `buyWealthMultiple` times their cost
+ * and, once it is paid, above `recruitWealthMultiple` Upkeeps, the reserve recruiting keeps, so that
+ * consumables are bought from what the Guild can spare; `null` when none is lacking, for sale or
+ * affordable.
  */
 function consumablePurchase(world: World, guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
   const owned = heldConsumables(world, guild, deps);
@@ -194,13 +198,17 @@ function consumablePurchase(world: World, guild: Guild, deps: EngineDeps, policy
       if (isConsumable(stack.definitionKey, deps)) owned.set(stack.definitionKey, (owned.get(stack.definitionKey) ?? 0) + stack.quantity);
     }
   }
+  const reserve = policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content);
   const [best] = marketStock(world, deps)
     .filter(({ definition }) => definition.kind === 'consumable')
     .map(({ definition, quantity, price }) => {
       const have = owned.get(definition.key) ?? 0;
       return { key: definition.key, have, quantity: Math.min(quantity, policy.consumableStock - have), price };
     })
-    .filter(({ quantity, price }) => quantity > 0 && guild.wealth > policy.buyWealthMultiple * price * quantity)
+    .filter(
+      ({ quantity, price }) =>
+        quantity > 0 && guild.wealth > policy.buyWealthMultiple * price * quantity && guild.wealth - price * quantity > reserve,
+    )
     .sort((a, b) => a.have - b.have || compareByCodeUnit(a.key, b.key));
   return best === undefined ? null : { kind: 'buy', guildId: guild.id, definitionKey: best.key, quantity: best.quantity };
 }
