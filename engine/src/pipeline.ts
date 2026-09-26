@@ -6,16 +6,19 @@
 
 import type { World } from './document.js';
 import type { EngineEvent } from './events.js';
+import { ageing } from './phases/ageing.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { endings } from './phases/endings.js';
 import { guildState } from './phases/guild-state.js';
 import { heroState } from './phases/hero-state.js';
+import { levelUps } from './phases/level-ups.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import type { Phase, PhaseContext } from './phases/phase.js';
 import { poolRefresh } from './phases/pool-refresh.js';
 import { questsAdvance } from './phases/quests-advance.js';
 import { questsConclude } from './phases/quests-conclude.js';
 import { rivalControllers } from './phases/rival-controllers.js';
+import { training } from './phases/training.js';
 import { timeOfDay } from './time.js';
 
 /**
@@ -29,10 +32,15 @@ export const phases: readonly Phase[] = [
   // Afternoon: the Rivals act on what the player left, then Quests in flight advance.
   { name: 'rivalControllers', timeOfDay: 'afternoon', run: rivalControllers },
   { name: 'questsAdvance', timeOfDay: 'afternoon', run: questsAdvance },
-  // Night: Quests conclude, the Hero and Guild State Engines run, the pool refreshes, and the
-  // ending checks come last.
+  // Night: the training yard's XP for the Day just spent at the Hall, Quests conclude, Heroes gain
+  // the Levels their XP has reached (DL-36), the Hero State Engine runs with ageing after its
+  // Retirement checks (DL-37), the Guild State Engine runs, the pool refreshes, and the ending
+  // checks come last.
+  { name: 'training', timeOfDay: 'night', run: training },
   { name: 'questsConclude', timeOfDay: 'night', run: questsConclude },
+  { name: 'levelUps', timeOfDay: 'night', run: levelUps },
   { name: 'heroState', timeOfDay: 'night', run: heroState },
+  { name: 'ageing', timeOfDay: 'night', run: ageing },
   { name: 'guildState', timeOfDay: 'night', run: guildState },
   { name: 'poolRefresh', timeOfDay: 'night', run: poolRefresh },
   { name: 'endings', timeOfDay: 'night', run: endings },

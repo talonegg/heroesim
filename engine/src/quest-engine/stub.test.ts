@@ -55,8 +55,11 @@ function party(guild: Guild, heroIds: HeroId[]): Party {
  */
 const inputsBands = { successAtLeast: 0.8, strongAbove: 1.2 };
 
+/** INPUTS 5.1's Quest XP, pinned: 1 a difficulty point on a success, half on a failure (DL-36). */
+const inputsXp = { xpPerDifficultyPoint: 1, xpBandFactor: { fail: 0.5, success: 1, strong: 1 } };
+
 function deps(overrides: Partial<GameConfig> = {}) {
-  return testDeps({ stubVariance: 0, stubBands: inputsBands, ...overrides });
+  return testDeps({ stubVariance: 0, stubBands: inputsBands, ...inputsXp, ...overrides });
 }
 
 describe('stubScore', () => {
@@ -167,6 +170,32 @@ describe('resolveQuest', () => {
     expect(outcome).toMatchObject({ band, ...moves });
   });
 
+  test.each([
+    ['fail', 1000, 750],
+    ['success', 20, 30],
+    ['strong', 10, 20],
+  ] as const)(
+    'on a %s at difficulty %i, gives difficulty × xpPerDifficultyPoint × xpBandFactor, rounded down (M3-S2): %i',
+    (band, difficulty, xp) => {
+      const { world: w, heroIds, guild } = world(10);
+      const tuned = deps({ xpPerDifficultyPoint: 1.5, xpBandFactor: { fail: 0.5, success: 1, strong: 4 / 3 } });
+
+      const outcome = resolveQuest(w, quest({ difficulty, skillKeys: [] }), party(guild, heroIds.slice(0, 2)), tuned);
+
+      expect(outcome).toMatchObject({ band, xpPerHero: xp });
+    },
+  );
+
+  test("gives by default the XP the stub gave before M3-S2 replaced stubXpPerDifficulty: INPUTS 5.1's values", () => {
+    expect(defaultConfig).toMatchObject(inputsXp);
+    expect(defaultConfig).not.toHaveProperty('stubXpPerDifficulty');
+    const { world: w, heroIds, guild } = world(10);
+
+    const outcome = resolveQuest(w, quest({ difficulty: 45, skillKeys: [] }), party(guild, heroIds.slice(0, 1)), testDeps({ stubVariance: 0 }));
+
+    expect(outcome).toMatchObject({ band: 'fail', xpPerHero: 22 });
+  });
+
   test('loses no Fame as −0 when the Fame effect is 0, since −0 is not JSON-safe', () => {
     const { world: w, heroIds, guild } = world(1);
     const outcome = resolveQuest(w, quest({ fameEffect: 0 }), party(guild, heroIds.slice(0, 1)), deps());
@@ -231,7 +260,8 @@ describe('resolveQuest', () => {
   });
 
   test("shortens an Injury by the Guild's infirmary grade: halved at 1, a third at 2, the last factor beyond", () => {
-    const certain = { stubInjuryChance: { ...noHarm, fail: 1 } };
+    // The factors pinned to INPUTS 4.5's two grades, so that grade 7 is past the list.
+    const certain = { stubInjuryChance: { ...noHarm, fail: 1 }, infirmaryHealFactor: [1, 1 / 2, 1 / 3] };
     const healDays = (grade: number): number => {
       const { world: w, heroIds, guild } = world(1);
       guild.hall.infirmary = grade;

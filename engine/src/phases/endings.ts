@@ -3,7 +3,8 @@
 // Every Guild in play is checked alike, the player's and each Rival's, in Guild id order
 // (ADR-0002): its Guildmaster's Retirement at `guildmasterRetirementAge`; Bankruptcy, once Wealth
 // has stayed below the floor for `bankruptcyGraceDays`; and a wiped Roster, no Hero on it and too
-// little Wealth to sign the cheapest Hero in the pool. A folded Guild is out of play and skipped.
+// little Wealth to sign the cheapest Hero in the pool, whoever they would sign for (DL-38: a
+// refusal for Fame lasts only until the pool turns over). A folded Guild is out of play and skipped.
 //
 // What an ending does is the one place this phase asks whose Guild it is, one of the three
 // exceptions to ADR-0002 the owner accepted (`plan.md` §1): the player's ending ends the game
@@ -22,7 +23,7 @@ import {
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { generateRival } from '../generators/guilds.js';
-import { signingFee, unattachedHeroes } from '../selectors.js';
+import { cheapestUnattached } from '../selectors.js';
 import { ageOf, dayOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
@@ -59,11 +60,17 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
 }
 
 /**
- * The lowest signing fee in the Unattached pool. With nobody in the pool no Hero can be signed at
- * any price, so it is infinite, and a Guild with an empty Roster is wiped whatever its Wealth.
+ * The lowest signing fee in the Unattached pool (`cheapestUnattached`), whoever the Hero would sign
+ * for. With nobody in the pool no Hero can be signed at any price, so it is infinite, and a Guild
+ * with an empty Roster is wiped whatever its Wealth.
+ *
+ * Fame is not asked (DL-38). An ending is for good, and a Hero's refusal for Fame is not: every
+ * Hero the pool's refill brings is Level 1 and signs for any Guild, and the pool turns over within
+ * `unattachedStayDays`. A Guild whose Wealth reaches a Hero who refuses it is waiting, not wiped;
+ * it is wiped once its Wealth is short of every fee in the pool.
  */
 function cheapestSigningFee(world: World, deps: Pick<EngineDeps, 'config' | 'content'>): number {
-  return Math.min(Number.POSITIVE_INFINITY, ...unattachedHeroes(world).map((hero) => signingFee(hero, deps)));
+  return cheapestUnattached(world, deps)?.fee ?? Number.POSITIVE_INFINITY;
 }
 
 /**

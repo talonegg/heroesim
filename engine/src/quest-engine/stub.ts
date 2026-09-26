@@ -18,7 +18,7 @@ import type { InjuryTypeKey } from '../content-types.js';
 import type { Guild, Hero, HeroId, Party, Quest, World } from '../document.js';
 import { sortedRows, streamOf } from '../generators/draw.js';
 import { chance, int, next, pick } from '../rng.js';
-import { baseStat } from '../selectors.js';
+import { baseStat, healFactor } from '../selectors.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
 export interface QuestInjury {
@@ -92,11 +92,11 @@ export function questBand(ratio: number, config: Pick<EngineDeps['config'], 'stu
  * Resolves `party`'s attempt at `quest` (M2-S5): the score (`stubScore`), scaled by `1 + roll` where
  * the roll is drawn from −`stubVariance` up to +`stubVariance`, over the difficulty gives the ratio
  * and the band. The band gives the Wealth (the reward, or nothing on a failure), the Fame (the
- * Fame effect, lost on a failure), the XP (`stubXpPerDifficulty` of the difficulty, rounded down),
- * and the chances that one Hero dies (`stubDeathChance`) and one survivor is injured
- * (`stubInjuryChance`), each Hero equally likely. An Injury's type is drawn uniformly from content,
+ * Fame effect, lost on a failure), the XP (the difficulty × `xpPerDifficultyPoint` × the band's
+ * `xpBandFactor`, rounded down: M3-S2, INPUTS 5.1, DL-36), and the chances that one Hero dies
+ * (`stubDeathChance`) and one survivor is injured (`stubInjuryChance`), each Hero equally likely. An Injury's type is drawn uniformly from content,
  * in key order, and its Days from the type's range, multiplied by `infirmaryHealFactor` at the
- * Guild's infirmary grade now, rounded to the nearest Day and at least 1 (INPUTS 4.5).
+ * Guild's infirmary grade now (`healFactor`), rounded to the nearest Day and at least 1 (INPUTS 4.5).
  *
  * Draws seven times from `world.rng.quests` and changes nothing else. Throws on a programming
  * error: a Hero or Guild not in the world, a difficulty that is not above 0, no Injury types, or a
@@ -125,8 +125,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Stu
   const hurt = survivors[int(state, 0, Math.max(0, survivors.length - 1))];
   const type = pick(state, types);
   const days = int(state, type.healDaysMin, type.healDaysMax);
-  const factors = config.infirmaryHealFactor;
-  const factor = factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
+  const factor = healFactor(guild, config);
   const injuries =
     injured && hurt !== undefined
       ? [{ heroId: hurt.id, typeKey: type.key, healDays: Math.max(1, Math.round(days * factor)) }]
@@ -140,7 +139,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Stu
     wealthDelta: succeeded ? quest.reward : 0,
     // `0 -` rather than unary minus: a Fame effect of 0 then loses 0, not −0, which is not JSON-safe.
     fameDelta: succeeded ? quest.fameEffect : 0 - quest.fameEffect,
-    xpPerHero: Math.floor(quest.difficulty * config.stubXpPerDifficulty[band]),
+    xpPerHero: Math.floor(quest.difficulty * config.xpPerDifficultyPoint * config.xpBandFactor[band]),
     injuries,
     deaths,
   };

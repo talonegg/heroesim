@@ -2,20 +2,28 @@
 // cursor control, nothing that waits for a key.
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
-// Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `signingFee`, `unattachedHeroes`); every name is a document field or a
-// content row's display name. Where the engine has no selector for something a view needs, the
-// selector goes into the engine, not here.
+// Morale, a Turn, a Hall grade), a content row's field (an Improvement's cost), the size of a
+// document table or list, or the result of an engine selector (`ageOf`, `baseStat`, `signingFee`,
+// `signingRefusal`, `rankings`, `unattachedHeroes`, `nextImprovement`); every name is a document
+// field or a content row's display name. Where the engine has no selector for something a view
+// needs, the selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
-// `hero.potential`, and main.test.ts checks the printed Hero for it.
+// `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
+// printed Hero for it.
 
 import {
   ageOf,
   baseStat,
   dayOf,
+  facilityKeys,
+  nextImprovement,
+  playerGuild,
+  rankings,
   signingFee,
+  signingRefusal,
   durationDaysOf,
+  potentialHint,
   timeOfDay,
   unattachedHeroes,
   upkeep,
@@ -23,10 +31,12 @@ import {
   type ContentSet,
   type EngineDeps,
   type Entry,
+  type FacilityKey,
   type Guild,
   type Hero,
   type Patron,
   type Quest,
+  type RankingMeasure,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -81,6 +91,20 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
 export function rowIn<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
   return Object.hasOwn(rows, id) ? rows[id] : undefined;
 }
+
+/** A Hall facility as the CLI names one in a sentence (`CONTEXT.md`, Hall). */
+export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freeze({
+  infirmary: 'infirmary',
+  trainingYard: 'training yard',
+  quarters: 'quarters',
+});
+
+/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
+export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
+  infirmary: 'is',
+  trainingYard: 'is',
+  quarters: 'are',
+});
 
 function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
@@ -162,18 +186,70 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     `${Object.keys(world.patrons).length} Patrons`,
     `${history.entries.length} History entries`,
   ];
+  const player = playerGuild(world);
+  const hall =
+    player === undefined
+      ? []
+      : [
+          `${player.name}'s Hall: ` +
+            facilityKeys.map((facility) => `${facilityNames[facility]} grade ${player.hall[facility]}`).join(', ') +
+            ' (show hall gives each grade and what the next costs).',
+        ];
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
     ...guildTable(playing, document, deps),
     '',
     counts.join(', '),
+    ...hall,
   ];
 }
 
 /** `show guilds`: every Guild, a folded one marked with the Day it folded. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
   return ['Guilds', '', ...guildTable(Object.values(document.world.guilds), document, deps)];
+}
+
+// ── The Hall ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `show hall [guildId]`: each facility of the Guild's Hall, its grade and the Improvement built at
+ * it, and the next grade's Improvement and cost (`nextImprovement`), or that it is at the top; then
+ * what the facilities do, in words. The player's Guild unless given another.
+ */
+export function renderHall(guild: Guild, deps: EngineDeps): string[] {
+  const { content } = deps;
+  const builtAt = (facility: FacilityKey, grade: number): string =>
+    Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? '';
+  const rows = facilityKeys.map((facility) => {
+    const grade = guild.hall[facility];
+    const next = nextImprovement(guild, facility, content);
+    return [
+      capitalised(facilityNames[facility]),
+      String(grade),
+      grade === 0 ? 'none' : builtAt(facility, grade),
+      next === null ? 'none: the top grade' : next.name,
+      next === null ? '' : String(next.cost),
+    ];
+  });
+  return [
+    `Hall of ${guild.name} (${guild.id})`,
+    '',
+    ...table(
+      [
+        { heading: 'Facility' },
+        { heading: 'Grade', align: 'right' },
+        { heading: 'Built' },
+        { heading: 'Next grade' },
+        { heading: 'Cost', align: 'right' },
+      ],
+      rows,
+    ),
+    '',
+    'The infirmary shortens the Days an Injury takes to heal; the training yard gives every Hero on',
+    'the Roster who is home and unhurt XP each night; the quarters raise the Morale the Roster settles',
+    'toward. Each grade does more than the one below it, and each adds to the Upkeep.',
+  ];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
@@ -221,15 +297,35 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
 }
 
-/** `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives. */
+/**
+ * `show pool`: the Unattached Heroes, each with the signing fee the engine's selector gives and,
+ * when there is a player's Guild, whether they would sign for it: `yes`, or the Fame they ask of
+ * it (M3-S5, `signingRefusal`), since a Hero of a higher Level will not sign for a Guild whose Fame
+ * is below what their Level asks.
+ */
 export function renderPool(document: WorldDocument, deps: EngineDeps): string[] {
-  const fee: HeroColumn = { heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) };
-  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, [fee])];
+  const guild = playerGuild(document.world);
+  const columns: HeroColumn[] = [{ heading: 'Fee', align: 'right', cell: (hero) => String(signingFee(hero, deps)) }];
+  if (guild !== undefined) {
+    columns.push({
+      heading: 'Signs',
+      cell: (hero) => {
+        const refusal = signingRefusal(guild, hero, deps.config);
+        return refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`;
+      },
+    });
+  }
+  const note =
+    guild === undefined
+      ? []
+      : ['', `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`];
+  return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, columns), ...note];
 }
 
 /**
  * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
- * Stats shown are base values, read through `baseStat`.
+ * Stats shown are base values, read through `baseStat`, each with its Potential hint beside it
+ * under "Outlook", the word `potentialHint` gives (M3-S3).
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
@@ -245,7 +341,13 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
-    ['Injury', hero.injury === null ? 'none' : `${hero.injury.typeKey}, heals on Turn ${hero.injury.healsOnTurn}`],
+    [
+      'Injury',
+      hero.injury === null
+        ? 'none'
+        : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on the night of Day ${dayOf(hero.injury.healsOnTurn)} ` +
+          `(Turn ${hero.injury.healsOnTurn})`,
+    ],
     ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
   ];
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
@@ -259,7 +361,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     .map((stat) => {
       const area = stat.area === lastArea ? '' : capitalised(stat.area);
       lastArea = stat.area;
-      return [area, stat.name, String(baseStat(hero.stats, stat))];
+      return [area, stat.name, String(baseStat(hero.stats, stat)), potentialHint(hero, stat.key, config)];
     });
 
   const skillKeys = Object.keys(hero.skills);
@@ -275,12 +377,47 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...fields(attributes),
     '',
     'Stats',
-    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }], stats),
+    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }, { heading: 'Outlook' }], stats),
     '',
     'Skills',
     ...(skills.length === 0
       ? ['none']
       : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
+  ];
+}
+
+// ── Rankings ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `show rankings [--by wealth]` (M3-S5, R10): every Guild in play, the player's among them, in the
+ * order the engine's `rankings` gives, by Fame unless by Wealth. A folded Guild is not ranked.
+ */
+export function renderRankings(document: WorldDocument, deps: EngineDeps, by: RankingMeasure): string[] {
+  const { world } = document;
+  const measure = by === 'fame' ? 'Fame' : 'Wealth';
+  const rows = rankings(world, by).map((ranking) => {
+    const guild = rowIn(world.guilds, ranking.guildId);
+    return [
+      String(ranking.rank),
+      ranking.guildId,
+      guild?.name ?? ranking.guildId,
+      guild === undefined ? '' : controllerOf(guild),
+      String(ranking.value),
+    ];
+  });
+  return [
+    `Rankings by ${measure}, ${renderTime(world.turn, deps.config)}`,
+    '',
+    ...table(
+      [
+        { heading: 'Rank', align: 'right' },
+        { heading: 'Id' },
+        { heading: 'Guild' },
+        { heading: 'Controller' },
+        { heading: measure, align: 'right' },
+      ],
+      rows,
+    ),
   ];
 }
 

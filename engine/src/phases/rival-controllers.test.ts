@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { applyBuild } from '../actions/build.js';
 import { applyDispatch, dispatch, type DispatchAction } from '../actions/dispatch.js';
 import { applyRecruit } from '../actions/recruit.js';
 import { advance } from '../advance.js';
@@ -24,8 +25,9 @@ import { rivalControllers } from './rival-controllers.js';
 // M2-S9: the afternoon's Rival controllers (DL-30). Every document a test inspects is held to the
 // validator.
 
-// The rules the player's `dispatch` and `recruit` run, watched: a Rival's choices must reach them
-// and nothing else (the story's second acceptance box). Each spy calls the real rule.
+// The rules the player's `dispatch`, `recruit` and (from M3-S6) `build` run, watched: a Rival's
+// choices must reach them and nothing else (the story's second acceptance box). Each spy calls the
+// real rule.
 vi.mock('../actions/dispatch.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../actions/dispatch.js')>();
   return { ...actual, applyDispatch: vi.fn(actual.applyDispatch) };
@@ -34,19 +36,27 @@ vi.mock('../actions/recruit.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../actions/recruit.js')>();
   return { ...actual, applyRecruit: vi.fn(actual.applyRecruit) };
 });
+vi.mock('../actions/build.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../actions/build.js')>();
+  return { ...actual, applyBuild: vi.fn(actual.applyBuild) };
+});
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
  * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
  * recruit on its first afternoon: the tests that watch a recruit pin them, since the first balance
- * pass raised both defaults (DL-35).
+ * pass raised both defaults (DL-35). Building is put out of reach unless a test asks for it, since
+ * `steady` builds its infirmary in place of a recruit once its Wealth is three times the cost
+ * (M3-S6, DL-38), which a starting Rival's may be.
  */
-const recruitingDeps = (): EngineDeps => testDeps({ wagePerLevel: 5, recruitWealthMultiple: 3 });
+const recruitingDeps = (building = false): EngineDeps =>
+  testDeps({ wagePerLevel: 5, recruitWealthMultiple: 3, ...(building ? {} : { buildWealthMultiple: 1_000_000 }) });
 
 afterEach(() => {
   vi.mocked(applyDispatch).mockClear();
   vi.mocked(applyRecruit).mockClear();
+  vi.mocked(applyBuild).mockClear();
 });
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
@@ -131,9 +141,11 @@ describe('rivalControllers', () => {
     expect(partyIds.map((partyId) => document.world.parties[partyId]?.guildId)).toEqual([player.id]);
   });
 
-  test("apply each choice through the player's dispatch and recruit rules, and emit only what those return", () => {
-    const deps = recruitingDeps();
+  test("apply each choice through the player's dispatch, recruit and build rules, and emit only what those return", () => {
+    const deps = recruitingDeps(true);
     const document = created('through-the-actions', deps);
+    // The first Rival rich enough to build its infirmary (M3-S6), the others to recruit and no more.
+    rivals(document.world).forEach((rival, index) => (rival.wealth = index === 0 ? 10_000 : 500));
     // Each Rival's choices as it will make them, in Guild id order, on the world each leaves the next.
     const world = structuredClone(document.world);
     world.turn += 1;
@@ -142,18 +154,23 @@ describe('rivalControllers', () => {
       for (const action of rivalChoices(world, rival, deps)) {
         expected.push({ guildId: action.guildId, kind: action.kind });
         if (action.kind === 'dispatch') applyDispatch(world, action, deps);
-        else applyRecruit(world, action, deps);
+        else if (action.kind === 'recruit') applyRecruit(world, action, deps);
+        else applyBuild(world, action, deps);
       }
     }
     vi.mocked(applyDispatch).mockClear();
     vi.mocked(applyRecruit).mockClear();
+    vi.mocked(applyBuild).mockClear();
     expect(expected.map((each) => each.kind)).toContain('dispatch');
     expect(expected.map((each) => each.kind)).toContain('recruit');
+    expect(expected.map((each) => each.kind)).toContain('build');
 
     const { document: afternoon, events } = advance(document, deps);
 
     withValid(afternoon, deps);
-    const seen = [...calls(applyDispatch, 'dispatch'), ...calls(applyRecruit, 'recruit')].sort((a, b) => a.order - b.order);
+    const seen = [...calls(applyDispatch, 'dispatch'), ...calls(applyRecruit, 'recruit'), ...calls(applyBuild, 'build')].sort(
+      (a, b) => a.order - b.order,
+    );
     // Every choice, in order, went to the rule with the Turn's world and the deps' rules.
     expect(seen.map(({ guildId, kind }) => ({ guildId, kind }))).toEqual(expected);
     for (const call of seen) {
@@ -163,9 +180,8 @@ describe('rivalControllers', () => {
     }
     // Each was accepted, and the afternoon's events are theirs, in the same order: no side path.
     expect(events).toEqual(seen.flatMap((call) => call.events));
-    expect(events.map((event) => event.type)).toEqual(
-      expected.map(({ kind }) => (kind === 'dispatch' ? 'quest.taken' : 'hero.recruited')),
-    );
+    const eventOf = { dispatch: 'quest.taken', recruit: 'hero.recruited', build: 'guild.improved' } as const;
+    expect(events.map((event) => event.type)).toEqual(expected.map(({ kind }) => eventOf[kind as keyof typeof eventOf]));
     expect(afternoon.history.entries.slice(-events.length)).toEqual(events);
   });
 
@@ -180,11 +196,16 @@ describe('rivalControllers', () => {
       events = events.concat(result.events);
     }
 
-    const results = [...vi.mocked(applyDispatch).mock.results, ...vi.mocked(applyRecruit).mock.results];
+    const results = [
+      ...vi.mocked(applyDispatch).mock.results,
+      ...vi.mocked(applyRecruit).mock.results,
+      ...vi.mocked(applyBuild).mock.results,
+    ];
     expect(results.length).toBeGreaterThan(10);
     for (const result of results) expect(result).toMatchObject({ type: 'return', value: { ok: true } });
     expect(ofType(events, 'quest.taken').length).toBe(vi.mocked(applyDispatch).mock.calls.length);
     expect(ofType(events, 'hero.recruited').length).toBe(vi.mocked(applyRecruit).mock.calls.length);
+    expect(ofType(events, 'guild.improved').length).toBe(vi.mocked(applyBuild).mock.calls.length);
   });
 
   test("drops a refused choice, changing nothing, and applies the Guild's next", () => {
@@ -245,7 +266,7 @@ describe('rivalControllers', () => {
 interface SeenCall {
   /** When it was called, among every spy's calls. */
   order: number;
-  kind: 'dispatch' | 'recruit';
+  kind: 'dispatch' | 'recruit' | 'build';
   guildId: GuildId;
   world: World;
   deps: EngineDeps;
@@ -254,7 +275,7 @@ interface SeenCall {
 }
 
 /** Every call a spied rule saw since it was last cleared, each accepted, or the test fails. */
-function calls(rule: typeof applyDispatch | typeof applyRecruit, kind: SeenCall['kind']): SeenCall[] {
+function calls(rule: typeof applyDispatch | typeof applyRecruit | typeof applyBuild, kind: SeenCall['kind']): SeenCall[] {
   const { mock } = vi.mocked(rule);
   return mock.calls.map(([world, request, deps], index) => {
     const result = mock.results[index];

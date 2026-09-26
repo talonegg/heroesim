@@ -7,6 +7,7 @@
 // type, so the compiler refuses an event type or stop reason added without a line.
 
 import {
+  compareByCodeUnit,
   dayOf,
   type ContentSet,
   type EndingReason,
@@ -17,7 +18,7 @@ import {
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
-import { nameIn, renderTime, rowIn, table } from './render.js';
+import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
 
 /** A participant by the label the event carries, or its id when it has none. */
 function called(event: EngineEvent, id: EntityId): string {
@@ -110,12 +111,31 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
     }
     case 'hero.retired':
       return `${hero(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`;
+    case 'hero.declined': {
+      const { heroId, statKey, delta, age } = event.payload;
+      return `${hero(event, heroId)}, at ${age}, lost ${-delta} ${nameIn(content.stats, statKey)} to age.`;
+    }
     case 'game.ended':
       return `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`;
     case 'guild.folded':
       return `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`;
     case 'hero.left-guild':
       return `${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`;
+    case 'guild.improved': {
+      const { guildId, facility, grade, improvementKey, cost } = event.payload;
+      return (
+        `${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: ` +
+        `its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`
+      );
+    }
+    case 'hero.levelled': {
+      // The Stats that rose, never the points Potential took: Potential is shown only as a hint.
+      const { heroId, level, statDeltas } = event.payload;
+      const rose = Object.entries(statDeltas)
+        .sort(([a], [b]) => compareByCodeUnit(a, b))
+        .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${signed(delta)}`);
+      return `${hero(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
+    }
   }
 }
 

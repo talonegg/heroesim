@@ -8,14 +8,16 @@
 // `partyFor`, the one `steady` uses (DL-30), rather than keeping a copy of it.
 
 import {
+  affordableImprovement,
   availableHeroes,
+  cheapestUnattached,
   compareByCodeUnit,
+  offeredQuests,
   partyFor,
   playerGuild,
-  signingFee,
-  unattachedHeroes,
   upkeep,
   type EngineDeps,
+  type Guild,
   type GuildAction,
   type HeroId,
   type Quest,
@@ -28,11 +30,17 @@ export interface PolicyConfig {
   recruitWealthMultiple: number;
   /** Recruit only while the Roster holds fewer Heroes than this ("the Roster is below 8"). */
   rosterLimit: number;
+  /**
+   * Build the infirmary's next grade only while Wealth is above this many times its cost (M3-S6:
+   * "when Wealth exceeds three times its cost", DL-38).
+   */
+  buildWealthMultiple: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
   recruitWealthMultiple: 3,
   rosterLimit: 8,
+  buildWealthMultiple: 3,
 });
 
 /**
@@ -43,15 +51,19 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   make (`partyFor`: `partySizeMin`, or two when a Class and a Skill are required and no one
  *   Hero has both), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
  *   passed over for the next.
- * - **Recruit.** When the Roster is below `rosterLimit` and Wealth is above
- *   `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool, lowest id among
- *   equal fees, if Wealth covers the fee. One a Turn.
+ * - **One purchase a Turn**, the first of these that applies:
+ *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
+ *     (M3-S6, DL-38), until the infirmary is at its top grade.
+ *   - **Recruit** when the Roster is below `rosterLimit` and Wealth is above
+ *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
+ *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
+ *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
  * - **Never transfer** (until M6).
  *
- * Each choice is made on `document` as it stands: a dispatch moves no Wealth and a recruit sends
- * no one, so the choices do not depend on one another, and every one is an action the rules
- * accept on it when applied in order. None once the game has ended, and none for a world without
- * a player's Guild.
+ * Each choice is made on `document` as it stands: a dispatch moves no Wealth and a purchase sends
+ * no one, and there is one purchase, so the choices do not depend on one another, and every one
+ * is an action the rules accept on it when applied in order. None once the game has ended, and
+ * none for a world without a player's Guild.
  */
 export function automaticPolicy(
   document: WorldDocument,
@@ -73,28 +85,32 @@ export function automaticPolicy(
     available = available.filter((hero) => !sent.has(hero.id));
   }
 
-  if (
+  const build = infirmaryBuild(guild, deps, policy);
+  if (build !== null) {
+    actions.push(build);
+  } else if (
     guild.rosterIds.length < policy.rosterLimit &&
     guild.wealth > policy.recruitWealthMultiple * upkeep(guild, world, deps.config)
   ) {
-    let cheapest: { heroId: HeroId; fee: number } | null = null;
-    for (const hero of unattachedHeroes(world)) {
-      const fee = signingFee(hero, deps);
-      if (cheapest === null || fee < cheapest.fee) cheapest = { heroId: hero.id, fee };
-    }
+    const cheapest = cheapestUnattached(world, deps, guild);
     if (cheapest !== null && cheapest.fee <= guild.wealth) {
-      actions.push({ kind: 'recruit', guildId: guild.id, heroId: cheapest.heroId });
+      actions.push({ kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id });
     }
   }
   return actions;
 }
 
-/** The offered Quests on the Board, highest reward first, ties by Quest id. */
+/**
+ * A build of the infirmary's next grade when Wealth is above the policy's `buildWealthMultiple`
+ * times its cost (the engine's `affordableImprovement`, as `steady` decides with the game's);
+ * `null` otherwise, and once the infirmary is at its top grade.
+ */
+function infirmaryBuild(guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
+  const next = affordableImprovement(guild, 'infirmary', policy.buildWealthMultiple, deps.content);
+  return next === null ? null : { kind: 'build', guildId: guild.id, facility: 'infirmary' };
+}
+
+/** The offered Quests on the Board (the engine's `offeredQuests`), highest reward first, ties by Quest id. */
 function byReward({ world }: WorldDocument): Quest[] {
-  const offered: Quest[] = [];
-  for (const questId of world.board) {
-    const quest = Object.hasOwn(world.quests, questId) ? world.quests[questId] : undefined;
-    if (quest !== undefined && quest.status === 'offered') offered.push(quest);
-  }
-  return offered.sort((a, b) => b.reward - a.reward || compareByCodeUnit(a.id, b.id));
+  return offeredQuests(world).sort((a, b) => b.reward - a.reward || compareByCodeUnit(a.id, b.id));
 }

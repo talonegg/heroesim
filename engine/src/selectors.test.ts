@@ -2,7 +2,18 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { createWorld } from './create.js';
 import { makeId, type Guild, type Hero } from './document.js';
 import { testDeps } from './world.test-support.js';
-import { baseStat, playerGuild, rankings, signingFee, unattachedHeroes, upkeep } from './selectors.js';
+import {
+  baseStat,
+  cheapestUnattached,
+  offeredQuests,
+  playerGuild,
+  rankings,
+  signingFee,
+  signingRefusal,
+  unattachedHeroes,
+  unsignableHeroes,
+  upkeep,
+} from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
 
@@ -221,5 +232,163 @@ describe('rankings (pulled forward from M3-S5, DL-28)', () => {
 
     const reversed = Object.fromEntries(Object.entries(world.guilds).reverse()) as typeof world.guilds;
     expect(rankings({ guilds: reversed }, 'fame')).toEqual(byFame);
+  });
+});
+
+describe('rankings (M3-S5)', () => {
+  /** A created world whose five Guilds are given Fame and Wealth that order them differently. */
+  function differing() {
+    const deps = testDeps();
+    const { document } = createWorld('rankings-s5', setup, deps);
+    const { world } = document;
+    const player = playerGuild(world) as Guild;
+    const rivals = Object.values(world.guilds).filter((guild) => guild.id !== player.id);
+    // The player's Guild first by Fame and last by Wealth; the Rivals the other way about.
+    Object.assign(player, { fame: 50, wealth: 10 });
+    rivals.forEach((guild, index) => Object.assign(guild, { fame: 10 + index, wealth: 1_000 - 100 * index }));
+    return { world, player, rivals };
+  }
+
+  test("lists every Guild in play once, ordered, the player's Guild ranked by its value like any other", () => {
+    const { world, player, rivals } = differing();
+
+    for (const by of ['fame', 'wealth'] as const) {
+      const ranked = rankings(world, by);
+      const ids = ranked.map((ranking) => ranking.guildId);
+      expect(new Set(ids)).toEqual(new Set(Object.keys(world.guilds)));
+      expect(ids).toHaveLength(Object.keys(world.guilds).length);
+      expect(ranked.map((ranking) => ranking.rank)).toEqual(ranked.map((_, index) => index + 1));
+      const values = ranked.map((ranking) => ranking.value);
+      expect(values).toEqual([...values].sort((a, b) => b - a));
+      for (const ranking of ranked) expect(ranking.value).toBe(world.guilds[ranking.guildId]?.[by]);
+    }
+    // Top by Fame, bottom by Wealth: where its values put it, not where its controller would.
+    expect(rankings(world, 'fame')[0]?.guildId).toBe(player.id);
+    expect(rankings(world, 'wealth').at(-1)?.guildId).toBe(player.id);
+    expect(rivals).toHaveLength(4);
+  });
+
+  test('by: "wealth" and by: "fame" differ on a fixture built to make them differ', () => {
+    const { world, player, rivals } = differing();
+    const [r1, r2, r3, r4] = rivals.map((guild) => guild.id);
+
+    expect(rankings(world, 'fame').map((ranking) => ranking.guildId)).toEqual([player.id, r4, r3, r2, r1]);
+    expect(rankings(world, 'wealth').map((ranking) => ranking.guildId)).toEqual([r1, r2, r3, r4, player.id]);
+  });
+
+  test('no rank is stored: the Guild row has no rank, and the Rankings follow Fame as it moves', () => {
+    const { world, player } = differing();
+    expectTypeOf<Guild>().not.toHaveProperty('rank');
+    expect(Object.hasOwn(player, 'rank')).toBe(false);
+
+    player.fame = 0;
+
+    expect(rankings(world, 'fame').at(-1)?.guildId).toBe(player.id);
+  });
+});
+
+describe('signingRefusal (M3-S5, pre-M0 review B4)', () => {
+  // Pinned rather than read from the default, which a balance pass may change.
+  const config = { fameRequiredPerLevel: 10 };
+  const hero = (level: number) => ({ level });
+
+  test('a Level 1 Hero signs for any Guild, at Fame 0 too', () => {
+    expect(signingRefusal({ fame: 0 }, hero(1), config)).toBeNull();
+  });
+
+  test('a Level 5 Hero refuses a Guild at Fame 0, naming the Fame asked and the shortfall', () => {
+    expect(signingRefusal({ fame: 0 }, hero(5), config)).toEqual({ fameRequired: 40, fame: 0, shortfall: 40 });
+  });
+
+  test('raising Fame to fameRequiredPerLevel × (Level − 1) flips the refusal', () => {
+    expect(signingRefusal({ fame: 39 }, hero(5), config)).toEqual({ fameRequired: 40, fame: 39, shortfall: 1 });
+    expect(signingRefusal({ fame: 40 }, hero(5), config)).toBeNull();
+    expect(signingRefusal({ fame: 41 }, hero(5), config)).toBeNull();
+  });
+
+  test('reads the multiple from the config: 10 by default (INPUTS 5.6)', () => {
+    expect(testDeps().config.fameRequiredPerLevel).toBe(10);
+    expect(signingRefusal({ fame: 0 }, hero(3), { fameRequiredPerLevel: 7 })).toMatchObject({ fameRequired: 14 });
+    expect(signingRefusal({ fame: 0 }, hero(9), { fameRequiredPerLevel: 0 })).toBeNull();
+  });
+});
+
+describe('unsignableHeroes (M3-S5)', () => {
+  test("is the pool's Heroes who would refuse the Guild's Fame, in id order, whoever the Guild is", () => {
+    const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
+    const { document } = createWorld('unsignable', setup, deps);
+    const { world } = document;
+    const [first, second, third, fourth] = unattachedHeroes(world);
+    if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
+      throw new Error('A short pool');
+    }
+    second.level = 3;
+    fourth.level = 6;
+    const ids = (fame: number) => unsignableHeroes(world, { fame }, deps.config).map((hero) => hero.id);
+
+    expect(ids(0)).toEqual([second.id, fourth.id]);
+    expect(ids(20)).toEqual([fourth.id]);
+    expect(ids(50)).toEqual([]);
+    for (const guild of Object.values(world.guilds)) {
+      guild.fame = 0;
+      expect(unsignableHeroes(world, guild, deps.config)).toEqual([second, fourth]);
+    }
+  });
+});
+
+describe('cheapestUnattached (DL-38)', () => {
+  const deps = testDeps({ fameRequiredPerLevel: 10, unattachedPoolSize: 4 });
+
+  function pool() {
+    const { document } = createWorld('cheapest', setup, deps);
+    const heroes = unattachedHeroes(document.world);
+    if (heroes.length !== 4) throw new Error('A short pool');
+    // Stats that set the fees: 50 + 25 × Level + the Stats' sum ÷ 4 (INPUTS 4.7).
+    const statsAt = (value: number) => Object.fromEntries(Object.keys(heroes[0]?.stats ?? {}).map((key) => [key, value]));
+    heroes.forEach((hero, index) => (hero.stats = statsAt([12, 8, 8, 10][index] ?? 10)));
+    return { world: document.world, heroes: heroes as [Hero, Hero, Hero, Hero] };
+  }
+
+  test('is the Hero with the lowest fee, the lowest id among equal fees, with that fee', () => {
+    const { world, heroes } = pool();
+    const [, second] = heroes;
+
+    expect(cheapestUnattached(world, deps)).toEqual({ hero: second, fee: signingFee(second, deps) });
+    expect(signingFee(second, deps)).toBe(signingFee(heroes[2], deps));
+  });
+
+  test("given a Guild, passes over a Hero who would refuse its Fame, and is null when none would sign", () => {
+    const { world, heroes } = pool();
+    const [first, second, third, fourth] = heroes;
+    second.level = 2; // asks Fame 10, and now costs 25 more
+    third.level = 2;
+
+    expect(cheapestUnattached(world, deps, { fame: 0 })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(fourth);
+    expect(cheapestUnattached(world, deps)?.hero).toBe(fourth);
+    for (const hero of [first, fourth]) hero.level = 3;
+    expect(cheapestUnattached(world, deps, { fame: 0 })).toBeNull();
+    expect(cheapestUnattached(world, deps, { fame: 10 })?.hero).toBe(second);
+    // Without a Guild, Fame is not asked: the cheapest in the pool, whoever they would sign for.
+    expect(cheapestUnattached(world, deps)?.hero).toBe(second);
+  });
+
+  test('is null for an empty pool', () => {
+    expect(cheapestUnattached({ heroes: {} }, deps)).toBeNull();
+    expect(cheapestUnattached({ heroes: {} }, deps, { fame: 100 })).toBeNull();
+  });
+});
+
+describe('offeredQuests (DL-38)', () => {
+  test("is the Board's Quests on offer, in the Board's order, and no other", () => {
+    const { document } = createWorld('offered', setup, testDeps());
+    const { world } = document;
+    const [first, second, third, ...rest] = world.board;
+    if (first === undefined || second === undefined || third === undefined) throw new Error('A short Board');
+    world.board = [third, first, second, makeId('quests', 999), ...rest];
+    (world.quests[first] as { status: string }).status = 'taken';
+
+    expect(offeredQuests(world).map((quest) => quest.id)).toEqual([third, second, ...rest]);
+    expect(offeredQuests({ board: [], quests: world.quests })).toEqual([]);
   });
 });

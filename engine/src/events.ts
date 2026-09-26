@@ -4,8 +4,19 @@
 // the types it emits to `EngineEvent`, and says in `milestoneTypes` whether each is a Milestone.
 
 import type { MoraleBand } from './config.js';
-import type { ClassKey, InjuryTypeKey, QuestTemplateKey, SphereKey, TraitKey } from './content-types.js';
-import type { EndingReason, Entry, GuildId, GuildmasterId, HeroId, PartyId, PatronId, QuestId, Turn } from './document.js';
+import type { ClassKey, ImprovementKey, InjuryTypeKey, QuestTemplateKey, SphereKey, StatKey, TraitKey } from './content-types.js';
+import type {
+  EndingReason,
+  Entry,
+  FacilityKey,
+  GuildId,
+  GuildmasterId,
+  HeroId,
+  PartyId,
+  PatronId,
+  QuestId,
+  Turn,
+} from './document.js';
 import type { QuestOutcome } from './quest-engine/stub.js';
 
 // ── World creation (M1-S6, DL-19) ────────────────────────────────────────────────────────────
@@ -155,6 +166,14 @@ export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryT
  */
 export type HeroRetired = Entry<'hero.retired', { heroId: HeroId; guildId: GuildId; age: number }>;
 
+// ── Ageing (M3-S4, DL-37) ────────────────────────────────────────────────────────────────────
+
+/**
+ * A Hero's Stat `statKey` fell by `delta`, a negative number, at a yearly check at `age`, from
+ * `declineAge`. Potential is untouched. Names the Hero.
+ */
+export type HeroDeclined = Entry<'hero.declined', { heroId: HeroId; statKey: StatKey; delta: number; age: number }>;
+
 // ── Endings (M2-S10, pre-M0 review D6, DL-28) ────────────────────────────────────────────────
 
 /**
@@ -175,6 +194,30 @@ export type GuildFolded = Entry<'guild.folded', { guildId: GuildId; reason: Endi
  * Hero and the Guild.
  */
 export type HeroLeftGuild = Entry<'hero.left-guild', { heroId: HeroId; guildId: GuildId }>;
+
+// ── Hall Improvements (M3-S6, DL-38) ─────────────────────────────────────────────────────────
+
+/**
+ * A Guild built an Improvement through `build`, raising `facility` to `grade` for `cost` Wealth. A
+ * Milestone, naming the Guild.
+ */
+export type GuildImproved = Entry<
+  'guild.improved',
+  { guildId: GuildId; facility: FacilityKey; grade: number; improvementKey: ImprovementKey; cost: number }
+>;
+
+// ── Progression (M3-S1, DL-36) ───────────────────────────────────────────────────────────────
+
+/**
+ * A Hero's XP reached the next Level and they gained it: `level` is the Level reached, one entry
+ * for each Level gained in a night. `statDeltas` holds each Stat that rose and by how much, and
+ * `pointsLost` the Level's growth points that fell on a Stat already at its Potential. A Milestone,
+ * naming the Hero and their Guild.
+ */
+export type HeroLevelled = Entry<
+  'hero.levelled',
+  { heroId: HeroId; guildId: GuildId; level: number; statDeltas: Record<StatKey, number>; pointsLost: number }
+>;
 
 /** Every event the engine emits. */
 export type EngineEvent =
@@ -197,9 +240,12 @@ export type EngineEvent =
   | HeroMoraleChanged
   | HeroHealed
   | HeroRetired
+  | HeroDeclined
   | GameEnded
   | GuildFolded
-  | HeroLeftGuild;
+  | HeroLeftGuild
+  | GuildImproved
+  | HeroLevelled;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -232,7 +278,10 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.morale-changed': false,
   'hero.healed': false,
   'hero.retired': true,
+  'hero.declined': false,
   'game.ended': true,
   'guild.folded': true,
   'hero.left-guild': false,
+  'guild.improved': true,
+  'hero.levelled': true,
 } satisfies Record<EngineEventType, boolean>);

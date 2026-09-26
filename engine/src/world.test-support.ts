@@ -13,6 +13,7 @@ import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
   Class,
   ContentSet,
+  Improvement,
   InjuryType,
   QuestTemplate,
   QuestTemplateRequires,
@@ -23,6 +24,7 @@ import type {
 } from './content-types.js';
 import {
   emptyDocument,
+  facilityKeys,
   makeId,
   type EntityId,
   type Entry,
@@ -151,6 +153,23 @@ function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], l
 }
 
 /**
+ * The Hall Improvements of the core (INPUTS 7.3): three grades of each facility, at 200, 500 and
+ * 1,000 Wealth, keyed `infirmary-1`, `training-yard-2` and so on (M3-S6).
+ */
+function improvements(): Record<string, Improvement> {
+  const costs = [200, 500, 1000];
+  return Object.fromEntries(
+    facilityKeys.flatMap((facility) =>
+      costs.map((cost, index): [string, Improvement] => {
+        const grade = index + 1;
+        const key = `${facility.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`)}-${grade}`;
+        return [key, { key, name: `${title(facility)} ${grade}`, facility, grade, cost }];
+      }),
+    ),
+  );
+}
+
+/**
  * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
  * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
  * structure that shares an object between two places is not walked twice.
@@ -167,8 +186,8 @@ export function deepFreeze<T>(value: T): T {
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
- * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), and the one
- * Disposition, `steady` (M2-S9). It also carries the Item table M5-S1 adds, so that fixture Items
+ * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
+ * Disposition, `steady` (M2-S9), and the core's nine Hall Improvements (M3-S6). It also carries the Item table M5-S1 adds, so that fixture Items
  * raise no warning.
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
@@ -257,6 +276,7 @@ export const testContent: ContentSet = deepFreeze(
         injuryType('shattered-knee', [20, 30], 'lame'),
       ]),
       dispositions: keyed({}, 'steady'),
+      improvements: improvements(),
     },
     {
       items: keyed({}, 'healing-draught', 'lantern-of-stannary'),

@@ -1,6 +1,6 @@
 // Night: the Hero State Engine — healing, Morale drift and the yearly Retirement check (approach
-// §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29). Ageing itself is derived (`ageOf`); M3-S4 adds the
-// yearly decline beside the Retirement check.
+// §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29). Ageing itself is derived (`ageOf`); the yearly decline
+// is the `ageing` phase's, which runs next on the same nights (ageing.ts, M3-S4, DL-37).
 //
 // It covers the Heroes on a Roster of a Guild that has not folded, in Guild id order and Roster
 // order, those away on a Quest included; a dead or retired Hero has left the Roster and is never
@@ -13,8 +13,9 @@
 //
 // - **Healing.** An Injury whose `healsOnTurn` has come is cleared, and its type's `leavesTrait`
 //   joins the Hero's Traits unless already there, with `hero.healed`.
-// - **Morale drift.** Morale moves `moraleDrift` toward `moraleBaseline` and stops there. Drift
-//   emits `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
+// - **Morale drift.** Morale moves `moraleDrift` toward the Hero's baseline, `moraleBaselineFor`
+//   (`moraleBaseline`, raised by the Guild's quarters from M3-S6), and stops there. Drift emits
+//   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
 // - **Retirement.** Once a year, on the night of the Day each anniversary of the Hero's
 //   `enteredTurn` falls on, one draw from the `heroes` stream: the chance is
@@ -28,10 +29,10 @@
 // The `heroes` stream is the only one this phase moves.
 
 import type { GameConfig } from '../config.js';
-import { compareByCodeUnit, type Hero, type HeroId, type History, type Turn } from '../document.js';
+import { compareByCodeUnit, type Hero, type HeroId, type History, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
 import { streamOf } from '../generators/draw.js';
-import { moraleBand, moraleChanged } from '../morale.js';
+import { moraleBand, moraleBaselineFor, moraleChanged } from '../morale.js';
 import { chance } from '../rng.js';
 import { ageOf, dayOf, nightOf, turnsPerDay } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
@@ -46,7 +47,7 @@ export const heroState: PhaseRun = (world, ctx) => {
       const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
       if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
 
-      events.push(...heal(hero, ctx), ...drift(hero, ctx));
+      events.push(...heal(hero, ctx), ...drift(hero, world, ctx));
       if (!retirementCheckDue(hero, ctx)) continue;
       const age = ageOf(hero, ctx.turn, ctx.config);
       if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;
@@ -75,9 +76,10 @@ function heal(hero: Hero, ctx: PhaseContext): EngineEvent[] {
   ];
 }
 
-/** Moves Morale toward the baseline without passing it; an event only when a band is crossed. */
-function drift(hero: Hero, ctx: PhaseContext): EngineEvent[] {
-  const { moraleBaseline: baseline, moraleDrift: step } = ctx.config;
+/** Moves Morale toward the Hero's baseline without passing it; an event only when a band is crossed. */
+function drift(hero: Hero, world: World, ctx: PhaseContext): EngineEvent[] {
+  const baseline = moraleBaselineFor(hero, world, ctx.config);
+  const step = ctx.config.moraleDrift;
   const before = hero.morale;
   hero.morale = before < baseline ? Math.min(baseline, before + step) : Math.max(baseline, before - step);
   if (moraleBand(before, ctx.config) === moraleBand(hero.morale, ctx.config)) return [];
@@ -101,9 +103,10 @@ export function retirementChance(
 /**
  * Whether `hero`'s yearly check falls tonight: tonight is an anniversary night and the Hero is
  * home, or the Hero came home tonight from a Quest they were away on over the last anniversary
- * night. An away Hero is never checked.
+ * night. An away Hero is never checked. The `ageing` phase, which runs next, asks it too, so a
+ * Hero's decline falls on the nights of their Retirement check (M3-S4, DL-37).
  */
-function retirementCheckDue(hero: Hero, ctx: PhaseContext): boolean {
+export function retirementCheckDue(hero: Hero, ctx: PhaseContext): boolean {
   if (hero.partyId !== null) return false;
   if (lastAnniversaryNight(hero, ctx.turn, ctx.config) === ctx.turn) return true;
   const departed = departureOfAPartyHomeTonight(ctx.history, hero.id, ctx.turn);

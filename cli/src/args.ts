@@ -3,7 +3,14 @@
 // is the command's to check, once the save and the content are open. Whether a word has the form
 // of an id is checked here, by the engine's `isId`.
 
-import { isId, type HeroId, type QuestId, type StopCondition } from '@heroesim/engine';
+import {
+  isId,
+  type FacilityKey,
+  type HeroId,
+  type QuestId,
+  type RankingMeasure,
+  type StopCondition,
+} from '@heroesim/engine';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -13,10 +20,14 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | board | hero <heroId> | history [entityId]]
+  show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
+        | rankings [--by fame|wealth] | hero <heroId> | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; board shows the Quests on offer; history shows
-      the whole History unless given an id.
+      player's Guild unless given another, and so does hall, each facility's grade and
+      what the next grade costs; pool marks the Heroes who will not yet sign for
+      the player's Guild's Fame; board shows the Quests on offer; rankings orders the
+      Guilds in play by Fame, or by Wealth with --by wealth; history shows the whole
+      History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
@@ -35,6 +46,9 @@ Commands:
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party and the Day it returns. Rivals take Quests from the Board
       each afternoon.
+  build --facility <infirmary | training-yard | quarters>
+      Raise a facility of the player's Guild's Hall by one grade, for the next grade's
+      cost, and print what was built, the Wealth left and what the next grade costs.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -54,9 +68,11 @@ export type View =
   | { kind: 'summary' }
   | { kind: 'guilds' }
   | { kind: 'roster'; guildId?: string }
+  | { kind: 'hall'; guildId?: string }
   | { kind: 'pool' }
   | { kind: 'patrons' }
   | { kind: 'board' }
+  | { kind: 'rankings'; by: RankingMeasure }
   | { kind: 'hero'; heroId: string }
   | { kind: 'history'; entityId?: string };
 
@@ -76,6 +92,7 @@ export type Command =
   | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
   | { name: 'recruit'; save: string; hero: string }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[] }
+  | { name: 'build'; save: string; facility: FacilityKey }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -86,10 +103,11 @@ export type Parsed = { ok: true; command: Command } | { ok: false; problem: stri
 const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
   new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
-  show: { save: 'value' },
+  show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
   recruit: { save: 'value', hero: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value' },
+  build: { save: 'value', facility: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -168,6 +186,21 @@ function stopList(value: string): StopCondition[] {
   return words.map((word) => untilWords[word] as StopCondition);
 }
 
+/** The words `--facility` takes, and the Hall facility each names (M3-S6). */
+const facilityWords: Readonly<Record<string, FacilityKey>> = Object.freeze({
+  infirmary: 'infirmary',
+  'training-yard': 'trainingYard',
+  quarters: 'quarters',
+});
+
+/** `--facility`: one of the Hall's facilities, in the CLI's words. */
+function facility(value: string): FacilityKey {
+  if (!Object.hasOwn(facilityWords, value)) {
+    refuse(`--facility takes ${Object.keys(facilityWords).join(', ')}; got "${value}"`);
+  }
+  return facilityWords[value] as FacilityKey;
+}
+
 /** `--heroes`: Hero ids joined by commas, each once. */
 function heroList(value: string): HeroId[] {
   const heroes = value.split(',').map((word) => word.trim());
@@ -183,8 +216,21 @@ function atMost(positional: readonly string[], count: number, command: string): 
   if (positional.length > count) refuse(`${command} does not take "${positional[count] ?? ''}"`);
 }
 
-function parseView(positional: readonly string[]): View {
+/** The words `--by` takes: the measures the Rankings order by (M3-S5). */
+const rankingMeasures: Readonly<Record<RankingMeasure, true>> = Object.freeze({ fame: true, wealth: true });
+
+/** `show rankings --by`: `fame` unless given. */
+function rankingMeasure(by: string | undefined): RankingMeasure {
+  if (by === undefined) return 'fame';
+  if (!Object.hasOwn(rankingMeasures, by)) {
+    refuse(`--by takes ${Object.keys(rankingMeasures).join(' or ')}; got "${by}"`);
+  }
+  return by as RankingMeasure;
+}
+
+function parseView(positional: readonly string[], by: string | undefined): View {
   const [view, id] = positional;
+  if (by !== undefined && view !== 'rankings') refuse('--by is taken by show rankings alone');
   switch (view) {
     case undefined:
       return { kind: 'summary' };
@@ -197,6 +243,12 @@ function parseView(positional: readonly string[]): View {
     case 'roster':
       atMost(positional, 2, 'show roster');
       return id === undefined ? { kind: 'roster' } : { kind: 'roster', guildId: id };
+    case 'hall':
+      atMost(positional, 2, 'show hall');
+      return id === undefined ? { kind: 'hall' } : { kind: 'hall', guildId: id };
+    case 'rankings':
+      atMost(positional, 1, 'show rankings');
+      return { kind: 'rankings', by: rankingMeasure(by) };
     case 'hero':
       atMost(positional, 2, 'show hero');
       return id === undefined ? refuse('show hero needs a Hero id') : { kind: 'hero', heroId: id };
@@ -245,7 +297,7 @@ function parse(argv: readonly string[]): Command {
       };
     }
     case 'show':
-      return { name, save, view: parseView(positional) };
+      return { name, save, view: parseView(positional, flags.get('by')) };
     case 'advance': {
       atMost(positional, 0, 'advance');
       const turns = flags.get('turns');
@@ -271,6 +323,9 @@ function parse(argv: readonly string[]): Command {
       if (!isId('quests', quest)) refuse(`--quest needs a Quest id such as quest-000001; got "${quest}"`);
       return { name, save, quest, heroes: heroList(required(flags, name, 'heroes')) };
     }
+    case 'build':
+      atMost(positional, 0, 'build');
+      return { name, save, facility: facility(required(flags, name, 'facility')) };
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

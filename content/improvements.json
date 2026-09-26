@@ -1,0 +1,11 @@
+{
+  "infirmary-1": { "facility": "infirmary", "grade": 1, "cost": 200, "name": "Sickroom" },
+  "infirmary-2": { "facility": "infirmary", "grade": 2, "cost": 500, "name": "Infirmary ward" },
+  "infirmary-3": { "facility": "infirmary", "grade": 3, "cost": 1000, "name": "Physicians' wing" },
+  "training-yard-1": { "facility": "trainingYard", "grade": 1, "cost": 200, "name": "Practice yard" },
+  "training-yard-2": { "facility": "trainingYard", "grade": 2, "cost": 500, "name": "Drill ground" },
+  "training-yard-3": { "facility": "trainingYard", "grade": 3, "cost": 1000, "name": "Tiltyard and armoury" },
+  "quarters-1": { "facility": "quarters", "grade": 1, "cost": 200, "name": "Dormitory" },
+  "quarters-2": { "facility": "quarters", "grade": 2, "cost": 500, "name": "Private rooms" },
+  "quarters-3": { "facility": "quarters", "grade": 3, "cost": 1000, "name": "Comfortable lodgings" }
+}

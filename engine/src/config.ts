@@ -9,7 +9,7 @@
 // Engine and M2-S6 the Hero State Engine (DL-29). Every "Min/Max" pair is an inclusive range
 // drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
 
-import type { ContentSet } from './content-types.js';
+import type { ContentSet, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
 
 export interface GameConfig {
@@ -21,7 +21,8 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M3's Rival reserve (DL-41); 5 from
+   * the infirmary's factor for its third grade (DL-53).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -83,7 +84,8 @@ export interface GameConfig {
   /**
    * Wealth deducted per Level of each living Hero on the Roster, each Upkeep. 70, not INPUTS 4.6's
    * 5, since the first balance pass: against Quest rewards of 40 to 450 a wage of 5 cost a Guild
-   * nothing (DL-35).
+   * nothing (DL-35). 20 since Heroes gain Levels (M3-S1): at 70 a Roster at Level 2 to 4 bankrupted
+   * every harness game within months (DL-36).
    */
   wagePerLevel: number;
   /** Wealth deducted per grade of each Hall facility, summed, each Upkeep. */
@@ -103,6 +105,12 @@ export interface GameConfig {
   signingFeeStatDivisor: number;
   /** Whole Days an Unattached Hero stays in the pool before leaving it, at night. */
   unattachedStayDays: number;
+  /**
+   * Fame's first rule (M3-S5, R10 as amended, pre-M0 review B4, INPUTS 5.6, DL-38): an Unattached
+   * Hero refuses to sign for a Guild whose Fame is below this times the Hero's Level less one, so
+   * a Level 1 Hero signs anywhere (`signingRefusal`).
+   */
+  fameRequiredPerLevel: number;
   // ── The Board (M2-S3, INPUTS 4.1, 4.3, DL-25) ─────────────────────────────────────────────
   /** Each morning's refresh draws Quests until the Board holds this many, and never more. */
   boardSize: number;
@@ -131,11 +139,6 @@ export interface GameConfig {
   stubInjuryChance: Readonly<Record<QuestBand, number>>;
   /** The chance, per band, that one Hero of the Party dies. */
   stubDeathChance: Readonly<Record<QuestBand, number>>;
-  /**
-   * XP each surviving Hero gains, per point of the Quest's difficulty, by band, rounded down.
-   * M3-S2 replaces it with `xpPerDifficultyPoint × xpBandFactor`.
-   */
-  stubXpPerDifficulty: Readonly<Record<QuestBand, number>>;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -161,9 +164,34 @@ export interface GameConfig {
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds; and grade 3,
+   * content's top, a quarter, so that each grade built does something: DL-53).
    */
   infirmaryHealFactor: readonly number[];
+  /**
+   * Added to `moraleBaseline` for each grade of the Guild's quarters: what nightly drift returns a
+   * Roster Hero's Morale to (`moraleBaselineFor`; M3-S6, R33, DL-38).
+   */
+  quartersMoraleBonus: number;
+
+  // ── Potential hints and ageing (M3-S3, M3-S4, INPUTS 5.4, 5.5, DL-37) ─────────────────────
+  /**
+   * Where each Potential hint starts on the gap from a Stat's base to its Potential, in Stat
+   * points: a Stat's hint is the highest whose start its gap has reached, and the lowest for a gap
+   * below every start, so the three cover every gap (`potentialHint`). M4-S5's Judgement narrows
+   * them (pre-M0 review D9).
+   */
+  potentialHintBands: Readonly<Record<PotentialHint, number>>;
+  /**
+   * From this age, in whole years, each yearly check (the Retirement check's nights) takes
+   * `declinePerYear` from one Stat of `declineAreas`: the first decline falls on the anniversary
+   * a Hero reaches it.
+   */
+  declineAge: number;
+  /** What one decline takes from the Stat drawn, never past the Stat's content minimum. */
+  declinePerYear: number;
+  /** The Stat areas a decline draws from (INPUTS 5.5: the Physical Stats). */
+  declineAreas: readonly StatArea[];
 
   // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
   /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
@@ -175,10 +203,41 @@ export interface GameConfig {
   /**
    * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
    * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
-   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
-   * row. The harness's automatic policy has its own threshold (DL-34).
+   * more than a month's Upkeep in hand, DL-35; sixty since Heroes gain Levels, so that a Rival stops
+   * recruiting before its Roster's rising wages outrun its one Quest a day, DL-41). M6-S1 moves the
+   * threshold into each Disposition's row. The harness's automatic policy has its own (DL-34).
    */
   recruitWealthMultiple: number;
+  /**
+   * `steady` builds its infirmary's next grade only while its Wealth is above this many times that
+   * grade's cost (M3-S6: "when Wealth exceeds three times its cost", DL-38). The harness's
+   * automatic policy has its own multiple, as it has its own `recruitWealthMultiple` (DL-34).
+   */
+  buildWealthMultiple: number;
+
+  // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
+  /**
+   * The XP curve: going from Level L to L + 1 takes `xpCurveBase × L^xpCurveExponent` XP, rounded
+   * to the nearest whole number (INPUTS 5.2: 100 × Level²). `hero.xp` is cumulative, so a Hero
+   * holds Level n once it reaches `xpForLevel(n)`, the sum of those steps below n (progression.ts).
+   */
+  xpCurveBase: number;
+  xpCurveExponent: number;
+  /** No Hero rises past this Level; XP still accrues beyond it. */
+  levelCap: number;
+  /** Stat points each Level applies, each drawn by the Class's growth weights (INPUTS 5.3). */
+  growthPointsPerLevel: number;
+  /**
+   * Quest XP: each Hero home alive gains the Quest's difficulty × `xpPerDifficultyPoint` ×
+   * `xpBandFactor` of the band, rounded down (INPUTS 5.1: 1 a point on a success, half on a failure).
+   */
+  xpPerDifficultyPoint: number;
+  xpBandFactor: Readonly<Record<QuestBand, number>>;
+  /**
+   * Training XP: each night, a Hero on a Roster, in no Party and not injured, gains this times the
+   * Guild's training yard grade; grade 0 gives nothing (INPUTS 5.1). A drift: no event (rule 10).
+   */
+  xpPerTrainingDay: number;
 }
 
 /** The stub Quest Engine's outcome bands, worst first (INPUTS 4.3). */
@@ -191,9 +250,14 @@ export const moraleBandNames = ['wretched', 'low', 'steady', 'high', 'elated'] a
 
 export type MoraleBand = (typeof moraleBandNames)[number];
 
+/** The words a Potential hint can be, for the narrowest gap first (M3-S3, INPUTS 5.4). */
+export const potentialHints = ['modest', 'promising', 'exceptional'] as const;
+
+export type PotentialHint = (typeof potentialHints)[number];
+
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 2,
+  configVersion: 5,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -227,7 +291,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterTraitsMax: 2,
 
   upkeepEveryDays: 10,
-  wagePerLevel: 70,
+  wagePerLevel: 20,
   hallMaintenancePerGrade: 10,
   bankruptcyFloor: 0,
   bankruptcyGraceDays: 30,
@@ -236,6 +300,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   signingFeePerLevel: 25,
   signingFeeStatDivisor: 4,
   unattachedStayDays: 10,
+  fameRequiredPerLevel: 10,
   boardSize: 6,
   questOfferDays: 3,
   questDifficultyMin: 10,
@@ -246,7 +311,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   stubSkillBonusPerRating: 2,
   stubInjuryChance: Object.freeze({ fail: 0.4, success: 0.1, strong: 0 }),
   stubDeathChance: Object.freeze({ fail: 0.05, success: 0, strong: 0 }),
-  stubXpPerDifficulty: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
 
   moraleMin: 0,
   moraleMax: 100,
@@ -257,11 +321,26 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementAge: 45,
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
-  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3, 1 / 4]),
+  quartersMoraleBonus: 5,
+
+  potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),
+  declineAge: 40,
+  declinePerYear: 1,
+  declineAreas: Object.freeze(['physical' as const]),
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 10,
+  recruitWealthMultiple: 60,
+  buildWealthMultiple: 3,
+
+  xpCurveBase: 100,
+  xpCurveExponent: 2,
+  levelCap: 20,
+  growthPointsPerLevel: 3,
+  xpPerDifficultyPoint: 1,
+  xpBandFactor: Object.freeze({ fail: 0.5, success: 1, strong: 1 }),
+  xpPerTrainingDay: 2,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

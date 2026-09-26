@@ -35,6 +35,7 @@ import {
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import { parseArgs, usage, type Command, type View } from './args.js';
+import { buildImprovement } from './commands/build.js';
 import { recruitHero } from './commands/recruit.js';
 import { dispatchParty } from './commands/dispatch.js';
 import type { CommandOutcome } from './commands/outcome.js';
@@ -42,10 +43,12 @@ import { narrateStop, renderAdvance } from './narrate.js';
 import {
   renderBoard,
   renderGuilds,
+  renderHall,
   renderHero,
   renderHistory,
   renderPatrons,
   renderPool,
+  renderRankings,
   renderRoster,
   renderSummary,
   rowIn,
@@ -121,6 +124,8 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return recruitHero(command.hero, context);
     case 'dispatch':
       return act(context, (document, deps) => dispatchParty(command, document, deps));
+    case 'build':
+      return act(context, (document, deps) => buildImprovement(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -166,7 +171,7 @@ export function open(io: CliIo, path: string, content: ContentSet): { document: 
 /**
  * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
  * `change` under the save's own deps, and on success writes the new document and prints its lines;
- * on a refusal prints the problem and writes nothing.
+ * on a refusal prints the problem and writes nothing. A game that has ended is refused.
  */
 function act(
   { io, content, path }: Context,
@@ -174,6 +179,8 @@ function act(
 ): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
+  const ended = over(io, opened.document, noActionAfterTheEnd);
+  if (ended !== undefined) return ended;
   const outcome = change(opened.document, opened.deps);
   if (!outcome.ok) return refuse(io, outcome.problem);
   writeSave(path, outcome.document);
@@ -247,12 +254,22 @@ function show(view: View, { io, content, path }: Context): Exit {
       }
       return say(io, renderRoster(guild, document, deps));
     }
+    case 'hall': {
+      const guild: Guild | undefined =
+        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
+      if (guild === undefined) {
+        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
+      }
+      return say(io, renderHall(guild, deps));
+    }
     case 'pool':
       return say(io, renderPool(document, deps));
     case 'patrons':
       return say(io, renderPatrons(document, deps));
     case 'board':
       return say(io, renderBoard(document, deps));
+    case 'rankings':
+      return say(io, renderRankings(document, deps, view.by));
     case 'hero': {
       const hero: Hero | undefined = rowIn(world.heroes, view.heroId);
       if (hero === undefined) return refuse(io, `${path} has no Hero ${view.heroId}.`);
@@ -276,11 +293,17 @@ function show(view: View, { io, content, path }: Context): Exit {
 
 // ── advance and rebase ───────────────────────────────────────────────────────────────────────
 
-/** The refusal of a Turn after the game's end, or `undefined` while it goes on. */
-function over(io: CliIo, document: WorldDocument): Exit | undefined {
+/**
+ * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
+ * once the player's game has ended the world stops as it stands (DL-28), and nothing is written.
+ */
+export function over(io: CliIo, document: WorldDocument, what = 'No Turn follows.'): Exit | undefined {
   const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. ${what}`);
 }
+
+/** What `over` says of an action refused after the end (M3 verification, DL-53). */
+export const noActionAfterTheEnd = 'Nothing more can be done in it.';
 
 /**
  * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping

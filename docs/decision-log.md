@@ -1894,6 +1894,337 @@ are the levers there. The policy's Heroes die at four a year. M3's Levels change
 and M4 replaces the stub and its bands; both call for the next pass. INPUTS 4.3, 4.6 and 4.12
 keep their rows; their defaults now differ from the config's, as this entry records.
 
+## DL-36 — XP, Levels and growth; Quest XP and the training yard; the wage for Levels (M3-S1, M3-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S1 and M3-S2's
+implementer)
+
+**Context.** M3-S1 gives `xpForLevel`, the night phase `levelUps`, the `progression` stream (pre-M0
+review D7) and four config fields; M3-S2 the stub's new XP formula, the night phase `training` and
+three fields (INPUTS 5.1 to 5.3). They leave open: whether "XP for Level n" is cumulative or within
+the Level, and how `hero.xp` reads beside it; how a growth point is drawn; which Heroes level and
+train; where the two phases sit in the night; what becomes of DL-29's `stubXpPerDifficulty`; the
+event's payload; whether `configVersion` moves; and whether M2's balance (DL-35) stands once wages
+rise with Level.
+
+**Decision.**
+
+1. **XP is cumulative and never spent.** `hero.xp` is every XP the Hero has earned.
+   `xpToNextLevel(L)` is INPUTS 5.2's "XP to next Level", `xpCurveBase × L^xpCurveExponent` rounded
+   to the nearest whole number: 100 × L² by default. `xpForLevel(n)` is the XP a Hero has earned on
+   reaching Level n, the sum of `xpToNextLevel(L)` for L from 1 to n − 1: 0 at Level 1, 100 at 2,
+   500 at 3, 1,400 at 4, 247,000 at the cap, 20. A Hero holds Level n once `xp >= xpForLevel(n)`, as
+   the epic's test reads. Read the other way, XP within the Level and reset at each one, a Level-up
+   would spend XP, `hero.xp` would no longer say what a Hero has earned, and the XP M2 banked (DL-29
+   item 4) would mean something else. A Hero generated at a Level above the first (a caller's
+   option, which no rule uses yet) starts with `xpForLevel` of it, and no growth: the Stats drawn
+   stand for that Level. Levels never fall: a rebase to a steeper curve leaves a Level where it is.
+2. **`levelUps`** gives every Hero it covers each Level from the next up to `levelCap` whose
+   `xpForLevel` their XP has reached, several in a night if the XP reaches them, one at a time. XP
+   past the cap still accrues and waits for the cap to rise. Each Level applies
+   `growthPointsPerLevel` points, each one `next` draw from `progression` times the sum of the
+   Class's growth weights (content, DL-17), falling in one Stat's share of them taken in key
+   order. A point on a Stat already at its Potential, or at content's maximum should Potential ever
+   exceed it, is lost, not redirected (the epic), so Potential binds. Every point takes its draw
+   wherever it lands, so a night's draws depend only on the Levels gained; a Class content no longer
+   defines grows nothing and still draws (data-model rule 5). Each Level emits `hero.levelled`, a
+   Milestone naming the Hero and so their Guild, with `{ heroId, guildId, level, statDeltas,
+   pointsLost }`: the Level reached, each Stat that rose and by how much, and how many of the
+   Level's points Potential took. The CLI narrates the Stats that rose and never the points lost,
+   since Potential is shown only as a hint.
+3. **Which Heroes.** Every living Hero on the Roster of a Guild that has not folded, in Guild id and
+   Roster order, the player's and the Rivals' alike (ADR-0002), those away on a Quest included:
+   Level follows XP wherever the Hero is. **The Unattached pool is left out.** A pool Hero earns no
+   XP, from a Quest or a yard, so has no Level to gain, and a `hero.levelled` naming them would keep
+   their row for good (data-model rule 8), as DL-29 item 11 left the pool out of the Hero State
+   Engine. A Hero a fold released (DL-28) levelled on their Roster first; a Level a later rebase
+   makes due waits for the Guild that signs them.
+4. **The `progression` stream** joins `streamNames` after `heroes` and before `rivals`, ADR-0009's
+   order as amended; an old save gains it through `ensureStreams`. `levelUps` draws from it alone,
+   and nothing else draws from it.
+5. **Quest XP** (M3-S2): `xpPerHero` is `difficulty × xpPerDifficultyPoint × xpBandFactor[band]`,
+   rounded down, with `xpPerDifficultyPoint` **1** and `xpBandFactor` **`{ fail: 0.5, success: 1,
+   strong: 1 }`** (INPUTS 5.1; a strong success is a success). **`stubXpPerDifficulty` is removed**,
+   not renamed: the new fields' product equals it in every band, so every Quest gives the XP it gave,
+   and keeping it would leave a tunable that does nothing. A save's `meta.config` that holds it keeps
+   it, unread (data-model §2).
+6. **The training yard** (M3-S2). Night phase `training`: each living Hero on the Roster of a Guild
+   that has not folded, in no Party and carrying no Injury, gains `xpPerTrainingDay` (**2**) times
+   the Guild's `hall.trainingYard` grade as it stands that night; grade 0 gives nothing. Every Guild
+   alike (ADR-0002). No event: training XP is a drift (data-model rule 10), recorded by the
+   `hero.levelled` it causes; `hero.xp-gained` stays for Quest XP. It draws nothing.
+7. **The night's order: `training`, `questsConclude`, `levelUps`, then the Hero State Engine and the
+   rest.** Training runs first so that it covers the Day just ending as the Hero spent it: a Hero
+   whose Party comes home tonight is still in it, and gains nothing for a Day away; a Hero whose
+   Injury heals tonight, later in the Hero State Engine, spent the Day injured. A Party is away from
+   the night it leaves to the night it returns, both included, and trains on none of them.
+   `levelUps` comes straight after `questsConclude` (the epic) and after `training`, so a night's
+   Quest XP and training XP are levelled that night: at every night's end each covered Hero's Level
+   is the highest their XP reaches, up to the cap. Approach §2's night line names both.
+8. **Upkeep** already reads Level (`wagePerLevel`, DL-26, DL-35), so a Level gained costs its Guild
+   `wagePerLevel` more at each Upkeep from then on.
+9. **Config.** Seven fields are added with INPUTS 5.1 to 5.3's values (`xpCurveBase` **100**,
+   `xpCurveExponent` **2**, `levelCap` **20**, `growthPointsPerLevel` **3**, and item 5's and 6's),
+   and one removed with its effect kept. The growth weights are content's and already refused
+   unless they sum to 1 within 0.001 (`checkGrowth`, content's refusal test); the core's 0.1667 ×
+   4 + 0.0208 × 16 sums to 0.9996, and a draw weighs by the sum it finds.
+10. **The wage, for Levels: `wagePerLevel` 70 → 20, and `configVersion` 2 → 3.** Measured under the
+    automatic policy (DL-34) on the core content, 8 seeds × 10 years (scratch runs, not
+    committed): with Levels held at 1 (`levelCap` 1, M2's rules) 5 of 8 games lasted the ten years;
+    with Levels and DL-35's wage of 70, **all 8 went bankrupt within 0.17 to 0.44 years**, their
+    Heroes at Level 2 to 4 costing two to four times the wage DL-35 tuned against. A Level adds a
+    whole `wagePerLevel` to a Hero's wage but three Stat points spread over twenty Stats to the
+    stub's score, a few per cent, so under the stub a Level is a cost before it is an earning.
+    Trials of the wage: 35 bankrupted 8 of 8 within 2 years; 30 8 of 8 within 5; 25 4 of 8, over
+    years 2 to 6; **20 none in 10 years**, the player's Roster at a mean Level of 3.6 after the
+    first year and 4.1 to 4.7 after, where Deaths and Level-1 recruits hold it. At that mean a Hero
+    costs about what DL-35's Level-1 Hero cost. Over 16 seeds × 20 years at 20: no Bankruptcy, the
+    player's mean Level 3.7 after the first year and 4.0 to 4.9 in each later one, Rivals gaining
+    about 31 Levels a Rival-year, and 74 of 1,540 Roster Heroes at the end with a Stat at Potential.
+    No Bankruptcy is not DL-35's spread (25 gave one), but the other M3 tracks add costs, and this
+    is a stopgap so that M3's harness pass measures games rather than first-year Bankruptcies; that
+    pass tunes the wage again with the other M3 tracks' rules merged. The wage's shape, all per
+    Level with no base (INPUTS 4.6), is unchanged; a base plus a smaller per-Level part is the other
+    lever, and the owner's. Tests pin the wages they rely on; one pins the new default.
+
+**Consequences.** Heroes grow now, on every Roster, and their wages with them (item 10). A save made
+before this entry plays under `configVersion` 2, a wage of 70, until the player rebases. The curve
+asks about 50,000 XP for Level 12 and 247,000 for Level 20; a Hero taking a Quest of difficulty 50
+every week earns some 2,500 a year from Quests and 720 more at yard grade 1, and the policy's Roster,
+thinned by Deaths and refilled at Level 1, holds a mean Level near 4.5 (item 10), so the cap is far
+off in a 20-year game unless the curve or the XP is tuned (the epic's second risk). The M3 counters
+read: Levels gained per Guild-year, the `hero.levelled` entries by `payload.guildId` and
+`yearOf(turn)`; the mean Level of the player's Roster by year, and the Heroes with a Stat at
+Potential after 10 years, from the World State at each year's end (`level`; a base Stat against
+`potential`), with `pointsLost` summing the growth Potential refused. M3-S6's `build` raises the
+yard's grade; until it lands only a test sets it. M3-S4's decline may lower a Stat that a later
+Level regrows, up to Potential.
+
+## DL-37 — Potential hints, and the yearly ageing decline beside the Retirement check (M3-S3, M3-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S3 and M3-S4's
+implementer)
+
+**Context.** M3-S3 asks for `potentialHint(hero, statKey, config)` giving one of INPUTS 5.4's three
+words from the gap between base and Potential, bands in config (`potentialHintBands`), and `show
+hero` printing the word and never the number; pre-M0 review D9 keeps Judgement's sharpening of the
+hints for M4-S5. M3-S4 asks for a night phase `ageing`, "on the Hero's entry anniversary alongside
+the Retirement check", in which a Hero past `declineAge` loses `declinePerYear` from one Stat of
+`declineAreas` drawn from `heroes`, with `hero.declined`. They leave open: the bands' shape and
+defaults; what a Stat the row lacks hints; where the hint sits in the view; whether decline is a
+phase of its own or part of `heroState`; which comes first on a shared night and whether a Hero
+who retires also declines; how "past `declineAge`" reads against INPUTS 5.5's "from 40"; which
+Stats the draw is over and whether an unused draw is taken; the event's payload.
+
+**Decision.**
+
+1. **The hint** is `potentialHint` in `engine/src/potential.ts`, a file of its own as `moraleBand`
+   has `morale.ts`, exported from the package. The words are `potentialHints`, `modest`,
+   `promising`, `exceptional`, in `config.ts` beside `moraleBandNames`.
+2. **The bands** say where each word starts on the gap, Potential less base, in Stat points, and a
+   gap takes the highest word whose start it has reached, the lowest for a gap below every start:
+   `moraleBand`'s rule. Every gap so has exactly one word whatever the three numbers are, which is
+   the partition with no hole the first box asks for; the test walks every gap from 0 to 19, the
+   widest content allows. Defaults **`{ modest: 0, promising: 6, exceptional: 10 }`**, chosen so a
+   generated Hero's gaps, 3 to 12 (`potentialGapMin/Max`, fewer where Potential meets the Stat's
+   maximum), split near thirds: 3 to 5 modest, 6 to 9 promising, 10 to 12 exceptional. A Hero grown
+   close to Potential reads modest.
+3. **A Stat the row lacks**, in its base or its Potential (data-model rule 5), reads as a gap of 0,
+   the lowest word: there is no stored Potential to hint at. The hint reads the Hero and the bands
+   alone, never content.
+4. **The M4 seam.** `potentialHint` takes the bands from the `config` it is given and nothing else,
+   so M4-S5 sharpens hints by passing bands narrowed by the Guildmaster's Judgement
+   (`judgementHintSharpening`), with no change to the function.
+5. **The view.** `show hero`'s Stats table gains a fourth column, **Outlook**, after the value. The
+   heading avoids the word Potential, which M1-S9's test forbids anywhere in the printed Hero; the
+   test is kept and extended: every Stat row ends in a hint word, its base before it, and a hint
+   comes from the save's own bands.
+6. **`ageing` is a phase of its own**, as the epic names it, placed **right after `heroState`**
+   and before `guildState`. It does not repeat the anniversary rule: it asks `heroState`'s
+   `retirementCheckDue`, now exported, so a Hero is checked for decline on exactly the nights they
+   are checked for Retirement — the night of each anniversary of `enteredTurn` if home, or the
+   night their Party brings them home if away over it (DL-29 item 14). It covers the Heroes
+   `heroState` covers: the Roster of each Guild that has not folded, in Guild id and Roster order.
+7. **Retirement first; a Hero who retires does not decline.** `heroState` has run, so a Hero who
+   retired tonight has left the Roster and `ageing` never reaches them: no draw, no change, no
+   `hero.declined`. A career's Stats stay as they stood when it ended, and the History does not
+   record a change to a Hero no one can field.
+8. **From `declineAge`.** A due check declines when `ageOf` at that night is **at least**
+   `declineAge` (40), so the first decline falls on the anniversary the Hero turns 40: INPUTS 5.5's
+   "from 40" is read over the epic's "past", which for Retirement (DL-29 item 13) means "above".
+9. **The draw.** Every due check takes **one** `int` draw from `heroes`, whatever the age, as every
+   due Retirement check does, so tuning `declineAge` or `declineAreas` shifts no later draw. It
+   picks among content's Hero Stats whose area is in `declineAreas` (default `["physical"]`), in
+   key order (DL-19 item 3), **that are still above their content minimum**, so a Hero past the age
+   loses exactly one Stat a year while any can fall. The Stat loses `declinePerYear` (1), never
+   past its minimum; a Hero whose every such Stat is at its minimum, or a `declinePerYear` of 0,
+   changes nothing and emits nothing. Stats are read through `baseStat`: one the row lacks reads as
+   the content default and is written when it declines; a key content does not define never
+   declines. **Potential is untouched**, so a declined Stat can be grown back by a Level (M3-S1),
+   and its hint may rise as the gap widens.
+10. **`hero.declined`** `{ heroId, statKey, delta, age }`, `delta` negative, naming the Hero (and,
+    through `emit`, their Guild); not a Milestone, since the epic names none.
+11. **Config.** `potentialHintBands`, `declineAge`, `declinePerYear` and `declineAreas` are added;
+    the objects are frozen. No default changes, so `configVersion` stays 2 (as DL-29 item 16), and
+    a save from before M3 reads the new fields as the defaults.
+
+**Consequences.** Every due yearly check now takes a second `heroes` draw after the night's
+Retirement draws, so a seed's Retirements after its first anniversary differ from M2's; saves are
+snapshots (ADR-0001). Heroes generated at 18 to 36 start declining within 4 to 22 years, while
+Retirement starts at 46. M3-S1's level-up reads a declined Stat as below Potential and may raise it
+again, which the harness's Levels-gained counter measures against `hero.declined`. The M3 counter
+task reads Retirements by age band from `hero.retired`'s `age`, and declines from `hero.declined`.
+M4-S5 narrows the hint bands through the `config` it passes.
+
+## DL-38 — Rankings are read, not narrated; Fame gates who will sign; Hall Improvements are built (M3-S5, M3-S6)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M3-S5 and M3-S6's
+implementer); items 7 and 8 fold in two M2 verification defects at the orchestrator's request
+
+**Context.** M3-S5 asks for the CLI's `show rankings`, an entry recording that Rankings are read and
+not narrated, and Fame's first rule (R10 as amended, pre-M0 review B4): a `signing-refused`
+rejection with the shortfall, `show pool` marking whom the player cannot yet sign, the automatic
+policy and `steady` skipping such Heroes, every Guild gated alike, and a harness counter of
+"signings refused by Fame per controller kind". It leaves open where the test of a signing lives,
+the rejection's payload and its place among `recruit`'s checks, whether a refusal the policy or
+`steady` never meet because they skip counts, how the counter is measured, and whether the Roster
+wiped ending (DL-28 item 1), which asks whether a Guild can still sign anyone, should heed Fame.
+M3-S6 (moved from M5, pre-M0 review D8) names `improvements.json` `{ facility, grade, cost, name }`
+(INPUTS 7.3), `build` with `max-grade` and `insufficient-wealth`, `guild.improved`,
+`quartersMoraleBonus`, and the policy and `steady` building the infirmary "when Wealth exceeds three
+times its cost". It leaves open the content's keys and checks, where the build threshold lives, how
+a build and a recruit share one Wealth, the bonus's default, and the CLI's words. The M2
+verification, meanwhile, found the "cheapest Unattached Hero" rule written three times and the
+Board's offered Quests read twice, and a policy test claiming "draws no random number" that a
+`Math.random` tie-break passed.
+
+**Decision.**
+
+1. **Rankings are read, not narrated.** `rankings(world, by)` already has the epic's shape (DL-28
+   item 8): every Guild not folded, highest first, ties by Guild id, `rank` its place from 1, the
+   player's Guild not special-cased. Rank is never stored (rule 1), and M3 emits no
+   `guild.rank-changed`: nothing reads one, a change of rank follows from Fame and Wealth moving,
+   which have their entries already (`quest.resolved`, `guild.upkeep-paid`, `hero.recruited`), and
+   an event per Guild per change of place would add entries on most nights to a History already
+   four times its size target (DL-34). A front end that wants to tell the player they climbed
+   compares two readings; the event is added when a front end asks for it.
+2. **`show rankings [--by fame|wealth]`**, by Fame unless given: rank, id, name, controller and the
+   measure, straight from `rankings`. `--by` on any other view is a bad command line (exit 2).
+3. **One test of a signing: `signingRefusal(guild, hero, config)`** in `selectors.ts`, `null` when
+   the Hero would sign and otherwise `{ fameRequired, fame, shortfall }`, where `fameRequired` is
+   `fameRequiredPerLevel × (level − 1)` and Fame equal to it is enough. `fameRequiredPerLevel` is
+   **10** (INPUTS 5.6). `recruit`, `cheapestUnattached` (so `steady` and the automatic policy) and
+   the CLI's `show pool` ask it, and no other code works the threshold out. It asks nothing of
+   Wealth, which stays the fee's check.
+4. **`recruit`'s checks** are now `guild-folded`, `hero-not-unattached`, **`signing-refused`**,
+   `insufficient-wealth`, in that order: the Hero refuses before a fee is asked, so a Guild short of
+   both Fame and Wealth is told of the Fame, not sent away to save up for a Hero who would still
+   refuse it. The rejection carries `{ heroId, fameRequired, fame, shortfall }`. It is the same
+   rule for the player and every Rival (ADR-0002); the CLI puts it as "will not sign for a Guild
+   with less than 40 Fame; The Test has 0, 40 short".
+5. **`steady` and the policy pass over** a Hero who would refuse, and recruit the cheapest who would
+   sign; they never ask one who would not, so neither meets `signing-refused` (a Rival's refused
+   action is a bug, DL-30 item 3; the harness fails a run on one, DL-34 item 2).
+6. **The Roster wiped ending does not heed Fame.** DL-28's check, an empty Roster and Wealth below
+   the cheapest fee in the pool as tonight's refresh left it, stands: the cheapest fee of any Hero
+   in the pool, whoever they would sign for. An ending is for good and a refusal for Fame is not.
+   A Guild with an empty Roster cannot raise its Fame (Fame moves with Quest outcomes), so a Hero
+   who refuses it tonight refuses it until they leave the pool; but every Hero the refill brings is
+   Level 1 and signs for any Guild, and the pool turns over within `unattachedStayDays`. Heeding
+   Fame would end a Guild, the player's game with it, for a pool that is for a few Days all
+   veterans a fold released (a Rival's Roster settles near 20, DL-35, and the refill waits while
+   the pool is over its size), whatever Wealth it holds: a false ending. Not heeding it leaves a
+   Guild whose Wealth reaches only refusing Heroes waiting, and wipes it once its Wealth is short of
+   every fee in the pool, as before. (This branch first heeded Fame here; the orchestrator asked
+   that the choice be weighed, and it was reversed before merging.)
+7. **One selector for each repeated rule** (M2 verification). `cheapestUnattached(world, deps,
+   guild?)` in `selectors.ts` is the one "cheapest Hero in the Unattached pool, lowest id among
+   equal fees, with the fee": given a Guild, only Heroes who would sign for it (item 3). `steady`'s
+   `cheapestHire`, the policy's recruit and the Roster wiped ending (without a Guild, item 6) each
+   had a copy and now call it. `offeredQuests(world)`, private in `controllers/rival.ts` and copied in
+   the policy's `byReward`, moves to `selectors.ts` and both call it. `affordableImprovement(guild,
+   facility, wealthMultiple, content)` is the one "build when Wealth is above a multiple of the next
+   grade's cost" for `steady` (the game's multiple) and the policy (its own), item 12.
+8. **The policy's determinism is tested, not asserted** (M2 verification). The test that says the
+   policy draws no random number spies on `Math.random` and finds no call, across dispatches, a
+   build and a recruit; a new test arranges equal rewards on a Board held in reverse id order and
+   equal fees across the pool, and finds the Quests taken in Quest id order and the Hero of the
+   lowest id recruited, with no call to `Math.random`. Replacing the reward tie-break with a random
+   one fails it (checked by hand).
+9. **The Fame counter, for the M3-close counter task** (not added to the harness here). "Signings
+   refused by Fame" counts the refusals a Guild meets **whether or not it asks**: because the policy
+   and `steady` skip, the `signing-refused` rejections they return are zero by construction and would
+   say nothing about how Fame gates a Guild. It is measured with `unsignableHeroes(world, guild,
+   config)` (`selectors.ts`, the pool's Heroes for whom `signingRefusal` is not null): once a Day,
+   on the morning Turn before the policy acts, for every Guild in play, the count is added to its
+   controller kind's total. The report gives, per controller kind, that total (Hero-Days refused),
+   its mean per Guild-Day, and the Guild-Days on which at least one pool Hero refused. Beside it,
+   the `signing-refused` rejections actually returned, which must be 0. No event is needed: the
+   pool and every Guild's Fame are in `world`.
+10. **`content/improvements.json`**, content table `improvements`, rows keyed `infirmary-1`,
+    `training-yard-2`, `quarters-3` and so on, each `{ facility, grade, cost, name }`; `facility` is
+    the Hall's own key (`infirmary`, `trainingYard`, `quarters`). Three grades of each facility at
+    **200, 500 and 1,000** Wealth (INPUTS 7.3), named by the agent (the infirmary: Sickroom,
+    Infirmary ward, Physicians' wing; the training yard: Practice yard, Drill ground, Tiltyard and
+    armoury; the quarters: Dormitory, Private rooms, Comfortable lodgings). Content validation
+    refuses a facility that is not one of the Hall's three, a grade that is not a whole number from
+    1, a cost that is not a whole number above 0, and a facility whose grades are not 1 to n, each
+    once; a facility no row names cannot be built. `contentVersion` becomes **5**; the engine's test
+    content carries the same nine rows.
+11. **`build(document, { guildId, facility }, deps)`** and its rule `applyBuild(world, …)` (DL-30's
+    seam), in `actions/build.ts`, join `Action` and `GuildAction`. The next grade is content's row
+    for the facility at its grade plus one (`nextImprovement`). Checks, in order: `guild-folded`
+    (`{ guildId }`), `max-grade` (`{ facility, grade }`: no next row, a grade past content's top
+    after content shrank included, rule 5), `insufficient-wealth` (`{ facility, cost, wealth }`;
+    Wealth equal to the cost builds). A Guild id the world lacks, or a facility the Hall lacks,
+    throws. Success deducts the cost, sets the grade and emits `guild.improved`, a Milestone naming
+    the Guild, payload `{ guildId, facility, grade, improvementKey, cost }`. No selling or pulling
+    down. Upkeep already charges `hallMaintenancePerGrade` a grade (DL-26).
+12. **What a grade does, read where it matters.** The infirmary as DL-29 item 8 has it, at the
+    Injury's infliction. The training yard by M3-S2's `training` phase, built in parallel: this
+    branch proves only that `build` puts the grade on the Guild's row. The quarters through
+    **`moraleBaselineFor(hero, world, config)`** (`morale.ts`): `moraleBaseline` plus
+    `quartersMoraleBonus` for each grade of the Hero's Guild's quarters, held inside `moraleMin` to
+    `moraleMax`; a Hero on no Roster has none. The Hero State Engine's drift reads it, the one place
+    the baseline is worked out, which M4-S5's Inspiration and Guildmaster Traits extend. A generated
+    Hero still starts at `moraleBaseline`. `quartersMoraleBonus` is **5**, chosen, having no INPUTS
+    row: grade 3 lifts the baseline from 60 to 75, where `high` starts, so the best quarters hold an
+    idle Roster high, and at grade 1 (65) one Death on the Roster (−10) still leaves a Hero `steady`.
+13. **The controllers build the infirmary**, and only it: its next grade when Wealth is strictly
+    above three times that grade's cost. `steady`'s multiple is a rule of the game,
+    **`buildWealthMultiple` 3** in `GameConfig`; the policy's is the harness's, `buildWealthMultiple`
+    3 in `PolicyConfig`, as each has its own `recruitWealthMultiple` (DL-34). Each makes **one
+    purchase** an afternoon (`steady`) or a Turn (the policy): the build when due, else the recruit.
+    Both are chosen on the world as it stands, so a second purchase could find the Wealth the first
+    spent and be refused, which neither may be (item 5); a build due delays a recruit by one
+    afternoon or Turn, three times a Guild's life.
+14. **The CLI.** `build --facility infirmary|training-yard|quarters`, kebab-case words for the Hall's
+    keys, as `--until` has its own words (DL-33): builds for the player's Guild, writes the save, and
+    prints what was built and for how much, the Wealth and Upkeep after, and the next grade's cost
+    or that the facility is at its highest; a refusal is put into words and nothing is written
+    (exit 1); a word that is not a facility is a bad command line (exit 2). `narrate` has a line for
+    `guild.improved`.
+15. **The Improvements counter, for the M3-close counter task.** "Improvement grades reached by year
+    10 per controller kind" reads `history.byType['guild.improved']`: the entries before Turn
+    `10 × turnsPerYear`, the highest `grade` per Guild and `facility`, the Guild's controller kind
+    from its row by the payload's `guildId`. A Guild that built nothing has grade 0 in each facility,
+    so the denominator is the Guilds founded before year 10 (`guild.founded` entries, replacement
+    Rivals included). Reported per controller kind and facility: the mean grade per Guild, and how
+    many Guilds reached each grade 0 to 3.
+
+**Consequences.** `configVersion` stays 2: `fameRequiredPerLevel`, `quartersMoraleBonus` and
+`buildWealthMultiple` were added and no default changed (DL-28 item 10's reading). Until M3-S1 gives
+Heroes Levels every Hero is Level 1 and nothing is refused; after it, a pool Hero above Level 1 is one
+a folded Guild released, the generator making Level 1 Heroes, so the Fame counter measures how often
+a fallen Rival's veterans are out of a Guild's reach. A Guild at Fame 0 signs only Level 1 Heroes and
+needs Fame 40 for a Level 5. Wealth now has a sink: a Rival founded with more than 600 Wealth builds
+its infirmary on its first afternoon, 1,700 Wealth over three grades, and 30 more Upkeep each ten
+Days once all three are up; the M3 run should watch whether that hastens Rival folds, and
+`buildWealthMultiple` is the dial. Tests that watch a recruit by a Guild with ample Wealth, and the
+fold test with its two Days' grace, put building out of reach, as DL-30 item 11 stills what a test
+does not watch. A merge with M3-S1 to S4 takes the next content version if one of them raised it too,
+and ticks the training-yard half of M3-S6's second box once M3-S2's `training` phase is in.
+
 ## DL-39 — M2 close: verification, the timing tests, and which harness run a tag carries
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the orchestrator, on the
@@ -1920,6 +2251,296 @@ read at 200.
 **Consequences.** `m2-the-loop` carries `harness/reports/m2-2026-09-26.md` (200 × 20, validated
 after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
 with `HEROESIM_SEEDS=1000`.
+
+## DL-40 — M3 close: the M3 counters, what they read, and the M3 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+recording a method and a measure
+
+**Context.** The M3 epic's §2 names six counters: Levels gained per Guild-year, Heroes with any Stat
+at Potential after 10 years, the mean Level of the player's Roster by year, Retirements by age band,
+signings refused by Fame per controller kind, and the Improvement grades reached by year 10 per
+controller kind; the orchestrator adds declines per Guild-year. DL-36, DL-37 and DL-38 said what
+each reads, and the counters were left to one task after the three tracks merged. Three
+cross-track boxes wait on them: M3-S4's third (Levels still rise after decline starts), M3-S5's
+fourth (the Fame counter) and the yard half of M3-S6's second. Left open: how to read what the
+History does not record; the denominator of "per Guild-year"; what "by year" and "after 10 years"
+read in a game that ended first; how to show growth outpacing decline; and what of a Rival's
+`signing-refused` the harness can see.
+
+**Decision.**
+
+1. **Two sources.** From the History, through `history.byType` as M2's counters are
+   (`countGame(document, deps)`, which now takes `deps` for the year's length and content's
+   grades): Levels, declines, Retirements by age, growth against decline and the Improvement
+   grades. From the World State, read while the game is played (`observe` in
+   `harness/src/counters.ts`, which `playGame` calls on each Turn before the policy acts): the Fame
+   gate each morning, and a census of the Guilds in play as each year begins, which no entry
+   records. No event was added for a counter.
+2. **Guild-years.** A Guild is in play from its `foundedTurn` until the Turn it folds or the game
+   stops (`world.ended.turn` for a game that ended); each year of the game gets the part of it each
+   Guild was in play, summed by controller kind. A "per Guild-year" divides a count summed over the
+   games by the Guild-years summed alike, overall and year by year.
+3. **Levels gained and declines**: `hero.levelled` by the controller of its `payload.guildId` and
+   the `yearOf` its Turn; `hero.declined` alike, its Guild the one `emit` named beside the Hero.
+4. **The census.** On the first Turn of each year (Turn k × `turnsPerYear`, a morning, before the
+   policy acts), and once more on the last Turn of a game that ran its full length: for each kind of
+   controller, the Guilds in play, their Wealth, their living Rosters' Heroes and Levels, and the
+   Heroes with any Stat at its Potential or at content's maximum, where growth stops too
+   (`growOneLevel`'s own test, DL-36). **The mean Level by year** is the Levels over the Heroes of
+   the games in play that year, pooled; a game that ended drops out and the report gives the games
+   counted. **Heroes at Potential after 10 years** is the census after 10 years. Both kinds are
+   reported: the epic asks for the player's mean Level, and the Rivals' is its risk table's check.
+   The Wealth was added so the Rivals' economy could be judged (DL-41).
+5. **Retirements by age**: `hero.retired`'s `age` by controller kind, reported in five-year bands.
+6. **Signings refused by Fame**, as DL-38 item 9: each morning, `unsignableHeroes(world, guild,
+   config).length` for every Guild in play, summed by controller kind (Hero-Days refused), with the
+   Guild-Days, the mean a Guild-Day and the Guild-Days with one or more; beside it the
+   `signing-refused` rejections among the policy's refused actions, which the run asserts are 0.
+   **A Rival's are not counted**: the afternoon's phase drops a refused choice and emits nothing
+   (DL-30), so the harness could see one only by replaying the phase. `steady` asks only a Hero who
+   would sign (DL-38 item 5), and the engine's test that no Rival choice is refused over ten Days
+   holds it to that.
+7. **Improvement grades by year 10**, as DL-38 item 15, over the games that reached Turn
+   10 × `turnsPerYear`: a game that ended before has no grades by then and is left out, and the
+   report says how many games are counted. Grades run from 0 to content's top grade.
+8. **Growth against decline** (M3-S4's third box): for each Guild on whose Roster a Hero declined,
+   the Levels gained before its first `hero.declined` and from it on, each per Guild-year of the
+   Guild's play before and after it; and, from it on, the Stat points the Levels added
+   (`statDeltas`) against the points declines took. Before and after go by position in the History,
+   so a Level gained on the night of the first decline, whose `levelUps` runs before `ageing`, is
+   before it.
+9. **The report** is named by milestone (`playReport`'s context gains `milestone`), so the M3 run
+   writes `harness/reports/m3-<date>.md` headed "M3 harness report: play", with an M3 section after
+   M2's counters. Each counter has a fixture test in `counters.test.ts` (a world under a 30-Turn
+   year, its History given at chosen Turns the entries a counter reads), and `playGame`'s
+   observations have their own; `npm test` grew by about a second.
+10. **The training yard end to end** (M3-S6's second box): `cli/src/commands/build.test.ts` builds
+    the yard with `build --facility training-yard`, plays five idle Days with `advance --turns 15`,
+    and finds each of the four Roster Heroes at 5 × `xpPerTrainingDay` (pinned at 2) XP, and a twin
+    world left at grade 0 at none.
+11. **Result, 2026-09-26** (`harness/reports/m3-2026-09-26.md`, committed with this entry): 200
+    seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+    advance, under DL-41's defaults (config version 4, content version 5), in 16 processes on DL-13's
+    machine (AMD Ryzen AI Max+ 395, 32 logical cores, Windows 11, Node v26.9.0), while the defaults'
+    own run (DL-41) and other agents' work used the rest of it. The run took 50 minutes.
+    - **Validation.** No refusal or warning in any game, after every advance and over each whole
+      document; no policy action refused, so no `signing-refused`; all 200 last documents load and
+      serialise back to the same text; `seed-0001` played twice more: identical, 49,820,639
+      characters.
+    - **Endings.** All 200 games ran the full 20 years: no Bankruptcy of the player's Guild. Rivals
+      folded 616 times, 3.08 a game (443 Bankruptcies, 173 wiped Rosters).
+    - **Levels gained per Guild-year**: the player's Guild 19.0, the Rivals 6.9. In year 0, 33.8 and
+      15.9, the cheap first Levels; from year 1, 17.6 to 20.0 and 4.1 to 7.4.
+    - **Mean Level of the player's Roster**: 3.90 after one year, 4.48 after two, 4.95 after ten,
+      4.99 after twenty (the Rivals': 3.98, 4.74, 4.94, 5.47). Nothing near the cap of 20: the
+      policy's Roster of eight loses about five Heroes a year to Deaths and refills at Level 1.
+    - **Heroes with a Stat at Potential after 10 years**: the player's 352 of 1,600 (22.0%), the
+      Rivals' 952 of 4,612 (20.6%).
+    - **Declines per Guild-year**: the player's 0.13, the Rivals' 0.28, from year 4 on.
+    - **Growth against decline** (M3-S4): on the 128 player's Guilds with a decline, 19.6 Levels a
+      Guild-year before the first and 17.8 after it, when Levels added 52.5 Stat points a
+      Guild-year and declines took 0.43; on the 650 Rivals, 8.2 before and 6.6 after, 19.5 points
+      grown against 0.93 declined.
+    - **Retirements by age**: the player's 1 (45 to 49), the Rivals' 24 (21 at 45 to 49, 3 at 50 to
+      54). Heroes die long before they age: 104 and 112 Deaths a game.
+    - **Signings refused by Fame**: no pool Hero refused the player's Guild on any of its 1,440,000
+      Guild-Days; the Rivals were refused 450 Hero-Days in 5,741,530 Guild-Days, on 104 of them. Only
+      a fold's veterans are above Level 1 in the pool, and folds are rare.
+    - **Improvement grades by year 10**: every player's Guild's infirmary at grade 3; the 1,045
+      Rivals' at a mean of 2.98 (1,024 at grade 3). No Guild built a training yard or quarters: the
+      controllers build only the infirmary (M3-S6).
+    - **Measures against `data-model.md` §7** (provisional targets, recorded and not chased, DL-08).
+      "Loaded" is every Turn of the sweep, 16 processes beside the
+      defaults' run's 16 (DL-41); "alone" is `seed-0001`'s 20-year game played again in one process
+      once both runs were done, and its save loaded.
+
+      | Measure | Target | Measured |
+      | --- | --- | --- |
+      | Advance one Turn | under 5 ms | alone: mean 1.60 ms, p99 3.32 ms; loaded: mean 3.50 ms, p99 23.7 ms |
+      | Fast forward a year | under 1 s | 1.73 s (mean alone × 1,080 Turns): over |
+      | Harness: 1,000 games of 20 years | under 10 min | 230 min at this run's rate (16 processes, validated): over |
+      | Save after 20 years | under 20 MB | mean 47.1 MiB (49.4 million characters, 137,929 entries), max 57.9 MiB: about 2.4 times over |
+      | Load a save | under 1 s | alone: 1.31 s (serialising it 1.09 s); loaded: mean 3.7 s |
+
+      The report's own "replayed alone" row, 4.10 ms, was timed while the defaults' run still held
+      16 processes, so the figure above was taken again afterwards.
+
+**Consequences.** M3's gate has its run and the epic's boxes their evidence (M3-S4's third from item
+11's growth against decline; M3-S5's fourth from item 6; M3-S6's second from item 10). What the run
+says, for the owner and later milestones:
+
+- **Progression works and is slow**: a Roster reaches a mean Level near 5 and holds it, a fifth of
+  Heroes touch Potential in a Stat, and the cap is far off (the epic's second risk, now measured);
+  the curve is two config numbers.
+- **Nobody grows old.** Heroes die at about five a year on each Roster, so declines are rare and
+  Retirements a handful; the ageing rules will matter when M4's Quest Engine makes Quests less
+  lethal.
+- **The Fame gate barely binds** while only a fold's veterans are above Level 1 in the pool; it
+  will bind when Heroes enter the pool with Levels (transfers, M6).
+- **The save is smaller than M2's** (47 against 75 MiB) because the Rivals, keeping sixty Upkeeps
+  (DL-41), hold about six Heroes each rather than about twenty, and take fewer Quests.
+- **The yard and the quarters are unbuilt** in harness games: the controllers build only the
+  infirmary (M3-S6), so the yard's XP is proved by tests (M3-S2, item 10), not by the run.
+- **A Rival's refused choice is invisible to the harness** (item 6); a controller that could err
+  would need the phase to count its refusals.
+
+## DL-41 — M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+as the task asks: one pass on `defaultConfig` for the owner to tune; the orchestrator asked that the
+Rivals' fold rate be judged beside the player's side
+
+**Context.** DL-36 cut `wagePerLevel` from 70 to 20 as a stopgap, before M3-S4 to S6 merged, and
+asked M3's harness pass to judge it with the full run. **Before**: M3's run under the defaults
+(config version 3; DL-40's harness; 200 seeds × 20 years, validated, the same machine) is degenerate
+on the Rivals' side. Rivals folded **5,455 times, 27.3 a game** (5,445 Bankruptcies, 10 wiped
+Rosters), against 0.95 a game at M2's tag (DL-35): 3,264 Rivals were founded before year 10 where
+a game starts with four. A Rival recruited 755 Heroes a game, held about 24 Heroes at a mean Level of
+3.0 after 10 years, and only 5.3% of them had a Stat at Potential; it gained 31 Levels a Guild-year,
+nearly all on new Level-1 recruits. The player's side is steady but has no spread: no Bankruptcy in
+200 games, a Roster of eight at a mean Level of 4.75 after 10 years.
+
+The cause is `steady`'s economics once Heroes level. A Rival takes one Quest an afternoon, the
+easiest it can staff, so its income is about one easy reward a day whatever its Roster; it recruits
+whenever its Wealth is above ten Upkeeps, which at Level 1 is cheap, so its Roster grows to twenty
+and more; then its Heroes level, a Level adding `wagePerLevel` to each wage, the same Roster costs
+several times what it did, nobody is let go, and the reserve drains to a Bankruptcy within about
+three years. The player's Guild fields its eight on the highest rewards and loses about five a year
+to Deaths, refilled at Level 1, so its wages stay below its income.
+
+**Decision.** One default changes and one is judged and kept; `configVersion` goes from 3 to 4.
+
+| Field | Was | Now | Why |
+| --- | --- | --- | --- |
+| `recruitWealthMultiple` | 10 (DL-35) | **60** | A Rival recruits only while it holds sixty Upkeeps, about 600 Days of wages: it stops while its Roster is one its income can carry as its Heroes level, and keeps a reserve for the Levels they gain |
+| `wagePerLevel` | 20 (DL-36) | **20**, kept | The highest wage `steady`'s one Quest a day bears: 22 and 25 leave Rivals 3 to 5 Heroes and fold them more often, while the player still almost never goes bankrupt |
+
+The trials that chose it, under DL-34's policy and DL-40's counters (scratch runs, not committed;
+16 seeds × 20 years, `seed-0001` to `seed-0016`, not validated); no player's game ended in any trial
+but the two marked:
+
+| `wagePerLevel` / `recruitWealthMultiple` | Rival folds a game | Rival Heroes a Guild after 10 years | Their mean Level | Rival Levels a Guild-year | Player's mean Level after 10 years |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 / 10 (the defaults) | 27.6 | 23.3 | 2.99 | 30.9 | 4.48 |
+| 20 / 20 | 11.4 | 13.9 | 4.65 | 15.6 | 4.95 |
+| 20 / 30 | 6.3 | 7.2 | 5.17 | 10.4 | 4.96 |
+| 20 / 40 | 4.8 | 7.5 | 5.74 | 8.4 | 4.81 |
+| **20 / 60** | **3.5** | **5.3** | **5.29** | **6.6** | **4.98** |
+| 20 / 80 | 3.3 (18 of 53 wiped Rosters) | 3.8 | 5.11 | 5.9 | 5.29 |
+| 22 / 40 | 6.8 | 4.8 | 5.15 | 6.9 | 5.23 |
+| 25 / 20 | 13.3; 2 of 16 players bankrupt | 4.3 | 4.00 | 8.0 | 4.85 |
+| 25 / 40 | 12.0; 1 of 16 players bankrupt | 3.5 | 4.49 | 6.0 | 5.08 |
+| 15 / 40 | 5.6 | 15.9 | 5.93 | 14.6 | 4.50 |
+| 15 / 60 | 2.3 | 18.6 | 6.00 | 11.1 | 4.73 |
+| 18 / 60 | 2.8 | 9.3 | 5.54 | 8.7 | 4.66 |
+
+A lower wage folds fewer Rivals still (15 / 60: 2.3 a game) but lets their Rosters grow back toward
+twenty, with the save and `advance` growing with them, and makes the player's Guild richer yet (its
+Wealth after 10 years 176,000 against 116,000), whose only Bankruptcy lever is the wage. 20 / 60
+changes one default, keeps DL-36's wage, and brings the fold rate to M2's order of magnitude.
+Beyond sixty the Rosters thin until Deaths wipe them. Not turned: the XP curve and XP per
+difficulty point (Levels rise at a plausible pace and the cap is far off); the stub's bands; Hall
+costs and `buildWealthMultiple`; and the policy's own numbers (the harness's player, DL-34).
+
+**After** (DL-40's run, config version 4, 200 × 20, validated): Rivals folded **616 times, 3.08 a
+game** (443 Bankruptcies, 173 wiped Rosters); a Rival recruited 99 Heroes a game and held 5.8 at a
+mean Level of 4.94 after 10 years (5.47 after 20), 20.6% of them with a Stat at Potential; 6.9
+Levels a Rival-year; Fame refused Rivals 450 Hero-Days, from 549,859. The player's side is as
+before: no Bankruptcy, a mean Level of 4.95 after 10 years, 19.0 Levels a Guild-year, 104 Deaths a
+game. Smaller Rival Rosters also shrank the work: `seed-0001`'s `advance` played alone 3.57 → 1.60 ms a
+Turn, the 20-year save 72.0 → 47.1 MiB (both runs shared the machine, so their run times, 188 and
+50 minutes, do not compare).
+
+Tests that relied on a changed default: the Rival test of the default multiple now expects sixty,
+and the wage test pins configVersion 4 beside the wage of 20. No other test leaned on either (the
+suite passes); none was loosened.
+
+**Consequences.** A save made before this entry plays under version 3 until the player rebases.
+**The player's Guild never goes bankrupt** in either run: its Bankruptcy lever is the wage, and the
+wage is held down by what `steady` can pay, so M3 hands on no spread of player endings (DL-35 had 66
+in 200). Wiped Rosters are now a third of Rival folds: Rosters of about six lose Heroes to Deaths
+faster than a Rival holding sixty Upkeeps replaces them. M6's Dispositions, which widen what a Rival
+takes (the epic's risk table), are where a Rival's income should grow with its Heroes; the owner may
+then raise the wage, or give it a base and a smaller per-Level part (DL-36 item 10). M4's Quest
+Engine replaces the stub and its bands and calls for the next pass.
+
+## DL-53 — M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions after the end; errata to DL-40 and DL-41
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3 verification's fixer),
+on findings the verifiers confirmed; the one default changed is the owner's to revisit
+
+**Context.** M3 was verified after its close (`4eaa606`) by mutation, acceptance, decision, harness
+and CLI passes. Among the confirmed findings, one is a default that leaves a content row doing
+nothing, one is a CLI that goes on accepting actions after it says the game is over, and three are
+figures or layout in DL-40 and DL-41, accepted entries this log does not edit. DL-42 to DL-52 are
+taken or reserved by the M4 and M5 lines of work, built in parallel, so this entry is DL-53.
+
+**Decision.**
+
+1. **The infirmary's third grade quarters an Injury.** `infirmaryHealFactor` becomes
+   `[1, 1/2, 1/3, 1/4]`, and `configVersion` goes from 4 to 5. Content offers three grades of each
+   facility (INPUTS 7.3; the Physicians' wing costs 1,000 Wealth), but INPUTS 4.5 gave the
+   infirmary factors for two ("grade 1 halves, grade 2 thirds"), and DL-29 item 8's rule that a
+   grade past the list reads its last factor made grade 3 heal exactly as grade 2 did. The third
+   grade therefore cost 1,000 Wealth and 10 more Upkeep every 10 Days for nothing, and DL-40's run
+   shows every player's Guild and 1,024 of 1,045 Rivals buying it by year 10. A quarter carries
+   INPUTS 4.5's sequence on. Cutting the infirmary to two grades was the other way, and was not
+   taken: it goes against INPUTS 7.3's three grades a facility and changes the content version.
+   The stub reads the factor through a new selector, `healFactor(guild, config)`, whose rule is
+   DL-29 item 8's, unchanged. A test holds the defaults to content: under the default rules, each
+   grade content defines does more than the grade below it, for every facility (the infirmary's
+   factor falls, the quarters' Morale baseline and the yard's nightly XP rise).
+2. **The CLI refuses an action once the game has ended.** DL-28 says the world stops as it stands
+   at the player's ending, and `advance` refused, but `dispatch`, `build` and `recruit` were still
+   taken. A Party could be sent that would never come home, and Milestones were written after
+   `game.ended`. Each is now refused with "The game ended on Turn n: reason. Nothing more can be
+   done in it.", and nothing is written. The engine's actions are unchanged and have no
+   `game-ended` rejection: the only other caller, the harness's policy, already stops acting once
+   the game has ended.
+3. **Errata.** These are corrections to DL-40 and DL-41. The decisions in both stand.
+   - DL-41 says "A Rival recruited 755 Heroes a game" (Context) and "a Rival recruited 99 Heroes a
+     game" (After). Both figures are totals for every Rival in a game: the report's Rivals'
+     `hero.recruited` a game, which `countByController` sums over every Rival Guild. The correct
+     wording is that **the Rivals** recruited 755 Heroes a game before and 99 after. Per Rival,
+     that is about 24 each before (about 31 Rivals founded a game) and about 14 after (about 7:
+     four, and 3.08 replacements), or 1.2 a Rival-year (19,756 over 15,948.7 Rival-years). The fall compares
+     like with like.
+   - DL-40's Consequences say "Heroes die at about five a year on each Roster". That is true of
+     the player's Roster of eight, which lost 20,829 Heroes over 4,000.0 Guild-years (5.2 a year).
+     It is not true of a Rival's Roster of three to six, which lost 22,484 over 15,948.7 Guild-years
+     (1.4 a year). A Rival's Hero lives roughly three times as long as the player's, so the Rivals
+     are where ageing shows first: 24 of the 25 Retirements, and 0.28 declines a Guild-year against
+     0.13. Ageing still barely binds under M3's Quests.
+   - In DL-40 item 11's measures table, the Load a save row had been written after the note that
+     follows the table, so it rendered as text. The row now sits in the table and the note below
+     it. Only the layout changed, not a word or a figure. The note's "figure above" is Advance one
+     Turn's figure played alone. The save target stays "under 20 MB", as `data-model.md` §7 writes
+     it.
+
+The verification also found tests too weak to fail when the code changes. Each is fixed with a test
+and needs no decision. New tests kill five mutants:
+- a Party sent on an anniversary night itself is not checked again when it comes home;
+- a `declinePerYear` above 1, and one of 0;
+- a `declineAge` other than 40;
+- the declining Stat drawn in key order;
+- training XP at `levelCap`.
+
+Other fixes:
+- The quarters are plural in `build`'s and the narration's lines.
+- `show hero` names an Injury by content and gives the night it heals.
+- `show hall [guildId]` gives each facility's grade, what is built and what the next grade costs,
+  and `show` names the player's grades.
+
+**Consequences.** A save made before this entry plays under version 4, with its third infirmary
+grade inert, until the player rebases. M3's harness run (DL-40, `harness/reports/m3-2026-09-26.md`)
+was made under version 4 and is not run again: the change shortens only Injuries inflicted at
+infirmary grade 3, from a third of their Days to a quarter, and the next milestone's run measures
+it. M4's line of work also names its
+defaults version 5 (the M3 close merged into M4, DL-47 there). Git would merge the two identical
+`configVersion: 5` lines without a conflict, so whoever merges this entry into M4 must give the
+merged defaults a version of their own. M4's Quest Engine reads the infirmary's factor with its own
+copy of the rule and should read `healFactor`.
 
 ---
 

@@ -6,14 +6,15 @@
 // the other only when a command runs, never while the modules load.
 
 import { isId, playerGuild, recruit, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
-import { exitCodes, open, refuse, say, type Context, type Exit } from '../main.js';
+import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../main.js';
 import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
 
 /**
  * Recruits `heroId` for the player's Guild, writes the save, and prints the fee and the new Roster
  * size. A word that is not a Hero id is a bad command line; a Hero the save lacks, one not in the
- * pool, and a fee above the Guild's Wealth are refused, and nothing is written.
+ * pool, one who will not sign for the Guild's Fame (M3-S5) and a fee above the Guild's Wealth are
+ * refused, and nothing is written; so is any signing once the game has ended.
  */
 export function recruitHero(heroId: string, { io, content, path }: Context): Exit {
   if (!isId('heroes', heroId)) {
@@ -22,6 +23,8 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
+  const ended = over(io, document, noActionAfterTheEnd);
+  if (ended !== undefined) return ended;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
   const hero = rowIn(document.world.heroes, heroId);
@@ -45,6 +48,11 @@ function refusal(rejection: RecruitRejection, who: string, guildName: string): s
   switch (rejection.reason) {
     case 'hero-not-unattached':
       return `${who} is not in the Unattached pool; show pool lists who is.`;
+    case 'signing-refused':
+      return (
+        `${who} will not sign for a Guild with less than ${rejection.fameRequired} Fame; ` +
+        `${guildName} has ${rejection.fame}, ${rejection.shortfall} short.`
+      );
     case 'insufficient-wealth':
       return `${who}'s signing fee is ${rejection.fee} Wealth; ${guildName} has ${rejection.wealth}.`;
     case 'guild-folded':
