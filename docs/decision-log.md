@@ -2634,6 +2634,106 @@ now reach the Check; Thrifty and Spendthrift move Upkeep), Coaching, and the Boa
 a smoke run is made here: 4 seeds × 5 years, the automatic policy, validated after every advance.
 The M4 close's balance pass measures them together.
 
+## DL-45 — Synergies: the row, the match, how a bonus combines, the Quest's record and the preview (M4-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S3's implementer)
+
+**Context.** M4-S3 names `content/synergies.json` and its row `{ key, name, requires: { classes?:
+Record<ClassKey, count>, skills?: SkillKey[] }, bonus: { flat?, factor? }, kinds?: EncounterKind[] }`,
+six starter Synergies written by the agent (INPUTS 6.4: "e.g. Warrior + Healer, Rogue + Mage, three
+Warriors"), a `synergiesFor(party heroes, content)` selector, the bonus applied in the Check through
+DL-42's seam `synergyBonus(heroes, encounter, base, deps)`, `quest.resolved` listing the Synergy keys
+that applied and nothing emitted per Encounter, and a CLI view of a proposed Party's Synergies, which
+the box calls `show party` and M4-S5 built as `preview --quest --heroes` for this story to extend
+(DL-43 item 9). It leaves open: what meeting a count or a Skill means; what `factor` is, and how
+`flat`, `factor`, `base` and several Synergies combine; which members are matched on an Encounter;
+what "applied" means for the Quest's list; what content validation refuses; and the values.
+
+**Decision.**
+
+1. **The match** (`quest-engine/synergy.ts`, beside the seam; exported from the engine). A Party
+   meets a Synergy (`meetsRequirement`) when it has **at least** the count named of each Class, and
+   each Skill named is held, at any rating, by at least one member; different members may hold
+   different Skills, and a Hero counts once, for their Class. `synergiesFor(heroes, content)` is
+   every Synergy met, in key order, whatever the Encounter: the selector a front end shows for a
+   proposed Party. `synergiesOn(heroes, encounter, content)` narrows it to those whose `kinds` hold
+   the Encounter's kind, or that name none (`appliesOn`: every kind). `synergiesFor` lives with the
+   seam rather than in `selectors.ts`, as `unmetRequirements` lives with `dispatch`.
+2. **The bonus.** `factor` is a **multiplier**, as every `factor` in content is (the Encounters' `xp`
+   and `wealth` consequences, `upkeepFactor`): 1.1 is +10%. On an Encounter, the factors of the
+   Synergies that apply are **multiplied together and scale `base`** (the capability's Stats and
+   Skills term) and nothing else; their **`flat`s are summed and added unscaled**; a missing `factor`
+   is 1 and a missing `flat` 0. The seam returns `base × (∏ factor − 1) + Σ flat`, so the capability
+   is `(base × ∏ factor + Σ flat) × teamwork` (DL-42 item 10). No Synergy's bonus is read against
+   another's, so the order Synergies are listed in never matters; a flat is worth the same to any
+   Party, a factor more to a stronger one. Multiplying the factors follows the Encounters' factors
+   (DL-42 item 2); with the starter values, multiplying and adding differ by under half a point of
+   capability. No config field: a Synergy's numbers are content (principle 6).
+3. **Who is matched**: the members still in the sequence, whom the Check reads (DL-42 items 10, 11).
+   A Synergy lost with a member who died adds to no later Encounter.
+4. **The Quest's record.** `QuestOutcome.synergyKeys`, and so `quest.resolved`'s payload, lists each
+   Synergy that added to at least one Check of the sequence (met by the members checked, on an
+   Encounter of its kinds), once, in key order, `[]` for none. A Synergy the Party met only on kinds
+   its Quest did not have is not listed. `quest.encounter` gains nothing (the epic: "emits nothing
+   per encounter"). The event type makes the field optional: an entry written before this story lacks
+   it, and reads as none. The CLI's narration of `quest.resolved` names them ("Synergies: Shield wall,
+   Sword and salve."), and says nothing when there are none.
+5. **Content validation refuses** (the parser the shape, `validateContent` the rest): a requirement
+   naming no Class and no Skill; a Class or Skill content lacks; a count that is not a whole number
+   from 1; a Skill listed twice; a bonus with neither `flat` nor `factor`; a `flat` of 0 or less; a
+   `factor` of 1 or less, a Synergy being a bonus and a factor a multiplier, so that a factor written
+   as a share (0.1 meaning +10%) is caught; `kinds` listed empty (it is left out for every kind),
+   naming a kind that is not one of the five, or naming one twice; and a field the row, its
+   `requires` or its `bonus` does not have. `synergies.json` is required and may be `{}`. A Synergy no
+   Party could meet (counts above every template's Party size) is not refused.
+6. **The six** (`content/synergies.json`, table `synergies`); the engine's test content carries the
+   same six, and no earlier test's outcome changed with them:
+
+   | Key | Requires | Bonus | Kinds |
+   | --- | --- | --- | --- |
+   | `sword-and-salve` | a Warrior and a Healer | +2 | combat, travel |
+   | `shadow-and-spell` | a Rogue and a Mage | ×1.1 | stealth, arcane |
+   | `shield-wall` | three Warriors | ×1.15 | combat |
+   | `a-full-company` | one of each Class | +1 and ×1.05 | every kind |
+   | `wards-and-blessings` | Warding and Benediction | +3 | arcane, combat |
+   | `scouting-ahead` | Tactics and Stealth | +2 | travel, stealth |
+
+   Against DL-42's scale (a `sum` Encounter's target is 0.25 × difficulty, a `best` one's 0.15 ×,
+   and a Party's base is a few tens on `sum`, ten to twenty on `best`), a flat of 2 or 3 is worth
+   about 5 to 20% of a capability and a factor its stated share. **`contentVersion` becomes 8**;
+   **`configVersion` stays 4**, no config field being added or changed.
+7. **The preview.** `preview --quest --heroes` gains a Synergies section: each Synergy the named Heroes
+   would have (`synergiesFor`), its bonus, its kinds, and how many of the Quest's drawn Encounters are
+   of them ("Sword and salve: +2 on combat and travel Encounters; 2 of this Quest's 3."), "drawn on
+   the way" for a Quest drawn before M4 (DL-42 item 7), or "None: this Party meets no Synergy." This
+   meets the epic's `show party` box, as DL-43 item 9 intended.
+8. **The balance check** (scratch runs, not committed): 12 seeds × 5 years under the automatic
+   policy (DL-34) and the default config, the core content with its six Synergies and with none,
+   the run with them validated after every advance (no refusal, no warning, no policy action
+   refused). *With them*: a Synergy applied on 17.3% of the player's 18,373 Quests (0.18 a Quest:
+   3,031 Quests with one, 149 with two) and on 15.0% of the Rivals' 70,834 (0.15 a Quest); by key,
+   the player's Sword and salve 1,383, Scouting ahead 821, Shadow and spell 807, Shield wall 204,
+   Wards and blessings 114, and A full company never (`partyFor`, which the policy and `steady`
+   share, sends the fewest Heroes a Quest allows, one to three in the core templates, so never four
+   of four Classes). *Shift*: the player's Quests
+   succeeded 60.6% without and 62.9% with (strong 38.9% to 41.3%, failed 39.4% to 37.1%), its
+   Encounters 60.9% to 63.3%; the Rivals' Quests 82.9% to 83.0%, their Encounters 80.6% to 80.8%; the
+   player's Deaths a game 22.3 to 21.2, its Injuries 264 to 239. A bonus on about one Quest in six
+   that moves success by two points is a flavour, not a new balance, so **no value was adjusted**; a
+   player who composes Parties for them will see more, which is the point of showing them in
+   `preview`.
+
+**Consequences.** A Party's Classes and Skills now move its Checks beyond its Stats, for every Guild
+alike (ADR-0002); neither the automatic policy nor `steady` chooses a Party for its Synergies
+(`partyFor` staffs by the template's demands), so the rates above are what chance composition earns,
+and a Synergy-seeking policy would earn more. A new Synergy is a content change with no engine change
+(principle 6); a new kind of bonus is an engine change and earns a decision. The M4 close's balance
+pass measures Synergies beside M4-S4's teamwork. **For the M4-close counter task**: *Synergies
+applied per Quest* is, for each `quest.resolved` entry, the length of `payload.synergyKeys` (absent,
+in an entry from before this story, is none), reported as the share of Quests with at least one, the
+mean per Quest and the count by key, split by the controller kind of `payload.guildId`'s Guild, as
+DL-34 item 4 joins entries to Guilds.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

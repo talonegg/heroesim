@@ -239,10 +239,11 @@ describe("the Quest Engine's config (DL-42)", () => {
   });
 });
 
-// The two seams M4-S3 and M4-S4 fill (DL-42): neutral until then.
+// The two seams M4-S3 and M4-S4 fill (DL-42): neutral until then, and the Synergy term neutral for
+// content without Synergies (M4-S3's own tests are synergy.test.ts).
 describe("the Check's seams", () => {
   test('the Synergy bonus is 0 and the teamwork scalar 1, whatever the Party', () => {
-    const { world, heroes, deps } = scene('seams', testContent, []);
+    const { world, heroes, deps } = scene('seams', { ...testContent, synergies: {} }, []);
     const any = testContent.encounters['ambush-on-the-road'] as Encounter;
     expect(synergyBonus(heroes, any, 30, deps)).toBe(0);
     expect(teamwork(heroes, world, deps)).toBe(1);

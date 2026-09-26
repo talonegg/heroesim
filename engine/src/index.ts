@@ -68,6 +68,14 @@ export {
   type QuestOutcome,
   type Resolution,
 } from './quest-engine/resolve.js';
+export {
+  appliesOn,
+  meetsRequirement,
+  synergiesFor,
+  synergiesOn,
+  synergyBonus,
+  type SynergyMember,
+} from './quest-engine/synergy.js';
 export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';

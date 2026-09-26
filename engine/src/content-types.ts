@@ -5,7 +5,7 @@
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
 // `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`; M3-S6
-// `Improvement`. Later milestones add theirs (M5-S1 Items).
+// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`. Later milestones add theirs (M5-S1 Items).
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -43,6 +43,8 @@ export type ItemDefinitionKey = string;
 export type SlotKey = string;
 /** A Hall Improvement, one grade of one facility (M3-S6, `improvements.json`). */
 export type ImprovementKey = string;
+/** A Synergy, a bonus for a combination of Classes or Skills in a Party (M4-S3, `synergies.json`). */
+export type SynergyKey = string;
 
 /** The four areas a Stat belongs to, used for display (R14). */
 export type StatArea = 'physical' | 'mental' | 'magical' | 'social';
@@ -280,6 +282,40 @@ export interface Encounter {
 }
 
 /**
+ * What a Party must hold for a Synergy to apply (M4-S3): at least `count` members of each Class
+ * named, and each Skill named held, at any rating, by at least one member. At least one Class or
+ * Skill in all; content validation refuses a count below 1.
+ */
+export interface SynergyRequires {
+  classes?: Record<ClassKey, number>;
+  skills?: SkillKey[];
+}
+
+/**
+ * What a Synergy adds to a Check's capability (M4-S3, DL-45): `flat` added as it stands, and
+ * `factor` multiplying the capability's Stats and Skills (`base`), as every `factor` in content
+ * multiplies. At least one of the two; `flat` above 0 and `factor` above 1, a Synergy being a bonus.
+ */
+export interface SynergyBonus {
+  flat?: number;
+  factor?: number;
+}
+
+/**
+ * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party holding a
+ * combination of Classes or Skills, added to each Check of an Encounter of one of its `kinds`, or
+ * of every kind when it names none. Relationship between the members is teamwork's, apart (M4-S4).
+ */
+export interface Synergy {
+  key: SynergyKey;
+  name: string;
+  requires: SynergyRequires;
+  bonus: SynergyBonus;
+  /** The Encounter kinds it applies on, at least one and none twice; absent for every kind. */
+  kinds?: EncounterKind[];
+}
+
+/**
  * A type of Injury (`injuries.json`, M2-S5): how long it takes to heal, before an infirmary
  * shortens it (INPUTS 4.5), and the Hero Trait it leaves once healed, if any (R16). An
  * Encounter's injury consequence names the type it inflicts (M4-S1).
@@ -353,6 +389,8 @@ export interface ContentSet {
   improvements: Record<ImprovementKey, Improvement>;
   /** The Encounters a Quest's sequence is drawn from, by the kinds its template names (M4-S1). */
   encounters: Record<EncounterKey, Encounter>;
+  /** The Synergies a Party's Classes and Skills can earn on a Check (M4-S3). */
+  synergies: Record<SynergyKey, Synergy>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

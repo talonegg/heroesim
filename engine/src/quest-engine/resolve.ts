@@ -5,7 +5,8 @@
 // summed, XP and Wealth factors multiplied. A Hero who dies takes no part in the rest of the
 // sequence, and a Party with no one left stops. The Quest's band is read from the share of its
 // Encounters succeeded (`bandBySuccessShare`), so M2's Wealth and Fame rules and M3's XP rule still
-// apply through it (DL-29 item 4, DL-36 item 5), each then moved by the consequences.
+// apply through it (DL-29 item 4, DL-36 item 5), each then moved by the consequences. The outcome
+// names the Synergies that added to any Check (M4-S3, DL-45), once for the Quest.
 //
 // Every draw is from the `quests` stream, except the sequence of a Quest generated before M4, which
 // is drawn from `encounters` (`sequenceFor`). The draws are a Check's one, then for each of the
@@ -18,12 +19,13 @@
 // (ADR-0002 as amended by pre-M0 review A1).
 
 import type { GameConfig, QuestBand } from '../config.js';
-import type { Consequence, EncounterKey, EncounterKind, InjuryTypeKey } from '../content-types.js';
-import type { Guild, Hero, HeroId, Party, Quest, World } from '../document.js';
+import type { Consequence, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKey } from '../content-types.js';
+import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { chance, int } from '../rng.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
 import { sequenceFor } from './encounters.js';
+import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
 export interface QuestInjury {
@@ -68,6 +70,11 @@ export interface QuestOutcome {
   /** At most one per Hero, and none on a Hero who died. */
   injuries: QuestInjury[];
   deaths: HeroId[];
+  /**
+   * The Synergies that added to at least one Check of the sequence (M4-S3, DL-45): each met by the
+   * members checked on an Encounter of one of its kinds, once however many, in key order.
+   */
+  synergyKeys: SynergyKey[];
 }
 
 /** A Quest resolved: its outcome, and each Encounter checked, in sequence order. */
@@ -139,8 +146,11 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     regardDelta: 0,
   };
   const encounters: EncounterResult[] = [];
+  const synergyKeys = new Set<SynergyKey>();
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
+    // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
+    for (const synergy of synergiesOn(working.alive, encounter, deps.content)) synergyKeys.add(synergy.key);
     const result = check(working.alive, encounter, quest, world, deps);
     const harm: Harm = { injured: [], died: [] };
     for (const consequence of encounter.consequences[result.outcome]) {
@@ -175,6 +185,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       regardDelta: working.regardDelta,
       injuries: working.injuries,
       deaths: working.deaths,
+      synergyKeys: [...synergyKeys].sort(compareByCodeUnit),
     },
     encounters,
   };

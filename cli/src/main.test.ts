@@ -1059,6 +1059,74 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
   });
 });
 
+// M4-S3's third box: the epic's `show party` is M4-S5's `preview --quest --heroes` (DL-43, DL-45).
+describe('preview lists the Synergies a proposed Party would have (M4-S3)', () => {
+  beforeEach(() => {
+    newDemo();
+  });
+
+  /** The Board's first Quest, drawn with `encounterKeys`, and the first `classKeys.length` of the Roster made those Classes, with no Skill. */
+  function proposed(encounterKeys: string[], ...classKeys: string[]): { questId: QuestId; heroIds: HeroId[] } {
+    const { world } = document();
+    const questId = (world.board as QuestId[])[0];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, classKeys.length);
+    if (questId === undefined || heroIds.length < classKeys.length) throw new Error('The demo world has changed');
+    edit((edited) => {
+      const quest = edited.world.quests[questId] as Quest;
+      quest.encounterKeys = encounterKeys;
+      quest.requirements = { partySizeMin: 1, partySizeMax: 4 };
+      heroIds.forEach((id, index) => {
+        const hero = edited.world.heroes[id] as Hero;
+        hero.classKey = classKeys[index] ?? 'warrior';
+        hero.skills = {};
+      });
+    });
+    return { questId, heroIds };
+  }
+
+  /** The lines of `output`'s Synergies section, up to the blank line after it. */
+  function synergies(output: string): string[] {
+    const lines = output.split('\n');
+    const start = lines.indexOf('Synergies');
+    if (start === -1) throw new Error(`No Synergies section in:\n${output}`);
+    const end = lines.indexOf('', start);
+    return lines.slice(start + 1, end === -1 ? undefined : end);
+  }
+
+  test("names each Synergy, its bonus, its kinds and how many of the Quest's Encounters it adds to, and writes nothing", () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road', 'a-hostile-reeve', 'the-long-march'], 'warrior', 'healer', 'rogue', 'mage');
+    const original = saved();
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(synergies(run.out)).toEqual([
+      '  A full company: +1 and ×1.05 on every Encounter; 3 of this Quest\'s 3.',
+      '  Shadow and spell: ×1.1 on stealth and arcane Encounters; 0 of this Quest\'s 3.',
+      '  Sword and salve: +2 on combat and travel Encounters; 2 of this Quest\'s 3.',
+    ]);
+    expect(run.out).toContain('Dispatch would send this Party.');
+    expect(saved()).toBe(original);
+  });
+
+  test('says when a Party meets none, one member short of one', () => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road', 'hold-the-line'], 'warrior', 'warrior', 'rogue');
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(synergies(run.out)).toEqual(['  None: this Party meets no Synergy.']);
+  });
+
+  test('says a Quest drawn before M4 has its Encounters drawn on the way', () => {
+    const { questId, heroIds } = proposed([], 'warrior', 'warrior', 'warrior');
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
+  });
+});
+
 describe('the command line', () => {
   test('show refuses when there is no save', () => {
     const run = play(['show']);

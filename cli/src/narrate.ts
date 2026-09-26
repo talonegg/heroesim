@@ -113,10 +113,12 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${partyId} ${went} ${nameIn(content.encounters, encounterKey)}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
     }
     case 'quest.resolved': {
-      const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta } = event.payload;
+      const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
+      // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
+      const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
       return (
         `${called(event, guildId)}'s ${partyId} came home from ${nameIn(content.questTemplates, templateKey)} ` +
-        `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.`
+        `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`
       );
     }
     case 'hero.injured': {
