@@ -1,6 +1,7 @@
-// Night: the Hero State Engine — healing, Morale drift and the yearly Retirement check (approach
-// §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29). Ageing itself is derived (`ageOf`); the yearly decline
-// is the `ageing` phase's, which runs next on the same nights (ageing.ts, M3-S4, DL-37).
+// Night: the Hero State Engine — healing, Morale drift, Regard decay and the yearly Retirement
+// check (approach §2, M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29; M4-S4, DL-46). Ageing itself is derived
+// (`ageOf`); the yearly decline is the `ageing` phase's, which runs next on the same nights
+// (ageing.ts, M3-S4, DL-37).
 //
 // It covers the Heroes on a Roster of a Guild that has not folded, in Guild id order and Roster
 // order, those away on a Quest included; a dead or retired Hero has left the Roster and is never
@@ -18,6 +19,11 @@
 //   Inspiration and Traits from M4-S5), and stops there. Drift emits
 //   `hero.morale-changed` only on the night it takes Morale from one of `moraleBands` into
 //   another (data-model rule 10); the discrete changes are `questsConclude`'s.
+// - **Regard decay** (M4-S4, hero-regard.ts). The Hero's Regard for each other Hero with whom they
+//   have not shared a Quest for a whole year moves toward neutral by `regardDecayPerYear` of the
+//   scale's reach a year, an even share each night, and goes at neutral: a drift, emitting
+//   `hero.regard-changed` only on a band crossing. A dead, retired or pool Hero is not reached, so
+//   their own Regard stays as it stood; Regard for them decays like any other (DL-46).
 // - **Retirement.** Once a year, on the night of the Day each anniversary of the Hero's
 //   `enteredTurn` falls on, one draw from the `heroes` stream: the chance is
 //   `heroRetirementChancePerYear` for each whole year of age past `heroRetirementAge`, times
@@ -33,6 +39,7 @@ import type { GameConfig } from '../config.js';
 import { compareByCodeUnit, type Hero, type HeroId, type History, type Turn, type World } from '../document.js';
 import type { EngineEvent, QuestTaken } from '../events.js';
 import { streamOf } from '../generators/draw.js';
+import { decayHeroRegard } from '../hero-regard.js';
 import { moraleBand, moraleBaselineFor, moraleChanged } from '../morale.js';
 import { chance } from '../rng.js';
 import { ageOf, dayOf, nightOf, turnsPerDay } from '../time.js';
@@ -48,7 +55,7 @@ export const heroState: PhaseRun = (world, ctx) => {
       const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
       if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) continue;
 
-      events.push(...heal(hero, ctx), ...drift(hero, world, ctx));
+      events.push(...heal(hero, ctx), ...drift(hero, world, ctx), ...decayHeroRegard(hero, world, ctx));
       if (!retirementCheckDue(hero, ctx)) continue;
       const age = ageOf(hero, ctx.turn, ctx.config);
       if (!chance(streamOf(world, 'heroes'), retirementChance(hero, age, ctx.config))) continue;

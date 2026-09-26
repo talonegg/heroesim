@@ -53,6 +53,7 @@ export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } 
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
+export * from './hero-regard.js';
 export * from './history.js';
 export * from './json-safe.js';
 export * from './regard.js';
@@ -60,6 +61,7 @@ export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
+export { teamwork } from './quest-engine/teamwork.js';
 export {
   questBand,
   resolveQuest,

@@ -1,21 +1,26 @@
-// The teamwork scalar of a Check's capability (M4-S2's seam, DL-42): how well a Party works
-// together, from the mean pairwise Relationship of its members (R24, INPUTS 6.3: ×0.9 to ×1.1
-// across the Relationship range). M4-S4 fills it, with `relationship(a, b, world)` read from the
-// Heroes' Regard for each other and `teamworkRange` in the config. Until then every Party works
-// together neither better nor worse than its Stats say, and the scalar is 1: the neutral value,
-// which leaves the Check what it would be without it.
+// The teamwork scalar of a Check's capability (M4-S2's seam, DL-42; filled by M4-S4, DL-46): how
+// well a Party works together, from the mean pairwise Relationship of its members (R24, INPUTS 6.3:
+// ×0.9 to ×1.1 across the Relationship range). The Relationship of each pair is read from the two
+// Heroes' Regard for each other (`relationshipBetween`, hero-regard.ts), never stored.
+//
+// The scalar is 1 plus `teamworkRange` times the mean as a share of the scale's reach on its side
+// (`regardShare`): 1 at neutral, 1 + `teamworkRange` for a Party whose every pair is at the scale's
+// top, 1 − `teamworkRange` for one at its bottom. A Party of one has no pair and works as its
+// Stats say: 1, the neutral value (DL-46).
 
 import type { EngineDeps } from '../config.js';
 import type { Hero, World } from '../document.js';
+import { meanPairwiseRelationship } from '../hero-regard.js';
+import { regardShare } from '../regard.js';
 
 /**
  * What `heroes`, the Party members still in the sequence, multiply their capability by for working
- * together in `world`. 1 until M4-S4.
+ * together (M4-S4). Reads the Heroes' own Regard maps.
  */
 export function teamwork(heroes: readonly Hero[], world: World, deps: Pick<EngineDeps, 'config' | 'content'>): number {
-  // M4-S4 reads all three; the seam takes them now so that the Check's call does not change.
-  void heroes;
+  // The seam's signature, kept so that the Check's call does not change; nothing here reads it yet.
   void world;
-  void deps;
-  return 1;
+  const { config } = deps;
+  if (heroes.length < 2) return 1;
+  return 1 + config.teamworkRange * regardShare(meanPairwiseRelationship(heroes, config), config);
 }

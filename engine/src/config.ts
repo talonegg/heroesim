@@ -7,7 +7,7 @@
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
-// Guildmaster's Stat rules (DL-43). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46). Every "Min/Max" pair is an inclusive range drawn with `int`. A
 // field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, StatArea } from './content-types.js';
@@ -245,7 +245,7 @@ export interface GameConfig {
   /**
    * Regard's scale: every Regard value, whoever holds it, is held inside `regardMin` to
    * `regardMax`. Absence reads as 0, which is neutral (data-model §3.2). M4-S4's Regard between
-   * Heroes shares the scale and the bands.
+   * Heroes, and the Relationship read from it, share the scale and the bands (DL-46).
    */
   regardMin: number;
   regardMax: number;
@@ -255,6 +255,30 @@ export interface GameConfig {
    * event only when it takes the value from one band into another (data-model rule 10).
    */
   regardBands: Readonly<Record<RegardBand, number>>;
+
+  // ── Regard between Heroes and Relationship (M4-S4, R24, INPUTS 6.3, DL-46) ─────────────────
+  /**
+   * Added to each Hero's Regard for each other Hero of the Party who came home alive with them,
+   * once for each resolved Quest, whatever its band; with `regardOnSuccessBonus` on a success and
+   * the Encounters' `regard` consequences, summed, in the same one change.
+   */
+  regardPerSharedQuest: number;
+  /** Added beside `regardPerSharedQuest` when the shared Quest succeeded (any band but `fail`). */
+  regardOnSuccessBonus: number;
+  /**
+   * Each night a Hero on a Roster's Regard for another Hero moves toward neutral by this share of
+   * the scale's reach a year, spread evenly over the year's nights, once a whole year
+   * (`turnsPerYear` Turns) has passed since the two last shared a Quest (the entry's `since`); it
+   * stops at neutral, where the entry goes. The unit is `patronRegardRecoveryPerYear`'s. A drift:
+   * an event only on a band crossing (rule 10).
+   */
+  regardDecayPerYear: number;
+  /**
+   * The teamwork scalar a Check's capability is multiplied by (`teamwork`): 1 plus this times the
+   * Party's mean pairwise Relationship as a share of the scale's reach on its side, so from
+   * 1 − this at the scale's bottom to 1 + this at its top (INPUTS 6.3: ×0.9 to ×1.1).
+   */
+  teamworkRange: number;
 
   // ── Patron Regard and the Board (M4-S5, R22, pre-M0 review B5, DL-43) ─────────────────────
   /** Added to a Patron's Regard for a Guild when the Guild's Party succeeds at one of their Quests. */
@@ -419,6 +443,10 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   regardMin: -20,
   regardMax: 20,
   regardBands: Object.freeze({ hostile: -20, cool: -12, neutral: -4, warm: 4, close: 12 }),
+  regardPerSharedQuest: 1,
+  regardOnSuccessBonus: 0.5,
+  regardDecayPerYear: 0.25,
+  teamworkRange: 0.1,
   patronRegardOnSuccess: 1,
   patronRegardOnFailure: -2,
   patronRegardOnExpiry: -1,

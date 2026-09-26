@@ -2734,6 +2734,119 @@ in an entry from before this story, is none), reported as the share of Quests wi
 mean per Quest and the count by key, split by the controller kind of `payload.guildId`'s Guild, as
 DL-34 item 4 joins entries to Guilds.
 
+## DL-46 — Regard between Heroes: its writer, its decay and the dead; Relationship; the teamwork scalar (M4-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S4's implementer)
+
+**Context.** M4-S4 gives Regard between Heroes its first writer (after a Quest every pair of the
+Party gains `regardPerSharedQuest`, more on success), emitting `hero.regard-changed` only on a band
+crossing; `relationship(a, b, world)`, the mean of the two Regards, clamped, never stored;
+`teamwork(party, world, config)`, a scalar over the Party's mean pairwise Relationship (INPUTS 6.3:
+×0.9 to ×1.1 across the Relationship range); and, in the night's `heroState`, decay toward neutral
+at `regardDecayPerYear` for pairs who have not shared a Quest that year. DL-42 left the Encounters'
+`regard` consequences summed in `outcome.regardDelta`, applied by nothing, and the `teamwork` seam
+at 1; DL-43 set one Regard scale and one set of bands for every holder. The story leaves open:
+whether a Hero killed on the Quest takes part; what "that year" means and the decay rate's unit;
+what becomes of the Regard of, and for, dead, retired and Unattached Heroes; a Party of one's
+teamwork; the event's shape; the defaults; and whether `show hero` shows Regard.
+
+**Decision.**
+
+1. **One scale.** Regard between Heroes and the Relationship read from it use DL-43's `regardMin`
+   −20 to `regardMax` 20 and its `regardBands` (hostile, cool, neutral, warm, close) unchanged, and
+   its `adjustRegard`, `recoverRegard` and `regardBand`; no second scale. New module
+   `hero-regard.ts`.
+2. **The writer** (`regardOnSharedQuest`), called by `questsConclude` after the Patron's and the
+   Guildmaster's Regard (DL-44 item 4), for every Guild's Party alike: once for each resolved Quest,
+   each Hero who came home alive gains, for each other who did, **one** change of
+   `regardPerSharedQuest` + `regardOnSuccessBonus` (for any band but `fail`) + `outcome.regardDelta`
+   (the Encounters' Regard, now applied, closing DL-42 item 2 and DL-44 item 5). One `adjustRegard`
+   each way, so a Quest makes at most one event each way; `since` is the return night and `reason`
+   `quest.resolved`, even for a change of 0 (the two shared the Quest, which the decay reads).
+3. **The dead take no part.** A Hero killed on the Quest gains no Regard and nobody's for them
+   moves: Relationship with the dead is never read (no Party can hold them), and writing it would
+   only grow the maps and the History. Their own map stays as it stood (rule 8: dead Heroes stay,
+   with their State).
+4. **`hero.regard-changed`** `{ heroId, entityId, cause, before, after, bandBefore, bandAfter }`,
+   `cause` `shared-quest` or `decay`, one entry for each Hero whose Regard crossed: Regard is held
+   one way, and a pair's two values part once one of them leaves the Roster. It names both Heroes
+   (and, through `emit`, their Guilds); not a Milestone. `entityId` is any entity, as
+   `guildmaster.regard-changed`'s is, so that a later writer of a Hero's Regard for another kind of
+   entity shares the event.
+5. **The decay** (`decayHeroRegard`), in the Hero State Engine after Morale drift, for each Hero on
+   the Roster of a Guild in play, every Guild alike. "Not shared a Quest that year" is read as **a
+   whole year, `turnsPerYear` Turns, since the entry's `since`**, the last shared Quest, not a
+   calendar year, so two Heroes home on a year's last night do not begin to drift on the next. From
+   then on each night moves the value toward neutral by `regardDecayPerYear` × the scale's reach ÷
+   the year's nights, the unit of DL-43's `patronRegardRecoveryPerYear`; it stops at neutral, where
+   the entry goes, and `since` and `reason` stay. Only entries keyed by a Hero the world holds
+   decay; a Hero's Regard for anyone else is another rule's. Due entries are visited in id order, so
+   that a loaded save, whose maps come back with sorted keys, emits what the unsaved game would.
+   Default **`regardDecayPerYear` 0.25**: five points a year, so a pair at the scale's top is
+   neutral again about four years after their last Quest together (a year's grace, then 16 points).
+6. **The Regard of the dead, the retired and the Unattached is left; Regard for them decays.** The
+   Hero State Engine reaches no Hero off a Roster, so a dead or retired Hero's Regard stays as it
+   stood, and a pool Hero's waits until a Guild signs them. A living Hero's Regard for any of them
+   decays as for anyone they no longer quest with and goes at neutral, so a Roster Hero's map holds
+   only the Heroes they shared a Quest with in the last four years or so: the bound on the epic's
+   risk that the maps grow quadratically.
+7. **Relationship** (`relationship(a, b, world, config)`): the mean of `a`'s Regard for `b` and
+   `b`'s for `a`, each neutral when not held, held inside the scale; symmetric by construction. It
+   takes `config` beside the epic's `(a, b, world)` for the clamp. It reads any two entities that
+   hold Regard (Guilds, Guildmasters, Heroes, Patrons; any other id, or a row the world lacks, holds
+   none), as CONTEXT.md defines Relationship between entities; the first build reads it between
+   Heroes. `relationshipBetween(a, b, config)` does the same for two rows in hand, and
+   `relationshipBandCounts(heroIds, world, config)` counts each pair's band. **Never stored**: a
+   test reads `document.ts` for a field named for it, checks the Regard-holding rows' keys, and
+   checks a saved game's text after ten shared Quests.
+8. **Teamwork** (`quest-engine/teamwork.ts`, DL-42's seam, signature unchanged `(heroes, world,
+   deps)`): **`1 + teamworkRange × regardShare(mean pairwise Relationship)`**, `regardShare`
+   (regard.ts) being the value over the scale's reach on its side. Default **`teamworkRange` 0.1**,
+   INPUTS 6.3's ×0.9 to ×1.1. **A Party of one**, or a Party down to one in the sequence, has no
+   pair and is at 1: a lone Hero neither gains nor loses for working alone. The members read are
+   those still alive in the sequence (DL-42 item 10).
+9. **Defaults**: **`regardPerSharedQuest` 1** and **`regardOnSuccessBonus` 0.5**, 1.5 a successful
+   Quest: warm after three, close after eight, so the epic's "close after ten shared successful
+   Quests" holds with room. A failed Quest shared still counts 1 ("more on success"). The core
+   content's Encounter Regard (+1 on `hold-the-line`'s success, −1 on `a-hostile-reeve`'s failure)
+   moves a Quest's change between 0 and 2.5. `configVersion` stays **4**: fields are added and no
+   default changes (DL-43 item 11's reading).
+10. **The CLI.** `narrate` has a line for `hero.regard-changed`, bands only ("…'s Regard for … rose
+    from warm to close after a Quest together", "… fell from warm to neutral as time passed apart").
+    `show hero`, for a Hero on a Roster, lists "Relationships on the Roster": each other Hero on it,
+    with the Hero's Regard for them and their Relationship, both as bands, never numbers (the
+    story's option, taken: it is what a Party's teamwork reads, and the player picks Parties from
+    it).
+
+**Consequences.** A scratch run (not committed) played four seeds, `seed-0001` to `seed-0004`, 20
+years each under the automatic policy (DL-34), the core content and `defaultConfig`, and read the
+world at each year's end. **Regard maps.** Across every Hero row the world keeps, the entries a Hero
+holds for other Heroes numbered 3,431 to 4,126 at year 10 and 6,999 to 7,434 at year 20, over 820 to
+911 rows. Heroes on a Roster, of all five Guilds, held 448 to 829 of them at year 20: a mean of 5.2
+to 11 a Roster Hero at any year's end, and 25 at the most for any one Hero in any year. The rest,
+about 6,400 to 6,600, are the frozen maps of the dead, the retired and the departed, about eight a
+Hero, growing with the Heroes who leave play and not with the pairs: linear, not quadratic. The same
+seed with the new rules stilled (no Quest Regard, no decay, no teamwork, the Encounters' ±1 still
+applied) reached a map of 56 and 12.4 a Roster Hero by year 20: the decay is what bounds them.
+**Relationship in the player's Roster at year 10**, 28 pairs each: neutral 4, 7, 9, 16; warm 3, 13,
+13, 7; close 21, 8, 6, 5; none cool or hostile, since only the Encounters' −1 lowers Regard between
+Heroes and turnover and decay return the rest to neutral. **The History** gained 7,619 to 8,130
+`hero.regard-changed` entries a game (the stilled run 1,518), about 2.5% of some 315,000 entries.
+**Outcomes**: the player failed 33.5 to 43.1% of Quests and succeeded strongly 35.5 to 43.6%; the
+Rivals failed 16.5 to 17.2%; on `seed-0001` the stilled run gave the player 32.5 / 23.2 / 44.3 and
+the Rivals 18.1 / 14.0 / 67.8 against 33.5 / 22.9 / 43.6 and 16.5 / 14.1 / 69.4: teamwork's ±10%
+moves the Rivals' failures by under two points, and no game ended. **Time**: a 4-year game of
+`seed-0001` took 55 to 62 s with the rules and 54 to 59 s without, on a machine shared with other
+runs: within the noise. The M4 close's balance pass measures these with M4-S3's Synergies.
+
+**For the M4-close counter task.** The Relationship band distribution within the player's Roster at
+year 10 is `relationshipBandCounts(playerGuild(world).rosterIds, world, config)` on the world at
+Turn `10 × turnsPerYear`: each unordered pair of the Roster once (the Roster holds only the living),
+the five bands always listed. It cannot be rebuilt from the History alone, since a Relationship is
+the mean of two values whose entries record only band crossings; the counter reads a snapshot of the
+world at year 10, as DL-43's Guildmaster Regard counter does. `hero.regard-changed` entries, by
+`cause` and `bandAfter`, are there for any count of crossings.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

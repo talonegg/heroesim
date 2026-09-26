@@ -305,6 +305,34 @@ export type GuildmasterRegardChanged = Entry<
   }
 >;
 
+// ── Regard between Heroes (M4-S4, data-model rule 10, DL-46) ────────────────────────────────
+
+/**
+ * What moved a Hero's Regard for another Hero: a Quest the two shared and came home from alive, or
+ * the nightly decay toward neutral once a year has passed without one.
+ */
+export type HeroRegardCause = 'shared-quest' | 'decay';
+
+/**
+ * A Hero's Regard for `entityId`, another Hero, crossed from one of `regardBands` into another:
+ * emitted for a shared Quest's change and for the nightly decay alike, and only on a crossing
+ * (data-model rule 10), one entry for each Hero whose Regard crossed, so the two of a pair each
+ * have their own. `before` and `after` are the values, which a front end shows as bands. Names the
+ * Hero, the other Hero, and their Guilds. Not a Milestone.
+ */
+export type HeroRegardChanged = Entry<
+  'hero.regard-changed',
+  {
+    heroId: HeroId;
+    entityId: EntityId;
+    cause: HeroRegardCause;
+    before: number;
+    after: number;
+    bandBefore: RegardBand;
+    bandAfter: RegardBand;
+  }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -334,7 +362,8 @@ export type EngineEvent =
   | GuildImproved
   | HeroLevelled
   | PatronRegardChanged
-  | GuildmasterRegardChanged;
+  | GuildmasterRegardChanged
+  | HeroRegardChanged;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -376,4 +405,5 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.levelled': true,
   'patron.regard-changed': false,
   'guildmaster.regard-changed': false,
+  'hero.regard-changed': false,
 } satisfies Record<EngineEventType, boolean>);

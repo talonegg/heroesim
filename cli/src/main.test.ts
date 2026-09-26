@@ -456,6 +456,49 @@ describe('show', () => {
     expect(run.err).toContain('Warning');
   });
 
+  test("hero lists each other Hero on the Roster with the Hero's Regard for them and their Relationship, as bands and never as numbers (M4-S4)", () => {
+    const guild = document().world.guilds[playerId] as Guild;
+    const [heroId, closeId, coolId, ...rest] = guild.rosterIds as [HeroId, HeroId, HeroId, ...HeroId[]];
+    edit((edited) => {
+      const hero = edited.world.heroes[heroId] as Hero;
+      hero.regard[closeId] = { value: 17.25, since: 0, reason: 'quest.resolved' };
+      (edited.world.heroes[closeId] as Hero).regard[heroId] = { value: 13.75, since: 0, reason: 'quest.resolved' };
+      // One way only: the Hero's Regard is cool, and the Relationship, the mean with none held back, neutral.
+      hero.regard[coolId] = { value: -7.5, since: 0, reason: 'quest.resolved' };
+    });
+
+    const run = play(['show', 'hero', heroId]);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const lines = run.out.split('\n');
+    const start = lines.indexOf('Relationships on the Roster');
+    expect(start).toBeGreaterThan(-1);
+    // The heading, the table's head and its rule, then a row for each other Hero on the Roster.
+    const rows = lines.slice(start + 3).filter((line) => line !== '');
+    expect(rows).toHaveLength(guild.rosterIds.length - 1);
+    expect(rowOf(run.out, closeId)).toMatch(/\sclose\s+close$/);
+    expect(rowOf(run.out, coolId)).toMatch(/\scool\s+neutral$/);
+    for (const id of rest) expect(rowOf(run.out, id)).toMatch(/\sneutral\s+neutral$/);
+    for (const row of rows) expect(row.replace(/^\S+/, ''), row).not.toMatch(/\d/);
+    for (const number of ['17.25', '13.75', '15.5', '7.5', '3.75']) expect(run.out).not.toContain(number);
+  });
+
+  test('hero lists no Relationships for a Hero on no Roster', () => {
+    const id = makeId('heroes', 1);
+    edit((edited) => {
+      const hero = edited.world.heroes[id] as Hero;
+      const guild = edited.world.guilds[playerId] as Guild;
+      guild.rosterIds = guild.rosterIds.filter((heroId) => heroId !== id);
+      hero.guildId = null;
+      hero.unattachedSince = edited.world.turn;
+    });
+
+    const run = play(['show', 'hero', id]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).not.toContain('Relationships');
+  });
+
   test("ages a Hero under the save's own config, not the current defaults", () => {
     const id = makeId('heroes', 1);
     const hero = document().world.heroes[id] as Hero;

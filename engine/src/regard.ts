@@ -18,6 +18,9 @@
 //   Roster. Regard for a Guild is a selector over Regard for its Guildmaster, never stored
 //   (`guildmasterRegardForGuild`, rule 1); M6-S2 writes Regard between Guildmasters. No rule reads
 //   Guildmaster Regard in the first build (pre-M0 review B3).
+//
+// Regard between Heroes, and the Relationship read from it, are hero-regard.ts's (M4-S4, DL-46), on
+// this scale and these bands.
 
 import { regardBandNames, type GameConfig, type RegardBand } from './config.js';
 import type { ContentSet } from './content-types.js';
@@ -63,6 +66,17 @@ export function regardBand(value: number, config: Pick<GameConfig, 'regardBands'
 /** The scale's reach from neutral: the larger of `regardMax` and −`regardMin`. */
 export function regardReach(config: Pick<GameConfig, 'regardMin' | 'regardMax'>): number {
   return Math.max(config.regardMax, -config.regardMin);
+}
+
+/**
+ * `value` as a share of the scale's reach on its side: `value / regardMax` above neutral and
+ * `value / −regardMin` below it, so −1 at the scale's bottom, 0 at neutral and 1 at its top. What a
+ * rule that reads Regard as a strength, from one end of the scale to the other, scales by (M4-S4's
+ * teamwork, DL-46).
+ */
+export function regardShare(value: number, config: Pick<GameConfig, 'regardMin' | 'regardMax'>): number {
+  const side = value >= 0 ? config.regardMax : -config.regardMin;
+  return side > 0 ? value / side : 0;
 }
 
 /** A Regard value moved: from `before` to `after`, and their bands. */

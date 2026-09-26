@@ -99,10 +99,10 @@ Config: `regardPerSharedQuest`, `regardOnSuccessBonus`, `regardBands`, `regardDe
 
 **Acceptance:**
 
-- [ ] Two Heroes after ten shared successful Quests are `close`; the event fired at each band
+- [x] Two Heroes after ten shared successful Quests are `close`; the event fired at each band
       crossing and not otherwise
-- [ ] `relationship` is symmetric and never stored (no field; test by grep of the type)
-- [ ] A `close` Party out-scores a `hostile` one on identical Stats with variance 0
+- [x] `relationship` is symmetric and never stored (no field; test by grep of the type)
+- [x] A `close` Party out-scores a `hostile` one on identical Stats with variance 0
 
 ### M4-S5 · Requirements, Patron Regard, and the Guildmaster's Stats and Traits · 2 sessions
 
