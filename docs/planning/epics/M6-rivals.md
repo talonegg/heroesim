@@ -34,11 +34,11 @@ four.
 
 **Acceptance:**
 
-- [ ] Over 100 seeds, `reckless` Rivals take higher mean difficulty than `miserly` and lose
+- [x] Over 100 seeds, `reckless` Rivals take higher mean difficulty than `miserly` and lose
       more Heroes; `ambitious` builds first
-- [ ] A fifth disposition added to the JSON with different weights runs with no code change
+- [x] A fifth disposition added to the JSON with different weights runs with no code change
       (test adds one in a fixture)
-- [ ] Only `rivals` advances during Rival choice
+- [x] Only `rivals` advances during Rival choice
 
 ### M6-S2 · Transfers · 1–2 sessions
 

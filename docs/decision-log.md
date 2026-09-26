@@ -3470,6 +3470,155 @@ found, per game:
 No game ended in five years. Every unique Item a folded Guild held was listed once; the Loot tables'
 yield (about 1,600 awards a game across the world) is the M5 close's to balance (DL-52).
 
+## DL-56 — Named Dispositions: four rows of weights, one rule, a round-robin deal, and a replacement that inherits (M6-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S1's implementer); the
+four names are the owner's (INPUTS 7.5), the weights are the agent's, for the owner to tune
+
+**Context.** M6-S1 names the four Dispositions (INPUTS 7.5), five weights on each row
+(`questRiskAppetite`, `recruitThreshold`, `buildThreshold`, `gearThreshold`, `transferAppetite`),
+one `rivalChoices` reading them with tie-breaks drawn from `rivals`, and a round-robin deal so that
+every world has all four. It leaves open what each weight means and its scale, the values, which
+ties the draw breaks, the order of the deal, what a Rival founded after a fold is dealt (DL-28 item
+5 made it `steady`), and what becomes of the two config fields the rows replace. The orchestrator
+asked that `steady` keep its measured behaviour: `recruitWealthMultiple` 60 and `buildWealthMultiple`
+3. On this branch the config still reads DL-35's 10, because DL-41 (M3's balance pass, 10 → 60) is
+on `v1.0-dev` and not yet merged here.
+
+**Decision.**
+
+1. **The row.** Each row of `content/dispositions.json` is a `name` and five numbers:
+
+   | Weight | Scale | Read by | Meaning |
+   | --- | --- | --- | --- |
+   | `questRiskAppetite` | 0 to 1 | M6-S1 | Where along the Quests it can staff, ranked by difficulty, it takes one: 0 the easiest, 1 the hardest |
+   | `recruitThreshold` | 0 or more | M6-S1 | It recruits only while its Wealth is above this many times its Upkeep |
+   | `buildThreshold` | 0 or more | M6-S1 | It builds only while its Wealth is above this many times the next grade's cost |
+   | `gearThreshold` | 0 or more | M6-S4 | It buys gear only while its Wealth is above this many times the price |
+   | `transferAppetite` | 0 to 1 | M6-S2, M6-S3 | How readily it deals in Transfers |
+
+   The parser refuses a missing weight, one that is not a number, and a field it does not know; the
+   content validator refuses an appetite outside 0 to 1, a negative threshold, and a set with no
+   Disposition, since the Guild Generator deals one to every Rival. Content version 11.
+2. **The values.** Chosen by the agent to give each name a character, not measured against a target;
+   the M6-close counters are what the owner tunes them on.
+
+   | | `questRiskAppetite` | `recruitThreshold` | `buildThreshold` | `gearThreshold` | `transferAppetite` |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | `steady` | 0 | 60 | 3 | 3 | 0.25 |
+   | `ambitious` | 0.6 | 40 | 1.5 | 2 | 0.75 |
+   | `miserly` | 0.25 | 80 | 20 | 10 | 0.1 |
+   | `reckless` | 1 | 30 | 4 | 1.5 | 0.5 |
+
+   `ambitious` builds at one and a half times the cost, so a Rival founded with more than 300 Wealth
+   (`rivalStartingWealthMin` is 300) builds its first grade on its first afternoon. `miserly` hoards:
+   the easy end of the Board, eighty Upkeeps before it recruits, twenty times the cost before it
+   builds. `reckless` takes the hardest Quest it can staff and replaces its losses soonest.
+   `gearThreshold` and `transferAppetite` are placeholders until M6-S4 and M6-S2 give them rules,
+   whose stories may retune them with a DL.
+3. **One rule** (`rivalChoices`, `controllers/rival.ts`). `dispositionRules` and the
+   `DispositionRule` type are gone, and with them the case of a Disposition content defines and the
+   engine has no rule for. The order is DL-30's, DL-38's and DL-49's: equip (`gearChoices`), at most
+   one dispatch, then one purchase, a build before a recruit.
+   - **Which Quest.** The Quests it can staff (`partyFor`), ranked by difficulty, then Quest id; the
+     place `round(questRiskAppetite × (n − 1))` names the difficulty it wants; every Quest it can
+     staff at that difficulty is a candidate, in Quest id order, and one `pick` from `rivals` takes
+     one. One draw for each dispatch chosen, however many candidates, so the draw count depends
+     only on whether it dispatches. A place along the Quests it can staff, not an absolute band of
+     difficulty, because it always names a Quest whatever the Board holds, and at 0 it is DL-30's
+     "easiest" exactly. The Party is `partyFor`'s, unchanged.
+   - **Build**: the infirmary's next grade above `buildThreshold` times its cost; only the
+     infirmary, as before, until M6-S4.
+   - **Recruit**: above `recruitThreshold` Upkeeps, `cheapestUnattached`'s Hero, the lowest id among
+     equal fees, as before. Not a draw: DL-38 makes `cheapestUnattached` the one statement of the
+     cheapest Hero, shared with the automatic policy and the Roster-wiped ending, and a Rival that
+     broke its ties another way would make two. The Quest's difficulty is the only tie the weights
+     leave.
+   - `rivalChoices` changes nothing in the world but `world.rng.rivals`. This supersedes DL-30 item
+     4's "draws nothing" and its lower-Quest-id tie-break, and DL-30 item 7's test that no stream
+     moves.
+4. **`steady` keeps its rule**: appetite 0 (the easiest), `buildThreshold` 3 (DL-38), and
+   `recruitThreshold` **60**, DL-41's value, which this branch's config had not yet taken. Merged
+   with the M3 close, `steady` behaves as DL-41 tuned it; on this branch alone it recruits at sixty
+   Upkeeps where it recruited at ten, exactly the change DL-41 makes. The one difference DL-41 does
+   not make is the tie-break: of two Quests of the same difficulty, `steady` now draws which to take.
+5. **The config fields go.** `recruitWealthMultiple` (DL-30, DL-35, DL-41) and `buildWealthMultiple`
+   (DL-38) are removed from `GameConfig`, recorded by a comment where they stood, as DL-42 removed
+   the stub's fields; `configVersion` 4 → 5. A save whose `meta.config` holds them plays on: nothing
+   reads them. **Merging with `v1.0-dev`**: DL-41 set `recruitWealthMultiple: 60` in
+   `defaultConfig` there; the merge drops that line with the field and renumbers `configVersion`.
+   The harness's automatic policy keeps its own multiples (DL-34). Tests that pinned the two fields
+   pin the rows: `withDispositions(weights, content?)` in `world.test-support.ts` sets weights on
+   every row, and `thriftyRivals` stands for the old 1,000,000 pins. The test content mirrors the
+   core's four rows.
+6. **The deal** (`dealtDisposition(content, index)`, `generators/guilds.ts`): content's keys in
+   code-unit order, round-robin, so `createWorld`'s Rivals are `ambitious`, `miserly`, `reckless`,
+   `steady`, then again from the first. No draw: a seed's world is what it was before M6-S1 but for
+   its Rivals' controllers (a test creates the same seed with a `steady`-only content and compares).
+   With the default four Rivals every world has one of each; with fewer, the first keys. The
+   Guild Ids fix the order, so a default world's first Rival is always `ambitious`: acceptable, as
+   every Rival is visible (R29). `generateRival` takes the controller as an option (`RivalOptions`).
+7. **The replacement inherits.** A Rival founded to replace one that folded takes the folded
+   Rival's controller, copied, and so its Disposition: the world keeps every Disposition it was
+   dealt. `replaceFolded` hands `folded.controller` on without reading it (no new `controller.kind`
+   read; the guard's allow-list is unchanged). Considered and not taken: going on round the deal
+   (a world could end with two of one and none of another) and dealing the Disposition fewest
+   Rivals hold (which reads every Guild's controller). A Disposition content has since dropped is
+   inherited too, and the validator's `unknown-disposition` warns of it as before; `rivalChoices`
+   gives such a Rival nothing to do.
+8. **Tests.** `controllers/rival.test.ts`: `steady`'s tests stand, on the `steady` Rival, with the
+   tie now a draw among the tied Quests only, one draw; each of the four takes the Quest at its
+   appetite's place and recruits and builds at its own thresholds exactly; a fifth Disposition,
+   `cautious`, added to a fixture content, is dealt round-robin, known to the validator, chooses by
+   its own weights at their exact boundaries, chooses otherwise when its row changes, and plays ten
+   Days beside the four; `rivalChoices` on a world frozen but for `rivals` changes nothing else and
+   advances it by one draw. `phases/rival-controllers.test.ts` (M6-S1's third box): on three seeds,
+   the afternoon's Rival choice moves every planned stream but `rivals` not at all, and `rivals` by
+   exactly one draw per `quest.taken`. `create.test.ts`, `generators/guilds.test.ts`: the deal and
+   its no-draw property. `phases/endings.test.ts`: the replacement has the folded Rival's
+   controller and the Dispositions in play are those dealt. Content: the rows, each refusal.
+9. **The 100-seed box** (`controllers/dispositions.test.ts`), in the engine: 100 seeds, a default
+   world each, the player idle and rich, a month played; the four Dispositions are the test
+   content's rows. A Death is too rare under the core-like Encounters for a month of 100 worlds (4
+   `reckless` against 3 `miserly` in a trial), so the test's Encounters kill one time in five on a
+   failure and do nothing else: the same Quest Engine and rule, harm common enough to count. Turns
+   are played in place, `runTurn` then `append`, which is `advance` without its copy of the world
+   (3.5 s against about 10). It asserts margins, not a bare inequality: `reckless`'s mean difficulty
+   at least 10 above `miserly`'s and its Deaths above 1.25 times, because two Rivals with the same row
+   differ a little by their place in the afternoon's order alone (a mutation giving `reckless`
+   `miserly`'s row passed the bare inequalities and fails these); and `ambitious` builds in every
+   seed, no later than any other Rival, and earliest on the mean. Measured: mean difficulty
+   `reckless` 54.5, `ambitious` 42.4, `miserly` 35.0, `steady` 31.1; Deaths 360, 328, 235 and 178;
+   `ambitious` builds on Turn 1 in all 100 seeds, `steady` in 99 (Turn 15 on the mean), `reckless` in
+   65 (Turn 41), `miserly` in none within the month.
+
+**Consequences.** Every world's Rivals now differ. A smoke run of the core content under
+`defaultConfig` and the automatic policy (a scratch script, not the harness sweep; seeds
+`seed-0001` to `seed-0008`, 5 years each, not validated), per game, by the Rival's Disposition:
+
+| Per game (8 games), each Disposition one Rival | `steady` | `ambitious` | `miserly` | `reckless` |
+| --- | ---: | ---: | ---: | ---: |
+| Quests taken | 1,152 | 1,529 | 1,103 | 1,051 |
+| Mean difficulty taken | 29.1 | 46.3 | 31.0 | 57.7 |
+| Quests failed | 50 | 210 | 69 | 288 |
+| Deaths | 1.3 | 8.3 | 2.1 | 13.0 |
+| Heroes recruited | 0.6 | 17.6 | 0.8 | 19.1 |
+| Turn of the first Improvement, mean (range) | 12 (1–22) | 1 (1–1) | 208 (139–274) | 23 (13–34) |
+| Roster at year 5, mean | 5.5 | 15.9 | 4.6 | 11.6 |
+| Wealth at year 5, mean | 27,600 | 55,800 | 38,300 | 32,600 |
+
+No Rival folded and no player's game ended in the eight; every Rival had built its infirmary to
+grade 3 by year 5. `reckless` takes the hardest Quests and loses the most Heroes, `ambitious`
+builds first and grows the largest Roster, `miserly` builds last and barely recruits, as the names
+promise; `steady` is M3's Rival.
+
+M6-S4 inherits a box, "`miserly` stays at 0 longest", that the values in item 2 aim at with
+`buildThreshold` 20: over five years `miserly` builds last, as the table shows, but twenty years and
+the other facilities are M6-S4's to measure. M6-S2 and M6-S3 give `transferAppetite` its rule. The M6-close counters should split the M2–M5 Rival counters (Quests taken and resolved by
+band, Deaths, recruits, Improvements, folds, Roster size and Wealth by year) by Disposition, so the
+owner can tune item 2's table; `quest.taken` carries no difficulty, so a counter of mean difficulty
+reads the Quest's row the Turn it is taken, or the M6-close adds it to the payload.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

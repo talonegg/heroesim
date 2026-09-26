@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 10 since the Loot tables (M5-S5)', () => {
+  test('is the core content set, version 11 since the named Dispositions (M6-S1)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(10);
+    expect(content.version).toBe(11);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -35,8 +35,17 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test("has one Disposition, M2's steady (INPUTS 4.12)", () => {
-    expect(content.dispositions).toEqual({ steady: { key: 'steady', name: 'Steady' } });
+  test('has the four named Dispositions (INPUTS 7.5), their weights as DL-56 sets them', () => {
+    const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
+      ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
+    expect(content.dispositions).toEqual({
+      // `steady` keeps M2 to M5's rule: the easiest Quest, sixty Upkeeps to recruit (DL-41), three
+      // times the cost to build (DL-38), which were config fields until the row replaced them.
+      steady: { key: 'steady', name: 'Steady', ...weights(0, 60, 3, 3, 0.25) },
+      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.6, 40, 1.5, 2, 0.75) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.25, 80, 20, 10, 0.1) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 1.5, 0.5) },
+    });
   });
 
   test('has twenty Hero Stats in four areas', () => {

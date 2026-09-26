@@ -96,14 +96,21 @@ export {
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
-export { availableHeroes, partyFor, rivalChoices, staffableQuests, type DispositionRule } from './controllers/rival.js';
+export { availableHeroes, partyFor, rivalChoices, staffableQuests } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';
 export * from './fast-forward.js';
 export * from './gear.js';
 export * from './guildmaster.js';
-export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
+export {
+  dealtDisposition,
+  generateGuild,
+  generateRival,
+  type GeneratedGuild,
+  type GuildOptions,
+  type RivalOptions,
+} from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';

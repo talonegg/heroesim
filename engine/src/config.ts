@@ -23,7 +23,8 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M4-S2's Quest Engine (DL-42).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M4-S2's Quest Engine (DL-42); 5 from
+   * M6-S1, which moved the Rivals' two thresholds into their Dispositions' rows (DL-56).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -204,19 +205,9 @@ export interface GameConfig {
   rivalReplacementDays: number;
 
   // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
-  /**
-   * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
-   * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
-   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
-   * row. The harness's automatic policy has its own threshold (DL-34).
-   */
-  recruitWealthMultiple: number;
-  /**
-   * `steady` builds its infirmary's next grade only while its Wealth is above this many times that
-   * grade's cost (M3-S6: "when Wealth exceeds three times its cost", DL-38). The harness's
-   * automatic policy has its own multiple, as it has its own `recruitWealthMultiple` (DL-34).
-   */
-  buildWealthMultiple: number;
+  // `recruitWealthMultiple` (DL-30, DL-35) and `buildWealthMultiple` (DL-38) are gone: a Rival's
+  // thresholds are its Disposition's `recruitThreshold` and `buildThreshold`, content (M6-S1,
+  // DL-56). The harness's automatic policy keeps its own multiples (DL-34).
 
   // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
   /**
@@ -400,7 +391,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 4,
+  configVersion: 5,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -472,8 +463,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 10,
-  buildWealthMultiple: 3,
 
   xpCurveBase: 100,
   xpCurveExponent: 2,

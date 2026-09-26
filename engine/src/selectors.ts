@@ -286,8 +286,8 @@ export function nextImprovement(
 /**
  * The next Improvement of `facility` (`nextImprovement`) when `guild`'s Wealth is above
  * `wealthMultiple` times its cost and covers it; `null` otherwise, and at the top grade. How a
- * controller decides to build: `steady` with the game's `buildWealthMultiple`, the harness's policy
- * with its own (M3-S6, DL-38).
+ * controller decides to build: a Rival with its Disposition's `buildThreshold` (M6-S1, DL-56), the
+ * harness's policy with its own multiple (M3-S6, DL-38).
  */
 export function affordableImprovement(
   guild: Pick<Guild, 'hall' | 'wealth'>,

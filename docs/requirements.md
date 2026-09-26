@@ -227,5 +227,6 @@ Every system in the game must serve at least one of these:
   demands carried on the Quest.~~ Resolved 2026-09-25 in the plan interview: weighted Stat
   demands and Skill keys carried on the Quest template and copied to the Quest row; the area
   grouping stays display-only (`plan.md` §5, pre-M0 review F4).
-- Rival disposition names.
+- ~~Rival disposition names.~~ Resolved by INPUTS 7.5 in M6-S1: `steady`, `ambitious`,
+  `miserly` and `reckless`, four rows of weights in `content/dispositions.json` (DL-56).
 - Which Hall Improvement grades exist and what each costs.

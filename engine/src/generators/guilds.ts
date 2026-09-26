@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps } from '../config.js';
-import type { BackgroundKey, DispositionKey } from '../content-types.js';
+import type { BackgroundKey, ContentSet, DispositionKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -151,26 +151,44 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
 }
 
 /**
- * Every Rival's Disposition when it is generated: M2's one Disposition (INPUTS 4.12), a content
- * key from M2-S9. M6 adds the others.
+ * The Disposition dealt to the Rival generated `index`th (from 0), round-robin over content's
+ * Dispositions in key order (M6-S1, DL-56): `createWorld`'s first Rival gets the first key, its
+ * second the second, and so on, starting again after the last, so that a world with at least as
+ * many Rivals as Dispositions has every one of them. No draw: the deal moves no stream.
+ *
+ * Throws on a programming error: an index that is not a whole number from 0, or content with no
+ * Disposition, which the content validator refuses.
  */
-const rivalDisposition: DispositionKey = 'steady';
+export function dealtDisposition(content: Pick<ContentSet, 'dispositions'>, index: number): DispositionKey {
+  if (!Number.isSafeInteger(index) || index < 0) throw new RangeError(`A Rival's index is a whole number from 0; got ${index}`);
+  const keys = sortedKeys(content.dispositions);
+  if (keys.length === 0) throw new RangeError('Content defines no Disposition to deal to a Rival');
+  return keys[index % keys.length] as DispositionKey;
+}
+
+export interface RivalOptions extends DrawsFrom {
+  /**
+   * What makes the Rival's choices (ADR-0002): a Disposition dealt by `dealtDisposition` when
+   * `createWorld` makes it, or the controller of the Rival it replaces (DL-56), copied as it is.
+   */
+  controller: Controller;
+}
 
 /**
  * A Rival Guild, as `createWorld` makes each of its Rivals (DL-19 item 9) and the endings phase
  * makes one to replace a Rival that folded (DL-28): its Roster size drawn from
  * `rivalRosterMin/Max`, then its Wealth from `rivalStartingWealthMin/Max`, then the Guild through
- * `generateGuild` with the `steady` controller, every draw from `options.stream` (`generation` by
- * default). Throws as `generateGuild` does.
+ * `generateGuild` with `options.controller`, every draw from `options.stream` (`generation` by
+ * default). The controller draws nothing, so which Disposition a Rival has moves no stream. Throws
+ * as `generateGuild` does.
  */
-export function generateRival(world: World, deps: EngineDeps, options: DrawsFrom = {}): GeneratedGuild {
+export function generateRival(world: World, deps: EngineDeps, options: RivalOptions): GeneratedGuild {
   const { config } = deps;
   const state = streamOf(world, options.stream);
   const rosterSize = int(state, config.rivalRosterMin, config.rivalRosterMax);
   const wealth = int(state, config.rivalStartingWealthMin, config.rivalStartingWealthMax);
-  const controller: Controller = { kind: 'rival', disposition: rivalDisposition };
   const stream = options.stream === undefined ? {} : { stream: options.stream };
-  return generateGuild(world, deps, { controller, rosterSize, wealth, ...stream });
+  return generateGuild(world, deps, { controller: options.controller, rosterSize, wealth, ...stream });
 }
 
 /**

@@ -16,9 +16,9 @@ import {
   type WorldDocument,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
-import { createStreams } from '../rng.js';
+import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
-import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { plannedStreams, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { rivalControllers } from './rival-controllers.js';
 
@@ -45,13 +45,14 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
 
 /**
  * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
- * recruit on its first afternoon: the tests that watch a recruit pin them, since the first balance
- * pass raised both defaults (DL-35). Building is put out of reach unless a test asks for it, since
- * `steady` builds its infirmary in place of a recruit once its Wealth is three times the cost
- * (M3-S6, DL-38), which a starting Rival's may be.
+ * recruit on its first afternoon: the tests that watch a recruit pin them on every Disposition, since
+ * the balance passes raised both (DL-35, DL-41) and M6-S1 moved the threshold into the rows (DL-56).
+ * Building is put out of reach unless a test asks for it, at three times the cost, since a Rival
+ * builds its infirmary in place of a recruit once its Wealth is above its `buildThreshold` times the
+ * cost (M3-S6, DL-38), which a starting Rival's may be.
  */
 const recruitingDeps = (building = false): EngineDeps =>
-  testDeps({ wagePerLevel: 5, recruitWealthMultiple: 3, ...(building ? {} : { buildWealthMultiple: 1_000_000 }) });
+  testDeps({ wagePerLevel: 5 }, withDispositions({ recruitThreshold: 3, buildThreshold: building ? 3 : 1_000_000 }));
 
 afterEach(() => {
   vi.mocked(applyDispatch).mockClear();
@@ -103,7 +104,7 @@ describe('rivalControllers', () => {
       expect(taken.length, `Day ${day}`).toBeGreaterThan(0);
       for (const event of taken) {
         const { questId, guildId } = event.payload;
-        expect(dispositionOf(guildOf(document, guildId))).toBe('steady');
+        expect(Object.keys(deps.content.dispositions)).toContain(dispositionOf(guildOf(document, guildId)));
         expect(morning).toContain(questId);
         expect(document.world.quests[questId]?.status).toBe('taken');
         expect(document.history.byEntity[questId]?.some((position) => document.history.entries[position] === event)).toBe(true);
@@ -120,7 +121,8 @@ describe('rivalControllers', () => {
     // What the first Rival takes when the player leaves the Board alone.
     const alone = created('after-the-player', deps);
     const first = firstRival(alone.world);
-    const wanted = rivalChoices(alone.world, first, deps).find((action) => action.kind === 'dispatch');
+    // On a copy: a Rival's choice draws from `rivals` (M6-S1), which the afternoon must find unmoved.
+    const wanted = rivalChoices(structuredClone(alone.world), first, deps).find((action) => action.kind === 'dispatch');
     if (wanted === undefined) throw new Error('The first Rival takes nothing');
     const untouched = ofType(advance(alone, deps).events, 'quest.taken');
     expect(untouched.find((event) => event.payload.questId === wanted.questId)?.payload.guildId).toBe(first.id);
@@ -227,22 +229,33 @@ describe('rivalControllers', () => {
     expect(Object.values(world.parties).some((party) => party.guildId === rival.id)).toBe(false);
   });
 
-  test('moves no random stream: steady draws nothing, from rivals or any other', () => {
-    const deps = recruitingDeps();
-    const document = created('streams', deps);
-    const world = structuredClone(document.world);
-    // Every planned stream, so that each can be seen to stand still.
-    Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
-    world.turn += 1;
-    const before = structuredClone(world.rng);
+  // M6-S1's third box: only `rivals` advances during Rival choice, one draw for each dispatch chosen.
+  test.each(['streams-a', 'streams-b', 'streams-c'])(
+    'advances only the rivals stream, one draw for each dispatch, every Disposition alike (%s)',
+    (seed) => {
+      const deps = recruitingDeps(true);
+      const document = created(seed, deps);
+      const world = structuredClone(document.world);
+      // Every planned stream, so that each can be seen to stand still.
+      Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
+      world.turn += 1;
+      const before = structuredClone(world.rng);
 
-    const events = rivalControllers(world, phaseContext(world, deps));
+      const events = rivalControllers(world, phaseContext(world, deps));
 
-    expect(ofType(events, 'quest.taken').length).toBeGreaterThan(0);
-    expect(ofType(events, 'hero.recruited').length).toBeGreaterThan(0);
-    expect(world.rng).toEqual(before);
-    expect(Object.keys(world.rng).sort()).toEqual([...plannedStreams].sort());
-  });
+      const taken = ofType(events, 'quest.taken');
+      expect(new Set(taken.map((event) => dispositionOf(guildOf(document, event.payload.guildId)))).size).toBeGreaterThan(1);
+      expect(ofType(events, 'hero.recruited').length + ofType(events, 'guild.improved').length).toBeGreaterThan(0);
+      for (const name of plannedStreams) {
+        if (name !== 'rivals') expect(world.rng[name as keyof typeof world.rng], name).toEqual(before[name as keyof typeof before]);
+      }
+      const expected = structuredClone(before.rivals);
+      for (let draw = 0; draw < taken.length; draw += 1) next(expected);
+      expect(world.rng.rivals).toEqual(expected);
+      expect(world.rng.rivals).not.toEqual(before.rivals);
+      expect(Object.keys(world.rng).sort()).toEqual([...plannedStreams].sort());
+    },
+  );
 
   test('acts for the Rivals in Guild id order, never for the player, and never for a folded Guild', () => {
     const deps = testDeps();

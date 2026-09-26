@@ -55,9 +55,10 @@ export const contentSetId = 'core';
  * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
  * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
  * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
- * the Quest templates' tables (DL-52).
+ * the Quest templates' tables (DL-52); 11 from M6-S1, which added the four named Dispositions and
+ * their weights (DL-56).
  */
-export const contentVersion = 10;
+export const contentVersion = 11;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -179,6 +180,11 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     ),
     dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
       name: row.string('name'),
+      questRiskAppetite: row.number('questRiskAppetite'),
+      recruitThreshold: row.number('recruitThreshold'),
+      buildThreshold: row.number('buildThreshold'),
+      gearThreshold: row.number('gearThreshold'),
+      transferAppetite: row.number('transferAppetite'),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),

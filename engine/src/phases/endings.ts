@@ -184,7 +184,10 @@ function abandonedQuests(world: World, parties: readonly Party[]): QuestId[] {
 /**
  * Founds one new Rival for each Guild that folded `rivalReplacementDays` Days ago tonight, in the
  * folded Guilds' id order, through the Guild Generator as `createWorld` makes its Rivals, drawing
- * from `generation` (DL-28). Only a Rival folds, so this asks nothing of the folded Guild but when.
+ * from `generation` (DL-28). The new Rival takes the controller of the one it replaces, so it has
+ * that Rival's Disposition and a world keeps every Disposition it was dealt (M6-S1, DL-56). Only a
+ * Rival folds, so this asks nothing of the folded Guild but when, and copies its controller
+ * without reading it.
  */
 function replaceFolded(world: World, ctx: PhaseContext): EngineEvent[] {
   const today = dayOf(ctx.turn);
@@ -192,7 +195,7 @@ function replaceFolded(world: World, ctx: PhaseContext): EngineEvent[] {
     (guild) => guild.foldedOnTurn !== null && dayOf(guild.foldedOnTurn) + ctx.config.rivalReplacementDays === today,
   );
   const deps = { config: ctx.config, content: ctx.content };
-  return due.flatMap(() => generateRival(world, deps, { stream: 'generation' }).events);
+  return due.flatMap((folded) => generateRival(world, deps, { stream: 'generation', controller: folded.controller }).events);
 }
 
 /** Every Guild, in id order. */

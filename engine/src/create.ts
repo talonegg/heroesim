@@ -8,7 +8,7 @@ import type { BackgroundKey } from './content-types.js';
 import { emptyDocument, type Meta, type WorldDocument } from './document.js';
 import type { EngineEvent, WorldCreated } from './events.js';
 import { dealEvenly, sortedKeys, streamOf } from './generators/draw.js';
-import { generateGuild, generateRival } from './generators/guilds.js';
+import { dealtDisposition, generateGuild, generateRival } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
@@ -69,9 +69,11 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   });
   generated.push(...player.events);
 
-  // Each Rival draws its Roster size and Wealth before it is generated (DL-19 item 9).
+  // Each Rival draws its Roster size and Wealth before it is generated (DL-19 item 9), and is dealt
+  // its Disposition round-robin, which draws nothing (M6-S1, DL-56).
   for (let rival = 0; rival < config.rivalCount; rival += 1) {
-    generated.push(...generateRival(world, deps).events);
+    const controller = { kind: 'rival', disposition: dealtDisposition(content, rival) } as const;
+    generated.push(...generateRival(world, deps, { controller }).events);
   }
 
   for (const sphereKey of dealEvenly(generation, sortedKeys(content.spheres), config.patronCount)) {
