@@ -65,7 +65,7 @@ export function writeSample(
     seed: chosen.seed,
     tried,
     turn: chosen.document.world.turn,
-    ending: countGame(chosen.document).ending,
+    ending: countGame(chosen.document, deps).ending,
     historyEntries: chosen.document.history.entries.length,
     bytes: Buffer.byteLength(text, 'utf8'),
   };

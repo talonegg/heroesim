@@ -85,9 +85,11 @@ Config: `declineAge`, `declinePerYear`, `declineAreas`.
 
 - [x] No decline before `declineAge`; exactly one Stat per year after it
 - [x] Only Stats in `declineAreas` decline
-- [ ] The harness's Levels-gained counter still rises after decline starts (growth outpaces
-      decline for a young Roster) — open: needs M3-S1's `levelUps` and the M3 harness counters,
-      built in parallel; closed after they merge (DL-37)
+- [x] The harness's Levels-gained counter still rises after decline starts (growth outpaces
+      decline for a young Roster) — M3's 200 × 20 run: on the 128 player's Guilds with a decline,
+      17.8 Levels a Guild-year after the first (19.6 before), adding 52.5 Stat points against 0.43
+      declined; the 650 Rivals, 6.6 after (8.2 before), 19.5 against 0.93
+      (`harness/reports/m3-2026-09-26.md`, DL-37, DL-40)
 
 ### M3-S5 · Rankings, and Fame gating signings · 1–2 sessions
 
@@ -111,7 +113,10 @@ Config: `fameRequiredPerLevel`.
 - [x] `by: "wealth"` and `by: "fame"` differ on a fixture built to make them differ
 - [x] A Guild at Fame 0 is refused by a Level 5 Hero and accepted by a Level 1 Hero with the
       default; raising Fame past the threshold flips the refusal
-- [ ] The harness counts signings refused by Fame per controller kind
+- [x] The harness counts signings refused by Fame per controller kind — each morning before the
+      policy acts, `unsignableHeroes` for every Guild in play, by controller kind, beside the
+      `signing-refused` rejections returned (`observe` in `harness/src/counters.ts`, tested in
+      `counters.test.ts`; reported in `harness/reports/m3-*.md`, DL-40)
 
 ### M3-S6 · Hall Improvements · 1 session
 
@@ -128,8 +133,11 @@ Config: `quartersMoraleBonus`.
 
 - [x] Each facility climbs from 0 to its top grade with the right cumulative cost and refuses
       beyond
-- [ ] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
-      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury
+- [x] Quarters at grade 1 shift the Morale baseline by the configured amount; the yard at
+      grade 1 makes an idle Hero gain XP; the infirmary at grade 1 shortens a new Injury — the
+      yard end to end: `build --facility training-yard`, then five idle Days, every Roster Hero
+      gains `xpPerTrainingDay` a night and a twin at grade 0 none (`cli/src/commands/build.test.ts`,
+      DL-40)
 - [x] CLI `build --facility infirmary`
 
 ## 2. Configuration and events introduced

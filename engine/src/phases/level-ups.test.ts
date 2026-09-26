@@ -185,8 +185,8 @@ describe('levelUps', () => {
     expect(upkeep(player(after.world), after.world, deps.config) - upkeepBefore).toBe(3 * 70);
   });
 
-  test('the default wage is 20 a Level since Heroes gain Levels (DL-36), kept by the Quest Engine under configVersion 4 (DL-42)', () => {
-    expect(defaultConfig).toMatchObject({ wagePerLevel: 20, configVersion: 4 });
+  test("the default wage is 20 a Level since Heroes gain Levels (DL-36), kept by M3's run (DL-41) and the Quest Engine (DL-42), under configVersion 5 (DL-47)", () => {
+    expect(defaultConfig).toMatchObject({ wagePerLevel: 20, configVersion: 5 });
   });
 
   test('moves the progression stream alone, growthPointsPerLevel draws a Level, and none on a night no one levels', () => {
