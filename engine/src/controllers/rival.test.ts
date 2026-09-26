@@ -218,9 +218,9 @@ describe('steady: recruiting', () => {
     expect(recruits(world, rival)).toEqual([{ kind: 'recruit', guildId: rival.id, heroId: cheapest(world).id }]);
   });
 
-  test('reads the multiple from the config: ten Upkeeps by default since the first balance pass (DL-35)', () => {
-    // INPUTS 4.12 says three; DL-35 raised the default to ten.
-    expect(testDeps().config.recruitWealthMultiple).toBe(10);
+  test("reads the multiple from the config: sixty Upkeeps by default since M3's balance pass (DL-41)", () => {
+    // INPUTS 4.12 says three; DL-35 raised the default to ten, and DL-41 to sixty.
+    expect(testDeps().config.recruitWealthMultiple).toBe(60);
     const { world, rival } = scene('multiple', deps);
     const wealth = 5 * upkeep(rival, world, deps.config);
     rival.wealth = wealth;

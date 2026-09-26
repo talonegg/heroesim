@@ -21,7 +21,7 @@ export interface GameConfig {
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M3's Rival reserve (DL-41).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -201,8 +201,9 @@ export interface GameConfig {
   /**
    * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
    * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
-   * more than a month's Upkeep in hand, DL-35). M6-S1 moves the threshold into each Disposition's
-   * row. The harness's automatic policy has its own threshold (DL-34).
+   * more than a month's Upkeep in hand, DL-35; sixty since Heroes gain Levels, so that a Rival stops
+   * recruiting before its Roster's rising wages outrun its one Quest a day, DL-41). M6-S1 moves the
+   * threshold into each Disposition's row. The harness's automatic policy has its own (DL-34).
    */
   recruitWealthMultiple: number;
   /**
@@ -254,7 +255,7 @@ export type PotentialHint = (typeof potentialHints)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 3,
+  configVersion: 4,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -328,7 +329,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 10,
+  recruitWealthMultiple: 60,
   buildWealthMultiple: 3,
 
   xpCurveBase: 100,
