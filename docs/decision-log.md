@@ -3991,6 +3991,165 @@ it was 10, from DL-52.)
 infirmary factor, nor M4's close's balance beside Items. The M5 close's 200 × 20 run judges them
 together (DL-62).
 
+## DL-62 — M5 close: the M5 counters, the policy's consumables, Loot for hard Quests (`configVersion` 8, content version 12), and the M5 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 close), choosing a
+policy rule and two Loot values; the owner has not seen them
+
+**Context.** Four things close M5. (a) The epic's §2 names the counters: Wealth spent by category
+(signing, Transfer, Items, Improvements, Upkeep), Loot awarded by table, and consumables expended per
+Quest; M5-S5's third box wants the Loot counter to rise with the player's mean Quest difficulty, and
+DL-49 to DL-52 said which events carry what. (b) DL-50 item 2 left no controller carrying a
+consumable, so the counter would read 0, "the M5 close's to judge". (c) DL-54's smoke run saw about
+330 Loot awards a game-year, "the M5 close's to balance"; the task allowed one balance pass on content
+and config values, never on rule code. (d) The merges: DL-61 took M4's close in; v1.0-dev then gained
+M4's verification (DL-70: the Board's Skills, `preview`'s help, stronger tests; no version change), merged
+again at `2999cb0`, where the help for `preview` now names its Synergies and the consumables it would
+carry, and the CLI test that reads that help looks for both.
+
+**Decision.**
+
+1. **The counters** (`harness/src/counters.ts`, each with a fixture test in `counters.test.ts`; totals
+   and the report's section "Items (M5)" in `sweep.ts`). From the History, each entry counting for the
+   controller of the Guild its payload names (DL-34 item 4):
+   - *Wealth spent by category*: signing `hero.recruited` `fee`; Items `item.bought` `cost` (and the
+     Items bought, by `quantity`); Improvements `guild.improved` `cost`; Upkeep `guild.upkeep-paid`
+     `amount`. Transfers have no event until M6 and the report says so. Beside them what is taken:
+     Quest rewards `quest.resolved` `wealthDelta`, and the Market's income `item.sold` `proceeds` by
+     its `cause` (`sale`, `fold`), with the Items sold. With the starting Wealth these are every flow
+     of a Guild's Wealth the engine has.
+   - *Loot awarded by table*: `quest.loot` by `lootTableKey`: awards, the Items they gave (`quantity`),
+     and the awards of a unique Item (`itemId` not null) counted apart.
+   - *Consumables per Quest*: `quest.taken`'s `consumables` carried and `item.expended` expended, each
+     against `quest.resolved`; the Quests with one or more expended (distinct `questId`); by effect and
+     by definition.
+   - *Gear moved*: `item.equipped`, `item.unequipped`, and `item.returned` by its `cause`.
+2. **The player's Quest difficulty is read at dispatch.** No entry records a Quest's difficulty, and a
+   resolved Quest's row is removed. The play loop (`play.ts`) records, for each dispatch of the
+   policy's that the rules accept, the Quest's `difficulty` from its row as it stood
+   (`playerQuestDifficulty`), and `countGame` joins it by `questId` to the player's `quest.resolved` and
+   `quest.loot`: the Quests resolved, their difficulty, the strong ones and the Loot they won, by bands
+   of 10 and by the year resolved. A Rival's Quest is not recorded; M5-S5's box is about the player.
+   Considered and not taken: a `difficulty` on `quest.taken`, an engine change for a counter.
+3. **The policy carries and buys consumables** (`harness/src/policy.ts`). Each Party carries one of
+   each consumable the Guild holds that could serve its Quest: a `bonus` or `reroll` whose kinds hold
+   the kind of one of the Quest's Encounters, and any `heal`, taken in key order from what the Parties
+   sent before it that Turn left. The one purchase a Turn gains a fourth choice, after the recruit: buy
+   toward `consumableStock` (2) of each consumable, counting the Guild's holding and its Parties'
+   together; of those the Market has for sale and the Guild lacks, the one it has fewest of, lowest key
+   among equals, as many as it lacks and the Market has, while Wealth is above `buyWealthMultiple` (3)
+   times their cost and, once paid, above `consumableReserveUpkeeps` (**20**) Upkeeps. Why: without the
+   rule the counter reads 0, Loot's consumables pile up unused, and Items are 0.2% of the Wealth the
+   player spends; with it the harness exercises M5-S3's three effects and the Market's consumables, as
+   the armour rule (DL-51 item 9) does its armour. The purchase comes after the recruit so that it never
+   keeps a Roster short. `steady` is unchanged: M6's Dispositions decide what Rivals carry and buy
+   (DL-50 item 2).
+   - *The reserve, from two failures.* With no reserve, `seed-0001`'s player bought itself into
+     Bankruptcy in year 2 of a 32-seed trial. With three Upkeeps, the reserve recruiting keeps, the first
+     validated 200 × 20 run ended one game: `seed-0188`, Bankruptcy on Turn 3,779, its Guild having
+     spent 27,280 on Items against Quest rewards of 126,979 and Upkeep of 98,978. Without buying, that
+     Guild plays five years; with twenty Upkeeps, it and `seed-0001` play five years and earn more than
+     without buying (`seed-0188`: 225,316 in Quest rewards over five years, against 188,940). That run
+     was set aside and the gate run again. The trials of items 4 and 5 used three Upkeeps; the reserve does not touch Loot.
+4. **The run was degenerate in its Loot, and not elsewhere.** 32 seeds, 20 years, the final policy,
+   before the pass (content 11, config 7):
+   - *Unique Items.* Every game awarded all five, and 48 of the 53 that the player's Guild found were
+     found in year 0. A unique Item is a Milestone and one of a kind in a world (DL-52 item 7); one of
+     each by the end of the first year leaves nothing unique to find in the other nineteen.
+   - *Loot volume.* The player won Loot on 0.279 of its Quests, 92 awards a Guild-year, and the Rivals
+     on 0.194, 43 a Guild-year: about 265 awards and 424 Items a game-year, most of them Loot from
+     Clear the barrow and The beast of the fells, whose lowest difficulty is 30 and 35.
+   - *Not degenerate: Wealth.* No controller sells, so Loot adds no Wealth; the player's Wealth after 20
+     years was 268,472 (M4's run, DL-55: 267,608), and Items became 14.2% of what it spent.
+   - *Not degenerate: armour.* No Quest became a formality: the player's Checks succeeded 77.9% and its
+     Quests failed 21.8%. The Rivals folded 2.69 times a game (M4: 2.24).
+5. **The balance pass** (content version 12, `configVersion` 8):
+   - `lootDifficultyThreshold` 25 → **35**, and Clear the barrow (30) and The beast of the fells (35)
+     name no Loot table, so that content and config still agree (DL-52 item 3; `creation.test.ts`). Loot
+     is for the four templates whose lowest difficulty is 40 or more; `lesser-loot` is Lay the restless
+     dead's.
+   - The Loot tables' weights are ten times what they were, but the unique Items': 1 each in
+     `lesser-loot` (0.3% of its weight, from 6%) and 3 each in `greater-loot` (1.7%, from 15%).
+   - Same 32 seeds, 20 years, unvalidated, before and after:
+
+     | Measure | Before | After |
+     | --- | ---: | ---: |
+     | Loot awards a Guild-year, the player's / a Rival's | 92.3 / 43.4 | 41.0 / 13.6 |
+     | Loot a Quest resolved, the player / the Rivals | 0.279 / 0.194 | 0.124 / 0.060 |
+     | Items awarded as Loot, all Guilds | 271,175 | 97,152 |
+     | Unique Items awarded (a game); the player's in year 0 | 160 (5.0); 48 of 53 | 158 (4.9); 15 of 82 |
+     | Consumables expended a player's Quest | 0.885 | 0.834 |
+     | Items, a share of the player's Wealth spent | 14.2% | 16.7% |
+     | The player's Checks succeeded; Quests failed | 77.9%; 21.8% | 76.9%; 23.0% |
+     | Deaths a game, the player's / the Rivals' | 43.6 / 45.6 | 45.0 / 49.6 |
+     | The player's Wealth after 10 and 20 years | 152,662; 268,472 | 136,705; 238,664 |
+     | A Rival's Wealth after 10 and 20 years | 41,603; 22,976 | 42,507; 23,186 |
+     | Rival folds a game | 2.69 | 2.34 |
+
+   The unique Items are now found across the game (the player's: 15, 16 and 13 in years 0 to 2, then
+   a few a year to year 17), and Loot about a third as often.
+6. **Tests.** The wage test and the Quest Engine's config test pin `configVersion` 8; the content test
+   pins version 12. The engine's Loot tests pin `lootDifficultyThreshold` 25 and use the fixture
+   content, so the pass does not reach them; `creation.test.ts` holds the new agreement. No assertion
+   was loosened. `npm test` gained 15 tests.
+7. **The run, 2026-09-26** (`harness/reports/m5-2026-09-26.md`, committed with this entry): 200 seeds,
+   `seed-0001` to `seed-0200`, each up to 20 years, validated after every advance
+   (`HEROESIM_VALIDATE=1`), config version 8, content version 12, the policy of item 3. It ran in 16
+   processes on DL-13's machine, which other agents' work shared, and took 65 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, and all 200 last documents load
+     and serialise back alike. `seed-0001` played twice more: identical, 95,318,788 characters.
+   - **Every game ran 20 years.** Rivals folded 2.36 times a game.
+   - **The M5 counters.** The player's Guild spent 47,043 a Guild-year: Upkeep 83.4%, Items 15.9%
+     (7,477, 228 Items), signing 0.6% and Improvements 0.2%, against Quest rewards of 58,657. The Rivals
+     spent 29,382 a Guild-year, 99.3% of it Upkeep, and bought nothing; folding Guilds' unique Items
+     brought them 68,100 in 200 games. Loot: the player's Guild 40.3 awards a Guild-year (0.122 a Quest
+     resolved), the Rivals 13.3 (0.059); 981 unique Items in 200 games (4.9 a game), the player's found
+     76, 68 and 62 in years 0 to 2 and fewer each year after, 3 in year 19. The player's Loot a Quest is
+     none below difficulty 40 and rises with it, 0.051 at 40 to 49, 0.108 at 50 to 59, 0.184 at 60 to
+     69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at 90 to 99. Consumables: the player's Parties
+     carried 2.71 a Quest and expended 0.803 (59.7% of Quests used one or more: 681,824 bonuses, 285,557
+     rerolls, 95,994 heals); the Rivals none. Gear: the player equipped 7.7 pieces a Guild-year and 25,813
+     came back from the dead; the Rivals 2.5, with 7,423 back from folding Guilds' Rosters.
+   - **Beside M4's run** (DL-55):
+
+     | Measure | M4 | M5 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 1, a Bankruptcy | 0 |
+     | Rival folds a game | 2.24 | 2.36 |
+     | The player's Quests failed / succeeded / strong | 37.7 / 21.2 / 41.1% | 23.1 / 19.0 / 57.9% |
+     | The Rivals' Quests | 11.7 / 8.1 / 80.2% | 9.2 / 7.2 / 83.6% |
+     | The player's Checks succeeded; the Rivals' | 63.7%; 87.7% | 76.9%; 90.1% |
+     | Deaths a game, the player's / the Rivals' | 83.5 / 62.6 | 46.1 / 50.1 |
+     | Injuries a game | 1,021 / 794 | 577 / 619 |
+     | Levels gained a Guild-year | 17.3 / 6.0 | 13.4 / 5.8 |
+     | Mean Level after 10 years | 5.42 / 6.22 | 7.01 / 6.62 |
+     | The player's Wealth after 10 and 20 years | 141,831; 267,608 | 135,206; 232,781 |
+     | A Rival's Wealth after 10 and 20 years | 36,594; 26,041 | 40,766; 24,808 |
+     | Save after 20 years, mean (max) | 92.9 (109.7) MiB | 99.8 (118.9) MiB |
+     | History entries after 20 years, mean | 246,597 | 263,189 |
+     | A Turn alone, mean (p99) | 0.98 (2.1) ms | 1.08 (2.5) ms |
+
+   - **Measures.** Under the run's load `advance` averaged 5.00 ms a Turn; alone (`seed-0001` replayed)
+     1.08 ms, so a year is 1.16 s, over data-model §7's 1 s as M4's was. At this run's rate 1,000 games
+     of 20 years would take 319 minutes (M4's run, 389).
+
+**Consequences.** M5's gate has its run: the harness reports Wealth spent by category, and M5-S5's
+third box has the run's evidence in the epic. For the owner:
+
+- **Items make the player markedly stronger than M4 did.** In 32-seed trials of 10 years (before the
+  pass), the player's Checks succeeded 64.7% with no Loot and no consumables (M4's run: 63.7%), 71.0%
+  with Loot's gear, and 76.2% with the policy's consumables as well; its failed Quests fell from 36.4%
+  to 23.9%, and its Deaths by 45%. Gear goes into empty slots only (`gearChoices`, DL-49), and Loot's
+  gear fills them within about a year. That is M5's rules and the policy using all of them, not a value
+  out of line, so the pass leaves it; M6's Dispositions and a player's choices will decide how much of
+  it is used.
+- **Consumables are now the player's second cost after Upkeep**, about a sixth of what it spends, and
+  a Guild with a poor start can buy itself into trouble without the reserve.
+- **Rivals neither carry nor buy** consumables; their Loot consumables pile up in their holdings
+  until M6.
+- **Surplus Loot gear piles up**: nothing sells it and `gearChoices` never replaces worn gear with
+  better.
+
 ## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 verification's fixer),

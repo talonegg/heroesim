@@ -107,7 +107,10 @@ Config: `lootDifficultyThreshold`, `lootOnBands`.
 - [x] Loot appears only on the configured bands and only from templates with a table
 - [x] A unique Loot Item exists once in `world.items` with the Guild as holder
 - [x] The harness's Loot counter rises with the player's mean Quest difficulty (proved in the engine,
-      `quest-engine/loot.test.ts`, before the counter exists; the M5 close's counter task adds it, DL-52)
+      `quest-engine/loot.test.ts`, DL-52; and in the M5 run, `harness/reports/m5-2026-09-26.md`, DL-62:
+      the player's Loot a Quest resolved is none below difficulty 40, then 0.051 at 40 to 49 (mean
+      44.7), 0.108 at 50 to 59, 0.184 at 60 to 69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at
+      90 to 99 (mean 94.1))
 
 ### M5-S6 · (moved) Hall Improvements
 
