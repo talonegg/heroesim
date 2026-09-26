@@ -85,9 +85,11 @@ Config: `declineAge`, `declinePerYear`, `declineAreas`.
 
 - [x] No decline before `declineAge`; exactly one Stat per year after it
 - [x] Only Stats in `declineAreas` decline
-- [ ] The harness's Levels-gained counter still rises after decline starts (growth outpaces
-      decline for a young Roster) — open: needs M3-S1's `levelUps` and the M3 harness counters,
-      built in parallel; closed after they merge (DL-37)
+- [x] The harness's Levels-gained counter still rises after decline starts (growth outpaces
+      decline for a young Roster) — M3's 200 × 20 run: on the 128 player's Guilds with a decline,
+      17.8 Levels a Guild-year after the first (19.6 before), adding 52.5 Stat points against 0.43
+      declined; the 650 Rivals, 6.6 after (8.2 before), 19.5 against 0.93
+      (`harness/reports/m3-2026-09-26.md`, DL-37, DL-40)
 
 ### M3-S5 · Rankings, and Fame gating signings · 1–2 sessions
 

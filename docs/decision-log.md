@@ -2252,6 +2252,219 @@ read at 200.
 after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
 with `HEROESIM_SEEDS=1000`.
 
+## DL-40 — M3 close: the M3 counters, what they read, and the M3 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+recording a method and a measure
+
+**Context.** The M3 epic's §2 names six counters: Levels gained per Guild-year, Heroes with any Stat
+at Potential after 10 years, the mean Level of the player's Roster by year, Retirements by age band,
+signings refused by Fame per controller kind, and the Improvement grades reached by year 10 per
+controller kind; the orchestrator adds declines per Guild-year. DL-36, DL-37 and DL-38 said what
+each reads, and the counters were left to one task after the three tracks merged. Three
+cross-track boxes wait on them: M3-S4's third (Levels still rise after decline starts), M3-S5's
+fourth (the Fame counter) and the yard half of M3-S6's second. Left open: how to read what the
+History does not record; the denominator of "per Guild-year"; what "by year" and "after 10 years"
+read in a game that ended first; how to show growth outpacing decline; and what of a Rival's
+`signing-refused` the harness can see.
+
+**Decision.**
+
+1. **Two sources.** From the History, through `history.byType` as M2's counters are
+   (`countGame(document, deps)`, which now takes `deps` for the year's length and content's
+   grades): Levels, declines, Retirements by age, growth against decline and the Improvement
+   grades. From the World State, read while the game is played (`observe` in
+   `harness/src/counters.ts`, which `playGame` calls on each Turn before the policy acts): the Fame
+   gate each morning, and a census of the Guilds in play as each year begins, which no entry
+   records. No event was added for a counter.
+2. **Guild-years.** A Guild is in play from its `foundedTurn` until the Turn it folds or the game
+   stops (`world.ended.turn` for a game that ended); each year of the game gets the part of it each
+   Guild was in play, summed by controller kind. A "per Guild-year" divides a count summed over the
+   games by the Guild-years summed alike, overall and year by year.
+3. **Levels gained and declines**: `hero.levelled` by the controller of its `payload.guildId` and
+   the `yearOf` its Turn; `hero.declined` alike, its Guild the one `emit` named beside the Hero.
+4. **The census.** On the first Turn of each year (Turn k × `turnsPerYear`, a morning, before the
+   policy acts), and once more on the last Turn of a game that ran its full length: for each kind of
+   controller, the Guilds in play, their Wealth, their living Rosters' Heroes and Levels, and the
+   Heroes with any Stat at its Potential or at content's maximum, where growth stops too
+   (`growOneLevel`'s own test, DL-36). **The mean Level by year** is the Levels over the Heroes of
+   the games in play that year, pooled; a game that ended drops out and the report gives the games
+   counted. **Heroes at Potential after 10 years** is the census after 10 years. Both kinds are
+   reported: the epic asks for the player's mean Level, and the Rivals' is its risk table's check.
+   The Wealth was added so the Rivals' economy could be judged (DL-41).
+5. **Retirements by age**: `hero.retired`'s `age` by controller kind, reported in five-year bands.
+6. **Signings refused by Fame**, as DL-38 item 9: each morning, `unsignableHeroes(world, guild,
+   config).length` for every Guild in play, summed by controller kind (Hero-Days refused), with the
+   Guild-Days, the mean a Guild-Day and the Guild-Days with one or more; beside it the
+   `signing-refused` rejections among the policy's refused actions, which the run asserts are 0.
+   **A Rival's are not counted**: the afternoon's phase drops a refused choice and emits nothing
+   (DL-30), so the harness could see one only by replaying the phase. `steady` asks only a Hero who
+   would sign (DL-38 item 5), and the engine's test that no Rival choice is refused over ten Days
+   holds it to that.
+7. **Improvement grades by year 10**, as DL-38 item 15, over the games that reached Turn
+   10 × `turnsPerYear`: a game that ended before has no grades by then and is left out, and the
+   report says how many games are counted. Grades run from 0 to content's top grade.
+8. **Growth against decline** (M3-S4's third box): for each Guild on whose Roster a Hero declined,
+   the Levels gained before its first `hero.declined` and from it on, each per Guild-year of the
+   Guild's play before and after it; and, from it on, the Stat points the Levels added
+   (`statDeltas`) against the points declines took. Before and after go by position in the History,
+   so a Level gained on the night of the first decline, whose `levelUps` runs before `ageing`, is
+   before it.
+9. **The report** is named by milestone (`playReport`'s context gains `milestone`), so the M3 run
+   writes `harness/reports/m3-<date>.md` headed "M3 harness report: play", with an M3 section after
+   M2's counters. Each counter has a fixture test in `counters.test.ts` (a world under a 30-Turn
+   year, its History given at chosen Turns the entries a counter reads), and `playGame`'s
+   observations have their own; `npm test` grew by about a second.
+10. **The training yard end to end** (M3-S6's second box): `cli/src/commands/build.test.ts` builds
+    the yard with `build --facility training-yard`, plays five idle Days with `advance --turns 15`,
+    and finds each of the four Roster Heroes at 5 × `xpPerTrainingDay` (pinned at 2) XP, and a twin
+    world left at grade 0 at none.
+11. **Result, 2026-09-26** (`harness/reports/m3-2026-09-26.md`, committed with this entry): 200
+    seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+    advance, under DL-41's defaults (config version 4, content version 5), in 16 processes on DL-13's
+    machine (AMD Ryzen AI Max+ 395, 32 logical cores, Windows 11, Node v26.9.0), while the defaults'
+    own run (DL-41) and other agents' work used the rest of it. The run took 50 minutes.
+    - **Validation.** No refusal or warning in any game, after every advance and over each whole
+      document; no policy action refused, so no `signing-refused`; all 200 last documents load and
+      serialise back to the same text; `seed-0001` played twice more: identical, 49,820,639
+      characters.
+    - **Endings.** All 200 games ran the full 20 years: no Bankruptcy of the player's Guild. Rivals
+      folded 616 times, 3.08 a game (443 Bankruptcies, 173 wiped Rosters).
+    - **Levels gained per Guild-year**: the player's Guild 19.0, the Rivals 6.9. In year 0, 33.8 and
+      15.9, the cheap first Levels; from year 1, 17.6 to 20.0 and 4.1 to 7.4.
+    - **Mean Level of the player's Roster**: 3.90 after one year, 4.48 after two, 4.95 after ten,
+      4.99 after twenty (the Rivals': 3.98, 4.74, 4.94, 5.47). Nothing near the cap of 20: the
+      policy's Roster of eight loses about five Heroes a year to Deaths and refills at Level 1.
+    - **Heroes with a Stat at Potential after 10 years**: the player's 352 of 1,600 (22.0%), the
+      Rivals' 952 of 4,612 (20.6%).
+    - **Declines per Guild-year**: the player's 0.13, the Rivals' 0.28, from year 4 on.
+    - **Growth against decline** (M3-S4): on the 128 player's Guilds with a decline, 19.6 Levels a
+      Guild-year before the first and 17.8 after it, when Levels added 52.5 Stat points a
+      Guild-year and declines took 0.43; on the 650 Rivals, 8.2 before and 6.6 after, 19.5 points
+      grown against 0.93 declined.
+    - **Retirements by age**: the player's 1 (45 to 49), the Rivals' 24 (21 at 45 to 49, 3 at 50 to
+      54). Heroes die long before they age: 104 and 112 Deaths a game.
+    - **Signings refused by Fame**: no pool Hero refused the player's Guild on any of its 1,440,000
+      Guild-Days; the Rivals were refused 450 Hero-Days in 5,741,530 Guild-Days, on 104 of them. Only
+      a fold's veterans are above Level 1 in the pool, and folds are rare.
+    - **Improvement grades by year 10**: every player's Guild's infirmary at grade 3; the 1,045
+      Rivals' at a mean of 2.98 (1,024 at grade 3). No Guild built a training yard or quarters: the
+      controllers build only the infirmary (M3-S6).
+    - **Measures against `data-model.md` §7** (provisional targets, recorded and not chased, DL-08).
+      "Loaded" is every Turn of the sweep, 16 processes beside the
+      defaults' run's 16 (DL-41); "alone" is `seed-0001`'s 20-year game played again in one process
+      once both runs were done, and its save loaded.
+
+      | Measure | Target | Measured |
+      | --- | --- | --- |
+      | Advance one Turn | under 5 ms | alone: mean 1.60 ms, p99 3.32 ms; loaded: mean 3.50 ms, p99 23.7 ms |
+      | Fast forward a year | under 1 s | 1.73 s (mean alone × 1,080 Turns): over |
+      | Harness: 1,000 games of 20 years | under 10 min | 230 min at this run's rate (16 processes, validated): over |
+      | Save after 20 years | under 20 MB | mean 47.1 MiB (49.4 million characters, 137,929 entries), max 57.9 MiB: about 2.4 times over |
+
+      The report's own "replayed alone" row, 4.10 ms, was timed while the defaults' run still held
+      16 processes, so the figure above was taken again afterwards.
+      | Load a save | under 1 s | alone: 1.31 s (serialising it 1.09 s); loaded: mean 3.7 s |
+
+**Consequences.** M3's gate has its run and the epic's boxes their evidence (M3-S4's third from item
+11's growth against decline; M3-S5's fourth from item 6; M3-S6's second from item 10). What the run
+says, for the owner and later milestones:
+
+- **Progression works and is slow**: a Roster reaches a mean Level near 5 and holds it, a fifth of
+  Heroes touch Potential in a Stat, and the cap is far off (the epic's second risk, now measured);
+  the curve is two config numbers.
+- **Nobody grows old.** Heroes die at about five a year on each Roster, so declines are rare and
+  Retirements a handful; the ageing rules will matter when M4's Quest Engine makes Quests less
+  lethal.
+- **The Fame gate barely binds** while only a fold's veterans are above Level 1 in the pool; it
+  will bind when Heroes enter the pool with Levels (transfers, M6).
+- **The save is smaller than M2's** (47 against 75 MiB) because the Rivals, keeping sixty Upkeeps
+  (DL-41), hold about six Heroes each rather than about twenty, and take fewer Quests.
+- **The yard and the quarters are unbuilt** in harness games: the controllers build only the
+  infirmary (M3-S6), so the yard's XP is proved by tests (M3-S2, item 10), not by the run.
+- **A Rival's refused choice is invisible to the harness** (item 6); a controller that could err
+  would need the phase to count its refusals.
+
+## DL-41 — M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+as the task asks: one pass on `defaultConfig` for the owner to tune; the orchestrator asked that the
+Rivals' fold rate be judged beside the player's side
+
+**Context.** DL-36 cut `wagePerLevel` from 70 to 20 as a stopgap, before M3-S4 to S6 merged, and
+asked M3's harness pass to judge it with the full run. **Before**: M3's run under the defaults
+(config version 3; DL-40's harness; 200 seeds × 20 years, validated, the same machine) is degenerate
+on the Rivals' side. Rivals folded **5,455 times, 27.3 a game** (5,445 Bankruptcies, 10 wiped
+Rosters), against 0.95 a game at M2's tag (DL-35): 3,264 Rivals were founded before year 10 where
+a game starts with four. A Rival recruited 755 Heroes a game, held about 24 Heroes at a mean Level of
+3.0 after 10 years, and only 5.3% of them had a Stat at Potential; it gained 31 Levels a Guild-year,
+nearly all on new Level-1 recruits. The player's side is steady but has no spread: no Bankruptcy in
+200 games, a Roster of eight at a mean Level of 4.75 after 10 years.
+
+The cause is `steady`'s economics once Heroes level. A Rival takes one Quest an afternoon, the
+easiest it can staff, so its income is about one easy reward a day whatever its Roster; it recruits
+whenever its Wealth is above ten Upkeeps, which at Level 1 is cheap, so its Roster grows to twenty
+and more; then its Heroes level, a Level adding `wagePerLevel` to each wage, the same Roster costs
+several times what it did, nobody is let go, and the reserve drains to a Bankruptcy within about
+three years. The player's Guild fields its eight on the highest rewards and loses about five a year
+to Deaths, refilled at Level 1, so its wages stay below its income.
+
+**Decision.** One default changes and one is judged and kept; `configVersion` goes from 3 to 4.
+
+| Field | Was | Now | Why |
+| --- | --- | --- | --- |
+| `recruitWealthMultiple` | 10 (DL-35) | **60** | A Rival recruits only while it holds sixty Upkeeps, about 600 Days of wages: it stops while its Roster is one its income can carry as its Heroes level, and keeps a reserve for the Levels they gain |
+| `wagePerLevel` | 20 (DL-36) | **20**, kept | The highest wage `steady`'s one Quest a day bears: 22 and 25 leave Rivals 3 to 5 Heroes and fold them more often, while the player still almost never goes bankrupt |
+
+The trials that chose it, under DL-34's policy and DL-40's counters (scratch runs, not committed;
+16 seeds × 20 years, `seed-0001` to `seed-0016`, not validated); no player's game ended in any trial
+but the two marked:
+
+| `wagePerLevel` / `recruitWealthMultiple` | Rival folds a game | Rival Heroes a Guild after 10 years | Their mean Level | Rival Levels a Guild-year | Player's mean Level after 10 years |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 / 10 (the defaults) | 27.6 | 23.3 | 2.99 | 30.9 | 4.48 |
+| 20 / 20 | 11.4 | 13.9 | 4.65 | 15.6 | 4.95 |
+| 20 / 30 | 6.3 | 7.2 | 5.17 | 10.4 | 4.96 |
+| 20 / 40 | 4.8 | 7.5 | 5.74 | 8.4 | 4.81 |
+| **20 / 60** | **3.5** | **5.3** | **5.29** | **6.6** | **4.98** |
+| 20 / 80 | 3.3 (18 of 53 wiped Rosters) | 3.8 | 5.11 | 5.9 | 5.29 |
+| 22 / 40 | 6.8 | 4.8 | 5.15 | 6.9 | 5.23 |
+| 25 / 20 | 13.3; 2 of 16 players bankrupt | 4.3 | 4.00 | 8.0 | 4.85 |
+| 25 / 40 | 12.0; 1 of 16 players bankrupt | 3.5 | 4.49 | 6.0 | 5.08 |
+| 15 / 40 | 5.6 | 15.9 | 5.93 | 14.6 | 4.50 |
+| 15 / 60 | 2.3 | 18.6 | 6.00 | 11.1 | 4.73 |
+| 18 / 60 | 2.8 | 9.3 | 5.54 | 8.7 | 4.66 |
+
+A lower wage folds fewer Rivals still (15 / 60: 2.3 a game) but lets their Rosters grow back toward
+twenty, with the save and `advance` growing with them, and makes the player's Guild richer yet (its
+Wealth after 10 years 176,000 against 116,000), whose only Bankruptcy lever is the wage. 20 / 60
+changes one default, keeps DL-36's wage, and brings the fold rate to M2's order of magnitude.
+Beyond sixty the Rosters thin until Deaths wipe them. Not turned: the XP curve and XP per
+difficulty point (Levels rise at a plausible pace and the cap is far off); the stub's bands; Hall
+costs and `buildWealthMultiple`; and the policy's own numbers (the harness's player, DL-34).
+
+**After** (DL-40's run, config version 4, 200 × 20, validated): Rivals folded **616 times, 3.08 a
+game** (443 Bankruptcies, 173 wiped Rosters); a Rival recruited 99 Heroes a game and held 5.8 at a
+mean Level of 4.94 after 10 years (5.47 after 20), 20.6% of them with a Stat at Potential; 6.9
+Levels a Rival-year; Fame refused Rivals 450 Hero-Days, from 549,859. The player's side is as
+before: no Bankruptcy, a mean Level of 4.95 after 10 years, 19.0 Levels a Guild-year, 104 Deaths a
+game. Smaller Rival Rosters also shrank the work: `seed-0001`'s `advance` played alone 3.57 → 1.60 ms a
+Turn, the 20-year save 72.0 → 47.1 MiB (both runs shared the machine, so their run times, 188 and
+50 minutes, do not compare).
+
+Tests that relied on a changed default: the Rival test of the default multiple now expects sixty,
+and the wage test pins configVersion 4 beside the wage of 20. No other test leaned on either (the
+suite passes); none was loosened.
+
+**Consequences.** A save made before this entry plays under version 3 until the player rebases.
+**The player's Guild never goes bankrupt** in either run: its Bankruptcy lever is the wage, and the
+wage is held down by what `steady` can pay, so M3 hands on no spread of player endings (DL-35 had 66
+in 200). Wiped Rosters are now a third of Rival folds: Rosters of about six lose Heroes to Deaths
+faster than a Rival holding sixty Upkeeps replaces them. M6's Dispositions, which widen what a Rival
+takes (the epic's risk table), are where a Rival's income should grow with its Heroes; the owner may
+then raise the wage, or give it a base and a smaller per-Level part (DL-36 item 10). M4's Quest
+Engine replaces the stub and its bands and calls for the next pass.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
