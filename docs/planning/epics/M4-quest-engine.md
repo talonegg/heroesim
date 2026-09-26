@@ -4,7 +4,7 @@
 **Sessions:** 7–9 · **Depends on:** M3 · **Implements:** `plan.md` M4; R8 (Guildmaster Stats in Guild-side actions), R19, R21 (requirements), R24, R26; approach §1 "target: a sequence of typed encounters"
 **Gate:** the stub is gone; a Quest resolves as a sequence of typed encounters whose checks read Stats, Skills, Relationship and Synergies; the harness reports encounter outcomes by check type
 
-**Status:** not started
+**Status:** done — 2026-09-26 (`m4-quest-engine`)
 
 ## 0. What lands in M4
 
@@ -68,7 +68,12 @@ Config: `checkVariance`, `skillBonusPerRating`, `bandBySuccessShare`.
       same Stats, with variance 0
 - [x] A Hero killed in encounter 2 contributes nothing to encounter 3
 - [x] `quest.encounter` events arrive in sequence order with the Quest's Turn
-- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced
+- [x] The harness's M2 counters still report; `quest.resolved` bands are still produced — M4's
+      200 × 20 run, validated after every advance: M2's counters (Quests taken and resolved by
+      band, Injuries, Deaths, recruits, Retirements, endings and folds) report beside M3's and
+      M4's, and each of the 4,801,729 Quests resolved has its band: the player's 37.7% failed,
+      21.2% succeeded, 41.1% strongly; the Rivals' 11.7%, 8.1%, 80.2%
+      (`harness/reports/m4-2026-09-26.md`, DL-55)
 
 ### M4-S3 · Synergies · 1 session
 
@@ -159,6 +164,32 @@ by band.
       `1 / patronRegardRecoveryPerYear` years, emitting one `patron.regard-changed`
 - [x] Each Guildmaster Stat has one test at the bottom and top of its range showing the effect
       and no other
+
+## Measured
+
+`npm run harness -- play.harness`, 2026-09-26, **200 seeds × up to 20 years**, validated after
+every advance, config version 6, content version 8. Full report: `harness/reports/m4-2026-09-26.md`;
+decisions DL-42 to DL-47, DL-55, DL-70.
+
+| Counter or measure | Result (M3 beside it) |
+| --- | --- |
+| Player games ended | 1 Bankruptcy in 200 (M3: 0) |
+| Rival folds a game | 2.24 (3.08) |
+| Player Quests failed / success / strong | 37.7 / 21.2 / 41.1% (37.0 / 38.3 / 24.7%) |
+| Rivals' Quests failed / success / strong | 11.7 / 8.1 / 80.2% |
+| Encounter Checks succeeding, player / Rivals | 63.7% (57% social to 68% combat and stealth) / 87.7% |
+| Synergies | on 15.6% of the player's Quests, 0.162 a Quest |
+| Deaths a game, player / Rivals | 84 / 63 (104 / 112) |
+| Player mean Level at year 10; Wealth at year 20 | 5.42 (4.95); 268k (218k) |
+| Patrons silent | none in 47,796 Patron-years |
+| Relationships in the player's Roster at year 10 | 37% neutral, 26% warm, 36% close, none cool or hostile |
+| The player's Guildmaster Regard for Patrons at year 10 | 79% close — nothing decays it (DL-55 leaves the rule to the owner) |
+| `advance` a Turn, one process; fast forward a year | 0.98 ms; 1.06 s (target 1 s) |
+| Save after 20 years | mean 93 MiB (target 20 MB); `quest.encounter` is 31% of the History |
+
+No validator refusal, no policy action refused, the replay byte-identical. Verified independently
+on 2026-09-26: every box proved, 79 mutants (73 killed at first, the 6 survivors now killed), two
+CLI defects fixed (DL-70).
 
 ## 2. Configuration and events introduced
 

@@ -14,16 +14,22 @@ import {
   compareByCodeUnit,
   gearChoices,
   gearPurchase,
+  holdings,
+  itemDefinition,
+  marketStock,
   offeredQuests,
   offersTo,
   partyFor,
   playerGuild,
   upkeep,
+  type ConsumableRequest,
   type EngineDeps,
   type Guild,
   type GuildAction,
   type HeroId,
+  type ItemDefinitionKey,
   type Quest,
+  type World,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -43,6 +49,17 @@ export interface PolicyConfig {
    * table: "buy one armour per un-armoured Hero when Wealth allows", DL-51).
    */
   buyWealthMultiple: number;
+  /**
+   * Keep this many of each consumable, at home and carried by the Guild's Parties together, buying
+   * toward it when nothing else is bought (the M5 close, DL-62). Its price is read with
+   * `buyWealthMultiple`, as armour's is.
+   */
+  consumableStock: number;
+  /**
+   * Buy consumables only from Wealth the Guild can spare: the purchase leaves more than this many
+   * Upkeeps (DL-62), so that a Guild earning little over its Upkeep keeps its margin for its wages.
+   */
+  consumableReserveUpkeeps: number;
 }
 
 export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
@@ -50,6 +67,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
   rosterLimit: 8,
   buildWealthMultiple: 3,
   buyWealthMultiple: 3,
+  consumableStock: 2,
+  consumableReserveUpkeeps: 20,
 });
 
 /**
@@ -65,7 +84,9 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *   in turn, the strongest Party of the size it requires that the Guild's available Heroes can
  *   make (`partyFor`: `partySizeMin`, or two when a Class and a Skill are required and no one
  *   Hero has both), until no Hero is left or no Quest can be staffed. A Quest it cannot staff is
- *   passed over for the next.
+ *   passed over for the next. Each Party **carries one of each consumable** the Guild holds that
+ *   could serve its Quest (`consumablesFor`, DL-62), while the Guild has one left after the Parties
+ *   before it.
  * - **One purchase a Turn**, the first of these that applies:
  *   - **Build** the infirmary's next grade when Wealth is above `buildWealthMultiple` times its cost
  *     (M3-S6, DL-38), until the infirmary is at its top grade.
@@ -78,6 +99,10 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
  *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
+ *   - **Buy consumables** toward `consumableStock` of each (DL-62): of the consumables the Market
+ *     has for sale, the one the Guild has fewest of, lowest key among equals, as many as it lacks
+ *     and the Market has, when Wealth is above `buyWealthMultiple` times their cost and would stay
+ *     above `consumableReserveUpkeeps` Upkeeps after paying it.
  * - **Never transfers** a Hero in or out itself (M6-S2): the harness plays the Guild as INPUTS 4.14
  *   describes it, and Rivals' offers are declined above.
  *
@@ -100,28 +125,105 @@ export function automaticPolicy(
     ...gearChoices(world, guild, deps),
   ];
   let available = availableHeroes(world, guild);
+  const left = heldConsumables(world, guild, deps);
   for (const quest of byReward(document)) {
     if (available.length === 0) break;
     const heroIds = partyFor(quest, available, deps.content);
     if (heroIds === null) continue;
-    actions.push({ kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds });
+    const consumables = consumablesFor(quest, heroIds, left, deps);
+    actions.push({ kind: 'dispatch', guildId: guild.id, questId: quest.id, heroIds, ...(consumables.length > 0 ? { consumables } : {}) });
     const sent = new Set<HeroId>(heroIds);
     available = available.filter((hero) => !sent.has(hero.id));
   }
 
-  const purchase = infirmaryBuild(guild, deps, policy) ?? armourPurchase(document, guild, deps, policy);
-  if (purchase !== null) {
-    actions.push(purchase);
-  } else if (
-    guild.rosterIds.length < policy.rosterLimit &&
-    guild.wealth > policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)
-  ) {
-    const cheapest = cheapestUnattached(world, deps, guild);
-    if (cheapest !== null && cheapest.fee <= guild.wealth) {
-      actions.push({ kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id });
+  const purchase =
+    infirmaryBuild(guild, deps, policy) ??
+    armourPurchase(document, guild, deps, policy) ??
+    recruitment(world, guild, deps, policy) ??
+    consumablePurchase(world, guild, deps, policy);
+  if (purchase !== null) actions.push(purchase);
+  return actions;
+}
+
+/**
+ * A recruit when the Roster is below `rosterLimit` and Wealth above `recruitWealthMultiple` Upkeeps:
+ * the cheapest Hero in the pool who would sign (`cheapestUnattached`), if Wealth covers the fee;
+ * `null` otherwise.
+ */
+function recruitment(world: World, guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
+  if (guild.rosterIds.length >= policy.rosterLimit) return null;
+  if (guild.wealth <= policy.recruitWealthMultiple * upkeep(guild, world, deps.config, deps.content)) return null;
+  const cheapest = cheapestUnattached(world, deps, guild);
+  return cheapest !== null && cheapest.fee <= guild.wealth ? { kind: 'recruit', guildId: guild.id, heroId: cheapest.hero.id } : null;
+}
+
+/** Whether content defines `definitionKey` as a consumable. */
+function isConsumable(definitionKey: ItemDefinitionKey, deps: EngineDeps): boolean {
+  return itemDefinition(deps.content, definitionKey)?.kind === 'consumable';
+}
+
+/** How many of each consumable the Guild's own holding has, by definition. */
+function heldConsumables(world: World, guild: Guild, deps: EngineDeps): Map<ItemDefinitionKey, number> {
+  const held = new Map<ItemDefinitionKey, number>();
+  for (const stack of holdings(world, { kind: 'guild', id: guild.id }).stacks) {
+    if (isConsumable(stack.definitionKey, deps)) held.set(stack.definitionKey, (held.get(stack.definitionKey) ?? 0) + stack.quantity);
+  }
+  return held;
+}
+
+/**
+ * What a Party of `heroIds` sent on `quest` carries (DL-62): one of each consumable in `left`, in key
+ * order, that could serve the Quest — a `bonus` or a `reroll` whose kinds hold the kind of one of its
+ * Encounters, and any `heal` — taking each from `left`, so that the Parties sent the same Turn never
+ * ask for more than the Guild holds. None when the Party is empty of such needs or the Guild of them.
+ */
+function consumablesFor(quest: Quest, heroIds: readonly HeroId[], left: Map<ItemDefinitionKey, number>, deps: EngineDeps): ConsumableRequest[] {
+  if (heroIds.length === 0) return [];
+  const kinds = new Set(
+    quest.encounterKeys.flatMap((key) => (Object.hasOwn(deps.content.encounters, key) ? [deps.content.encounters[key]?.kind] : [])),
+  );
+  const carried: ConsumableRequest[] = [];
+  for (const definitionKey of [...left.keys()].sort(compareByCodeUnit)) {
+    const definition = itemDefinition(deps.content, definitionKey);
+    if (definition?.kind !== 'consumable' || (left.get(definitionKey) ?? 0) === 0) continue;
+    const { effect } = definition;
+    const serves = effect.kind === 'heal' || effect.kinds.some((kind) => kinds.has(kind));
+    if (!serves) continue;
+    carried.push({ definitionKey, quantity: 1 });
+    left.set(definitionKey, (left.get(definitionKey) ?? 0) - 1);
+  }
+  return carried;
+}
+
+/**
+ * Consumables to buy toward `consumableStock` of each (DL-62): the Guild's count of a definition is
+ * its own holding's and its Parties' together, since what a Party carries comes home unless used. Of
+ * the consumables on the Market it has fewer of, the one it has fewest of, lowest key among equals,
+ * as many as it lacks and the Market has, when Wealth is above `buyWealthMultiple` times their cost
+ * and, once it is paid, above `consumableReserveUpkeeps` Upkeeps, so that consumables are bought from
+ * what the Guild can spare; `null` when none is lacking, for sale or affordable.
+ */
+function consumablePurchase(world: World, guild: Guild, deps: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction | null {
+  const owned = heldConsumables(world, guild, deps);
+  for (const party of Object.values(world.parties)) {
+    if (party.guildId !== guild.id) continue;
+    for (const stack of holdings(world, { kind: 'party', id: party.id }).stacks) {
+      if (isConsumable(stack.definitionKey, deps)) owned.set(stack.definitionKey, (owned.get(stack.definitionKey) ?? 0) + stack.quantity);
     }
   }
-  return actions;
+  const reserve = policy.consumableReserveUpkeeps * upkeep(guild, world, deps.config, deps.content);
+  const [best] = marketStock(world, deps)
+    .filter(({ definition }) => definition.kind === 'consumable')
+    .map(({ definition, quantity, price }) => {
+      const have = owned.get(definition.key) ?? 0;
+      return { key: definition.key, have, quantity: Math.min(quantity, policy.consumableStock - have), price };
+    })
+    .filter(
+      ({ quantity, price }) =>
+        quantity > 0 && guild.wealth > policy.buyWealthMultiple * price * quantity && guild.wealth - price * quantity > reserve,
+    )
+    .sort((a, b) => a.have - b.have || compareByCodeUnit(a.key, b.key));
+  return best === undefined ? null : { kind: 'buy', guildId: guild.id, definitionKey: best.key, quantity: best.quantity };
 }
 
 /**

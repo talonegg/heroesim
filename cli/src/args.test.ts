@@ -38,6 +38,8 @@ describe('parseArgs', () => {
     expect(command('show', 'guilds')).toMatchObject({ view: { kind: 'guilds' } });
     expect(command('show', 'roster')).toMatchObject({ view: { kind: 'roster' } });
     expect(command('show', 'roster', 'guild-000002')).toMatchObject({ view: { kind: 'roster', guildId: 'guild-000002' } });
+    expect(command('show', 'hall')).toMatchObject({ view: { kind: 'hall' } });
+    expect(command('show', 'hall', 'guild-000002')).toMatchObject({ view: { kind: 'hall', guildId: 'guild-000002' } });
     expect(command('show', 'pool')).toMatchObject({ view: { kind: 'pool' } });
     expect(command('show', 'patrons')).toMatchObject({ view: { kind: 'patrons' } });
     expect(command('show', 'board')).toMatchObject({ view: { kind: 'board' } });

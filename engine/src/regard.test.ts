@@ -137,28 +137,41 @@ describe('Guildmaster Regard for a Guild (M4-S5, rule 1)', () => {
 });
 
 describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test each', () => {
+  // Each writer's amount pinned apart from the other three, so a test shows the writer reads its own
+  // field and no other's (M4 verification: with all four at ±1, a Hero written with a Patron's
+  // amount passed).
+  const writers = testDeps({
+    ...pinned,
+    guildmasterRegardOnPatronSuccess: 2,
+    guildmasterRegardOnPatronFailure: -3,
+    guildmasterRegardOnHeroSuccess: 0.5,
+    guildmasterRegardOnHeroFailure: -0.25,
+  });
+
   test('for a Patron, on a success of one of their Quests: guildmasterRegardOnPatronSuccess', () => {
     const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world), resolved(guild, patron.id, [], true));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(1);
+    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], true));
+    expect(regardValue(guildmaster.regard, patron.id)).toBe(2);
   });
 
   test('for a Patron, on a failure of one of their Quests: guildmasterRegardOnPatronFailure', () => {
     const { world, guild, guildmaster, patron } = scene();
-    regardOnQuestResolved(world, context(world), resolved(guild, patron.id, [], false));
-    expect(regardValue(guildmaster.regard, patron.id)).toBe(-1);
+    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, [], false));
+    expect(regardValue(guildmaster.regard, patron.id)).toBe(-3);
   });
 
   test('for each Hero home on the Roster, on a success: guildmasterRegardOnHeroSuccess', () => {
     const { world, guild, guildmaster, patron, heroes } = scene();
-    regardOnQuestResolved(world, context(world), resolved(guild, patron.id, heroes, true));
-    for (const heroId of heroes) expect(regardValue(guildmaster.regard, heroId)).toBe(1);
+    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, heroes, true));
+    for (const heroId of heroes) expect(regardValue(guildmaster.regard, heroId)).toBe(0.5);
+    expect(regardValue(guildmaster.regard, patron.id)).toBe(2);
   });
 
   test('for each Hero home on the Roster, on a failure: guildmasterRegardOnHeroFailure', () => {
     const { world, guild, guildmaster, patron, heroes } = scene();
-    regardOnQuestResolved(world, context(world), resolved(guild, patron.id, heroes, false));
-    for (const heroId of heroes) expect(regardValue(guildmaster.regard, heroId)).toBe(-1);
+    regardOnQuestResolved(world, context(world, writers), resolved(guild, patron.id, heroes, false));
+    for (const heroId of heroes) expect(regardValue(guildmaster.regard, heroId)).toBe(-0.25);
+    expect(regardValue(guildmaster.regard, patron.id)).toBe(-3);
   });
 
   test('a Patron whose Quests always fail ends in a lower band than one whose always succeed; an event at each band crossing and no other', () => {

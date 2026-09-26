@@ -128,6 +128,22 @@ describe('sell', () => {
     expect(result).toEqual({ ok: false, rejection: { action: 'sell', reason: 'unknown-item', definitionKey: 'a-lost-item' } });
   });
 
+  test("refuses by where the Item is before what it is (DL-51 item 4's order): an unknown Item a Hero carries is equipped, another holder's not held", () => {
+    const { document, ids } = built();
+    const carried = createItem(document.world, 'a-lost-relic', { kind: 'hero', id: ids.partyHero, slot: 'weapon' });
+    const listed = addStack(document.world, 'a-lost-item', 1, marketHolder);
+    withValid(document, deps, { allowWarnings: true });
+
+    expect(sell(document, { guildId: ids.playerGuild, itemId: carried }, deps)).toEqual({
+      ok: false,
+      rejection: { action: 'sell', reason: 'equipped', id: carried, heroId: ids.partyHero, slot: 'weapon' },
+    });
+    expect(sell(document, { guildId: ids.playerGuild, stackId: listed, quantity: 1 }, deps)).toEqual({
+      ok: false,
+      rejection: { action: 'sell', reason: 'not-held-by-guild', id: listed },
+    });
+  });
+
   test('throws on a programming error: a quantity that is not a whole number from 1, a Guild the world lacks', () => {
     const { document, ids } = built();
 

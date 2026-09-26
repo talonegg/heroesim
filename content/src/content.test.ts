@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 12 since M6-S4 retuned reckless's gearThreshold", () => {
+  test("is the core content set, version 13 since the merge of M5's close with M6's Dispositions (DL-63)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(12);
+    expect(content.version).toBe(13);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {

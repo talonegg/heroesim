@@ -138,9 +138,10 @@ const templateEncounters: Readonly<Record<string, [EncounterKind[], number, numb
 };
 
 /**
- * Each test template's Loot table (M5-S5, DL-52), as the core's: the six whose `difficultyMin` is
- * above the default `lootDifficultyThreshold` (25), `lesser-loot` below 45 and `greater-loot` from
- * it; the rest none.
+ * Each test template's Loot table (M5-S5, DL-52), as the core's were before the M5 close's balance
+ * pass (DL-62): the six whose `difficultyMin` is above a `lootDifficultyThreshold` of 25, which the
+ * tests that rely on it pin (the default is 35 since DL-62), `lesser-loot` below 45 and
+ * `greater-loot` from it; the rest none.
  */
 const templateLoot: Readonly<Record<string, string>> = {
   'clear-the-barrow': 'lesser-loot',

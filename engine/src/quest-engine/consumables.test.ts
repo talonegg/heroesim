@@ -203,6 +203,22 @@ describe('a bonus', () => {
     expect(streamOf(s.world, 'quests')).toEqual(s.twin);
   });
 
+  test('a reroll rolls the capability with the bonus in it again (DL-50 items 4 and 5)', () => {
+    const variance = 0.5;
+    const shadow = encounter('shadow', 'stealth', false);
+    const s = scene('honed-reroll', contentWith([shadow]), ['shadow'], [['lockpicks', 1], ['grappling-line', 1]], { overrides: { checkVariance: variance } });
+    const capable = capability(s.heroes, shadow, s.world, s.deps);
+    const [first, second] = [next(s.twin), next(s.twin)].map((r) => rollOf(capable + 3, r, variance)) as [number, number];
+
+    const { encounters, consumables } = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    expect(encounters.map((it) => [it.roll, it.outcome])).toEqual([[second, 'failure']]);
+    expect(consumables).toEqual([
+      { stackId: stackOf(s, 'lockpicks').id, definitionKey: 'lockpicks', effect: 'bonus', encounterIndex: 0, flat: 3 },
+      { stackId: stackOf(s, 'grappling-line').id, definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 0, firstRoll: first },
+    ]);
+  });
+
   test('can turn a failure into a success, and a reroll then rolls the same capability again', () => {
     const tight = { ...encounter('tight', 'combat', false), difficultyFactor: 0 };
     const s0 = scene('tight', contentWith([tight]), ['tight'], []);
@@ -261,6 +277,19 @@ describe('a heal', () => {
     const graze1 = resolveQuest(grazed.world, grazed.quest, grazed.party, grazed.deps);
     expect(graze1.outcome.injuries).toMatchObject([{ typeKey: 'graze', healDays: 1 }]);
     expect(graze1.consumables).toEqual([]);
+  });
+
+  test('leaves an Injury shorter than its Days at 1 Day, not 0, and records the Days it took off', () => {
+    const bruise: InjuryType = { key: 'bruise', name: 'Bruise', healDaysMin: 3, healDaysMax: 3, leavesTrait: null };
+    const content = contentWith([hurt('bruise', 1)], [bruise]);
+    const s = scene('bruised', content, ['hurt-bruise'], [['healing-draught', 1]], { size: 1 });
+
+    const { outcome, consumables } = resolveQuest(s.world, s.quest, s.party, s.deps);
+
+    expect(outcome.injuries).toMatchObject([{ typeKey: 'bruise', healDays: 1 }]);
+    expect(consumables).toEqual([
+      { stackId: stackOf(s, 'healing-draught').id, definitionKey: 'healing-draught', effect: 'heal', heroId: s.heroes[0]?.id, days: 2 },
+    ]);
   });
 
   test('shortens an Injury after the infirmary, and never the Injury of a Hero who then died', () => {

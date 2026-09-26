@@ -1,6 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
-import { defaultConfig, playerGuild, serialise, type EngineDeps } from '@heroesim/engine';
+import { defaultConfig, playerGuild, serialise, type EngineDeps, type Guild } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
+import { regardSnapshot } from './counters.js';
 import { measureDocument, playGame, recordGame, validatingEveryTurn } from './play.js';
 
 // Ordinary tests, run by `npm test`: a few short games under the automatic policy. The full play
@@ -73,6 +74,71 @@ describe('playGame', () => {
   });
 });
 
+describe('playGame observes the World State (M3, DL-40)', () => {
+  test('each morning before the policy acts, and as each year begins, the last year of a full game included', () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 30 } };
+    const game = playGame('play-a', shortYears, { years: 2 });
+    expect(game.turnsPlayed).toBe(60);
+    expect(game.document.world.ended).toBeNull();
+
+    const { fameGate, rosters } = game.observations;
+    expect(fameGate.player.guildDays).toBe(20);
+    expect(rosters).toHaveLength(3);
+    expect(rosters[0]?.player).toMatchObject({ heroes: 4, levels: 4 });
+    const guild = playerGuild(game.document.world) as Guild;
+    const levels = guild.rosterIds.reduce((sum, id) => sum + (game.document.world.heroes[id]?.level ?? 0), 0);
+    expect(rosters[2]?.player).toMatchObject({ heroes: guild.rosterIds.length, levels });
+    expect(game.observations.regardAtCountedYear).toBeNull();
+  });
+
+  test("the player's Guild's Regard as year 10 begins, from the world as the last Turn left it (M4, DL-55)", () => {
+    const shortYears: EngineDeps = { ...deps, config: { ...deps.config, turnsPerYear: 12 } };
+    const game = playGame('play-a', shortYears, { years: 10 });
+    expect(game.document.world.turn).toBe(120);
+    expect(game.observations.rosters).toHaveLength(11);
+    expect(game.observations.regardAtCountedYear).toEqual(regardSnapshot(game.document.world, shortYears.config));
+    const pairs = (n: number): number => (n * (n - 1)) / 2;
+    const counted = Object.values(game.observations.regardAtCountedYear?.relationships ?? {}).reduce((a, b) => a + b, 0);
+    expect(counted).toBe(pairs((playerGuild(game.document.world) as Guild).rosterIds.length));
+  });
+});
+
+describe("playGame records each dispatched Quest's difficulty (M5, DL-62)", () => {
+  test('one for every Quest the policy took, read from the Quest as it was taken, which the counters join to its resolution', () => {
+    const game = playGame('play-a', deps, { years });
+    const { history } = game.document;
+    const guild = playerGuild(game.document.world) as Guild;
+    const payloads = (type: 'quest.taken' | 'quest.resolved') =>
+      (history.byType[type] ?? []).map((position) => history.entries[position]?.payload as { questId: string; guildId: string; templateKey?: string });
+    const taken = payloads('quest.taken').filter((payload) => payload.guildId === guild.id);
+    expect(taken.length).toBeGreaterThan(0);
+    expect([...game.playerQuestDifficulty.keys()].sort()).toEqual(taken.map((payload) => payload.questId).sort());
+
+    // Each difficulty lies in its template's range; the template is named by the Quest's quest.offered.
+    const offered = new Map(
+      (history.byType['quest.offered'] ?? []).map((position) => {
+        const payload = history.entries[position]?.payload as { questId: string; templateKey: string };
+        return [payload.questId, payload.templateKey];
+      }),
+    );
+    for (const [questId, difficulty] of game.playerQuestDifficulty) {
+      const template = content.questTemplates[offered.get(questId) ?? ''];
+      expect(template, questId).toBeDefined();
+      expect(difficulty).toBeGreaterThanOrEqual(template?.difficultyMin ?? Infinity);
+      expect(difficulty).toBeLessThanOrEqual(template?.difficultyMax ?? -Infinity);
+    }
+
+    const { record } = recordGame('play-a', deps, { years });
+    const resolved = payloads('quest.resolved').filter((payload) => payload.guildId === guild.id).length;
+    const byBand = record.counters.playerQuestsByDifficulty ?? [];
+    expect(byBand.reduce((sum, tally) => sum + tally.quests, 0)).toBe(resolved);
+    const sum = [...game.playerQuestDifficulty]
+      .filter(([questId]) => payloads('quest.resolved').some((payload) => payload.questId === questId))
+      .reduce((total, [, difficulty]) => total + difficulty, 0);
+    expect(byBand.reduce((total, tally) => total + tally.difficulty, 0)).toBe(sum);
+  });
+});
+
 describe('recordGame and measureDocument', () => {
   test('reduce a game to its counters and the measures of its last document, which loads back', () => {
     const { record, advanceMs } = recordGame('play-a', deps, { years });
@@ -80,6 +146,9 @@ describe('recordGame and measureDocument', () => {
     expect(record).toMatchObject({ seed: 'play-a', turnsPlayed: 60, ranFullLength: true, refusals: [], invalid: null });
     expect(record.counters.ending).toBeNull();
     expect(record.counters.lastTurn).toBe(60);
+    expect(record.counters.guildYears.player).toEqual([60 / deps.config.turnsPerYear]);
+    expect(record.observations.fameGate.player.guildDays).toBe(20);
+    expect(record.observations.rosters).toHaveLength(1);
     expect(record.measures.roundTrips).toBe(true);
 
     const { document } = playGame('play-a', deps, { years });

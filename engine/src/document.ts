@@ -265,7 +265,7 @@ export interface Guildmaster {
   regard: RegardMap;
 }
 
-/** Equipment is not on the Hero: it is the unique Items whose holder is this Hero. */
+/** A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot. */
 export interface Hero {
   id: HeroId;
   name: string;

@@ -29,11 +29,13 @@ Commands:
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
-  show [guilds | roster [guildId] | pool | patrons | board | rankings [--by fame|wealth]
-        | hero <heroId> | guildmaster [guildId] | market | offers | history [entityId]]
+  show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
+        | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
+        | offers | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
-      player's Guild unless given another; pool marks the Heroes who will not yet sign for
-      the player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
+      player's Guild unless given another, and so does hall, each facility's grade and
+      what the next grade costs; pool marks the Heroes who will not yet sign for the
+      player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
       board shows the Quests on offer; rankings orders the Guilds in play by Fame, or by
       Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
       Guild's, with their Stats, Traits and Regard; market shows what the Market has for
@@ -57,9 +59,10 @@ Commands:
       show pool, and print the fee and the new Roster size.
   preview --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Say what a Party of the player's Heroes would meet on a Quest from the Board before it
-      is sent: each requirement met or missed, any Hero who cannot go, the consumables it
-      would carry, the reward the Guildmaster would agree, and whether dispatch would send
-      it. Changes nothing.
+      is sent: each requirement met or missed, any Hero who cannot go, the Synergies it
+      would have and on how many of the Quest's Encounters, the consumables it would
+      carry, the reward the Guildmaster would agree, and whether dispatch would send it.
+      Changes nothing.
   dispatch --quest <questId> --heroes <heroId,heroId,...> [--consumables <key:n,...>]
       Send a Party of the player's Heroes on a Quest from the Board, within the current
       Turn, and print the Party, the reward agreed and the Day it returns. With
@@ -113,6 +116,7 @@ export type View =
   | { kind: 'summary' }
   | { kind: 'guilds' }
   | { kind: 'roster'; guildId?: string }
+  | { kind: 'hall'; guildId?: string }
   | { kind: 'pool' }
   | { kind: 'patrons' }
   | { kind: 'board' }
@@ -353,6 +357,9 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'roster':
       atMost(positional, 2, 'show roster');
       return id === undefined ? { kind: 'roster' } : { kind: 'roster', guildId: id };
+    case 'hall':
+      atMost(positional, 2, 'show hall');
+      return id === undefined ? { kind: 'hall' } : { kind: 'hall', guildId: id };
     case 'rankings':
       atMost(positional, 1, 'show rankings');
       return { kind: 'rankings', by: rankingMeasure(by) };

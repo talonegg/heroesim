@@ -8,8 +8,9 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every "Min/Max" pair is an inclusive range drawn with `int`. A
-// field holding an object or a list is frozen with `defaultConfig`.
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every
+// "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
+// frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -17,14 +18,21 @@ import type { ModuleId } from './document.js';
 export interface GameConfig {
   /**
    * The World State schema this engine writes as `meta.version`; a load compares the two and
-   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27).
+   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
+   * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60).
    */
   schemaVersion: number;
   /**
    * Raised, with a decision-log entry, whenever a default in `defaultConfig` changes; `rebase`
    * records the old and the new (data-model §2, pre-M0 review D1). 2 from M2-S12's first balance
-   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 from M4-S2's Quest Engine (DL-42); 5 from
-   * M6-S1, which moved the Rivals' two thresholds into their Dispositions' rows (DL-56).
+   * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
+   * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
+   * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
+   * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
+   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
+   * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
+   * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
+   * with that 5, so that no save made under either reads as current (DL-63).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -181,7 +189,8 @@ export interface GameConfig {
   /**
    * An Injury's Days to heal are multiplied by the factor at the Guild's infirmary grade when it is
    * inflicted (index 0 is no infirmary), rounded to the nearest Day and at least 1; a grade past
-   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds).
+   * the list reads its last factor (INPUTS 4.5: grade 1 halves, grade 2 thirds; and grade 3,
+   * content's top, a quarter, so that each grade built does something: DL-53).
    */
   infirmaryHealFactor: readonly number[];
   /**
@@ -395,7 +404,7 @@ export interface GameConfig {
    * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
    * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
    * chooses each template's table by its difficulty band; this says from which difficulty a Quest
-   * awards Loot at all.
+   * awards Loot at all. 35 since the M5 close, so that Loot is for hard Quests (DL-62; 25 before).
    */
   lootDifficultyThreshold: number;
   /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
@@ -446,7 +455,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 3,
-  configVersion: 5,
+  configVersion: 9,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -509,7 +518,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   heroRetirementAge: 45,
   heroRetirementChancePerYear: 0.02,
   heroRetirementInjuredMultiplier: 2,
-  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3]),
+  infirmaryHealFactor: Object.freeze([1, 1 / 2, 1 / 3, 1 / 4]),
   quartersMoraleBonus: 5,
 
   potentialHintBands: Object.freeze({ modest: 0, promising: 6, exceptional: 10 }),
@@ -561,7 +570,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 
-  lootDifficultyThreshold: 25,
+  lootDifficultyThreshold: 35,
   lootOnBands: Object.freeze(['strong' as const]),
 
   marketSize: 10,

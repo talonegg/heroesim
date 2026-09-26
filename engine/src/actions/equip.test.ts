@@ -211,6 +211,24 @@ describe('equip', () => {
         { reason: 'not-held-by-guild', stackId: 'stack-999999' as StackId, itemId: null },
       ],
       [
+        'not-held-by-guild before not-gear: a consumable the Market holds',
+        ({ document, guild, hero }) => {
+          const market = addStack(document.world, 'whetstone', 2, { kind: 'market' });
+          return { request: { guildId: guild.id, heroId: hero.id, stackId: market } };
+        },
+        { reason: 'not-held-by-guild', itemId: null },
+      ],
+      [
+        'hero-unavailable before slot-occupied: a dead Hero still carrying a weapon, the night not yet come',
+        ({ document, guild, hero, blades }) => {
+          createItem(document.world, 'vault-wardens-staff', heroSlot(hero.id, 'weapon'));
+          hero.diedOnTurn = 0;
+          guild.rosterIds = guild.rosterIds.filter((id) => id !== hero.id);
+          return { request: { guildId: guild.id, heroId: hero.id, stackId: blades } };
+        },
+        { reason: 'hero-unavailable', because: 'dead' },
+      ],
+      [
         'not-gear: a consumable',
         ({ guild, hero, whetstones }) => ({ request: { guildId: guild.id, heroId: hero.id, stackId: whetstones } }),
         { reason: 'not-gear', definitionKey: 'whetstone' },
@@ -265,6 +283,27 @@ describe('equip', () => {
         rejection: { action: 'unequip', reason: 'hero-unavailable', heroId: hero.id, because: 'in-party' },
       });
     });
+  });
+
+  test("not-held-by-guild: gear in another Guild's holding, a unique Item or a stack, is not this Guild's to equip", () => {
+    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'], marketSize: 0 });
+    const { document, guild, hero } = scene('equip-rival', withRival);
+    const rival = Object.values(document.world.guilds).find((it) => it.controller.kind === 'rival') as Guild;
+    const theirs: Holder = { kind: 'guild', id: rival.id };
+    const shirt = addStack(document.world, 'mail-shirt', 1, theirs);
+    const mantle = createItem(document.world, 'mantle-of-the-fells', theirs);
+    withValid(document, withRival);
+    const before = serialise(document);
+
+    expect(equip(document, { guildId: guild.id, heroId: hero.id, stackId: shirt }, withRival)).toEqual({
+      ok: false,
+      rejection: { action: 'equip', reason: 'not-held-by-guild', itemId: null, stackId: shirt },
+    });
+    expect(equip(document, { guildId: guild.id, heroId: hero.id, itemId: mantle }, withRival)).toEqual({
+      ok: false,
+      rejection: { action: 'equip', reason: 'not-held-by-guild', itemId: mantle, stackId: null },
+    });
+    expect(serialise(document)).toBe(before);
   });
 
   test('throws on a programming error: a Guild not in the world, or neither or both of itemId and stackId', () => {
