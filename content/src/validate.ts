@@ -2,7 +2,7 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { Consequence, ContentSet, EncounterKind, FacilityKey } from '@heroesim/engine';
+import type { Consequence, ConsumableEffect, ContentSet, EncounterKind, FacilityKey, SlotKey } from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -37,6 +37,9 @@ const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, train
 /** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
 const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
 
+/** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
+const gearSlots: Readonly<Record<SlotKey, true>> = { weapon: true, armour: true, trinket: true };
+
 /** Lower-case letters and digits in words joined by single hyphens, starting with a letter. */
 const kebabCase = /^[a-z][a-z0-9]*(-[a-z0-9]+)*$/;
 
@@ -62,6 +65,8 @@ export function validateContent(set: ContentSet): ContentSet {
     improvements: set.improvements,
     encounters: set.encounters,
     synergies: set.synergies,
+    items: set.items,
+    lootTables: set.lootTables,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -125,6 +130,10 @@ export function validateContent(set: ContentSet): ContentSet {
       problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
     }
     checkEncounterDraw(where, template, set.encounters, problems);
+    const { lootTableKey } = template;
+    if (lootTableKey !== null && !Object.hasOwn(set.lootTables, lootTableKey)) {
+      problems.push(`${where}.lootTableKey: "${lootTableKey}" is not a Loot table`);
+    }
   }
   // A Patron's Quests are found by Sphere when the Board is drawn (pre-M0 review D3): a Sphere no
   // template serves would leave its Patrons offering nothing.
@@ -149,6 +158,8 @@ export function validateContent(set: ContentSet): ContentSet {
   checkEncounters(set, heroStats, skills, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
   checkSynergies(set.synergies, classes, skills, problems);
+  checkItems(set.items, heroStats, problems);
+  checkLootTables(set, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -360,6 +371,106 @@ function checkSynergies(
       }
       for (const kind of repeated(kinds)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
     }
+  }
+}
+
+/**
+ * The Item definitions (M5-S1, DL-48). Every Item: a price that is a whole number above 0, or `null`
+ * for Loot only; tags in kebab-case, none twice. Gear: a slot of the three and no effect; Stat
+ * modifiers, at least one, each on a Hero Stat, each a whole number other than 0. A consumable: not
+ * unique, since it is expended from a stack; no slot and no modifiers; an effect within its kind's
+ * bounds. The parser refuses the other kind's fields in a file; these catch them in a set built in
+ * memory too.
+ */
+function checkItems(items: ContentSet['items'], heroStats: ReadonlySet<string>, problems: string[]): void {
+  for (const [key, item] of Object.entries(items)) {
+    const where = `items.${key}`;
+    const { buyPrice } = item;
+    if (buyPrice !== null && !(Number.isInteger(buyPrice) && buyPrice > 0)) {
+      problems.push(`${where}.buyPrice is ${buyPrice}; it is a whole number above 0, or null for an Item found only as Loot`);
+    }
+    for (const tag of item.tags) {
+      if (!kebabCase.test(tag)) problems.push(`${where}.tags: "${tag}" is not kebab-case`);
+    }
+    for (const tag of repeated(item.tags)) problems.push(`${where}.tags: "${tag}" is listed twice`);
+    switch (item.kind) {
+      case 'gear': {
+        if (!Object.hasOwn(gearSlots, item.slot)) {
+          problems.push(`${where}.slot: "${item.slot}" is not a gear slot (${Object.keys(gearSlots).join(', ')})`);
+        }
+        if (Reflect.has(item, 'effect')) problems.push(`${where}.effect: gear has no effect; only a consumable has one`);
+        const modifiers = Object.entries(item.statModifiers);
+        if (modifiers.length === 0) problems.push(`${where}.statModifiers is empty: gear modifies at least one Stat`);
+        for (const [statKey, delta] of modifiers) {
+          if (!heroStats.has(statKey)) problems.push(`${where}.statModifiers: "${statKey}" is not a Hero Stat`);
+          if (!(Number.isInteger(delta) && delta !== 0)) {
+            problems.push(`${where}.statModifiers.${statKey} is ${delta}; it is a whole number other than 0`);
+          }
+        }
+        break;
+      }
+      case 'consumable':
+        if (item.unique) problems.push(`${where}.unique is true; a consumable is common, expended from a stack`);
+        if (Reflect.has(item, 'slot')) problems.push(`${where}.slot: a consumable has no slot; only gear has one`);
+        if (Reflect.has(item, 'statModifiers')) problems.push(`${where}.statModifiers: a consumable modifies no Stat`);
+        checkConsumableEffect(`${where}.effect`, item.effect, problems);
+        break;
+      default:
+        problems.push(`${where}.kind is ${JSON.stringify((item as { kind: unknown }).kind)}; it is gear or consumable`);
+    }
+  }
+}
+
+/** A consumable's effect: Encounter kinds named, `flat` above 0, `days` a whole number from 1. */
+function checkConsumableEffect(where: string, effect: ConsumableEffect, problems: string[]): void {
+  const kinds = (listed: readonly string[]): void => {
+    if (listed.length === 0) problems.push(`${where}.kinds is empty: the effect works on the Encounter kinds it names`);
+    for (const kind of listed) {
+      if (!Object.hasOwn(encounterKinds, kind)) problems.push(`${where}.kinds: "${kind}" is not a kind of Encounter`);
+    }
+    for (const kind of repeated(listed)) problems.push(`${where}.kinds: "${kind}" is listed twice`);
+  };
+  switch (effect.kind) {
+    case 'reroll':
+      kinds(effect.kinds);
+      return;
+    case 'bonus':
+      if (!(Number.isFinite(effect.flat) && effect.flat > 0)) problems.push(`${where}.flat is ${effect.flat}; it is a number above 0`);
+      kinds(effect.kinds);
+      return;
+    case 'heal':
+      if (!(Number.isInteger(effect.days) && effect.days >= 1)) problems.push(`${where}.days is ${effect.days}; it is a whole number from 1`);
+      return;
+    default:
+      problems.push(`${where}.kind is ${JSON.stringify((effect as { kind: unknown }).kind)}; it is reroll, bonus or heal`);
+  }
+}
+
+/**
+ * The Loot tables (M5-S5, DL-52): each at least one entry, each entry an Item content defines, listed
+ * once in its table, with a weight above 0 and a quantity range of whole numbers from 1, not upside
+ * down; a unique Item's quantity is 1, since a unique Item is an individual (data-model §3.3).
+ */
+function checkLootTables(set: ContentSet, problems: string[]): void {
+  for (const [key, table] of Object.entries(set.lootTables)) {
+    const where = `lootTables.${key}`;
+    if (table.entries.length === 0) problems.push(`${where}.entries is empty: a table awards one of its entries`);
+    for (const [index, entry] of table.entries.entries()) {
+      const at = `${where}.entries.${index}`;
+      const { definitionKey, weight, quantityMin, quantityMax } = entry;
+      const item = Object.hasOwn(set.items, definitionKey) ? set.items[definitionKey] : undefined;
+      if (item === undefined) problems.push(`${at}.definitionKey: "${definitionKey}" is not an Item`);
+      if (!(Number.isFinite(weight) && weight > 0)) problems.push(`${at}.weight is ${weight}; it is a number above 0`);
+      for (const [field, value] of [['quantityMin', quantityMin], ['quantityMax', quantityMax]] as const) {
+        if (!(Number.isInteger(value) && value >= 1)) problems.push(`${at}.${field} is ${value}; it is a whole number from 1`);
+      }
+      if (quantityMin > quantityMax) problems.push(`${at}.quantityMin ${quantityMin} is greater than quantityMax ${quantityMax}`);
+      if (item?.unique === true && (quantityMin !== 1 || quantityMax !== 1)) {
+        problems.push(`${at}: ${definitionKey} is unique, so its quantityMin and quantityMax are 1`);
+      }
+    }
+    const listed = table.entries.map((entry) => entry.definitionKey);
+    for (const definitionKey of repeated(listed)) problems.push(`${where}.entries: "${definitionKey}" is listed twice`);
   }
 }
 

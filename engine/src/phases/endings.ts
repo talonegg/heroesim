@@ -22,7 +22,10 @@ import {
   type World,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
+import { returnGear } from '../gear.js';
 import { generateRival } from '../generators/guilds.js';
+import { sellFoldedGuildItems } from '../market.js';
+import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
 import { ageOf, dayOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
@@ -97,33 +100,38 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
 }
 
 /**
- * A Rival folds (pre-M0 review D6, DL-28): `guild.folded`, naming the Guild, its Guildmaster, each
- * Party it disbands and each Quest it abandons; then `hero.left-guild` for each Hero on the Roster,
- * in Roster order, every event made before the rows change. Its Parties in flight are disbanded and
- * a Quest left with no Party is removed unresolved, since nobody is left to finish it or be paid.
- * Its Heroes join the Unattached pool tonight, keeping their Injuries, Levels and Morale; the Roster
- * is emptied and `foldedOnTurn` set. The Guild and its Guildmaster keep their rows, as a record
- * no rule reads again.
+ * A Rival folds (pre-M0 review D6, DL-28), in one order for every Guild (DL-54):
+ *
+ * 1. Its Parties in flight are disbanded, in id order: each member's `partyId` cleared, the Party
+ *    taken off its Quest, what it carried sent home to the Guild's holding (`sendHome`, M5-S3,
+ *    DL-50), and its row removed; a Quest left with no Party is removed unresolved, from the world
+ *    and the Board, since nobody is left to finish it or be paid.
+ * 2. The gear each Hero on the Roster carries goes back to the Guild's holding, in Roster order,
+ *    with `item.returned` for `guild-folded` (`returnGear`, M5-S2, DL-49). The gear of its dead and
+ *    retired Heroes went back earlier tonight (`gearReturn`), so the Guild now holds all it had.
+ * 3. Its unique Items are sold to the Market, one `item.sold` (`cause: 'fold'`) each in id order,
+ * 4. and its stacks are discarded (`sellFoldedGuildItems`, M5-S4, DL-51).
+ * 5. Its Heroes are released to the Unattached pool, in Roster order, each with `hero.left-guild`,
+ *    keeping their Injuries, Levels and Morale; the Roster is emptied and `foldedOnTurn` set.
+ * 6. `guild.folded`, a Milestone naming the Guild, its Guildmaster, each Party it disbanded and each
+ *    Quest it abandoned, closes the fold. It is made first, while those rows still exist (an event
+ *    names only rows the world has, `emit`), and told last.
+ *
+ * The Guild and its Guildmaster keep their rows, as a record no rule reads again.
  */
 function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContext): EngineEvent[] {
   const parties = Object.values(world.parties)
     .filter((party) => party.guildId === guild.id)
     .sort((a, b) => compareByCodeUnit(a.id, b.id));
   const abandoned = abandonedQuests(world, parties);
+  const folded = ctx.emit({
+    type: 'guild.folded',
+    participants: [guild.id, guild.guildmasterId, ...parties.map((party) => party.id), ...abandoned],
+    payload: { guildId: guild.id, reason },
+  });
+  const events: EngineEvent[] = [];
 
-  const events: EngineEvent[] = [
-    ctx.emit({
-      type: 'guild.folded',
-      participants: [guild.id, guild.guildmasterId, ...parties.map((party) => party.id), ...abandoned],
-      payload: { guildId: guild.id, reason },
-    }),
-  ];
-  for (const heroId of guild.rosterIds) {
-    events.push(
-      ctx.emit({ type: 'hero.left-guild', participants: [heroId, guild.id], payload: { heroId, guildId: guild.id } }),
-    );
-  }
-
+  // 1. The Parties in flight, and what they carried home.
   for (const party of parties) {
     for (const heroId of party.heroIds) {
       const member = world.heroes[heroId];
@@ -131,19 +139,36 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
     }
     const quest = world.quests[party.questId];
     if (quest !== undefined) quest.partyIds = quest.partyIds.filter((partyId) => partyId !== party.id);
+    sendHome(world, party);
     delete world.parties[party.id];
   }
   for (const questId of abandoned) delete world.quests[questId];
   world.board = world.board.filter((questId) => !abandoned.includes(questId));
 
-  for (const heroId of guild.rosterIds) {
+  // 2. The Roster's gear.
+  const roster = guild.rosterIds.map((heroId) => {
     const hero = world.heroes[heroId];
     if (hero === undefined) throw new RangeError(`${guild.id}'s Roster names ${heroId}, who has no row`);
+    return hero;
+  });
+  for (const hero of roster) events.push(...returnGear(world, hero, 'guild-folded', ctx.emit));
+
+  // 3 and 4. Its unique Items to the Market, its stacks discarded.
+  events.push(...sellFoldedGuildItems(world, guild, ctx.emit, ctx));
+
+  // 5. Its Heroes to the pool.
+  for (const hero of roster) {
+    events.push(
+      ctx.emit({ type: 'hero.left-guild', participants: [hero.id, guild.id], payload: { heroId: hero.id, guildId: guild.id } }),
+    );
     hero.guildId = null;
     hero.unattachedSince = ctx.turn;
   }
   guild.rosterIds = [];
   guild.foldedOnTurn = ctx.turn;
+
+  // 6. The fold itself.
+  events.push(folded);
   return events;
 }
 

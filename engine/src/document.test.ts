@@ -35,7 +35,6 @@ import {
   type QuestId,
   type RegardEntry,
   type Stack,
-  type StackHolder,
   type StackId,
   type TransferOffer,
   type UniqueItem,
@@ -343,8 +342,18 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1) and rivals (M2-S9), in ADR-0009 order', () => {
-    expect(streamNames).toEqual(['generation', 'board', 'quests', 'encounters', 'pool', 'heroes', 'progression', 'rivals']);
+  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1), rivals (M2-S9) and market (M5-S4), in ADR-0009 order', () => {
+    expect(streamNames).toEqual([
+      'generation',
+      'board',
+      'quests',
+      'encounters',
+      'pool',
+      'heroes',
+      'progression',
+      'rivals',
+      'market',
+    ]);
   });
 
   test('the Hall has the three facilities of data-model §3.2', () => {
@@ -609,9 +618,12 @@ describe('the types match data-model.md', () => {
   });
 
   test('the unions data-model §3 spells out are the types', () => {
-    expectTypeOf<Holder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party'>();
-    expectTypeOf<StackHolder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party' | 'market'>();
+    // One holder type for both tables: the Market holds a folded Guild's unique Items (D6, DL-48).
+    expectTypeOf<Holder['kind']>().toEqualTypeOf<'hero' | 'guild' | 'party' | 'market'>();
+    expectTypeOf<UniqueItem['holder']>().toEqualTypeOf<Holder>();
+    expectTypeOf<Stack['holder']>().toEqualTypeOf<Holder>();
     expectTypeOf<Extract<Holder, { kind: 'hero' }>>().toHaveProperty('slot');
+    expectTypeOf<Extract<Holder, { kind: 'hero' }>['slot']>().toEqualTypeOf<'weapon' | 'armour' | 'trinket'>();
     expectTypeOf<Controller['kind']>().toEqualTypeOf<'player' | 'rival'>();
     expectTypeOf<Extract<Controller, { kind: 'rival' }>>().toHaveProperty('disposition');
     expectTypeOf<Quest['status']>().toEqualTypeOf<'offered' | 'taken' | 'resolved'>();

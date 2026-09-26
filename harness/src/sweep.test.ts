@@ -105,6 +105,30 @@ describe('sweepPlay', () => {
     expect(totals.regardAtCountedYear.games).toBe(0);
   });
 
+  test("totals M5's counters: each game's Wealth, Loot, consumables, gear and the player's Quests by difficulty summed", () => {
+    const sumOf = (read: (game: GameRecord) => number): number => sweep.games.reduce((total, game) => total + read(game), 0);
+    for (const kind of controllerKinds) {
+      for (const field of ['signing', 'items', 'itemsBought', 'improvements', 'upkeep', 'questRewards'] as const) {
+        expect(totals.wealth[kind][field], `${kind} ${field}`).toBe(sumOf((game) => game.counters.wealth[kind][field]));
+      }
+      expect(totals.wealth[kind].sales.fold).toBe(sumOf((game) => game.counters.wealth[kind].sales.fold));
+      expect(totals.consumables[kind].quests).toBe(totals.synergies[kind].quests);
+      expect(totals.consumables[kind].expended).toBe(sumOf((game) => game.counters.consumables[kind].expended));
+      expect(totals.gear[kind].equipped).toBe(sumOf((game) => game.counters.gear[kind].equipped));
+      for (const table of Object.keys(content.lootTables)) {
+        expect(totals.loot[kind][table]?.awards ?? 0).toBe(sumOf((game) => game.counters.loot[kind][table]?.awards ?? 0));
+      }
+    }
+    // The policy recruits and buys armour in the first Days, and pays the first Upkeep.
+    expect(totals.wealth.player.signing).toBeGreaterThan(0);
+    expect(totals.wealth.player.items).toBeGreaterThan(0);
+    expect(totals.gear.player.equipped).toBeGreaterThan(0);
+    const resolved = totals.questsResolved.player;
+    const byBand = totals.playerQuestsByDifficulty.reduce((total, tally) => total + tally.quests, 0);
+    expect(byBand).toBe(resolved.fail + resolved.success + resolved.strong);
+    expect(totals.playerQuestsByYear.reduce((total, tally) => total + tally.quests, 0)).toBe(byBand);
+  });
+
   describe('its report', () => {
     const context = { deps, machine: machine(), startedAt: new Date(2026, 8, 26, 12), milestone: 'm4' };
     const report = playReport(sweep, context);
@@ -144,6 +168,24 @@ describe('sweepPlay', () => {
       expect(report).toContain('0 of 0 Patron-years (—).');
       expect(report).toContain('No year was played in full.');
       expect(report).toContain("No player's game was in play after 10 years: no Regard to count.");
+    });
+
+    test("gives M5's counters: Wealth by category, Loot by table and by the player's Quest difficulty, consumables and gear", () => {
+      expect(report).toContain('## Items (M5)');
+      const player = totals.wealth.player;
+      expect(report).toContain(`| Spent: signing fees (\`hero.recruited\` \`fee\`) | ${player.signing.toLocaleString('en-GB')} |`);
+      expect(report).toContain('| Spent: Transfers | none until M6 | — | none until M6 | — |');
+      expect(report).toContain(`| Spent: Items (\`item.bought\` \`cost\`) | ${player.items.toLocaleString('en-GB')} |`);
+      expect(report).toContain('| Taken: the Market, `item.sold` `fold` (`proceeds`) |');
+      // Every Loot table and consumable content holds is listed, awarded or expended or not.
+      for (const key of Object.keys(content.lootTables)) expect(report).toContain(`| \`${key}\` |`);
+      for (const definition of Object.values(content.items)) {
+        if (definition.kind === 'consumable') expect(report).toContain(`| \`${definition.key}\` |`);
+      }
+      expect(report).toContain('| Loot table | Player\'s awards | a Guild-year | Items | Unique |');
+      expect(report).toContain('By the Quest\'s difficulty (M5-S5\'s third box):');
+      expect(report).toContain('| Consumables | Quests resolved | Carried | a Quest | Expended | a Quest |');
+      expect(report).toContain('| Gear | Equipped | a Guild-year | Unequipped | Returned: died | Returned: retired | Returned: guild-folded |');
     });
 
     test('sums the Patron-years and the Regard after 10 years over the games that reached them', () => {

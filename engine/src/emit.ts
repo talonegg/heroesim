@@ -7,7 +7,7 @@
 // the History through `append`, the History's one writer (ADR-0008). The choices here are DL-24.
 
 import { isId, parseId, type EntityId, type Hero, type World } from './document.js';
-import { milestoneTypes, type EngineEventOf, type EngineEventType } from './events.js';
+import { isMilestone, type EngineEventOf, type EngineEventType } from './events.js';
 
 /** What a rule writes to emit an event: its type, the entities it touches, and its payload. */
 export interface EventDraft<Type extends EngineEventType = EngineEventType> {
@@ -30,7 +30,8 @@ export type Emit = <Type extends EngineEventType>(draft: EventDraft<Type>) => En
  * - `labels`: each participant's display name as it is now, for the rows that have one (Guilds,
  *   Guildmasters, Heroes, Patrons); a row with no name of its own has no label and a front end
  *   shows its id;
- * - `milestone`: its type's entry in `milestoneTypes`.
+ * - `milestone`: its type's entry in `milestoneTypes`, or for a type in `milestoneWhen` what that
+ *   type's rule says of the payload (`isMilestone`; M5-S5's `quest.loot`, DL-52).
  *
  * Throws on a programming error: a participant that is not an entity id, or whose row is not in
  * `world`. A rule that removes a row emits its event first.
@@ -50,7 +51,7 @@ export function eventEmitter(world: World): Emit {
       const row = rowOf(world, id);
       if ('name' in row && typeof row.name === 'string') labels[id] = row.name;
     }
-    const event = { turn: world.turn, type, participants: named, labels, milestone: milestoneTypes[type], payload };
+    const event = { turn: world.turn, type, participants: named, labels, milestone: isMilestone(type, payload), payload };
     return event as unknown as EngineEventOf<Type>;
   };
 }

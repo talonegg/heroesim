@@ -5,6 +5,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
+  addStack,
   advance,
   ageOf,
   count,
@@ -13,6 +14,7 @@ import {
   defaultConfig,
   deserialise,
   dispatch,
+  effectiveStats,
   fastForward,
   makeId,
   guildmasterOf,
@@ -383,9 +385,13 @@ describe('show', () => {
     // The hints the player's Guildmaster reads: their Judgement narrows the bands (M4-S5).
     const reader = guildmasterOf(world.guilds[playerId] as Guild, world);
     const bands = { potentialHintBands: judgedHintBands(reader, content, defaultConfig) };
+    // Base and effective side by side (M5-S2): the effective value is the engine's selector's.
+    const effective = effectiveStats(hero, world, content);
     for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
       const hint = potentialHint(hero, stat.key, bands);
-      expect(run.out).toMatch(new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${hint}$`, 'm'));
+      expect(run.out).toMatch(
+        new RegExp(`\\s${stat.name}\\s+${hero.stats[stat.key]}\\s+${effective[stat.key]}\\s+${hint}$`, 'm'),
+      );
     }
     for (const [key, rating] of Object.entries(hero.skills)) {
       expect(run.out).toMatch(new RegExp(`^${content.skills[key]?.name}\\s+${rating}$`, 'm'));
@@ -393,20 +399,26 @@ describe('show', () => {
   });
 
   test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', () => {
-    for (const hero of Object.values(document().world.heroes)) {
+    const { world } = document();
+    for (const hero of Object.values(world.heroes)) {
       const run = play(['show', 'hero', hero.id]);
       expect(run.code).toBe(exitCodes.ok);
       expect(run.out).not.toMatch(/potential/i);
+      const effective = effectiveStats(hero, world, content);
 
       for (const stat of Object.values(content.stats).filter((row) => row.owner === 'hero')) {
         const row = run.out.split('\n').find((line) => new RegExp(`\\s${stat.name}\\s`).test(line)) ?? '';
-        // Every Stat row ends in one of the three hint words, the base before it.
-        const [value, hint] = row.trim().split(/\s+/).slice(-2);
+        // Every Stat row ends in one of the three hint words, the base and the effective value before
+        // it (M5-S2).
+        const [base, value, hint] = row.trim().split(/\s+/).slice(-3);
         expect(potentialHints, `${hero.id} ${stat.key}: ${row}`).toContain(hint);
-        expect(value).toBe(String(hero.stats[stat.key]));
-        // Where the Potential differs from the base, its number is nowhere in the row.
+        expect(base).toBe(String(hero.stats[stat.key]));
+        expect(value).toBe(String(effective[stat.key]));
+        // Where the Potential differs from both values shown, its number is nowhere in the row.
         const potential = hero.potential[stat.key];
-        if (potential !== hero.stats[stat.key]) expect(row).not.toMatch(new RegExp(`\\b${potential}\\b`));
+        if (potential !== hero.stats[stat.key] && potential !== effective[stat.key]) {
+          expect(row).not.toMatch(new RegExp(`\\b${potential}\\b`));
+        }
       }
     }
   });
@@ -898,6 +910,86 @@ describe('dispatch (M2-S4)', () => {
   test('refuses a word that is not an id as a bad command line', () => {
     expect(play(['dispatch', '--quest', 'the-barrow', '--heroes', 'hero-000001']).code).toBe(exitCodes.usage);
   });
+
+  // M5-S3 (DL-50): the player's Guild is given three healing draughts and a whetstone by hand.
+  describe('with --consumables (M5-S3)', () => {
+    beforeEach(() => {
+      edit((edited) => {
+        addStack(edited.world, 'healing-draught', 3, { kind: 'guild', id: playerId });
+        addStack(edited.world, 'whetstone', 1, { kind: 'guild', id: playerId });
+      });
+    });
+
+    test("carries them from the Guild's holding, saves what the engine saves, and says what the Party carries", () => {
+      const before = document();
+      const { questId, heroIds } = openQuest(before.world);
+      const consumables = [
+        { definitionKey: 'healing-draught', quantity: 2 },
+        { definitionKey: 'whetstone', quantity: 1 },
+      ];
+      const expected = dispatch(
+        before,
+        { guildId: playerId, questId, heroIds, consumables },
+        { config: { ...defaultConfig, ...before.meta.config }, content },
+      );
+      if (!expected.ok) throw new Error(`Rejected ${expected.rejection.reason}`);
+
+      const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(','), '--consumables', 'healing-draught:2,whetstone:1']);
+
+      expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+      expect(saved()).toBe(serialise(expected.document));
+      expect(run.out).toContain('Carrying: Healing draught ×2, Whetstone ×1.');
+    });
+
+    test('refuses what the Guild does not hold, too many, and what is no consumable, writing nothing', () => {
+      const { questId, heroIds } = openQuest(document().world);
+      const original = saved();
+
+      const cases: [string, string][] = [
+        ['lockpicks:1', 'The Test holds no Set of lockpicks to carry.'],
+        ['healing-draught:4', 'The Test holds 3 of Healing draught, not the 4 asked.'],
+        ['short-sword:1', 'Short sword is gear, not a consumable: a Party carries consumables only.'],
+        ['barrow-draught:1', 'No Item is called "barrow-draught".'],
+      ];
+      for (const [value, problem] of cases) {
+        const run = play(['dispatch', '--quest', questId, '--heroes', heroIds.join(','), '--consumables', value]);
+        expect(run.code, value).toBe(exitCodes.refused);
+        expect(run.err).toContain(problem);
+        expect(saved()).toBe(original);
+      }
+    });
+
+    test('preview says what the Party would carry, what each does and on how many Encounters, or what the Guild holds, and writes nothing', () => {
+      const { world } = document();
+      const { questId, heroIds } = openQuest(world);
+      const kinds = (world.quests[questId] as Quest).encounterKeys.map((key) => content.encounters[key]?.kind);
+      const combat = kinds.filter((kind) => kind === 'combat').length;
+      const original = saved();
+
+      const carrying = play(['preview', '--quest', questId, '--heroes', heroIds.join(','), '--consumables', 'whetstone:1,healing-draught:2']);
+      const bare = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+      const tooMany = play(['preview', '--quest', questId, '--heroes', heroIds.join(','), '--consumables', 'healing-draught:4']);
+
+      expect(carrying).toMatchObject({ code: exitCodes.ok, err: '' });
+      expect(carrying.out).toContain(
+        [
+          'Consumables',
+          `  Whetstone ×1, of 1 the Guild holds: +3 to a Check on combat Encounters, one a Check; ${combat} of this Quest's ${kinds.length}.`,
+          '  Healing draught ×2, of 3 the Guild holds: an Injury taken on the Quest heals 5 Days sooner, one an Injury.',
+        ].join('\n'),
+      );
+      expect(carrying.out).toContain('Dispatch would send this Party.');
+      expect(bare.out).toContain(
+        [
+          'Consumables',
+          '  None carried.',
+          '  The Guild holds Healing draught ×3 (healing-draught), Whetstone ×1 (whetstone): name them with --consumables <key:n,...>.',
+        ].join('\n'),
+      );
+      expect(tooMany.out).toContain('Dispatch would refuse it: The Test holds 3 of Healing draught, not the 4 asked.');
+      expect(saved()).toBe(original);
+    });
+  });
 });
 
 describe('rebase', () => {
@@ -1257,7 +1349,7 @@ describe('the command line', () => {
     expect(run.err).toContain('EISDIR');
   });
 
-  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'market']], [['new', '--seed', 'x']]])(
+  test.each([[[]], [['play']], [['show', '--verbose']], [['show', 'bazaar']], [['new', '--seed', 'x']]])(
     '%j prints the usage and exits non-zero',
     (argv) => {
       const run = play(argv);
@@ -1273,8 +1365,8 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
-    // Each section preview prints is named in its help, the Synergies (M4-S3) among them.
+    // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
-    for (const part of ['requirement', 'cannot go', 'Synergies', 'reward', 'dispatch would send']) expect(preview).toContain(part);
+    for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 });

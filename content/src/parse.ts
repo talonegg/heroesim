@@ -7,6 +7,9 @@ import type {
   Background,
   BackgroundOwner,
   Class,
+  ConsumableDefinition,
+  ConsumableEffect,
+  ConsumableEffectKind,
   ContentSet,
   Consequence,
   ConsequenceKind,
@@ -15,12 +18,18 @@ import type {
   EncounterAggregate,
   EncounterKind,
   FacilityKey,
+  GearDefinition,
   Improvement,
   InjuryType,
+  ItemDefinition,
+  ItemKind,
+  LootEntry,
+  LootTable,
   Names,
   QuestTemplate,
   QuestTemplateRequires,
   Skill,
+  SlotKey,
   Sphere,
   Stat,
   StatArea,
@@ -44,9 +53,13 @@ export const contentSetId = 'core';
  * from M2-S5, which added the Injury types; 5 from M3-S6, which added the Hall Improvements; 6 from
  * M4-S1, which added the Encounters and each Quest template's Encounter kinds and counts, and, on
  * a parallel branch, from M4-S5, which gave the Guildmaster Traits their effects (DL-43); 7 from
- * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45).
+ * their merge, which holds both (DL-44); 8 from M4-S3, which added the Synergies (DL-45); 9 from
+ * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
+ * the Quest templates' tables (DL-52); 11 from merging those with the main line's 8, taken past
+ * every number a line in flight has used for other content (DL-61); 12 from the M5 close's Loot,
+ * rarer unique Items and two templates without a table (DL-62).
  */
-export const contentVersion = 8;
+export const contentVersion = 12;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -63,6 +76,8 @@ export const contentFiles = [
   'improvements.json',
   'encounters.json',
   'synergies.json',
+  'items.json',
+  'loot-tables.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -87,6 +102,9 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
   fame: true,
 };
 const regardBetween: Record<'party', true> = { party: true };
+const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
+const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
+const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -155,7 +173,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         demands: row.weightedKeys('demands'),
         skillKeys: row.strings('skillKeys'),
         requires: requires(row.child('requires')),
-        lootTableKey: row.null('lootTableKey'),
+        lootTableKey: row.stringOrNull('lootTableKey'),
         encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
         encountersMin: row.integer('encountersMin'),
         encountersMax: row.integer('encountersMax'),
@@ -200,6 +218,10 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
       return kinds === undefined ? shape : { ...shape, kinds };
     }),
+    items: table<ItemDefinition>('items.json', json('items.json'), problems, 'an Item', itemDefinition),
+    lootTables: table<LootTable>('loot-tables.json', json('loot-tables.json'), problems, 'a Loot table', (row) => ({
+      entries: row.children('entries').map(lootEntry),
+    })),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -301,6 +323,65 @@ function traitEffect(reader: RowReader | null): TraitEffect | null {
   }
   reader.refuseUnknown(`a ${kind} effect`);
   return effect;
+}
+
+/**
+ * An Item definition (M5-S1): the fields every Item has, then its `kind`'s. Gear has a `slot`, one of
+ * the three, and `statModifiers`; a consumable an `effect`. A row with the other kind's field is
+ * refused here, naming the field and why; gear without a slot is refused as a missing field. What
+ * the values may be is `validateContent`'s.
+ */
+function itemDefinition(row: RowReader): Omit<GearDefinition, 'key'> | Omit<ConsumableDefinition, 'key'> {
+  const common = {
+    name: row.string('name'),
+    unique: row.boolean('unique'),
+    buyPrice: row.integerOrNull('buyPrice'),
+    tags: row.strings('tags'),
+  };
+  const kind = row.oneOf('kind', itemKinds);
+  switch (kind) {
+    case 'gear':
+      row.forbid('effect', 'is not a field of gear: only a consumable has an effect');
+      return { ...common, kind, slot: row.oneOf('slot', gearSlots), statModifiers: row.numbers('statModifiers') };
+    case 'consumable':
+      row.forbid('slot', 'is not a field of a consumable: only gear has a slot');
+      row.forbid('statModifiers', 'is not a field of a consumable: only gear modifies Stats');
+      return { ...common, kind, effect: consumableEffect(row.child('effect')) };
+  }
+}
+
+/** A consumable's `effect` (M5-S1): one of the closed union's kinds with exactly its fields. */
+function consumableEffect(reader: RowReader): ConsumableEffect {
+  const kind = reader.oneOf('kind', consumableEffectKinds);
+  let effect: ConsumableEffect;
+  switch (kind) {
+    case 'reroll':
+      effect = { kind, kinds: reader.oneOfEach('kinds', encounterKinds) };
+      break;
+    case 'bonus':
+      effect = { kind, flat: reader.number('flat'), kinds: reader.oneOfEach('kinds', encounterKinds) };
+      break;
+    case 'heal':
+      effect = { kind, days: reader.integer('days') };
+      break;
+  }
+  reader.refuseUnknown(`a ${kind} effect`);
+  return effect;
+}
+
+/**
+ * One entry of a Loot table (M5-S5): an Item definition's key, a weight and a whole quantity range,
+ * and nothing else. What they may be is `validateContent`'s.
+ */
+function lootEntry(reader: RowReader): LootEntry {
+  const entry = {
+    definitionKey: reader.string('definitionKey'),
+    weight: reader.number('weight'),
+    quantityMin: reader.integer('quantityMin'),
+    quantityMax: reader.integer('quantityMax'),
+  };
+  reader.refuseUnknown('a Loot table entry');
+  return entry;
 }
 
 /** A Quest template's `requires`: an optional Class and an optional Skill, and nothing else. */
@@ -414,6 +495,26 @@ class RowReader {
     return [];
   }
 
+  boolean(field: string): boolean {
+    const value = this.field(field);
+    if (typeof value === 'boolean') return value;
+    this.wrong(field, value, 'true or false');
+    return false;
+  }
+
+  /** A whole number, or `null`: present either way. */
+  integerOrNull(field: string): number | null {
+    const value = this.field(field);
+    if (value === null || Number.isInteger(value)) return value as number | null;
+    this.wrong(field, value, 'a whole number or null');
+    return null;
+  }
+
+  /** Record a problem, saying `why`, when the row has `field`, which it must not. */
+  forbid(field: string, why: string): void {
+    if (this.field(field) !== undefined) this.problems.push(`${this.path(field)} ${why}`);
+  }
+
   /** A string, or `null`: present either way. */
   stringOrNull(field: string): string | null {
     const value = this.field(field);
@@ -465,12 +566,6 @@ class RowReader {
     }
     this.wrong(field, value, 'an object of numbers');
     return {};
-  }
-
-  null(field: string): null {
-    const value = this.field(field);
-    if (value !== null) this.wrong(field, value, 'null until a rule reads it');
-    return null;
   }
 
   object(field: string): Record<string, unknown> {

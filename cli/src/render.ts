@@ -3,10 +3,11 @@
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn, a Hall grade), a content row's field (an Improvement's cost), the size of a
-// document table or list, or the result of an engine selector (`ageOf`, `baseStat`, `signingFee`,
-// `signingRefusal`, `rankings`, `unattachedHeroes`, `nextImprovement`); every name is a document
-// field or a content row's display name. Where the engine has no selector for something a view
-// needs, the selector goes into the engine, not here.
+// document table or list, or the result of an engine selector (`ageOf`, `baseStat`,
+// `effectiveStats`, `signingFee`, `signingRefusal`, `rankings`, `unattachedHeroes`,
+// `nextImprovement`, `holdings`, `carriedGear`); every name is a document field or a content row's
+// display name. Where the engine has no selector for something a view needs, the selector goes
+// into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
@@ -19,9 +20,13 @@
 import {
   ageOf,
   baseStat,
+  carriedGear,
   dayOf,
+  effectiveStats,
   guildmasterOf,
   guildmasterRegardForGuild,
+  holdings,
+  itemDefinition,
   judgedHintBands,
   patronRegardFor,
   facilityKeys,
@@ -46,10 +51,13 @@ import {
   type Guild,
   type Guildmaster,
   type Hero,
+  type ItemDefinition,
   type Patron,
   type Quest,
   type RankingMeasure,
+  type Stack,
   type TraitEffect,
+  type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
 
@@ -304,10 +312,69 @@ function heroTable(
   );
 }
 
-/** `show roster [guildId]`: the Guild's Roster in its own order. */
+/**
+ * `show roster [guildId]`: the Guild's Roster in its own order, then what the Guild holds (M5-S2):
+ * each unique Item and stack in its holding, with the id `equip` takes.
+ */
 export function renderRoster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
   const heroes = guild.rosterIds.flatMap((id) => rowIn(document.world.heroes, id) ?? []);
-  return [`Roster of ${guild.name} (${guild.id})`, '', ...heroTable(heroes, document, deps)];
+  const held = holdings(document.world, { kind: 'guild', id: guild.id });
+  const rows = [...held.items, ...held.stacks].map((row) => {
+    const definition = itemDefinition(deps.content, row.definitionKey);
+    return [
+      row.id,
+      nameIn(deps.content.items, row.definitionKey),
+      definition === undefined ? '' : definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable',
+      'quantity' in row ? String(row.quantity) : '1',
+      definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
+    ];
+  });
+  return [
+    `Roster of ${guild.name} (${guild.id})`,
+    '',
+    ...heroTable(heroes, document, deps),
+    '',
+    `Held by ${guild.name}`,
+    ...(rows.length === 0
+      ? ['nothing']
+      : table(
+          [{ heading: 'Id' }, { heading: 'Item' }, { heading: 'Kind' }, { heading: 'Quantity', align: 'right' }, { heading: 'Modifies' }],
+          rows,
+        )),
+  ];
+}
+
+/** Gear's Stat modifiers in words, `Weaponry +2, Strength +1` (M5-S2). */
+export function modifierWords(gear: Extract<ItemDefinition, { kind: 'gear' }>, content: ContentSet): string {
+  return Object.entries(gear.statModifiers)
+    .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
+    .join(', ');
+}
+
+/**
+ * The gear a Hero carries (M5-S2): a row for each slot `config.gearSlots` lists, the Item in it or
+ * `none`, then any Item held in a slot the config does not list, as the engine's `carriedGear` gives.
+ */
+function gearRows(hero: Hero, document: WorldDocument, deps: EngineDeps): string[][] {
+  const carried: (UniqueItem | Stack)[] = carriedGear(document.world, hero.id);
+  const slotOf = (row: UniqueItem | Stack): string => (row.holder.kind === 'hero' ? row.holder.slot : '');
+  const line = (slot: string, row: UniqueItem | Stack): string[] => {
+    const definition = itemDefinition(deps.content, row.definitionKey);
+    return [
+      slot,
+      nameIn(deps.content.items, row.definitionKey),
+      row.id,
+      definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
+    ];
+  };
+  const listed: string[] = [...deps.config.gearSlots];
+  return [
+    ...listed.flatMap((slot) => {
+      const inSlot = carried.filter((row) => slotOf(row) === slot);
+      return inSlot.length === 0 ? [[slot, 'none', '', '']] : inSlot.map((row) => line(slot, row));
+    }),
+    ...carried.filter((row) => !listed.includes(slotOf(row))).map((row) => line(slotOf(row), row)),
+  ];
 }
 
 /**
@@ -338,9 +405,10 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
 }
 
 /**
- * `show hero <id>`: the Hero's Attributes, State, Stats and Skills. Never Potential (rule 9): the
- * Stats shown are base values, read through `baseStat`, each with its Potential hint beside it
- * under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
+ * `show hero <id>`: the Hero's Attributes, State, Stats, gear and Skills. Never Potential (rule 9):
+ * each Stat's base value, read through `baseStat`, and beside it its effective value, the engine's
+ * `effectiveStats` with the Guildmaster's Class bonus and the Hero's gear (M5-S2), which is what a
+ * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
  * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
  * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
  * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads.
@@ -377,12 +445,19 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
   if (hero.leftPoolOnTurn !== null) attributes.push(['Left the pool', `Turn ${hero.leftPoolOnTurn}`]);
 
   let lastArea = '';
+  const effective = effectiveStats(hero, world, content);
   const stats = Object.values(content.stats)
     .filter((stat) => stat.owner === 'hero')
     .map((stat) => {
       const area = stat.area === lastArea ? '' : capitalised(stat.area);
       lastArea = stat.area;
-      return [area, stat.name, String(baseStat(hero.stats, stat)), potentialHint(hero, stat.key, bands)];
+      return [
+        area,
+        stat.name,
+        String(baseStat(hero.stats, stat)),
+        String(effective[stat.key] ?? baseStat(hero.stats, stat)),
+        potentialHint(hero, stat.key, bands),
+      ];
     });
 
   const skillKeys = Object.keys(hero.skills);
@@ -423,7 +498,19 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ...fields(attributes),
     '',
     'Stats',
-    ...table([{ heading: 'Area' }, { heading: 'Stat' }, { heading: 'Value', align: 'right' }, { heading: 'Outlook' }], stats),
+    ...table(
+      [
+        { heading: 'Area' },
+        { heading: 'Stat' },
+        { heading: 'Base', align: 'right' },
+        { heading: 'Effective', align: 'right' },
+        { heading: 'Outlook' },
+      ],
+      stats,
+    ),
+    '',
+    'Gear',
+    ...table([{ heading: 'Slot' }, { heading: 'Item' }, { heading: 'Id' }, { heading: 'Modifies' }], gearRows(hero, document, deps)),
     '',
     'Skills',
     ...(skills.length === 0

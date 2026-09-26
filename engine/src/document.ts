@@ -209,14 +209,19 @@ export interface QuestRequirements {
 
 export type QuestStatus = 'offered' | 'taken' | 'resolved';
 
-/** Who holds a unique Item: a Hero in a gear slot, a Guild, or a Party (data-model §3.3). */
+/**
+ * Who holds a unique Item or a common stack (data-model §3.3): a Hero in a gear slot, a Guild, a
+ * Party, or the Market. The Market holds unique Items too, since a folded Guild's are listed there
+ * (pre-M0 review D6, M5-S4, DL-48). `items.ts` compares and moves holders.
+ */
 export type Holder =
   | { kind: 'hero'; id: HeroId; slot: SlotKey }
   | { kind: 'guild'; id: GuildId }
-  | { kind: 'party'; id: PartyId };
+  | { kind: 'party'; id: PartyId }
+  | { kind: 'market' };
 
-/** Who holds a common stack: anyone who can hold a unique Item, or the Market. */
-export type StackHolder = Holder | { kind: 'market' };
+/** The kinds of holder. */
+export type HolderKind = Holder['kind'];
 
 /** Why the player-controlled Guild's game ended (M2-S10). */
 export type EndingReason = 'retirement' | 'bankruptcy' | 'roster-wiped';
@@ -260,7 +265,7 @@ export interface Guildmaster {
   regard: RegardMap;
 }
 
-/** Equipment is not on the Hero: it is the unique Items whose holder is this Hero. */
+/** A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot. */
 export interface Hero {
   id: HeroId;
   name: string;
@@ -372,8 +377,9 @@ export interface UniqueItem {
 export interface Stack {
   id: StackId;
   definitionKey: ItemDefinitionKey;
+  /** A whole number from 1: an emptied stack is removed. */
   quantity: number;
-  holder: StackHolder;
+  holder: Holder;
 }
 
 // ── Sections (data-model §1–§4) ──────────────────────────────────────────────────────────────

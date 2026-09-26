@@ -2,7 +2,9 @@
 // (`policy.ts`) until the game ends or the years run out, applying the policy's actions between
 // Turns through the real actions and timing every `advance`. Counters come from the History
 // (`counters.ts`), and what it cannot give from the World State before the policy acts on each
-// Turn (`observe`, M3, DL-40); measures from the harness's clock. DL-34 records the method.
+// Turn (`observe`, M3, DL-40) and, for each Quest the policy sends a Party on, from the Quest's row
+// as it dispatches (its difficulty, M5, DL-62); measures from the harness's clock. DL-34 records
+// the method.
 //
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
@@ -86,6 +88,11 @@ export interface PlayedGame {
   invalid: Invalid | null;
   /** What the World State showed before the policy acted on each Turn, and at the last (`observe`). */
   observations: GameObservations;
+  /**
+   * The difficulty of each Quest the policy's Guild took, by Quest id, read from the Quest's row as
+   * each accepted dispatch was applied: no entry of the History records it (M5, DL-62).
+   */
+  playerQuestDifficulty: Map<string, number>;
 }
 
 /** A validation's result is a problem when it refuses or warns: the engine's worlds warn of nothing. */
@@ -116,6 +123,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
   let invalid: Invalid | null = null;
   let validated = 0;
   const observations = emptyObservations();
+  const playerQuestDifficulty = new Map<string, number>();
 
   /** Validates from `from`, timing it into `times`; records and reports a problem. */
   const check = (from: number, times: number[]): boolean => {
@@ -133,8 +141,13 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       observe(observations, document.world, deps);
       for (const action of automaticPolicy(document, deps, policy)) {
         const result = applyAction(document, action, deps);
-        if (result.ok) document = result.document;
-        else refusals.push({ turn: document.world.turn, action, rejection: result.rejection });
+        if (!result.ok) {
+          refusals.push({ turn: document.world.turn, action, rejection: result.rejection });
+          continue;
+        }
+        const quest = action.kind === 'dispatch' ? document.world.quests[action.questId] : undefined;
+        if (quest !== undefined) playerQuestDifficulty.set(quest.id, quest.difficulty);
+        document = result.document;
       }
 
       const before = now();
@@ -159,6 +172,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     refusals,
     invalid,
     observations,
+    playerQuestDifficulty,
   };
 }
 
@@ -222,7 +236,7 @@ export function recordGame(
   return {
     record: {
       seed,
-      counters: countGame(document, deps),
+      counters: countGame(document, deps, game.playerQuestDifficulty),
       observations: game.observations,
       turnsPlayed: game.turnsPlayed,
       ranFullLength: document.world.ended === null && document.world.turn >= years * deps.config.turnsPerYear,

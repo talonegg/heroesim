@@ -27,7 +27,7 @@ export type EncounterOutcome = 'success' | 'failure';
 
 /** A Check, as the Quest Engine records it. */
 export interface CheckResult {
-  /** The Party's capability before the roll (`capability`). */
+  /** The Party's capability before the roll (`capability`), with the `bonus` it carried. */
   capability: number;
   /** The capability after the roll. */
   roll: number;
@@ -70,7 +70,9 @@ export function capability(heroes: readonly Hero[], encounter: Encounter, world:
  * `1 + r`, `r` one draw from −`checkVariance` up to +`checkVariance` from `world.rng.quests` (and
  * never below 0), and
  * the Check succeeds when the roll is at least `difficultyFactor × quest.difficulty`. Always one
- * draw, whatever the Party. Changes nothing but the stream; throws on a world without it.
+ * draw, whatever the Party. `bonus` is added to the capability before the roll: what the Party
+ * carries adds to it (a consumable's flat bonus, M5-S3, consumables.ts), 0 when nothing does.
+ * Changes nothing but the stream; throws on a world without it.
  */
 export function check(
   heroes: readonly Hero[],
@@ -78,9 +80,10 @@ export function check(
   quest: Pick<Quest, 'difficulty'>,
   world: World,
   deps: CheckDeps,
+  bonus = 0,
 ): CheckResult {
   const state = streamOf(world, 'quests');
-  const capable = capability(heroes, encounter, world, deps);
+  const capable = capability(heroes, encounter, world, deps) + bonus;
   // Never below 0, nor −0, which is not JSON-safe (a variance above 1 could otherwise reach them).
   const roll = Math.max(0, capable * (1 + (next(state) * 2 - 1) * deps.config.checkVariance));
   const target = encounter.difficultyFactor * quest.difficulty;

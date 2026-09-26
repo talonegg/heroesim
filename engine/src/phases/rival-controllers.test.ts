@@ -155,7 +155,7 @@ describe('rivalControllers', () => {
         expected.push({ guildId: action.guildId, kind: action.kind });
         if (action.kind === 'dispatch') applyDispatch(world, action, deps);
         else if (action.kind === 'recruit') applyRecruit(world, action, deps);
-        else applyBuild(world, action, deps);
+        else if (action.kind === 'build') applyBuild(world, action, deps);
       }
     }
     vi.mocked(applyDispatch).mockClear();

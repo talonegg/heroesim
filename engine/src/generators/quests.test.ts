@@ -52,7 +52,6 @@ describe('generateQuest', () => {
         demands: template.demands,
         skillKeys: template.skillKeys,
         requirements: { partySizeMin: template.partySizeMin, partySizeMax: template.partySizeMax, ...template.requires },
-        lootTableKey: null,
         status: 'offered',
         offeredOnTurn: 0,
         partyIds: [],
@@ -66,6 +65,24 @@ describe('generateQuest', () => {
       expect(quest.tags).not.toBe(template.tags);
       expect(quest.skillKeys).not.toBe(template.skillKeys);
     }
+  });
+
+  // M5-S5 (DL-52): data-model §3.2's copy of `lootTableKey`, from a template above the threshold only.
+  test("copies the template's Loot table when its difficultyMin is above lootDifficultyThreshold, and null otherwise", () => {
+    const underworld = (threshold: number) => {
+      const deps = testDeps({ lootDifficultyThreshold: threshold });
+      const { world, patron } = withPatron('loot', deps, 'underworld');
+      return new Map(quests(world, patron, deps, 40).map((quest) => [quest.templateKey, quest.lootTableKey]));
+    };
+    // The underworld's two: a-quiet-word (15 to 45, no table) and the-counting-house-job (45 to 85).
+    expect(testContent.questTemplates['the-counting-house-job']?.lootTableKey).toBe('greater-loot');
+
+    expect(Object.fromEntries(underworld(25))).toEqual({ 'a-quiet-word': null, 'the-counting-house-job': 'greater-loot' });
+    expect(Object.fromEntries(underworld(44))).toEqual({ 'a-quiet-word': null, 'the-counting-house-job': 'greater-loot' });
+    // At the template's difficultyMin, not above it: no Loot, whatever its table.
+    expect(Object.fromEntries(underworld(45))).toEqual({ 'a-quiet-word': null, 'the-counting-house-job': null });
+    // A lower threshold admits no Loot where content names no table.
+    expect(Object.fromEntries(underworld(0))).toEqual({ 'a-quiet-word': null, 'the-counting-house-job': 'greater-loot' });
   });
 
   test('puts the Quest in world.quests and at the end of the Board, numbering it from the counter', () => {
@@ -255,7 +272,7 @@ describe('generateQuest', () => {
     expect(() => generateQuest(world, { ...patron, id: 'patron-000009' as Patron['id'] }, deps)).toThrow(/patron-000009/);
     expect(() => generateQuest(world, patron, unserved)).toThrow(/crown/);
     expect(() => generateQuest(world, patron, deps, { templateKey: 'a-quiet-word' })).toThrow(/a-quiet-word/);
-    expect(() => generateQuest(world, patron, deps, { stream: 'market' as string as StreamName })).toThrow(/market/);
+    expect(() => generateQuest(world, patron, deps, { stream: 'a-module' as string as StreamName })).toThrow(/a-module/);
     expect(world).toEqual(before);
   });
 

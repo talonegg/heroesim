@@ -7,6 +7,7 @@ import { createWorld } from '../create.js';
 import type { Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
 import { entriesFor } from '../history.js';
+import { addStack, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
 import { encounterCount } from '../quest-engine/encounters.js';
 import { regardValue } from '../regard.js';
@@ -95,7 +96,8 @@ interface Away {
  * A world created from `seed` whose Guild (the player's, or the first Rival's) sends its first
  * `size` Heroes on the first Quest on the Board that asks for no Class or Skill, at `difficulty`
  * and through `encounterKeys` when given, played to the afternoon before the Party comes home, or
- * daysEarly Days before that.
+ * daysEarly Days before that. The Guild is given each of `consumables` (definition key and quantity)
+ * and the Party carries them (M5-S3).
  */
 function sentAway(
   seed: string,
@@ -106,7 +108,15 @@ function sentAway(
     difficulty,
     encounterKeys,
     daysEarly = 0,
-  }: { size?: number; rival?: boolean; difficulty?: number; encounterKeys?: string[]; daysEarly?: number } = {},
+    consumables = [],
+  }: {
+    size?: number;
+    rival?: boolean;
+    difficulty?: number;
+    encounterKeys?: string[];
+    daysEarly?: number;
+    consumables?: [string, number][];
+  } = {},
 ): Away {
   const start = createWorld(seed, setup, deps).document;
   const guilds = Object.values(start.world.guilds);
@@ -118,7 +128,9 @@ function sentAway(
       classKey === undefined && skillKey === undefined && partySizeMin <= size && size <= partySizeMax,
     );
   if (open === undefined) throw new Error(`No open Quest for ${size} on ${seed}'s first Board`);
-  const sent = dispatch(start, { guildId: guild.id, questId: open.id, heroIds }, deps);
+  for (const [definitionKey, quantity] of consumables) addStack(start.world, definitionKey, quantity, { kind: 'guild', id: guild.id });
+  const carried = consumables.map(([definitionKey, quantity]) => ({ definitionKey, quantity }));
+  const sent = dispatch(start, { guildId: guild.id, questId: open.id, heroIds, consumables: carried }, deps);
   if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);
   const quest = sent.document.world.quests[open.id] as Quest;
   if (difficulty !== undefined) quest.difficulty = difficulty;
@@ -472,6 +484,88 @@ describe('questsConclude', () => {
 // M4-S5's Regard writers (DL-43 item 4) meet M4-S2's Encounter resolution (DL-42) in this phase
 // (DL-44): each resolved Quest writes the Patron's Regard for the Guild, and the Guildmaster's for the
 // Patron, exactly once, by the band the Encounters gave, for the player's Guild and a Rival's alike.
+// M5-S3 (DL-50): the consumables a Party carried, expended or sent home to the Guild on its return.
+describe('questsConclude and the consumables a Party carried', () => {
+  /** Each stack `holder` holds, as its definition and quantity. */
+  const heldBy = (world: World, holder: Parameters<typeof holdings>[1]): [string, number][] =>
+    holdings(world, holder)
+      .stacks.map(({ definitionKey, quantity }): [string, number] => [definitionKey, quantity])
+      .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+
+  // M5-S3's second and third boxes.
+  test('expends those used, each an item.expended between the Encounters and quest.resolved, and the rest are back with the Guild after', () => {
+    const deps = soloDeps({}, certainHarmContent);
+    // One failed combat Check: a whetstone adds to it, one Hero dies and one comes home injured, whom
+    // a draught heals; the grappling line is for travel and stealth, and goes home unused.
+    const consumables: [string, number][] = [
+      ['whetstone', 2],
+      ['grappling-line', 1],
+      ['healing-draught', 2],
+    ];
+    const { eve, party, quest, guildId } = sentAway('carried', deps, { size: 3, difficulty: 5000, encounterKeys: oneEncounter, consumables });
+    expect(heldBy(eve.world, { kind: 'guild', id: guildId })).toEqual([]);
+    expect(heldBy(eve.world, { kind: 'party', id: party.id })).toEqual([...consumables].sort(([a], [b]) => (a < b ? -1 : 1)));
+
+    const { document, events } = playTo(eve, party.returnsOnTurn, deps);
+
+    const order = events.map((event) => event.type).filter((type) => type.startsWith('quest.') || type === 'item.expended');
+    expect(order).toEqual(['quest.encounter', 'item.expended', 'item.expended', 'quest.resolved']);
+    const expended = ofType(events, 'item.expended');
+    const [resolved] = ofType(events, 'quest.resolved');
+    const [injury] = resolved?.payload.injuries ?? [];
+    if (injury === undefined) throw new Error('Nobody came home injured');
+    expect(expended.map((event) => event.payload)).toEqual([
+      expect.objectContaining({ questId: quest.id, partyId: party.id, guildId, definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 0, flat: 3 }),
+      expect.objectContaining({ questId: quest.id, partyId: party.id, guildId, definitionKey: 'healing-draught', effect: 'heal', heroId: injury.heroId, days: 5 }),
+    ]);
+    expect(expended[1]?.participants).toEqual([quest.id, party.id, guildId, injury.heroId]);
+    expect(expended.every((event) => !event.milestone)).toBe(true);
+    // The Injury comes home shortened: broken-arm heals in 15 to 25 Days, 5 fewer with the draught.
+    const [injured] = ofType(events, 'hero.injured');
+    expect(injured?.payload.healsOnTurn).toBe(nightOf(dayOf(party.returnsOnTurn) + injury.healDays));
+    expect(injury.healDays).toBeGreaterThanOrEqual(10);
+    expect(injury.healDays).toBeLessThanOrEqual(20);
+    // The Party holds nothing and is gone; the Guild holds what was not used (playTo validates each Turn).
+    const { world } = document;
+    expect(world.parties).not.toHaveProperty(party.id);
+    expect(heldBy(world, { kind: 'party', id: party.id })).toEqual([]);
+    expect(heldBy(world, { kind: 'guild', id: guildId })).toEqual([
+      ['grappling-line', 1],
+      ['healing-draught', 1],
+      ['whetstone', 1],
+    ]);
+  });
+
+  // M5-S3's first box, in the world: the reroll's second roll is consumables.test.ts's.
+  test('a reroll used on a failed Check is gone after: expended, and no stack of it anywhere', () => {
+    // An empty Market (M5-S4), so that the only grappling line in the world is the one carried.
+    const deps = soloDeps({ marketSize: 0 }, harmlessContent);
+    const { eve, party, guildId } = sentAway('rerolled', deps, {
+      difficulty: 5000,
+      encounterKeys: ['the-flooded-ford'],
+      consumables: [['grappling-line', 1]],
+    });
+
+    const { document, events } = playTo(eve, party.returnsOnTurn, deps);
+
+    expect(ofType(events, 'item.expended').map((event) => event.payload)).toEqual([
+      expect.objectContaining({ definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 0, partyId: party.id, guildId }),
+    ]);
+    expect(ofType(events, 'quest.encounter')).toHaveLength(1);
+    expect(Object.values(document.world.stacks).filter((stack) => stack.definitionKey === 'grappling-line')).toEqual([]);
+  });
+
+  test("sends a Rival's Party's consumables home to the Rival as the player's are", () => {
+    const deps = soloDeps({ rivalCount: 1 }, harmlessContent);
+    stillRivalControllers();
+    const { eve, party, guildId } = sentAway('rival-carried', deps, { rival: true, consumables: [['physicians-kit', 1]] });
+
+    const { document } = playTo(eve, party.returnsOnTurn, deps);
+
+    expect(heldBy(document.world, { kind: 'guild', id: guildId })).toEqual([['physicians-kit', 1]]);
+  });
+});
+
 describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-44)', () => {
   const regardPins: Partial<GameConfig> = {
     patronRegardOnSuccess: 1,
@@ -595,6 +689,30 @@ describe("a folded Rival's Party", () => {
     expect(ofType(events, 'quest.resolved').filter((event) => event.payload.partyId === party.id)).toEqual([]);
     expect(document.world.parties).not.toHaveProperty(party.id);
     expect(document.world.quests).not.toHaveProperty(quest.id);
+  });
+
+  // M5-S3 (DL-50): a disbanded Party holds nothing after. What it carried goes home to the Guild,
+  // whose stacks the fold then discards (M5-S4, DL-51; the fold's order is DL-54's, endings.test.ts).
+  test("is disbanded with its consumables sent back to the Guild's holding: no stack is left held by the removed Party", () => {
+    // An empty Market (M5-S4), so that the only whetstones in the world are the ones carried.
+    const deps = testDeps({ rivalCount: 1, marketSize: 0 });
+    stillRivalControllers();
+    const away = sentAway('fold-carried', deps, { rival: true, daysEarly: 1, consumables: [['whetstone', 2]] });
+    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
+    if (guildmaster === undefined) throw new Error('No Guildmaster');
+    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    const { eve, party, guildId } = away;
+    expect(holdings(eve.world, { kind: 'party', id: party.id }).stacks).toHaveLength(1);
+
+    const { document, events } = playTo(eve, party.returnsOnTurn - 3, deps);
+
+    expect(ofType(events, 'guild.folded')).toHaveLength(1);
+    expect(document.world.parties).not.toHaveProperty(party.id);
+    expect(holdings(document.world, { kind: 'party', id: party.id })).toEqual({ items: [], stacks: [] });
+    // Sent home, then discarded with the folded Guild's stacks: no whetstone is left anywhere.
+    expect(holdings(document.world, { kind: 'guild', id: guildId })).toEqual({ items: [], stacks: [] });
+    expect(Object.values(document.world.stacks).filter((it) => it.definitionKey === 'whetstone')).toEqual([]);
+    expect(ofType(events, 'item.expended')).toEqual([]);
   });
 
   test('home on the night its Guild folds is resolved first, then the fold finds no Party', () => {

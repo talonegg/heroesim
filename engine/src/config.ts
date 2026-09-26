@@ -7,10 +7,11 @@
 // Each story adds the fields it introduces: M1-S1 the document's clock and the two versions;
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
-// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46). Every "Min/Max" pair is an inclusive range drawn with `int`. A
-// field holding an object or a list is frozen with `defaultConfig`.
+// Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52). Every "Min/Max" pair is an
+// inclusive range drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
 
-import type { ContentSet, StatArea } from './content-types.js';
+import type { ContentSet, SlotKey, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
 
 export interface GameConfig {
@@ -25,7 +26,9 @@ export interface GameConfig {
    * pass (DL-35); 3 from M3's wage for Levels (DL-36); 4 twice over, on two lines at once, from
    * M3's Rival reserve (DL-41) and from M4-S2's Quest Engine (DL-42); 5 twice over again, from
    * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
-   * merging those, so that no save made under either 5 reads as current (DL-55).
+   * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
+   * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
+   * M5 close's Loot threshold (DL-62).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -338,6 +341,48 @@ export interface GameConfig {
   guildmasterRegardOnHeroSuccess: number;
   /** Added (negative) for each such Hero after a failure. */
   guildmasterRegardOnHeroFailure: number;
+
+  // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
+  /**
+   * The gear slots every Hero has, in the order a front end lists them: each one of content's
+   * `gearSlotKeys`, none twice (INPUTS 7.1: weapon, armour, trinket). A Hero holds at most one Item
+   * in each; `equip` fills only these, and an Item held in a slot not listed here is warned about
+   * by the validator (DL-49).
+   */
+  gearSlots: readonly SlotKey[];
+
+  // ── Loot (M5-S5, R32, INPUTS 7.4, DL-52) ──────────────────────────────────────────────────
+  /**
+   * A Quest carries its template's Loot table only when the template's `difficultyMin` is above
+   * this: the Quest Generator copies `lootTableKey` onto the Quest then, and `null` otherwise. Content
+   * chooses each template's table by its difficulty band; this says from which difficulty a Quest
+   * awards Loot at all. 35 since the M5 close, so that Loot is for hard Quests (DL-62; 25 before).
+   */
+  lootDifficultyThreshold: number;
+  /** The bands on which a Quest with a Loot table awards one entry of it (INPUTS 7.4: strong only). */
+  lootOnBands: readonly QuestBand[];
+
+  // ── The Market (M5-S4, R31, INPUTS 7.2, DL-51) ────────────────────────────────────────────
+  /**
+   * How many stacks each morning's refresh puts on the Market, each of a different definition, or
+   * every definition the Market stocks when there are fewer (INPUTS 7.2: 10).
+   */
+  marketSize: number;
+  /** The fewest Items in a stack the refresh draws. */
+  marketStackMin: number;
+  /** The most Items in a stack the refresh draws. */
+  marketStackMax: number;
+  /**
+   * What the Market pays for an Item as a share of its Market price, rounded down for each Item
+   * (INPUTS 7.2: half). Below 1, so that an Item sells for less than it costs (R31).
+   */
+  sellRatio: number;
+  /**
+   * The Market price of an Item whose definition has no `buyPrice`, found only as Loot (DL-48): what
+   * a Guild pays for such an Item listed on the Market, as a folded Guild's unique Items are (pre-M0
+   * review D6), and, × `sellRatio`, what the Market pays for one.
+   */
+  lootOnlyPrice: number;
 }
 
 /** A Quest's outcome bands, worst first (INPUTS 4.3; from M4-S2, by its Encounters succeeded). */
@@ -362,7 +407,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 2,
-  configVersion: 6,
+  configVersion: 8,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -466,6 +511,17 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRegardOnPatronFailure: -1,
   guildmasterRegardOnHeroSuccess: 1,
   guildmasterRegardOnHeroFailure: -1,
+
+  gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
+
+  lootDifficultyThreshold: 35,
+  lootOnBands: Object.freeze(['strong' as const]),
+
+  marketSize: 10,
+  marketStackMin: 1,
+  marketStackMax: 5,
+  sellRatio: 0.5,
+  lootOnlyPrice: 600,
 });
 
 /** A module as the core knows it until M8-S1 writes the module contract: its id. */

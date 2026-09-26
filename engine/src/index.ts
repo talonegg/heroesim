@@ -12,12 +12,27 @@ export {
   type MaxGrade,
 } from './actions/build.js';
 export {
+  applyBuy,
+  buy,
+  type BuyAction,
+  type BuyGuildFolded,
+  type BuyInsufficientQuantity,
+  type BuyInsufficientWealth,
+  type BuyRejection,
+  type BuyRequest,
+  type NotInMarket,
+} from './actions/buy.js';
+export {
   applyDispatch,
   dispatch,
   unavailability,
   unmetRequirements,
+  type ConsumableRequest,
   type DispatchAction,
   type DispatchGuildFolded,
+  type DispatchInsufficientQuantity,
+  type DispatchNotConsumable,
+  type DispatchNotHeldByGuild,
   type DispatchRejection,
   type DispatchRequest,
   type HeroNotOnRoster,
@@ -28,6 +43,30 @@ export {
   type UnmetRequirement,
   type Unavailability,
 } from './actions/dispatch.js';
+export {
+  applyEquip,
+  applyUnequip,
+  equip,
+  unequip,
+  type EquipAction,
+  type EquipGuildFolded,
+  type EquipHeroNotOnRoster,
+  type EquipHeroUnavailable,
+  type EquipRejection,
+  type EquipRequest,
+  type GearRef,
+  type NotGear,
+  type NotHeldByGuild,
+  type SlotEmpty,
+  type SlotOccupied,
+  type UnequipAction,
+  type UnequipGuildFolded,
+  type UnequipHeroNotOnRoster,
+  type UnequipHeroUnavailable,
+  type UnequipRejection,
+  type UnequipRequest,
+  type WrongSlot,
+} from './actions/equip.js';
 export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export {
   applyRecruit,
@@ -40,6 +79,20 @@ export {
   type SigningRefusedRejection,
 } from './actions/recruit.js';
 export * from './actions/result.js';
+export {
+  applySell,
+  sell,
+  type SellAction,
+  type SellEquipped,
+  type SellGuildFolded,
+  type SellInsufficientQuantity,
+  type SellItemAction,
+  type SellNotHeldByGuild,
+  type SellRejection,
+  type SellRequest,
+  type SellStackAction,
+  type SellUnknownItem,
+} from './actions/sell.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
@@ -48,6 +101,7 @@ export * from './create.js';
 export * from './document.js';
 export * from './events.js';
 export * from './fast-forward.js';
+export * from './gear.js';
 export * from './guildmaster.js';
 export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
@@ -55,11 +109,14 @@ export { generatePatron, type GeneratedPatron, type PatronOptions } from './gene
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './hero-regard.js';
 export * from './history.js';
+export * from './items.js';
 export * from './json-safe.js';
+export * from './market.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
+export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
 export { teamwork } from './quest-engine/teamwork.js';
 export {

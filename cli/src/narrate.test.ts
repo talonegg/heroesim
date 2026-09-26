@@ -5,8 +5,10 @@ import {
   type EntityId,
   type GuildId,
   type HeroId,
+  type ItemId,
   type PartyId,
   type QuestId,
+  type StackId,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -23,6 +25,8 @@ const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
 const otherHeroId = 'hero-000009' as HeroId;
+const stackId = 'stack-000004' as StackId;
+const itemId = 'item-000002' as ItemId;
 
 const labels: Record<string, string> = {
   [guildId]: 'The Kestrel Guild',
@@ -66,6 +70,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     returnsOnTurn: 23,
+    consumables: [{ definitionKey: 'whetstone', quantity: 2 }],
   }),
   'quest.encounter': event('quest.encounter', [questId, partyId, guildId, heroId], {
     questId,
@@ -91,6 +96,16 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     guildId,
     heroIds: [heroId],
     templateKey: 'guard-the-caravan',
+  }),
+  'quest.loot': event('quest.loot', [questId, partyId, guildId, 'item-000006'], {
+    questId,
+    partyId,
+    guildId,
+    lootTableKey: 'lesser-loot',
+    definitionKey: 'barrow-kings-blade',
+    quantity: 1,
+    itemId: 'item-000006' as ItemId,
+    stackId: null,
   }),
   'hero.injured': event('hero.injured', [heroId, questId], { heroId, questId, typeKey: 'deep-cut', healsOnTurn: 41 }),
   'hero.died': event('hero.died', [heroId, questId], { heroId, questId }),
@@ -151,6 +166,58 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandBefore: 'warm',
     bandAfter: 'close',
   }),
+  'item.expended': event('item.expended', [questId, partyId, guildId, heroId], {
+    questId,
+    partyId,
+    guildId,
+    stackId: 'stack-000006' as never,
+    definitionKey: 'healing-draught',
+    effect: 'heal',
+    heroId,
+    days: 5,
+  }),
+  'item.equipped': event('item.equipped', [heroId, guildId, stackId], {
+    heroId,
+    guildId,
+    slot: 'weapon',
+    definitionKey: 'arming-sword',
+    itemId: null,
+    stackId,
+  }),
+  'item.unequipped': event('item.unequipped', [heroId, guildId, itemId], {
+    heroId,
+    guildId,
+    slot: 'trinket',
+    definitionKey: 'lantern-of-stannary',
+    itemId,
+    stackId: null,
+  }),
+  'item.returned': event('item.returned', [heroId, guildId, stackId], {
+    heroId,
+    guildId,
+    slot: 'armour',
+    definitionKey: 'mail-shirt',
+    itemId: null,
+    stackId,
+    cause: 'died',
+  }),
+  'item.bought': event('item.bought', [guildId], {
+    guildId,
+    definitionKey: 'whetstone',
+    quantity: 3,
+    unitPrice: 25,
+    cost: 75,
+    itemIds: [],
+  }),
+  'item.sold': event('item.sold', [guildId, 'item-000002'], {
+    guildId,
+    definitionKey: 'barrow-kings-blade',
+    quantity: 1,
+    unitPrice: 300,
+    proceeds: 300,
+    itemIds: ['item-000002' as never],
+    cause: 'fold',
+  }),
 };
 
 describe('narrate', () => {
@@ -178,10 +245,10 @@ describe('narrate', () => {
     expect(narrate(withSynergies, content)).toMatch(/and failed: Wealth 0, Fame -2\. Synergies: Shield wall, Sword and salve\.$/);
     expect(narrate({ ...withSynergies, payload: { ...withSynergies.payload, synergyKeys: [] } }, content)).toMatch(/Fame -2\.$/);
     expect(narrate(samples['quest.encounter'], content)).toBe(
-      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name}: Brenna Ashcombe (hero-000007) was injured.`,
+      `party-000004 failed at ${content.encounters['ambush-on-the-road']?.name} (Encounter 2): Brenna Ashcombe (hero-000007) was injured.`,
     );
     expect(narrate({ ...samples['quest.encounter'], payload: { ...samples['quest.encounter'].payload, outcome: 'success', injured: [] } }, content)).toBe(
-      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name}.`,
+      `party-000004 came through ${content.encounters['ambush-on-the-road']?.name} (Encounter 2).`,
     );
     expect(narrate(samples['guild.improved'], content)).toBe(
       `The Kestrel Guild built ${content.improvements['training-yard-2']?.name} for 500 Wealth: its training yard is now grade 2.`,
@@ -192,6 +259,18 @@ describe('narrate', () => {
     );
     expect(narrate(samples['hero.levelled'], content)).toBe(
       'Brenna Ashcombe (hero-000007) reached Level 3: Courage +2, Strength +1.',
+    );
+    // M5-S5: a unique Item by name and id; a common one by name, quantity and the stack it joined.
+    expect(narrate(samples['quest.loot'], content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: ${content.items['barrow-kings-blade']?.name} (item-000006).`,
+    );
+    const common = { ...samples['quest.loot'].payload, definitionKey: 'healing-draught', quantity: 3, itemId: null, stackId: 'stack-000008' as StackId };
+    expect(narrate({ ...samples['quest.loot'], payload: common }, content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: 3 × ${content.items['healing-draught']?.name} (stack-000008).`,
+    );
+    // One common Item is named without a count, as a purchase is.
+    expect(narrate({ ...samples['quest.loot'], payload: { ...common, quantity: 1 } }, content)).toBe(
+      `The Kestrel Guild found Loot on quest-000003: ${content.items['healing-draught']?.name} (stack-000008).`,
     );
   });
 
@@ -229,10 +308,67 @@ describe('narrate', () => {
     for (const line of [shared, decayed]) expect(line.replaceAll(/hero-\d{6}/g, '')).not.toMatch(/\d/);
   });
 
+  test('says what a Party carried, and each consumable it used, by name, counting Encounters from 1 (M5-S3)', () => {
+    const ids = { questId, partyId, guildId, stackId: 'stack-000006' as never };
+    const used = (payload: EngineEventOf<'item.expended'>['payload']) => narrate(event('item.expended', [questId, partyId, guildId], payload), content);
+
+    expect(narrate(samples['quest.taken'], content)).toBe(
+      'The Kestrel Guild sent party-000004 on quest-000003, back on the night of Day 7, carrying Whetstone ×2.',
+    );
+    const bare = { ...samples['quest.taken'], payload: { ...samples['quest.taken'].payload, consumables: [] } };
+    expect(narrate(bare, content)).toBe('The Kestrel Guild sent party-000004 on quest-000003, back on the night of Day 7.');
+    expect(used({ ...ids, definitionKey: 'whetstone', effect: 'bonus', encounterIndex: 1, flat: 3 })).toBe(
+      "The Kestrel Guild's party-000004 used one Whetstone on Encounter 2: +3 to its Check.",
+    );
+    expect(used({ ...ids, definitionKey: 'grappling-line', effect: 'reroll', encounterIndex: 0, firstRoll: 12.5 })).toBe(
+      "The Kestrel Guild's party-000004 used one Grappling line to try Encounter 1 again.",
+    );
+    expect(narrate(samples['item.expended'], content)).toBe(
+      "The Kestrel Guild's party-000004 used one Healing draught on Brenna Ashcombe (hero-000007): their Injury heals 5 Days sooner.",
+    );
+  });
+
+  test('names gear by content and by the id equip and unequip take, and says why it went back (M5-S2)', () => {
+    expect(narrate(samples['item.equipped'], content)).toBe(
+      "The Kestrel Guild put Arming sword (stack-000004) in Brenna Ashcombe (hero-000007)'s weapon slot.",
+    );
+    expect(narrate(samples['item.unequipped'], content)).toBe(
+      `The Kestrel Guild took ${content.items['lantern-of-stannary']?.name} (item-000002) from Brenna Ashcombe (hero-000007)'s trinket slot.`,
+    );
+    expect(narrate(samples['item.returned'], content)).toBe(
+      'Mail shirt (stack-000004) went back to The Kestrel Guild from Brenna Ashcombe (hero-000007), who died.',
+    );
+    const folded = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'guild-folded' as const } };
+    expect(narrate(folded, content)).toMatch(/from Brenna Ashcombe \(hero-000007\) as the Guild folded\.$/);
+  });
+
   test('says a Level gained without naming the points Potential took', () => {
     const allLost = event('hero.levelled', [heroId, guildId], { heroId, guildId, level: 20, statDeltas: {}, pointsLost: 3 });
 
     expect(narrate(allLost, content)).toBe('Brenna Ashcombe (hero-000007) reached Level 20.');
+  });
+});
+
+describe('the Market (M5-S4)', () => {
+  test('names what was bought and sold, how many, and the Wealth that changed hands', () => {
+    const sold = narrate(
+      event('item.sold', [guildId], {
+        guildId,
+        definitionKey: 'healing-draught',
+        quantity: 1,
+        unitPrice: 15,
+        proceeds: 15,
+        itemIds: [],
+        cause: 'sale',
+      }),
+      content,
+    );
+
+    expect(narrate(samples['item.bought'], content)).toBe('The Kestrel Guild bought 3 × Whetstone at the Market for 75 Wealth.');
+    expect(sold).toBe('The Kestrel Guild sold Healing draught at the Market for 15 Wealth.');
+    expect(narrate(samples['item.sold'], content)).toBe(
+      `The Kestrel Guild's ${content.items['barrow-kings-blade']?.name} (item-000002) went to the Market for 300 Wealth as the Guild folded.`,
+    );
   });
 });
 

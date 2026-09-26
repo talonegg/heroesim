@@ -18,6 +18,7 @@ import {
   type StatValues,
   type World,
 } from './document.js';
+import { gearModifiers } from './gear.js';
 import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
@@ -235,29 +236,34 @@ export function upkeep(
 /**
  * `hero`'s effective Stats (data-model rule 1: a selector, never stored; `hero.stats` keeps base
  * values only): each of content's Hero Stats, its base value (`baseStat`, a Stat the row lacks
- * reading content's default) plus the `classStatBonus` Traits of the Guildmaster of the Hero's
- * Guild for the Hero's Class (M4-S5, DL-43), held inside the Stat's content range. A Hero on no
- * Roster has only their base. Every Guild alike (ADR-0002), so a Rival's Guildmaster's Traits work
- * on the Rival's Heroes as the player's work on the player's.
+ * reading content's default), plus the `classStatBonus` Traits of the Guildmaster of the Hero's
+ * Guild for the Hero's Class (M4-S5, DL-43), plus the Stat modifiers of the gear the Hero carries in
+ * its own slots (`gearModifiers`, M5-S2), held inside the Stat's content range once, after every
+ * modifier is added, so the order they are added in never matters (DL-49). A Hero on no Roster has
+ * no Guildmaster's bonus; gear counts wherever it is rightly placed, a misplaced Item or one content
+ * does not define counting for nothing. Every Guild alike (ADR-0002), so a Rival's Guildmaster's
+ * Traits and a Rival's gear work on the Rival's Heroes as the player's work on the player's.
  *
  * The one statement of a Hero's Stats as a Quest assesses them: the Quest Engine's Check reads it
- * (M4-S2, `quest-engine/check.ts`'s `capability`). M5-S2 adds gear's modifiers here, keeping the
- * epic's signature `(hero, world, content)`, and shows it beside the base in `show hero`; any later
- * modifier belongs here too (DL-42 item 9, DL-43 item 8, DL-44). Nothing Guild-side reads it: fees,
- * Upkeep and growth read base Stats.
+ * (M4-S2, `quest-engine/check.ts`'s `capability`), and `show hero` shows it beside the base. It keeps
+ * the epic's signature `(hero, world, content)` and so reads no config: `equip` alone asks which
+ * slots `config.gearSlots` lists (DL-49). Any later modifier belongs here too (DL-42 item 9, DL-43
+ * item 8, DL-44). Nothing Guild-side reads it: fees, Upkeep and growth read base Stats.
  */
 export function effectiveStats(
-  hero: Pick<Hero, 'stats' | 'classKey' | 'guildId'>,
-  world: Pick<World, 'guilds' | 'guildmasters'>,
-  content: Pick<ContentSet, 'stats' | 'traits'>,
+  hero: Pick<Hero, 'id' | 'stats' | 'classKey' | 'guildId'>,
+  world: Pick<World, 'guilds' | 'guildmasters' | 'items' | 'stacks'>,
+  content: Pick<ContentSet, 'stats' | 'traits' | 'items'>,
 ): StatValues {
   const guild = hero.guildId !== null && Object.hasOwn(world.guilds, hero.guildId) ? world.guilds[hero.guildId] : undefined;
   const bonuses = guild === undefined ? {} : traitStatBonuses(guildmasterOf(guild, world), hero.classKey, content);
+  const gear = gearModifiers(hero.id, world, content);
   const effective: StatValues = {};
   for (const stat of Object.values(content.stats)) {
     if (stat.owner !== 'hero') continue;
     const bonus = Object.hasOwn(bonuses, stat.key) ? (bonuses[stat.key] ?? 0) : 0;
-    effective[stat.key] = Math.min(stat.max, Math.max(stat.min, baseStat(hero.stats, stat) + bonus));
+    const worn = Object.hasOwn(gear, stat.key) ? (gear[stat.key] ?? 0) : 0;
+    effective[stat.key] = Math.min(stat.max, Math.max(stat.min, baseStat(hero.stats, stat) + bonus + worn));
   }
   return effective;
 }

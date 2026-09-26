@@ -15,6 +15,8 @@ import {
   type EngineDeps,
   type EngineEvent,
   type EntityId,
+  type GearMove,
+  type GearReturnCause,
   type HeroRegardCause,
   type PatronRegardCause,
   type QuestBand,
@@ -67,10 +69,32 @@ const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   decay: 'as time passed apart',
 };
 
+/** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
+const gearReturnWords: Readonly<Record<GearReturnCause, string>> = {
+  died: ', who died',
+  retired: ', who retired',
+  'guild-folded': ' as the Guild folded',
+};
+
+/** An Item of gear that moved, by content's name and the id a command takes: `Arming sword (stack-000004)`. */
+function gearMoved(move: GearMove, content: ContentSet): string {
+  return `${nameIn(content.items, move.definitionKey)} (${move.itemId ?? move.stackId ?? ''})`;
+}
+
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
 function crossed(before: RegardBand, after: RegardBand): string {
   const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
   return `${way} from ${before} to ${after}`;
+}
+
+/**
+ * Items as a line names them (M5-S4): `Whetstone`, `3 × Whetstone`, and a unique Item with its id,
+ * `Barrow King's blade (item-000002)`, which the commands take.
+ */
+function items(content: ContentSet, definitionKey: string, quantity: number, itemIds: readonly string[]): string {
+  const name = nameIn(content.items, definitionKey);
+  const counted = quantity === 1 ? name : `${quantity} × ${name}`;
+  return itemIds.length === 0 ? counted : `${counted} (${itemIds.join(', ')})`;
 }
 
 /** One line for `event`, in the CLI's words. */
@@ -106,18 +130,23 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       return `${called(event, patronId)}'s ${nameIn(content.questTemplates, templateKey)} (${questId}) expired untaken.`;
     }
     case 'quest.taken': {
-      const { guildId, partyId, questId, returnsOnTurn } = event.payload;
-      return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}.`;
+      // What the Party carries (M5-S3), when it carries anything; an entry from before M5-S3 has none.
+      const { guildId, partyId, questId, returnsOnTurn, consumables = [] } = event.payload;
+      const carrying = consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`);
+      const carried = carrying.length === 0 ? '' : `, carrying ${listed(carrying)}`;
+      return `${called(event, guildId)} sent ${partyId} on ${questId}, back on ${night(returnsOnTurn)}${carried}.`;
     }
     case 'quest.encounter': {
-      // The roll and target are the engine's; the CLI says only how it went and what it cost.
-      const { partyId, encounterKey, outcome, injured, died } = event.payload;
+      // The roll and target are the engine's; the CLI says only how it went and what it cost, and
+      // which Encounter it was, counted from 1 as a consumable's line counts them (item.expended).
+      const { partyId, index, encounterKey, outcome, injured, died } = event.payload;
       const went = outcome === 'success' ? 'came through' : 'failed at';
       const hurt = [
         ...injured.map((id) => `${hero(event, id)} was injured`),
         ...died.map((id) => `${hero(event, id)} was killed`),
       ];
-      return `${partyId} ${went} ${nameIn(content.encounters, encounterKey)}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+      const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
+      return `${partyId} ${went} ${which}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
     }
     case 'quest.resolved': {
       const { guildId, partyId, questId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
@@ -127,6 +156,13 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         `${called(event, guildId)}'s ${partyId} came home from ${nameIn(content.questTemplates, templateKey)} ` +
         `(${questId}) and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`
       );
+    }
+    case 'quest.loot': {
+      // A unique Item by name and id, a common one by name, quantity and the stack it joined (M5-S5).
+      const { guildId, questId, definitionKey, quantity, itemId, stackId } = event.payload;
+      const item = nameIn(content.items, definitionKey);
+      const what = itemId === null ? `${items(content, definitionKey, quantity, [])} (${stackId ?? 'no stack'})` : `${item} (${itemId})`;
+      return `${called(event, guildId)} found Loot on ${questId}: ${what}.`;
     }
     case 'hero.injured': {
       const { heroId, typeKey, healsOnTurn } = event.payload;
@@ -189,6 +225,45 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         `${hero(event, heroId)}'s Regard for ${hero(event, entityId)} ${crossed(bandBefore, bandAfter)} ` +
         `${heroRegardWords[cause]}.`
       );
+    }
+    case 'item.equipped': {
+      const { guildId, heroId, slot } = event.payload;
+      return `${called(event, guildId)} put ${gearMoved(event.payload, content)} in ${hero(event, heroId)}'s ${slot} slot.`;
+    }
+    case 'item.unequipped': {
+      const { guildId, heroId, slot } = event.payload;
+      return `${called(event, guildId)} took ${gearMoved(event.payload, content)} from ${hero(event, heroId)}'s ${slot} slot.`;
+    }
+    case 'item.returned': {
+      const { guildId, heroId, cause } = event.payload;
+      return (
+        `${gearMoved(event.payload, content)} went back to ${called(event, guildId)} from ${hero(event, heroId)}` +
+        `${gearReturnWords[cause]}.`
+      );
+    }
+    case 'item.bought': {
+      const { guildId, definitionKey, quantity, cost, itemIds } = event.payload;
+      return `${called(event, guildId)} bought ${items(content, definitionKey, quantity, itemIds)} at the Market for ${cost} Wealth.`;
+    }
+    case 'item.sold': {
+      const { guildId, definitionKey, quantity, proceeds, itemIds, cause } = event.payload;
+      const what = items(content, definitionKey, quantity, itemIds);
+      return cause === 'fold'
+        ? `${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
+        : `${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
+    }
+    case 'item.expended': {
+      // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).
+      const { payload } = event;
+      const used = `${called(event, payload.guildId)}'s ${payload.partyId} used one ${nameIn(content.items, payload.definitionKey)}`;
+      switch (payload.effect) {
+        case 'bonus':
+          return `${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
+        case 'reroll':
+          return `${used} to try Encounter ${payload.encounterIndex + 1} again.`;
+        case 'heal':
+          return `${used} on ${hero(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
+      }
     }
   }
 }
