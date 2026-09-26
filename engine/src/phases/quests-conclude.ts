@@ -3,8 +3,9 @@
 // resolved by the Quest Engine (quest-engine/resolve.ts) through its Encounter sequence, drawing
 // from the `quests` stream (and, for a Quest generated before M4, `encounters`), and its outcome
 // applied here: one `quest.encounter` for each Encounter checked, in sequence order, then
-// `quest.resolved`; the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's,
-// later the same night); a Hero injured carries the Injury until its night; a Hero who died leaves
+// `quest.resolved`; any Loot to the Guild's holding with `quest.loot` (M5-S5, quest-engine/loot.ts,
+// DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
+// night); a Hero injured carries the Injury until its night; a Hero who died leaves
 // the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
 // moves by the Encounters' Morale, on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
@@ -22,6 +23,7 @@ import { compareByCodeUnit, type Guild, type Party, type Quest, type World } fro
 import type { EngineEvent } from '../events.js';
 import { regardOnSharedQuest } from '../hero-regard.js';
 import { changeMorale } from '../morale.js';
+import { awardLoot } from '../quest-engine/loot.js';
 import { resolveQuest, type Resolution } from '../quest-engine/resolve.js';
 import { regardOnQuestResolved } from '../regard.js';
 import { dayOf, nightOf } from '../time.js';
@@ -78,6 +80,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     }),
   ];
 
+  events.push(...awardLoot(world, emit, { quest, party, guild }, resolution.loot)); // M5-S5: Loot to the Guild (DL-52)
   guild.wealth += outcome.wealthDelta;
   guild.fame += outcome.fameDelta;
 

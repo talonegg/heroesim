@@ -732,6 +732,13 @@ describe('a key the content does not define warns and never refuses', () => {
       'healing-draught',
     ],
     [
+      "a Quest's Loot table (M5-S5)",
+      (d) => (quest(d, ids.offeredQuest).lootTableKey = 'the-lost-hoard'),
+      'unknown-loot-table',
+      ids.offeredQuest,
+      'the-lost-hoard',
+    ],
+    [
       "an Encounter in a Quest's sequence (M4-S1)",
       (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',

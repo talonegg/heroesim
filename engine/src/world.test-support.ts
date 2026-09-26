@@ -21,6 +21,8 @@ import type {
   Improvement,
   InjuryType,
   ItemDefinition,
+  LootEntry,
+  LootTable,
   QuestTemplate,
   QuestTemplateRequires,
   SlotKey,
@@ -135,10 +137,24 @@ const templateEncounters: Readonly<Record<string, [EncounterKind[], number, numb
 };
 
 /**
+ * Each test template's Loot table (M5-S5, DL-52), as the core's: the six whose `difficultyMin` is
+ * above the default `lootDifficultyThreshold` (25), `lesser-loot` below 45 and `greater-loot` from
+ * it; the rest none.
+ */
+const templateLoot: Readonly<Record<string, string>> = {
+  'clear-the-barrow': 'lesser-loot',
+  'the-beast-of-the-fells': 'lesser-loot',
+  'lay-the-restless-dead': 'lesser-loot',
+  'the-counting-house-job': 'greater-loot',
+  'hold-the-border-fort': 'greater-loot',
+  'break-the-sealed-vault': 'greater-loot',
+};
+
+/**
  * A Quest template of `sphere` from its ranges as `[min, max]`, its demands as `stat:weight`
  * pairs and its Skills, each a space-separated list. The reward is four Wealth per difficulty
  * and the Fame effect 2, as INPUTS 4.2's defaults put them. Its Encounter kinds and counts are
- * `templateEncounters`'.
+ * `templateEncounters`', and its Loot table `templateLoot`'s.
  */
 function questTemplate(
   key: string,
@@ -172,7 +188,7 @@ function questTemplate(
       }),
       skillKeys: skills.split(' '),
       requires,
-      lootTableKey: null,
+      lootTableKey: templateLoot[key] ?? null,
       encounterKinds: [...encounterKinds],
       encountersMin,
       encountersMax,
@@ -248,6 +264,16 @@ function consumable(key: string, effect: ConsumableEffect, buyPrice: number, tag
   return [key, { key, name: title(key), kind: 'consumable', unique: false, effect, buyPrice, tags }];
 }
 
+/** A Loot table (M5-S5) from its entries, each `definition:weight:min-max` in a space-separated list. */
+function lootTable(key: string, entries: string): [string, LootTable] {
+  const parsed = entries.split(' ').map((written): LootEntry => {
+    const [definitionKey = '', weight = '', range = ''] = written.split(':');
+    const [quantityMin = '', quantityMax = quantityMin] = range.split('-');
+    return { definitionKey, weight: Number(weight), quantityMin: Number(quantityMin), quantityMax: Number(quantityMax) };
+  });
+  return [key, { key, entries: parsed }];
+}
+
 /** An Injury type from its Days to heal as `[min, max]` and the Trait it leaves. */
 function injuryType(key: string, [healDaysMin, healDaysMax]: [number, number], leavesTrait: string | null): [string, InjuryType] {
   return [key, { key, name: title(key), healDaysMin, healDaysMax, leavesTrait }];
@@ -289,8 +315,9 @@ export function deepFreeze<T>(value: T): T {
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
  * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
  * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6), the core's twelve
- * Encounter keys, two or more of each kind (M4-S1), the core's six Synergies (M4-S3), and the
- * core's twenty Item definitions (M5-S1), so that fixture Items raise no warning.
+ * Encounter keys, two or more of each kind (M4-S1), the core's six Synergies (M4-S3), the
+ * core's twenty Item definitions (M5-S1), so that fixture Items raise no warning, and the core's two
+ * Loot tables, named by the six templates above the default Loot threshold (M5-S5).
  *
  * Frozen, and shared by every test: a test that needs other content spreads a copy and changes
  * that (`{ ...testContent, spheres: {} }`).
@@ -440,6 +467,21 @@ export const testContent: ContentSet = deepFreeze({
     gear('mantle-of-the-fells', 'armour', 'endurance:3 constitution:2 adaptability:1', null, ['relic'], true),
     gear('lantern-of-stannary', 'trinket', 'perception:3 wits:2', null, ['relic'], true),
     gear('abbots-reliquary', 'trinket', 'spirit:3 willpower:2 resistance:1', null, ['relic', 'holy'], true),
+  ]),
+  // The core's two (M5-S5, DL-52), by difficulty band: each entry `definition:weight:quantity range`.
+  lootTables: Object.fromEntries([
+    lootTable(
+      'lesser-loot',
+      'whetstone:16:1-3 lockpicks:16:1-3 healing-draught:16:1-3 grappling-line:10:1-2 blessed-candle:8:1-2 ' +
+        'physicians-kit:8:1 arming-sword:7:1 mail-shirt:7:1 silver-amulet:6:1 ' +
+        'barrow-kings-blade:2:1 mantle-of-the-fells:2:1 abbots-reliquary:2:1',
+    ),
+    lootTable(
+      'greater-loot',
+      'healing-draught:13:2-4 physicians-kit:12:1-2 grappling-line:9:1-3 blessed-candle:9:1-3 ' +
+        'arming-sword:6:1 mail-shirt:6:1 silver-amulet:6:1 masterwork-blade:8:1 plate-harness:8:1 runed-circlet:8:1 ' +
+        'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
+    ),
   ]),
 });
 

@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 9 since the Item definitions (M5-S1)', () => {
+  test('is the core content set, version 10 since the Loot tables (M5-S5)', () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(9);
+    expect(content.version).toBe(10);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -139,7 +139,6 @@ describe('loadContent()', () => {
         for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
         expect(it.skillKeys.length, it.key).toBeGreaterThan(0);
         for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
-        expect(it.lootTableKey).toBeNull();
       }
     });
 
@@ -298,6 +297,38 @@ describe('loadContent()', () => {
       for (const it of consumables) {
         expect(it.unique, it.key).toBe(false);
         if (it.effect.kind !== 'heal') for (const kind of it.effect.kinds) expect(kinds.has(kind), `${it.key} ${kind}`).toBe(true);
+      }
+    });
+  });
+
+  // M5-S5 (DL-52): the templates carry a Loot table chosen by difficulty band (INPUTS 7.4). Which
+  // templates carry one agrees with `defaultConfig.lootDifficultyThreshold`, which content cannot
+  // read: the harness's creation.test.ts holds that.
+  describe('Loot tables (M5-S5)', () => {
+    const templates = Object.values(content.questTemplates);
+    const tables = Object.values(content.lootTables);
+
+    test('are chosen by difficulty band: a harder template never names a lesser table than an easier one', () => {
+      const rank = ['lesser-loot', 'greater-loot'];
+      const named = templates
+        .filter((it) => it.lootTableKey !== null)
+        .sort((a, b) => a.difficultyMin - b.difficultyMin)
+        .map((it) => rank.indexOf(it.lootTableKey ?? ''));
+
+      expect(tables.map((it) => it.key).sort()).toEqual([...rank].sort());
+      expect(named).not.toContain(-1);
+      expect(named).toEqual([...named].sort((a, b) => a - b));
+      expect(new Set(named).size).toBe(rank.length);
+    });
+
+    test('hold every unique Item between them, and each unique Item one at a time', () => {
+      const unique = Object.values(content.items).filter((it) => it.unique).map((it) => it.key);
+      const entries = tables.flatMap((it) => it.entries);
+      const awarded = new Set(entries.filter((it) => unique.includes(it.definitionKey)).map((it) => it.definitionKey));
+
+      expect([...awarded].sort()).toEqual([...unique].sort());
+      for (const it of entries.filter((entry) => unique.includes(entry.definitionKey))) {
+        expect([it.quantityMin, it.quantityMax], it.definitionKey).toEqual([1, 1]);
       }
     });
   });

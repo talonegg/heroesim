@@ -10,6 +10,7 @@ import type {
   QuestTemplate,
   Skill,
   Sphere,
+  LootTable,
   Stat,
   Synergy,
   Trait,
@@ -39,6 +40,7 @@ interface Files {
   'synergies.json': Rows<Synergy>;
   /** Written loosely: a row is gear or a consumable, and the tests give one the other's fields. */
   'items.json': Record<string, Record<string, unknown>>;
+  'loot-tables.json': Rows<LootTable>;
 }
 
 function realFiles(): Record<string, string> {
@@ -279,12 +281,20 @@ describe('a Quest template', () => {
     );
   });
 
-  test('with a Loot table before Loot exists is refused', () => {
+  test('naming a Loot table content lacks is refused, naming the template and the table (M5-S5)', () => {
     const files = withJson('quest-templates.json', (json) => {
       Object.assign(barrow(json), { lootTableKey: 'barrow-hoard' });
     });
+    const notAKey = withJson('quest-templates.json', (json) => {
+      Object.assign(barrow(json), { lootTableKey: 7 });
+    });
 
-    expect(refusalOf(() => parseContent(files)).message).toMatch(/clear-the-barrow\.lootTableKey/);
+    expect(refusalOf(() => parseContent(files)).message).toContain(
+      'questTemplates.clear-the-barrow.lootTableKey: "barrow-hoard" is not a Loot table',
+    );
+    expect(refusalOf(() => parseContent(notAKey)).message).toMatch(
+      /quest-templates\.json: clear-the-barrow\.lootTableKey is 7; expected a string or null/,
+    );
   });
 
   test('that leaves a Sphere with none is refused, naming the Sphere', () => {
@@ -531,18 +541,59 @@ describe('an Item definition (M5-S1)', () => {
     expect(refusalOf(() => parseContent(withJson('items.json', change))).message).toMatch(problem);
   });
 
-  test('the file is required, and may hold none', () => {
+  test('the file is required, and may hold none, when no Loot table names one', () => {
     const files = realFiles();
     delete files['items.json'];
 
     expect(refusalOf(() => parseContent(files)).message).toContain('items.json: missing');
-    expect(parseContent(withText('items.json', '{}')).items).toEqual({});
+    expect(parseContent({ ...withoutLoot(), 'items.json': '{}' }).items).toEqual({});
   });
 
   test('a key that is not kebab-case is refused', () => {
     const files = withJson('items.json', (json) => void (json['Short_Sword'] = sword(json)));
 
     expect(refusalOf(() => parseContent(files)).message).toContain('items: "Short_Sword" is not kebab-case');
+  });
+});
+
+/** The real files with no Loot table, and no template naming one. */
+function withoutLoot(): Record<string, string> {
+  const templates = withJson('quest-templates.json', (json) => {
+    for (const it of Object.values(json)) it.lootTableKey = null;
+  });
+  return { ...templates, 'loot-tables.json': '{}' };
+}
+
+// M5-S5's content: a Loot table's refusals (DL-52).
+describe('a Loot table (M5-S5)', () => {
+  type Entry = LootTable['entries'][number];
+  const lesser = (json: Files['loot-tables.json']) => json['lesser-loot'] as Omit<LootTable, 'key'>;
+  const first = (json: Files['loot-tables.json']) => lesser(json).entries[0] as Entry;
+  const unique = (json: Files['loot-tables.json']) =>
+    lesser(json).entries.find((entry) => entry.definitionKey === 'barrow-kings-blade') as Entry;
+
+  test.each<[string, (json: Files['loot-tables.json']) => void, RegExp]>([
+    ['an Item content lacks', (json) => void (first(json).definitionKey = 'rope'), /lootTables\.lesser-loot\.entries\.0\.definitionKey: "rope" is not an Item/],
+    ['a weight of 0', (json) => void (first(json).weight = 0), /lootTables\.lesser-loot\.entries\.0\.weight is 0; it is a number above 0/],
+    ['a negative weight', (json) => void (first(json).weight = -2), /lootTables\.lesser-loot\.entries\.0\.weight is -2; it is a number above 0/],
+    ['a quantity of 0', (json) => void (first(json).quantityMin = 0), /lootTables\.lesser-loot\.entries\.0\.quantityMin is 0; it is a whole number from 1/],
+    ['a quantity range upside down', (json) => void Object.assign(first(json), { quantityMin: 3, quantityMax: 2 }), /lootTables\.lesser-loot\.entries\.0\.quantityMin 3 is greater than quantityMax 2/],
+    ['a quantity that is not whole', (json) => void (first(json).quantityMax = 2.5), /loot-tables\.json: lesser-loot\.entries\.0\.quantityMax is 2\.5; expected a whole number/],
+    ['a unique Item more than one at a time', (json) => void (unique(json).quantityMax = 2), /lootTables\.lesser-loot\.entries\.9: barrow-kings-blade is unique, so its quantityMin and quantityMax are 1/],
+    ['an Item listed twice', (json) => void lesser(json).entries.push({ ...first(json) }), /lootTables\.lesser-loot\.entries: "whetstone" is listed twice/],
+    ['no entries', (json) => void (lesser(json).entries = []), /lootTables\.lesser-loot\.entries is empty/],
+    ['a field an entry lacks', (json) => void Object.assign(first(json), { chance: 0.5 }), /loot-tables\.json: lesser-loot\.entries\.0\.chance is not a field of a Loot table entry/],
+    ['a field a table lacks', (json) => void Object.assign(lesser(json), { name: 'Lesser loot' }), /loot-tables\.json: lesser-loot\.name is not a field of a Loot table/],
+  ])('with %s is refused, naming the table', (_, change, problem) => {
+    expect(refusalOf(() => parseContent(withJson('loot-tables.json', change))).message).toMatch(problem);
+  });
+
+  test('the file is required, and may hold none when no template names one', () => {
+    const files = realFiles();
+    delete files['loot-tables.json'];
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('loot-tables.json: missing');
+    expect(parseContent(withoutLoot()).lootTables).toEqual({});
   });
 });
 

@@ -91,6 +91,7 @@ export const warningChecks = [
   'unknown-encounter',
   'unknown-slot',
   'misplaced-item',
+  'unknown-loot-table',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -201,6 +202,7 @@ const contentChecks: readonly ContentCheck[] = [
   unknownEncounter,
   unknownSlot,
   misplacedItem,
+  unknownLootTable,
 ];
 
 /**
@@ -1412,6 +1414,20 @@ function misplacedItem({ world }: WorldDocument, content: ContentSet): Validatio
     const made = definition.kind === 'gear' ? `gear for the ${definition.slot} slot` : 'a consumable';
     const detail = `${id} is held by ${holder.id} in the ${holder.slot} slot, but ${definitionKey} is ${made}`;
     warnings.push({ check: 'misplaced-item', id, key: definitionKey, detail });
+  }
+  return warnings;
+}
+
+/**
+ * A Quest's Loot table (M5-S5, DL-52): a table content defines. A Quest naming one it does not awards
+ * no Loot (`drawLoot`). Content without a Loot table, as content before M5-S5 has, defines none.
+ */
+function unknownLootTable({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const { warnings, known } = keyWarnings('unknown-loot-table', 'a Loot table');
+  const table: unknown = Reflect.get(content, 'lootTables');
+  const lootTables = isMap(table) ? table : {};
+  for (const [id, quest] of Object.entries(world.quests)) {
+    if (quest.lootTableKey !== null) known(id, 'lootTableKey', lootTables, quest.lootTableKey);
   }
   return warnings;
 }

@@ -5,8 +5,8 @@
 // M1-S1 defined the keys the World State stores and the content set's identity; M1-S4 the row
 // types (`Stat`, `Class`, `Skill`, `Trait`, `Background`, `Sphere`, `Names`) and their tables in
 // `ContentSet`; M2-S3 `QuestTemplate`; M2-S5 `InjuryType`; M2-S9 `Disposition`; M3-S6
-// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`; M5-S1 `ItemDefinition`. Later milestones add
-// theirs.
+// `Improvement`; M4-S1 `Encounter`; M4-S3 `Synergy`; M5-S1 `ItemDefinition`; M5-S5 `LootTable`.
+// Later milestones add theirs.
 //
 // Content is read, never written: nothing in the engine mutates a row.
 
@@ -36,7 +36,7 @@ export type InjuryTypeKey = string;
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
-/** A Loot table (M5). */
+/** A Loot table (M5-S5, `loot-tables.json`). */
 export type LootTableKey = string;
 /** An Item definition, for unique Items and common stacks alike (M5-S1, `items.json`). */
 export type ItemDefinitionKey = string;
@@ -185,8 +185,13 @@ export interface QuestTemplate {
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
   skillKeys: SkillKey[];
   requires: QuestTemplateRequires;
-  /** `null` until Loot tables exist (M5). */
-  lootTableKey: null;
+  /**
+   * The Loot table a Quest of this kind awards from on a band in `lootOnBands` (M5-S5, INPUTS 7.4,
+   * DL-52): a table content defines, chosen by the template's difficulty band, or `null` for none.
+   * The Quest Generator copies it onto a Quest only when `difficultyMin` is above
+   * `lootDifficultyThreshold`, so the threshold is config's and the table content's.
+   */
+  lootTableKey: LootTableKey | null;
   /**
    * The kinds of Encounter a Quest of this kind is drawn with (M4-S1): each of its Encounters is
    * of one of these, at least one listed, none twice, and content holding an Encounter of each.
@@ -430,6 +435,29 @@ export interface ConsumableDefinition extends ItemDefinitionBase {
  */
 export type ItemDefinition = GearDefinition | ConsumableDefinition;
 
+/**
+ * One entry of a Loot table (M5-S5, DL-52): an Item definition content defines, its weight in the
+ * draw, and the quantity awarded, an inclusive range drawn with `int`.
+ */
+export interface LootEntry {
+  definitionKey: ItemDefinitionKey;
+  /** Drawn in proportion to it among the table's entries: a number above 0. */
+  weight: number;
+  /** Whole numbers from 1, `quantityMin` at most `quantityMax`; both 1 for a unique Item. */
+  quantityMin: number;
+  quantityMax: number;
+}
+
+/**
+ * A Loot table (M5-S5, R32, INPUTS 7.4, `loot-tables.json`): what a Quest whose template names it
+ * may leave behind. The Quest Engine draws one entry on a band in `lootOnBands` and the Guild's
+ * holding receives it (`quest-engine/loot.ts`). At least one entry, each definition once.
+ */
+export interface LootTable {
+  key: LootTableKey;
+  entries: LootEntry[];
+}
+
 /** The name lists the generators draw from (INPUTS 3.9; `names.json`). No list is empty. */
 export interface Names {
   /** Given names for Heroes and Guildmasters, by sex. */
@@ -466,6 +494,8 @@ export interface ContentSet {
   synergies: Record<SynergyKey, Synergy>;
   /** The Item definitions: gear and consumables, common and unique (M5-S1, DL-20's table name). */
   items: Record<ItemDefinitionKey, ItemDefinition>;
+  /** The Loot tables Quest templates name, each a weighted list of Item definitions (M5-S5). */
+  lootTables: Record<LootTableKey, LootTable>;
 }
 
 /** What a document records of the content set it was created under (`meta.content`). */

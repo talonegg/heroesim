@@ -13,6 +13,8 @@
 // outcome's consequences in order: an Injury three per `count` (whether it lands, on whom, its
 // Days), a Death two (whether, on whom); taken whether or not they land, so tuning a chance never
 // shifts a later draw, as `chance` promises for one (rng.ts).
+// After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
+// loot.ts, DL-52).
 //
 // It reads the World State and changes nothing but the streams: applying the outcome is the night
 // phase `questsConclude`'s. Rivals' Parties resolve through it exactly as the player's do
@@ -25,6 +27,7 @@ import { streamOf, type Stream } from '../generators/draw.js';
 import { chance, int } from '../rng.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
 import { sequenceFor } from './encounters.js';
+import { drawLoot, type LootDraw } from './loot.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -81,6 +84,8 @@ export interface QuestOutcome {
 export interface Resolution {
   outcome: QuestOutcome;
   encounters: EncounterResult[];
+  /** The Loot the outcome leaves, drawn last (M5-S5, loot.ts, DL-52); `null` for none. */
+  loot: LootDraw | null;
 }
 
 /**
@@ -188,6 +193,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       synergyKeys: [...synergyKeys].sort(compareByCodeUnit),
     },
     encounters,
+    loot: drawLoot(world, quest, band, deps), // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52)
   };
 }
 

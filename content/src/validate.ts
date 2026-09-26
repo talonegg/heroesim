@@ -66,6 +66,7 @@ export function validateContent(set: ContentSet): ContentSet {
     encounters: set.encounters,
     synergies: set.synergies,
     items: set.items,
+    lootTables: set.lootTables,
   };
   for (const [table, rows] of Object.entries(tables)) {
     for (const [key, row] of Object.entries(rows)) {
@@ -129,6 +130,10 @@ export function validateContent(set: ContentSet): ContentSet {
       problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
     }
     checkEncounterDraw(where, template, set.encounters, problems);
+    const { lootTableKey } = template;
+    if (lootTableKey !== null && !Object.hasOwn(set.lootTables, lootTableKey)) {
+      problems.push(`${where}.lootTableKey: "${lootTableKey}" is not a Loot table`);
+    }
   }
   // A Patron's Quests are found by Sphere when the Board is drawn (pre-M0 review D3): a Sphere no
   // template serves would leave its Patrons offering nothing.
@@ -154,6 +159,7 @@ export function validateContent(set: ContentSet): ContentSet {
   checkTraitEffects(set.traits, classes, heroStats, problems);
   checkSynergies(set.synergies, classes, skills, problems);
   checkItems(set.items, heroStats, problems);
+  checkLootTables(set, problems);
 
   const lists: [string, string[]][] = [
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
@@ -437,6 +443,34 @@ function checkConsumableEffect(where: string, effect: ConsumableEffect, problems
       return;
     default:
       problems.push(`${where}.kind is ${JSON.stringify((effect as { kind: unknown }).kind)}; it is reroll, bonus or heal`);
+  }
+}
+
+/**
+ * The Loot tables (M5-S5, DL-52): each at least one entry, each entry an Item content defines, listed
+ * once in its table, with a weight above 0 and a quantity range of whole numbers from 1, not upside
+ * down; a unique Item's quantity is 1, since a unique Item is an individual (data-model §3.3).
+ */
+function checkLootTables(set: ContentSet, problems: string[]): void {
+  for (const [key, table] of Object.entries(set.lootTables)) {
+    const where = `lootTables.${key}`;
+    if (table.entries.length === 0) problems.push(`${where}.entries is empty: a table awards one of its entries`);
+    for (const [index, entry] of table.entries.entries()) {
+      const at = `${where}.entries.${index}`;
+      const { definitionKey, weight, quantityMin, quantityMax } = entry;
+      const item = Object.hasOwn(set.items, definitionKey) ? set.items[definitionKey] : undefined;
+      if (item === undefined) problems.push(`${at}.definitionKey: "${definitionKey}" is not an Item`);
+      if (!(Number.isFinite(weight) && weight > 0)) problems.push(`${at}.weight is ${weight}; it is a number above 0`);
+      for (const [field, value] of [['quantityMin', quantityMin], ['quantityMax', quantityMax]] as const) {
+        if (!(Number.isInteger(value) && value >= 1)) problems.push(`${at}.${field} is ${value}; it is a whole number from 1`);
+      }
+      if (quantityMin > quantityMax) problems.push(`${at}.quantityMin ${quantityMin} is greater than quantityMax ${quantityMax}`);
+      if (item?.unique === true && (quantityMin !== 1 || quantityMax !== 1)) {
+        problems.push(`${at}: ${definitionKey} is unique, so its quantityMin and quantityMax are 1`);
+      }
+    }
+    const listed = table.entries.map((entry) => entry.definitionKey);
+    for (const definitionKey of repeated(listed)) problems.push(`${where}.entries: "${definitionKey}" is listed twice`);
   }
 }
 
