@@ -14,6 +14,7 @@ import { guildState } from './phases/guild-state.js';
 import { heroState } from './phases/hero-state.js';
 import { levelUps } from './phases/level-ups.js';
 import { marketRefresh } from './phases/market-refresh.js';
+import { offerExpiry } from './phases/offer-expiry.js';
 import { patronState } from './phases/patron-state.js';
 import type { Phase, PhaseContext } from './phases/phase.js';
 import { poolRefresh } from './phases/pool-refresh.js';
@@ -38,7 +39,8 @@ export const phases: readonly Phase[] = [
   // the Levels their XP has reached (DL-36), the Hero State Engine runs with ageing after its
   // Retirement checks (DL-37), the gear of the dead and the retired goes back to their Guilds
   // (DL-49), the Guild State Engine runs, the Patron State Engine returns Patron
-  // Regard toward neutral (DL-43), the pool refreshes, and the ending checks come last.
+  // Regard toward neutral (DL-43), the pool refreshes, Transfer Offers past their night or whose
+  // Hero has left go (DL-57), and the ending checks come last.
   { name: 'training', timeOfDay: 'night', run: training },
   { name: 'questsConclude', timeOfDay: 'night', run: questsConclude },
   { name: 'levelUps', timeOfDay: 'night', run: levelUps },
@@ -48,6 +50,7 @@ export const phases: readonly Phase[] = [
   { name: 'guildState', timeOfDay: 'night', run: guildState },
   { name: 'patronState', timeOfDay: 'night', run: patronState },
   { name: 'poolRefresh', timeOfDay: 'night', run: poolRefresh },
+  { name: 'offerExpiry', timeOfDay: 'night', run: offerExpiry },
   { name: 'endings', timeOfDay: 'night', run: endings },
 ];
 

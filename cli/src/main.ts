@@ -39,6 +39,7 @@ import { buildImprovement } from './commands/build.js';
 import { equipGear, unequipGear } from './commands/equip.js';
 import { buyItems, renderMarket, sellItems } from './commands/market.js';
 import { recruitHero } from './commands/recruit.js';
+import { answerOffer, renderOffers, transferHero } from './commands/transfer.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
 import type { CommandOutcome } from './commands/outcome.js';
@@ -139,6 +140,11 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return act(context, (document, deps) => buyItems(command, document, deps));
     case 'sell':
       return act(context, (document, deps) => sellItems(command, document, deps));
+    case 'transfer':
+      return act(context, (document, deps) => transferHero(command, document, deps));
+    case 'accept':
+    case 'decline':
+      return act(context, (document, deps) => answerOffer(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -302,6 +308,8 @@ function show(view: View, { io, content, path }: Context): Exit {
     }
     case 'market':
       return say(io, renderMarket(document, deps));
+    case 'offers':
+      return say(io, renderOffers(document, deps));
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);

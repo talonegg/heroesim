@@ -3619,6 +3619,148 @@ band, Deaths, recruits, Improvements, folds, Roster size and Wealth by year) by 
 owner can tune item 2's table; `quest.taken` carries no difficulty, so a counter of mean difficulty
 reads the Quest's row the Turn it is taken, or the M6-close adds it to the payload.
 
+## DL-57 — Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and offers, and the `transfer-offer` stop (M6-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S2's implementer); the fee
+factor and the Morale cost are the owner's (INPUTS 7.6), the pairwise cost is the owner's (pre-M0
+review D5), the rest is the agent's
+
+**Context.** M6-S2 names `transferIn` and `transferOut`, `transferFee(hero, buyingGuild)` scaled by the
+buying Guildmaster's Negotiation (DL-43), the other Guild's consent by its Disposition's
+`transferAppetite` and Roster size (`transfer-refused`), `hero.transferred` (a Milestone), the Hero's
+`partyId` null, gear back to the Guild the Hero leaves (DL-49 item 8), the pairwise Morale cost with
+`hero.morale-changed` only on a band crossing, the two Guildmasters' Regard rising (`guildmasterRegardPerTransferDeal`,
+R9's third writer), Rivals using the same two functions in `rivalChoices`, a Rival wanting the player's
+Hero writing a Transfer Offer (`guild.transfer-offered`), `acceptTransfer` and `declineTransfer`, an
+expired offer removed at night (`guild.transfer-offer-expired`), the always-on `transfer-offer` stop,
+the policy declining every offer (M6 risk table), and the CLI's `transfer`. It leaves open: the consent
+rule itself; how a Rival writes an offer, since no action in the epic does; how often a Rival deals,
+with no frequency among the story's config; whom it wants; how long an offer stands; whether the stop
+fires while an offer is pending (the epic) or when one arrives (approach §2); what the fold does with
+offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTransfer` asks.
+
+**Decision.**
+
+1. **Five actions, one file** (`engine/src/actions/transfer.ts`), each a world-level rule and a
+   document-level wrapper (DL-30), in the `Action` and `GuildAction` unions: `transferIn { guildId,
+   heroId }` (the Guild takes a Hero from another Guild's Roster), `transferOut { guildId, heroId,
+   toGuildId }`, **`offerTransfer { guildId, heroId }`** (not in the epic: how a Guild writes a
+   Transfer Offer, the Rivals' only use of it in the first build), `acceptTransfer { guildId, offerId }`
+   and `declineTransfer { guildId, offerId }`, answered by the Guild the Hero is on. Rejections, in the
+   order checked: `transferIn` — `guild-folded`, `hero-not-on-roster` (on no other Guild's Roster),
+   `same-guild`, `hero-in-party`, `transfer-refused`, `insufficient-wealth`; `transferOut` —
+   `guild-folded` (either Guild), `same-guild`, `hero-not-on-roster`, `hero-in-party`,
+   `transfer-refused`, `insufficient-wealth` (the Guild taking the Hero); `offerTransfer` —
+   `guild-folded`, `hero-not-on-roster`, `same-guild`, `hero-in-party`, `no-offer-needed` (the Hero's
+   Guild answers at once, by its Disposition), `offer-pending`, `insufficient-wealth`;
+   `acceptTransfer` — `guild-folded`, `offer-not-found`, `hero-in-party` (the offer stands until the
+   Hero is home or it expires), `insufficient-wealth` (the offering Guild can no longer pay);
+   `declineTransfer` — `guild-folded`, `offer-not-found`. A Guild id the world lacks throws (the CLI
+   checks `--to` first). `transfer-refused` names the Guild asked, the `side` (`out`, a Hero leaving it;
+   `in`, one joining it) and `because`.
+2. **One fee core.** `signingFee` and the new `transferFee(hero, buyer, deps)` (`selectors.ts`) share
+   `heroFee`: the list price (DL-27) × a factor (1, or **`transferFeeFactor` 2**, INPUTS 7.6) × the
+   paying Guildmaster's Negotiation (DL-43), rounded down once. `buyer` is the paying Guild's
+   Guildmaster, as `signingFee`'s is; `signingFee`'s results are unchanged (× 1 is exact). An offer's
+   fee is fixed when it is made and is what `acceptTransfer` pays.
+3. **Consent is the other Guild's controller's choice** (`transferAnswer(world, guild, side, deps)`,
+   `controllers/rival.ts`). A Guild with a Disposition answers by its row, one rule for every row:
+   it deals only while **the Heroes it keeps through the deal × `transferAppetite` ≥ 1** (its Roster
+   less one when a Hero goes out, its whole Roster when one comes in: 0.25 lets a Hero go from five and
+   takes one into four, 0.75 from three and into two, 1 lets any go but its last, 0 never deals), and
+   takes a Hero in only while it would recruit (Wealth above `recruitThreshold` × Upkeep). A Guild
+   with **no Disposition answers only through offers** (`answers-offers`): its controller answers for
+   itself, by `acceptTransfer` or `declineTransfer`. This is ADR-0002's own line — "what differs is the
+   controller" — not a new question of whose Guild it is: the read is the one `rivalChoices` already
+   made, moved into `chooser` (`controllers/rival.ts`), which both call; `controller-reads.test.ts`
+   keeps one read there and names the consent in its reason. `acceptTransfer` asks no consent of the
+   offering Guild: its offer was its consent; it must still be able to pay.
+4. **What a Transfer does** (`makeTransfer`, `engine/src/transfer.ts`, whichever action makes it, every
+   Guild alike): the Hero's gear back to the Guild they leave (`returnGear`, `item.returned` cause
+   **`transferred`**); the fee paid, so the two Guilds' Wealth together is unchanged; the Hero off the
+   one Roster and onto the end of the other; `hero.transferred { heroId, fromGuildId, toGuildId, fee,
+   offerId }` (a Milestone; `offerId` null but for an accepted offer); the Morale cost; the
+   Guildmasters' Regard; the accepted offer removed and any other offer for the Hero withdrawn
+   (`hero-left`). **The Morale cost**: each Hero left on the Roster whose own Regard for the Hero is in
+   `transferRegardBand` (**`warm`**) or above loses **`transferMoraleCost` −15** (INPUTS 7.6; D5), in
+   Roster order, held in Morale's range, with `hero.morale-changed` (cause **`transfer`**) only when a
+   band is crossed: the epic's rule for this cost, which departs from `changeMorale`'s "a discrete
+   change always emits" (DL-29) for this one cause. The transferred Hero's own Regard and Morale, and
+   every other Guild's Heroes, are untouched. **Guildmaster Regard** (`regardOnTransferDeal`,
+   `regard.ts`): each Guildmaster's Regard for the other's rises by **`guildmasterRegardPerTransferDeal`
+   2** (a deal counts double a Quest's +1; warm after two deals), the leaving Guild's first, reason
+   `hero.transferred`, `guildmaster.regard-changed` cause **`transfer-deal`** only on a crossing.
+5. **Rivals deal in `rivalChoices`** (DL-56 item 3 extended). The one purchase an afternoon becomes:
+   build (as before); else **`transferChoice`**; else recruit (as before); else **`debtTransfer`**.
+   - *`transferChoice`*: only while the Rival would take a Hero in by its own answer, and has no offer
+     of its own standing (one at a time). The Hero it wants is **the dearest it can pay for**
+     (`transferFee` at its Guildmaster's Negotiation, the lowest Hero id among equal fees), in no Party,
+     on the Roster of another Guild in play that would let one go or answers offers. When there is one,
+     **one draw from `rivals`, `chance(transferAppetite)`**, decides whether it seeks them this
+     afternoon: the appetite is the share of its hiring it does by Transfer, so no frequency field is
+     needed. It takes them by `transferIn` from a consenting Guild, or offers for them
+     (`offerTransfer`) to a Guild that answers offers. No draw when there is no such Hero, and none
+     at an appetite of 0 (the Rival's own answer refuses first). `rivalChoices` now advances `rivals`
+     by one draw for each dispatch and one each time it weighs a Transfer.
+   - *`debtTransfer`*: while the Rival is in debt (`belowFloorSince` set) and its own Disposition
+     would let a Hero go, its dearest Hero at home and not in this afternoon's Party goes by
+     `transferOut` to the Guild in play that consents, can pay and pays most (then the lowest Hero id,
+     then Guild id). Draws nothing. Never to a Guild that answers offers: the first build makes no
+     offer that way. So Rivals use both functions, as the epic asks.
+   - The Rival-to-Rival Transfer Generator stays M6-S3's; its weekly bids come on top of these.
+   - Tests whose subject is recruiting or building still Transfers with `transferAppetite: 0`: in
+     `controllers/rival.test.ts`, `steady`'s recruiting and building, "dispatches, then recruits", the
+     four Dispositions' thresholds and the fifth Disposition's; in `phases/rival-controllers.test.ts`,
+     `recruitingDeps`, which M6-S1's third box's test uses, so that its one-draw-per-dispatch count
+     stands. `transfer.test.ts` shows the Transfer's own draw is one, from `rivals`, and nothing else
+     moves; `controllers/dispositions.test.ts` (M6-S1's 100 seeds) passes unchanged.
+6. **Offers** (data-model §3.2): an offer stands through the night of its **`transferOfferDays`
+   (3)**-th Day, the Day it is made the first (a new config field, the agent's, mirroring
+   `questOfferDays`; `offerExpiresOnTurn`), and is removed by a new night phase **`offerExpiry`**, after
+   `poolRefresh` and before `endings`, with `guild.transfer-offer-expired` — one event for every
+   unanswered end, its `cause` **`expired`**, **`hero-left`** (the Hero died or retired that night, or
+   was transferred) or **`guild-folded`**. It removes an offer once its `expiresOnTurn` falls before the
+   next night, so a hand-made expiry on a morning (the M1 fixture's) never outlives the validator's
+   `offer-expired`. `declineTransfer` emits **`guild.transfer-offer-declined`** (not in the epic's list;
+   data-model rule 10). Every offer event names the offer, the Hero and both Guilds.
+7. **The fold** (DL-54 item 1) gains a step 5, before its Heroes are released and `guild.folded`:
+   every offer naming the folding Guild, made by it or asking it, is withdrawn (`guild-folded`), in id
+   order. The steps after it are renumbered 6 and 7; nothing else in DL-54's order changes.
+8. **The `transfer-offer` stop** is always on (`alwaysStops`), after `decision-needed` and before
+   `pool-refreshed` in `stopConditions`, and fires **on the Turn an offer for a Hero of the watched
+   Guild arrives** (`transferOfferStop`, from the Turn's `guild.transfer-offered`), carrying `{ guildId,
+   offerIds }`. Approach §2 (the owner's) says "a Transfer offer arrives"; the epic's "while one is
+   pending" is read the same way, since a stop on every Turn an offer stood would make fast forward
+   useless until it expired (DL-33 item 5's reasoning); the offer itself stays in `show offers` until
+   answered or expired. The CLI's `--until` takes `transfer-offer`.
+9. **The automatic policy** declines every offer made for its Heroes, first among its choices, and
+   makes no Transfer (M6 risk table); a smarter policy is a DL after the M6 counters.
+10. **The CLI.** `transfer --hero <id> --to <guildId>` (`transferOut`), `transfer --hero <id> --in`
+    (`transferIn`), `accept --offer <id>`, `decline --offer <id>` and `show offers` (each offer's id, the
+    Rival, the Hero, the fee and the Turn it expires); each prints its events' lines and the Guild's
+    Wealth and Roster. A stop on `transfer-offer` prints each offer with its fee, Hero, expiry and id and
+    the two commands that answer it. `narrate.ts` has a line for each new event and the new causes.
+11. **Versions.** Five config fields are added (`transferFeeFactor`, `transferMoraleCost`,
+    `transferRegardBand`, `guildmasterRegardPerTransferDeal`, `transferOfferDays`) and no default
+    changes: `configVersion` stays 5 (DL-43 item 11's reading). No content changes.
+
+**Consequences.** A smoke run of the core content under `defaultConfig` and the automatic policy
+(seeds `seed-0001` to `seed-0004`, 5 years each, validated after every advance; a scratch script, not the
+harness sweep): 13, 32, 75 and 25 Transfers a game, every one between Rivals (buyers `ambitious` 77,
+`reckless` 66, `steady` 2; `miserly` never), mean fee 445 to 459; 3 to 12 offers for the player's
+Heroes a game, every one declined by the policy; 10 to 104 `hero.morale-changed` for `transfer` and 4 to
+10 Guildmaster Regard crossings a game; no policy action refused, no document refused or warned about,
+no Rival folded. The Rivals' own refusals are dropped by their phase unseen (DL-30); a test plays twenty
+Days with every Rival dealing whenever it would hire and checks each choice is accepted. For the
+**M6-close counter task**: Transfers by direction and controller kind read `hero.transferred`
+(`fromGuildId`, `toGuildId`: the player's Guild is out or in, else Rival to Rival; `offerId` marks an
+accepted offer; the event does not say which action made it); offers from `guild.transfer-offered`,
+`guild.transfer-offer-declined` and `guild.transfer-offer-expired` by `cause`; the Morale cost from
+`hero.morale-changed` with cause `transfer` (crossings only); Rival Roster sizes and Wealth by year are
+snapshots of the world at each year's end. M6-S3's Generator should make its Transfers through
+`applyTransferIn` so that consent, fee and effects stay one rule, and may retune `transferAppetite`
+once its own frequency is measured beside `transferChoice`'s.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

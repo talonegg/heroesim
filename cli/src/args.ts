@@ -9,9 +9,11 @@ import {
   type ConsumableRequest,
   type FacilityKey,
   type GearRef,
+  type GuildId,
   type HeroId,
   type ItemDefinitionKey,
   type ItemId,
+  type OfferId,
   type QuestId,
   type RankingMeasure,
   type SlotKey,
@@ -28,7 +30,7 @@ Commands:
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
   show [guilds | roster [guildId] | pool | patrons | board | rankings [--by fame|wealth]
-        | hero <heroId> | guildmaster [guildId] | market | history [entityId]]
+        | hero <heroId> | guildmaster [guildId] | market | offers | history [entityId]]
       Print the save: with no view, the Turn, the Guilds and counts; roster shows the
       player's Guild unless given another; pool marks the Heroes who will not yet sign for
       the player's Guild's Fame; patrons shows each Patron's Regard for the player's Guild;
@@ -36,15 +38,17 @@ Commands:
       Wealth with --by wealth; guildmaster shows the player's Guildmaster, or another
       Guild's, with their Stats, Traits and Regard; market shows what the Market has for
       sale and at what price, and what the player's Guild holds and what each would sell
-      for; history shows the whole History unless given an id.
+      for; offers shows the Transfer Offers Rivals have made for the player's Heroes;
+      history shows the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
       here; every other command acts within the current Turn. Stops early if the game ends.
   advance --until <stops> [--max <n>]      or      advance --max <n>
       Fast forward: play Turns until one gives a reason to stop, then print the reason and
       what happened. These always stop it: a Party of the player's comes home, a decision
-      is needed (no Party is out, and a Quest the Guild could take reaches the Board), and
-      the game ends. <stops> names any of party-returns, decision, ended and
+      is needed (no Party is out, and a Quest the Guild could take reaches the Board), a
+      Rival makes a Transfer Offer for one of the player's Heroes, and the game ends.
+      <stops> names any of party-returns, decision, transfer-offer, ended and
       pool-refreshed, joined by commas; pool-refreshed (new Heroes in the Unattached pool)
       stops it only when named. --max caps the Turns played: one year of Turns unless
       given.
@@ -78,6 +82,17 @@ Commands:
       Sell n Items of a stack the player's Guild holds, 1 unless given, or one of its unique
       Items, to the Market for what show market says each sells for. An Item a Hero carries
       is unequipped first. The Market's stock is drawn afresh each morning.
+  transfer --hero <heroId> --to <guildId>      or      transfer --hero <heroId> --in
+      Transfer a Hero for a fee, twice their signing fee at the buying Guildmaster's
+      Negotiation. --to sends one of the player's Heroes to another Guild, which pays; --in
+      takes a Hero from another Guild's Roster, and the player's Guild pays. The other Guild
+      must be willing, by its Disposition's appetite for Transfers, its Roster and, to buy,
+      its Wealth. The Hero must be at the Hall; their gear stays with the Guild they leave,
+      and the Heroes left behind who held them in high Regard lose Morale.
+  accept --offer <offerId>      decline --offer <offerId>
+      Answer a Transfer Offer a Rival made for one of the player's Heroes, listed by show
+      offers: accept transfers the Hero for the fee offered; decline refuses it. An offer
+      not answered expires on the night show offers gives.
   rebase
       Adopt this release's default rules. A save plays under the rules it was created
       with until it is rebased; the History records when it was.
@@ -104,6 +119,7 @@ export type View =
   | { kind: 'hero'; heroId: string }
   | { kind: 'guildmaster'; guildId?: string }
   | { kind: 'market' }
+  | { kind: 'offers' }
   | { kind: 'history'; entityId?: string };
 
 export type Command =
@@ -129,6 +145,10 @@ export type Command =
   | { name: 'buy'; save: string; item: ItemDefinitionKey; quantity: number }
   | { name: 'sell'; save: string; stack: StackId; quantity: number }
   | { name: 'sell'; save: string; item: ItemId }
+  | { name: 'transfer'; save: string; hero: HeroId; to: GuildId }
+  | { name: 'transfer'; save: string; hero: HeroId; in: true }
+  | { name: 'accept'; save: string; offer: OfferId }
+  | { name: 'decline'; save: string; offer: OfferId }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
   | { name: 'load'; save: string; file: string };
@@ -149,6 +169,9 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   unequip: { save: 'value', hero: 'value', slot: 'value' },
   buy: { save: 'value', item: 'value', quantity: 'value' },
   sell: { save: 'value', stack: 'value', item: 'value', quantity: 'value' },
+  transfer: { save: 'value', hero: 'value', to: 'value', in: 'switch' },
+  accept: { save: 'value', offer: 'value' },
+  decline: { save: 'value', offer: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
   load: { save: 'value' },
@@ -210,6 +233,7 @@ function wholeFromOne(flag: string, value: string): number {
 const untilWords: Readonly<Record<string, StopCondition>> = Object.freeze({
   'party-returns': 'party-returned',
   decision: 'decision-needed',
+  'transfer-offer': 'transfer-offer',
   ended: 'ended',
   'pool-refreshed': 'pool-refreshed',
 });
@@ -242,7 +266,7 @@ function facility(value: string): FacilityKey {
   return facilityWords[value] as FacilityKey;
 }
 
-/** `--hero` for `equip` and `unequip`: one Hero id (M5-S2). */
+/** `--hero` for `equip`, `unequip` and `transfer`: one Hero id (M5-S2). */
 function heroId(value: string): HeroId {
   return isId('heroes', value) ? value : refuse(`--hero needs a Hero id such as hero-000001; got "${value}"`);
 }
@@ -322,6 +346,7 @@ function parseView(positional: readonly string[], by: string | undefined): View 
     case 'patrons':
     case 'board':
     case 'market':
+    case 'offers':
       atMost(positional, 1, `show ${view}`);
       return { kind: view };
     case 'roster':
@@ -449,6 +474,20 @@ function parse(argv: readonly string[]): Command {
     case 'sell':
       atMost(positional, 0, 'sell');
       return sale(save, flags);
+    case 'transfer': {
+      atMost(positional, 0, 'transfer');
+      const hero = heroId(required(flags, name, 'hero'));
+      const to = flags.get('to');
+      if ((to === undefined) === !flags.has('in')) refuse('transfer takes --to <guildId> or --in, and one of them only');
+      if (to === undefined) return { name, save, hero, in: true };
+      return isId('guilds', to) ? { name, save, hero, to } : refuse(`--to needs a Guild id such as guild-000002; got "${to}"`);
+    }
+    case 'accept':
+    case 'decline': {
+      atMost(positional, 0, name);
+      const offer = required(flags, name, 'offer');
+      return isId('offers', offer) ? { name, save, offer } : refuse(`--offer needs an offer id such as offer-000001; got "${offer}"`);
+    }
     case 'rebase':
       atMost(positional, 0, 'rebase');
       return { name, save };

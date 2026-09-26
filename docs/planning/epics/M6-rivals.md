@@ -61,11 +61,11 @@ Config: `transferFeeFactor`, `transferMoraleCost`, `transferRegardBand`,
 
 **Acceptance:**
 
-- [ ] A Transfer out of a `close` Hero lowers the Morale of their friends and no one else's
-- [ ] Both directions leave the validator satisfied and the fee balanced (sum of Wealth across
+- [x] A Transfer out of a `close` Hero lowers the Morale of their friends and no one else's
+- [x] Both directions leave the validator satisfied and the fee balanced (sum of Wealth across
       Guilds unchanged)
-- [ ] CLI `transfer --hero <id> --to <guildId>` and `transfer --hero <id> --in`
-- [ ] Fast forward stops with `transfer-offer` and the CLI shows the offer
+- [x] CLI `transfer --hero <id> --to <guildId>` and `transfer --hero <id> --in`
+- [x] Fast forward stops with `transfer-offer` and the CLI shows the offer
 
 ### M6-S3 · Transfer Generator · 1 session
 

@@ -260,7 +260,8 @@ describe('steady: recruiting', () => {
   // Ten Upkeeps, so that Wealth just above the threshold covers any signing fee; and no building,
   // which `steady` chooses first once its Wealth is three times the infirmary's cost (M3-S6). Both
   // on the row (DL-56). Negotiation still too (M4-S5): the fees are compared at the list price.
-  const noBuilding = { buildThreshold: 1_000_000 };
+  // Transfers stilled too (M6-S2, DL-57): a Rival that would hire weighs a Transfer before a recruit.
+  const noBuilding = { buildThreshold: 1_000_000, transferAppetite: 0 };
   const still = { negotiationRange: 0 };
   const deps = testDeps(still, withDispositions({ recruitThreshold: 10, ...noBuilding }));
 
@@ -354,8 +355,9 @@ describe('steady: recruiting', () => {
 });
 
 describe('steady: building (M3-S6)', () => {
-  // Pinned: three times the cost, and a recruit threshold low enough that recruiting is on offer.
-  const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1 }));
+  // Pinned: three times the cost, and a recruit threshold low enough that recruiting is on offer;
+  // Transfers stilled, which a Rival that would hire weighs before a recruit (M6-S2, DL-57).
+  const deps = testDeps({}, withDispositions({ buildThreshold: 3, recruitThreshold: 1, transferAppetite: 0 }));
   const purchases = (world: World, guild: Guild) => rivalChoices(world, guild, deps).filter((action) => action.kind !== 'dispatch');
 
   test("builds the infirmary's next grade, in place of a recruit, only while Wealth exceeds three times its cost", () => {
@@ -400,7 +402,8 @@ describe('steady: building (M3-S6)', () => {
 
 describe('rivalChoices', () => {
   test('dispatches, then recruits, as Action values a front end would produce', () => {
-    const { world, rival, deps } = scene('both');
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57).
+    const { world, rival, deps } = scene('both', testDeps({}, withDispositions({ transferAppetite: 0 })));
     rival.wealth = 100_000;
     rival.hall.infirmary = 3; // built to its top (M3-S6), so that its purchase is a recruit
 
@@ -484,7 +487,8 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
   });
 
   test("each Disposition recruits above its row's recruitThreshold of Upkeeps and builds above its buildThreshold times the cost", () => {
-    const deps = testDeps({ negotiationRange: 0 });
+    // Transfers stilled: a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57).
+    const deps = testDeps({ negotiationRange: 0 }, withDispositions({ transferAppetite: 0 }));
     for (const disposition of ['ambitious', 'miserly', 'reckless', 'steady']) {
       const { world, rival } = scene(`thresholds-${disposition}`, deps, disposition);
       const row = rowOf(rival, deps);
@@ -542,7 +546,9 @@ describe('one rule for every Disposition, reading its row (M6-S1)', () => {
       // 0.75 of the way along six: the fifth, 60; no other Disposition's place.
       expect(takenDifficulty(world, rival, deps)).toBe(60);
 
-      const purchase = () => rivalChoices(world, rival, deps).find((action) => action.kind === 'build' || action.kind === 'recruit');
+      // Transfers stilled for the purchase: a Rival that would hire weighs one first (M6-S2, DL-57).
+      const still = testDeps({ rivalCount: 5, negotiationRange: 0 }, withDispositions({ transferAppetite: 0 }, withFifth()));
+      const purchase = () => rivalChoices(world, rival, still).find((action) => action.kind === 'build' || action.kind === 'recruit');
       rival.wealth = 2.5 * 200;
       expect(purchase()?.kind).not.toBe('build');
       rival.wealth = 2.5 * 200 + 1;

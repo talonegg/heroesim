@@ -139,6 +139,25 @@ describe('parseArgs', () => {
     expect(command('sell', '--item', 'item-000002')).toEqual({ name: 'sell', save: 'current', item: 'item-000002' });
   });
 
+  test('reads transfer --to and --in, accept, decline and show offers (M6-S2)', () => {
+    expect(command('transfer', '--hero', 'hero-000003', '--to', 'guild-000002')).toEqual({
+      name: 'transfer',
+      save: 'current',
+      hero: 'hero-000003',
+      to: 'guild-000002',
+    });
+    expect(command('transfer', '--in', '--hero=hero-000009', '--save', 'demo')).toEqual({
+      name: 'transfer',
+      save: 'demo',
+      hero: 'hero-000009',
+      in: true,
+    });
+    expect(command('accept', '--offer', 'offer-000001')).toEqual({ name: 'accept', save: 'current', offer: 'offer-000001' });
+    expect(command('decline', '--offer=offer-000002')).toEqual({ name: 'decline', save: 'current', offer: 'offer-000002' });
+    expect(command('show', 'offers')).toEqual({ name: 'show', save: 'current', view: { kind: 'offers' } });
+    expect(command('advance', '--until', 'transfer-offer')).toEqual({ name: 'advance', save: 'current', until: ['transfer-offer'] });
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -173,7 +192,7 @@ describe('parseArgs', () => {
     [['advance', 'three'], 'does not take "three"'],
     [['advance', '--turns', '2', '--until', 'ended'], 'advance takes --turns, or --until and --max, not both'],
     [['advance', '--turns', '2', '--max', '5'], 'not both'],
-    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, ended, pool-refreshed, joined by commas; got "party-returned"'],
+    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, transfer-offer, ended, pool-refreshed, joined by commas; got "party-returned"'],
     [['advance', '--until', 'ended,,decision'], 'got ""'],
     [['advance', '--until', 'ended,ended'], '--until names ended twice'],
     [['advance', '--until', 'ended', '--max', '0'], '--max needs a whole number from 1; got "0"'],
@@ -206,6 +225,15 @@ describe('parseArgs', () => {
     [['sell', '--stack', 'item-000001'], '--stack needs a stack id such as stack-000001; got "item-000001"'],
     [['sell', '--item', 'healing-draught'], 'such as item-000001; got "healing-draught"'],
     [['sell', '--stack', 'stack-000001', '--quantity', 'all'], '--quantity needs a whole number from 1; got "all"'],
+    [['transfer', '--to', 'guild-000002'], 'transfer needs --hero'],
+    [['transfer', '--hero', 'hero-000001'], 'transfer takes --to <guildId> or --in, and one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--in', '--to', 'guild-000002'], 'one of them only'],
+    [['transfer', '--hero', 'hero-000001', '--to', 'hero-000002'], '--to needs a Guild id such as guild-000002; got "hero-000002"'],
+    [['transfer', '--hero', 'Brenna', '--in'], '--hero needs a Hero id such as hero-000001; got "Brenna"'],
+    [['transfer', '--hero', 'hero-000001', '--in=yes'], '--in takes no value'],
+    [['accept'], 'accept needs --offer'],
+    [['decline', '--offer', 'quest-000001'], '--offer needs an offer id such as offer-000001; got "quest-000001"'],
+    [['show', 'offers', 'extra'], 'does not take "extra"'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

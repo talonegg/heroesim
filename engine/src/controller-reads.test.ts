@@ -35,8 +35,10 @@ const acceptedReads: Record<string, { reads: number; why: string }> = {
   'controllers/rival.ts': {
     reads: 1,
     why:
-      "`rivalChoices`: reads a Guild's Disposition to run its rule — the same read `selectors.ts`'s own " +
-      "docstring names as the Rival controllers' (M2-S9, DL-30)",
+      "`chooser`: reads a Guild's Disposition to run its rule (`rivalChoices`) and to answer a Transfer " +
+      "asked of it (`transferAnswer`, M6-S2, DL-57): a Guild's consent is its choice, which comes from its " +
+      "Disposition or, for a Guild with none, from its controller through an offer — the same read " +
+      "`selectors.ts`'s own docstring names as the Rival controllers' (M2-S9, DL-30)",
   },
 };
 

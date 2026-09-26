@@ -4,25 +4,29 @@
 // player's rules and meets the player's rejections. A Disposition is a content row of weights
 // (`dispositions.json`), and one rule reads them for every Rival (M6-S1, DL-56): four named
 // Dispositions are four rows, not four code paths, and a fifth row plays with no change here. The
-// choices were DL-30's for `steady`; DL-56 turns them into weights.
+// choices were DL-30's for `steady`; DL-56 turns them into weights. M6-S2 adds Transfers: a Rival
+// seeks a Hero from another Guild, lets one go when in debt, and answers a Transfer asked of it by its
+// Disposition (`transferAnswer`, DL-57).
 //
 // A rule reads the world and writes nothing to it but the draws it takes from the `rivals`
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
-import { unavailability } from '../actions/dispatch.js';
+import { unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { gearChoices } from '../gear.js';
 import { streamOf } from '../generators/draw.js';
-import { pick } from '../rng.js';
+import { guildmasterOf } from '../guildmaster.js';
+import { chance, pick } from '../rng.js';
 import {
   affordableImprovement,
   baseStat,
   cheapestUnattached,
   dispositionOf,
   offeredQuests,
+  transferFee,
   upkeep,
 } from '../selectors.js';
 
@@ -35,30 +39,181 @@ import {
  * 2. dispatch to the Quest its `questRiskAppetite` prefers among those it can staff
  *    (`preferredQuest`), drawing from `rivals` to choose among Quests of the same difficulty;
  * 3. make one purchase: build the infirmary's next grade while its Wealth is above
- *    `buildThreshold` times that grade's cost (M3-S6), or else recruit the cheapest Unattached Hero
- *    who would sign while its Wealth is above `recruitThreshold` times its Upkeep.
+ *    `buildThreshold` times that grade's cost (M3-S6); or else, while it would hire (its Wealth above
+ *    `recruitThreshold` times its Upkeep and its Roster room enough by `transferAppetite`), seek the
+ *    Hero it wants from another Guild with the chance `transferAppetite`, one draw from `rivals`
+ *    (`transferChoice`, M6-S2): `transferIn` from a Guild whose Disposition consents, or a Transfer
+ *    Offer to a Guild whose controller answers for itself; or else recruit the cheapest Unattached
+ *    Hero who would sign while its Wealth is above `recruitThreshold` times its Upkeep; or else,
+ *    while it is in debt (`belowFloorSince`), transfer its dearest Hero at home to the Guild that
+ *    pays most for them and consents (`debtTransfer`, `transferOut`, M6-S2).
  *
  * At most one dispatch and one purchase an afternoon. The dispatch and the purchase do not depend on
  * each other: a dispatch moves no Wealth and a purchase sends no one, so both are chosen on the same
- * world; one purchase, so that the second never finds the Wealth the first spent.
+ * world (a Hero is transferred out only if the dispatch leaves them at home); one purchase, so that the second
+ * never finds the Wealth the first spent.
  *
  * None for the player's Guild, whose choices are the player's; none for a folded Guild, which has
  * left play (M2-S10); and none for a Disposition content does not define (data-model rule 5: the
  * validator warns, rules ignore it). It changes nothing in `world` but `world.rng.rivals`, which
- * advances one draw for each dispatch it chooses.
+ * advances one draw for each dispatch it chooses and one each time it weighs a Transfer.
  */
 export function rivalChoices(world: World, guild: Guild, deps: EngineDeps): GuildAction[] {
   if (guild.foldedOnTurn !== null) return [];
-  const key = dispositionOf(guild);
-  if (key === null || !Object.hasOwn(deps.content.dispositions, key)) return [];
-  const disposition = deps.content.dispositions[key] as Disposition;
+  const disposition = chooser(guild, deps.content);
+  if (disposition === 'own' || disposition === null) return [];
 
   const choices: GuildAction[] = [...gearChoices(world, guild, deps)];
   const quest = preferredQuest(world, guild, disposition, deps.content);
   if (quest !== null) choices.push(quest);
-  const purchase = infirmaryBuild(guild, disposition, deps) ?? cheapestHire(world, guild, disposition, deps);
+  const purchase =
+    infirmaryBuild(guild, disposition, deps) ??
+    transferChoice(world, guild, disposition, deps) ??
+    cheapestHire(world, guild, disposition, deps) ??
+    debtTransfer(world, guild, new Set(quest?.heroIds ?? []), deps);
   if (purchase !== null) choices.push(purchase);
   return choices;
+}
+
+/**
+ * What makes `guild`'s choices: its Disposition's row; `'own'` for a Guild with no Disposition,
+ * whose controller makes its own choices through the actions (the player's, ADR-0002); or `null` for
+ * a Disposition content does not define (data-model rule 5). The one place the Rival controllers
+ * read where a Guild's choices come from (`dispositionOf`, `plan.md` §1), for their own choices and
+ * for a Guild's answer to a Transfer asked of it (`transferAnswer`), which is a choice too.
+ */
+function chooser(guild: Pick<Guild, 'controller'>, content: Pick<ContentSet, 'dispositions'>): Disposition | 'own' | null {
+  const key = dispositionOf(guild);
+  if (key === null) return 'own';
+  return Object.hasOwn(content.dispositions, key) ? (content.dispositions[key] as Disposition) : null;
+}
+
+// ── Transfers (M6-S2, R28, DL-57) ──────────────────────────────────────────────────────────────
+
+/**
+ * Which way a Transfer asked of a Guild would go for it: `out`, a Hero of its Roster leaving it (what
+ * `transferIn` asks of the other Guild), or `in`, a Hero joining it (what `transferOut` asks).
+ */
+export type TransferSide = 'out' | 'in';
+
+/**
+ * Why a Guild refuses a Transfer asked of it:
+ * - `roster-size`: the Heroes it would keep through the deal times its `transferAppetite` are fewer
+ *   than one, too few for its appetite (an appetite of 0 never deals);
+ * - `wealth`: asked to take a Hero in, its Wealth is not above `recruitThreshold` times its Upkeep,
+ *   so it would not hire now;
+ * - `unknown-disposition`: its Disposition is not one content defines, and makes no choice (rule 5);
+ * - `answers-offers`: it has no Disposition; its controller answers for itself, through a Transfer
+ *   Offer (`offerTransfer`, then `acceptTransfer` or `declineTransfer`), never at once.
+ */
+export type TransferRefusalReason = 'roster-size' | 'wealth' | 'unknown-disposition' | 'answers-offers';
+
+/** How a Guild answers a Transfer asked of it now: it consents, or refuses and says why. */
+export type TransferAnswer = { consents: true } | { consents: false; because: TransferRefusalReason };
+
+/**
+ * Whether `guild` consents now to the `side` of a Transfer (M6-S2: "its disposition's
+ * `transferAppetite` and its Roster size allow", DL-57). A Guild with a Disposition answers by its
+ * row, the one rule for every Disposition:
+ *
+ * - it deals only while the Heroes it keeps through the deal (its Roster less the Hero when one goes
+ *   out, its whole Roster when one comes in) times `transferAppetite` reach one: an appetite of 0.25
+ *   lets a Hero go from a Roster of five and takes one into a Roster of four, 0.75 from three and into
+ *   two, and 1 lets any Hero go but its last;
+ * - it takes a Hero in only while it would recruit: its Wealth above `recruitThreshold` times its
+ *   Upkeep, as `cheapestHire` reads it. Whether it can pay the fee is the action's to check.
+ *
+ * A Guild with no Disposition answers `answers-offers`: its controller answers for itself, through an
+ * offer (ADR-0002: what differs is the controller). Reads, never writes, and draws nothing.
+ */
+export function transferAnswer(
+  world: Pick<World, 'heroes' | 'guildmasters'>,
+  guild: Guild,
+  side: TransferSide,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): TransferAnswer {
+  const disposition = chooser(guild, deps.content);
+  if (disposition === 'own') return { consents: false, because: 'answers-offers' };
+  if (disposition === null) return { consents: false, because: 'unknown-disposition' };
+  const kept = side === 'out' ? guild.rosterIds.length - 1 : guild.rosterIds.length;
+  if (!(kept * disposition.transferAppetite >= 1)) return { consents: false, because: 'roster-size' };
+  if (side === 'in' && !(guild.wealth > disposition.recruitThreshold * upkeep(guild, world, deps.config, deps.content))) {
+    return { consents: false, because: 'wealth' };
+  }
+  return { consents: true };
+}
+
+/** The Guilds in play but `guild`, in id order. */
+function otherGuilds(world: Pick<World, 'guilds'>, guild: Pick<Guild, 'id'>): Guild[] {
+  return Object.values(world.guilds)
+    .filter((other) => other.id !== guild.id && other.foldedOnTurn === null)
+    .sort((a, b) => compareByCodeUnit(a.id, b.id));
+}
+
+/** The Heroes on `guild`'s Roster a Transfer could move now, in Roster order: those in no Party. */
+function transferable(world: Pick<World, 'heroes'>, guild: Pick<Guild, 'rosterIds'>): Hero[] {
+  return guild.rosterIds.flatMap((heroId) => {
+    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    return hero !== undefined && hero.partyId === null ? [hero] : [];
+  });
+}
+
+/**
+ * A Transfer `guild` seeks this afternoon, or `null` (M6-S2, DL-57). Only while it would hire by its
+ * own answer (`transferAnswer`, `in`) and has no Transfer Offer of its own awaiting an answer. The
+ * Hero it wants is the dearest it can pay for (`transferFee` at its Guildmaster's Negotiation, the
+ * lowest Hero id among equal fees) among the Heroes in no Party on the Rosters of the other Guilds in
+ * play that would part with one: a Guild whose Disposition consents to let one go, or one that answers
+ * offers. When there is such a Hero, a draw from `rivals` decides, with the chance `transferAppetite`,
+ * whether it seeks them this afternoon, so that its appetite is the share of its hiring it does by
+ * Transfer; it does so by `transferIn` from a consenting Guild, or by a Transfer Offer to one that
+ * answers for itself (`offerTransfer`). No draw when there is no such Hero.
+ */
+function transferChoice(world: World, guild: Guild, disposition: Disposition, deps: EngineDeps): GuildAction | null {
+  if (!transferAnswer(world, guild, 'in', deps).consents) return null;
+  if (Object.values(world.offers).some((offer) => offer.toGuildId === guild.id)) return null;
+  const guildmaster = guildmasterOf(guild, world);
+  let wanted: { hero: Hero; fee: number; byOffer: boolean } | null = null;
+  for (const other of otherGuilds(world, guild)) {
+    const answer = transferAnswer(world, other, 'out', deps);
+    if (!answer.consents && answer.because !== 'answers-offers') continue;
+    for (const hero of transferable(world, other)) {
+      const fee = transferFee(hero, guildmaster, deps);
+      if (fee > guild.wealth) continue;
+      if (wanted === null || fee > wanted.fee || (fee === wanted.fee && compareByCodeUnit(hero.id, wanted.hero.id) < 0)) {
+        wanted = { hero, fee, byOffer: !answer.consents };
+      }
+    }
+  }
+  if (wanted === null || !chance(streamOf(world, 'rivals'), disposition.transferAppetite)) return null;
+  const heroId = wanted.hero.id;
+  return wanted.byOffer ? { kind: 'offerTransfer', guildId: guild.id, heroId } : { kind: 'transferIn', guildId: guild.id, heroId };
+}
+
+/**
+ * A Transfer out `guild` makes to pay its way while it is in debt (`belowFloorSince` set, M2-S7), or
+ * `null` (M6-S2, DL-57): only when its own Disposition would let a Hero go (`transferAnswer`, `out`),
+ * its dearest Hero in no Party and not in `dispatched`, to the Guild in play that consents to take
+ * them in, can pay, and pays most, by `transferOut`: the dearest fee first, then the lowest Hero id,
+ * then the lowest Guild id. A Guild that answers offers is never offered one, since that would need
+ * an offer the other way, which the first build does not make. Draws nothing.
+ */
+function debtTransfer(world: World, guild: Guild, dispatched: ReadonlySet<HeroId>, deps: EngineDeps): GuildAction | null {
+  if (guild.belowFloorSince === null || !transferAnswer(world, guild, 'out', deps).consents) return null;
+  const heroes = transferable(world, guild).filter((hero) => !dispatched.has(hero.id));
+  let best: { heroId: HeroId; toGuildId: Guild['id']; fee: number } | null = null;
+  for (const other of otherGuilds(world, guild)) {
+    if (!transferAnswer(world, other, 'in', deps).consents) continue;
+    const guildmaster = guildmasterOf(other, world);
+    for (const hero of heroes) {
+      const fee = transferFee(hero, guildmaster, deps);
+      if (fee > other.wealth) continue;
+      if (best === null || fee > best.fee || (fee === best.fee && compareByCodeUnit(hero.id, best.heroId) < 0)) {
+        best = { heroId: hero.id, toGuildId: other.id, fee };
+      }
+    }
+  }
+  return best === null ? null : { kind: 'transferOut', guildId: guild.id, heroId: best.heroId, toGuildId: best.toGuildId };
 }
 
 /**
@@ -100,7 +255,7 @@ export function staffableQuests(
  * it can staff at that difficulty is a candidate, in Quest id order, and one draw from `rivals`
  * picks among them, one draw however many there are. The Party is `partyFor`'s.
  */
-function preferredQuest(world: World, guild: Guild, disposition: Disposition, content: ContentSet): GuildAction | null {
+function preferredQuest(world: World, guild: Guild, disposition: Disposition, content: ContentSet): DispatchAction | null {
   const available = availableHeroes(world, guild);
   if (available.length === 0) return null;
   const staffable: { quest: Quest; heroIds: HeroId[] }[] = [];

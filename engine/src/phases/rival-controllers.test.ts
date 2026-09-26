@@ -49,10 +49,15 @@ const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test'
  * the balance passes raised both (DL-35, DL-41) and M6-S1 moved the threshold into the rows (DL-56).
  * Building is put out of reach unless a test asks for it, at three times the cost, since a Rival
  * builds its infirmary in place of a recruit once its Wealth is above its `buildThreshold` times the
- * cost (M3-S6, DL-38), which a starting Rival's may be.
+ * cost (M3-S6, DL-38), which a starting Rival's may be. Transfers are stilled (`transferAppetite` 0):
+ * a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57), which these tests do not
+ * watch; controllers/rival.test.ts shows that weighing one draws from `rivals` alone.
  */
 const recruitingDeps = (building = false): EngineDeps =>
-  testDeps({ wagePerLevel: 5 }, withDispositions({ recruitThreshold: 3, buildThreshold: building ? 3 : 1_000_000 }));
+  testDeps(
+    { wagePerLevel: 5 },
+    withDispositions({ recruitThreshold: 3, buildThreshold: building ? 3 : 1_000_000, transferAppetite: 0 }),
+  );
 
 afterEach(() => {
   vi.mocked(applyDispatch).mockClear();

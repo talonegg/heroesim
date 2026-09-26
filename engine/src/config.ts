@@ -8,7 +8,7 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S5 Loot (DL-52). Every "Min/Max" pair is an inclusive range drawn with `int`. A
+// gear slots (DL-48); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every "Min/Max" pair is an inclusive range drawn with `int`. A
 // field holding an object or a list is frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
@@ -326,6 +326,32 @@ export interface GameConfig {
   /** Added (negative) for each such Hero after a failure. */
   guildmasterRegardOnHeroFailure: number;
 
+  // ── Transfers (M6-S2, R28, INPUTS 7.6, pre-M0 review D5, DL-57) ────────────────────────────
+  /**
+   * A Transfer fee is the Hero's signing fee before Negotiation (`signingFee`'s list price) times
+   * this, times the buying Guildmaster's Negotiation, rounded down once (`transferFee`; INPUTS 7.6:
+   * two signing fees).
+   */
+  transferFeeFactor: number;
+  /**
+   * Added (negative) to the Morale of each Hero who stays on the Roster the Hero transferred leaves, whose own
+   * Regard for the Hero transferred is in `transferRegardBand` or above (INPUTS 7.6: −15; pre-M0
+   * review D5: pairwise, not the Roster's mean). `hero.morale-changed` only on a band crossing.
+   */
+  transferMoraleCost: number;
+  /** The lowest Regard band whose holders pay `transferMoraleCost` (D5: `warm` or above). */
+  transferRegardBand: RegardBand;
+  /**
+   * Added to each of the two Guildmasters' Regard for the other when a Transfer between their Guilds
+   * is made (R9; Guildmaster Regard's third writer, after M4-S5's Patrons and Heroes).
+   */
+  guildmasterRegardPerTransferDeal: number;
+  /**
+   * Days a Transfer Offer stands, the Day it is made included: it expires on that last Day's night
+   * and is removed then, with `guild.transfer-offer-expired`, unless answered first.
+   */
+  transferOfferDays: number;
+
   // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
   /**
    * The gear slots every Hero has, in the order a front end lists them: each one of content's
@@ -493,6 +519,12 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRegardOnPatronFailure: -1,
   guildmasterRegardOnHeroSuccess: 1,
   guildmasterRegardOnHeroFailure: -1,
+
+  transferFeeFactor: 2,
+  transferMoraleCost: -15,
+  transferRegardBand: 'warm',
+  guildmasterRegardPerTransferDeal: 2,
+  transferOfferDays: 3,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 

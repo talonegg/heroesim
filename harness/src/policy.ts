@@ -17,6 +17,7 @@ import {
   itemDefinition,
   marketStock,
   offeredQuests,
+  offersTo,
   partyFor,
   playerGuild,
   upkeep,
@@ -54,9 +55,12 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
 });
 
 /**
- * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54): equip,
- * dispatch, then one purchase.
+ * What the player's Guild does now, in the order to apply them (INPUTS 4.14, DL-34, DL-54, DL-57):
+ * decline, equip, dispatch, then one purchase.
  *
+ * - **Decline every Transfer Offer** made for one of its Heroes, in offer id order, first (M6 risk
+ *   table: "the policy declines all offers in M6"; a smarter policy is a DL after the M6 counters are
+ *   seen). Declining moves nothing else, so the choices after it are made on the same document.
  * - **Equip** the gear the Guild holds onto its Heroes whose slot for it is empty, first, while
  *   they are home: the engine's `gearChoices`, the rule `steady` equips by (M5-S2, DL-49).
  * - **Dispatch.** The offered Quests on the Board by reward, highest first, then Quest id; to each
@@ -76,7 +80,8 @@ export const defaultPolicyConfig: Readonly<PolicyConfig> = Object.freeze({
  *     `recruitWealthMultiple` Upkeeps: the cheapest Hero in the Unattached pool who would sign for
  *     the Guild, lowest id among equal fees (the engine's `cheapestUnattached`, as `steady` recruits,
  *     M3-S5), if Wealth covers the fee. A Hero who would refuse the Guild's Fame is passed over.
- * - **Never transfer** (until M6).
+ * - **Never transfers** a Hero in or out itself (M6-S2): the harness plays the Guild as INPUTS 4.14
+ *   describes it, and Rivals' offers are declined above.
  *
  * Each choice is made on `document` as it stands: equipping moves no Wealth and sends no one, a
  * dispatch moves no Wealth and a purchase sends no one, and there is one purchase, so the choices
@@ -92,7 +97,10 @@ export function automaticPolicy(
   const guild = playerGuild(world);
   if (world.ended !== null || guild === undefined || guild.foldedOnTurn !== null) return [];
 
-  const actions: GuildAction[] = [...gearChoices(world, guild, deps)];
+  const actions: GuildAction[] = [
+    ...offersTo(world, guild.id).map((offer): GuildAction => ({ kind: 'declineTransfer', guildId: guild.id, offerId: offer.id })),
+    ...gearChoices(world, guild, deps),
+  ];
   let available = availableHeroes(world, guild);
   for (const quest of byReward(document)) {
     if (available.length === 0) break;

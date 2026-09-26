@@ -6,6 +6,7 @@ import {
   type GuildId,
   type HeroId,
   type ItemId,
+  type OfferId,
   type PartyId,
   type QuestId,
   type StackId,
@@ -27,12 +28,17 @@ const guildmasterId = 'guildmaster-000002';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
+const rivalId = 'guild-000003' as GuildId;
+const offerId = 'offer-000001' as OfferId;
+/** A Transfer Offer's terms (M6-S2): the Rival asks The Kestrel Guild for Brenna. */
+const terms = { offerId, fromGuildId: guildId, toGuildId: rivalId, heroId, fee: 420 };
 
 const labels: Record<string, string> = {
   [guildId]: 'The Kestrel Guild',
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [rivalId]: 'The Iron Wardens',
   [otherHeroId]: 'Aldred Barrowby',
 };
 
@@ -218,6 +224,22 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     itemIds: ['item-000002' as never],
     cause: 'fold',
   }),
+  'hero.transferred': event('hero.transferred', [heroId, guildId, rivalId, offerId], {
+    heroId,
+    fromGuildId: guildId,
+    toGuildId: rivalId,
+    fee: 420,
+    offerId,
+  }),
+  'guild.transfer-offered': event('guild.transfer-offered', [offerId, heroId, guildId, rivalId], {
+    ...terms,
+    expiresOnTurn: 23,
+  }),
+  'guild.transfer-offer-declined': event('guild.transfer-offer-declined', [offerId, heroId, guildId, rivalId], terms),
+  'guild.transfer-offer-expired': event('guild.transfer-offer-expired', [offerId, heroId, guildId, rivalId], {
+    ...terms,
+    cause: 'expired',
+  }),
 };
 
 describe('narrate', () => {
@@ -341,6 +363,29 @@ describe('narrate', () => {
   });
 });
 
+describe('Transfers (M6-S2)', () => {
+  test('names who moved, between which Guilds, for how much, and what became of each offer', () => {
+    expect(narrate(samples['hero.transferred'], content)).toBe(
+      'The Iron Wardens took Brenna Ashcombe (hero-000007) from The Kestrel Guild for 420 Wealth, accepting offer-000001.',
+    );
+    const direct = { ...samples['hero.transferred'], payload: { ...samples['hero.transferred'].payload, offerId: null } };
+    expect(narrate(direct, content)).toBe('The Iron Wardens took Brenna Ashcombe (hero-000007) from The Kestrel Guild for 420 Wealth.');
+    expect(narrate(samples['guild.transfer-offered'], content)).toBe(
+      'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe (hero-000007) (offer-000001), until the night of Day 7.',
+    );
+    expect(narrate(samples['guild.transfer-offer-declined'], content)).toBe(
+      "The Kestrel Guild declined The Iron Wardens's offer for Brenna Ashcombe (hero-000007) (offer-000001).",
+    );
+    const expired = (cause: 'expired' | 'hero-left' | 'guild-folded') =>
+      narrate({ ...samples['guild.transfer-offer-expired'], payload: { ...samples['guild.transfer-offer-expired'].payload, cause } }, content);
+    expect(expired('expired')).toBe("The Iron Wardens's offer for Brenna Ashcombe (hero-000007) (offer-000001) expired unanswered.");
+    expect(expired('hero-left')).toMatch(/lapsed: the Hero left that Roster\.$/);
+    expect(expired('guild-folded')).toMatch(/lapsed as a Guild folded\.$/);
+    const transferred = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'transferred' as const } };
+    expect(narrate(transferred, content)).toMatch(/from Brenna Ashcombe \(hero-000007\), who was transferred\.$/);
+  });
+});
+
 describe('the Market (M5-S4)', () => {
   test('names what was bought and sold, how many, and the Wealth that changed hands', () => {
     const sold = narrate(
@@ -367,8 +412,9 @@ describe('the Market (M5-S4)', () => {
 describe('narrateStop', () => {
   const document = {
     world: {
-      guilds: { [guildId]: { name: 'The Kestrel Guild' } },
+      guilds: { [guildId]: { name: 'The Kestrel Guild' }, [rivalId]: { name: 'The Iron Wardens' } },
       heroes: { [heroId]: { name: 'Brenna Ashcombe' } },
+      offers: { [offerId]: { id: offerId, kind: 'transfer', ...terms, offeredOnTurn: 16, expiresOnTurn: 23 } },
     },
   } as unknown as WorldDocument;
 
@@ -382,6 +428,11 @@ describe('narrateStop', () => {
     [
       { kind: 'decision-needed', guildId, questIds: [questId, 'quest-000008' as QuestId, 'quest-000009' as QuestId] },
       "Stopped: a decision is needed: The Kestrel Guild has no Party out, and could send one on quest-000003, quest-000008 and quest-000009 (show board).",
+    ],
+    [
+      { kind: 'transfer-offer', guildId, offerIds: [offerId] },
+      'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
+        '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId] }, 'Stopped: new in the Unattached pool: Brenna Ashcombe (hero-000007) (show pool).'],
