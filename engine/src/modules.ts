@@ -114,14 +114,16 @@ export interface ModuleContext extends SliceContext {
   turn: Turn;
   /**
    * Makes one of the module's own events, typed `<module id>.<what-happened>` and by the module, not
-   * the engine (`ModuleEvent`, `moduleEventEmitter`); not a Milestone unless the draft says so.
+   * the engine (`ModuleEvent`, `moduleEventEmitter`); not a Milestone unless the draft says so. The
+   * event is the History's copy, frozen, its payload copied from the draft's (DL-80).
    */
   emit: ModuleEmit;
   /** The core's selectors over the Turn's world. */
   select: ModuleSelectors;
   /**
    * The only way the module changes a core table (effects.ts): each effect runs the core's own rule
-   * and returns the core's own events, which the hook must return among its events.
+   * and returns the core's own events, frozen as the History keeps them (DL-80), which the hook must
+   * return among its events.
    */
   effects: ModuleEffects;
 }
@@ -155,17 +157,24 @@ export interface SliceFailure {
  * run. It owns its slice: it makes it, migrates and validates it, and at its hooks changes it in
  * place, in the Turn's copy of the World State. The slice is JSON-safe (data-model rule 6).
  *
- * Every method is called with the module as `this`. A hook, `createSlice` or `validateSlice` that
- * throws is a programming error in the module: `ModuleError` names it (`migrateSlice` and
- * `validateSlice` reading a save refuse the load instead, since a save is outside the engine's
- * control).
+ * Every method is called with the module as `this`. A hook or `createSlice` that throws is a
+ * programming error in the module: `ModuleError` names it. A `migrateSlice` or `validateSlice` that
+ * throws refuses the document instead, as a `module-slice` failure naming the module, since the
+ * validator never throws and a save is outside the engine's control.
+ *
+ * What a call is given lasts for that call (M8 verification, DL-80): its `ctx` throws once it has
+ * returned, and the events it is handed are the History's own, frozen. A module keeps nothing
+ * between calls but its slice, which it reads from its argument each time: a slice, a world or a
+ * context kept from an earlier call belongs to a document the engine has already handed back.
  */
 export interface Module<Slice = unknown> {
   /** The key of its slice, unique among the installed modules. */
   readonly id: ModuleId;
   /**
-   * The name of its random stream, when it draws: unique, neither a core stream's name nor empty,
-   * and without `:`. Seeded from the master seed and this name alone, as a core stream is.
+   * The name of its random stream, when it draws: neither a core stream's name nor another
+   * installed module's (`installedModules` refuses both), and neither empty nor with `:`
+   * (`createStreams` refuses both as it makes the stream). Seeded from the master seed and this name
+   * alone, as a core stream is.
    */
   readonly streamName?: string;
   /** Its slice for a world that has none: a new world's, or a save's made before it was installed. */
@@ -255,8 +264,13 @@ export function ensureModules(world: World, seed: string, deps: EngineDeps): voi
       Object.assign(streams, createStreams(seed, [streamName]));
     }
     if (Object.hasOwn(world.modules, id)) continue;
-    const ctx: SliceContext = { ...readOnlyDeps(deps), turn: world.turn, rng: randomOf(module, world) };
-    world.modules[id] = guarded(module, 'createSlice', () => module.createSlice(ctx));
+    const call = openCall(module);
+    const ctx: SliceContext = { ...readOnlyDeps(deps), turn: world.turn, rng: randomOf(module, world, call) };
+    try {
+      world.modules[id] = guarded(module, 'createSlice', () => module.createSlice(ctx));
+    } finally {
+      call.close();
+    }
   }
 }
 
@@ -274,11 +288,37 @@ function guarded<Result>(module: Module, during: HookName | 'createSlice', work:
   }
 }
 
-/** The module's own stream in `world`, bound; one whose every draw throws when it registered none. */
-function randomOf(module: Module, world: World): ModuleRandom {
+/**
+ * One call of a module's (a hook, or `createSlice`): what it is given works until the call returns
+ * and throws after, so a module that keeps its `ctx` cannot use it later, on a world that is by then
+ * a document the engine has handed back, or from another module's hook (M8 verification, DL-80).
+ */
+interface ModuleCall {
+  /** Throws once the call has returned. */
+  check(): void;
+  close(): void;
+}
+
+function openCall(module: Module): ModuleCall {
+  let open = true;
+  return {
+    check: () => {
+      if (!open) {
+        throw new RangeError(`The ${module.id} module's context was used after the call it was given to returned: a ctx lasts for its call`);
+      }
+    },
+    close: () => {
+      open = false;
+    },
+  };
+}
+
+/** The module's own stream in `world`, bound for `call`; one whose every draw throws when it registered none. */
+function randomOf(module: Module, world: World, call: ModuleCall): ModuleRandom {
   const { streamName } = module;
   const state = streamName === undefined ? undefined : streamsOf(world)[streamName];
   const stream = (): Stream => {
+    call.check();
     if (state === undefined) throw new RangeError(`The ${module.id} module registered no stream to draw from`);
     return state;
   };
@@ -312,10 +352,16 @@ export function hookPhase(hook: HookName): (world: World, ctx: PhaseContext) => 
       if (run === undefined) continue;
       const made = new Set<TurnEvent>();
       const fromEffects = new Set<EngineEvent>();
-      const moduleCtx = hookContext(module, world, view, ctx, deps, { made, fromEffects });
-      const result = guarded(module, hook, () =>
-        checkedResult(module, run.call(module, view, world.modules[module.id], moduleCtx), made, fromEffects),
-      );
+      const call = openCall(module);
+      const moduleCtx = hookContext(module, world, view, ctx, deps, { made, fromEffects }, call);
+      let result: CheckedResult;
+      try {
+        result = guarded(module, hook, () =>
+          checkedResult(module, run.call(module, view, world.modules[module.id], moduleCtx), made, fromEffects),
+        );
+      } finally {
+        call.close();
+      }
       events.push(...result.events);
       if (result.stop !== undefined) ctx.moduleStops.push(result.stop);
     }
@@ -329,7 +375,14 @@ interface Made {
   fromEffects: Set<EngineEvent>;
 }
 
-/** The context `module`'s hook is given on `world`, the Turn's copy, seen as `view`. */
+/**
+ * The context `module`'s hook is given on `world`, the Turn's copy, seen as `view`, for `call`: each
+ * of its functions throws once the hook has returned.
+ *
+ * Every event it hands the hook, from `emit` or an effect, is settled (`settled`): the History's own
+ * copy, frozen, so what the hook returns is what the core made, and no module can retype or rewrite
+ * an event, its own or an effect's, before it returns it or in a later Turn (M8 verification, DL-80).
+ */
 function hookContext(
   module: Module,
   world: World,
@@ -337,6 +390,7 @@ function hookContext(
   ctx: PhaseContext,
   deps: Pick<SliceContext, 'config' | 'content'>,
   { made, fromEffects }: Made,
+  call: ModuleCall,
 ): ModuleContext {
   const moduleEmit = moduleEventEmitter(world, module.id);
   const effectCtx = {
@@ -350,37 +404,67 @@ function hookContext(
   return {
     ...deps,
     turn: ctx.turn,
-    rng: randomOf(module, world),
+    rng: randomOf(module, world, call),
     emit: (draft) => {
-      const event = moduleEmit(draft);
+      call.check();
+      const event = settled(moduleEmit(draft));
       made.add(event);
       return event;
     },
-    select: selectorsOver(view, ctx),
+    select: selectorsOver(view, ctx, call),
     effects: effectsApi((effect) => {
+      call.check();
       const result = applyEffect(world, effect, effectCtx);
-      if (result.ok) {
-        for (const event of result.events) {
-          made.add(event);
-          fromEffects.add(event);
-        }
+      if (!result.ok) return result;
+      const events = result.events.map(settled);
+      for (const event of events) {
+        made.add(event);
+        fromEffects.add(event);
       }
-      return result;
+      return { ok: true, effect: result.effect, events };
     }),
   };
 }
 
 /**
+ * `event` as the History keeps it from a module's hook: a copy of its JSON data (a view of the world
+ * in a module's payload read through into plain data), every object and list in it frozen, so that
+ * nothing the module keeps can change it. A value that is not JSON data (a `Date`, a function) is
+ * left as it is, for the validator to refuse (data-model rule 6, DL-18).
+ */
+function settled<Event extends TurnEvent>(event: Event): Event {
+  return frozenCopy(event) as Event;
+}
+
+function frozenCopy(value: unknown): unknown {
+  if (typeof value !== 'object' || value === null) return value;
+  if (Array.isArray(value)) return Object.freeze(Array.from(value as unknown[], frozenCopy));
+  const prototype: unknown = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) return value;
+  const copy: Record<string, unknown> = {};
+  for (const key of Object.keys(value)) copy[key] = frozenCopy((value as Record<string, unknown>)[key]);
+  return Object.freeze(copy);
+}
+
+/** A hook's result once `checkedResult` has read it: its events and its stop, the core's own copies. */
+interface CheckedResult {
+  events: TurnEvent[];
+  stop?: ModuleStopReason;
+}
+
+/**
  * `result` once it keeps the contract (`ModuleResult`): its events each made by this call, once;
  * every event its effects made among them; and its stop, if any, the module's own. Throws otherwise:
- * a programming error in the module, which `hookPhase` reports as a `ModuleError`.
+ * a programming error in the module, which `hookPhase` reports as a `ModuleError`. Its events are
+ * read once and its stop is copied, so nothing the module keeps changes what the Turn reports.
  */
-function checkedResult(module: Module, result: ModuleResult, made: Set<TurnEvent>, fromEffects: Set<EngineEvent>): ModuleResult {
+function checkedResult(module: Module, result: ModuleResult, made: Set<TurnEvent>, fromEffects: Set<EngineEvent>): CheckedResult {
   if (typeof result !== 'object' || result === null || !Array.isArray(result.events)) {
     throw new TypeError('A hook returns { events, stop? }');
   }
+  const events = [...result.events];
   const returned = new Set<TurnEvent>();
-  for (const event of result.events) {
+  for (const event of events) {
     if (!made.has(event) || returned.has(event)) {
       throw new RangeError(`It returned an event it did not make in this hook, or one twice: ${String(event?.type)}`);
     }
@@ -390,14 +474,15 @@ function checkedResult(module: Module, result: ModuleResult, made: Set<TurnEvent
     if (!returned.has(event)) throw new RangeError(`It applied an effect and left out its event ${event.type}`);
   }
   const { stop } = result;
-  if (stop !== undefined && (stop.kind !== 'module' || stop.moduleId !== module.id)) {
+  if (stop === undefined) return { events };
+  if (stop.kind !== 'module' || stop.moduleId !== module.id) {
     throw new RangeError(`A module's stop is { kind: 'module', moduleId: '${module.id}' }; got ${JSON.stringify(stop)}`);
   }
-  return result;
+  return { events, stop: { kind: 'module', moduleId: module.id } };
 }
 
-/** The core's selectors bound to `view`, the Turn's world, and `ctx`'s rules and content. */
-function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext): ModuleSelectors {
+/** The core's selectors bound to `view`, the Turn's world, and `ctx`'s rules and content, for `call`. */
+function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext, call: ModuleCall): ModuleSelectors {
   // The selectors read and never write, so the view serves as the world they are written against.
   const world = view as unknown as World;
   const { config, content, turn } = ctx;
@@ -413,7 +498,7 @@ function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext): ModuleSelectors 
     }
     throw new RangeError(`${id} holds no Regard in the world`);
   };
-  return {
+  const selectors: ModuleSelectors = {
     unattachedHeroes: () => unattachedHeroes(world),
     offeredQuests: () => offeredQuests(world),
     rankings: (by) => rankings(world, by),
@@ -423,6 +508,15 @@ function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext): ModuleSelectors 
     regard: (holderId, entityId) => regardValue(holderOf(holderId).regard, entityId),
     age: (personId) => ageOf(Object.hasOwn(world.heroes, personId) ? row(world.heroes, personId) : row(world.guildmasters, personId), turn, config),
   };
+  // Each selector works for the call it was given to, as the rest of the context does.
+  const bound = Object.entries(selectors).map(([name, select]: [string, (...args: never[]) => unknown]) => [
+    name,
+    (...args: never[]) => {
+      call.check();
+      return select(...args);
+    },
+  ]);
+  return Object.fromEntries(bound) as unknown as ModuleSelectors;
 }
 
 // ── Loading and validating ───────────────────────────────────────────────────────────────────

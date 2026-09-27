@@ -4,7 +4,7 @@
 **Sessions:** 4–6 · **Depends on:** M7 · **Implements:** `plan.md` M8; N6; ADR-0005 as amended 2026-09-25; `data-model.md` §3.4
 **Gate:** the module contract exists; a test-only probe module registers a slice, a stream and all three hooks, changes core tables only through the effects API, and requests a stop; the harness with no module installed is byte-identical to M7's tagged run
 
-**Status:** in progress — M8-S1 to M8-S4 done
+**Status:** in progress — M8-S1 to M8-S4 done, and the corrections from M8's verification (DL-80); the close's tagged run and the tag remain (DL-81)
 
 ## 0. What lands in M8
 
@@ -91,9 +91,11 @@ the only writer of its rows.
 - [x] The `effects` API is the only way a module can change a Hero: a module that assigns
       `world.heroes[id].morale` directly fails the frozen-world test —
       `engine/src/module-hooks.test.ts`: that assignment is a type error and, at run time, fails the
-      Turn with a `ModuleError` naming the module and leaves the document as it was, as do eight
-      other writes; `ctx.effects.adjustMorale` makes the change with its event; each effect is tested
-      in `engine/src/effects.test.ts` (DL-77)
+      Turn with a `ModuleError` naming the module and leaves the document as it was, as do the
+      nineteen other writes of its table (nine at M8-S2; a define, a prototype and an extensibility
+      change, a freeze and six writes through a property's descriptor since DL-80) and a write through
+      a descriptor to rules and to content that are not frozen; `ctx.effects.adjustMorale` makes the
+      change with its event; each effect is tested in `engine/src/effects.test.ts` (DL-77, DL-80)
 - [x] Hook order among several modules is registration order, tested with two spies —
       `engine/src/module-hooks.test.ts`: two spy modules registered each way round are called in
       that order at all three hooks, and their events follow it (DL-77)
@@ -155,10 +157,12 @@ sessions actually spent. `plan.md` §4's first line — Random Events — become
       `web/e2e/modules.spec.ts` in the built page at both widths (`npm run e2e -w web`, 20 of 20).
       Both narration maps give any module event type one generic sentence, never a crash
       (`cli/src/narrate.test.ts`, `web/src/state/narrate.test.ts`) (DL-79)
-- [ ] The M8 tag exists; `plan.md` says the first build is complete and when — `plan.md` §2 now says
-      the first build was completed on 2026-09-27, tagged `m8-modules`, with Random Events next, and
-      ADR-0005's amendment has its closing line; the tag is the orchestrator's, made after the M8
-      close's tagged run (DL-81), so this box is left for it (DL-79)
+- [ ] The M8 tag exists; `plan.md` says the first build is complete and when — `plan.md` §2 says the
+      first build is complete when M8 is tagged `m8-modules`, with Random Events next, and ADR-0005's
+      amendment has its closing line; the tag is the orchestrator's, made after the M8 close's tagged
+      run (DL-81), which writes the tag's date into `plan.md` (the M8 row, the line under the table and
+      §4), ADR-0005's closing line and the README's line on the first build, so this box is left for
+      it (DL-79, DL-80)
 
 ## 2. Configuration and events introduced
 

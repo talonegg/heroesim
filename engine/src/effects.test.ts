@@ -51,20 +51,26 @@ interface Played {
  * Turn 1, the first afternoon, of a new world of `seed` in which the module applies `apply`'s
  * effects at its afternoon hook; the document after it validated.
  */
-function onFirstAfternoon(seed: string, apply: Apply): Played {
+function onFirstAfternoon(seed: string, apply: Apply, prepare: (document: WorldDocument) => void = () => {}): Played {
   const results: EffectResult[] = [];
   const deps: EngineDeps = { ...testDeps(), modules: [effectModule(apply, results)] };
-  const before = withValid(createWorld(seed, setup, deps).document, deps);
+  const created = createWorld(seed, setup, deps).document;
+  prepare(created);
+  const before = withValid(created, deps);
   const snapshot = structuredClone(before);
   const turn = advance(before, deps);
   return { before: snapshot, after: withValid(turn.document, deps), events: turn.events, results, deps };
 }
 
-/** The night after a built document's Turn (fixtureTurn, an afternoon), the module applying `apply`'s effects. */
-function onBuiltNight(apply: Apply): Played & { ids: FixtureIds } {
+/**
+ * The night after a built document's Turn (fixtureTurn, an afternoon), the module applying `apply`'s
+ * effects; `prepare` may change the built document first.
+ */
+function onBuiltNight(apply: Apply, prepare: (document: WorldDocument, ids: FixtureIds) => void = () => {}): Played & { ids: FixtureIds } {
   const results: EffectResult[] = [];
   const deps: EngineDeps = { ...testDeps(), modules: [effectModule(apply, results, 'onNight')] };
   const { document, ids } = buildDocument();
+  prepare(document, ids);
   const before = structuredClone(document);
   const turn = advance(document, deps);
   return { before, after: turn.document, events: turn.events, results, deps, ids };
@@ -145,6 +151,29 @@ describe('adjustMorale', () => {
 
     expect(only(results)).toEqual({ ok: false, rejection: { effect: 'adjustMorale', reason: 'hero-gone' } });
     expect(after.world.heroes[ids.deadHero]?.morale).toBe(before.world.heroes[ids.deadHero]?.morale);
+  });
+
+  // Out of play is dead, retired, or gone from the pool with the row kept (DL-27): each is refused.
+  test.each<[string, (hero: Hero) => void]>([
+    ['retired', (hero) => Object.assign(hero, { diedOnTurn: null, retiredOnTurn: 30 })],
+    ['gone from the pool', (hero) => Object.assign(hero, { guildId: null, unattachedSince: null, leftPoolOnTurn: 30 })],
+  ])('refuses a Hero %s as it refuses a dead one, in each effect that reads a Hero, changing nothing', (_what, gone) => {
+    const { deadHero, partyHero } = buildDocument().ids;
+    const { results, before, after } = onBuiltNight(
+      (_world, ctx) => [
+        ctx.effects.adjustMorale({ heroId: deadHero, delta: 5 }),
+        ctx.effects.adjustRegard({ holderId: deadHero, entityId: partyHero, delta: 10 }),
+        ctx.effects.injure({ heroId: deadHero, typeKey: 'deep-cut', days: 6 }),
+      ],
+      (document) => gone(document.world.heroes[deadHero] as Hero),
+    );
+
+    expect(results).toEqual([
+      { ok: false, rejection: { effect: 'adjustMorale', reason: 'hero-gone' } },
+      { ok: false, rejection: { effect: 'adjustRegard', reason: 'holder-gone' } },
+      { ok: false, rejection: { effect: 'injure', reason: 'hero-gone' } },
+    ]);
+    expect(after.world.heroes[deadHero]).toEqual(before.world.heroes[deadHero]);
   });
 
   test.each([
@@ -273,10 +302,35 @@ describe('adjustRegard', () => {
     expect(after.world.heroes[ids.deadHero]?.regard).toEqual(before.world.heroes[ids.deadHero]?.regard);
   });
 
+  test("refuses the Guildmaster of a folded Guild as a holder, changing nothing", () => {
+    let guildmasterId = '';
+    let patronId = '';
+    const { results, before, after } = onFirstAfternoon(
+      'regard-folded',
+      (world, ctx) => {
+        guildmasterId = world.guilds[foldedIn(world)]?.guildmasterId as string;
+        patronId = Object.keys(world.patrons)[0] as string;
+        return [ctx.effects.adjustRegard({ holderId: guildmasterId as never, entityId: patronId as never, delta: 10 })];
+      },
+      (document) => {
+        // Folded as the ending checks fold a Guild: its Heroes to the pool, its Roster empty.
+        const rival = Object.values(document.world.guilds).find((row) => row.controller.kind === 'rival') as Guild;
+        for (const heroId of rival.rosterIds) Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: 0 });
+        rival.rosterIds = [];
+        rival.foldedOnTurn = 0;
+      },
+    );
+
+    expect(only(results)).toEqual({ ok: false, rejection: { effect: 'adjustRegard', reason: 'holder-gone' } });
+    expect(after.world.guildmasters[guildmasterId as never]?.regard).toEqual(before.world.guildmasters[guildmasterId as never]?.regard);
+  });
+
   test.each<[string, (world: ReadonlyWorld) => { holderId: string; entityId: string }]>([
     ['a Patron holding Regard for a Hero', (world) => ({ holderId: Object.keys(world.patrons)[0] as string, entityId: rosterHero(world) })],
     ['a Guildmaster holding Regard for a Guild', (world) => ({ holderId: Object.values(world.guilds)[0]?.guildmasterId as string, entityId: Object.keys(world.guilds)[0] as string })],
     ['a Hero holding Regard for itself', (world) => ({ holderId: rosterHero(world), entityId: rosterHero(world) })],
+    ['a Hero holding Regard for a Patron', (world) => ({ holderId: rosterHero(world), entityId: Object.keys(world.patrons)[0] as string })],
+    ['a Hero holding Regard for a Guild', (world) => ({ holderId: rosterHero(world), entityId: Object.keys(world.guilds)[0] as string })],
     ['a Guild as the holder', (world) => ({ holderId: Object.keys(world.guilds)[0] as string, entityId: Object.keys(world.patrons)[0] as string })],
     ['an entity the world lacks', (world) => ({ holderId: rosterHero(world), entityId: 'hero-999999' })],
   ])('throws on %s: a programming error, naming the module', (_what, pick) => {
@@ -307,6 +361,28 @@ describe('injure', () => {
     expect(ofType(events, 'hero.injured')).toEqual([
       expect.objectContaining({ participants: [heroId, guild.id], payload: { heroId, questId: null, typeKey: 'deep-cut', healsOnTurn, moduleId: 'fx' } }),
     ]);
+  });
+
+  test("an infirmary above grade 0 shortens the Days, as it shortens a Quest's Injury", () => {
+    let heroId = '' as HeroId;
+    const grade = 2;
+    const { after, deps } = onFirstAfternoon(
+      'injure-infirmary',
+      (world, ctx) => {
+        heroId = rosterHero(world);
+        return [ctx.effects.injure({ heroId, typeKey: 'deep-cut', days: 6 })];
+      },
+      (document) => {
+        for (const guild of Object.values(document.world.guilds)) guild.hall.infirmary = grade;
+      },
+    );
+
+    const guild = after.world.guilds[after.world.heroes[heroId]?.guildId as GuildId] as Guild;
+    const days = healDays(6, healFactor(guild, deps.config));
+    // The test sees the infirmary only if it changes the Days.
+    expect(guild.hall.infirmary).toBe(grade);
+    expect(days).toBeLessThan(6);
+    expect(after.world.heroes[heroId]?.injury).toEqual({ typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(1) + days) });
   });
 
   test("the Hero State Engine heals it on its night, as it heals any Injury", () => {

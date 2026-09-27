@@ -1,5 +1,5 @@
 import { loadContent } from '@heroesim/content/node';
-import { advance, createProbe, createWorld, defaultConfig, isModuleEvent, probe, type EngineDeps } from '@heroesim/engine';
+import { advance, createProbe, createWorld, defaultConfig, isModuleEvent, probe, type EngineDeps, type HeroId, type Module, type PatronId } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { countGame, effectEventTypes, moduleCounters } from './counters.js';
 import { harnessSetup } from './creation.js';
@@ -76,6 +76,40 @@ describe("the modules' counters (M8, DL-78)", () => {
 
     expect(types.size).toBeGreaterThan(0);
     expect([...types].filter((type) => !(effectEventTypes as readonly string[]).includes(type))).toEqual([]);
+  });
+
+  test('effectEventTypes is every type of core event an effect makes, each Regard holder crossing a band included', () => {
+    const types = new Set<string>();
+    const everyEffect: Module = {
+      id: 'every',
+      streamName: 'every',
+      createSlice: () => ({}),
+      validateSlice: () => [],
+      onAfternoon: (world, _slice, ctx) => {
+        const guild = Object.values(world.guilds)[0];
+        const patronId = Object.keys(world.patrons)[0] as PatronId;
+        if (guild === undefined) throw new Error('no Guild');
+        const [heroId, otherId] = guild.rosterIds as [HeroId, HeroId];
+        const results = [
+          ctx.effects.adjustMorale({ heroId, delta: -1 }),
+          ctx.effects.adjustWealth({ guildId: guild.id, delta: 1 }),
+          ctx.effects.adjustRegard({ holderId: patronId, entityId: guild.id, delta: 50 }),
+          ctx.effects.adjustRegard({ holderId: guild.guildmasterId, entityId: heroId, delta: 50 }),
+          ctx.effects.adjustRegard({ holderId: heroId, entityId: otherId, delta: 50 }),
+          ctx.effects.injure({ heroId, typeKey: Object.keys(ctx.content.injuries)[0] as never, days: 2 }),
+          ctx.effects.offerQuest({ patronId }),
+        ];
+        const events = results.flatMap((result) => (result.ok ? result.events : []));
+        for (const event of events) types.add(event.type);
+        expect(results.every((result) => result.ok)).toBe(true);
+        return { events };
+      },
+    };
+    const every = { ...deps, modules: [everyEffect] };
+
+    advance(createWorld('modules-every-effect', harnessSetup, every).document, every);
+
+    expect([...types].sort()).toEqual([...effectEventTypes].sort());
   });
 
   test('are empty for a game with no module', () => {

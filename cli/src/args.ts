@@ -45,12 +45,14 @@ Commands:
       history shows the whole History unless given an id.
   advance [--turns <n>]
       Play the next n Turns, 1 unless given, and print what happened. Time moves only
-      here; every other command acts within the current Turn. Stops early if the game ends.
+      here; every other command acts within the current Turn. Stops early if the game ends
+      or an installed module asks to stop.
   advance --until <stops> [--max <n>]      or      advance --max <n>
       Fast forward: play Turns until one gives a reason to stop, then print the reason and
       what happened. These always stop it: a Party of the player's comes home, a decision
       is needed (no Party is out, and a Quest the Guild could take reaches the Board), a
-      Rival makes a Transfer Offer for one of the player's Heroes, and the game ends.
+      Rival makes a Transfer Offer for one of the player's Heroes, an installed module
+      asks to stop, and the game ends.
       <stops> names any of party-returns, decision, transfer-offer, ended and
       pool-refreshed, joined by commas; pool-refreshed (new Heroes in the Unattached pool)
       stops it only when named. --max caps the Turns played: one year of Turns unless

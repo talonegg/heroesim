@@ -20,23 +20,36 @@ export type ReadonlyDeep<T> = T extends string | number | boolean | bigint | sym
  * `value` seen read-only: reading it, and every object reached from it, reads the value itself;
  * setting, defining or deleting a property of any of them, or changing its prototype or
  * extensibility, throws a TypeError naming `what` and the property. A method reached through it
- * (an array's `map`, `push`) runs on the view, so it reads and refuses as the view does.
+ * (an array's `map`, `push`) runs on the view, so it reads and refuses as the view does. A property
+ * read through its descriptor (`Object.getOwnPropertyDescriptor`, `Reflect`'s, or
+ * `Object.getOwnPropertyDescriptors`) holds the view of its value too, so no route of reading hands
+ * back the object behind a view (M8 verification, DL-80).
  *
  * A property its object has frozen is read as it is, since a Proxy may not hand back anything
- * else for it; the World State is never frozen (`advance` plays on a fresh copy).
+ * else for it; the World State is never frozen (`advance` plays on a fresh copy), and what is
+ * frozen in the rules (`defaultConfig`) is frozen all the way down.
  */
 export function readOnlyView<T extends object>(value: T, what: string): ReadonlyDeep<T> {
   const views = new WeakMap<object, object>();
   const refuse = (key: string | symbol): never => {
     throw new TypeError(`${what} is read-only to a module: it cannot change ${String(key)}`);
   };
+  /** Whether a property holding an object must be handed back as it is: a Proxy's invariant. */
+  const frozen = (own: PropertyDescriptor | undefined): boolean =>
+    own !== undefined && own.configurable === false && own.writable === false;
   const handler: ProxyHandler<object> = {
     get(target, key) {
       const inner: unknown = Reflect.get(target, key);
       if (typeof inner !== 'object' || inner === null) return inner;
-      const own = Reflect.getOwnPropertyDescriptor(target, key);
-      if (own !== undefined && own.configurable === false && own.writable === false) return inner;
+      if (frozen(Reflect.getOwnPropertyDescriptor(target, key))) return inner;
       return viewOf(inner);
+    },
+    getOwnPropertyDescriptor(target, key) {
+      const own = Reflect.getOwnPropertyDescriptor(target, key);
+      if (own === undefined || !('value' in own) || frozen(own)) return own;
+      const inner: unknown = own.value;
+      if (typeof inner !== 'object' || inner === null) return own;
+      return { ...own, value: viewOf(inner) };
     },
     set: (_target, key) => refuse(key),
     defineProperty: (_target, key) => refuse(key),

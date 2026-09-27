@@ -63,11 +63,11 @@ rather than investigated beforehand.
 | M5 | Items | Gear, consumables, the Market and Loot exist and are bought, sold, equipped and expended | Done 2026-09-27 (`m5-items`) |
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | Done 2026-09-27 (`m6-rivals`) |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | Done 2026-09-27 (`m7-web`); the twenty-year save measure left to the owner |
-| M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | Done 2026-09-27 (`m8-modules`) |
+| M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | M8-S1 to M8-S4 and its verification done; done when tagged `m8-modules` at its close (DL-81) |
 
-The first build is complete when M8 is tagged. **The first build was completed on 2026-09-27,**
-when M8 was tagged `m8-modules`. The next work is Random Events, the first line of §4: the first
-real module, and the test of whether the module contract fits a real feature (ADR-0005 as amended).
+The first build is complete when M8 is tagged `m8-modules`, on the tag's date. The next work, once
+it is, is Random Events, the first line of §4: the first real module, and the test of whether the
+module contract fits a real feature (ADR-0005 as amended).
 
 ## 3. Increments
 
@@ -204,7 +204,7 @@ decision log.
 ## 4. After the first build
 
 Modules, in whatever order the module contract makes cheapest: Random Events (the smallest,
-and the first real module; the next work, now the first build is complete), Scenarios,
+and the first real module; the next work once the first build is complete), Scenarios,
 Campaigns, Contacts, Factions, Scouting and hidden information, Workers, Skill growth, the
 Guildmaster in a Party, the deferred endings. They are not sequenced here; the first build will
 show which is cheapest to prove next.

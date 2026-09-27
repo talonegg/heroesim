@@ -1,12 +1,13 @@
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { createWorld } from './create.js';
-import type { Entry, GuildId, Hero, HeroId, PatronId, QuestId, WorldDocument } from './document.js';
+import type { Entry, GuildId, Guildmaster, GuildmasterId, Hero, HeroId, PatronId, QuestId, WorldDocument } from './document.js';
 import { isEngineEvent, isModuleEvent, type ModuleEvent, type TurnEvent } from './events.js';
 import { fastForward } from './fast-forward.js';
 import { moraleBand } from './morale.js';
-import { ModuleError, type Module, type ModuleContext, type ModuleResult, type ReadonlyWorld } from './modules.js';
+import { ModuleError, type Module, type ModuleContext, type ModuleResult, type ReadonlyWorld, type SliceContext } from './modules.js';
+import { phases } from './pipeline.js';
 import { regardValue } from './regard.js';
 import { effectiveStats, offeredQuests, playerGuild, rankings, unattachedHeroes, upkeep } from './selectors.js';
 import { serialise } from './serialise.js';
@@ -75,6 +76,7 @@ describe('the context a hook is given', () => {
           moraleBand: ctx.select.moraleBand(hero.id),
           regard: ctx.select.regard(patronId, guildId),
           age: ctx.select.age(hero.id),
+          guildmasterAge: ctx.select.age(world.guilds[guildId]?.guildmasterId as GuildmasterId),
         });
         return { events: [] };
       },
@@ -103,6 +105,7 @@ describe('the context a hook is given', () => {
       moraleBand: moraleBand(hero.morale, deps.config),
       regard: regardValue(world.patrons[patronId]?.regard ?? {}, guildId),
       age: ageOf(hero, 1, deps.config),
+      guildmasterAge: ageOf(world.guildmasters[guild.guildmasterId] as Guildmaster, 1, deps.config),
     });
   });
 
@@ -169,6 +172,17 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     ]);
   });
 
+  /** A Hero on a Roster in `world`, as the hook sees it. */
+  const heroIn = (world: ReadonlyWorld): NonNullable<ReadonlyWorld['heroes'][HeroId]> => {
+    const hero = Object.values(world.heroes).find((row) => row.guildId !== null && row.partyId === null);
+    if (hero === undefined) throw new Error('no Hero on a Roster');
+    return hero;
+  };
+
+  /** What `Object.getOwnPropertyDescriptor` (or `Reflect`'s) gives for `key` of `of`: its value, untyped. */
+  const described = (of: object, key: string): { value: Record<string, unknown> } =>
+    Object.getOwnPropertyDescriptor(of, key) as { value: Record<string, unknown> };
+
   const writes: [string, (world: ReadonlyWorld, ctx: ModuleContext) => void][] = [
     ['pushing a Quest onto the Board', (world) => (world.board as QuestId[]).push('quest-999999' as QuestId)],
     ['sorting the Board in place', (world) => (world.board as QuestId[]).sort()],
@@ -179,6 +193,26 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     ['writing into a row a selector returned', (_world, ctx) => ((ctx.select.unattachedHeroes()[0] as { morale: number }).morale = 0)],
     ['writing to the rules', (_world, ctx) => ((ctx.config as { boardSize: number }).boardSize = 99)],
     ['writing to the content', (_world, ctx) => ((ctx.content as { id: string }).id = 'mine')],
+    // DL-77 item 1's other refusals: a define, a prototype change and an extensibility change.
+    ["defining a Hero's Morale", (world) => Object.defineProperty(heroIn(world), 'morale', { value: 0 })],
+    ["changing a Hero's prototype", (world) => Object.setPrototypeOf(heroIn(world), null)],
+    ["preventing extensions of a Hero's Regard", (world) => Object.preventExtensions(heroIn(world).regard)],
+    ["freezing a Guild's Roster", (world) => Object.freeze(Object.values(world.guilds)[0]?.rosterIds)],
+    // A property read through its descriptor is a view too (M8 verification, DL-80).
+    ["writing a Hero's Morale through Object.getOwnPropertyDescriptor", (world) => (described(world.heroes, heroIn(world).id).value.morale = 1)],
+    ["writing a Hero's Morale through Reflect.getOwnPropertyDescriptor", (world) => {
+      (Reflect.getOwnPropertyDescriptor(world.heroes, heroIn(world).id) as { value: { morale: number } }).value.morale = 1;
+    }],
+    ["writing every Guild's Wealth through Object.getOwnPropertyDescriptors", (world) => {
+      for (const { value } of Object.values(Object.getOwnPropertyDescriptors(world.guilds))) (value as { wealth: number }).wealth = 777;
+    }],
+    ['moving a core stream through its descriptor', (world) => ((described(world, 'rng').value.quests as Record<number, number>)[0] = 42)],
+    ["writing another module's slice through its descriptor", (world) => (described(world, 'modules').value.other = {})],
+    ["writing into a shallow clone of a Hero's row, whose Regard is the row's", (world) => {
+      const hero = heroIn(world);
+      const clone = Object.create(Object.getPrototypeOf(hero) as object, Object.getOwnPropertyDescriptors(hero)) as { regard: Record<string, unknown> };
+      clone.regard['hero-999999'] = { value: 1, since: 0, reason: 'writer' };
+    }],
   ];
 
   test.each(writes)('%s fails the Turn too, naming the module', (_what, write) => {
@@ -192,6 +226,55 @@ describe('the effects API is the only way a module can change a Hero: the frozen
     expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
     expect(serialise(document)).toBe(before);
     expect(deps.config.boardSize).toBe(testDeps().config.boardSize);
+  });
+
+  // A front end's rules and content are not frozen: the CLI spreads a save's rules over the defaults,
+  // and loadContent's content is shared by every game in the process. Neither may be changed through
+  // a descriptor (M8 verification, DL-80).
+  test.each<[string, (ctx: ModuleContext) => void, (deps: EngineDeps) => unknown]>([
+    [
+      'the rules, through a descriptor',
+      (ctx) => (described(ctx.config, 'moraleBands').value.elated = 21),
+      (deps) => deps.config.moraleBands.elated,
+    ],
+    [
+      'the content, through a descriptor',
+      (ctx) => {
+        const injuries = described(ctx.content, 'injuries').value;
+        (injuries[Object.keys(injuries)[0] as string] as { healDaysMax: number }).healDaysMax = 1;
+      },
+      (deps) => Object.values(deps.content.injuries)[0]?.healDaysMax,
+    ],
+  ])('writing to %s fails the Turn when neither is frozen, and changes neither', (_what, write, read) => {
+    const plain = testDeps();
+    const deps: EngineDeps = {
+      config: structuredClone(plain.config),
+      content: structuredClone(plain.content),
+      modules: [moduleWith('writer', { onAfternoon: (_world, _slice, ctx) => (write(ctx), { events: [] }) })],
+    };
+    const was = read(deps);
+
+    expect(thrownBy(() => advance(created('writes-deps', deps), deps))).toMatchObject({ name: 'ModuleError', moduleId: 'writer' });
+    expect(read(deps)).toBe(was);
+  });
+
+  test('reading through a descriptor reads the world as it stands, and a view reads equal to itself', () => {
+    let seen: unknown[] = [];
+    const deps = withModules(
+      moduleWith('reader', {
+        onAfternoon: (world) => {
+          const hero = heroIn(world);
+          const viaDescriptor = described(world.heroes, hero.id).value;
+          seen = [viaDescriptor === hero, viaDescriptor.morale, hero.morale];
+          return { events: [] };
+        },
+      }),
+    );
+
+    advance(created('descriptor-reads', deps), deps);
+
+    expect(seen[0]).toBe(true);
+    expect(seen[1]).toBe(seen[2]);
   });
 
   test('a module still changes its own slice in place, and reads the world as it stands', () => {
@@ -376,6 +459,24 @@ describe("a module's own events", () => {
     },
   );
 
+  // A module may be named as an engine namespace is: its namespace check then passes an engine type,
+  // and only the check that the type is not one of the engine's refuses it (DL-77 item 4).
+  test.each([
+    ['hero', 'hero.died'],
+    ['guild', 'guild.wealth-changed'],
+    ['world', 'world.created'],
+  ])('a module named %s is refused the engine’s own %s, naming the module', (id, type) => {
+    const deps = withModules(moduleWith(id, { onAfternoon: (_world, _slice, ctx) => ({ events: [ctx.emit({ type: type as `${string}.${string}`, participants: [], payload: {} })] }) }));
+    const document = created('engine-namespace', deps);
+    const before = serialise(document);
+
+    const thrown = thrownBy(() => advance(document, deps));
+
+    expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: id, during: 'onAfternoon' });
+    expect((thrown as Error).message).toContain(type);
+    expect(serialise(document)).toBe(before);
+  });
+
   test("isEngineEvent and isModuleEvent tell the engine's events from a module's, in the Turn and in the History", () => {
     const deps = withModules(moduleWith('herald', { onAfternoon: (_world, _slice, ctx) => ({ events: [ctx.emit({ type: 'herald.cried', participants: [], payload: {} })] }) }));
 
@@ -464,5 +565,262 @@ describe('what a hook returns', () => {
     expect(types.slice(at, at + 3)).toEqual(['teller.began', 'hero.morale-changed', 'teller.ended']);
     const { entries } = turn.document.history;
     expect(entries.slice(-types.length).map((entry) => entry.type)).toEqual(types);
+  });
+});
+
+// ── What a hook is handed back is the History's (M8 verification, DL-80) ─────────────────────
+
+describe('the events a hook is handed are the History’s own: settled, and no module changes one', () => {
+  test("rewriting an effect's event before returning it fails the Turn, naming the module, and changes nothing", () => {
+    const heroId = rosterHero(created('forger', testDeps())).id;
+    const forger = moduleWith('forger', {
+      onAfternoon: (_world, _slice, ctx) => {
+        const result = ctx.effects.adjustMorale({ heroId, delta: -1 });
+        if (!result.ok) return { events: [] };
+        const [event] = result.events as unknown as [{ payload: Record<string, unknown> }];
+        event.payload.after = 100;
+        event.payload.cause = 'recovery';
+        event.payload.moduleId = 'someone-else';
+        return { events: result.events };
+      },
+    });
+    const deps = withModules(forger);
+    const document = created('forger', deps);
+    const before = serialise(document);
+
+    const thrown = thrownBy(() => advance(document, deps));
+
+    expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'forger', during: 'onAfternoon' });
+    expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
+    expect(serialise(document)).toBe(before);
+  });
+
+  test.each([
+    ['its own event to an engine type', 'own'],
+    ["an effect's event to another engine type", 'effect'],
+  ] as const)('retyping %s fails the Turn, naming the module', (_what, which) => {
+    const heroId = rosterHero(created('retyper', testDeps())).id;
+    const retyper = moduleWith('retyper', {
+      onAfternoon: (_world, _slice, ctx) => {
+        const result = ctx.effects.adjustMorale({ heroId, delta: -1 });
+        const effectEvents = result.ok ? result.events : [];
+        const noted = ctx.emit({ type: 'retyper.noted', participants: [heroId], payload: {} });
+        const target = (which === 'own' ? noted : effectEvents[0]) as unknown as { type: string; milestone: boolean };
+        target.type = which === 'own' ? 'hero.retired' : 'hero.died';
+        target.milestone = true;
+        return { events: [noted, ...effectEvents] };
+      },
+    });
+    const deps = withModules(retyper);
+
+    expect(thrownBy(() => advance(created('retyper', deps), deps))).toMatchObject({ name: 'ModuleError', moduleId: 'retyper' });
+  });
+
+  test('an event kept from an earlier Turn and rewritten in a later one fails that Turn, and the History keeps what happened', () => {
+    const heroId = rosterHero(created('keeper', testDeps())).id;
+    let kept: TurnEvent | undefined;
+    const keeper = moduleWith('keeper', {
+      onAfternoon: (_world, _slice, ctx) => {
+        const result = ctx.effects.adjustMorale({ heroId, delta: -1 });
+        kept = result.ok ? result.events[0] : undefined;
+        return { events: result.ok ? result.events : [] };
+      },
+      onNight: () => {
+        ((kept as TurnEvent).payload as { after: number }).after = 9999;
+        return { events: [] };
+      },
+    });
+    const deps = withModules(keeper);
+    const afternoon = advance(created('keeper', deps), deps);
+    const morale = afternoon.document.world.heroes[heroId]?.morale;
+    const saved = serialise(afternoon.document);
+
+    expect(thrownBy(() => advance(afternoon.document, deps))).toMatchObject({ name: 'ModuleError', moduleId: 'keeper', during: 'onNight' });
+    expect(serialise(afternoon.document)).toBe(saved);
+    const inHistory = afternoon.document.history.entries.find((entry) => entry === kept);
+    expect(inHistory?.payload).toMatchObject({ heroId, after: morale, cause: 'module', moduleId: 'keeper' });
+  });
+
+  test("a payload the module keeps and changes after emitting it leaves the History's entry as it was emitted", () => {
+    const payload = { told: 1 };
+    const teller = moduleWith('teller', {
+      onAfternoon: (_world, _slice, ctx) => {
+        const event = ctx.emit({ type: 'teller.told', participants: [], payload });
+        payload.told = 2;
+        return { events: [event] };
+      },
+    });
+    const deps = withModules(teller);
+
+    const turn = advance(created('teller', deps), deps);
+
+    expect(payload.told).toBe(2);
+    const told = turn.document.history.entries.filter((entry) => entry.type === 'teller.told');
+    expect(told.map((entry) => entry.payload)).toEqual([{ told: 1 }]);
+    expect(Object.isFrozen(told[0]) && Object.isFrozen(told[0]?.payload)).toBe(true);
+  });
+});
+
+// ── A hook's context lasts for its call (M8 verification, DL-80) ─────────────────────────────
+
+describe("a hook's context works for the call it was given to, and throws after", () => {
+  test("another module's kept effects, used in a later hook of the same Turn, fail that hook, and no core row changes without its event", () => {
+    let kept: ModuleContext | undefined;
+    const alpha = moduleWith('alpha', {
+      onAfternoon: (_world, _slice, ctx) => {
+        kept = ctx;
+        return { events: [] };
+      },
+    });
+    const beta = moduleWith('beta', {
+      onAfternoon: (world) => {
+        const result = kept?.effects.adjustWealth({ guildId: Object.keys(world.guilds)[0] as GuildId, delta: 5000 });
+        return { events: result?.ok === true ? result.events : [] };
+      },
+    });
+    const deps = withModules(alpha, beta);
+    const document = created('kept-effects', deps);
+    const before = serialise(document);
+
+    const thrown = thrownBy(() => advance(document, deps));
+
+    expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'beta', during: 'onAfternoon' });
+    expect((thrown as Error).message).toContain('alpha');
+    expect(serialise(document)).toBe(before);
+  });
+
+  test('its own kept effects, used at its next hook, fail that Turn and leave the document the caller holds as it was', () => {
+    let kept: ModuleContext | undefined;
+    const hoarder = moduleWith('hoarder', {
+      onAfternoon: (_world, _slice, ctx) => {
+        kept = ctx;
+        return { events: [] };
+      },
+      onNight: (world) => {
+        const result = kept?.effects.adjustWealth({ guildId: Object.keys(world.guilds)[0] as GuildId, delta: 1_000_000 });
+        return { events: result?.ok === true ? result.events : [] };
+      },
+    });
+    const deps = withModules(hoarder);
+    const afternoon = advance(created('kept-next', deps), deps).document;
+    const held = serialise(afternoon);
+
+    expect(thrownBy(() => advance(afternoon, deps))).toMatchObject({ name: 'ModuleError', moduleId: 'hoarder', during: 'onNight' });
+    expect(serialise(afternoon)).toBe(held);
+  });
+
+  test('every function of a kept context throws once its hook has returned: emit, rng, select and effects', () => {
+    let kept: ModuleContext | undefined;
+    let heroId = '' as HeroId;
+    const deps = withModules(
+      moduleWith('keeper', {
+        onAfternoon: (world, _slice, ctx) => {
+          kept = ctx;
+          heroId = (Object.values(world.heroes).find((row) => row.guildId !== null) as Hero).id;
+          return { events: [] };
+        },
+      }),
+    );
+    const document = advance(created('kept-context', deps), deps).document;
+    const held = serialise(document);
+    const ctx = kept as ModuleContext;
+
+    const uses: [string, () => unknown][] = [
+      ['emit', () => ctx.emit({ type: 'keeper.late', participants: [], payload: {} })],
+      ['rng.next', () => ctx.rng.next()],
+      ['rng.pick', () => ctx.rng.pick([1, 2])],
+      ['select.moraleBand', () => ctx.select.moraleBand(heroId)],
+      ['select.rankings', () => ctx.select.rankings('fame')],
+      ['effects.adjustMorale', () => ctx.effects.adjustMorale({ heroId, delta: -1 })],
+    ];
+    for (const [what, use] of uses) expect(thrownBy(use), what).toBeInstanceOf(RangeError);
+    expect(serialise(document)).toBe(held);
+  });
+
+  test('the stream createSlice is given throws once createSlice has returned', () => {
+    let kept: ModuleContext['rng'] | undefined;
+    const deps = withModules({
+      ...moduleWith('early', {}),
+      createSlice: (ctx) => {
+        kept = ctx.rng;
+        return { calls: 0 };
+      },
+    });
+    const document = created('kept-slice-rng', deps);
+    const held = serialise(document);
+
+    expect(thrownBy(() => kept?.next())).toBeInstanceOf(RangeError);
+    expect(serialise(document)).toBe(held);
+  });
+
+  test('a stop the hook keeps and changes after it returned does not change what advance reported', () => {
+    const stop = { kind: 'module', moduleId: 'alarm' } as { kind: 'module'; moduleId: string };
+    const deps = withModules(moduleWith('alarm', { onAfternoon: () => ({ events: [], stop }) }));
+
+    const played = advance(created('kept-stop', deps), deps);
+    stop.moduleId = 'someone-else';
+
+    expect(played.stoppedBecause).toEqual({ kind: 'module', moduleId: 'alarm' });
+  });
+});
+
+// ── The context createSlice is given (M8-S1, DL-76) ──────────────────────────────────────────
+
+describe('the context createSlice is given', () => {
+  test('carries the Turn of the world the slice is made in: a save first played with the module, not 0', () => {
+    const turns: number[] = [];
+    const late: Module = { ...moduleWith('late', {}), createSlice: (ctx) => (turns.push(ctx.turn), { calls: 0 }) };
+    let document = created('late-slice', testDeps());
+    for (let turn = 1; turn <= 4; turn += 1) document = advance(document, testDeps()).document;
+    const deps = withModules(late);
+
+    const played = advance(document, deps);
+
+    expect(turns).toEqual([4]);
+    expect(withValid(played.document, deps).world.modules.late).toEqual({ calls: 0 });
+  });
+
+  test.each<[string, (ctx: SliceContext) => void]>([
+    ['the rules', (ctx) => ((ctx.config as { boardSize: number }).boardSize = 99)],
+    ['the content', (ctx) => ((ctx.content as { id: string }).id = 'mine')],
+  ])('holds %s read-only: a write fails createWorld, naming the module, and changes nothing', (_what, write) => {
+    const deps: EngineDeps = {
+      config: structuredClone(testDeps().config),
+      content: structuredClone(testDeps().content),
+      modules: [{ ...moduleWith('writer', {}), createSlice: (ctx) => (write(ctx), { calls: 0 }) }],
+    };
+    const [boardSize, id] = [deps.config.boardSize, deps.content.id];
+
+    const thrown = thrownBy(() => createWorld('slice-writes', setup, deps));
+
+    expect(thrown).toMatchObject({ name: 'ModuleError', moduleId: 'writer', during: 'createSlice' });
+    expect((thrown as ModuleError).cause).toBeInstanceOf(TypeError);
+    expect([deps.config.boardSize, deps.content.id]).toEqual([boardSize, id]);
+  });
+});
+
+// ── Which stop advance reports (DL-77 item 6) ────────────────────────────────────────────────
+
+describe('when the game ends on the Turn a module asks to stop', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  test('advance reports the ending, which comes before any module’s stop', () => {
+    const endings = phases.find((phase) => phase.name === 'endings');
+    if (endings === undefined) throw new Error('no endings phase');
+    vi.spyOn(endings, 'run').mockImplementation((world) => {
+      world.ended = { turn: world.turn, reason: 'bankruptcy' };
+      return [];
+    });
+    const alarm = moduleWith('alarm', { onNight: () => ({ events: [], stop: { kind: 'module', moduleId: 'alarm' } }) });
+    const deps = withModules(alarm);
+    const afternoon = advance(created('ending-and-stop', deps), deps).document;
+
+    // Turn 2, a night: the module asks to stop at its hook, then the ending checks end the game.
+    const night = advance(afternoon, deps);
+
+    expect(night.document.world.ended).toEqual({ turn: 2, reason: 'bankruptcy' });
+    expect(night.stoppedBecause).toEqual({ kind: 'ended' });
   });
 });

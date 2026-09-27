@@ -6806,6 +6806,148 @@ installed. Random Events, the first real module, will need what the probe did no
 by default, and a save that says which modules it needs, so a front end need not be told each time;
 both are its decisions, with a DL, and both switches here stay as they are for the probe.
 
+## DL-80 — M8 verification corrections: a read-only view by every route of reading, a hook's events settled as the History's own, a context that lasts for its call, the close-out lines made true until the tag, errata to DL-77 and DL-79; tests that kill 21 surviving mutants
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the fixer of M8's
+verification), acting on the defects the verification confirmed, each of which survived a skeptic; no
+default, content value, `configVersion` or schema version changes
+
+**Context.** M8's verification confirmed 24 defects in M8-S1 to M8-S4 (DL-76 to DL-79). Three are in
+the module contract itself:
+
+- **The read-only view had a gap** (read-only.ts). Its Proxy trapped `get`, `set`, `defineProperty`,
+  `deleteProperty`, `setPrototypeOf` and `preventExtensions`, but not `getOwnPropertyDescriptor`, so
+  `Object.getOwnPropertyDescriptor(view, key).value` (and `Reflect`'s, and
+  `Object.getOwnPropertyDescriptors`, which a shallow clone built with `Object.create` uses) handed a
+  hook the raw object behind a view, typed `any`. Through it a module wrote Morale and Wealth with no
+  event, moved a core stream, wrote another module's slice, and wrote rules and content that are not
+  frozen: a save's rules as the CLI spreads them over `defaultConfig`, and `loadContent`'s content,
+  which every game in the process shares. The validator accepted every result. DL-77 item 1 and
+  data-model §3.4 say the world is read-only at run time, "any object reached from it".
+- **A hook's events were the History's entries by reference.** `append` stores the entry it is
+  given, and `checkedResult` checked only that each returned event was one the call made. A module
+  retyped its own event to `hero.retired` after the emitter had checked its namespace, rewrote an
+  effect's `hero.morale-changed` into another cause, value and module, or into a `hero.died`
+  Milestone for a living Hero, and rewrote a kept entry's payload on a later Turn; the validator
+  accepted each. DL-77 item 4 says a core event always means the core did it, and item 5 that no row
+  changes without an event to explain it.
+- **A hook's context stayed live after the hook returned.** A kept `ctx.effects`, called from another
+  module's later hook, changed a Guild's Wealth with no event in the Turn or the History; called at
+  the module's own next hook, it changed the document the caller held, which `advance` promises to
+  leave as it was.
+
+The rest: `plan.md` §2 and ADR-0005 said M8 was tagged and the first build complete on 2026-09-27,
+though the tag waits for the M8 close's run (DL-79 item 6, DL-81), which cannot end that day; the root
+README, which still says the build is under way, has no line that changes it at the close;
+data-model §3.4 said every effect is explained by an event, where `adjustRegard`'s comes only on a
+band crossing; the CLI's usage said `advance --turns` stops early only on an ending and left a
+module's stop out of the stops that always end fast forward; the `Module` doc promised a
+`ModuleError` for a throwing `validateSlice`, which refuses the document instead; the epic counted
+"eight other writes" in a table of nine; the epics README's timing did not say a span leaves out the
+work before a milestone's first commit, and called the time outside every span time "no milestone was
+open"; DL-79 item 5 said "eleventh draw". And 21 mutants survived the suite (items 7 and 8).
+
+**Decision.**
+
+1. **The read-only view hands back a view by every route of reading.** A `getOwnPropertyDescriptor`
+   trap returns the property's descriptor with its value's view in place of the value; `Reflect`'s
+   and `Object.getOwnPropertyDescriptors` go through it too. A property frozen on its object is
+   reported as it is, as `get` already did, since a Proxy may report nothing else; the only frozen
+   objects a module reaches are `defaultConfig`'s, which is frozen all the way down. A write through a
+   descriptor, into a shallow clone built from descriptors, or into rules or content that are not
+   frozen now throws a TypeError, and the hook's `ModuleError` names the module. A read through a
+   descriptor reads the world as it stands, and the view it gives is the one `get` gives.
+2. **Every event a hook is handed is settled: the History's own copy, frozen** (modules.ts,
+   `settled`). `ctx.emit`, and each effect for its events, return a copy of the event's JSON data,
+   every object and list in it frozen; a view of the world in a module's payload is read through into
+   plain data, so no Proxy reaches the History, and a value that is not JSON data is left as it is
+   for the validator to refuse (DL-18). The hook returns those very objects, so `checkedResult`'s
+   identity check now also means the content is the core's: a write to one, before the hook returns
+   or on a later Turn, throws. `checkedResult` reads the returned list once, and copies the stop, so
+   nothing a module keeps changes what the Turn reported. Only the events a hook is handed are frozen:
+   the core's own entries stay as DL-18 left them, since no hook reaches the History (its context
+   holds none). With no module installed nothing is copied or frozen.
+3. **What a module's call is given lasts for that call.** A hook's `ctx.emit`, `ctx.rng`,
+   `ctx.select` and `ctx.effects`, and `createSlice`'s `ctx.rng`, throw a RangeError once the call
+   has returned, naming the module whose context it was; used from another module's hook, it fails
+   that hook, naming that module. The world view and the slice are not revoked: a view kept past its
+   hook reads a world the engine has since handed back, and a slice kept and written later changes
+   that document, not the game. The `Module` doc now says a module keeps nothing between calls but
+   its slice, read from its argument each time.
+4. **The close-out lines say what is true until the tag.** `plan.md` §2's M8 row reads "M8-S1 to
+   M8-S4 and its verification done; done when tagged `m8-modules` at its close (DL-81)"; the line
+   under the table says the first build is complete when M8 is tagged, on the tag's date, with Random
+   Events next once it is; §4 says Random Events is the next work "once the first build is complete";
+   ADR-0005's closing line is "*Closed by M8*" and says the first build is complete when M8 is tagged.
+   The root README's "Its first build is under way" is true until then and is left. **The M8 close
+   (DL-81), when it tags, writes the tag's date (UTC+10) into the M8 row and the line under the table,
+   rewords §4 and ADR-0005's closing line as done with that date, and changes the README's line to say
+   the first build is complete**, as M7's close did the README's. The epic's second M8-S4 box says so,
+   and its Status line says the close and the tag remain. This supersedes DL-79 item 6's choice to
+   write those lines as done before the tag.
+5. **Other documents.** Data-model §3.4 now says a module's view is read-only by whatever route it
+   reads, that a Regard effect has its event only on a band crossing (its Regard entry names the
+   module as its reason), and that a hook's events are frozen copies and its context lasts for its
+   call. The CLI's usage says `advance --turns` stops early when an installed module asks to stop, and
+   lists a module's stop among those that always end fast forward; the command lines still leave
+   `--modules` to the paragraph after the commands, as they leave `--save`, and the web's help on
+   time says nothing of modules, since no player sees one (DL-79 item 3). The `Module` doc says a
+   throwing `migrateSlice` or `validateSlice` refuses the document as a `module-slice` failure, never
+   a `ModuleError`, and where the stream-name rules are enforced (`installedModules`,
+   `createStreams`). The epic's frozen-world box counts the table's nineteen writes and the two to
+   rules and content. The epics README says a span leaves out the work before a milestone's first
+   commit (for M8, about 2 h 20 min of M8-S1 and its two sweeps) and that the 2 h 26 min outside
+   every span is that, not idle time.
+6. **Errata.** DL-79 item 5, "On `modules` its eleventh draw is the first below 0.02", should read
+   "its fourth draw is the first below 0.02": the probe draws only at night, on Turns 2, 5, 8 and 11,
+   and its draws on seed `modules` are 0.5607, 0.5647, 0.6237 and 0.0163 (the eleventh is 0.7423). It
+   fires on Turn 11, as the item, the epic and the tests say. DL-77 item 1's "any object reached from
+   it" held only for a property's value read by `get` until item 1 here, and item 4's "a core event
+   always means the core did it" held only for events nobody rewrote until item 2.
+7. **Tests that kill the 21 surviving mutants**, each applied to this tree by a scratch script that
+   runs the tests named, red with the mutant and green without:
+   - module-hooks.test.ts: a module named `hero`, `guild` or `world` refused the engine's own type
+     (the emitter's engine-type guard); the ending reported over a module's stop on the same night
+     (`stoppedBecause`'s precedence); a define, a prototype change and an extensibility change in the
+     frozen-world table (their three traps); a Guildmaster's age from `ctx.select.age`;
+     `createSlice`'s Turn for a save first played with the module, and its read-only rules and
+     content;
+   - modules.test.ts: a save made before a strict module was installed loads with no warning and
+     neither migrates nor validates the absent slice (both absent-slice skips), as does the probe's in
+     probe.test.ts;
+   - cli/src/main.test.ts: `advance --turns 100 --modules probe` on seed `modules` stops at Turn 91,
+     the afternoon of Day 30, with the engine's save and "Stopped: the probe module asked to stop.";
+   - effects.test.ts: a retired Hero and one gone from the pool refused by `adjustMorale`,
+     `adjustRegard` and `injure`; a folded Guild's Guildmaster refused `holder-gone`; a Hero holding
+     Regard for a Patron or a Guild throws; an infirmary of grade 2 shortening an effect's Injury;
+   - probe.test.ts: a negative `probeFireBelow` and a fractional `lastStopTurn` refused; the night's
+     draw picking the first, a middle and the last ready Hero and Patron;
+   - harness: `effectEventTypes` equal to the types the five effects make, each Regard holder
+     crossing a band; the module report refusing two sweeps of different years.
+   The tests of items 1 to 3 are red on M8-S4's engine (19 of them) and green here, and four more
+   mutants of them (the descriptor trap removed, events not settled, a context never closed, a stop
+   not copied) are each red.
+8. **No module installed still changes nothing.** Every change here runs only with a module
+   installed: the view is made only for a hook or `createSlice`, `hookPhase` returns before any of it
+   with none, and `ensureModules` loops over none. Checked beyond the suite, against `m7-web` itself:
+   `seed-0001` to `seed-0050` × 20 years played at this tree with the harness's own `playGame`,
+   core content, `defaultConfig` and `modules: []`, on 16 processes, by DL-76's driver, which writes
+   per seed the SHA-256 of the last save and of the game's harness record (counters, observations,
+   Turns, refusals, assertion), the Turns played, the History's entries and the save's length. The
+   saves of all 50 equal the first 50 lines of DL-76's `m7-web` table, over 1,077,929 Turns and
+   12,989,905 History entries; with M8-S3's two module counters taken out of the record (checked
+   empty on every seed: they did not exist at `m7-web`), the 50-line table is byte for byte the
+   `m7-web` one (SHA-256 `649f1e5480e10d6788a627670a57427690e41049acd0e826a8d2678f38b3c6ba`). In
+   `sweepFingerprint`'s form these 50 saves give
+   `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, DL-78's no-module value. The
+   200 × 20 proof at the M8 close is DL-81's.
+
+**Consequences.** The contract's guarantees now hold at run time by every route found: a module reads
+the World State, the rules and the content and cannot write them, cannot make an event say what the
+core did not, and cannot act outside the call it was given. What it can still do is outside the
+contract's reach and stated in the `Module` doc: write a slice it kept past its call, which changes
+only a document already handed back. The M8 close (DL-81) writes the tag's date where item 4 says.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

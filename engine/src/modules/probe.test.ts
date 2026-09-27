@@ -275,6 +275,32 @@ describe("onNight's draw", () => {
   });
 
   test.each([
+    ['the first', 0, 0],
+    ['one in the middle', 0.5, 1],
+    ['the last', 0.99, 2],
+  ])('the night’s one draw also picks the Hero and the Patron: a draw at %s of the range below the threshold picks that one', (_which, share, index) => {
+    const slice = createProbe().createSlice({} as never);
+    const guild = { id: 'guild-000001', foldedOnTurn: null, rosterIds: ['hero-000003', 'hero-000001', 'hero-000002'] };
+    const heroes = Object.fromEntries(guild.rosterIds.map((id) => [id, { id, guildId: guild.id, partyId: null, injury: null }]));
+    const patronIds = ['patron-000002', 'patron-000003', 'patron-000001'];
+    const patrons = Object.fromEntries(patronIds.map((id) => [id, { id }]));
+    const world = { turn: 2, heroes, guilds: { [guild.id]: guild }, patrons } as unknown as ReadonlyWorld;
+    const effects = Object.fromEntries(moduleEffectKinds.map((kind) => [kind, vi.fn(() => ({ ok: true, events: [] }))])) as unknown as ModuleEffects;
+    const emit = vi.fn((draft: object) => draft);
+    const roll = share * slice.probeFireBelow;
+    const ctx = { turn: 2, rng: { next: () => roll }, emit, effects, content: testDeps().content } as unknown as ModuleContext;
+
+    probe.onNight?.(world, slice, ctx);
+
+    // Both in id order: the Heroes hero-000001 to hero-000003, the Patrons patron-000001 to patron-000003.
+    const heroId = `hero-00000${index + 1}`;
+    const patronId = `patron-00000${index + 1}`;
+    expect(effects.adjustMorale).toHaveBeenCalledWith(expect.objectContaining({ heroId }));
+    expect(effects.adjustRegard).toHaveBeenCalledWith(expect.objectContaining({ holderId: patronId, entityId: guild.id }));
+    expect(emit).toHaveBeenCalledWith(expect.objectContaining({ participants: [heroId, patronId], payload: expect.objectContaining({ roll }) }));
+  });
+
+  test.each([
     ['in a Party', { partyId: 'party-000001' }],
     ['injured', { injury: { typeKey: 'deep-cut', healsOnTurn: 9 } }],
   ])('fires on none when the only Hero on a Roster is %s: no effect, no event', (_why, hero) => {
@@ -357,6 +383,22 @@ describe('a save with a probe slice', () => {
     expect(sliceOf(next).hooks.afternoon).toBe(current.hooks.afternoon + 1);
   });
 
+  test('none, made before the probe was installed, loads with it without a warning, and gains its slice when next played', () => {
+    const plain = serialise(play(created('saved', plainDeps), plainDeps, 9).documents.at(-1) as WorldDocument);
+
+    const loaded = deserialise(plain, deps);
+    if (!loaded.ok) throw new Error(loaded.reason.message);
+
+    expect(loaded.warnings).toEqual([]);
+    expect(loaded.document.world.modules).toEqual({});
+    expect(validate(loaded.document, deps)).toEqual({ ok: true, warnings: [] });
+    // Turn 10 is the afternoon of Day 3: the slice is made as the Turn begins, then counted by
+    // onAfternoon, which asks for its first stop, probeStopEveryDays (2) Days after Day 0.
+    const next = advance(loaded.document, deps);
+    expect(sliceOf(withValid(next.document, deps))).toMatchObject({ version: 1, hooks: { morning: 0, afternoon: 1, night: 0 }, lastStopTurn: 10 });
+    expect(next.stoppedBecause).toEqual({ kind: 'module', moduleId: probeId });
+  });
+
   test.each(['morning', 'afternoon', 'night'] as const)('with a negative %s count is refused, naming the module', (hook) => {
     const negative = withSlice(saved, (slice) => ({ ...slice, hooks: { ...(slice.hooks as object), [hook]: -1 } }));
 
@@ -388,9 +430,11 @@ describe("the probe's own checks of its slice", () => {
     ['a missing count', { ...fresh(), hooks: { morning: 0, afternoon: 0 } }, ['hooks', 'night']],
     ['a count of another name', { ...fresh(), hooks: { morning: 0, afternoon: 0, night: 0, dusk: 1 } }, ['hooks', 'dusk']],
     ['a negative lastStopTurn', { ...fresh(), lastStopTurn: -1 }, ['lastStopTurn']],
+    ['a fractional lastStopTurn', { ...fresh(), lastStopTurn: 2.5 }, ['lastStopTurn']],
     ['no lastStopTurn', { ...fresh(), lastStopTurn: undefined }, ['lastStopTurn']],
     ['probeStopEveryDays 0', { ...fresh(), probeStopEveryDays: 0 }, ['probeStopEveryDays']],
     ['probeFireBelow above 1', { ...fresh(), probeFireBelow: 1.5 }, ['probeFireBelow']],
+    ['a negative probeFireBelow', { ...fresh(), probeFireBelow: -0.5 }, ['probeFireBelow']],
     ['a fractional probeMoraleDelta', { ...fresh(), probeMoraleDelta: 0.5 }, ['probeMoraleDelta']],
     ['a fractional probeWealthDelta', { ...fresh(), probeWealthDelta: 2.5 }, ['probeWealthDelta']],
     ['a probeRegardDelta that is not a number', { ...fresh(), probeRegardDelta: '2' }, ['probeRegardDelta']],

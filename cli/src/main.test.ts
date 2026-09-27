@@ -1167,6 +1167,28 @@ describe('--modules: the test-only probe on new, advance and load (M8-S4)', () =
     expect(document().history.byType['probe.fired']).toHaveLength(1);
   });
 
+  test('advance --turns stops early when the probe asks to stop, and says so (DL-77 item 6)', () => {
+    newWithProbe();
+    // The engine's own Turns with the probe installed, to its first stop: the afternoon of Day 30.
+    let expected = document();
+    let stoppedBecause = null;
+    while (stoppedBecause === null) {
+      const result = advance(expected, withProbe);
+      expected = result.document;
+      stoppedBecause = result.stoppedBecause;
+    }
+    const turn = expected.world.turn;
+
+    const run = play(['advance', '--turns', '100', '--modules', 'probe']);
+
+    expect(stoppedBecause).toEqual({ kind: 'module', moduleId: 'probe' });
+    expect([turn, dayOf(turn)]).toEqual([91, 30]);
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected));
+    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Day 30, afternoon, Year 0).`);
+    expect(run.out).toContain('Stopped: the probe module asked to stop.');
+  });
+
   test('advance --until with --modules plays the probe too', () => {
     newWithProbe();
     const expected = fastForward(document(), { guildId: playerId, until: [], maxTurns: 11 }, withProbe);

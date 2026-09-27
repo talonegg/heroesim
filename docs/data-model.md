@@ -232,12 +232,16 @@ module's slice and stream are made when the world is created or, for a save made
 module was installed, the first time it is played; a slice no installed module owns is kept,
 never read, and warned of (M8-S1, DL-76).
 
-At its hooks a module sees `world` read-only, in the types and at run time, and changes its own
-slice in place. It changes a core table only through its effects (`adjustMorale`, `adjustWealth`,
-`adjustRegard`, `injure`, `offerQuest`), each run by the core's own rule and explained by the
-core's own event naming the module, so the core stays the only writer of its rows. Its own events,
-typed `<module id>.<what-happened>` by the module and not by the engine's union, are History
-entries like any other (M8-S2, DL-77).
+At its hooks a module sees `world` read-only, in the types and at run time, by whatever route it
+reads (a property's descriptor included), and changes its own slice in place. It changes a core
+table only through its effects (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
+`offerQuest`), each run by the core's own rule and explained by the core's own event naming the
+module (for Regard, as for the core's own changes, only on a band crossing; the Regard entry names
+the module as its reason), so the core stays the only writer of its rows. Its own events, typed
+`<module id>.<what-happened>` by the module and not by the engine's union, are History entries like
+any other (M8-S2, DL-77). Every event a hook is handed, its own or an effect's, is the History's
+copy and frozen, and what a hook is given works only for that call, so no module rewrites an entry
+or changes a row later through something it kept (DL-80).
 
 The document holds slices, not a list of the modules installed: whoever plays it installs them, for
 each run or command (`HEROESIM_MODULES` for the harness, `--modules` for the CLI, `?modules=` for

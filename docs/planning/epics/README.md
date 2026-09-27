@@ -54,21 +54,26 @@ estimate; what can be counted is the wall clock.
 | M5 | 6–8 | 12–24 h | 2026-09-26 10:59 | 2026-09-27 00:12 | 13 h 13 min |
 | M6 | 4–6 | 8–18 h | 2026-09-26 14:43 | 2026-09-27 13:56 | 23 h 13 min |
 | M7 | 6–8 | 12–24 h | 2026-09-26 14:41 | 2026-09-27 17:51 | 27 h 10 min |
-| M8 | 4–6 | 8–18 h | 2026-09-27 20:13 | 2026-09-27 21:45, M8-S3 | 1 h 32 min so far |
+| M8 | 4–6 | 8–18 h | 2026-09-27 20:13 | 2026-09-27 21:45, M8-S3 | 1 h 32 min so far, M8-S1's work before 20:13 not counted |
 | **All** | **60–78** | **120–234 h** | 2026-09-26 00:41 | 2026-09-27 21:45 | **45 h 05 min** elapsed |
 
 **How it was counted.** From `git log --all`, by committer date in the commits' own time zone
 (UTC+10). A milestone's commits are those whose subject begins with its name: its stories
 (`M3-S2: …`), its verification (`M3 verify: …`) and its close (`M3 close: …`). Merges are not
 counted; the release merge that carries each tag falls within a minute of the milestone's last
-commit. A span runs from the first of them to the last. M8's is measured to M8-S3, the last commit
-before this table was written: M8-S4, which writes it, and the M8 close with its tagged run of the
-first build come after it and are not in the table.
+commit. A span runs from the first of them to the last, so it leaves out the work before a
+milestone's first commit, which is its first story's: a story is committed when it is done. For M8
+that is about 2 h 20 min, M8-S1 being built with its two 200 × 20 sweeps (128.9 minutes, DL-76)
+before its commit at 20:13. M8's is measured to M8-S3, the last commit before this table was
+written: M8-S4, which writes it, and the M8 close with its tagged run of the first build come after
+it and are not in the table.
 
 **What the spans are not.** They are not effort, and they do not add up. Agents worked several
 stories, and several milestones, at once, each in a worktree of its own: M7-S1 began while M4 was
 still open. The nine spans sum to 90 h 26 min; the build's clock ran 45 h 05 min from M0's first
-commit to M8-S3, and for 42 h 39 min of that at least one milestone was open. A span also holds
+commit to M8-S3, and for 42 h 39 min of that at least one milestone's span was open. The other
+2 h 26 min falls before a milestone's first commit, 4 minutes before M2's and 142 minutes, from
+M7's close, before M8-S1's: that is M8-S1 being built, not idle time. A span also holds
 waiting as well as work: the harness sweeps, from M3 on 200 seeds × 20 years, which take 40 to 75
 minutes each on this machine; balance passes run overnight (M6's close, from its counters to its
 run, spans 02:36 to 11:46 on 2026-09-27); and any time in which no agent was running. No record of

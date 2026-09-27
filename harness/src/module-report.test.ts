@@ -105,4 +105,9 @@ describe('moduleReport', () => {
 
     expect(() => moduleReport(installed, other, context)).toThrow(RangeError);
   });
+
+  test('refuses two sweeps of the same seeds played for different years', () => {
+    expect(() => moduleReport(installed, { ...without, years: without.years * 2 }, context)).toThrow(RangeError);
+    expect(() => moduleReport(installed, without, context)).not.toThrow();
+  });
 });

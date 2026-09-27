@@ -281,6 +281,37 @@ describe('a save made before a module was installed', () => {
   });
 });
 
+describe('a save made before a strict module was installed', () => {
+  test('loads without a warning: an installed module whose slice is absent is neither migrated nor validated until it has one', () => {
+    const saved = serialise(play('late-strict', testDeps(), 2).at(-1) as WorldDocument);
+    const asked: string[] = [];
+    const strict = logModule('strict', {
+      migrateSlice: (slice) => {
+        asked.push('migrateSlice');
+        if (typeof slice !== 'object' || slice === null) throw new TypeError('the strict module reads an object');
+        return slice as LogSlice;
+      },
+      validateSlice: (slice) => {
+        asked.push('validateSlice');
+        return typeof slice === 'object' && slice !== null ? [] : [{ at: [], detail: 'the strict module reads an object' }];
+      },
+    });
+    const deps = withModules(strict);
+
+    const loaded = deserialise(saved, deps);
+    if (!loaded.ok) throw new Error(loaded.reason.message);
+
+    expect(loaded.warnings).toEqual([]);
+    expect(asked).toEqual([]);
+    expect(validate(loaded.document, deps)).toEqual({ ok: true, warnings: [] });
+    expect(asked).toEqual([]);
+    // Turn 3, a morning: the slice is made as the Turn begins, then onMorning records itself in it.
+    const played = withValid(advance(loaded.document, deps).document, deps);
+    expect(sliceOf(played, 'strict')).toEqual({ version: 1, calls: [['onMorning', 3]], draws: [] });
+    expect(asked).toEqual(['validateSlice']);
+  });
+});
+
 describe('deserialise with modules', () => {
   const deps = withModules(logModule());
   const savedWith = (slice: unknown): string => {
