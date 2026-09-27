@@ -357,7 +357,7 @@ export function narrationFor(document: WorldDocument, content: ContentSet): Narr
 /**
  * Why an advance or a fast forward stopped, in one sentence (the CLI's `narrateStop`). `document` is
  * where it stopped; `maxTurns` the cap it played under. Where the CLI points to a command, the page
- * gives a button (`stopActions` in `selectors.ts`).
+ * gives a button (`nextFor` in `views/time.tsx`).
  */
 export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns: number, narration: Narration): string {
   const { world } = document;

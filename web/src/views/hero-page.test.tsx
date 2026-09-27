@@ -7,7 +7,10 @@ import { HeroPage } from './hero-page';
 
 // M7-S3's third box: `show hero`'s rule holds in the browser. Potential is never rendered (data-model
 // rule 9, M3-S3): every Hero's Potential is set to numbers found nowhere else, each Hero's page is
-// rendered, and the rendered DOM, text and attributes alike, is searched for them and for the word.
+// rendered, and the rendered DOM, text and attributes alike, is searched for them: the whole page,
+// every section of it. A Hero's page is searched for the word too. The page elsewhere may name the
+// concept, as the CLI does: the Guildmaster's Judgement bears on "how sharp the Potential hints read"
+// (DL-73).
 
 afterEach(cleanup);
 
@@ -46,6 +49,28 @@ function potentialIn(html: string, sentinels: readonly string[]): string[] {
   return [...sentinels.filter((sentinel) => html.includes(sentinel)), ...(/potential/i.test(html) ? ['the word Potential'] : [])];
 }
 
+/** The sentinels the whole page shows: none, whatever else it says. */
+function sentinelsIn(html: string, sentinels: readonly string[]): string[] {
+  return sentinels.filter((sentinel) => html.includes(sentinel));
+}
+
+/** Opens each Hero listed in `region` by their name, checks their page and the whole page, and goes back. */
+function everyPageFrom(region: () => HTMLElement, back: string, container: HTMLElement, sentinels: readonly string[]): number {
+  const names = within(region())
+    .getAllByRole('button')
+    .filter((button) => button.className === 'link')
+    .map((button) => button.textContent ?? '');
+  for (const name of names) {
+    fireEvent.click(within(region()).getByRole('button', { name }));
+    const page = within(region()).getByRole('article');
+    expect(within(page).getByRole('heading', { level: 3 }).textContent).toBe(name);
+    expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
+    expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
+    fireEvent.click(within(page).getByRole('button', { name: back }));
+  }
+  return names.length;
+}
+
 describe('Potential is never rendered', () => {
   test("on any page of the player's Roster, opened from the page, text and attributes alike", () => {
     const { state, sentinels } = withSentinels();
@@ -63,15 +88,39 @@ describe('Potential is never rendered', () => {
       // The hint is there, a word for each Stat; the number is not, anywhere on the page.
       expect(within(page).getByRole('columnheader', { name: 'Outlook' })).toBeDefined();
       expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
-      expect(potentialIn(container.innerHTML, sentinels)).toEqual([]);
+      expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
+      expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
 
       // Every page of the Hero's History too.
       while (!(within(page).getByRole('button', { name: 'Older' }) as HTMLButtonElement).disabled) {
         fireEvent.click(within(page).getByRole('button', { name: 'Older' }));
-        expect(potentialIn(container.innerHTML, sentinels)).toEqual([]);
+        expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
+        expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
       }
       fireEvent.click(within(page).getByRole('button', { name: 'Back to the Roster' }));
     }
+  });
+
+  test("on the page of every Hero in the pool and on every Rival's Roster, opened from the page", () => {
+    const { state, sentinels } = withSentinels();
+    const { container } = render(<App initial={state} />);
+    const pool = (): HTMLElement => screen.getByRole('region', { name: 'Unattached pool' });
+    const guilds = (): HTMLElement => screen.getByRole('region', { name: 'Guilds' });
+
+    expect(everyPageFrom(pool, 'Back to the pool', container, sentinels)).toBeGreaterThan(0);
+    let opened = 0;
+    const rivals = within(guilds())
+      .getAllByRole('button', { name: /^Open / })
+      .map((button) => button.textContent ?? '');
+    for (const open of rivals) {
+      fireEvent.click(within(guilds()).getByRole('button', { name: open }));
+      const guildName = open.replace(/^Open /, '');
+      expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
+      opened += everyPageFrom(guilds, `Back to ${guildName}`, container, sentinels);
+      fireEvent.click(within(guilds()).getByRole('button', { name: 'Back to the Guilds' }));
+    }
+    expect(rivals.length).toBeGreaterThan(0);
+    expect(opened).toBeGreaterThan(0);
   });
 
   test('on the page of every Hero in the world: on a Rival\'s Roster, in the Unattached pool, dead or departed', () => {

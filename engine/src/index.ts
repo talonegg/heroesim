@@ -68,7 +68,7 @@ export {
   type UnequipRequest,
   type WrongSlot,
 } from './actions/equip.js';
-export { rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
+export { newRules, rebase, type RebaseAction, type RebaseRejection } from './actions/rebase.js';
 export {
   applyRecruit,
   recruit,

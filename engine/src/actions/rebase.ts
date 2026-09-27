@@ -2,8 +2,8 @@
 // front end plays a loaded game under its own `meta.config`, filled forward with the current
 // defaults, so tuning reaches a game only when the player says so, and the History says when.
 
-import type { EngineDeps } from '../config.js';
-import type { WorldDocument } from '../document.js';
+import type { EngineDeps, GameConfig } from '../config.js';
+import type { Meta, WorldDocument } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { append } from '../history.js';
 import type { ActionResult, Rejection } from './result.js';
@@ -15,6 +15,19 @@ export interface RebaseAction {
 /** The game already plays under the `configVersion` it was asked to adopt. */
 export interface RebaseRejection extends Rejection<'rebase', 'already-current'> {
   configVersion: number;
+}
+
+/**
+ * The rules a game could adopt (pre-M0 review D1): its own `configVersion` and the later one of
+ * `config`, the current `defaultConfig` a front end passes, or `null` when the game's are not behind
+ * them. What a front end's "new rules available" notice reads (M7-S3, DL-73). `rebase` itself
+ * refuses only equal versions, so a save from a later release can still be brought to these rules;
+ * no front end offers that, since nothing newer is available to it.
+ */
+export function newRules(meta: Pick<Meta, 'config'>, config: Pick<GameConfig, 'configVersion'>): { from: number; to: number } | null {
+  const from = meta.config.configVersion;
+  const to = config.configVersion;
+  return from < to ? { from, to } : null;
 }
 
 /**

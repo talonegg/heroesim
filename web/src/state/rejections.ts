@@ -177,8 +177,9 @@ const sentences: Sentences = {
   // A play on a game, whichever it is.
   'no-game': () => 'No game is in hand: start a new game or load a save.',
   'no-player-guild': () => "The save has no player's Guild.",
+  // The CLI's words, with the Day for its Turn: the page names Days, as its header does for the same ending.
   'game-ended': ({ action, ending }, setting) =>
-    `The game ended on Turn ${ending.turn}: ${playerCalled(setting)} ${endingWords[ending.reason]}. ${afterTheEnd(action)}`,
+    `The game ended on Day ${dayOf(ending.turn)}: ${playerCalled(setting)} ${endingWords[ending.reason]}. ${afterTheEnd(action)}`,
 
   // newGame and load (the CLI's `new` and `load`).
   'newGame guild-name-blank': () => 'The Guild needs a name.',

@@ -1,5 +1,6 @@
 import {
   createWorld,
+  dayOf,
   defaultConfig,
   makeId,
   playerGuild,
@@ -221,5 +222,7 @@ describe('what the words name', () => {
     expect(turn).toMatch(/No Turn follows\.$/);
     expect(action).toMatch(/Nothing more can be done in it\.$/);
     expect(action).toContain(`${player.name} went bankrupt`);
+    // The page names Days, never Turn numbers: the Day the header gives for the same ending.
+    expect(action).toMatch(new RegExp(`^The game ended on Day ${dayOf(ending.turn)}: `));
   });
 });

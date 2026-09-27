@@ -33,6 +33,8 @@ import {
   regardBand,
   regardValue,
   relationship,
+  signingFee,
+  signingRefusal,
   skillsThatHelp,
   timeOfDay,
   transferFee,
@@ -41,18 +43,23 @@ import {
   type ConsumableEffect,
   type ConsumableRequest,
   type ContentSet,
+  type EngineDeps,
   type EngineEvent,
   type Entry,
   type GearDefinition,
   type Guild,
+  type GuildId,
   type Hero,
   type HeroId,
   type ItemDefinitionKey,
+  type ItemId,
   type PotentialHint,
   type Quest,
   type QuestId,
   type RegardBand,
+  type SlotKey,
   type Stack,
+  type StackId,
   type StopReason,
   type Synergy,
   type UniqueItem,
@@ -60,44 +67,16 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
+import { capitalised, nameIn, nightOf, none, ordinal, rowOf } from './names';
 import { listed, narrate, narrateStop, narrationFor, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
 
 // ── Names ────────────────────────────────────────────────────────────────────────────────────
 
-function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
-  return Object.hasOwn(rows, id) ? rows[id] : undefined;
-}
-
-/** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
-function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
-  return rowOf(rows, key)?.name ?? key;
-}
-
-function capitalised(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-function none(list: readonly string[]): string {
-  return list.length === 0 ? 'none' : list.join(', ');
-}
-
-/** `the night of Day 7`. */
-function nightOf(turn: number): string {
-  return `the night of Day ${dayOf(turn)}`;
-}
-
 /** `Day 3, afternoon`: when a Turn fell, as the log shows it. */
 export function whenOf(turn: number): string {
   return `Day ${dayOf(turn)}, ${timeOfDay(turn)}`;
-}
-
-/** `1st`, `2nd`, `3rd`, `11th`, `22nd`. */
-function ordinal(n: number): string {
-  const tens = n % 100;
-  const suffix = tens >= 11 && tens <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th');
-  return `${n}${suffix}`;
 }
 
 // ── The header ───────────────────────────────────────────────────────────────────────────────
@@ -359,10 +338,11 @@ export interface RosterRow {
   whereabouts: string;
 }
 
-/** Where a Hero is and until when, in words. */
+/** Where a Hero is and until when, in words: a Hero on no Roster is not at any Hall. */
 function whereabouts(hero: Hero, world: World): string {
   if (hero.diedOnTurn !== null) return `died on Day ${dayOf(hero.diedOnTurn)}`;
   if (hero.retiredOnTurn !== null) return `retired on Day ${dayOf(hero.retiredOnTurn)}`;
+  if (hero.guildId === null) return hero.unattachedSince === null ? 'on no Roster' : 'in the Unattached pool';
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
   if (party !== undefined) return `away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
   if (hero.injury !== null) return `injured, healing on ${nightOf(hero.injury.healsOnTurn)}`;
@@ -452,7 +432,8 @@ export interface HeroPageView {
   name: string;
   attributes: [label: string, value: string][];
   stats: StatRow[];
-  gear: { slot: string; item: string; modifies: string }[];
+  /** Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. */
+  gear: { slot: SlotKey; item: string; modifies: string; worn: boolean }[];
   skills: { name: string; rating: number }[];
   /** Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null` off a Roster. */
   relationships: { name: string; className: string; regard: RegardBand; relationship: RegardBand }[] | null;
@@ -460,17 +441,50 @@ export interface HeroPageView {
   milestones: LogLine[];
   /** One page of the Hero's History, newest first. */
   history: { lines: LogLine[]; page: number; pages: number; entries: number };
+  /** What the player can do with the Hero, by where they are; `null` for none. */
+  actions: HeroActions | null;
 }
 
+/** A piece of gear the player's Guild holds, which `equip` can put on one of its Heroes. */
+export interface GearChoice {
+  /** Unique within the list. */
+  key: string;
+  name: string;
+  /** `weapon gear`. */
+  kind: string;
+  modifies: string;
+  /** What `equip` takes: the unique Item's id, or the stack's. */
+  gear: { itemId: ItemId } | { stackId: StackId };
+}
+
+/** Another Guild in play and the fee it would pay the player's Guild to take the Hero (`transferFee`). */
+export interface TransferTarget {
+  guildId: GuildId;
+  name: string;
+  fee: number;
+}
+
+/**
+ * What the player can do with a Hero (M7-S3, DL-73): on the player's Roster, equip, unequip and
+ * transfer out; on another Guild's Roster, take them in for the Transfer fee; in the Unattached
+ * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
+ * at the paying Guildmaster's Negotiation); whether it is done is the engine's too, which refuses
+ * with a sentence.
+ */
+export type HeroActions =
+  | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[] }
+  | { kind: 'rival'; guildName: string; fee: number }
+  | { kind: 'pool'; fee: number; signs: string };
+
 /** Gear's Stat modifiers in words, `Weaponry +2, Strength +1` (M5-S2). */
-function modifierWords(gear: GearDefinition): string {
+export function modifierWords(gear: GearDefinition): string {
   return Object.entries(gear.statModifiers)
     .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
     .join(', ');
 }
 
 /** History entries as lines, keyed by their place in the list. */
-function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
+export function linesOf(entries: readonly Entry[], narration: Narration): LogLine[] {
   return entries.map((entry, index) => ({
     key: `${entry.turn}-${index}`,
     when: whenOf(entry.turn),
@@ -528,19 +542,26 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
       return { area, name: stat.name, base, effective: effective[stat.key] ?? base, outlook: potentialHint(hero, stat.key, bands) };
     });
 
-  const carried: (UniqueItem | Stack)[] = carriedGear(world, hero.id);
-  const slotOf = (row: UniqueItem | Stack): string => (row.holder.kind === 'hero' ? row.holder.slot : '');
-  const line = (slot: string, row: UniqueItem | Stack) => {
+  // What the Hero carries, each in the slot it is held in: `carriedGear` gives only the Hero's own rows.
+  const carried = carriedGear(world, hero.id).flatMap((row: UniqueItem | Stack) =>
+    row.holder.kind === 'hero' ? [{ row, slot: row.holder.slot }] : [],
+  );
+  const line = (slot: SlotKey, row: UniqueItem | Stack) => {
     const definition = itemDefinition(content, row.definitionKey);
-    return { slot, item: nameIn(content.items, row.definitionKey), modifies: definition?.kind === 'gear' ? modifierWords(definition) : '' };
+    return {
+      slot,
+      item: nameIn(content.items, row.definitionKey),
+      modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
+      worn: true,
+    };
   };
-  const listedSlots: string[] = [...config.gearSlots];
+  const listedSlots: readonly SlotKey[] = config.gearSlots;
   const gear = [
     ...listedSlots.flatMap((slot) => {
-      const inSlot = carried.filter((row) => slotOf(row) === slot);
-      return inSlot.length === 0 ? [{ slot, item: 'none', modifies: '' }] : inSlot.map((row) => line(slot, row));
+      const inSlot = carried.filter((each) => each.slot === slot);
+      return inSlot.length === 0 ? [{ slot, item: 'none', modifies: '', worn: false }] : inSlot.map((each) => line(slot, each.row));
     }),
-    ...carried.filter((row) => !listedSlots.includes(slotOf(row))).map((row) => line(slotOf(row), row)),
+    ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
   ];
 
   const skillKeys = Object.keys(hero.skills);
@@ -586,7 +607,42 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
       pages,
       entries: all.length,
     },
+    actions: heroActions(hero, guild, onRoster, world, deps),
   };
+}
+
+/** What the player can do with `hero`, who is on `guild`'s Roster when `onRoster`. */
+function heroActions(hero: Hero, guild: Guild | undefined, onRoster: boolean, world: World, deps: EngineDeps): HeroActions | null {
+  const player = playerGuild(world);
+  if (player === undefined) return null;
+  const buyer = guildmasterOf(player, world);
+  if (hero.unattachedSince !== null) {
+    const refusal = signingRefusal(player, hero, deps.config);
+    return { kind: 'pool', fee: signingFee(hero, deps, buyer), signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}` };
+  }
+  if (guild === undefined || !onRoster) return null;
+  if (guild.id !== player.id) return { kind: 'rival', guildName: guild.name, fee: transferFee(hero, buyer, deps) };
+  return {
+    kind: 'own',
+    equip: gearChoices(world, player),
+    transferTo: Object.values(world.guilds)
+      .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
+      .map((other) => ({ guildId: other.id, name: other.name, fee: transferFee(hero, guildmasterOf(other, world), deps) })),
+  };
+}
+
+/** The gear `guild` holds itself, unique Items then stacks: what `equip` can put on a Hero. */
+function gearChoices(world: World, guild: Guild): GearChoice[] {
+  const held = holdings(world, { kind: 'guild', id: guild.id });
+  const rows: { id: string; definitionKey: ItemDefinitionKey; gear: GearChoice['gear'] }[] = [
+    ...held.items.map((item) => ({ id: item.id, definitionKey: item.definitionKey, gear: { itemId: item.id } })),
+    ...held.stacks.map((stack) => ({ id: stack.id, definitionKey: stack.definitionKey, gear: { stackId: stack.id } })),
+  ];
+  return rows.flatMap(({ id, definitionKey, gear }): GearChoice[] => {
+    const definition = itemDefinition(content, definitionKey);
+    if (definition?.kind !== 'gear') return [];
+    return [{ key: id, name: definition.name, kind: `${definition.slot} gear`, modifies: modifierWords(definition), gear }];
+  });
 }
 
 // ── Time ─────────────────────────────────────────────────────────────────────────────────────

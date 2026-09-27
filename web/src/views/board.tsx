@@ -8,22 +8,24 @@ import type { HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesi
 import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { boardView, consumableChoices, partyChoices, previewView, type QuestCard } from '../state/selectors';
+import { Section } from './section';
 
-/** Printed under the Board, as the CLI prints it after every dispatch (pre-M0 review D2). */
+/** Said with the Board, as the CLI says it after every dispatch (pre-M0 review D2). */
 const rivalsReminder = 'Rivals take Quests from the Board each afternoon: a Quest left on it may be gone by then.';
 
 export function Board({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const cards = useMemo(() => boardView(document), [document]);
   const [open, setOpen] = useState<QuestId | null>(null);
   return (
-    <section id="board" className="panel" aria-labelledby="board-heading">
-      <h2 id="board-heading" tabIndex={-1}>
-        Board
-      </h2>
-      <p>
-        {cards.length === 0 ? 'The Board is empty.' : `${cards.length} ${cards.length === 1 ? 'Quest' : 'Quests'} on offer.`}{' '}
-        {rivalsReminder}
-      </p>
+    <Section
+      id="board"
+      title="Board"
+      help={
+        'The Quests on offer. Choose a Party for one: as you pick Heroes and consumables, the preview says what the Party ' +
+        `would meet and whether it would be sent, and "Send the Party" sends it within the current Turn. ${rivalsReminder}`
+      }
+    >
+      <p>{cards.length === 0 ? 'The Board is empty.' : `${cards.length} ${cards.length === 1 ? 'Quest' : 'Quests'} on offer.`}</p>
       <ul className="cards">
         {cards.map((card) => (
           <li key={card.questId}>
@@ -38,7 +40,7 @@ export function Board({ document, busy, play }: { document: WorldDocument; busy:
           </li>
         ))}
       </ul>
-    </section>
+    </Section>
   );
 }
 

@@ -8,7 +8,7 @@ import { phases } from '../pipeline.js';
 import { deserialise, serialise } from '../serialise.js';
 import { testContent, testDeps, withValid } from '../world.test-support.js';
 import { applyAction } from './action.js';
-import { rebase } from './rebase.js';
+import { newRules, rebase } from './rebase.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -156,5 +156,29 @@ describe('rebase', () => {
       ok: false,
       rejection: { action: 'rebase', reason: 'already-current' },
     });
+  });
+});
+
+describe('newRules', () => {
+  test("names the game's rules and the newer ones a rebase would adopt, while the game's are behind", () => {
+    const document = createWorld('behind', setup, olderRules()).document;
+
+    expect(newRules(document.meta, laterDefaults)).toEqual({ from: 1, to: 2 });
+  });
+
+  test('is null for a game under the rules it is given, or under later ones than those', () => {
+    const current = createWorld('current', setup, testDeps()).document;
+    const later = createWorld('later', setup, testDeps({ configVersion: defaultConfig.configVersion + 1 })).document;
+
+    expect(newRules(current.meta, defaultConfig)).toBeNull();
+    expect(newRules(later.meta, defaultConfig)).toBeNull();
+  });
+
+  test('is null after the rebase it offered', () => {
+    const document = createWorld('adopted', setup, olderRules()).document;
+    const rebased = rebase(document, { config: laterDefaults, content: testContent });
+    if (!rebased.ok) throw new Error(`Rejected ${rebased.rejection.reason}`);
+
+    expect(newRules(rebased.document.meta, laterDefaults)).toBeNull();
   });
 });

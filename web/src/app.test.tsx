@@ -78,8 +78,35 @@ describe('a game in hand', () => {
     render(<App initial={started()} />);
 
     const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(headings).toEqual(['Time', 'Board', 'Roster', 'Since your last action']);
+    expect(headings).toEqual([
+      'Time',
+      'Board',
+      'Roster',
+      'Transfer Offers',
+      'Unattached pool',
+      'Market',
+      'Hall',
+      'Guildmaster',
+      'Patrons',
+      'Rankings',
+      'Guilds',
+      'Since your last action',
+      'History',
+      'This game',
+    ]);
     expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('The Lantern');
+  });
+
+  test('indexes its sections, and each link takes the player to its heading', () => {
+    render(<App initial={started()} />);
+    const index = screen.getByRole('navigation', { name: 'Sections' });
+    const links = within(index).getAllByRole('link');
+
+    expect(links.map((link) => link.textContent)).toEqual(
+      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent === 'Transfer Offers' ? 'Offers' : heading.textContent === 'Unattached pool' ? 'Pool' : heading.textContent),
+    );
+    fireEvent.click(within(index).getByRole('link', { name: 'Market' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Market' }));
   });
 
   test('advances a Turn, and narrates what happened in it', async () => {
@@ -120,6 +147,33 @@ describe('a game in hand', () => {
     fireEvent.click(within(log).getByRole('checkbox'));
     const mine = Number(/^(\d+) events?/.exec(within(log).queryByText(/oldest first/)?.textContent ?? '0')?.[1] ?? 0);
     expect(mine).toBeLessThanOrEqual(all);
+  });
+});
+
+describe("the page's own words, the CLI's help", () => {
+  /** The sentence that says what a section is for: its accessible description. */
+  function described(region: HTMLElement): string {
+    const ids = region.getAttribute('aria-describedby')?.split(' ') ?? [];
+    return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
+  }
+
+  test('every section says what it is for and what its controls do, before a game and with one', () => {
+    for (const initial of [undefined, started()]) {
+      const { container, unmount } = render(<App {...(initial === undefined ? {} : { initial })} />);
+      const regions = within(container).getAllByRole('region');
+      expect(regions.length).toBeGreaterThan(initial === undefined ? 0 : 13);
+      for (const region of regions) expect(described(region), region.getAttribute('aria-labelledby') ?? '').toMatch(/^[A-Z].{40,}\.$/);
+      unmount();
+    }
+  });
+
+  test('every control has a name that says what it does', () => {
+    const { container } = render(<App initial={started()} />);
+
+    for (const control of within(container).getAllByRole('button')) expect(control.textContent?.trim()).not.toBe('');
+    for (const control of [...within(container).queryAllByRole('textbox'), ...within(container).queryAllByRole('combobox'), ...within(container).queryAllByRole('spinbutton')]) {
+      expect(control.closest('label')?.textContent?.trim() ?? control.getAttribute('aria-label')).toBeTruthy();
+    }
   });
 });
 

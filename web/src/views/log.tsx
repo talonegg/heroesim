@@ -6,6 +6,7 @@ import { useMemo, useState } from 'react';
 import type { GameState } from '../state/reducer';
 import { logView } from '../state/selectors';
 import { Lines } from './hero-page';
+import { Section } from './section';
 
 /** How many lines the log shows at first, and how many more each "Show more" adds. */
 export const logPageSize = 100;
@@ -15,10 +16,11 @@ export function Log({ state, guildName }: { state: GameState; guildName: string 
   const [shown, setShown] = useState(logPageSize);
   const lines = useMemo(() => logView(state, mine), [state, mine]);
   return (
-    <section id="log" className="panel" aria-labelledby="log-heading">
-      <h2 id="log-heading" tabIndex={-1}>
-        Since your last action
-      </h2>
+    <Section
+      id="log"
+      title="Since your last action"
+      help="What happened in the Turns you last played, or from the action you last took, each event as a sentence in the order it happened."
+    >
       <label className="choice">
         <input type="checkbox" checked={mine} onChange={(event) => setMine(event.target.checked)} />
         <span>Only what concerns {guildName}</span>
@@ -34,6 +36,6 @@ export function Log({ state, guildName }: { state: GameState; guildName: string 
           </button>
         </div>
       ) : null}
-    </section>
+    </Section>
   );
 }

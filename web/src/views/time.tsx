@@ -7,28 +7,29 @@
 import type { StopReason } from '@heroesim/engine';
 import type { GameAction } from '../state/reducer';
 import type { StopView } from '../state/selectors';
-
-/** A section of the page a button can take the player to. */
-export type SectionId = 'board' | 'roster' | 'log';
+import { Section, type SectionId } from './section';
 
 /** What each stop reason offers the player next: a section to go to, another fast forward, or nothing. */
 const nextFor: Readonly<Record<StopReason['kind'], { label: string; section: SectionId } | { label: string; again: true } | null>> = {
   ended: null,
   'party-returned': { label: 'Read what happened', section: 'log' },
   'decision-needed': { label: 'Choose a Party on the Board', section: 'board' },
-  'transfer-offer': { label: 'Read the offer', section: 'log' },
+  'transfer-offer': { label: 'Answer the offer', section: 'offers' },
   'max-turns': { label: 'Fast forward again', again: true },
-  'pool-refreshed': { label: 'Read who joined', section: 'log' },
+  'pool-refreshed': { label: 'See who joined the pool', section: 'pool' },
 };
 
 export function Time({
   busy,
+  playing,
   ended,
   stop,
   play,
   goTo,
 }: {
   busy: boolean;
+  /** Busy playing Turns, not an action within one. */
+  playing: boolean;
   ended: boolean;
   stop: StopView | null;
   play: (action: GameAction) => void;
@@ -37,8 +38,16 @@ export function Time({
   const next = stop === null ? null : nextFor[stop.kind];
   const idle = busy || ended;
   return (
-    <section className="panel time" aria-labelledby="time-heading">
-      <h2 id="time-heading">Time</h2>
+    <Section
+      id="time"
+      title="Time"
+      className="time"
+      help={
+        'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
+        'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives or ' +
+        'the game ends, and at the latest after a year; it can also stop when new Heroes join the Unattached pool.'
+      }
+    >
       <div className="actions">
         <button type="button" className="button--primary" disabled={idle} onClick={() => play({ kind: 'advance' })}>
           Advance a Turn
@@ -50,12 +59,8 @@ export function Time({
           Fast forward until new Heroes join the pool
         </button>
       </div>
-      <p className="note">
-        Fast forward stops when a Party of yours comes home, a decision is needed, a Transfer Offer arrives or the game
-        ends, and at the latest after a year.
-      </p>
       <p className="busy" role="status">
-        {busy ? 'Playing the Turns…' : ''}
+        {playing ? 'Playing the Turns…' : ''}
       </p>
       {stop === null ? null : (
         <div className="stop" data-testid="stop">
@@ -71,6 +76,6 @@ export function Time({
           )}
         </div>
       )}
-    </section>
+    </Section>
   );
 }

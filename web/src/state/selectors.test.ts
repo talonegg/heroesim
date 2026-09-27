@@ -10,8 +10,12 @@ import {
   playerGuild,
   potentialHint,
   rankings,
+  signingFee,
+  signingRefusal,
   skillsThatHelp,
   timeOfDay,
+  transferFee,
+  unattachedHeroes,
   unavailability,
   type Guild,
   type Hero,
@@ -235,6 +239,73 @@ describe('heroPage', () => {
 
   test('is null for a Hero the world does not hold', () => {
     expect(heroPage(newGame(), 'hero-999999' as HeroId)).toBeNull();
+  });
+
+  test('says an Unattached Hero is in the pool, not at a Hall', () => {
+    const document = newGame();
+    const [pooled] = unattachedHeroes(document.world);
+    if (pooled === undefined) throw new Error('an empty pool');
+
+    expect(heroPage(document, pooled.id)?.attributes).toContainEqual(['Where', 'in the Unattached pool']);
+  });
+});
+
+describe("a Hero's page offers what can be done with the Hero", () => {
+  test("for the player's Hero: the Guild's gear to equip, what they carry to unequip, and every other Guild in play with the fee it would pay", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
+    addStack(document.world, 'healing-draught', 2, { kind: 'guild', id: guild.id });
+    addStack(document.world, 'padded-jack', 1, { kind: 'hero', id: hero.id, slot: 'armour' });
+    const [folded, ...others] = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
+    if (folded === undefined) throw new Error('no Rival');
+    folded.foldedOnTurn = 0;
+
+    const page = heroPage(document, hero.id);
+
+    expect(page?.actions).toMatchObject({ kind: 'own' });
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    expect(page.actions.equip.map(({ name, kind, gear }) => ({ name, kind, stack: 'stackId' in gear }))).toEqual([
+      { name: content.items['arming-sword']?.name, kind: 'weapon gear', stack: true },
+    ]);
+    expect(page.gear.filter((row) => row.worn).map((row) => row.slot)).toEqual(['armour']);
+    expect(page.actions.transferTo).toEqual(
+      others.map((other) => ({
+        guildId: other.id,
+        name: other.name,
+        fee: transferFee(hero, guildmasterOf(other, document.world), deps),
+      })),
+    );
+  });
+
+  test("for a Rival's Hero, the fee the player's Guild would pay to take them in; for an Unattached one, the signing fee and whether they sign", () => {
+    const document = newGame();
+    const guild = player(document);
+    const buyer = guildmasterOf(guild, document.world);
+    const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
+    const theirs = document.world.heroes[rival?.rosterIds[0] ?? ('' as HeroId)];
+    const [pooled] = unattachedHeroes(document.world);
+    if (theirs === undefined || pooled === undefined) throw new Error('no Hero');
+
+    expect(heroPage(document, theirs.id)?.actions).toEqual({ kind: 'rival', guildName: rival?.name, fee: transferFee(theirs, buyer, deps) });
+    const refusal = signingRefusal(guild, pooled, defaultConfig);
+    expect(heroPage(document, pooled.id)?.actions).toEqual({
+      kind: 'pool',
+      fee: signingFee(pooled, deps, buyer),
+      signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+    });
+  });
+
+  test('for a Hero who has died, nothing', () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    player(document).rosterIds = player(document).rosterIds.filter((id) => id !== hero.id);
+    hero.diedOnTurn = 3;
+
+    expect(heroPage(document, hero.id)?.actions).toBeNull();
   });
 });
 

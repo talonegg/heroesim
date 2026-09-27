@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1 and M7-S2 done, M7-S3 part 1 done
+**Status:** in progress — M7-S1, M7-S2 and M7-S3 done (M7-S3's fourth box is M7-S4's)
 
 ## 0. What lands in M7
 
@@ -77,43 +77,43 @@ is behind `defaultConfig`, with a `rebase` button (D1). No component calls the e
 **Acceptance:**
 
 - [x] Every event type in the engine's union has a sentence; a test enumerates the union
-- [ ] Every CLI command has a browser equivalent (a table in this section, ticked as built)
+- [x] Every CLI command has a browser equivalent (a table in this section, ticked as built)
 - [x] `show hero`'s rule holds: Potential is never rendered (test greps the rendered DOM)
 - [ ] No horizontal overflow at 360px width (Playwright, S4)
 
 **Every CLI command and its browser equivalent** (the second box; a row is ticked when its
-equivalent is built; M7-S3 part 1, DL-66, built the first nine ticked; the rest are M7-S3 part 2's
-unless marked):
+equivalent is built; M7-S3 part 1, DL-66, built the first nine; M7-S3 part 2, DL-73, built the
+rest, each driven through the page's own controls in `web/src/views/*.test.tsx`):
 
 | CLI command | In the browser | Built |
 | --- | --- | --- |
-| `new` | "A new game": the Guild's and the Guildmaster's names, a Guild Background or one drawn from the seed, and a readable seed the player may change | [x] |
+| `new` | "A new game": the Guild's and the Guildmaster's names, a Guild Background or one drawn from the seed, and a readable seed the player may change; with a game in hand, "Start a new game" says it goes unless exported (`--force`) | [x] |
 | `show` | The header: the Guild, its Wealth and Fame, the Day and time of day, its place in the Rankings, and the seed | [x] |
 | `show board` | The Board: each Quest's Patron, terms, demands, Skills that help and Encounters | [x] |
 | `preview` | The Board's preview of the Party being chosen, as it changes: each requirement met or missed, who cannot go, the Synergies and on how many Encounters, the consumables, the reward agreed, and dispatch's own verdict (the engine's `previewDispatch`) | [x] |
 | `dispatch` | The Board's "Send the Party", with the Heroes and consumables chosen | [x] |
 | `show roster` | The Roster: each Hero's Class, Level, age, Morale and whereabouts, and what the Guild holds | [x] |
-| `show hero <heroId>` | A Hero's page, opened from the Roster: Attributes and State, Stats with their hints, gear, Skills, Relationships as bands | [x] |
+| `show hero <heroId>` | A Hero's page, opened from the Roster, the pool or another Guild's Roster: Attributes and State, Stats with their hints, gear, Skills, Relationships as bands | [x] |
 | `show history <heroId>` | A Hero's page: their Milestones first, then their History, newest first, a page at a time | [x] |
 | `advance [--turns n]`, `advance --until <stops>` | "Advance a Turn"; "Fast forward"; "Fast forward until new Heroes join the pool". Why it stopped is a sentence with a button where the CLI names a command, and the log narrates what happened. One Turn per tap: `--turns n` is fast forward's work here; `--max` is a year, the CLI's default | [x] |
-| `show guilds` | Every Guild, a folded one marked with its Day | [ ] |
-| `show rankings [--by fame\|wealth]` | The Rankings, by Fame or by Wealth | [ ] |
-| `show roster <guildId>` | Another Guild's Roster, each Hero with the Transfer fee the player's Guild would pay | [ ] |
-| `show hall [guildId]` | The Hall: each facility's grade, what it does, and the next grade's cost | [ ] |
-| `build` | Build the next grade, from the Hall | [ ] |
-| `show pool` | The Unattached pool: each Hero's signing fee and whether they would sign | [ ] |
-| `recruit` | Recruit, from the pool | [ ] |
-| `show patrons` | The Patrons and their Regard for the player's Guild, as bands | [ ] |
-| `show guildmaster [guildId]` | The Guildmaster: Stats and what each bears on, Traits, Regard as bands | [ ] |
-| `show market` | The Market: what is for sale at what price, and what each Item the Guild holds sells for | [ ] |
-| `buy`, `sell` | Buy and sell, from the Market | [ ] |
-| `equip`, `unequip` | Equip and unequip, from a Hero's page | [ ] |
-| `transfer --to`, `transfer --in` | Transfer one of the player's Heroes out, or take one in from another Guild's Roster | [ ] |
-| `show offers`, `accept`, `decline` | The Transfer Offers made for the player's Heroes, each accepted or declined | [ ] |
-| `show history [entityId]` | The whole History, and a Guild's | [ ] |
-| `rebase` | The "new rules available" notice and its button (D1) | [ ] |
-| `save --as`, `load` | Saves in IndexedDB, export and import (M7-S4) | [ ] |
-| `help` | The page's own words: each control and section says what it does | [ ] |
+| `show guilds` | The Guilds: every Guild with its controller, Guildmaster, Background, Roster, Wealth, Fame and Upkeep, a folded one marked with its Day | [x] |
+| `show rankings [--by fame\|wealth]` | The Rankings, by Fame or by Wealth, the player choosing which | [x] |
+| `show roster <guildId>` | Another Guild's page, opened from the Guilds: its Roster, each Hero with the Transfer fee the player's Guild would pay, and each Hero's page | [x] |
+| `show hall [guildId]` | The Hall: each facility's grade, the Improvement built, what it does, the next grade's Improvement and cost, and the Upkeep; another Guild's on its page | [x] |
+| `build` | "Build <Improvement>", from the Hall | [x] |
+| `show pool` | The Unattached pool: each Hero's signing fee and whether they would sign, the Guild's Fame, and each Hero's page | [x] |
+| `recruit` | "Recruit <Hero>", from the pool or the Hero's page | [x] |
+| `show patrons` | The Patrons, each Sphere, and their Regard for the player's Guild, as bands | [x] |
+| `show guildmaster [guildId]` | The Guildmaster: Stats and what each bears on, Traits and what each does, Regard for Patrons, the Roster and the other Guilds as bands; another Guild's on its page | [x] |
+| `show market` | The Market: what is for sale at what price, and what each Item the Guild holds sells for | [x] |
+| `buy`, `sell` | Buy and sell, by the quantity asked, from the Market | [x] |
+| `equip`, `unequip` | Equip gear the Guild holds and unequip a slot, from a Hero's page | [x] |
+| `transfer --to`, `transfer --in` | Transfer one of the player's Heroes out to the Guild chosen, each with the fee it would pay, from the Hero's page; "Take <Hero> in" from another Guild's Roster or the Hero's page | [x] |
+| `show offers`, `accept`, `decline` | The Transfer Offers made for the player's Heroes, each accepted or declined | [x] |
+| `show history [entityId]` | The History: the whole History or a Guild's, newest first, a page at a time; a Hero's is on their page | [x] |
+| `rebase` | The "new rules available" notice while the game's rules are behind this release's, and "Adopt the new rules" (D1) | [x] |
+| `save --as`, `load` | "This game": export the game as the save file the CLI writes, and load a save file, the CLI's or the page's, before a game or in place of one. Saves kept in IndexedDB are M7-S4's | [x] |
+| `help` | The page's own words: each section says what it is for and what its controls do, and each control is named by what it does | [x] |
 
 ### M7-S4 · IndexedDB saves and Playwright · 1–2 sessions
 

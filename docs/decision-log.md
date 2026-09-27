@@ -5804,6 +5804,150 @@ M7-S1's net 30); `npm run build -w web` exits 0 through the gate (279.43 kB, 82.
 `npm run e2e -w web` passes 4 (served and from `file://`, at 360×800 and 1280×800). M7-S1's four
 boxes still hold, and the epic's ticks stand.
 
+## DL-73 — The web's views, part 2: the rest of the CLI in the browser, one engine selector for the rules notice, the game as a file, and the page's own words (M7-S3 part 2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S3 part 2's implementer)
+
+**Context.** Part 1 (DL-66) built the shell, the header, the Board with dispatch, the Roster with
+Hero pages, time and the narrated log, and nine rows of the epic's table of CLI commands. Part 2
+builds the rest: the Market (buy, sell), the Hall (build), the Rankings by Fame and by Wealth, the
+Unattached pool and recruiting, Transfers in and out, Transfer Offers accepted and declined, equip
+and unequip, and the "new rules available" notice with its `rebase` button (D1). With them comes every
+other CLI command still unticked: `show guilds`, `show roster|hall|guildmaster <guildId>`, `show
+patrons`, `show history`, `save --as`, `load` and `help`. The boxes: every CLI command has a browser
+equivalent (box 2); the event and Potential boxes (1 and 3) must still hold; box 4 (360px) is
+M7-S4's. The same rules bind as in part 1: nothing in `web/` computes a rule (ADR-0007, principle 12),
+and only `state/` and `content.ts` import the engine's values (DL-65 item 7).
+
+**Decision.**
+
+1. **One engine selector: `newRules(meta, config)`** (`engine/src/actions/rebase.ts`, exported). It
+   returns the game's `configVersion` and the later one of `config` while the game's is behind, and
+   otherwise `null`. The page passes `defaultConfig`, so the notice shows exactly while a `rebase`
+   would adopt newer rules. The action itself refuses only equal versions: a save from a later
+   release can still be rebased down, but no front end offers that. Three tests in
+   `rebase.test.ts`. No config field, event, content value or version changes.
+2. **No other engine change.** Every other number the new views show is a document field or an
+   existing selector's answer, the ones the CLI's views read:
+   - the Market: `marketStock`, `sellPrice`, `holdings`;
+   - the pool: `unattachedHeroes`, `signingFee` at the player's Guildmaster's Negotiation, and
+     `signingRefusal`;
+   - Transfers: `transferFee` at the paying Guild's Guildmaster's Negotiation, the rule
+     `transferIn` and `transferOut` charge by; and `offersTo`;
+   - the Guilds and the Hall: `upkeep`, `rankings`, `nextImprovement`;
+   - the Guildmaster and the Patrons: `ageOf`, `baseStat`, `regardBand` over `regardValue`,
+     `patronRegardFor` and `guildmasterRegardForGuild`;
+   - the History: `entriesFor`.
+3. **The views' rows live in `state/`**, beside part 1's `selectors.ts`:
+   - `world-views.ts`: the Guilds, the Rankings, another Guild's page, a Hall, a Guildmaster, the
+     Patrons and the History;
+   - `trade-views.ts`: the Market, the pool and the offers;
+   - `game-file.ts`: the save's text, its file name and the rules notice;
+   - `names.ts`: the name helpers they share. `selectors.ts` now uses them too, and exports
+     `linesOf` and `modifierWords`.
+
+   The words are the CLI's (`cli/src/render.ts`, `commands/market.ts`, `commands/transfer.ts`),
+   less the ids a command line takes. One change of word: a Guild's controller reads "Yours" for
+   the player's Guild where the CLI says "Player", as the page speaks to the player as "you"
+   throughout. `state/game.test-support.ts` holds the setups the page's tests need but may not
+   build themselves, since tests outside `state/` import only the engine's types: an offer made by
+   the engine's own `offerTransfer`, rules behind this release's, Items held, Wealth. Nothing imports
+   it but tests, so it is never bundled.
+4. **The page's order.** One column, in the order a Turn reads:
+   - the header, the rules notice when there is one, and Time;
+   - the Board, the Roster, the Transfer Offers and the Unattached pool;
+   - the Market, the Hall, the Guildmaster and the Patrons;
+   - the Rankings and the Guilds;
+   - "Since your last action", the History and "This game".
+
+   The epic's sections keep its order; part 2's sit beside the ones they concern. The page is now
+   long, so an index of links under the header takes the keyboard to each section's heading. A
+   refusal is sticky at the top of the viewport, so a refusal of a play made far down the page is
+   seen where it was made.
+5. **What each play looks like.**
+   - *Buy and sell* take a quantity, a whole number from 1. The input's `min` and `max` are the
+     numbers the Market shows, so a browser's own form check stops a purchase of more than is
+     there. Anything else the engine refuses, in its words.
+   - *Build* is one button per facility, naming the next Improvement; only the player's own Hall
+     has them.
+   - *Recruit* is a button on each pool card and on the Hero's page, which opens from the pool.
+   - *Equip, unequip and Transfer out* are on the player's Hero's page. Equip is offered for each
+     piece of gear the Guild holds; the engine picks the slot. Unequip is offered for each slot
+     that holds an Item. Transfer out picks the Guild from every other Guild in play, each shown
+     with the fee it would pay.
+   - *Take in* is on another Guild's Roster, which opens from the Guilds, and on its Heroes' pages.
+   - *Accept and decline* are on each Transfer Offer.
+   - *No preview.* Unlike dispatch, none of these plays is enabled only when it would succeed. The
+     CLI previews none of them, and the engine's refusal says why in a sentence. Whether a Guild
+     would consent is shown only by trying, as in the CLI.
+6. **The game as a file: `save --as` and `load`.** The CLI's `save --as <file>` writes the save as
+   canonical JSON, and `load <file>` makes a file the save.
+   - *Export.* "This game" offers "Export this game": a download of the game's `serialise`d text,
+     named `heroesim-<seed>-day-<n>.json`. It is the file the CLI writes. The download uses an
+     object URL and requests nothing, and the bundle gate still passes.
+   - *Load.* "Load a save file" reads the file chosen and hands its text to the reducer's `load`
+     play, which reads it under the engine's own config (DL-20, DL-65). It is offered before a
+     game and with one in hand. A save's unknown content keys are listed as the CLI's warnings.
+   - *A new game in place of one.* "Start a new game" shows the new-game form again, saying the
+     game in hand goes unless exported, with a way back. This is the CLI's `--force`, and it is
+     the "new game" button part 1 left for later.
+   - *What stays M7-S4's.* Saves kept in IndexedDB and their measure; the Node test that the CLI
+     loads an exported file; the Playwright journeys. `game-file.ts` is in `state/`, so M7-S4's
+     `saves.ts` can take `saveText` from it or join it there, answering DL-65's note on where
+     `serialise` may be imported.
+7. **The rules notice** (D1). While `newRules` is not `null`, the page shows a "New rules available"
+   section naming both `configVersion`s, with "Adopt the new rules" as a `rebase` play. The log then
+   narrates `world.rules-adopted`, and the notice goes.
+8. **The History.** The whole History or a Guild's, newest first, 20 entries a page, part 1's
+   `historyPageSize`; buttons go to the newest, newer, older and oldest pages. The CLI prints the
+   whole History oldest first. The page shows both newest first, as a Hero's page does, because
+   what the player wants first is what happened last. A folded Guild's History can still be chosen.
+   A Hero's History is on their page. The CLI's `show history <id>` for any other entity, a Patron
+   say, has no control of its own; the whole History holds those entries.
+9. **`help`: the page's own words.** Each section is a region with a heading and a sentence, its
+   accessible description, saying what the section is for and what its controls do. The sentences
+   are adapted from the CLI's usage text, without the numbers config sets (the fee factor). Each
+   control is named by what it does ("Recruit Una Barrowby", "Build Sickroom", "Take … in").
+   `app.test.tsx` holds every section to it, before a game and with one, and holds every button and
+   field to a name.
+10. **Stop buttons re-pointed** (DL-66 item 4). `transfer-offer` now reads "Answer the offer" and
+    goes to the Transfer Offers; `pool-refreshed` reads "See who joined the pool" and goes to the
+    pool.
+11. **Corrections to M7's earlier work**, found while building on it:
+    - *Where a Hero on no Roster is* (part 1). A Hero on no Roster was "at the Hall" on their page.
+      Now they are "in the Unattached pool", or "on no Roster" once they have left it.
+    - *The ending's refusal* (DL-65's map). It named "Turn 540", while the page names only Days and
+      its header says "The game ended on Day 180". It now names the Day. The CLI's own words keep
+      the Turn.
+    - *Busy text.* "Playing the Turns…" showed for any play; it now shows only while an advance or
+      a fast forward runs.
+    - *A comment.* `narrate.ts` pointed to a `stopActions` in `selectors.ts` that does not exist;
+      it now points to `nextFor` in `views/time.tsx`.
+12. **Box 3 still holds, over the whole page.**
+    - *What changed in the test.* The Guildmaster section now names the concept, in the CLI's words
+      for Judgement: "how sharp the Potential hints read". So `views/hero-page.test.tsx` searches
+      each Hero's page for the word, and the whole page, every section, for the sentinel numbers.
+    - *A new test.* It opens, from the page, every pool Hero's page and every Hero's page on every
+      Rival's Roster.
+    - *Tried.* Two deliberate leaks were each caught and then reverted. A pool row showing a
+      Potential number failed both page tests. A Rival's Roster row showing one failed the new test.
+13. **Box 4 checked, not proved.** A scratch Playwright spec, not committed, measured `scrollWidth ≤
+    innerWidth` at 360×800 and 1280×800. It covered a 67-character Guild name, every section after a
+    fast forward, and a Hero's page, a pool Hero's page, a Rival's Guild page and one of its Heroes'
+    pages, each open. It also covered the Rankings by Wealth, a refusal while scrolled, and the
+    new-game form over a game. It passed, and the phone screenshots were read. The box stays
+    M7-S4's.
+14. **The table** in the epic has every row ticked, and box 2 is ticked. The `new`, `show hero` and
+    `save --as`/`load` rows now say what is built.
+
+**Consequences.** Every CLI command has a browser equivalent, driven through the page's controls in
+`views/actions.test.tsx`, `views/world.test.tsx` and `app.test.tsx`. M7-S4 adds saves in IndexedDB
+beside "This game", the Node test of an exported file, the journeys and the 360px box. `offerTransfer`
+has no control: the CLI has no command for it, and only a player's Guild answers offers, so today it
+is always refused. `npm run lint` and `npm run typecheck` pass. `npm test` passes 104 files and 2,188
+tests, none skipped; 53 of them are new. `npm run build -w web` exits 0 through the gate: 470.61 kB
+(136.49 kB gzipped), "no network or filesystem reference". `npm run e2e -w web` passes 4.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

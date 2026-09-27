@@ -289,7 +289,11 @@ main {
   color: var(--bad);
 }
 
+/* A refusal stays in view at the top while the player scrolls, whichever section they acted from. */
 .refusal {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   border: 2px solid var(--bad);
   border-radius: var(--radius);
   background: var(--bg-raised);
@@ -436,4 +440,91 @@ th.area {
   color: var(--ink-soft);
   font-size: 0.8125rem;
   margin-top: var(--gap);
+}
+
+/* ── Part 2 (DL-73): the index, rows with a button, trades, notices ─────────────────────── */
+
+/* The sections a game shows, as links that wrap onto as many lines as a phone needs. */
+.index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
+.index a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+/* A line with its button: side by side where they fit, the button below where they do not. */
+.rows {
+  list-style: none;
+  padding: 0;
+}
+
+.rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.rows li > span {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.trade p {
+  margin-bottom: 0.25rem;
+}
+
+.trade .actions {
+  align-items: center;
+  margin: 0.25rem 0 0;
+}
+
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inline-field input[type='number'] {
+  width: 5.5rem;
+}
+
+.notice {
+  border: 2px solid var(--accent);
+}
+
+.warning {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+tr.mine th,
+tr.mine td {
+  font-weight: 600;
+}
+
+.guild-page h4,
+.guildmaster h4 {
+  margin-top: 1rem;
+}
+
+/* A toggle that is on: the Rankings' measure. */
+button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
 }
