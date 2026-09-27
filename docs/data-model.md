@@ -188,7 +188,8 @@ join the union later.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
-{ value: number, since: turn, reason: string }   reason is a content key or event type
+{ value: number, since: turn, reason: string }   reason is a content key, an event type, or the
+                                                 id of the module whose effect set it (M8-S2)
 ```
 Absence means neutral. Relationship is computed from two lookups and never stored.
 
@@ -224,7 +225,28 @@ stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
 modules:  Record<ModuleId, unknown>
 ```
 The core clones the slice with the rest of `world` and never reads inside it. A module owns
-validation and migration of its slice and stores its own version there if it needs one.
+validation and migration of its slice and stores its own version there if it needs one, and its
+own tunables, which are not `GameConfig` fields (the probe's, M8-S3, DL-78). A
+module that draws keeps its stream in `rng` under a name of its own (§3.1). An installed
+module's slice and stream are made when the world is created or, for a save made before the
+module was installed, the first time it is played; a slice no installed module owns is kept,
+never read, and warned of (M8-S1, DL-76).
+
+At its hooks a module sees `world` read-only, in the types and at run time, by whatever route it
+reads (a property's descriptor included), and changes its own slice in place. It changes a core
+table only through its effects (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
+`offerQuest`), each run by the core's own rule and explained by the core's own event naming the
+module (for Regard, as for the core's own changes, only on a band crossing; the Regard entry names
+the module as its reason), so the core stays the only writer of its rows. Its own events, typed
+`<module id>.<what-happened>` by the module and not by the engine's union, are History entries like
+any other (M8-S2, DL-77). Every event a hook is handed, its own or an effect's, is the History's
+copy and frozen, and what a hook is given works only for that call, so no module rewrites an entry
+or changes a row later through something it kept (DL-80).
+
+The document holds slices, not a list of the modules installed: whoever plays it installs them, for
+each run or command (`HEROESIM_MODULES` for the harness, `--modules` for the CLI, `?modules=` for
+the web, all naming only the test-only probe so far), and a front end gives a module's event one
+generic sentence naming the module, the type and whom it concerns (M8-S4, DL-79).
 
 ## 4. `history`
 
@@ -290,7 +312,8 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 
 `meta.version` is set from the first save. On load: if a migration chain exists from the
 document's version to the current one, it runs, forward only, one step per version. If none
-exists, the load is refused with the versions named. Modules migrate their own slices.
+exists, the load is refused with the versions named. Modules migrate their own slices, after
+the chain and before the validator, each reading its own version from inside its slice (DL-76).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -308,8 +331,10 @@ runs per Turn in play.
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
+| A module slice its installed module refuses, or cannot migrate or read (DL-76) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
+| A module slice no installed module owns (DL-76) | warn |
 
 A refused document names the failed check. Nothing is repaired silently.
 

@@ -16,7 +16,7 @@ import {
   type World,
   type WorldDocument,
 } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { EngineEvent, TurnEvent } from '../events.js';
 import { addStack } from '../items.js';
 import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
@@ -84,7 +84,7 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
   return withValid(createWorld(seed, setup, deps).document, deps);
 }
 
-const ofType = <Type extends EngineEvent['type']>(events: EngineEvent[], type: Type) =>
+const ofType = <Type extends EngineEvent['type']>(events: TurnEvent[], type: Type) =>
   events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 
 function guildOf(document: WorldDocument, guildId: GuildId): Guild {
@@ -223,7 +223,7 @@ describe('rivalControllers', () => {
   test('never has a choice refused over ten Days, so no Rival sends an unavailable Hero', () => {
     const deps = testDeps();
     let document = created('ten-days', deps);
-    let events: EngineEvent[] = [];
+    let events: TurnEvent[] = [];
 
     while (document.world.turn < 30) {
       const result = advance(document, deps);
@@ -323,7 +323,7 @@ interface SeenCall {
   world: World;
   deps: EngineDeps;
   /** What the rule returned, which must be an acceptance. */
-  events: EngineEvent[];
+  events: TurnEvent[];
 }
 
 /** Every call a spied rule saw since it was last cleared, each accepted, or the test fails. */

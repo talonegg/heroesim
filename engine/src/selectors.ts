@@ -13,6 +13,7 @@ import {
   type Guild,
   type GuildId,
   type Guildmaster,
+  type Hall,
   type Hero,
   type Quest,
   type StatValues,
@@ -321,7 +322,7 @@ export function nextImprovement(
  * infirmary, and a grade past the list reading its last factor (DL-29 item 8). The Quest Engine
  * reads it; the defaults give every grade content defines a factor of its own (DL-53).
  */
-export function healFactor(guild: Pick<Guild, 'hall'>, config: Pick<GameConfig, 'infirmaryHealFactor'>): number {
+export function healFactor(guild: { hall: Pick<Hall, 'infirmary'> }, config: Pick<GameConfig, 'infirmaryHealFactor'>): number {
   const factors = config.infirmaryHealFactor;
   return factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
 }

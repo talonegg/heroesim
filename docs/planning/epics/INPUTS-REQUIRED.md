@@ -128,7 +128,7 @@ None are needed before M7, and none are read by the engine, ever.
 | `HEROESIM_HARNESS` | `harness/` Vitest project | Running the harness (M1 on) | Shell, or `npm run harness` sets it |
 | `HEROESIM_SEEDS` | `harness/` | Optional seed count for a harness run (default 1,000; M1-S10) | Shell |
 | `HEROESIM_VALIDATE` | `harness/` | Run the validator after every `advance` in a harness run (M2-S12) | Shell |
-| `HEROESIM_MODULES` | `harness/` | Comma-separated module ids to install for a harness run (M8-S3) | Shell |
+| `HEROESIM_MODULES` | `harness/` | Comma-separated module ids to install for a harness run (M8-S3): the run plays `HEROESIM_SEEDS` seeds (50 by default) with the modules and with none, in place of the creation and play runs (DL-78) | Shell |
 | `HEROESIM_SAVE_DIR` | `cli/` | Optional override of `.saves/` | Shell |
 | `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID` | `wrangler` | Only if 7.9 chooses CI deploy | GitHub Actions secrets; never a file in the repository |
 

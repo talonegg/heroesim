@@ -28,12 +28,18 @@
 // difficulty of each Quest a Rival took, and whether a Transfer's seller was in debt. From the World
 // State as each year begins: each Rival's Roster and Wealth, and the player's Guild's place in the
 // Rankings.
+//
+// M8's counters (DL-78), for a run with modules installed (`HEROESIM_MODULES`), from the History: each
+// module event type, `probe.fired` among them, and the core's events each module's effects made,
+// which name it as `moduleId`. With no module installed both are empty.
 
 import {
   baseStat,
+  compareByCodeUnit,
   dispositionOf,
   encounterKinds,
   facilityKeys,
+  isEngineEvent,
   isId,
   playerGuild,
   questBands,
@@ -250,6 +256,51 @@ export interface GameCounters {
   marketPurchases: Record<string, MarketTally>;
   /** `improvementGrades`' Rivals again, by Disposition; `null` when it is. */
   improvementGradesByDisposition: Record<string, GradeCounts> | null;
+  // M8's (DL-78).
+  /** Each module event type in the History (`isModuleEvent`), by count: `probe.fired`. Empty with no module. */
+  moduleEvents: Record<string, number>;
+  /**
+   * The core's events a module's effects made, by the module each names as `moduleId`, then by type
+   * (`effectEventTypes`). Empty with no module.
+   */
+  moduleEffects: Record<string, Record<string, number>>;
+}
+
+/**
+ * The core's event types a module's effect makes (effects.ts, M8-S2, DL-77), each naming the module
+ * as `moduleId`: the types `moduleEffects` reads. A test holds it to every event the probe's effects make.
+ */
+export const effectEventTypes = [
+  'hero.morale-changed',
+  'guild.wealth-changed',
+  'patron.regard-changed',
+  'guildmaster.regard-changed',
+  'hero.regard-changed',
+  'hero.injured',
+  'quest.offered',
+] as const satisfies readonly EventType[];
+
+/**
+ * M8's counters (DL-78): each module event type the History indexes, by count, in code-unit order of
+ * type; and, from the entries of `effectEventTypes`, those that name a module, by module and type.
+ */
+export function moduleCounters(document: WorldDocument): Pick<GameCounters, 'moduleEvents' | 'moduleEffects'> {
+  const moduleEvents: Record<string, number> = {};
+  for (const type of Object.keys(document.history.byType).sort(compareByCodeUnit)) {
+    if (isEngineEvent({ type: type as EventType })) continue;
+    moduleEvents[type] = document.history.byType[type as EventType]?.length ?? 0;
+  }
+  const moduleEffects: Record<string, Record<string, number>> = {};
+  for (const type of effectEventTypes) {
+    entriesOf(document, type).forEach((entry, index) => {
+      const moduleId = payloadField(entry, 'moduleId');
+      if (moduleId === undefined) return;
+      if (typeof moduleId !== 'string') throw new Error(`${type} entry ${index} has a moduleId that is not an id`);
+      const byType = (moduleEffects[moduleId] ??= {});
+      byType[type] = (byType[type] ?? 0) + 1;
+    });
+  }
+  return { moduleEvents, moduleEffects };
 }
 
 // ── M5's shapes (DL-62) ─────────────────────────────────────────────────────────────────────
@@ -1210,6 +1261,7 @@ export function countGame(
     dispositions: dispositionCounters(document, deps, lastTurn, afternoons),
     marketPurchases: marketPurchaseCounters(document),
     improvementGradesByDisposition: grades?.byDisposition ?? null,
+    ...moduleCounters(document),
   };
 }
 

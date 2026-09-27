@@ -3,7 +3,7 @@ import { advance } from '../advance.js';
 import type { GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Guild } from '../document.js';
-import type { EngineEvent, EngineEventOf } from '../events.js';
+import type { EngineEventOf, TurnEvent } from '../events.js';
 import { phases } from '../pipeline.js';
 import { dayOf, nightOf } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
@@ -77,7 +77,7 @@ describe('guildState', () => {
     );
 
     const target = nightOf(9); // the first Upkeep Day's night Turn (DL-26)
-    let allEvents: EngineEvent[] = [];
+    let allEvents: TurnEvent[] = [];
     for (let turn = 1; turn <= target; turn += 1) {
       const result = advance(document, deps);
       document = withValid(result.document, deps);

@@ -12,6 +12,7 @@ import { dealtDisposition, generateGuild, generateRival } from './generators/gui
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
+import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
@@ -40,10 +41,12 @@ export interface CreatedWorld {
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
  * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends
- * `world.created` and every generator's events to the new History and returns them.
+ * `world.created` and every generator's events to the new History and returns them. Last, each
+ * module in `deps.modules`, none by default, gets its stream and its slice (`ensureModules`).
  *
- * Throws on a programming error: a blank name, or a `backgroundKey` that is not a Guild
- * Background. A front end checks its input before calling.
+ * Throws on a programming error: a blank name, a `backgroundKey` that is not a Guild
+ * Background, or a module list `installedModules` refuses or a module that throws making its slice
+ * (`ModuleError`). A front end checks its input before calling.
  */
 export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): CreatedWorld {
   const { config, content } = deps;
@@ -89,6 +92,9 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   generated.push(...boardRefresh(world, phaseContext(world, deps)));
   // The Market likewise (M5-S4, DL-51), from `market` alone, after the Board as on every morning.
   generated.push(...marketRefresh(world, phaseContext(world, deps)));
+  // Last, each installed module's stream and slice (M8-S1, DL-76): a module's stream is seeded from
+  // its own name, so nothing above moves, and with no module installed nothing is added.
+  ensureModules(world, seed, deps);
 
   const created: WorldCreated = {
     turn: world.turn,

@@ -5,7 +5,7 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
 import { entriesFor } from '../history.js';
 import { addStack, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
@@ -68,9 +68,9 @@ function stillRivalControllers(): void {
 }
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = withValid(result.document, deps);
@@ -79,7 +79,7 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
   return { document: current, events };
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 interface Away {
@@ -90,7 +90,7 @@ interface Away {
   guildId: GuildId;
   heroIds: HeroId[];
   /** Everything played before the eve. */
-  events: EngineEvent[];
+  events: TurnEvent[];
 }
 
 /**
@@ -142,7 +142,7 @@ function sentAway(
 }
 
 /** Runs the phase alone on a copy of `eve`'s world moved on to the return night. */
-function concludeAlone(eve: WorldDocument, deps: EngineDeps): { world: World; events: EngineEvent[] } {
+function concludeAlone(eve: WorldDocument, deps: EngineDeps): { world: World; events: TurnEvent[] } {
   const world = structuredClone(eve.world);
   world.turn += 1;
   const events = questsConclude(world, phaseContext(world, deps, eve.history));
@@ -425,7 +425,7 @@ describe('questsConclude', () => {
   test('over a month of Rivals and the player sending Parties, quest.resolved still gives every band, each after its Encounters', () => {
     const deps = soloDeps({ rivalCount: 2 }, withDispositions({ recruitThreshold: 1000 }));
     let document = createWorld('bands', setup, deps).document;
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     while (document.world.turn < nightOf(45)) {
       const guild = playerGuild(document.world) as Guild;
       for (const quest of document.world.board.map((id) => document.world.quests[id] as Quest)) {

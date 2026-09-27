@@ -259,3 +259,44 @@ describe('the Roster with Hero pages', () => {
     expect(within(section('Roster')).queryByRole('article')).toBeNull();
   });
 });
+
+describe('the test-only switch for modules, the query parameter ?modules=probe (M8-S4)', () => {
+  afterEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  /** Opens the page at `address`, starts a game from the firing seed through the form, and plays eleven Turns one at a time. */
+  async function elevenTurns(address: string): Promise<void> {
+    window.history.replaceState(null, '', address);
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
+    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Ada Vell' } });
+    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Day 3.
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'modules' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    await idle();
+    for (let turn = 1; turn <= 11; turn += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+      await idle();
+    }
+    expect(screen.getByTestId('time').textContent).toBe('Day 3, night, Year 0');
+  }
+
+  test('with it, the page says the probe is installed, and its probe.fired event is in the log on a seed known to fire one', async () => {
+    await elevenTurns('/?modules=probe');
+
+    expect(screen.getByText('Installed for testing: the probe module.')).toBeDefined();
+    const log = section('Since your last action');
+    const fired = within(log).getByText(/^The probe module recorded probe\.fired for .+\.$/);
+    expect(fired.closest('li')?.querySelector('.when')?.textContent).toBe('Day 3, night');
+    // Its effects' events follow it, in the page's words for the core's own.
+    expect(within(log).getByText(/'s Wealth went from \d+ to \d+\.$/)).toBeDefined();
+  }, 30_000);
+
+  test('without it, nothing is installed: no word of a module, and no probe.fired on the same Turns', async () => {
+    await elevenTurns('/');
+
+    expect(screen.queryByText(/Installed for testing/)).toBeNull();
+    expect(within(section('Since your last action')).queryByText(/probe/)).toBeNull();
+  }, 30_000);
+});

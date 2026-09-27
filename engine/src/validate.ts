@@ -43,6 +43,7 @@ import {
   type WorldDocument,
 } from './document.js';
 import { findJsonUnsafe, formatPath } from './json-safe.js';
+import { sliceFailures, unknownSlices } from './modules.js';
 import { dispositionOf } from './selectors.js';
 
 // ── Results ──────────────────────────────────────────────────────────────────────────────────
@@ -72,11 +73,15 @@ export const refusalChecks = [
   'history-index-mismatch',
   'history-turn-order',
   'removed-hero-in-history',
+  'module-slice',
 ] as const;
 
 export type RefusalCheck = (typeof refusalChecks)[number];
 
-/** The checks that warn: a content key the content in use does not define (rule 5). */
+/**
+ * The checks that warn: a content key the content in use does not define (rule 5), and a module
+ * slice no installed module owns (`unknown-module`, M8-S1).
+ */
 export const warningChecks = [
   'unknown-stat',
   'unknown-class',
@@ -92,6 +97,7 @@ export const warningChecks = [
   'unknown-slot',
   'misplaced-item',
   'unknown-loot-table',
+  'unknown-module',
 ] as const;
 
 export type WarningCheck = (typeof warningChecks)[number];
@@ -206,11 +212,14 @@ const contentChecks: readonly ContentCheck[] = [
 ];
 
 /**
- * Accepts `document`, with a warning per content key `deps.content` does not define, or refuses
- * it with every failure found. Never throws, whatever it is given: a load hands it parsed text.
+ * Accepts `document`, with a warning per content key `deps.content` does not define and per module
+ * slice no module in `deps.modules` owns, or refuses it with every failure found, each installed
+ * module's refusals of its own slice among them (`module-slice`, M8-S1). Never throws, whatever it
+ * is given: a load hands it parsed text. (A module list `installedModules` refuses is a
+ * programming error, and throws.)
  *
  * Takes `deps` rather than a bare `ContentSet` (DL-23), matching every other engine entry point
- * (epics README §4): M8's modules will need `deps.modules` to validate their own state slices.
+ * (epics README §4): the modules in `deps.modules` validate their own slices.
  */
 export function validate(document: unknown, deps: EngineDeps, options: ValidateOptions = {}): ValidationResult {
   const { content, config } = deps;
@@ -226,8 +235,10 @@ export function validate(document: unknown, deps: EngineDeps, options: ValidateO
 
   const wellShaped = document as WorldDocument;
   for (const check of checksOfAWellShapedDocument) failures.push(...check(wellShaped, from));
+  failures.push(...sliceFailures(wellShaped.world, deps));
   if (failures.length > 0) return { ok: false, failures };
-  return { ok: true, warnings: contentChecks.flatMap((check) => check(wellShaped, content, config)) };
+  const warnings = contentChecks.flatMap((check) => check(wellShaped, content, config));
+  return { ok: true, warnings: [...warnings, ...unknownSlices(wellShaped.world, deps)] };
 }
 
 /**

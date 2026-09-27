@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -13,7 +14,7 @@ import {
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
-import { playReport, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
+import { playReport, sweepFingerprint, sweepPlay, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
 // The play sweep on a handful of short games, under `npm test`. The full run is
 // play.harness.test.ts (M2-S12, DL-34).
@@ -59,6 +60,7 @@ describe('sweepPlay', () => {
         historyEntries: measures.historyEntries,
         serialisedLength: measures.serialisedLength,
         roundTrips: measures.roundTrips,
+        fingerprint: measures.fingerprint,
       }));
     expect(parallel.workers).toBe(2);
     expect(played(parallel)).toEqual(played(sweep));
@@ -172,9 +174,23 @@ describe('sweepPlay', () => {
     expect(totals.rankings[0]?.fame.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
+  test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
+    const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
+
+    expect(sweepFingerprint(sweep.games)).toBe(createHash('sha256').update(lines).digest('hex'));
+    expect(sweepFingerprint([...sweep.games].reverse())).toBe(sweepFingerprint(sweep.games));
+    const [first, second] = sweep.games as [GameRecord, GameRecord];
+    const changed = { ...second, measures: { ...second.measures, fingerprint: first.measures.fingerprint } };
+    expect(sweepFingerprint([first, changed])).not.toBe(sweepFingerprint(sweep.games));
+  });
+
   describe('its report', () => {
     const context = { deps, machine: machine(), startedAt: new Date(2026, 8, 26, 12), milestone: 'm4' };
     const report = playReport(sweep, context);
+
+    test("gives the sweep's fingerprint, so two runs' saves compare in one line (M8-S1, DL-76)", () => {
+      expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
+    });
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
       expect(report).toContain('2 seeds, `seed-0001` to `seed-0002`');

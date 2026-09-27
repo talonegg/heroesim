@@ -5,7 +5,7 @@ import type { EngineDeps } from './config.js';
 import { partyFor, staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, Party, Quest, WorldDocument } from './document.js';
-import type { EngineEvent } from './events.js';
+import type { EngineEvent, TurnEvent } from './events.js';
 import { fastForward } from './fast-forward.js';
 import { playerGuild } from './selectors.js';
 import { serialise } from './serialise.js';
@@ -25,7 +25,7 @@ function player(document: WorldDocument): Guild {
   return guild;
 }
 
-function ofType<Type extends EngineEvent['type']>(events: readonly EngineEvent[], type: Type) {
+function ofType<Type extends EngineEvent['type']>(events: readonly TurnEvent[], type: Type) {
   return events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 }
 

@@ -4,7 +4,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { Entry, HeroId, WorldDocument } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { EngineEvent, TurnEvent } from '../events.js';
 import { append, count, entriesFor } from '../history.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
@@ -32,9 +32,9 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
 }
 
 /** Advances `document` to Turn `turn`, returning the events of every Turn played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = result.document;
@@ -43,7 +43,7 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
   return { document: withValid(current, deps), events };
 }
 
-const ofType = <Type extends EngineEvent['type']>(events: EngineEvent[], type: Type) =>
+const ofType = <Type extends EngineEvent['type']>(events: TurnEvent[], type: Type) =>
   events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 
 afterEach(() => {

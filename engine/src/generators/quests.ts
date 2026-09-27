@@ -20,6 +20,11 @@ export const boardStream: StreamName = 'board';
 export interface QuestOptions extends DrawsFrom {
   /** One of the Patron's templates; drawn uniformly from them when omitted. */
   templateKey?: QuestTemplateKey;
+  /**
+   * The stream the Encounter sequence is drawn from: `encounters` when omitted. A module's
+   * `offerQuest` names its own stream here and as `stream`, so no core stream moves (M8-S2, DL-77).
+   */
+  sequenceStream?: StreamName;
 }
 
 export interface GeneratedQuest {
@@ -45,7 +50,8 @@ export function templatesFor(content: Pick<ContentSet, 'questTemplates'>, sphere
  * 2. the difficulty, `int` over the template's range held inside `questDifficultyMin/Max`;
  * 3. the duration in Days, `int` over the template's range, stored as `durationTurns`.
  *
- * Then, from the `encounters` stream and no other, the Quest's Encounter sequence (M4-S1, DL-42):
+ * Then, from the `encounters` stream (or `options.sequenceStream`) and no other, the Quest's
+ * Encounter sequence (M4-S1, DL-42):
  * `encounterCount` Encounters at this difficulty, each a kind of the template's then an Encounter
  * of that kind (`drawSequence`), stored as `encounterKeys`. The `board` stream's draws are the
  * three above, as before M4, so the Board a seed produces is unchanged.
@@ -78,7 +84,7 @@ export function generateQuest(
     throw new RangeError(`${patron.id} offers no Quest template keyed ${JSON.stringify(given)}`);
   }
   const state = streamOf(world, options.stream ?? boardStream);
-  const sequenceState = streamOf(world, encounterStream);
+  const sequenceState = streamOf(world, options.sequenceStream ?? encounterStream);
   // Checked for every template the Patron offers before any draw, so a throw changes nothing.
   const pools = new Map(offered.map((template) => [template.key, encounterPools(template, content)]));
 

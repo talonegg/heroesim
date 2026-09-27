@@ -18,10 +18,12 @@ import {
   fastForward,
   makeId,
   guildmasterOf,
+  isModuleEvent,
   judgedHintBands,
   nightOf,
   potentialHint,
   potentialHints,
+  probe,
   serialise,
   upkeep,
   type EntityId,
@@ -30,11 +32,13 @@ import {
   type HeroId,
   type Quest,
   type QuestId,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
+import { narrate } from './narrate.js';
 
 const content = loadContent();
 const clock = new Date('2026-09-26T09:30:00.000Z');
@@ -1105,6 +1109,134 @@ describe('save and load', () => {
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('`new`');
     expect(existsSync(join(dir, '.saves', 'backup.json'))).toBe(false);
+  });
+});
+
+describe('--modules: the test-only probe on new, advance and load (M8-S4)', () => {
+  /** A seed on which the probe fires on the eleventh Turn, the night of Day 3: its stream's first draw below 0.02. */
+  const firingSeed = 'modules';
+  const withProbe = { config: defaultConfig, content, modules: [probe] };
+
+  function newWithProbe(...more: string[]): Run {
+    return play(['new', '--seed', firingSeed, '--guild', 'The Test', '--master', 'Ada', '--modules', 'probe', ...more]);
+  }
+
+  test('new installs no module unless given one: no slice and no stream of a module', () => {
+    newDemo();
+
+    expect(document().world.modules).toEqual({});
+    expect(Object.keys(document().world.rng)).not.toContain('probe');
+  });
+
+  test('new --modules probe makes the world the engine makes with the probe installed', () => {
+    const run = newWithProbe();
+    const expected = createWorld(firingSeed, { guildmasterName: 'Ada', guildName: 'The Test', createdAt: clock.toISOString() }, withProbe);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(Object.keys(expected.document.world.modules)).toEqual(['probe']);
+  });
+
+  test("a probe.fired event is in advance's log on a seed known to fire one, with its effects' events after it", () => {
+    newWithProbe();
+    // The same Turns played by the engine itself, with the probe installed.
+    let expected = document();
+    const events: TurnEvent[] = [];
+    for (let turn = 0; turn < 11; turn += 1) {
+      const result = advance(expected, withProbe);
+      expected = result.document;
+      events.push(...result.events);
+    }
+    const fired = events.filter(isModuleEvent).find((event) => String(event.type) === 'probe.fired');
+    if (fired === undefined) throw new Error(`The probe did not fire on seed ${firingSeed}`);
+
+    const run = play(['advance', '--turns', '11', '--modules', 'probe']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected));
+    expect(fired.turn).toBe(11);
+    const line = narrate(fired, content);
+    expect(line).toMatch(/^The probe module recorded probe\.fired for .+ \(hero-\d{6}\), .+\.$/);
+    const lines = run.out.split('\n');
+    const at = lines.findIndex((text) => text.endsWith(line));
+    expect(at).toBeGreaterThan(-1);
+    expect(lines[at]).toMatch(/^\s*11 {2}/);
+    // Its effects' events follow it, in the CLI's own words for the core's events.
+    expect(lines[at + 1]).toMatch(/'s Morale went from \d+ to \d+, \w+\.$/);
+    expect(lines[at + 2]).toMatch(/'s Wealth went from \d+ to \d+\.$/);
+    expect(document().history.byType['probe.fired']).toHaveLength(1);
+  });
+
+  test('advance --turns stops early when the probe asks to stop, and says so (DL-77 item 6)', () => {
+    newWithProbe();
+    // The engine's own Turns with the probe installed, to its first stop: the afternoon of Day 30.
+    let expected = document();
+    let stoppedBecause = null;
+    while (stoppedBecause === null) {
+      const result = advance(expected, withProbe);
+      expected = result.document;
+      stoppedBecause = result.stoppedBecause;
+    }
+    const turn = expected.world.turn;
+
+    const run = play(['advance', '--turns', '100', '--modules', 'probe']);
+
+    expect(stoppedBecause).toEqual({ kind: 'module', moduleId: 'probe' });
+    expect([turn, dayOf(turn)]).toEqual([91, 30]);
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected));
+    expect(run.out).toContain(`Played ${turn} Turns. Now Turn ${turn} (Day 30, afternoon, Year 0).`);
+    expect(run.out).toContain('Stopped: the probe module asked to stop.');
+  });
+
+  test('advance --until with --modules plays the probe too', () => {
+    newWithProbe();
+    const expected = fastForward(document(), { guildId: playerId, until: [], maxTurns: 11 }, withProbe);
+
+    const run = play(['advance', '--max', '11', '--modules', 'probe']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(saved()).toBe(serialise(expected.document));
+  });
+
+  test("advance without --modules warns of the probe's slice, keeps it as it was, and plays on without the probe", () => {
+    newWithProbe();
+    const before = document();
+
+    const run = play(['advance', '--turns', '11']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.err).toBe('Warning: No installed module owns the slice "probe": it is kept and never read\n');
+    expect(run.out).not.toContain('probe.fired');
+    expect(document().world.modules).toEqual(before.world.modules);
+    const probeStream = (of: WorldDocument): unknown => (of.world.rng as Record<string, unknown>)['probe'];
+    expect(probeStream(before)).toBeDefined();
+    expect(probeStream(document())).toEqual(probeStream(before));
+  });
+
+  test('load --modules probe takes a save with the probe slice without a warning; without it, with one', () => {
+    newWithProbe();
+    play(['save', '--as', 'backup']);
+
+    const installed = play(['load', 'backup', '--modules', 'probe']);
+    const not = play(['load', 'backup']);
+
+    expect(installed).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(not.code).toBe(exitCodes.ok);
+    expect(not.err).toContain('No installed module owns the slice "probe"');
+  });
+
+  test('load --modules probe refuses a save whose probe slice the probe refuses, naming the module', () => {
+    newWithProbe();
+    const bad = join(dir, 'bad.json');
+    const spoilt = saved().replace('"morning":0', '"morning":-1');
+    expect(spoilt).not.toBe(saved());
+    writeFileSync(bad, spoilt);
+
+    const run = play(['load', bad, '--modules', 'probe']);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toContain('The probe module refuses its slice');
   });
 });
 

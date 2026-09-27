@@ -6,6 +6,7 @@
 // the method and the numbers.
 
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -66,6 +67,7 @@ import {
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
@@ -149,6 +151,19 @@ export function sweepPlay(seeds: readonly string[], deps: EngineDeps, options: S
   return sweepOf(seeds, played, deps, options, { workers: 1, started, gamesMs: now() - started, now });
 }
 
+/**
+ * The sweep's fingerprint (M8-S1, DL-76): SHA-256, in hex, over one line per game, in seed order,
+ * of its seed, a tab and its last save's fingerprint (`DocumentMeasures.fingerprint`). Two runs of
+ * the same seeds give the same one only when every game's save is byte for byte equal, so it shows in
+ * one line of a report whether a change moved any game at all.
+ */
+export function sweepFingerprint(games: readonly GameRecord[]): string {
+  const lines = [...games]
+    .sort((a, b) => compareByCodeUnit(a.seed, b.seed))
+    .map((game) => `${game.seed}\t${game.measures.fingerprint}\n`);
+  return createHash('sha256').update(lines.join('')).digest('hex');
+}
+
 /** Processes a parallel sweep uses by default: half the logical processors, one a core with SMT. */
 export function defaultWorkers(): number {
   return Math.max(1, Math.floor(availableParallelism() / 2));
@@ -174,11 +189,14 @@ function runChild(jobPath: string, resultPath: string): Promise<void> {
 
 /**
  * `sweepPlay`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
- * loading the core content and playing under `deps.config`; the records come back in seed order
- * and the replay is played in this process once they are done. The children load the core content
- * themselves, so `deps.content` must be it: a child that loads another refuses the sweep.
+ * loading the core content and playing under `deps.config` with `deps.modules`, installed by id
+ * (M8-S3, DL-78); the records come back in seed order and the replay is played in this process once
+ * they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * child that loads another refuses the sweep; and each module must be the harness's own of its id
+ * (`idsOf`), which is checked before any child starts.
  *
- * @throws Error when a child fails or played with other content: a broken run, not a finding
+ * @throws Error when a child fails or played with other content, or a module is not the harness's:
+ * a broken run, not a finding
  */
 export async function sweepPlayInParallel(
   seeds: readonly string[],
@@ -187,6 +205,7 @@ export async function sweepPlayInParallel(
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
+  const modules = idsOf(deps.modules);
   const started = now();
   const dir = mkdtempSync(join(tmpdir(), 'heroesim-play-'));
   try {
@@ -198,6 +217,7 @@ export async function sweepPlayInParallel(
         years: options.years ?? defaultYears,
         validate: options.validate ?? false,
         policy: options.policy ?? defaultPolicyConfig,
+        ...(modules.length === 0 ? {} : { modules }),
       };
       const jobPath = join(dir, `job-${shard}.json`);
       writeFileSync(jobPath, JSON.stringify(job), 'utf8');
@@ -296,6 +316,11 @@ export interface SweepTotals {
   rankings: RankingTally[];
   /** Games a harness assertion stopped (DL-69). */
   assertionGames: number;
+  // M8's counters (DL-78).
+  /** Each module event type, by count; empty with no module installed. */
+  moduleEvents: Record<string, number>;
+  /** The core's events each module's effects made, by module and type; empty with no module installed. */
+  moduleEffects: Record<string, Record<string, number>>;
 }
 
 /** Rivals as a year began: each one's Roster size and Wealth. */
@@ -439,6 +464,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     rivalYearStarts: [],
     rankings: [],
     assertionGames: 0,
+    moduleEvents: {},
+    moduleEffects: {},
   };
   for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
@@ -470,6 +497,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
     });
     if (assertion !== null) totals.assertionGames += 1;
+    addFields(totals.moduleEvents, counters.moduleEvents);
+    for (const [moduleId, byType] of Object.entries(counters.moduleEffects)) addFields((totals.moduleEffects[moduleId] ??= {}), byType);
     for (const kind of controllerKinds) {
       addWealth(totals.wealth[kind], counters.wealth[kind]);
       for (const [table, tally] of Object.entries(counters.loot[kind])) {
@@ -1503,6 +1532,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
             : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'} (${whole(sweep.replay.length)} characters)`,
         ],
         ['Saves that load and serialise back identically', `${whole(roundTrips)} of ${whole(count)}`],
+        ["Fingerprint of every seed's last save", `\`${sweepFingerprint(sweep.games)}\``],
         ['`advance` per Turn', `mean ${ms(sweep.advance.mean)} ms, p99 ${ms(sweep.advance.p99)} ms`],
         ['Total run time', `${fixed(sweep.totalMs / 1000, 1)} s, the games ${fixed(sweep.gamesMs / 1000, 1)} s of it`],
       ],

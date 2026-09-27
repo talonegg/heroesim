@@ -32,9 +32,14 @@ export function localTimestamp(date: Date): string {
   return `${localDate(date)} ${time} ${zone}`;
 }
 
-/** A milestone's report for the day of `date`: `reports/m1-2026-09-26.md`. */
+/**
+ * A milestone's report for the day of `date`: `reports/m1-2026-09-26.md`; a run of a milestone's
+ * that is not its play run adds a kebab-case name, `m8-probe` (M8-S3, DL-78).
+ */
 export function reportPath(milestone: string, date: Date, dir: string = reportsDir): string {
-  if (!/^m\d+$/.test(milestone)) throw new RangeError(`A milestone is m<n>, not ${JSON.stringify(milestone)}`);
+  if (!/^m\d+(?:-[a-z0-9]+)*$/.test(milestone)) {
+    throw new RangeError(`A milestone is m<n>, or m<n>-<name>, not ${JSON.stringify(milestone)}`);
+  }
   return join(dir, `${milestone}-${localDate(date)}.md`);
 }
 

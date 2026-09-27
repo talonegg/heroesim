@@ -142,6 +142,20 @@ export {
 } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
+export {
+  moduleEffectKinds,
+  type AdjustMorale,
+  type AdjustRegard,
+  type AdjustWealth,
+  type EffectRejection,
+  type EffectResult,
+  type Injure,
+  type ModuleEffect,
+  type ModuleEffectKind,
+  type ModuleEffects,
+  type OfferQuest,
+} from './effects.js';
+export type { ModuleEmit, ModuleEventDraft } from './emit.js';
 export * from './events.js';
 export * from './fast-forward.js';
 export * from './gear.js';
@@ -162,6 +176,35 @@ export * from './history.js';
 export * from './items.js';
 export * from './json-safe.js';
 export * from './market.js';
+export {
+  hookNames,
+  ModuleError,
+  type HookName,
+  type Module,
+  type ModuleContext,
+  type ModuleRandom,
+  type ModuleResult,
+  type ModuleSelectors,
+  type ReadonlyWorld,
+  type SliceContext,
+  type SliceFailure,
+} from './modules.js';
+// The probe module (M8-S3, DL-78) is test-only: for tests, the harness (`HEROESIM_MODULES=probe`)
+// and the front ends' test-only switches, never installed by default or by a front end on its own.
+export {
+  createProbe,
+  probe,
+  probeDefaults,
+  probeId,
+  probeSliceFailures,
+  probeSliceVersion,
+  type ProbeEffectOutcome,
+  type ProbeFired,
+  type ProbeFiredPayload,
+  type ProbeSlice,
+  type ProbeTunables,
+} from './modules/probe.js';
+export type { ReadonlyDeep } from './read-only.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';

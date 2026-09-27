@@ -134,7 +134,7 @@ export function decayHeroRegard(hero: Hero, world: Pick<World, 'heroes'>, ctx: H
 }
 
 /** `hero.regard-changed` for `change`, when it crossed a band; nothing otherwise. */
-function heroRegardChanged(
+export function heroRegardChanged(
   ctx: Pick<HeroRegardContext, 'emit'>,
   heroId: HeroId,
   entityId: EntityId,
