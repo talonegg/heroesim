@@ -5067,6 +5067,141 @@ passes 95 files and 2,045 tests, none skipped, 283 of them new. `npm run build -
 through the gate. `npm run e2e -w web` passes 4. These were measured before this entry and the
 epic's ticks were written, and neither changes code.
 
+## DL-66 — The web's views, part 1: one column, the engine's dispatch preview, the front end's own narration in `state/`, stop reasons as buttons (M7-S3 part 1)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S3 part 1's implementer)
+
+**Context.** M7-S3 asks for the browser's views and actions in one column that stacks, in the
+order a Turn reads: the header, the Board with dispatch (pick Heroes and consumables, preview
+Synergies), the Roster with Hero pages (History newest first, paged), the Market, the Hall with
+build, the Rankings, and the log of events since the last action, narrated in the front end's own
+`narrate.ts`. Fast forward shows the stop reasons as buttons. A "new rules available" notice offers
+`rebase`. No component calls the engine. Its boxes: every event type has a sentence, with a test
+that enumerates the union; every CLI command has a browser equivalent, in a table ticked as built;
+Potential is never rendered, proved by a test that greps the rendered DOM; no horizontal overflow at
+360px (Playwright, M7-S4). The story is built in two parts. Part 1 is the shell, the header, the
+Board with dispatch, the Roster with Hero pages, time, the log and its narration, and the start of
+the table. Part 2 (DL-73) builds the rest. Two rules bind every view: nothing in `web/` computes a
+rule, since a number the player sees, a preview among them, comes from an engine selector
+(ADR-0007, principle 12); and only `state/` and `content.ts` import the engine's values (M7-S2,
+DL-65 item 7).
+
+**Decision.**
+
+1. **The layout.** One column, at most 44rem wide, with a 16px gutter at every width.
+   - *Sections.* The header, then Time, the Board, the Roster and "Since your last action"; before
+     there is a game, "A new game". Each section is a labelled region with its own heading.
+   - *Wide content.* The Stats table scrolls inside its own box, never the page. Names and
+     sentences wrap however long a word is; controls are at least 44px high.
+   - *Colours.* Tokens on `:root`, redefined for a dark scheme.
+   - *The stylesheet* (`web/src/styles.css`) is imported by `main.tsx`, and the one IIFE script
+     injects it (DL-64 item 3). The build is still two files.
+   - *Checked, not proved.* A scratch Playwright spec, not committed, measured
+     `scrollWidth ≤ innerWidth` at 360×800 and 1280×800 on a new game, a Guild with a 60-letter
+     name, an open dispatch form, a fast forward's stop and a Hero's page. It passed, and the
+     screenshots were read. The box stays M7-S4's.
+2. **The dispatch preview is the engine's.** The CLI's `preview` assembled its answer in
+   `cli/src/commands/preview.ts`: which requirements are met, who cannot go, the Synergies and how
+   many of the Quest's Encounters each reaches, the consumables and theirs, the reward agreed, and
+   dispatch's verdict, run on a `structuredClone` of the world. The browser may not do that, so it
+   moved into the engine:
+   - `engine/src/actions/dispatch.ts` exports **`dispatchRefusal(world, request, deps)`**:
+     dispatch's own checks, in its order, without sending anyone. `applyDispatch` now calls the
+     same two steps, and the preview needs no copy of the world.
+   - `engine/src/preview.ts` exports **`previewDispatch(world, request, deps)`**. It returns the
+     requirements with `met`, the problems, the Encounter kinds, each Synergy with its reach, each
+     consumable with how many are held and its reach, the consumables held, the reward offered and
+     agreed, and the refusal. It returns `null` for a Quest not on the Board, and throws on
+     dispatch's programming errors.
+   - `engine/src/preview.ts` also exports **`skillsThatHelp(quest, content)`**, moved out of
+     `cli/src/render.ts` (DL-70).
+   - The CLI's `preview` and `show board` now read these. Their output is unchanged, and the
+     CLI's 268 tests pass untouched.
+   - `engine/src/preview.test.ts` checks each part against the selector it came from, and checks
+     that the verdict equals `dispatch`'s result for six requests and that the preview changes
+     nothing.
+   - No config field, event, content value or version changes.
+3. **Narration lives in `state/narrate.ts`.** The epic names "the front end's own `narrate.ts`" but
+   not its place. The sentences read engine values (`dayOf`, `regardBandNames`, `parseId`,
+   `compareByCodeUnit`, `entriesFor`), which only `state/` may import. So it sits beside
+   `rejections.ts`, for the same reason (DL-65 item 6), and the import check is not widened.
+   - *One map.* It is keyed by every `EngineEventType`, so `tsc -b` refuses a type the engine adds
+     until it has words.
+   - *The test.* `narrate.test.ts` has a sample of each type, typed over the union. It enumerates
+     the union at run time through the engine's `milestoneTypes`, which is keyed by every type.
+     Each sample renders as one sentence with no id. So do all the History entries of a month of
+     real play.
+   - *The words* are the CLI's (`cli/src/narrate.ts`), adapted as the refusals were:
+     - Heroes, Guilds, Patrons and Guildmasters by name, without ids.
+     - A Party as "<Guild>'s Party". `quest.taken` names the Heroes sent, not the Party's id.
+     - A Quest by its template's name. `questNamer` finds it from the Quest's row while there is
+       one, then from the History, since `quest.offered` names every Quest's template; "a Quest"
+       if neither knows it.
+     - A participant with no label as "a Hero", "a Guild" and so on.
+     - Each sentence capitalised.
+     - Stop reasons in the CLI's `narrateStop` words, without its pointers to commands.
+4. **Stop reasons as buttons.** Two readings, both built.
+   - *The fast forwards.* The stops the player may choose are buttons: "Fast forward" stops on
+     the always-on reasons and after a year, the reducer's default `maxTurns`. "Fast forward until
+     new Heroes join the pool" adds the opt-in `pool-refreshed` (B7).
+   - *Why it stopped.* A sentence, with a button where the CLI names a command:
+     - `decision-needed`: "Choose a Party on the Board";
+     - `party-returned`: "Read what happened", which goes to the log;
+     - `transfer-offer`: "Read the offer", to the log until part 2 builds the offers;
+     - `pool-refreshed`: "Read who joined", to the log until part 2 builds the pool;
+     - `max-turns`: "Fast forward again";
+     - `ended`: none.
+
+     Going to a section scrolls to its heading and moves focus there.
+   - *Advance* is one Turn a tap. The CLI's `--turns n` is fast forward's work here, and `--max`
+     is not offered.
+5. **The views read `state/selectors.ts`.** Components take plain rows of words and numbers. Each
+   number is a document field or the answer of an engine selector: `rankings`, `ageOf`,
+   `baseStat`, `effectiveStats`, `potentialHint` with `judgedHintBands`, `carriedGear`,
+   `regardBand`, `relationship`, `transferFee`, `moraleBand`, `holdings`, `entriesFor`, or the
+   three above. The words are the CLI's `show` views'. Beyond the CLI's views:
+   - the header also shows the seed, and the Rankings place as an ordinal ("2nd of 5 by Fame");
+   - Morale shows its band beside its value (`moraleBand`);
+   - each Hero has a whereabouts: at the Hall, injured until a night, away until the Party's
+     night, dead or retired.
+6. **A Hero's page, and paging.**
+   - A Hero's page shows their Milestones first, newest first, as `CONTEXT.md` says a Hero's page
+     always does. Then comes their History, newest first, 20 entries a page (`entriesFor` with
+     `from` and `limit`), with Newer and Older buttons.
+   - The log shows the last play's events oldest first, as the CLI prints them, 100 at a time,
+     and can keep to what concerns the player's Guild. That filter is the events whose
+     participants include it; `emit` adds a Hero's Guild to every event naming the Hero.
+   - Both page sizes are front-end constants (`historyPageSize`, `logPageSize`), not `GameConfig`
+     fields: the epic's §2 says the web adds no config.
+7. **Potential is never rendered.**
+   - *By construction.* No view row has a field that could hold Potential. The "Outlook" column
+     is the hint word.
+   - *The test.* `views/hero-page.test.tsx` sets every Hero's Potential to numbers found nowhere
+     else. It opens every Roster Hero's page from the page, turning through every History page,
+     and renders the page of every Hero in the world. Each time it searches the rendered DOM,
+     text and attributes, for the numbers and for the word "potential".
+   - *Tried.* Leaking the number into the outlook failed both tests; the change was reverted.
+     The test first failed on its own seed, "potential-never-rendered", because the header shows
+     the seed. The seed was renamed.
+8. **Smaller choices.**
+   - A new game's seed is a readable one made up with `Math.random`, as the CLI's is; the player
+     may change it. `web/src/seed.ts` copies the CLI's words, because the page may not import the
+     CLI.
+   - "Send the Party" is enabled only when the preview's verdict, dispatch's own, says it would
+     send. The reducer still refuses anything else.
+   - `App` takes an optional `initial` state, a test's way in.
+   - `rejections.ts` now exports `endingWords` for the header.
+9. **The table** of CLI commands and their browser equivalents is in the epic's M7-S3 section.
+   Nine rows are built and ticked. The second box stays unticked until part 2 builds the rest.
+
+**Consequences.** Part 2 (DL-73) builds the Market, the Hall with build, the Rankings and the Guilds,
+the pool and recruiting, other Guilds' Rosters, Transfers and offers, the Guildmaster, the Patrons,
+the whole History, the rebase notice and `help`'s equivalent. It re-points the `transfer-offer` and
+`pool-refreshed` buttons, and ticks the table. M7-S4 adds saves and the 360px Playwright box.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 99 files and 2,135 tests, none
+skipped; 90 of them are new. `npm run build -w web` exits 0 through the gate: 439.64 kB (128.83 kB gzipped), "no network
+or filesystem reference". `npm run e2e -w web` passes 4.
+
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
 **Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each

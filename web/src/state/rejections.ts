@@ -120,7 +120,7 @@ const gearUnavailableWords: Readonly<Record<GearUnavailability, string>> = Objec
 });
 
 /** What befell a Guild at its ending, after its name (the CLI's `game.ended`). */
-const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze({
+export const endingWords: Readonly<Record<EndingReason, string>> = Object.freeze({
   retirement: 'lost its Guildmaster to Retirement',
   bankruptcy: 'went bankrupt',
   'roster-wiped': 'had its Roster wiped out',

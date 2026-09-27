@@ -25,6 +25,7 @@ export {
 export {
   applyDispatch,
   dispatch,
+  dispatchRefusal,
   unavailability,
   unmetRequirements,
   type ConsumableRequest,
@@ -164,6 +165,7 @@ export * from './market.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
+export * from './preview.js';
 export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
 export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
