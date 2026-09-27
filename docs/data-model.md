@@ -188,7 +188,8 @@ join the union later.
 
 **RegardEntry**, wherever a `regard` map appears:
 ```
-{ value: number, since: turn, reason: string }   reason is a content key or event type
+{ value: number, since: turn, reason: string }   reason is a content key, an event type, or the
+                                                 id of the module whose effect set it (M8-S2)
 ```
 Absence means neutral. Relationship is computed from two lookups and never stored.
 
@@ -229,6 +230,13 @@ module that draws keeps its stream in `rng` under a name of its own (§3.1). An 
 module's slice and stream are made when the world is created or, for a save made before the
 module was installed, the first time it is played; a slice no installed module owns is kept,
 never read, and warned of (M8-S1, DL-76).
+
+At its hooks a module sees `world` read-only, in the types and at run time, and changes its own
+slice in place. It changes a core table only through its effects (`adjustMorale`, `adjustWealth`,
+`adjustRegard`, `injure`, `offerQuest`), each run by the core's own rule and explained by the
+core's own event naming the module, so the core stays the only writer of its rows. Its own events,
+typed `<module id>.<what-happened>` by the module and not by the engine's union, are History
+entries like any other (M8-S2, DL-77).
 
 ## 4. `history`
 

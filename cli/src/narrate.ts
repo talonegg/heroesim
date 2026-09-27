@@ -4,11 +4,13 @@
 //
 // Names come from each event's labels, written when it happened, so a Hero or Quest whose row has
 // since gone still reads; content keys become content's display names. Each switch covers every
-// type, so the compiler refuses an event type or stop reason added without a line.
+// type, so the compiler refuses an event type or stop reason added without a line. A module's own
+// event, which the engine does not type, gets a line that names its type (M8-S2, DL-77).
 
 import {
   compareByCodeUnit,
   dayOf,
+  isModuleEvent,
   regardBandNames,
   type ContentSet,
   type EndingReason,
@@ -23,6 +25,7 @@ import {
   type RegardBand,
   type StopReason,
   type TransferOfferEndCause,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
@@ -62,12 +65,14 @@ const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-failure': 'after a Quest of theirs failed',
   'offer-expired': 'when an offer of theirs went untaken',
   recovery: 'as time passed',
+  module: 'through a module',
 };
 
 /** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
 const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
+  module: 'through a module',
 };
 
 /** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
@@ -106,8 +111,16 @@ function items(content: ContentSet, definitionKey: string, quantity: number, ite
   return itemIds.length === 0 ? counted : `${counted} (${itemIds.join(', ')})`;
 }
 
-/** One line for `event`, in the CLI's words. */
-export function narrate(event: EngineEvent, content: ContentSet): string {
+/**
+ * One line for `event`, in the CLI's words. A module's own event is not the engine's to word: its
+ * line names its type (M8-S2, DL-77).
+ */
+export function narrate(event: TurnEvent, content: ContentSet): string {
+  if (isModuleEvent(event)) return `A module's event: ${event.type}.`;
+  return narrateEngineEvent(event, content);
+}
+
+function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
   switch (event.type) {
     case 'world.created':
       return `The world was made from seed ${event.payload.seed}.`;
@@ -282,6 +295,11 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       const { offerId, toGuildId, heroId, cause } = event.payload;
       return `${called(event, toGuildId)}'s offer for ${hero(event, heroId)} (${offerId}) ${offerEndWords[cause]}.`;
     }
+    case 'guild.wealth-changed': {
+      // M8-S2: a module's `adjustWealth` effect.
+      const { guildId, before, after } = event.payload;
+      return `${called(event, guildId)}'s Wealth went from ${before} to ${after}.`;
+    }
     case 'item.expended': {
       // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).
       const { payload } = event;
@@ -332,6 +350,9 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       });
       return `Stopped: a Transfer Offer: ${listed(offers)}. Answer with accept --offer <id> or decline --offer <id> (show offers).`;
     }
+    case 'module':
+      // M8-S2: an installed module's hook asked for the stop.
+      return `Stopped: the ${stop.moduleId} module asked to stop.`;
     case 'max-turns':
       return `Stopped: played the most Turns allowed, ${maxTurns}.`;
     case 'pool-refreshed': {
@@ -353,7 +374,7 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
  */
 export function renderAdvance(
   played: number,
-  events: readonly EngineEvent[],
+  events: readonly TurnEvent[],
   document: WorldDocument,
   deps: EngineDeps,
   stop?: string,

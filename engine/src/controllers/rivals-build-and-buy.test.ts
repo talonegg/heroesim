@@ -11,7 +11,7 @@ import {
   type World,
   type WorldDocument,
 } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { append } from '../history.js';
 import { phaseContext } from '../phases/phase.js';
 import { runTurn } from '../pipeline.js';
@@ -100,7 +100,7 @@ function sweep(seed: string): Tally {
   for (const guild of rivalsInPlay(world)) enter(guild, 0);
   expect([...tally.dealt.values()].sort()).toEqual([...dispositions]);
 
-  const watch = (event: EngineEvent) => {
+  const watch = (event: TurnEvent) => {
     if (event.type === 'guild.founded') {
       enter(world.guilds[event.payload.guildId] as Guild, event.turn);
     } else if (event.type === 'guild.improved') {

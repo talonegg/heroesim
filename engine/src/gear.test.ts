@@ -8,7 +8,7 @@ import type { Encounter } from './content-types.js';
 import { rivalChoices } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, Holder, Party, Quest, QuestId, World, WorldDocument } from './document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import { gearChoices, gearModifiers, gearPurchase } from './gear.js';
 import { addStack, createItem, holdings } from './items.js';
 import { phaseContext } from './phases/phase.js';
@@ -60,7 +60,7 @@ function equipped(document: WorldDocument, request: EquipRequest, with_: EngineD
   return withValid(result.document, with_);
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 describe('effectiveStats with gear (DL-49)', () => {
@@ -228,7 +228,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
     (sent.document.world.quests[offered.id] as Quest).difficulty = 5000;
     const party = Object.values(sent.document.world.parties)[0] as Party;
     current = withValid(sent.document, harm);
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     while (current.world.turn < party.returnsOnTurn) {
       const result = advance(current, harm);
       current = withValid(result.document, harm);
@@ -297,7 +297,7 @@ describe('gear goes back to the Guild (DL-49)', () => {
     withValid(document, withRival);
 
     let current = document;
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     while (current.world.turn < nightOf(0)) {
       const result = advance(current, withRival);
       current = withValid(result.document, withRival);

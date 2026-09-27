@@ -142,6 +142,20 @@ export {
 } from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
+export {
+  moduleEffectKinds,
+  type AdjustMorale,
+  type AdjustRegard,
+  type AdjustWealth,
+  type EffectRejection,
+  type EffectResult,
+  type Injure,
+  type ModuleEffect,
+  type ModuleEffectKind,
+  type ModuleEffects,
+  type OfferQuest,
+} from './effects.js';
+export type { ModuleEmit, ModuleEventDraft } from './emit.js';
 export * from './events.js';
 export * from './fast-forward.js';
 export * from './gear.js';
@@ -170,9 +184,12 @@ export {
   type ModuleContext,
   type ModuleRandom,
   type ModuleResult,
+  type ModuleSelectors,
+  type ReadonlyWorld,
   type SliceContext,
   type SliceFailure,
 } from './modules.js';
+export type { ReadonlyDeep } from './read-only.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';

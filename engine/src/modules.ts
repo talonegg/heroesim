@@ -3,6 +3,12 @@
 // slice of the World State under its id, may register a random stream of its own, and is called at
 // the three positions approach §2 marks `[modules: on…]` in the Turn pipeline.
 //
+// At a hook (M8-S2, DL-77) a module reads the World State through a read-only view (read-only.ts)
+// and the core's selectors (`ctx.select`), changes its own slice in place, changes a core table only
+// through its effects (`ctx.effects`, effects.ts), emits events of its own typed by itself
+// (`ctx.emit`, `ModuleEvent`), and may ask fast forward to stop (`{ kind: 'module', moduleId }`). It
+// returns every event it made, its effects' included, in the order it wants them in the History.
+//
 // This is the one file of the core that touches the slices: it creates them, hands each to its own
 // module, and asks each module to migrate and validate its own. It never reads inside one; a test
 // (modules.test.ts) holds every other source file of the engine to not naming the World's slices.
@@ -10,16 +16,33 @@
 // With no module installed, which is every game the front ends and the harness play, nothing here
 // draws, writes or emits: the engine plays byte for byte as it did before M8 (DL-76).
 
-import type { EngineDeps, GameConfig } from './config.js';
+import type { EngineDeps, GameConfig, MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
-import type { ModuleId, Turn, World } from './document.js';
-import { eventEmitter, type Emit } from './emit.js';
-import type { EngineEvent } from './events.js';
+import type {
+  EntityId,
+  GuildId,
+  GuildmasterId,
+  Hero,
+  HeroId,
+  ModuleId,
+  Quest,
+  StatValues,
+  Turn,
+  World,
+} from './document.js';
+import { applyEffect, effectsApi, type ModuleEffects } from './effects.js';
+import { eventEmitter, moduleEventEmitter, type ModuleEmit } from './emit.js';
+import type { EngineEvent, TurnEvent } from './events.js';
 import { formatPath } from './json-safe.js';
-import type { PhaseContext, PhaseRun } from './phases/phase.js';
+import { moraleBand } from './morale.js';
+import type { PhaseContext } from './phases/phase.js';
+import { readOnlyView, type ReadonlyDeep } from './read-only.js';
+import { regardValue } from './regard.js';
 import { chance, createStreams, int, next, pick, shuffle, streamNames, weightedPick, type StreamName } from './rng.js';
+import { effectiveStats, offeredQuests, rankings, unattachedHeroes, upkeep, type Ranking, type RankingMeasure } from './selectors.js';
 import type { SavedDocument } from './serialise.js';
-import type { StopReason } from './stops.js';
+import type { ModuleStopReason } from './stops.js';
+import { ageOf } from './time.js';
 import type { ValidationFailure, ValidationWarning } from './validate.js';
 
 // ── The contract ─────────────────────────────────────────────────────────────────────────────
@@ -42,11 +65,15 @@ export interface ModuleRandom {
   weightedPick<T>(items: readonly T[], weights: readonly number[]): T;
 }
 
+/** The World State as a hook sees it: read-only all the way down (read-only.ts, M8-S2). */
+export type ReadonlyWorld = ReadonlyDeep<World>;
+
 /** What a module is given when its slice is made. */
 export interface SliceContext {
-  /** The rules in force: `deps.config`. */
-  config: GameConfig;
-  content: ContentSet;
+  /** The rules in force, `deps.config`, read-only. */
+  config: ReadonlyDeep<GameConfig>;
+  /** The content, `deps.content`, read-only. */
+  content: ReadonlyDeep<ContentSet>;
   /** The Turn of the world the slice is made in: 0 at `createWorld`. */
   turn: Turn;
   /** The module's own stream; every draw throws for a module that registered none. */
@@ -54,23 +81,64 @@ export interface SliceContext {
 }
 
 /**
- * What a module is given at a hook, beside the World State and its slice. The minimal context of
- * M8-S1: M8-S2 adds the read-only selectors and the `effects` API.
+ * The core's selectors over the Turn's World State, as it stands at the call (an effect applied a
+ * moment ago included), for a hook to read derived values the way the core reads them (M8-S2). A row
+ * one returns is read-only, as the world is. Each throws on an id the world does not hold. None
+ * says which Guild is the player's: a module is a rule, and no rule asks (ADR-0002, plan.md §1).
+ */
+export interface ModuleSelectors {
+  /** The Unattached pool, in id order (`unattachedHeroes`). */
+  unattachedHeroes(): ReadonlyDeep<Hero>[];
+  /** The Quests on offer, in the Board's order (`offeredQuests`). */
+  offeredQuests(): ReadonlyDeep<Quest>[];
+  /** The Rankings by Fame or Wealth (`rankings`). */
+  rankings(by: RankingMeasure): Ranking[];
+  /** A Guild's Upkeep (`upkeep`, its Guildmaster's Traits applied). */
+  upkeep(guildId: GuildId): number;
+  /** A Hero's effective Stats (`effectiveStats`). */
+  effectiveStats(heroId: HeroId): StatValues;
+  /** The band a Hero's Morale is in (`moraleBand`). */
+  moraleBand(heroId: HeroId): MoraleBand;
+  /** The Regard `holderId`'s row holds for `entityId`: 0, neutral, when it holds none (`regardValue`). */
+  regard(holderId: EntityId, entityId: EntityId): number;
+  /** A Hero's or Guildmaster's age in whole years, this Turn (`ageOf`). */
+  age(personId: HeroId | GuildmasterId): number;
+}
+
+/**
+ * What a module is given at a hook, beside the World State, read-only, and its slice (M8-S1,
+ * completed by M8-S2).
  */
 export interface ModuleContext extends SliceContext {
   /** The Turn being played. */
   turn: Turn;
-  /** The pipeline's `emit`, reading the Turn's world (emit.ts). */
-  emit: Emit;
+  /**
+   * Makes one of the module's own events, typed `<module id>.<what-happened>` and by the module, not
+   * the engine (`ModuleEvent`, `moduleEventEmitter`); not a Milestone unless the draft says so.
+   */
+  emit: ModuleEmit;
+  /** The core's selectors over the Turn's world. */
+  select: ModuleSelectors;
+  /**
+   * The only way the module changes a core table (effects.ts): each effect runs the core's own rule
+   * and returns the core's own events, which the hook must return among its events.
+   */
+  effects: ModuleEffects;
 }
 
 /**
- * What a hook returns: the events it made, which join the Turn's at the hook's position, and a
- * reason for fast forward to stop. M8-S1 plays the events; the stop is M8-S2's to report.
+ * What a hook returns (M8-S2, DL-77):
+ *
+ * - `events`: every event the hook made, in the order the History is to hold them: its own, from
+ *   `ctx.emit`, and each of its effects' events. The core refuses a hook that returns an event it
+ *   did not make in that call, or leaves out one its effects made, since then a core row would change
+ *   with nothing to explain it.
+ * - `stop`: a reason for fast forward to stop after this Turn, `{ kind: 'module', moduleId }` naming
+ *   the module itself: always on, whoever is watching.
  */
 export interface ModuleResult {
-  events: EngineEvent[];
-  stop?: StopReason;
+  events: readonly TurnEvent[];
+  stop?: ModuleStopReason;
 }
 
 /**
@@ -110,9 +178,14 @@ export interface Module<Slice = unknown> {
    * and reads it here: the core, which never reads inside a slice, passes none.
    */
   migrateSlice?(slice: unknown): Slice;
-  onMorning?(world: Readonly<World>, slice: Slice, ctx: ModuleContext): ModuleResult;
-  onAfternoon?(world: Readonly<World>, slice: Slice, ctx: ModuleContext): ModuleResult;
-  onNight?(world: Readonly<World>, slice: Slice, ctx: ModuleContext): ModuleResult;
+  /**
+   * The hooks, each at its position in the Turn (approach §2), with the Turn's World State as a
+   * read-only view (`ReadonlyWorld`: assigning to it throws), its slice to change in place, and its
+   * context.
+   */
+  onMorning?(world: ReadonlyWorld, slice: Slice, ctx: ModuleContext): ModuleResult;
+  onAfternoon?(world: ReadonlyWorld, slice: Slice, ctx: ModuleContext): ModuleResult;
+  onNight?(world: ReadonlyWorld, slice: Slice, ctx: ModuleContext): ModuleResult;
 }
 
 /**
@@ -182,9 +255,14 @@ export function ensureModules(world: World, seed: string, deps: EngineDeps): voi
       Object.assign(streams, createStreams(seed, [streamName]));
     }
     if (Object.hasOwn(world.modules, id)) continue;
-    const ctx: SliceContext = { config: deps.config, content: deps.content, turn: world.turn, rng: randomOf(module, world) };
+    const ctx: SliceContext = { ...readOnlyDeps(deps), turn: world.turn, rng: randomOf(module, world) };
     world.modules[id] = guarded(module, 'createSlice', () => module.createSlice(ctx));
   }
+}
+
+/** `deps`' rules and content as a module sees them: read-only. */
+function readOnlyDeps(deps: EngineDeps): Pick<SliceContext, 'config' | 'content'> {
+  return { config: readOnlyView(deps.config, 'The config'), content: readOnlyView(deps.content, 'The content') };
 }
 
 /** Runs `work` for `module`, throwing a `ModuleError` naming it and `during` if it throws. */
@@ -218,25 +296,133 @@ function randomOf(module: Module, world: World): ModuleRandom {
 
 /**
  * The pipeline's phase for `hook` (pipeline.ts): calls each installed module that has the hook, in
- * registration order, with the Turn's world, its slice and its context, and returns their events
- * in that order. Throws a `ModuleError` naming the first module that throws.
+ * registration order, with the Turn's world as a read-only view, its slice and its context, and
+ * returns their events in that order; a stop a hook asks for joins `ctx.moduleStops`. Throws a
+ * `ModuleError` naming the first module that throws, assigns to the World State, or returns what
+ * `checkedResult` refuses. With no module installed it does nothing.
  */
-export function hookPhase(hook: HookName): PhaseRun {
+export function hookPhase(hook: HookName): (world: World, ctx: PhaseContext) => TurnEvent[] {
   return (world, ctx) => {
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
+    if (ctx.modules.length === 0) return events;
+    const view = readOnlyView(world, 'The World State');
+    const deps = readOnlyDeps(ctx);
     for (const module of ctx.modules) {
       const run = module[hook];
       if (run === undefined) continue;
-      const moduleCtx = moduleContext(module, world, ctx);
-      const result = guarded(module, hook, () => run.call(module, world, world.modules[module.id], moduleCtx));
+      const made = new Set<TurnEvent>();
+      const fromEffects = new Set<EngineEvent>();
+      const moduleCtx = hookContext(module, world, view, ctx, deps, { made, fromEffects });
+      const result = guarded(module, hook, () =>
+        checkedResult(module, run.call(module, view, world.modules[module.id], moduleCtx), made, fromEffects),
+      );
       events.push(...result.events);
+      if (result.stop !== undefined) ctx.moduleStops.push(result.stop);
     }
     return events;
   };
 }
 
-function moduleContext(module: Module, world: World, ctx: PhaseContext): ModuleContext {
-  return { config: ctx.config, content: ctx.content, turn: ctx.turn, rng: randomOf(module, world), emit: eventEmitter(world) };
+/** The events one hook call made: all of them, and those its effects made. */
+interface Made {
+  made: Set<TurnEvent>;
+  fromEffects: Set<EngineEvent>;
+}
+
+/** The context `module`'s hook is given on `world`, the Turn's copy, seen as `view`. */
+function hookContext(
+  module: Module,
+  world: World,
+  view: ReadonlyWorld,
+  ctx: PhaseContext,
+  deps: Pick<SliceContext, 'config' | 'content'>,
+  { made, fromEffects }: Made,
+): ModuleContext {
+  const moduleEmit = moduleEventEmitter(world, module.id);
+  const effectCtx = {
+    moduleId: module.id,
+    streamName: module.streamName,
+    config: ctx.config,
+    content: ctx.content,
+    turn: ctx.turn,
+    emit: eventEmitter(world),
+  };
+  return {
+    ...deps,
+    turn: ctx.turn,
+    rng: randomOf(module, world),
+    emit: (draft) => {
+      const event = moduleEmit(draft);
+      made.add(event);
+      return event;
+    },
+    select: selectorsOver(view, ctx),
+    effects: effectsApi((effect) => {
+      const result = applyEffect(world, effect, effectCtx);
+      if (result.ok) {
+        for (const event of result.events) {
+          made.add(event);
+          fromEffects.add(event);
+        }
+      }
+      return result;
+    }),
+  };
+}
+
+/**
+ * `result` once it keeps the contract (`ModuleResult`): its events each made by this call, once;
+ * every event its effects made among them; and its stop, if any, the module's own. Throws otherwise:
+ * a programming error in the module, which `hookPhase` reports as a `ModuleError`.
+ */
+function checkedResult(module: Module, result: ModuleResult, made: Set<TurnEvent>, fromEffects: Set<EngineEvent>): ModuleResult {
+  if (typeof result !== 'object' || result === null || !Array.isArray(result.events)) {
+    throw new TypeError('A hook returns { events, stop? }');
+  }
+  const returned = new Set<TurnEvent>();
+  for (const event of result.events) {
+    if (!made.has(event) || returned.has(event)) {
+      throw new RangeError(`It returned an event it did not make in this hook, or one twice: ${String(event?.type)}`);
+    }
+    returned.add(event);
+  }
+  for (const event of fromEffects) {
+    if (!returned.has(event)) throw new RangeError(`It applied an effect and left out its event ${event.type}`);
+  }
+  const { stop } = result;
+  if (stop !== undefined && (stop.kind !== 'module' || stop.moduleId !== module.id)) {
+    throw new RangeError(`A module's stop is { kind: 'module', moduleId: '${module.id}' }; got ${JSON.stringify(stop)}`);
+  }
+  return result;
+}
+
+/** The core's selectors bound to `view`, the Turn's world, and `ctx`'s rules and content. */
+function selectorsOver(view: ReadonlyWorld, ctx: PhaseContext): ModuleSelectors {
+  // The selectors read and never write, so the view serves as the world they are written against.
+  const world = view as unknown as World;
+  const { config, content, turn } = ctx;
+  const row = <Row>(rows: Readonly<Record<string, Row>>, id: string): Row => {
+    const found = Object.hasOwn(rows, id) ? rows[id] : undefined;
+    if (found === undefined) throw new RangeError(`${id} is not in the world`);
+    return found;
+  };
+  const holderOf = (id: EntityId): { regard: World['heroes'][HeroId]['regard'] } => {
+    for (const table of ['patrons', 'guildmasters', 'heroes', 'guilds'] as const) {
+      const rows: Readonly<Record<string, { regard: World['heroes'][HeroId]['regard'] }>> = world[table];
+      if (Object.hasOwn(rows, id)) return row(rows, id);
+    }
+    throw new RangeError(`${id} holds no Regard in the world`);
+  };
+  return {
+    unattachedHeroes: () => unattachedHeroes(world),
+    offeredQuests: () => offeredQuests(world),
+    rankings: (by) => rankings(world, by),
+    upkeep: (guildId) => upkeep(row(world.guilds, guildId), world, config, content),
+    effectiveStats: (heroId) => effectiveStats(row(world.heroes, heroId), world, content),
+    moraleBand: (heroId) => moraleBand(row(world.heroes, heroId).morale, config),
+    regard: (holderId, entityId) => regardValue(holderOf(holderId).regard, entityId),
+    age: (personId) => ageOf(Object.hasOwn(world.heroes, personId) ? row(world.heroes, personId) : row(world.guildmasters, personId), turn, config),
+  };
 }
 
 // ── Loading and validating ───────────────────────────────────────────────────────────────────

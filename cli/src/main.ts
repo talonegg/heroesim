@@ -26,10 +26,11 @@ import {
   rebase,
   type ContentSet,
   type EngineDeps,
-  type EngineEvent,
   type EntityId,
   type Guild,
   type Hero,
+  type StopReason,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
@@ -353,8 +354,9 @@ export const noActionAfterTheEnd = 'Nothing more can be done in it.';
 
 /**
  * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping
- * early if the game ends, writes the save and prints what happened. A game that has already ended
- * is refused and nothing is written.
+ * early if the game ends or an installed module asks to stop (M8-S2, DL-77), writes the save and
+ * prints what happened, and why it stopped when a module asked. A game that has already ended is
+ * refused and nothing is written.
  */
 function advanceTurns(turns: number, { io, content, path }: Context): Exit {
   const opened = open(io, path, content);
@@ -364,17 +366,20 @@ function advanceTurns(turns: number, { io, content, path }: Context): Exit {
   const refused = over(io, document);
   if (refused !== undefined) return refused;
 
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   let played = 0;
-  while (played < turns) {
+  let stop: StopReason | null = null;
+  while (played < turns && stop === null) {
     const result = advance(document, deps);
     document = result.document;
     events.push(...result.events);
     played += 1;
-    if (result.stoppedBecause?.kind === 'ended') break;
+    stop = result.stoppedBecause;
   }
   writeSave(path, document);
-  return say(io, renderAdvance(played, events, document, deps));
+  // An ending has its own line in what is printed; a module's stop is said as fast forward says it.
+  const said = stop?.kind === 'module' ? narrateStop(stop, document, turns) : undefined;
+  return say(io, renderAdvance(played, events, document, deps, said));
 }
 
 /**

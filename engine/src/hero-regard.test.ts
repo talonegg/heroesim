@@ -7,7 +7,7 @@ import type { EngineDeps, GameConfig } from './config.js';
 import type { ContentSet } from './content-types.js';
 import { createWorld } from './create.js';
 import { makeId, type Guild, type GuildId, type Hero, type HeroId, type Party, type Quest, type RegardMap, type World, type WorldDocument } from './document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import {
   decayHeroRegard,
   heroRegardDecayStep,
@@ -65,15 +65,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = withValid(result.document, deps);
@@ -109,9 +109,9 @@ function send(
   heroIds: HeroId[],
   deps: EngineDeps,
   { difficulty, encounterKeys }: { difficulty?: number; encounterKeys?: string[] } = {},
-): { document: WorldDocument; party: Party; events: EngineEvent[] } {
+): { document: WorldDocument; party: Party; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   let open = openQuest(current.world, heroIds.length);
   for (let tries = 0; open === undefined || heroIds.some((id) => hero(current.world, id).partyId !== null); tries += 1) {
     if (tries > 60) throw new Error('No open Quest in 60 Turns');
@@ -137,7 +137,7 @@ function stillRivalControllers(): void {
 }
 
 /** Runs `questsConclude` alone on a copy of `eve`'s world moved on to the Party's return night. */
-function concludeAlone(eve: WorldDocument, party: Party, deps: EngineDeps): { world: World; events: EngineEvent[] } {
+function concludeAlone(eve: WorldDocument, party: Party, deps: EngineDeps): { world: World; events: TurnEvent[] } {
   const world = structuredClone(eve.world);
   world.turn = party.returnsOnTurn;
   const events = questsConclude(world, phaseContext(world, deps, eve.history));
@@ -426,7 +426,7 @@ describe('the Hero State Engine decays Regard between Heroes who have not shared
   }
 
   /** Runs the Hero State Engine alone on `world` on the night of Day `day`. */
-  function night(document: WorldDocument, world: World, day: number, deps: EngineDeps = fast): EngineEvent[] {
+  function night(document: WorldDocument, world: World, day: number, deps: EngineDeps = fast): TurnEvent[] {
     world.turn = nightOf(day);
     return heroState(world, phaseContext(world, deps, document.history));
   }
@@ -460,7 +460,7 @@ describe('the Hero State Engine decays Regard between Heroes who have not shared
     ]);
     expect(ofType(second, 'hero.regard-changed')[0]?.participants).toEqual([a.id, b.id, (playerGuild(world) as Guild).id]);
 
-    const quiet: EngineEvent[] = [];
+    const quiet: TurnEvent[] = [];
     for (let day = 10 + 362; day <= 10 + 366; day += 1) quiet.push(...night(document, world, day));
     expect(ofType(quiet, 'hero.regard-changed')).toEqual([]);
     expect(a.regard).toEqual({});

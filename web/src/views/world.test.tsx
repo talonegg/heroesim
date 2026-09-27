@@ -1,4 +1,4 @@
-import type { GuildId, HeroId, OfferId, StopReason } from '@heroesim/engine';
+import type { GuildId, HeroId, ModuleEvent, OfferId, StopReason } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
@@ -296,5 +296,17 @@ describe('why time stopped, with a button to what it names', () => {
       expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: heading }));
       unmount();
     }
+  });
+
+  test("a module's stop is said, and goes to what happened, where a module's own event reads as one (M8-S2)", () => {
+    const state = started();
+    const fired = { turn: 1, type: 'probe.fired', participants: [], labels: {}, milestone: false, payload: { effects: [] } } as unknown as ModuleEvent;
+    render(<App initial={{ ...state, log: [fired], stoppedBecause: { kind: 'module', moduleId: 'probe' } }} />);
+
+    const stop = screen.getByTestId('stop');
+    expect(within(stop).getByText('Stopped: the probe module asked to stop.')).toBeDefined();
+    fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Since your last action' }));
+    expect(within(section('Since your last action')).getByText("A module's event: probe.fired.")).toBeDefined();
   });
 });

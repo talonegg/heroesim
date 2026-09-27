@@ -12,7 +12,8 @@
 // gone still reads. A Quest carries no label, so its name comes from `questName`, which the caller
 // reads from the world and the History (`questNamer` below). One map, keyed by every event type,
 // so that `tsc -b` refuses a type the engine adds until it has words, and `narrate.test.ts`
-// enumerates the union.
+// enumerates the union. A module's own event, which the engine does not type, gets a sentence that
+// names its type (M8-S2, DL-77).
 //
 // It lives in `state/`, beside `rejections.ts`, because it reads engine values (`dayOf`,
 // `regardBandNames`, `parseId`), which only `state/` may import (M7-S2).
@@ -21,6 +22,7 @@ import {
   compareByCodeUnit,
   dayOf,
   entriesFor,
+  isModuleEvent,
   parseId,
   regardBandNames,
   type ContentSet,
@@ -41,6 +43,7 @@ import {
   type StopReason,
   type TableName,
   type TransferOfferEndCause,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { facilityIs, facilityNames } from './rejections';
@@ -109,12 +112,14 @@ const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-failure': 'after a Quest of theirs failed',
   'offer-expired': 'when an offer of theirs went untaken',
   recovery: 'as time passed',
+  module: 'through a module',
 };
 
 /** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
 const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
+  module: 'through a module',
 };
 
 /** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
@@ -301,6 +306,9 @@ const sentences: Sentences = {
     const { toGuildId, heroId, cause } = event.payload;
     return `${called(event, toGuildId)}'s offer for ${called(event, heroId)} ${offerEndWords[cause]}.`;
   },
+  // M8-S2: a module's `adjustWealth` effect.
+  'guild.wealth-changed': (event) =>
+    `${called(event, event.payload.guildId)}'s Wealth went from ${event.payload.before} to ${event.payload.after}.`,
   'item.expended': (event, { content }) => {
     // The roll is the engine's; the page says which Encounter, counted from 1, and what it did (M5-S3).
     const { payload } = event;
@@ -319,8 +327,12 @@ const sentences: Sentences = {
 /** Every event type the map has words for: the test holds it to the union. */
 export const narratedTypes = Object.freeze(Object.keys(sentences)) as readonly EngineEventType[];
 
-/** `event` as one sentence, in the CLI's words, capitalised when it opens with `a Hero` or the like. */
-export function narrate(event: EngineEvent, narration: Narration): string {
+/**
+ * `event` as one sentence, in the CLI's words, capitalised when it opens with `a Hero` or the like. A
+ * module's own event is not the engine's to word: its sentence names its type (M8-S2, DL-77).
+ */
+export function narrate(event: TurnEvent, narration: Narration): string {
+  if (isModuleEvent(event)) return `A module's event: ${event.type}.`;
   const words = sentences[event.type] as (event: EngineEvent, narration: Narration) => string;
   const sentence = words(event, narration);
   return sentence.charAt(0).toUpperCase() + sentence.slice(1);
@@ -384,6 +396,9 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       });
       return `Stopped: a Transfer Offer: ${listed(offers)}.`;
     }
+    case 'module':
+      // M8-S2: an installed module's hook asked for the stop.
+      return `Stopped: the ${stop.moduleId} module asked to stop.`;
     case 'max-turns':
       return `Stopped: played the most Turns allowed, ${maxTurns}.`;
     case 'pool-refreshed':

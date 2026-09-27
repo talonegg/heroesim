@@ -5,7 +5,7 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
 import { xpForLevel } from '../progression.js';
 import { playerGuild } from '../selectors.js';
 import { nightOf, timeOfDay } from '../time.js';
@@ -42,16 +42,16 @@ function soloDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
   );
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
 const player = (world: World): Guild => playerGuild(world) as Guild;
 
 /** Advances to Turn `turn`, validating the document it stops at, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = result.document;
@@ -68,7 +68,7 @@ function withYard(seed: string, grade: number, deps: EngineDeps): WorldDocument 
 }
 
 /** Runs the phase alone on `world` on the night of Day `day`. */
-function night(world: World, day: number, deps: EngineDeps): EngineEvent[] {
+function night(world: World, day: number, deps: EngineDeps): TurnEvent[] {
   world.turn = nightOf(day);
   return training(world, phaseContext(world, deps));
 }

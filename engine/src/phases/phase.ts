@@ -5,9 +5,10 @@ import type { EngineDeps, GameConfig } from '../config.js';
 import type { ContentSet } from '../content-types.js';
 import type { History, Turn, World } from '../document.js';
 import { eventEmitter, type Emit } from '../emit.js';
-import type { EngineEvent } from '../events.js';
+import type { EngineEvent, TurnEvent } from '../events.js';
 import { createHistory } from '../history.js';
 import type { Module } from '../modules.js';
+import type { ModuleStopReason } from '../stops.js';
 import type { TimeOfDay } from '../time.js';
 
 /** What every phase is given beside the World State it changes. */
@@ -33,6 +34,11 @@ export interface PhaseContext {
    * module hook positions read it (modules.ts, M8-S1).
    */
   modules: readonly Module[];
+  /**
+   * The stops the modules' hooks asked for this Turn, in the order asked (M8-S2, DL-77): the hook
+   * positions add to it and `advance` reads it once the Turn has run. Empty with no module.
+   */
+  moduleStops: ModuleStopReason[];
 }
 
 /**
@@ -46,7 +52,8 @@ export interface Phase {
   name: string;
   /** The one time of day the phase runs on. */
   timeOfDay: TimeOfDay;
-  run: PhaseRun;
+  /** A core phase's rule, or a module hook position's, whose events include the modules' own (M8-S2). */
+  run: (world: World, ctx: PhaseContext) => TurnEvent[];
 }
 
 /**
@@ -62,5 +69,6 @@ export function phaseContext(world: World, deps: EngineDeps, history: Readonly<H
     history,
     emit: eventEmitter(world),
     modules: deps.modules ?? [],
+    moduleStops: [],
   };
 }

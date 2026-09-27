@@ -15,6 +15,7 @@ import {
   type OfferId,
   type PartyId,
   type QuestId,
+  type ModuleEvent,
   type StackId,
   type StopReason,
   type WorldDocument,
@@ -254,6 +255,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     ...terms,
     cause: 'expired',
   }),
+  'guild.wealth-changed': event('guild.wealth-changed', [guildId], { guildId, moduleId: 'probe', before: 500, after: 750 }),
 };
 
 /** Every event type in the engine's union, enumerated by a record the engine keys by each. */
@@ -339,6 +341,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Day 7.',
   'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's offer for Brenna Ashcombe.",
   'guild.transfer-offer-expired': "The Iron Wardens's offer for Brenna Ashcombe expired unanswered.",
+  'guild.wealth-changed': "The Kestrel Guild's Wealth went from 500 to 750.",
 };
 
 describe('every sample in so many words', () => {
@@ -381,8 +384,21 @@ describe('every sample in so many words', () => {
     ['gear back from a retired Hero', varied('item.returned', { cause: 'retired' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe, who retired.`],
     ['gear back as the Guild folded', varied('item.returned', { cause: 'guild-folded' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe as the Guild folded.`],
     ['Morale that rose', varied('hero.morale-changed', { before: 35, after: 45, bandAfter: 'steady' }), "Brenna Ashcombe's Morale went from 35 to 45, steady."],
+    [
+      "a Patron's Regard a module moved",
+      varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' }),
+      "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool through a module.",
+    ],
+    ["a Hero's Regard a module moved", varied('hero.regard-changed', { cause: 'module', moduleId: 'probe' }), /^Brenna Ashcombe's Regard for .+ through a module\.$/],
   ] as const)('%s', (_name, event, sentence) => {
-    expect(narrate(event, narration)).toBe(sentence);
+    if (typeof sentence === 'string') expect(narrate(event, narration)).toBe(sentence);
+    else expect(narrate(event, narration)).toMatch(sentence);
+  });
+
+  test("a module's own event, which the engine does not type, is named by its type (M8-S2)", () => {
+    const fired = { ...samples['guild.founded'], type: 'probe.fired', payload: { effects: [] } } as unknown as ModuleEvent;
+
+    expect(narrate(fired, narration)).toBe("A module's event: probe.fired.");
   });
 });
 
@@ -480,6 +496,7 @@ describe('narrateStop', () => {
       /^Stopped: a decision is needed: The Lantern has no Party out, and could send one on [A-Z][^.]+\.$/,
     ],
     'transfer-offer': [{ kind: 'transfer-offer', guildId: player.id, offerIds: [offerId] }, /^Stopped: a Transfer Offer: an offer since withdrawn\.$/],
+    module: [{ kind: 'module', moduleId: 'probe' }, /^Stopped: the probe module asked to stop\.$/],
     'max-turns': [{ kind: 'max-turns' }, /^Stopped: played the most Turns allowed, 1080\.$/],
     'pool-refreshed': [{ kind: 'pool-refreshed', heroIds: poolHero === undefined ? [] : [poolHero.id] }, /^Stopped: new in the Unattached pool: [A-Z].*\.$/],
   };

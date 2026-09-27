@@ -44,7 +44,7 @@ import {
   type ConsumableRequest,
   type ContentSet,
   type EngineDeps,
-  type EngineEvent,
+  type TurnEvent,
   type Entry,
   type GearDefinition,
   type Guild,
@@ -488,7 +488,7 @@ export function linesOf(entries: readonly Entry[], narration: Narration): LogLin
   return entries.map((entry, index) => ({
     key: `${entry.turn}-${index}`,
     when: whenOf(entry.turn),
-    sentence: narrate(entry as EngineEvent, narration),
+    sentence: narrate(entry as TurnEvent, narration),
     milestone: entry.milestone,
   }));
 }

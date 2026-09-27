@@ -15,6 +15,8 @@ const nextFor: Readonly<Record<StopReason['kind'], { label: string; section: Sec
   'party-returned': { label: 'Read what happened', section: 'log' },
   'decision-needed': { label: 'Choose a Party on the Board', section: 'board' },
   'transfer-offer': { label: 'Answer the offer', section: 'offers' },
+  // M8-S2: the module's own events say why it asked.
+  module: { label: 'Read what happened', section: 'log' },
   'max-turns': { label: 'Fast forward again', again: true },
   'pool-refreshed': { label: 'See who joined the pool', section: 'pool' },
 };

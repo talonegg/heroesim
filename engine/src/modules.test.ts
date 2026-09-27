@@ -4,9 +4,9 @@ import { describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { createWorld } from './create.js';
-import type { World, WorldDocument } from './document.js';
+import type { Entry, World, WorldDocument } from './document.js';
 import { fastForward } from './fast-forward.js';
-import { ModuleError, type Module, type ModuleContext, type SliceContext } from './modules.js';
+import { ModuleError, type Module, type ModuleContext, type ReadonlyWorld, type SliceContext } from './modules.js';
 import { createStreams, next, streamNames } from './rng.js';
 import { playerGuild } from './selectors.js';
 import { deserialise, serialise } from './serialise.js';
@@ -30,7 +30,7 @@ interface LogSlice {
 function logModule(id = 'log', extra: Partial<Module<LogSlice>> = {}): Module<LogSlice> {
   const record =
     (hook: string) =>
-    (_world: Readonly<World>, slice: LogSlice, ctx: ModuleContext) => {
+    (_world: ReadonlyWorld, slice: LogSlice, ctx: ModuleContext) => {
       slice.calls.push([hook, ctx.turn]);
       return { events: [] };
     };
@@ -47,7 +47,7 @@ function logModule(id = 'log', extra: Partial<Module<LogSlice>> = {}): Module<Lo
 
 /** A module with a stream of its own that draws once in each of its hooks. */
 function diceModule(): Module<LogSlice> {
-  const roll = (_world: Readonly<World>, slice: LogSlice, ctx: ModuleContext) => {
+  const roll = (_world: ReadonlyWorld, slice: LogSlice, ctx: ModuleContext) => {
     slice.draws.push(ctx.rng.next());
     return { events: [] };
   };
@@ -150,7 +150,7 @@ describe('the hooks at the three positions of approach §2', () => {
     const announcing: Module<LogSlice> = {
       ...logModule('announcing'),
       onNight: (_world, _slice, ctx) => ({
-        events: [ctx.emit({ type: 'world.created', participants: [], payload: { seed: 'from a module' } })],
+        events: [ctx.emit({ type: 'announcing.said', participants: [], payload: { seed: 'from a module' } })],
       }),
     };
     const deps = withModules(announcing);
@@ -159,8 +159,9 @@ describe('the hooks at the three positions of approach §2', () => {
 
     const night = advance(afternoon.document, deps);
 
-    expect(afternoon.events.filter((event) => event.type === 'world.created')).toEqual([]);
-    const fromModule = night.events.filter((event) => event.type === 'world.created');
+    const said = (events: readonly Entry[]) => events.filter((event) => event.type === 'announcing.said');
+    expect(said(afternoon.events)).toEqual([]);
+    const fromModule = said(night.events);
     expect(fromModule).toEqual([expect.objectContaining({ turn: 2, payload: { seed: 'from a module' } })]);
     expect(night.document.history.entries).toContain(fromModule[0]);
   });

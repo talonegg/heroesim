@@ -2,7 +2,7 @@ import { describe, expect, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps, GameConfig } from './config.js';
 import { makeId, type Guild, type Guildmaster, type HeroId, type Patron, type PatronId, type RegardMap, type World } from './document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import { phaseContext } from './phases/phase.js';
 import {
   adjustRegard,
@@ -38,7 +38,7 @@ const pinned: Partial<GameConfig> = {
 };
 const deps = testDeps(pinned);
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 /** The fixture document's world, the player's Guild and Guildmaster, a Patron and two Roster Heroes. */
@@ -177,7 +177,7 @@ describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test
   test('a Patron whose Quests always fail ends in a lower band than one whose always succeed; an event at each band crossing and no other', () => {
     const { world, ids, guild, guildmaster, patron } = scene();
     const other = world.patrons[Object.keys(world.patrons).find((id) => id !== ids.patron) as PatronId] as Patron;
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
 
     for (let quest = 0; quest < 10; quest += 1) {
       events.push(...regardOnQuestResolved(world, context(world), resolved(guild, patron.id, [], false)));
@@ -241,7 +241,7 @@ describe('Patron Regard for a Guild (M4-S5)', () => {
 
   test('emits patron.regard-changed only on a band crossing, naming the Patron and the Guild', () => {
     const { world, guild, patron } = scene();
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     for (let quest = 0; quest < 5; quest += 1) {
       events.push(...regardOnQuestResolved(world, context(world), resolved(guild, patron.id, [], false)));
     }
@@ -287,7 +287,7 @@ describe('questsConclude moves Regard on every resolution (M4-S5)', () => {
     // The Party's stack goes with it: Items come home in M5, and until then nothing moves a stack.
     delete world.stacks[ids.partyStack];
     let current = withValid(document, still);
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     const returns = world.parties[ids.party]?.returnsOnTurn ?? 0;
     while (current.world.turn < returns) {
       const result = advance(current, still);

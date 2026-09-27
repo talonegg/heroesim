@@ -5,7 +5,7 @@
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import type { GuildId, WorldDocument } from './document.js';
-import type { EngineEvent } from './events.js';
+import type { TurnEvent } from './events.js';
 import {
   alwaysStops,
   endedStop,
@@ -25,7 +25,8 @@ export interface FastForwardOptions {
   guildId: GuildId;
   /**
    * The opt-in conditions to stop on as well (`pool-refreshed`). The always-on ones (`ended`,
-   * `party-returned`, `decision-needed`, `transfer-offer`) stop it whether listed or not (`alwaysStops`).
+   * `party-returned`, `decision-needed`, `transfer-offer`, and a module's stop, `module`) stop it
+   * whether listed or not (`alwaysStops`).
    */
   until: readonly StopCondition[];
   /** The most Turns to play: a whole number from 0. At 0 nothing is played. */
@@ -35,8 +36,8 @@ export interface FastForwardOptions {
 export interface FastForwardResult {
   /** The document after the last Turn played; the one given when none was. */
   document: WorldDocument;
-  /** Every event of every Turn played, in order, each also appended to the History. */
-  events: EngineEvent[];
+  /** Every event of every Turn played, in order, each also appended to the History; the modules' own among them. */
+  events: TurnEvent[];
   /** Why it stopped: the first reason, in `stopConditions`' order, of the last Turn, or `max-turns`. */
   stoppedBecause: StopReason;
 }
@@ -63,13 +64,13 @@ export function fastForward(document: WorldDocument, options: FastForwardOptions
   if (ended !== null) return { document, events: [], stoppedBecause: ended };
 
   const listened = stopConditions.filter((condition) => alwaysStops[condition] || until.includes(condition));
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   let current = document;
   for (let played = 0; played < maxTurns; played += 1) {
     const turn = advance(current, deps);
     events.push(...turn.events);
     const [stop] = stopsOfTurn(
-      { before: current.world, after: turn.document.world, events: turn.events },
+      { before: current.world, after: turn.document.world, events: turn.events, stoppedBecause: turn.stoppedBecause },
       guildId,
       deps,
       listened,

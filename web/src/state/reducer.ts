@@ -31,7 +31,7 @@ import {
   type ActionRejection,
   type BackgroundKey,
   type EngineDeps,
-  type EngineEvent,
+  type TurnEvent,
   type Ending,
   type GuildAction,
   type GuildId,
@@ -148,8 +148,11 @@ export type PlayRejection = ActionRejection | NewGameRejection | LoadRejection |
 export interface GameState {
   /** The game in hand, or `null` before one is started or loaded. */
   document: WorldDocument | null;
-  /** The events of the last play the engine carried out, in order: a Turn's, an action's. */
-  log: EngineEvent[];
+  /**
+   * The events of the last play the engine carried out, in order: a Turn's, an action's; a Turn's
+   * include an installed module's own (M8-S2).
+   */
+  log: TurnEvent[];
   /** Why the last play was refused, or `null`; cleared by the next play carried out, or `dismiss`. */
   rejection: PlayRejection | null;
   /** From a play accepted until its result is stored: a play arriving meanwhile is dropped. */
@@ -218,7 +221,7 @@ type Outcome =
   | {
       ok: true;
       document: WorldDocument;
-      events: EngineEvent[];
+      events: TurnEvent[];
       stoppedBecause?: StopReason | null;
       /** Replaces the state's warnings when given: a new game's none, a load's own. */
       warnings?: ValidationWarning[];
@@ -297,7 +300,7 @@ function load(text: string): Outcome {
 /** Up to `turns` Turns, stopping after the one that ends the game: the CLI's `advance --turns`. */
 function advanceTurns(document: WorldDocument, turns: number, deps: EngineDeps): Outcome {
   if (!Number.isSafeInteger(turns) || turns < 1) throw new RangeError(`advance plays a whole number of Turns from 1, not ${turns}`);
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   let current = document;
   let stoppedBecause: StopReason | null = null;
   for (let played = 0; played < turns && stoppedBecause === null; played += 1) {

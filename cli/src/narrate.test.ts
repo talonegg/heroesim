@@ -10,6 +10,7 @@ import {
   type PartyId,
   type QuestId,
   type StackId,
+  type ModuleEvent,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -240,6 +241,7 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     ...terms,
     cause: 'expired',
   }),
+  'guild.wealth-changed': event('guild.wealth-changed', [guildId], { guildId, moduleId: 'probe', before: 500, after: 750 }),
 };
 
 describe('narrate', () => {
@@ -392,6 +394,18 @@ describe('Transfers (M6-S2)', () => {
     const transferred = { ...samples['item.returned'], payload: { ...samples['item.returned'].payload, cause: 'transferred' as const } };
     expect(narrate(transferred, content)).toMatch(/from Brenna Ashcombe \(hero-000007\), who was transferred\.$/);
   });
+
+  test("words what a module's effects did, and names a module's own event by its type (M8-S2)", () => {
+    const patron = samples['patron.regard-changed'];
+    const hero = samples['hero.regard-changed'];
+    const byModule = <E extends { payload: object }>(sample: E): E => ({ ...sample, payload: { ...sample.payload, cause: 'module', moduleId: 'probe' } });
+    const fired = { ...event('guild.founded', [guildId], { guildId, guildmasterId: guildmasterId as never }), type: 'probe.fired' } as unknown as ModuleEvent;
+
+    expect(narrate(samples['guild.wealth-changed'], content)).toBe("The Kestrel Guild's Wealth went from 500 to 750.");
+    expect(narrate(byModule(patron), content)).toMatch(/ through a module\.$/);
+    expect(narrate(byModule(hero), content)).toMatch(/ through a module\.$/);
+    expect(narrate(fired, content)).toBe("A module's event: probe.fired.");
+  });
 });
 
 describe('the Market (M5-S4)', () => {
@@ -442,6 +456,7 @@ describe('narrateStop', () => {
       'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
         '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
     ],
+    [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],
     [{ kind: 'pool-refreshed', heroIds: [heroId] }, 'Stopped: new in the Unattached pool: Brenna Ashcombe (hero-000007) (show pool).'],
   ])('puts %j in words', (stop, line) => {

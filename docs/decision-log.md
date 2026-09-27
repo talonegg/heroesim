@@ -6457,6 +6457,143 @@ and M8-S3: a module's own event types (`probe.fired`) are not in `EngineEvent`, 
 gains them or `ModuleResult.events` widens to entries of any type, which M8-S4's narration fallback
 then meets.
 
+## DL-77 — Hooks, effects and stops: a read-only world, typed effects through the core's own rules, a module's events typed by its module beside the engine's union, and a `module` stop reason (M8-S2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S2's implementer), where
+the epic names the context, the effects and the stop but leaves their shape open, and where DL-76
+left the typing of a module's own events to this story; no default, content value, `configVersion`
+or schema version changes
+
+**Context.** M8-S2 makes the three hook positions real (ADR-0005 as amended 2026-09-25, data-model
+§3.4, approach §2, N6). The epic asks that a hook's `ctx` carry `emit`, `rng` (the module's own
+stream only), `config`, `content`, `turn` and read-only selectors; that a module change a core
+table only through a typed `effects` API (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
+`offerQuest`) so the core stays the only writer of its rows; that a module's `stop` halt fast
+forward with its reason and the CLI and the web show it; that a module assigning
+`world.heroes[id].morale` fail a frozen-world test; and that hook order among several modules be
+registration order. DL-76 left open how a module's own event types (`probe.fired`) sit beside
+`EngineEvent`, which must not need editing for each module.
+
+**Decision.**
+
+1. **The World State a hook sees is read-only, in the types and at run time.** A hook is given the
+   Turn's world as `ReadonlyWorld = ReadonlyDeep<World>` (read-only.ts): every property `readonly`,
+   every list a `ReadonlyArray`, so `world.heroes[id].morale = 0` does not compile; and at run time a
+   Proxy view of the Turn's copy, which reads through to the world as it stands (an effect applied a
+   moment ago included) and throws a TypeError on any set, define, delete, prototype or
+   extensibility change of any object reached from it, arrays' in-place methods included. The hook's
+   throw becomes a `ModuleError` naming the module (DL-76), and `advance`, which plays on a copy,
+   leaves the document it was given as it was. A Proxy rather than a frozen copy: nothing is copied,
+   and reads stay live. `ctx.config` and `ctx.content` are views of the same kind, since a module
+   writing to them would change the rules or the content for the whole game. The slice is the one
+   thing a hook changes directly, through its `slice` argument; through the world it too is
+   read-only. With no module installed no view is made.
+2. **The context.** `ModuleContext` is `config`, `content` (read-only), `turn`, `rng` (the module's
+   stream, DL-76), `emit` (the module's own events, item 4), `select` and `effects`. `select` binds
+   the core's selectors to the Turn's world: `unattachedHeroes`, `offeredQuests`, `rankings`,
+   `upkeep`, `effectiveStats`, `moraleBand`, `regard` (`regardValue` of a holder's map) and `age`
+   (`ageOf`); rows they return are read-only views. **It has no `playerGuild`:** a module is a rule,
+   and no rule asks which Guild is the player's beyond `plan.md` §1's three accepted exceptions
+   (ADR-0002; controller-reads.test.ts would refuse it). A real module that needs the player's Guild
+   asks the owner first.
+3. **The effects are typed records, each run by the core's own rule and explained by the core's own
+   event** (effects.ts). `ModuleEffect` is the union of `AdjustMorale { heroId, delta }`,
+   `AdjustWealth { guildId, delta }`, `AdjustRegard { holderId, entityId, delta }`, `Injure { heroId,
+   typeKey, days }` and `OfferQuest { patronId, templateKey? }`, told apart by a `kind` named as the
+   epic names the functions; `ctx.effects` has one function a kind, derived from the union, so a
+   kind a real module adds (the epic's risk table) adds its function. Each returns `{ ok: true,
+   effect, events }` or, for a change its rule does not allow, `{ ok: false, rejection: { effect,
+   reason } }` having changed nothing, as an action does; a programming error (an id the world lacks
+   or of the wrong table, a delta that is not a whole number, or for Regard a finite one, an Injury
+   type content lacks, Days below 1, a Patron with no such template) throws, and so fails the Turn
+   naming the module. Each event names the module as `moduleId`, and where its type has a cause the
+   cause is `module`:
+   - `adjustMorale`: `changeMorale` (morale.ts), held inside `moraleMin`–`moraleMax`,
+     `hero.morale-changed` always, as every discrete change; refused `hero-gone` for a Hero dead,
+     retired or gone from the pool.
+   - `adjustWealth`: the Guild's Wealth, which may go below 0 as Upkeep may take it, and a new
+     event, **`guild.wealth-changed`** `{ guildId, moduleId, before, after }` (not a Milestone), the
+     one change of Wealth no other event records; refused `guild-folded`.
+   - `adjustRegard`: regard.ts's `adjustRegard` for the holders the core has: a Patron for a Guild,
+     a Guildmaster for a Patron, a Hero or a Guildmaster (Regard for a Guild is read from its
+     Guildmaster's), a Hero for another Hero; `patron.regard-changed`, `guildmaster.regard-changed`
+     or `hero.regard-changed` only on a band crossing (data-model rule 10, DL-43), through the
+     writers the core uses (`patronRegardChanged`, `guildmasterRegard`, `heroRegardChanged`, the last
+     two now exported). The entry's `since` is the Turn and its `reason` the module's id; data-model
+     §3.2 now says a reason may be one. Refused `holder-gone` for a Hero out of play or the
+     Guildmaster of a folded Guild.
+   - `injure`: the Days given, a whole number from 1, shortened by the infirmary of the Hero's Guild
+     exactly as a Quest's Injury is (`healDays`, `healFactor`; grade 0 for a Hero on no Roster), then
+     `inflictInjury`: both now in injuries.ts, which the Quest Engine and `questsConclude` use too, so
+     the rule is stated once. `hero.injured` with **`questId: null`** (the type is now `QuestId |
+     null`). Refused `hero-injured` (one Injury a Hero), `hero-away` (in a Party, whose return
+     applies its own) and `hero-gone`. The Hero State Engine heals it as any Injury.
+   - `offerQuest`: the Quest Generator, drawing the template, difficulty and duration and the
+     Encounter sequence from the module's own stream (`generateQuest` gains `sequenceStream`, whose
+     default, `encounters`, leaves every core draw as it was), so no core stream moves; the Quest goes
+     on the end of the Board and may take it past `boardSize`, which only says how far the morning's
+     refresh fills it; `quest.offered`. A module with no stream throws.
+   `MoraleCause`, `PatronRegardCause`, `GuildmasterRegardCause` and `HeroRegardCause` gain `module`,
+   and those events and `quest.offered` and `hero.injured` an optional `moduleId`, absent from every
+   event the core makes for itself, so a game with no module writes the same bytes.
+4. **A module's own events are typed by the module, beside the engine's union, which never lists
+   them** (events.ts). `ModuleEvent<Type, Payload>` is an `Entry` whose `type` is branded in the
+   types alone (`ModuleEventType`), and `TurnEvent = EngineEvent | ModuleEvent` is what a Turn
+   produces: `advance`, `fastForward` and `runTurn` return `TurnEvent[]` (a phase's rule still
+   returns `EngineEvent[]`). The brand is what keeps the union usable: comparing `event.type` with
+   an engine type narrows a `TurnEvent` to that engine event exactly as it narrows an `EngineEvent`,
+   and a module's event never passes for one; a reader tells a module's event with `isModuleEvent`
+   (or `isEngineEvent`, true for a type `milestoneTypes` lists). A module declares its own,
+   `ModuleEvent<'probe.fired', {…}>`, and its `ctx.emit` returns that type. The emitter
+   (`moduleEventEmitter`) labels participants and adds a Hero's Guild as the engine's does, sets
+   `milestone` from the draft (false unless it says so, since the engine's table knows no module's
+   types), and refuses a type outside the module's namespace, `<module id>.<what-happened>`, or one
+   of the engine's: a module changes a core table only through its effects, so a core event always
+   means the core did it. In the History a module's event is an `Entry` like any other, indexed by
+   its type, so `byType['probe.fired']` counts it. Every engine-side test's event collectors were
+   retyped `TurnEvent[]`; M8-S1's test of a hook's events emitted `world.created`, which the emitter
+   now refuses, and emits `announcing.said` instead.
+5. **A hook returns every event it made, in the order the History is to hold them.** Its own, from
+   `ctx.emit`, and its effects', which it may put before, between or after its own. The core refuses
+   (a `ModuleError`) a hook that returns an event not made by that call or one twice, or that leaves
+   out an event one of its effects made, since a core row would then change with nothing to explain
+   it (principle 11). The events join the Turn's at the hook's position.
+6. **The stop.** `StopReason` gains `{ kind: 'module'; moduleId }` (`ModuleStopReason`), always on
+   (approach §2: "a module asks for a decision"), reported after `transfer-offer` and before
+   `pool-refreshed`. A hook returns it as `stop`; one naming another module or another kind fails the
+   Turn naming the module. The hook positions collect the stops in `PhaseContext.moduleStops`;
+   `advance`'s `stoppedBecause` is `ended`, else the first module to ask, in registration order,
+   else `null`, since a module's stop holds for whoever is watching (DL-33's reading of `advance`);
+   fast forward reads it through `PlayedTurn.stoppedBecause` in `stopsOfTurn`. The CLI says
+   "Stopped: the probe module asked to stop." after `advance --until` and, since a stop is for
+   whoever is watching, `advance --turns n` now stops early on a module's stop and says so, as it
+   stopped on an ending; `--until` does not name `module`, which is always on. The web says the same
+   sentence with a "Read what happened" button to the log, and a multi-Turn advance there already
+   stopped on any stop. Both front ends word `guild.wealth-changed`, a `module` Regard cause
+   ("through a module") and, since their narration now takes a `TurnEvent`, give a module's own event
+   a line that names its type ("A module's event: probe.fired."), the least that keeps a narration
+   map total; M8-S4 owns what that line says and shows the probe's in both logs.
+7. **Hook order is registration order** (DL-76's loop), now held by a test with two spy modules
+   registered each way round.
+8. **No module installed still changes nothing.** The hook positions return at once with no module;
+   the injury and generator refactors state the same formulas and defaults; every new payload field
+   is optional and absent from the core's events. Checked beyond the suite: `seed-0001` to
+   `seed-0016` × 20 years with the harness's own parallel sweep (`sweepPlayInParallel`, core content,
+   `defaultConfig`, `modules: []`), run on this change and, from the same tree with the change
+   stashed, on M8-S1's commit (`fb7d416`, itself byte-identical to `m7-web` on 200 × 20, DL-76): the
+   16 per-seed SHA-256s of the last save agree, and so does `sweepFingerprint`,
+   `738516cfea14564e6c22e7753aac3f2ba7dce8ef5ffb30b3df6ee9e437858068`. The 200 × 20 proof is the
+   M8 close's (DL-81).
+
+**Consequences.** The contract is now whole: M8-S3's probe applies each effect through `ctx.effects`,
+emits `probe.fired` with the applied effects (each result carries its `effect` record, which is
+JSON-safe), asks for its stop, and is typed without touching `EngineEvent`. Two things for M8-S3 and
+M8-S4 to meet: the harness's `hero.injured` counters find the Guild among an entry's participants
+and throw when there is none, so an `injure` of an Unattached Hero would stop a harness run (the
+probe injures a Hero on a Roster, or the counter learns to skip); and a front end reading the History
+casts each entry to `TurnEvent`, whose module events `isModuleEvent` tells apart. A real
+module that needs more reach adds an effect kind to the union with a DL, never a write to a core row.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

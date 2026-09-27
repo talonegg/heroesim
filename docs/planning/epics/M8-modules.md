@@ -4,7 +4,7 @@
 **Sessions:** 4–6 · **Depends on:** M7 · **Implements:** `plan.md` M8; N6; ADR-0005 as amended 2026-09-25; `data-model.md` §3.4
 **Gate:** the module contract exists; a test-only probe module registers a slice, a stream and all three hooks, changes core tables only through the effects API, and requests a stop; the harness with no module installed is byte-identical to M7's tagged run
 
-**Status:** in progress — M8-S1 done
+**Status:** in progress — M8-S1 and M8-S2 done
 
 ## 0. What lands in M8
 
@@ -82,10 +82,21 @@ the only writer of its rows.
 
 **Acceptance:**
 
-- [ ] A module's `stop` halts fast forward with its reason and the CLI and web show it
-- [ ] The `effects` API is the only way a module can change a Hero: a module that assigns
-      `world.heroes[id].morale` directly fails the frozen-world test
-- [ ] Hook order among several modules is registration order, tested with two spies
+- [x] A module's `stop` halts fast forward with its reason and the CLI and web show it —
+      `engine/src/module-hooks.test.ts` ("a module's stop"): fast forward stops after the Turn whose
+      hook asked, with `{ kind: 'module', moduleId }`, and not without the module; the CLI's
+      `narrateStop` (`cli/src/narrate.test.ts`) and the web's (`web/src/state/narrate.test.ts`, and
+      `web/src/views/world.test.tsx`, its button to the log) say "Stopped: the probe module asked to
+      stop." (DL-77)
+- [x] The `effects` API is the only way a module can change a Hero: a module that assigns
+      `world.heroes[id].morale` directly fails the frozen-world test —
+      `engine/src/module-hooks.test.ts`: that assignment is a type error and, at run time, fails the
+      Turn with a `ModuleError` naming the module and leaves the document as it was, as do eight
+      other writes; `ctx.effects.adjustMorale` makes the change with its event; each effect is tested
+      in `engine/src/effects.test.ts` (DL-77)
+- [x] Hook order among several modules is registration order, tested with two spies —
+      `engine/src/module-hooks.test.ts`: two spy modules registered each way round are called in
+      that order at all three hooks, and their events follow it (DL-77)
 
 ### M8-S3 · The probe module · 1–2 sessions
 
@@ -125,7 +136,8 @@ sessions actually spent. `plan.md` §4's first line — Random Events — become
 
 **Config:** none on `GameConfig`. A module's tunables live in its slice.
 
-**Events:** `probe.fired` (test-only). **Stop reasons:** `module` with a `moduleId`.
+**Events:** `probe.fired` (test-only); `guild.wealth-changed`, the `adjustWealth` effect's (M8-S2,
+DL-77). **Stop reasons:** `module` with a `moduleId`.
 
 **Counters:** every core counter with and without the probe; `probe.fired`.
 

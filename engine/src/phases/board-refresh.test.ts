@@ -3,7 +3,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import { compareByCodeUnit, type GuildId, type PatronId, type QuestId, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { generateQuest } from '../generators/quests.js';
 import { patronBoardWeight } from '../regard.js';
@@ -20,8 +20,8 @@ function created(seed: string, deps: EngineDeps = testDeps()): WorldDocument {
 }
 
 /** Plays Turns until `turn`, checking every document, and returns the last and every event. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
-  const events: EngineEvent[] = [];
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
+  const events: TurnEvent[] = [];
   let current = document;
   while (current.world.turn < turn) {
     const result = advance(current, deps);

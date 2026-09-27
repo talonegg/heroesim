@@ -4,7 +4,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps } from '../config.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type HeroId, type Quest, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
 import { append, createHistory } from '../history.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
@@ -35,9 +35,9 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
 }
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = withValid(result.document, deps);
@@ -47,12 +47,12 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
 }
 
 /** Runs the phase alone on `world` on the night of Day `day`. */
-function night(world: World, day: number, deps: EngineDeps, document?: WorldDocument): EngineEvent[] {
+function night(world: World, day: number, deps: EngineDeps, document?: WorldDocument): TurnEvent[] {
   world.turn = nightOf(day);
   return heroState(world, phaseContext(world, deps, document?.history));
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 const hero = (world: World, id: HeroId): Hero => world.heroes[id] as Hero;
@@ -312,7 +312,7 @@ describe('Retirement', () => {
     const guild = playerGuild(world) as Guild;
     const [sent] = guild.rosterIds as [HeroId];
     const history = createHistory();
-    const at = (day: number): EngineEvent[] => {
+    const at = (day: number): TurnEvent[] => {
       world.turn = nightOf(day);
       return heroState(world, phaseContext(world, deps, history));
     };

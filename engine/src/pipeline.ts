@@ -8,7 +8,7 @@
 // installed does nothing.
 
 import type { World } from './document.js';
-import type { EngineEvent } from './events.js';
+import type { TurnEvent } from './events.js';
 import { hookPhase } from './modules.js';
 import { ageing } from './phases/ageing.js';
 import { boardRefresh } from './phases/board-refresh.js';
@@ -67,16 +67,17 @@ export const phases: readonly Phase[] = [
 
 /**
  * Plays `world`'s Turn: runs, in order, each phase whose time of day is the Turn's, on `world` in
- * place, and returns their events in the order they happened. `world` is the Turn's copy, already
- * advanced to `ctx.turn`; appending the events to the History is the caller's (`advance`).
+ * place, and returns their events in the order they happened, the modules' own among them. `world`
+ * is the Turn's copy, already advanced to `ctx.turn`; appending the events to the History is the
+ * caller's (`advance`), as is reading the stops the modules asked for (`ctx.moduleStops`).
  * Throws when `ctx` is for another Turn than `world`'s: a programming error.
  */
-export function runTurn(world: World, ctx: PhaseContext): EngineEvent[] {
+export function runTurn(world: World, ctx: PhaseContext): TurnEvent[] {
   if (ctx.turn !== world.turn) {
     throw new RangeError(`The context is for Turn ${ctx.turn} and the world is at Turn ${world.turn}`);
   }
   const now = timeOfDay(ctx.turn);
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   for (const phase of phases) {
     if (phase.timeOfDay === now) events.push(...phase.run(world, ctx));
   }
