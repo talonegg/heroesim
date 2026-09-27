@@ -15,8 +15,9 @@
 //   (phases/patron-state.ts) returns it toward neutral each night.
 // - **Guildmaster Regard** (R9), keyed by the id of the Patron, Hero or Guildmaster it is for: for
 //   the Patron whose Quest the Guild resolved, and for each Hero of the Party who came home to the
-//   Roster. Regard for a Guild is a selector over Regard for its Guildmaster, never stored
-//   (`guildmasterRegardForGuild`, rule 1); M6-S2 writes Regard between Guildmasters. No rule reads
+//   Roster; and, from M6-S2, for the Guildmaster of a Guild theirs made a Transfer with
+//   (`regardOnTransferDeal`). Regard for a Guild is a selector over Regard for its Guildmaster, never
+//   stored (`guildmasterRegardForGuild`, rule 1). No rule reads
 //   Guildmaster Regard in the first build (pre-M0 review B3).
 //
 // Regard between Heroes, and the Relationship read from it, are hero-regard.ts's (M4-S4, DL-46), on
@@ -280,15 +281,42 @@ export function patronRegardChanged(
   return [ctx.emit({ type: 'patron.regard-changed', participants: [patronId, guildId], payload: { patronId, guildId, cause, ...change } })];
 }
 
-/** Moves `guildmaster`'s Regard for `entityId` by `delta`; `guildmaster.regard-changed` on a band crossing. */
+/**
+ * A Transfer was made from the Guild `from` to the Guild `to` (M6-S2, R9, DL-57): each Guild's
+ * Guildmaster's Regard for the other's rises by `guildmasterRegardPerTransferDeal`, `from`'s first, emitting
+ * `guildmaster.regard-changed` (`transfer-deal`) only on a band crossing. Guildmaster Regard's third
+ * writer, after the Patrons and the Heroes of M4-S5, for every Guild alike (ADR-0002). A Guild whose
+ * Guildmaster has no row writes and is written nothing; a change of 0 writes nothing.
+ */
+export function regardOnTransferDeal(
+  world: Pick<World, 'guildmasters'>,
+  ctx: RegardContext,
+  from: Pick<Guild, 'guildmasterId'>,
+  to: Pick<Guild, 'guildmasterId'>,
+): EngineEvent[] {
+  const delta = ctx.config.guildmasterRegardPerTransferDeal;
+  const leaving = guildmasterOf(from, world);
+  const joining = guildmasterOf(to, world);
+  if (delta === 0 || leaving === undefined || joining === undefined) return [];
+  return [
+    ...guildmasterRegard(ctx, leaving, joining.id, delta, 'transfer-deal', 'hero.transferred'),
+    ...guildmasterRegard(ctx, joining, leaving.id, delta, 'transfer-deal', 'hero.transferred'),
+  ];
+}
+
+/**
+ * Moves `guildmaster`'s Regard for `entityId` by `delta`, recording `reason` (an event type);
+ * `guildmaster.regard-changed` on a band crossing.
+ */
 function guildmasterRegard(
   ctx: RegardContext,
   guildmaster: Guildmaster,
   entityId: EntityId,
   delta: number,
   cause: GuildmasterRegardCause,
+  reason = 'quest.resolved',
 ): EngineEvent[] {
-  const change = adjustRegard(guildmaster.regard, entityId, delta, ctx.turn, 'quest.resolved', ctx.config);
+  const change = adjustRegard(guildmaster.regard, entityId, delta, ctx.turn, reason, ctx.config);
   if (!crossedBand(change)) return [];
   const { id: guildmasterId, guildId } = guildmaster;
   return [

@@ -19,6 +19,7 @@ import {
   makeId,
   guildmasterOf,
   judgedHintBands,
+  nightOf,
   potentialHint,
   potentialHints,
   serialise,
@@ -324,6 +325,26 @@ describe('show', () => {
     }
   });
 
+  test("board's Skills that help are the Skills its Encounters' Checks read, not its template's (M4 verification)", () => {
+    const { world } = document();
+
+    const run = play(['show', 'board']);
+
+    let told = 0;
+    for (const id of world.board) {
+      const quest = world.quests[id];
+      if (quest === undefined) throw new Error(`No Quest ${id}`);
+      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.skillKeys ?? []))];
+      const skills = keys.length === 0 ? 'none' : keys.map((key) => content.skills[key]?.name).join(', ');
+      const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
+      const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));
+      expect(line?.split(/\s{2,}/).at(-2), id).toBe(skills);
+      if (quest.skillKeys.some((key) => !keys.includes(key))) told += 1;
+    }
+    // Some Quest's template names a Skill none of its Encounters reads, which the Board no longer claims helps.
+    expect(told).toBeGreaterThan(0);
+  });
+
   test('board says a Quest saved before M4 has its Encounters drawn on the way (DL-42)', () => {
     const [questId] = document().world.board;
     if (questId === undefined) throw new Error('An empty Board');
@@ -453,6 +474,26 @@ describe('show', () => {
 
     expect(run.code).toBe(exitCodes.refused);
     expect(run.err).toContain('hero-999999');
+  });
+
+  test("hero names an Injury by its content name and its healing night as the narration does, and an unknown type by its key", () => {
+    const id = makeId('heroes', 1);
+    edit((edited) => {
+      (edited.world.heroes[id] as Hero).injury = { typeKey: 'sprained-ankle', healsOnTurn: nightOf(13) };
+    });
+
+    const run = play(['show', 'hero', id]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const name = content.injuries['sprained-ankle']?.name ?? '';
+    expect(name).not.toBe('');
+    expect(run.out).toMatch(new RegExp(`^Injury\\s+${name}, healing on the night of Day 13 \\(Turn ${nightOf(13)}\\)$`, 'm'));
+    expect(run.out).not.toContain('sprained-ankle');
+
+    edit((edited) => {
+      (edited.world.heroes[id] as Hero).injury = { typeKey: 'frostbite-of-the-soul', healsOnTurn: nightOf(13) };
+    });
+    expect(play(['show', 'hero', id]).out).toMatch(/^Injury\s+frostbite-of-the-soul, healing on the night of Day 13/m);
   });
 
   test('hero shows a content key the content does not define as it is, with a warning (rule 5)', () => {
@@ -796,6 +837,35 @@ describe('dispatch (M2-S4)', () => {
     expect(run.out).toContain(`returns on the night of Day ${dayOf(party.returnsOnTurn)}, Turn ${party.returnsOnTurn} `);
     expect(run.out).toContain('Rivals take Quests from the Board each afternoon');
     expect(play(['show', 'board']).out).not.toContain(questId);
+  });
+
+  test('refuses it, as build and recruit, once the game has ended, writing nothing (DL-28, DL-53)', () => {
+    // A game ended by the Guildmaster's Retirement keeps its Wealth, so every action could be paid for.
+    const { questId, heroIds } = openQuest(document().world);
+    const pooled = Object.values(document().world.heroes).find((hero) => hero.unattachedSince !== null) as Hero;
+    const actions = [
+      ['dispatch', '--quest', questId, '--heroes', heroIds.join(',')],
+      ['build', '--facility', 'infirmary'],
+      ['recruit', '--hero', pooled.id],
+    ];
+    edit((edited) => {
+      (edited.world.guilds[playerId] as Guild).wealth = 100_000;
+      edited.world.ended = { turn: 0, reason: 'retirement' };
+    });
+    const original = saved();
+
+    for (const argv of actions) {
+      const run = play(argv);
+      expect(run.code, argv[0]).toBe(exitCodes.refused);
+      expect(run.err).toContain('The game ended on Turn 0: retirement. Nothing more can be done in it.');
+      expect(saved()).toBe(original);
+    }
+
+    // The same three, on the same save with the game going on, are taken.
+    edit((edited) => {
+      edited.world.ended = null;
+    });
+    for (const argv of actions) expect(play(argv).code, argv[0]).toBe(exitCodes.ok);
   });
 
   test("refuses a Quest not on the Board, a Hero away and another Guild's Hero, writing nothing", () => {
@@ -1295,5 +1365,8 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
+    // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
+    const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
+    for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 });

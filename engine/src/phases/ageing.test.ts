@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { StatArea } from '../content-types.js';
+import type { ContentSet, StatArea } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type HeroId, type History, type World, type WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
@@ -141,6 +141,53 @@ describe('the decline', () => {
     expect(it.stats).toEqual(floor);
   });
 
+  test('takes declinePerYear from a Stat with room to fall, and nothing at all at 0', () => {
+    for (const declinePerYear of [3, 0]) {
+      const deps = testDeps({ ...rules, declinePerYear, rivalCount: 0 });
+      const { world } = created(`per-year-${declinePerYear}`, deps);
+      const ids = rosterOf(world);
+      // At 50 on the night of Day 10, every Physical Stat at 15: far above the minimum of 1.
+      for (const heroId of ids) {
+        Object.assign(hero(world, heroId), { enteredTurn: 0, ageAtEntry: 49 });
+        for (const key of statsIn('physical')) hero(world, heroId).stats[key] = 15;
+      }
+      const before = ids.map((heroId) => structuredClone(hero(world, heroId).stats));
+
+      const events = night(world, 10, deps);
+
+      if (declinePerYear === 0) {
+        expect(events).toEqual([]);
+        ids.forEach((heroId, index) => expect(hero(world, heroId).stats).toEqual(before[index]));
+        continue;
+      }
+      const declined = ofType(events, 'hero.declined');
+      expect(declined.map((event) => event.payload.heroId)).toEqual(ids);
+      ids.forEach((heroId, index) => {
+        const { payload } = declined[index] as EngineEventOf<'hero.declined'>;
+        expect(payload).toEqual({ heroId, statKey: payload.statKey, delta: -3, age: 50 });
+        expect(changedKeys(before[index] as Record<string, number>, hero(world, heroId).stats)).toEqual([payload.statKey]);
+        expect(hero(world, heroId).stats[payload.statKey]).toBe(12);
+      });
+    }
+  });
+
+  test('holds off until a declineAge other than the default: none from 45 to 49 when it is 50, then one a year', () => {
+    const deps = testDeps({ ...rules, declineAge: 50, rivalCount: 0 });
+    const { world } = created('late-decline', deps);
+    const ids = rosterOf(world);
+    for (const heroId of ids) Object.assign(hero(world, heroId), { enteredTurn: 0, ageAtEntry: 44 });
+
+    // Anniversaries on the nights of Days 10 to 70: ages 45 to 51.
+    for (let year = 1; year <= 7; year += 1) {
+      const age = 44 + year;
+      const declined = ofType(night(world, 10 * year, deps), 'hero.declined');
+      expect(
+        declined.map((event) => [event.payload.heroId, event.payload.age]),
+        `age ${age}`,
+      ).toEqual(age < 50 ? [] : ids.map((heroId) => [heroId, age]));
+    }
+  });
+
   test('leaves Potential untouched', () => {
     const deps = testDeps({ ...rules, rivalCount: 0 });
     const { world } = created('potential', deps);
@@ -210,6 +257,42 @@ describe('beside the Retirement check', () => {
     expect(between).toEqual([]);
     expect(returned).toEqual([away]);
   });
+
+  test('does not check again a Hero sent out on the anniversary night itself, on the night their Party brings them home', () => {
+    // An action may be taken in any Turn (pre-M0 review D2), the night's included. A Party that
+    // leaves on an anniversary night leaves after that night's check (DL-29 item 14), so the Hero
+    // declined that night and their homecoming is no second check that year.
+    const deps = testDeps({ ...rules, rivalCount: 0 });
+    const { world } = created('left-on-the-night', deps);
+    const guild = playerGuild(world) as Guild;
+    const [sent] = guild.rosterIds as [HeroId];
+    Object.assign(hero(world, sent), { enteredTurn: 0, ageAtEntry: 49 });
+    const history = createHistory();
+
+    const anniversary = ofType(night(world, 10, deps, history), 'hero.declined').map((event) => event.payload.heroId);
+    // Sent during the night of Day 10, after the night's phases; home on the night of Day 12.
+    const partyId = makeId('parties', 99);
+    append(history, {
+      turn: nightOf(10),
+      type: 'quest.taken',
+      participants: [sent],
+      labels: {},
+      milestone: false,
+      payload: { questId: makeId('quests', 99), partyId, guildId: guild.id, heroIds: [sent], returnsOnTurn: nightOf(12) },
+    });
+    hero(world, sent).partyId = partyId;
+    const between = night(world, 11, deps, history);
+    hero(world, sent).partyId = null;
+    const stats = structuredClone(hero(world, sent).stats);
+    const stream = structuredClone(world.rng.heroes);
+    const returned = night(world, 12, deps, history);
+
+    expect(anniversary).toContain(sent);
+    expect(between).toEqual([]);
+    expect(returned).toEqual([]);
+    expect(hero(world, sent).stats).toEqual(stats);
+    expect(world.rng.heroes).toEqual(stream);
+  });
 });
 
 describe('what it covers and draws', () => {
@@ -263,6 +346,27 @@ describe('what it covers and draws', () => {
         else expect(after[name], name).toEqual(before[name]);
       }
     }
+  });
+
+  test('picks the declining Stat in key order, whatever order content lists its Stats in (DL-19 item 3)', () => {
+    const declines = (content: ContentSet): string[] => {
+      const deps: EngineDeps = { ...testDeps(rules), content };
+      const { world } = buildDocument({ rivals: 1, rosterSize: 10 }).document;
+      for (const heroId of Object.values(world.guilds).flatMap((guild) => guild.rosterIds)) {
+        Object.assign(hero(world, heroId), { enteredTurn: 0, ageAtEntry: 45 });
+      }
+      const drawn: string[] = [];
+      for (let year = 1; year <= 10; year += 1) {
+        for (const { payload } of ofType(night(world, 10 * year, deps), 'hero.declined')) drawn.push(`${payload.heroId} ${payload.statKey}`);
+      }
+      return drawn;
+    };
+    const reversed: ContentSet = { ...testContent, stats: Object.fromEntries(Object.entries(testContent.stats).reverse()) };
+
+    const asListed = declines(testContent);
+
+    expect(asListed.length).toBeGreaterThan(100);
+    expect(declines(reversed)).toEqual(asListed);
   });
 
   test('defaults to INPUTS 5.5: from 40, one point a year, from the Physical Stats', () => {

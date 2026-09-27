@@ -39,6 +39,7 @@ import { buildImprovement } from './commands/build.js';
 import { equipGear, unequipGear } from './commands/equip.js';
 import { buyItems, renderMarket, sellItems } from './commands/market.js';
 import { recruitHero } from './commands/recruit.js';
+import { answerOffer, renderOffers, transferHero } from './commands/transfer.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
 import type { CommandOutcome } from './commands/outcome.js';
@@ -47,6 +48,7 @@ import {
   renderBoard,
   renderGuildmaster,
   renderGuilds,
+  renderHall,
   renderHero,
   renderHistory,
   renderPatrons,
@@ -139,6 +141,11 @@ function run(command: Exclude<Command, { name: 'help' }>, context: Context): Exi
       return act(context, (document, deps) => buyItems(command, document, deps));
     case 'sell':
       return act(context, (document, deps) => sellItems(command, document, deps));
+    case 'transfer':
+      return act(context, (document, deps) => transferHero(command, document, deps));
+    case 'accept':
+    case 'decline':
+      return act(context, (document, deps) => answerOffer(command, document, deps));
     case 'rebase':
       return rebaseRules(context);
     case 'save':
@@ -184,7 +191,7 @@ export function open(io: CliIo, path: string, content: ContentSet): { document: 
 /**
  * A command that acts within the current Turn (`cli/src/commands/`): opens the save, applies
  * `change` under the save's own deps, and on success writes the new document and prints its lines;
- * on a refusal prints the problem and writes nothing.
+ * on a refusal prints the problem and writes nothing. A game that has ended is refused.
  */
 function act(
   { io, content, path }: Context,
@@ -192,6 +199,8 @@ function act(
 ): Exit {
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
+  const ended = over(io, opened.document, noActionAfterTheEnd);
+  if (ended !== undefined) return ended;
   const outcome = change(opened.document, opened.deps);
   if (!outcome.ok) return refuse(io, outcome.problem);
   writeSave(path, outcome.document);
@@ -279,6 +288,14 @@ function show(view: View, { io, content, path }: Context): Exit {
       }
       return say(io, renderRoster(guild, document, deps));
     }
+    case 'hall': {
+      const guild: Guild | undefined =
+        view.guildId === undefined ? playerGuild(world) : rowIn(world.guilds, view.guildId);
+      if (guild === undefined) {
+        return refuse(io, view.guildId === undefined ? `${path} has no player's Guild.` : `${path} has no Guild ${view.guildId}.`);
+      }
+      return say(io, renderHall(guild, deps));
+    }
     case 'pool':
       return say(io, renderPool(document, deps));
     case 'patrons':
@@ -302,6 +319,8 @@ function show(view: View, { io, content, path }: Context): Exit {
     }
     case 'market':
       return say(io, renderMarket(document, deps));
+    case 'offers':
+      return say(io, renderOffers(document, deps));
     case 'history': {
       if (view.entityId === undefined) {
         const entries = entriesBetween(history, 0, Infinity);
@@ -320,11 +339,17 @@ function show(view: View, { io, content, path }: Context): Exit {
 
 // ── advance and rebase ───────────────────────────────────────────────────────────────────────
 
-/** The refusal of a Turn after the game's end, or `undefined` while it goes on. */
-function over(io: CliIo, document: WorldDocument): Exit | undefined {
+/**
+ * The refusal of a Turn, or of an action, after the game's end, or `undefined` while it goes on:
+ * once the player's game has ended the world stops as it stands (DL-28), and nothing is written.
+ */
+export function over(io: CliIo, document: WorldDocument, what = 'No Turn follows.'): Exit | undefined {
   const { ended } = document.world;
-  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. No Turn follows.`);
+  return ended === null ? undefined : refuse(io, `The game ended on Turn ${ended.turn}: ${ended.reason}. ${what}`);
 }
+
+/** What `over` says of an action refused after the end (M3 verification, DL-53). */
+export const noActionAfterTheEnd = 'Nothing more can be done in it.';
 
 /**
  * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping

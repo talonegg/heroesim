@@ -2252,6 +2252,219 @@ read at 200.
 after every advance). The owner may ask for a 1,000 × 20 run at any tag; it is the same command
 with `HEROESIM_SEEDS=1000`.
 
+## DL-40 — M3 close: the M3 counters, what they read, and the M3 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+recording a method and a measure
+
+**Context.** The M3 epic's §2 names six counters: Levels gained per Guild-year, Heroes with any Stat
+at Potential after 10 years, the mean Level of the player's Roster by year, Retirements by age band,
+signings refused by Fame per controller kind, and the Improvement grades reached by year 10 per
+controller kind; the orchestrator adds declines per Guild-year. DL-36, DL-37 and DL-38 said what
+each reads, and the counters were left to one task after the three tracks merged. Three
+cross-track boxes wait on them: M3-S4's third (Levels still rise after decline starts), M3-S5's
+fourth (the Fame counter) and the yard half of M3-S6's second. Left open: how to read what the
+History does not record; the denominator of "per Guild-year"; what "by year" and "after 10 years"
+read in a game that ended first; how to show growth outpacing decline; and what of a Rival's
+`signing-refused` the harness can see.
+
+**Decision.**
+
+1. **Two sources.** From the History, through `history.byType` as M2's counters are
+   (`countGame(document, deps)`, which now takes `deps` for the year's length and content's
+   grades): Levels, declines, Retirements by age, growth against decline and the Improvement
+   grades. From the World State, read while the game is played (`observe` in
+   `harness/src/counters.ts`, which `playGame` calls on each Turn before the policy acts): the Fame
+   gate each morning, and a census of the Guilds in play as each year begins, which no entry
+   records. No event was added for a counter.
+2. **Guild-years.** A Guild is in play from its `foundedTurn` until the Turn it folds or the game
+   stops (`world.ended.turn` for a game that ended); each year of the game gets the part of it each
+   Guild was in play, summed by controller kind. A "per Guild-year" divides a count summed over the
+   games by the Guild-years summed alike, overall and year by year.
+3. **Levels gained and declines**: `hero.levelled` by the controller of its `payload.guildId` and
+   the `yearOf` its Turn; `hero.declined` alike, its Guild the one `emit` named beside the Hero.
+4. **The census.** On the first Turn of each year (Turn k × `turnsPerYear`, a morning, before the
+   policy acts), and once more on the last Turn of a game that ran its full length: for each kind of
+   controller, the Guilds in play, their Wealth, their living Rosters' Heroes and Levels, and the
+   Heroes with any Stat at its Potential or at content's maximum, where growth stops too
+   (`growOneLevel`'s own test, DL-36). **The mean Level by year** is the Levels over the Heroes of
+   the games in play that year, pooled; a game that ended drops out and the report gives the games
+   counted. **Heroes at Potential after 10 years** is the census after 10 years. Both kinds are
+   reported: the epic asks for the player's mean Level, and the Rivals' is its risk table's check.
+   The Wealth was added so the Rivals' economy could be judged (DL-41).
+5. **Retirements by age**: `hero.retired`'s `age` by controller kind, reported in five-year bands.
+6. **Signings refused by Fame**, as DL-38 item 9: each morning, `unsignableHeroes(world, guild,
+   config).length` for every Guild in play, summed by controller kind (Hero-Days refused), with the
+   Guild-Days, the mean a Guild-Day and the Guild-Days with one or more; beside it the
+   `signing-refused` rejections among the policy's refused actions, which the run asserts are 0.
+   **A Rival's are not counted**: the afternoon's phase drops a refused choice and emits nothing
+   (DL-30), so the harness could see one only by replaying the phase. `steady` asks only a Hero who
+   would sign (DL-38 item 5), and the engine's test that no Rival choice is refused over ten Days
+   holds it to that.
+7. **Improvement grades by year 10**, as DL-38 item 15, over the games that reached Turn
+   10 × `turnsPerYear`: a game that ended before has no grades by then and is left out, and the
+   report says how many games are counted. Grades run from 0 to content's top grade.
+8. **Growth against decline** (M3-S4's third box): for each Guild on whose Roster a Hero declined,
+   the Levels gained before its first `hero.declined` and from it on, each per Guild-year of the
+   Guild's play before and after it; and, from it on, the Stat points the Levels added
+   (`statDeltas`) against the points declines took. Before and after go by position in the History,
+   so a Level gained on the night of the first decline, whose `levelUps` runs before `ageing`, is
+   before it.
+9. **The report** is named by milestone (`playReport`'s context gains `milestone`), so the M3 run
+   writes `harness/reports/m3-<date>.md` headed "M3 harness report: play", with an M3 section after
+   M2's counters. Each counter has a fixture test in `counters.test.ts` (a world under a 30-Turn
+   year, its History given at chosen Turns the entries a counter reads), and `playGame`'s
+   observations have their own; `npm test` grew by about a second.
+10. **The training yard end to end** (M3-S6's second box): `cli/src/commands/build.test.ts` builds
+    the yard with `build --facility training-yard`, plays five idle Days with `advance --turns 15`,
+    and finds each of the four Roster Heroes at 5 × `xpPerTrainingDay` (pinned at 2) XP, and a twin
+    world left at grade 0 at none.
+11. **Result, 2026-09-26** (`harness/reports/m3-2026-09-26.md`, committed with this entry): 200
+    seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+    advance, under DL-41's defaults (config version 4, content version 5), in 16 processes on DL-13's
+    machine (AMD Ryzen AI Max+ 395, 32 logical cores, Windows 11, Node v26.9.0), while the defaults'
+    own run (DL-41) and other agents' work used the rest of it. The run took 50 minutes.
+    - **Validation.** No refusal or warning in any game, after every advance and over each whole
+      document; no policy action refused, so no `signing-refused`; all 200 last documents load and
+      serialise back to the same text; `seed-0001` played twice more: identical, 49,820,639
+      characters.
+    - **Endings.** All 200 games ran the full 20 years: no Bankruptcy of the player's Guild. Rivals
+      folded 616 times, 3.08 a game (443 Bankruptcies, 173 wiped Rosters).
+    - **Levels gained per Guild-year**: the player's Guild 19.0, the Rivals 6.9. In year 0, 33.8 and
+      15.9, the cheap first Levels; from year 1, 17.6 to 20.0 and 4.1 to 7.4.
+    - **Mean Level of the player's Roster**: 3.90 after one year, 4.48 after two, 4.95 after ten,
+      4.99 after twenty (the Rivals': 3.98, 4.74, 4.94, 5.47). Nothing near the cap of 20: the
+      policy's Roster of eight loses about five Heroes a year to Deaths and refills at Level 1.
+    - **Heroes with a Stat at Potential after 10 years**: the player's 352 of 1,600 (22.0%), the
+      Rivals' 952 of 4,612 (20.6%).
+    - **Declines per Guild-year**: the player's 0.13, the Rivals' 0.28, from year 4 on.
+    - **Growth against decline** (M3-S4): on the 128 player's Guilds with a decline, 19.6 Levels a
+      Guild-year before the first and 17.8 after it, when Levels added 52.5 Stat points a
+      Guild-year and declines took 0.43; on the 650 Rivals, 8.2 before and 6.6 after, 19.5 points
+      grown against 0.93 declined.
+    - **Retirements by age**: the player's 1 (45 to 49), the Rivals' 24 (21 at 45 to 49, 3 at 50 to
+      54). Heroes die long before they age: 104 and 112 Deaths a game.
+    - **Signings refused by Fame**: no pool Hero refused the player's Guild on any of its 1,440,000
+      Guild-Days; the Rivals were refused 450 Hero-Days in 5,741,530 Guild-Days, on 104 of them. Only
+      a fold's veterans are above Level 1 in the pool, and folds are rare.
+    - **Improvement grades by year 10**: every player's Guild's infirmary at grade 3; the 1,045
+      Rivals' at a mean of 2.98 (1,024 at grade 3). No Guild built a training yard or quarters: the
+      controllers build only the infirmary (M3-S6).
+    - **Measures against `data-model.md` §7** (provisional targets, recorded and not chased, DL-08).
+      "Loaded" is every Turn of the sweep, 16 processes beside the
+      defaults' run's 16 (DL-41); "alone" is `seed-0001`'s 20-year game played again in one process
+      once both runs were done, and its save loaded.
+
+      | Measure | Target | Measured |
+      | --- | --- | --- |
+      | Advance one Turn | under 5 ms | alone: mean 1.60 ms, p99 3.32 ms; loaded: mean 3.50 ms, p99 23.7 ms |
+      | Fast forward a year | under 1 s | 1.73 s (mean alone × 1,080 Turns): over |
+      | Harness: 1,000 games of 20 years | under 10 min | 230 min at this run's rate (16 processes, validated): over |
+      | Save after 20 years | under 20 MB | mean 47.1 MiB (49.4 million characters, 137,929 entries), max 57.9 MiB: about 2.4 times over |
+      | Load a save | under 1 s | alone: 1.31 s (serialising it 1.09 s); loaded: mean 3.7 s |
+
+      The report's own "replayed alone" row, 4.10 ms, was timed while the defaults' run still held
+      16 processes, so the figure above was taken again afterwards.
+
+**Consequences.** M3's gate has its run and the epic's boxes their evidence (M3-S4's third from item
+11's growth against decline; M3-S5's fourth from item 6; M3-S6's second from item 10). What the run
+says, for the owner and later milestones:
+
+- **Progression works and is slow**: a Roster reaches a mean Level near 5 and holds it, a fifth of
+  Heroes touch Potential in a Stat, and the cap is far off (the epic's second risk, now measured);
+  the curve is two config numbers.
+- **Nobody grows old.** Heroes die at about five a year on each Roster, so declines are rare and
+  Retirements a handful; the ageing rules will matter when M4's Quest Engine makes Quests less
+  lethal.
+- **The Fame gate barely binds** while only a fold's veterans are above Level 1 in the pool; it
+  will bind when Heroes enter the pool with Levels (transfers, M6).
+- **The save is smaller than M2's** (47 against 75 MiB) because the Rivals, keeping sixty Upkeeps
+  (DL-41), hold about six Heroes each rather than about twenty, and take fewer Quests.
+- **The yard and the quarters are unbuilt** in harness games: the controllers build only the
+  infirmary (M3-S6), so the yard's XP is proved by tests (M3-S2, item 10), not by the run.
+- **A Rival's refused choice is invisible to the harness** (item 6); a controller that could err
+  would need the phase to count its refusals.
+
+## DL-41 — M3's balance pass: a Rival keeps sixty Upkeeps before it recruits; the wage for Levels stays 20
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3-close implementer),
+as the task asks: one pass on `defaultConfig` for the owner to tune; the orchestrator asked that the
+Rivals' fold rate be judged beside the player's side
+
+**Context.** DL-36 cut `wagePerLevel` from 70 to 20 as a stopgap, before M3-S4 to S6 merged, and
+asked M3's harness pass to judge it with the full run. **Before**: M3's run under the defaults
+(config version 3; DL-40's harness; 200 seeds × 20 years, validated, the same machine) is degenerate
+on the Rivals' side. Rivals folded **5,455 times, 27.3 a game** (5,445 Bankruptcies, 10 wiped
+Rosters), against 0.95 a game at M2's tag (DL-35): 3,264 Rivals were founded before year 10 where
+a game starts with four. A Rival recruited 755 Heroes a game, held about 24 Heroes at a mean Level of
+3.0 after 10 years, and only 5.3% of them had a Stat at Potential; it gained 31 Levels a Guild-year,
+nearly all on new Level-1 recruits. The player's side is steady but has no spread: no Bankruptcy in
+200 games, a Roster of eight at a mean Level of 4.75 after 10 years.
+
+The cause is `steady`'s economics once Heroes level. A Rival takes one Quest an afternoon, the
+easiest it can staff, so its income is about one easy reward a day whatever its Roster; it recruits
+whenever its Wealth is above ten Upkeeps, which at Level 1 is cheap, so its Roster grows to twenty
+and more; then its Heroes level, a Level adding `wagePerLevel` to each wage, the same Roster costs
+several times what it did, nobody is let go, and the reserve drains to a Bankruptcy within about
+three years. The player's Guild fields its eight on the highest rewards and loses about five a year
+to Deaths, refilled at Level 1, so its wages stay below its income.
+
+**Decision.** One default changes and one is judged and kept; `configVersion` goes from 3 to 4.
+
+| Field | Was | Now | Why |
+| --- | --- | --- | --- |
+| `recruitWealthMultiple` | 10 (DL-35) | **60** | A Rival recruits only while it holds sixty Upkeeps, about 600 Days of wages: it stops while its Roster is one its income can carry as its Heroes level, and keeps a reserve for the Levels they gain |
+| `wagePerLevel` | 20 (DL-36) | **20**, kept | The highest wage `steady`'s one Quest a day bears: 22 and 25 leave Rivals 3 to 5 Heroes and fold them more often, while the player still almost never goes bankrupt |
+
+The trials that chose it, under DL-34's policy and DL-40's counters (scratch runs, not committed;
+16 seeds × 20 years, `seed-0001` to `seed-0016`, not validated); no player's game ended in any trial
+but the two marked:
+
+| `wagePerLevel` / `recruitWealthMultiple` | Rival folds a game | Rival Heroes a Guild after 10 years | Their mean Level | Rival Levels a Guild-year | Player's mean Level after 10 years |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| 20 / 10 (the defaults) | 27.6 | 23.3 | 2.99 | 30.9 | 4.48 |
+| 20 / 20 | 11.4 | 13.9 | 4.65 | 15.6 | 4.95 |
+| 20 / 30 | 6.3 | 7.2 | 5.17 | 10.4 | 4.96 |
+| 20 / 40 | 4.8 | 7.5 | 5.74 | 8.4 | 4.81 |
+| **20 / 60** | **3.5** | **5.3** | **5.29** | **6.6** | **4.98** |
+| 20 / 80 | 3.3 (18 of 53 wiped Rosters) | 3.8 | 5.11 | 5.9 | 5.29 |
+| 22 / 40 | 6.8 | 4.8 | 5.15 | 6.9 | 5.23 |
+| 25 / 20 | 13.3; 2 of 16 players bankrupt | 4.3 | 4.00 | 8.0 | 4.85 |
+| 25 / 40 | 12.0; 1 of 16 players bankrupt | 3.5 | 4.49 | 6.0 | 5.08 |
+| 15 / 40 | 5.6 | 15.9 | 5.93 | 14.6 | 4.50 |
+| 15 / 60 | 2.3 | 18.6 | 6.00 | 11.1 | 4.73 |
+| 18 / 60 | 2.8 | 9.3 | 5.54 | 8.7 | 4.66 |
+
+A lower wage folds fewer Rivals still (15 / 60: 2.3 a game) but lets their Rosters grow back toward
+twenty, with the save and `advance` growing with them, and makes the player's Guild richer yet (its
+Wealth after 10 years 176,000 against 116,000), whose only Bankruptcy lever is the wage. 20 / 60
+changes one default, keeps DL-36's wage, and brings the fold rate to M2's order of magnitude.
+Beyond sixty the Rosters thin until Deaths wipe them. Not turned: the XP curve and XP per
+difficulty point (Levels rise at a plausible pace and the cap is far off); the stub's bands; Hall
+costs and `buildWealthMultiple`; and the policy's own numbers (the harness's player, DL-34).
+
+**After** (DL-40's run, config version 4, 200 × 20, validated): Rivals folded **616 times, 3.08 a
+game** (443 Bankruptcies, 173 wiped Rosters); a Rival recruited 99 Heroes a game and held 5.8 at a
+mean Level of 4.94 after 10 years (5.47 after 20), 20.6% of them with a Stat at Potential; 6.9
+Levels a Rival-year; Fame refused Rivals 450 Hero-Days, from 549,859. The player's side is as
+before: no Bankruptcy, a mean Level of 4.95 after 10 years, 19.0 Levels a Guild-year, 104 Deaths a
+game. Smaller Rival Rosters also shrank the work: `seed-0001`'s `advance` played alone 3.57 → 1.60 ms a
+Turn, the 20-year save 72.0 → 47.1 MiB (both runs shared the machine, so their run times, 188 and
+50 minutes, do not compare).
+
+Tests that relied on a changed default: the Rival test of the default multiple now expects sixty,
+and the wage test pins configVersion 4 beside the wage of 20. No other test leaned on either (the
+suite passes); none was loosened.
+
+**Consequences.** A save made before this entry plays under version 3 until the player rebases.
+**The player's Guild never goes bankrupt** in either run: its Bankruptcy lever is the wage, and the
+wage is held down by what `steady` can pay, so M3 hands on no spread of player endings (DL-35 had 66
+in 200). Wiped Rosters are now a third of Rival folds: Rosters of about six lose Heroes to Deaths
+faster than a Rival holding sixty Upkeeps replaces them. M6's Dispositions, which widen what a Rival
+takes (the epic's risk table), are where a Rival's income should grow with its Heroes; the owner may
+then raise the wage, or give it a base and a smaller per-Level part (DL-36 item 10). M4's Quest
+Engine replaces the stub and its bands and calls for the next pass.
+
 ## DL-42 — Encounters, the drawn sequence, the Check and its two seams, and the Quest Engine's balance (M4-S1, M4-S2)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M4-S1 and M4-S2's
@@ -2847,6 +3060,42 @@ the mean of two values whose entries record only band crossings; the counter rea
 world at year 10, as DL-43's Guildmaster Regard counter does. `hero.regard-changed` entries, by
 `cause` and `bandAfter`, are there for any count of crossings.
 
+## DL-47 — Merging M3's close into M4: both version-4 defaults kept, `configVersion` 5
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 close, merging
+v1.0-dev into `m4-integration`)
+
+**Context.** M3's close (DL-40, DL-41) and M4's five stories (DL-42 to DL-46) were built on two
+lines from v1.0-dev `8229670`, and each raised `configVersion` from 3 to 4 for a different change
+to `defaultConfig`: DL-41 raised `recruitWealthMultiple` from 10 to 60 and kept `wagePerLevel` at
+20; DL-42 removed the stub Quest Engine's five fields (`stubBands`, `stubVariance`,
+`stubSkillBonusPerRating`, `stubInjuryChance`, `stubDeathChance`) and added the Quest Engine's
+(`checkVariance` 0.2, `skillBonusPerRating` 2, `bandBySuccessShare` 0.5/1). DL-43 to DL-46 added
+fields and changed no default. A save made on either line says version 4 and holds the other
+line's old values: M3's has the stub's fields and a multiple of 60, M4's a multiple of 10.
+
+**Decision.**
+
+1. **The merged `defaultConfig` carries both changes**: `recruitWealthMultiple` **60** (DL-41),
+   `wagePerLevel` 20, the Quest Engine's three fields and none of the stub's (DL-42), and every
+   field DL-43 to DL-46 added, at their defaults. No value is chosen here.
+2. **`configVersion` is 5.** Two different sets of defaults may not share a number: a version-4
+   save from either line would otherwise read as current (`rebase` refuses `already-current`) and
+   never adopt the other line's change. At 5, `rebase` offers both. `contentVersion` stays 8: M3's
+   close changed no content.
+3. **Tests that pinned the defaults stay pinned.** The wage test (`level-ups.test.ts`) pins
+   `wagePerLevel` 20 beside configVersion **5**; the Quest Engine's config test (`resolve.test.ts`)
+   pins its three fields beside configVersion **5**; the Rival test of the default multiple
+   expects 60 (DL-41). None was loosened; no other test leaned on a changed default.
+4. **The harness is M3's close plus M4's one change** (`upkeep` takes content, DL-43): DL-40's
+   counters, census and report merged cleanly. M4's counters are the M4 close's (DL-55).
+5. **The decision log** holds DL-40 to DL-46 in number order.
+
+**Consequences.** DL-41's sixty was measured under the stub, and DL-42's Encounter factors under a
+multiple of ten; neither has been measured with the other, nor with DL-43 to DL-46's rules. The M4
+close's 200 × 20 run judges them together (DL-55). A save made under version 3 or either 4 plays
+under its own config until the player rebases.
+
 ## DL-48 — Item definitions, one holder type, and the primitives that keep one stack per holder (M5-S1)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M5-S1's implementer)
@@ -3380,6 +3629,83 @@ with unique ones (`itemId !== null`) apart; beside the player's mean Quest diffi
 from the resolved Quests. A unique Item sold to the Market stays in `world.items`, so it is still never
 awarded again; one M5-S4 removed would be. Balance of the tables and the threshold is the M5 close's.
 
+## DL-53 — M3 verification corrections: the infirmary's third grade does something; the CLI refuses actions after the end; errata to DL-40 and DL-41
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M3 verification's fixer),
+on findings the verifiers confirmed; the one default changed is the owner's to revisit
+
+**Context.** M3 was verified after its close (`4eaa606`) by mutation, acceptance, decision, harness
+and CLI passes. Among the confirmed findings, one is a default that leaves a content row doing
+nothing, one is a CLI that goes on accepting actions after it says the game is over, and three are
+figures or layout in DL-40 and DL-41, accepted entries this log does not edit. DL-42 to DL-52 are
+taken or reserved by the M4 and M5 lines of work, built in parallel, so this entry is DL-53.
+
+**Decision.**
+
+1. **The infirmary's third grade quarters an Injury.** `infirmaryHealFactor` becomes
+   `[1, 1/2, 1/3, 1/4]`, and `configVersion` goes from 4 to 5. Content offers three grades of each
+   facility (INPUTS 7.3; the Physicians' wing costs 1,000 Wealth), but INPUTS 4.5 gave the
+   infirmary factors for two ("grade 1 halves, grade 2 thirds"), and DL-29 item 8's rule that a
+   grade past the list reads its last factor made grade 3 heal exactly as grade 2 did. The third
+   grade therefore cost 1,000 Wealth and 10 more Upkeep every 10 Days for nothing, and DL-40's run
+   shows every player's Guild and 1,024 of 1,045 Rivals buying it by year 10. A quarter carries
+   INPUTS 4.5's sequence on. Cutting the infirmary to two grades was the other way, and was not
+   taken: it goes against INPUTS 7.3's three grades a facility and changes the content version.
+   The stub reads the factor through a new selector, `healFactor(guild, config)`, whose rule is
+   DL-29 item 8's, unchanged. A test holds the defaults to content: under the default rules, each
+   grade content defines does more than the grade below it, for every facility (the infirmary's
+   factor falls, the quarters' Morale baseline and the yard's nightly XP rise).
+2. **The CLI refuses an action once the game has ended.** DL-28 says the world stops as it stands
+   at the player's ending, and `advance` refused, but `dispatch`, `build` and `recruit` were still
+   taken. A Party could be sent that would never come home, and Milestones were written after
+   `game.ended`. Each is now refused with "The game ended on Turn n: reason. Nothing more can be
+   done in it.", and nothing is written. The engine's actions are unchanged and have no
+   `game-ended` rejection: the only other caller, the harness's policy, already stops acting once
+   the game has ended.
+3. **Errata.** These are corrections to DL-40 and DL-41. The decisions in both stand.
+   - DL-41 says "A Rival recruited 755 Heroes a game" (Context) and "a Rival recruited 99 Heroes a
+     game" (After). Both figures are totals for every Rival in a game: the report's Rivals'
+     `hero.recruited` a game, which `countByController` sums over every Rival Guild. The correct
+     wording is that **the Rivals** recruited 755 Heroes a game before and 99 after. Per Rival,
+     that is about 24 each before (about 31 Rivals founded a game) and about 14 after (about 7:
+     four, and 3.08 replacements), or 1.2 a Rival-year (19,756 over 15,948.7 Rival-years). The fall compares
+     like with like.
+   - DL-40's Consequences say "Heroes die at about five a year on each Roster". That is true of
+     the player's Roster of eight, which lost 20,829 Heroes over 4,000.0 Guild-years (5.2 a year).
+     It is not true of a Rival's Roster of three to six, which lost 22,484 over 15,948.7 Guild-years
+     (1.4 a year). A Rival's Hero lives roughly three times as long as the player's, so the Rivals
+     are where ageing shows first: 24 of the 25 Retirements, and 0.28 declines a Guild-year against
+     0.13. Ageing still barely binds under M3's Quests.
+   - In DL-40 item 11's measures table, the Load a save row had been written after the note that
+     follows the table, so it rendered as text. The row now sits in the table and the note below
+     it. Only the layout changed, not a word or a figure. The note's "figure above" is Advance one
+     Turn's figure played alone. The save target stays "under 20 MB", as `data-model.md` §7 writes
+     it.
+
+The verification also found tests too weak to fail when the code changes. Each is fixed with a test
+and needs no decision. New tests kill five mutants:
+- a Party sent on an anniversary night itself is not checked again when it comes home;
+- a `declinePerYear` above 1, and one of 0;
+- a `declineAge` other than 40;
+- the declining Stat drawn in key order;
+- training XP at `levelCap`.
+
+Other fixes:
+- The quarters are plural in `build`'s and the narration's lines.
+- `show hero` names an Injury by content and gives the night it heals.
+- `show hall [guildId]` gives each facility's grade, what is built and what the next grade costs,
+  and `show` names the player's grades.
+
+**Consequences.** A save made before this entry plays under version 4, with its third infirmary
+grade inert, until the player rebases. M3's harness run (DL-40, `harness/reports/m3-2026-09-26.md`)
+was made under version 4 and is not run again: the change shortens only Injuries inflicted at
+infirmary grade 3, from a third of their Days to a quarter, and the next milestone's run measures
+it. M4's line of work also names its
+defaults version 5 (the M3 close merged into M4, DL-47 there). Git would merge the two identical
+`configVersion: 5` lines without a conflict, so whoever merges this entry into M4 must give the
+merged defaults a version of their own. M4's Quest Engine reads the infirmary's factor with its own
+copy of the rule and should read `healFactor`.
+
 ## DL-54 — Merging M5: the fold in one order, the policy's order, and an empty Market where a test is not about it (M5 integration)
 
 **Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 integration's merger)
@@ -3469,6 +3795,1054 @@ found, per game:
 
 No game ended in five years. Every unique Item a folded Guild held was listed once; the Loot tables'
 yield (about 1,600 awards a game across the world) is the M5 close's to balance (DL-52).
+
+## DL-55 — M4 close: M3's verification merged (`configVersion` 6), the M4 counters, and the M4 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 close), recording a
+merge, a method and a measure; it chooses no default value
+
+**Context.** Three things close M4. (a) After DL-47's merge, v1.0-dev gained M3's verification
+(DL-53: the infirmary's third grade quarters an Injury, `configVersion` 5, a `healFactor` selector
+read by the stub, the CLI's Hall view and its refusals once the game has ended), the validator's
+timing test on CPU time, and M3's tag (`a7877bb`). DL-47 had called the merged defaults 5 as well,
+and DL-53 asks whoever merges it into M4 to give the defaults a version of their own and to make
+the Quest Engine read `healFactor`. (b) The epic's §2 names five counters, and M4-S5 a sixth, the
+player's Guildmaster's Regard by band at year 10; DL-42, DL-43, DL-45 and DL-46 said what each
+reads, and M4-S2's fourth box asks that M2's counters still report. (c) The Check, Synergies,
+teamwork, the Guildmaster's Traits in the Check, Negotiation and the Board's weighting had not been
+measured together at 200 × 20 (DL-44 to DL-46); the task allowed one balance pass on default and
+content values if the run was degenerate.
+
+**Decision.**
+
+1. **`configVersion` is 6** (merge `39ea2f4`). The merged `defaultConfig` holds
+   `recruitWealthMultiple` 60 (DL-41), the Quest Engine's fields and none of the stub's (DL-42),
+   `infirmaryHealFactor` `[1, 1/2, 1/3, 1/4]` (DL-53), and the fields DL-43 to DL-46 added. Both
+   lines called their defaults 5, so a version-5 save from either would otherwise read as current.
+   The stub stays deleted. The Quest Engine's Injury consequence reads `healFactor(guild, config)`
+   in place of its own copy of the same rule. DL-53's test that each grade does more than the one
+   below passes content to `moraleBaselineFor`, whose M4-S5 signature takes it. The wage test and
+   the Quest Engine's config test pin 6. The CLI's help lists `show hall` and `show guildmaster`,
+   and `build`'s line keeps DL-53's plural and M4-S5's Upkeep with the Guildmaster's Traits. No
+   test was loosened.
+2. **The counters** (`harness/src/counters.ts`, each with a fixture test; totals and the report in
+   `sweep.ts`). From the History, each entry counting for the controller of the Guild it names
+   (DL-34 item 4):
+   - *Encounter outcomes*: `quest.encounter` by `payload.kind` and `payload.outcome`, with the
+     Heroes its `injured` and `died` name, the harm each kind does.
+   - *Synergies applied per Quest*: `quest.resolved`'s `payload.synergyKeys`, where absent is none
+     (DL-45): the Quests resolved, those with one or more, the Synergies summed, and the Quests by key.
+   - *Injuries by type*: `hero.injured` by `payload.typeKey`, for the Guild the Hero was on then.
+   - *Patrons silent*: for each year the game played in full, the Patrons generated by the Turn it
+     began (`patron.generated`), and of those the ones no `quest.offered` of the year names. A
+     Patron generated during a year counts from the next, and a year a game stopped in is not
+     counted.
+
+   From the World State, taken with DL-40's census as year 10 begins (Turn 10 × `turnsPerYear`,
+   before the policy acts), because the History records a Regard only when it crosses a band:
+   - *Relationships within the player's Roster*:
+     `relationshipBandCounts(playerGuild(world).rosterIds, world, config)`.
+   - *The player's Guildmaster's Regard*: `regardBandCounts` of its map, split by the table of the
+     entity each entry names (Patrons, Heroes; anything else counts in neither).
+
+   A game that stopped before year 10 has neither. The report sums over the games in play then,
+   gains a section "The Quest Engine (M4)", and is written as `harness/reports/m4-<date>.md`.
+   `npm test` gained 11 tests and about a quarter of a second.
+3. **The run, 2026-09-26** (`harness/reports/m4-2026-09-26.md`, committed with this entry): 200
+   seeds, `seed-0001` to `seed-0200`, each up to 20 years (21,600 Turns), validated after every
+   advance (`HEROESIM_VALIDATE=1`), config version 6, content version 8. It ran in 16 processes on
+   DL-13's machine, which other agents' work shared, and took 79 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, and all 200 last documents
+     load and serialise back alike. `seed-0001` played twice more: identical, 95,908,796 characters.
+   - **Beside M3's run** (DL-40, config version 4, the stub):
+
+     | Measure | M3 | M4 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 0 | 1, a Bankruptcy |
+     | Rival folds a game (Bankruptcies, wiped Rosters) | 3.08 (443, 173) | 2.24 (441, 7) |
+     | The player's Quests failed / succeeded / strong | 37.0 / 38.3 / 24.7% | 37.7 / 21.2 / 41.1% |
+     | The Rivals' Quests | 16.3 / 29.8 / 53.9% | 11.7 / 8.1 / 80.2% |
+     | Deaths a game, the player's / the Rivals' | 104.2 / 112.4 | 83.5 / 62.6 |
+     | Injuries a game | 1,013 / 1,267 | 1,021 / 794 |
+     | Levels gained a Guild-year | 19.0 / 6.9 | 17.3 / 6.0 |
+     | Mean Level after 10 years | 4.95 / 4.94 | 5.42 / 6.22 |
+     | The player's Wealth after 10 and 20 years | 114,951; 218,386 | 141,831; 267,608 |
+     | A Rival's Wealth after 10 and 20 years | 26,303; 26,404 | 36,594; 26,041 |
+     | Heroes a Rival after 10 years | 5.8 | 7.0 |
+     | Declines a Guild-year | 0.13 / 0.28 | 0.23 / 0.75 |
+     | Retirements in 200 games | 1 / 24 | 5 / 104 |
+     | Save after 20 years, mean (max) | 47.1 (57.9) MiB | 92.9 (109.7) MiB |
+     | History entries after 20 years, mean | 137,929 | 246,597 |
+
+   - **Encounter outcomes.** The player's 4,245,409 Checks succeeded 63.7%, from 56.8% (social) to
+     68.4% (combat, stealth). The Rivals' 9,007,403 succeeded 87.7%, from 83.5% (stealth) to 94.5%
+     (social). The player's combat Checks injure 0.089 Heroes each and kill 0.009. Travel and
+     social Checks kill no one, since content gives them no Death.
+   - **Synergies.** At least one applied on 15.6% of the player's Quests (0.162 a Quest) and on 11.2%
+     of the Rivals' (0.113). By key, as a share of the player's Quests: Sword and salve 6.0%,
+     Shadow and spell 5.1%, Scouting ahead 3.5%, Wards and blessings 1.0%, Shield wall 0.6%, and A
+     full company never (DL-45 item 8).
+   - **Injuries by type, the player's.** Bruised ribs and deep cut 23.0% each, broken arm 20.4%,
+     lung fever 17.7%, sprained ankle 7.6%, shattered knee 5.0%, eye wound 3.4%.
+   - **Patrons silent.** None in 47,796 Patron-years.
+   - **Relationships within the player's Roster after 10 years**, 5,572 pairs in 199 games:
+     neutral 37.4%, warm 26.3%, close 36.3%, none cool or hostile.
+   - **The player's Guildmaster's Regard after 10 years.** For Patrons (2,388 entries): close
+     78.7%, warm 7.0%, neutral 5.2%, cool 4.2%, hostile 4.8%. For Heroes (10,117, the dead and
+     departed included): close 42.2%, warm 15.2%, neutral 27.1%, cool 10.0%, hostile 5.4%.
+   - **Measures.** Under the run's load, `advance` averaged 6.99 ms a Turn (p99 17.8 ms). Alone:
+     `seed-0001` was played again in one process on a nearly idle machine, twice. Each time it ran
+     back to back with M3's tag (`a7877bb`, config version 5, extracted from git outside the
+     repository). Against the tag:
+
+     | Measure | M3's tag | M4 |
+     | --- | ---: | ---: |
+     | A Turn, mean (p99) | 0.69 to 0.71 (1.4 to 1.5) ms | 0.98 (2.1) ms |
+     | A year | 0.74 to 0.76 s | 1.06 s, over §7's 1 s |
+     | The save | 49.2 MiB, 143,725 entries | 91.5 MiB, 245,894 entries |
+     | Serialised in | 0.58 s | 0.82 s |
+     | Loaded in | 0.64 to 0.71 s | 1.10 to 1.16 s |
+
+     `quest.encounter` is 30.7% of the characters of `seed-0001`'s 84 MiB History.
+     `hero.morale-changed` entries more than doubled, 17,091 to 41,465: a discrete change always
+     emits (DL-29), and M4 adds the Encounters' Morale beside more strong successes. At this run's
+     rate, 1,000 games of 20 years would take 389 minutes (M3's run, 230).
+4. **No balance pass.** Judged against M3's run, the M4 run is not degenerate, so `configVersion`
+   stays 6.
+   - **The player's side is as steady as before.** 199 of 200 games ran 20 years. Levels fell by a
+     tenth, Deaths by a fifth, and Wealth rose by under a quarter.
+   - **The one ending has a cause.** In `seed-0016` the Parties failed more than half their Quests
+     from the first year, under a Spendthrift Guildmaster (Upkeep × 1.1), and the Guild went
+     bankrupt on Turn 3,329.
+   - **The Rivals are healthier.** They fold less, and their Rosters are almost never wiped (7
+     against 173), because their Heroes die little more than half as often. Their 88% of Checks
+     is `steady` taking the easiest Quest it can staff (DL-30) with Rosters that now keep their
+     Heroes.
+   - **The epic's first risk did not happen.** No chain of Encounters makes hard Quests lethal:
+     the player's Deaths, 83.5 a game, are below M2's baseline of 88 (DL-34).
+   - **No Encounter kind is a wall or a formality** for the player.
+   - **What remains is not for a value to mend.** Each item below is a missing rule, or a measure
+     recorded and not chased (DL-08).
+
+**Consequences.** M4's gate has its run: encounter outcomes are reported by kind. M4-S2's fourth
+box has the run's evidence in the epic. The M4-S5 box on Patrons stays proved by DL-43 item 10's
+50-seed engine test. For the owner:
+
+- **Guildmaster Regard saturates.** Nothing decays it, and it moves ±1 a Quest. After 10 years
+  the player's Guildmaster is close with 79% of Patrons and hostile to 5%. It has no reader in the
+  first build (pre-M0 review B3). Before a module reads it, it needs a recovery like the Patrons'
+  (`patronRegardRecoveryPerYear`) or the Heroes' decay. That is a rule, which a balance pass on
+  values could not give it.
+- **Relationship never falls below neutral within the player's Roster.** Only one Encounter's
+  failure lowers Regard between Heroes (DL-46), so teamwork in practice rewards a Roster kept
+  together, by up to × 1.1, and never penalises one. A source of friction between Heroes would be
+  a content or rule change.
+- **No Patron fell silent.** At the Regard values play reaches, R22's weighting thins a disliked
+  Patron's offers but never stops them.
+- **The plain success band is thin.** Plain success is 21.2% of the player's Quests and 8.1% of
+  the Rivals'. That is DL-42's reading of `bandBySuccessShare`, and it stands.
+- **The player's Wealth still grows without end**, and one game in 200 ended. That is DL-41's
+  finding, for M6's Dispositions.
+- **The save doubled, and a year alone is now just over a second.** A lighter `quest.encounter`
+  entry is the lever DL-42 named, if data-model §7 is chased.
+- **The Rivals' Heroes now grow old.** They live long enough to decline 0.75 times a Guild-year
+  and to retire 104 times in 200 games. The Rivals' mean Level peaks at 6.76 after 15 years and
+  falls to 6.26 by 20. DL-40's "nobody grows old" no longer holds for them.
+
+## DL-56 — Named Dispositions: four rows of weights, one rule, a round-robin deal, and a replacement that inherits (M6-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S1's implementer); the
+four names are the owner's (INPUTS 7.5), the weights are the agent's, for the owner to tune
+
+**Context.** M6-S1 names the four Dispositions (INPUTS 7.5), five weights on each row
+(`questRiskAppetite`, `recruitThreshold`, `buildThreshold`, `gearThreshold`, `transferAppetite`),
+one `rivalChoices` reading them with tie-breaks drawn from `rivals`, and a round-robin deal so that
+every world has all four. It leaves open what each weight means and its scale, the values, which
+ties the draw breaks, the order of the deal, what a Rival founded after a fold is dealt (DL-28 item
+5 made it `steady`), and what becomes of the two config fields the rows replace. The orchestrator
+asked that `steady` keep its measured behaviour: `recruitWealthMultiple` 60 and `buildWealthMultiple`
+3. On this branch the config still reads DL-35's 10, because DL-41 (M3's balance pass, 10 → 60) is
+on `v1.0-dev` and not yet merged here.
+
+**Decision.**
+
+1. **The row.** Each row of `content/dispositions.json` is a `name` and five numbers:
+
+   | Weight | Scale | Read by | Meaning |
+   | --- | --- | --- | --- |
+   | `questRiskAppetite` | 0 to 1 | M6-S1 | Where along the Quests it can staff, ranked by difficulty, it takes one: 0 the easiest, 1 the hardest |
+   | `recruitThreshold` | 0 or more | M6-S1 | It recruits only while its Wealth is above this many times its Upkeep |
+   | `buildThreshold` | 0 or more | M6-S1 | It builds only while its Wealth is above this many times the next grade's cost |
+   | `gearThreshold` | 0 or more | M6-S4 | It buys gear only while its Wealth is above this many times the price |
+   | `transferAppetite` | 0 to 1 | M6-S2, M6-S3 | How readily it deals in Transfers |
+
+   The parser refuses a missing weight, one that is not a number, and a field it does not know; the
+   content validator refuses an appetite outside 0 to 1, a negative threshold, and a set with no
+   Disposition, since the Guild Generator deals one to every Rival. Content version 11.
+2. **The values.** Chosen by the agent to give each name a character, not measured against a target;
+   the M6-close counters are what the owner tunes them on.
+
+   | | `questRiskAppetite` | `recruitThreshold` | `buildThreshold` | `gearThreshold` | `transferAppetite` |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | `steady` | 0 | 60 | 3 | 3 | 0.25 |
+   | `ambitious` | 0.6 | 40 | 1.5 | 2 | 0.75 |
+   | `miserly` | 0.25 | 80 | 20 | 10 | 0.1 |
+   | `reckless` | 1 | 30 | 4 | 1.5 | 0.5 |
+
+   `ambitious` builds at one and a half times the cost, so a Rival founded with more than 300 Wealth
+   (`rivalStartingWealthMin` is 300) builds its first grade on its first afternoon. `miserly` hoards:
+   the easy end of the Board, eighty Upkeeps before it recruits, twenty times the cost before it
+   builds. `reckless` takes the hardest Quest it can staff and replaces its losses soonest.
+   `gearThreshold` and `transferAppetite` are placeholders until M6-S4 and M6-S2 give them rules,
+   whose stories may retune them with a DL.
+3. **One rule** (`rivalChoices`, `controllers/rival.ts`). `dispositionRules` and the
+   `DispositionRule` type are gone, and with them the case of a Disposition content defines and the
+   engine has no rule for. The order is DL-30's, DL-38's and DL-49's: equip (`gearChoices`), at most
+   one dispatch, then one purchase, a build before a recruit.
+   - **Which Quest.** The Quests it can staff (`partyFor`), ranked by difficulty, then Quest id; the
+     place `round(questRiskAppetite × (n − 1))` names the difficulty it wants; every Quest it can
+     staff at that difficulty is a candidate, in Quest id order, and one `pick` from `rivals` takes
+     one. One draw for each dispatch chosen, however many candidates, so the draw count depends
+     only on whether it dispatches. A place along the Quests it can staff, not an absolute band of
+     difficulty, because it always names a Quest whatever the Board holds, and at 0 it is DL-30's
+     "easiest" exactly. The Party is `partyFor`'s, unchanged.
+   - **Build**: the infirmary's next grade above `buildThreshold` times its cost; only the
+     infirmary, as before, until M6-S4.
+   - **Recruit**: above `recruitThreshold` Upkeeps, `cheapestUnattached`'s Hero, the lowest id among
+     equal fees, as before. Not a draw: DL-38 makes `cheapestUnattached` the one statement of the
+     cheapest Hero, shared with the automatic policy and the Roster-wiped ending, and a Rival that
+     broke its ties another way would make two. The Quest's difficulty is the only tie the weights
+     leave.
+   - `rivalChoices` changes nothing in the world but `world.rng.rivals`. This supersedes DL-30 item
+     4's "draws nothing" and its lower-Quest-id tie-break, and DL-30 item 7's test that no stream
+     moves.
+4. **`steady` keeps its rule**: appetite 0 (the easiest), `buildThreshold` 3 (DL-38), and
+   `recruitThreshold` **60**, DL-41's value, which this branch's config had not yet taken. Merged
+   with the M3 close, `steady` behaves as DL-41 tuned it; on this branch alone it recruits at sixty
+   Upkeeps where it recruited at ten, exactly the change DL-41 makes. The one difference DL-41 does
+   not make is the tie-break: of two Quests of the same difficulty, `steady` now draws which to take.
+5. **The config fields go.** `recruitWealthMultiple` (DL-30, DL-35, DL-41) and `buildWealthMultiple`
+   (DL-38) are removed from `GameConfig`, recorded by a comment where they stood, as DL-42 removed
+   the stub's fields; `configVersion` 4 → 5. A save whose `meta.config` holds them plays on: nothing
+   reads them. **Merging with `v1.0-dev`**: DL-41 set `recruitWealthMultiple: 60` in
+   `defaultConfig` there; the merge drops that line with the field and renumbers `configVersion`.
+   The harness's automatic policy keeps its own multiples (DL-34). Tests that pinned the two fields
+   pin the rows: `withDispositions(weights, content?)` in `world.test-support.ts` sets weights on
+   every row, and `thriftyRivals` stands for the old 1,000,000 pins. The test content mirrors the
+   core's four rows.
+6. **The deal** (`dealtDisposition(content, index)`, `generators/guilds.ts`): content's keys in
+   code-unit order, round-robin, so `createWorld`'s Rivals are `ambitious`, `miserly`, `reckless`,
+   `steady`, then again from the first. No draw: a seed's world is what it was before M6-S1 but for
+   its Rivals' controllers (a test creates the same seed with a `steady`-only content and compares).
+   With the default four Rivals every world has one of each; with fewer, the first keys. The
+   Guild Ids fix the order, so a default world's first Rival is always `ambitious`: acceptable, as
+   every Rival is visible (R29). `generateRival` takes the controller as an option (`RivalOptions`).
+7. **The replacement inherits.** A Rival founded to replace one that folded takes the folded
+   Rival's controller, copied, and so its Disposition: the world keeps every Disposition it was
+   dealt. `replaceFolded` hands `folded.controller` on without reading it (no new `controller.kind`
+   read; the guard's allow-list is unchanged). Considered and not taken: going on round the deal
+   (a world could end with two of one and none of another) and dealing the Disposition fewest
+   Rivals hold (which reads every Guild's controller). A Disposition content has since dropped is
+   inherited too, and the validator's `unknown-disposition` warns of it as before; `rivalChoices`
+   gives such a Rival nothing to do.
+8. **Tests.** `controllers/rival.test.ts`: `steady`'s tests stand, on the `steady` Rival, with the
+   tie now a draw among the tied Quests only, one draw; each of the four takes the Quest at its
+   appetite's place and recruits and builds at its own thresholds exactly; a fifth Disposition,
+   `cautious`, added to a fixture content, is dealt round-robin, known to the validator, chooses by
+   its own weights at their exact boundaries, chooses otherwise when its row changes, and plays ten
+   Days beside the four; `rivalChoices` on a world frozen but for `rivals` changes nothing else and
+   advances it by one draw. `phases/rival-controllers.test.ts` (M6-S1's third box): on three seeds,
+   the afternoon's Rival choice moves every planned stream but `rivals` not at all, and `rivals` by
+   exactly one draw per `quest.taken`. `create.test.ts`, `generators/guilds.test.ts`: the deal and
+   its no-draw property. `phases/endings.test.ts`: the replacement has the folded Rival's
+   controller and the Dispositions in play are those dealt. Content: the rows, each refusal.
+9. **The 100-seed box** (`controllers/dispositions.test.ts`), in the engine: 100 seeds, a default
+   world each, the player idle and rich, a month played; the four Dispositions are the test
+   content's rows. A Death is too rare under the core-like Encounters for a month of 100 worlds (4
+   `reckless` against 3 `miserly` in a trial), so the test's Encounters kill one time in five on a
+   failure and do nothing else: the same Quest Engine and rule, harm common enough to count. Turns
+   are played in place, `runTurn` then `append`, which is `advance` without its copy of the world
+   (3.5 s against about 10). It asserts margins, not a bare inequality: `reckless`'s mean difficulty
+   at least 10 above `miserly`'s and its Deaths above 1.25 times, because two Rivals with the same row
+   differ a little by their place in the afternoon's order alone (a mutation giving `reckless`
+   `miserly`'s row passed the bare inequalities and fails these); and `ambitious` builds in every
+   seed, no later than any other Rival, and earliest on the mean. Measured: mean difficulty
+   `reckless` 54.5, `ambitious` 42.4, `miserly` 35.0, `steady` 31.1; Deaths 360, 328, 235 and 178;
+   `ambitious` builds on Turn 1 in all 100 seeds, `steady` in 99 (Turn 15 on the mean), `reckless` in
+   65 (Turn 41), `miserly` in none within the month.
+
+**Consequences.** Every world's Rivals now differ. A smoke run of the core content under
+`defaultConfig` and the automatic policy (a scratch script, not the harness sweep; seeds
+`seed-0001` to `seed-0008`, 5 years each, not validated), per game, by the Rival's Disposition:
+
+| Per game (8 games), each Disposition one Rival | `steady` | `ambitious` | `miserly` | `reckless` |
+| --- | ---: | ---: | ---: | ---: |
+| Quests taken | 1,152 | 1,529 | 1,103 | 1,051 |
+| Mean difficulty taken | 29.1 | 46.3 | 31.0 | 57.7 |
+| Quests failed | 50 | 210 | 69 | 288 |
+| Deaths | 1.3 | 8.3 | 2.1 | 13.0 |
+| Heroes recruited | 0.6 | 17.6 | 0.8 | 19.1 |
+| Turn of the first Improvement, mean (range) | 12 (1–22) | 1 (1–1) | 208 (139–274) | 23 (13–34) |
+| Roster at year 5, mean | 5.5 | 15.9 | 4.6 | 11.6 |
+| Wealth at year 5, mean | 27,600 | 55,800 | 38,300 | 32,600 |
+
+No Rival folded and no player's game ended in the eight; every Rival had built its infirmary to
+grade 3 by year 5. `reckless` takes the hardest Quests and loses the most Heroes, `ambitious`
+builds first and grows the largest Roster, `miserly` builds last and barely recruits, as the names
+promise; `steady` is M3's Rival.
+
+M6-S4 inherits a box, "`miserly` stays at 0 longest", that the values in item 2 aim at with
+`buildThreshold` 20: over five years `miserly` builds last, as the table shows, but twenty years and
+the other facilities are M6-S4's to measure. M6-S2 and M6-S3 give `transferAppetite` its rule. The M6-close counters should split the M2–M5 Rival counters (Quests taken and resolved by
+band, Deaths, recruits, Improvements, folds, Roster size and Wealth by year) by Disposition, so the
+owner can tune item 2's table; `quest.taken` carries no difficulty, so a counter of mean difficulty
+reads the Quest's row the Turn it is taken, or the M6-close adds it to the payload.
+
+## DL-57 — Transfers: one fee core, consent as a controller's choice, what a Transfer does, Rivals' deals and offers, and the `transfer-offer` stop (M6-S2)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S2's implementer); the fee
+factor and the Morale cost are the owner's (INPUTS 7.6), the pairwise cost is the owner's (pre-M0
+review D5), the rest is the agent's
+
+**Context.** M6-S2 names `transferIn` and `transferOut`, `transferFee(hero, buyingGuild)` scaled by the
+buying Guildmaster's Negotiation (DL-43), the other Guild's consent by its Disposition's
+`transferAppetite` and Roster size (`transfer-refused`), `hero.transferred` (a Milestone), the Hero's
+`partyId` null, gear back to the Guild the Hero leaves (DL-49 item 8), the pairwise Morale cost with
+`hero.morale-changed` only on a band crossing, the two Guildmasters' Regard rising (`guildmasterRegardPerTransferDeal`,
+R9's third writer), Rivals using the same two functions in `rivalChoices`, a Rival wanting the player's
+Hero writing a Transfer Offer (`guild.transfer-offered`), `acceptTransfer` and `declineTransfer`, an
+expired offer removed at night (`guild.transfer-offer-expired`), the always-on `transfer-offer` stop,
+the policy declining every offer (M6 risk table), and the CLI's `transfer`. It leaves open: the consent
+rule itself; how a Rival writes an offer, since no action in the epic does; how often a Rival deals,
+with no frequency among the story's config; whom it wants; how long an offer stands; whether the stop
+fires while an offer is pending (the epic) or when one arrives (approach §2); what the fold does with
+offers (DL-54 foresaw a step); the decline's event; and whose consent `acceptTransfer` asks.
+
+**Decision.**
+
+1. **Five actions, one file** (`engine/src/actions/transfer.ts`), each a world-level rule and a
+   document-level wrapper (DL-30), in the `Action` and `GuildAction` unions: `transferIn { guildId,
+   heroId }` (the Guild takes a Hero from another Guild's Roster), `transferOut { guildId, heroId,
+   toGuildId }`, **`offerTransfer { guildId, heroId }`** (not in the epic: how a Guild writes a
+   Transfer Offer, the Rivals' only use of it in the first build), `acceptTransfer { guildId, offerId }`
+   and `declineTransfer { guildId, offerId }`, answered by the Guild the Hero is on. Rejections, in the
+   order checked: `transferIn` — `guild-folded`, `hero-not-on-roster` (on no other Guild's Roster),
+   `same-guild`, `hero-in-party`, `transfer-refused`, `insufficient-wealth`; `transferOut` —
+   `guild-folded` (either Guild), `same-guild`, `hero-not-on-roster`, `hero-in-party`,
+   `transfer-refused`, `insufficient-wealth` (the Guild taking the Hero); `offerTransfer` —
+   `guild-folded`, `hero-not-on-roster`, `same-guild`, `hero-in-party`, `no-offer-needed` (the Hero's
+   Guild answers at once, by its Disposition), `offer-pending`, `insufficient-wealth`;
+   `acceptTransfer` — `guild-folded`, `offer-not-found`, `hero-in-party` (the offer stands until the
+   Hero is home or it expires), `insufficient-wealth` (the offering Guild can no longer pay);
+   `declineTransfer` — `guild-folded`, `offer-not-found`. A Guild id the world lacks throws (the CLI
+   checks `--to` first). `transfer-refused` names the Guild asked, the `side` (`out`, a Hero leaving it;
+   `in`, one joining it) and `because`.
+2. **One fee core.** `signingFee` and the new `transferFee(hero, buyer, deps)` (`selectors.ts`) share
+   `heroFee`: the list price (DL-27) × a factor (1, or **`transferFeeFactor` 2**, INPUTS 7.6) × the
+   paying Guildmaster's Negotiation (DL-43), rounded down once. `buyer` is the paying Guild's
+   Guildmaster, as `signingFee`'s is; `signingFee`'s results are unchanged (× 1 is exact). An offer's
+   fee is fixed when it is made and is what `acceptTransfer` pays.
+3. **Consent is the other Guild's controller's choice** (`transferAnswer(world, guild, side, deps)`,
+   `controllers/rival.ts`). A Guild with a Disposition answers by its row, one rule for every row:
+   it deals only while **the Heroes it keeps through the deal × `transferAppetite` ≥ 1** (its Roster
+   less one when a Hero goes out, its whole Roster when one comes in: 0.25 lets a Hero go from five and
+   takes one into four, 0.75 from three and into two, 1 lets any go but its last, 0 never deals), and
+   takes a Hero in only while it would recruit (Wealth above `recruitThreshold` × Upkeep). A Guild
+   with **no Disposition answers only through offers** (`answers-offers`): its controller answers for
+   itself, by `acceptTransfer` or `declineTransfer`. This is ADR-0002's own line — "what differs is the
+   controller" — not a new question of whose Guild it is: the read is the one `rivalChoices` already
+   made, moved into `chooser` (`controllers/rival.ts`), which both call; `controller-reads.test.ts`
+   keeps one read there and names the consent in its reason. `acceptTransfer` asks no consent of the
+   offering Guild: its offer was its consent; it must still be able to pay.
+4. **What a Transfer does** (`makeTransfer`, `engine/src/transfer.ts`, whichever action makes it, every
+   Guild alike): the Hero's gear back to the Guild they leave (`returnGear`, `item.returned` cause
+   **`transferred`**); the fee paid, so the two Guilds' Wealth together is unchanged; the Hero off the
+   one Roster and onto the end of the other; `hero.transferred { heroId, fromGuildId, toGuildId, fee,
+   offerId }` (a Milestone; `offerId` null but for an accepted offer); the Morale cost; the
+   Guildmasters' Regard; the accepted offer removed and any other offer for the Hero withdrawn
+   (`hero-left`). **The Morale cost**: each Hero left on the Roster whose own Regard for the Hero is in
+   `transferRegardBand` (**`warm`**) or above loses **`transferMoraleCost` −15** (INPUTS 7.6; D5), in
+   Roster order, held in Morale's range, with `hero.morale-changed` (cause **`transfer`**) only when a
+   band is crossed: the epic's rule for this cost, which departs from `changeMorale`'s "a discrete
+   change always emits" (DL-29) for this one cause. The transferred Hero's own Regard and Morale, and
+   every other Guild's Heroes, are untouched. **Guildmaster Regard** (`regardOnTransferDeal`,
+   `regard.ts`): each Guildmaster's Regard for the other's rises by **`guildmasterRegardPerTransferDeal`
+   2** (a deal counts double a Quest's +1; warm after two deals), the leaving Guild's first, reason
+   `hero.transferred`, `guildmaster.regard-changed` cause **`transfer-deal`** only on a crossing.
+5. **Rivals deal in `rivalChoices`** (DL-56 item 3 extended). The one purchase an afternoon becomes:
+   build (as before); else **`transferChoice`**; else recruit (as before); else **`debtTransfer`**.
+   - *`transferChoice`*: only while the Rival would take a Hero in by its own answer, and has no offer
+     of its own standing (one at a time). The Hero it wants is **the dearest it can pay for**
+     (`transferFee` at its Guildmaster's Negotiation, the lowest Hero id among equal fees), in no Party,
+     on the Roster of another Guild in play that would let one go or answers offers. When there is one,
+     **one draw from `rivals`, `chance(transferAppetite)`**, decides whether it seeks them this
+     afternoon: the appetite is the share of its hiring it does by Transfer, so no frequency field is
+     needed. It takes them by `transferIn` from a consenting Guild, or offers for them
+     (`offerTransfer`) to a Guild that answers offers. No draw when there is no such Hero, and none
+     at an appetite of 0 (the Rival's own answer refuses first). `rivalChoices` now advances `rivals`
+     by one draw for each dispatch and one each time it weighs a Transfer.
+   - *`debtTransfer`*: while the Rival is in debt (`belowFloorSince` set) and its own Disposition
+     would let a Hero go, its dearest Hero at home and not in this afternoon's Party goes by
+     `transferOut` to the Guild in play that consents, can pay and pays most (then the lowest Hero id,
+     then Guild id). Draws nothing. Never to a Guild that answers offers: the first build makes no
+     offer that way. So Rivals use both functions, as the epic asks.
+   - The Rival-to-Rival Transfer Generator stays M6-S3's; its weekly bids come on top of these.
+   - Tests whose subject is recruiting or building still Transfers with `transferAppetite: 0`: in
+     `controllers/rival.test.ts`, `steady`'s recruiting and building, "dispatches, then recruits", the
+     four Dispositions' thresholds and the fifth Disposition's; in `phases/rival-controllers.test.ts`,
+     `recruitingDeps`, which M6-S1's third box's test uses, so that its one-draw-per-dispatch count
+     stands. `transfer.test.ts` shows the Transfer's own draw is one, from `rivals`, and nothing else
+     moves; `controllers/dispositions.test.ts` (M6-S1's 100 seeds) passes unchanged.
+6. **Offers** (data-model §3.2): an offer stands through the night of its **`transferOfferDays`
+   (3)**-th Day, the Day it is made the first (a new config field, the agent's, mirroring
+   `questOfferDays`; `offerExpiresOnTurn`), and is removed by a new night phase **`offerExpiry`**, after
+   `poolRefresh` and before `endings`, with `guild.transfer-offer-expired` — one event for every
+   unanswered end, its `cause` **`expired`**, **`hero-left`** (the Hero died or retired that night, or
+   was transferred) or **`guild-folded`**. It removes an offer once its `expiresOnTurn` falls before the
+   next night, so a hand-made expiry on a morning (the M1 fixture's) never outlives the validator's
+   `offer-expired`. `declineTransfer` emits **`guild.transfer-offer-declined`** (not in the epic's list;
+   data-model rule 10). Every offer event names the offer, the Hero and both Guilds.
+7. **The fold** (DL-54 item 1) gains a step 5, before its Heroes are released and `guild.folded`:
+   every offer naming the folding Guild, made by it or asking it, is withdrawn (`guild-folded`), in id
+   order. The steps after it are renumbered 6 and 7; nothing else in DL-54's order changes.
+8. **The `transfer-offer` stop** is always on (`alwaysStops`), after `decision-needed` and before
+   `pool-refreshed` in `stopConditions`, and fires **on the Turn an offer for a Hero of the watched
+   Guild arrives** (`transferOfferStop`, from the Turn's `guild.transfer-offered`), carrying `{ guildId,
+   offerIds }`. Approach §2 (the owner's) says "a Transfer offer arrives"; the epic's "while one is
+   pending" is read the same way, since a stop on every Turn an offer stood would make fast forward
+   useless until it expired (DL-33 item 5's reasoning); the offer itself stays in `show offers` until
+   answered or expired. The CLI's `--until` takes `transfer-offer`.
+9. **The automatic policy** declines every offer made for its Heroes, first among its choices, and
+   makes no Transfer (M6 risk table); a smarter policy is a DL after the M6 counters.
+10. **The CLI.** `transfer --hero <id> --to <guildId>` (`transferOut`), `transfer --hero <id> --in`
+    (`transferIn`), `accept --offer <id>`, `decline --offer <id>` and `show offers` (each offer's id, the
+    Rival, the Hero, the fee and the Turn it expires); each prints its events' lines and the Guild's
+    Wealth and Roster. A stop on `transfer-offer` prints each offer with its fee, Hero, expiry and id and
+    the two commands that answer it. `narrate.ts` has a line for each new event and the new causes.
+11. **Versions.** Five config fields are added (`transferFeeFactor`, `transferMoraleCost`,
+    `transferRegardBand`, `guildmasterRegardPerTransferDeal`, `transferOfferDays`) and no default
+    changes: `configVersion` stays 5 (DL-43 item 11's reading). No content changes.
+
+**Consequences.** A smoke run of the core content under `defaultConfig` and the automatic policy
+(seeds `seed-0001` to `seed-0004`, 5 years each, validated after every advance; a scratch script, not the
+harness sweep): 13, 32, 75 and 25 Transfers a game, every one between Rivals (buyers `ambitious` 77,
+`reckless` 66, `steady` 2; `miserly` never), mean fee 445 to 459; 3 to 12 offers for the player's
+Heroes a game, every one declined by the policy; 10 to 104 `hero.morale-changed` for `transfer` and 4 to
+10 Guildmaster Regard crossings a game; no policy action refused, no document refused or warned about,
+no Rival folded. The Rivals' own refusals are dropped by their phase unseen (DL-30); a test plays twenty
+Days with every Rival dealing whenever it would hire and checks each choice is accepted. For the
+**M6-close counter task**: Transfers by direction and controller kind read `hero.transferred`
+(`fromGuildId`, `toGuildId`: the player's Guild is out or in, else Rival to Rival; `offerId` marks an
+accepted offer; the event does not say which action made it); offers from `guild.transfer-offered`,
+`guild.transfer-offer-declined` and `guild.transfer-offer-expired` by `cause`; the Morale cost from
+`hero.morale-changed` with cause `transfer` (crossings only); Rival Roster sizes and Wealth by year are
+snapshots of the world at each year's end. M6-S3's Generator should make its Transfers through
+`applyTransferIn` so that consent, fee and effects stay one rule, and may retune `transferAppetite`
+once its own frequency is measured beside `transferChoice`'s.
+
+## DL-58 — Rivals build every facility and buy gear, armour first; one gear-buying rule with the policy; `reckless`'s `gearThreshold`; M5's Market test retired; the twenty-year test (M6-S4)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S4's implementer); the rule's
+shape is the epic's ("`build` and `buy`, armour first, by `gearThreshold`"), the rest the agent's, for the
+owner to tune on the M6-close counters
+
+**Context.** M6-S4 names `rivalChoices` emitting `build` and `buy` (armour first, by `gearThreshold`),
+Rival demand for M5's Market, the retirement with a DL of M5's test that Rivals ignore the Market, and two
+boxes: Rival Hall grades rise over twenty years under `ambitious` and `miserly` stays at grade 0 longest;
+Market stacks are bought by Rivals, a harness counter by controller kind, which the orchestrator left to
+the M6-close task while asking for an engine test that proves the purchases. DL-56 built only the
+infirmary "until M6-S4" and left `gearThreshold` a placeholder M6-S4 "may retune". Left open: which
+facilities and in what order; what "armour first" orders; which piece, how many, and for whom; where
+buying sits in the one purchase an afternoon; whether it draws; the policy's own armour rule (DL-51 item
+9) beside the Rival's; and how a twenty-year engine test is made to run in reasonable time and to be about
+the Dispositions.
+
+**Decision.**
+
+1. **Every facility, in the Hall's order** (`hallBuild`, `controllers/rival.ts`): the first of
+   `facilityKeys` (infirmary, training yard, quarters) whose next grade `affordableImprovement` names at
+   the Disposition's `buildThreshold`. The infirmary comes first, as it came alone in M3-S6 (DL-38 item
+   13); a dearer grade out of reach gives way to a cheaper grade of the next facility, so a Rival saving
+   for the Physicians' wing builds its practice yard meanwhile. Considered and not taken: the cheapest
+   grade first (the same Hall in the end, in another order); the infirmary alone (M3-S6's rule, under
+   which the boxes hold too, but a Rival's Hall stops at three grades of nine, and DL-56 deferred the rest
+   to this story); the infirmary and the quarters without the training yard (the kindest to Rival
+   economies, below, but an exclusion no row expresses).
+2. **Gear, armour first** (`gearBuy`): one piece an afternoon, from `gearPurchase` over the slots in
+   `purchaseOrder`: armour, then the other slots of `config.gearSlots` in its order (weapon, trinket). A
+   slot wants a piece while the Roster's Heroes with nothing in it outnumber the pieces for it in the
+   Guild's own holding (a Hero away with a Party counts: the piece waits for them, DL-54); the piece is the
+   dearest for the slot the Market lists, unique Items a fold left there included, that `gearChoices`
+   would put on a Hero (gear for a listed slot whose modifiers sum above 0), whose price the Guild's Wealth
+   is above `gearThreshold` times and covers, the lowest key among equal prices. A slot the Market cannot
+   serve within those means gives way to the next: "first" is a priority, not a gate. The piece is worn
+   from the next afternoon, `gearChoices` being a Rival's first choice as it is the policy's (DL-54 item
+   3), and no piece is ever swapped for a better (DL-49). Rivals never sell.
+3. **The one purchase an afternoon** is now the first of build, buy, `transferChoice`, recruit and
+   `debtTransfer`: the policy's order (build, buy armour, recruit: DL-51 item 9), with M6-S2's Transfers
+   where DL-57 put them. Gear before hiring, as DL-51 put armour before recruiting: it is cheap beside a
+   fee and protects the Heroes a Guild has. Neither a build nor a purchase draws, so `rivals` still
+   advances one draw for each dispatch and each weighed Transfer (M6-S1's third box's test now runs with
+   both on).
+4. **One rule for buying gear, the Rival's and the policy's** (DL-38 item 7): `gearPurchase(world, guild,
+   slots, wealthMultiple, deps)` in `gear.ts`. The policy's `armourPurchase` is it for `['armour']` at the
+   policy's own `buyWealthMultiple`, the same choices under the core content (its tests pass unchanged); the
+   one difference, for content that has none, is that a piece `gearChoices` would never put on is neither
+   bought nor counted as held. It reads the world once for all its slots, and `gearChoices` now reads which
+   slots each Hero fills in one pass rather than one per Hero, the same choices: Rivals holding gear made
+   both hot (a twenty-year seed took 12.8 s before, 8.2 s after, in a sweep of 16 processes).
+5. **`reckless`'s `gearThreshold` 1.5 → 3**, content version 12; the other rows stand. At 1.5 a piece could
+   take two thirds of its Wealth, and buying kept it below its first grade's 800 for months: over 16 core
+   seeds × 20 years its first Improvement came on Turn 157 on the mean, against 33 before this story, and
+   after `miserly`'s in 3 seeds. At 3, a third of its Wealth a piece at most as for `steady`: Turn 119, and
+   1 seed (4 gave 105 and 1). `thriftyRivals` gains `gearThreshold: 1_000_000`.
+6. **M5's test is retired.** `market.test.ts`'s "Rivals' Wealth is unaffected by the Market: steady neither
+   buys nor sells, whatever the Market holds" (M5-S4's box, DL-51 item 8, DL-54 item 3) gives way to
+   "Rivals buy gear from the Market and sell none; with an empty Market they buy nothing". This supersedes
+   DL-51 item 8's and DL-54 item 3's "`steady` neither buys nor sells", and nothing else in them.
+7. **Tests.** `controllers/rival.test.ts`: armour first, the dearest, a piece for each Hero, then weapons,
+   then trinkets; each Disposition exactly at its row's `gearThreshold`; a slot giving way to the next;
+   pieces worn or held counted, a Hero away still lacking one; an unlisted slot and a consumable; build,
+   then buy, then recruit; no draw; the fifth Disposition's `gearThreshold` read with no code change; every
+   facility in order, and a cheaper grade of the next facility while a dearer one is out of reach.
+   `gear.test.ts`: `gearPurchase` itself. `phases/rival-controllers.test.ts`: the spy test watches
+   `applyBuy` too, so a Rival's purchase reaches the player's `buy` and nothing else, and ten Days of play
+   find every purchase accepted. Tests whose subject is recruiting, building or Transfers still gear with
+   `gearThreshold` 1,000,000, as DL-57 stilled Transfers; the CLI's `transfer-offer` test gives its
+   `ambitious` Rival a built Hall and outfitted Heroes, since it now builds and buys before it weighs a
+   Transfer.
+8. **The boxes' test** (`controllers/rivals-build-and-buy.test.ts`): four seeds, a default world each, the
+   player idle and rich (its Guildmaster young enough not to retire), twenty years played in place
+   (DL-56's method), the History's last year and the World State validated. One pin: every Encounter's
+   Check asks 0.15 of the Quest's difficulty. At the test content's own 0.18 and 0.3 its Rivals fold 22
+   times a seed in twenty years (`reckless`'s ten), whatever this story does, and the miserly measure is
+   swamped by replacements founded with next to nothing (`miserly`'s first Improvement the last in 10 seeds
+   of 16); at 0.15 they fold about seven times a seed and live off their Quests as the core's do. It
+   asserts: every Rival's Hall rises a grade at a time and never falls; the `ambitious` Rival dealt at
+   creation has the whole Hall, nine grades, within its first year, and every `ambitious` Rival holds it at
+   each year's end a year or more after its founding; in every seed `miserly`'s first Improvement is the
+   last of the four, and over the seeds its Rivals spend the most nights with a bare Hall; in every seed
+   Rivals bought Market stacks (`item.bought` by controller kind, the idle player's none), every
+   Disposition bought, and most Rival Heroes wear armour at the end. It takes about 41 s, the whole suite
+   about 48 s. The same assertions held on 48 other seeds (16 two to a file, 32 four to a file); two
+   stronger ones did not and were dropped: that an `ambitious` Rival builds on its first afternoon (one
+   founded with exactly 300 Wealth cannot, 1.5 × 200), and that `miserly`'s nights with a bare Hall are the
+   most in every seed (a `reckless` Rival that folds and is replaced twice can spend more).
+
+**Consequences.** A scratch script (core content, `defaultConfig`, the player idle and rich, 16 seeds × 20
+years, not validated), before this story (f2a3507) and after:
+
+| 16 games × 20 years | Before | After |
+| --- | --- | --- |
+| Rival folds: all (ambitious / miserly / reckless / steady) | 22 (3 / 1 / 8 / 10) | 48 (6 / 8 / 13 / 21) |
+| Rival Rosters at the years' ends: median; below 4 / 4 to 8 / above 8 | 8; 10% / 47% / 42% | 4; 39% / 42% / 20% |
+| Roster at year 20, mean: ambitious / miserly / reckless / steady | 6.4 / 7.4 / 7.1 / 7.5 | 6.5 / 5.0 / 7.3 / 3.1 |
+| Wealth at year 20, mean: same order | 31,800 / 46,800 / 20,100 / 33,600 | 31,300 / 37,800 / 23,600 / 10,200 |
+| Hall grades at year 1, mean: same order | 3.0 / 2.1 / 3.0 / 3.0 | 9.0 / 5.8 / 7.8 / 8.8 |
+| First Improvement, Turn, mean: same order | 1 / 207 / 33 / 13 | 1 / 256 / 119 / 51 |
+| Market stacks bought a game: same order | 0 | 22 / 25 / 31 / 39 |
+| `steady`'s recruits a game | 19 | 1 |
+
+Rivals now build and buy, and a whole Hall weighs on them: its upkeep (90 each ten Days for nine grades)
+and the training yard's Levels, whose wages a Rival's income follows only if, like `reckless`, it takes
+harder Quests as its Heroes grow. `steady` suffers most: it takes the easiest Quests, and its sixty Upkeeps
+before it recruits rise with the Hall's maintenance (5,400 Wealth for a whole Hall), so it all but stops
+recruiting and shrinks; Rival folds double. In the same sweep, the infirmary and the quarters alone, with
+buying, left folds near where they were (27, `reckless` at 4), and buying with the infirmary alone left
+them as they were (24, `reckless` at 1.5): the training yard is the heavy facility. Tuning is the M6 close's, on the counters
+(`buildThreshold`, `recruitThreshold`, `hallMaintenancePerGrade`, or which facilities a Disposition wants,
+which would be a new weight). **For M6-S3**: its box "the Roster-size distribution across Rivals stays
+within the generation range" now meets smaller Rival Rosters: at the years' ends 42% within 4 to 8, 39%
+below and 20% above, where before this story 47% were within, 10% below and 42% above. **For the M6-close counter
+task**: Market purchases by controller kind read `item.bought` (`guildId` joined to the Guild's controller;
+`itemIds` empty for a stack); Wealth on Items and on Improvements by controller kind and Disposition read
+`item.bought.cost` and `guild.improved.cost`; Hall grades by year and Disposition are snapshots of each
+Rival's `hall`; a Disposition's first Improvement reads `guild.improved`.
+
+## DL-59 — The Transfer Generator: its night, one draw a pair, the bidder and its bid, the generation range kept, and what the boxes read (M6-S3)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M6-S3's implementer); the phase,
+its weekly cadence, the pairs, the draw and the appetite-heavier bidder are the epic's, the Generator
+never taking from the player is the owner's (`plan.md` §1, 2026-09-25), the rest is the agent's, for
+the owner to tune on the M6-close counters
+
+**Context.** M6-S3 names a night phase `transfers`, weekly (`transferGeneratorEveryDays`): for each pair
+of Rivals the `rivals` stream decides (`transferGeneratorChance`) whether the more
+`transferAppetite`-heavy one bids for a Hero of the other, through `transferIn` under the same consent
+rule, iterating only Guilds whose controller is a Rival's (ADR-0002's third accepted exception). Its
+boxes: over 100 seeds × 20 years Rival-to-Rival Transfers occur and the Roster-size distribution across
+Rivals stays within the generation range; the player's Roster is never changed by the phase. Left open:
+where the phase sits and which night is weekly; the pairs' order and when a pair draws; the tie between
+equal appetites; which Hero is bid for; whether the bidder must itself be willing to hire, as a Rival
+taking a Hero in must be (DL-57 item 3); what "stays within the generation range" asserts, when other
+rules already move single Rosters out of it (DL-58: 39% below and 20% above at the years' ends); and
+how a test of 100 seeds × 20 years fits `npm test`.
+
+**Decision.**
+
+1. **The phase** (`phases/transfers.ts`) runs at night right after the Guild State Engine, so a bidder's
+   Wealth is tonight's after Upkeep, and before the Patron State Engine, the pool refresh, the offers'
+   expiry and the ending checks. `pipeline.test.ts`'s literal and `approach.md` §2 name it;
+   `patron-state.test.ts`'s check that `patronState` sits next to `guildState`, and `poolRefresh` next to
+   it, becomes after and before, the literal holding the order.
+2. **Its night** is that of each Day `d` with `d mod transferGeneratorEveryDays = transferGeneratorEveryDays − 1`,
+   as DL-26 names the Upkeep Day: with the default **7**, Days 6, 13, 20 and so on. On other nights it
+   does nothing and draws nothing.
+3. **The pairs.** The Guilds whose `controller.kind` is `rival` and that have not folded, in Guild id
+   order, each with every later one. **Each pair takes one draw from `rivals`**,
+   `chance(transferGeneratorChance)` (default **0.5**: a coin for each pair each week), whether or not it
+   has a bid to make, so the Generator advances `rivals` by exactly C(n, 2) draws on its nights; the bid,
+   when the draw falls under the chance, is applied by `applyTransferIn` on the world the pairs before it
+   left. A refusal would be dropped, as the Rival controllers drop theirs (DL-30); the bid names only
+   what `transferIn` accepts.
+4. **The bidder** (`transferBid`, `controllers/rival.ts`) is the Rival of the pair whose Disposition has the
+   greater `transferAppetite`; of two alike, the one with fewer Heroes, then the lower Guild id. It bids
+   for the **dearest Hero of the other it can pay for**, at home, the lowest Hero id among equal fees:
+   `dearestWanted`, M6-S2's `transferChoice` rule moved into one function both call, its choices
+   unchanged.
+5. **The bid** is made only when:
+   - **the generation range is kept**: the bidder's Roster is below `rivalRosterMax` and the other's above
+     `rivalRosterMin`, so the Generator's own moves never take a Roster out of the range a Rival is
+     generated with; and
+   - **both answer as they answer any Transfer** (`transferAnswer`, DL-57): the other lets a Hero go
+     (`out`, the consent `transferIn` asks), and the bidder takes one in (`in`: its appetite and Roster
+     size, and a Wealth above its `recruitThreshold` times its Upkeep). A bid is a hire, and a Rival hires
+     only while its Disposition would.
+
+   Considered and not taken, measured below: the bidder bidding whenever it can pay (the epic's words read
+   narrowly, the draw being its only choice), with or without a reserve of Upkeeps kept after the fee (a
+   new config field). Both made the Generator busy, some 20 to 33 Transfers a game, and `ambitious`,
+   the bidder in each of its pairs, took Heroes it would not have hired: its folds rose from 45 to 75–84
+   in 100 games, and its mean Roster to the range's top or above. Also not taken: no range check, under
+   which the Generator took `reckless` down to two Heroes for `ambitious`, the moves the box is about.
+6. **The player.** The phase's filter is the third accepted read of `controller.kind` (`plan.md` §1);
+   `controller-reads.test.ts` allows it in `phases/transfers.ts`, naming the exception. `transferBid`
+   also names no bid for a pair with a Guild that has no Disposition, so the player is excluded twice.
+7. **What the boxes read.** "Rival-to-Rival Transfers occur": the Generator's own Transfers, and those of
+   the afternoon (M6-S2), in play. "The distribution stays within the generation range": each of the
+   Generator's Transfers leaves both Rosters within `rivalRosterMin` to `rivalRosterMax`, and at every
+   year's end the median and the mean Roster size across the Rivals in play lie within the range. Not
+   every Rival at every year's end: Deaths, recruits, the afternoon's Transfers and folds put single
+   Rosters outside it with the Generator off (32% below and 17% above on the core, below), and the
+   Generator does not undo them.
+8. **Tests.** `phases/transfers.test.ts`: the night (weekly, fortnightly); one draw a pair, no other
+   stream, a folded Rival and the player in no pair; chance 0 and 1; the heavier bidder and the dearest
+   Hero it can pay for, exactly what `transferIn` makes, Wealth balanced, the document valid; the tie; a
+   Hero away passed over; no bid at each guard's boundary (the range's floor and ceiling, the seller's
+   appetite, the bidder's `recruitThreshold`, an appetite of 0, a fee it cannot pay, no Hero at home, an
+   unknown Disposition, a pair with the player); the player's rows untouched. The boxes,
+   `controllers/transfer-generator.test.ts`: seeds played in place for twenty years (DL-56's method, with
+   M6-S4's one pin: every Check asks 0.15 of the difficulty), the phase wrapped to snapshot the player's
+   Guild, its Guildmaster and its Heroes around every run and to replay the Rosters' sizes through its
+   Transfers; Rival-to-Rival Transfers occur, the Generator's go to the heavier appetite within the range,
+   the median and mean at every year's end lie within 4 to 8, the player's rows never change; and a second
+   test over 100 seeds runs the phase alone on ten Generator nights with every Rival rich and every pair
+   bidding: the player's rows never change, and the Rivals deal in most seeds. **`npm test` plays four
+   seeds × 20 years; the box's 100 × 20 runs with the harness flag**
+   (`HEROESIM_HARNESS=1 npx vitest run engine/src/controllers/transfer-generator.test.ts`: some nine
+   minutes on an idle machine; it passed in 36 beside another sweep), which asserts the Generator's own
+   Transfers too: the four seeds hold none of them, since the
+   test content's Rivals seldom would hire (20 of the hundred seeds do, 24 Transfers).
+9. **Versions.** Two config fields (`transferGeneratorEveryDays` 7, `transferGeneratorChance` 0.5) and no
+   default changed: `configVersion` stays 5 (DL-57 item 11's reading). No content and no new event: the
+   Generator's Transfers are M6-S2's `hero.transferred`, which `narrate.ts` already narrates, and the
+   story names no CLI command.
+
+**Consequences.** A scratch script (core content, `defaultConfig`, the player idle and rich, seeds
+`seed-0001` to `seed-0100` × 20 years, played in place, not validated), by the bidder's rule:
+
+| 100 games × 20 years | Generator off | This rule | Bids whenever it can pay | Same, chance 0.25 | Same, 10 Upkeeps kept |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Generator Transfers (games with one) | 0 | 92 (53) | 3,305 (100) | 2,853 (100) | 2,384 (100) |
+| Afternoon Rival-to-Rival Transfers | 3,820 | 3,414 | 4,241 | 4,086 | 3,353 |
+| Rival folds (`ambitious`'s) | 347 (45) | 351 (50) | 375 (84) | 368 (75) | 366 (84) |
+| Rosters at the years' ends: below 4 / 4 to 8 / above 8 | 32% / 51% / 17% | 32% / 51% / 17% | 34% / 47% / 19% | 32% / 49% / 19% | 33% / 50% / 17% |
+| Median; mean | 4; 5.5 | 4; 5.5 | 5; 5.9 | 5; 5.9 | 4; 5.7 |
+| Year-end medians; means, over the 20 years | 4–5; 4.4–6.5 | 4–5; 4.4–6.3 | 4–6; 4.4–6.4 | 4–6; 4.5–6.3 | 4–5; 4.4–6.2 |
+| `ambitious`'s mean Roster | 7.1 | 7.2 | 8.6 | 8.5 | 8.1 |
+
+Under this rule the Generator is quiet, about one Transfer a game in twenty years beside some 34 of the
+afternoon's, because a Rival seldom would hire: M6-S4's Hall weighs on its Wealth (DL-58), and a Rival
+that would hire has usually taken a Hero that afternoon already. Its chance matters little while that
+binds (1 against 0.5 roughly doubled it, 65 against 31 in 32 games), and the range check halves it (69
+against 31). The distribution is the game's, unchanged by the Generator. On the test content, the test's
+own hundred seeds: 24 Generator Transfers in 20 seeds, 456 of the afternoon's, 658 folds, Rosters 2%
+below the range, 90% within and 9% above, the median 6 at every year's end and the mean 5.9 to 6.7.
+**For the M6 close:** lowering `recruitThreshold` wakes the Generator with the afternoon's hiring;
+`transferGeneratorChance` is the Generator's own dial. **For the M6-close counter task:** the Generator's
+Transfers are the `hero.transferred` between two Rivals on a night Turn (Rivals choose only in the
+afternoon, and a player's own Transfer names the player's Guild); the epic's "harness assertion" that the
+player's Roster is never changed by the phase reads, under the automatic policy (which makes no Transfer
+and declines every offer, DL-57 item 9), as no `hero.transferred` naming the player's Guild.
+
+## DL-60 — M6 verification: a Rival below `rivalRosterMin` hires by need, a Transfer holds its Hero for `transferLockDays`, the Transfer fee shown before it is paid, schema version 3
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M6's verification fixer), on
+defects the verification confirmed; the rules' shapes are the agent's, and their values are for the
+owner to tune on the M6-close counters
+
+**Context.** M6's verification confirmed three defects that change a rule. (1) Rivals stop hiring:
+the one bar for hiring, `recruitThreshold` times Upkeep (DL-56), rises with the Heroes' Levels and,
+since M6-S4, with the Hall's upkeep (DL-58), so that over 6 seeds × 10 years `steady` and `miserly`
+recruited no one and took no one in, their Rosters falling to two and three while they held 13,000 to
+30,000 Wealth; the same bar gates a Rival's consent to take a Hero in and the Generator's bids (DL-59).
+DL-58 and DL-59 recorded the effect and left it to the M6 close. (2) Heroes ping-pong between Rivals:
+every buyer wants the dearest Hero it can pay for (DL-57, DL-59) and nothing remembers a sale, so 15 of
+50 Rival-to-Rival Transfers returned a Hero to the Guild that had sold them, some the same afternoon,
+each costing the seller's Roster Morale for nothing and inflating the counters the M6 close tunes on.
+(3) The CLI showed no Transfer fee before `transfer --in` charged it. The verification's other
+defects were gaps in the tests, closed with tests and no rule change.
+
+**Decision.**
+
+1. **A Rival hires by choice or by need** (`hiringBudget`, `controllers/rival.ts`), one rule for every
+   Disposition:
+   - *choice*: while its Wealth is above its Disposition's `recruitThreshold` times its Upkeep, it
+     hires as DL-56 has it, spending up to all its Wealth;
+   - *need*: while its Roster is below **`rivalRosterMin`** (4, the fewest Heroes a Rival is founded
+     with), it hires with what it holds above **`rivalHireReserveUpkeeps`** (a new config field, **3**,
+     the harness policy's three Upkeeps, INPUTS 4.14) times its Upkeep, so that it replaces the Heroes
+     it loses and keeps enough to pay its way.
+
+   The budget is read wherever a Rival hires: its recruit from the pool (`cheapestHire`, the fee no
+   more than it), its consent to take a Hero in (`transferAnswer`, `in`: `wealth` when it would hire no
+   one), the Hero it seeks by Transfer and the Generator's bid (`dearestWanted`, no fee above it), and
+   the buyer a Rival in debt sells to (`debtTransfer`). DL-58's purchase order stands (build, buy,
+   `transferChoice`, recruit, `debtTransfer`): a Rival below the floor still builds and outfits first
+   when its Wealth allows. The rows are unchanged, and so is the content version. Considered and not
+   taken: judging every hire by its fee and a reserve (DL-41 measured Rival Rosters past twenty and 27
+   folds a game at ten Upkeeps); retuning the rows alone (the bar rises with Levels and the Hall
+   whatever the row, and the M6 close tunes the rows on its counters); a floor of each Disposition's
+   own (a new content weight, where the generation range's floor serves every row alike).
+2. **A Transfer holds its Hero** (`transferLock`, `transfer.ts`). A Hero gains **`transferredOnTurn`**
+   (`Turn | null`), set by `makeTransfer`; a Hero transferred on Day `d` is not transferred again
+   before the morning of Day `d + transferLockDays` (a new config field, **30**), whichever Guild asks.
+   `transferIn`, `transferOut` and `offerTransfer` refuse such a Hero with **`recently-transferred`**
+   (`heroId`, `transferredOnTurn`, `untilTurn`), after `hero-in-party` and before `transfer-refused`;
+   `acceptTransfer` needs no check, since `offerTransfer` refuses a Hero held and a Transfer withdraws
+   every other offer for its Hero (DL-57 item 4). The Rival controllers never name a Hero held
+   (`transferable`), so none of their choices is refused (DL-30). The lock is the player's too
+   (ADR-0002), which also closes a round trip a player could make between Guildmasters of different
+   Negotiation, buying low from one Rival and selling high to another the same afternoon. Considered
+   and not taken: a lock in the controllers only (that round trip stays open); reading the last
+   Transfer from the History (a phase reads it as it stood before the Turn, DL-24 item 2, so the
+   same afternoon's round trips, the worst, go unseen); each Guild remembering whom it sold (more
+   state, and the Hero still bounces on to a third). 30 Days, because longer locks change little: over 8 games × 10 years
+   a lock of 30, 90, 180 or 360 Days left no return within a Day in any, and 131, 141, 131 and 107
+   Rival-to-Rival Transfers, of which 30, 35, 28 and 15 went back to the seller a month or more later.
+3. **Schema version 3.** `defaultConfig.schemaVersion` 2 → 3, and `migrations[2]` sets each Hero's
+   `transferredOnTurn` to the Turn of the last `hero.transferred` naming them in the save's History,
+   `null` for none. `data-model.md` §3.2 names the field and the validator checks it is an integer or
+   null. `configVersion` stays 5: `schemaVersion` is the format the engine writes (DL-27 item 1's
+   reading), and the two new fields change no default.
+4. **The CLI shows the fee before it is paid.** `show roster <guildId>` for another Guild adds a
+   Transfer fee column, and `show hero` a Transfer fee line for a Hero on another Guild's Roster: the
+   engine's `transferFee` at the player's Guildmaster's Negotiation, what `transfer --in` charges. The
+   player's own Heroes show none, since each Rival pays at its own Guildmaster's. The refusal
+   `recently-transferred` names the Day of the Transfer and the Day the Hero may move again.
+5. **Tests.** `controllers/rival.test.ts`: the need's boundaries (the fee with the reserve, one short
+   of it, at the floor), every row alike, the consent and the budget of a Transfer by need, and a
+   Rival of each Disposition cut to two Heroes recruiting back to four in ten Days;
+   `harness/src/rivals.test.ts` the same on the core content; `transfer.test.ts` a Rival in debt
+   selling to a buyer by need, and the lock in the Rivals' choices and over twenty Days of dealing (no
+   Hero moved twice within it, some moved again once it ran out); `phases/transfers.test.ts` the
+   Generator's bid by need and past a Hero held; `actions/transfer.test.ts` the lock's refusals, its
+   last Turn and its end, and a lock of 0; `serialise.test.ts` the version-2 step; the CLI's fee
+   columns and refusal.
+
+**Consequences.** The verifier's measure (core content, `defaultConfig`, the automatic policy, seeds
+`verify-01` to `verify-16` × 10 years, played in place, not validated), before this entry (87ff594) and
+after:
+
+| 16 games × 10 years | Before | After |
+| --- | ---: | ---: |
+| Recruits: ambitious / miserly / reckless / steady | 171 / 7 / 139 / 21 | 103 / 48 / 377 / 48 |
+| Seeds in which `miserly` / `steady` ever recruit | 3 / 1 | 11 / 14 |
+| Rival folds: ambitious / miserly / reckless / steady | 0 / 3 / 11 / 14 | 0 / 3 / 3 / 10 |
+| Rival year-ends with a Roster below 4 | 231 of 640 | 0 of 639 |
+| Rosters at year 10, mean: same order | 8.6 / 3.1 / 4.3 / 4.6 | 7.4 / 4.6 / 8.3 / 4.6 |
+| Rival-to-Rival Transfers; back to the seller (within a Day) | 193; 99 (54) | 242; 62 (0) |
+| Transfer offers for the player's Heroes | 75 | 115 |
+| The player's Wealth at year 10 | 123,000 to 317,000 | 137,000 to 275,000 |
+
+No Rival's Roster ends a year below the floor, `steady` and `miserly` draw from the pool, and folds
+fall from 28 to 16. For the M6 close: `reckless` now keeps its Roster up and loses more Heroes (317
+Deaths against 208), and `steady` still folds the most, its easy Quests paying less than its Levels'
+wages, which is the rows' tuning (`recruitThreshold`, `questRiskAppetite`) and the Hall's
+(`hallMaintenancePerGrade`), not this rule's. The counter task can read the lock's effect as returns
+to the seller from `hero.transferred`.
+
+## DL-61 — Merging the main line's M4 close into M5: `configVersion` 7, content version 11
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 close, merging
+v1.0-dev `c1161b5` into `m5-integration`)
+
+**Context.** M5's five stories (DL-48 to DL-52, merged by DL-54) were built on `af62040`, an early
+M4 (M4-S4 merged, before M4's close). v1.0-dev then gained M4's close and M3's verification: DL-47
+and DL-55 (`configVersion` 5, then 6), DL-53 (`infirmaryHealFactor` `[1, 1/2, 1/3, 1/4]`, the
+`healFactor` selector the Quest Engine reads, the CLI's `show hall` and its refusal of actions
+once the game has ended), the M3 and M4 counters and census in the harness, the two reports and the
+CPU-time timing test. Its content stayed at version 8. On this line the content went to 9 (the Item
+definitions, DL-48) and 10 (the Loot tables, DL-52), and `configVersion` stayed 4 although M5 added
+`gearSlots`, `lootDifficultyThreshold`, `lootOnBands`, `marketSize`, `marketStackMin`,
+`marketStackMax`, `sellRatio` and `lootOnlyPrice`. (DL-54 item 6 says the content version stayed 9;
+it was 10, from DL-52.)
+
+**Decision.**
+
+1. **The merged `defaultConfig` carries both lines**: every value DL-55 item 1 lists (the
+   multiple of 60, the four infirmary factors, the Quest Engine's fields and none of the stub's),
+   and every field M5 added, at its M5 default. No value is chosen here.
+2. **`configVersion` is 7.** A save made on this line says 4 and lacks the main line's changes; a
+   save made on the main line says 6 and lacks M5's fields. Neither may read as current.
+3. **The content version is 11**, not 10: the other lines in flight have used 10 and 11 for other
+   content, and 11 is the number the orchestrator assigned this merge, so that no document made
+   under an earlier content set on either line reads as this one. The content itself is this
+   line's (the main line changed none).
+4. **Four conflicts, each resolved by keeping both sides**: the CLI's help lists `show hall` and
+   `show market` (`args.ts`); `render.ts`'s header names both lines' selectors; `resolve.ts`'s
+   comment names `healFactor` (DL-53) and the consumables' `kitOf` (DL-50), whose code merged
+   cleanly (an Injury's Days use `healFactor`, then the Party's heals shorten them); and this log,
+   in number order. M5's code never referred to the stub, which was gone before M5 began. M5's
+   `equip`, `unequip`, `buy` and `sell` commands go through the CLI's `act`, so DL-53's refusal of
+   an action after the end covers them.
+5. **Tests that pinned the versions stay pinned**, at the new numbers: the wage test and the Quest
+   Engine's config test pin `configVersion` 7; the content test pins 11. No test was loosened and
+   no other test leaned on a default either line changed.
+
+**Consequences.** M5's rules have not yet been measured beside a multiple of 60 and the fourth
+infirmary factor, nor M4's close's balance beside Items. The M5 close's 200 × 20 run judges them
+together (DL-62).
+
+## DL-62 — M5 close: the M5 counters, the policy's consumables, Loot for hard Quests (`configVersion` 8, content version 12), and the M5 run
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M5 close), choosing a
+policy rule and two Loot values; the owner has not seen them
+
+**Context.** Four things close M5. (a) The epic's §2 names the counters: Wealth spent by category
+(signing, Transfer, Items, Improvements, Upkeep), Loot awarded by table, and consumables expended per
+Quest; M5-S5's third box wants the Loot counter to rise with the player's mean Quest difficulty, and
+DL-49 to DL-52 said which events carry what. (b) DL-50 item 2 left no controller carrying a
+consumable, so the counter would read 0, "the M5 close's to judge". (c) DL-54's smoke run saw about
+330 Loot awards a game-year, "the M5 close's to balance"; the task allowed one balance pass on content
+and config values, never on rule code. (d) The merges: DL-61 took M4's close in; v1.0-dev then gained
+M4's verification (DL-70: the Board's Skills, `preview`'s help, stronger tests; no version change), merged
+again at `2999cb0`, where the help for `preview` now names its Synergies and the consumables it would
+carry, and the CLI test that reads that help looks for both.
+
+**Decision.**
+
+1. **The counters** (`harness/src/counters.ts`, each with a fixture test in `counters.test.ts`; totals
+   and the report's section "Items (M5)" in `sweep.ts`). From the History, each entry counting for the
+   controller of the Guild its payload names (DL-34 item 4):
+   - *Wealth spent by category*: signing `hero.recruited` `fee`; Items `item.bought` `cost` (and the
+     Items bought, by `quantity`); Improvements `guild.improved` `cost`; Upkeep `guild.upkeep-paid`
+     `amount`. Transfers have no event until M6 and the report says so. Beside them what is taken:
+     Quest rewards `quest.resolved` `wealthDelta`, and the Market's income `item.sold` `proceeds` by
+     its `cause` (`sale`, `fold`), with the Items sold. With the starting Wealth these are every flow
+     of a Guild's Wealth the engine has.
+   - *Loot awarded by table*: `quest.loot` by `lootTableKey`: awards, the Items they gave (`quantity`),
+     and the awards of a unique Item (`itemId` not null) counted apart.
+   - *Consumables per Quest*: `quest.taken`'s `consumables` carried and `item.expended` expended, each
+     against `quest.resolved`; the Quests with one or more expended (distinct `questId`); by effect and
+     by definition.
+   - *Gear moved*: `item.equipped`, `item.unequipped`, and `item.returned` by its `cause`.
+2. **The player's Quest difficulty is read at dispatch.** No entry records a Quest's difficulty, and a
+   resolved Quest's row is removed. The play loop (`play.ts`) records, for each dispatch of the
+   policy's that the rules accept, the Quest's `difficulty` from its row as it stood
+   (`playerQuestDifficulty`), and `countGame` joins it by `questId` to the player's `quest.resolved` and
+   `quest.loot`: the Quests resolved, their difficulty, the strong ones and the Loot they won, by bands
+   of 10 and by the year resolved. A Rival's Quest is not recorded; M5-S5's box is about the player.
+   Considered and not taken: a `difficulty` on `quest.taken`, an engine change for a counter.
+3. **The policy carries and buys consumables** (`harness/src/policy.ts`). Each Party carries one of
+   each consumable the Guild holds that could serve its Quest: a `bonus` or `reroll` whose kinds hold
+   the kind of one of the Quest's Encounters, and any `heal`, taken in key order from what the Parties
+   sent before it that Turn left. The one purchase a Turn gains a fourth choice, after the recruit: buy
+   toward `consumableStock` (2) of each consumable, counting the Guild's holding and its Parties'
+   together; of those the Market has for sale and the Guild lacks, the one it has fewest of, lowest key
+   among equals, as many as it lacks and the Market has, while Wealth is above `buyWealthMultiple` (3)
+   times their cost and, once paid, above `consumableReserveUpkeeps` (**20**) Upkeeps. Why: without the
+   rule the counter reads 0, Loot's consumables pile up unused, and Items are 0.2% of the Wealth the
+   player spends; with it the harness exercises M5-S3's three effects and the Market's consumables, as
+   the armour rule (DL-51 item 9) does its armour. The purchase comes after the recruit so that it never
+   keeps a Roster short. `steady` is unchanged: M6's Dispositions decide what Rivals carry and buy
+   (DL-50 item 2).
+   - *The reserve, from two failures.* With no reserve, `seed-0001`'s player bought itself into
+     Bankruptcy in year 2 of a 32-seed trial. With three Upkeeps, the reserve recruiting keeps, the first
+     validated 200 × 20 run ended one game: `seed-0188`, Bankruptcy on Turn 3,779, its Guild having
+     spent 27,280 on Items against Quest rewards of 126,979 and Upkeep of 98,978. Without buying, that
+     Guild plays five years; with twenty Upkeeps, it and `seed-0001` play five years and earn more than
+     without buying (`seed-0188`: 225,316 in Quest rewards over five years, against 188,940). That run
+     was set aside and the gate run again. The trials of items 4 and 5 used three Upkeeps; the reserve does not touch Loot.
+4. **The run was degenerate in its Loot, and not elsewhere.** 32 seeds, 20 years, the final policy,
+   before the pass (content 11, config 7):
+   - *Unique Items.* Every game awarded all five, and 48 of the 53 that the player's Guild found were
+     found in year 0. A unique Item is a Milestone and one of a kind in a world (DL-52 item 7); one of
+     each by the end of the first year leaves nothing unique to find in the other nineteen.
+   - *Loot volume.* The player won Loot on 0.279 of its Quests, 92 awards a Guild-year, and the Rivals
+     on 0.194, 43 a Guild-year: about 265 awards and 424 Items a game-year, most of them Loot from
+     Clear the barrow and The beast of the fells, whose lowest difficulty is 30 and 35.
+   - *Not degenerate: Wealth.* No controller sells, so Loot adds no Wealth; the player's Wealth after 20
+     years was 268,472 (M4's run, DL-55: 267,608), and Items became 14.2% of what it spent.
+   - *Not degenerate: armour.* No Quest became a formality: the player's Checks succeeded 77.9% and its
+     Quests failed 21.8%. The Rivals folded 2.69 times a game (M4: 2.24).
+5. **The balance pass** (content version 12, `configVersion` 8):
+   - `lootDifficultyThreshold` 25 → **35**, and Clear the barrow (30) and The beast of the fells (35)
+     name no Loot table, so that content and config still agree (DL-52 item 3; `creation.test.ts`). Loot
+     is for the four templates whose lowest difficulty is 40 or more; `lesser-loot` is Lay the restless
+     dead's.
+   - The Loot tables' weights are ten times what they were, but the unique Items': 1 each in
+     `lesser-loot` (0.3% of its weight, from 6%) and 3 each in `greater-loot` (1.7%, from 15%).
+   - Same 32 seeds, 20 years, unvalidated, before and after:
+
+     | Measure | Before | After |
+     | --- | ---: | ---: |
+     | Loot awards a Guild-year, the player's / a Rival's | 92.3 / 43.4 | 41.0 / 13.6 |
+     | Loot a Quest resolved, the player / the Rivals | 0.279 / 0.194 | 0.124 / 0.060 |
+     | Items awarded as Loot, all Guilds | 271,175 | 97,152 |
+     | Unique Items awarded (a game); the player's in year 0 | 160 (5.0); 48 of 53 | 158 (4.9); 15 of 82 |
+     | Consumables expended a player's Quest | 0.885 | 0.834 |
+     | Items, a share of the player's Wealth spent | 14.2% | 16.7% |
+     | The player's Checks succeeded; Quests failed | 77.9%; 21.8% | 76.9%; 23.0% |
+     | Deaths a game, the player's / the Rivals' | 43.6 / 45.6 | 45.0 / 49.6 |
+     | The player's Wealth after 10 and 20 years | 152,662; 268,472 | 136,705; 238,664 |
+     | A Rival's Wealth after 10 and 20 years | 41,603; 22,976 | 42,507; 23,186 |
+     | Rival folds a game | 2.69 | 2.34 |
+
+   The unique Items are now found across the game (the player's: 15, 16 and 13 in years 0 to 2, then
+   a few a year to year 17), and Loot about a third as often.
+6. **Tests.** The wage test and the Quest Engine's config test pin `configVersion` 8; the content test
+   pins version 12. The engine's Loot tests pin `lootDifficultyThreshold` 25 and use the fixture
+   content, so the pass does not reach them; `creation.test.ts` holds the new agreement. No assertion
+   was loosened. `npm test` gained 15 tests.
+7. **The run, 2026-09-26** (`harness/reports/m5-2026-09-26.md`, committed with this entry): 200 seeds,
+   `seed-0001` to `seed-0200`, each up to 20 years, validated after every advance
+   (`HEROESIM_VALIDATE=1`), config version 8, content version 12, the policy of item 3. It ran in 16
+   processes on DL-13's machine, which other agents' work shared, and took 65 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, and all 200 last documents load
+     and serialise back alike. `seed-0001` played twice more: identical, 95,318,788 characters.
+   - **Every game ran 20 years.** Rivals folded 2.36 times a game.
+   - **The M5 counters.** The player's Guild spent 47,043 a Guild-year: Upkeep 83.4%, Items 15.9%
+     (7,477, 228 Items), signing 0.6% and Improvements 0.2%, against Quest rewards of 58,657. The Rivals
+     spent 29,382 a Guild-year, 99.3% of it Upkeep, and bought nothing; folding Guilds' unique Items
+     brought them 68,100 in 200 games. Loot: the player's Guild 40.3 awards a Guild-year (0.122 a Quest
+     resolved), the Rivals 13.3 (0.059); 981 unique Items in 200 games (4.9 a game), the player's found
+     76, 68 and 62 in years 0 to 2 and fewer each year after, 3 in year 19. The player's Loot a Quest is
+     none below difficulty 40 and rises with it, 0.051 at 40 to 49, 0.108 at 50 to 59, 0.184 at 60 to
+     69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at 90 to 99. Consumables: the player's Parties
+     carried 2.71 a Quest and expended 0.803 (59.7% of Quests used one or more: 681,824 bonuses, 285,557
+     rerolls, 95,994 heals); the Rivals none. Gear: the player equipped 7.7 pieces a Guild-year and 25,813
+     came back from the dead; the Rivals 2.5, with 7,423 back from folding Guilds' Rosters.
+   - **Beside M4's run** (DL-55):
+
+     | Measure | M4 | M5 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 1, a Bankruptcy | 0 |
+     | Rival folds a game | 2.24 | 2.36 |
+     | The player's Quests failed / succeeded / strong | 37.7 / 21.2 / 41.1% | 23.1 / 19.0 / 57.9% |
+     | The Rivals' Quests | 11.7 / 8.1 / 80.2% | 9.2 / 7.2 / 83.6% |
+     | The player's Checks succeeded; the Rivals' | 63.7%; 87.7% | 76.9%; 90.1% |
+     | Deaths a game, the player's / the Rivals' | 83.5 / 62.6 | 46.1 / 50.1 |
+     | Injuries a game | 1,021 / 794 | 577 / 619 |
+     | Levels gained a Guild-year | 17.3 / 6.0 | 13.4 / 5.8 |
+     | Mean Level after 10 years | 5.42 / 6.22 | 7.01 / 6.62 |
+     | The player's Wealth after 10 and 20 years | 141,831; 267,608 | 135,206; 232,781 |
+     | A Rival's Wealth after 10 and 20 years | 36,594; 26,041 | 40,766; 24,808 |
+     | Save after 20 years, mean (max) | 92.9 (109.7) MiB | 99.8 (118.9) MiB |
+     | History entries after 20 years, mean | 246,597 | 263,189 |
+     | A Turn alone, mean (p99) | 0.98 (2.1) ms | 1.08 (2.5) ms |
+
+   - **Measures.** Under the run's load `advance` averaged 5.00 ms a Turn; alone (`seed-0001` replayed)
+     1.08 ms, so a year is 1.16 s, over data-model §7's 1 s as M4's was. At this run's rate 1,000 games
+     of 20 years would take 319 minutes (M4's run, 389).
+
+**Consequences.** M5's gate has its run: the harness reports Wealth spent by category, and M5-S5's
+third box has the run's evidence in the epic. For the owner:
+
+- **Items make the player markedly stronger than M4 did.** In 32-seed trials of 10 years (before the
+  pass), the player's Checks succeeded 64.7% with no Loot and no consumables (M4's run: 63.7%), 71.0%
+  with Loot's gear, and 76.2% with the policy's consumables as well; its failed Quests fell from 36.4%
+  to 23.9%, and its Deaths by 45%. Gear goes into empty slots only (`gearChoices`, DL-49), and Loot's
+  gear fills them within about a year. That is M5's rules and the policy using all of them, not a value
+  out of line, so the pass leaves it; M6's Dispositions and a player's choices will decide how much of
+  it is used.
+- **Consumables are now the player's second cost after Upkeep**, about a sixth of what it spends, and
+  a Guild with a poor start can buy itself into trouble without the reserve.
+- **Rivals neither carry nor buy** consumables; their Loot consumables pile up in their holdings
+  until M6.
+- **Surplus Loot gear piles up**: nothing sells it and `gearChoices` never replaces worn gear with
+  better.
+
+## DL-63 — Merging the main line's M5 close into M6: `configVersion` 9, content version 13, schema version 3
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close, merging
+v1.0-dev `47d6df6` into `m6-integration` at `c59de92`); no value is chosen here
+
+**Context.** M6's stories and verification (DL-56 to DL-60) were built on `m5-integration` at
+`83df01e`, before M5's close. Since then v1.0-dev gained M4's close (DL-55), M4's verification
+(DL-70), the merge DL-61 (`configVersion` 7, content version 11), M5's close (DL-62: the M5
+counters, the policy carrying and buying consumables, Loot for hard Quests, `configVersion` 8,
+content version 12) and M5's verification (numbered Encounter lines, "2 × Physician's kit",
+`show market`'s counts of Items and kinds). On this line M6-S1 had removed `recruitWealthMultiple`
+and `buildWealthMultiple` for the Dispositions' rows (`configVersion` 4 → 5, content version 11),
+M6-S4 retuned `reckless` (content version 12), and DL-60 added `transferredOnTurn` with a 2 → 3
+migration. Both lines had used 11 and 12 for different content.
+
+**Decision.**
+
+1. **The merged `defaultConfig` carries both lines**: every value the main line's DL-55, DL-61 and
+   DL-62 set (among them `lootDifficultyThreshold` 35), every field M6 added at its M6 default
+   (`transferFeeFactor`, `transferMoraleCost`, `transferRegardBand`,
+   `guildmasterRegardPerTransferDeal`, `transferOfferDays`, `transferGeneratorEveryDays`,
+   `transferGeneratorChance`, `transferLockDays`, `rivalHireReserveUpkeeps`), and
+   neither `recruitWealthMultiple` nor `buildWealthMultiple`: the main line's `60` and `3` for them are
+   dropped with the fields, and `steady`'s row carries both (DL-56 item 4). No other main-line line or
+   test read them; the one conflicting test (`rival.test.ts`) keeps M6's pin on the row.
+2. **Versions, max + 1 of each side.** `configVersion` **9** (main 8, M6 5). Content version **13**
+   (both 12, with different content: the main line's Loot tables and templates and this line's four
+   Dispositions are both in the merged set). Schema version stays **3**: the main line is still at 2
+   (`defaultConfig.schemaVersion` 2, `migrations` holding only step 1), and DL-60's step 2 → 3
+   applies to its saves. Checked by hand: two saves made by the main line's CLI (`seed m63-live`,
+   Turn 90, and `m63-migrate`, ended on Turn 299), schema 2 and content 12, load under the merged CLI,
+   gain `transferredOnTurn` on every Hero and `offers`, validate, and the live one advances 60 Turns.
+3. **The harness's policy keeps both lines** (`harness/src/policy.ts`). Its thresholds are its own
+   `PolicyConfig` fields exactly as on the main line (`buildWealthMultiple` 3 for the infirmary,
+   `buyWealthMultiple` 3 for armour and consumables, `recruitWealthMultiple` 3 and `rosterLimit` 8,
+   `consumableStock` 2, `consumableReserveUpkeeps` 20); nothing reads `GameConfig` for them. Order:
+   decline every offer, equip, dispatch carrying consumables (DL-62), then one purchase — build, armour,
+   recruit, consumables. It differs from the main line's in two places, both M6's deliberate changes:
+   - *It declines every Transfer Offer for its Heroes first* (DL-57; the M6 risk table), and never
+     transfers a Hero itself.
+   - *Its armour is bought by the engine's `gearPurchase` for `['armour']`* (DL-58 item 4): the same
+     choice under the core content, since every core armour has a positive worth and a dead or retired
+     Hero leaves the Roster; for content with armour worth nothing, such a piece is neither bought nor
+     counted as held.
+   The main line's consumable code needed `holdings`, `itemDefinition` and `marketStock`, which M6-S4
+   had stopped importing; git's clean merge of the import list dropped them, and they are restored.
+4. **Semantic conflicts no text conflict showed**, each resolved by keeping both intents:
+   - *The M5 gear counter and M6's new cause.* `gearReturnCauses` (`harness/src/counters.ts`) listed
+     `died`, `retired` and `guild-folded`; M6-S2 added `transferred` to `GearReturnCause` for a Hero's
+     gear returned to the selling Guild. `countGame` throws on a cause it does not list, and in four
+     validated 3-year games on the merged code three had such entries (3, 4 and 1 Rival-to-Rival
+     Transfers). The cause is added, so the gear table gains a "Returned: transferred" column; the
+     counter's fixture test and the report test cover it.
+   - *A policy test that raised the game's `buildWealthMultiple`* ("reads its own multiple, not the
+     game's") wrote a field `GameConfig` no longer has. It now raises every Disposition row's
+     `buildThreshold` instead, the value that replaced it.
+   - *The report's policy line* said "never transfer"; it now says the policy first declines every
+     Transfer Offer and never transfers a Hero in or out.
+5. **The CLI keeps both**: the main line's wording (numbered Encounters, "2 × Physician's kit",
+   `show market`'s counts, `show hall`, DL-53's refusal after the end, which covers `transfer`,
+   `accept` and `decline` through the same `act`) and M6's (Transfer narration, `show offers`, the
+   Transfer fee on `show hero`). `args.ts`'s help lists `hall` and `offers`; `render.ts`'s header
+   names `transferFee` and `nextImprovement`.
+6. **Tests pinned to versions stay pinned**, at the new numbers: the wage test and the Quest Engine's
+   config test pin `configVersion` 9, the content test 13, the serialiser's schema 3. No assertion was
+   loosened.
+
+**Consequences.** M6's Rivals have not yet been measured beside the main line's consumables policy
+and the thinner Loot of DL-62; the M6 close's run (DL-69) measures them together. The M5 report's
+Transfers row and the M6 counters remain the close's work.
 
 ## DL-64 — The web workspace: its pins, a build that opens from the filesystem, the bundle gate and what it covers (M7-S1)
 
@@ -3574,6 +4948,608 @@ well as 26.9.0 with npm 11.19.1: `npm ci`, lint and typecheck pass. `npm test` p
 timing (58 to 72 ms against 50), while other builds held the machine at 83% CPU. It fails the same
 way at `m5-integration`'s tip without this change and with the web project left out, and passes on
 its own: load, not this story.
+
+## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each
+counter reads the History and the World State, the balance pass's targets, and the four Disposition
+rows' and the Transfer lock's values; the owner has not seen them
+
+**Context.** The epic's §2 names M6's counters: Transfers by direction and by controller kind, Rival
+Roster size and Wealth by year, and the Rankings position of the player's Guild by year under the
+automatic policy. Two boxes left theirs to the close: M6-S3's harness assertion that the `transfers`
+phase never changes the player's Roster (DL-59), and M6-S4's Rival Market purchases by controller kind
+(DL-58). DL-56 asked for the M2–M5 Rival counters split by Disposition, so that the owner can tune the
+four rows; DL-57 to DL-60 each said what its entries carry. The M5 report's "Spent: Transfers" row read
+"none until M6". Two things M6 needs are in no entry: the difficulty of a Quest a Rival takes
+(`quest.taken` carries none), and which action made a Transfer (`hero.transferred` names the offer, if
+any, and nothing else). DL-56 to DL-60 each left the Disposition rows' values, and DL-60 its new
+config values, to be tuned on these counters; the close allows one balance pass on content rows and
+config defaults (a rule only where one is found faulty, fixed with a test), then the M6 run of 200 seeds
+× 20 years, validated, beside M5's (DL-62). DL-60's Consequences left `steady` folding the most.
+
+**Decision.**
+
+1. **The counters** (`harness/src/counters.ts`, each with a fixture test in `counters.test.ts`; the
+   play loop's reads and the assertion in `play.ts`, tested in `play.test.ts`; totals and the report's
+   section "Rivals (M6)" in `sweep.ts`, tested in `sweep.test.ts`). A **side** is the player's Guild
+   (`player`) or a Rival's Disposition's key (`dispositionOf`); a replacement Rival counts under the
+   Disposition it inherits (DL-56 item 7). From the History:
+   - *Transfers* (`hero.transferred`): by direction, from `fromGuildId` (the seller) and `toGuildId`
+     (the buyer) joined to their Guilds' controllers — into the player's Guild, out of it, or Rival to
+     Rival — with the count and the fees summed; by the selling side and the buying side; and the
+     Transfers that took a Hero to a Guild that had sold them before (DL-60's lock at work).
+   - *How a Transfer between Rivals happened*: **an accepted offer** when the entry's `offerId` is set;
+     **the Transfer Generator** when its Turn is a night, since Rivals choose only in the afternoon
+     (DL-59's reading); otherwise **the afternoon**, where the entries cannot tell the buyer's
+     `transferChoice` from the seller's `debtTransfer` (DL-57 item 5). The report says so and does not
+     guess. It parts the afternoon's by what the play loop saw (item 2): a seller out of debt as the
+     afternoon began could only have been chosen by the buyer; a seller in debt may have sold or been
+     chosen, and is counted as that. Considered and not taken: naming the action in the payload (an
+     engine change for a counter, as DL-62 item 2 declined for difficulty); inferring the actor from the
+     order of the afternoon's entries (a guess).
+   - *Wealth*: M5's flows gain `transferFeesPaid` (the buyer's) and `transferFeesTaken` (the seller's):
+     "Spent: Transfers" is filled and "Taken: Transfers" added, and both join "in all" and the shares,
+     so Wealth spent and taken stay complete. Over all Guilds the two are equal: a fee moves Wealth.
+   - *Transfer Offers*: by the side that made the offer (the terms' `toGuildId`, which would pay) and
+     the side asked (`fromGuildId`): made (`guild.transfer-offered`, with the fees offered), accepted (a
+     `hero.transferred` naming it), declined (`guild.transfer-offer-declined`), ended unanswered
+     (`guild.transfer-offer-expired` by `cause`: `expired`, `hero-left`, `guild-folded`), and standing
+     when the game stopped (the rest).
+   - *Market purchases* (`item.bought`, the buying Guild): purchases, Items (`quantity`) and `cost`, for
+     the player's Guild, the Rivals, and each Disposition, a Guild-year.
+   - *Each Disposition's character*: its Rivals the world holds and their years in play (founding to
+     fold or the game's last Turn); `quest.taken`, and the mean difficulty of those the play loop read;
+     `quest.resolved` by band; `hero.died` (the Guild the Hero was on then), `hero.recruited`, and
+     `guild.folded` by reason, each a Guild-year.
+   - *Improvement grades by year 10*: M3's rule (DL-40), the Rivals' rows again by Disposition, added to
+     M3's table.
+2. **What the play loop reads that no entry records** (`readAdvance`, `play.ts`). `advance` plays the
+   Turn after the world's on a copy and appends to the same History (ADR-0008), so the loop marks the
+   History's length before each `advance` and reads what it appended, against the world the `advance`
+   began with, which is the world the afternoon's Rivals read:
+   - for every `quest.taken` it appended (the player's are taken between Turns, never in it), the
+     Quest's `difficulty` from its row — "the Quest's row the Turn it is taken" (DL-56);
+   - when the Turn it played is an afternoon, each `hero.transferred` whose seller had
+     `belowFloorSince` set, the condition of a `debtTransfer`; only the night's Guild State Engine sets
+     or clears it.
+   `countGame` takes these as `RivalAfternoons`; without them no difficulty is counted and every
+   afternoon Transfer counts as the buyer's choice. From the World State, with M3's census as each year
+   begins (before the policy acts): **each Rival in play**, its Disposition, Roster size
+   (`rosterIds.length`) and Wealth; and **the player's Guild's place** by Fame and by Wealth from the
+   engine's `rankings`, with the number of Guilds ranked. The report gives, for every Rival and for each
+   Disposition, by year and over every year-start: the mean, the median (nearest rank, the lower of two
+   middles, as `summarise` has it) and the share of year-starts below the generation range's minimum and
+   above its maximum — `rivalRosterMin` to `rivalRosterMax` for the Roster and `rivalStartingWealthMin`
+   to `rivalStartingWealthMax` for Wealth, read from the config the run played under; and the player's
+   mean place and its distribution by year.
+3. **The M6-S3 harness assertion** (`playerTransferred`, `play.ts`): after every `advance`, every
+   `hero.transferred` since the last check, the policy's own included, is read; one naming the player's
+   Guild is a failure `{ turn, check: 'player-transferred', id: '$.history.entries[n]' }`, which stops
+   the game as a validator refusal does, counts in the summary ("Games a harness assertion stopped"),
+   and is listed under "Harness assertions broken" as refusals are under theirs; the harness run
+   expects none. Under the automatic policy, which declines every Transfer Offer first and never
+   transfers (DL-57 item 9, DL-63 item 3), and the Generator, which never takes from the player (DL-59
+   item 6), any such entry is a defect. `PlayOptions.choose` (the policy unless a test gives its own)
+   lets a test take a Rival's Hero in on the first Turn and see the assertion stop the game on Turn 0
+   and the report list it. The run is M6's: `play.harness.test.ts` writes `m6-<date>.md`, and the
+   report's policy line states the whole policy as DL-63 left it.
+
+   A small check, not the run: 4 seeds × 2 years, validated after every advance (17 s): no refusal, no
+   broken assertion, the replay identical, every table rendered. 8 seeds × 6 years, not validated: 92
+   Transfers between Rivals (89 an afternoon's with the seller out of debt, 3 the Generator's, none with
+   the seller in debt), 14 of them back to a Guild that had sold the Hero; 18 offers for the player's
+   Heroes (`ambitious` 6, `reckless` 12), all declined; 2 Rival folds. `npm test` gained 15 tests.
+
+4. **The targets**, set before the first trial from the M6-S1 and M6-S4 boxes and the plausibility the
+   M6 close asked for. They are measured over 16, 32 and 64 seeds × 20 years, then the run:
+   - *Four characters* (M6-S1 box 1, M6-S4 box 1): `reckless`'s mean difficulty taken at least 10 above
+     `miserly`'s and its Deaths a Guild-year at least 1.25 times (DL-56 item 9's margins); `ambitious`'s
+     Hall the first built, `miserly`'s the last.
+   - *Folds*: 1.5 to 3.5 Rival folds a game, the range M3 to M5 saw (3.08, 2.24, 2.36); no Disposition's
+     folds a Guild-year above 1.5 times the mean of the other three's unless `reckless`'s, whose
+     character explains it; `steady`'s never the most.
+   - *Rosters*: at least 80% of Rival year-starts within `rivalRosterMin` to `rivalRosterMax` (4 to 8),
+     each Disposition's median within them, and none above 8 at more than 30% of its year-starts.
+   - *Wealth*: no Disposition at the floor (4 Heroes or fewer) with more than 20 Upkeeps in hand at half
+     its year-starts or more (hoarding with a starving Roster), nor below 3 Upkeeps at 10% or more
+     (spending itself into a fold).
+   - *Transfers*: Rival to Rival at a modest rate, 2 to 30 a game and some in every five-year block; no
+     seller taken below `rivalRosterMin` (item 5's chain); under 15% of them back to a Guild that had
+     sold the Hero, and none within 90 Days of that sale (ping-pong).
+5. **What the counters showed before the pass**: 32 seeds, `seed-0001` to `seed-0032`, 20 years,
+   validated after every advance, content version 13, `configVersion` 9 (DL-63), 16 minutes. No refusal,
+   no broken assertion, the replay identical. Against item 4:
+   - *Folds*: 120, 3.75 a game, every one a Bankruptcy: `steady` 60 (0.094 a Guild-year; 30 of its 32
+     founding Rivals), `reckless` 25, `ambitious` 18, `miserly` 17. Read Rival by Rival in a scratch
+     trace of four seeds, a `steady` Rival's Heroes rise to Level 7 or 8 and its wages with them, while
+     the easiest Quest it can staff (mean difficulty 27.5; a reward is `rewardPerDifficulty` × difficulty)
+     pays what it paid in year 1: its Wealth peaks in years 2 to 5 and falls to the fold, at a Roster of 4
+     in 48 of the 60. DL-60's Consequences saw the same.
+   - *Transfers*: 858 Rival to Rival (26.8 a game), 762 of them between `ambitious` and `reckless`, 240
+     (28%) back to a Guild that had sold the Hero. A Rival consents to let a Hero go while (its Roster −
+     1) × `transferAppetite` ≥ 1 (DL-57 item 3), so `ambitious` (0.75) and `reckless` (0.5) sold from a
+     Roster of 4, fell below `rivalRosterMin`, bought back by need (DL-60 item 1) from the other, which
+     then did the same: 203 of the 858 were sold by a Rival that began the Turn with 4 Heroes or fewer,
+     and 271 buyers were hiring by need. DL-60's 30-Day lock spaced the chain out; it did not stop it.
+   - *Rosters*: 88% of year-starts within 4 to 8; above 8, `ambitious` 22% and `reckless` 25%.
+   - *Wealth*: `miserly` at the floor with more than 20 Upkeeps at 66% of its year-starts (a mean Roster of
+     4.5 and 21,087 Wealth: its 80 Upkeeps are never reached, and it hires only by need); `steady` below 3
+     Upkeeps at 9%.
+   - *Characters*: held — mean difficulty `reckless` 56.6, `ambitious` 42.3, `miserly` 31.9, `steady`
+     27.5; Deaths a Guild-year 1.75, 0.85, 0.53, 0.28; Hall grades at year 1 `ambitious` 9.0, `steady`
+     9.0, `reckless` 8.3, `miserly` 5.7.
+6. **The pass, trial by trial.** A scratch script (not committed) plays the harness's games — the same
+   play loop, policy, setup and seeds, unvalidated — and reads, beside the report's counters, what the
+   report does not give: the Roster sizes of both Guilds as the Turn of each Transfer began, the Days
+   since a Hero returning to a former seller was sold, and each Rival's Upkeep at a year-start. On the
+   baseline it gives the report's 120 folds and 858 Transfers exactly. Screening on 16 seeds
+   (`seed-0001` to `seed-0016`, harsher than 32: 4.63 folds a game at the baseline), then 32, then 64.
+   "Back" is the Transfers to a Guild that had sold the Hero, "(< 90)" those fewer than 90 Days after
+   the sale; "Below 4" the Transfers whose seller began the Turn with 4 Heroes or fewer (at the baseline,
+   those that took it under `rivalRosterMin`; later, a seller that had hired earlier that afternoon);
+   "Hoarding" the year-starts of `miserly`, then `steady`, at the floor with more than 20 Upkeeps. Each
+   trial changes the row before it unless it says otherwise:
+
+   | Trial | Seeds | Folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | Rival to Rival a game | Back (< 90) | Below 4 | Within 4–8; above 8, `ambitious` / `reckless` | Hoarding |
+   | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |
+   | Baseline | 16 | 4.63 (14 / 9 / 17 / 34) | 23.5 | 71 | 105 | 88%; 19% / 26% | 72% / 20% |
+   | `steady` `questRiskAppetite` 0 → 0.4 (from the baseline) | 16 | 3.50 (13 / 14 / 10 / 19) | 24.4 | 118 | 91 | 88%; 17% / 28% | 53% / 35% |
+   | `transferAppetite` `ambitious` 0.75 → 0.3, `reckless` 0.5 → 0.25, `steady` 0.25 → 0.2 (from the baseline) | 16 | 4.63 (10 / 11 / 14 / 39) | 6.6 | 13 | 1 | 87%; 16% / 31% | 56% / 4% |
+   | Both | 16 | 3.69 (9 / 15 / 12 / 23) | 4.8 | 6 | 0 | 86%; 28% / 27% | 55% / 30% |
+   | … and `steady` `buildThreshold` 3 → 8 | 16 | 3.63 (11 / 10 / 14 / 23) | 5.4 | 10 | 0 | 85%; 28% / 26% | 50% / 31% |
+   | … or `hallMaintenancePerGrade` 10 → 5 | 16 | 2.38 (11 / 6 / 7 / 14) | 10.9 | 32 | 0 | 80%; 44% / 33% | 49% / 39% |
+   | Both, `steady` 0.5 for 0.4 | 16 | 3.31 (12 / 16 / 17 / 8) | 5.0 | 6 | 0 | 84%; 27% / 28% | 47% / 46% |
+   | `miserly` `questRiskAppetite` 0.25 → 0.35, `recruitThreshold` 80 → 50 | 16 | 3.50 (14 / 16 / 12 / 14) | 9.0 | 29 | 0 | 82%; 30% / 31% | 37% / 31% |
+   | … and `recruitThreshold` `ambitious` 40 → 55, `reckless` 30 → 40 | 16 | 2.56 (5 / 17 / 6 / 13) | 2.4 | 4 (0) | 0 | 88%; 17% / 19% | 31% / 38% |
+   | … or `ambitious` 40 → 45, `reckless` 30 → 35 | 16 | 3.06 (9 / 14 / 13 / 13) | 5.6 | 21 (3) | 1 | 85%; 21% / 25% | 40% / 33% |
+   | `ambitious` `questRiskAppetite` 0.6 → 0.7 | 16 | 3.19 (9 / 18 / 9 / 15) | 4.3 | 2 (0) | 0 | 88%; 15% / 23% | 35% / 33% |
+   | `miserly` `buildThreshold` 20 → 40 | 16 | 3.19 (8 / 13 / 15 / 15) | 4.7 | 4 (0) | 0 | 85%; 26% / 22% | 31% / 35% |
+   | Baseline | 32 | 3.75 (18 / 17 / 25 / 60) | 26.8 | 240 | 203 | 88%; 22% / 25% | 66% / 23% |
+   | Every `recruitThreshold` lower (`ambitious` 25, `miserly` 40, `reckless` 20, `steady` 30), with `steady` 0.35 and the second row's appetites (the first trial) | 32 | 4.84 (35 / 33 / 42 / 45) | 12.7 | 42 | 0 | 73%; 46% / 31% | 22% / 7% |
+   | The 16-seed trials' last row | 32 | 3.03 (14 / 28 / 29 / 26) | 4.7 | 6 (0) | 0 | 85%; 25% / 20% | 24% / 38% |
+   | … and `steady` `recruitThreshold` 60 → 45 | 32 | 3.16 (14 / 29 / 28 / 30) | 6.1 | 15 (0) | 0 | 83%; 27% / 17% | 24% / 26% |
+   | … or `miserly` `recruitThreshold` 50 → 60 | 32 | 2.91 (16 / 24 / 30 / 23) | 4.6 | 10 (0) | 0 | 86%; 25% / 24% | 36% / 38% |
+   | … or `miserly` 50 → 70 | 32 | 2.81 (17 / 18 / 29 / 26) | 5.7 | 17 (4) | 0 | 87%; 27% / 20% | 44% / 34% |
+   | … and `transferLockDays` 30 → 90: the first run's values | 32 | 2.78 (17 / 17 / 29 / 26) | 5.5 | 18 (0) | 0 | 87%; 27% / 20% | 45% / 34% |
+
+   **The first run** of 200 seeds × 20 years, validated, with the last row's values (87.5 minutes; no
+   refusal, no broken assertion) met the targets of item 4 that its report shows but one: 535 folds,
+   2.68 a game, `ambitious` 84, `miserly` 126, `reckless` 159 and `steady` 166 — `steady` the most, by
+   0.042 a Guild-year against `reckless`'s 0.040, within the run's noise (± 13 folds each) but against
+   the target. Seeds 1 to 64 had put `steady` below `reckless` (45 against 55), so the pass went on there
+   and looked for a margin, not a ranking; the run was set aside, and item 9's is the gate's.
+
+   | Trial, from the first run's values | Seeds | Folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | Rival to Rival a game | Back (< 90) | Below 4 | Within 4–8; above 8, `ambitious` / `reckless` | Hoarding |
+   | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |
+   | The first run's values | 64 | 2.72 (33 / 41 / 55 / 45) | 5.3 | 28 (0) | 0 | 86%; 29% / 18% | 42% / 40% |
+   | `steady` `recruitThreshold` 60 → 40 | 64 | 2.80 (29 / 42 / 57 / 51) | 7.2 | 45 (0) | 0 | 83%; 27% / 17% | 43% / 21% |
+   | `steady` `questRiskAppetite` 0.5 → 0.6 | 64 | 2.72 (33 / 41 / 55 / 45) | 5.3 | 28 (0) | 0 | 86%; 29% / 18% | 42% / 40% |
+   | `steady` `questRiskAppetite` 0.5 → 0.65 | 64 | 2.53 (27 / 38 / 50 / 47) | 5.3 | 40 (0) | 0 | 86%; 27% / 18% | 50% / 45% |
+   | `steady` `buildThreshold` 3 → 20 | 64 | 2.38 (24 / 38 / 50 / 40) | 4.9 | 31 (0) | 2 | 86%; 25% / 24% | 47% / 50% |
+   | … and `reckless` `recruitThreshold` 35 → 25 | 64 | 2.67 (31 / 36 / 67 / 37) | 5.5 | 30 (0) | 0 | 85%; 19% / 30% | 45% / 52% |
+   | … or `reckless` 35 → 30 | 64 | 2.50 (30 / 31 / 66 / 33) | 5.5 | 48 (0) | 0 | 86%; 21% / 26% | 51% / 51% |
+   | `miserly` `recruitThreshold` 70 → 60 and `reckless` 35 → 30 (`steady` at 3) | 64 | 2.64 (25 / 47 / 53 / 44) | 5.5 | 42 (0) | 1 | 86%; 25% / 23% | 39% / 43% |
+   | … `reckless` 25 for 30 | 64 | 3.13 (25 / 51 / 75 / 49) | 6.3 | 36 (0) | 1 | 83%; 23% / 33% | 35% / 43% |
+   | `steady` `buildThreshold` 20, `miserly` 60, `reckless` 30 | 64 | 2.78 (29 / 43 / 68 / 38) | 5.3 | 47 (0) | 0 | 84%; 23% / 24% | 40% / 49% |
+   | … `steady` 12 for 20: the values of item 7 | 64 | 2.81 (30 / 50 / 61 / 39) | 5.5 | 37 (0) | 0 | 84%; 26% / 28% | 36% / 47% |
+
+   What each step showed:
+   - *`steady`'s appetite is its folds.* Taking the middle of the Quests it can staff, its income follows
+     the Board's harder half (34 folds to 19 at 0.4 over 16 seeds; 60 to 26 over 32 with the rest of the
+     pass). 0.6 plays exactly as 0.5, since a place along
+     the five or fewer Quests a Roster of 4 or 5 can staff rounds the same, and 0.65 did no better (47
+     against 45 over 64 seeds).
+   - *Every `transferAppetite` below a third ends the chain.* At an appetite under 1/3 a Rival lets a Hero
+     go only from a Roster of 5 (it keeps 4, `rivalRosterMin`), and takes one in only at 4 or more, so a
+     Rival hiring by need recruits from the pool rather than buying: the Transfers from a seller at 4 or
+     fewer go from 203 to none, and those back to a former seller from 28% to about a tenth. The appetite
+     is still the chance of seeking a Transfer and orders the Generator's bidder, `ambitious` 0.3 over
+     `reckless` 0.25 over `steady` 0.2 over `miserly` 0.1.
+   - *Lower hiring bars overreach.* With every `recruitThreshold` lowered, `ambitious` grew to 12 Heroes by
+     year 5 and every Disposition folded more (4.84 a game): Heroes past what one dispatch an afternoon can
+     use add wages, not income. `steady` at 45 or 40 Upkeeps folded more, not less (30 against 26 over 32
+     seeds, 51 against 45 over 64). Raising `ambitious`'s and `reckless`'s bars (55, 40) cut the Rosters
+     above 8 and the folds but left 2.4 Transfers a game; `ambitious` keeps 45.
+   - *`miserly` is the next to fold* once `steady` is not: the Rivals share one Board, and the cautious end
+     of it pays least as its Heroes' Levels rise. Its `questRiskAppetite` barely moves its choices — a
+     place along the Quests it can staff rounds the same at 0.25 and 0.35 unless it can staff 6, 9 or 10
+     or more (mean difficulty 31.9 before, 30.8 after) — and 0.35 stays from that trial. What helps is a
+     smaller Hall (`buildThreshold` 40: fewer grades to maintain and a slower training yard, 18 folds to
+     13 over 16 seeds). Its `recruitThreshold` at 70 left it at the floor with more than 20 Upkeeps at 42%
+     to 51% of its year-starts, near the target's line; at 60, `steady`'s multiple, which its smaller Hall
+     makes a smaller sum, 35% to 40%.
+   - *`reckless` folds most by its own character, and `steady` builds later.* No `steady` row alone parted
+     the two over 64 seeds; `buildThreshold` 20 came nearest (40 against `reckless`'s 50) and left `steady`
+     at the floor with more than 20 Upkeeps at half its year-starts. What parts them is `reckless`'s DL-56
+     value of 30 Upkeeps (for 35): it hires sooner, keeps more Heroes and loses more, 53 to 68 folds against
+     `steady`'s 33 to 44, above 8 at 23% to 28% of its year-starts (25 took it to 30% and 33%). With
+     `steady`'s `buildThreshold` at 12 (for 3) its dearest grades wait for 12,000 in hand, which slows the
+     training yard's Levels and the wages they bring: 39 folds against `reckless`'s 61, hoarding 47%.
+   - *A season's lock ends the ping-pong.* The returns left are the two rich traders buying each other's
+     dearest Hero; at a 30-Day lock 4 of 17 came fewer than 90 Days after the sale, 3 of them within 60,
+     and at 90 none can. Elsewhere a lock of 90 or 180 Days left two screening trials exactly as they were
+     and a third within their noise.
+   - *Not taken*: `hallMaintenancePerGrade` 5 (the fewest folds, 2.38 on the harsher seeds, but a value
+     the player pays too, set by M3 on the player's measures, and it let `ambitious` above 8 at 44% of its
+     year-starts); a rule change keeping a seller at `rivalRosterMin` in `transferAnswer` (the Generator's
+     guard, DL-59 item 5), since the appetites reach the same Transfers with no code change; and
+     `transferGeneratorChance` (the Generator's bids wait on its bidder hiring, DL-59: 9 of its Transfers
+     in 32 games at 0.5).
+7. **The values** (content version 14; `configVersion` 10 for the lock):
+
+   | | `questRiskAppetite` | `recruitThreshold` | `buildThreshold` | `gearThreshold` | `transferAppetite` |
+   | --- | ---: | ---: | ---: | ---: | ---: |
+   | `steady` | 0 → **0.5** | 60 | 3 → **12** | 3 | 0.25 → **0.2** |
+   | `ambitious` | 0.6 → **0.7** | 40 → **45** | 1.5 | 2 | 0.75 → **0.3** |
+   | `miserly` | 0.25 → **0.35** | 80 → **60** | 20 → **40** | 10 | 0.1 |
+   | `reckless` | 1 | 30 | 4 | 3 | 0.5 → **0.25** |
+
+   and `transferLockDays` 30 → **90** (DL-60 item 2's value, which it left to this close). The four
+   characters: `miserly` takes the cautious third of what it can staff, builds last and least, hires at
+   sixty Upkeeps of a smaller Hall, and never deals at the Rosters it keeps; `steady` takes the middle,
+   builds when comfortably off, outfits early and deals rarely; `ambitious` builds first and hires and
+   deals most; `reckless` takes the hardest, hires soonest, loses and replaces the most Heroes and folds
+   most. This supersedes DL-56 item 4's "`steady` keeps its rule" (appetite 0, DL-30's easiest, and
+   DL-38's three times the cost to build): under M6's whole Hall (DL-58) and its Levels that rule is the
+   fold.
+8. **Tests.** `content.test.ts` pins content version 14 and the four rows; the wage test and the Quest
+   Engine's config test pin `configVersion` 10. Nothing else moved: the CLI's Transfer tests and the
+   harness's tests that read the core's rows passed unchanged, and the tests of the lock pin their own
+   `transferLockDays`. The engine's test content keeps M6-S1 to S4's rows as a fixture of the one rule:
+   its tests' margins (DL-56 item 9, DL-58 item 8, DL-59 item 8) were measured on them, so DL-56 item
+   5's "the test content mirrors the core's four rows" no longer holds, and `world.test-support.ts`
+   says so. No assertion was loosened; `npm test` 1,727 tests.
+
+   The same 32 seeds, validated, after the pass (content 14, config 10; 16.4 minutes; no refusal, no
+   broken assertion, the replay identical), from the two reports:
+
+   | 32 games × 20 years | Before | After |
+   | --- | ---: | ---: |
+   | Rival folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | 3.75 (18 / 17 / 25 / 60) | 2.97 (14 / 28 / 30 / 23) |
+   | Folds a Guild-year, same order | 0.028 / 0.027 / 0.039 / 0.094 | 0.022 / 0.044 / 0.047 / 0.036 |
+   | Mean difficulty taken, same order | 42.3 / 31.9 / 56.6 / 27.5 | 45.3 / 30.8 / 55.7 / 41.2 |
+   | Deaths a Guild-year, same order | 0.85 / 0.53 / 1.75 / 0.28 | 1.08 / 0.42 / 1.62 / 0.79 |
+   | Recruits a Guild-year, same order | 0.67 / 0.41 / 1.76 / 0.18 | 1.04 / 0.30 / 1.69 / 0.71 |
+   | Rival to Rival Transfers (a game); back to a former seller | 858 (26.8); 240 | 188 (5.9); 19 |
+   | … bought by `ambitious` / `reckless` / `steady`; sold, same order | 447 / 411 / 0; 344 / 418 / 96 | 101 / 72 / 15; 72 / 94 / 21 |
+   | … by the Generator | 28 | 10 |
+   | Transfer Offers for the player's Heroes (all declined) | 110 | 29 |
+   | Rival Rosters at year-starts: mean; median; above 8 | 5.57; 4; 11.5% | 6.03; 5; 15.9% |
+   | Roster mean (median), same order | 6.5 (5) / 4.5 (4) / 6.7 (5) / 4.6 (4) | 6.8 (5) / 5.0 (5) / 7.1 (5) / 5.2 (4) |
+   | Wealth at year-starts, mean, same order | 25,715 / 21,087 / 18,052 / 8,585 | 28,170 / 22,146 / 17,512 / 19,177 |
+   | Hall mean grade by year 10: `miserly`'s facilities / the others' | 2.69–2.75 / 2.87–3.00 | 2.18–2.21 / 2.77–3.00 |
+   | Rival Market purchases a Guild-year | 1.70 | 1.53 |
+   | Wealth spent on Transfers, the Rivals' share | 0.6% | 0.1% |
+   | The player's mean place by Fame; by Wealth | 1.36; 1.13 | 1.13; 1.16 |
+
+   From the scratch script on the same seeds (it plays them exactly as the report did): Rival
+   year-starts within 4 to 8 88% → 83%; at the floor with more than 20 Upkeeps, `miserly` 66% → 37%,
+   `steady` 23% → 39%; below 3 Upkeeps at 2.7% to 4.5% of each Disposition's year-starts (`steady` 9%
+   before); Hall grades at year 1 `ambitious` 9.0, `reckless` 8.7, `steady` 6.3, `miserly` 3.0; no
+   Transfer from a seller at 4 Heroes or fewer (203 before); Rival to Rival 41, 84, 41 and 22 in the
+   four five-year blocks; none back fewer than 90 Days after a sale, 16 of the 19 returns more than a
+   year after it. Every target of item 4 is met on these seeds.
+
+9. **The run, 2026-09-27** (`harness/reports/m6-2026-09-27.md`, committed with this entry): 200 seeds,
+   `seed-0001` to `seed-0200`, each up to 20 years, validated after every advance (`HEROESIM_VALIDATE=1`,
+   `HEROESIM_SEEDS=200`, `npm run harness -- play.harness`, as M5's), `configVersion` 10, content version
+   14, the policy of DL-63 item 3. It ran in 16 processes on DL-13's machine and took 75 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, no game the M6-S3 assertion stopped
+     (no `hero.transferred` names the player's Guild), and all 200 last documents load and serialise back
+     alike. `seed-0001` played twice more: identical, 113,281,366 characters.
+   - **Endings.** 198 games ran 20 years; two of the player's Guilds went bankrupt, in years 16 and 18
+     (`seed-0188` on Turn 17,699 and `seed-0049` on Turn 19,529; `seed-0188` is the game whose early
+     Bankruptcy in M5's first run set DL-62's consumable reserve). Rivals folded 576 times, 2.88 a
+     game, every fold a Bankruptcy: `ambitious` 82 (0.021 a Guild-year), `miserly` 151 (0.038),
+     `reckless` 207 (0.052), `steady` 136 (0.034).
+   - **The four characters** (a Guild-year unless it says otherwise):
+
+     | | `ambitious` | `miserly` | `reckless` | `steady` |
+     | --- | ---: | ---: | ---: | ---: |
+     | Rivals (replacements included) | 282 | 348 | 406 | 336 |
+     | Quests taken; mean difficulty; failed | 225.2; 45.1; 13.5% | 224.8; 31.2; 6.3% | 188.6; 55.1; 21.4% | 174.2; 41.4; 11.4% |
+     | Deaths; recruits | 1.07; 1.02 | 0.45; 0.35 | 1.62; 1.62 | 0.73; 0.65 |
+     | Folds | 0.021 | 0.038 | 0.052 | 0.034 |
+     | Roster at year-starts: mean; median; above 8 | 6.8; 6; 25.7% | 5.2; 5; 4.0% | 6.8; 5; 24.4% | 4.9; 4; 5.1% |
+     | Wealth at year-starts: mean; median | 28,777; 24,388 | 23,669; 22,803 | 16,270; 12,227 | 20,003; 15,849 |
+     | Hall mean grade by year 10, the three facilities | 3.00 | 2.31–2.36 | 2.90–2.94 | 2.79–2.84 |
+     | Market purchases | 1.26 | 1.55 | 1.81 | 1.48 |
+     | Transfers bought; sold (in the run) | 558; 422 | 4; 18 | 435; 509 | 96; 144 |
+
+   - **Transfers by direction**: into the player's Guild 0, out of it 0, Rival to Rival 1,093 (5.47 a
+     game), fees 540,831 (mean 495). By how: the buyer's choice of an afternoon 1,026, of an afternoon whose
+     seller was in debt 4, the Transfer Generator's 63, accepted offers 0. By kind of controller: every one
+     between Rivals; by Disposition, `ambitious` bought from `reckless` 463 times and sold to it 368, then
+     `steady` to `ambitious` 83 and to `reckless` 61, `reckless` to `steady` 42 and `ambitious` to `steady`
+     54; `miserly` sold 18 and bought 4. Back to a Guild that had sold the Hero: 117 (10.7%). Transfer
+     Offers for the player's Heroes: 161 (`ambitious` 73, `reckless` 78, `steady` 10), every one declined
+     by the policy.
+     From the scratch script over the same 200 seeds, which plays them as the report did: 228, 426, 209
+     and 230 Rival-to-Rival Transfers in the four five-year blocks; none back fewer than 90 Days after a
+     sale, 76 of the 117 more than a year after it; 2 from a seller that began the Turn with 4 Heroes and
+     had hired earlier that afternoon, and, by the appetites and the Generator's guard, none leaving a
+     Rival below `rivalRosterMin`.
+   - **Rival Rosters and Wealth by year**: over every Rival year-start the Roster's mean is 5.94 and its
+     median 5, below `rivalRosterMin` 0.3% and above `rivalRosterMax` 14.8% (within 4 to 8, 84.9%); the
+     mean falls from 6.0 at creation to 4.7 in year 2, rises to 6.7 in years 7 to 9 (8.4 to 8.5 for
+     `ambitious` and `reckless`, above 8 at a quarter of all year-starts then), and is 5.8 in year 20 (4.9
+     to 6.8 by Disposition). Wealth: a Rival's mean 22,183, median 19,029; `miserly`'s peaks at 33,604
+     in year 6, `ambitious`'s at 41,937 in year 9. From the scratch script: at the floor with more than
+     20 Upkeeps, `steady` at 47.2% of its year-starts, `miserly` 37.4%, `ambitious` 25.0%, `reckless`
+     9.8%; below 3 Upkeeps, 2.6% to 5.2% for each; Hall grades at year 1 `ambitious` 9.0, `reckless` 8.4,
+     `steady` 6.4, `miserly` 3.0.
+   - **The player's Rankings** (as each year begins, every Guild in play): by Fame mean place 2.10 in
+     year 1 (first 45.5%), then 1.10, 1.07, 1.09 and 1.03 in years 5, 10, 15 and 20, first 89.5% of all
+     year-starts; by Wealth 1.11 in year 1, then 1.05, 1.08, 1.06 and 1.02, first 91.6%.
+   - **Rival Market purchases**: 24,281 purchases, 1.52 a Guild-year, 1,556,440 Wealth (the player's Guild
+     192.07 a Guild-year).
+   - **Wealth spent**: the Rivals' 98.0% Upkeep, 1.3% Improvements, 0.3% Items, 0.3% signing, 0.1%
+     Transfers (540,831, 34.0 a Guild-year, the same taken by sellers); the player's Guild 86.1% Upkeep,
+     13.3% Items, 0.4% signing, 0.2% Improvements, no Transfers.
+   - **Beside M5's run** (DL-62 item 7):
+
+     | Measure | M5 | M6 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 0 | 2, both Bankruptcies |
+     | Rival folds a game | 2.36 | 2.88 |
+     | The player's mean Quest difficulty | 53.8 | 46.2 |
+     | The player's Quests failed / succeeded / strong | 23.1 / 19.0 / 57.9% | 14.9 / 13.7 / 71.3% |
+     | The Rivals' Quests | 9.2 / 7.2 / 83.6% | 12.9 / 12.0 / 75.1% |
+     | The player's Checks succeeded; the Rivals' | 76.9%; 90.1% | 83.6%; 85.5% |
+     | Deaths a game, the player's / the Rivals' | 46.1 / 50.1 | 34.1 / 77.0 |
+     | Injuries a game | 577 / 619 | 393 / 879 |
+     | Levels gained a Guild-year | 13.4 / 5.8 | 11.5 / 7.5 |
+     | Mean Level after 10 years | 7.01 / 6.62 | 7.60 / 6.98 |
+     | The player's Wealth after 10 and 20 years | 135,206; 232,781 | 123,818; 189,977 |
+     | A Rival's Wealth after 10 and 20 years | 40,766; 24,808 | 27,918; 22,487 |
+     | Save after 20 years, mean (max) | 99.8 (118.9) MiB | 98.5 (118.3) MiB |
+     | History entries after 20 years, mean | 263,189 | 259,815 |
+     | A Turn alone, mean (p99) | 1.08 (2.5) ms | 1.50 (3.2) ms |
+
+   - **Against item 4, every target is met in the run**: `reckless` 23.9 above `miserly` in mean
+     difficulty and 3.6 times its Deaths, `ambitious`'s Hall first and `miserly`'s last; 2.88 folds a
+     game, `reckless`'s the most and `miserly`'s, the next, 1.06 times the other three's mean; 84.9% of
+     Rosters within 4 to 8, the medians 4 to 6, above 8 at most 25.7%; at the floor with more than 20
+     Upkeeps at most 47.2%, below 3 Upkeeps at most 5.2%; 5.5 Transfers a game in every five-year block,
+     10.7% back to a former seller, none within 90 Days, none leaving a seller below the floor.
+
+10. **Measures** against data-model §7 (recorded, not chased, DL-08): `advance` averaged 5.98 ms a Turn
+    under the run's load (p99 13.8) and 1.50 ms alone (`seed-0001` replayed; p99 3.2), so a year of fast
+    forward is 1.62 s against §7's 1 s; a save after 20 years is 98.5 MiB on the mean (118.3 at most)
+    against 20 MiB, and loads in 4.5 s on the mean under load against 1 s; at this run's rate 1,000 games
+    of 20 years would take 366 minutes (M5's run, 319). A Turn alone is 0.4 ms dearer than M5's; M6's
+    Rivals build, buy and deal every afternoon.
+
+**Consequences.** M6's gate has its run: the harness reports Rivals transferring among themselves (1,093
+Transfers in 200 games, 63 of them the Generator's), and M6-S3's second box and M6-S4's second box have
+their harness evidence in the epic. The four Dispositions stay distinct as M6-S1's and M6-S4's first boxes
+ask. For the owner:
+
+- **M6's Rivals are now the player's competition for the Board.** Three of the four take the Board's
+  harder half, so the Quests left to the policy are easier: its mean difficulty fell from 53.8 (M5) to
+  46.2, its failures from 23.1% to 14.9%, its Wealth after 20 years from 232,781 to 189,977, and two of its
+  200 games ended in Bankruptcy, where M5's run had none. The policy is M5's and declines every Transfer
+  Offer (161 in the run); a smarter policy, and whether it should ever accept, is a decision after these
+  counters (the M6 risk table).
+- **The Rivals are no threat in the Rankings**: the player's Guild is first by Fame at 89.5% of year-starts
+  and by Wealth at 91.6%, and from year 5 its mean place is 1.1 or better.
+- **A Rival's folds come from Levels outrunning its income.** A Rival whose Heroes seldom die sees their
+  Levels rise to 8 to 10 at a Roster of 4, and its wages with them, while its place along the Quests it can
+  staff pays what it paid; the training yard speeds the climb. The pass moves where each Disposition sits
+  on that curve, not the curve. Changing it is a rule for the owner (a Rival choosing harder Quests as its
+  Heroes grow, letting its dearest Hero go, or choosing which facilities it builds, a new weight), or values
+  the player pays too (`wagePerLevel`, `xpPerTrainingDay`, `hallMaintenancePerGrade`).
+- **`transferAppetite` does two jobs**: the chance a Rival seeks a Transfer, and, with its Roster, whether
+  it consents. At a third or more a Rival sells itself below `rivalRosterMin` and item 5's chain returns, so
+  every row sits below a third and `miserly` (0.1) never deals at the Rosters it keeps. A consent floor at
+  `rivalRosterMin` in `transferAnswer`, the Generator's own guard (DL-59 item 5), would free the appetite
+  to range to 1; it is a rule change the pass did not need and left to the owner.
+- **Transfers are few and mostly between two**: 5.5 a game, 831 of 1,093 between `ambitious` and
+  `reckless`, a tenth back to a Guild that had sold the Hero, none within the 90-Day lock.
+- **`steady` and `miserly` still sit at the floor holding Wealth** at 47% and 37% of their year-starts
+  (the target's line is half): their rows' hiring bars (60 Upkeeps) are seldom reached, and a lower bar
+  made `steady` fold more. Their Rosters never decay below the floor (DL-60's need), which was the
+  verification's concern.
+- **The measures are where M4's and M5's were**: a Turn alone 1.5 ms, a year of fast forward 1.6 s, a save
+  after 20 years 98.5 MiB (data-model §7: 5 ms, 1 s, 20 MiB), recorded, not chased (DL-08).
+- **The engine's test content keeps M6-S1 to S4's Disposition rows** (item 8); a later pass that wants the
+  engine's tests to prove the core's own rows would mirror them there and re-measure those tests' margins.
+
+## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (the M4 verification's fixer),
+on findings it confirmed; no rule, default or content value changes
+
+**Context.** M4 was verified after its merge into v1.0-dev (`c1161b5`) by gate, acceptance, mutation,
+design, decision-log and CLI passes. The mutation pass ran 79 mutants of M4's rules; 73 were killed
+and 6 survived. The CLI pass found two problems. `show board` names Skills that help in no Check.
+The help for `preview` leaves out its Synergies section. DL-61 to DL-64 are reserved for other lines
+of work, so this entry is DL-70.
+
+**Decision.**
+
+1. **`show board`'s "Skills that help" lists the Skills of the Quest's Encounters.** Each is listed
+   once, in the order the Quest meets them, and a key content lacks is left out (data-model rule 5).
+   A Quest drawn before M4 has its Encounters drawn on the way (DL-42 item 7), so it still shows its
+   template's Skills.
+   - *Why.* From DL-42 on, the Check reads each Encounter's `skillKeys` and never the Quest's own,
+     which are copied from its template. The column therefore named Skills that help in no Check.
+     On Guard the caravan (travel and combat) it named Trapcraft, and on The sickness at the mill
+     (social and arcane) Herbalism and Field surgery. It also left out the Skills that do help.
+   - *What it supersedes.* The sentence of DL-42's Consequences that has `show board` read the
+     template's `skillKeys`.
+   - *What stays.* `partyFor` still reads the template's `skillKeys`. The Board's "Demands" column
+     still shows the template's demands: a summary of the kind of work, while each Check weighs its
+     own Encounter's demands.
+   - *Versions.* `configVersion` stays 6 and `contentVersion` stays 8.
+2. **`help` names `preview`'s Synergies section** (DL-45 item 7) beside its other sections.
+3. **Tests that were too weak.** Each surviving mutant is now killed by a new or stronger test; no
+   assertion was loosened.
+   - *The band over the whole sequence* (DL-42 item 11). A band read over only the Encounters a
+     Party reached passed every test. A new test sends a Party that comes through its first
+     Encounter and dies of it: one success of three is a failure.
+   - *The Guildmaster Regard writers* (DL-43 item 4). All four amounts were pinned at ±1, so a Hero
+     written with a Patron's amount passed. The one-test-each tests now pin the four apart.
+   - *A plain success* (DL-43 item 4, DL-46 item 2: a success is any band but `fail`). Three mutants
+     passed because every test resolved a strong success or a failure:
+     - the Patron's Regard written as on a failure;
+     - the Heroes' success bonus kept for a strong success only;
+     - the Guildmaster's Regard written for a Hero killed on the Quest.
+
+     A new `questsConclude` test resolves two Encounters of three, with a Death. It pins every
+     amount apart and checks each Regard, and that the dead Hero gets none.
+   - *`heroRegardDecays`.* Its Hero-only condition is unreachable through `decayHeroRegard`, which
+     visits only Heroes the world holds. The exported predicate is now tested directly.
+
+**Consequences.** No rule or value changes, so DL-55's run and report stand. The first build's other
+front end (M7) should take the Skills that help from the Encounters too.
+
+## DL-71 — M6 close verification corrections: errata to DL-63 and DL-69; tests that kill 32 mutants of the M6 harness
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close verification's
+fixer), on findings it confirmed; no rule, default or content value changes
+
+**Context.** M6's close (DL-63, DL-69; `c27b34f` to `95e03a7`) was verified by merge, counters,
+balance and mutation passes. The mutation pass found 32 mutants of the harness's M6 code
+(`harness/src/play.ts`, `harness/src/sweep.ts`) that every test let through. The other passes found
+four statements in DL-63 and DL-69 that the evidence they cite contradicts, and three test comments
+the balance pass left stale. DL-63 and DL-69 are accepted, so they are corrected here, as DL-53
+corrected DL-40 and DL-41.
+
+**Decision.**
+
+1. **Errata.** The decisions of DL-63 and DL-69 stand, and so do their values, the run and its report.
+   - *DL-63 item 2* says the main line's two saves, loaded under the merged CLI, "gain
+     `transferredOnTurn` on every Hero and `offers`". They gain `transferredOnTurn` only. A save the
+     main line made at schema 2 already carries `world.offers`, an empty map: the main line's
+     `document.ts` creates every World with it, and its validator requires it. The 2 → 3 step
+     (`transferredOnTurnField`, `engine/src/serialise.ts`) touches only `world.heroes`. Rechecked on
+     five saves made by `47d6df6`'s CLI and harness: each one, migrated, differs from its original only
+     by `transferredOnTurn: null` on every Hero (81 of 81 in the largest).
+   - *DL-69 item 7 and its Consequences* say `miserly` "never deals at the Rosters it keeps". It deals
+     seldom, not never. Every way a Rival deals asks for its consent (`transferAnswer`, DL-57 item 3):
+     the Heroes it keeps through the deal times its `transferAppetite` must reach one. At 0.1 that
+     means a Roster of 10 or more to buy and 11 or more to sell. `miserly` keeps such a Roster seldom
+     (above 8 at 4.0% of its year-starts). In the run it bought 4 Heroes and sold 18 (12 to
+     `ambitious`, 6 to `reckless`), as item 9's own table gives. Read: `miserly` "deals seldom, and
+     only at a Roster of 10 or more".
+   - *DL-69 item 7's characters* say `ambitious` "hires and deals most". It deals most, not hires most.
+     `reckless` hires the most: 1.62 recruits a Guild-year against `ambitious`'s 1.02, and still the
+     most with the Transfers bought added (about 1.73 against 1.16). `ambitious` deals the most (980
+     Transfers bought or sold, against `reckless`'s 944) and buys the most Heroes by Transfer (558
+     against 435). Read: `ambitious` "builds first, deals most and buys the most Heroes by Transfer".
+   - *DL-69 item 9's last point* says "5.5 Transfers a game in every five-year block". 5.5 is the rate
+     over the whole twenty years. The four five-year blocks hold 228, 426, 209 and 230 Rival-to-Rival
+     Transfers, which is 1.14, 2.13, 1.05 and 1.15 a game. Read: "5.5 Transfers a game, and some in
+     every five-year block". The target of item 4 ("2 to 30 a game and some in every five-year block")
+     is met as it said.
+2. **Tests that were too weak.** Each surviving mutant is now killed by a new test, shown red with
+   the mutant applied and green without it. No assertion was loosened.
+   - *The M6-S3 assertion, out of the player's Guild and on a later Turn* (P01, P06). The one test
+     forced a Transfer into the player's Guild on Turn 0. So a check that caught only Transfers in,
+     and a check that resumed one entry past the last it read, both passed. But out of the player's
+     Guild is the way the assertion guards (the Transfer Generator never takes from it). A new
+     `play.test.ts` test has the player's Guild send a Hero to a Rival on Turn 2, after two advances
+     already checked, with Rivals that deal whenever they can trading among themselves before it. It
+     expects the assertion to stop the game there, naming that entry and "out of". The mutant that
+     swaps "into" and "out of" in the assertion's prose dies with them.
+   - *`readAdvance` across two afternoons* (P10, P11). Reading every `hero.transferred` from the
+     History's start, or marking none read, passed. The one test kept the same debtor in debt, and the
+     set de-duplicated the position. A new test has a sound seller sell on one afternoon and fall into
+     debt before the next. It expects the first sale not to be judged again.
+   - *`recordGame` passing the in-debt Transfers to the counters* (P12). An empty set in its place
+     passed. A new test plays a game in which every Guild is below `bankruptcyFloor` from the first
+     night and none goes bankrupt in it, with the dealing Rivals, and ends with 44 such Transfers. It
+     expects `afternoon-seller-in-debt` to count exactly the play loop's Rival-to-Rival positions, and
+     `afternoon` to count the rest of the afternoon's Transfers.
+   - *`sweepTotals`' M6 sums* (S01, S02b, S03b, S04b, S05b, S09, S10b), *the report's M6 cells*
+     (S15b, S16 to S28, S31 to S34) *and the generation range's bounds* (S11, S12). The sweep test's
+     fixture holds no Transfer, offer or fold, and no Roster or Wealth on a bound, so only labels and
+     zeros were asserted. A new `sweep.test.ts` test gives its two games made-up M6 counters, Wealth
+     and Guild-years. It asserts the totals (sold back, by side, offers, each Disposition, grades by
+     Disposition) and every M6 cell the report writes from them:
+     - the Wealth rows with Transfer fees, and the share of Wealth spent on Transfers;
+     - the Transfers by direction and by way, and the sold-back sentence;
+     - by side and the seller-by-buyer matrix;
+     - the offers' mean fee and Standing;
+     - the purchases a Guild-year;
+     - each Disposition's character row;
+     - the grades by Disposition.
+
+     Another gives two year-starts on the range's bounds (Rosters 4 and 8, Wealth 300 and 700) and
+     expects none counted below or above.
+3. **Stale comments.** `dispositions.test.ts` and `rivals-build-and-buy.test.ts` said the test
+   content's Disposition rows are the core's, but they are M6-S1 to S4's (DL-69 item 8). The CLI's
+   `transfer.test.ts` gave `ambitious` weighing a Transfer "three times in four", but it is three in
+   ten since DL-69's `transferAppetite` 0.3. The comments are corrected; the tests are unchanged.
+
+**Consequences.** No rule, default or content value changes: `configVersion` stays 10, content
+version 14 and schema version 3. So DL-69's run and `harness/reports/m6-2026-09-27.md` stand, and
+the run is not repeated. DL-63 and DL-69 are read with item 1's corrections.
+
+## DL-72 — Merging the main line (M0 to M6 complete) into M7: both sides kept whole, no version changes
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (merging v1.0-dev into
+`m7-integration`), recording a merge; it chooses no default, content value or version
+
+**Context.** M7-S1 (`045f3e6`, DL-64) was built on `m5-integration`'s tip `83df01e`. Since then
+v1.0-dev (`7701073`) gained M4's close, M5's close, M6's stories, M6's close and their
+verifications: DL-40, DL-41, DL-47, DL-53, DL-55 to DL-63 and DL-69 to DL-71, 107 files, the
+Transfer actions, the Rival controllers' Dispositions, the Transfer Generator and the harness's
+M4 to M6 counters, at `configVersion` 10, content version 14 and schema version 3. M7's stories
+build against that engine, so the main line is merged in first.
+
+**Decision.**
+
+1. **One textual conflict: `docs/decision-log.md`.** Both sides had appended entries at the same
+   place, M7 DL-64 and the main line DL-55 to DL-63 and DL-69 to DL-71 (DL-40, DL-41, DL-47 and
+   DL-53 merged without conflict). Every entry of both sides is kept, word for word, in number
+   order: the merged log differs from v1.0-dev's only by DL-64's 105 lines. DL-65 to DL-68 stay
+   unused, reserved for M7's stories.
+2. **What each side kept.** The main line's changes to the engine, content, CLI, harness, reports,
+   documents and epics M3 to M6 are taken whole; of its 107 files M7-S1 had touched only the log
+   (item 1) and one test (item 3). M7-S1's
+   `web/`, `package.json`, `package-lock.json`, `eslint.config.js`, `vitest.config.ts`,
+   `engine/src/boundary.test.ts` and the M7 epic (its four S1 ticks and **Status** "in progress —
+   M7-S1 done") are kept whole; the main line changed none of them, nor any workspace manifest,
+   `tsconfig`, CI workflow, `.npmrc` or `.node-version`, since `83df01e`. So the workspaces and
+   pins are DL-64 item 1's: `npm install` changed nothing in the lockfile, and `npm ci` succeeds
+   (198 packages; Node 26.9.0, npm 11.19.1).
+3. **`content/src/imports.test.ts` merged without conflict, both additions kept**: the main line's
+   filter that leaves out `engine/src/boundary.test.ts`'s transient `boundary-probe-*` files, with
+   its test, and M7-S1's tests that `web/`'s `.test.ts(x)` files may import `@heroesim/content/node`
+   and a component may not. Checked for a semantic clash: M7-S1 made `boundary.test.ts` also write
+   `boundary-probe-*.tsx` probes into `web/src/`. The three tests that read source trees
+   (`content/src/imports.test.ts`, `engine/src/rng.test.ts`, `engine/src/controller-reads.test.ts`)
+   read only `engine/` and `content/` and filter probes by name, whatever the extension, so a web
+   probe cannot reach them. No change.
+4. **Semantic conflicts looked for; none found.**
+   - *Content.* The main line changed `content/src/parse.ts` and `validate.ts` and three content
+     files (content version 14). The page still reaches them through `parseContent` alone, and
+     `web/src/content.test.ts` (the bundled set deep-equals `loadContent()`'s, and the bundle holds
+     exactly `contentFiles`) passes.
+   - *The engine in the bundle.* In M7-S1 the page imports only the engine's types, so the M6
+     engine is not yet bundled; M7-S2's reducer will bundle it (DL-64 item 7). To know the gate
+     holds then, the entry was probed with `import * as engine from '@heroesim/engine'` kept alive
+     on `globalThis`, built into a scratch directory and gated: 393.35 kB (116.36 kB gzipped),
+     against the placeholder's 279.43 kB (82.53 kB), and "2 built files, no network or filesystem
+     reference". The probe was reverted; nothing of it is committed.
+   - *Types.* `tsc -b` checks `web/` against the M6 engine's types and passes.
+   - *What M7's later stories inherit.* The main line added the five Transfer actions and their
+     `TransferRejection` kinds, the events `hero.transferred`, `guild.transfer-offered`,
+     `guild.transfer-offer-declined` and `guild.transfer-offer-expired`, and the CLI's `transfer`
+     command. M7-S2's Rejection map, M7-S3's narration map and M7-S3's table of CLI commands must
+     cover them; the epic already names transfer among the browser's actions (§0). That is those
+     stories' work, not the merge's, and no epic text changes.
+5. **No version changes.** `configVersion` stays 10, content version 14, schema version 3, as the
+   main line left them; no default, content value or package version changes.
+
+**Consequences.** `m7-integration` holds M0 to M6 and M7-S1. `npm run lint` and `npm run
+typecheck` pass; `npm test` passes 91 files, 1,762 tests, none skipped (the main line's 1,732 and
+M7-S1's net 30); `npm run build -w web` exits 0 through the gate (279.43 kB, 82.53 kB gzipped);
+`npm run e2e -w web` passes 4 (served and from `file://`, at 360×800 and 1280×800). M7-S1's four
+boxes still hold, and the epic's ticks stand.
 
 ---
 

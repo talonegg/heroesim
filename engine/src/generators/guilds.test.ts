@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
 import type { StreamName } from '../rng.js';
-import { generateGuild, generateRival, type GuildOptions } from './guilds.js';
+import { dealtDisposition, generateGuild, generateRival, type GuildOptions } from './guilds.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
 const player: Controller = { kind: 'player' };
@@ -241,16 +241,18 @@ describe('generateGuild', () => {
 });
 
 describe('generateRival', () => {
-  test("draws a Roster size and Wealth from the Rival ranges, then a steady Rival, from the caller's stream", () => {
+  test("draws a Roster size and Wealth from the Rival ranges, then a Rival with the controller given, from the caller's stream", () => {
     const deps = testDeps({ rivalRosterMin: 2, rivalRosterMax: 5, rivalStartingWealthMin: 100, rivalStartingWealthMax: 200 });
     const sizes = new Set<number>();
     for (let round = 0; round < 40; round += 1) {
       const world = testWorld(`rival-${round}`, deps);
       world.turn = 11;
       const before = structuredClone(world.rng);
-      const { guild, events } = generateRival(world, deps);
+      const controller: Controller = { kind: 'rival', disposition: round % 2 === 0 ? 'steady' : 'reckless' };
+      const { guild, events } = generateRival(world, deps, { controller });
 
-      expect(guild).toMatchObject({ controller: rival, foundedTurn: 11, foldedOnTurn: null });
+      expect(guild).toMatchObject({ controller, foundedTurn: 11, foldedOnTurn: null });
+      expect(guild.controller).not.toBe(controller);
       expect(guild.wealth).toBeGreaterThanOrEqual(100);
       expect(guild.wealth).toBeLessThanOrEqual(200);
       expect(guild.rosterIds.length).toBeGreaterThanOrEqual(2);
@@ -261,5 +263,35 @@ describe('generateRival', () => {
       sizes.add(guild.rosterIds.length);
     }
     expect(sizes.size).toBeGreaterThan(1);
+  });
+
+  test('draws the same whichever Disposition it is given: the controller moves no stream (DL-56)', () => {
+    const deps = testDeps();
+    const worlds = (['steady', 'reckless', 'unknown-to-content'] as const).map((disposition) => {
+      const world = testWorld('rival-controller', deps);
+      generateRival(world, deps, { controller: { kind: 'rival', disposition } });
+      return world;
+    });
+    const [first, ...rest] = worlds as [World, ...World[]];
+    for (const world of rest) {
+      expect(world.rng).toEqual(first.rng);
+      expect(Object.values(world.heroes)).toEqual(Object.values(first.heroes));
+    }
+  });
+});
+
+describe('dealtDisposition (M6-S1, DL-56)', () => {
+  test("deals content's Dispositions round-robin in key order, starting again after the last", () => {
+    const { content } = testDeps();
+    const dealt = Array.from({ length: 9 }, (_, index) => dealtDisposition(content, index));
+
+    expect(dealt).toEqual(['ambitious', 'miserly', 'reckless', 'steady', 'ambitious', 'miserly', 'reckless', 'steady', 'ambitious']);
+  });
+
+  test('throws on an index that is not a whole number from 0, or content with no Disposition', () => {
+    const { content } = testDeps();
+    expect(() => dealtDisposition(content, -1)).toThrow(RangeError);
+    expect(() => dealtDisposition(content, 1.5)).toThrow(RangeError);
+    expect(() => dealtDisposition({ dispositions: {} }, 0)).toThrow(/no Disposition/);
   });
 });

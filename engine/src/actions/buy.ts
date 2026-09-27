@@ -1,6 +1,6 @@
 // `buy` (M5-S4, R31, DL-51): a Guild buys Items the Market has for sale, at the Market price. Every
 // Guild buys through this one rule, a front end by `buy` and a controller by `applyBuy` (ADR-0002,
-// DL-30); in M5 no Disposition does, and `steady` ignores the Market.
+// DL-30); from M6-S4 every Disposition buys gear by it (`gearPurchase`, DL-58).
 
 import type { EngineDeps } from '../config.js';
 import type { ItemDefinitionKey } from '../content-types.js';

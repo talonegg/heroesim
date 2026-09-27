@@ -265,7 +265,7 @@ export interface Guildmaster {
   regard: RegardMap;
 }
 
-/** Equipment is not on the Hero: it is the unique Items whose holder is this Hero. */
+/** A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot. */
 export interface Hero {
   id: HeroId;
   name: string;
@@ -300,6 +300,11 @@ export interface Hero {
   morale: number;
   diedOnTurn: Turn | null;
   retiredOnTurn: Turn | null;
+  /**
+   * The Turn of the Hero's last Transfer between two Guilds' Rosters; `null` for a Hero never
+   * transferred. Within `transferLockDays` of it no Transfer moves them again (DL-60).
+   */
+  transferredOnTurn: Turn | null;
   regard: RegardMap;
 }
 

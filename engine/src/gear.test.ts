@@ -9,7 +9,7 @@ import { rivalChoices } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, Hero, HeroId, Holder, Party, Quest, QuestId, World, WorldDocument } from './document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
-import { gearChoices, gearModifiers } from './gear.js';
+import { gearChoices, gearModifiers, gearPurchase } from './gear.js';
 import { addStack, createItem, holdings } from './items.js';
 import { phaseContext } from './phases/phase.js';
 import { gearReturn } from './phases/gear-return.js';
@@ -17,7 +17,7 @@ import { phases } from './pipeline.js';
 import { capability, check } from './quest-engine/check.js';
 import { effectiveStats, playerGuild } from './selectors.js';
 import { nightOf } from './time.js';
-import { certainHarmContent, testContent, testDeps, withValid } from './world.test-support.js';
+import { certainHarmContent, deepFreeze, testContent, testDeps, withValid } from './world.test-support.js';
 
 // M5-S2: gear in effective Stats, in the Check, going back to the Guild, and chosen by the
 // controllers (DL-49). Worlds come from `createWorld`; every document a test makes is held to the
@@ -114,6 +114,32 @@ describe('effectiveStats with gear (DL-49)', () => {
     // 1 − 1 (Mistrusts magic) + 3 = 3: one hold at the end, so no modifier is lost to an early one.
     expect(effectiveStats(mage, world, deps.content)['arcana']).toBe(3);
     expect(warrior.stats['weaponry']).toBe(17);
+  });
+
+  test('two pieces of gear on one Stat add together', () => {
+    const { document, heroes } = scene('gear-overlap');
+    const [hero] = heroes as [Hero];
+    const { world } = document;
+    createItem(world, 'barrow-kings-blade', slotOf(hero.id, 'weapon')); // Courage +1
+    addStack(world, 'lucky-charm', 1, slotOf(hero.id, 'trinket')); // Courage +1
+    withValid(document, deps);
+
+    expect(gearModifiers(hero.id, world, deps.content)['courage']).toBe(2);
+    expect(effectiveStats(hero, world, deps.content)['courage']).toBe(8 + 1 + 1);
+  });
+
+  test("a Guildmaster's penalty is taken from the sum with gear, not from gear already held at the top of the range", () => {
+    const { document, heroes } = scene('gear-top');
+    const [, mage] = heroes as [Hero, Hero];
+    const { world } = document;
+    mage.classKey = 'mage';
+    for (const guildmaster of Object.values(world.guildmasters)) guildmaster.traits = ['mistrusts-magic'];
+    addStack(world, 'runed-circlet', 1, slotOf(mage.id, 'trinket')); // Arcana +3
+    mage.stats['arcana'] = 19;
+    withValid(document, deps);
+
+    // 19 − 1 (Mistrusts magic) + 3 = 21, held at 20 once; holding 19 + 3 at 20 first would leave 19.
+    expect(effectiveStats(mage, world, deps.content)['arcana']).toBe(20);
   });
 
   test('an Item in a slot not its own, or of a definition content lacks, counts for nothing', () => {
@@ -388,5 +414,70 @@ describe('gearChoices: the gear the controllers equip (DL-49)', () => {
     withValid(afternoon.document, withRival);
     expect(ofType(afternoon.events, 'item.equipped').map((event) => event.payload.guildId)).toEqual([rival.id]);
     expect(afternoon.document.world.stacks[shirt]?.holder).toEqual(slotOf(rival.rosterIds[0] as HeroId, 'armour'));
+  });
+});
+
+// M6-S4 (DL-58): the one rule a controller buys gear by, a Rival with its Disposition's gearThreshold
+// and every slot, armour first (controllers/rival.test.ts), the harness's policy with its own multiple
+// and the armour slot alone (harness/src/policy.test.ts). Every Guild alike (ADR-0002): here the
+// player's.
+describe('gearPurchase: which piece of gear a controller buys (M6-S4)', () => {
+  /** The player's Guild, rich, and a Market holding `stacks` alone. */
+  function shopping(seed: string, stacks: readonly (readonly [string, number])[], with_: EngineDeps = deps) {
+    const { document, guild, heroes } = scene(seed, with_);
+    guild.wealth = 10_000;
+    const market = holdings(document.world, { kind: 'market' });
+    for (const stack of market.stacks) delete document.world.stacks[stack.id];
+    for (const item of market.items) delete document.world.items[item.id];
+    for (const [definitionKey, quantity] of stacks) addStack(document.world, definitionKey, quantity, { kind: 'market' });
+    return { world: document.world, guild, heroes };
+  }
+  const keyOf = (action: { definitionKey: string } | null) => action?.definitionKey ?? null;
+
+  test('buys for the first of the slots given, in their order, that wants a piece: the dearest within its means', () => {
+    const { world, guild } = shopping('purchase-order', [['plate-harness', 5], ['masterwork-blade', 5], ['short-sword', 5]]);
+
+    expect(gearPurchase(world, guild, ['armour', 'weapon'], 3, deps)).toEqual({
+      kind: 'buy',
+      guildId: guild.id,
+      definitionKey: 'plate-harness',
+      quantity: 1,
+    });
+    expect(keyOf(gearPurchase(world, guild, ['weapon', 'armour'], 3, deps))).toBe('masterwork-blade');
+    // Wealth at three times the blade's price, and no more: the sword, the dearest weapon within it.
+    guild.wealth = 3 * 300;
+    expect(keyOf(gearPurchase(world, guild, ['weapon', 'armour'], 3, deps))).toBe('short-sword');
+    // Wealth to cover the plate once but not above one times its price: none.
+    guild.wealth = 300;
+    expect(gearPurchase(world, guild, ['armour'], 1, deps)).toBeNull();
+    guild.wealth = 301;
+    expect(keyOf(gearPurchase(world, guild, ['armour'], 1, deps))).toBe('plate-harness');
+  });
+
+  test('none for a folded Guild, a slot the game does not list, or a slot whose every Hero has a piece', () => {
+    const noArmour = testDeps({ rivalCount: 0, gearSlots: ['weapon', 'trinket'] });
+    const { world, guild, heroes } = shopping('purchase-none', [['padded-jack', 20]], noArmour);
+
+    expect(gearPurchase(world, guild, ['armour'], 3, noArmour)).toBeNull();
+    expect(keyOf(gearPurchase(world, guild, ['armour'], 3, deps))).toBe('padded-jack');
+    // Every Hero wears a piece but one, for whom the Guild holds one: nothing to buy.
+    const [, ...rest] = heroes as [Hero, ...Hero[]];
+    for (const hero of rest) addStack(world, 'padded-jack', 1, slotOf(hero.id, 'armour'));
+    expect(keyOf(gearPurchase(world, guild, ['armour'], 3, deps))).toBe('padded-jack');
+    addStack(world, 'mail-shirt', 1, { kind: 'guild', id: guild.id });
+    expect(gearPurchase(world, guild, ['armour'], 3, deps)).toBeNull();
+    world.stacks = Object.fromEntries(Object.entries(world.stacks).filter(([, stack]) => stack.holder.kind !== 'guild'));
+    expect(keyOf(gearPurchase(world, guild, ['armour'], 3, deps))).toBe('padded-jack');
+    guild.foldedOnTurn = 0;
+    expect(gearPurchase(world, guild, ['armour'], 3, deps)).toBeNull();
+  });
+
+  test('reads the world and changes nothing in it', () => {
+    const { world, guild } = shopping('purchase-pure', [['mail-shirt', 3]]);
+    const before = structuredClone(world);
+    deepFreeze(world);
+
+    expect(keyOf(gearPurchase(world, guild, ['weapon', 'armour', 'trinket'], 3, deps))).toBe('mail-shirt');
+    expect(world).toEqual(before);
   });
 });

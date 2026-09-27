@@ -1,4 +1,5 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { ESLint } from 'eslint';
 import ts from 'typescript';
@@ -17,6 +18,8 @@ function sources(pkg: string, withTests = true): { file: string; ast: ts.SourceF
   const dir = join(root, pkg, 'src');
   return readdirSync(dir, { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('.ts') && (withTests || !file.endsWith('.test.ts')))
+    // engine/src/boundary.test.ts writes and deletes probe files in each package's src/ while other tests run.
+    .filter((file) => !/(^|[\\/])boundary-probe-/.test(file))
     .map((file) => ({
       file,
       ast: ts.createSourceFile(file, readFileSync(join(dir, file), 'utf8'), ts.ScriptTarget.Latest),
@@ -49,6 +52,23 @@ function importsOf(ast: ts.SourceFile): { from: string; typeOnly: boolean }[] {
   }
   return found;
 }
+
+describe('the sources these tests read', () => {
+  test("leave out engine/src/boundary.test.ts's probe files, which come and go while other tests run", () => {
+    // A probe as boundary.test.ts writes one: a value import from the engine, which the tests below refuse.
+    const file = `boundary-probe-${randomUUID()}.ts`;
+    const path = join(root, 'content', 'src', file);
+    writeFileSync(path, "import { x } from '@heroesim/engine';\nexport { x };\n");
+    try {
+      const files = sources('content').map((source) => source.file);
+
+      expect(files).toContain('node.ts');
+      expect(files).not.toContain(file);
+    } finally {
+      rmSync(path, { force: true });
+    }
+  });
+});
 
 describe("content's types come from @heroesim/engine", () => {
   const engineTypes = ['ContentSet', 'Stat', 'Class', 'Skill', 'Trait', 'Background', 'Sphere', 'Names'];

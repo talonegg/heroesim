@@ -11,7 +11,7 @@
     "demands": [["strength", 0.3], ["weaponry", 0.3], ["courage", 0.2], ["constitution", 0.2]],
     "skillKeys": ["swordcraft", "benediction"],
     "requires": {},
-    "lootTableKey": "lesser-loot",
+    "lootTableKey": null,
     "encounterKinds": ["combat", "stealth", "travel"],
     "encountersMin": 2, "encountersMax": 4
   },
@@ -110,7 +110,7 @@
     "demands": [["strength", 0.3], ["perception", 0.3], ["courage", 0.2], ["endurance", 0.2]],
     "skillKeys": ["swordcraft", "stealth"],
     "requires": {},
-    "lootTableKey": "lesser-loot",
+    "lootTableKey": null,
     "encounterKinds": ["travel", "combat", "stealth"],
     "encountersMin": 2, "encountersMax": 4
   },

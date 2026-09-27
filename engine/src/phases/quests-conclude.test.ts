@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { ContentSet } from '../content-types.js';
+import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
@@ -20,6 +20,7 @@ import {
   plannedStreams,
   testContent,
   testDeps,
+  withDispositions,
   withEncounters,
   withValid,
 } from '../world.test-support.js';
@@ -422,7 +423,7 @@ describe('questsConclude', () => {
   // M4-S2's fourth box, in the engine: M2's bands still come out of the Quest Engine, for every
   // Guild, each Quest's Encounters recorded before it (the harness's own tests play the real content).
   test('over a month of Rivals and the player sending Parties, quest.resolved still gives every band, each after its Encounters', () => {
-    const deps = soloDeps({ rivalCount: 2, recruitWealthMultiple: 1000 });
+    const deps = soloDeps({ rivalCount: 2 }, withDispositions({ recruitThreshold: 1000 }));
     let document = createWorld('bands', setup, deps).document;
     const events: EngineEvent[] = [];
     while (document.world.turn < nightOf(45)) {
@@ -600,6 +601,62 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
     for (const other of Object.values(world.guilds).map((guild) => guild.id).filter((id) => id !== guildId)) {
       expect(regardValue(patronOf(world).regard, other)).toBe(regardValue(patronOf(eve.world).regard, other));
     }
+  });
+
+  // A success is any band but `fail` (DL-43 item 4, DL-46 item 2), so a plain success, two
+  // Encounters of three, writes every success amount; and only the Heroes home alive are written
+  // (DL-43 item 4, DL-46 item 3). Every amount is pinned apart from the others (M4 verification).
+  test("a plain success writes every Regard's success amount, and only for the Heroes home alive", () => {
+    const base = harmlessContent.encounters['ambush-on-the-road'] as Encounter;
+    const row = (key: string, difficultyFactor: number, failure: Consequence[]): Encounter => ({
+      ...structuredClone(base),
+      key,
+      name: key,
+      difficultyFactor,
+      consequences: { success: [], failure },
+    });
+    const content: ContentSet = {
+      ...harmlessContent,
+      encounters: {
+        ...harmlessContent.encounters,
+        'sure-pass': row('sure-pass', 1e-6, []),
+        'sure-death': row('sure-death', 1e6, [{ kind: 'death', chance: 1 }]),
+      },
+    };
+    const deps = soloDeps(
+      {
+        ...regardPins,
+        guildmasterRegardOnPatronSuccess: 2,
+        guildmasterRegardOnPatronFailure: -3,
+        guildmasterRegardOnHeroSuccess: 0.5,
+        guildmasterRegardOnHeroFailure: -0.25,
+        regardPerSharedQuest: 1,
+        regardOnSuccessBonus: 0.5,
+      },
+      content,
+    );
+    const { eve, quest, guildId, heroIds } = sentAway('regard-plain-success', deps, {
+      size: 3,
+      encounterKeys: ['sure-pass', 'sure-death', 'sure-pass'],
+    });
+    const before = structuredClone(eve.world);
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    expect(ofType(events, 'quest.resolved').map((event) => event.payload.band)).toEqual(['success']);
+    const [died] = ofType(events, 'hero.died').map((event) => event.payload.heroId);
+    if (died === undefined) throw new Error('Nobody died');
+    const home = heroIds.filter((id) => id !== died);
+    const moved = (read: (world: World) => number): number => read(world) - read(before);
+    const guildmasterOf = (at: World): Guildmaster => at.guildmasters[guildOf(at, guildId).guildmasterId] as Guildmaster;
+    expect(moved((at) => regardValue((at.patrons[quest.patronId] as Patron).regard, guildId))).toBe(1);
+    expect(moved((at) => regardValue(guildmasterOf(at).regard, quest.patronId))).toBe(2);
+    for (const id of home) expect(moved((at) => regardValue(guildmasterOf(at).regard, id))).toBe(0.5);
+    expect(Object.hasOwn(guildmasterOf(world).regard, died)).toBe(Object.hasOwn(guildmasterOf(before).regard, died));
+    const [a, b] = home as [HeroId, HeroId];
+    expect(moved((at) => regardValue(hero(at, a).regard, b))).toBe(1.5);
+    expect(moved((at) => regardValue(hero(at, b).regard, a))).toBe(1.5);
+    withValid({ ...eve, world }, deps);
   });
 });
 

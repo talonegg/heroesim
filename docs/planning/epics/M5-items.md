@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M4 · **Implements:** `plan.md` M5; R30–R32; `data-model.md` §3.3; principle 2 pull 4 (Loot)
 **Gate:** gear, consumables, the Market and Loot exist; from the CLI a human buys, sells, equips, and dispatches with consumables that are expended; the harness reports Wealth spent by category
 
-**Status:** not started
+**Status:** done — 2026-09-27 (`m5-items`)
 
 ## 0. What lands in M5
 
@@ -107,12 +107,47 @@ Config: `lootDifficultyThreshold`, `lootOnBands`.
 - [x] Loot appears only on the configured bands and only from templates with a table
 - [x] A unique Loot Item exists once in `world.items` with the Guild as holder
 - [x] The harness's Loot counter rises with the player's mean Quest difficulty (proved in the engine,
-      `quest-engine/loot.test.ts`, before the counter exists; the M5 close's counter task adds it, DL-52)
+      `quest-engine/loot.test.ts`, DL-52; and in the M5 run, `harness/reports/m5-2026-09-26.md`, DL-62:
+      the player's Loot a Quest resolved is none below difficulty 40, then 0.051 at 40 to 49 (mean
+      44.7), 0.108 at 50 to 59, 0.184 at 60 to 69, 0.200 at 70 to 79, 0.364 at 80 to 89 and 0.425 at
+      90 to 99 (mean 94.1))
 
 ### M5-S6 · (moved) Hall Improvements
 
 Now M3-S6, so the infirmary and training yard are exercised in the milestones whose rules
 read them (pre-M0 review D8, owner, 2026-09-26).
+
+## Measured
+
+`npm run harness -- play.harness`, 2026-09-26, **200 seeds × up to 20 years**, validated after
+every advance, config version 8, content version 12. Full report: `harness/reports/m5-2026-09-26.md`;
+decisions DL-48 to DL-52, DL-54, DL-61, DL-62.
+
+| Counter or measure | Result (M4 beside it) |
+| --- | --- |
+| Player games ended | none in 200; every game ran 20 years (M4: 1 Bankruptcy) |
+| Rival folds a game | 2.36 (2.24) |
+| Player Quests failed / success / strong | 23.1 / 19.0 / 57.9% (37.7 / 21.2 / 41.1%) |
+| Rivals' Quests failed / success / strong | 9.2 / 7.2 / 83.6% (11.7 / 8.1 / 80.2%) |
+| Encounter Checks succeeding, player / Rivals | 76.9% / 90.1% (63.7% / 87.7%) |
+| Deaths a game, player / Rivals | 46 / 50 (84 / 63) |
+| Player mean Level at year 10; Wealth at year 20 | 7.01 (5.42); 233k (268k) |
+| Wealth spent by category, the player | Upkeep 83.4%, Items 15.9%, signing 0.6%, Improvements 0.2% |
+| Wealth spent by category, the Rivals | Upkeep 99.3%, Improvements 0.5%, signing 0.2%; no Items — `steady` ignores the Market until M6-S4 |
+| Consumables, the player | 2.71 carried and 0.80 expended a Quest; 59.7% of Quests expend one or more |
+| Loot, the player | 0.122 awards a Quest resolved: none below difficulty 40, 0.051 at 40–49 rising to 0.425 at 90–99; 533 unique Items in 200 games |
+| Items sold at a fold | 227 Items, 68,100 Wealth to the Rivals folding |
+| `advance` a Turn, one process; fast forward a year | 1.08 ms; 1.16 s (target 1 s) |
+| Save after 20 years; load | mean 99.8 MiB, max 118.9 MiB (target 20 MB); load 4.5 s under 16 processes' load |
+
+No validator refusal, no policy action refused, the replay byte-identical, all 200 saves
+round-trip. M5 makes the player's Guild much stronger (gear, consumables and Loot); M6's
+dispositions let Rivals buy from the Market too.
+
+Verified independently on 2026-09-27: every box and the gate proved, 83 mutants (73 killed at
+first, the 10 survivors now killed by new tests), and three CLI wordings fixed (`show market`
+counts Items and kinds, Encounter lines are numbered, Loot reads "2 × Physician's kit"); no rule,
+default or content value changed; 1,579 tests.
 
 ## 2. Configuration and events introduced
 

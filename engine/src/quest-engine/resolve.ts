@@ -30,6 +30,7 @@ import type { Consequence, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKe
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { chance, int } from '../rng.js';
+import { healFactor } from '../selectors.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { sequenceFor } from './encounters.js';
@@ -137,9 +138,9 @@ interface Working {
  * nothing on a failure; the Fame the Fame effect, won or lost by the band, plus the Encounters'; the
  * XP the difficulty × `xpPerDifficultyPoint` × the band's `xpBandFactor` × the XP factors, rounded
  * down. An Injury's Days are drawn from its type's range and multiplied by `infirmaryHealFactor` at
- * the Guild's infirmary grade now, rounded to the nearest Day and at least 1 (INPUTS 4.5). The
- * consumables the Party carries add to a Check, roll a failed one again, and then shorten the
- * Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
+ * the Guild's infirmary grade now (`healFactor`, DL-53), rounded to the nearest Day and at least 1
+ * (INPUTS 4.5). The consumables the Party carries add to a Check, roll a failed one again, and then
+ * shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
  * difficulty that is not above 0, an Injury type content lacks, or a world without the `quests`
@@ -232,8 +233,7 @@ function apply(consequence: Consequence, working: Working, harm: Harm, state: St
     case 'injury': {
       const type = Object.hasOwn(content.injuries, consequence.typeKey) ? content.injuries[consequence.typeKey] : undefined;
       if (type === undefined) throw new RangeError(`Content defines no Injury type ${JSON.stringify(consequence.typeKey)}`);
-      const factors = config.infirmaryHealFactor;
-      const factor = factors[Math.min(Math.max(0, guild.hall.infirmary), factors.length - 1)] ?? 1;
+      const factor = healFactor(guild, config);
       for (let time = 0; time < consequence.count; time += 1) {
         const lands = chance(state, consequence.chance);
         const unhurt = working.alive.filter((hero) => !working.injuries.some((injury) => injury.heroId === hero.id));

@@ -66,7 +66,10 @@ export function renderMarket(document: WorldDocument, deps: EngineDeps): string[
   const { content } = deps;
   const stock = marketStock(world, deps);
   const guild = playerGuild(world);
-  const heading = `Market: ${stock.length} ${stock.length === 1 ? 'Item' : 'Items'} for sale, ${renderTime(world.turn, deps.config)}`;
+  // Items counted one by one, a stack by its quantity; the kinds are the rows below.
+  const total = stock.reduce((sum, { quantity }) => sum + quantity, 0);
+  const kinds = `${stock.length} ${stock.length === 1 ? 'kind' : 'kinds'}`;
+  const heading = `Market: ${total} ${total === 1 ? 'Item' : 'Items'} for sale, of ${kinds}, ${renderTime(world.turn, deps.config)}`;
   const lines = [
     heading,
     '',

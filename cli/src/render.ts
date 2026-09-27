@@ -2,11 +2,12 @@
 // cursor control, nothing that waits for a key.
 //
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
-// Morale, a Turn), the size of a document table or list, or the result of an engine selector
-// (`ageOf`, `baseStat`, `effectiveStats`, `signingFee`, `signingRefusal`, `rankings`,
-// `unattachedHeroes`, `holdings`, `carriedGear`); every
-// name is a document field or a content row's display name. Where the engine has no selector for
-// something a view needs, the selector goes into the engine, not here.
+// Morale, a Turn, a Hall grade), a content row's field (an Improvement's cost), the size of a
+// document table or list, or the result of an engine selector (`ageOf`, `baseStat`,
+// `effectiveStats`, `signingFee`, `transferFee`, `signingRefusal`, `rankings`, `unattachedHeroes`,
+// `nextImprovement`, `holdings`, `carriedGear`); every name is a document field or a content row's
+// display name. Where the engine has no selector for something a view needs, the selector goes
+// into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
@@ -28,12 +29,15 @@ import {
   itemDefinition,
   judgedHintBands,
   patronRegardFor,
+  facilityKeys,
+  nextImprovement,
   playerGuild,
   regardBand,
   regardValue,
   rankings,
   signingFee,
   signingRefusal,
+  transferFee,
   durationDaysOf,
   potentialHint,
   relationship,
@@ -117,6 +121,13 @@ export const facilityNames: Readonly<Record<FacilityKey, string>> = Object.freez
   quarters: 'quarters',
 });
 
+/** The verb a facility's name takes in a sentence: the infirmary is, the quarters are. */
+export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
+  infirmary: 'is',
+  trainingYard: 'is',
+  quarters: 'are',
+});
+
 function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
@@ -197,18 +208,70 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
     `${Object.keys(world.patrons).length} Patrons`,
     `${history.entries.length} History entries`,
   ];
+  const player = playerGuild(world);
+  const hall =
+    player === undefined
+      ? []
+      : [
+          `${player.name}'s Hall: ` +
+            facilityKeys.map((facility) => `${facilityNames[facility]} grade ${player.hall[facility]}`).join(', ') +
+            ' (show hall gives each grade and what the next costs).',
+        ];
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
     '',
     ...guildTable(playing, document, deps),
     '',
     counts.join(', '),
+    ...hall,
   ];
 }
 
 /** `show guilds`: every Guild, a folded one marked with the Day it folded. */
 export function renderGuilds(document: WorldDocument, deps: EngineDeps): string[] {
   return ['Guilds', '', ...guildTable(Object.values(document.world.guilds), document, deps)];
+}
+
+// ── The Hall ─────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `show hall [guildId]`: each facility of the Guild's Hall, its grade and the Improvement built at
+ * it, and the next grade's Improvement and cost (`nextImprovement`), or that it is at the top; then
+ * what the facilities do, in words. The player's Guild unless given another.
+ */
+export function renderHall(guild: Guild, deps: EngineDeps): string[] {
+  const { content } = deps;
+  const builtAt = (facility: FacilityKey, grade: number): string =>
+    Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? '';
+  const rows = facilityKeys.map((facility) => {
+    const grade = guild.hall[facility];
+    const next = nextImprovement(guild, facility, content);
+    return [
+      capitalised(facilityNames[facility]),
+      String(grade),
+      grade === 0 ? 'none' : builtAt(facility, grade),
+      next === null ? 'none: the top grade' : next.name,
+      next === null ? '' : String(next.cost),
+    ];
+  });
+  return [
+    `Hall of ${guild.name} (${guild.id})`,
+    '',
+    ...table(
+      [
+        { heading: 'Facility' },
+        { heading: 'Grade', align: 'right' },
+        { heading: 'Built' },
+        { heading: 'Next grade' },
+        { heading: 'Cost', align: 'right' },
+      ],
+      rows,
+    ),
+    '',
+    'The infirmary shortens the Days an Injury takes to heal; the training yard gives every Hero on',
+    'the Roster who is home and unhurt XP each night; the quarters raise the Morale the Roster settles',
+    'toward. Each grade does more than the one below it, and each adds to the Upkeep.',
+  ];
 }
 
 // ── Heroes ───────────────────────────────────────────────────────────────────────────────────
@@ -252,10 +315,18 @@ function heroTable(
 
 /**
  * `show roster [guildId]`: the Guild's Roster in its own order, then what the Guild holds (M5-S2):
- * each unique Item and stack in its holding, with the id `equip` takes.
+ * each unique Item and stack in its holding, with the id `equip` takes. Another Guild's Roster adds
+ * each Hero's Transfer fee, what the player's Guild would pay to take them (`transfer --in`): the
+ * engine's `transferFee` at the player's Guildmaster's Negotiation (M6-S2), shown before it is paid.
  */
 export function renderRoster(guild: Guild, document: WorldDocument, deps: EngineDeps): string[] {
   const heroes = guild.rosterIds.flatMap((id) => rowIn(document.world.heroes, id) ?? []);
+  const player = playerGuild(document.world);
+  const buyer = player === undefined ? undefined : guildmasterOf(player, document.world);
+  const fees: HeroColumn[] =
+    player === undefined || player.id === guild.id
+      ? []
+      : [{ heading: 'Transfer fee', align: 'right', cell: (hero) => String(transferFee(hero, buyer, deps)) }];
   const held = holdings(document.world, { kind: 'guild', id: guild.id });
   const rows = [...held.items, ...held.stacks].map((row) => {
     const definition = itemDefinition(deps.content, row.definitionKey);
@@ -270,7 +341,7 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
   return [
     `Roster of ${guild.name} (${guild.id})`,
     '',
-    ...heroTable(heroes, document, deps),
+    ...heroTable(heroes, document, deps, fees),
     '',
     `Held by ${guild.name}`,
     ...(rows.length === 0
@@ -349,7 +420,8 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
  * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
  * Guildmaster reads, narrowed by their Judgement (`judgedHintBands`, M4-S5). For a Hero on a
  * Roster, each other Hero on it with the Hero's Regard for them and the Relationship between the
- * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads.
+ * two, as bands and never as numbers (M4-S4, DL-46): what the teamwork of a Party reads. For a Hero
+ * on another Guild's Roster, the Transfer fee the player's Guild would pay to take them (M6-S2).
  */
 export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps): string[] {
   const { content, config } = deps;
@@ -368,9 +440,19 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
-    ['Injury', hero.injury === null ? 'none' : `${hero.injury.typeKey}, heals on Turn ${hero.injury.healsOnTurn}`],
+    [
+      'Injury',
+      hero.injury === null
+        ? 'none'
+        : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on the night of Day ${dayOf(hero.injury.healsOnTurn)} ` +
+          `(Turn ${hero.injury.healsOnTurn})`,
+    ],
     ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
   ];
+  // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
+  if (player !== undefined && guild !== undefined && guild.id !== player.id && guild.rosterIds.includes(hero.id)) {
+    attributes.push(['Transfer fee', String(transferFee(hero, reader, deps))]);
+  }
   if (hero.partyId !== null) attributes.push(['Party', hero.partyId]);
   if (hero.diedOnTurn !== null) attributes.push(['Died', `Turn ${hero.diedOnTurn}`]);
   if (hero.retiredOnTurn !== null) attributes.push(['Retired', `Turn ${hero.retiredOnTurn}`]);
@@ -622,8 +704,8 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then what each demands and the Skills
- * that help (M2-S3).
+ * Patron, its terms and the last Day it stays on offer; then what each demands (M2-S3), the Skills
+ * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1, M4 verification).
  */
 export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -666,11 +748,25 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
       quests.map((quest) => [
         quest.id,
         quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        none(quest.skillKeys.map((key) => nameIn(content.skills, key))),
+        skillsThatHelp(quest, content),
         encounterKindsOf(quest, content),
       ]),
     ),
   ];
+}
+
+/**
+ * The Skills that help on a Quest: from M4 the Checks read its Encounters' Skills and not the
+ * template's (DL-42), so each Skill any of its Encounters names, once, in the order the Quest meets
+ * them, a key content lacks left out (rule 5). A Quest drawn before M4, whose Encounters are drawn on
+ * the way, shows its template's Skills, the kind of work it is.
+ */
+function skillsThatHelp(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
+  const keys =
+    quest.encounterKeys.length === 0
+      ? quest.skillKeys
+      : [...new Set(quest.encounterKeys.flatMap((key) => rowIn(content.encounters, key)?.skillKeys ?? []))];
+  return none(keys.filter((key) => Object.hasOwn(content.skills, key)).map((key) => nameIn(content.skills, key)));
 }
 
 /**

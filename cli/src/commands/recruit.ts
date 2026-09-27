@@ -6,7 +6,7 @@
 // the other only when a command runs, never while the modules load.
 
 import { isId, playerGuild, recruit, type HeroRecruited, type RecruitRejection } from '@heroesim/engine';
-import { exitCodes, open, refuse, say, type Context, type Exit } from '../main.js';
+import { exitCodes, noActionAfterTheEnd, open, over, refuse, say, type Context, type Exit } from '../main.js';
 import { rowIn } from '../render.js';
 import { writeSave } from '../saves.js';
 
@@ -14,7 +14,7 @@ import { writeSave } from '../saves.js';
  * Recruits `heroId` for the player's Guild, writes the save, and prints the fee and the new Roster
  * size. A word that is not a Hero id is a bad command line; a Hero the save lacks, one not in the
  * pool, one who will not sign for the Guild's Fame (M3-S5) and a fee above the Guild's Wealth are
- * refused, and nothing is written.
+ * refused, and nothing is written; so is any signing once the game has ended.
  */
 export function recruitHero(heroId: string, { io, content, path }: Context): Exit {
   if (!isId('heroes', heroId)) {
@@ -23,6 +23,8 @@ export function recruitHero(heroId: string, { io, content, path }: Context): Exi
   const opened = open(io, path, content);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
+  const ended = over(io, document, noActionAfterTheEnd);
+  if (ended !== undefined) return ended;
   const guild = playerGuild(document.world);
   if (guild === undefined) return refuse(io, `${path} has no player's Guild.`);
   const hero = rowIn(document.world.heroes, heroId);

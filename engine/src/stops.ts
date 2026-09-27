@@ -8,7 +8,7 @@
 
 import type { EngineDeps } from './config.js';
 import { staffableQuests } from './controllers/rival.js';
-import type { GuildId, HeroId, PartyId, Quest, QuestId, World } from './document.js';
+import type { GuildId, HeroId, OfferId, PartyId, Quest, QuestId, World } from './document.js';
 import type { EngineEvent } from './events.js';
 import { unattachedHeroes } from './selectors.js';
 
@@ -21,6 +21,8 @@ import { unattachedHeroes } from './selectors.js';
  *   Board holds Quests it could staff from its available Heroes that it could not before the Turn:
  *   new on the Board, or newly within reach because its last Party came home or a Hero healed. The
  *   M2 reading of "a decision is needed" (M2-S11); later milestones widen it.
+ * - `transfer-offer`: Transfer Offers for Heroes of the watched Guild arrived this Turn, in the
+ *   order they were made (M6-S2, approach §2: "a Transfer offer arrives", DL-57).
  * - `max-turns`: fast forward played the Turns it was allowed.
  * - `pool-refreshed`: Heroes entered the Unattached pool this Turn, in id order.
  */
@@ -28,6 +30,7 @@ export type StopReason =
   | { kind: 'ended' }
   | { kind: 'party-returned'; guildId: GuildId; partyIds: PartyId[] }
   | { kind: 'decision-needed'; guildId: GuildId; questIds: QuestId[] }
+  | { kind: 'transfer-offer'; guildId: GuildId; offerIds: OfferId[] }
   | { kind: 'max-turns' }
   | { kind: 'pool-refreshed'; heroIds: HeroId[] };
 
@@ -45,17 +48,19 @@ export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.free
   ended: true,
   'party-returned': true,
   'decision-needed': true,
+  'transfer-offer': true,
   'pool-refreshed': false,
 } satisfies Record<StopCondition, boolean>);
 
 /**
  * Every condition, in the order a Turn that gives several reports them: an ending first, then the
- * watched Guild's Parties home, then a decision, then the pool.
+ * watched Guild's Parties home, then a decision, then a Transfer Offer, then the pool.
  */
 export const stopConditions: readonly StopCondition[] = Object.freeze([
   'ended',
   'party-returned',
   'decision-needed',
+  'transfer-offer',
   'pool-refreshed',
 ] as const);
 
@@ -109,6 +114,19 @@ export function decisionNeededStop(before: World, after: World, guildId: GuildId
 }
 
 /**
+ * `transfer-offer` when this Turn's events make Transfer Offers for Heroes of `guildId`'s, which it
+ * answers (`guild.transfer-offered` naming it as `fromGuildId`), in the order they were made. An offer
+ * that stands from an earlier Turn stops nothing: the caller has seen it, and it expires on its night.
+ */
+export function transferOfferStop(events: readonly EngineEvent[], guildId: GuildId): StopReason | null {
+  const offerIds: OfferId[] = [];
+  for (const event of events) {
+    if (event.type === 'guild.transfer-offered' && event.payload.fromGuildId === guildId) offerIds.push(event.payload.offerId);
+  }
+  return offerIds.length === 0 ? null : { kind: 'transfer-offer', guildId, offerIds };
+}
+
+/**
  * `pool-refreshed` when Heroes are in the Unattached pool after the Turn who were not before it:
  * the night's refill, and Heroes a folded Guild released, alike.
  */
@@ -143,6 +161,7 @@ export function stopsOfTurn(
     ended: () => endedStop(after),
     'party-returned': () => partyReturnedStop(events, guildId),
     'decision-needed': () => decisionNeededStop(before, after, guildId, deps),
+    'transfer-offer': () => transferOfferStop(events, guildId),
     'pool-refreshed': () => poolRefreshedStop(before, after),
   };
   const wanted = new Set(conditions);

@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 10 since the Loot tables (M5-S5)', () => {
+  test("is the core content set, version 14 since the M6 close's balance pass on the Dispositions (DL-69)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(10);
+    expect(content.version).toBe(14);
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -35,8 +35,18 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test("has one Disposition, M2's steady (INPUTS 4.12)", () => {
-    expect(content.dispositions).toEqual({ steady: { key: 'steady', name: 'Steady' } });
+  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69)', () => {
+    const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
+      ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
+    expect(content.dispositions).toEqual({
+      // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
+      // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
+      // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
+      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2) },
+      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25) },
+    });
   });
 
   test('has twenty Hero Stats in four areas', () => {
