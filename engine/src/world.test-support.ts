@@ -15,6 +15,7 @@ import type {
   Consequence,
   ConsumableEffect,
   ContentSet,
+  Disposition,
   Encounter,
   EncounterAggregate,
   EncounterKind,
@@ -297,6 +298,18 @@ function improvements(): Record<string, Improvement> {
   );
 }
 
+/** A Disposition row by its weights, in the order the content type lists them (M6-S1). */
+function disposition(
+  key: string,
+  questRiskAppetite: number,
+  recruitThreshold: number,
+  buildThreshold: number,
+  gearThreshold: number,
+  transferAppetite: number,
+): Record<string, Disposition> {
+  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite } };
+}
+
 /**
  * Freezes `value` and everything it holds, so no test can change what another test reads (or, for
  * `history.test.ts`, what `append` stored). Frozen before recursing, and skipped once frozen, so a
@@ -314,8 +327,8 @@ export function deepFreeze<T>(value: T): T {
  * A content set with the real content's keys, cut down: every Stat, the four Classes and their
  * twelve Skills, every Trait and Sphere, some of the Backgrounds, name lists long enough for
  * `createWorld` under `defaultConfig` (five Guilds, twelve Patrons), the twelve Quest templates,
- * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the one
- * Disposition, `steady` (M2-S9), the core's nine Hall Improvements (M3-S6), the core's twelve
+ * two to a Sphere, with simpler demands (M2-S3), four Injury types (M2-S5), the core's four
+ * Dispositions and their weights (M2-S9, M6-S1), the core's nine Hall Improvements (M3-S6), the core's twelve
  * Encounter keys, two or more of each kind (M4-S1), the core's six Synergies (M4-S3), the
  * core's twenty Item definitions (M5-S1), so that fixture Items raise no warning, and the core's two
  * Loot tables, named by the six templates above the default Loot threshold (M5-S5).
@@ -406,7 +419,16 @@ export const testContent: ContentSet = deepFreeze({
     injuryType('deep-cut', [6, 12], 'scarred'),
     injuryType('shattered-knee', [20, 30], 'lame'),
   ]),
-  dispositions: keyed({}, 'steady'),
+  // The four Dispositions (INPUTS 7.5) with the weights M6-S1 gave the core (DL-56; reckless's
+  // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
+  // gearThreshold, transferAppetite. The M6 close retuned the core's rows (DL-69); the engine's tests
+  // keep these, on which their margins were measured, as a fixture of the one rule.
+  dispositions: {
+    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75),
+    ...disposition('miserly', 0.25, 80, 20, 10, 0.1),
+    ...disposition('reckless', 1, 30, 4, 3, 0.5),
+    ...disposition('steady', 0, 60, 3, 3, 0.25),
+  },
   improvements: improvements(),
   // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):
   // the core's twelve keys, simpler demands, and harm only on a failure.
@@ -541,6 +563,29 @@ export function withEncounters(
   );
   return deepFreeze({ ...content, encounters });
 }
+
+/**
+ * `content` (the test content by default) with `weights` set on every Disposition, frozen: for a
+ * test that must say what every Rival does whichever Disposition it was dealt (M6-S1, DL-56), as
+ * a test once pinned `recruitWealthMultiple` and `buildWealthMultiple` in the config.
+ */
+export function withDispositions(
+  weights: Partial<Omit<Disposition, 'key' | 'name'>>,
+  content: ContentSet = testContent,
+): ContentSet {
+  const dispositions = Object.fromEntries(
+    Object.entries(content.dispositions).map(([key, row]): [string, Disposition] => [key, { ...row, ...weights }]),
+  );
+  return deepFreeze({ ...content, dispositions });
+}
+
+/**
+ * Rivals who never recruit, build or buy gear, whatever their Wealth, but still equip and take Quests
+ * as their Dispositions say: for a test that watches the pool, a Hall, the Market or Wealth and must
+ * not meet a Rival's purchase (as `recruitWealthMultiple` and `buildWealthMultiple` of 1,000,000 once
+ * did; `gearThreshold` from M6-S4, DL-58).
+ */
+export const thriftyRivals = { recruitThreshold: 1_000_000, buildThreshold: 1_000_000, gearThreshold: 1_000_000 } as const;
 
 /** No consequence on either outcome: nobody is hurt and nothing but the band moves the outcome. */
 export const harmlessContent: ContentSet = withEncounters({ success: [], failure: [] });
@@ -683,6 +728,7 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       morale: 50,
       diedOnTurn: null,
       retiredOnTurn: null,
+      transferredOnTurn: null,
       regard: {},
     };
     world.heroes[id] = row;

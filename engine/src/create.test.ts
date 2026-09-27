@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, type WorldSetup } from './create.js';
+import type { Disposition } from './content-types.js';
 import { makeId, tableNames, type Guild, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
@@ -66,7 +67,7 @@ describe('createWorld', () => {
     expect(classes?.sort()).toEqual(Object.keys(deps.content.classes).sort());
   });
 
-  test('generates rivalCount steady Rivals, their Rosters, Wealth and names drawn from the config and content', () => {
+  test('generates rivalCount Rivals, their Rosters, Wealth and names drawn from the config and content', () => {
     const deps = testDeps();
     for (const seed of ['rivals-1', 'rivals-2', 'rivals-3', 'rivals-4', 'rivals-5']) {
       const { document } = createWorld(seed, setup, deps);
@@ -75,7 +76,7 @@ describe('createWorld', () => {
 
       expect(found).toHaveLength(deps.config.rivalCount);
       for (const rival of found) {
-        expect(rival.controller).toEqual({ kind: 'rival', disposition: 'steady' });
+        expect(rival.controller).toMatchObject({ kind: 'rival' });
         expect(rival.rosterIds.length).toBeGreaterThanOrEqual(deps.config.rivalRosterMin);
         expect(rival.rosterIds.length).toBeLessThanOrEqual(deps.config.rivalRosterMax);
         expect(rival.wealth).toBeGreaterThanOrEqual(deps.config.rivalStartingWealthMin);
@@ -85,6 +86,38 @@ describe('createWorld', () => {
       }
       const names = guilds(document).map((guild) => guild.name);
       expect(new Set(names).size).toBe(names.length);
+    }
+  });
+
+  // M6-S1 (DL-56): every world has every Disposition, dealt round-robin in key order, with no draw.
+  test('deals the Dispositions to the Rivals round-robin, so that every world has all four', () => {
+    const deps = testDeps();
+    expect(deps.config.rivalCount).toBe(4);
+    for (const seed of ['deal-1', 'deal-2', 'deal-3']) {
+      const { document } = createWorld(seed, setup, deps);
+      const dealt = rivals(document).map((rival) => rival.controller);
+
+      expect(dealt).toEqual(['ambitious', 'miserly', 'reckless', 'steady'].map((disposition) => ({ kind: 'rival', disposition })));
+    }
+
+    const six = testDeps({ rivalCount: 6 });
+    const { document } = createWorld('deal-six', setup, six);
+    withValid(document, six);
+    expect(rivals(document).map((rival) => rival.controller.kind === 'rival' && rival.controller.disposition)).toEqual([
+      ...['ambitious', 'miserly', 'reckless', 'steady', 'ambitious', 'miserly'],
+    ]);
+  });
+
+  test('deals the Dispositions without a draw: a world is what it would be with every Rival steady', () => {
+    const deps = testDeps();
+    const steadyOnly = testDeps({}, { ...deps.content, dispositions: { steady: deps.content.dispositions['steady'] as Disposition } });
+    const dealt = createWorld('no-draw', setup, deps).document.world;
+    const steady = createWorld('no-draw', setup, steadyOnly).document.world;
+
+    expect(dealt.rng).toEqual(steady.rng);
+    expect(Object.values(dealt.heroes)).toEqual(Object.values(steady.heroes));
+    for (const guild of Object.values(steady.guilds)) {
+      expect({ ...dealt.guilds[guild.id], controller: guild.controller }).toEqual(guild);
     }
   });
 

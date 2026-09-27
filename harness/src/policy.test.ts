@@ -266,12 +266,13 @@ describe('automaticPolicy', () => {
       expect(automaticPolicy(document, deps).map((action) => action.kind)).toEqual(['recruit']);
     });
 
-    test('reads its own multiple, not the game’s', () => {
+    test('reads its own multiple, not a Rival’s Disposition’s (M6-S1 moved the game’s into the rows, DL-56)', () => {
       const { document, guild } = building(1_000);
       expect(automaticPolicy(document, deps, { ...defaultPolicyConfig, buildWealthMultiple: 5 })).not.toContainEqual(
         expect.objectContaining({ kind: 'build' }),
       );
-      const game = { ...deps, config: { ...deps.config, buildWealthMultiple: 100 } };
+      const dispositions = Object.fromEntries(Object.entries(deps.content.dispositions).map(([key, row]) => [key, { ...row, buildThreshold: 100 }]));
+      const game = { ...deps, content: { ...deps.content, dispositions } };
       expect(automaticPolicy(document, game)).toContainEqual({ kind: 'build', guildId: guild.id, facility: 'infirmary' });
     });
   });
@@ -396,6 +397,37 @@ describe('automaticPolicy', () => {
       const choices = automaticPolicy(document, deps, { ...defaultPolicyConfig, buyWealthMultiple: 1_000 });
       expect(choices.map((action) => action.kind)).toEqual(['recruit']);
     });
+  });
+
+  test('declines every Transfer Offer made for its Heroes, first, and makes no Transfer itself (M6-S2, the M6 risk table)', () => {
+    const { document, guild, quests } = scene('policy-offers');
+    openBoard(quests);
+    let current = document;
+    const rivals = Object.values(current.world.guilds).filter((row) => row.id !== guild.id);
+    const offered = rivals.slice(0, 2).map((rival, index) => {
+      const heroId = guild.rosterIds[index];
+      if (heroId === undefined) throw new Error('Too few Heroes');
+      (current.world.guilds[rival.id] as Guild).wealth = 10_000;
+      const result = applyAction(current, { kind: 'offerTransfer', guildId: rival.id, heroId }, deps);
+      if (!result.ok) throw new Error(`Refused: ${JSON.stringify(result.rejection)}`);
+      current = result.document;
+      return Object.keys(current.world.offers).sort().at(-1);
+    });
+
+    const actions = automaticPolicy(current, deps, noBuilding);
+
+    expect(actions.slice(0, 2)).toEqual(offered.map((offerId) => ({ kind: 'declineTransfer', guildId: guild.id, offerId })));
+    const transfers = ['transferIn', 'transferOut', 'offerTransfer', 'acceptTransfer'];
+    expect(actions.filter((action) => transfers.includes(action.kind))).toEqual([]);
+    // Applied in order, every one is accepted, and no offer is left.
+    for (const action of actions) {
+      const result = applyAction(current, action, deps);
+      expect(result.ok, action.kind).toBe(true);
+      if (result.ok) current = result.document;
+    }
+    expect(current.world.offers).toEqual({});
+    // Every Hero it had is still on its Roster (a recruit may have joined them).
+    expect(current.world.guilds[guild.id]?.rosterIds).toEqual(expect.arrayContaining(guild.rosterIds));
   });
 
   describe('carries and buys consumables (the M5 close, DL-62)', () => {

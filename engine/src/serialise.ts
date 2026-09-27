@@ -58,7 +58,7 @@ export type Migration = (document: SavedDocument) => SavedDocument;
  * The chain: `migrations[n]` turns a version-n document into version n + 1. A milestone that
  * changes the schema adds its step with the new `schemaVersion` (data-model §6).
  */
-export const migrations: Readonly<Record<number, Migration>> = Object.freeze({ 1: unattachedPoolFields });
+export const migrations: Readonly<Record<number, Migration>> = Object.freeze({ 1: unattachedPoolFields, 2: transferredOnTurnField });
 
 /**
  * Version 1 to 2 (M2-S8, DL-27): every Hero gains `unattachedSince` and `leftPoolOnTurn`. In a
@@ -75,6 +75,27 @@ function unattachedPoolFields(document: SavedDocument): SavedDocument {
       const inPool = hero.guildId === null && hero.diedOnTurn === null && hero.retiredOnTurn === null;
       return [id, { ...hero, unattachedSince: inPool ? hero.enteredTurn : null, leftPoolOnTurn: null }];
     }),
+  );
+  return { ...document, world: { ...world, heroes } };
+}
+
+/**
+ * Version 2 to 3 (DL-60): every Hero gains `transferredOnTurn`, the Turn of their last Transfer, read
+ * from the History a version-2 save carries: the Turn of the last `hero.transferred` entry naming the
+ * Hero in its payload, or `null` for a Hero it names in none (every Hero of a save made before M6-S2).
+ * Changes nothing it does not recognise, leaving a damaged save for the validator to refuse, and
+ * never changes its input.
+ */
+function transferredOnTurnField(document: SavedDocument): SavedDocument {
+  const { world, history } = document;
+  if (!isObject(world) || !isObject(world.heroes)) return document;
+  const lastTransfer = new Map<unknown, unknown>();
+  const entries = isObject(history) && Array.isArray(history.entries) ? (history.entries as unknown[]) : [];
+  for (const entry of entries) {
+    if (isObject(entry) && entry.type === 'hero.transferred' && isObject(entry.payload)) lastTransfer.set(entry.payload.heroId, entry.turn);
+  }
+  const heroes = Object.fromEntries(
+    Object.entries(world.heroes).map(([id, hero]) => [id, isObject(hero) ? { ...hero, transferredOnTurn: lastTransfer.get(id) ?? null } : hero]),
   );
   return { ...document, world: { ...world, heroes } };
 }

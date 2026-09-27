@@ -19,14 +19,25 @@
 // and expended, and the gear moved; and, joined to the difficulty of each Quest the player's Guild
 // took, which no entry records and the play loop reads as it dispatches, the player's Loot by the
 // difficulty of the Quest that won it.
+//
+// M6's counters (the epic's §2, DL-69) add, from the History, the Transfers by direction, by how a
+// Transfer between two Rivals happened and by the selling and the buying Guild, their fees among the
+// Wealth flows; the Transfer Offers by the Guild that made them and the Guild asked; and each
+// Disposition's Quests, Deaths, recruits, folds, Market purchases and Improvement grades. Two things
+// no entry records come from the play loop's sight of each afternoon (`RivalAfternoons`): the
+// difficulty of each Quest a Rival took, and whether a Transfer's seller was in debt. From the World
+// State as each year begins: each Rival's Roster and Wealth, and the player's Guild's place in the
+// Rankings.
 
 import {
   baseStat,
+  dispositionOf,
   encounterKinds,
   facilityKeys,
   isId,
   playerGuild,
   questBands,
+  rankings,
   regardBandCounts,
   regardBandNames,
   relationshipBandCounts,
@@ -47,8 +58,10 @@ import {
   type Hero,
   type ItemSaleCause,
   type QuestBand,
+  type RankingMeasure,
   type RegardBand,
   type RegardMap,
+  type TransferOfferEndCause,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -220,6 +233,23 @@ export interface GameCounters {
    */
   playerQuestsByDifficulty: DifficultyTally[] | null;
   playerQuestsByYear: DifficultyTally[] | null;
+  // M6's (DL-69).
+  /** `hero.transferred` by direction: into the player's Guild, out of it, or between two Rivals. */
+  transfers: Record<TransferDirection, TransferTally>;
+  /** Of those between two Rivals, how each happened, as far as the History and the play loop tell. */
+  rivalTransfers: Record<RivalTransferWay, TransferTally>;
+  /** `hero.transferred` by the selling Guild's side (`sideOf`), then the buying Guild's. */
+  transfersBySide: Record<string, Record<string, TransferTally>>;
+  /** Transfers that took a Hero to a Guild that had sold them before (DL-60's lock at work). */
+  transfersBack: number;
+  /** Transfer Offers by the side of the Guild that made them, then of the Guild asked. */
+  offers: Record<string, Record<string, OfferTally>>;
+  /** Each Disposition's Rivals, by its key: every Disposition content holds, and any other a Rival has. */
+  dispositions: Record<string, DispositionTally>;
+  /** `item.bought` by the buying Guild's side. */
+  marketPurchases: Record<string, MarketTally>;
+  /** `improvementGrades`' Rivals again, by Disposition; `null` when it is. */
+  improvementGradesByDisposition: Record<string, GradeCounts> | null;
 }
 
 // ── M5's shapes (DL-62) ─────────────────────────────────────────────────────────────────────
@@ -227,8 +257,8 @@ export interface GameCounters {
 /** Why Items went to the Market (M5-S4): a sale, or a folding Guild's (DL-51). */
 export const saleCauses = ['sale', 'fold'] as const satisfies readonly ItemSaleCause[];
 
-/** Why gear went back to a Guild without an `unequip` (M5-S2, DL-49). */
-export const gearReturnCauses = ['died', 'retired', 'guild-folded'] as const satisfies readonly GearReturnCause[];
+/** Why gear went back to a Guild without an `unequip` (M5-S2, DL-49), or to the selling Guild with a transferred Hero (M6-S2, DL-57). */
+export const gearReturnCauses = ['died', 'retired', 'guild-folded', 'transferred'] as const satisfies readonly GearReturnCause[];
 
 /** What a consumable did when it was expended (M5-S3, DL-50). */
 export const consumableEffects = ['bonus', 'reroll', 'heal'] as const;
@@ -236,19 +266,23 @@ export const consumableEffects = ['bonus', 'reroll', 'heal'] as const;
 export type ConsumableEffectName = (typeof consumableEffects)[number];
 
 /**
- * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Items bought from the
- * Market (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and Upkeep
- * (`guild.upkeep-paid`'s `amount`); taken from Quests (`quest.resolved`'s `wealthDelta`) and from
- * the Market (`item.sold`'s `proceeds`, by its `cause`). Transfers have no event until M6.
+ * A kind of Guild's Wealth: spent on signing fees (`hero.recruited`'s `fee`), Transfer fees
+ * (`hero.transferred`'s `fee`, for the buying Guild, M6), Items bought from the Market
+ * (`item.bought`'s `cost`), Improvements (`guild.improved`'s `cost`) and Upkeep
+ * (`guild.upkeep-paid`'s `amount`); taken from Quests (`quest.resolved`'s `wealthDelta`), from
+ * Transfer fees (the same `fee`, for the selling Guild, M6) and from the Market (`item.sold`'s
+ * `proceeds`, by its `cause`).
  */
 export interface WealthFlows {
   signing: number;
+  transferFeesPaid: number;
   items: number;
   /** The Items `item.bought` moved, summed over its `quantity`. */
   itemsBought: number;
   improvements: number;
   upkeep: number;
   questRewards: number;
+  transferFeesTaken: number;
   sales: Record<ItemSaleCause, number>;
   /** The Items `item.sold` moved, by cause. */
   itemsSold: Record<ItemSaleCause, number>;
@@ -300,11 +334,13 @@ export const difficultyBandWidth = 10;
 
 export const noWealth = (): WealthFlows => ({
   signing: 0,
+  transferFeesPaid: 0,
   items: 0,
   itemsBought: 0,
   improvements: 0,
   upkeep: 0,
   questRewards: 0,
+  transferFeesTaken: 0,
   sales: { sale: 0, fold: 0 },
   itemsSold: { sale: 0, fold: 0 },
 });
@@ -318,9 +354,113 @@ export const noConsumables = (): ConsumableTally => ({
   byDefinition: {},
 });
 
-export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0 } });
+export const noGear = (): GearTally => ({ equipped: 0, unequipped: 0, returned: { died: 0, retired: 0, 'guild-folded': 0, transferred: 0 } });
 
 export const noDifficulty = (): DifficultyTally => ({ quests: 0, difficulty: 0, strong: 0, loot: 0, unique: 0 });
+
+// ── M6's shapes (DL-69) ─────────────────────────────────────────────────────────────────────
+
+/** The player's Guild's side; every other side is a Rival's Disposition's key. */
+export const playerSide = 'player';
+
+/** Whose a Guild is, for M6's counters: `playerSide` for the player's, else its Disposition's key. */
+export function sideOf(guild: Guild): string {
+  return dispositionOf(guild) ?? playerSide;
+}
+
+/** Which way a Transfer went (the epic's §2): into the player's Guild, out of it, or between two Rivals. */
+export const transferDirections = ['in', 'out', 'rival-to-rival'] as const;
+
+export type TransferDirection = (typeof transferDirections)[number];
+
+/**
+ * How a Transfer between two Rivals happened, as far as the History and the play loop tell (DL-69).
+ * `accepted-offer`: the entry names the offer (`offerId`). `generator`: on a night, when only the
+ * Transfer Generator moves Heroes (DL-59; Rivals choose in the afternoon). The afternoon's are the
+ * buyer's `transferChoice` or the seller's `debtTransfer` (DL-57 item 5), and no entry says which
+ * action made a Transfer: `afternoon-seller-in-debt` when the play loop saw the seller in debt as the
+ * afternoon began, where either could have made it; `afternoon` when it saw it out of debt, where only
+ * the buyer's choice could, and for every afternoon Transfer when the play loop's record is not given.
+ */
+export const rivalTransferWays = ['afternoon', 'afternoon-seller-in-debt', 'generator', 'accepted-offer'] as const;
+
+export type RivalTransferWay = (typeof rivalTransferWays)[number];
+
+/** Transfers, and their fees summed. */
+export interface TransferTally {
+  transfers: number;
+  fees: number;
+}
+
+export const noTransfers = (): TransferTally => ({ transfers: 0, fees: 0 });
+
+/** Why a Transfer Offer ended unanswered (DL-57 item 6). */
+export const offerEndCauses = ['expired', 'hero-left', 'guild-folded'] as const satisfies readonly TransferOfferEndCause[];
+
+/**
+ * Transfer Offers from one side to another: made (`guild.transfer-offered`), with the fees offered
+ * summed; accepted (a `hero.transferred` naming the offer); declined (`guild.transfer-offer-declined`);
+ * and ended unanswered (`guild.transfer-offer-expired`) by its `cause`. What none of these counts was
+ * still standing when the game stopped.
+ */
+export interface OfferTally {
+  made: number;
+  fees: number;
+  accepted: number;
+  declined: number;
+  ended: Record<TransferOfferEndCause, number>;
+}
+
+export const noOffers = (): OfferTally => ({ made: 0, fees: 0, accepted: 0, declined: 0, ended: { expired: 0, 'hero-left': 0, 'guild-folded': 0 } });
+
+/** One Disposition's Rivals: what the balance pass reads its character by (DL-69). */
+export interface DispositionTally {
+  /** Rivals of it the world holds, replacements founded after a fold included, and their years in play. */
+  guilds: number;
+  guildYears: number;
+  /** `quest.taken`; of those, the Quests whose difficulty the play loop recorded, and their difficulty summed. */
+  questsTaken: number;
+  questsWithDifficulty: number;
+  difficulty: number;
+  /** `quest.resolved` by band. */
+  questsResolved: Record<QuestBand, number>;
+  /** `hero.died`, the Guild the Hero was on; `hero.recruited`; `guild.folded` by its reason. */
+  deaths: number;
+  recruits: number;
+  folds: Record<EndingReason, number>;
+}
+
+export const noDisposition = (): DispositionTally => ({
+  guilds: 0,
+  guildYears: 0,
+  questsTaken: 0,
+  questsWithDifficulty: 0,
+  difficulty: 0,
+  questsResolved: { fail: 0, success: 0, strong: 0 },
+  deaths: 0,
+  recruits: 0,
+  folds: { retirement: 0, bankruptcy: 0, 'roster-wiped': 0 },
+});
+
+/** One side's Market purchases: `item.bought` entries, the Items they moved (`quantity`) and their `cost`. */
+export interface MarketTally {
+  purchases: number;
+  items: number;
+  cost: number;
+}
+
+export const noPurchases = (): MarketTally => ({ purchases: 0, items: 0, cost: 0 });
+
+/**
+ * What the play loop saw of the Rivals' afternoons that no entry records (DL-69), for `countGame`:
+ * the difficulty of each Quest a Rival took, by Quest id, from the Quest's row as the afternoon began;
+ * and the History positions of the `hero.transferred` entries of an afternoon whose selling Guild was
+ * in debt (`belowFloorSince` set) as it began, which is when a Rival's `debtTransfer` may sell.
+ */
+export interface RivalAfternoons {
+  questDifficulty: ReadonlyMap<string, number>;
+  sellerInDebt: ReadonlySet<number>;
+}
 
 /** The two outcomes of an Encounter's Check (M4-S2). */
 export const encounterOutcomes = ['success', 'failure'] as const satisfies readonly EncounterOutcome[];
@@ -478,11 +618,21 @@ function noGrades(content: EngineDeps['content']): GradeCounts {
   return Object.fromEntries(facilityKeys.map((facility) => [facility, Array.from({ length: top(facility) + 1 }, () => 0)])) as GradeCounts;
 }
 
+/** A grade count for each Disposition content holds, each as `noGrades`. */
+function noGradesByDisposition(content: EngineDeps['content']): Record<string, GradeCounts> {
+  return Object.fromEntries(Object.keys(content.dispositions).map((key) => [key, noGrades(content)]));
+}
+
 /**
- * The Guilds founded before year `countedYear`, by controller, counted by the highest grade each
- * facility reached before it; `null` when the game stopped before it (DL-38 item 15).
+ * The Guilds founded before year `countedYear`, by controller and, for the Rivals, by Disposition too
+ * (M6, DL-69), counted by the highest grade each facility reached before it; `null` when the game
+ * stopped before it (DL-38 item 15).
  */
-function improvementGrades(document: WorldDocument, deps: EngineDeps, lastTurn: number): Record<ControllerKind, GradeCounts> | null {
+function improvementGrades(
+  document: WorldDocument,
+  deps: EngineDeps,
+  lastTurn: number,
+): { byController: Record<ControllerKind, GradeCounts>; byDisposition: Record<string, GradeCounts> } | null {
   const cutoff = countedYear * deps.config.turnsPerYear;
   if (lastTurn < cutoff) return null;
   const highest = new Map<string, number>();
@@ -497,17 +647,21 @@ function improvementGrades(document: WorldDocument, deps: EngineDeps, lastTurn: 
   });
 
   const grades = { player: noGrades(deps.content), rival: noGrades(deps.content) };
+  const byDisposition = noGradesByDisposition(deps.content);
   const founded = new Set<GuildId>();
   entriesOf(document, 'guild.founded').forEach((entry, index) => {
     if (entry.turn >= cutoff) return;
     const guild = guildOf(document, entry, `${index}`);
     if (founded.has(guild.id)) return;
     founded.add(guild.id);
+    const disposition = dispositionOf(guild);
     for (const facility of facilityKeys) {
-      addAt(grades[guild.controller.kind][facility], highest.get(`${guild.id} ${facility}`) ?? 0, 1);
+      const grade = highest.get(`${guild.id} ${facility}`) ?? 0;
+      addAt(grades[guild.controller.kind][facility], grade, 1);
+      if (disposition !== null) addAt((byDisposition[disposition] ??= noGrades(deps.content))[facility], grade, 1);
     }
   });
-  return grades;
+  return { byController: grades, byDisposition };
 }
 
 // ── M4's counters from the History (DL-55) ──────────────────────────────────────────────────
@@ -657,6 +811,12 @@ function wealthCounters(document: WorldDocument): Record<ControllerKind, WealthF
     into.sales[cause] += numberField(entry, 'proceeds', what);
     into.itemsSold[cause] += numberField(entry, 'quantity', what);
   });
+  // A Transfer names two Guilds: the fee is spent by the one the Hero joins and taken by the one they leave (M6).
+  entriesOf(document, 'hero.transferred').forEach((entry, index) => {
+    const { from, to, fee } = transferOf(document, entry, `hero.transferred entry ${index}`);
+    flows[to.controller.kind].transferFeesPaid += fee;
+    flows[from.controller.kind].transferFeesTaken += fee;
+  });
   return flows;
 }
 
@@ -779,6 +939,183 @@ function playerDifficulty(
   return { byBand, byYear };
 }
 
+// ── M6's counters from the History (DL-69) ──────────────────────────────────────────────────
+
+/**
+ * The Guild whose id is an entry's payload `field`.
+ *
+ * @throws Error when it names no Guild the world holds
+ */
+function guildNamed(document: WorldDocument, entry: Entry, field: string, what: string): Guild {
+  const id = payloadField(entry, field);
+  const guild = isId('guilds', id) && Object.hasOwn(document.world.guilds, id) ? document.world.guilds[id as GuildId] : undefined;
+  if (guild === undefined) throw new Error(`${what} has no ${field} naming a Guild in the world`);
+  return guild;
+}
+
+/** A `hero.transferred` entry's two Guilds, fee, Hero and offer. */
+function transferOf(document: WorldDocument, entry: Entry, what: string): { from: Guild; to: Guild; fee: number; heroId: string; offerId: unknown } {
+  const heroId = payloadField(entry, 'heroId');
+  if (typeof heroId !== 'string') throw new Error(`${what} has no heroId`);
+  return {
+    from: guildNamed(document, entry, 'fromGuildId', what),
+    to: guildNamed(document, entry, 'toGuildId', what),
+    fee: numberField(entry, 'fee', what),
+    heroId,
+    offerId: payloadField(entry, 'offerId') ?? null,
+  };
+}
+
+function addTransfer(tally: TransferTally, fee: number): void {
+  tally.transfers += 1;
+  tally.fees += fee;
+}
+
+/**
+ * `hero.transferred` by direction, by how a Transfer between two Rivals happened (`rivalTransferWays`),
+ * by the selling and the buying side, and the Transfers that took a Hero to a Guild that had sold them
+ * before.
+ */
+function transferCounters(
+  document: WorldDocument,
+  afternoons: RivalAfternoons | undefined,
+): Pick<GameCounters, 'transfers' | 'rivalTransfers' | 'transfersBySide' | 'transfersBack'> {
+  const transfers = { in: noTransfers(), out: noTransfers(), 'rival-to-rival': noTransfers() };
+  const rivalTransfers = Object.fromEntries(rivalTransferWays.map((way) => [way, noTransfers()])) as Record<RivalTransferWay, TransferTally>;
+  const transfersBySide: Record<string, Record<string, TransferTally>> = {};
+  let transfersBack = 0;
+  const soldBy = new Map<string, Set<GuildId>>();
+  positionedEntriesOf(document, 'hero.transferred').forEach(({ entry, position }, index) => {
+    const { from, to, fee, heroId, offerId } = transferOf(document, entry, `hero.transferred entry ${index}`);
+    const direction: TransferDirection =
+      to.controller.kind === 'player' ? 'in' : from.controller.kind === 'player' ? 'out' : 'rival-to-rival';
+    addTransfer(transfers[direction], fee);
+    if (direction === 'rival-to-rival') {
+      const way: RivalTransferWay =
+        offerId !== null
+          ? 'accepted-offer'
+          : timeOfDay(entry.turn) === 'night'
+            ? 'generator'
+            : afternoons?.sellerInDebt.has(position) === true
+              ? 'afternoon-seller-in-debt'
+              : 'afternoon';
+      addTransfer(rivalTransfers[way], fee);
+    }
+    addTransfer(((transfersBySide[sideOf(from)] ??= {})[sideOf(to)] ??= noTransfers()), fee);
+    const sellers = soldBy.get(heroId) ?? new Set<GuildId>();
+    if (sellers.has(to.id)) transfersBack += 1;
+    sellers.add(from.id);
+    soldBy.set(heroId, sellers);
+  });
+  return { transfers, rivalTransfers, transfersBySide, transfersBack };
+}
+
+function isOfferEndCause(value: unknown): value is TransferOfferEndCause {
+  return (offerEndCauses as readonly unknown[]).includes(value);
+}
+
+/**
+ * Transfer Offers by the side of the Guild that made them (the terms' `toGuildId`, which would pay)
+ * and of the Guild asked (`fromGuildId`, whose Roster the Hero is on), from their four events.
+ */
+function offerCounters(document: WorldDocument): Record<string, Record<string, OfferTally>> {
+  const offers: Record<string, Record<string, OfferTally>> = {};
+  const tallyOf = (entry: Entry, what: string): OfferTally => {
+    const maker = guildNamed(document, entry, 'toGuildId', what);
+    const asked = guildNamed(document, entry, 'fromGuildId', what);
+    return ((offers[sideOf(maker)] ??= {})[sideOf(asked)] ??= noOffers());
+  };
+  entriesOf(document, 'guild.transfer-offered').forEach((entry, index) => {
+    const what = `guild.transfer-offered entry ${index}`;
+    const tally = tallyOf(entry, what);
+    tally.made += 1;
+    tally.fees += numberField(entry, 'fee', what);
+  });
+  entriesOf(document, 'guild.transfer-offer-declined').forEach((entry, index) => {
+    tallyOf(entry, `guild.transfer-offer-declined entry ${index}`).declined += 1;
+  });
+  entriesOf(document, 'guild.transfer-offer-expired').forEach((entry, index) => {
+    const what = `guild.transfer-offer-expired entry ${index}`;
+    const cause = payloadField(entry, 'cause');
+    if (!isOfferEndCause(cause)) throw new Error(`${what} has no cause`);
+    tallyOf(entry, what).ended[cause] += 1;
+  });
+  entriesOf(document, 'hero.transferred').forEach((entry, index) => {
+    const what = `hero.transferred entry ${index}`;
+    if ((payloadField(entry, 'offerId') ?? null) !== null) tallyOf(entry, what).accepted += 1;
+  });
+  return offers;
+}
+
+/**
+ * Each Disposition's Rivals: how many the world holds and their years in play, from the World State;
+ * the Quests they took (with the difficulty `afternoons` recorded) and resolved, their Heroes' Deaths,
+ * their recruits and their folds, from the History. Every Disposition content holds is listed.
+ */
+function dispositionCounters(
+  document: WorldDocument,
+  deps: EngineDeps,
+  lastTurn: number,
+  afternoons: RivalAfternoons | undefined,
+): Record<string, DispositionTally> {
+  const tallies: Record<string, DispositionTally> = Object.fromEntries(Object.keys(deps.content.dispositions).map((key) => [key, noDisposition()]));
+  const tallyOf = (guild: Guild): DispositionTally | undefined => {
+    const disposition = dispositionOf(guild);
+    return disposition === null ? undefined : (tallies[disposition] ??= noDisposition());
+  };
+  for (const guild of Object.values(document.world.guilds)) {
+    const tally = tallyOf(guild);
+    if (tally === undefined) continue;
+    tally.guilds += 1;
+    tally.guildYears += Math.max(0, inPlayUntil(guild, lastTurn) - guild.foundedTurn) / deps.config.turnsPerYear;
+  }
+  const each = (type: EventType, apply: (tally: DispositionTally, entry: Entry, what: string) => void): void => {
+    entriesOf(document, type).forEach((entry, index) => {
+      const tally = tallyOf(guildOf(document, entry, `${index}`));
+      if (tally !== undefined) apply(tally, entry, `${type} entry ${index}`);
+    });
+  };
+  each('quest.taken', (tally, entry, what) => {
+    tally.questsTaken += 1;
+    const questId = payloadField(entry, 'questId');
+    if (typeof questId !== 'string') throw new Error(`${what} has no questId`);
+    const difficulty = afternoons?.questDifficulty.get(questId);
+    if (difficulty === undefined) return;
+    tally.questsWithDifficulty += 1;
+    tally.difficulty += difficulty;
+  });
+  each('quest.resolved', (tally, entry, what) => {
+    const band = payloadField(entry, 'band');
+    if (!isBand(band)) throw new Error(`${what} has no band`);
+    tally.questsResolved[band] += 1;
+  });
+  each('hero.died', (tally) => {
+    tally.deaths += 1;
+  });
+  each('hero.recruited', (tally) => {
+    tally.recruits += 1;
+  });
+  each('guild.folded', (tally, entry, what) => {
+    const reason = payloadField(entry, 'reason');
+    if (!isReason(reason)) throw new Error(`${what} has no reason`);
+    tally.folds[reason] += 1;
+  });
+  return tallies;
+}
+
+/** `item.bought` by the buying Guild's side: the purchases, the Items they moved and their cost. */
+function marketPurchaseCounters(document: WorldDocument): Record<string, MarketTally> {
+  const purchases: Record<string, MarketTally> = {};
+  entriesOf(document, 'item.bought').forEach((entry, index) => {
+    const what = `item.bought entry ${index}`;
+    const tally = (purchases[sideOf(guildOf(document, entry, `${index}`))] ??= noPurchases());
+    tally.purchases += 1;
+    tally.items += numberField(entry, 'quantity', what);
+    tally.cost += numberField(entry, 'cost', what);
+  });
+  return purchases;
+}
+
 /**
  * Every counter of a harness game, read from `document`'s History through `byType` and joined to
  * the World State for the Guild each entry is about.
@@ -788,12 +1125,16 @@ function playerDifficulty(
  * a `quest.encounter` without a kind or outcome, a `hero.injured` without a type, and the like.
  * `playerQuestDifficulty`, the difficulty of each Quest the player's Guild took by Quest id, which
  * no entry records (the play loop keeps it), gives the player's Quests by difficulty (M5, DL-62);
- * without it those two counters are `null`.
+ * without it those two counters are `null`. `afternoons`, the play loop's sight of the Rivals'
+ * afternoons (M6, DL-69), gives each Disposition's mean difficulty taken and parts the afternoon's
+ * Transfers between two Rivals by the seller's debt; without it no difficulty is counted and every
+ * such Transfer counts as `afternoon`.
  */
 export function countGame(
   document: WorldDocument,
   deps: EngineDeps,
   playerQuestDifficulty?: ReadonlyMap<string, number>,
+  afternoons?: RivalAfternoons,
 ): GameCounters {
   const { turnsPerYear } = deps.config;
   const questsResolved: GameCounters['questsResolved'] = {
@@ -837,6 +1178,7 @@ export function countGame(
 
   const { levelsGained, declines, growthAgainstDecline } = progressionCounters(document, turnsPerYear, lastTurn);
   const difficulty = playerQuestDifficulty === undefined ? undefined : playerDifficulty(document, turnsPerYear, playerQuestDifficulty);
+  const grades = improvementGrades(document, deps, lastTurn);
   return {
     questsTaken: questsTakenByController(document),
     questsResolved,
@@ -852,7 +1194,7 @@ export function countGame(
     declines: padTo(declines, years),
     retirementAges,
     growthAgainstDecline,
-    improvementGrades: improvementGrades(document, deps, lastTurn),
+    improvementGrades: grades?.byController ?? null,
     encounters: encounterCounters(document),
     synergies: synergyCounters(document),
     injuriesByType: injuryCounters(document),
@@ -863,6 +1205,11 @@ export function countGame(
     gear: gearCounters(document),
     playerQuestsByDifficulty: difficulty?.byBand ?? null,
     playerQuestsByYear: difficulty?.byYear ?? null,
+    ...transferCounters(document, afternoons),
+    offers: offerCounters(document),
+    dispositions: dispositionCounters(document, deps, lastTurn, afternoons),
+    marketPurchases: marketPurchaseCounters(document),
+    improvementGradesByDisposition: grades?.byDisposition ?? null,
   };
 }
 
@@ -902,6 +1249,23 @@ export interface RegardSnapshot {
   guildmasterForHeroes: Record<RegardBand, number>;
 }
 
+/** A Rival in play as a year begins (M6, DL-69): its Disposition, its Roster's size and its Wealth. */
+export interface RivalAtYearStart {
+  disposition: string;
+  heroes: number;
+  wealth: number;
+}
+
+/**
+ * The player's Guild's place in the Rankings as a year begins (M6, DL-69), by the engine's `rankings`:
+ * 1 the first, by Fame and by Wealth, among `guilds` Guilds in play.
+ */
+export interface PlayerRanking {
+  fame: number;
+  wealth: number;
+  guilds: number;
+}
+
 /** What a game's World State showed while it was played: what its History cannot give. */
 export interface GameObservations {
   fameGate: Record<ControllerKind, FameGate>;
@@ -909,13 +1273,31 @@ export interface GameObservations {
   rosters: Record<ControllerKind, RosterCensus>[];
   /** Taken with the census after `countedYear` years; `null` until then, and for a game that stopped first. */
   regardAtCountedYear: RegardSnapshot | null;
+  /** Each Rival in play, in Guild order, taken with the census: index as `rosters` (M6, DL-69). */
+  rivals: RivalAtYearStart[][];
+  /** The player's Guild's place in the Rankings, taken with the census; `null` for a world without it. */
+  rankings: (PlayerRanking | null)[];
 }
 
 const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
 const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function emptyObservations(): GameObservations {
-  return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [], regardAtCountedYear: null };
+  return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [], regardAtCountedYear: null, rivals: [], rankings: [] };
+}
+
+/** The player's Guild's place in `world`'s Rankings by Fame and by Wealth (`rankings`); `null` when it is in neither. */
+export function playerRanking(world: World): PlayerRanking | null {
+  const guild = playerGuild(world);
+  if (guild === undefined) return null;
+  const placeBy = (by: RankingMeasure): { rank: number | undefined; guilds: number } => {
+    const ranked = rankings(world, by);
+    return { rank: ranked.find((ranking) => ranking.guildId === guild.id)?.rank, guilds: ranked.length };
+  };
+  const fame = placeBy('fame');
+  const wealth = placeBy('wealth');
+  if (fame.rank === undefined || wealth.rank === undefined) return null;
+  return { fame: fame.rank, wealth: wealth.rank, guilds: fame.guilds };
 }
 
 /** Every Regard band at 0. */
@@ -956,15 +1338,19 @@ function hasStatAtPotential(hero: Hero, content: EngineDeps['content']): boolean
 
 /**
  * On the first Turn of a year not yet counted, a census of every Roster of a Guild in play, added
- * as the next entry of `observations.rosters`, and after `countedYear` years the player's Guild's
- * Regard (`regardSnapshot`); nothing on any other Turn, so it may be asked on every Turn and once
- * more when a game stops.
+ * as the next entry of `observations.rosters`, with each Rival's Disposition, Roster size and Wealth
+ * (`rivals`) and the player's Guild's place in the Rankings (`rankings`, M6); and after `countedYear`
+ * years the player's Guild's Regard (`regardSnapshot`); nothing on any other Turn, so it may be asked
+ * on every Turn and once more when a game stops.
  */
 export function takeCensus(observations: GameObservations, world: World, deps: EngineDeps): void {
   if (world.turn !== observations.rosters.length * deps.config.turnsPerYear) return;
   if (observations.rosters.length === countedYear) observations.regardAtCountedYear = regardSnapshot(world, deps.config);
   const census = { player: noCensus(), rival: noCensus() };
+  const rivals: RivalAtYearStart[] = [];
   for (const guild of guildsInPlay(world)) {
+    const disposition = dispositionOf(guild);
+    if (disposition !== null) rivals.push({ disposition, heroes: guild.rosterIds.length, wealth: guild.wealth });
     const counts = census[guild.controller.kind];
     counts.guilds += 1;
     counts.wealth += guild.wealth;
@@ -977,6 +1363,8 @@ export function takeCensus(observations: GameObservations, world: World, deps: E
     }
   }
   observations.rosters.push(census);
+  observations.rivals.push(rivals);
+  observations.rankings.push(playerRanking(world));
 }
 
 /**

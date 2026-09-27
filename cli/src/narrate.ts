@@ -22,6 +22,7 @@ import {
   type QuestBand,
   type RegardBand,
   type StopReason,
+  type TransferOfferEndCause,
   type WorldDocument,
 } from '@heroesim/engine';
 import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
@@ -74,6 +75,14 @@ const gearReturnWords: Readonly<Record<GearReturnCause, string>> = {
   died: ', who died',
   retired: ', who retired',
   'guild-folded': ' as the Guild folded',
+  transferred: ', who was transferred',
+};
+
+/** What became of a Transfer Offer that went unanswered (M6-S2), after the offer. */
+const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
+  expired: 'expired unanswered',
+  'hero-left': 'lapsed: the Hero left that Roster',
+  'guild-folded': 'lapsed as a Guild folded',
 };
 
 /** An Item of gear that moved, by content's name and the id a command takes: `Arming sword (stack-000004)`. */
@@ -252,6 +261,27 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
         ? `${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
         : `${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
     }
+    case 'hero.transferred': {
+      // M6-S2: who moved, from whom to whom, for how much, and the offer accepted, if one was.
+      const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
+      const accepted = offerId === null ? '' : `, accepting ${offerId}`;
+      return `${called(event, toGuildId)} took ${hero(event, heroId)} from ${called(event, fromGuildId)} for ${fee} Wealth${accepted}.`;
+    }
+    case 'guild.transfer-offered': {
+      const { offerId, fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
+      return (
+        `${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${fee} Wealth for ${hero(event, heroId)} ` +
+        `(${offerId}), until ${night(expiresOnTurn)}.`
+      );
+    }
+    case 'guild.transfer-offer-declined': {
+      const { offerId, fromGuildId, toGuildId, heroId } = event.payload;
+      return `${called(event, fromGuildId)} declined ${called(event, toGuildId)}'s offer for ${hero(event, heroId)} (${offerId}).`;
+    }
+    case 'guild.transfer-offer-expired': {
+      const { offerId, toGuildId, heroId, cause } = event.payload;
+      return `${called(event, toGuildId)}'s offer for ${hero(event, heroId)} (${offerId}) ${offerEndWords[cause]}.`;
+    }
     case 'item.expended': {
       // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).
       const { payload } = event;
@@ -290,6 +320,17 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
     case 'decision-needed': {
       const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
       return `Stopped: a decision is needed: ${guild} has no Party out, and could send one on ${listed(stop.questIds)} (show board).`;
+    }
+    case 'transfer-offer': {
+      // M6-S2: each offer that arrived, as `show offers` lists it, and the two commands that answer it.
+      const offers = stop.offerIds.map((offerId) => {
+        const offer = rowIn(world.offers, offerId);
+        if (offer === undefined) return offerId;
+        const bidder = rowIn(world.guilds, offer.toGuildId)?.name ?? offer.toGuildId;
+        const wanted = rowIn(world.heroes, offer.heroId)?.name ?? offer.heroId;
+        return `${bidder} offers ${offer.fee} Wealth for ${wanted} (${offer.heroId}) until ${night(offer.expiresOnTurn)} (${offerId})`;
+      });
+      return `Stopped: a Transfer Offer: ${listed(offers)}. Answer with accept --offer <id> or decline --offer <id> (show offers).`;
     }
     case 'max-turns':
       return `Stopped: played the most Turns allowed, ${maxTurns}.`;

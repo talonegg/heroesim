@@ -134,7 +134,9 @@ describe('patronState', () => {
 
   test('runs each night, after the Guild State Engine and before the pool refresh', () => {
     const names = phases.filter((phase) => phase.timeOfDay === 'night').map((phase) => phase.name);
-    expect(names.indexOf('patronState')).toBe(names.indexOf('guildState') + 1);
-    expect(names.indexOf('poolRefresh')).toBe(names.indexOf('patronState') + 1);
+    // After and before, not next to: M6-S3's Transfer Generator runs between the Guild State Engine and
+    // this phase (DL-59); pipeline.test.ts holds the whole order to a literal.
+    expect(names.indexOf('patronState')).toBeGreaterThan(names.indexOf('guildState'));
+    expect(names.indexOf('poolRefresh')).toBeGreaterThan(names.indexOf('patronState'));
   });
 });

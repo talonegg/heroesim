@@ -62,13 +62,45 @@ export function signingFee(
   deps: Pick<EngineDeps, 'config' | 'content'>,
   buyer?: Pick<Guildmaster, 'stats'>,
 ): number {
+  return heroFee(hero, 1, deps, buyer);
+}
+
+/**
+ * What `buyer`'s Guild pays another Guild to take `hero` from its Roster (M6-S2, R28, INPUTS 7.6,
+ * DL-57): the Hero's signing fee before Negotiation times `transferFeeFactor`, times the buying
+ * Guildmaster's Negotiation exactly as `signingFee` applies it (DL-43), rounded down once, at the
+ * end. The one core both fees share (`heroFee`), so a Transfer is priced by the rule a signing is.
+ *
+ * `transferIn`, `transferOut` and a Rival's Transfer Offer pass the buying Guild's Guildmaster; with
+ * no `buyer` it is the list price, which no Guild pays.
+ */
+export function transferFee(
+  hero: Pick<Hero, 'level' | 'stats'>,
+  buyer: Pick<Guildmaster, 'stats'> | undefined,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+): number {
+  return heroFee(hero, deps.config.transferFeeFactor, deps, buyer);
+}
+
+/**
+ * The one fee core (DL-43, DL-57): `signingFeeBase`, plus `signingFeePerLevel` for each Level, plus
+ * the sum of the Hero's base Stats over `signingFeeStatDivisor`, times `factor` (1 for a signing,
+ * `transferFeeFactor` for a Transfer), times the buyer's Negotiation (1 − `negotiation`), rounded
+ * down once, at the end.
+ */
+function heroFee(
+  hero: Pick<Hero, 'level' | 'stats'>,
+  factor: number,
+  deps: Pick<EngineDeps, 'config' | 'content'>,
+  buyer: Pick<Guildmaster, 'stats'> | undefined,
+): number {
   const { config, content } = deps;
   let statSum = 0;
   for (const stat of Object.values(content.stats)) {
     if (stat.owner === 'hero') statSum += baseStat(hero.stats, stat);
   }
   const list = config.signingFeeBase + config.signingFeePerLevel * hero.level + statSum / config.signingFeeStatDivisor;
-  return Math.floor(list * feeFactor(buyer, content, config));
+  return Math.floor(list * factor * feeFactor(buyer, content, config));
 }
 
 /** Why an Unattached Hero refuses to sign for a Guild: its Fame is short of what their Level asks. */
@@ -297,8 +329,8 @@ export function healFactor(guild: Pick<Guild, 'hall'>, config: Pick<GameConfig, 
 /**
  * The next Improvement of `facility` (`nextImprovement`) when `guild`'s Wealth is above
  * `wealthMultiple` times its cost and covers it; `null` otherwise, and at the top grade. How a
- * controller decides to build: `steady` with the game's `buildWealthMultiple`, the harness's policy
- * with its own (M3-S6, DL-38).
+ * controller decides to build: a Rival with its Disposition's `buildThreshold` (M6-S1, DL-56), the
+ * harness's policy with its own multiple (M3-S6, DL-38).
  */
 export function affordableImprovement(
   guild: Pick<Guild, 'hall' | 'wealth'>,

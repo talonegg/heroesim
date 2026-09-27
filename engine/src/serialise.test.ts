@@ -13,8 +13,12 @@ import {
   type SavedDocument,
   type WorldDocument,
 } from './index.js';
+import { transferIn, transferOut } from './actions/transfer.js';
+import { advance } from './advance.js';
 import { createWorld } from './create.js';
-import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
+import type { HeroId } from './document.js';
+import { playerGuild } from './selectors.js';
+import { buildDocument, testContent, testDeps, withDispositions, withValid } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -208,9 +212,9 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds one step, from version 1, added by M2-S8 with schemaVersion 2', () => {
-    expect(Object.keys(migrations)).toEqual(['1']);
-    expect(defaultConfig.schemaVersion).toBe(2);
+  test('holds two steps, from version 1 (M2-S8) and from version 2 (DL-60), with schemaVersion 3', () => {
+    expect(Object.keys(migrations)).toEqual(['1', '2']);
+    expect(defaultConfig.schemaVersion).toBe(3);
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -250,13 +254,14 @@ describe('the migration chain', () => {
 // ── Version 1 to 2: the pool's Hero fields (M2-S8, DL-27) ─────────────────────────────────────
 
 describe('a version-1 save', () => {
-  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields. */
+  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields or version 3's. */
   function asVersion1(document: WorldDocument): string {
     const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
     parsed.meta.version = 1;
     for (const hero of Object.values(parsed.world.heroes)) {
       Reflect.deleteProperty(hero, 'unattachedSince');
       Reflect.deleteProperty(hero, 'leftPoolOnTurn');
+      Reflect.deleteProperty(hero, 'transferredOnTurn');
     }
     return JSON.stringify(parsed);
   }
@@ -273,7 +278,7 @@ describe('a version-1 save', () => {
 
     // Pool Heroes entered at enteredTurn, every other Hero has neither field, none has left.
     expect(result).toEqual(document);
-    expect(result.meta.version).toBe(2);
+    expect(result.meta.version).toBe(3);
   });
 
   test('the step leaves its input alone, and a save it cannot read to the validator', () => {
@@ -287,6 +292,95 @@ describe('a version-1 save', () => {
     const damaged = { ...saved, world: { heroes: 'none' } };
     expect(step(damaged)).toBe(damaged);
     expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
+  });
+});
+
+// ── Version 2 to 3: the Transfer lock's Hero field (DL-60) ────────────────────────────────────
+
+describe('a version-2 save', () => {
+  /** `document` as a version-2 save wrote it: `meta.version` 2, and no Hero with `transferredOnTurn`. */
+  function asVersion2(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
+    parsed.meta.version = 2;
+    for (const hero of Object.values(parsed.world.heroes)) Reflect.deleteProperty(hero, 'transferredOnTurn');
+    return JSON.stringify(parsed);
+  }
+
+  /**
+   * A world in which the player took a Rival's first Hero on Turn 0 and sent them back on Turn 4, and
+   * took its second on Turn 4: a History with two Transfers of one Hero and one of another.
+   */
+  function withTransfers(): WorldDocument {
+    const dealing = testDeps({ transferLockDays: 0, marketSize: 0 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }));
+    let document = createWorld('version-2', setup, dealing).document;
+    const player = playerGuild(document.world);
+    if (player === undefined) throw new Error("No player's Guild");
+    const playerId = player.id;
+    player.wealth = 100_000;
+    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== playerId);
+    if (rival === undefined) throw new Error('No Rival');
+    const [first] = rival.rosterIds as [HeroId];
+    const take = (heroId: HeroId) => {
+      const result = transferIn(document, { guildId: playerId, heroId }, dealing);
+      if (!result.ok) throw new Error(JSON.stringify(result.rejection));
+      document = result.document;
+    };
+    take(first);
+    while (document.world.turn < 4) document = advance(document, dealing).document;
+    const back = transferOut(document, { guildId: playerId, heroId: first, toGuildId: rival.id }, dealing);
+    if (!back.ok) throw new Error(JSON.stringify(back.rejection));
+    document = back.document;
+    // A second Hero of the Rival's, one at home (the Rivals have been sending Parties out).
+    const second = document.world.guilds[rival.id]?.rosterIds.find((heroId) => heroId !== first && document.world.heroes[heroId]?.partyId === null);
+    if (second === undefined) throw new Error('No Hero at home');
+    take(second);
+    return withValid(document, dealing);
+  }
+
+  test.each([
+    ['a created world', () => createWorld('version-2', setup, testDeps()).document],
+    ['the fixture', built],
+  ])('%s, with no Transfer in its History, loads as the document the engine writes now', (_, make) => {
+    const document = make();
+
+    const result = loaded(deserialise(asVersion2(document), deps));
+
+    expect(result).toEqual(document);
+    expect(Object.values(result.world.heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
+    expect(result.meta.version).toBe(3);
+  });
+
+  test("a Hero's transferredOnTurn is the Turn of the last hero.transferred naming them, read from the History", () => {
+    const document = withTransfers();
+    // What the engine wrote as the Transfers were made: each Hero's field is the Turn of their last.
+    const turns = new Map<string, number[]>();
+    for (const entry of document.history.entries) {
+      if (entry.type !== 'hero.transferred') continue;
+      const { heroId } = entry.payload as { heroId: string };
+      turns.set(heroId, [...(turns.get(heroId) ?? []), entry.turn]);
+    }
+    for (const hero of Object.values(document.world.heroes)) expect(hero.transferredOnTurn, hero.id).toBe(turns.get(hero.id)?.at(-1) ?? null);
+    expect([...turns.values()]).toContainEqual([0, 4]);
+
+    const result = loaded(deserialise(asVersion2(document), { ...deps, content: withDispositions({}) }));
+
+    expect(result).toEqual(document);
+  });
+
+  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
+    const saved = JSON.parse(asVersion2(withTransfers())) as SavedDocument;
+    const before = structuredClone(saved);
+    const step = migrations[2] as Migration;
+
+    step(saved);
+    expect(saved).toEqual(before);
+
+    const damaged = { ...saved, world: { heroes: 'none' } };
+    expect(step(damaged)).toBe(damaged);
+    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
+    const noHistory = { ...saved, history: 'none' };
+    const { heroes } = (step(noHistory) as unknown as { world: { heroes: Record<string, Hero> } }).world;
+    expect(Object.values(heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
   });
 });
 

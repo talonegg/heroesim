@@ -57,9 +57,12 @@ export const contentSetId = 'core';
  * M5-S1, which added the Item definitions (DL-48); 10 from M5-S5, which added the Loot tables and
  * the Quest templates' tables (DL-52); 11 from merging those with the main line's 8, taken past
  * every number a line in flight has used for other content (DL-61); 12 from the M5 close's Loot,
- * rarer unique Items and two templates without a table (DL-62).
+ * rarer unique Items and two templates without a table (DL-62), and, on a parallel branch, from
+ * M6-S1, which added the four named Dispositions and their weights (DL-56), and M6-S4, which gave
+ * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63);
+ * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69).
  */
-export const contentVersion = 12;
+export const contentVersion = 14;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -181,6 +184,11 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     ),
     dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
       name: row.string('name'),
+      questRiskAppetite: row.number('questRiskAppetite'),
+      recruitThreshold: row.number('recruitThreshold'),
+      buildThreshold: row.number('buildThreshold'),
+      gearThreshold: row.number('gearThreshold'),
+      transferAppetite: row.number('transferAppetite'),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),

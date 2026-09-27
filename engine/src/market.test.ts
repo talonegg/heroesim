@@ -16,7 +16,8 @@ import { nightOf } from './time.js';
 import { testContent, testDeps, withValid } from './world.test-support.js';
 
 // M5-S4: the Market Engine's prices, what the Market lists, a folding Guild's Items (pre-M0 review
-// D6), and the Rivals, who ignore the Market in M5 (DL-51). Config values relied on are pinned.
+// D6), and the Rivals, who ignored the Market in M5 (DL-51) and buy gear there from M6-S4 (DL-58).
+// Config values relied on are pinned.
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 const pinned = { sellRatio: 0.5, lootOnlyPrice: 600, marketSize: 10, marketStackMin: 1, marketStackMax: 5 };
@@ -186,41 +187,40 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
   });
 });
 
-describe('the Rivals in M5', () => {
-  test("Rivals' Wealth is unaffected by the Market: steady neither buys nor sells, whatever the Market holds", () => {
+// M5-S4's test that the Rivals ignore the Market — "Rivals' Wealth is unaffected by the Market: steady
+// neither buys nor sells, whatever the Market holds" (DL-51 item 8, DL-54 item 3) — is retired by
+// M6-S4, whose Rivals buy gear there, armour first, by their Disposition's `gearThreshold` (DL-58).
+// What stands of it: a Rival buys only what the Market has, sells nothing but by a fold, and with no
+// Market buys nothing. controllers/rival.test.ts has the rule; controllers/rivals-build-and-buy.test.ts
+// the twenty years.
+describe('the Rivals and the Market (M6-S4)', () => {
+  test('Rivals buy gear from the Market and sell none; with an empty Market they buy nothing', () => {
     const withMarket = testDeps({ ...pinned, rivalCount: 4 });
     const noMarket = testDeps({ ...pinned, rivalCount: 4, marketSize: 0 });
-    const play = (deps: EngineDeps, shop: boolean): WorldDocument => {
-      let { document } = createWorld('rivals-and-the-market', setup, deps);
-      (playerGuild(document.world) as Guild).wealth = 100_000;
-      if (shop) {
-        // The player buys from the Market on Day 0, and the Market restocks every morning.
-        const [listing] = marketStock(document.world, deps);
-        if (listing === undefined) throw new Error('An empty Market');
-        const guildId = (playerGuild(document.world) as Guild).id;
-        const bought = buy(document, { guildId, definitionKey: listing.definition.key, quantity: listing.quantity }, deps);
-        if (!bought.ok) throw new Error(`Refused: ${bought.rejection.reason}`);
-        document = bought.document;
-      }
+    const play = (deps: EngineDeps): WorldDocument => {
+      const { document } = createWorld('rivals-and-the-market', setup, deps);
+      (playerGuild(document.world) as Guild).wealth = 100_000; // the player buys nothing
       return playTo(withValid(document, deps), nightOf(20), deps).document;
     };
+    /** The History's `type` entries whose Guild is a Rival. */
+    const tradesBy = <Type extends 'item.bought' | 'item.sold'>(document: WorldDocument, type: Type) =>
+      document.history.entries.filter(
+        (entry): entry is Extract<EngineEvent, { type: Type }> =>
+          entry.type === type && document.world.guilds[(entry.payload as { guildId: GuildId }).guildId]?.controller.kind === 'rival',
+      );
 
-    const shopped = play(withMarket, true);
-    const bare = play(noMarket, false);
-
-    const rivals = (document: WorldDocument) =>
-      Object.values(document.world.guilds)
-        .filter((guild) => guild.controller.kind === 'rival')
-        .map((guild) => [guild.id, guild.wealth, guild.rosterIds]);
-    expect(rivals(shopped)).toEqual(rivals(bare));
-    expect(rivals(shopped).length).toBeGreaterThanOrEqual(4);
-    const rivalIds = new Set(rivals(shopped).map(([id]) => id));
-    for (const type of ['item.bought', 'item.sold'] as const) {
-      const traders = shopped.history.entries
-        .filter((entry) => entry.type === type)
-        .map((entry) => (entry.payload as { guildId: GuildId }).guildId);
-      expect(traders.filter((guildId) => rivalIds.has(guildId))).toEqual([]);
+    const shopped = play(withMarket);
+    const bought = tradesBy(shopped, 'item.bought');
+    expect(bought.length).toBeGreaterThan(0);
+    for (const entry of bought) {
+      const definition = testContent.items[entry.payload.definitionKey];
+      expect(definition?.kind, entry.payload.definitionKey).toBe('gear');
     }
-    expect(shopped.history.entries.some((entry) => entry.type === 'item.bought')).toBe(true);
+    expect(new Set(bought.map((entry) => entry.payload.guildId)).size).toBeGreaterThan(1);
+    expect(tradesBy(shopped, 'item.sold').filter((entry) => entry.payload.cause === 'sale')).toEqual([]);
+    expect(shopped.history.entries.filter((entry) => entry.type === 'item.bought')).toEqual(bought);
+
+    const bare = play(noMarket);
+    expect(bare.history.entries.filter((entry) => entry.type === 'item.bought')).toEqual([]);
   });
 });
