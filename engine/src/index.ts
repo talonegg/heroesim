@@ -189,6 +189,21 @@ export {
   type SliceContext,
   type SliceFailure,
 } from './modules.js';
+// The probe module (M8-S3, DL-78) is test-only: for tests, the harness (`HEROESIM_MODULES=probe`)
+// and the front ends' test-only switches, never installed by default or by a front end on its own.
+export {
+  createProbe,
+  probe,
+  probeDefaults,
+  probeId,
+  probeSliceFailures,
+  probeSliceVersion,
+  type ProbeEffectOutcome,
+  type ProbeFired,
+  type ProbeFiredPayload,
+  type ProbeSlice,
+  type ProbeTunables,
+} from './modules/probe.js';
 export type { ReadonlyDeep } from './read-only.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';

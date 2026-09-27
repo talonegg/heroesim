@@ -67,6 +67,7 @@ import {
   type WealthFlows,
 } from './counters.js';
 import { harnessSetup } from './creation.js';
+import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
@@ -188,11 +189,14 @@ function runChild(jobPath: string, resultPath: string): Promise<void> {
 
 /**
  * `sweepPlay`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
- * loading the core content and playing under `deps.config`; the records come back in seed order
- * and the replay is played in this process once they are done. The children load the core content
- * themselves, so `deps.content` must be it: a child that loads another refuses the sweep.
+ * loading the core content and playing under `deps.config` with `deps.modules`, installed by id
+ * (M8-S3, DL-78); the records come back in seed order and the replay is played in this process once
+ * they are done. The children load the core content themselves, so `deps.content` must be it: a
+ * child that loads another refuses the sweep; and each module must be the harness's own of its id
+ * (`idsOf`), which is checked before any child starts.
  *
- * @throws Error when a child fails or played with other content: a broken run, not a finding
+ * @throws Error when a child fails or played with other content, or a module is not the harness's:
+ * a broken run, not a finding
  */
 export async function sweepPlayInParallel(
   seeds: readonly string[],
@@ -201,6 +205,7 @@ export async function sweepPlayInParallel(
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
+  const modules = idsOf(deps.modules);
   const started = now();
   const dir = mkdtempSync(join(tmpdir(), 'heroesim-play-'));
   try {
@@ -212,6 +217,7 @@ export async function sweepPlayInParallel(
         years: options.years ?? defaultYears,
         validate: options.validate ?? false,
         policy: options.policy ?? defaultPolicyConfig,
+        ...(modules.length === 0 ? {} : { modules }),
       };
       const jobPath = join(dir, `job-${shard}.json`);
       writeFileSync(jobPath, JSON.stringify(job), 'utf8');
@@ -310,6 +316,11 @@ export interface SweepTotals {
   rankings: RankingTally[];
   /** Games a harness assertion stopped (DL-69). */
   assertionGames: number;
+  // M8's counters (DL-78).
+  /** Each module event type, by count; empty with no module installed. */
+  moduleEvents: Record<string, number>;
+  /** The core's events each module's effects made, by module and type; empty with no module installed. */
+  moduleEffects: Record<string, Record<string, number>>;
 }
 
 /** Rivals as a year began: each one's Roster size and Wealth. */
@@ -453,6 +464,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     rivalYearStarts: [],
     rankings: [],
     assertionGames: 0,
+    moduleEvents: {},
+    moduleEffects: {},
   };
   for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
@@ -484,6 +497,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
     });
     if (assertion !== null) totals.assertionGames += 1;
+    addFields(totals.moduleEvents, counters.moduleEvents);
+    for (const [moduleId, byType] of Object.entries(counters.moduleEffects)) addFields((totals.moduleEffects[moduleId] ??= {}), byType);
     for (const kind of controllerKinds) {
       addWealth(totals.wealth[kind], counters.wealth[kind]);
       for (const [table, tally] of Object.entries(counters.loot[kind])) {

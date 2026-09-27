@@ -1,6 +1,7 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
+import { moduleIds } from './modules.js';
 import { validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
 import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
@@ -13,13 +14,14 @@ import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, swee
 // `defaultConfig`, shared among child processes (half the logical processors); with
 // HEROESIM_VALIDATE=1, validate after every advance; check M6-S3's harness assertion, that no
 // `hero.transferred` names the player's Guild; replay the first seed and compare the two games byte
-// for byte; and write the counters and measures to harness/reports/m6-<date>.md.
+// for byte; and write the counters and measures to harness/reports/m6-<date>.md. Not run when
+// HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78).
 
 const milestone = 'm6';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const validate = validatingEveryTurn();
 
-test(`${seeds.length} games of 20 years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
+test.skipIf(moduleIds().length > 0)(`${seeds.length} games of 20 years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
   const startedAt = new Date();
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 

@@ -225,7 +225,8 @@ stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
 modules:  Record<ModuleId, unknown>
 ```
 The core clones the slice with the rest of `world` and never reads inside it. A module owns
-validation and migration of its slice and stores its own version there if it needs one. A
+validation and migration of its slice and stores its own version there if it needs one, and its
+own tunables, which are not `GameConfig` fields (the probe's, M8-S3, DL-78). A
 module that draws keeps its stream in `rng` under a name of its own (§3.1). An installed
 module's slice and stream are made when the world is created or, for a save made before the
 module was installed, the first time it is played; a slice no installed module owns is kept,

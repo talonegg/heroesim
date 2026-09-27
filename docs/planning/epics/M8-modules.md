@@ -4,7 +4,7 @@
 **Sessions:** 4–6 · **Depends on:** M7 · **Implements:** `plan.md` M8; N6; ADR-0005 as amended 2026-09-25; `data-model.md` §3.4
 **Gate:** the module contract exists; a test-only probe module registers a slice, a stream and all three hooks, changes core tables only through the effects API, and requests a stop; the harness with no module installed is byte-identical to M7's tagged run
 
-**Status:** in progress — M8-S1 and M8-S2 done
+**Status:** in progress — M8-S1 to M8-S3 done
 
 ## 0. What lands in M8
 
@@ -111,13 +111,26 @@ exercised.
 
 **Acceptance:**
 
-- [ ] Installed, over a year, the probe's counts equal the number of mornings, afternoons and
-      nights; uninstalled, `world.modules` is empty
-- [ ] Only the `probe` stream moves when the probe draws; core streams are unchanged
-- [ ] A save with a version-0 probe slice loads and is migrated; a save with a negative count
-      is refused naming the module
-- [ ] `HEROESIM_MODULES=probe npm run harness` runs 50 seeds with the probe and reports
-      `probe.fired` and the delta on each core counter it touched
+- [x] Installed, over a year, the probe's counts equal the number of mornings, afternoons and
+      nights; uninstalled, `world.modules` is empty — `engine/src/modules/probe.test.ts` ("over a
+      year"): 1,080 Turns with the probe count 360 of each, the Turns' own times of day; the same year
+      with no module has `world.modules` `{}` on every Turn and only the core streams (DL-78)
+- [x] Only the `probe` stream moves when the probe draws; core streams are unchanged —
+      `engine/src/modules/probe.test.ts` ("only the probe stream moves"): each of 30 Turns played
+      from one document with the probe firing every night and without it leaves every core stream
+      equal, the `probe` stream moving on nights only; with the probe drawing and never firing, the
+      world without its slice and stream equals the plain game's Turn by Turn for 60 Turns (DL-78)
+- [x] A save with a version-0 probe slice loads and is migrated; a save with a negative count
+      is refused naming the module — `engine/src/modules/probe.test.ts` ("a save with a probe
+      slice"): a version-0 slice without `lastStopTurn` loads as version 1 with `lastStopTurn: null`
+      and plays on; a negative morning, afternoon or night count is refused as `module-slice` at
+      `$.world.modules.probe.hooks.<time>`, "The probe module refuses its slice: …" (DL-78)
+- [x] `HEROESIM_MODULES=probe npm run harness` runs 50 seeds with the probe and reports
+      `probe.fired` and the delta on each core counter it touched — run 2026-09-27, 50 seeds × 20
+      years with the probe and without, validated after every advance, 23.3 minutes, every assertion
+      met on both: `harness/reports/m8-probe-2026-09-27.md` states `probe.fired` 7,242 times (0.0201
+      a night), the 7,242 each of Morale, Wealth, Injury and Quest events its effects made, and the
+      delta on each of the 314 of 404 core counters that moved (DL-78)
 
 ### M8-S4 · Front ends and close-out · 0.5–1 session
 

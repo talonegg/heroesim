@@ -42,6 +42,9 @@ describe('where a report goes', () => {
     expect(reportPath('m1', date)).toBe(join(reportsDir, 'm1-2026-09-06.md'));
     expect(reportsDir.replaceAll('\\', '/')).toMatch(/\/harness\/reports\/$/);
     expect(() => reportPath('M1', date)).toThrow(RangeError);
+    expect(reportPath('m8-probe', date)).toBe(join(reportsDir, 'm8-probe-2026-09-06.md'));
+    expect(() => reportPath('m8-', date)).toThrow(RangeError);
+    expect(() => reportPath('m8-Probe', date)).toThrow(RangeError);
   });
 
   test('writeReport makes the directory and ends the file with a newline', () => {

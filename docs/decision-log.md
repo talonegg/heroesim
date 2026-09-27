@@ -6594,6 +6594,113 @@ probe injures a Hero on a Roster, or the counter learns to skip); and a front en
 casts each entry to `TurnEvent`, whose module events `isModuleEvent` tells apart. A real
 module that needs more reach adds an effect kind to the union with a DL, never a write to a core row.
 
+## DL-78 — The probe module: its tunables on its slice, a stop counted from its last, one draw a night that also picks its targets, a fabricated version 0; the harness installs modules by id and reports a module run against none (M8-S3)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S3's implementer), where
+the epic names the probe's hooks, slice and harness run but leaves their details open; no default,
+content value, `configVersion` or schema version changes
+
+**Context.** M8-S3 writes `engine/src/modules/probe.ts`, a test-only module that proves the module
+contract (DL-76, DL-77) end to end: id and stream `probe`; a slice `{ version: 1, hooks:
+Record<phase, count>, lastStopTurn }` with `probeStopEveryDays` on it, "because a module owns its own
+tunables"; `onMorning` counts, `onAfternoon` counts and asks for a stop every `probeStopEveryDays`,
+`onNight` draws one number and "on a threshold" applies one effect of each kind and emits
+`probe.fired` with the effect list; `validateSlice` refuses a negative count; `migrateSlice` brings a
+fabricated version 0 forward by adding `lastStopTurn`. Its fourth box asks that
+`HEROESIM_MODULES=probe npm run harness` run 50 seeds with the probe and report `probe.fired` and the
+delta on each core counter it touched. DL-77 left one thing for this story: the harness's
+`hero.injured` counters throw on an entry that names no Guild.
+
+**Decision.**
+
+1. **The probe is exported from the engine's index, test-only** (`probe`, `createProbe`,
+   `probeDefaults`, `probeId`, `probeSliceFailures`, `probeSliceVersion` and its types), for the
+   engine's tests, the harness and M8-S4's test switches. `createProbe(tunables)` makes a probe whose
+   slices carry the tunables given; `probe` is `createProbe()`. Both `probe` and `probeDefaults` are
+   marked `/* @__PURE__ */`, so a bundle that never installs the probe leaves it out: the web build
+   holds none of it (checked on the built bundle).
+2. **Every tunable of the probe is a field of its slice, not only `probeStopEveryDays`.** The epic
+   names one; the others are its threshold and its effects' sizes, and a literal balance number in
+   rules code is a defect (principle 8), so they sit beside it with the same prefix:
+   `probeStopEveryDays` 30, `probeFireBelow` 0.02 (a night in fifty, about seven a year of 360
+   nights), `probeMoraleDelta` −5, `probeWealthDelta` 25, `probeRegardDelta` 2, `probeInjuryDays` 2.
+   A game keeps the values its slice was made with, as it keeps its `meta.config`. The counts are
+   keyed by time of day (`{ morning, afternoon, night }`), the epic's "phase". Data-model §3.4 now
+   says a module's tunables live in its slice.
+3. **The hooks.** `onMorning` counts. `onAfternoon` counts and asks for its stop on the afternoon of
+   the Day `probeStopEveryDays` after the Day of its last stop (Day 0 before the first), recording
+   the Turn in `lastStopTurn`: reading its last stop makes `lastStopTurn` the state the stop depends
+   on, so the version-0 migration that adds it is a real one. `onNight` counts and draws one number;
+   below `probeFireBelow` it fires, and the same number, scaled by the threshold (a draw below it is
+   uniform below it), picks the Hero among those on the Rosters of the Guilds in play who stand ready
+   (in no Party, not injured), in id order, and the Patron, in id order. It applies, in the effects
+   API's order, Morale to the Hero, Wealth to their Guild, that Patron's Regard for the Guild, an
+   Injury of content's first type by key, and a Quest of the Patron's on the Board (drawn from the
+   `probe` stream, DL-77), and emits `probe.fired { roll, effects }`, each effect listed as `{ effect,
+   applied: true }` or `{ effect, applied: false, rejection }`, naming the Hero and the Patron (and
+   the Hero's Guild, which `emit` adds); it returns `probe.fired` first, then the applied effects'
+   events. With no Hero ready it fires on none, the draw taken all the same. Choosing a Hero on a
+   Roster meets DL-77's note: every `hero.injured` the probe makes names a Guild, so the harness's
+   counters need no change for it.
+4. **Its slice read from a save.** `validateSlice` (`probeSliceFailures`) refuses, each failure
+   saying "The probe module refuses its slice: …" at its place in the slice (so the validator's
+   `module-slice` refusal is at `$.world.modules.probe.…`): a slice that is not an object or not
+   version 1; a count that is not a whole number from 0, or of anything but the three times of day;
+   a `lastStopTurn` that is neither `null` nor a Turn; a tunable outside its range. Version 0, which
+   the probe never wrote, is version 1 without `lastStopTurn`; `migrateSlice` gives it `lastStopTurn:
+   null`, as if it had never stopped, and returns anything else as it is for `validateSlice` to
+   accept or refuse.
+5. **The harness installs modules by id** (`harness/src/modules.ts`). `HEROESIM_MODULES` is parsed
+   by `moduleIds`, which refuses an unknown id, an empty one or one named twice; `harnessModules`
+   holds the modules the harness may install, only `probe`. A module is code, so a parallel sweep's
+   job carries the modules' ids (`ShardJob.modules`, absent with none, so a no-module run writes the
+   same jobs as before) and each child installs the harness's own of each id; `idsOf` refuses, before
+   any child starts, a module that is not the harness's own, such as a probe with other tunables.
+6. **A module run is a run of its own** (`modules.harness.test.ts`). When `HEROESIM_MODULES` names
+   modules, `npm run harness` plays `HEROESIM_SEEDS` seeds (50 by default) for 20 years under the
+   automatic policy twice, with the modules and with none, one sweep after the other, with the usual
+   assertions on both (no refused action, no validator refusal, no broken assertion, every save round
+   trips, the replay identical), and writes `harness/reports/m8-<ids>-<date>.md` (`reportPath` now
+   takes `m<n>-<name>`); the creation and play runs skip. The counters gain M8's (`GameCounters`,
+   `SweepTotals`): `moduleEvents`, each module event type the History indexes, by count; and
+   `moduleEffects`, the core's events naming a module as `moduleId`, by module and type, read from
+   the entries of `effectEventTypes`, the seven types an effect makes (a test holds the list to what
+   the probe's effects make). Both are empty with no module, and neither changes a save or another
+   counter. The report (`module-report.ts`) sets the two sweeps side by side (endings, refusals,
+   fingerprints, `advance`), states each module event with its count a game and a night, the core
+   events the modules' effects made, and **the delta on every core counter that moved**: every number
+   of `SweepTotals` but the modules' own, by its path, a list's entries summed at the list's path and
+   `[]`, with the two values, the delta and the change. It lists every counter that moved rather
+   than only those the effects touch directly, since the games differ from the first effect on (no
+   core stream moves because the probe drew, box 2; they move because the world differs).
+7. **The run.** `HEROESIM_MODULES=probe HEROESIM_VALIDATE=1 npm run harness`, 2026-09-27, 50 seeds
+   (`seed-0001` to `seed-0050`) × up to 20 years, **validated after every advance**, 16 processes,
+   23.3 minutes for both sweeps; the report is `harness/reports/m8-probe-2026-09-27.md`. Both sweeps
+   pass every assertion: no refused action, no validator refusal, no broken harness assertion, 50 of 50
+   saves round trip, `seed-0001` replayed byte-identical. With the probe, `probe.fired` came 7,242
+   times over 360,000 nights played (0.0201 a night, against a threshold of 0.02; 144.84 a game), and
+   every firing applied all five effects: 7,242 each of `hero.morale-changed`,
+   `guild.wealth-changed`, `hero.injured` and `quest.offered` naming the probe, and 1,137
+   `patron.regard-changed` where the Regard crossed a band. 314 of the 404 core counters moved, 90 did
+   not; among them `heroesInjured` +1,400 for the player's Guild and +6,302 for the Rivals (the probe's
+   own 7,242 Injuries and what followed), `heroesDied` −78 and +81, Quests taken +0.9% and +0.8%, and
+   the one bankruptcy with no module gone (all 50 ran 20 years with the probe). `advance` cost a mean
+   2.997 ms a Turn with the probe against 2.817 ms without. Fingerprints: with the probe
+   `e8fa34602a2f540596432d8f8d1fef72c189b9b11d23b66598ce0615044541bf`; with no module, over these 50
+   seeds, `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, the value a later
+   50-seed module run's no-module sweep prints unless something moved a game.
+8. **No module installed still changes nothing.** The engine's rules are untouched: the probe is a
+   new file reached only through `deps.modules`, and its exports are pure. The harness's no-module
+   jobs are the same JSON, and M8's counters are empty for them. The 200 × 20 proof is the M8
+   close's (DL-81).
+
+**Consequences.** The contract is proved end to end by the probe: registration, a slice made,
+migrated and validated by its module, a stream no core stream notices, all three hooks, each effect
+through the effects API, a stop, and the harness counting what a module did. M8-S4 installs the
+probe from the front ends' test switches (`--modules probe`, a web query parameter) and words
+`probe.fired`; Random Events, the first real module, adds its effect kinds to `effectEventTypes` as
+it adds them to the union.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
