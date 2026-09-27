@@ -4,8 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1 to M7-S4 done, but for M7-S4's first box, a measure not met (a
-20-year round trip through IndexedDB takes 3.6 s against 1 s; DL-67, left to the owner)
+**Status:** in progress — M7-S1 to S5 built; deploy pending
 
 ## 0. What lands in M7
 
@@ -152,10 +151,11 @@ reads the two secrets and nothing else.
 
 **Acceptance:**
 
-- [ ] The URL serves the build; a fresh browser creates a game and saves
-- [ ] The repository contains no token, account id or `.wrangler/` state (`.gitignore` gains
-      `.wrangler/`)
-- [ ] `README.md` names the URL and the deploy command
+- [ ] The URL serves the build; a fresh browser creates a game and saves (the orchestrator's, after
+      the tag; DL-68)
+- [x] The repository contains no token, account id or `.wrangler/` state (`.gitignore` gains
+      `.wrangler/`; M0-S1 added it) (`web/src/deploy.test.ts`, DL-68)
+- [x] `README.md` names the URL and the deploy command (`web/src/deploy.test.ts`, DL-68)
 
 ## 2. Configuration and events introduced
 

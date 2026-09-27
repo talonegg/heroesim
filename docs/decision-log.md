@@ -5352,6 +5352,74 @@ with `npm run harness:sample`, then `npm run measure -w web`. M7-S5 deploys a pa
 26 of them are new. `npm run build -w web` exits 0 through the gate: 478.53 kB (139.14 kB gzipped),
 "no network or filesystem reference". `npm run e2e -w web` passes 16.
 
+## DL-68 — The deploy, prepared: one command from this machine, wrangler fetched when it runs, and a test that keeps credentials and `.wrangler/` out of the repository (M7-S5)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S5's implementer)
+
+**Context.** M7-S5 publishes the page to Cloudflare Pages. INPUTS 7.8, answered by the owner:
+project `heroesims`, production branch `v1.0-release`, at `https://heroesims.pages.dev`. INPUTS 7.9,
+the default: a local deploy after `npx wrangler login` once on this machine, no secret anywhere, no
+deploy from CI. The epic's script is v1's (DL-30 on `feature/poc`), filled from 7.8. The boxes: the
+URL serves the build and a fresh browser creates a game and saves; the repository contains no token,
+account id or `.wrangler/` state, `.gitignore` gaining `.wrangler/`; `README.md` names the URL and the
+deploy command. This story prepares the deploy and never runs `wrangler`, its login or the deploy: the
+orchestrator deploys after the tag, and the first box is proved then, not here.
+
+**Decision.**
+
+1. **The command.** `web/package.json`'s `deploy` is the epic's:
+   `npm run build && npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release`.
+   The root gains `deploy`, which is `npm run deploy -w web`, as its `build` and `e2e` delegate
+   (DL-64 item 10). `npm run build` is `vite build` then the bundle gate, so what is uploaded is what
+   the gate passed, and Cloudflare runs no build. `--branch` is written out, never inferred from git
+   (v1's DL-30 item 3, the epic's §3). v1's `--commit-dirty=true` is not carried over: it only
+   silences wrangler's warning about uncommitted changes, and a release deployed from its tag should
+   have none, so the warning is worth seeing.
+2. **Wrangler is not a dependency** (v1's DL-30 item 4). `npx -y wrangler@4` fetches it when the
+   deploy runs, pinned to its major version. No manifest or lockfile names it, and a test keeps it so;
+   `npm ci`, `npm test`, the build and CI never touch it. No workflow changes, since 7.9 chose no CI
+   deploy.
+3. **`.gitignore` already held `.wrangler/`.** M0-S1 (`7cb012d`) added it, as M0's epic asked. Written
+   without a leading slash it matches at any depth, so it covers `web/.wrangler/`, where wrangler
+   writes when `npm run deploy -w web` runs it, as well as the root's. Nothing was added.
+4. **The check is a Vitest test, `web/src/deploy.test.ts`**, so it runs on every `npm test`, CI
+   included, as the bundle gate's test does. It asserts that:
+   - the deploy command is item 1's, the root delegates to it, and no manifest or lockfile holds
+     wrangler;
+   - `README.md` names the URL, `npm run deploy` and `npx wrangler login`;
+   - `git check-ignore` ignores wrangler's state at the root and under `web/`;
+   - no file sits under a `.wrangler/` directory. "File" here and below means every file `git ls-files`
+     lists as tracked, or as untracked and not ignored: what one `git add .` would commit;
+   - no file holds a Cloudflare credential given a value. The patterns are an account id (32 hex
+     digits after `account_id`, `accountId` or `account-id`), `CLOUDFLARE_API_TOKEN`,
+     `CLOUDFLARE_API_KEY` or `CLOUDFLARE_ACCOUNT_ID` or their `CF_` forms, an `oauth_token` or
+     `refresh_token`, and a bearer token. The names alone, a placeholder and a `${{ secrets.… }}`
+     reference pass, because the INPUTS register names the variables. Each pattern is proved on
+     fixtures assembled at run time, so the test holds no credential-shaped string itself. Binary
+     files are skipped.
+   - *Tried.* An untracked `web/probe-credentials.json` holding an account id failed the scan, which
+     named its file and line. The same account id in an ignored `web/.wrangler/cache/pages.json` did
+     not. Force-added, that file failed both the `.wrangler/` test and the scan. Each probe was removed.
+   - Wrangler's own credential files, under the user profile, were never read.
+5. **`README.md`** gains "Play", with the URL and the CLI, and "Deploy": the one-time
+   `npx wrangler login`, then `npm run deploy` from a checkout of `v1.0-release`, what it runs, why
+   `--branch` is given, and where wrangler keeps its state. Its line "Nothing is built yet", stale
+   since M1, now says the first build is under way. The document links sit under "Documents".
+6. **The build, and the page opening, proved here.** `npm run build -w web` exits 0 through the gate:
+   two files, `index.html` and one script of 478.53 kB (139.14 kB gzipped), "no network or filesystem
+   reference". `npm run e2e -w web` passes 16 of 16. Among them, the smoke spec renders `web/dist`
+   served and opened from `file://`, and the journey creates, plays, saves and reloads a game on the
+   served build, at both sizes.
+
+**Consequences.** M7-S5's second and third boxes are ticked. The first box is the orchestrator's,
+after the tag, and stays unticked: the URL serving the build, and a fresh browser creating a game and
+saving there. Whether the Pages project `heroesims` exists yet is not known here. If the first deploy
+reports that it does not, it must be created once with `v1.0-release` as its production branch
+(`npx wrangler pages project create heroesims --production-branch v1.0-release`, not run here); v1's
+DL-30 records what wrangler did when v1's project was created. The epic's Status reads "in progress —
+M7-S1 to S5 built; deploy pending". `npm run lint` and `npm run typecheck` pass. `npm test` passes 107
+files and 2,235 tests, none skipped; 21 of them are new.
+
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
 **Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each
