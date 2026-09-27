@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { loadContent } from '@heroesim/content/node';
 import {
   append,
@@ -405,5 +406,16 @@ describe('recordGame and measureDocument', () => {
     expect(measures.historyEntries).toBe(document.history.entries.length);
     expect(measures.serialisedLength).toBe(serialise(document).length);
     expect(measures.serialisedLength).toBe(record.measures.serialisedLength);
+  });
+
+  test("fingerprint the last document: SHA-256 of its save, in hex, the same for the same game (M8-S1, DL-76)", () => {
+    const { record } = recordGame('play-a', deps, { years });
+    const { document } = playGame('play-a', deps, { years });
+
+    const { fingerprint } = measureDocument(document, deps);
+
+    expect(fingerprint).toBe(createHash('sha256').update(serialise(document)).digest('hex'));
+    expect(record.measures.fingerprint).toBe(fingerprint);
+    expect(recordGame('play-b', deps, { years }).record.measures.fingerprint).not.toBe(fingerprint);
   });
 });

@@ -3,7 +3,7 @@ import type { EngineDeps } from '../config.js';
 import type { DispositionKey } from '../content-types.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, WorldDocument } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { append } from '../history.js';
 import { phaseContext } from '../phases/phase.js';
 import { runTurn } from '../pipeline.js';
@@ -47,7 +47,7 @@ interface Tally {
  * which this test has no use for and which would triple its time (DL-56). The events go to the
  * History, as `advance` appends them, and each is shown to `watch` on the world as its Turn left it.
  */
-function play(document: WorldDocument, watch: (event: EngineEvent) => void): void {
+function play(document: WorldDocument, watch: (event: TurnEvent) => void): void {
   const { world } = document;
   while (world.turn < days * turnsPerDay && world.ended === null) {
     world.turn += 1;

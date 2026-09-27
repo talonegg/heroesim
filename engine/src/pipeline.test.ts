@@ -14,12 +14,14 @@ afterEach(() => {
 });
 
 describe('the phase list', () => {
-  test('names the phases of approach §2 in its order, each on its time of day', () => {
+  test('names the phases of approach §2 in its order, each on its time of day, the module hooks where it marks them', () => {
     expect(phases.map((phase) => [phase.timeOfDay, phase.name])).toEqual([
       ['morning', 'boardRefresh'],
       ['morning', 'marketRefresh'],
+      ['morning', 'onMorning'],
       ['afternoon', 'rivalControllers'],
       ['afternoon', 'questsAdvance'],
+      ['afternoon', 'onAfternoon'],
       ['night', 'training'],
       ['night', 'questsConclude'],
       ['night', 'levelUps'],
@@ -30,6 +32,7 @@ describe('the phase list', () => {
       ['night', 'transfers'],
       ['night', 'patronState'],
       ['night', 'poolRefresh'],
+      ['night', 'onNight'],
       ['night', 'offerExpiry'],
       ['night', 'endings'],
     ]);
@@ -72,7 +75,7 @@ describe('runTurn', () => {
     const events = runTurn(world, ctx);
 
     expect(events.map((event) => event.payload)).toEqual(
-      ['training', 'questsConclude', 'levelUps', 'heroState', 'ageing', 'gearReturn', 'guildState', 'transfers', 'patronState', 'poolRefresh', 'offerExpiry', 'endings'].map(
+      ['training', 'questsConclude', 'levelUps', 'heroState', 'ageing', 'gearReturn', 'guildState', 'transfers', 'patronState', 'poolRefresh', 'onNight', 'offerExpiry', 'endings'].map(
         (seed) => ({ seed }),
       ),
     );

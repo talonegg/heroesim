@@ -305,10 +305,11 @@ export function regardOnTransferDeal(
 }
 
 /**
- * Moves `guildmaster`'s Regard for `entityId` by `delta`, recording `reason` (an event type);
- * `guildmaster.regard-changed` on a band crossing.
+ * Moves `guildmaster`'s Regard for `entityId` by `delta`, recording `reason` (an event type, or the
+ * id of the module whose `adjustRegard` effect moved it, M8-S2); `guildmaster.regard-changed` on a
+ * band crossing.
  */
-function guildmasterRegard(
+export function guildmasterRegard(
   ctx: RegardContext,
   guildmaster: Guildmaster,
   entityId: EntityId,

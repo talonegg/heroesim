@@ -6362,6 +6362,749 @@ the save's size, a data-model decision for the owner. Left to the owner: Cloudfl
 Pages into Workers; a later wrangler may stop offering classic Pages, and moving the page to a
 Workers project would change its address and DL-68's command.
 
+## DL-76 — The module contract: the `Module` interface in the engine's own types, slices and streams made by `ensureModules`, the three hooks as entries of the phase list, a slice migrated without a version from the core, and byte identity with `m7-web` on 200 × 20 (M8-S1)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S1's implementer), where
+the epic's sketch had to meet the engine's real types or left a choice open; no default, content
+value, `configVersion` or schema version changes
+
+**Context.** M8-S1 writes the module contract (ADR-0005 as amended 2026-09-25, data-model §3.4,
+approach §2, N6). The epic sketches the interface with names that predate the engine (`Event`,
+`Failure`, `StreamName`, `createWorld(content, config, seed, setup, modules = [])`), and says a
+slice is migrated with `migrateSlice(slice, fromVersion)` while data-model §3.4 says the core
+never reads inside a slice and a module keeps its own version there. Its first box asks that with
+no module installed every harness counter equals the M7 tag's run, byte-equal saves included.
+
+**Decision.**
+
+1. **The interface, in `engine/src/modules.ts`, in the engine's own types.** `Module<Slice>` has
+   `id`, `streamName?`, `createSlice(ctx)`, `validateSlice(slice)`, `migrateSlice?(slice)` and
+   `onMorning?`/`onAfternoon?`/`onNight?(world, slice, ctx)` returning
+   `ModuleResult = { events: EngineEvent[]; stop?: StopReason }`. Where it differs from the epic:
+   - `Event` is `EngineEvent` and `StopReason` is stops.ts's (M8-S2 adds `module` to it);
+   - `Failure` is `SliceFailure = { at, detail }`, a place in the slice and prose, which the
+     validator reports as a `module-slice` refusal at `$.world.modules.<id>` followed by `at`, so a
+     refusal names the module;
+   - `streamName` is a `string`: `StreamName` is the union of the core's streams;
+   - **`migrateSlice(slice)` takes no `fromVersion`.** Only the slice holds its version (§3.4),
+     and the core, which never reads inside a slice, cannot pass it; the module reads its own.
+     It is called on every present slice of an installed module that has the method, after the
+     core's migration chain and before the validator, and returns the slice as it is when current;
+   - `createWorld(seed, setup, deps)` and `deserialise(text, deps)` keep their signatures and take
+     the modules as `deps.modules`, none when absent, as every entry point takes them (approach §3,
+     pre-M0 review D1); the placeholder `Module` of `config.ts` is replaced by this one;
+   - hooks receive the world typed `Readonly<World>`, a shallow promise that M8-S2's frozen-world
+     test makes binding.
+   A module that throws in a hook or in `createSlice` throws `ModuleError`, naming `moduleId` and
+   `during` (the hook, or `createSlice`), with what it threw as `cause`: modules are code, so it is a
+   programming error.
+2. **Registration.** `installedModules(deps)` refuses, with a RangeError, an empty id, two modules
+   with one id, and a stream named as a core stream or another module's. `ensureModules(world,
+   seed, deps)` gives the world each installed module's stream it lacks, seeded as a core stream is
+   (`createStreams(seed, [name])`) and kept in `world.rng` beside the core's, then each slice it
+   lacks from `createSlice`, in registration order. `createWorld` calls it last, after the Market
+   refresh; `advance` calls it on its copy beside `ensureStreams`, so a save made before a module was
+   installed gains its stream and slice the first time it is played (DL-25's rule for streams).
+   `world.modules` and `world.rng` already hold both, so the document's shape is unchanged and the
+   schema stays at version 3, with no migration.
+3. **The hooks are three entries of the flat phase list**, named `onMorning`, `onAfternoon` and
+   `onNight`, at approach §2's positions: after the Market refresh, after Quests in flight advance,
+   and after the pool refresh, before Transfer Offers expire and the ending checks. pipeline.test.ts's
+   literal holds them there. `PhaseContext` gains `modules`. Each entry calls the installed modules
+   that have the hook, in registration order, with the Turn's world, the module's slice (changed in
+   place, in the Turn's copy) and a minimal context: `config`, `content`, `turn`, `emit`, and `rng`,
+   the module's own stream bound, every draw of which throws for a module that registered none.
+   M8-S2 adds the selectors and the `effects` API. A hook's events join the Turn's at its position
+   and the History; its `stop` is accepted by the type and not yet acted on (M8-S2). `advance` plays
+   on a copy and appends only after the whole Turn, so a throwing module leaves the document it was
+   given as it was.
+4. **Loading and validation.** `deserialise` runs the chain, then `migrateSlices`, then the
+   validator. `validate` has each installed module validate its present slice (`module-slice`) and
+   warns, with `unknown-module`, of a slice no installed module owns, which is kept and never read,
+   as rule 5 keeps an unknown content key; an installed module whose slice is absent is not asked. A
+   module that throws migrating or validating a save's slice refuses the load rather than throwing,
+   since a save is outside the engine's control. Data-model §3.4 and §6 say so.
+5. **The core never reads inside a slice.** modules.test.ts reads every non-test source file of
+   the engine, comments removed as controller-reads.test.ts removes them, for `world.modules`,
+   `world?.modules` and `world['modules']`, and finds them in `modules.ts` only.
+6. **A harness fingerprint.** `DocumentMeasures.fingerprint` is SHA-256 of a game's last save, and
+   `sweepFingerprint` is SHA-256 over one line per game, in seed order, of its seed, a tab and that
+   fingerprint. The play report gives it in one row ("Fingerprint of every seed's last save") and
+   `npm run harness` prints it, so a later M8 story, or the M8 close, shows in one line whether
+   anything moved a game. It changes no counter.
+7. **Byte identity with `m7-web`, proved on 200 seeds × 20 years.** A detached scratch worktree of
+   the tag (`d792a76`, the same tree as `a83f9d9`), `npm ci`, and one scratch driver run unchanged
+   against both trees: 16 child processes, each playing its seeds with the harness's own `playGame`
+   under the core content and `defaultConfig`, as `npm run harness` does (not validated per Turn),
+   and writing per seed the SHA-256 of `serialise` of the last document and the SHA-256 of the
+   game's harness record: `countGame` with the Rivals' afternoons, the observations, the Turns
+   played, the policy's refusals and the harness assertion. At `m7-web` the deps carried no
+   `modules`; on this branch, `modules: []`. **All 200 seeds agree, saves and counters alike.**
+   The two 200-line tables are byte for byte equal (each table's SHA-256
+   `9d1d5ec0a2d52457c681e868dd9ded00088cb691731bae6f77b7a58042d28477`), over 4,314,028 Turns
+   played (198 games ran the full 20 years, 2 ended), 51,885,237 History entries and
+   20,630,181,665 characters of saves; `seed-0001`'s last save is 113,281,366 characters, the
+   length the M6 report's replay records. The tag played in 67.1 minutes, this branch in 61.8, and
+   the engine, content and harness played here are the trees this commit carries. In
+   `sweepFingerprint`'s form, the fingerprint of `m7-web` over `seed-0001` to `seed-0200` × 20
+   years is `7c71caae3e08c4405e14f3fae3a0c8cc95d1f6deac55e9b80de45a929c07458b`: a later 200-seed
+   `npm run harness` with no module installed prints that value unless something moved a game.
+
+**Consequences.** With no module installed the engine plays as `m7-web` did; the three hook
+entries cost an empty loop a Turn. M8-S2 makes the context real (selectors, `effects`), acts on a
+hook's `stop` with a `module` stop reason, and freezes the world a hook sees. Left open for M8-S2
+and M8-S3: a module's own event types (`probe.fired`) are not in `EngineEvent`, so either the union
+gains them or `ModuleResult.events` widens to entries of any type, which M8-S4's narration fallback
+then meets.
+
+## DL-77 — Hooks, effects and stops: a read-only world, typed effects through the core's own rules, a module's events typed by its module beside the engine's union, and a `module` stop reason (M8-S2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S2's implementer), where
+the epic names the context, the effects and the stop but leaves their shape open, and where DL-76
+left the typing of a module's own events to this story; no default, content value, `configVersion`
+or schema version changes
+
+**Context.** M8-S2 makes the three hook positions real (ADR-0005 as amended 2026-09-25, data-model
+§3.4, approach §2, N6). The epic asks that a hook's `ctx` carry `emit`, `rng` (the module's own
+stream only), `config`, `content`, `turn` and read-only selectors; that a module change a core
+table only through a typed `effects` API (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
+`offerQuest`) so the core stays the only writer of its rows; that a module's `stop` halt fast
+forward with its reason and the CLI and the web show it; that a module assigning
+`world.heroes[id].morale` fail a frozen-world test; and that hook order among several modules be
+registration order. DL-76 left open how a module's own event types (`probe.fired`) sit beside
+`EngineEvent`, which must not need editing for each module.
+
+**Decision.**
+
+1. **The World State a hook sees is read-only, in the types and at run time.** A hook is given the
+   Turn's world as `ReadonlyWorld = ReadonlyDeep<World>` (read-only.ts): every property `readonly`,
+   every list a `ReadonlyArray`, so `world.heroes[id].morale = 0` does not compile; and at run time a
+   Proxy view of the Turn's copy, which reads through to the world as it stands (an effect applied a
+   moment ago included) and throws a TypeError on any set, define, delete, prototype or
+   extensibility change of any object reached from it, arrays' in-place methods included. The hook's
+   throw becomes a `ModuleError` naming the module (DL-76), and `advance`, which plays on a copy,
+   leaves the document it was given as it was. A Proxy rather than a frozen copy: nothing is copied,
+   and reads stay live. `ctx.config` and `ctx.content` are views of the same kind, since a module
+   writing to them would change the rules or the content for the whole game. The slice is the one
+   thing a hook changes directly, through its `slice` argument; through the world it too is
+   read-only. With no module installed no view is made.
+2. **The context.** `ModuleContext` is `config`, `content` (read-only), `turn`, `rng` (the module's
+   stream, DL-76), `emit` (the module's own events, item 4), `select` and `effects`. `select` binds
+   the core's selectors to the Turn's world: `unattachedHeroes`, `offeredQuests`, `rankings`,
+   `upkeep`, `effectiveStats`, `moraleBand`, `regard` (`regardValue` of a holder's map) and `age`
+   (`ageOf`); rows they return are read-only views. **It has no `playerGuild`:** a module is a rule,
+   and no rule asks which Guild is the player's beyond `plan.md` §1's three accepted exceptions
+   (ADR-0002; controller-reads.test.ts would refuse it). A real module that needs the player's Guild
+   asks the owner first.
+3. **The effects are typed records, each run by the core's own rule and explained by the core's own
+   event** (effects.ts). `ModuleEffect` is the union of `AdjustMorale { heroId, delta }`,
+   `AdjustWealth { guildId, delta }`, `AdjustRegard { holderId, entityId, delta }`, `Injure { heroId,
+   typeKey, days }` and `OfferQuest { patronId, templateKey? }`, told apart by a `kind` named as the
+   epic names the functions; `ctx.effects` has one function a kind, derived from the union, so a
+   kind a real module adds (the epic's risk table) adds its function. Each returns `{ ok: true,
+   effect, events }` or, for a change its rule does not allow, `{ ok: false, rejection: { effect,
+   reason } }` having changed nothing, as an action does; a programming error (an id the world lacks
+   or of the wrong table, a delta that is not a whole number, or for Regard a finite one, an Injury
+   type content lacks, Days below 1, a Patron with no such template) throws, and so fails the Turn
+   naming the module. Each event names the module as `moduleId`, and where its type has a cause the
+   cause is `module`:
+   - `adjustMorale`: `changeMorale` (morale.ts), held inside `moraleMin`–`moraleMax`,
+     `hero.morale-changed` always, as every discrete change; refused `hero-gone` for a Hero dead,
+     retired or gone from the pool.
+   - `adjustWealth`: the Guild's Wealth, which may go below 0 as Upkeep may take it, and a new
+     event, **`guild.wealth-changed`** `{ guildId, moduleId, before, after }` (not a Milestone), the
+     one change of Wealth no other event records; refused `guild-folded`.
+   - `adjustRegard`: regard.ts's `adjustRegard` for the holders the core has: a Patron for a Guild,
+     a Guildmaster for a Patron, a Hero or a Guildmaster (Regard for a Guild is read from its
+     Guildmaster's), a Hero for another Hero; `patron.regard-changed`, `guildmaster.regard-changed`
+     or `hero.regard-changed` only on a band crossing (data-model rule 10, DL-43), through the
+     writers the core uses (`patronRegardChanged`, `guildmasterRegard`, `heroRegardChanged`, the last
+     two now exported). The entry's `since` is the Turn and its `reason` the module's id; data-model
+     §3.2 now says a reason may be one. Refused `holder-gone` for a Hero out of play or the
+     Guildmaster of a folded Guild.
+   - `injure`: the Days given, a whole number from 1, shortened by the infirmary of the Hero's Guild
+     exactly as a Quest's Injury is (`healDays`, `healFactor`; grade 0 for a Hero on no Roster), then
+     `inflictInjury`: both now in injuries.ts, which the Quest Engine and `questsConclude` use too, so
+     the rule is stated once. `hero.injured` with **`questId: null`** (the type is now `QuestId |
+     null`). Refused `hero-injured` (one Injury a Hero), `hero-away` (in a Party, whose return
+     applies its own) and `hero-gone`. The Hero State Engine heals it as any Injury.
+   - `offerQuest`: the Quest Generator, drawing the template, difficulty and duration and the
+     Encounter sequence from the module's own stream (`generateQuest` gains `sequenceStream`, whose
+     default, `encounters`, leaves every core draw as it was), so no core stream moves; the Quest goes
+     on the end of the Board and may take it past `boardSize`, which only says how far the morning's
+     refresh fills it; `quest.offered`. A module with no stream throws.
+   `MoraleCause`, `PatronRegardCause`, `GuildmasterRegardCause` and `HeroRegardCause` gain `module`,
+   and those events and `quest.offered` and `hero.injured` an optional `moduleId`, absent from every
+   event the core makes for itself, so a game with no module writes the same bytes.
+4. **A module's own events are typed by the module, beside the engine's union, which never lists
+   them** (events.ts). `ModuleEvent<Type, Payload>` is an `Entry` whose `type` is branded in the
+   types alone (`ModuleEventType`), and `TurnEvent = EngineEvent | ModuleEvent` is what a Turn
+   produces: `advance`, `fastForward` and `runTurn` return `TurnEvent[]` (a phase's rule still
+   returns `EngineEvent[]`). The brand is what keeps the union usable: comparing `event.type` with
+   an engine type narrows a `TurnEvent` to that engine event exactly as it narrows an `EngineEvent`,
+   and a module's event never passes for one; a reader tells a module's event with `isModuleEvent`
+   (or `isEngineEvent`, true for a type `milestoneTypes` lists). A module declares its own,
+   `ModuleEvent<'probe.fired', {…}>`, and its `ctx.emit` returns that type. The emitter
+   (`moduleEventEmitter`) labels participants and adds a Hero's Guild as the engine's does, sets
+   `milestone` from the draft (false unless it says so, since the engine's table knows no module's
+   types), and refuses a type outside the module's namespace, `<module id>.<what-happened>`, or one
+   of the engine's: a module changes a core table only through its effects, so a core event always
+   means the core did it. In the History a module's event is an `Entry` like any other, indexed by
+   its type, so `byType['probe.fired']` counts it. Every engine-side test's event collectors were
+   retyped `TurnEvent[]`; M8-S1's test of a hook's events emitted `world.created`, which the emitter
+   now refuses, and emits `announcing.said` instead.
+5. **A hook returns every event it made, in the order the History is to hold them.** Its own, from
+   `ctx.emit`, and its effects', which it may put before, between or after its own. The core refuses
+   (a `ModuleError`) a hook that returns an event not made by that call or one twice, or that leaves
+   out an event one of its effects made, since a core row would then change with nothing to explain
+   it (principle 11). The events join the Turn's at the hook's position.
+6. **The stop.** `StopReason` gains `{ kind: 'module'; moduleId }` (`ModuleStopReason`), always on
+   (approach §2: "a module asks for a decision"), reported after `transfer-offer` and before
+   `pool-refreshed`. A hook returns it as `stop`; one naming another module or another kind fails the
+   Turn naming the module. The hook positions collect the stops in `PhaseContext.moduleStops`;
+   `advance`'s `stoppedBecause` is `ended`, else the first module to ask, in registration order,
+   else `null`, since a module's stop holds for whoever is watching (DL-33's reading of `advance`);
+   fast forward reads it through `PlayedTurn.stoppedBecause` in `stopsOfTurn`. The CLI says
+   "Stopped: the probe module asked to stop." after `advance --until` and, since a stop is for
+   whoever is watching, `advance --turns n` now stops early on a module's stop and says so, as it
+   stopped on an ending; `--until` does not name `module`, which is always on. The web says the same
+   sentence with a "Read what happened" button to the log, and a multi-Turn advance there already
+   stopped on any stop. Both front ends word `guild.wealth-changed`, a `module` Regard cause
+   ("through a module") and, since their narration now takes a `TurnEvent`, give a module's own event
+   a line that names its type ("A module's event: probe.fired."), the least that keeps a narration
+   map total; M8-S4 owns what that line says and shows the probe's in both logs.
+7. **Hook order is registration order** (DL-76's loop), now held by a test with two spy modules
+   registered each way round.
+8. **No module installed still changes nothing.** The hook positions return at once with no module;
+   the injury and generator refactors state the same formulas and defaults; every new payload field
+   is optional and absent from the core's events. Checked beyond the suite: `seed-0001` to
+   `seed-0016` × 20 years with the harness's own parallel sweep (`sweepPlayInParallel`, core content,
+   `defaultConfig`, `modules: []`), run on this change and, from the same tree with the change
+   stashed, on M8-S1's commit (`fb7d416`, itself byte-identical to `m7-web` on 200 × 20, DL-76): the
+   16 per-seed SHA-256s of the last save agree, and so does `sweepFingerprint`,
+   `738516cfea14564e6c22e7753aac3f2ba7dce8ef5ffb30b3df6ee9e437858068`. The 200 × 20 proof is the
+   M8 close's (DL-81).
+
+**Consequences.** The contract is now whole: M8-S3's probe applies each effect through `ctx.effects`,
+emits `probe.fired` with the applied effects (each result carries its `effect` record, which is
+JSON-safe), asks for its stop, and is typed without touching `EngineEvent`. Two things for M8-S3 and
+M8-S4 to meet: the harness's `hero.injured` counters find the Guild among an entry's participants
+and throw when there is none, so an `injure` of an Unattached Hero would stop a harness run (the
+probe injures a Hero on a Roster, or the counter learns to skip); and a front end reading the History
+casts each entry to `TurnEvent`, whose module events `isModuleEvent` tells apart. A real
+module that needs more reach adds an effect kind to the union with a DL, never a write to a core row.
+
+## DL-78 — The probe module: its tunables on its slice, a stop counted from its last, one draw a night that also picks its targets, a fabricated version 0; the harness installs modules by id and reports a module run against none (M8-S3)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S3's implementer), where
+the epic names the probe's hooks, slice and harness run but leaves their details open; no default,
+content value, `configVersion` or schema version changes
+
+**Context.** M8-S3 writes `engine/src/modules/probe.ts`, a test-only module that proves the module
+contract (DL-76, DL-77) end to end: id and stream `probe`; a slice `{ version: 1, hooks:
+Record<phase, count>, lastStopTurn }` with `probeStopEveryDays` on it, "because a module owns its own
+tunables"; `onMorning` counts, `onAfternoon` counts and asks for a stop every `probeStopEveryDays`,
+`onNight` draws one number and "on a threshold" applies one effect of each kind and emits
+`probe.fired` with the effect list; `validateSlice` refuses a negative count; `migrateSlice` brings a
+fabricated version 0 forward by adding `lastStopTurn`. Its fourth box asks that
+`HEROESIM_MODULES=probe npm run harness` run 50 seeds with the probe and report `probe.fired` and the
+delta on each core counter it touched. DL-77 left one thing for this story: the harness's
+`hero.injured` counters throw on an entry that names no Guild.
+
+**Decision.**
+
+1. **The probe is exported from the engine's index, test-only** (`probe`, `createProbe`,
+   `probeDefaults`, `probeId`, `probeSliceFailures`, `probeSliceVersion` and its types), for the
+   engine's tests, the harness and M8-S4's test switches. `createProbe(tunables)` makes a probe whose
+   slices carry the tunables given; `probe` is `createProbe()`. Both `probe` and `probeDefaults` are
+   marked `/* @__PURE__ */`, so a bundle that never installs the probe leaves it out: the web build
+   holds none of it (checked on the built bundle).
+2. **Every tunable of the probe is a field of its slice, not only `probeStopEveryDays`.** The epic
+   names one; the others are its threshold and its effects' sizes, and a literal balance number in
+   rules code is a defect (principle 8), so they sit beside it with the same prefix:
+   `probeStopEveryDays` 30, `probeFireBelow` 0.02 (a night in fifty, about seven a year of 360
+   nights), `probeMoraleDelta` −5, `probeWealthDelta` 25, `probeRegardDelta` 2, `probeInjuryDays` 2.
+   A game keeps the values its slice was made with, as it keeps its `meta.config`. The counts are
+   keyed by time of day (`{ morning, afternoon, night }`), the epic's "phase". Data-model §3.4 now
+   says a module's tunables live in its slice.
+3. **The hooks.** `onMorning` counts. `onAfternoon` counts and asks for its stop on the afternoon of
+   the Day `probeStopEveryDays` after the Day of its last stop (Day 0 before the first), recording
+   the Turn in `lastStopTurn`: reading its last stop makes `lastStopTurn` the state the stop depends
+   on, so the version-0 migration that adds it is a real one. `onNight` counts and draws one number;
+   below `probeFireBelow` it fires, and the same number, scaled by the threshold (a draw below it is
+   uniform below it), picks the Hero among those on the Rosters of the Guilds in play who stand ready
+   (in no Party, not injured), in id order, and the Patron, in id order. It applies, in the effects
+   API's order, Morale to the Hero, Wealth to their Guild, that Patron's Regard for the Guild, an
+   Injury of content's first type by key, and a Quest of the Patron's on the Board (drawn from the
+   `probe` stream, DL-77), and emits `probe.fired { roll, effects }`, each effect listed as `{ effect,
+   applied: true }` or `{ effect, applied: false, rejection }`, naming the Hero and the Patron (and
+   the Hero's Guild, which `emit` adds); it returns `probe.fired` first, then the applied effects'
+   events. With no Hero ready it fires on none, the draw taken all the same. Choosing a Hero on a
+   Roster meets DL-77's note: every `hero.injured` the probe makes names a Guild, so the harness's
+   counters need no change for it.
+4. **Its slice read from a save.** `validateSlice` (`probeSliceFailures`) refuses, each failure
+   saying "The probe module refuses its slice: …" at its place in the slice (so the validator's
+   `module-slice` refusal is at `$.world.modules.probe.…`): a slice that is not an object or not
+   version 1; a count that is not a whole number from 0, or of anything but the three times of day;
+   a `lastStopTurn` that is neither `null` nor a Turn; a tunable outside its range. Version 0, which
+   the probe never wrote, is version 1 without `lastStopTurn`; `migrateSlice` gives it `lastStopTurn:
+   null`, as if it had never stopped, and returns anything else as it is for `validateSlice` to
+   accept or refuse.
+5. **The harness installs modules by id** (`harness/src/modules.ts`). `HEROESIM_MODULES` is parsed
+   by `moduleIds`, which refuses an unknown id, an empty one or one named twice; `harnessModules`
+   holds the modules the harness may install, only `probe`. A module is code, so a parallel sweep's
+   job carries the modules' ids (`ShardJob.modules`, absent with none, so a no-module run writes the
+   same jobs as before) and each child installs the harness's own of each id; `idsOf` refuses, before
+   any child starts, a module that is not the harness's own, such as a probe with other tunables.
+6. **A module run is a run of its own** (`modules.harness.test.ts`). When `HEROESIM_MODULES` names
+   modules, `npm run harness` plays `HEROESIM_SEEDS` seeds (50 by default) for 20 years under the
+   automatic policy twice, with the modules and with none, one sweep after the other, with the usual
+   assertions on both (no refused action, no validator refusal, no broken assertion, every save round
+   trips, the replay identical), and writes `harness/reports/m8-<ids>-<date>.md` (`reportPath` now
+   takes `m<n>-<name>`); the creation and play runs skip. The counters gain M8's (`GameCounters`,
+   `SweepTotals`): `moduleEvents`, each module event type the History indexes, by count; and
+   `moduleEffects`, the core's events naming a module as `moduleId`, by module and type, read from
+   the entries of `effectEventTypes`, the seven types an effect makes (a test holds the list to what
+   the probe's effects make). Both are empty with no module, and neither changes a save or another
+   counter. The report (`module-report.ts`) sets the two sweeps side by side (endings, refusals,
+   fingerprints, `advance`), states each module event with its count a game and a night, the core
+   events the modules' effects made, and **the delta on every core counter that moved**: every number
+   of `SweepTotals` but the modules' own, by its path, a list's entries summed at the list's path and
+   `[]`, with the two values, the delta and the change. It lists every counter that moved rather
+   than only those the effects touch directly, since the games differ from the first effect on (no
+   core stream moves because the probe drew, box 2; they move because the world differs).
+7. **The run.** `HEROESIM_MODULES=probe HEROESIM_VALIDATE=1 npm run harness`, 2026-09-27, 50 seeds
+   (`seed-0001` to `seed-0050`) × up to 20 years, **validated after every advance**, 16 processes,
+   23.3 minutes for both sweeps; the report is `harness/reports/m8-probe-2026-09-27.md`. Both sweeps
+   pass every assertion: no refused action, no validator refusal, no broken harness assertion, 50 of 50
+   saves round trip, `seed-0001` replayed byte-identical. With the probe, `probe.fired` came 7,242
+   times over 360,000 nights played (0.0201 a night, against a threshold of 0.02; 144.84 a game), and
+   every firing applied all five effects: 7,242 each of `hero.morale-changed`,
+   `guild.wealth-changed`, `hero.injured` and `quest.offered` naming the probe, and 1,137
+   `patron.regard-changed` where the Regard crossed a band. 314 of the 404 core counters moved, 90 did
+   not; among them `heroesInjured` +1,400 for the player's Guild and +6,302 for the Rivals (the probe's
+   own 7,242 Injuries and what followed), `heroesDied` −78 and +81, Quests taken +0.9% and +0.8%, and
+   the one bankruptcy with no module gone (all 50 ran 20 years with the probe). `advance` cost a mean
+   2.997 ms a Turn with the probe against 2.817 ms without. Fingerprints: with the probe
+   `e8fa34602a2f540596432d8f8d1fef72c189b9b11d23b66598ce0615044541bf`; with no module, over these 50
+   seeds, `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, the value a later
+   50-seed module run's no-module sweep prints unless something moved a game.
+8. **No module installed still changes nothing.** The engine's rules are untouched: the probe is a
+   new file reached only through `deps.modules`, and its exports are pure. The harness's no-module
+   jobs are the same JSON, and M8's counters are empty for them. The 200 × 20 proof is the M8
+   close's (DL-81).
+
+**Consequences.** The contract is proved end to end by the probe: registration, a slice made,
+migrated and validated by its module, a stream no core stream notices, all three hooks, each effect
+through the effects API, a stop, and the harness counting what a module did. M8-S4 installs the
+probe from the front ends' test switches (`--modules probe`, a web query parameter) and words
+`probe.fired`; Random Events, the first real module, adds its effect kinds to `effectEventTypes` as
+it adds them to the union.
+
+## DL-79 — Front ends and close-out: `--modules` on `new`, `load` and `advance`, a `?modules=` query parameter as the web reducer's deps, one generic sentence for any module's event, the probe in the bundle, and the first build's time counted (M8-S4)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S4's implementer), where
+the epic names the two test switches, the generic sentence and the close-out lines but leaves their
+shape open; no default, content value, `configVersion` or schema version changes, and no change to
+the engine
+
+**Context.** M8-S4 asks that the CLI and the web take a module list, empty by default: `--modules
+probe` for the CLI, a query parameter for the web, both test-only (the probe is never installed by
+default, nor by a front end on its own, DL-78); that both narration maps give a module event type they do
+not know a generic sentence rather than a crash; that `probe.fired` be visible in both front ends'
+logs on a seed known to fire one; that ADR-0005's amendment get a closing line with the tag; that
+`plan.md` say the first build is complete and when, with Random Events next; and that the epics'
+README get the sessions actually spent. DL-77 left M8-S4 the wording of a module's event, and DL-78
+item 1 said the web build held none of the probe.
+
+**Decision.**
+
+1. **The CLI's switch: `--modules <ids>` on `new`, `load` and `advance`** (both of its forms),
+   module ids joined by commas, each once, in the order their hooks run, from the CLI's own
+   registry (`cli/src/modules.ts`, `cliModules`: only `probe`). An unknown id, an empty one or one
+   named twice is a bad command line (exit 2), as the harness refuses a mistyped `HEROESIM_MODULES`
+   rather than play without the module. Absent, the command is parsed as before (no `modules`
+   field) and its deps carry no `modules` key, so every command writes what it wrote before M8.
+   `new` makes the world with each module's slice and stream; `advance` plays its hooks; `load`
+   has each module check and migrate its own slice. The other commands do not take it, as the story
+   names three: they open a save with the probe's slice warning "No installed module owns the slice
+   "probe": it is kept and never read", and an action writes the slice back as it was. `advance`
+   without `--modules` on such a save plays without the probe, its slice and stream untouched. A
+   module is installed for each invocation, as the harness installs one for each run: a save holds
+   slices, not a list of the modules it was played with; the usage text says so, and data-model
+   §3.4 now does too.
+2. **The web's switch: the query parameter `modules`**, `?modules=probe`, comma-separated, parsed by
+   `modulesFromQuery` in `web/src/state/modules.ts` (only `state/` imports engine values, M7-S2)
+   and read once, as the page mounts (`App`, `useState`), so the page's modules are the same for its
+   lifetime. An id the page does not know installs nothing: a page cannot refuse its own address,
+   so it says what it did install instead, in its footer, "Installed for testing: the probe
+   module.", and says nothing without the switch. **The modules are the reducer's deps, not its
+   state:** `gameReducer(state, action, modules)` and `useGame(initial, modules)` take them, none
+   by default (`noModules`), and every engine call a play makes installs them: `createWorld` for a
+   new game, `deserialise` for a load, `advance`, `fastForward`, `applyAction` and `rebase`
+   (`playDeps(document, modules)`, `engineDeps(modules)`). With none, the deps have no `modules`
+   key, exactly the deps the reducer's tests already assert, so the page plays as it did. Modules
+   are code, fixed for the page, so they are not kept in `GameState`, which the page's tests build
+   and compare. A game started with the probe keeps its slice in a save kept in IndexedDB or
+   exported; loaded without the parameter, the engine's `unknown-module` warning is among the load's
+   warnings the page already shows.
+3. **The probe is now in the web bundle.** This supersedes DL-78 item 1's "the web build holds none
+   of it": a switch that works in the built page needs the probe's code there, and the Playwright
+   specs, like the deployed page, run the built bundle, not the dev server. A separate test build
+   would prove a bundle other than the one deployed. `npm run build -w web` passes the gate at
+   495.86 kB (144.60 kB gzipped), against M7's close at 481.59 kB (140.03 kB); the difference holds
+   M8-S1 to M8-S3's contract code as well as the probe, and was not separated. Once M8 is deployed,
+   the public page accepts `?modules=probe`: no control on the page sets it, the footer says when it
+   is on, and nothing else changes for a player who does not type it.
+4. **One sentence for any module's event, in both front ends:** `The <module> module recorded
+   <type> for <who>.`, the module named by the type's namespace (every module event is `<module
+   id>.<what-happened>`, DL-77), then its type, then the entities it concerns by their labels,
+   joined as the maps join a list: the CLI adds a Hero's id, as its other lines do ("The probe module
+   recorded probe.fired for Una Greave (hero-000023), Ranulf Tarrant and The Hollin Guild."); the web
+   names alone, an entity without a label by what it is ("a Hero", "someone"). With no participant
+   the sentence ends at the type; a type with no namespace, which no module's `emit` makes, reads "A
+   module recorded …". The payload is never read, so a payload of any shape narrates and nothing
+   throws. It replaces DL-77's "A module's event: probe.fired.". Neither front end words the probe's
+   own event: the probe is test-only, and a front end that words one module's events is the
+   module's own UI the epic defers (§0).
+5. **Box 1's seed is `modules`.** The probe draws one number a night from its own stream, seeded by
+   the seed and its name alone (DL-76, DL-78), so the first night its draw falls below the threshold
+   depends on the seed alone; it fires then if a Hero on a Roster stands ready, as many do in the
+   first Days of a new game. On `modules` its eleventh draw is the first below 0.02: it fires on
+   Turn 11, the night of Day 3, before its first stop (Day 30). Found by playing candidate seeds with the probe installed. Proved in the CLI by
+   `cli/src/main.test.ts` (`new --modules probe`, `advance --turns 11 --modules probe`: the
+   sentence at Turn 11, the save equal to the engine's own eleven Turns with the probe, its effects'
+   events on the lines after it); in the web by `web/src/app.test.tsx` (the page opened at
+   `?modules=probe` in jsdom, a game started from the form and eleven Turns advanced: the sentence at
+   "Day 3, night" in "Since your last action", and without the parameter neither it nor the footer's
+   line) and by `web/e2e/modules.spec.ts`, the same in the built page at both widths.
+6. **The close-out lines are written as done.** ADR-0005's amendment gains a line "Closed
+   2026-09-27" naming the tag `m8-modules`; `plan.md` §2's M8 row reads "Done 2026-09-27
+   (`m8-modules`)" and a line under the table says the first build was completed on 2026-09-27, with
+   Random Events, §4's first line, the next work. The tag and Random Events' GitHub issue are the
+   orchestrator's, made right after the M8 close's tagged run (DL-81), so the epic's second box,
+   "The M8 tag exists", is left unticked with a note, and M8's Status line is not set to done.
+7. **The time the first build took, in the epics' README**, since it was not made in the sessions the
+   estimate counts: per milestone, the wall-clock span from the first to the last commit whose
+   subject begins with its name (`M3-S2: …`, `M3 verify: …`, `M3 close: …`), by committer date at
+   UTC+10 from `git log --all`, merges not counted, beside the planned sessions and their 2–3 hours
+   each. M8 is measured to M8-S3, the last commit before the table was written. The spans overlap,
+   because agents worked several stories and milestones at once, and they hold waiting (harness
+   sweeps, overnight balance passes) as well as work, so the README gives three totals and says
+   which is which: the spans' sum, 90 h 26 min; the time at least one milestone was open, 42 h 39
+   min; and the elapsed clock from M0's first commit (2026-09-26 00:41) to M8-S3 (2026-09-27 21:45),
+   45 h 05 min, beside the 60–78 sessions (120–234 hours) planned. No record of agents' working time
+   or compute was kept, and none is claimed.
+8. **No module installed still changes nothing.** This story changes the CLI, the web and documents,
+   not the engine; without a switch neither front end passes a `modules` key, and every existing
+   CLI, reducer and page test passes unchanged but for the module sentence. The 200 × 20 byte
+   identity proof is the M8 close's (DL-81).
+
+**Consequences.** The module contract reaches both front ends: a module's events are in both logs,
+its stop is said in both (DL-77), and a game made with it saves, loads and plays on with it
+installed. Random Events, the first real module, will need what the probe did not: to be installed
+by default, and a save that says which modules it needs, so a front end need not be told each time;
+both are its decisions, with a DL, and both switches here stay as they are for the probe.
+
+## DL-80 — M8 verification corrections: a read-only view by every route of reading, a hook's events settled as the History's own, a context that lasts for its call, the close-out lines made true until the tag, errata to DL-77 and DL-79; tests that kill 21 surviving mutants
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the fixer of M8's
+verification), acting on the defects the verification confirmed, each of which survived a skeptic; no
+default, content value, `configVersion` or schema version changes
+
+**Context.** M8's verification confirmed 24 defects in M8-S1 to M8-S4 (DL-76 to DL-79). Three are in
+the module contract itself:
+
+- **The read-only view had a gap** (read-only.ts). Its Proxy trapped `get`, `set`, `defineProperty`,
+  `deleteProperty`, `setPrototypeOf` and `preventExtensions`, but not `getOwnPropertyDescriptor`, so
+  `Object.getOwnPropertyDescriptor(view, key).value` (and `Reflect`'s, and
+  `Object.getOwnPropertyDescriptors`, which a shallow clone built with `Object.create` uses) handed a
+  hook the raw object behind a view, typed `any`. Through it a module wrote Morale and Wealth with no
+  event, moved a core stream, wrote another module's slice, and wrote rules and content that are not
+  frozen: a save's rules as the CLI spreads them over `defaultConfig`, and `loadContent`'s content,
+  which every game in the process shares. The validator accepted every result. DL-77 item 1 and
+  data-model §3.4 say the world is read-only at run time, "any object reached from it".
+- **A hook's events were the History's entries by reference.** `append` stores the entry it is
+  given, and `checkedResult` checked only that each returned event was one the call made. A module
+  retyped its own event to `hero.retired` after the emitter had checked its namespace, rewrote an
+  effect's `hero.morale-changed` into another cause, value and module, or into a `hero.died`
+  Milestone for a living Hero, and rewrote a kept entry's payload on a later Turn; the validator
+  accepted each. DL-77 item 4 says a core event always means the core did it, and item 5 that no row
+  changes without an event to explain it.
+- **A hook's context stayed live after the hook returned.** A kept `ctx.effects`, called from another
+  module's later hook, changed a Guild's Wealth with no event in the Turn or the History; called at
+  the module's own next hook, it changed the document the caller held, which `advance` promises to
+  leave as it was.
+
+The rest: `plan.md` §2 and ADR-0005 said M8 was tagged and the first build complete on 2026-09-27,
+though the tag waits for the M8 close's run (DL-79 item 6, DL-81), which cannot end that day; the root
+README, which still says the build is under way, has no line that changes it at the close;
+data-model §3.4 said every effect is explained by an event, where `adjustRegard`'s comes only on a
+band crossing; the CLI's usage said `advance --turns` stops early only on an ending and left a
+module's stop out of the stops that always end fast forward; the `Module` doc promised a
+`ModuleError` for a throwing `validateSlice`, which refuses the document instead; the epic counted
+"eight other writes" in a table of nine; the epics README's timing did not say a span leaves out the
+work before a milestone's first commit, and called the time outside every span time "no milestone was
+open"; DL-79 item 5 said "eleventh draw". And 21 mutants survived the suite (items 7 and 8).
+
+**Decision.**
+
+1. **The read-only view hands back a view by every route of reading.** A `getOwnPropertyDescriptor`
+   trap returns the property's descriptor with its value's view in place of the value; `Reflect`'s
+   and `Object.getOwnPropertyDescriptors` go through it too. A property frozen on its object is
+   reported as it is, as `get` already did, since a Proxy may report nothing else; the only frozen
+   objects a module reaches are `defaultConfig`'s, which is frozen all the way down. A write through a
+   descriptor, into a shallow clone built from descriptors, or into rules or content that are not
+   frozen now throws a TypeError, and the hook's `ModuleError` names the module. A read through a
+   descriptor reads the world as it stands, and the view it gives is the one `get` gives.
+2. **Every event a hook is handed is settled: the History's own copy, frozen** (modules.ts,
+   `settled`). `ctx.emit`, and each effect for its events, return a copy of the event's JSON data,
+   every object and list in it frozen; a view of the world in a module's payload is read through into
+   plain data, so no Proxy reaches the History, and a value that is not JSON data is left as it is
+   for the validator to refuse (DL-18). The hook returns those very objects, so `checkedResult`'s
+   identity check now also means the content is the core's: a write to one, before the hook returns
+   or on a later Turn, throws. `checkedResult` reads the returned list once, and copies the stop, so
+   nothing a module keeps changes what the Turn reported. Only the events a hook is handed are frozen:
+   the core's own entries stay as DL-18 left them, since no hook reaches the History (its context
+   holds none). With no module installed nothing is copied or frozen.
+3. **What a module's call is given lasts for that call.** A hook's `ctx.emit`, `ctx.rng`,
+   `ctx.select` and `ctx.effects`, and `createSlice`'s `ctx.rng`, throw a RangeError once the call
+   has returned, naming the module whose context it was; used from another module's hook, it fails
+   that hook, naming that module. The world view and the slice are not revoked: a view kept past its
+   hook reads a world the engine has since handed back, and a slice kept and written later changes
+   that document, not the game. The `Module` doc now says a module keeps nothing between calls but
+   its slice, read from its argument each time.
+4. **The close-out lines say what is true until the tag.** `plan.md` §2's M8 row reads "M8-S1 to
+   M8-S4 and its verification done; done when tagged `m8-modules` at its close (DL-81)"; the line
+   under the table says the first build is complete when M8 is tagged, on the tag's date, with Random
+   Events next once it is; §4 says Random Events is the next work "once the first build is complete";
+   ADR-0005's closing line is "*Closed by M8*" and says the first build is complete when M8 is tagged.
+   The root README's "Its first build is under way" is true until then and is left. **The M8 close
+   (DL-81), when it tags, writes the tag's date (UTC+10) into the M8 row and the line under the table,
+   rewords §4 and ADR-0005's closing line as done with that date, and changes the README's line to say
+   the first build is complete**, as M7's close did the README's. The epic's second M8-S4 box says so,
+   and its Status line says the close and the tag remain. This supersedes DL-79 item 6's choice to
+   write those lines as done before the tag.
+5. **Other documents.** Data-model §3.4 now says a module's view is read-only by whatever route it
+   reads, that a Regard effect has its event only on a band crossing (its Regard entry names the
+   module as its reason), and that a hook's events are frozen copies and its context lasts for its
+   call. The CLI's usage says `advance --turns` stops early when an installed module asks to stop, and
+   lists a module's stop among those that always end fast forward; the command lines still leave
+   `--modules` to the paragraph after the commands, as they leave `--save`, and the web's help on
+   time says nothing of modules, since no player sees one (DL-79 item 3). The `Module` doc says a
+   throwing `migrateSlice` or `validateSlice` refuses the document as a `module-slice` failure, never
+   a `ModuleError`, and where the stream-name rules are enforced (`installedModules`,
+   `createStreams`). The epic's frozen-world box counts the table's nineteen writes and the two to
+   rules and content. The epics README says a span leaves out the work before a milestone's first
+   commit (for M8, about 2 h 20 min of M8-S1 and its two sweeps) and that the 2 h 26 min outside
+   every span is that, not idle time.
+6. **Errata.** DL-79 item 5, "On `modules` its eleventh draw is the first below 0.02", should read
+   "its fourth draw is the first below 0.02": the probe draws only at night, on Turns 2, 5, 8 and 11,
+   and its draws on seed `modules` are 0.5607, 0.5647, 0.6237 and 0.0163 (the eleventh is 0.7423). It
+   fires on Turn 11, as the item, the epic and the tests say. DL-77 item 1's "any object reached from
+   it" held only for a property's value read by `get` until item 1 here, and item 4's "a core event
+   always means the core did it" held only for events nobody rewrote until item 2.
+7. **Tests that kill the 21 surviving mutants**, each applied to this tree by a scratch script that
+   runs the tests named, red with the mutant and green without:
+   - module-hooks.test.ts: a module named `hero`, `guild` or `world` refused the engine's own type
+     (the emitter's engine-type guard); the ending reported over a module's stop on the same night
+     (`stoppedBecause`'s precedence); a define, a prototype change and an extensibility change in the
+     frozen-world table (their three traps); a Guildmaster's age from `ctx.select.age`;
+     `createSlice`'s Turn for a save first played with the module, and its read-only rules and
+     content;
+   - modules.test.ts: a save made before a strict module was installed loads with no warning and
+     neither migrates nor validates the absent slice (both absent-slice skips), as does the probe's in
+     probe.test.ts;
+   - cli/src/main.test.ts: `advance --turns 100 --modules probe` on seed `modules` stops at Turn 91,
+     the afternoon of Day 30, with the engine's save and "Stopped: the probe module asked to stop.";
+   - effects.test.ts: a retired Hero and one gone from the pool refused by `adjustMorale`,
+     `adjustRegard` and `injure`; a folded Guild's Guildmaster refused `holder-gone`; a Hero holding
+     Regard for a Patron or a Guild throws; an infirmary of grade 2 shortening an effect's Injury;
+   - probe.test.ts: a negative `probeFireBelow` and a fractional `lastStopTurn` refused; the night's
+     draw picking the first, a middle and the last ready Hero and Patron;
+   - harness: `effectEventTypes` equal to the types the five effects make, each Regard holder
+     crossing a band; the module report refusing two sweeps of different years.
+   The tests of items 1 to 3 are red on M8-S4's engine (19 of them) and green here, and four more
+   mutants of them (the descriptor trap removed, events not settled, a context never closed, a stop
+   not copied) are each red.
+8. **No module installed still changes nothing.** Every change here runs only with a module
+   installed: the view is made only for a hook or `createSlice`, `hookPhase` returns before any of it
+   with none, and `ensureModules` loops over none. Checked beyond the suite, against `m7-web` itself:
+   `seed-0001` to `seed-0050` × 20 years played at this tree with the harness's own `playGame`,
+   core content, `defaultConfig` and `modules: []`, on 16 processes, by DL-76's driver, which writes
+   per seed the SHA-256 of the last save and of the game's harness record (counters, observations,
+   Turns, refusals, assertion), the Turns played, the History's entries and the save's length. The
+   saves of all 50 equal the first 50 lines of DL-76's `m7-web` table, over 1,077,929 Turns and
+   12,989,905 History entries; with M8-S3's two module counters taken out of the record (checked
+   empty on every seed: they did not exist at `m7-web`), the 50-line table is byte for byte the
+   `m7-web` one (SHA-256 `649f1e5480e10d6788a627670a57427690e41049acd0e826a8d2678f38b3c6ba`). In
+   `sweepFingerprint`'s form these 50 saves give
+   `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, DL-78's no-module value. The
+   200 × 20 proof at the M8 close is DL-81's.
+
+**Consequences.** The contract's guarantees now hold at run time by every route found: a module reads
+the World State, the rules and the content and cannot write them, cannot make an event say what the
+core did not, and cannot act outside the call it was given. What it can still do is outside the
+contract's reach and stated in the `Module` doc: write a slice it kept past its call, which changes
+only a document already handed back. The M8 close (DL-81) writes the tag's date where item 4 says.
+
+## DL-81 — M8 close: the first build's 1,000 × 20 tagged run, byte identity with `m7-web` read from inside it, the first build's close-out lines dated, and what the first build leaves to the owner
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the M8 close), running the
+tagged run and choosing how its figures are read; no rule, default, content value, `configVersion`
+or schema version changes, and the owner has not seen the figures
+
+**Context.** DL-39 item 4 made the 1,000 × 20 run that INPUTS 4.13 calls "the tagged run" once, for
+the first build's tag at M8, each milestone before it carrying a 200 × 20 run. M8's gate asks that the
+harness with no module installed be byte-identical to M7's tagged run. DL-76 proved that on 200 × 20 at
+M8-S1; DL-77 to DL-80 changed the engine after it, and DL-80 item 8 left "the 200 × 20 proof at the M8
+close" to this entry. DL-80 item 4 left the tag's date, in `plan.md`, ADR-0005 and the README, to the
+close. With no module installed M8 changes no rule, and M7 changed none, so the M6 run (DL-69: 200 ×
+20, validated, `harness/reports/m6-2026-09-27.md`) is the picture this run is read against.
+
+**Decision.**
+
+1. **The run.** `HEROESIM_VALIDATE=1 HEROESIM_SEEDS=1000 npm run harness -- play.harness`, M6's command
+   with 1,000 seeds, on `m8-integration` at `21fd4d4` with one change: `play.harness.test.ts`'s
+   milestone is `m8`, so the report is M8's, as each close before retitled it
+   (`harness/reports/m8-2026-09-28.md`, force-added with this entry). No `HEROESIM_MODULES`, so no
+   module was installed. 1,000 seeds, `seed-0001` to `seed-1000`, each up to 20 years, validated after
+   every advance, config version 10, content version 14, schema version 3, the policy of DL-63 item 3,
+   16 processes on DL-13's machine. Begun 2026-09-28 00:50:48, ended 07:02:54 (UTC+10): 22,327 s, the
+   games 21,990 s of it. The close started no other heavy work meanwhile.
+2. **Validation.** No refusal or warning, no policy action refused, and no game the M6-S3 assertion
+   stopped: no `hero.transferred` names the player's Guild. All 1,000 last documents load and
+   serialise back alike, and `seed-0001` played twice more is identical (113,281,366 characters).
+3. **Byte identity with `m7-web`, read from inside the run.** The sweep deletes its shards' result
+   files when it ends, so a scratch watcher copied each of the 16 as it was written. Their
+   `sweepFingerprint` over all 1,000 games is the report's own, `9d804517…b19e`. Over `seed-0001` to
+   `seed-0200` they give `7c71caae3e08c4405e14f3fae3a0c8cc95d1f6deac55e9b80de45a929c07458b`, which is
+   `m7-web`'s 200-seed fingerprint (DL-76 item 7). Over the first 50 they give DL-78's `11a18457…9e02`.
+   The validator reads and never writes, so a validated game plays as an unvalidated one. So with no
+   module installed, M8 at the close plays those 200 seeds' 20 years to the same saves as `m7-web`,
+   byte for byte: M8's gate and M8-S1's first box hold at the tag. Counted from the same records, the
+   first 200 games give the M6 report's counters exactly: 576 Rival folds, 6,813 and 15,404 Deaths,
+   1,093 Transfers, and 207,794 of 1,392,652 player's Quests failed. **Every difference between this
+   run and the M6 run therefore comes from seeds 201 to 1,000.**
+4. **The figures against the M6 run** (a Guild-year and "a game" as the reports use them):
+
+   | Measure | M6, 200 × 20 | M8, 1,000 × 20 |
+   | --- | --- | --- |
+   | The player's games that ended | 2 Bankruptcies (`seed-0049`, `seed-0188`) | 4 Bankruptcies: those two, `seed-0942` (Turn 18,569) and `seed-0807` (Turn 21,269); every other game ran 20 years |
+   | Rival folds a game | 2.88 | 2.78: 2,779 Bankruptcies and one Roster wiped, the first of either run (`seed-0849`, a `reckless` Rival) |
+   | Folds a Guild-year, `ambitious` / `miserly` / `reckless` / `steady` | 0.021 / 0.038 / 0.052 / 0.034 | 0.022 / 0.037 / 0.046 / 0.035 |
+   | Rival-to-Rival Transfers | 1,093, 5.47 a game | 6,075, 6.08 a game: 5,687 an afternoon's choice, 8 with the seller in debt, 380 the Generator's; mean fee 493 |
+   | … back to a Guild that had sold the Hero | 117 (10.7%) | 629 (10.4%) |
+   | Transfers into or out of the player's Guild; offers for its Heroes | none; 161, all declined | none; 951, all declined |
+   | The player's Quests failed / succeeded / strong | 14.9 / 13.7 / 71.3% | 14.8 / 13.7 / 71.5% |
+   | The Rivals' Quests | 12.9 / 12.0 / 75.1% | 12.9 / 12.1 / 75.0% |
+   | Deaths a game, the player's / the Rivals' | 34.1 / 77.0 | 33.6 / 78.4 |
+   | Mean Level after 10 years, the player's / the Rivals' | 7.60 / 6.98 | 7.58 / 6.93 |
+   | The player's Wealth after 10 and 20 years | 123,818; 189,977 | 125,897; 192,614 |
+   | A Rival's Wealth after 10 and 20 years | 27,918; 22,487 | 28,354; 22,923 |
+   | Wealth spent, the player: Upkeep / Items / signing / Improvements | 86.1 / 13.3 / 0.4 / 0.2% | 86.1 / 13.3 / 0.4 / 0.2% |
+   | Wealth spent, the Rivals: Upkeep / Improvements / Items / signing / Transfers | 98.0 / 1.3 / 0.3 / 0.3 / 0.1% | 98.0 / 1.2 / 0.3 / 0.3 / 0.1% |
+   | The player first in the Rankings, of all year-starts: by Fame; by Wealth | 89.5%; 91.6% | 88.8%; 91.4% |
+   | Loot awards a Guild-year (a Quest resolved), the player's / the Rivals' | 47.1 (0.135) / 20.6 (0.102) | 47.2 (0.135) / 21.1 (0.103) |
+   | Unique Items awarded a game | 4.99 | 4.99 |
+   | Consumables a player's Quest: carried; expended; Quests using one | 2.90; 0.70; 52.6% | 2.91; 0.70; 52.8% |
+   | Rival Rosters at year-starts: within 4 to 8; above 8 | 84.9%; 14.8% | 84.1%; 15.6% |
+   | Rival Market purchases a Guild-year | 1.52 | 1.51 |
+   | History entries after 20 years, mean | 259,815 | 261,462 |
+
+5. **Against the 200-seed picture, nothing moves beyond what 200 seeds could tell.** Seeds 201 to
+   1,000 on their own, from the kept records: Rival folds 2.76 a game against the first 200's 2.88 (a
+   game's folds have a standard deviation of 1.12, so a mean of 200 games a standard error of 0.08); Rival-to-Rival Transfers
+   6.23 a game against 5.47 (a standard error of 0.41: a game's deviate by 5.8, from none to dozens
+   as an `ambitious` and a `reckless` Rival meet); the player's Quests failed 14.8% against 14.9%; Deaths 33.4 and 78.8 a game
+   against 34.1 and 77.0; the player first by Fame at 88.6% of year-starts against 89.5%. The one
+   figure the 200 seeds overstated by more than their noise is `reckless`'s folds: 0.044 a Guild-year on
+   the new seeds against 0.052, about two standard errors (207 folds, 0.004). It is still the Disposition that folds most, and
+   `miserly` (0.037), `steady` (0.035) and `ambitious` (0.022) keep DL-69's order. Every DL-69 item 4
+   target the report shows still holds: 2.78 folds a game, `steady` not the most; 84.1% of Rival Rosters
+   within 4 to 8, each Disposition's median 4 to 6, and above 8 at most 26.8% (`reckless`); 6.08
+   Transfers a game, 10.4% back to a former seller. The four player Bankruptcies are 0.4% of games, all
+   in years 16 to 19, and the earliest is still M6's `seed-0188`.
+6. **Measures** against data-model §7 (recorded, not chased, DL-08):
+   - *Under load*, 16 processes: `advance` 5.91 ms a Turn (p99 14.2), M6's 5.98 (13.8); `validate`
+     after it 6.09 ms.
+   - *A Turn alone.* The report's replay of `seed-0001` in the sweep's own process gives 4.96 ms, M6's
+     1.50 ms, and so a year of fast forward of 5.4 s against M6's 1.6 s. That is the machine, not M8.
+     After the run, `seed-0001` was replayed alone for 20 years in fresh processes, unvalidated as the
+     replay is, at this tree and at `m7-web` (a scratch worktree of the tag, since removed), taking
+     turns: M8 4.30, 4.08 and 3.79 ms, `m7-web` 4.45 and 4.04 ms. The processor ran at 86% to 92% of its
+     base clock under one busy thread, with no boost. So M8 is no slower than `m7-web`, which the
+     under-load figure agrees with. A Turn alone was 1.5 ms on this machine on 2026-09-27 and about 4
+     ms on 2026-09-28. A year of fast forward is 1.6 s at the first rate and 4.1 to 5.4 s at the second,
+     against 1 s either way.
+   - *Save and load*: a save after 20 years is 99.2 MiB on the mean and 118.3 MiB at most (the same
+     game as M6's largest), against 20 MiB. Loading one under load takes 4.6 s on the mean (7.8 s at
+     most) against 1 s; serialising one takes 3.8 s.
+   - *The harness*: 1,000 games of 20 years took 367 minutes of games in 16 processes, 372 in all,
+     against §7's 10 minutes: 37 times over, as M6's projection of 366 minutes said.
+7. **The close-out lines** (DL-80 item 4): `plan.md`'s M8 row reads "Done 2026-09-28 (`m8-modules`)",
+   the line under the table and §4 say the first build is complete with Random Events next, ADR-0005's
+   closing line says the first build was completed when M8 was tagged `m8-modules` on 2026-09-28, and
+   the README says the first build is complete. The epic's Status is "done — 2026-09-28
+   (`m8-modules`)", and its "Measured" section gives this run and the probe run. The tag is the
+   orchestrator's, on this commit, so M8-S4's second box is ticked when it exists. The epics README's
+   time table still measures M8 to M8-S3 (DL-79 item 7). This close adds the run's 6 h 12 min of machine
+   time to M8's span.
+
+**Consequences.** The first build is complete: the core plays as a measurable game with no module
+installed, and it plays the same with a contract for modules in place. What the first build leaves to
+the owner, collected from the decisions that left it and read again in this run:
+
+- **Content read by an agent** (DL-17 item 5). INPUTS 5.3's "weighted 2:1 toward the Class's leading
+  Stats" was read as a split of each Level's points: the four leading Stats share two thirds and the
+  sixteen others one third, so a leading Stat grows 8 times as fast as another. Read per Stat, 2:1 would
+  make it twice as fast. Under this reading 47.8% of the player's Heroes and 42.3% of the Rivals' have
+  a Stat at its Potential by year 10. Every name, key and first
+  value in `content/` is an agent's choice too.
+- **Regard and Relationship** (DL-55). Guildmaster Regard has nothing to decay it and saturates: after
+  10 years the player's Guildmaster is close with 11,994 of 12,000 Patrons, and nothing in the first
+  build reads it. Relationship within the player's Roster never falls below neutral (73.1% close, none
+  cool or hostile), so teamwork only rewards. No Patron fell silent (0 of 239,880 Patron-years). Each
+  needs a rule, not a value.
+- **The plain success band is thin** (DL-55): 13.7% of the player's Quests and 12.1% of the Rivals'.
+- **The player's Wealth grows without end** (DL-41, DL-55, DL-69): 19,460 after a year, 125,897 after
+  10 and 192,614 after 20, first by Wealth at 91.4% of year-starts and by Fame at 88.8%. The Rivals are
+  no threat in the Rankings. Four of 1,000 player's Guilds went bankrupt, all late. The policy declines
+  every Transfer Offer (951) and never transfers. A smarter policy, and whether it should ever accept,
+  is a decision after these counters (DL-69).
+- **Items** (DL-62). Items are the player's second cost, 13.3% of what it spends. Its Parties carry
+  2.91 consumables a Quest, where the Rivals carry and buy none. Surplus Loot gear piles up: nothing
+  sells it (no `sale` in 1,000 games), and `gearChoices` never replaces worn gear with better.
+- **Rivals** (DL-69):
+  - Folds come from Levels outrunning income. A Rival's Wealth at a year-start peaks in year 8
+    (29,928) and falls to 22,923 by year 20. Changing that is a rule, or values the player pays too
+    (`wagePerLevel`, `xpPerTrainingDay`, `hallMaintenancePerGrade`).
+  - `transferAppetite` does two jobs: the chance of seeking a Transfer, and consent. A consent floor at
+    `rivalRosterMin` in `transferAnswer` would free it.
+  - Transfers are few and mostly between two: 4,369 of 6,075 are between `ambitious` and `reckless`.
+  - `steady` and `miserly` sit near the floor on idle Wealth. `steady`'s median Roster is 4 at a mean
+    Wealth of 20,418, `miserly`'s 5 at 24,229. The share at the floor with more than 20 Upkeeps is the
+    scratch script's measure and is not repeated here.
+  - The engine's test content keeps M6-S1 to S4's Disposition rows.
+- **The measures over target** (data-model §7, item 6):
+  - a Turn under load is 5.9 ms against 5;
+  - a year of fast forward is 1.6 s or more against 1;
+  - a save after 20 years is 99.2 MiB against 20;
+  - loading one takes 4.6 s against 1;
+  - 1,000 games take six hours against ten minutes;
+  - in the browser, a twenty-year save round trip through IndexedDB is 3.6 s against 1 (DL-67, M7-S4's
+    open box).
+  The History is most of a save. A leaner `quest.encounter` entry is the lever DL-42 and DL-55 named,
+  and it is a data-model decision. The single-thread rate this machine gives varies by a factor of
+  about three between days (item 6), so a later comparison of Turns alone should replay both trees
+  side by side, as item 6 did.
+- **The deploy** (DL-75). Cloudflare is folding Pages into Workers, and a later wrangler may stop
+  offering classic Pages; moving the page would change its address and DL-68's command.
+- **Modules** (M8). The `effects` API is deliberately narrow, and Random Events, the next work, is the
+  test of whether the contract fits a real feature (the epic's risks). A module that keeps its slice
+  past its call can still write a document already handed back (DL-80). The probe is in the web bundle,
+  so a deployed M8 page accepts `?modules=probe` (DL-79 item 3).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

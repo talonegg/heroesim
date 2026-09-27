@@ -29,6 +29,7 @@ import type { GameConfig, QuestBand } from '../config.js';
 import type { Consequence, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
+import { healDays } from '../injuries.js';
 import { chance, int } from '../rng.js';
 import { healFactor } from '../selectors.js';
 import { check, type CheckDeps, type EncounterOutcome } from './check.js';
@@ -240,7 +241,7 @@ function apply(consequence: Consequence, working: Working, harm: Harm, state: St
         const hurt = unhurt[int(state, 0, Math.max(0, unhurt.length - 1))];
         const days = int(state, type.healDaysMin, type.healDaysMax);
         if (lands && hurt !== undefined) {
-          working.injuries.push({ heroId: hurt.id, typeKey: type.key, healDays: Math.max(1, Math.round(days * factor)) });
+          working.injuries.push({ heroId: hurt.id, typeKey: type.key, healDays: healDays(days, factor) });
           harm.injured.push(hurt.id);
         }
       }

@@ -16,7 +16,7 @@ import {
   type World,
   type WorldDocument,
 } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { EngineEvent, TurnEvent } from '../events.js';
 import { count, entriesFor } from '../history.js';
 import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder, sellPrice } from '../market.js';
@@ -56,7 +56,7 @@ function created(seed: string, deps: EngineDeps): WorldDocument {
 interface Played {
   document: WorldDocument;
   /** Every event of every Turn played. */
-  events: EngineEvent[];
+  events: TurnEvent[];
   /** What the last Turn played reported. */
   stoppedBecause: StopReason | null;
 }
@@ -65,7 +65,7 @@ interface Played {
 function playTo(document: WorldDocument, turn: number, deps: EngineDeps): Played {
   let current = document;
   let stoppedBecause: StopReason | null = null;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn && current.world.ended === null) {
     const result = advance(current, deps);
     current = result.document;
@@ -75,7 +75,7 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): Played
   return { document: withValid(current, deps), events, stoppedBecause };
 }
 
-const ofType = <Type extends EngineEvent['type']>(events: EngineEvent[], type: Type) =>
+const ofType = <Type extends EngineEvent['type']>(events: TurnEvent[], type: Type) =>
   events.filter((event): event is Extract<EngineEvent, { type: Type }> => event.type === type);
 
 function guildOf(world: World, id: GuildId): Guild {
@@ -289,7 +289,7 @@ describe("the player's ending ends the game", () => {
     const withoutRetirement = structuredClone(world);
     arrange.retirement(world, player, deps);
 
-    const reasonsOf = (events: EngineEvent[]) => ofType(events, 'game.ended').map((event) => event.payload.reason);
+    const reasonsOf = (events: TurnEvent[]) => ofType(events, 'game.ended').map((event) => event.payload.reason);
     expect(reasonsOf(endings(world, phaseContext(world, deps)))).toEqual(['retirement']);
     expect(reasonsOf(endings(withoutRetirement, phaseContext(withoutRetirement, deps)))).toEqual(['bankruptcy']);
   });
@@ -536,7 +536,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
 
 describe("a fold's one order (DL-54)", () => {
   /** What a test reads of a fold's event: its type and the Hero, Item, stack or Guild it concerns. */
-  const told = (event: EngineEvent): string[] => {
+  const told = (event: TurnEvent): string[] => {
     switch (event.type) {
       case 'item.returned':
         return [event.type, event.payload.heroId, event.payload.itemId ?? event.payload.stackId ?? ''];

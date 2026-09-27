@@ -40,15 +40,16 @@ function requiring(world: World, questId: Quest['id'], requirements: Partial<Que
 }
 
 describe('which stops are always on (approach §2, principle 10, pre-M0 review B7)', () => {
-  test('an ending, a Party home, a decision and a Transfer Offer always stop; the pool refreshing only when asked', () => {
+  test("an ending, a Party home, a decision, a Transfer Offer and a module's stop always stop; the pool refreshing only when asked", () => {
     expect(alwaysStops).toEqual({
       ended: true,
       'party-returned': true,
       'decision-needed': true,
       'transfer-offer': true,
+      module: true,
       'pool-refreshed': false,
     });
-    expect(stopConditions).toEqual(['ended', 'party-returned', 'decision-needed', 'transfer-offer', 'pool-refreshed']);
+    expect(stopConditions).toEqual(['ended', 'party-returned', 'decision-needed', 'transfer-offer', 'module', 'pool-refreshed']);
     expect(stopConditions.every(isStopCondition)).toBe(true);
     expect(['max-turns', 'returns', 3, undefined].some(isStopCondition)).toBe(false);
   });

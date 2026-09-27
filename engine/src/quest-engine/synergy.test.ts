@@ -6,7 +6,7 @@ import type { ContentSet, Encounter, EncounterKind, Synergy } from '../content-t
 import { encounterKinds } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { makeId, type Guild, type Hero, type Party, type Quest, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf } from '../events.js';
+import type { EngineEvent, EngineEventOf, TurnEvent } from '../events.js';
 import { generateHero } from '../generators/heroes.js';
 import { playerGuild } from '../selectors.js';
 import { harmlessContent, heroStatKeys, testContent, testDeps, testWorld, withValid } from '../world.test-support.js';
@@ -230,7 +230,7 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
     const party = sent.document.world.parties[quest.partyIds[0] as Party['id']] as Party;
 
     let document: WorldDocument = withValid(sent.document, gameDeps);
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     while (document.world.turn < party.returnsOnTurn) {
       const result = advance(document, gameDeps);
       document = withValid(result.document, gameDeps);

@@ -4,8 +4,9 @@ A guild-management simulation. You are a Guildmaster running a Guild of Heroes: 
 from Patrons, choose who to send, and grow the Heroes and the Guild over the years. The engine
 is mechanical first; story-rich modules such as Campaigns and Scenarios come later.
 
-The design is v2, baselined 2026-09-24. Its first build is under way, milestone by milestone
-([`docs/plan.md`](./docs/plan.md)).
+The design is v2, baselined 2026-09-24. Its first build is complete, built milestone by milestone
+and tagged `m8-modules` on 2026-09-28 ([`docs/plan.md`](./docs/plan.md)); Random Events, the first
+real module, is next.
 
 ## Play
 

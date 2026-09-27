@@ -3,19 +3,23 @@ import {
   advance,
   applyAction,
   availableHeroes,
+  createWorld,
   defaultConfig,
   deserialise,
   fastForward,
   holdings,
+  isModuleEvent,
   makeId,
   offeredQuests,
   partyFor,
   playerGuild,
+  probe,
   rebase,
   serialise,
   unattachedHeroes,
   type EngineDeps,
   type Guild,
+  type Module,
   type WorldDocument,
 } from '@heroesim/engine';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
@@ -270,6 +274,77 @@ describe("a loaded save's warnings, the CLI's notice of content keys this conten
     expect(loaded.warnings).toHaveLength(1);
     expect(play(loaded, newGame).warnings).toEqual([]);
     expect(play(loaded, { kind: 'load', text: serialise(documentOf(started())) }).warnings).toEqual([]);
+  });
+});
+
+describe('the modules installed (M8-S4): none unless the page is given some', () => {
+  /** Plays `action` as the page does with `modules` installed: accepted, then settled. */
+  function withModules(modules: readonly Module[], state: GameState, action: Play): GameState {
+    return gameReducer(gameReducer(state, action, modules), { kind: 'settle' }, modules);
+  }
+  const withProbe = (state: GameState, action: Play): GameState => withModules([probe], state, action);
+
+  test('with none, a new game has no slice of a module and every engine call is made without one', () => {
+    const state = started();
+
+    expect(documentOf(state).world.modules).toEqual({});
+    expect(lastDeps(createWorld)).toEqual({ config: defaultConfig, content });
+    play(state, { kind: 'advance' });
+    expect(lastDeps(advance)).toEqual({ config: defaultConfig, content });
+  });
+
+  test('with the probe, a new game has its slice and stream, and every play on it is the engine’s with the probe installed', () => {
+    const state = withProbe(initialGameState, newGame);
+    const expected = { config: defaultConfig, content, modules: [probe] };
+
+    expect(lastDeps(createWorld)).toEqual(expected);
+    expect(documentOf(state).world.modules).toEqual({ probe: expect.objectContaining({ version: 1, lastStopTurn: null }) });
+    expect(Object.keys(documentOf(state).world.rng)).toContain('probe');
+
+    const advanced = withProbe(state, { kind: 'advance' });
+    expect(lastDeps(advance)).toEqual(expected);
+    const forwarded = withProbe(advanced, { kind: 'fastForward', until: [], maxTurns: 2 });
+    expect(lastDeps(fastForward)).toEqual(expected);
+    const heroId = playerOf(forwarded).rosterIds[0];
+    if (heroId === undefined) throw new Error('expected a Hero on the Roster');
+    withProbe(forwarded, { kind: 'unequip', heroId, slot: 'weapon' });
+    expect(lastDeps(applyAction)).toEqual(expected);
+    withProbe(forwarded, { kind: 'rebase' });
+    expect(lastDeps(rebase)).toEqual(expected);
+    withProbe(initialGameState, { kind: 'load', text: serialise(documentOf(state)) });
+    expect(lastDeps(deserialise)).toEqual(expected);
+  });
+
+  test('a probe.fired event is in the log of the Turn the probe fires on, on a seed known to fire one', () => {
+    // Seed `modules`: the probe's stream first draws below 0.02 on the eleventh Turn, the night of Day 3.
+    let state = withProbe(initialGameState, { ...newGame, seed: 'modules' });
+    for (let turn = 1; turn <= 10; turn += 1) {
+      state = withProbe(state, { kind: 'advance' });
+      expect(state.log.filter(isModuleEvent)).toEqual([]);
+    }
+
+    state = withProbe(state, { kind: 'advance' });
+
+    const fired = state.log.filter(isModuleEvent);
+    expect(fired).toEqual([expect.objectContaining({ type: 'probe.fired', turn: 11 })]);
+    expect(documentOf(state).history.byType['probe.fired']).toHaveLength(1);
+    // The same Turns without the probe make no module event, and leave the world without its slice.
+    let plain = play(initialGameState, { ...newGame, seed: 'modules' });
+    plain = play(plain, { kind: 'advance', turns: 11 });
+    expect(documentOf(plain).history.byType['probe.fired']).toBeUndefined();
+    expect(documentOf(plain).world.modules).toEqual({});
+  });
+
+  test("a save with the probe's slice loads cleanly with the probe; without it, with the engine's warning, the slice kept", () => {
+    const text = serialise(documentOf(withProbe(initialGameState, newGame)));
+
+    const installed = withProbe(initialGameState, { kind: 'load', text });
+    const not = play(initialGameState, { kind: 'load', text });
+
+    expect(installed).toMatchObject({ rejection: null, warnings: [] });
+    expect(not.rejection).toBeNull();
+    expect(not.warnings).toEqual([expect.objectContaining({ check: 'unknown-module', key: 'probe' })]);
+    expect(documentOf(not).world.modules).toEqual(documentOf(installed).world.modules);
   });
 });
 

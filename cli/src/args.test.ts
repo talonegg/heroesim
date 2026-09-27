@@ -160,6 +160,29 @@ describe('parseArgs', () => {
     expect(command('advance', '--until', 'transfer-offer')).toEqual({ name: 'advance', save: 'current', until: ['transfer-offer'] });
   });
 
+  test('reads --modules on new, load and advance: the test-only modules to install, by id, joined by commas (M8-S4)', () => {
+    expect(command('new', '--guild', 'G', '--master', 'M', '--modules', 'probe')).toEqual({
+      name: 'new',
+      save: 'current',
+      guild: 'G',
+      master: 'M',
+      force: false,
+      modules: ['probe'],
+    });
+    expect(command('advance', '--modules', 'probe')).toEqual({ name: 'advance', save: 'current', turns: 1, modules: ['probe'] });
+    expect(command('advance', '--turns', '11', '--modules= probe ')).toEqual({ name: 'advance', save: 'current', turns: 11, modules: ['probe'] });
+    expect(command('advance', '--until', 'decision', '--modules', 'probe')).toEqual({
+      name: 'advance',
+      save: 'current',
+      until: ['decision-needed'],
+      modules: ['probe'],
+    });
+    expect(command('load', 'backup', '--modules', 'probe')).toEqual({ name: 'load', save: 'current', file: 'backup', modules: ['probe'] });
+    // None unless given: the commands read as they did before M8.
+    expect(command('advance')).not.toHaveProperty('modules');
+    expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('modules');
+  });
+
   test('reads save, load and help', () => {
     expect(command('save', '--as', 'backup')).toEqual({ name: 'save', save: 'current', as: 'backup' });
     expect(command('load', 'backup')).toEqual({ name: 'load', save: 'current', file: 'backup' });
@@ -236,6 +259,13 @@ describe('parseArgs', () => {
     [['accept'], 'accept needs --offer'],
     [['decline', '--offer', 'quest-000001'], '--offer needs an offer id such as offer-000001; got "quest-000001"'],
     [['show', 'offers', 'extra'], 'does not take "extra"'],
+    [['advance', '--modules', 'weather'], '--modules takes probe, joined by commas; got "weather"'],
+    [['advance', '--modules', 'Probe'], 'got "Probe"'],
+    [['new', '--guild', 'G', '--master', 'M', '--modules', 'probe,,probe'], 'got ""'],
+    [['load', 'backup', '--modules', 'probe,probe'], '--modules names probe twice'],
+    [['advance', '--modules'], '--modules needs a value'],
+    [['show', '--modules', 'probe'], 'show takes no flag --modules'],
+    [['dispatch', '--quest', 'quest-000001', '--heroes', 'hero-000001', '--modules', 'probe'], 'dispatch takes no flag --modules'],
   ])('refuses %j', (argv, expected) => {
     expect(problem(...argv)).toContain(expected);
   });

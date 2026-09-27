@@ -23,12 +23,12 @@
 import { compareByCodeUnit, type Guild, type Party, type Quest, type World } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { regardOnSharedQuest } from '../hero-regard.js';
+import { inflictInjury } from '../injuries.js';
 import { changeMorale } from '../morale.js';
 import { expendUsed, sendHome } from '../quest-engine/consumables.js';
 import { awardLoot } from '../quest-engine/loot.js';
 import { resolveQuest, type Resolution } from '../quest-engine/resolve.js';
 import { regardOnQuestResolved } from '../regard.js';
-import { dayOf, nightOf } from '../time.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
 export const questsConclude: PhaseRun = (world, ctx) => {
@@ -89,8 +89,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
   guild.fame += outcome.fameDelta;
 
   for (const { heroId, typeKey, healDays } of outcome.injuries) {
-    const healsOnTurn = nightOf(dayOf(turn) + healDays);
-    row(world.heroes, heroId).injury = { typeKey, healsOnTurn };
+    const healsOnTurn = inflictInjury(row(world.heroes, heroId), typeKey, healDays, turn);
     events.push(
       emit({ type: 'hero.injured', participants: [heroId, quest.id], payload: { heroId, questId: quest.id, typeKey, healsOnTurn } }),
     );

@@ -3,7 +3,7 @@ import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import { createWorld } from '../create.js';
 import type { GuildId, Patron, World, WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf } from '../events.js';
+import type { EngineEventOf, TurnEvent } from '../events.js';
 import { phases } from '../pipeline.js';
 import { regardBand, regardValue } from '../regard.js';
 import { nightOf } from '../time.js';
@@ -28,7 +28,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const changes = (events: readonly EngineEvent[]): EngineEventOf<'patron.regard-changed'>[] =>
+const changes = (events: readonly TurnEvent[]): EngineEventOf<'patron.regard-changed'>[] =>
   events.filter((event): event is EngineEventOf<'patron.regard-changed'> => event.type === 'patron.regard-changed');
 
 /** A created world, its first Patron and its Guild ids. */
@@ -40,7 +40,7 @@ function scene(deps: EngineDeps): { document: WorldDocument; patron: Patron; gui
 }
 
 /** Runs the phase alone on the night of Day `day`. */
-function night(world: World, day: number, deps: EngineDeps): EngineEvent[] {
+function night(world: World, day: number, deps: EngineDeps): TurnEvent[] {
   world.turn = nightOf(day);
   return patronState(world, phaseContext(world, deps));
 }
@@ -58,7 +58,7 @@ describe('patronState', () => {
 
     const years = 1 / (deps.config.patronRegardRecoveryPerYear as number);
     let current = withValid(document, deps);
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     let neutralOn: number | null = null;
     while (current.world.turn < years * deps.config.turnsPerYear) {
       const result = advance(current, deps);

@@ -23,9 +23,11 @@ import type {
   Entry,
   FacilityKey,
   GuildId,
+  EventType,
   GuildmasterId,
   HeroId,
   ItemId,
+  ModuleId,
   OfferId,
   PartyId,
   PatronId,
@@ -103,7 +105,13 @@ export type HeroLeftPool = Entry<'hero.left-pool', { heroId: HeroId }>;
  */
 export type QuestOffered = Entry<
   'quest.offered',
-  { questId: QuestId; patronId: PatronId; templateKey: QuestTemplateKey }
+  {
+    questId: QuestId;
+    patronId: PatronId;
+    templateKey: QuestTemplateKey;
+    /** The module whose `offerQuest` effect offered it (M8-S2, DL-77); absent for the Board's refresh. */
+    moduleId?: ModuleId;
+  }
 >;
 
 /**
@@ -200,10 +208,14 @@ export type QuestLoot = Entry<
   }
 >;
 
-/** A Hero came home from a Quest injured, until `healsOnTurn`. Names the Hero and the Quest. */
+/**
+ * A Hero was injured, until `healsOnTurn`: coming home from the Quest `questId`, or by a module's
+ * `injure` effect (M8-S2, DL-77), when `questId` is `null` and `moduleId` names the module. Names
+ * the Hero and the Quest.
+ */
 export type HeroInjured = Entry<
   'hero.injured',
-  { heroId: HeroId; questId: QuestId; typeKey: InjuryTypeKey; healsOnTurn: Turn }
+  { heroId: HeroId; questId: QuestId | null; typeKey: InjuryTypeKey; healsOnTurn: Turn; moduleId?: ModuleId }
 >;
 
 /**
@@ -219,18 +231,28 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 
 /**
  * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
- * Morale consequences of a Quest's Encounters, summed (M4-S2), or a Hero they held in high Regard
- * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing.
+ * Morale consequences of a Quest's Encounters, summed (M4-S2), a Hero they held in high Regard
+ * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing, or a module's
+ * `adjustMorale` effect (M8-S2, DL-77).
  */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer';
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer' | 'module';
 
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
- * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero.
+ * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero. `moduleId`
+ * names the module whose effect moved it, for the `module` cause alone.
  */
 export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
-  { heroId: HeroId; cause: MoraleCause; before: number; after: number; bandBefore: MoraleBand; bandAfter: MoraleBand }
+  {
+    heroId: HeroId;
+    cause: MoraleCause;
+    before: number;
+    after: number;
+    bandBefore: MoraleBand;
+    bandAfter: MoraleBand;
+    moduleId?: ModuleId;
+  }
 >;
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
@@ -297,8 +319,11 @@ export type HeroLevelled = Entry<
 
 // ── Regard (M4-S5, data-model rule 10, DL-43) ───────────────────────────────────────────────
 
-/** What moved a Patron's Regard for a Guild: a Quest of theirs resolved, an offer expired untaken, or the nightly recovery. */
-export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expired' | 'recovery';
+/**
+ * What moved a Patron's Regard for a Guild: a Quest of theirs resolved, an offer expired untaken,
+ * the nightly recovery, or a module's `adjustRegard` effect (M8-S2, DL-77).
+ */
+export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expired' | 'recovery' | 'module';
 
 /**
  * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
@@ -316,14 +341,17 @@ export type PatronRegardChanged = Entry<
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
+    /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
+    moduleId?: ModuleId;
   }
 >;
 
 /**
- * What moved a Guildmaster's Regard: a Quest their Guild resolved (M4-S5), or a Transfer made between
- * their Guild and another, for the other Guild's Guildmaster (M6-S2, DL-57).
+ * What moved a Guildmaster's Regard: a Quest their Guild resolved (M4-S5), a Transfer made between
+ * their Guild and another, for the other Guild's Guildmaster (M6-S2, DL-57), or a module's
+ * `adjustRegard` effect (M8-S2, DL-77).
  */
-export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transfer-deal';
+export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transfer-deal' | 'module';
 
 /**
  * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
@@ -341,16 +369,19 @@ export type GuildmasterRegardChanged = Entry<
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
+    /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
+    moduleId?: ModuleId;
   }
 >;
 
 // ── Regard between Heroes (M4-S4, data-model rule 10, DL-46) ────────────────────────────────
 
 /**
- * What moved a Hero's Regard for another Hero: a Quest the two shared and came home from alive, or
- * the nightly decay toward neutral once a year has passed without one.
+ * What moved a Hero's Regard for another Hero: a Quest the two shared and came home from alive, the
+ * nightly decay toward neutral once a year has passed without one, or a module's `adjustRegard`
+ * effect (M8-S2, DL-77).
  */
-export type HeroRegardCause = 'shared-quest' | 'decay';
+export type HeroRegardCause = 'shared-quest' | 'decay' | 'module';
 
 /**
  * A Hero's Regard for `entityId`, another Hero, crossed from one of `regardBands` into another:
@@ -369,6 +400,8 @@ export type HeroRegardChanged = Entry<
     after: number;
     bandBefore: RegardBand;
     bandAfter: RegardBand;
+    /** The module whose effect moved it, for the `module` cause alone (M8-S2, DL-77). */
+    moduleId?: ModuleId;
   }
 >;
 
@@ -518,6 +551,17 @@ export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded';
  */
 export type GuildTransferOfferExpired = Entry<'guild.transfer-offer-expired', OfferTerms & { cause: TransferOfferEndCause }>;
 
+// ── Modules' effects (M8-S2, ADR-0005, DL-77) ───────────────────────────────────────────────
+
+/**
+ * A Guild's Wealth moved from `before` to `after` by a module's `adjustWealth` effect: the one change
+ * of Wealth no other event records. Names the Guild and, as `moduleId`, the module. Not a Milestone.
+ */
+export type GuildWealthChanged = Entry<
+  'guild.wealth-changed',
+  { guildId: GuildId; moduleId: ModuleId; before: number; after: number }
+>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -559,7 +603,8 @@ export type EngineEvent =
   | HeroTransferred
   | GuildTransferOffered
   | GuildTransferOfferDeclined
-  | GuildTransferOfferExpired;
+  | GuildTransferOfferExpired
+  | GuildWealthChanged;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -615,6 +660,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'guild.transfer-offered': false,
   'guild.transfer-offer-declined': false,
   'guild.transfer-offer-expired': false,
+  'guild.wealth-changed': false,
 } satisfies Record<EngineEventType, boolean>);
 
 /** A rule saying, from its payload, whether an entry of `Type` is a Milestone. */
@@ -632,4 +678,48 @@ export const milestoneWhen: { readonly [Type in EngineEventType]?: MilestoneRule
 export function isMilestone<Type extends EngineEventType>(type: Type, payload: EngineEventOf<Type>['payload']): boolean {
   const rule = milestoneWhen[type] as MilestoneRule<Type> | undefined;
   return rule === undefined ? milestoneTypes[type] : rule(payload);
+}
+
+// ── Modules' own events (M8-S2, ADR-0005, DL-77) ────────────────────────────────────────────
+
+/**
+ * What keeps a module's event type apart from the engine's, in the types alone: nothing at run
+ * time carries it. With it, comparing an event's `type` to one of the engine's narrows a
+ * `TurnEvent` to that engine event, as it narrows an `EngineEvent`, and a module's event never
+ * passes for one of the engine's.
+ */
+interface ModuleEventBrand {
+  readonly __moduleEvent: true;
+}
+
+/**
+ * A module's event type: `<module id>.<what-happened>`, `probe.fired`, in the module's namespace and
+ * never one of the engine's (the module's `emit` refuses any other).
+ */
+export type ModuleEventType<Type extends EventType = EventType> = Type & ModuleEventBrand;
+
+/**
+ * An event a module emits (M8-S2, DL-77): the engine's entry shape, typed by its module and not by
+ * the engine. A module declares its own, `ModuleEvent<'probe.fired', { ... }>`, and the engine's
+ * `EngineEvent` never lists them, so installing a module edits nothing in the core. The engine
+ * treats every module's event alike: it appends it to the History, where it is an `Entry` like any
+ * other, and counts it under its type.
+ */
+export type ModuleEvent<Type extends EventType = EventType, Payload = unknown> = Entry<ModuleEventType<Type>, Payload>;
+
+/**
+ * What a Turn produces: the engine's events and, with a module installed, the modules' own
+ * (`advance`, `fastForward`). A reader narrows it by the engine's event types, as it narrows an
+ * `EngineEvent`, and tells a module's event by `isModuleEvent`.
+ */
+export type TurnEvent = EngineEvent | ModuleEvent;
+
+/** Whether `event`'s type is one of the engine's: `milestoneTypes` lists it. */
+export function isEngineEvent(event: Pick<Entry, 'type'>): event is EngineEvent {
+  return Object.hasOwn(milestoneTypes, event.type);
+}
+
+/** Whether `event` is a module's own: its type is none of the engine's. */
+export function isModuleEvent(event: Pick<Entry, 'type'>): event is ModuleEvent {
+  return !isEngineEvent(event);
 }

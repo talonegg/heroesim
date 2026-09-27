@@ -4,11 +4,15 @@
 //
 // Names come from each event's labels, written when it happened, so a Hero or Quest whose row has
 // since gone still reads; content keys become content's display names. Each switch covers every
-// type, so the compiler refuses an event type or stop reason added without a line.
+// type, so the compiler refuses an event type or stop reason added without a line. A module's own
+// event, which the engine does not type, gets one generic line for any type, whatever its payload:
+// the module, its type and who it concerns (M8-S2, M8-S4, DL-77, DL-79).
 
 import {
   compareByCodeUnit,
   dayOf,
+  isId,
+  isModuleEvent,
   regardBandNames,
   type ContentSet,
   type EndingReason,
@@ -18,22 +22,27 @@ import {
   type GearMove,
   type GearReturnCause,
   type HeroRegardCause,
+  type ModuleEvent,
   type PatronRegardCause,
   type QuestBand,
   type RegardBand,
   type StopReason,
   type TransferOfferEndCause,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
 
+/** The labels an event carries, by participant: an engine's event's or a module's. */
+type Labelled = Pick<TurnEvent, 'labels'>;
+
 /** A participant by the label the event carries, or its id when it has none. */
-function called(event: EngineEvent, id: EntityId): string {
+function called(event: Labelled, id: EntityId): string {
   return event.labels[id] ?? id;
 }
 
 /** A Hero by label and id, `Brenna Ashcombe (hero-000003)`: the id is what the commands take. */
-function hero(event: EngineEvent, id: EntityId): string {
+function hero(event: Labelled, id: EntityId): string {
   const label = event.labels[id];
   return label === undefined ? id : `${label} (${id})`;
 }
@@ -62,12 +71,14 @@ const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-failure': 'after a Quest of theirs failed',
   'offer-expired': 'when an offer of theirs went untaken',
   recovery: 'as time passed',
+  module: 'through a module',
 };
 
 /** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
 const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
+  module: 'through a module',
 };
 
 /** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
@@ -106,8 +117,30 @@ function items(content: ContentSet, definitionKey: string, quantity: number, ite
   return itemIds.length === 0 ? counted : `${counted} (${itemIds.join(', ')})`;
 }
 
-/** One line for `event`, in the CLI's words. */
-export function narrate(event: EngineEvent, content: ContentSet): string {
+/**
+ * One line for `event`, in the CLI's words. A module's own event is not the engine's to word, nor
+ * the CLI's: its line is `narrateModuleEvent`'s, for any type.
+ */
+export function narrate(event: TurnEvent, content: ContentSet): string {
+  if (isModuleEvent(event)) return narrateModuleEvent(event);
+  return narrateEngineEvent(event, content);
+}
+
+/**
+ * A module's own event, of a type the CLI has no words for and a payload it never reads (M8-S4,
+ * DL-79): the module, named by its type's namespace (`probe.fired` is the probe's, DL-77), the type,
+ * and the entities it concerns by their labels, a Hero with the id the commands take. `The probe
+ * module recorded probe.fired for Una Greave (hero-000023), Ranulf Tarrant and The Hollin Guild.`
+ * A type outside any namespace, which no module's `emit` makes, is still worded, from "A module".
+ */
+function narrateModuleEvent(event: ModuleEvent): string {
+  const dot = event.type.indexOf('.');
+  const who = dot > 0 ? `The ${event.type.slice(0, dot)} module` : 'A module';
+  const named = event.participants.map((id) => (isId('heroes', id) ? hero(event, id) : called(event, id)));
+  return `${who} recorded ${event.type}${named.length === 0 ? '' : ` for ${listed(named)}`}.`;
+}
+
+function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
   switch (event.type) {
     case 'world.created':
       return `The world was made from seed ${event.payload.seed}.`;
@@ -282,6 +315,11 @@ export function narrate(event: EngineEvent, content: ContentSet): string {
       const { offerId, toGuildId, heroId, cause } = event.payload;
       return `${called(event, toGuildId)}'s offer for ${hero(event, heroId)} (${offerId}) ${offerEndWords[cause]}.`;
     }
+    case 'guild.wealth-changed': {
+      // M8-S2: a module's `adjustWealth` effect.
+      const { guildId, before, after } = event.payload;
+      return `${called(event, guildId)}'s Wealth went from ${before} to ${after}.`;
+    }
     case 'item.expended': {
       // The roll is the engine's; the CLI says which Encounter, counted from 1, and what it did (M5-S3).
       const { payload } = event;
@@ -332,6 +370,9 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       });
       return `Stopped: a Transfer Offer: ${listed(offers)}. Answer with accept --offer <id> or decline --offer <id> (show offers).`;
     }
+    case 'module':
+      // M8-S2: an installed module's hook asked for the stop.
+      return `Stopped: the ${stop.moduleId} module asked to stop.`;
     case 'max-turns':
       return `Stopped: played the most Turns allowed, ${maxTurns}.`;
     case 'pool-refreshed': {
@@ -353,7 +394,7 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
  */
 export function renderAdvance(
   played: number,
-  events: readonly EngineEvent[],
+  events: readonly TurnEvent[],
   document: WorldDocument,
   deps: EngineDeps,
   stop?: string,

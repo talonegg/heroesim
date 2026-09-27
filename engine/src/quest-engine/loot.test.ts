@@ -6,7 +6,7 @@ import type { ContentSet, LootTable } from '../content-types.js';
 import { availableHeroes, partyFor, staffableQuests } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import type { Guild, GuildId, Party, Quest, WorldDocument } from '../document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from '../events.js';
+import type { EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
 import { streamOf } from '../generators/draw.js';
 import { createItem, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
@@ -67,7 +67,7 @@ function lootDeps(overrides: Partial<GameConfig> = {}, content: ContentSet = tes
   );
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 // ── drawLoot ─────────────────────────────────────────────────────────────────────────────────
@@ -185,9 +185,9 @@ function sent(seed: string, deps: EngineDeps, lootTableKey: string | null, { riv
 }
 
 /** Advances to Turn `turn`, validating every document, and returns the events of the Turns played. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = withValid(result.document, deps);
@@ -197,7 +197,7 @@ function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { docu
 }
 
 /** Plays `sent`'s Party home and returns the document and the events of its return night. */
-function home({ document, party }: Sent, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function home({ document, party }: Sent, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   const eve = playTo(document, party.returnsOnTurn - 1, deps).document;
   return playTo(eve, party.returnsOnTurn, deps);
 }
@@ -327,7 +327,7 @@ type Regime = 'easiest' | 'hardest';
  */
 function season(seed: string, regime: Regime, days: number, deps: EngineDeps): { meanDifficulty: number; loot: number } {
   let document = createWorld(seed, setup, deps).document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   const difficulty = new Map<string, number>();
   while (document.world.turn < nightOf(days)) {
     const { world } = document;

@@ -7,12 +7,16 @@
 // (M7-S4, DL-67). Before there is a game, a new one, and the saves to load one from.
 // Every play goes through `useGame`, the one reducer (M7-S2); no component calls the engine, and
 // every number shown comes from a selector under `state/`.
+// The modules it installs are those its address names, `?modules=probe`, a test switch, none without
+// it; the footer says when one is installed (M8-S4, DL-79).
 
-import type { WorldDocument } from '@heroesim/engine';
+import type { Module, WorldDocument } from '@heroesim/engine';
 import { Fragment, useCallback, useMemo, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
 import { rulesNotice } from './state/game-file';
+import { modulesFromQuery } from './state/modules';
+import { listed } from './state/narrate';
 import { useGame, type GameState } from './state/reducer';
 import { headerView, stopView } from './state/selectors';
 import { Board } from './views/board';
@@ -60,12 +64,24 @@ const index: readonly { id: SectionId; label: string }[] = [
   { id: 'game', label: 'This game' },
 ];
 
+/** `the probe module`, `the probe and weather modules`: what the footer says is installed. */
+function installedWords(modules: readonly Module[]): string {
+  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'module' : 'modules'}`;
+}
+
 /** The saves this browser keeps for the page, opened on first use (`saves.ts`). */
 const kept = browserSaves();
 
+/** The modules the page's address names, read once, when the page opens: none without the switch. */
+function addressModules(): Module[] {
+  return typeof window === 'undefined' ? [] : modulesFromQuery(window.location.search);
+}
+
 /** The page. `initial` and `saves` are a test's way in: a game already in hand, saves kept elsewhere. */
 export function App({ initial, saves = kept }: { initial?: GameState; saves?: Saves }) {
-  const [game, play] = useGame(initial);
+  // Read from the address as the page mounts, and the same for its lifetime, as `useGame` asks.
+  const [modules] = useState(addressModules);
+  const [game, play] = useGame(initial, modules);
   const { document: current, busy, pending } = game;
   // The game in hand when the player asked for a new one; the form shows while it is still in hand.
   const [replacing, setReplacing] = useState<WorldDocument | null>(null);
@@ -131,6 +147,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
         <p>
           Content set {content.id}, version {content.version}, loaded.
         </p>
+        {modules.length === 0 ? null : <p>Installed for testing: {installedWords(modules)}.</p>}
       </footer>
     </div>
   );

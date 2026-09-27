@@ -7,7 +7,7 @@ import { defaultConfig } from './config.js';
 import { availableHeroes, partyFor } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, ItemId, StackId, WorldDocument } from './document.js';
-import type { EngineEvent, ItemSold } from './events.js';
+import type { EngineEvent, ItemSold, TurnEvent } from './events.js';
 import { addStack, createItem, holdings } from './items.js';
 import { marketHolder, marketPrice, marketStock, sellPrice } from './market.js';
 import { phases } from './pipeline.js';
@@ -75,9 +75,9 @@ function stillRivalControllers() {
 }
 
 /** Plays Turns until `turn`, checking every document, returning the last and every event. */
-function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, deps);
     current = withValid(result.document, deps);

@@ -26,10 +26,12 @@ import {
   rebase,
   type ContentSet,
   type EngineDeps,
-  type EngineEvent,
   type EntityId,
   type Guild,
   type Hero,
+  type Module,
+  type StopReason,
+  type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
@@ -43,6 +45,7 @@ import { answerOffer, renderOffers, transferHero } from './commands/transfer.js'
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
 import type { CommandOutcome } from './commands/outcome.js';
+import { modulesFor } from './modules.js';
 import { narrateStop, renderAdvance } from './narrate.js';
 import {
   renderBoard,
@@ -58,7 +61,7 @@ import {
   renderSummary,
   rowIn,
 } from './render.js';
-import { playDeps, readSave, savePath, writeSave } from './saves.js';
+import { playDeps, readSave, savePath, withModules, writeSave } from './saves.js';
 import { readableSeed } from './seed.js';
 
 /** Everything the CLI takes from outside itself. */
@@ -88,6 +91,11 @@ export interface Context {
   content: ContentSet;
   /** The save the command reads and writes. */
   path: string;
+  /**
+   * The modules the command installs, by `--modules` on `new`, `load` and `advance` (M8-S4, DL-79):
+   * none unless given, and none for every other command.
+   */
+  modules: readonly Module[];
 }
 
 /** Runs one command; returns the exit code. */
@@ -104,7 +112,12 @@ export function main(argv: readonly string[], io: CliIo): Exit {
   }
 
   try {
-    const context = { io, content: loadContent(), path: savePath(command.save, io.cwd, io.env) };
+    const context = {
+      io,
+      content: loadContent(),
+      path: savePath(command.save, io.cwd, io.env),
+      modules: modulesFor('modules' in command ? command.modules : undefined),
+    };
     return run(command, context);
   } catch (error) {
     // The file system's refusals (a directory where a save should be, no permission) and a
@@ -168,12 +181,18 @@ export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refuse
 }
 
 /**
- * The save at `path`, loaded and checked, with the deps to play it under; `undefined` after
- * printing why it does not load. Content keys the content does not define are warned about and
- * the save still loads (data-model rule 5).
+ * The save at `path`, loaded and checked, with the deps to play it under, `modules` installed (none
+ * unless given); `undefined` after printing why it does not load. Content keys the content does not
+ * define, and a module's slice no module in `modules` owns, are warned about and the save still loads
+ * (data-model rule 5, §3.4).
  */
-export function open(io: CliIo, path: string, content: ContentSet): { document: WorldDocument; deps: EngineDeps } | undefined {
-  const read = readSave(path, content);
+export function open(
+  io: CliIo,
+  path: string,
+  content: ContentSet,
+  modules: readonly Module[] = [],
+): { document: WorldDocument; deps: EngineDeps } | undefined {
+  const read = readSave(path, content, modules);
   if (!read.ok) {
     const { reason } = read;
     refuse(
@@ -223,7 +242,7 @@ function look(
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────
 
-function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, path }: Context): Exit {
+function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, path, modules }: Context): Exit {
   const guildName = command.guild.trim();
   const guildmasterName = command.master.trim();
   if (guildName === '') return refuse(io, 'The Guild needs a name: --guild <name>.', exitCodes.usage);
@@ -251,14 +270,15 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
       ...(background === undefined ? {} : { backgroundKey: background }),
       createdAt: io.now().toISOString(),
     },
-    // A new game starts under the current defaults; from then on it plays under its own.
-    { config: defaultConfig, content },
+    // A new game starts under the current defaults; from then on it plays under its own. Each
+    // module installed makes its slice and stream (M8-S4).
+    { config: defaultConfig, content, ...withModules(modules) },
   );
   writeSave(path, document);
   return say(io, [
     `Created a world from seed ${seed} and saved it to ${path}.`,
     '',
-    ...renderSummary(document, playDeps(document, content)),
+    ...renderSummary(document, playDeps(document, content, modules)),
   ]);
 }
 
@@ -352,42 +372,46 @@ export function over(io: CliIo, document: WorldDocument, what = 'No Turn follows
 export const noActionAfterTheEnd = 'Nothing more can be done in it.';
 
 /**
- * `advance [--turns n]`: plays up to `turns` Turns under the rules the save plays under, stopping
- * early if the game ends, writes the save and prints what happened. A game that has already ended
- * is refused and nothing is written.
+ * `advance [--turns n] [--modules ids]`: plays up to `turns` Turns under the rules the save plays
+ * under, with the modules `--modules` installs (M8-S4), stopping early if the game ends or an
+ * installed module asks to stop (M8-S2, DL-77), writes the save and prints what happened, and why it
+ * stopped when a module asked. A game that has already ended is refused and nothing is written.
  */
-function advanceTurns(turns: number, { io, content, path }: Context): Exit {
-  const opened = open(io, path, content);
+function advanceTurns(turns: number, { io, content, path, modules }: Context): Exit {
+  const opened = open(io, path, content, modules);
   if (opened === undefined) return exitCodes.refused;
   const { deps } = opened;
   let { document } = opened;
   const refused = over(io, document);
   if (refused !== undefined) return refused;
 
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   let played = 0;
-  while (played < turns) {
+  let stop: StopReason | null = null;
+  while (played < turns && stop === null) {
     const result = advance(document, deps);
     document = result.document;
     events.push(...result.events);
     played += 1;
-    if (result.stoppedBecause?.kind === 'ended') break;
+    stop = result.stoppedBecause;
   }
   writeSave(path, document);
-  return say(io, renderAdvance(played, events, document, deps));
+  // An ending has its own line in what is printed; a module's stop is said as fast forward says it.
+  const said = stop?.kind === 'module' ? narrateStop(stop, document, turns) : undefined;
+  return say(io, renderAdvance(played, events, document, deps, said));
 }
 
 /**
- * `advance --until <stops> [--max n]`: fast forward for the player's Guild under the save's rules
- * (M2-S11, DL-33), at most `max` Turns or, unless given, one year of them (`turnsPerYear`); writes
- * the save and prints why it stopped and what happened. A game already over is refused and nothing
- * is written.
+ * `advance --until <stops> [--max n] [--modules ids]`: fast forward for the player's Guild under the
+ * save's rules (M2-S11, DL-33), with the modules `--modules` installs (M8-S4), at most `max` Turns
+ * or, unless given, one year of them (`turnsPerYear`); writes the save and prints why it stopped and
+ * what happened. A game already over is refused and nothing is written.
  */
 function fastForwardTurns(
   command: Extract<Command, { name: 'advance'; until: unknown }>,
-  { io, content, path }: Context,
+  { io, content, path, modules }: Context,
 ): Exit {
-  const opened = open(io, path, content);
+  const opened = open(io, path, content, modules);
   if (opened === undefined) return exitCodes.refused;
   const { document, deps } = opened;
   const refused = over(io, document);
@@ -434,10 +458,13 @@ function saveAs(file: string, { io, content, path }: Context): Exit {
   return say(io, [`Saved ${path} as ${target}.`]);
 }
 
-/** `load <file>`: `file` checked by loading it, then made the save. A refusal changes nothing. */
-function load(file: string, { io, content, path }: Context): Exit {
+/**
+ * `load <file> [--modules ids]`: `file` checked by loading it, a module's slice by the module
+ * `--modules` installs (M8-S4), then made the save. A refusal changes nothing.
+ */
+function load(file: string, { io, content, path, modules }: Context): Exit {
   const source = savePath(file, io.cwd, io.env);
-  const opened = open(io, source, content);
+  const opened = open(io, source, content, modules);
   if (opened === undefined) return exitCodes.refused;
   writeSave(path, opened.document);
   return say(io, [`Loaded ${source} into ${path}.`, '', ...renderSummary(opened.document, opened.deps)]);

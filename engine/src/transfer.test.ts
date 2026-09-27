@@ -16,7 +16,7 @@ import {
   type World,
   type WorldDocument,
 } from './document.js';
-import type { EngineEvent, EngineEventOf, EngineEventType } from './events.js';
+import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import { fastForward } from './fast-forward.js';
 import { guildmasterOf } from './guildmaster.js';
 import { offerExpiry } from './phases/offer-expiry.js';
@@ -72,7 +72,7 @@ function heroOf(world: World, heroId: HeroId): Hero {
   return hero;
 }
 
-const ofType = <Type extends EngineEventType>(events: readonly EngineEvent[], type: Type): EngineEventOf<Type>[] =>
+const ofType = <Type extends EngineEventType>(events: readonly TurnEvent[], type: Type): EngineEventOf<Type>[] =>
   events.filter((event): event is EngineEventOf<Type> => event.type === type);
 
 /** Makes `hero` the dearest Hero in any Transfer: every base Stat at the top of its range. */
@@ -173,7 +173,7 @@ describe('a fold withdraws the Transfer Offers that name the folding Guild (DL-5
     folding.wealth = deps.config.bankruptcyFloor - 1; // below the floor from the first night
     document = withValid(document, deps);
 
-    let events: EngineEvent[] = [];
+    let events: TurnEvent[] = [];
     while (document.world.turn < nightOf(0)) {
       const result = advance(document, deps);
       document = withValid(result.document, deps);
@@ -468,7 +468,7 @@ describe('Rivals use the same Transfer rules (rivalChoices)', () => {
       for (const key of heroStatKeys) heroOf(document.world, heroId).stats[key] = 1;
     }
     document = withValid(document, deps);
-    const events: EngineEvent[] = [];
+    const events: TurnEvent[] = [];
     while (document.world.turn < nightOf(20)) {
       if (timeOfDay(document.world.turn + 1) === 'afternoon') {
         // The afternoon's choices as the phase will make them, each checked to be accepted.

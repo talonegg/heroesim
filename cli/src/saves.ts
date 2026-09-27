@@ -20,6 +20,7 @@ import {
   type ContentSet,
   type EngineDeps,
   type LoadRefusal,
+  type Module,
   type ValidationWarning,
   type WorldDocument,
 } from '@heroesim/engine';
@@ -43,9 +44,17 @@ export function savePath(name: string, cwd: string, env: Readonly<Record<string,
   return isPath ? resolve(cwd, name) : join(saveDir(cwd, env), `${name}.json`);
 }
 
-/** The deps a loaded game plays under: its own config, filled forward with the current defaults. */
-export function playDeps(document: WorldDocument, content: ContentSet): EngineDeps {
-  return { config: { ...defaultConfig, ...document.meta.config }, content };
+/**
+ * The deps a loaded game plays under: its own config, filled forward with the current defaults, and
+ * the modules the command line installs (`--modules`, M8-S4), none unless given.
+ */
+export function playDeps(document: WorldDocument, content: ContentSet, modules: readonly Module[] = []): EngineDeps {
+  return { config: { ...defaultConfig, ...document.meta.config }, content, ...withModules(modules) };
+}
+
+/** `{ modules }` when there are any: with none, the deps are what they were before M8. */
+export function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
+  return modules.length === 0 ? {} : { modules };
 }
 
 export type OpenedSave =
@@ -54,23 +63,24 @@ export type OpenedSave =
 
 /**
  * A save's text as a document to play: loaded against the engine's own config, validated against
- * `content`, then given its play deps. A refusal carries the engine's typed reason.
+ * `content` and, for a module's slice, by the module among `modules` that owns it (a slice none owns
+ * is warned of and kept), then given its play deps. A refusal carries the engine's typed reason.
  */
-export function openSave(text: string, content: ContentSet): OpenedSave {
-  const loaded = deserialise(text, { config: defaultConfig, content });
+export function openSave(text: string, content: ContentSet, modules: readonly Module[] = []): OpenedSave {
+  const loaded = deserialise(text, { config: defaultConfig, content, ...withModules(modules) });
   if (!loaded.ok) return loaded;
   const { document, warnings } = loaded;
-  return { ok: true, document, warnings, deps: playDeps(document, content) };
+  return { ok: true, document, warnings, deps: playDeps(document, content, modules) };
 }
 
 export type ReadSave = OpenedSave | { ok: false; reason: { kind: 'missing'; message: string } };
 
-/** Reads and opens the save at `path`; a missing file is a refusal of its own. */
-export function readSave(path: string, content: ContentSet): ReadSave {
+/** Reads and opens the save at `path` under `modules`; a missing file is a refusal of its own. */
+export function readSave(path: string, content: ContentSet, modules: readonly Module[] = []): ReadSave {
   if (!existsSync(path)) {
     return { ok: false, reason: { kind: 'missing', message: `There is no save at ${path}` } };
   }
-  return openSave(readFileSync(path, 'utf8'), content);
+  return openSave(readFileSync(path, 'utf8'), content, modules);
 }
 
 /** Writes `document` to `path` as canonical JSON, creating the directory if it is missing. */

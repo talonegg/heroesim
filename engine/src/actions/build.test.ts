@@ -4,7 +4,7 @@ import type { EngineDeps } from '../config.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import { facilityKeys, makeId, type FacilityKey, type Guild, type Guildmaster, type Hero, type World, type WorldDocument } from '../document.js';
-import type { EngineEvent } from '../events.js';
+import type { TurnEvent } from '../events.js';
 import { count } from '../history.js';
 import { moraleBaselineFor } from '../morale.js';
 import { phaseContext } from '../phases/phase.js';
@@ -230,9 +230,9 @@ describe('affordableImprovement', () => {
 // ── What a grade does ───────────────────────────────────────────────────────────────────────
 
 /** Advances `document` to `turn` under `with_`, holding each Turn's document to the validator. */
-function playTo(document: WorldDocument, turn: number, with_: EngineDeps): { document: WorldDocument; events: EngineEvent[] } {
+function playTo(document: WorldDocument, turn: number, with_: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
   let current = document;
-  const events: EngineEvent[] = [];
+  const events: TurnEvent[] = [];
   while (current.world.turn < turn) {
     const result = advance(current, with_);
     current = withValid(result.document, with_);
