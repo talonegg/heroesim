@@ -1,20 +1,33 @@
 // A new game (the CLI's `new`, M7-S3): the Guild's name, the Guildmaster's, a Guild Background or
 // one drawn from the seed, and the seed, a readable one made up unless the player types another.
 // The page supplies the seed and the clock; the reducer checks the names and the engine makes the
-// world (M7-S2, DL-65). A save file can be loaded instead (the CLI's `load`, DL-73). With a game in
+// world (M7-S2, DL-65). A save file can be loaded instead (the CLI's `load`, DL-73), or a game saved in
+// this browser, which is how one comes back after the page is closed or reloaded (DL-67). With a game in
 // hand, the CLI replaces a save only with `--force`; here the player asked for this section, and it
 // says the game in hand goes unless exported, with a way back to it.
 
 import { useState, type FormEvent } from 'react';
+import type { Saves } from '../saves';
 import { readableSeed } from '../seed';
 import type { GameAction } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import { LoadSave } from './game-file';
+import { SavedGames } from './saved-games';
 import { Section } from './section';
 
 const backgrounds = guildBackgrounds();
 
-export function NewGame({ busy, play, onCancel }: { busy: boolean; play: (action: GameAction) => void; onCancel?: () => void }) {
+export function NewGame({
+  saves,
+  busy,
+  play,
+  onCancel,
+}: {
+  saves: Saves;
+  busy: boolean;
+  play: (action: GameAction) => void;
+  onCancel?: () => void;
+}) {
   const [guildName, setGuildName] = useState('');
   const [guildmasterName, setGuildmasterName] = useState('');
   const [backgroundKey, setBackgroundKey] = useState('');
@@ -38,7 +51,8 @@ export function NewGame({ busy, play, onCancel }: { busy: boolean; play: (action
       title="A new game"
       help={
         'Found a Guild, name its Guildmaster, and take Quests from the Board. The seed makes the world: the same seed and ' +
-        'the same choices make the same game. Or load a save file, the CLI’s or one exported here.'
+        'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
+        'exported here.'
       }
     >
       {onCancel === undefined ? null : <p className="warning">The game in hand is lost unless you export it first.</p>}
@@ -83,7 +97,8 @@ export function NewGame({ busy, play, onCancel }: { busy: boolean; play: (action
           )}
         </div>
       </form>
-      <LoadSave busy={busy} play={play} />
+      <SavedGames saves={saves} document={null} busy={busy} play={play} />
+      <LoadSave saves={saves} busy={busy} play={play} />
     </Section>
   );
 }

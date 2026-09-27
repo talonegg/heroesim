@@ -5202,6 +5202,156 @@ the whole History, the rebase notice and `help`'s equivalent. It re-points the `
 skipped; 90 of them are new. `npm run build -w web` exits 0 through the gate: 439.64 kB (128.83 kB gzipped), "no network
 or filesystem reference". `npm run e2e -w web` passes 4.
 
+## DL-67 — Saves kept in the browser: gzip in IndexedDB, one path from a save's text to the game, the journeys, and a twenty-year round trip of 3.6 s (M7-S4)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S4's implementer)
+
+**Context.** M7-S4 asks for `web/src/saves.ts`. `save(name, document)` serialises with the engine's
+`serialise`, compresses with `CompressionStream("gzip")` and stores a Blob in IndexedDB under
+`heroesim.saves`. `load(name)` reverses it and runs `deserialise`. `export(name)` downloads the
+uncompressed JSON the CLI reads, and `import(file)` reads a file. Where IndexedDB is unavailable,
+`saves.ts` reports a typed failure and the page runs without saving, with one Playwright spec with
+storage blocked (the epic's §3). The Playwright journeys run at 360×800 and 1280×800: a new game, a
+Day advanced, a dispatch, fast forward until the Party returns, a save, the page reloaded, the save
+loaded, the same Turn read; then an export, which a Node test loads with the CLI's loader. The boxes:
+a 20-year save round-trips through IndexedDB under 1 s and its compressed size is recorded (a
+measure); the exported file is byte-identical to `serialise(document)`; both journeys pass locally.
+The story also proves M7-S3's fourth box, no horizontal overflow at 360px. DL-65 noted that
+`saves.ts`, outside `state/`, may not import `serialise`; DL-73 left `saveText` in
+`state/game-file.ts` for it.
+
+**Decision.**
+
+1. **`web/src/saves.ts`, where the epic puts it, takes no engine value.** It takes `saveText` from
+   `state/game-file.ts`, which is the engine's `serialise` byte for byte (`state/game-file.test.ts`),
+   and the engine's types. So `saves.ts` does not move and the import check (DL-65 item 7) is not
+   widened.
+   - *The store.* The IndexedDB database `heroesim.saves`, version 1, has one object store, `saves`,
+     keyed by the save's name. A record is `{ name, savedAt, data }`: `data` is the gzip Blob,
+     `savedAt` the browser's clock as an ISO string, never read by a rule. A write is reported only
+     once its transaction has committed.
+   - *The calls* are the methods of one `Saves` object, so `export` and `import` keep the epic's
+     names: `list`, `save`, `load`, `export`, `import`, `remove`. Each resolves to `{ ok: true, value }`
+     or `{ ok: false, failure }`, the engine's shape, and never throws.
+   - *The failures* (`SavesFailure`): `unavailable`, the browser keeping nothing for the page, with its
+     words; `name-blank`; `missing`; and `failed`, a read or a write the browser refused (storage
+     full, a damaged save). `savesFailureSentence` gives each a sentence, tested kind by kind.
+   - *Compression* runs through `Response` streams, and a Blob is read with `arrayBuffer()`, not
+     `stream()`, which jsdom's Blob lacks.
+2. **`load(name)` returns the save's text, and the reducer's `load` play runs `deserialise`.** The
+   epic has `load` run `deserialise` itself. Here a save becomes the game in one place only: the
+   reducer's `load` play, which reads it under the engine's own config (DL-20, DL-65), turns a refusal
+   into the page's sentence, and is how a file is loaded (DL-73). Running `deserialise` in `saves.ts`
+   too would parse a 20-year save twice, about 1.2 s each, or need a second play that takes a
+   finished document. `import(file)` likewise returns the file's text for that play; the page's file
+   picker now uses it. The round trip measured below includes the `deserialise`.
+3. **`export(name)` returns a `File`**: the save's text, uncompressed, of type `application/json`,
+   named `<name>.json`, with the characters no file system takes turned to `-` and `.json` never
+   doubled. The page hands it to the browser as a download from an object URL
+   (`views/download.ts`, now shared with "Export this game"). It is the text that was saved, which is
+   `serialise(document)` of the game saved.
+4. **Unavailable.** `browserSaves()` reads `globalThis`.
+   - *Known at once*, before any call, as `saves.unavailable`: no `indexedDB`; reading `indexedDB`
+     throws, as Firefox's does with storage blocked; no `CompressionStream`.
+   - *Known on opening*: a sandboxed frame's `SecurityError`, a private window's failed request. The
+     first call finds it, and every call after it is `unavailable` too; the database is opened once.
+   - *What the page does.* It says "This browser will not keep saves for this page, as in a private
+     window or with site data blocked (…). The game plays on; export it to keep it.", with the
+     browser's words in the brackets, and offers no Save. Everything else works, "Export this game"
+     included.
+5. **The page: "Saved in this browser".** No section, index entry or config is added.
+   - *Where.* It is a part of "This game", and of "A new game", where it offers the saves to load:
+     that is how a game comes back after the page is reloaded.
+   - *Saving.* A name field whose placeholder is the export's name, `heroesim-<seed>-day-<n>`, used
+     when the field is left blank, and "Save in this browser". A save under a name already kept
+     replaces it. "Saving…" is painted before the save text is written, which holds the page for
+     about a second in a 20-year game.
+   - *The saves*, newest first, each with when it was saved and its compressed size, and "Load",
+     "Export" and "Delete" (named "Load <save>" and so on); Delete asks again.
+   - *Loading* from the list, like loading a file, puts the save in place of the game in hand; both
+     sections' own words now say so.
+6. **The Vitest tests.** Node and jsdom have no IndexedDB, and the epic names no dependency to fake
+   one, so they run over a store that stands in for it (`saves.test-support.ts`, never bundled).
+   - `saves.test.ts` (Node, 17 tests): the gzip checked with Node's `zlib`; a load read back through
+     the reducer as the same game; the export byte-identical to `saveText`, for a game whose names go
+     beyond ASCII; the export's file name; replacing, the order of the list, removing, a missing name,
+     a blank one, a write refused, a damaged save; import; and five ways of being unavailable, with
+     the browser's refusals stood in for.
+   - `views/saves.test.tsx` (jsdom, 9 tests) drives the same through the page's controls.
+   - *Tried.* Adding a newline to the export failed both export tests; reverted.
+7. **Playwright** (`npm run e2e -w web`, 16 passed).
+   - *`e2e/journey.spec.ts`*, at 360×800 and 1280×800. A new game, seed `e2e-journey`; a Day, three
+     Turns; a Party sent on the first Quest dispatch would send one to; fast forward until "The
+     Lantern's Party came home". The game is saved as `journey`, the page reloaded, `journey` loaded
+     from the list, and the same Day, time of day, Year and Wealth are read. "Export journey" is then
+     downloaded and compared with "Export this game" taken before the save: byte-identical.
+   - *The Node test.* The spec, which runs on Node, runs the CLI on the exported file: `node --import
+     tsx cli/src/main.ts load <file>`, with `HEROESIM_SAVE_DIR` a temporary directory. The CLI's
+     `load` reads it with its own loader (`readSave`, `openSave`), exits 0 and prints the same Turn;
+     the save it writes back is the exported file, byte for byte. Running the CLI keeps M0's rule
+     that nothing in `web/` imports it.
+   - *`e2e/no-storage.spec.ts`.* First, the page in a sandboxed frame (`allow-scripts allow-forms`,
+     an opaque origin), where Chromium itself refuses: "SecurityError: Failed to execute 'open' on
+     'IDBFactory': access to the Indexed Database API is denied in this context." Then two refusals
+     stood in for by a script run before the page: an open request that fails, as in Firefox's
+     private windows (`InvalidStateError`), and no `indexedDB` at all. Each time the page says so, a
+     game starts, a Turn is played, and no Save is offered. A fourth test shows the same page offering
+     Save with storage kept.
+   - *`e2e/layout.spec.ts`, M7-S3's fourth box.* A Guild name of 73 characters, and a Guildmaster's name
+     with one word of 61 letters. Then, one after another: the new-game form, a new game, a Party being
+     chosen, a fast forward's log, a Hero's page, a pool Hero's page, a Rival's Guild page and one of
+     its Heroes' pages, the Rankings by Wealth, the oldest page of the History, a save with a
+     128-character name with its delete asked for, and the new-game form over a game. At each,
+     `document.documentElement.scrollWidth` is at most its `clientWidth`. The journey checks the same
+     at each step. *Tried:* `white-space: nowrap` on a save's name failed the phone's run ("984px wide
+     in a viewport 360px wide"); reverted.
+   - *`smoke.spec.ts`* still passes, served and from `file://`. Chromium keeps IndexedDB for a
+     `file://` page, and the saves are offered there.
+8. **The measure (box 1) is not met: a round trip takes about 3.6 s.**
+   - *The sample.* `npm run harness:sample` wrote `seed-0001`'s game: 20 years to Turn 21,600 (Day
+     7200), 285,419 History entries, 113,281,366 bytes (108.03 MiB).
+   - *The run.* `npm run measure -w web` runs `e2e/twenty-years.measure.ts` under its own config in
+     desktop Chromium 153, on the built page, on this machine. It loads the sample through the file
+     picker, then three times saves it as `twenty-years`, reloads the page and loads it from the
+     list. Each is timed in the page, from the button's click to the DOM showing it done.
+
+     | | Round 1 | Round 2 | Round 3 |
+     | --- | --- | --- | --- |
+     | Save: serialise, gzip, committed | 2,478 ms | 2,364 ms | 2,327 ms |
+     | Load after a reload: read, gunzip, `deserialise`, the game shown | 1,313 ms | 1,274 ms | 1,286 ms |
+     | Round trip | 3,791 ms | 3,638 ms | 3,613 ms |
+
+   - **Compressed size: 12,662,505 bytes (12.66 MB, 12.08 MiB), 8.9 to 1.** Node's `zlib` gzip of the
+     same text is the same size.
+   - *Where the time goes.* Storage alone, without the engine: reading the Blob from IndexedDB 10 ms,
+     gunzip 239 ms, gzip 1,223 ms, writing the Blob 4 ms. On Node, for comparison, `serialise` takes
+     about 1.0 s, `deserialise` 1.2 to 1.3 s (0.3 s of it `JSON.parse`) and zlib's gzip 1.1 s. Loading
+     the sample through the file picker took 1,177 ms. So the time is the engine's `serialise` and
+     `deserialise` of a 113 MB document and gzip at its default level; IndexedDB itself takes
+     milliseconds.
+   - *Left unticked.* Under 1 s would need a smaller save, or one read without parsing all of it. Those
+     are data-model §7's levers and the owner's call; the targets are recorded, not chased (DL-08).
+     The box stays unticked with the figure and the reason beside it.
+   - *Nothing changed on the way.* The save kept, exported, is the sample byte for byte.
+   - *Data-model §7.* "Save after 20 years: under 20 MB" is missed uncompressed (113 MB) and met
+     compressed (12.7 MB). "Load a save: under 1 s" is missed, at about 1.3 s.
+9. **Box 2 is met** in Vitest and in Chromium. `saves.test.ts` and `views/saves.test.tsx` compare the
+   export's bytes with `saveText`, which is `serialise`. In Chromium, the journey's export from
+   IndexedDB equals the direct export, and the measure's equals the sample `serialise` wrote on Node.
+10. **Smaller changes.** `web/package.json` gains `measure` (`npm run build && playwright test -c
+    playwright.measure.config.ts`), and `web/tsconfig.json` checks that config. The measure never runs
+    in `npm run e2e`, which needs no sample; it fails only if the round trip changes the game, never on
+    a time. The Playwright specs share `e2e/support.ts`. Playwright still never runs in CI (INPUTS 7.10).
+
+**Consequences.** The page keeps games in the browser and brings them back after a reload, and an
+exported save loads in the CLI. Where the browser keeps nothing, the page says so and plays on. M7-S3's
+fourth box is ticked, and M7-S4's second and third. M7-S4's first box is not: a 20-year round trip
+takes about 3.6 s against 1 s, and the owner decides what, if anything, follows. The measure is rerun
+with `npm run harness:sample`, then `npm run measure -w web`. M7-S5 deploys a page that saves.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 106 files and 2,214 tests, none skipped;
+26 of them are new. `npm run build -w web` exits 0 through the gate: 478.53 kB (139.14 kB gzipped),
+"no network or filesystem reference". `npm run e2e -w web` passes 16.
+
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
 **Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each

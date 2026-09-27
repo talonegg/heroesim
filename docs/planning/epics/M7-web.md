@@ -4,7 +4,8 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1, M7-S2 and M7-S3 done (M7-S3's fourth box is M7-S4's)
+**Status:** in progress — M7-S1 to M7-S4 done, but for M7-S4's first box, a measure not met (a
+20-year round trip through IndexedDB takes 3.6 s against 1 s; DL-67, left to the owner)
 
 ## 0. What lands in M7
 
@@ -79,7 +80,8 @@ is behind `defaultConfig`, with a `rebase` button (D1). No component calls the e
 - [x] Every event type in the engine's union has a sentence; a test enumerates the union
 - [x] Every CLI command has a browser equivalent (a table in this section, ticked as built)
 - [x] `show hero`'s rule holds: Potential is never rendered (test greps the rendered DOM)
-- [ ] No horizontal overflow at 360px width (Playwright, S4)
+- [x] No horizontal overflow at 360px width (Playwright, S4: `web/e2e/layout.spec.ts` and each
+      step of `web/e2e/journey.spec.ts`, DL-67)
 
 **Every CLI command and its browser equivalent** (the second box; a row is ticked when its
 equivalent is built; M7-S3 part 1, DL-66, built the first nine; M7-S3 part 2, DL-73, built the
@@ -112,7 +114,7 @@ rest, each driven through the page's own controls in `web/src/views/*.test.tsx`)
 | `show offers`, `accept`, `decline` | The Transfer Offers made for the player's Heroes, each accepted or declined | [x] |
 | `show history [entityId]` | The History: the whole History or a Guild's, newest first, a page at a time; a Hero's is on their page | [x] |
 | `rebase` | The "new rules available" notice while the game's rules are behind this release's, and "Adopt the new rules" (D1) | [x] |
-| `save --as`, `load` | "This game": export the game as the save file the CLI writes, and load a save file, the CLI's or the page's, before a game or in place of one. Saves kept in IndexedDB are M7-S4's | [x] |
+| `save --as`, `load` | "This game": export the game as the save file the CLI writes, and load a save file, the CLI's or the page's, before a game or in place of one. Saves kept in IndexedDB: "Saved in this browser", in "This game" and "A new game" (M7-S4, DL-67) | [x] |
 | `help` | The page's own words: each section says what it is for and what its controls do, and each control is named by what it does | [x] |
 
 ### M7-S4 · IndexedDB saves and Playwright · 1–2 sessions
@@ -129,9 +131,16 @@ with the CLI's loader.
 
 - [ ] A 20-year save from `npm run harness:sample` (`harness/samples/twenty-years.json`,
       gitignored, M2-S12) round-trips through IndexedDB under 1 s and its compressed size is
-      recorded (**Measure**, DL)
-- [ ] The exported file is byte-identical to `serialise(document)`
-- [ ] Both Playwright journeys pass locally; `npm run e2e`
+      recorded (**Measure**, DL) — **not met, measured (DL-67):** the round trip takes 3.6 to
+      3.8 s in Chromium (save 2.3 to 2.5 s, load after a reload 1.3 s; `npm run measure -w web`);
+      compressed size 12,662,505 bytes from 113,281,366 (8.9 to 1). The time is the engine's
+      `serialise` and `deserialise` of a 113 MB save and gzip; IndexedDB takes milliseconds. Left
+      to the owner (data-model §7, DL-08)
+- [x] The exported file is byte-identical to `serialise(document)` (`web/src/saves.test.ts`,
+      `web/src/views/saves.test.tsx`; in Chromium, `e2e/journey.spec.ts` and the measure)
+- [x] Both Playwright journeys pass locally; `npm run e2e` (`e2e/journey.spec.ts` at 360×800 and
+      1280×800, the CLI loading the export; `e2e/no-storage.spec.ts` with storage blocked;
+      16 passed)
 
 ### M7-S5 · Deploy · 0.5–1 session
 

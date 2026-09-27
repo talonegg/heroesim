@@ -1,54 +1,51 @@
-// This game as a file (M7-S3 part 2; the CLI's `save --as <file>` and `load <file>`, DL-73): export
-// the game in hand as the save the CLI writes, byte for byte; load a save file, the CLI's or one
-// exported here, through the reducer's `load` play; or start a new game in its place. Keeping saves
-// in the browser, in IndexedDB, is M7-S4's.
+// This game (M7-S3 part 2, DL-73; M7-S4, DL-67): the CLI's `save --as <file>` and `load <file>`, and
+// saves kept in the browser. Export the game in hand as the save the CLI writes, byte for byte; save
+// it in this browser, in IndexedDB, and load, export or delete a save kept there; load a save file,
+// the CLI's or one exported here, through the reducer's `load` play; or start a new game in its place.
 
 import type { WorldDocument } from '@heroesim/engine';
-import type { ChangeEvent } from 'react';
+import { useState, type ChangeEvent } from 'react';
+import { savesFailureSentence, type Saves } from '../saves';
 import type { GameAction, GameState } from '../state/reducer';
 import { saveFileName, saveText } from '../state/game-file';
+import { download } from './download';
+import { SavedGames } from './saved-games';
 import { Section } from './section';
 
-/** Hands the browser `text` as a file named `name` to save: a download, which requests nothing. */
-function download(name: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-  const link = globalThis.document.createElement('a');
-  link.href = url;
-  link.download = name;
-  link.hidden = true;
-  globalThis.document.body.append(link);
-  link.click();
-  link.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
-}
-
-/** A file picker that loads the save chosen: its text goes to the reducer, which reads it (DL-20, DL-65). */
-export function LoadSave({ busy, play }: { busy: boolean; play: (action: GameAction) => void }) {
+/** A file picker that loads the save chosen: its text (`saves.import`) goes to the reducer, which reads it (DL-20, DL-65). */
+export function LoadSave({ saves, busy, play }: { saves: Saves; busy: boolean; play: (action: GameAction) => void }) {
+  const [failure, setFailure] = useState<string | null>(null);
   async function chosen(event: ChangeEvent<HTMLInputElement>): Promise<void> {
     const input = event.target;
     const file = input.files?.[0];
     if (file === undefined) return;
-    const text = await file.text();
+    const imported = await saves.import(file);
     input.value = '';
-    play({ kind: 'load', text });
+    setFailure(imported.ok ? null : savesFailureSentence(imported.failure));
+    if (imported.ok) play({ kind: 'load', text: imported.value });
   }
   return (
-    <label className="field">
-      <span>Load a save file</span>
-      <input type="file" accept=".json,application/json" disabled={busy} onChange={(event) => void chosen(event)} />
-    </label>
+    <>
+      <label className="field">
+        <span>Load a save file</span>
+        <input type="file" accept=".json,application/json" disabled={busy} onChange={(event) => void chosen(event)} />
+      </label>
+      {failure === null ? null : <p role="alert">{failure}</p>}
+    </>
   );
 }
 
 export function GameFile({
   document,
   state,
+  saves,
   busy,
   play,
   onNewGame,
 }: {
   document: WorldDocument;
   state: GameState;
+  saves: Saves;
   busy: boolean;
   play: (action: GameAction) => void;
   onNewGame: () => void;
@@ -58,16 +55,18 @@ export function GameFile({
       id="game"
       title="This game"
       help={
-        'Export the game as a save file, the one the CLI writes, which the CLI or this page can load. Loading a save ' +
-        'file, or starting a new game, puts it in place of the game in hand, which is lost unless exported first.'
+        'Save the game in this browser under a name, to load it here later, even after the page is closed; export the ' +
+        'game, or a save kept here, as the file the CLI writes, which the CLI or this page can load. Loading a save, or ' +
+        'starting a new game, puts it in place of the game in hand, which is lost unless saved or exported first.'
       }
     >
       <div className="actions">
-        <button type="button" onClick={() => download(saveFileName(document), saveText(document))}>
+        <button type="button" onClick={() => download(new File([saveText(document)], saveFileName(document), { type: 'application/json' }))}>
           Export this game
         </button>
       </div>
-      <LoadSave busy={busy} play={play} />
+      <SavedGames saves={saves} document={document} busy={busy} play={play} />
+      <LoadSave saves={saves} busy={busy} play={play} />
       {state.warnings.length === 0 ? null : (
         <>
           <p>The save names things this release’s content does not define; they are shown as they are:</p>

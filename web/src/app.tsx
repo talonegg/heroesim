@@ -3,13 +3,15 @@
 // notice of new rules when there are any, and time; then the Board with dispatch, the Roster with
 // Hero pages, the Transfer Offers and the Unattached pool; the Market, the Hall, the Guildmaster
 // and the Patrons; the Rankings and every Guild; the log of what happened since the last action,
-// the whole History, and the game as a file (part 2, DL-73). Before there is a game, a new one.
+// the whole History, and the game as a file (part 2, DL-73) with the saves kept in this browser
+// (M7-S4, DL-67). Before there is a game, a new one, and the saves to load one from.
 // Every play goes through `useGame`, the one reducer (M7-S2); no component calls the engine, and
 // every number shown comes from a selector under `state/`.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useCallback, useMemo, useState } from 'react';
 import { content } from './content';
+import { browserSaves, type Saves } from './saves';
 import { rulesNotice } from './state/game-file';
 import { useGame, type GameState } from './state/reducer';
 import { headerView, stopView } from './state/selectors';
@@ -58,8 +60,11 @@ const index: readonly { id: SectionId; label: string }[] = [
   { id: 'game', label: 'This game' },
 ];
 
-/** The page. `initial` is a test's way in: a game already in hand. */
-export function App({ initial }: { initial?: GameState }) {
+/** The saves this browser keeps for the page, opened on first use (`saves.ts`). */
+const kept = browserSaves();
+
+/** The page. `initial` and `saves` are a test's way in: a game already in hand, saves kept elsewhere. */
+export function App({ initial, saves = kept }: { initial?: GameState; saves?: Saves }) {
   const [game, play] = useGame(initial);
   const { document: current, busy, pending } = game;
   // The game in hand when the player asked for a new one; the form shows while it is still in hand.
@@ -78,7 +83,7 @@ export function App({ initial }: { initial?: GameState }) {
         {current === null || replacing === current ? (
           <>
             <h1>Heroesim</h1>
-            <NewGame busy={busy} play={play} {...(current === null ? {} : { onCancel: () => setReplacing(null) })} />
+            <NewGame saves={saves} busy={busy} play={play} {...(current === null ? {} : { onCancel: () => setReplacing(null) })} />
           </>
         ) : (
           <>
@@ -114,7 +119,7 @@ export function App({ initial }: { initial?: GameState }) {
             <Guilds document={current} busy={busy} play={play} />
             <Log key={`${current.world.turn}:${game.log.length}`} state={game} guildName={header?.guildName ?? 'your Guild'} />
             <History document={current} />
-            <GameFile document={current} state={game} busy={busy} play={play} onNewGame={() => setReplacing(current)} />
+            <GameFile document={current} state={game} saves={saves} busy={busy} play={play} onNewGame={() => setReplacing(current)} />
           </>
         )}
       </main>

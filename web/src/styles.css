@@ -528,3 +528,14 @@ button[aria-pressed='true'] {
   border-color: var(--accent);
   font-weight: 600;
 }
+
+/* ── Saved in this browser (M7-S4, DL-67) ────────────────────────────────────────────────── */
+
+.saved {
+  margin-top: 1rem;
+}
+
+.save-name {
+  margin: 0;
+  font-weight: 600;
+}
