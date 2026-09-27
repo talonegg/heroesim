@@ -5,8 +5,9 @@ import { expectNoHorizontalOverflow, playTurns, region, startGame } from './supp
 // that stacks, "works on a phone width without horizontal scroll"), and none at 1280px. Every
 // section of a game some Turns in, with each thing that opens opened in turn: a Party being chosen,
 // a Hero's page, a pool Hero's page, a Rival's Guild page and one of its Heroes' pages, the Rankings
-// by Wealth, an older page of the History, the new-game form over a game, and a save with a long
-// name. The Guild's and the Guildmaster's names are long, and one word runs 61 letters unbroken.
+// by Wealth, an older page of the History, names found in the History and a page opened from them
+// (DL-74), the new-game form over a game, and a save with a long name. The Guild's and the
+// Guildmaster's names are long, and one word runs 61 letters unbroken.
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
@@ -62,6 +63,23 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expectNoHorizontalOverflow(page, 'the Rankings by Wealth');
   await region(page, 'History').getByRole('button', { name: 'Oldest' }).click();
   await expectNoHorizontalOverflow(page, 'the oldest page of the History');
+
+  // Someone found in the History by name, the Guildmaster's long one among them, and a Hero's page
+  // opened from it (DL-74).
+  const history = region(page, 'History');
+  await history.getByRole('searchbox', { name: 'Find someone in the History by name' }).fill('e');
+  await expect(history.getByRole('list', { name: 'Found in the History' })).toBeVisible();
+  await expectNoHorizontalOverflow(page, 'names found in the History');
+  await history.getByRole('searchbox', { name: 'Find someone in the History by name' }).fill('Grimbeorht');
+  await history.getByRole('button', { name: /^Read Ælfwine/ }).click();
+  await expect(history.getByRole('heading', { level: 3, name: /^The History of Ælfwine/ })).toBeVisible();
+  await expectNoHorizontalOverflow(page, "the Guildmaster's History, found by name");
+  const heroName = (await roster.locator('li.card button.link').first().textContent()) ?? '';
+  await history.getByRole('searchbox', { name: 'Find someone in the History by name' }).fill(heroName);
+  await history.getByRole('button', { name: `Read ${heroName}`, exact: true }).click();
+  await expect(history.getByRole('button', { name: 'Back to the whole History' })).toBeVisible();
+  await expectNoHorizontalOverflow(page, "a Hero's page opened from the History");
+  await history.getByRole('button', { name: 'Back to the whole History' }).click();
 
   // A save with a long name, and its delete asked for.
   const game = region(page, 'This game');

@@ -148,6 +148,19 @@ describe('a game in hand', () => {
     const mine = Number(/^(\d+) events?/.exec(within(log).queryByText(/oldest first/)?.textContent ?? '0')?.[1] ?? 0);
     expect(mine).toBeLessThanOrEqual(all);
   });
+
+  test('keeps to the Guild from play to play once asked, as the History keeps whose it shows (DL-74)', async () => {
+    render(<App initial={started()} />);
+    const box = (): HTMLInputElement => within(section('Since your last action')).getByRole('checkbox') as HTMLInputElement;
+
+    fireEvent.click(box());
+    expect(box().checked).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+    await idle();
+
+    expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
+    expect(box().checked).toBe(true);
+  });
 });
 
 describe("the page's own words, the CLI's help", () => {
@@ -171,7 +184,12 @@ describe("the page's own words, the CLI's help", () => {
     const { container } = render(<App initial={started()} />);
 
     for (const control of within(container).getAllByRole('button')) expect(control.textContent?.trim()).not.toBe('');
-    for (const control of [...within(container).queryAllByRole('textbox'), ...within(container).queryAllByRole('combobox'), ...within(container).queryAllByRole('spinbutton')]) {
+    for (const control of [
+      ...within(container).queryAllByRole('textbox'),
+      ...within(container).queryAllByRole('searchbox'),
+      ...within(container).queryAllByRole('combobox'),
+      ...within(container).queryAllByRole('spinbutton'),
+    ]) {
       expect(control.closest('label')?.textContent?.trim() ?? control.getAttribute('aria-label')).toBeTruthy();
     }
   });

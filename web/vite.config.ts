@@ -1,3 +1,4 @@
+import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
@@ -27,11 +28,31 @@ const classicScript: Plugin = {
   },
 };
 
+const nodeBuiltins = new Set(builtinModules);
+
+/**
+ * A Node built-in the page imports is replaced by Vite with an empty stub in a browser build, with
+ * only a warning, so its specifier never reaches the bundle and scripts/check-bundle.mjs cannot see
+ * it; the stub throws when called. ESLint refuses the import in web/src; this refuses the build
+ * should one slip through, from the page or a dependency (principle 12, M7 verification, DL-74).
+ */
+const noNodeBuiltins: Plugin = {
+  name: 'heroesim:no-node-builtins',
+  apply: 'build',
+  enforce: 'pre',
+  resolveId(source, importer) {
+    if (source.startsWith('node:') || nodeBuiltins.has(source.split('/')[0] ?? '')) {
+      this.error(`${importer ?? 'The page'} imports the Node built-in "${source}", which a browser does not have (principle 12).`);
+    }
+    return null;
+  },
+};
+
 export default defineConfig({
   // Relative asset URLs, so the built folder works from any path, Cloudflare Pages's root and
   // the filesystem included (M7-S1).
   base: './',
-  plugins: [react(), classicScript],
+  plugins: [noNodeBuiltins, react(), classicScript],
   build: {
     // One chunk, as an IIFE, for the classic script above. There is no dynamic import to split.
     rolldownOptions: { output: { format: 'iife' } },

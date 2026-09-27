@@ -167,6 +167,120 @@ const samples: Samples = {
 
 const kinds = Object.keys(samples) as RejectionKind[];
 
+/** Content's name for `key` in `rows`, as the sentence reads it. */
+function named(rows: Readonly<Record<string, { name: string }>>, key: string): string {
+  const row = rows[key];
+  if (row === undefined) throw new Error(`the content has no ${key}`);
+  return row.name;
+}
+
+const questName = named(content.questTemplates, quest.templateKey);
+const stackName = named(content.items, stack.definitionKey);
+const whetstone = named(content.items, 'whetstone');
+const sword = named(content.items, 'arming-sword');
+const inParty = `${hero.name} is away with a Party; a Hero is transferred only from the Hall.`;
+const locked = `${hero.name} was transferred on Day ${dayOf(30)} and cannot be transferred again before Day ${dayOf(300)}.`;
+const guildBackgrounds = Object.values(content.backgrounds)
+  .filter((row) => row.owner === 'guild')
+  .map((row) => row.name)
+  .join(', ');
+
+/**
+ * Every sample's sentence in the world it was refused in, word for word: the CLI's words
+ * (`cli/src/commands/*.ts`) less its ids and pointers (DL-65 item 6). Pinned whole, so a sentence
+ * with two numbers swapped, the wrong slot or grade, or one word for another, fails (M7
+ * verification, DL-74).
+ */
+const exactly: Record<RejectionKind, string> = {
+  'no-game': 'No game is in hand: start a new game or load a save.',
+  'no-player-guild': "The save has no player's Guild.",
+  'game-ended': `The game ended on Day ${dayOf(ending.turn)}: The Lantern went bankrupt. Nothing more can be done in it.`,
+
+  'newGame guild-name-blank': 'The Guild needs a name.',
+  'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
+  'newGame unknown-background': `No Guild Background is called "no-such-background". Choose one of: ${guildBackgrounds}.`,
+  'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
+  'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
+  'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
+  'load invalid': 'Cannot load the save: The save fails the validator (shape): meta.seed.',
+
+  'rebase already-current': `This game already plays under this release's rules, configVersion ${defaultConfig.configVersion}.`,
+
+  'dispatch guild-folded': 'The Lantern has folded and sends no one.',
+  'dispatch quest-not-offered': `${questName} is not on the Board: it has been taken or has expired, or was never offered.`,
+  'dispatch hero-not-on-roster': `${rivalHero.name} is not on the Roster of The Lantern.`,
+  'dispatch hero-unavailable': `${hero.name} is injured and cannot go.`,
+  'dispatch requirement-unmet':
+    `${questName} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
+    `and a Hero with ${named(content.skills, 'lockpicking')} in the Party.`,
+  'dispatch not-consumable': `${sword} is gear, not a consumable: a Party carries consumables only.`,
+  'dispatch not-held-by-guild': `The Lantern holds no ${whetstone} to carry.`,
+  'dispatch insufficient-quantity': `The Lantern holds 1 of ${whetstone}, not the 3 asked.`,
+
+  'recruit guild-folded': 'The Lantern has folded and signs no one.',
+  'recruit hero-not-unattached': `${hero.name} is not in the Unattached pool.`,
+  'recruit signing-refused': `${hero.name} will not sign for a Guild with less than 40 Fame; The Lantern has 10, 30 short.`,
+  'recruit insufficient-wealth': 'The signing fee is 900 Wealth; The Lantern has 500.',
+
+  'build guild-folded': 'The Lantern has folded and builds nothing.',
+  'build max-grade': "The Lantern's quarters are at grade 3, the highest there is.",
+  'build insufficient-wealth': "The next grade of The Lantern's training yard costs 800 Wealth; The Lantern has 500.",
+
+  'equip guild-folded': 'The Lantern has folded and equips no one.',
+  'equip hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
+  'equip hero-unavailable': `${hero.name} is away on a Quest, and their gear is with them.`,
+  'equip not-held-by-guild': `The Lantern does not hold ${stackName}.`,
+  'equip not-gear': `${whetstone} is not gear, and is carried in no slot.`,
+  'equip wrong-slot': `${sword} goes in the weapon slot, not the armour slot.`,
+  'equip slot-occupied': `${hero.name}'s weapon slot holds ${stackName}: unequip it first.`,
+  'unequip guild-folded': 'The Lantern has folded and unequips no one.',
+  'unequip hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
+  'unequip hero-unavailable': `${hero.name} is dead.`,
+  'unequip slot-empty': `${hero.name}'s trinket slot is empty.`,
+
+  'buy guild-folded': 'The Lantern has folded and buys nothing.',
+  'buy not-in-market': `The Market has no ${named(content.items, 'runed-circlet')} for sale.`,
+  'buy insufficient-quantity': `The Market has 1 ${whetstone}; 5 cannot be bought.`,
+  'buy insufficient-wealth': 'That costs 600 Wealth; The Lantern has 500.',
+  'sell guild-folded': 'The Lantern has folded and sells nothing.',
+  'sell not-held-by-guild': `The Lantern holds no ${stackName} to sell.`,
+  'sell equipped': `${hero.name} carries ${stackName} as their weapon; unequip it first.`,
+  'sell unknown-item': 'The Market cannot price a-lost-relic: the content does not define it.',
+  'sell insufficient-quantity': `That stack of ${stackName} holds 2; 4 cannot be sold from it.`,
+
+  'transferIn guild-folded': `${rival.name} has folded and deals no more.`,
+  'transferIn hero-not-on-roster': `${hero.name} is on no other Guild's Roster.`,
+  'transferIn same-guild': "That Hero is already on The Lantern's Roster.",
+  'transferIn hero-in-party': inParty,
+  'transferIn recently-transferred': locked,
+  'transferIn transfer-refused': `${rival.name} will not part with ${rivalHero.name}: its Roster of ${rival.rosterIds.length} is too small for its appetite for Transfers.`,
+  'transferIn insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
+  'transferOut guild-folded': `${rival.name} has folded and deals no more.`,
+  'transferOut same-guild': 'The Lantern cannot transfer a Hero to itself.',
+  'transferOut hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
+  'transferOut hero-in-party': inParty,
+  'transferOut recently-transferred': locked,
+  'transferOut transfer-refused': `${rival.name} will not take ${hero.name}: it is not rich enough to hire now.`,
+  'transferOut insufficient-wealth': `The fee is 180 Wealth; ${rival.name} has 40.`,
+  'offerTransfer guild-folded': `${rival.name} has folded and deals no more.`,
+  'offerTransfer hero-not-on-roster': `${hero.name} is on no other Guild's Roster.`,
+  'offerTransfer same-guild': "That Hero is already on The Lantern's Roster.",
+  'offerTransfer hero-in-party': inParty,
+  'offerTransfer recently-transferred': locked,
+  'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no offer is needed: ask to take the Hero in.`,
+  'offerTransfer offer-pending': "The Lantern's offer for that Hero already waits for an answer.",
+  'offerTransfer insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
+  'acceptTransfer guild-folded': `${rival.name} has folded and deals no more.`,
+  'acceptTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
+  'acceptTransfer hero-in-party': inParty,
+  'acceptTransfer insufficient-wealth': `The fee is 180 Wealth; ${rival.name} has 40.`,
+  'declineTransfer guild-folded': `${rival.name} has folded and deals no more.`,
+  'declineTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
+};
+
+/** An entity id, which a refusal never shows: the player types none (DL-65 item 6). */
+const anId = /\b(guild|guildmaster|hero|patron|quest|party|offer|item|stack)-\d{6}\b/i;
+
 /** A sentence: something said, from a capital or a quotation, to a full stop, with no hole left in it. */
 function expectASentence(sentence: string): void {
   expect(sentence).toMatch(/^[A-Z"].*\S\.$/s);
@@ -188,6 +302,26 @@ describe('the words for every refusal', () => {
 
   test.each(kinds)('%s renders as a sentence with no world to name from', (kind) => {
     expectASentence(rejectionSentence(samples[kind], null, content));
+  });
+
+  test.each(kinds)('%s says exactly what the CLI says, less its ids and pointers', (kind) => {
+    expect(rejectionSentence(samples[kind], world, content)).toBe(exactly[kind]);
+  });
+
+  test.each(kinds)('%s shows no id, with a world or without one: a name the world does not hold is "that Hero" or the like', (kind) => {
+    expect(rejectionSentence(samples[kind], world, content)).not.toMatch(anId);
+    expect(rejectionSentence(samples[kind], null, content)).not.toMatch(anId);
+  });
+});
+
+describe('with no world to name from', () => {
+  test('a Hero, a Guild, a Quest, an Item and the player are what they are, never an id', () => {
+    const words = (kind: RejectionKind): string => rejectionSentence(samples[kind], null, content);
+
+    expect(words('dispatch hero-not-on-roster')).toBe('That Hero is not on the Roster of that Guild.');
+    expect(words('dispatch quest-not-offered')).toBe('That Quest is not on the Board: it has been taken or has expired, or was never offered.');
+    expect(words('equip slot-occupied')).toBe("That Hero's weapon slot holds that Item: unequip it first.");
+    expect(words('recruit insufficient-wealth')).toBe('The signing fee is 900 Wealth; your Guild has 500.');
   });
 });
 

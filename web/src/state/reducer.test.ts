@@ -242,6 +242,53 @@ describe('the rules a game plays under', () => {
   });
 });
 
+describe("a loaded save's warnings, the CLI's notice of content keys this content lacks (rule 5, DL-65)", () => {
+  /** A save one of whose Heroes has a Background this content does not define, as the CLI's rule-5 test has. */
+  function withUnknownBackground(state: GameState): string {
+    return saveText(state, ({ world }) => {
+      const [first] = Object.values(world['heroes'] as Record<string, Record<string, unknown>>);
+      if (first === undefined) throw new Error('expected a Hero');
+      first['backgroundKey'] = 'sea-born';
+    });
+  }
+
+  test('are stored by the load, and kept by the plays that follow, a refusal among them', () => {
+    const loaded = play(initialGameState, { kind: 'load', text: withUnknownBackground(started()) });
+
+    expect(loaded.rejection).toBeNull();
+    expect(loaded.warnings).toEqual([expect.objectContaining({ key: 'sea-born' })]);
+    const advanced = play(loaded, { kind: 'advance' });
+    expect(advanced.warnings).toEqual(loaded.warnings);
+    const refused = play(advanced, { kind: 'rebase' });
+    expect(refused.rejection).not.toBeNull();
+    expect(refused.warnings).toEqual(loaded.warnings);
+  });
+
+  test('go with the game: a new game has none, and a clean save loaded in its place has none', () => {
+    const loaded = play(initialGameState, { kind: 'load', text: withUnknownBackground(started()) });
+
+    expect(loaded.warnings).toHaveLength(1);
+    expect(play(loaded, newGame).warnings).toEqual([]);
+    expect(play(loaded, { kind: 'load', text: serialise(documentOf(started())) }).warnings).toEqual([]);
+  });
+});
+
+describe('the games put in hand', () => {
+  test('are counted: each new game and each load is one more; any other play, or a refusal, is not (DL-74)', () => {
+    expect(initialGameState.games).toBe(0);
+    const first = started();
+    expect(first.games).toBe(1);
+    const advanced = play(first, { kind: 'advance' });
+    expect(advanced.games).toBe(1);
+    expect(play(advanced, { ...newGame, guildName: ' ' }).games).toBe(1);
+    expect(play(advanced, { kind: 'load', text: 'not a save' }).games).toBe(1);
+    const loaded = play(advanced, { kind: 'load', text: serialise(documentOf(advanced)) });
+    expect(loaded.rejection).toBeNull();
+    expect(loaded.games).toBe(2);
+    expect(play(loaded, newGame).games).toBe(3);
+  });
+});
+
 describe('a refusal is stored, never thrown', () => {
   test("the engine's rejection is kept with the document as it was, and the log of the last play", () => {
     const before = play(started(), { kind: 'advance' });

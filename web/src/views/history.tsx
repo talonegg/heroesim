@@ -1,61 +1,113 @@
 // The History (M7-S3 part 2; the CLI's `show history [entityId]`): the whole History of the world,
 // or a Guild's, newest first, a page at a time, each entry a sentence from the front end's own
-// `narrate.ts`. A Hero's History is on their page. Nothing is dropped (principle 11): a folded
-// Guild's History can still be read.
+// `narrate.ts`. Nothing is dropped (principle 11): a folded Guild's History can still be read.
+//
+// Anyone else the History names is found by name (DL-74): a Hero, dead, retired or gone from the
+// world, a Guildmaster or a Patron, as the CLI reaches any of them by id. A Hero the world still
+// holds opens on their page, the CLI's `show hero`, with their Milestones first; anyone else's
+// entries are listed as a Guild's are.
 
-import type { GuildId, WorldDocument } from '@heroesim/engine';
+import type { EntityId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { historyChoices, historyView } from '../state/world-views';
-import { Lines } from './hero-page';
+import type { GameAction } from '../state/reducer';
+import { findInHistory, historyChoices, historySearchLimit, historyView } from '../state/world-views';
+import { HeroPage, Lines } from './hero-page';
 import { Section } from './section';
 
-export function History({ document }: { document: WorldDocument }) {
-  const [whose, setWhose] = useState<GuildId | null>(null);
+export function History({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
+  const [whose, setWhose] = useState<EntityId | null>(null);
   const [page, setPage] = useState(0);
+  const [query, setQuery] = useState('');
   const choices = useMemo(() => historyChoices(document), [document]);
   const view = useMemo(() => historyView(document, whose, page), [document, whose, page]);
+  const found = useMemo(() => findInHistory(document, query), [document, query]);
+  const chosen = view.name === null ? '' : (whose ?? '');
+  const choose = (entityId: EntityId | null): void => {
+    setWhose(entityId);
+    setPage(0);
+  };
   return (
     <Section
       id="history"
       title="History"
-      help="Everything the world has recorded, or one Guild’s part of it, newest first, a page at a time. A Hero’s History is on their page."
+      help={
+        'Everything the world has recorded, or one Guild’s part of it, newest first, a page at a time. Find anyone else ' +
+        'it names by name, a Hero who has died, retired or left the world, a Guildmaster or a Patron, to read theirs; ' +
+        'a Hero the world still holds opens on their page.'
+      }
     >
       <label className="field">
         <span>Whose History</span>
-        <select
-          value={whose ?? ''}
-          onChange={(event) => {
-            setWhose(event.target.value === '' ? null : (event.target.value as GuildId));
-            setPage(0);
-          }}
-        >
+        <select value={chosen} onChange={(event) => choose(event.target.value === '' ? null : (event.target.value as EntityId))}>
           <option value="">The whole History</option>
           {choices.map((choice) => (
             <option key={choice.guildId} value={choice.guildId}>
               {choice.name}
             </option>
           ))}
+          {chosen === '' || choices.some((choice) => choice.guildId === chosen) ? null : <option value={chosen}>{view.name}</option>}
         </select>
       </label>
-      <h3>{view.title}</h3>
-      <p className="subtle">
-        Page {view.page + 1} of {view.pages}, {view.entries} {view.entries === 1 ? 'entry' : 'entries'} in all, newest first.
-      </p>
-      <Lines lines={view.lines} empty="Nothing yet." />
-      <div className="actions">
-        <button type="button" disabled={view.page === 0} onClick={() => setPage(0)}>
-          Newest
-        </button>
-        <button type="button" disabled={view.page === 0} onClick={() => setPage(view.page - 1)}>
-          Newer
-        </button>
-        <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.page + 1)}>
-          Older
-        </button>
-        <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.pages - 1)}>
-          Oldest
-        </button>
-      </div>
+      <label className="field">
+        <span>Find someone in the History by name</span>
+        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
+      </label>
+      {query.trim() === '' ? null : (
+        <div className="found">
+          <p className="subtle" role="status">
+            {found.matched === 0
+              ? 'No one the History names is called that.'
+              : found.matched > historySearchLimit
+                ? `${found.matched} found; the first ${historySearchLimit} by name are shown.`
+                : `${found.matched} found.`}
+          </p>
+          {found.names.length === 0 ? null : (
+            <ul className="rows" aria-label="Found in the History">
+              {found.names.map((name) => (
+                <li key={name.entityId}>
+                  <span>
+                    {name.name} <span className="subtle">({name.what})</span>
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      choose(name.entityId);
+                      setQuery('');
+                    }}
+                  >
+                    Read {name.name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {view.hero === null ? (
+        <>
+          <h3>{view.title}</h3>
+          <p className="subtle">
+            Page {view.page + 1} of {view.pages}, {view.entries} {view.entries === 1 ? 'entry' : 'entries'} in all, newest first.
+          </p>
+          <Lines lines={view.lines} empty="Nothing yet." />
+          <div className="actions">
+            <button type="button" disabled={view.page === 0} onClick={() => setPage(0)}>
+              Newest
+            </button>
+            <button type="button" disabled={view.page === 0} onClick={() => setPage(view.page - 1)}>
+              Newer
+            </button>
+            <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.page + 1)}>
+              Older
+            </button>
+            <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.pages - 1)}>
+              Oldest
+            </button>
+          </div>
+        </>
+      ) : (
+        <HeroPage key={view.hero} document={document} heroId={view.hero} onBack={() => choose(null)} backLabel="Back to the whole History" play={play} busy={busy} />
+      )}
     </Section>
   );
 }

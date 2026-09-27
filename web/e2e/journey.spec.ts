@@ -7,10 +7,11 @@ import { expect, test, type Page } from '@playwright/test';
 import { escaped, expectNoHorizontalOverflow, playTurns, region, startGame } from './support';
 
 // The journey (M7-S4, DL-67), at a phone's width and a desktop's: a new game, a Day advanced, a
-// Party dispatched, fast forward until the Party returns, the game saved in IndexedDB, the page
-// reloaded, the save loaded, the same Turn read; then the save exported, and the CLI's own loader,
-// run on Node, loads the exported file as the same Turn and writes it back byte for byte. The page is
-// never wider than the viewport on the way.
+// Party dispatched, a Hero recruited from the Unattached pool (the milestone's Gate, DL-74), fast
+// forward until the Party returns, the game saved in IndexedDB, the page reloaded, the save loaded,
+// the same Turn and the same Roster read; then the save exported, and the CLI's own loader, run on
+// Node, loads the exported file as the same Turn and writes it back byte for byte. The page is never
+// wider than the viewport on the way.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -42,7 +43,41 @@ async function dispatchAParty(page: Page): Promise<string> {
   throw new Error('No Quest on the Board would take a Party from the Roster');
 }
 
-test('a game played, saved in the browser, reloaded, loaded at the same Turn, and exported for the CLI', async ({ page }, testInfo) => {
+/**
+ * Signs, from the Unattached pool, the Hero with the lowest signing fee among those who would sign
+ * for the Guild at a fee it can pay; their name. The fee is the one the pool shows, and the Hero
+ * joins the Roster.
+ */
+async function recruitAHero(page: Page): Promise<string> {
+  const wealth = Number(await page.getByTestId('wealth').textContent());
+  const pool = region(page, 'Unattached pool');
+  const cards = pool.locator('li.card');
+  let chosen: { name: string; fee: number } | null = null;
+  for (let index = 0; index < (await cards.count()); index += 1) {
+    const text = (await cards.nth(index).textContent()) ?? '';
+    const fee = Number(/Signing fee (\d+) Wealth\./.exec(text)?.[1]);
+    if (!(fee <= wealth) || /Signs for your Guild: needs/.test(text)) continue;
+    const name = (await cards.nth(index).locator('button.link').textContent()) ?? '';
+    if (chosen === null || fee < chosen.fee) chosen = { name, fee };
+  }
+  if (chosen === null) throw new Error('No Hero in the pool would sign for the Guild at a fee it can pay');
+
+  await pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true }).click();
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  const signed = new RegExp(`^Day \\d+, \\w+ The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`);
+  await expect(region(page, 'Since your last action').getByRole('listitem').filter({ hasText: signed })).toHaveCount(1);
+  await expect(page.getByTestId('wealth')).toHaveText(String(wealth - chosen.fee));
+  await expect(region(page, 'Roster').getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
+  await expect(pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true })).toHaveCount(0);
+  return chosen.name;
+}
+
+/** The names on the player's Roster, in its order. */
+async function rosterNames(page: Page): Promise<string[]> {
+  return region(page, 'Roster').locator('li.card button.link').allTextContents();
+}
+
+test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at the same Turn, and exported for the CLI', async ({ page }, testInfo) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await expectNoHorizontalOverflow(page, 'the new-game form');
@@ -59,6 +94,10 @@ test('a game played, saved in the browser, reloaded, loaded at the same Turn, an
   const sent = new RegExp(`^Day 1, morning The Lantern sent .+ on ${escaped(quest)}, back on the night of Day \\d+\\.$`);
   await expect(log.getByRole('listitem').filter({ hasText: sent })).toHaveCount(1);
 
+  // Recruit a Hero from the Unattached pool (the Gate's "recruited", DL-74).
+  const recruited = await recruitAHero(page);
+  await expectNoHorizontalOverflow(page, 'a Hero recruited');
+
   // Fast forward until the Party returns; another stop (a Transfer Offer, say) is played past.
   const fastForward = page.getByRole('button', { name: 'Fast forward', exact: true });
   const stop = page.getByTestId('stop');
@@ -70,6 +109,8 @@ test('a game played, saved in the browser, reloaded, loaded at the same Turn, an
   // Save in the browser, under a name.
   const turn = (await page.getByTestId('time').textContent()) ?? '';
   const wealth = (await page.getByTestId('wealth').textContent()) ?? '';
+  const roster = await rosterNames(page);
+  expect(roster).toContain(recruited);
   const game = region(page, 'This game');
   await game.getByLabel('Save as').fill('journey');
   await game.getByRole('button', { name: 'Save in this browser' }).click();
@@ -91,6 +132,7 @@ test('a game played, saved in the browser, reloaded, loaded at the same Turn, an
   await expect(page.getByTestId('time')).toHaveText(turn);
   await expect(page.getByTestId('wealth')).toHaveText(wealth);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  expect(await rosterNames(page)).toEqual(roster);
   await expectNoHorizontalOverflow(page, 'a save loaded');
 
   // Export the save kept in IndexedDB: the uncompressed save, the bytes serialise gave.

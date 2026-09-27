@@ -1,7 +1,7 @@
 // @vitest-environment node
 import type { WorldDocument } from '@heroesim/engine';
 import { gunzipSync } from 'node:zlib';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import {
   browserSaves,
   createSaves,
@@ -17,9 +17,10 @@ import { initialGameState } from './state/reducer';
 
 // Saves kept in the browser (M7-S4, DL-67): the game's save text, the CLI's canonical JSON,
 // compressed with gzip into a Blob in IndexedDB, and read back, exported and imported as that text.
-// Node has no IndexedDB, so the saves are tested here over a store that stands in for it, and over
-// IndexedDB itself in Playwright; the ways IndexedDB is unavailable are tested here with the
-// browser's own failures stood in for.
+// Node has no IndexedDB, so the saves are tested here over a store that stands in for it, their
+// IndexedDB adapter over a stand-in for the browser's factory whose transactions commit when the test
+// says (DL-74), and IndexedDB itself in Playwright; the ways IndexedDB is unavailable are tested here
+// with the browser's own failures stood in for.
 
 const savedAt = '2026-09-27T10:00:00.000Z';
 const now = (): Date => new Date(savedAt);
@@ -268,6 +269,170 @@ describe('when IndexedDB is unavailable, the page runs without saving', () => {
       kind: 'unavailable',
       message: 'InvalidStateError: A mutation operation was attempted on a database that did not allow mutations.',
     });
+  });
+});
+
+// ── IndexedDB's own adapter, over a stand-in for the browser's ────────────────────────────────
+
+/**
+ * A stand-in for the browser's IndexedDB, as far as `saves.ts` uses it: `open` with an upgrade the
+ * first time, one object store, requests that succeed on the next microtask, and read-write
+ * transactions that commit, or abort, only when the test says. A write is staged in its
+ * transaction and reaches the store only on commit, as IndexedDB's does.
+ */
+function standInIndexedDb() {
+  const records = new Map<string, unknown>();
+  const stores: { name: string; keyPath: unknown }[] = [];
+  const writes: { commit: () => void; abort: (error: DOMException) => void }[] = [];
+
+  function request<T>(result: () => T): IDBRequest<T> {
+    const pending = { result: undefined as T | undefined, error: null, onsuccess: null as ((event: Event) => void) | null, onerror: null };
+    queueMicrotask(() => {
+      pending.result = result();
+      pending.onsuccess?.(new Event('success'));
+    });
+    return pending as unknown as IDBRequest<T>;
+  }
+
+  const database = {
+    objectStoreNames: { contains: (name: string) => stores.some((store) => store.name === name) },
+    createObjectStore: (name: string, options: { keyPath: unknown }) => {
+      stores.push({ name, keyPath: options.keyPath });
+    },
+    transaction: (_name: string, mode: IDBTransactionMode) => {
+      const staged: (() => void)[] = [];
+      const transaction = {
+        error: null as DOMException | null,
+        oncomplete: null as ((event: Event) => void) | null,
+        onerror: null as ((event: Event) => void) | null,
+        onabort: null as ((event: Event) => void) | null,
+        objectStore: () => ({
+          put: (record: { name: string }) => {
+            staged.push(() => records.set(record.name, record));
+            return request(() => record.name);
+          },
+          delete: (name: string) => {
+            staged.push(() => records.delete(name));
+            return request(() => undefined);
+          },
+          get: (name: string) => request(() => records.get(name)),
+          getAll: () => request(() => [...records.values()]),
+        }),
+      };
+      if (mode === 'readwrite') {
+        writes.push({
+          commit: () => {
+            for (const write of staged) write();
+            transaction.oncomplete?.(new Event('complete'));
+          },
+          abort: (error) => {
+            transaction.error = error;
+            transaction.onabort?.(new Event('abort'));
+          },
+        });
+      }
+      return transaction;
+    },
+  };
+
+  const indexedDB = {
+    open: (name: string, version: number) => {
+      const opening = {
+        result: database,
+        error: null,
+        onupgradeneeded: null as ((event: Event) => void) | null,
+        onsuccess: null as ((event: Event) => void) | null,
+        onerror: null,
+      };
+      queueMicrotask(() => {
+        expect({ name, version }).toEqual({ name: savesDatabase, version: 1 });
+        if (stores.length === 0) opening.onupgradeneeded?.(new Event('upgradeneeded'));
+        opening.onsuccess?.(new Event('success'));
+      });
+      return opening;
+    },
+  } as unknown as IDBFactory;
+
+  return { indexedDB, records, stores, writes };
+}
+
+/** Whether `promise` has settled, without waiting for it. */
+function watched<T>(promise: Promise<T>): { settled: () => boolean; promise: Promise<T> } {
+  let settled = false;
+  void promise.then(
+    () => (settled = true),
+    () => (settled = true),
+  );
+  return { settled: () => settled, promise };
+}
+
+/** Lets every task queued now run: compression, the stand-in's requests. */
+async function tasksRun(): Promise<void> {
+  for (let round = 0; round < 5; round += 1) await new Promise((resolve) => setTimeout(resolve, 5));
+}
+
+describe("IndexedDB's own adapter (DL-67 item 1)", () => {
+  const streams = { CompressionStream, DecompressionStream };
+
+  test('makes one object store keyed by the save’s name, and reads back what it kept', async () => {
+    const idb = standInIndexedDb();
+    const saves = browserSaves({ ...streams, indexedDB: idb.indexedDB });
+    const document = aGame();
+
+    const saving = saves.save('first game', document);
+    await vi.waitFor(() => expect(idb.writes).toHaveLength(1));
+    idb.writes[0]?.commit();
+
+    expect(await saving).toMatchObject({ ok: true, value: { name: 'first game' } });
+    expect(idb.stores).toEqual([{ name: 'saves', keyPath: 'name' }]);
+    expect([...idb.records.keys()]).toEqual(['first game']);
+    expect(await saves.load('first game')).toEqual({ ok: true, value: saveText(document) });
+    expect(await saves.list()).toMatchObject({ ok: true, value: [{ name: 'first game' }] });
+  });
+
+  test('reports a save kept only once its transaction has committed', async () => {
+    const idb = standInIndexedDb();
+    const saves = browserSaves({ ...streams, indexedDB: idb.indexedDB });
+
+    const saving = watched(saves.save('first game', aGame()));
+    await vi.waitFor(() => expect(idb.writes).toHaveLength(1));
+    await tasksRun();
+
+    expect(saving.settled()).toBe(false);
+    expect(idb.records.size).toBe(0);
+    idb.writes[0]?.commit();
+    expect(await saving.promise).toMatchObject({ ok: true });
+    expect(idb.records.size).toBe(1);
+  });
+
+  test('a write the browser abandons at commit, as a full disk does, is a failure with its words, and nothing is kept', async () => {
+    const idb = standInIndexedDb();
+    const saves = browserSaves({ ...streams, indexedDB: idb.indexedDB });
+
+    const saving = saves.save('first game', aGame());
+    await vi.waitFor(() => expect(idb.writes).toHaveLength(1));
+    idb.writes[0]?.abort(new DOMException('The quota has been exceeded.', 'QuotaExceededError'));
+
+    expect(await saving).toEqual({ ok: false, failure: { kind: 'failed', message: 'QuotaExceededError: The quota has been exceeded.' } });
+    expect(await saves.list()).toEqual({ ok: true, value: [] });
+  });
+
+  test('deletes a save only once its transaction has committed', async () => {
+    const idb = standInIndexedDb();
+    const saves = browserSaves({ ...streams, indexedDB: idb.indexedDB });
+    const saving = saves.save('first game', aGame());
+    await vi.waitFor(() => expect(idb.writes).toHaveLength(1));
+    idb.writes[0]?.commit();
+    await saving;
+
+    const removing = watched(saves.remove('first game'));
+    await vi.waitFor(() => expect(idb.writes).toHaveLength(2));
+    await tasksRun();
+    expect(removing.settled()).toBe(false);
+    idb.writes[1]?.commit();
+
+    expect(await removing.promise).toEqual({ ok: true, value: undefined });
+    expect(idb.records.size).toBe(0);
   });
 });
 

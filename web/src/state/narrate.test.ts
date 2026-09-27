@@ -1,8 +1,10 @@
 import {
   advance,
   createWorld,
+  dayOf,
   defaultConfig,
   milestoneTypes,
+  offerTransfer,
   playerGuild,
   type EngineEventOf,
   type EngineEventType,
@@ -284,6 +286,106 @@ describe('every event type in the engine\'s union has a sentence', () => {
   });
 });
 
+/** Content's name for `key` in `rows`: the test reads the names content gives, as the sentence does. */
+function named(rows: Readonly<Record<string, { name: string }>>, key: string): string {
+  const row = rows[key];
+  if (row === undefined) throw new Error(`the content has no ${key}`);
+  return row.name;
+}
+
+/**
+ * Every sample's sentence, word for word: the CLI's (`cli/src/narrate.ts`) with the ids a command
+ * takes left out and a Party called its Guild's (DL-66 item 3). Pinned whole, so a sentence that
+ * swaps who did what, or two numbers, or says one word for another, fails (M7 verification, DL-74).
+ */
+const exactly: { [Type in EngineEventType]: string } = {
+  'world.created': 'The world was made from seed demo.',
+  'guild.founded': 'The Kestrel Guild was founded.',
+  'guildmaster.generated': 'Osric Vane leads The Kestrel Guild.',
+  'hero.generated': `Brenna Ashcombe, ${named(content.classes, 'rogue')}, joined the Unattached pool.`,
+  'patron.generated': `Lady Maud of the ${named(content.spheres, 'crown')} became a Patron.`,
+  'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
+  'guild.upkeep-paid': 'The Kestrel Guild paid 40 Upkeep, leaving 460 Wealth.',
+  'hero.recruited': 'The Kestrel Guild signed Brenna Ashcombe for 110 Wealth.',
+  'hero.left-pool': 'Brenna Ashcombe left the Unattached pool.',
+  'quest.offered': `Lady Maud offered ${barrow}.`,
+  'quest.expired': `Lady Maud's ${barrow} expired untaken.`,
+  'quest.taken': `The Kestrel Guild sent Brenna Ashcombe and Aldred Barrowby on ${barrow}, back on the night of Day 7, carrying ${named(content.items, 'whetstone')} ×2.`,
+  'quest.encounter': `The Kestrel Guild's Party failed at ${named(content.encounters, 'ambush-on-the-road')} (Encounter 2): Brenna Ashcombe was injured.`,
+  'quest.resolved': `The Kestrel Guild's Party came home from ${named(content.questTemplates, 'guard-the-caravan')} and failed: Wealth 0, Fame -2.`,
+  'quest.loot': `The Kestrel Guild found Loot on ${barrow}: ${named(content.items, 'barrow-kings-blade')}.`,
+  'hero.injured': `Brenna Ashcombe was injured (${named(content.injuries, 'deep-cut')}), healing on the night of Day 13.`,
+  'hero.died': `Brenna Ashcombe died on ${barrow}.`,
+  'hero.xp-gained': 'Brenna Ashcombe gained 30 XP.',
+  'hero.morale-changed': "Brenna Ashcombe's Morale went from 45 to 35, low.",
+  'hero.healed': `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}, left ${named(content.traits, 'scarred')}.`,
+  'hero.retired': 'Brenna Ashcombe retired from The Kestrel Guild at 51.',
+  'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
+  'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',
+  'guild.folded': 'The Kestrel Guild had its Roster wiped out and folded.',
+  'hero.left-guild': 'Brenna Ashcombe left The Kestrel Guild for the Unattached pool.',
+  'guild.improved': `The Kestrel Guild built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`,
+  'hero.levelled': `Brenna Ashcombe reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
+  'patron.regard-changed': "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool after a Quest of theirs failed.",
+  'guildmaster.regard-changed': "Osric Vane's Regard for Brenna Ashcombe rose from neutral to warm.",
+  'hero.regard-changed': "Brenna Ashcombe's Regard for Aldred Barrowby rose from warm to close after a Quest together.",
+  'item.expended': `The Kestrel Guild's Party used one ${named(content.items, 'healing-draught')} on Brenna Ashcombe: their Injury heals 5 Days sooner.`,
+  'item.equipped': `The Kestrel Guild put ${named(content.items, 'arming-sword')} in Brenna Ashcombe's weapon slot.`,
+  'item.unequipped': `The Kestrel Guild took ${named(content.items, 'lantern-of-stannary')} from Brenna Ashcombe's trinket slot.`,
+  'item.returned': `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe, who died.`,
+  'item.bought': `The Kestrel Guild bought 3 × ${named(content.items, 'whetstone')} at the Market for 75 Wealth.`,
+  'item.sold': `The Kestrel Guild's ${named(content.items, 'barrow-kings-blade')} went to the Market for 300 Wealth as the Guild folded.`,
+  'hero.transferred': 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
+  'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Day 7.',
+  'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's offer for Brenna Ashcombe.",
+  'guild.transfer-offer-expired': "The Iron Wardens's offer for Brenna Ashcombe expired unanswered.",
+};
+
+describe('every sample in so many words', () => {
+  test.each(union)('%s says exactly what the CLI says, less its ids', (type) => {
+    expect(narrate(samples[type], narration)).toBe(exactly[type]);
+  });
+
+  /** A sample of `type` with its payload changed. */
+  function varied<Type extends EngineEventType>(type: Type, change: Partial<EngineEventOf<Type>['payload']>): EngineEventOf<Type> {
+    const sample = samples[type] as EngineEventOf<Type>;
+    return { ...sample, payload: { ...sample.payload, ...change } } as EngineEventOf<Type>;
+  }
+
+  const rest = content.questTemplates['guard-the-caravan']?.name ?? '';
+  const draught = named(content.items, 'healing-draught');
+
+  test.each([
+    ['a Quest that succeeded', varied('quest.resolved', { band: 'success', wealthDelta: 120, fameDelta: 3 }), `The Kestrel Guild's Party came home from ${rest} and succeeded: Wealth +120, Fame +3.`],
+    ['a Quest that succeeded strongly', varied('quest.resolved', { band: 'strong', wealthDelta: 150, fameDelta: 5 }), `The Kestrel Guild's Party came home from ${rest} and succeeded strongly: Wealth +150, Fame +5.`],
+    ['a consumable that healed a Day sooner', varied('item.expended', { days: 1 } as never), `The Kestrel Guild's Party used one ${draught} on Brenna Ashcombe: their Injury heals 1 Day sooner.`],
+    [
+      'a consumable that bonused a Check',
+      varied('item.expended', { effect: 'bonus', encounterIndex: 2, flat: 3 } as never),
+      `The Kestrel Guild's Party used one ${draught} on Encounter 3: +3 to its Check.`,
+    ],
+    [
+      'a consumable that tried an Encounter again',
+      varied('item.expended', { effect: 'reroll', encounterIndex: 0, firstRoll: 4 } as never),
+      `The Kestrel Guild's Party used one ${draught} to try Encounter 1 again.`,
+    ],
+    ["the player's own sale", varied('item.sold', { cause: 'sale', quantity: 2, proceeds: 600 }), `The Kestrel Guild sold 2 × ${named(content.items, 'barrow-kings-blade')} at the Market for 600 Wealth.`],
+    ['a Transfer with no offer', varied('hero.transferred', { offerId: null }), 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth.'],
+    ['an offer lapsed as its Hero left', varied('guild.transfer-offer-expired', { cause: 'hero-left' }), "The Iron Wardens's offer for Brenna Ashcombe lapsed: the Hero left that Roster."],
+    ['an offer lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), "The Iron Wardens's offer for Brenna Ashcombe lapsed as a Guild folded."],
+    ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), 'The Kestrel Guild lost its Guildmaster to Retirement and folded.'],
+    ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), 'The Kestrel Guild went bankrupt and folded.'],
+    ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), 'The game ended: The Kestrel Guild lost its Guildmaster to Retirement.'],
+    ['a Hero made on a Roster', event('hero.generated', [heroId, guildId], { heroId, guildId, classKey: 'rogue' }), `Brenna Ashcombe, ${named(content.classes, 'rogue')}, joined The Kestrel Guild.`],
+    ['a Hero healed who kept no Trait', varied('hero.healed', { traitKey: null }), `Brenna Ashcombe recovered from ${named(content.injuries, 'deep-cut')}.`],
+    ['gear back from a retired Hero', varied('item.returned', { cause: 'retired' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe, who retired.`],
+    ['gear back as the Guild folded', varied('item.returned', { cause: 'guild-folded' }), `${named(content.items, 'mail-shirt')} went back to The Kestrel Guild from Brenna Ashcombe as the Guild folded.`],
+    ['Morale that rose', varied('hero.morale-changed', { before: 35, after: 45, bandAfter: 'steady' }), "Brenna Ashcombe's Morale went from 35 to 45, steady."],
+  ] as const)('%s', (_name, event, sentence) => {
+    expect(narrate(event, narration)).toBe(sentence);
+  });
+});
+
 describe("the CLI's words, adapted for the page", () => {
   test('names content keys by content, Heroes by name, and Quests by their template', () => {
     expect(narrate(samples['quest.offered'], narration)).toBe(`Lady Maud offered ${barrow}.`);
@@ -387,5 +489,26 @@ describe('narrateStop', () => {
 
     expect(line).toMatch(words);
     expectASentence(line);
+  });
+
+  test('names a Transfer Offer standing by the Guild that makes it, its fee, the Hero and its last night (DL-74)', () => {
+    const deps = { config: defaultConfig, content };
+    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player.id);
+    const heroId = player.rosterIds[0];
+    if (rival === undefined || heroId === undefined) throw new Error('no Rival or Hero');
+    const rich = structuredClone(document);
+    (rich.world.guilds[rival.id] as { wealth: number }).wealth = 100_000;
+    const offered = offerTransfer(rich, { guildId: rival.id, heroId }, deps);
+    if (!offered.ok) throw new Error(`offerTransfer refused: ${offered.rejection.reason}`);
+    const [offer] = Object.values(offered.document.world.offers);
+    if (offer === undefined) throw new Error('no offer');
+
+    const line = narrateStop({ kind: 'transfer-offer', guildId: player.id, offerIds: [offer.id] }, offered.document, 1080, narrationFor(offered.document, content));
+
+    expect(offer.toGuildId).toBe(rival.id);
+    expect(line).toBe(
+      `Stopped: a Transfer Offer: ${rival.name} offers ${offer.fee} Wealth for ${offered.document.world.heroes[heroId]?.name} ` +
+        `until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+    );
   });
 });

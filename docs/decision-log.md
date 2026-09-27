@@ -6166,6 +6166,157 @@ is always refused. `npm run lint` and `npm run typecheck` pass. `npm test` passe
 tests, none skipped; 53 of them are new. `npm run build -w web` exits 0 through the gate: 470.61 kB
 (136.49 kB gzipped), "no network or filesystem reference". `npm run e2e -w web` passes 4.
 
+## DL-74 — M7 verification corrections: anyone the History names found by name, a load that closes the last game's pages, a journey that recruits, a bundle gate that reads every comment and URL, a build that refuses a Node built-in; tests that kill 29 surviving mutants
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M7 verification's fixer),
+on findings the verification confirmed; no engine rule, config default, content value or version
+changes
+
+**Context.** M7 (M7-S1 to S5 and the merge: DL-64 to DL-68, DL-72, DL-73; `045f3e6` to `c6f2199`)
+was verified by acceptance, boundaries, play, mutation and decisions passes, and each finding below
+survived a skeptic. In short:
+
+- one test timed out in most full runs;
+- the browser could not open a dead, retired or departed Hero, whom the CLI reaches by id;
+- no Playwright spec recruited, though the Gate says Playwright proves it;
+- the bundle gate could be blinded by two innocent strings, and let `ws://`, `wss://` and
+  protocol-relative URLs through;
+- three places said the gate refuses a Node built-in, which never reaches the bundle;
+- the import check missed a template-literal `import()`;
+- an open page survived loading another game;
+- the log's filter unticked itself after every play;
+- 29 mutants survived every test.
+
+DL-64, DL-65, DL-66, DL-67, DL-68 and DL-73 are accepted, so what changes or corrects them is
+recorded here, as DL-71 did for DL-63 and DL-69.
+
+**Decision.**
+
+1. **A test bounded, not sped up** (`views/hero-page.test.tsx`). "Potential is never rendered … on
+   the page of every Hero in the pool and on every Rival's Roster" opens every such page. It takes
+   2 to 3.5 s alone and 3.5 to 4.5 s in the web project. In a full `npm test` it timed out against
+   Vitest's 5 s default in 12 of the verification's 13 runs (5.1 to 6.3 s). The describe now
+   has `{ timeout: 30_000 }`, the repository's way with a slow test (`engine/src/boundary.test.ts`,
+   `rng.test.ts`): the timeout bounds a hang, not the speed.
+   - *Erratum to DL-68.* Its "`npm test` passes 107 files and 2,235 tests" held on the run it
+     reports, but not reliably on this machine.
+2. **Anyone the History names, found by name** (the CLI's `show hero <heroId>` and `show history
+   <entityId>`). In the twenty-year sample, 113 of 185 Heroes the world holds are dead and 36 are on a
+   Roster, and the History names 5,871 Heroes. The page opened a Hero only from a Roster or the pool.
+   - *The control.* The History gains "Find someone in the History by name". It lists every Guild,
+     Hero, Guildmaster and Patron the History has an entry for whose name holds what is typed, case
+     aside. Each is listed with what they are ("Hero, dead", "Hero, retired", "Hero, no longer in the
+     world", "Hero of The Lantern", "Guildmaster of …", "Patron", "Guild, folded"), 20 at most, in
+     name order, with how many matched.
+   - *What opens.* "Read <name>" makes them whose History is shown. A Hero the world still holds,
+     dead and retired ones included, opens on their page (`HeroPage`): Attributes, Stats with hints,
+     Milestones first, then their History. That is the CLI's `show hero` for any Hero. Anyone else,
+     a Hero gone from the world among them, has their entries listed newest first, as a Guild's are.
+   - *Where it lives.* `state/world-views.ts`: `findInHistory`, and `historyView` now takes any
+     entity. A name is the world's row's while it holds one, else the label of the entity's newest
+     entry. Nothing computes a rule.
+   - *What is not named.* Quests and Parties are not listed. A Quest is called by its template's
+     name, which many Quests share (27,721 Quests in the sample); their entries are read in the
+     whole History, as DL-73 item 8 decided.
+   - *Supersedes* DL-73 item 8's "The CLI's `show history <id>` for any other entity, a Patron say,
+     has no control of its own" for Heroes, Guildmasters and Patrons.
+   - *Erratum to DL-73.* Its Consequences, "Every CLI command has a browser equivalent", overstated
+     `show hero` and `show history` until now. The epic's three rows that take an id say what is
+     built, and its table's lead-in names `app.test.tsx` beside `views/*.test.tsx`.
+3. **The journey recruits** (the Gate: "created, advanced, dispatched, recruited, saved to
+   IndexedDB and reloaded; Playwright proves it"; DL-67 item 7 gains the step).
+   `e2e/journey.spec.ts`, at both sizes, now recruits after the dispatch. It picks the pool Hero
+   with the lowest signing fee among those who would sign at a fee the Guild can pay. It checks
+   four things: the log's sentence, Wealth less the fee, the Hero on the Roster and gone from the
+   pool. After the reload and the load, the Roster reads as it did when saved.
+   `e2e/layout.spec.ts` adds the History's search, the Guildmaster's long name found, and a Hero's
+   page opened from it, at 360px and 1280px.
+4. **The bundle gate reads the text as built** (`scripts/check-bundle.mjs`; supersedes DL-64
+   item 5's "comments stripped first" and its `http(s)://` pattern).
+   - *Comments.* v1's stripper, `/\/\*[\s\S]*?\*\//`, also matched inside strings. So everything
+     between a string holding `/*` and a later one holding `*/` went unchecked: an accept of
+     `'image/*'`, then `'*/*'`. Stripping is dropped. The shipped bundle holds one comment,
+     `/*$vite$:1*/`, and no other `//`. A comment that names an address now fails the gate: a false
+     alarm is put right by hand, where a hidden call would never be seen.
+   - *URLs.* Any scheme followed by `//`, or `//` alone, protocol-relative, is a URL literal, checked
+     against the allow-list. That covers `ws://` and `wss://`, and `//host` in a CSS `url()`, an
+     `@import` or a `src`: on `https://heroesims.pages.dev` it resolves to `https://host`. Every `//`
+     in the shipped bundle is one of the five allow-listed identifiers, so the gate passes it
+     unchanged: 2 files, "no network or filesystem reference".
+   - *Tried.* The verification's probes, as `bundle.test.ts` fixtures: `fetch(` between `'text/*'`
+     and `'*/*'`, and a URL between `'image/*'` and `'*/*'`; `wss://`, `ws://`, plain `http://`, a
+     protocol-relative `src`; a URL in a `.css` `url()`, a protocol-relative `@import`; a
+     `<link href="https://…">` and a `fetch(` in `index.html`; a licence comment's URL. Each fails
+     the gate.
+5. **The build refuses a Node built-in** (`vite.config.ts`, the plugin `heroesim:no-node-builtins`).
+   - *Why.* Vite replaces a Node built-in the page imports with an empty stub, with only a warning.
+     The specifier never reaches the bundle, and the gate passed it. Turning the warning into an error
+     with `onLog` was tried: Rolldown logged it and still built, exit 0.
+   - *What.* The plugin resolves before Vite's own. It stops the build on `node:*` or any name in
+     Node's `builtinModules`, subpaths such as `fs/promises` included, from the page or a dependency.
+     The real build passes.
+   - *The test.* `bundle.test.ts` builds a one-script page with the page's own configuration for each
+     of `node:fs`, `fs` and `fs/promises`: each build fails, naming the specifier. The same page
+     without the import builds.
+   - *Words corrected.* ESLint's message for `web/src` and `web/tsconfig.json`'s comment said the
+     bundle gate refuses a Node built-in. They now name the build. DL-64 item 8 made no such claim.
+6. **The import check reads a template literal** (`web/src/imports.test.ts`; DL-65 item 7). An
+   `import(\`@heroesim/engine\`)` was recorded as "(computed)" and passed, although the bundler
+   resolves it as it resolves a quoted one. `ts.isStringLiteralLike` now reads both, with a snippet
+   that proves it.
+7. **A game started or loaded shows nothing the last one had open.** The Roster, the pool, the
+   Guilds, the Board and the History kept the open Hero, Guild, Quest or History in component state.
+   After a load they showed a page the player never opened, or "That Hero is no longer in the world.".
+   - *The fix.* The state gains `games`, how many games have been put in hand; a new game or a load
+     adds one, and any other play or a refusal does not. It is a fourth field beyond the epic's four,
+     beside DL-65 item 3's three. `App` keys the sections from the Board to the History by it, so they
+     start afresh with each game. The header, time and "This game" are not keyed.
+8. **The log's filter holds from play to play** (DL-66 item 6). "Only what concerns <Guild>" was
+   reset by the key that restarts the log's paging after each play. The filter now lives in `Log`, and
+   only the paging is keyed. So the choice holds while the game is in hand, as the History's does,
+   and a new game or a load starts it afresh (item 7).
+9. **Tests that were too weak** (the mutation pass). Each surviving mutant is now killed. Each was
+   shown red with the mutant applied and green without it, by a script in the fixer's scratch space
+   that is not committed. No assertion was loosened.
+   - *The Transfer fee among a Rival Hero's Attributes* (W2). `selectors.test.ts` pins it, for every
+     Rival Hero, to the fee at the player's Guildmaster's Negotiation, which is the actions' fee. It
+     also checks that the seller's Guildmaster gives another number for some of them.
+   - *A loaded save's warnings* (R20, R21, R22; DL-65 item 3, DL-73 item 6). A save with a Hero's
+     Background this content lacks (`sea-born`, the CLI's rule-5 test) stores one warning. It holds
+     through an advance and a refusal. It is gone after a new game or a clean load. The page lists it
+     under "This game" (`reducer.test.ts`, `views/world.test.tsx`).
+   - *The log's sentences* (N3, N5, N6, N10, N11, N12, N15, K9, K11, K14, K16). `narrate.test.ts` pins
+     every sample's sentence word for word. It adds 17 variants: a success and a strong success; a
+     consumable's heal of one Day, its bonus and its re-roll; the player's own sale; a Transfer with no
+     offer; each end of an offer; each way a Guild folds and the game ends; a Hero made on a Roster; a
+     healing with no Trait; gear back from a retired Hero and as a Guild folds; Morale that rose.
+   - *The stop for a live Transfer Offer* (N13). An offer made by the engine's `offerTransfer` is
+     narrated as "Stopped: a Transfer Offer: <Rival> offers <fee> Wealth for <Hero> until the night of
+     Day <n>.", the CLI's words less its ids.
+   - *The refusals* (J6, J7, J9, K3, K4, K5, K6, K7, K8). `rejections.test.ts` pins every kind's
+     sentence in its world. It checks every kind for ids with a world and without one. It pins four
+     sentences with no world: "That Hero", "that Guild", "That Quest", "your Guild".
+   - *IndexedDB's own adapter* (P3; DL-67 item 1). `saves.test.ts` drives `browserSaves` over a
+     stand-in IndexedDB whose read-write transactions commit or abort when the test says. A save
+     and a delete are reported only after the commit. A write abandoned at commit with a
+     `QuotaExceededError` is `failed`, in the browser's words, and keeps nothing. The store is keyed
+     by the save's name, which also kills P2 without Playwright.
+   - *The gate's `http://`, `.html` and `.css`* (B5, B9, B10): item 4's fixtures.
+   - *The fixes themselves.* Undoing each fails its tests: the comment stripper and the
+     `http(s)`-only pattern restored, the plugin removed, `isStringLiteral` restored, the sections
+     unkeyed, `games` never counted, the log keyed whole, Heroes left out of the search, the History
+     never opening a Hero's page.
+
+**Consequences.** Every CLI command's browser equivalent reaches what the CLI's reaches by id, save a
+Quest's and a Party's own History, which stays in the whole History. The Gate's journey is proved in
+Playwright, recruit included; the deploy (M7-S5's first box) is still the orchestrator's. The bundle
+gate refuses what it says it refuses, and the build refuses what the gate cannot see. No engine,
+content or CLI file changes: `configVersion` stays 10, content version 14 and schema version 3.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 107 files and 2,475 tests, none
+skipped, 240 of them new, in each of three full runs in a row. `npm run build -w web` exits 0
+through the gate: 481.59 kB (140.03 kB gzipped), "no network or filesystem reference". `npm run e2e
+-w web` passes 16.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

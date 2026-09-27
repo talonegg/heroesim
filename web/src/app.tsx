@@ -9,7 +9,7 @@
 // every number shown comes from a selector under `state/`.
 
 import type { WorldDocument } from '@heroesim/engine';
-import { useCallback, useMemo, useState } from 'react';
+import { Fragment, useCallback, useMemo, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
 import { rulesNotice } from './state/game-file';
@@ -107,18 +107,22 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
             </nav>
             {notice === null ? null : <RulesNotice notice={notice} busy={busy} play={play} />}
             <Time busy={busy} playing={playing} ended={current.world.ended !== null} stop={stop} play={play} goTo={onGoTo} />
-            <Board document={current} busy={busy} play={play} />
-            <Roster document={current} busy={busy} play={play} />
-            <Offers document={current} busy={busy} play={play} />
-            <Pool document={current} busy={busy} play={play} />
-            <Market document={current} busy={busy} play={play} />
-            <Hall document={current} busy={busy} play={play} />
-            <Guildmaster document={current} />
-            <Patrons document={current} guildName={header?.guildName ?? 'your Guild'} />
-            <Rankings document={current} />
-            <Guilds document={current} busy={busy} play={play} />
-            <Log key={`${current.world.turn}:${game.log.length}`} state={game} guildName={header?.guildName ?? 'your Guild'} />
-            <History document={current} />
+            {/* Keyed by the game in hand: what one game had open (a Hero's page, a Guild, a Quest's
+                Party, whose History) is not open in the next one started or loaded (DL-74). */}
+            <Fragment key={game.games}>
+              <Board document={current} busy={busy} play={play} />
+              <Roster document={current} busy={busy} play={play} />
+              <Offers document={current} busy={busy} play={play} />
+              <Pool document={current} busy={busy} play={play} />
+              <Market document={current} busy={busy} play={play} />
+              <Hall document={current} busy={busy} play={play} />
+              <Guildmaster document={current} />
+              <Patrons document={current} guildName={header?.guildName ?? 'your Guild'} />
+              <Rankings document={current} />
+              <Guilds document={current} busy={busy} play={play} />
+              <Log state={game} guildName={header?.guildName ?? 'your Guild'} />
+              <History document={current} busy={busy} play={play} />
+            </Fragment>
             <GameFile document={current} state={game} saves={saves} busy={busy} play={play} onNewGame={() => setReplacing(current)} />
           </>
         )}

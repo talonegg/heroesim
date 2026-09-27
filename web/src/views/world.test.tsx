@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { saveText } from '../state/game-file';
-import { played, started, withOlderRules } from '../state/game.test-support';
+import { played, started, withOlderRules, withTheGone } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 
 // The views of the wider world and the game as a file (M7-S3 part 2, DL-73): the CLI's `show
@@ -103,6 +103,37 @@ describe('the History', () => {
     expect(within(history()).getByRole('heading', { level: 3, name: 'The History of The Lantern' })).toBeDefined();
     expect(within(history()).getByText(/^Page 1 of \d+,/)).toBeDefined();
   });
+
+  test("finds anyone it names by name: a dead Hero's page opens from it, and a Hero gone from the world has their History (DL-74)", () => {
+    const { state, dead, gone } = withTheGone(played(started(), { kind: 'advance', turns: 6 }));
+    render_(state);
+    const history = (): HTMLElement => section('History');
+    const search = (): HTMLElement => within(history()).getByRole('searchbox', { name: 'Find someone in the History by name' });
+
+    fireEvent.change(search(), { target: { value: dead.name.toLowerCase() } });
+    expect(within(history()).getByRole('status').textContent).toMatch(/^\d+ found/);
+    expect(within(within(history()).getByRole('list', { name: 'Found in the History' })).getByText('(Hero, dead)')).toBeDefined();
+    fireEvent.click(within(history()).getByRole('button', { name: `Read ${dead.name}` }));
+
+    const page = within(history()).getByRole('article');
+    expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
+    expect(within(page).getByText(/^died on Day \d+$/)).toBeDefined();
+    expect(within(page).getByRole('heading', { level: 4, name: 'Milestones' })).toBeDefined();
+    expect((within(history()).getByLabelText('Whose History') as HTMLSelectElement).value).toBe(dead.id);
+    expect(within(history()).queryByRole('list', { name: 'Found in the History' })).toBeNull();
+    fireEvent.click(within(page).getByRole('button', { name: 'Back to the whole History' }));
+    expect(within(history()).getByRole('heading', { level: 3, name: 'The whole History' })).toBeDefined();
+
+    fireEvent.change(search(), { target: { value: gone.name } });
+    expect(within(history()).getByText('(Hero, no longer in the world)')).toBeDefined();
+    fireEvent.click(within(history()).getByRole('button', { name: `Read ${gone.name}` }));
+    expect(within(history()).queryByRole('article')).toBeNull();
+    expect(within(history()).getByRole('heading', { level: 3, name: `The History of ${gone.name}` })).toBeDefined();
+    expect(within(history()).getByText(new RegExp(`^${gone.name}, .+, joined the Unattached pool\\.$`))).toBeDefined();
+
+    fireEvent.change(search(), { target: { value: 'no one is called this' } });
+    expect(within(history()).getByRole('status').textContent).toBe('No one the History names is called that.');
+  });
 });
 
 describe('new rules', () => {
@@ -182,6 +213,61 @@ describe('the game as a file', () => {
     await idle();
 
     expect(screen.getByRole('heading', { level: 1, name: 'The Second Lamp' })).toBeDefined();
+  });
+
+  test("lists a loaded save's content keys this content lacks, as the CLI warns of them, until another game is in hand", async () => {
+    const saved = JSON.parse(saveText(started('warned').document as NonNullable<GameState['document']>)) as {
+      world: { heroes: Record<string, { backgroundKey: string }> };
+    };
+    const [first] = Object.values(saved.world.heroes);
+    if (first === undefined) throw new Error('no Hero');
+    first.backgroundKey = 'sea-born';
+    render_(started());
+    const warned = (): HTMLElement | null =>
+      within(section('This game')).queryByText('The save names things this release’s content does not define; they are shown as they are:');
+    expect(warned()).toBeNull();
+
+    fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
+      target: { files: [new File([JSON.stringify(saved)], 'warned.json')] },
+    });
+    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('warned'));
+    expect(warned()).not.toBeNull();
+    expect(within(section('This game')).getByText(/sea-born/)).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+    await idle();
+    expect(warned()).not.toBeNull();
+
+    fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
+      target: { files: [new File([saveText(started('clean').document as NonNullable<GameState['document']>)], 'clean.json')] },
+    });
+    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('clean'));
+    expect(warned()).toBeNull();
+  });
+
+  test('a save loaded in place of the game in hand shows none of what that game had open (DL-74)', async () => {
+    const other = played(started('the-other-game'), { kind: 'advance', turns: 2 });
+    render_(played(started(), { kind: 'advance', turns: 2 }));
+    const heroOpener = (name: string): HTMLElement =>
+      within(section(name))
+        .getAllByRole('button')
+        .find((button) => button.className === 'link') as HTMLElement;
+
+    fireEvent.click(heroOpener('Roster'));
+    fireEvent.click(heroOpener('Unattached pool'));
+    fireEvent.click(within(section('Guilds')).getAllByRole('button', { name: /^Open / })[0] as HTMLElement);
+    fireEvent.change(within(section('History')).getByLabelText('Whose History'), { target: { value: 'guild-000001' } });
+    for (const name of ['Roster', 'Unattached pool', 'Guilds']) expect(within(section(name)).queryByRole('article')).not.toBeNull();
+    expect(within(section('History')).getByRole('heading', { level: 3, name: 'The History of The Lantern' })).toBeDefined();
+
+    fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
+      target: { files: [new File([saveText(other.document as NonNullable<GameState['document']>)], 'other.json')] },
+    });
+    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('the-other-game'));
+
+    for (const name of ['Roster', 'Unattached pool', 'Guilds']) expect(within(section(name)).queryByRole('article')).toBeNull();
+    expect(within(section('Roster')).getByText(/^\d+ Heroes? on the Roster\.$/)).toBeDefined();
+    expect(within(section('History')).getByRole('heading', { level: 3, name: 'The whole History' })).toBeDefined();
   });
 
   test('loads a save before any game is in hand', async () => {

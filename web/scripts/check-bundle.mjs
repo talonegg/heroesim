@@ -12,10 +12,23 @@
  *   XMLHttpRequest    an older request
  *   "node:…"          a Node built-in specifier, which cannot exist in a browser
  *   process.env       a build that leaked its environment
- *   http(s)://…       a URL literal, unless it is on the allow-list below
+ *   scheme://…        a URL literal of any scheme, http(s), ws(s) and the rest, unless it is on
+ *                     the allow-list below
+ *   //host…           a protocol-relative URL, which a page served over https:// resolves to
+ *                     https://host (a CSS url(), an img or script src)
  *
  * The allow-list holds URLs that are identifiers rather than addresses — nothing in the page
  * ever resolves one. Each is justified where it is written.
+ *
+ * The text is read as built, comments and all (M7 verification, DL-74). v1's gate stripped comments
+ * first with a pattern that also matched inside strings, so whatever lay between a string holding
+ * "/*" and a later one holding "*" and "/" (an accept of 'image/*', then '*' + '/*') went unchecked.
+ * A minified bundle keeps almost no comments; one that names an address fails the gate, and a false
+ * alarm is put right by hand, where a hidden call would not be seen at all.
+ *
+ * A Node built-in the page imports never reaches the bundle: Vite replaces it with an empty stub in
+ * a browser build, so the "node:" pattern here cannot see it. vite.config.ts refuses that build
+ * instead (DL-74).
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -63,10 +76,12 @@ function filesUnder(directory) {
   return found;
 }
 
-/** Strip block and line comments, so a licence header's URL is not a hit. */
-function withoutComments(text) {
-  return text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/^\s*\/\/.*$/gm, ' ');
-}
+/**
+ * A URL literal: any scheme followed by `//`, or `//` alone, protocol-relative, up to a quote, a
+ * space, a closing bracket or a backslash. Every `//` in a minified bundle is one of these, so a
+ * hit that is no address is a false alarm to allow-list, never a call let through.
+ */
+const URL_LITERAL = /(?:[A-Za-z][A-Za-z0-9+.-]*:)?\/\/[^\s"'`)\\]*/g;
 
 function contextAround(text, index) {
   return text.slice(Math.max(0, index - 60), index + 60).replace(/\s+/g, ' ');
@@ -88,7 +103,7 @@ if (files.length === 0) {
 const complaints = [];
 
 for (const file of files) {
-  const source = withoutComments(readFileSync(file, 'utf8'));
+  const source = readFileSync(file, 'utf8');
   const shown = path.relative(distDir, file);
 
   for (const { name, pattern } of FORBIDDEN) {
@@ -98,7 +113,7 @@ for (const file of files) {
     }
   }
 
-  for (const hit of source.matchAll(/https?:\/\/[^\s"'`)\\]*/g)) {
+  for (const hit of source.matchAll(URL_LITERAL)) {
     const url = hit[0];
     if (ALLOWED_URLS.some((allowed) => url.startsWith(allowed))) continue;
     complaints.push(`${shown}: contains the URL ${url} — …${contextAround(source, hit.index)}…`);

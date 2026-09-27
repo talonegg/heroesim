@@ -49,8 +49,9 @@ const nodeBuiltin = {
 const browserBuiltin = {
   regex: nodeBuiltins,
   message:
-    'The page runs in a browser: web/src imports no Node built-in outside its tests, and the ' +
-    'bundle gate refuses one that slips through (principle 12, M7-S1).',
+    'The page runs in a browser: web/src imports no Node built-in outside its tests. Vite would ' +
+    'put an empty stub in its place, which the bundle gate cannot see, so the build refuses one ' +
+    'that slips through (web/vite.config.ts; principle 12, M7-S1, DL-74).',
 };
 
 // Rule options, one per package. A later block replaces an earlier block's options for the same

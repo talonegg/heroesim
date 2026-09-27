@@ -55,7 +55,9 @@ function importsOf(source: string, file = 'probe.tsx'): { from: string; typesOnl
       found.push({ from: node.moduleSpecifier.text, typesOnly: node.isTypeOnly || everyNameAType });
     } else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       const [specifier] = node.arguments;
-      found.push({ from: specifier !== undefined && ts.isStringLiteral(specifier) ? specifier.text : '(computed)', typesOnly: false });
+      // A no-substitution template, import(`@heroesim/engine`), names its module as plainly as a quoted
+      // string does, and the bundler resolves it the same (DL-74).
+      found.push({ from: specifier !== undefined && ts.isStringLiteralLike(specifier) ? specifier.text : '(computed)', typesOnly: false });
     } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) {
       found.push({ from: node.argument.literal.text, typesOnly: true });
     }
@@ -107,6 +109,7 @@ describe('what the check counts as types alone', () => {
     ["export { advance } from '@heroesim/engine';", false],
     ["export * from '@heroesim/engine';", false],
     ["const Board = () => { void import('@heroesim/engine'); return <p />; };", false],
+    ['const Board = () => { void import(`@heroesim/engine`).then((engine) => engine.advance); return <p />; };', false],
   ])('%s → types alone: %s', (source, typesOnly) => {
     expect(importsOf(source)).toEqual([{ from: '@heroesim/engine', typesOnly }]);
   });

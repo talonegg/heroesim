@@ -160,6 +160,12 @@ export interface GameState {
   stoppedBecause: StopReason | null;
   /** The loaded save's content keys this content lacks (data-model rule 5); none for a new game. */
   warnings: ValidationWarning[];
+  /**
+   * How many games have been put in hand, each new game or load one more. The page keys what it
+   * shows of a game by it, so a Hero's page or a Guild opened in one game is not open in the next
+   * (DL-74).
+   */
+  games: number;
 }
 
 export const initialGameState: GameState = Object.freeze({
@@ -170,6 +176,7 @@ export const initialGameState: GameState = Object.freeze({
   pending: null,
   stoppedBecause: null,
   warnings: [],
+  games: 0,
 });
 
 /**
@@ -201,6 +208,7 @@ function settled(state: GameState, play: Play): GameState {
     pending: null,
     stoppedBecause: outcome.stoppedBecause ?? null,
     warnings: outcome.warnings ?? state.warnings,
+    games: play.kind === 'newGame' || play.kind === 'load' ? state.games + 1 : state.games,
   };
 }
 

@@ -298,6 +298,26 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     });
   });
 
+  test("shows on every Rival Hero's page, among the Attributes, the Transfer fee the player's Guild would pay: its actions' fee (DL-74)", () => {
+    const document = newGame();
+    const buyer = guildmasterOf(player(document), document.world);
+    const rivals = Object.values(document.world.guilds).filter((each) => each.id !== player(document).id);
+    let seller = 0;
+    for (const rival of rivals) {
+      for (const heroId of rival.rosterIds) {
+        const hero = document.world.heroes[heroId] as Hero;
+        const page = heroPage(document, heroId);
+        const fee = transferFee(hero, buyer, deps);
+
+        expect(page?.attributes).toContainEqual(['Transfer fee', `${fee} Wealth`]);
+        expect(page?.actions).toMatchObject({ kind: 'rival', fee });
+        // The fee at the selling Guild's own Guildmaster's Negotiation is another number for most.
+        if (transferFee(hero, guildmasterOf(rival, document.world), deps) !== fee) seller += 1;
+      }
+    }
+    expect(seller).toBeGreaterThan(0);
+  });
+
   test('for a Hero who has died, nothing', () => {
     const document = structuredClone(newGame());
     const [hero] = heroes(document);

@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1 to S5 built; deploy pending
+**Status:** in progress — M7-S1 to S5 built and verified (DL-74); deploy pending
 
 ## 0. What lands in M7
 
@@ -84,7 +84,8 @@ is behind `defaultConfig`, with a `rebase` button (D1). No component calls the e
 
 **Every CLI command and its browser equivalent** (the second box; a row is ticked when its
 equivalent is built; M7-S3 part 1, DL-66, built the first nine; M7-S3 part 2, DL-73, built the
-rest, each driven through the page's own controls in `web/src/views/*.test.tsx`):
+rest; M7's verification, DL-74, widened the three rows that name an id. Each row is driven through
+the page's own controls in `web/src/app.test.tsx` or `web/src/views/*.test.tsx`):
 
 | CLI command | In the browser | Built |
 | --- | --- | --- |
@@ -94,8 +95,8 @@ rest, each driven through the page's own controls in `web/src/views/*.test.tsx`)
 | `preview` | The Board's preview of the Party being chosen, as it changes: each requirement met or missed, who cannot go, the Synergies and on how many Encounters, the consumables, the reward agreed, and dispatch's own verdict (the engine's `previewDispatch`) | [x] |
 | `dispatch` | The Board's "Send the Party", with the Heroes and consumables chosen | [x] |
 | `show roster` | The Roster: each Hero's Class, Level, age, Morale and whereabouts, and what the Guild holds | [x] |
-| `show hero <heroId>` | A Hero's page, opened from the Roster, the pool or another Guild's Roster: Attributes and State, Stats with their hints, gear, Skills, Relationships as bands | [x] |
-| `show history <heroId>` | A Hero's page: their Milestones first, then their History, newest first, a page at a time | [x] |
+| `show hero <heroId>` | A Hero's page, opened from the Roster, the pool or another Guild's Roster, or, for any Hero the world holds, the dead and the retired among them, found by name in the History (DL-74): Attributes and State, Stats with their hints, gear, Skills, Relationships as bands | [x] |
+| `show history <heroId>` | A Hero's page: their Milestones first, then their History, newest first, a page at a time; for a Hero gone from the world, found by name in the History, their History there (DL-74) | [x] |
 | `advance [--turns n]`, `advance --until <stops>` | "Advance a Turn"; "Fast forward"; "Fast forward until new Heroes join the pool". Why it stopped is a sentence with a button where the CLI names a command, and the log narrates what happened. One Turn per tap: `--turns n` is fast forward's work here; `--max` is a year, the CLI's default | [x] |
 | `show guilds` | The Guilds: every Guild with its controller, Guildmaster, Background, Roster, Wealth, Fame and Upkeep, a folded one marked with its Day | [x] |
 | `show rankings [--by fame\|wealth]` | The Rankings, by Fame or by Wealth, the player choosing which | [x] |
@@ -111,7 +112,7 @@ rest, each driven through the page's own controls in `web/src/views/*.test.tsx`)
 | `equip`, `unequip` | Equip gear the Guild holds and unequip a slot, from a Hero's page | [x] |
 | `transfer --to`, `transfer --in` | Transfer one of the player's Heroes out to the Guild chosen, each with the fee it would pay, from the Hero's page; "Take <Hero> in" from another Guild's Roster or the Hero's page | [x] |
 | `show offers`, `accept`, `decline` | The Transfer Offers made for the player's Heroes, each accepted or declined | [x] |
-| `show history [entityId]` | The History: the whole History or a Guild's, newest first, a page at a time; a Hero's is on their page | [x] |
+| `show history [entityId]` | The History: the whole History or a Guild's, newest first, a page at a time; anyone else it names, a Hero, a Guildmaster or a Patron, found by name (a Hero the world holds on their page; DL-74). A Quest's and a Party's entries are read in the whole History: a Quest is called by its template's name, which many Quests share (DL-73 item 8, DL-74) | [x] |
 | `rebase` | The "new rules available" notice while the game's rules are behind this release's, and "Adopt the new rules" (D1) | [x] |
 | `save --as`, `load` | "This game": export the game as the save file the CLI writes, and load a save file, the CLI's or the page's, before a game or in place of one. Saves kept in IndexedDB: "Saved in this browser", in "This game" and "A new game" (M7-S4, DL-67) | [x] |
 | `help` | The page's own words: each section says what it is for and what its controls do, and each control is named by what it does | [x] |

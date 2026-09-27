@@ -2,6 +2,7 @@ import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
+import { withTheGone } from '../state/game.test-support';
 import { gameReducer, initialGameState, type GameState, type Play } from '../state/reducer';
 import { HeroPage } from './hero-page';
 
@@ -71,7 +72,10 @@ function everyPageFrom(region: () => HTMLElement, back: string, container: HTMLE
   return names.length;
 }
 
-describe('Potential is never rendered', () => {
+// Opening every pool Hero's page and every Rival Hero's page renders the whole page each time:
+// about 2 to 4.5 s alone or in the web project, and past Vitest's 5 s default in a full `npm test`
+// on a busy machine (M7 verification, DL-74). The timeout bounds a hang, not the speed.
+describe('Potential is never rendered', { timeout: 30_000 }, () => {
   test("on any page of the player's Roster, opened from the page, text and attributes alike", () => {
     const { state, sentinels } = withSentinels();
     const { container } = render(<App initial={state} />);
@@ -134,6 +138,24 @@ describe('Potential is never rendered', () => {
       expect(within(container).getByRole('heading', { level: 3 }).textContent).toBe(document.world.heroes[heroId]?.name);
       expect(potentialIn(container.innerHTML, sentinels)).toEqual([]);
       unmount();
+    }
+  });
+
+  test('on the page of a Hero on no Roster and not in the pool, dead or retired, opened from the History (DL-74)', () => {
+    const { state: sentinelled, sentinels } = withSentinels();
+    const { state, dead, retired } = withTheGone(sentinelled);
+    const { container } = render(<App initial={state} />);
+    const history = (): HTMLElement => screen.getByRole('region', { name: 'History' });
+
+    for (const hero of [dead, retired]) {
+      fireEvent.change(within(history()).getByRole('searchbox', { name: 'Find someone in the History by name' }), { target: { value: hero.name } });
+      fireEvent.click(within(history()).getByRole('button', { name: `Read ${hero.name}` }));
+      const page = within(history()).getByRole('article');
+      expect(within(page).getByRole('heading', { level: 3 }).textContent).toBe(hero.name);
+      expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
+      expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
+      expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
+      fireEvent.click(within(page).getByRole('button', { name: 'Back to the whole History' }));
     }
   });
 

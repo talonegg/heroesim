@@ -9,8 +9,8 @@
     "moduleResolution": "Bundler",
     "jsx": "react-jsx",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    // Node's types serve the tests and the two configuration files; the page's own source may
-    // not import Node (eslint.config.js) and the bundle gate refuses it (scripts/check-bundle.mjs).
+    // Node's types serve the tests and the configuration files; the page's own source may not
+    // import Node (eslint.config.js), and the build refuses a Node built-in (vite.config.ts).
     "types": ["node", "vite/client"]
   },
   "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts", "playwright.measure.config.ts"],
