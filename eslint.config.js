@@ -10,10 +10,14 @@ import tseslint from 'typescript-eslint';
 
 const packages = ['engine', 'content', 'harness', 'cli', 'web'];
 
-/** A relative import that climbs out of `self` into another package's directory. */
-function relativeInto(self, message) {
+/**
+ * A relative import that climbs out of `self` into another package's directory. `climbs` is the
+ * fewest `../` that can leave the package from the files the rule is for: one from a package's
+ * root, two from `web/src/`, whose own `content.ts` is `../content` from `web/src/state/` (DL-65).
+ */
+function relativeInto(self, message, climbs = 1) {
   const others = packages.filter((name) => name !== self).join('|');
-  return { regex: `^(\\.\\./)+(${others})(/|$)`, message };
+  return { regex: `^(\\.\\./){${climbs},}(${others})(/|$)`, message };
 }
 
 const byNameOnly =
@@ -101,9 +105,10 @@ function contentImports({ node }) {
  * harness, cli and web: engine and content by name; neither front end imports the other. The web
  * page's source, which runs in a browser, imports no Node built-in (`browser`); its tests, which
  * run on Node, may take content's Node entry to compare the bundled content with it (`node`;
- * M7-S1, DL-64).
+ * M7-S1, DL-64). Under `web/src/` a relative path leaves the package only after two climbs
+ * (`climbs`; DL-65).
  */
-function consumerImports(self, forbidden, { node = self !== 'web', browser = false } = {}) {
+function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1 } = {}) {
   return {
     patterns: [
       noSubpath({ node }),
@@ -113,7 +118,7 @@ function consumerImports(self, forbidden, { node = self !== 'web', browser = fal
           'Neither front end imports the other, and the harness imports neither; what two of ' +
           'them need belongs in the engine or content.',
       },
-      relativeInto(self, byNameOnly),
+      relativeInto(self, byNameOnly, climbs),
       ...(browser ? [browserBuiltin] : []),
     ],
   };
@@ -276,10 +281,10 @@ export default defineConfig(
   },
   {
     files: ['web/src/**/*.{ts,tsx}'],
-    rules: restrictImports(consumerImports('web', ['cli'], { browser: true })),
+    rules: restrictImports(consumerImports('web', ['cli'], { browser: true, climbs: 2 })),
   },
   {
     files: ['web/src/**/*.test.{ts,tsx}'],
-    rules: restrictImports(consumerImports('web', ['cli'], { node: true })),
+    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
   },
 );

@@ -4949,6 +4949,124 @@ timing (58 to 72 ms against 50), while other builds held the machine at 83% CPU.
 way at `m5-integration`'s tip without this change and with the web project left out, and passes on
 its own: load, not this story.
 
+## DL-65 — The web's one reducer: a play accepted then settled, the engine never run inside React's reducer, the front end's own refusals, one map of sentences (M7-S2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S2's implementer)
+
+**Context.** M7-S2 asks for `web/src/state/reducer.ts`: `useReducer` over `{ document, log,
+rejection, busy }`, one action per engine action plus `advance`, `fastForward`, `newGame` and
+`load`. Each play runs under `{ ...defaultConfig, ...document.meta.config }`. A rejection is
+stored, never thrown. `busy` drops a second action that arrives before the first settles. A
+Vitest check makes sure only `state/` and `content.ts` import values from the engine. The boxes:
+the document is never mutated (freeze it, drive twenty actions); every `Rejection` kind renders
+as a sentence (one map, tested against the union); two taps on Advance in one batch drive one
+engine call. Two facts shaped the design. First, the History is appended in place and shared
+between documents (ADR-0008), so an engine call cannot safely be repeated. Second, M7's
+orchestration notes ask that fast forward, about 1.6 s for a year, not freeze the page without
+feedback, with `busy` and a visible state as the minimum.
+
+**Decision.**
+
+1. **The plays.** A Guild's action is the engine's own `GuildAction` without its `guildId`
+   (`PlayerAction`). The reducer fills in the player's Guild (`playerGuild`), as the CLI does, and
+   applies it with `applyAction`. So all twelve are covered by construction: dispatch with
+   consumables, recruit, build, equip, unequip, buy, sell, and the five Transfer actions.
+   `offerTransfer` is one of them, although only a player's Guild answers offers, so today it is
+   refused with `no-offer-needed`. Any action the engine later adds to `GuildAction` is covered
+   the same way. The other plays:
+   - `rebase`;
+   - `advance`, with an optional `turns` (default one), like the CLI's `--turns`;
+   - `fastForward`, with `until` and a `maxTurns` that defaults to `turnsPerYear`, as the CLI's does;
+   - `newGame`: the seed, the names, an optional Background and `createdAt`, all supplied by the
+     caller, so the reducer reads no clock or random source;
+   - `load`: a save's text.
+
+   Two bookkeeping actions, `settle` and `dismiss`, complete the set. Reducer actions use `kind`,
+   as the engine's actions do.
+2. **Deps follow the CLI's rule** (`cli/src/saves.ts`, data-model §2, D3).
+   - `load` runs `deserialise` with `{ config: defaultConfig, content }`, so the save's schema
+     version is compared and migrated (DL-20).
+   - Every play on a game runs under `{ ...defaultConfig, ...meta.config }`.
+   - `newGame` and `rebase` run under `defaultConfig`, never under the play deps.
+
+   Proved with spies that wrap the engine's real entry points. A save with `configVersion` 1, a
+   changed `boardSize` and no `transferLockDays` is passed to `advance`, `fastForward` and
+   `applyAction` with its own first two values and the default third. A schema-2 save whose config
+   says `schemaVersion` 2 is migrated to 3.
+3. **A play is accepted, then settled.** While the state is idle, `gameReducer` accepts a play by
+   setting `busy` and `pending`, and calls nothing. `settle` runs the engine on `pending`, stores
+   the result and clears both. A play that arrives while busy gets the same state back: it is
+   dropped. The state gains three fields beyond the epic's four:
+   - `pending`: the play accepted;
+   - `stoppedBecause`: why an `advance` or `fastForward` stopped, `null` after any other play the
+     engine carries out;
+   - `warnings`: a loaded save's content keys that the content does not define, which the CLI
+     prints.
+
+   A refusal keeps the document and `log` as they were. The next play the engine carries out
+   clears it, and so does `dismiss`. `log` holds the events of the last play carried out: for a
+   new game, the whole History it starts with; for a load, nothing.
+4. **The engine is never run inside React's reducer.** A throwaway probe, not committed, measured
+   the risk. With `useReducer(gameReducer)` under StrictMode (`main.tsx` uses it), one Advance
+   called the engine's `advance` twice, and the shared History gained 16 entries for a Turn of 8
+   events. React calls a reducer twice under StrictMode, and may replay queued updates.
+   - So `useGame` keeps the state in `useReducer` with a reducer that only stores the state it is
+     given.
+   - `useGame` runs `gameReducer` itself, on the latest state, which it keeps in a ref. The engine
+     therefore runs once per play, and a second play in the same batch finds the first already
+     accepted.
+   - An accepted play is settled only after the busy state has been painted: one animation frame,
+     then a separate task (just a task where there are no frames). So a year's fast forward shows
+     that it is busy instead of freezing silently.
+   - The engine is not run in chunks; M7-S3 may do that if it needs finer feedback.
+5. **The front end's own refusals**, in the engine's shape (`Rejection<action, reason>`):
+   - `newGame`: `guild-name-blank`, `guildmaster-name-blank`, `unknown-background`. These are
+     checked before `createWorld`, which throws on them, as the CLI's `new` checks them.
+   - `load`: one reason per `LoadRefusal` kind, with the engine's message.
+   - `no-game`: a play before there is a game.
+   - `no-player-guild`: a fast forward or a Guild's action on a save with no player's Guild,
+     which the validator allows.
+   - `game-ended`: a Turn or an action after the end, the CLI's `over` (DL-28, DL-53). `rebase`
+     is not refused, as the CLI's is not.
+6. **One map of sentences** (`state/rejections.ts`).
+   - *The key* is the kind: `<action> <reason>`, or the reason alone for the three refusals any
+     play can meet.
+   - *The type* is a mapped type over `PlayRejection`, so a kind the engine adds fails `tsc -b`
+     until it has words.
+   - *The test*, `rejections.test.ts`, has a table of samples typed the same way. It checks at run
+     time that the map's keys equal the table's, and it renders every sample as a sentence, with a
+     world and without one.
+   - *Checked by hand*: removing one entry from the map, or one sample from the table, fails
+     typecheck, and the first also fails three tests.
+   - *The words* are the CLI's (`cli/src/commands/*.ts`), adapted: names without ids, no pointers
+     to CLI commands, and `that Hero`, `that Guild` and so on for a name the world does not hold.
+   - *Kinds the CLI has no words for* are written in its manner: `offerTransfer no-offer-needed`,
+     `offerTransfer offer-pending` (the CLI has no `offer` command), and the front end's own.
+   - The map lives in `state/` because it reads the engine's `dayOf` and `playerGuild`.
+7. **The import check** (`web/src/imports.test.ts`). It parses every `.ts` and `.tsx` file under
+   `web/src`, tests included, with TypeScript's parser. Outside `state/` and `content.ts`, any
+   import, re-export or `import()` of `@heroesim/engine` must take types only. Snippets prove it:
+   among them, a component that calls `advance` is caught. Adding a value import to `app.tsx` was
+   tried, and the check failed as it should.
+8. **Lint.** `web/src/state/` reaches the page's `content.ts` as `../content`. M0's lexical rule
+   read that as a relative path into the content package. From `web/src/` a path needs two `../`
+   to leave `web/`, so the rule there now requires two or more; `web/`'s own root and `e2e/` keep
+   one. `engine/src/boundary.test.ts` proves both directions, and its new tests fail under the
+   old rule.
+9. **The page holds the game.** `App` gets the game through `useGame`, with `aria-busy` on
+   `main`, so from now on the engine is bundled and the gate covers it: 388.31 kB (114.34 kB
+   gzipped), "no network or filesystem reference" (DL-64 item 7). The views are M7-S3's.
+
+**Consequences.** M7-S3's components dispatch plays through `useGame` and render
+`rejectionSentence(state.rejection, state.document?.world ?? null, content)`. They show `busy`,
+and never call the engine; a number a view needs comes from a selector under `state/`, or from
+a new engine selector. M7-S4's `saves.ts`, which the epic puts outside `state/`, will need
+`serialise` and `deserialise`. So either it moves under `state/`, or the check allows it, with
+a DL. A load passes `load` the text. `npm run lint` and `npm run typecheck` pass. `npm test`
+passes 95 files and 2,045 tests, none skipped, 283 of them new. `npm run build -w web` exits 0
+through the gate. `npm run e2e -w web` passes 4. These were measured before this entry and the
+epic's ticks were written, and neither changes code.
+
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
 **Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each

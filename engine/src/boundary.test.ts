@@ -232,6 +232,31 @@ describe("web/'s page, components included", { timeout: 30_000 }, () => {
     expect(errors[0]?.ruleId).toBe(restrictedImports);
   });
 
+  // M7-S2 (DL-65): `web/src/content.ts` shares the content package's name, and a module one
+  // directory down reaches it as `../content`, which leaves neither `web/src/` nor `web/`.
+  test.each(['ts', 'tsx', 'test.ts'])("a .%s module under web/src/state/ may import the page's own ../content", async (extension) => {
+    const [result] = await eslint.lintText("import { content } from '../content';\nexport { content };", {
+      filePath: `${root}web/src/state/boundary-probe-${randomUUID()}.${extension}`,
+    });
+
+    expect(errorsIn(result)).toEqual([]);
+  });
+
+  test.each([
+    ['web/src/state/', '../../../content/src/index.js'],
+    ['web/src/', '../../content/src/index.js'],
+    ['web/e2e/', '../../content/src/index.js'],
+    ['web/', '../content/src/index.js'],
+  ])('from %s, %s is still a relative path into content/', async (directory, specifier) => {
+    const [result] = await eslint.lintText(`import x from '${specifier}';\nexport { x };`, {
+      filePath: `${root}${directory}boundary-probe-${randomUUID()}.ts`,
+    });
+    const errors = errorsIn(result);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+  });
+
   test('a .ts module of the page may not import a Node built-in either', async () => {
     const errors = await lintProbe('web', "import path from 'node:path';\nexport { path };");
 

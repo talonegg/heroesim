@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1 done
+**Status:** in progress — M7-S1 and M7-S2 done
 
 ## 0. What lands in M7
 
@@ -59,10 +59,10 @@ import anything but types from `@heroesim/engine`.
 
 **Acceptance:**
 
-- [ ] The document is never mutated: a test freezes it and drives twenty actions
-- [ ] Every `Rejection` kind renders as a sentence (one map, tested for completeness against the
+- [x] The document is never mutated: a test freezes it and drives twenty actions
+- [x] Every `Rejection` kind renders as a sentence (one map, tested for completeness against the
       union)
-- [ ] Two taps on Advance in one batch drive one engine call
+- [x] Two taps on Advance in one batch drive one engine call
 
 ### M7-S3 · Views and actions · 2–3 sessions
 
