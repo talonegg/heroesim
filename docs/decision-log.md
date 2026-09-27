@@ -4846,11 +4846,9 @@ Transfers row and the M6 counters remain the close's work.
 
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
-**Status:** Draft — items 1 to 8 (the counters and the balance pass) are written; the M6 run appends its
-items and the Consequences before the entry is accepted · **Date:** 2026-09-27 · **Decided by:** an
-agent (the M6 close's counter and balance tasks), choosing how each counter reads the History and the
-World State, the balance pass's targets, and the four Disposition rows' and the Transfer lock's values;
-the owner has not seen them
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each
+counter reads the History and the World State, the balance pass's targets, and the four Disposition
+rows' and the Transfer lock's values; the owner has not seen them
 
 **Context.** The epic's §2 names M6's counters: Transfers by direction and by controller kind, Rival
 Roster size and Wealth by year, and the Rankings position of the player's Guild by year under the
@@ -4939,7 +4937,7 @@ config defaults (a rule only where one is found faulty, fixed with a test), then
    Heroes (`ambitious` 6, `reckless` 12), all declined; 2 Rival folds. `npm test` gained 15 tests.
 
 4. **The targets**, set before the first trial from the M6-S1 and M6-S4 boxes and the plausibility the
-   M6 close asked for. They are measured over 32 seeds × 20 years, then the run:
+   M6 close asked for. They are measured over 16, 32 and 64 seeds × 20 years, then the run:
    - *Four characters* (M6-S1 box 1, M6-S4 box 1): `reckless`'s mean difficulty taken at least 10 above
      `miserly`'s and its Deaths a Guild-year at least 1.25 times (DL-56 item 9's margins); `ambitious`'s
      Hall the first built, `miserly`'s the last.
@@ -5011,11 +5009,11 @@ config defaults (a rule only where one is found faulty, fixed with a test), then
    | … and `transferLockDays` 30 → 90: the first run's values | 32 | 2.78 (17 / 17 / 29 / 26) | 5.5 | 18 (0) | 0 | 87%; 27% / 20% | 45% / 34% |
 
    **The first run** of 200 seeds × 20 years, validated, with the last row's values (87.5 minutes; no
-   refusal, no broken assertion) met the targets of item 4 that its report shows but one: 535 folds, 2.68 a game, `ambitious`
-   84, `miserly` 126, `reckless` 159 and `steady` 166 — `steady` the most, by 0.042 a Guild-year against
-   `reckless`'s 0.040, within the run's noise (± 13 folds each) but against the target. Seeds 1 to 64 had
-   put `steady` below `reckless` (45 against 55), so the pass went on there and looked for a margin, not a
-   ranking; the run was set aside, and item 9's is the gate's.
+   refusal, no broken assertion) met the targets of item 4 that its report shows but one: 535 folds,
+   2.68 a game, `ambitious` 84, `miserly` 126, `reckless` 159 and `steady` 166 — `steady` the most, by
+   0.042 a Guild-year against `reckless`'s 0.040, within the run's noise (± 13 folds each) but against
+   the target. Seeds 1 to 64 had put `steady` below `reckless` (45 against 55), so the pass went on there
+   and looked for a margin, not a ranking; the run was set aside, and item 9's is the gate's.
 
    | Trial, from the first run's values | Seeds | Folds a game (`ambitious` / `miserly` / `reckless` / `steady`) | Rival to Rival a game | Back (< 90) | Below 4 | Within 4–8; above 8, `ambitious` / `reckless` | Hoarding |
    | --- | ---: | --- | ---: | ---: | ---: | --- | ---: |
@@ -5128,8 +5126,130 @@ config defaults (a rule only where one is found faulty, fixed with a test), then
    four five-year blocks; none back fewer than 90 Days after a sale, 16 of the 19 returns more than a
    year after it. Every target of item 4 is met on these seeds.
 
-*For the M6 run to complete:* the 200 × 20 run and its figures beside M5's, the measures, and the
-Consequences.
+9. **The run, 2026-09-27** (`harness/reports/m6-2026-09-27.md`, committed with this entry): 200 seeds,
+   `seed-0001` to `seed-0200`, each up to 20 years, validated after every advance (`HEROESIM_VALIDATE=1`,
+   `HEROESIM_SEEDS=200`, `npm run harness -- play.harness`, as M5's), `configVersion` 10, content version
+   14, the policy of DL-63 item 3. It ran in 16 processes on DL-13's machine and took 75 minutes.
+   - **Validation.** No refusal or warning, no policy action refused, no game the M6-S3 assertion stopped
+     (no `hero.transferred` names the player's Guild), and all 200 last documents load and serialise back
+     alike. `seed-0001` played twice more: identical, 113,281,366 characters.
+   - **Endings.** 198 games ran 20 years; two of the player's Guilds went bankrupt, in years 16 and 18
+     (`seed-0188` on Turn 17,699 and `seed-0049` on Turn 19,529; `seed-0188` is the game whose early
+     Bankruptcy in M5's first run set DL-62's consumable reserve). Rivals folded 576 times, 2.88 a
+     game, every fold a Bankruptcy: `ambitious` 82 (0.021 a Guild-year), `miserly` 151 (0.038),
+     `reckless` 207 (0.052), `steady` 136 (0.034).
+   - **The four characters** (a Guild-year unless it says otherwise):
+
+     | | `ambitious` | `miserly` | `reckless` | `steady` |
+     | --- | ---: | ---: | ---: | ---: |
+     | Rivals (replacements included) | 282 | 348 | 406 | 336 |
+     | Quests taken; mean difficulty; failed | 225.2; 45.1; 13.5% | 224.8; 31.2; 6.3% | 188.6; 55.1; 21.4% | 174.2; 41.4; 11.4% |
+     | Deaths; recruits | 1.07; 1.02 | 0.45; 0.35 | 1.62; 1.62 | 0.73; 0.65 |
+     | Folds | 0.021 | 0.038 | 0.052 | 0.034 |
+     | Roster at year-starts: mean; median; above 8 | 6.8; 6; 25.7% | 5.2; 5; 4.0% | 6.8; 5; 24.4% | 4.9; 4; 5.1% |
+     | Wealth at year-starts: mean; median | 28,777; 24,388 | 23,669; 22,803 | 16,270; 12,227 | 20,003; 15,849 |
+     | Hall mean grade by year 10, the three facilities | 3.00 | 2.31–2.36 | 2.90–2.94 | 2.79–2.84 |
+     | Market purchases | 1.26 | 1.55 | 1.81 | 1.48 |
+     | Transfers bought; sold (in the run) | 558; 422 | 4; 18 | 435; 509 | 96; 144 |
+
+   - **Transfers by direction**: into the player's Guild 0, out of it 0, Rival to Rival 1,093 (5.47 a
+     game), fees 540,831 (mean 495). By how: the buyer's choice of an afternoon 1,026, of an afternoon whose
+     seller was in debt 4, the Transfer Generator's 63, accepted offers 0. By kind of controller: every one
+     between Rivals; by Disposition, `ambitious` bought from `reckless` 463 times and sold to it 368, then
+     `steady` to `ambitious` 83 and to `reckless` 61, `reckless` to `steady` 42 and `ambitious` to `steady`
+     54; `miserly` sold 18 and bought 4. Back to a Guild that had sold the Hero: 117 (10.7%). Transfer
+     Offers for the player's Heroes: 161 (`ambitious` 73, `reckless` 78, `steady` 10), every one declined
+     by the policy.
+     From the scratch script over the same 200 seeds, which plays them as the report did: 228, 426, 209
+     and 230 Rival-to-Rival Transfers in the four five-year blocks; none back fewer than 90 Days after a
+     sale, 76 of the 117 more than a year after it; 2 from a seller that began the Turn with 4 Heroes and
+     had hired earlier that afternoon, and, by the appetites and the Generator's guard, none leaving a
+     Rival below `rivalRosterMin`.
+   - **Rival Rosters and Wealth by year**: over every Rival year-start the Roster's mean is 5.94 and its
+     median 5, below `rivalRosterMin` 0.3% and above `rivalRosterMax` 14.8% (within 4 to 8, 84.9%); the
+     mean falls from 6.0 at creation to 4.7 in year 2, rises to 6.7 in years 7 to 9 (8.4 to 8.5 for
+     `ambitious` and `reckless`, above 8 at a quarter of all year-starts then), and is 5.8 in year 20 (4.9
+     to 6.8 by Disposition). Wealth: a Rival's mean 22,183, median 19,029; `miserly`'s peaks at 33,604
+     in year 6, `ambitious`'s at 41,937 in year 9. From the scratch script: at the floor with more than
+     20 Upkeeps, `steady` at 47.2% of its year-starts, `miserly` 37.4%, `ambitious` 25.0%, `reckless`
+     9.8%; below 3 Upkeeps, 2.6% to 5.2% for each; Hall grades at year 1 `ambitious` 9.0, `reckless` 8.4,
+     `steady` 6.4, `miserly` 3.0.
+   - **The player's Rankings** (as each year begins, every Guild in play): by Fame mean place 2.10 in
+     year 1 (first 45.5%), then 1.10, 1.07, 1.09 and 1.03 in years 5, 10, 15 and 20, first 89.5% of all
+     year-starts; by Wealth 1.11 in year 1, then 1.05, 1.08, 1.06 and 1.02, first 91.6%.
+   - **Rival Market purchases**: 24,281 purchases, 1.52 a Guild-year, 1,556,440 Wealth (the player's Guild
+     192.07 a Guild-year).
+   - **Wealth spent**: the Rivals' 98.0% Upkeep, 1.3% Improvements, 0.3% Items, 0.3% signing, 0.1%
+     Transfers (540,831, 34.0 a Guild-year, the same taken by sellers); the player's Guild 86.1% Upkeep,
+     13.3% Items, 0.4% signing, 0.2% Improvements, no Transfers.
+   - **Beside M5's run** (DL-62 item 7):
+
+     | Measure | M5 | M6 |
+     | --- | ---: | ---: |
+     | The player's games that ended | 0 | 2, both Bankruptcies |
+     | Rival folds a game | 2.36 | 2.88 |
+     | The player's mean Quest difficulty | 53.8 | 46.2 |
+     | The player's Quests failed / succeeded / strong | 23.1 / 19.0 / 57.9% | 14.9 / 13.7 / 71.3% |
+     | The Rivals' Quests | 9.2 / 7.2 / 83.6% | 12.9 / 12.0 / 75.1% |
+     | The player's Checks succeeded; the Rivals' | 76.9%; 90.1% | 83.6%; 85.5% |
+     | Deaths a game, the player's / the Rivals' | 46.1 / 50.1 | 34.1 / 77.0 |
+     | Injuries a game | 577 / 619 | 393 / 879 |
+     | Levels gained a Guild-year | 13.4 / 5.8 | 11.5 / 7.5 |
+     | Mean Level after 10 years | 7.01 / 6.62 | 7.60 / 6.98 |
+     | The player's Wealth after 10 and 20 years | 135,206; 232,781 | 123,818; 189,977 |
+     | A Rival's Wealth after 10 and 20 years | 40,766; 24,808 | 27,918; 22,487 |
+     | Save after 20 years, mean (max) | 99.8 (118.9) MiB | 98.5 (118.3) MiB |
+     | History entries after 20 years, mean | 263,189 | 259,815 |
+     | A Turn alone, mean (p99) | 1.08 (2.5) ms | 1.50 (3.2) ms |
+
+   - **Against item 4, every target is met in the run**: `reckless` 23.9 above `miserly` in mean
+     difficulty and 3.6 times its Deaths, `ambitious`'s Hall first and `miserly`'s last; 2.88 folds a
+     game, `reckless`'s the most and `miserly`'s, the next, 1.06 times the other three's mean; 84.9% of
+     Rosters within 4 to 8, the medians 4 to 6, above 8 at most 25.7%; at the floor with more than 20
+     Upkeeps at most 47.2%, below 3 Upkeeps at most 5.2%; 5.5 Transfers a game in every five-year block,
+     10.7% back to a former seller, none within 90 Days, none leaving a seller below the floor.
+
+10. **Measures** against data-model §7 (recorded, not chased, DL-08): `advance` averaged 5.98 ms a Turn
+    under the run's load (p99 13.8) and 1.50 ms alone (`seed-0001` replayed; p99 3.2), so a year of fast
+    forward is 1.62 s against §7's 1 s; a save after 20 years is 98.5 MiB on the mean (118.3 at most)
+    against 20 MiB, and loads in 4.5 s on the mean under load against 1 s; at this run's rate 1,000 games
+    of 20 years would take 366 minutes (M5's run, 319). A Turn alone is 0.4 ms dearer than M5's; M6's
+    Rivals build, buy and deal every afternoon.
+
+**Consequences.** M6's gate has its run: the harness reports Rivals transferring among themselves (1,093
+Transfers in 200 games, 63 of them the Generator's), and M6-S3's second box and M6-S4's second box have
+their harness evidence in the epic. The four Dispositions stay distinct as M6-S1's and M6-S4's first boxes
+ask. For the owner:
+
+- **M6's Rivals are now the player's competition for the Board.** Three of the four take the Board's
+  harder half, so the Quests left to the policy are easier: its mean difficulty fell from 53.8 (M5) to
+  46.2, its failures from 23.1% to 14.9%, its Wealth after 20 years from 232,781 to 189,977, and two of its
+  200 games ended in Bankruptcy, where M5's run had none. The policy is M5's and declines every Transfer
+  Offer (161 in the run); a smarter policy, and whether it should ever accept, is a decision after these
+  counters (the M6 risk table).
+- **The Rivals are no threat in the Rankings**: the player's Guild is first by Fame at 89.5% of year-starts
+  and by Wealth at 91.6%, and from year 5 its mean place is 1.1 or better.
+- **A Rival's folds come from Levels outrunning its income.** A Rival whose Heroes seldom die sees their
+  Levels rise to 8 to 10 at a Roster of 4, and its wages with them, while its place along the Quests it can
+  staff pays what it paid; the training yard speeds the climb. The pass moves where each Disposition sits
+  on that curve, not the curve. Changing it is a rule for the owner (a Rival choosing harder Quests as its
+  Heroes grow, letting its dearest Hero go, or choosing which facilities it builds, a new weight), or values
+  the player pays too (`wagePerLevel`, `xpPerTrainingDay`, `hallMaintenancePerGrade`).
+- **`transferAppetite` does two jobs**: the chance a Rival seeks a Transfer, and, with its Roster, whether
+  it consents. At a third or more a Rival sells itself below `rivalRosterMin` and item 5's chain returns, so
+  every row sits below a third and `miserly` (0.1) never deals at the Rosters it keeps. A consent floor at
+  `rivalRosterMin` in `transferAnswer`, the Generator's own guard (DL-59 item 5), would free the appetite
+  to range to 1; it is a rule change the pass did not need and left to the owner.
+- **Transfers are few and mostly between two**: 5.5 a game, 831 of 1,093 between `ambitious` and
+  `reckless`, a tenth back to a Guild that had sold the Hero, none within the 90-Day lock.
+- **`steady` and `miserly` still sit at the floor holding Wealth** at 47% and 37% of their year-starts
+  (the target's line is half): their rows' hiring bars (60 Upkeeps) are seldom reached, and a lower bar
+  made `steady` fold more. Their Rosters never decay below the floor (DL-60's need), which was the
+  verification's concern.
+- **The measures are where M4's and M5's were**: a Turn alone 1.5 ms, a year of fast forward 1.6 s, a save
+  after 20 years 98.5 MiB (data-model §7: 5 ms, 1 s, 20 MiB), recorded, not chased (DL-08).
+- **The engine's test content keeps M6-S1 to S4's Disposition rows** (item 8); a later pass that wants the
+  engine's tests to prove the core's own rows would mirror them there and re-measure those tests' margins.
 
 ## DL-70 — M4 verification corrections: the Board names the Skills its Encounters' Checks read; tests that kill six mutants
 
