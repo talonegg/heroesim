@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { createWorld, defaultConfig, serialise, type WorldDocument } from '@heroesim/engine';
+import { createWorld, defaultConfig, probe, serialise, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { openSave, playDeps, readSave, saveDir, savePath, writeSave } from './saves.js';
@@ -100,6 +100,19 @@ describe('opening a save', () => {
 
     expect(document.meta.config.turnsPerYear).toBe(defaultConfig.turnsPerYear);
     expect(defaultConfig.turnsPerYear).not.toBe(1);
+  });
+
+  test('opens a save under the modules given: its slice checked by its own module, and its deps installing them (M8-S4)', () => {
+    const text = serialise(createWorld('saves', setup, { config: defaultConfig, content, modules: [probe] }).document);
+
+    const installed = openSave(text, content, [probe]);
+    const not = openSave(text, content);
+
+    expect(installed).toMatchObject({ ok: true, warnings: [] });
+    expect(installed.ok && installed.deps.modules).toEqual([probe]);
+    expect(not.ok && not.warnings.map((warning) => warning.check)).toEqual(['unknown-module']);
+    expect(not.ok && not.deps).not.toHaveProperty('modules');
+    expect(playDeps(newDocument(), content)).not.toHaveProperty('modules');
   });
 
   test('refuses a missing file and a corrupted one with a reason', () => {

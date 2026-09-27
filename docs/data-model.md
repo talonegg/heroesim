@@ -239,6 +239,11 @@ core's own event naming the module, so the core stays the only writer of its row
 typed `<module id>.<what-happened>` by the module and not by the engine's union, are History
 entries like any other (M8-S2, DL-77).
 
+The document holds slices, not a list of the modules installed: whoever plays it installs them, for
+each run or command (`HEROESIM_MODULES` for the harness, `--modules` for the CLI, `?modules=` for
+the web, all naming only the test-only probe so far), and a front end gives a module's event one
+generic sentence naming the module, the type and whom it concerns (M8-S4, DL-79).
+
 ## 4. `history`
 
 ```

@@ -395,16 +395,40 @@ describe('Transfers (M6-S2)', () => {
     expect(narrate(transferred, content)).toMatch(/from Brenna Ashcombe \(hero-000007\), who was transferred\.$/);
   });
 
-  test("words what a module's effects did, and names a module's own event by its type (M8-S2)", () => {
+  test("words what a module's effects did (M8-S2)", () => {
     const patron = samples['patron.regard-changed'];
     const hero = samples['hero.regard-changed'];
     const byModule = <E extends { payload: object }>(sample: E): E => ({ ...sample, payload: { ...sample.payload, cause: 'module', moduleId: 'probe' } });
-    const fired = { ...event('guild.founded', [guildId], { guildId, guildmasterId: guildmasterId as never }), type: 'probe.fired' } as unknown as ModuleEvent;
 
     expect(narrate(samples['guild.wealth-changed'], content)).toBe("The Kestrel Guild's Wealth went from 500 to 750.");
     expect(narrate(byModule(patron), content)).toMatch(/ through a module\.$/);
     expect(narrate(byModule(hero), content)).toMatch(/ through a module\.$/);
-    expect(narrate(fired, content)).toBe("A module's event: probe.fired.");
+  });
+});
+
+describe("a module's own event: one generic sentence for any type, never a crash (M8-S4)", () => {
+  /** An event a module made, as the History holds it: the CLI knows neither its type nor its payload. */
+  function moduleEvent(type: string, participants: string[], payload: unknown, extraLabels: Record<string, string> = {}): ModuleEvent {
+    const named = Object.fromEntries(participants.flatMap((id) => {
+      const label = extraLabels[id] ?? labels[id];
+      return label === undefined ? [] : [[id, label]];
+    }));
+    return { type, turn: 9, participants, labels: named, milestone: false, payload } as unknown as ModuleEvent;
+  }
+
+  test("names the module, from its type's namespace, the type, and who it concerns, a Hero with the id the commands take", () => {
+    const fired = moduleEvent('probe.fired', [heroId, patronId, guildId], { roll: 0.01, effects: [] });
+
+    expect(narrate(fired, content)).toBe('The probe module recorded probe.fired for Brenna Ashcombe (hero-000007), Lady Maud and The Kestrel Guild.');
+  });
+
+  test.each([
+    ['a module the CLI has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather module recorded weather.storm-broke.'],
+    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger module recorded ledger.balanced for The Kestrel Guild.'],
+    ['a participant with no label, by its id', moduleEvent('probe.fired', ['hero-000099'], undefined), 'The probe module recorded probe.fired for hero-000099.'],
+    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A module recorded mystery for Brenna Ashcombe (hero-000007).'],
+  ])('%s', (_name, event, sentence) => {
+    expect(narrate(event, content)).toBe(sentence);
   });
 });
 

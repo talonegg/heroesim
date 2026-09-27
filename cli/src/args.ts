@@ -20,6 +20,7 @@ import {
   type StackId,
   type StopCondition,
 } from '@heroesim/engine';
+import { cliModules, isCliModule } from './modules.js';
 import { currentSave } from './saves.js';
 
 export const usage = `Usage: heroesim <command> [flags]
@@ -110,6 +111,11 @@ Commands:
 Every command takes --save <file>, the save it reads and writes: "${currentSave}" unless given.
 A <file> with no slash and no ".json" is <file>.json in the save directory, .saves/ in the
 working directory or HEROESIM_SAVE_DIR if set; anything else is a path.
+
+new, load and advance take --modules <ids>, modules to install, joined by commas: none unless
+given. The only one is ${Object.keys(cliModules).join(', ')}, which tests the module contract. A save
+made with a module keeps its part for it; a command run without the module warns of that part and
+leaves it as it is.
 `;
 
 export type View =
@@ -137,10 +143,11 @@ export type Command =
       seed?: string;
       background?: string;
       force: boolean;
+      modules?: string[];
     }
   | { name: 'show'; save: string; view: View }
-  | { name: 'advance'; save: string; turns: number }
-  | { name: 'advance'; save: string; until: StopCondition[]; max?: number }
+  | { name: 'advance'; save: string; turns: number; modules?: string[] }
+  | { name: 'advance'; save: string; until: StopCondition[]; max?: number; modules?: string[] }
   | { name: 'recruit'; save: string; hero: string }
   | { name: 'preview'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
   | { name: 'dispatch'; save: string; quest: QuestId; heroes: HeroId[]; consumables?: ConsumableRequest[] }
@@ -156,16 +163,16 @@ export type Command =
   | { name: 'decline'; save: string; offer: OfferId }
   | { name: 'rebase'; save: string }
   | { name: 'save'; save: string; as: string }
-  | { name: 'load'; save: string; file: string };
+  | { name: 'load'; save: string; file: string; modules?: string[] };
 
 export type Parsed = { ok: true; command: Command } | { ok: false; problem: string };
 
 /** The flags each command takes, and whether each takes a value. */
 const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
-  new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch' },
+  new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch', modules: 'value' },
   show: { save: 'value', by: 'value' },
-  advance: { save: 'value', turns: 'value', until: 'value', max: 'value' },
+  advance: { save: 'value', turns: 'value', until: 'value', max: 'value', modules: 'value' },
   recruit: { save: 'value', hero: 'value' },
   preview: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
   dispatch: { save: 'value', quest: 'value', heroes: 'value', consumables: 'value' },
@@ -179,7 +186,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   decline: { save: 'value', offer: 'value' },
   rebase: { save: 'value' },
   save: { save: 'value', as: 'value' },
-  load: { save: 'value' },
+  load: { save: 'value', modules: 'value' },
 };
 
 function isCommandName(name: string): name is Command['name'] {
@@ -254,6 +261,26 @@ function stopList(value: string): StopCondition[] {
   const twice = words.find((word, index) => words.indexOf(word) !== index);
   if (twice !== undefined) refuse(`--until names ${twice} twice`);
   return words.map((word) => untilWords[word] as StopCondition);
+}
+
+/**
+ * `--modules` (M8-S4): the ids of modules the CLI may install, joined by commas, each once, in the
+ * order their hooks are to run.
+ */
+function moduleList(value: string): string[] {
+  const ids = value.split(',').map((id) => id.trim());
+  for (const id of ids) {
+    if (!isCliModule(id)) refuse(`--modules takes ${Object.keys(cliModules).join(', ')}, joined by commas; got "${id}"`);
+  }
+  const twice = ids.find((id, index) => ids.indexOf(id) !== index);
+  if (twice !== undefined) refuse(`--modules names ${twice} twice`);
+  return ids;
+}
+
+/** `{ modules }` when `--modules` is given, else nothing: a command without it reads as before M8. */
+function modulesFlag(flags: Map<string, string>): { modules?: string[] } {
+  const modules = flags.get('modules');
+  return modules === undefined ? {} : { modules: moduleList(modules) };
 }
 
 /** The words `--facility` takes, and the Hall facility each names (M3-S6). */
@@ -427,6 +454,7 @@ function parse(argv: readonly string[]): Command {
         ...(seed === undefined ? {} : { seed }),
         ...(background === undefined ? {} : { background }),
         force: flags.has('force'),
+        ...modulesFlag(flags),
       };
     }
     case 'show':
@@ -437,7 +465,7 @@ function parse(argv: readonly string[]): Command {
       const until = flags.get('until');
       const max = flags.get('max');
       if (until === undefined && max === undefined) {
-        return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns) };
+        return { name, save, turns: turns === undefined ? 1 : wholeFromOne('--turns', turns), ...modulesFlag(flags) };
       }
       if (turns !== undefined) refuse('advance takes --turns, or --until and --max, not both');
       return {
@@ -445,6 +473,7 @@ function parse(argv: readonly string[]): Command {
         save,
         until: until === undefined ? [] : stopList(until),
         ...(max === undefined ? {} : { max: wholeFromOne('--max', max) }),
+        ...modulesFlag(flags),
       };
     }
     case 'recruit':
@@ -505,7 +534,7 @@ function parse(argv: readonly string[]): Command {
     case 'load': {
       atMost(positional, 1, 'load');
       const [file] = positional;
-      return file === undefined ? refuse('load needs a file') : { name, save, file };
+      return file === undefined ? refuse('load needs a file') : { name, save, file, ...modulesFlag(flags) };
     }
   }
 }

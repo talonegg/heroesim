@@ -5,11 +5,13 @@
 // Names come from each event's labels, written when it happened, so a Hero or Quest whose row has
 // since gone still reads; content keys become content's display names. Each switch covers every
 // type, so the compiler refuses an event type or stop reason added without a line. A module's own
-// event, which the engine does not type, gets a line that names its type (M8-S2, DL-77).
+// event, which the engine does not type, gets one generic line for any type, whatever its payload:
+// the module, its type and who it concerns (M8-S2, M8-S4, DL-77, DL-79).
 
 import {
   compareByCodeUnit,
   dayOf,
+  isId,
   isModuleEvent,
   regardBandNames,
   type ContentSet,
@@ -20,6 +22,7 @@ import {
   type GearMove,
   type GearReturnCause,
   type HeroRegardCause,
+  type ModuleEvent,
   type PatronRegardCause,
   type QuestBand,
   type RegardBand,
@@ -30,13 +33,16 @@ import {
 } from '@heroesim/engine';
 import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
 
+/** The labels an event carries, by participant: an engine's event's or a module's. */
+type Labelled = Pick<TurnEvent, 'labels'>;
+
 /** A participant by the label the event carries, or its id when it has none. */
-function called(event: EngineEvent, id: EntityId): string {
+function called(event: Labelled, id: EntityId): string {
   return event.labels[id] ?? id;
 }
 
 /** A Hero by label and id, `Brenna Ashcombe (hero-000003)`: the id is what the commands take. */
-function hero(event: EngineEvent, id: EntityId): string {
+function hero(event: Labelled, id: EntityId): string {
   const label = event.labels[id];
   return label === undefined ? id : `${label} (${id})`;
 }
@@ -112,12 +118,26 @@ function items(content: ContentSet, definitionKey: string, quantity: number, ite
 }
 
 /**
- * One line for `event`, in the CLI's words. A module's own event is not the engine's to word: its
- * line names its type (M8-S2, DL-77).
+ * One line for `event`, in the CLI's words. A module's own event is not the engine's to word, nor
+ * the CLI's: its line is `narrateModuleEvent`'s, for any type.
  */
 export function narrate(event: TurnEvent, content: ContentSet): string {
-  if (isModuleEvent(event)) return `A module's event: ${event.type}.`;
+  if (isModuleEvent(event)) return narrateModuleEvent(event);
   return narrateEngineEvent(event, content);
+}
+
+/**
+ * A module's own event, of a type the CLI has no words for and a payload it never reads (M8-S4,
+ * DL-79): the module, named by its type's namespace (`probe.fired` is the probe's, DL-77), the type,
+ * and the entities it concerns by their labels, a Hero with the id the commands take. `The probe
+ * module recorded probe.fired for Una Greave (hero-000023), Ranulf Tarrant and The Hollin Guild.`
+ * A type outside any namespace, which no module's `emit` makes, is still worded, from "A module".
+ */
+function narrateModuleEvent(event: ModuleEvent): string {
+  const dot = event.type.indexOf('.');
+  const who = dot > 0 ? `The ${event.type.slice(0, dot)} module` : 'A module';
+  const named = event.participants.map((id) => (isId('heroes', id) ? hero(event, id) : called(event, id)));
+  return `${who} recorded ${event.type}${named.length === 0 ? '' : ` for ${listed(named)}`}.`;
 }
 
 function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {

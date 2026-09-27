@@ -307,6 +307,6 @@ describe('why time stopped, with a button to what it names', () => {
     expect(within(stop).getByText('Stopped: the probe module asked to stop.')).toBeDefined();
     fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Since your last action' }));
-    expect(within(section('Since your last action')).getByText("A module's event: probe.fired.")).toBeDefined();
+    expect(within(section('Since your last action')).getByText('The probe module recorded probe.fired.')).toBeDefined();
   });
 });

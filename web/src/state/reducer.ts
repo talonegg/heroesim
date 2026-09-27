@@ -17,6 +17,10 @@
 // a save is read with the engine's own `defaultConfig`, so its schema version is compared and
 // migrated (DL-20); it is played with `{ ...defaultConfig, ...meta.config }`; a new game starts
 // under `defaultConfig`; `rebase` adopts `defaultConfig`.
+//
+// The modules installed are the reducer's deps beside the state (M8-S4, DL-79): the page's address
+// names them (`modules.ts`, a test switch), `useGame` is given them, and every engine call a play
+// makes installs them, none unless given, so a page without the switch plays as it did before M8.
 
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
@@ -36,6 +40,7 @@ import {
   type GuildAction,
   type GuildId,
   type LoadRefusal,
+  type Module,
   type RebaseAction,
   type Rejection,
   type StopCondition,
@@ -182,16 +187,19 @@ export const initialGameState: GameState = Object.freeze({
   games: 0,
 });
 
+/** No module installed: the page's default, without its test switch. */
+export const noModules: readonly Module[] = Object.freeze([]);
+
 /**
  * The one reducer. A play arriving while idle is accepted: the state is marked `busy` with the
  * play `pending`, and nothing else changes. A play arriving while busy is dropped: the same state
- * comes back. `settle` runs the engine on the pending play and stores the result; `dismiss` puts
- * a rejection away. Programming errors throw; a refusal never does.
+ * comes back. `settle` runs the engine on the pending play, with `modules` installed (M8-S4), and
+ * stores the result; `dismiss` puts a rejection away. Programming errors throw; a refusal never does.
  */
-export function gameReducer(state: GameState, action: GameAction): GameState {
+export function gameReducer(state: GameState, action: GameAction, modules: readonly Module[] = noModules): GameState {
   switch (action.kind) {
     case 'settle':
-      return state.pending === null ? state : settled(state, state.pending);
+      return state.pending === null ? state : settled(state, state.pending, modules);
     case 'dismiss':
       return state.rejection === null ? state : { ...state, rejection: null };
     default:
@@ -199,9 +207,9 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
   }
 }
 
-/** The state after the engine has run `play`: its result stored, or its refusal. */
-function settled(state: GameState, play: Play): GameState {
-  const outcome = run(state.document, play);
+/** The state after the engine has run `play` with `modules` installed: its result stored, or its refusal. */
+function settled(state: GameState, play: Play, modules: readonly Module[]): GameState {
+  const outcome = run(state.document, play, modules);
   if (!outcome.ok) return { ...state, rejection: outcome.rejection, busy: false, pending: null };
   return {
     document: outcome.document,
@@ -228,24 +236,34 @@ type Outcome =
     }
   | { ok: false; rejection: PlayRejection };
 
-/** The deps a game plays under: its own config, filled forward with the current defaults (D3). */
-export function playDeps(document: WorldDocument): EngineDeps {
-  return { config: { ...defaultConfig, ...document.meta.config }, content };
+/**
+ * The deps a game plays under: its own config, filled forward with the current defaults (D3), and
+ * the modules installed, none unless given (M8-S4). The selectors, which run no hook, give none.
+ */
+export function playDeps(document: WorldDocument, modules: readonly Module[] = noModules): EngineDeps {
+  return { config: { ...defaultConfig, ...document.meta.config }, content, ...withModules(modules) };
 }
 
-/** The engine's own deps: to read a save (DL-20), start a game, and rebase one. */
-const engineDeps: EngineDeps = { config: defaultConfig, content };
+/** `{ modules }` when there are any: with none, the deps are what they were before M8. */
+function withModules(modules: readonly Module[]): Pick<EngineDeps, 'modules'> {
+  return modules.length === 0 ? {} : { modules };
+}
 
-function run(document: WorldDocument | null, play: Play): Outcome {
-  if (play.kind === 'newGame') return newGame(play);
-  if (play.kind === 'load') return load(play.text);
+/** The engine's own deps, with `modules` installed: to read a save (DL-20), start a game, and rebase one. */
+function engineDeps(modules: readonly Module[]): EngineDeps {
+  return { config: defaultConfig, content, ...withModules(modules) };
+}
+
+function run(document: WorldDocument | null, play: Play, modules: readonly Module[]): Outcome {
+  if (play.kind === 'newGame') return newGame(play, modules);
+  if (play.kind === 'load') return load(play.text, modules);
   if (document === null) return refused(play.kind, 'no-game');
   // Not the play deps: under them every save would already be current (the CLI's `rebase`).
-  if (play.kind === 'rebase') return rebase(document, engineDeps);
+  if (play.kind === 'rebase') return rebase(document, engineDeps(modules));
 
   const { ended } = document.world;
   if (ended !== null) return { ok: false, rejection: { action: play.kind, reason: 'game-ended', ending: ended } };
-  const deps = playDeps(document);
+  const deps = playDeps(document, modules);
   if (play.kind === 'advance') return advanceTurns(document, play.turns ?? 1, deps);
 
   const guild = playerGuild(document.world);
@@ -272,8 +290,8 @@ function isGuildBackground(key: BackgroundKey): boolean {
   return Object.hasOwn(content.backgrounds, key) && content.backgrounds[key]?.owner === 'guild';
 }
 
-/** A new world under the current defaults, from the names trimmed; blank names are refused. */
-function newGame(play: NewGame): Outcome {
+/** A new world under the current defaults, with `modules` installed, from the names trimmed; blank names are refused. */
+function newGame(play: NewGame, modules: readonly Module[]): Outcome {
   const guildName = play.guildName.trim();
   const guildmasterName = play.guildmasterName.trim();
   if (guildName === '') return { ok: false, rejection: { action: 'newGame', reason: 'guild-name-blank' } };
@@ -283,13 +301,16 @@ function newGame(play: NewGame): Outcome {
     return { ok: false, rejection: { action: 'newGame', reason: 'unknown-background', backgroundKey } };
   }
   const setup = { guildName, guildmasterName, createdAt: play.createdAt, ...(backgroundKey === undefined ? {} : { backgroundKey }) };
-  const { document, events } = createWorld(play.seed, setup, engineDeps);
+  const { document, events } = createWorld(play.seed, setup, engineDeps(modules));
   return { ok: true, document, events, stoppedBecause: null, warnings: [] };
 }
 
-/** A save's text read with the engine's own config, so an older schema is migrated first (DL-20). */
-function load(text: string): Outcome {
-  const loaded = deserialise(text, engineDeps);
+/**
+ * A save's text read with the engine's own config, so an older schema is migrated first (DL-20), and
+ * with `modules` installed, so each checks its own slice; a slice none owns is warned of and kept.
+ */
+function load(text: string, modules: readonly Module[]): Outcome {
+  const loaded = deserialise(text, engineDeps(modules));
   if (!loaded.ok) {
     const { kind, message } = loaded.reason;
     return { ok: false, rejection: { action: 'load', reason: kind, message } as LoadRejection };
@@ -331,19 +352,26 @@ function afterPaint(task: () => void): void {
 /**
  * The game's state and the one way to change it. `play` runs `gameReducer` on the latest state,
  * whether React has rendered it yet or not, so a second play in the same batch finds the first
- * accepted and is dropped; an accepted play is settled, calling the engine once, after the busy
- * state has been painted.
+ * accepted and is dropped; an accepted play is settled, calling the engine once with `modules`
+ * installed, after the busy state has been painted. The page gives the same `modules` for its
+ * lifetime.
  */
-export function useGame(initial: GameState = initialGameState): [GameState, (action: GameAction) => void] {
+export function useGame(
+  initial: GameState = initialGameState,
+  modules: readonly Module[] = noModules,
+): [GameState, (action: GameAction) => void] {
   const [state, store] = useReducer(stored, initial);
   const latest = useRef(initial);
 
-  const play = useCallback((action: GameAction): void => {
-    const next = gameReducer(latest.current, action);
-    if (next === latest.current) return;
-    latest.current = next;
-    store(next);
-  }, []);
+  const play = useCallback(
+    (action: GameAction): void => {
+      const next = gameReducer(latest.current, action, modules);
+      if (next === latest.current) return;
+      latest.current = next;
+      store(next);
+    },
+    [modules],
+  );
 
   const { pending } = state;
   useEffect(() => {

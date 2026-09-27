@@ -6701,6 +6701,111 @@ probe from the front ends' test switches (`--modules probe`, a web query paramet
 `probe.fired`; Random Events, the first real module, adds its effect kinds to `effectEventTypes` as
 it adds them to the union.
 
+## DL-79 — Front ends and close-out: `--modules` on `new`, `load` and `advance`, a `?modules=` query parameter as the web reducer's deps, one generic sentence for any module's event, the probe in the bundle, and the first build's time counted (M8-S4)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S4's implementer), where
+the epic names the two test switches, the generic sentence and the close-out lines but leaves their
+shape open; no default, content value, `configVersion` or schema version changes, and no change to
+the engine
+
+**Context.** M8-S4 asks that the CLI and the web take a module list, empty by default: `--modules
+probe` for the CLI, a query parameter for the web, both test-only (the probe is never installed by
+default, nor by a front end on its own, DL-78); that both narration maps give a module event type they do
+not know a generic sentence rather than a crash; that `probe.fired` be visible in both front ends'
+logs on a seed known to fire one; that ADR-0005's amendment get a closing line with the tag; that
+`plan.md` say the first build is complete and when, with Random Events next; and that the epics'
+README get the sessions actually spent. DL-77 left M8-S4 the wording of a module's event, and DL-78
+item 1 said the web build held none of the probe.
+
+**Decision.**
+
+1. **The CLI's switch: `--modules <ids>` on `new`, `load` and `advance`** (both of its forms),
+   module ids joined by commas, each once, in the order their hooks run, from the CLI's own
+   registry (`cli/src/modules.ts`, `cliModules`: only `probe`). An unknown id, an empty one or one
+   named twice is a bad command line (exit 2), as the harness refuses a mistyped `HEROESIM_MODULES`
+   rather than play without the module. Absent, the command is parsed as before (no `modules`
+   field) and its deps carry no `modules` key, so every command writes what it wrote before M8.
+   `new` makes the world with each module's slice and stream; `advance` plays its hooks; `load`
+   has each module check and migrate its own slice. The other commands do not take it, as the story
+   names three: they open a save with the probe's slice warning "No installed module owns the slice
+   "probe": it is kept and never read", and an action writes the slice back as it was. `advance`
+   without `--modules` on such a save plays without the probe, its slice and stream untouched. A
+   module is installed for each invocation, as the harness installs one for each run: a save holds
+   slices, not a list of the modules it was played with; the usage text says so, and data-model
+   §3.4 now does too.
+2. **The web's switch: the query parameter `modules`**, `?modules=probe`, comma-separated, parsed by
+   `modulesFromQuery` in `web/src/state/modules.ts` (only `state/` imports engine values, M7-S2)
+   and read once, as the page mounts (`App`, `useState`), so the page's modules are the same for its
+   lifetime. An id the page does not know installs nothing: a page cannot refuse its own address,
+   so it says what it did install instead, in its footer, "Installed for testing: the probe
+   module.", and says nothing without the switch. **The modules are the reducer's deps, not its
+   state:** `gameReducer(state, action, modules)` and `useGame(initial, modules)` take them, none
+   by default (`noModules`), and every engine call a play makes installs them: `createWorld` for a
+   new game, `deserialise` for a load, `advance`, `fastForward`, `applyAction` and `rebase`
+   (`playDeps(document, modules)`, `engineDeps(modules)`). With none, the deps have no `modules`
+   key, exactly the deps the reducer's tests already assert, so the page plays as it did. Modules
+   are code, fixed for the page, so they are not kept in `GameState`, which the page's tests build
+   and compare. A game started with the probe keeps its slice in a save kept in IndexedDB or
+   exported; loaded without the parameter, the engine's `unknown-module` warning is among the load's
+   warnings the page already shows.
+3. **The probe is now in the web bundle.** This supersedes DL-78 item 1's "the web build holds none
+   of it": a switch that works in the built page needs the probe's code there, and the Playwright
+   specs, like the deployed page, run the built bundle, not the dev server. A separate test build
+   would prove a bundle other than the one deployed. `npm run build -w web` passes the gate at
+   495.86 kB (144.60 kB gzipped), against M7's close at 481.59 kB (140.03 kB); the difference holds
+   M8-S1 to M8-S3's contract code as well as the probe, and was not separated. Once M8 is deployed,
+   the public page accepts `?modules=probe`: no control on the page sets it, the footer says when it
+   is on, and nothing else changes for a player who does not type it.
+4. **One sentence for any module's event, in both front ends:** `The <module> module recorded
+   <type> for <who>.`, the module named by the type's namespace (every module event is `<module
+   id>.<what-happened>`, DL-77), then its type, then the entities it concerns by their labels,
+   joined as the maps join a list: the CLI adds a Hero's id, as its other lines do ("The probe module
+   recorded probe.fired for Una Greave (hero-000023), Ranulf Tarrant and The Hollin Guild."); the web
+   names alone, an entity without a label by what it is ("a Hero", "someone"). With no participant
+   the sentence ends at the type; a type with no namespace, which no module's `emit` makes, reads "A
+   module recorded …". The payload is never read, so a payload of any shape narrates and nothing
+   throws. It replaces DL-77's "A module's event: probe.fired.". Neither front end words the probe's
+   own event: the probe is test-only, and a front end that words one module's events is the
+   module's own UI the epic defers (§0).
+5. **Box 1's seed is `modules`.** The probe draws one number a night from its own stream, seeded by
+   the seed and its name alone (DL-76, DL-78), so the first night its draw falls below the threshold
+   depends on the seed alone; it fires then if a Hero on a Roster stands ready, as many do in the
+   first Days of a new game. On `modules` its eleventh draw is the first below 0.02: it fires on
+   Turn 11, the night of Day 3, before its first stop (Day 30). Found by playing candidate seeds with the probe installed. Proved in the CLI by
+   `cli/src/main.test.ts` (`new --modules probe`, `advance --turns 11 --modules probe`: the
+   sentence at Turn 11, the save equal to the engine's own eleven Turns with the probe, its effects'
+   events on the lines after it); in the web by `web/src/app.test.tsx` (the page opened at
+   `?modules=probe` in jsdom, a game started from the form and eleven Turns advanced: the sentence at
+   "Day 3, night" in "Since your last action", and without the parameter neither it nor the footer's
+   line) and by `web/e2e/modules.spec.ts`, the same in the built page at both widths.
+6. **The close-out lines are written as done.** ADR-0005's amendment gains a line "Closed
+   2026-09-27" naming the tag `m8-modules`; `plan.md` §2's M8 row reads "Done 2026-09-27
+   (`m8-modules`)" and a line under the table says the first build was completed on 2026-09-27, with
+   Random Events, §4's first line, the next work. The tag and Random Events' GitHub issue are the
+   orchestrator's, made right after the M8 close's tagged run (DL-81), so the epic's second box,
+   "The M8 tag exists", is left unticked with a note, and M8's Status line is not set to done.
+7. **The time the first build took, in the epics' README**, since it was not made in the sessions the
+   estimate counts: per milestone, the wall-clock span from the first to the last commit whose
+   subject begins with its name (`M3-S2: …`, `M3 verify: …`, `M3 close: …`), by committer date at
+   UTC+10 from `git log --all`, merges not counted, beside the planned sessions and their 2–3 hours
+   each. M8 is measured to M8-S3, the last commit before the table was written. The spans overlap,
+   because agents worked several stories and milestones at once, and they hold waiting (harness
+   sweeps, overnight balance passes) as well as work, so the README gives three totals and says
+   which is which: the spans' sum, 90 h 26 min; the time at least one milestone was open, 42 h 39
+   min; and the elapsed clock from M0's first commit (2026-09-26 00:41) to M8-S3 (2026-09-27 21:45),
+   45 h 05 min, beside the 60–78 sessions (120–234 hours) planned. No record of agents' working time
+   or compute was kept, and none is claimed.
+8. **No module installed still changes nothing.** This story changes the CLI, the web and documents,
+   not the engine; without a switch neither front end passes a `modules` key, and every existing
+   CLI, reducer and page test passes unchanged but for the module sentence. The 200 × 20 byte
+   identity proof is the M8 close's (DL-81).
+
+**Consequences.** The module contract reaches both front ends: a module's events are in both logs,
+its stop is said in both (DL-77), and a game made with it saves, loads and plays on with it
+installed. Random Events, the first real module, will need what the probe did not: to be installed
+by default, and a save that says which modules it needs, so a front end need not be told each time;
+both are its decisions, with a DL, and both switches here stay as they are for the probe.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

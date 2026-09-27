@@ -394,11 +394,28 @@ describe('every sample in so many words', () => {
     if (typeof sentence === 'string') expect(narrate(event, narration)).toBe(sentence);
     else expect(narrate(event, narration)).toMatch(sentence);
   });
+});
 
-  test("a module's own event, which the engine does not type, is named by its type (M8-S2)", () => {
-    const fired = { ...samples['guild.founded'], type: 'probe.fired', payload: { effects: [] } } as unknown as ModuleEvent;
+describe("a module's own event: one generic sentence for any type, never a crash (M8-S4)", () => {
+  /** An event a module made, as the History holds it: the page knows neither its type nor its payload. */
+  function moduleEvent(type: string, participants: string[], payload: unknown): ModuleEvent {
+    const named = Object.fromEntries(participants.flatMap((id) => (labels[id] === undefined ? [] : [[id, labels[id]]])));
+    return { type, turn: 9, participants, labels: named, milestone: false, payload } as unknown as ModuleEvent;
+  }
 
-    expect(narrate(fired, narration)).toBe("A module's event: probe.fired.");
+  test("names the module, from its type's namespace, the type, and who it concerns, by name alone", () => {
+    const fired = moduleEvent('probe.fired', [heroId, patronId, guildId], { roll: 0.01, effects: [] });
+
+    expect(narrate(fired, narration)).toBe('The probe module recorded probe.fired for Brenna Ashcombe, Lady Maud and The Kestrel Guild.');
+  });
+
+  test.each([
+    ['a module the page has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather module recorded weather.storm-broke.'],
+    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger module recorded ledger.balanced for The Kestrel Guild.'],
+    ['a participant with no label, by what it is', moduleEvent('probe.fired', ['hero-000099', 'not-an-id'], undefined), 'The probe module recorded probe.fired for a Hero and someone.'],
+    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A module recorded mystery for Brenna Ashcombe.'],
+  ])('%s', (_name, event, sentence) => {
+    expect(narrate(event, narration)).toBe(sentence);
   });
 });
 

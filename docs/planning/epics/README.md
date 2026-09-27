@@ -36,6 +36,49 @@ here.
 A session is the unit of the estimate because it is the unit the owner has: intermittent
 hours. A story that will not fit in two sessions is split before it starts, not during.
 
+### What the first build actually took
+
+The first build was not made in human sessions. Agents built it between 2026-09-25 and 2026-09-27
+(M0's first commit is 2026-09-26 00:41 at UTC+10, the afternoon of 2026-09-25 in UTC), working the
+stories this plan sets out, with the owner's decisions (the pre-M0 review, the answers in
+INPUTS-REQUIRED) taken before and during it. So there is no count of sessions to set beside the
+estimate; what can be counted is the wall clock.
+
+| Milestone | Planned sessions | At 2–3 h a session | First commit | Last commit | Wall-clock span |
+| --- | --- | --- | --- | --- | --- |
+| M0 | 3–4 | 6–12 h | 2026-09-26 00:41 | 2026-09-26 01:06 | 0 h 25 min |
+| M1 | 12–14 | 24–42 h | 2026-09-26 01:02 | 2026-09-26 02:35 | 1 h 33 min |
+| M2 | 12–16 | 24–48 h | 2026-09-26 02:39 | 2026-09-26 07:10 | 4 h 32 min |
+| M3 | 6–7 | 12–21 h | 2026-09-26 06:48 | 2026-09-26 14:00 | 7 h 12 min |
+| M4 | 7–9 | 14–27 h | 2026-09-26 07:56 | 2026-09-26 19:33 | 11 h 37 min |
+| M5 | 6–8 | 12–24 h | 2026-09-26 10:59 | 2026-09-27 00:12 | 13 h 13 min |
+| M6 | 4–6 | 8–18 h | 2026-09-26 14:43 | 2026-09-27 13:56 | 23 h 13 min |
+| M7 | 6–8 | 12–24 h | 2026-09-26 14:41 | 2026-09-27 17:51 | 27 h 10 min |
+| M8 | 4–6 | 8–18 h | 2026-09-27 20:13 | 2026-09-27 21:45, M8-S3 | 1 h 32 min so far |
+| **All** | **60–78** | **120–234 h** | 2026-09-26 00:41 | 2026-09-27 21:45 | **45 h 05 min** elapsed |
+
+**How it was counted.** From `git log --all`, by committer date in the commits' own time zone
+(UTC+10). A milestone's commits are those whose subject begins with its name: its stories
+(`M3-S2: …`), its verification (`M3 verify: …`) and its close (`M3 close: …`). Merges are not
+counted; the release merge that carries each tag falls within a minute of the milestone's last
+commit. A span runs from the first of them to the last. M8's is measured to M8-S3, the last commit
+before this table was written: M8-S4, which writes it, and the M8 close with its tagged run of the
+first build come after it and are not in the table.
+
+**What the spans are not.** They are not effort, and they do not add up. Agents worked several
+stories, and several milestones, at once, each in a worktree of its own: M7-S1 began while M4 was
+still open. The nine spans sum to 90 h 26 min; the build's clock ran 45 h 05 min from M0's first
+commit to M8-S3, and for 42 h 39 min of that at least one milestone was open. A span also holds
+waiting as well as work: the harness sweeps, from M3 on 200 seeds × 20 years, which take 40 to 75
+minutes each on this machine; balance passes run overnight (M6's close, from its counters to its
+run, spans 02:36 to 11:46 on 2026-09-27); and any time in which no agent was running. No record of
+agents' working time or of compute was kept, so neither is reported.
+
+**Beside the estimate.** The plan counted 60–78 sessions, 120–234 hours of one person's time
+against no calendar. The build took 45 hours of wall clock, made by agents in parallel. The two are
+not the same unit, and the table says nothing about how long a story takes a person; the estimate
+stands as the plan's for work a person does.
+
 ## 2. Sequence
 
 ```mermaid

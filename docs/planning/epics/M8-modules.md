@@ -4,7 +4,7 @@
 **Sessions:** 4–6 · **Depends on:** M7 · **Implements:** `plan.md` M8; N6; ADR-0005 as amended 2026-09-25; `data-model.md` §3.4
 **Gate:** the module contract exists; a test-only probe module registers a slice, a stream and all three hooks, changes core tables only through the effects API, and requests a stop; the harness with no module installed is byte-identical to M7's tagged run
 
-**Status:** in progress — M8-S1 to M8-S3 done
+**Status:** in progress — M8-S1 to M8-S4 done
 
 ## 0. What lands in M8
 
@@ -142,8 +142,23 @@ sessions actually spent. `plan.md` §4's first line — Random Events — become
 
 **Acceptance:**
 
-- [ ] A `probe.fired` event is visible in both front ends' logs on a seed known to fire one
-- [ ] The M8 tag exists; `plan.md` says the first build is complete and when
+- [x] A `probe.fired` event is visible in both front ends' logs on a seed known to fire one —
+      seed `modules`, on which the probe's stream first draws below 0.02 on the eleventh Turn, the
+      night of Day 3. CLI: `cli/src/main.test.ts` ("--modules: the test-only probe"): `new --modules
+      probe` then `advance --turns 11 --modules probe` prints "The probe module recorded probe.fired
+      for …" at Turn 11, the engine's own event narrated, its effects' events after it; `advance
+      --until` and `load` take `--modules` too, and without it the probe's slice is warned of and kept.
+      Web: `web/src/app.test.tsx` (the page opened at `?modules=probe`, a game started from the form
+      and eleven Turns advanced: the sentence in "Since your last action" at "Day 3, night", and the
+      footer's "Installed for testing: the probe module."; without the parameter, neither), the
+      reducer threading the modules to every engine call (`web/src/state/reducer.test.ts`), and
+      `web/e2e/modules.spec.ts` in the built page at both widths (`npm run e2e -w web`, 20 of 20).
+      Both narration maps give any module event type one generic sentence, never a crash
+      (`cli/src/narrate.test.ts`, `web/src/state/narrate.test.ts`) (DL-79)
+- [ ] The M8 tag exists; `plan.md` says the first build is complete and when — `plan.md` §2 now says
+      the first build was completed on 2026-09-27, tagged `m8-modules`, with Random Events next, and
+      ADR-0005's amendment has its closing line; the tag is the orchestrator's, made after the M8
+      close's tagged run (DL-81), so this box is left for it (DL-79)
 
 ## 2. Configuration and events introduced
 
