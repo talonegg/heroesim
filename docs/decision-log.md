@@ -4844,6 +4844,582 @@ migration. Both lines had used 11 and 12 for different content.
 and the thinner Loot of DL-62; the M6 close's run (DL-69) measures them together. The M5 report's
 Transfers row and the M6 counters remain the close's work.
 
+## DL-64 — The web workspace: its pins, a build that opens from the filesystem, the bundle gate and what it covers (M7-S1)
+
+**Status:** Accepted · **Date:** 2026-09-26 · **Decided by:** an agent (M7-S1's implementer)
+
+**Context.** M7-S1 makes `web/` a Vite + React application (INPUTS 7.7). The epic has it harvest
+v1's `check-bundle.mjs`, its `vite.config.ts` with `base: './'`, its `import.meta.glob` content
+load and its Playwright project (`feature/poc`, E8). The boxes: `npm run build -w web` produces a
+`web/dist/` that opens from the filesystem; the bundle gate fails a build containing a deliberate
+`fetch(`; the browser's content set deep-equals the Node entry's; the engine still has no
+dependency. v1's DL-29 measured that a Vite build does **not** open from the filesystem in Chromium
+and left the box's wording to the owner; the v2 epic states the box again.
+
+**Decision.**
+
+1. **Pins** (`web/package.json`, exact; npm's `latest` on 2026-09-26). `dependencies`: `react` and
+   `react-dom` 19.3.0. `devDependencies`: `vite` 8.3.1, `@vitejs/plugin-react` 6.1.1, `@types/react`
+   and `@types/react-dom` 19.3.0, `jsdom` 30.1.1, `@testing-library/react` 16.3.3,
+   `@playwright/test` 1.63.0. **Pins a peer forced:** `@testing-library/dom` 10.4.2 is added, because
+   it is a required peer of `@testing-library/react` that npm would otherwise install unpinned; `vite`
+   8.3.1 is the version the lockfile already held as Vitest 5.0.2's required peer (DL-14 item 1),
+   now declared, and satisfies `@vitejs/plugin-react`'s `^8.0.0`. No package here constrains
+   TypeScript, which stays 6.0.3 (DL-14 item 1). npm hoists all of it to the root `node_modules`;
+   `engine/package.json` still declares nothing, and M0's "declares no dependency of any kind" test
+   passes.
+2. **Installing the tooling now needs Node 22.22.2 or later.** `jsdom` 30.1.1 and three of its
+   dependencies declare `node: ^22.22.2 || ^24.15.0 || >=26.0.0`, and `.npmrc` sets
+   `engine-strict=true`, so `npm ci` refuses an older Node 22. The effective floor was already 22.13
+   (ESLint 10). `engines` stays `>=22` (ADR-0007): the page needs no Node at all, and CI's
+   `node-version: '22'` takes the latest 22 (22.23.3, released 2026-09-23). Should CI ever need an
+   older 22, `jsdom` 29.1.1 (`^22.13.0`) is the fallback.
+3. **The build is one classic script, so `web/dist/` opens from the filesystem.** Measured again in
+   Playwright's Chromium (153) on `file://…/web/dist/index.html`: Vite's `<script type="module"
+   crossorigin>` is refused ("blocked by CORS policy: Cross origin requests are only supported for
+   protocol schemes: … http, https") and `#root` stays empty, as v1 found. `vite.config.ts` therefore
+   builds one IIFE (`build.rolldownOptions.output.format: 'iife'`), and a build-only plugin rewrites
+   the entry tag to `<script defer src="./assets/index-….js">`. A classic script is not fetched
+   under CORS from `file://`, and `defer` runs it after the document is parsed, as a module script
+   runs. A stylesheet is injected by the script in this format (tried with a probe stylesheet from
+   `file://`: applied). The price is no code splitting and no top-level `await` in the page; M7
+   needs neither (no router, §0). The dev server is unchanged. `base: './'` and
+   `modulePreload: { polyfill: false }` are kept from v1.
+4. **The content load.** `web/src/content.ts` globs `../../content/*.json` as raw text, excluding
+   `package.json` and `tsconfig.json` by negative pattern so the package's manifests never enter the
+   bundle, keys each file by its name and calls `parseContent`. It does not call `validateContent` a
+   second time: `parseContent` returns `validateContent(set)` (`content/src/parse.ts`), which is all
+   the Node entry's `loadContent` does, so the browser runs the Node path exactly. The epic's
+   "`parseContent` + `validateContent`" is that one call.
+5. **The bundle gate** is v1's `check-bundle.mjs`, refusing what it refused: `fetch(`,
+   `XMLHttpRequest`, a quoted `node:` specifier, `process.env`, and any `http(s)://` literal off the
+   allow-list, comments stripped first. One change: it takes the directory to check as an optional
+   argument (`web/dist` by default), so a test can gate a build made elsewhere. v1's allow-list is
+   kept whole and is still exactly what React 19.3's production build carries: the four W3C
+   namespace URIs, which are identifiers passed to `createElementNS`, and `https://react.dev/errors/`,
+   which appears only in an error's text. The bundle holds no other URL. Quoting the `node:`
+   pattern is what keeps minified React's `{node:n}` from tripping it.
+6. **The gate, tried.** With `onClick={() => void fetch("/api/save")}` added to the placeholder's
+   heading, `npm run build -w web` exited **1**, naming the file and the call:
+   ``assets\index-YFwz47Zm.js: contains fetch( — …onClick:()=>void fetch(`/api/save`)…``.
+   Reverted, it exited **0**: `check-bundle: 2 built files, no network or filesystem reference.`
+   `web/src/bundle.test.ts` keeps this proved: it runs
+   `vite build` into a temporary directory, without Vitest's `NODE_ENV=test` (which would bundle
+   React's development build and gate a different page), and the gate over the result; and it
+   fails fixture bundles holding each refused pattern. Being a Vitest test, the gate runs in CI,
+   which runs no `npm run build`.
+7. **What the gate adds to DL-16.** DL-16 left `fetch`, `localStorage`, `navigator` and `document`
+   passing the engine's lint, because the engine compiles against the DOM library. The gate now
+   refuses `fetch(` and `XMLHttpRequest` in engine code the page bundles, and only there: Rolldown
+   drops what the page does not import, and in M7-S1 the page imports content's pure entry and the
+   engine's types only, so no engine code is in the bundle yet. From M7-S2 the reducer imports the
+   actions and `advance`, which reach every phase, so every rule a player can set off is gated.
+   Engine code no page path reaches, and every Node run (CLI, harness, tests), stay unguarded, and
+   the gate knows nothing of `localStorage`, `navigator` or `document`. The gap is narrowed for
+   what the browser runs, not closed; closing it (restricted globals for those names in engine
+   source) is still DL-16's later decision, not taken here.
+8. **Lint.** `web/**` keeps M0's rule: engine and content by name, no subpath, no relative path into
+   another package, never the CLI. `web/src/**` source, `.ts` and `.tsx`, also imports no Node
+   built-in: the page runs in a browser. `web/src/**/*.test.{ts,tsx}`, which run on Node, may import
+   Node built-ins and `@heroesim/content/node`, the only way to compare the bundled content with the
+   Node entry's. The ignores for Playwright's output now match under `web/`.
+   `engine/src/boundary.test.ts` and `content/src/imports.test.ts` prove each rule on `.tsx` and
+   `.ts` probes.
+9. **Typecheck and tests.** `web/tsconfig.json` is a composite project with `noEmit` (Vite
+   compiles), `moduleResolution: Bundler`, `jsx: react-jsx`, the DOM libraries and `vite/client`'s
+   types; `tsc -b` checks `src`, `e2e` and both configuration files and writes nothing to
+   `web/dist`. The root `vitest.config.ts`'s `web` project has the React plugin, `jsdom` and
+   `src/**/*.test.{ts,tsx}`; a test that needs Node's `URL` (the content comparison) or a child
+   process (the build) declares `@vitest-environment node`.
+10. **Scripts.** `web`: `dev` (`vite`); `build` (`vite build && node scripts/check-bundle.mjs`);
+    `preview`; `e2e` (`npm run build && playwright test`, building first so a spec never runs
+    against a stale bundle). The root's `build` and `e2e` delegate to them. `playwright.config.ts` is
+    v1's, trimmed to Chromium at 360×800 and 1280×800; `e2e/smoke.spec.ts` renders the built page
+    served by `vite preview` and opened from `file://` (4 passed locally). CI is unchanged:
+    `@playwright/test` and `playwright` have no install script, so `npm ci` downloads no browser
+    (checked: a fresh `npm ci` left the browser cache as it was); browsers come only from
+    `npx playwright install` (INPUTS 7.10).
+
+**Consequences.** `web/` builds, gates and renders a placeholder that names the content set it
+loaded; M7-S2 adds the reducer and M7-S3 the views. A later story that wants code splitting undoes
+item 3 and loses the filesystem, and must say so. Checked under Node 22.23.3 with its npm 10.9.9 as
+well as 26.9.0 with npm 11.19.1: `npm ci`, lint and typecheck pass. `npm test` passed whole on 26.9.0
+(83 files, 1,547 tests); later runs on either version failed one test, the validator's 1,000-Hero
+timing (58 to 72 ms against 50), while other builds held the machine at 83% CPU. It fails the same
+way at `m5-integration`'s tip without this change and with the web project left out, and passes on
+its own: load, not this story.
+
+## DL-65 — The web's one reducer: a play accepted then settled, the engine never run inside React's reducer, the front end's own refusals, one map of sentences (M7-S2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S2's implementer)
+
+**Context.** M7-S2 asks for `web/src/state/reducer.ts`: `useReducer` over `{ document, log,
+rejection, busy }`, one action per engine action plus `advance`, `fastForward`, `newGame` and
+`load`. Each play runs under `{ ...defaultConfig, ...document.meta.config }`. A rejection is
+stored, never thrown. `busy` drops a second action that arrives before the first settles. A
+Vitest check makes sure only `state/` and `content.ts` import values from the engine. The boxes:
+the document is never mutated (freeze it, drive twenty actions); every `Rejection` kind renders
+as a sentence (one map, tested against the union); two taps on Advance in one batch drive one
+engine call. Two facts shaped the design. First, the History is appended in place and shared
+between documents (ADR-0008), so an engine call cannot safely be repeated. Second, M7's
+orchestration notes ask that fast forward, about 1.6 s for a year, not freeze the page without
+feedback, with `busy` and a visible state as the minimum.
+
+**Decision.**
+
+1. **The plays.** A Guild's action is the engine's own `GuildAction` without its `guildId`
+   (`PlayerAction`). The reducer fills in the player's Guild (`playerGuild`), as the CLI does, and
+   applies it with `applyAction`. So all twelve are covered by construction: dispatch with
+   consumables, recruit, build, equip, unequip, buy, sell, and the five Transfer actions.
+   `offerTransfer` is one of them, although only a player's Guild answers offers, so today it is
+   refused with `no-offer-needed`. Any action the engine later adds to `GuildAction` is covered
+   the same way. The other plays:
+   - `rebase`;
+   - `advance`, with an optional `turns` (default one), like the CLI's `--turns`;
+   - `fastForward`, with `until` and a `maxTurns` that defaults to `turnsPerYear`, as the CLI's does;
+   - `newGame`: the seed, the names, an optional Background and `createdAt`, all supplied by the
+     caller, so the reducer reads no clock or random source;
+   - `load`: a save's text.
+
+   Two bookkeeping actions, `settle` and `dismiss`, complete the set. Reducer actions use `kind`,
+   as the engine's actions do.
+2. **Deps follow the CLI's rule** (`cli/src/saves.ts`, data-model §2, D3).
+   - `load` runs `deserialise` with `{ config: defaultConfig, content }`, so the save's schema
+     version is compared and migrated (DL-20).
+   - Every play on a game runs under `{ ...defaultConfig, ...meta.config }`.
+   - `newGame` and `rebase` run under `defaultConfig`, never under the play deps.
+
+   Proved with spies that wrap the engine's real entry points. A save with `configVersion` 1, a
+   changed `boardSize` and no `transferLockDays` is passed to `advance`, `fastForward` and
+   `applyAction` with its own first two values and the default third. A schema-2 save whose config
+   says `schemaVersion` 2 is migrated to 3.
+3. **A play is accepted, then settled.** While the state is idle, `gameReducer` accepts a play by
+   setting `busy` and `pending`, and calls nothing. `settle` runs the engine on `pending`, stores
+   the result and clears both. A play that arrives while busy gets the same state back: it is
+   dropped. The state gains three fields beyond the epic's four:
+   - `pending`: the play accepted;
+   - `stoppedBecause`: why an `advance` or `fastForward` stopped, `null` after any other play the
+     engine carries out;
+   - `warnings`: a loaded save's content keys that the content does not define, which the CLI
+     prints.
+
+   A refusal keeps the document and `log` as they were. The next play the engine carries out
+   clears it, and so does `dismiss`. `log` holds the events of the last play carried out: for a
+   new game, the whole History it starts with; for a load, nothing.
+4. **The engine is never run inside React's reducer.** A throwaway probe, not committed, measured
+   the risk. With `useReducer(gameReducer)` under StrictMode (`main.tsx` uses it), one Advance
+   called the engine's `advance` twice, and the shared History gained 16 entries for a Turn of 8
+   events. React calls a reducer twice under StrictMode, and may replay queued updates.
+   - So `useGame` keeps the state in `useReducer` with a reducer that only stores the state it is
+     given.
+   - `useGame` runs `gameReducer` itself, on the latest state, which it keeps in a ref. The engine
+     therefore runs once per play, and a second play in the same batch finds the first already
+     accepted.
+   - An accepted play is settled only after the busy state has been painted: one animation frame,
+     then a separate task (just a task where there are no frames). So a year's fast forward shows
+     that it is busy instead of freezing silently.
+   - The engine is not run in chunks; M7-S3 may do that if it needs finer feedback.
+5. **The front end's own refusals**, in the engine's shape (`Rejection<action, reason>`):
+   - `newGame`: `guild-name-blank`, `guildmaster-name-blank`, `unknown-background`. These are
+     checked before `createWorld`, which throws on them, as the CLI's `new` checks them.
+   - `load`: one reason per `LoadRefusal` kind, with the engine's message.
+   - `no-game`: a play before there is a game.
+   - `no-player-guild`: a fast forward or a Guild's action on a save with no player's Guild,
+     which the validator allows.
+   - `game-ended`: a Turn or an action after the end, the CLI's `over` (DL-28, DL-53). `rebase`
+     is not refused, as the CLI's is not.
+6. **One map of sentences** (`state/rejections.ts`).
+   - *The key* is the kind: `<action> <reason>`, or the reason alone for the three refusals any
+     play can meet.
+   - *The type* is a mapped type over `PlayRejection`, so a kind the engine adds fails `tsc -b`
+     until it has words.
+   - *The test*, `rejections.test.ts`, has a table of samples typed the same way. It checks at run
+     time that the map's keys equal the table's, and it renders every sample as a sentence, with a
+     world and without one.
+   - *Checked by hand*: removing one entry from the map, or one sample from the table, fails
+     typecheck, and the first also fails three tests.
+   - *The words* are the CLI's (`cli/src/commands/*.ts`), adapted: names without ids, no pointers
+     to CLI commands, and `that Hero`, `that Guild` and so on for a name the world does not hold.
+   - *Kinds the CLI has no words for* are written in its manner: `offerTransfer no-offer-needed`,
+     `offerTransfer offer-pending` (the CLI has no `offer` command), and the front end's own.
+   - The map lives in `state/` because it reads the engine's `dayOf` and `playerGuild`.
+7. **The import check** (`web/src/imports.test.ts`). It parses every `.ts` and `.tsx` file under
+   `web/src`, tests included, with TypeScript's parser. Outside `state/` and `content.ts`, any
+   import, re-export or `import()` of `@heroesim/engine` must take types only. Snippets prove it:
+   among them, a component that calls `advance` is caught. Adding a value import to `app.tsx` was
+   tried, and the check failed as it should.
+8. **Lint.** `web/src/state/` reaches the page's `content.ts` as `../content`. M0's lexical rule
+   read that as a relative path into the content package. From `web/src/` a path needs two `../`
+   to leave `web/`, so the rule there now requires two or more; `web/`'s own root and `e2e/` keep
+   one. `engine/src/boundary.test.ts` proves both directions, and its new tests fail under the
+   old rule.
+9. **The page holds the game.** `App` gets the game through `useGame`, with `aria-busy` on
+   `main`, so from now on the engine is bundled and the gate covers it: 388.31 kB (114.34 kB
+   gzipped), "no network or filesystem reference" (DL-64 item 7). The views are M7-S3's.
+
+**Consequences.** M7-S3's components dispatch plays through `useGame` and render
+`rejectionSentence(state.rejection, state.document?.world ?? null, content)`. They show `busy`,
+and never call the engine; a number a view needs comes from a selector under `state/`, or from
+a new engine selector. M7-S4's `saves.ts`, which the epic puts outside `state/`, will need
+`serialise` and `deserialise`. So either it moves under `state/`, or the check allows it, with
+a DL. A load passes `load` the text. `npm run lint` and `npm run typecheck` pass. `npm test`
+passes 95 files and 2,045 tests, none skipped, 283 of them new. `npm run build -w web` exits 0
+through the gate. `npm run e2e -w web` passes 4. These were measured before this entry and the
+epic's ticks were written, and neither changes code.
+
+## DL-66 — The web's views, part 1: one column, the engine's dispatch preview, the front end's own narration in `state/`, stop reasons as buttons (M7-S3 part 1)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S3 part 1's implementer)
+
+**Context.** M7-S3 asks for the browser's views and actions in one column that stacks, in the
+order a Turn reads: the header, the Board with dispatch (pick Heroes and consumables, preview
+Synergies), the Roster with Hero pages (History newest first, paged), the Market, the Hall with
+build, the Rankings, and the log of events since the last action, narrated in the front end's own
+`narrate.ts`. Fast forward shows the stop reasons as buttons. A "new rules available" notice offers
+`rebase`. No component calls the engine. Its boxes: every event type has a sentence, with a test
+that enumerates the union; every CLI command has a browser equivalent, in a table ticked as built;
+Potential is never rendered, proved by a test that greps the rendered DOM; no horizontal overflow at
+360px (Playwright, M7-S4). The story is built in two parts. Part 1 is the shell, the header, the
+Board with dispatch, the Roster with Hero pages, time, the log and its narration, and the start of
+the table. Part 2 (DL-73) builds the rest. Two rules bind every view: nothing in `web/` computes a
+rule, since a number the player sees, a preview among them, comes from an engine selector
+(ADR-0007, principle 12); and only `state/` and `content.ts` import the engine's values (M7-S2,
+DL-65 item 7).
+
+**Decision.**
+
+1. **The layout.** One column, at most 44rem wide, with a 16px gutter at every width.
+   - *Sections.* The header, then Time, the Board, the Roster and "Since your last action"; before
+     there is a game, "A new game". Each section is a labelled region with its own heading.
+   - *Wide content.* The Stats table scrolls inside its own box, never the page. Names and
+     sentences wrap however long a word is; controls are at least 44px high.
+   - *Colours.* Tokens on `:root`, redefined for a dark scheme.
+   - *The stylesheet* (`web/src/styles.css`) is imported by `main.tsx`, and the one IIFE script
+     injects it (DL-64 item 3). The build is still two files.
+   - *Checked, not proved.* A scratch Playwright spec, not committed, measured
+     `scrollWidth ≤ innerWidth` at 360×800 and 1280×800 on a new game, a Guild with a 60-letter
+     name, an open dispatch form, a fast forward's stop and a Hero's page. It passed, and the
+     screenshots were read. The box stays M7-S4's.
+2. **The dispatch preview is the engine's.** The CLI's `preview` assembled its answer in
+   `cli/src/commands/preview.ts`: which requirements are met, who cannot go, the Synergies and how
+   many of the Quest's Encounters each reaches, the consumables and theirs, the reward agreed, and
+   dispatch's verdict, run on a `structuredClone` of the world. The browser may not do that, so it
+   moved into the engine:
+   - `engine/src/actions/dispatch.ts` exports **`dispatchRefusal(world, request, deps)`**:
+     dispatch's own checks, in its order, without sending anyone. `applyDispatch` now calls the
+     same two steps, and the preview needs no copy of the world.
+   - `engine/src/preview.ts` exports **`previewDispatch(world, request, deps)`**. It returns the
+     requirements with `met`, the problems, the Encounter kinds, each Synergy with its reach, each
+     consumable with how many are held and its reach, the consumables held, the reward offered and
+     agreed, and the refusal. It returns `null` for a Quest not on the Board, and throws on
+     dispatch's programming errors.
+   - `engine/src/preview.ts` also exports **`skillsThatHelp(quest, content)`**, moved out of
+     `cli/src/render.ts` (DL-70).
+   - The CLI's `preview` and `show board` now read these. Their output is unchanged, and the
+     CLI's 268 tests pass untouched.
+   - `engine/src/preview.test.ts` checks each part against the selector it came from, and checks
+     that the verdict equals `dispatch`'s result for six requests and that the preview changes
+     nothing.
+   - No config field, event, content value or version changes.
+3. **Narration lives in `state/narrate.ts`.** The epic names "the front end's own `narrate.ts`" but
+   not its place. The sentences read engine values (`dayOf`, `regardBandNames`, `parseId`,
+   `compareByCodeUnit`, `entriesFor`), which only `state/` may import. So it sits beside
+   `rejections.ts`, for the same reason (DL-65 item 6), and the import check is not widened.
+   - *One map.* It is keyed by every `EngineEventType`, so `tsc -b` refuses a type the engine adds
+     until it has words.
+   - *The test.* `narrate.test.ts` has a sample of each type, typed over the union. It enumerates
+     the union at run time through the engine's `milestoneTypes`, which is keyed by every type.
+     Each sample renders as one sentence with no id. So do all the History entries of a month of
+     real play.
+   - *The words* are the CLI's (`cli/src/narrate.ts`), adapted as the refusals were:
+     - Heroes, Guilds, Patrons and Guildmasters by name, without ids.
+     - A Party as "<Guild>'s Party". `quest.taken` names the Heroes sent, not the Party's id.
+     - A Quest by its template's name. `questNamer` finds it from the Quest's row while there is
+       one, then from the History, since `quest.offered` names every Quest's template; "a Quest"
+       if neither knows it.
+     - A participant with no label as "a Hero", "a Guild" and so on.
+     - Each sentence capitalised.
+     - Stop reasons in the CLI's `narrateStop` words, without its pointers to commands.
+4. **Stop reasons as buttons.** Two readings, both built.
+   - *The fast forwards.* The stops the player may choose are buttons: "Fast forward" stops on
+     the always-on reasons and after a year, the reducer's default `maxTurns`. "Fast forward until
+     new Heroes join the pool" adds the opt-in `pool-refreshed` (B7).
+   - *Why it stopped.* A sentence, with a button where the CLI names a command:
+     - `decision-needed`: "Choose a Party on the Board";
+     - `party-returned`: "Read what happened", which goes to the log;
+     - `transfer-offer`: "Read the offer", to the log until part 2 builds the offers;
+     - `pool-refreshed`: "Read who joined", to the log until part 2 builds the pool;
+     - `max-turns`: "Fast forward again";
+     - `ended`: none.
+
+     Going to a section scrolls to its heading and moves focus there.
+   - *Advance* is one Turn a tap. The CLI's `--turns n` is fast forward's work here, and `--max`
+     is not offered.
+5. **The views read `state/selectors.ts`.** Components take plain rows of words and numbers. Each
+   number is a document field or the answer of an engine selector: `rankings`, `ageOf`,
+   `baseStat`, `effectiveStats`, `potentialHint` with `judgedHintBands`, `carriedGear`,
+   `regardBand`, `relationship`, `transferFee`, `moraleBand`, `holdings`, `entriesFor`, or the
+   three above. The words are the CLI's `show` views'. Beyond the CLI's views:
+   - the header also shows the seed, and the Rankings place as an ordinal ("2nd of 5 by Fame");
+   - Morale shows its band beside its value (`moraleBand`);
+   - each Hero has a whereabouts: at the Hall, injured until a night, away until the Party's
+     night, dead or retired.
+6. **A Hero's page, and paging.**
+   - A Hero's page shows their Milestones first, newest first, as `CONTEXT.md` says a Hero's page
+     always does. Then comes their History, newest first, 20 entries a page (`entriesFor` with
+     `from` and `limit`), with Newer and Older buttons.
+   - The log shows the last play's events oldest first, as the CLI prints them, 100 at a time,
+     and can keep to what concerns the player's Guild. That filter is the events whose
+     participants include it; `emit` adds a Hero's Guild to every event naming the Hero.
+   - Both page sizes are front-end constants (`historyPageSize`, `logPageSize`), not `GameConfig`
+     fields: the epic's §2 says the web adds no config.
+7. **Potential is never rendered.**
+   - *By construction.* No view row has a field that could hold Potential. The "Outlook" column
+     is the hint word.
+   - *The test.* `views/hero-page.test.tsx` sets every Hero's Potential to numbers found nowhere
+     else. It opens every Roster Hero's page from the page, turning through every History page,
+     and renders the page of every Hero in the world. Each time it searches the rendered DOM,
+     text and attributes, for the numbers and for the word "potential".
+   - *Tried.* Leaking the number into the outlook failed both tests; the change was reverted.
+     The test first failed on its own seed, "potential-never-rendered", because the header shows
+     the seed. The seed was renamed.
+8. **Smaller choices.**
+   - A new game's seed is a readable one made up with `Math.random`, as the CLI's is; the player
+     may change it. `web/src/seed.ts` copies the CLI's words, because the page may not import the
+     CLI.
+   - "Send the Party" is enabled only when the preview's verdict, dispatch's own, says it would
+     send. The reducer still refuses anything else.
+   - `App` takes an optional `initial` state, a test's way in.
+   - `rejections.ts` now exports `endingWords` for the header.
+9. **The table** of CLI commands and their browser equivalents is in the epic's M7-S3 section.
+   Nine rows are built and ticked. The second box stays unticked until part 2 builds the rest.
+
+**Consequences.** Part 2 (DL-73) builds the Market, the Hall with build, the Rankings and the Guilds,
+the pool and recruiting, other Guilds' Rosters, Transfers and offers, the Guildmaster, the Patrons,
+the whole History, the rebase notice and `help`'s equivalent. It re-points the `transfer-offer` and
+`pool-refreshed` buttons, and ticks the table. M7-S4 adds saves and the 360px Playwright box.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 99 files and 2,135 tests, none
+skipped; 90 of them are new. `npm run build -w web` exits 0 through the gate: 439.64 kB (128.83 kB gzipped), "no network
+or filesystem reference". `npm run e2e -w web` passes 4.
+
+## DL-67 — Saves kept in the browser: gzip in IndexedDB, one path from a save's text to the game, the journeys, and a twenty-year round trip of 3.6 s (M7-S4)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S4's implementer)
+
+**Context.** M7-S4 asks for `web/src/saves.ts`. `save(name, document)` serialises with the engine's
+`serialise`, compresses with `CompressionStream("gzip")` and stores a Blob in IndexedDB under
+`heroesim.saves`. `load(name)` reverses it and runs `deserialise`. `export(name)` downloads the
+uncompressed JSON the CLI reads, and `import(file)` reads a file. Where IndexedDB is unavailable,
+`saves.ts` reports a typed failure and the page runs without saving, with one Playwright spec with
+storage blocked (the epic's §3). The Playwright journeys run at 360×800 and 1280×800: a new game, a
+Day advanced, a dispatch, fast forward until the Party returns, a save, the page reloaded, the save
+loaded, the same Turn read; then an export, which a Node test loads with the CLI's loader. The boxes:
+a 20-year save round-trips through IndexedDB under 1 s and its compressed size is recorded (a
+measure); the exported file is byte-identical to `serialise(document)`; both journeys pass locally.
+The story also proves M7-S3's fourth box, no horizontal overflow at 360px. DL-65 noted that
+`saves.ts`, outside `state/`, may not import `serialise`; DL-73 left `saveText` in
+`state/game-file.ts` for it.
+
+**Decision.**
+
+1. **`web/src/saves.ts`, where the epic puts it, takes no engine value.** It takes `saveText` from
+   `state/game-file.ts`, which is the engine's `serialise` byte for byte (`state/game-file.test.ts`),
+   and the engine's types. So `saves.ts` does not move and the import check (DL-65 item 7) is not
+   widened.
+   - *The store.* The IndexedDB database `heroesim.saves`, version 1, has one object store, `saves`,
+     keyed by the save's name. A record is `{ name, savedAt, data }`: `data` is the gzip Blob,
+     `savedAt` the browser's clock as an ISO string, never read by a rule. A write is reported only
+     once its transaction has committed.
+   - *The calls* are the methods of one `Saves` object, so `export` and `import` keep the epic's
+     names: `list`, `save`, `load`, `export`, `import`, `remove`. Each resolves to `{ ok: true, value }`
+     or `{ ok: false, failure }`, the engine's shape, and never throws.
+   - *The failures* (`SavesFailure`): `unavailable`, the browser keeping nothing for the page, with its
+     words; `name-blank`; `missing`; and `failed`, a read or a write the browser refused (storage
+     full, a damaged save). `savesFailureSentence` gives each a sentence, tested kind by kind.
+   - *Compression* runs through `Response` streams, and a Blob is read with `arrayBuffer()`, not
+     `stream()`, which jsdom's Blob lacks.
+2. **`load(name)` returns the save's text, and the reducer's `load` play runs `deserialise`.** The
+   epic has `load` run `deserialise` itself. Here a save becomes the game in one place only: the
+   reducer's `load` play, which reads it under the engine's own config (DL-20, DL-65), turns a refusal
+   into the page's sentence, and is how a file is loaded (DL-73). Running `deserialise` in `saves.ts`
+   too would parse a 20-year save twice, about 1.2 s each, or need a second play that takes a
+   finished document. `import(file)` likewise returns the file's text for that play; the page's file
+   picker now uses it. The round trip measured below includes the `deserialise`.
+3. **`export(name)` returns a `File`**: the save's text, uncompressed, of type `application/json`,
+   named `<name>.json`, with the characters no file system takes turned to `-` and `.json` never
+   doubled. The page hands it to the browser as a download from an object URL
+   (`views/download.ts`, now shared with "Export this game"). It is the text that was saved, which is
+   `serialise(document)` of the game saved.
+4. **Unavailable.** `browserSaves()` reads `globalThis`.
+   - *Known at once*, before any call, as `saves.unavailable`: no `indexedDB`; reading `indexedDB`
+     throws, as Firefox's does with storage blocked; no `CompressionStream`.
+   - *Known on opening*: a sandboxed frame's `SecurityError`, a private window's failed request. The
+     first call finds it, and every call after it is `unavailable` too; the database is opened once.
+   - *What the page does.* It says "This browser will not keep saves for this page, as in a private
+     window or with site data blocked (…). The game plays on; export it to keep it.", with the
+     browser's words in the brackets, and offers no Save. Everything else works, "Export this game"
+     included.
+5. **The page: "Saved in this browser".** No section, index entry or config is added.
+   - *Where.* It is a part of "This game", and of "A new game", where it offers the saves to load:
+     that is how a game comes back after the page is reloaded.
+   - *Saving.* A name field whose placeholder is the export's name, `heroesim-<seed>-day-<n>`, used
+     when the field is left blank, and "Save in this browser". A save under a name already kept
+     replaces it. "Saving…" is painted before the save text is written, which holds the page for
+     about a second in a 20-year game.
+   - *The saves*, newest first, each with when it was saved and its compressed size, and "Load",
+     "Export" and "Delete" (named "Load <save>" and so on); Delete asks again.
+   - *Loading* from the list, like loading a file, puts the save in place of the game in hand; both
+     sections' own words now say so.
+6. **The Vitest tests.** Node and jsdom have no IndexedDB, and the epic names no dependency to fake
+   one, so they run over a store that stands in for it (`saves.test-support.ts`, never bundled).
+   - `saves.test.ts` (Node, 17 tests): the gzip checked with Node's `zlib`; a load read back through
+     the reducer as the same game; the export byte-identical to `saveText`, for a game whose names go
+     beyond ASCII; the export's file name; replacing, the order of the list, removing, a missing name,
+     a blank one, a write refused, a damaged save; import; and five ways of being unavailable, with
+     the browser's refusals stood in for.
+   - `views/saves.test.tsx` (jsdom, 9 tests) drives the same through the page's controls.
+   - *Tried.* Adding a newline to the export failed both export tests; reverted.
+7. **Playwright** (`npm run e2e -w web`, 16 passed).
+   - *`e2e/journey.spec.ts`*, at 360×800 and 1280×800. A new game, seed `e2e-journey`; a Day, three
+     Turns; a Party sent on the first Quest dispatch would send one to; fast forward until "The
+     Lantern's Party came home". The game is saved as `journey`, the page reloaded, `journey` loaded
+     from the list, and the same Day, time of day, Year and Wealth are read. "Export journey" is then
+     downloaded and compared with "Export this game" taken before the save: byte-identical.
+   - *The Node test.* The spec, which runs on Node, runs the CLI on the exported file: `node --import
+     tsx cli/src/main.ts load <file>`, with `HEROESIM_SAVE_DIR` a temporary directory. The CLI's
+     `load` reads it with its own loader (`readSave`, `openSave`), exits 0 and prints the same Turn;
+     the save it writes back is the exported file, byte for byte. Running the CLI keeps M0's rule
+     that nothing in `web/` imports it.
+   - *`e2e/no-storage.spec.ts`.* First, the page in a sandboxed frame (`allow-scripts allow-forms`,
+     an opaque origin), where Chromium itself refuses: "SecurityError: Failed to execute 'open' on
+     'IDBFactory': access to the Indexed Database API is denied in this context." Then two refusals
+     stood in for by a script run before the page: an open request that fails, as in Firefox's
+     private windows (`InvalidStateError`), and no `indexedDB` at all. Each time the page says so, a
+     game starts, a Turn is played, and no Save is offered. A fourth test shows the same page offering
+     Save with storage kept.
+   - *`e2e/layout.spec.ts`, M7-S3's fourth box.* A Guild name of 73 characters, and a Guildmaster's name
+     with one word of 61 letters. Then, one after another: the new-game form, a new game, a Party being
+     chosen, a fast forward's log, a Hero's page, a pool Hero's page, a Rival's Guild page and one of
+     its Heroes' pages, the Rankings by Wealth, the oldest page of the History, a save with a
+     128-character name with its delete asked for, and the new-game form over a game. At each,
+     `document.documentElement.scrollWidth` is at most its `clientWidth`. The journey checks the same
+     at each step. *Tried:* `white-space: nowrap` on a save's name failed the phone's run ("984px wide
+     in a viewport 360px wide"); reverted.
+   - *`smoke.spec.ts`* still passes, served and from `file://`. Chromium keeps IndexedDB for a
+     `file://` page, and the saves are offered there.
+8. **The measure (box 1) is not met: a round trip takes about 3.6 s.**
+   - *The sample.* `npm run harness:sample` wrote `seed-0001`'s game: 20 years to Turn 21,600 (Day
+     7200), 285,419 History entries, 113,281,366 bytes (108.03 MiB).
+   - *The run.* `npm run measure -w web` runs `e2e/twenty-years.measure.ts` under its own config in
+     desktop Chromium 153, on the built page, on this machine. It loads the sample through the file
+     picker, then three times saves it as `twenty-years`, reloads the page and loads it from the
+     list. Each is timed in the page, from the button's click to the DOM showing it done.
+
+     | | Round 1 | Round 2 | Round 3 |
+     | --- | --- | --- | --- |
+     | Save: serialise, gzip, committed | 2,478 ms | 2,364 ms | 2,327 ms |
+     | Load after a reload: read, gunzip, `deserialise`, the game shown | 1,313 ms | 1,274 ms | 1,286 ms |
+     | Round trip | 3,791 ms | 3,638 ms | 3,613 ms |
+
+   - **Compressed size: 12,662,505 bytes (12.66 MB, 12.08 MiB), 8.9 to 1.** Node's `zlib` gzip of the
+     same text is the same size.
+   - *Where the time goes.* Storage alone, without the engine: reading the Blob from IndexedDB 10 ms,
+     gunzip 239 ms, gzip 1,223 ms, writing the Blob 4 ms. On Node, for comparison, `serialise` takes
+     about 1.0 s, `deserialise` 1.2 to 1.3 s (0.3 s of it `JSON.parse`) and zlib's gzip 1.1 s. Loading
+     the sample through the file picker took 1,177 ms. So the time is the engine's `serialise` and
+     `deserialise` of a 113 MB document and gzip at its default level; IndexedDB itself takes
+     milliseconds.
+   - *Left unticked.* Under 1 s would need a smaller save, or one read without parsing all of it. Those
+     are data-model §7's levers and the owner's call; the targets are recorded, not chased (DL-08).
+     The box stays unticked with the figure and the reason beside it.
+   - *Nothing changed on the way.* The save kept, exported, is the sample byte for byte.
+   - *Data-model §7.* "Save after 20 years: under 20 MB" is missed uncompressed (113 MB) and met
+     compressed (12.7 MB). "Load a save: under 1 s" is missed, at about 1.3 s.
+9. **Box 2 is met** in Vitest and in Chromium. `saves.test.ts` and `views/saves.test.tsx` compare the
+   export's bytes with `saveText`, which is `serialise`. In Chromium, the journey's export from
+   IndexedDB equals the direct export, and the measure's equals the sample `serialise` wrote on Node.
+10. **Smaller changes.** `web/package.json` gains `measure` (`npm run build && playwright test -c
+    playwright.measure.config.ts`), and `web/tsconfig.json` checks that config. The measure never runs
+    in `npm run e2e`, which needs no sample; it fails only if the round trip changes the game, never on
+    a time. The Playwright specs share `e2e/support.ts`. Playwright still never runs in CI (INPUTS 7.10).
+
+**Consequences.** The page keeps games in the browser and brings them back after a reload, and an
+exported save loads in the CLI. Where the browser keeps nothing, the page says so and plays on. M7-S3's
+fourth box is ticked, and M7-S4's second and third. M7-S4's first box is not: a 20-year round trip
+takes about 3.6 s against 1 s, and the owner decides what, if anything, follows. The measure is rerun
+with `npm run harness:sample`, then `npm run measure -w web`. M7-S5 deploys a page that saves.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 106 files and 2,214 tests, none skipped;
+26 of them are new. `npm run build -w web` exits 0 through the gate: 478.53 kB (139.14 kB gzipped),
+"no network or filesystem reference". `npm run e2e -w web` passes 16.
+
+## DL-68 — The deploy, prepared: one command from this machine, wrangler fetched when it runs, and a test that keeps credentials and `.wrangler/` out of the repository (M7-S5)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S5's implementer)
+
+**Context.** M7-S5 publishes the page to Cloudflare Pages. INPUTS 7.8, answered by the owner:
+project `heroesims`, production branch `v1.0-release`, at `https://heroesims.pages.dev`. INPUTS 7.9,
+the default: a local deploy after `npx wrangler login` once on this machine, no secret anywhere, no
+deploy from CI. The epic's script is v1's (DL-30 on `feature/poc`), filled from 7.8. The boxes: the
+URL serves the build and a fresh browser creates a game and saves; the repository contains no token,
+account id or `.wrangler/` state, `.gitignore` gaining `.wrangler/`; `README.md` names the URL and the
+deploy command. This story prepares the deploy and never runs `wrangler`, its login or the deploy: the
+orchestrator deploys after the tag, and the first box is proved then, not here.
+
+**Decision.**
+
+1. **The command.** `web/package.json`'s `deploy` is the epic's:
+   `npm run build && npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release`.
+   The root gains `deploy`, which is `npm run deploy -w web`, as its `build` and `e2e` delegate
+   (DL-64 item 10). `npm run build` is `vite build` then the bundle gate, so what is uploaded is what
+   the gate passed, and Cloudflare runs no build. `--branch` is written out, never inferred from git
+   (v1's DL-30 item 3, the epic's §3). v1's `--commit-dirty=true` is not carried over: it only
+   silences wrangler's warning about uncommitted changes, and a release deployed from its tag should
+   have none, so the warning is worth seeing.
+2. **Wrangler is not a dependency** (v1's DL-30 item 4). `npx -y wrangler@4` fetches it when the
+   deploy runs, pinned to its major version. No manifest or lockfile names it, and a test keeps it so;
+   `npm ci`, `npm test`, the build and CI never touch it. No workflow changes, since 7.9 chose no CI
+   deploy.
+3. **`.gitignore` already held `.wrangler/`.** M0-S1 (`7cb012d`) added it, as M0's epic asked. Written
+   without a leading slash it matches at any depth, so it covers `web/.wrangler/`, where wrangler
+   writes when `npm run deploy -w web` runs it, as well as the root's. Nothing was added.
+4. **The check is a Vitest test, `web/src/deploy.test.ts`**, so it runs on every `npm test`, CI
+   included, as the bundle gate's test does. It asserts that:
+   - the deploy command is item 1's, the root delegates to it, and no manifest or lockfile holds
+     wrangler;
+   - `README.md` names the URL, `npm run deploy` and `npx wrangler login`;
+   - `git check-ignore` ignores wrangler's state at the root and under `web/`;
+   - no file sits under a `.wrangler/` directory. "File" here and below means every file `git ls-files`
+     lists as tracked, or as untracked and not ignored: what one `git add .` would commit;
+   - no file holds a Cloudflare credential given a value. The patterns are an account id (32 hex
+     digits after `account_id`, `accountId` or `account-id`), `CLOUDFLARE_API_TOKEN`,
+     `CLOUDFLARE_API_KEY` or `CLOUDFLARE_ACCOUNT_ID` or their `CF_` forms, an `oauth_token` or
+     `refresh_token`, and a bearer token. The names alone, a placeholder and a `${{ secrets.… }}`
+     reference pass, because the INPUTS register names the variables. Each pattern is proved on
+     fixtures assembled at run time, so the test holds no credential-shaped string itself. Binary
+     files are skipped.
+   - *Tried.* An untracked `web/probe-credentials.json` holding an account id failed the scan, which
+     named its file and line. The same account id in an ignored `web/.wrangler/cache/pages.json` did
+     not. Force-added, that file failed both the `.wrangler/` test and the scan. Each probe was removed.
+   - Wrangler's own credential files, under the user profile, were never read.
+5. **`README.md`** gains "Play", with the URL and the CLI, and "Deploy": the one-time
+   `npx wrangler login`, then `npm run deploy` from a checkout of `v1.0-release`, what it runs, why
+   `--branch` is given, and where wrangler keeps its state. Its line "Nothing is built yet", stale
+   since M1, now says the first build is under way. The document links sit under "Documents".
+6. **The build, and the page opening, proved here.** `npm run build -w web` exits 0 through the gate:
+   two files, `index.html` and one script of 478.53 kB (139.14 kB gzipped), "no network or filesystem
+   reference". `npm run e2e -w web` passes 16 of 16. Among them, the smoke spec renders `web/dist`
+   served and opened from `file://`, and the journey creates, plays, saves and reloads a game on the
+   served build, at both sizes.
+
+**Consequences.** M7-S5's second and third boxes are ticked. The first box is the orchestrator's,
+after the tag, and stays unticked: the URL serving the build, and a fresh browser creating a game and
+saving there. Whether the Pages project `heroesims` exists yet is not known here. If the first deploy
+reports that it does not, it must be created once with `v1.0-release` as its production branch
+(`npx wrangler pages project create heroesims --production-branch v1.0-release`, not run here); v1's
+DL-30 records what wrangler did when v1's project was created. The epic's Status reads "in progress —
+M7-S1 to S5 built; deploy pending". `npm run lint` and `npm run typecheck` pass. `npm test` passes 107
+files and 2,235 tests, none skipped; 21 of them are new.
+
 ## DL-69 — M6 close: the M6 counters, the Dispositions retuned and a season's Transfer lock (`configVersion` 10, content version 14), and the M6 run
 
 **Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close), choosing how each
@@ -5382,6 +5958,364 @@ corrected DL-40 and DL-41.
 **Consequences.** No rule, default or content value changes: `configVersion` stays 10, content
 version 14 and schema version 3. So DL-69's run and `harness/reports/m6-2026-09-27.md` stand, and
 the run is not repeated. DL-63 and DL-69 are read with item 1's corrections.
+
+## DL-72 — Merging the main line (M0 to M6 complete) into M7: both sides kept whole, no version changes
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (merging v1.0-dev into
+`m7-integration`), recording a merge; it chooses no default, content value or version
+
+**Context.** M7-S1 (`045f3e6`, DL-64) was built on `m5-integration`'s tip `83df01e`. Since then
+v1.0-dev (`7701073`) gained M4's close, M5's close, M6's stories, M6's close and their
+verifications: DL-40, DL-41, DL-47, DL-53, DL-55 to DL-63 and DL-69 to DL-71, 107 files, the
+Transfer actions, the Rival controllers' Dispositions, the Transfer Generator and the harness's
+M4 to M6 counters, at `configVersion` 10, content version 14 and schema version 3. M7's stories
+build against that engine, so the main line is merged in first.
+
+**Decision.**
+
+1. **One textual conflict: `docs/decision-log.md`.** Both sides had appended entries at the same
+   place, M7 DL-64 and the main line DL-55 to DL-63 and DL-69 to DL-71 (DL-40, DL-41, DL-47 and
+   DL-53 merged without conflict). Every entry of both sides is kept, word for word, in number
+   order: the merged log differs from v1.0-dev's only by DL-64's 105 lines. DL-65 to DL-68 stay
+   unused, reserved for M7's stories.
+2. **What each side kept.** The main line's changes to the engine, content, CLI, harness, reports,
+   documents and epics M3 to M6 are taken whole; of its 107 files M7-S1 had touched only the log
+   (item 1) and one test (item 3). M7-S1's
+   `web/`, `package.json`, `package-lock.json`, `eslint.config.js`, `vitest.config.ts`,
+   `engine/src/boundary.test.ts` and the M7 epic (its four S1 ticks and **Status** "in progress —
+   M7-S1 done") are kept whole; the main line changed none of them, nor any workspace manifest,
+   `tsconfig`, CI workflow, `.npmrc` or `.node-version`, since `83df01e`. So the workspaces and
+   pins are DL-64 item 1's: `npm install` changed nothing in the lockfile, and `npm ci` succeeds
+   (198 packages; Node 26.9.0, npm 11.19.1).
+3. **`content/src/imports.test.ts` merged without conflict, both additions kept**: the main line's
+   filter that leaves out `engine/src/boundary.test.ts`'s transient `boundary-probe-*` files, with
+   its test, and M7-S1's tests that `web/`'s `.test.ts(x)` files may import `@heroesim/content/node`
+   and a component may not. Checked for a semantic clash: M7-S1 made `boundary.test.ts` also write
+   `boundary-probe-*.tsx` probes into `web/src/`. The three tests that read source trees
+   (`content/src/imports.test.ts`, `engine/src/rng.test.ts`, `engine/src/controller-reads.test.ts`)
+   read only `engine/` and `content/` and filter probes by name, whatever the extension, so a web
+   probe cannot reach them. No change.
+4. **Semantic conflicts looked for; none found.**
+   - *Content.* The main line changed `content/src/parse.ts` and `validate.ts` and three content
+     files (content version 14). The page still reaches them through `parseContent` alone, and
+     `web/src/content.test.ts` (the bundled set deep-equals `loadContent()`'s, and the bundle holds
+     exactly `contentFiles`) passes.
+   - *The engine in the bundle.* In M7-S1 the page imports only the engine's types, so the M6
+     engine is not yet bundled; M7-S2's reducer will bundle it (DL-64 item 7). To know the gate
+     holds then, the entry was probed with `import * as engine from '@heroesim/engine'` kept alive
+     on `globalThis`, built into a scratch directory and gated: 393.35 kB (116.36 kB gzipped),
+     against the placeholder's 279.43 kB (82.53 kB), and "2 built files, no network or filesystem
+     reference". The probe was reverted; nothing of it is committed.
+   - *Types.* `tsc -b` checks `web/` against the M6 engine's types and passes.
+   - *What M7's later stories inherit.* The main line added the five Transfer actions and their
+     `TransferRejection` kinds, the events `hero.transferred`, `guild.transfer-offered`,
+     `guild.transfer-offer-declined` and `guild.transfer-offer-expired`, and the CLI's `transfer`
+     command. M7-S2's Rejection map, M7-S3's narration map and M7-S3's table of CLI commands must
+     cover them; the epic already names transfer among the browser's actions (§0). That is those
+     stories' work, not the merge's, and no epic text changes.
+5. **No version changes.** `configVersion` stays 10, content version 14, schema version 3, as the
+   main line left them; no default, content value or package version changes.
+
+**Consequences.** `m7-integration` holds M0 to M6 and M7-S1. `npm run lint` and `npm run
+typecheck` pass; `npm test` passes 91 files, 1,762 tests, none skipped (the main line's 1,732 and
+M7-S1's net 30); `npm run build -w web` exits 0 through the gate (279.43 kB, 82.53 kB gzipped);
+`npm run e2e -w web` passes 4 (served and from `file://`, at 360×800 and 1280×800). M7-S1's four
+boxes still hold, and the epic's ticks stand.
+
+## DL-73 — The web's views, part 2: the rest of the CLI in the browser, one engine selector for the rules notice, the game as a file, and the page's own words (M7-S3 part 2)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M7-S3 part 2's implementer)
+
+**Context.** Part 1 (DL-66) built the shell, the header, the Board with dispatch, the Roster with
+Hero pages, time and the narrated log, and nine rows of the epic's table of CLI commands. Part 2
+builds the rest: the Market (buy, sell), the Hall (build), the Rankings by Fame and by Wealth, the
+Unattached pool and recruiting, Transfers in and out, Transfer Offers accepted and declined, equip
+and unequip, and the "new rules available" notice with its `rebase` button (D1). With them comes every
+other CLI command still unticked: `show guilds`, `show roster|hall|guildmaster <guildId>`, `show
+patrons`, `show history`, `save --as`, `load` and `help`. The boxes: every CLI command has a browser
+equivalent (box 2); the event and Potential boxes (1 and 3) must still hold; box 4 (360px) is
+M7-S4's. The same rules bind as in part 1: nothing in `web/` computes a rule (ADR-0007, principle 12),
+and only `state/` and `content.ts` import the engine's values (DL-65 item 7).
+
+**Decision.**
+
+1. **One engine selector: `newRules(meta, config)`** (`engine/src/actions/rebase.ts`, exported). It
+   returns the game's `configVersion` and the later one of `config` while the game's is behind, and
+   otherwise `null`. The page passes `defaultConfig`, so the notice shows exactly while a `rebase`
+   would adopt newer rules. The action itself refuses only equal versions: a save from a later
+   release can still be rebased down, but no front end offers that. Three tests in
+   `rebase.test.ts`. No config field, event, content value or version changes.
+2. **No other engine change.** Every other number the new views show is a document field or an
+   existing selector's answer, the ones the CLI's views read:
+   - the Market: `marketStock`, `sellPrice`, `holdings`;
+   - the pool: `unattachedHeroes`, `signingFee` at the player's Guildmaster's Negotiation, and
+     `signingRefusal`;
+   - Transfers: `transferFee` at the paying Guild's Guildmaster's Negotiation, the rule
+     `transferIn` and `transferOut` charge by; and `offersTo`;
+   - the Guilds and the Hall: `upkeep`, `rankings`, `nextImprovement`;
+   - the Guildmaster and the Patrons: `ageOf`, `baseStat`, `regardBand` over `regardValue`,
+     `patronRegardFor` and `guildmasterRegardForGuild`;
+   - the History: `entriesFor`.
+3. **The views' rows live in `state/`**, beside part 1's `selectors.ts`:
+   - `world-views.ts`: the Guilds, the Rankings, another Guild's page, a Hall, a Guildmaster, the
+     Patrons and the History;
+   - `trade-views.ts`: the Market, the pool and the offers;
+   - `game-file.ts`: the save's text, its file name and the rules notice;
+   - `names.ts`: the name helpers they share. `selectors.ts` now uses them too, and exports
+     `linesOf` and `modifierWords`.
+
+   The words are the CLI's (`cli/src/render.ts`, `commands/market.ts`, `commands/transfer.ts`),
+   less the ids a command line takes. One change of word: a Guild's controller reads "Yours" for
+   the player's Guild where the CLI says "Player", as the page speaks to the player as "you"
+   throughout. `state/game.test-support.ts` holds the setups the page's tests need but may not
+   build themselves, since tests outside `state/` import only the engine's types: an offer made by
+   the engine's own `offerTransfer`, rules behind this release's, Items held, Wealth. Nothing imports
+   it but tests, so it is never bundled.
+4. **The page's order.** One column, in the order a Turn reads:
+   - the header, the rules notice when there is one, and Time;
+   - the Board, the Roster, the Transfer Offers and the Unattached pool;
+   - the Market, the Hall, the Guildmaster and the Patrons;
+   - the Rankings and the Guilds;
+   - "Since your last action", the History and "This game".
+
+   The epic's sections keep its order; part 2's sit beside the ones they concern. The page is now
+   long, so an index of links under the header takes the keyboard to each section's heading. A
+   refusal is sticky at the top of the viewport, so a refusal of a play made far down the page is
+   seen where it was made.
+5. **What each play looks like.**
+   - *Buy and sell* take a quantity, a whole number from 1. The input's `min` and `max` are the
+     numbers the Market shows, so a browser's own form check stops a purchase of more than is
+     there. Anything else the engine refuses, in its words.
+   - *Build* is one button per facility, naming the next Improvement; only the player's own Hall
+     has them.
+   - *Recruit* is a button on each pool card and on the Hero's page, which opens from the pool.
+   - *Equip, unequip and Transfer out* are on the player's Hero's page. Equip is offered for each
+     piece of gear the Guild holds; the engine picks the slot. Unequip is offered for each slot
+     that holds an Item. Transfer out picks the Guild from every other Guild in play, each shown
+     with the fee it would pay.
+   - *Take in* is on another Guild's Roster, which opens from the Guilds, and on its Heroes' pages.
+   - *Accept and decline* are on each Transfer Offer.
+   - *No preview.* Unlike dispatch, none of these plays is enabled only when it would succeed. The
+     CLI previews none of them, and the engine's refusal says why in a sentence. Whether a Guild
+     would consent is shown only by trying, as in the CLI.
+6. **The game as a file: `save --as` and `load`.** The CLI's `save --as <file>` writes the save as
+   canonical JSON, and `load <file>` makes a file the save.
+   - *Export.* "This game" offers "Export this game": a download of the game's `serialise`d text,
+     named `heroesim-<seed>-day-<n>.json`. It is the file the CLI writes. The download uses an
+     object URL and requests nothing, and the bundle gate still passes.
+   - *Load.* "Load a save file" reads the file chosen and hands its text to the reducer's `load`
+     play, which reads it under the engine's own config (DL-20, DL-65). It is offered before a
+     game and with one in hand. A save's unknown content keys are listed as the CLI's warnings.
+   - *A new game in place of one.* "Start a new game" shows the new-game form again, saying the
+     game in hand goes unless exported, with a way back. This is the CLI's `--force`, and it is
+     the "new game" button part 1 left for later.
+   - *What stays M7-S4's.* Saves kept in IndexedDB and their measure; the Node test that the CLI
+     loads an exported file; the Playwright journeys. `game-file.ts` is in `state/`, so M7-S4's
+     `saves.ts` can take `saveText` from it or join it there, answering DL-65's note on where
+     `serialise` may be imported.
+7. **The rules notice** (D1). While `newRules` is not `null`, the page shows a "New rules available"
+   section naming both `configVersion`s, with "Adopt the new rules" as a `rebase` play. The log then
+   narrates `world.rules-adopted`, and the notice goes.
+8. **The History.** The whole History or a Guild's, newest first, 20 entries a page, part 1's
+   `historyPageSize`; buttons go to the newest, newer, older and oldest pages. The CLI prints the
+   whole History oldest first. The page shows both newest first, as a Hero's page does, because
+   what the player wants first is what happened last. A folded Guild's History can still be chosen.
+   A Hero's History is on their page. The CLI's `show history <id>` for any other entity, a Patron
+   say, has no control of its own; the whole History holds those entries.
+9. **`help`: the page's own words.** Each section is a region with a heading and a sentence, its
+   accessible description, saying what the section is for and what its controls do. The sentences
+   are adapted from the CLI's usage text, without the numbers config sets (the fee factor). Each
+   control is named by what it does ("Recruit Una Barrowby", "Build Sickroom", "Take … in").
+   `app.test.tsx` holds every section to it, before a game and with one, and holds every button and
+   field to a name.
+10. **Stop buttons re-pointed** (DL-66 item 4). `transfer-offer` now reads "Answer the offer" and
+    goes to the Transfer Offers; `pool-refreshed` reads "See who joined the pool" and goes to the
+    pool.
+11. **Corrections to M7's earlier work**, found while building on it:
+    - *Where a Hero on no Roster is* (part 1). A Hero on no Roster was "at the Hall" on their page.
+      Now they are "in the Unattached pool", or "on no Roster" once they have left it.
+    - *The ending's refusal* (DL-65's map). It named "Turn 540", while the page names only Days and
+      its header says "The game ended on Day 180". It now names the Day. The CLI's own words keep
+      the Turn.
+    - *Busy text.* "Playing the Turns…" showed for any play; it now shows only while an advance or
+      a fast forward runs.
+    - *A comment.* `narrate.ts` pointed to a `stopActions` in `selectors.ts` that does not exist;
+      it now points to `nextFor` in `views/time.tsx`.
+12. **Box 3 still holds, over the whole page.**
+    - *What changed in the test.* The Guildmaster section now names the concept, in the CLI's words
+      for Judgement: "how sharp the Potential hints read". So `views/hero-page.test.tsx` searches
+      each Hero's page for the word, and the whole page, every section, for the sentinel numbers.
+    - *A new test.* It opens, from the page, every pool Hero's page and every Hero's page on every
+      Rival's Roster.
+    - *Tried.* Two deliberate leaks were each caught and then reverted. A pool row showing a
+      Potential number failed both page tests. A Rival's Roster row showing one failed the new test.
+13. **Box 4 checked, not proved.** A scratch Playwright spec, not committed, measured `scrollWidth ≤
+    innerWidth` at 360×800 and 1280×800. It covered a 67-character Guild name, every section after a
+    fast forward, and a Hero's page, a pool Hero's page, a Rival's Guild page and one of its Heroes'
+    pages, each open. It also covered the Rankings by Wealth, a refusal while scrolled, and the
+    new-game form over a game. It passed, and the phone screenshots were read. The box stays
+    M7-S4's.
+14. **The table** in the epic has every row ticked, and box 2 is ticked. The `new`, `show hero` and
+    `save --as`/`load` rows now say what is built.
+
+**Consequences.** Every CLI command has a browser equivalent, driven through the page's controls in
+`views/actions.test.tsx`, `views/world.test.tsx` and `app.test.tsx`. M7-S4 adds saves in IndexedDB
+beside "This game", the Node test of an exported file, the journeys and the 360px box. `offerTransfer`
+has no control: the CLI has no command for it, and only a player's Guild answers offers, so today it
+is always refused. `npm run lint` and `npm run typecheck` pass. `npm test` passes 104 files and 2,188
+tests, none skipped; 53 of them are new. `npm run build -w web` exits 0 through the gate: 470.61 kB
+(136.49 kB gzipped), "no network or filesystem reference". `npm run e2e -w web` passes 4.
+
+## DL-74 — M7 verification corrections: anyone the History names found by name, a load that closes the last game's pages, a journey that recruits, a bundle gate that reads every comment and URL, a build that refuses a Node built-in; tests that kill 29 surviving mutants
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M7 verification's fixer),
+on findings the verification confirmed; no engine rule, config default, content value or version
+changes
+
+**Context.** M7 (M7-S1 to S5 and the merge: DL-64 to DL-68, DL-72, DL-73; `045f3e6` to `c6f2199`)
+was verified by acceptance, boundaries, play, mutation and decisions passes, and each finding below
+survived a skeptic. In short:
+
+- one test timed out in most full runs;
+- the browser could not open a dead, retired or departed Hero, whom the CLI reaches by id;
+- no Playwright spec recruited, though the Gate says Playwright proves it;
+- the bundle gate could be blinded by two innocent strings, and let `ws://`, `wss://` and
+  protocol-relative URLs through;
+- three places said the gate refuses a Node built-in, which never reaches the bundle;
+- the import check missed a template-literal `import()`;
+- an open page survived loading another game;
+- the log's filter unticked itself after every play;
+- 29 mutants survived every test.
+
+DL-64, DL-65, DL-66, DL-67, DL-68 and DL-73 are accepted, so what changes or corrects them is
+recorded here, as DL-71 did for DL-63 and DL-69.
+
+**Decision.**
+
+1. **A test bounded, not sped up** (`views/hero-page.test.tsx`). "Potential is never rendered … on
+   the page of every Hero in the pool and on every Rival's Roster" opens every such page. It takes
+   2 to 3.5 s alone and 3.5 to 4.5 s in the web project. In a full `npm test` it timed out against
+   Vitest's 5 s default in 12 of the verification's 13 runs (5.1 to 6.3 s). The describe now
+   has `{ timeout: 30_000 }`, the repository's way with a slow test (`engine/src/boundary.test.ts`,
+   `rng.test.ts`): the timeout bounds a hang, not the speed.
+   - *Erratum to DL-68.* Its "`npm test` passes 107 files and 2,235 tests" held on the run it
+     reports, but not reliably on this machine.
+2. **Anyone the History names, found by name** (the CLI's `show hero <heroId>` and `show history
+   <entityId>`). In the twenty-year sample, 113 of 185 Heroes the world holds are dead and 36 are on a
+   Roster, and the History names 5,871 Heroes. The page opened a Hero only from a Roster or the pool.
+   - *The control.* The History gains "Find someone in the History by name". It lists every Guild,
+     Hero, Guildmaster and Patron the History has an entry for whose name holds what is typed, case
+     aside. Each is listed with what they are ("Hero, dead", "Hero, retired", "Hero, no longer in the
+     world", "Hero of The Lantern", "Guildmaster of …", "Patron", "Guild, folded"), 20 at most, in
+     name order, with how many matched.
+   - *What opens.* "Read <name>" makes them whose History is shown. A Hero the world still holds,
+     dead and retired ones included, opens on their page (`HeroPage`): Attributes, Stats with hints,
+     Milestones first, then their History. That is the CLI's `show hero` for any Hero. Anyone else,
+     a Hero gone from the world among them, has their entries listed newest first, as a Guild's are.
+   - *Where it lives.* `state/world-views.ts`: `findInHistory`, and `historyView` now takes any
+     entity. A name is the world's row's while it holds one, else the label of the entity's newest
+     entry. Nothing computes a rule.
+   - *What is not named.* Quests and Parties are not listed. A Quest is called by its template's
+     name, which many Quests share (27,721 Quests in the sample); their entries are read in the
+     whole History, as DL-73 item 8 decided.
+   - *Supersedes* DL-73 item 8's "The CLI's `show history <id>` for any other entity, a Patron say,
+     has no control of its own" for Heroes, Guildmasters and Patrons.
+   - *Erratum to DL-73.* Its Consequences, "Every CLI command has a browser equivalent", overstated
+     `show hero` and `show history` until now. The epic's three rows that take an id say what is
+     built, and its table's lead-in names `app.test.tsx` beside `views/*.test.tsx`.
+3. **The journey recruits** (the Gate: "created, advanced, dispatched, recruited, saved to
+   IndexedDB and reloaded; Playwright proves it"; DL-67 item 7 gains the step).
+   `e2e/journey.spec.ts`, at both sizes, now recruits after the dispatch. It picks the pool Hero
+   with the lowest signing fee among those who would sign at a fee the Guild can pay. It checks
+   four things: the log's sentence, Wealth less the fee, the Hero on the Roster and gone from the
+   pool. After the reload and the load, the Roster reads as it did when saved.
+   `e2e/layout.spec.ts` adds the History's search, the Guildmaster's long name found, and a Hero's
+   page opened from it, at 360px and 1280px.
+4. **The bundle gate reads the text as built** (`scripts/check-bundle.mjs`; supersedes DL-64
+   item 5's "comments stripped first" and its `http(s)://` pattern).
+   - *Comments.* v1's stripper, `/\/\*[\s\S]*?\*\//`, also matched inside strings. So everything
+     between a string holding `/*` and a later one holding `*/` went unchecked: an accept of
+     `'image/*'`, then `'*/*'`. Stripping is dropped. The shipped bundle holds one comment,
+     `/*$vite$:1*/`, and no other `//`. A comment that names an address now fails the gate: a false
+     alarm is put right by hand, where a hidden call would never be seen.
+   - *URLs.* Any scheme followed by `//`, or `//` alone, protocol-relative, is a URL literal, checked
+     against the allow-list. That covers `ws://` and `wss://`, and `//host` in a CSS `url()`, an
+     `@import` or a `src`: on `https://heroesims.pages.dev` it resolves to `https://host`. Every `//`
+     in the shipped bundle is one of the five allow-listed identifiers, so the gate passes it
+     unchanged: 2 files, "no network or filesystem reference".
+   - *Tried.* The verification's probes, as `bundle.test.ts` fixtures: `fetch(` between `'text/*'`
+     and `'*/*'`, and a URL between `'image/*'` and `'*/*'`; `wss://`, `ws://`, plain `http://`, a
+     protocol-relative `src`; a URL in a `.css` `url()`, a protocol-relative `@import`; a
+     `<link href="https://…">` and a `fetch(` in `index.html`; a licence comment's URL. Each fails
+     the gate.
+5. **The build refuses a Node built-in** (`vite.config.ts`, the plugin `heroesim:no-node-builtins`).
+   - *Why.* Vite replaces a Node built-in the page imports with an empty stub, with only a warning.
+     The specifier never reaches the bundle, and the gate passed it. Turning the warning into an error
+     with `onLog` was tried: Rolldown logged it and still built, exit 0.
+   - *What.* The plugin resolves before Vite's own. It stops the build on `node:*` or any name in
+     Node's `builtinModules`, subpaths such as `fs/promises` included, from the page or a dependency.
+     The real build passes.
+   - *The test.* `bundle.test.ts` builds a one-script page with the page's own configuration for each
+     of `node:fs`, `fs` and `fs/promises`: each build fails, naming the specifier. The same page
+     without the import builds.
+   - *Words corrected.* ESLint's message for `web/src` and `web/tsconfig.json`'s comment said the
+     bundle gate refuses a Node built-in. They now name the build. DL-64 item 8 made no such claim.
+6. **The import check reads a template literal** (`web/src/imports.test.ts`; DL-65 item 7). An
+   `import(\`@heroesim/engine\`)` was recorded as "(computed)" and passed, although the bundler
+   resolves it as it resolves a quoted one. `ts.isStringLiteralLike` now reads both, with a snippet
+   that proves it.
+7. **A game started or loaded shows nothing the last one had open.** The Roster, the pool, the
+   Guilds, the Board and the History kept the open Hero, Guild, Quest or History in component state.
+   After a load they showed a page the player never opened, or "That Hero is no longer in the world.".
+   - *The fix.* The state gains `games`, how many games have been put in hand; a new game or a load
+     adds one, and any other play or a refusal does not. It is a fourth field beyond the epic's four,
+     beside DL-65 item 3's three. `App` keys the sections from the Board to the History by it, so they
+     start afresh with each game. The header, time and "This game" are not keyed.
+8. **The log's filter holds from play to play** (DL-66 item 6). "Only what concerns <Guild>" was
+   reset by the key that restarts the log's paging after each play. The filter now lives in `Log`, and
+   only the paging is keyed. So the choice holds while the game is in hand, as the History's does,
+   and a new game or a load starts it afresh (item 7).
+9. **Tests that were too weak** (the mutation pass). Each surviving mutant is now killed. Each was
+   shown red with the mutant applied and green without it, by a script in the fixer's scratch space
+   that is not committed. No assertion was loosened.
+   - *The Transfer fee among a Rival Hero's Attributes* (W2). `selectors.test.ts` pins it, for every
+     Rival Hero, to the fee at the player's Guildmaster's Negotiation, which is the actions' fee. It
+     also checks that the seller's Guildmaster gives another number for some of them.
+   - *A loaded save's warnings* (R20, R21, R22; DL-65 item 3, DL-73 item 6). A save with a Hero's
+     Background this content lacks (`sea-born`, the CLI's rule-5 test) stores one warning. It holds
+     through an advance and a refusal. It is gone after a new game or a clean load. The page lists it
+     under "This game" (`reducer.test.ts`, `views/world.test.tsx`).
+   - *The log's sentences* (N3, N5, N6, N10, N11, N12, N15, K9, K11, K14, K16). `narrate.test.ts` pins
+     every sample's sentence word for word. It adds 17 variants: a success and a strong success; a
+     consumable's heal of one Day, its bonus and its re-roll; the player's own sale; a Transfer with no
+     offer; each end of an offer; each way a Guild folds and the game ends; a Hero made on a Roster; a
+     healing with no Trait; gear back from a retired Hero and as a Guild folds; Morale that rose.
+   - *The stop for a live Transfer Offer* (N13). An offer made by the engine's `offerTransfer` is
+     narrated as "Stopped: a Transfer Offer: <Rival> offers <fee> Wealth for <Hero> until the night of
+     Day <n>.", the CLI's words less its ids.
+   - *The refusals* (J6, J7, J9, K3, K4, K5, K6, K7, K8). `rejections.test.ts` pins every kind's
+     sentence in its world. It checks every kind for ids with a world and without one. It pins four
+     sentences with no world: "That Hero", "that Guild", "That Quest", "your Guild".
+   - *IndexedDB's own adapter* (P3; DL-67 item 1). `saves.test.ts` drives `browserSaves` over a
+     stand-in IndexedDB whose read-write transactions commit or abort when the test says. A save
+     and a delete are reported only after the commit. A write abandoned at commit with a
+     `QuotaExceededError` is `failed`, in the browser's words, and keeps nothing. The store is keyed
+     by the save's name, which also kills P2 without Playwright.
+   - *The gate's `http://`, `.html` and `.css`* (B5, B9, B10): item 4's fixtures.
+   - *The fixes themselves.* Undoing each fails its tests: the comment stripper and the
+     `http(s)`-only pattern restored, the plugin removed, `isStringLiteral` restored, the sections
+     unkeyed, `games` never counted, the log keyed whole, Heroes left out of the search, the History
+     never opening a Hero's page.
+
+**Consequences.** Every CLI command's browser equivalent reaches what the CLI's reaches by id, save a
+Quest's and a Party's own History, which stays in the whole History. The Gate's journey is proved in
+Playwright, recruit included; the deploy (M7-S5's first box) is still the orchestrator's. The bundle
+gate refuses what it says it refuses, and the build refuses what the gate cannot see. No engine,
+content or CLI file changes: `configVersion` stays 10, content version 14 and schema version 3.
+`npm run lint` and `npm run typecheck` pass. `npm test` passes 107 files and 2,475 tests, none
+skipped, 240 of them new, in each of three full runs in a row. `npm run build -w web` exits 0
+through the gate: 481.59 kB (140.03 kB gzipped), "no network or filesystem reference". `npm run e2e
+-w web` passes 16.
 
 ---
 

@@ -15,8 +15,8 @@ beforeAll(() => {
   eslint = new ESLint({ cwd: root });
 });
 
-async function lintProbe(pkg: string, code: string): Promise<Linter.LintMessage[]> {
-  const file = `${root}${pkg}/src/boundary-probe-${randomUUID()}.ts`;
+async function lintProbe(pkg: string, code: string, extension = 'ts'): Promise<Linter.LintMessage[]> {
+  const file = `${root}${pkg}/src/boundary-probe-${randomUUID()}.${extension}`;
   writeFileSync(file, code);
   try {
     const [result] = await eslint.lintFiles([file]);
@@ -202,4 +202,88 @@ describe('the other packages reach each other by name only', { timeout: 30_000 }
 
     expect(errorsIn(result)).toEqual([]);
   });
+});
+
+// M7-S1: the browser front end's components are .tsx, and its page runs in a browser.
+describe("web/'s page, components included", { timeout: 30_000 }, () => {
+  test('a component may import the engine and content by name', async () => {
+    const code = [
+      "import type { ContentSet } from '@heroesim/engine';",
+      "import { contentVersion } from '@heroesim/content';",
+      'export const Version = (props: { set: ContentSet }) => (',
+      '  <p>{props.set.id} {contentVersion}</p>',
+      ');',
+    ].join('\n');
+
+    expect(await lintProbe('web', code, 'tsx')).toEqual([]);
+  });
+
+  test.each([
+    ['cli', "import x from '@heroesim/cli';"],
+    ["content's Node entry", "import x from '@heroesim/content/node';"],
+    ['a subpath of the engine', "import x from '@heroesim/engine/src/index.ts';"],
+    ['a relative path into engine/', "import x from '../../engine/src/index.js';"],
+    ['node:fs', "import x from 'node:fs';"],
+    ['fs', "import x from 'fs';"],
+  ])('a component may not import %s', async (_what, statement) => {
+    const errors = await lintProbe('web', `${statement}\nexport const A = () => <p>{String(x)}</p>;`, 'tsx');
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+  });
+
+  // M7-S2 (DL-65): `web/src/content.ts` shares the content package's name, and a module one
+  // directory down reaches it as `../content`, which leaves neither `web/src/` nor `web/`.
+  test.each(['ts', 'tsx', 'test.ts'])("a .%s module under web/src/state/ may import the page's own ../content", async (extension) => {
+    const [result] = await eslint.lintText("import { content } from '../content';\nexport { content };", {
+      filePath: `${root}web/src/state/boundary-probe-${randomUUID()}.${extension}`,
+    });
+
+    expect(errorsIn(result)).toEqual([]);
+  });
+
+  test.each([
+    ['web/src/state/', '../../../content/src/index.js'],
+    ['web/src/', '../../content/src/index.js'],
+    ['web/e2e/', '../../content/src/index.js'],
+    ['web/', '../content/src/index.js'],
+  ])('from %s, %s is still a relative path into content/', async (directory, specifier) => {
+    const [result] = await eslint.lintText(`import x from '${specifier}';\nexport { x };`, {
+      filePath: `${root}${directory}boundary-probe-${randomUUID()}.ts`,
+    });
+    const errors = errorsIn(result);
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe(restrictedImports);
+  });
+
+  test('a .ts module of the page may not import a Node built-in either', async () => {
+    const errors = await lintProbe('web', "import path from 'node:path';\nexport { path };");
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.message).toContain('principle 12');
+  });
+
+  test.each(['ts', 'tsx'])(
+    "its .%s tests run on Node: Node built-ins and content's Node entry, never the CLI",
+    async (extension) => {
+      const lint = async (code: string) => {
+        const [result] = await eslint.lintText(code, {
+          filePath: `${root}web/src/boundary-probe-${randomUUID()}.test.${extension}`,
+        });
+        return errorsIn(result);
+      };
+
+      expect(
+        await lint(
+          [
+            "import { readFileSync } from 'node:fs';",
+            "import { loadContent } from '@heroesim/content/node';",
+            'export { loadContent, readFileSync };',
+          ].join('\n'),
+        ),
+      ).toEqual([]);
+      expect((await lint("import x from '@heroesim/cli';\nexport { x };"))[0]?.ruleId).toBe(restrictedImports);
+    },
+  );
 });

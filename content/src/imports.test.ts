@@ -126,15 +126,30 @@ describe('the TypeScript project references', () => {
 // The one subpath any package exports is content's Node entry (M1-S4, DL-14 item 7).
 describe('@heroesim/content/node', { timeout: 30_000 }, () => {
   const eslint = new ESLint({ cwd: root });
-  const lint = async (pkg: string, specifier: string) => {
+  const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
     const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
-      filePath: join(root, pkg, 'src', 'subpath-probe.ts'),
+      filePath: join(root, pkg, 'src', file),
     });
     return (result?.messages ?? []).filter((message) => message.severity === 2);
   };
 
   test.each(['cli', 'harness'])('may be imported by %s, which runs on Node', async (pkg) => {
     expect(await lint(pkg, '@heroesim/content/node')).toEqual([]);
+  });
+
+  // M7-S1: web's tests compare the bundled content with the Node entry's (DL-64).
+  test.each(['subpath-probe.test.ts', 'subpath-probe.test.tsx'])(
+    "may be imported by web's tests, which run on Node (%s)",
+    async (file) => {
+      expect(await lint('web', '@heroesim/content/node', file)).toEqual([]);
+    },
+  );
+
+  test('may not be imported by a web component, which runs in a browser', async () => {
+    const errors = await lint('web', '@heroesim/content/node', 'subpath-probe.tsx');
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
   });
 
   test.each([
