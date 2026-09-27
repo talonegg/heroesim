@@ -139,8 +139,8 @@ a Turn 40% slower than M5's, which M7's saves and fast forward will feel.
 
 Verified independently on 2026-09-26 and 2026-09-27: the stories by five lenses (every box
 proved; 72 mutants, the 9 survivors now killed; 14 defects fixed in DL-60) and the close by four
-(the merge lost nothing; every M6 counter recounted by hand over 8 seeds × 20 years; 36 surviving
-harness mutants now killed; errata in DL-71); 1,732 tests.
+(the merge lost nothing; every M6 counter recounted by hand over 8 seeds × 20 years; the 32 surviving
+harness mutants confirmed, now killed; errata in DL-71); 1,732 tests.
 
 ## 2. Configuration and events introduced
 

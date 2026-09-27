@@ -37,6 +37,7 @@ import {
   rankings,
   signingFee,
   signingRefusal,
+  skillsThatHelp,
   transferFee,
   durationDaysOf,
   potentialHint,
@@ -748,25 +749,16 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
       quests.map((quest) => [
         quest.id,
         quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        skillsThatHelp(quest, content),
+        skillsThatHelpWords(quest, content),
         encounterKindsOf(quest, content),
       ]),
     ),
   ];
 }
 
-/**
- * The Skills that help on a Quest: from M4 the Checks read its Encounters' Skills and not the
- * template's (DL-42), so each Skill any of its Encounters names, once, in the order the Quest meets
- * them, a key content lacks left out (rule 5). A Quest drawn before M4, whose Encounters are drawn on
- * the way, shows its template's Skills, the kind of work it is.
- */
-function skillsThatHelp(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
-  const keys =
-    quest.encounterKeys.length === 0
-      ? quest.skillKeys
-      : [...new Set(quest.encounterKeys.flatMap((key) => rowIn(content.encounters, key)?.skillKeys ?? []))];
-  return none(keys.filter((key) => Object.hasOwn(content.skills, key)).map((key) => nameIn(content.skills, key)));
+/** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-70; moved there by M7-S3, DL-66). */
+function skillsThatHelpWords(quest: Pick<Quest, 'encounterKeys' | 'skillKeys'>, content: ContentSet): string {
+  return none(skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)));
 }
 
 /**

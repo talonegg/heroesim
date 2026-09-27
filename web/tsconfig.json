@@ -1,9 +1,18 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "dist"
+    "rootDir": ".",
+    // Vite compiles the page and Vitest the tests, so this project only type-checks.
+    "noEmit": true,
+    // A bundler, not Node, resolves the page's imports; `import.meta.glob` is Vite's.
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    // Node's types serve the tests and the configuration files; the page's own source may not
+    // import Node (eslint.config.js), and the build refuses a Node built-in (vite.config.ts).
+    "types": ["node", "vite/client"]
   },
-  "include": ["src"],
+  "include": ["src", "e2e", "vite.config.ts", "playwright.config.ts", "playwright.measure.config.ts", "playwright.live.config.ts"],
   "references": [{ "path": "../engine" }, { "path": "../content" }]
 }

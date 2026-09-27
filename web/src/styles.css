@@ -1,0 +1,541 @@
+/*
+ * The page's styling (M7-S3, DL-66): one column that stacks, at any width, from a phone's 360px
+ * up, with no horizontal scroll of the page (M7 §0 defers every other layout). A wide table
+ * scrolls inside its own box instead. System fonts, no icon set, no stylesheet from anywhere
+ * else: the page requests nothing (principle 12). Adapted from v1's (feature/poc, E8-S3), whose
+ * three layouts by width are left out.
+ */
+
+:root {
+  --bg: #f6f3ee;
+  --bg-raised: #fffdfa;
+  --bg-sunken: #ebe5db;
+  --ink: #241f1a;
+  --ink-soft: #5d554b;
+  --line: #d6cdbf;
+  --accent: #7a4e2d;
+  --accent-ink: #fffdfa;
+  --good: #2f6b3f;
+  --bad: #8c2f2f;
+  --tap: 44px;
+  --gap: 0.75rem;
+  --gutter: 16px;
+  --radius: 10px;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #171513;
+    --bg-raised: #221f1c;
+    --bg-sunken: #100e0d;
+    --ink: #ece5dc;
+    --ink-soft: #a89e92;
+    --line: #3b3630;
+    --accent: #d09b6a;
+    --accent-ink: #1a1613;
+    --good: #85c59a;
+    --bad: #e29a9a;
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+
+/* Names and sentences wrap, however long a word; nothing is cut off. */
+h1,
+h2,
+h3,
+h4,
+p,
+li,
+dt,
+dd,
+span,
+label,
+legend,
+button {
+  overflow-wrap: anywhere;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  line-height: 1.25;
+  margin: 0 0 0.5rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.25rem;
+}
+
+h3 {
+  font-size: 1.1rem;
+}
+
+h4 {
+  font-size: 1rem;
+  margin-top: 1rem;
+}
+
+p {
+  margin: 0 0 0.5rem;
+}
+
+ul,
+ol {
+  margin: 0 0 0.5rem;
+  padding-left: 1.25rem;
+}
+
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* ── Controls ───────────────────────────────────────────────────────────────────────────── */
+
+button {
+  font: inherit;
+  color: inherit;
+  min-height: var(--tap);
+  padding: 0.5rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  cursor: pointer;
+  text-align: left;
+  max-width: 100%;
+}
+
+button:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.button--primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* A button that reads as a name: a Hero on the Roster. */
+.link {
+  border: none;
+  background: none;
+  padding: 0;
+  min-height: var(--tap);
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+input[type='text'],
+input[type='number'],
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  min-height: var(--tap);
+  padding: 0.4rem 0.6rem;
+  width: 100%;
+  max-width: 22rem;
+}
+
+input[type='number'] {
+  max-width: 7rem;
+}
+
+input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+}
+
+fieldset {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin: 0 0 var(--gap);
+  padding: 0.5rem var(--gap) var(--gap);
+  min-width: 0;
+}
+
+legend {
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: var(--gap);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  padding: 0.35rem 0;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: var(--gap) 0;
+}
+
+/* ── The one column ─────────────────────────────────────────────────────────────────────── */
+
+.app {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: var(--gutter);
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-width: 0;
+}
+
+.brand {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem;
+}
+
+.panel,
+.guild {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  min-width: 0;
+}
+
+.subtle,
+.note {
+  color: var(--ink-soft);
+}
+
+.note {
+  font-size: 0.875rem;
+}
+
+.busy:empty {
+  display: none;
+}
+
+/* The header's facts: as many to a row as fit, each a label over its value. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin: 0;
+}
+
+.facts dt {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.ended {
+  margin-top: var(--gap);
+  font-weight: 600;
+  color: var(--bad);
+}
+
+/* A refusal stays in view at the top while the player scrolls, whichever section they acted from. */
+.refusal {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  border: 2px solid var(--bad);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  padding: var(--gap);
+}
+
+.stop {
+  border-left: 4px solid var(--accent);
+  padding-left: var(--gap);
+}
+
+/* ── Cards: Quests on the Board, Heroes on the Roster ───────────────────────────────────── */
+
+.cards {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+}
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: var(--gap);
+  background: var(--bg);
+  min-width: 0;
+}
+
+.hero-row p {
+  margin: 0;
+}
+
+/* Label and value pairs: the label above on a phone, beside it where there is room. */
+.terms {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.25rem 1rem;
+  margin: 0 0 0.5rem;
+}
+
+.terms > div {
+  display: grid;
+  grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
+  gap: 0.75rem;
+}
+
+.terms dt {
+  color: var(--ink-soft);
+}
+
+.terms dd {
+  margin: 0;
+}
+
+.dispatch {
+  margin-top: var(--gap);
+  border-top: 1px solid var(--line);
+  padding-top: var(--gap);
+}
+
+.preview {
+  background: var(--bg-sunken);
+  border-radius: var(--radius);
+  padding: var(--gap);
+}
+
+.preview h4:first-child {
+  margin-top: 0;
+}
+
+.verdict {
+  font-weight: 600;
+  color: var(--good);
+}
+
+.verdict--refused {
+  color: var(--bad);
+}
+
+/* ── Tables and lines ───────────────────────────────────────────────────────────────────── */
+
+/* A table wider than the column scrolls inside this box, never the page. */
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+th,
+td {
+  text-align: left;
+  padding: 0.3rem 0.5rem 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+thead th {
+  color: var(--ink-soft);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+tbody th {
+  font-weight: normal;
+}
+
+th.area {
+  font-weight: 600;
+  padding-top: 0.6rem;
+}
+
+.number {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lines {
+  list-style: none;
+  padding: 0;
+}
+
+.lines li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lines .when {
+  display: block;
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+}
+
+.lines .milestone {
+  font-weight: 600;
+}
+
+.footer {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  margin-top: var(--gap);
+}
+
+/* ── Part 2 (DL-73): the index, rows with a button, trades, notices ─────────────────────── */
+
+/* The sections a game shows, as links that wrap onto as many lines as a phone needs. */
+.index ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+}
+
+.index a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--accent);
+  overflow-wrap: anywhere;
+}
+
+/* A line with its button: side by side where they fit, the button below where they do not. */
+.rows {
+  list-style: none;
+  padding: 0;
+}
+
+.rows li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.rows li > span {
+  min-width: 0;
+  flex: 1 1 12rem;
+}
+
+.trade p {
+  margin-bottom: 0.25rem;
+}
+
+.trade .actions {
+  align-items: center;
+  margin: 0.25rem 0 0;
+}
+
+.inline-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.inline-field input[type='number'] {
+  width: 5.5rem;
+}
+
+.notice {
+  border: 2px solid var(--accent);
+}
+
+.warning {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+tr.mine th,
+tr.mine td {
+  font-weight: 600;
+}
+
+.guild-page h4,
+.guildmaster h4 {
+  margin-top: 1rem;
+}
+
+/* A toggle that is on: the Rankings' measure. */
+button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Saved in this browser (M7-S4, DL-67) ────────────────────────────────────────────────── */
+
+.saved {
+  margin-top: 1rem;
+}
+
+.save-name {
+  margin: 0;
+  font-weight: 600;
+}

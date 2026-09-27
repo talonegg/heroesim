@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** not started
+**Status:** done — 2026-09-27 (`m7-web`); M7-S4's twenty-year measure (under 1 s) is not met and is left to the owner (DL-67)
 
 ## 0. What lands in M7
 
@@ -41,10 +41,10 @@ ESLint: `web/**` may import `@heroesim/engine` and `@heroesim/content` by name o
 
 **Acceptance:**
 
-- [ ] `npm run build -w web` produces `web/dist/` that opens from the filesystem
-- [ ] The bundle gate fails a build containing a deliberate `fetch(` (tried, reverted, DL)
-- [ ] The browser content set deep-equals the Node entry's for the same files (test)
-- [ ] `engine/` still has zero dependencies (the M0 test still passes with React installed at
+- [x] `npm run build -w web` produces `web/dist/` that opens from the filesystem
+- [x] The bundle gate fails a build containing a deliberate `fetch(` (tried, reverted, DL)
+- [x] The browser content set deep-equals the Node entry's for the same files (test)
+- [x] `engine/` still has zero dependencies (the M0 test still passes with React installed at
       the root)
 
 ### M7-S2 · State: one reducer · 1 session
@@ -59,10 +59,10 @@ import anything but types from `@heroesim/engine`.
 
 **Acceptance:**
 
-- [ ] The document is never mutated: a test freezes it and drives twenty actions
-- [ ] Every `Rejection` kind renders as a sentence (one map, tested for completeness against the
+- [x] The document is never mutated: a test freezes it and drives twenty actions
+- [x] Every `Rejection` kind renders as a sentence (one map, tested for completeness against the
       union)
-- [ ] Two taps on Advance in one batch drive one engine call
+- [x] Two taps on Advance in one batch drive one engine call
 
 ### M7-S3 · Views and actions · 2–3 sessions
 
@@ -76,10 +76,46 @@ is behind `defaultConfig`, with a `rebase` button (D1). No component calls the e
 
 **Acceptance:**
 
-- [ ] Every event type in the engine's union has a sentence; a test enumerates the union
-- [ ] Every CLI command has a browser equivalent (a table in this section, ticked as built)
-- [ ] `show hero`'s rule holds: Potential is never rendered (test greps the rendered DOM)
-- [ ] No horizontal overflow at 360px width (Playwright, S4)
+- [x] Every event type in the engine's union has a sentence; a test enumerates the union
+- [x] Every CLI command has a browser equivalent (a table in this section, ticked as built)
+- [x] `show hero`'s rule holds: Potential is never rendered (test greps the rendered DOM)
+- [x] No horizontal overflow at 360px width (Playwright, S4: `web/e2e/layout.spec.ts` and each
+      step of `web/e2e/journey.spec.ts`, DL-67)
+
+**Every CLI command and its browser equivalent** (the second box; a row is ticked when its
+equivalent is built; M7-S3 part 1, DL-66, built the first nine; M7-S3 part 2, DL-73, built the
+rest; M7's verification, DL-74, widened the three rows that name an id. Each row is driven through
+the page's own controls in `web/src/app.test.tsx` or `web/src/views/*.test.tsx`):
+
+| CLI command | In the browser | Built |
+| --- | --- | --- |
+| `new` | "A new game": the Guild's and the Guildmaster's names, a Guild Background or one drawn from the seed, and a readable seed the player may change; with a game in hand, "Start a new game" says it goes unless exported (`--force`) | [x] |
+| `show` | The header: the Guild, its Wealth and Fame, the Day and time of day, its place in the Rankings, and the seed | [x] |
+| `show board` | The Board: each Quest's Patron, terms, demands, Skills that help and Encounters | [x] |
+| `preview` | The Board's preview of the Party being chosen, as it changes: each requirement met or missed, who cannot go, the Synergies and on how many Encounters, the consumables, the reward agreed, and dispatch's own verdict (the engine's `previewDispatch`) | [x] |
+| `dispatch` | The Board's "Send the Party", with the Heroes and consumables chosen | [x] |
+| `show roster` | The Roster: each Hero's Class, Level, age, Morale and whereabouts, and what the Guild holds | [x] |
+| `show hero <heroId>` | A Hero's page, opened from the Roster, the pool or another Guild's Roster, or, for any Hero the world holds, the dead and the retired among them, found by name in the History (DL-74): Attributes and State, Stats with their hints, gear, Skills, Relationships as bands | [x] |
+| `show history <heroId>` | A Hero's page: their Milestones first, then their History, newest first, a page at a time; for a Hero gone from the world, found by name in the History, their History there (DL-74) | [x] |
+| `advance [--turns n]`, `advance --until <stops>` | "Advance a Turn"; "Fast forward"; "Fast forward until new Heroes join the pool". Why it stopped is a sentence with a button where the CLI names a command, and the log narrates what happened. One Turn per tap: `--turns n` is fast forward's work here; `--max` is a year, the CLI's default | [x] |
+| `show guilds` | The Guilds: every Guild with its controller, Guildmaster, Background, Roster, Wealth, Fame and Upkeep, a folded one marked with its Day | [x] |
+| `show rankings [--by fame\|wealth]` | The Rankings, by Fame or by Wealth, the player choosing which | [x] |
+| `show roster <guildId>` | Another Guild's page, opened from the Guilds: its Roster, each Hero with the Transfer fee the player's Guild would pay, and each Hero's page | [x] |
+| `show hall [guildId]` | The Hall: each facility's grade, the Improvement built, what it does, the next grade's Improvement and cost, and the Upkeep; another Guild's on its page | [x] |
+| `build` | "Build <Improvement>", from the Hall | [x] |
+| `show pool` | The Unattached pool: each Hero's signing fee and whether they would sign, the Guild's Fame, and each Hero's page | [x] |
+| `recruit` | "Recruit <Hero>", from the pool or the Hero's page | [x] |
+| `show patrons` | The Patrons, each Sphere, and their Regard for the player's Guild, as bands | [x] |
+| `show guildmaster [guildId]` | The Guildmaster: Stats and what each bears on, Traits and what each does, Regard for Patrons, the Roster and the other Guilds as bands; another Guild's on its page | [x] |
+| `show market` | The Market: what is for sale at what price, and what each Item the Guild holds sells for | [x] |
+| `buy`, `sell` | Buy and sell, by the quantity asked, from the Market | [x] |
+| `equip`, `unequip` | Equip gear the Guild holds and unequip a slot, from a Hero's page | [x] |
+| `transfer --to`, `transfer --in` | Transfer one of the player's Heroes out to the Guild chosen, each with the fee it would pay, from the Hero's page; "Take <Hero> in" from another Guild's Roster or the Hero's page | [x] |
+| `show offers`, `accept`, `decline` | The Transfer Offers made for the player's Heroes, each accepted or declined | [x] |
+| `show history [entityId]` | The History: the whole History or a Guild's, newest first, a page at a time; anyone else it names, a Hero, a Guildmaster or a Patron, found by name (a Hero the world holds on their page; DL-74). A Quest's and a Party's entries are read in the whole History: a Quest is called by its template's name, which many Quests share (DL-73 item 8, DL-74) | [x] |
+| `rebase` | The "new rules available" notice while the game's rules are behind this release's, and "Adopt the new rules" (D1) | [x] |
+| `save --as`, `load` | "This game": export the game as the save file the CLI writes, and load a save file, the CLI's or the page's, before a game or in place of one. Saves kept in IndexedDB: "Saved in this browser", in "This game" and "A new game" (M7-S4, DL-67) | [x] |
+| `help` | The page's own words: each section says what it is for and what its controls do, and each control is named by what it does | [x] |
 
 ### M7-S4 · IndexedDB saves and Playwright · 1–2 sessions
 
@@ -95,9 +131,16 @@ with the CLI's loader.
 
 - [ ] A 20-year save from `npm run harness:sample` (`harness/samples/twenty-years.json`,
       gitignored, M2-S12) round-trips through IndexedDB under 1 s and its compressed size is
-      recorded (**Measure**, DL)
-- [ ] The exported file is byte-identical to `serialise(document)`
-- [ ] Both Playwright journeys pass locally; `npm run e2e`
+      recorded (**Measure**, DL) — **not met, measured (DL-67):** the round trip takes 3.6 to
+      3.8 s in Chromium (save 2.3 to 2.5 s, load after a reload 1.3 s; `npm run measure -w web`);
+      compressed size 12,662,505 bytes from 113,281,366 (8.9 to 1). The time is the engine's
+      `serialise` and `deserialise` of a 113 MB save and gzip; IndexedDB takes milliseconds. Left
+      to the owner (data-model §7, DL-08)
+- [x] The exported file is byte-identical to `serialise(document)` (`web/src/saves.test.ts`,
+      `web/src/views/saves.test.tsx`; in Chromium, `e2e/journey.spec.ts` and the measure)
+- [x] Both Playwright journeys pass locally; `npm run e2e` (`e2e/journey.spec.ts` at 360×800 and
+      1280×800, the CLI loading the export; `e2e/no-storage.spec.ts` with storage blocked;
+      16 passed)
 
 ### M7-S5 · Deploy · 0.5–1 session
 
@@ -109,10 +152,35 @@ reads the two secrets and nothing else.
 
 **Acceptance:**
 
-- [ ] The URL serves the build; a fresh browser creates a game and saves
-- [ ] The repository contains no token, account id or `.wrangler/` state (`.gitignore` gains
-      `.wrangler/`)
-- [ ] `README.md` names the URL and the deploy command
+- [x] The URL serves the build; a fresh browser creates a game and saves — <https://heroesims.pages.dev>,
+      deployed 2026-09-27 with `npm run deploy`; `npm run e2e:live -w web` (`e2e/deployed.live.ts`) creates a
+      game, plays a Day, saves in IndexedDB, reloads and loads it at 360×800 and 1280×800, and no request
+      leaves the page's origin (DL-75)
+- [x] The repository contains no token, account id or `.wrangler/` state (`.gitignore` gains
+      `.wrangler/`; M0-S1 added it) (`web/src/deploy.test.ts`, DL-68)
+- [x] `README.md` names the URL and the deploy command (`web/src/deploy.test.ts`, DL-68)
+
+## Measured
+
+Measured 2026-09-27 on v1.0-dev after M7's merge (`ba38eb5`): lint, typecheck and `npm test` 107 files,
+2,475 tests; `npm run e2e -w web` 16 passed (the journeys at 360×800 and 1280×800, the CLI loading the
+export, storage blocked three ways, no overflow on any section); the bundle 481.59 kB (140.03 kB gzip),
+two files, the gate passing; <https://heroesims.pages.dev> serving it, checked by `npm run e2e:live -w web`.
+
+| Measure | Result |
+| --- | --- |
+| A twenty-year save through IndexedDB (M7-S4, target under 1 s) | 3.6 to 3.8 s in Chromium: save 2.3 to 2.5 s, load after a reload 1.3 s — **not met**, left to the owner (DL-67) |
+| Its size, compressed | 12,662,505 bytes from 113,281,366 (8.9 to 1) |
+| Where the time goes | the engine's `serialise` and `deserialise` of a 113 MB save (about 1 s each way) and gzip (about 1.2 s); IndexedDB takes milliseconds |
+
+The lever is the save's size, not the storage: the History is most of a twenty-year save
+(`quest.encounter` alone about a third, M4's run). Shrinking it is a data-model decision for the
+owner, not a front-end one.
+
+Verified independently on 2026-09-27 by five lenses (acceptance, boundaries and the bundle gate,
+play in the browser as a human, 120 mutants, decisions); 21 confirmed findings fixed in DL-74, among
+them a stricter bundle gate (every comment and URL form, Node built-ins refused at build) and the
+journey recruiting as the Gate names; the deploy and its check in DL-75.
 
 ## 2. Configuration and events introduced
 

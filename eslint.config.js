@@ -10,10 +10,14 @@ import tseslint from 'typescript-eslint';
 
 const packages = ['engine', 'content', 'harness', 'cli', 'web'];
 
-/** A relative import that climbs out of `self` into another package's directory. */
-function relativeInto(self, message) {
+/**
+ * A relative import that climbs out of `self` into another package's directory. `climbs` is the
+ * fewest `../` that can leave the package from the files the rule is for: one from a package's
+ * root, two from `web/src/`, whose own `content.ts` is `../content` from `web/src/state/` (DL-65).
+ */
+function relativeInto(self, message, climbs = 1) {
   const others = packages.filter((name) => name !== self).join('|');
-  return { regex: `^(\\.\\./)+(${others})(/|$)`, message };
+  return { regex: `^(\\.\\./){${climbs},}(${others})(/|$)`, message };
 }
 
 const byNameOnly =
@@ -22,7 +26,8 @@ const byNameOnly =
 // Every package exports only its entry, so no subpath exists to import, with one exception:
 // content's Node entry, `@heroesim/content/node` (M1-S4, DL-14 item 7), which reads the content
 // files with node:fs. The harness and the CLI run on Node and may import it; the web runs in a
-// browser and may not. content/src/imports.test.ts proves both.
+// browser and may not, except in its tests, which run on Node (M7-S1, DL-64).
+// content/src/imports.test.ts proves each.
 function noSubpath({ node }) {
   return {
     regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
@@ -32,11 +37,21 @@ function noSubpath({ node }) {
   };
 }
 
+const nodeBuiltins = `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`;
+
 const nodeBuiltin = {
-  regex: `^(node:.*|(${builtinModules.join('|')})(/.*)?)$`,
+  regex: nodeBuiltins,
   message:
     "Node built-ins belong only in content's Node entry, src/node.ts; the rest of content " +
     'must run in a browser (approach §5).',
+};
+
+const browserBuiltin = {
+  regex: nodeBuiltins,
+  message:
+    'The page runs in a browser: web/src imports no Node built-in outside its tests. Vite would ' +
+    'put an empty stub in its place, which the bundle gate cannot see, so the build refuses one ' +
+    'that slips through (web/vite.config.ts; principle 12, M7-S1, DL-74).',
 };
 
 // Rule options, one per package. A later block replaces an earlier block's options for the same
@@ -87,18 +102,25 @@ function contentImports({ node }) {
   };
 }
 
-/** harness, cli and web: engine and content by name; neither front end imports the other. */
-function consumerImports(self, forbidden) {
+/**
+ * harness, cli and web: engine and content by name; neither front end imports the other. The web
+ * page's source, which runs in a browser, imports no Node built-in (`browser`); its tests, which
+ * run on Node, may take content's Node entry to compare the bundled content with it (`node`;
+ * M7-S1, DL-64). Under `web/src/` a relative path leaves the package only after two climbs
+ * (`climbs`; DL-65).
+ */
+function consumerImports(self, forbidden, { node = self !== 'web', browser = false, climbs = 1 } = {}) {
   return {
     patterns: [
-      noSubpath({ node: self !== 'web' }),
+      noSubpath({ node }),
       {
         group: forbidden.map((name) => `@heroesim/${name}`),
         message:
           'Neither front end imports the other, and the harness imports neither; what two of ' +
           'them need belongs in the engine or content.',
       },
-      relativeInto(self, byNameOnly),
+      relativeInto(self, byNameOnly, climbs),
+      ...(browser ? [browserBuiltin] : []),
     ],
   };
 }
@@ -178,8 +200,8 @@ export default defineConfig(
     ignores: [
       '**/dist/**',
       'coverage/**',
-      'playwright-report/**',
-      'test-results/**',
+      '**/playwright-report/**',
+      '**/test-results/**',
       '.claude/**',
     ],
   },
@@ -252,8 +274,18 @@ export default defineConfig(
     files: ['cli/**/*.ts'],
     rules: restrictImports(consumerImports('cli', ['web'])),
   },
+  // web: its configuration files and Playwright specs run on Node, the page's source in a browser,
+  // and its tests on Node again. A later block replaces an earlier block's options.
   {
     files: ['web/**/*.{ts,tsx}'],
     rules: restrictImports(consumerImports('web', ['cli'])),
+  },
+  {
+    files: ['web/src/**/*.{ts,tsx}'],
+    rules: restrictImports(consumerImports('web', ['cli'], { browser: true, climbs: 2 })),
+  },
+  {
+    files: ['web/src/**/*.test.{ts,tsx}'],
+    rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
   },
 );

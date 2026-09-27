@@ -168,16 +168,7 @@ export function applyDispatch(
   deps: EngineDeps,
 ): WorldActionResult<DispatchRejection> {
   const { guildId, questId, heroIds, consumables = [] } = request;
-  const guild = own(world.guilds, guildId);
-  if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
-  const repeated = heroIds.find((heroId, index) => heroIds.indexOf(heroId) !== index);
-  if (repeated !== undefined) throw new RangeError(`A Party names ${repeated} twice`);
-  const keys = consumables.map((it) => it.definitionKey);
-  const twice = keys.find((key, index) => keys.indexOf(key) !== index);
-  if (twice !== undefined) throw new RangeError(`A Party's consumables name ${twice} twice`);
-  const odd = consumables.find(({ quantity }) => !Number.isSafeInteger(quantity) || quantity < 1);
-  if (odd !== undefined) throw new RangeError(`A Party carries a whole number of ${odd.definitionKey} from 1, not ${odd.quantity}`);
-
+  const guild = requestedGuild(world, request);
   const rejection = refusal(world, guild, request, deps);
   if (rejection !== null) return { ok: false, rejection };
 
@@ -241,6 +232,39 @@ export function unmetRequirements(
     unmet.push({ requirement: 'skill', skillKey });
   }
   return unmet;
+}
+
+/**
+ * What `dispatch` would say of `request` in `world`, without sending anyone: `null` when it would
+ * send the Party, or the rejection it would return, by the same checks in the same order. Changes
+ * nothing. A preview of a proposed Party reports it (`previewDispatch`, M7-S3, DL-66), so that the
+ * verdict shown is the rule's own. Throws on the programming errors `dispatch` throws on.
+ */
+export function dispatchRefusal(
+  world: World,
+  request: DispatchRequest,
+  deps: EngineDeps,
+): DispatchRejection | null {
+  return refusal(world, requestedGuild(world, request), request, deps);
+}
+
+/**
+ * The Guild `request` names, having thrown on a programming error, as the validator would refuse
+ * the request: a Guild not in the world, a Hero named twice, or a consumable named twice or in a
+ * quantity that is not a whole number from 1.
+ */
+function requestedGuild(world: World, request: DispatchRequest): Guild {
+  const { guildId, heroIds, consumables = [] } = request;
+  const guild = own(world.guilds, guildId);
+  if (guild === undefined) throw new RangeError(`${guildId} is not in world.guilds`);
+  const repeated = heroIds.find((heroId, index) => heroIds.indexOf(heroId) !== index);
+  if (repeated !== undefined) throw new RangeError(`A Party names ${repeated} twice`);
+  const keys = consumables.map((it) => it.definitionKey);
+  const twice = keys.find((key, index) => keys.indexOf(key) !== index);
+  if (twice !== undefined) throw new RangeError(`A Party's consumables name ${twice} twice`);
+  const odd = consumables.find(({ quantity }) => !Number.isSafeInteger(quantity) || quantity < 1);
+  if (odd !== undefined) throw new RangeError(`A Party carries a whole number of ${odd.definitionKey} from 1, not ${odd.quantity}`);
+  return guild;
 }
 
 /** The first check `request` fails, in the order `dispatch` gives, or `null` when it passes them all. */
