@@ -5300,6 +5300,89 @@ of work, so this entry is DL-70.
 **Consequences.** No rule or value changes, so DL-55's run and report stand. The first build's other
 front end (M7) should take the Skills that help from the Encounters too.
 
+## DL-71 — M6 close verification corrections: errata to DL-63 and DL-69; tests that kill 32 mutants of the M6 harness
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the M6 close verification's
+fixer), on findings it confirmed; no rule, default or content value changes
+
+**Context.** M6's close (DL-63, DL-69; `c27b34f` to `95e03a7`) was verified by merge, counters,
+balance and mutation passes. The mutation pass found 32 mutants of the harness's M6 code
+(`harness/src/play.ts`, `harness/src/sweep.ts`) that every test let through. The other passes found
+four statements in DL-63 and DL-69 that the evidence they cite contradicts, and three test comments
+the balance pass left stale. DL-63 and DL-69 are accepted, so they are corrected here, as DL-53
+corrected DL-40 and DL-41.
+
+**Decision.**
+
+1. **Errata.** The decisions of DL-63 and DL-69 stand, and so do their values, the run and its report.
+   - *DL-63 item 2* says the main line's two saves, loaded under the merged CLI, "gain
+     `transferredOnTurn` on every Hero and `offers`". They gain `transferredOnTurn` only. A save the
+     main line made at schema 2 already carries `world.offers`, an empty map: the main line's
+     `document.ts` creates every World with it, and its validator requires it. The 2 → 3 step
+     (`transferredOnTurnField`, `engine/src/serialise.ts`) touches only `world.heroes`. Rechecked on
+     five saves made by `47d6df6`'s CLI and harness: each one, migrated, differs from its original only
+     by `transferredOnTurn: null` on every Hero (81 of 81 in the largest).
+   - *DL-69 item 7 and its Consequences* say `miserly` "never deals at the Rosters it keeps". It deals
+     seldom, not never. Every way a Rival deals asks for its consent (`transferAnswer`, DL-57 item 3):
+     the Heroes it keeps through the deal times its `transferAppetite` must reach one. At 0.1 that
+     means a Roster of 10 or more to buy and 11 or more to sell. `miserly` keeps such a Roster seldom
+     (above 8 at 4.0% of its year-starts). In the run it bought 4 Heroes and sold 18 (12 to
+     `ambitious`, 6 to `reckless`), as item 9's own table gives. Read: `miserly` "deals seldom, and
+     only at a Roster of 10 or more".
+   - *DL-69 item 7's characters* say `ambitious` "hires and deals most". It deals most, not hires most.
+     `reckless` hires the most: 1.62 recruits a Guild-year against `ambitious`'s 1.02, and still the
+     most with the Transfers bought added (about 1.73 against 1.16). `ambitious` deals the most (980
+     Transfers bought or sold, against `reckless`'s 944) and buys the most Heroes by Transfer (558
+     against 435). Read: `ambitious` "builds first, deals most and buys the most Heroes by Transfer".
+   - *DL-69 item 9's last point* says "5.5 Transfers a game in every five-year block". 5.5 is the rate
+     over the whole twenty years. The four five-year blocks hold 228, 426, 209 and 230 Rival-to-Rival
+     Transfers, which is 1.14, 2.13, 1.05 and 1.15 a game. Read: "5.5 Transfers a game, and some in
+     every five-year block". The target of item 4 ("2 to 30 a game and some in every five-year block")
+     is met as it said.
+2. **Tests that were too weak.** Each surviving mutant is now killed by a new test, shown red with
+   the mutant applied and green without it. No assertion was loosened.
+   - *The M6-S3 assertion, out of the player's Guild and on a later Turn* (P01, P06). The one test
+     forced a Transfer into the player's Guild on Turn 0. So a check that caught only Transfers in,
+     and a check that resumed one entry past the last it read, both passed. But out of the player's
+     Guild is the way the assertion guards (the Transfer Generator never takes from it). A new
+     `play.test.ts` test has the player's Guild send a Hero to a Rival on Turn 2, after two advances
+     already checked, with Rivals that deal whenever they can trading among themselves before it. It
+     expects the assertion to stop the game there, naming that entry and "out of". The mutant that
+     swaps "into" and "out of" in the assertion's prose dies with them.
+   - *`readAdvance` across two afternoons* (P10, P11). Reading every `hero.transferred` from the
+     History's start, or marking none read, passed. The one test kept the same debtor in debt, and the
+     set de-duplicated the position. A new test has a sound seller sell on one afternoon and fall into
+     debt before the next. It expects the first sale not to be judged again.
+   - *`recordGame` passing the in-debt Transfers to the counters* (P12). An empty set in its place
+     passed. A new test plays a game in which every Guild is below `bankruptcyFloor` from the first
+     night and none goes bankrupt in it, with the dealing Rivals, and ends with 44 such Transfers. It
+     expects `afternoon-seller-in-debt` to count exactly the play loop's Rival-to-Rival positions, and
+     `afternoon` to count the rest of the afternoon's Transfers.
+   - *`sweepTotals`' M6 sums* (S01, S02b, S03b, S04b, S05b, S09, S10b), *the report's M6 cells*
+     (S15b, S16 to S28, S31 to S34) *and the generation range's bounds* (S11, S12). The sweep test's
+     fixture holds no Transfer, offer or fold, and no Roster or Wealth on a bound, so only labels and
+     zeros were asserted. A new `sweep.test.ts` test gives its two games made-up M6 counters, Wealth
+     and Guild-years. It asserts the totals (sold back, by side, offers, each Disposition, grades by
+     Disposition) and every M6 cell the report writes from them:
+     - the Wealth rows with Transfer fees, and the share of Wealth spent on Transfers;
+     - the Transfers by direction and by way, and the sold-back sentence;
+     - by side and the seller-by-buyer matrix;
+     - the offers' mean fee and Standing;
+     - the purchases a Guild-year;
+     - each Disposition's character row;
+     - the grades by Disposition.
+
+     Another gives two year-starts on the range's bounds (Rosters 4 and 8, Wealth 300 and 700) and
+     expects none counted below or above.
+3. **Stale comments.** `dispositions.test.ts` and `rivals-build-and-buy.test.ts` said the test
+   content's Disposition rows are the core's, but they are M6-S1 to S4's (DL-69 item 8). The CLI's
+   `transfer.test.ts` gave `ambitious` weighing a Transfer "three times in four", but it is three in
+   ten since DL-69's `transferAppetite` 0.3. The comments are corrected; the tests are unchanged.
+
+**Consequences.** No rule, default or content value changes: `configVersion` stays 10, content
+version 14 and schema version 3. So DL-69's run and `harness/reports/m6-2026-09-27.md` stand, and
+the run is not repeated. DL-63 and DL-69 are read with item 1's corrections.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

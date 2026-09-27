@@ -34,8 +34,9 @@ import { testDeps, withEncounters } from '../world.test-support.js';
 // take that they fold again and again: a sweep of 16 seeds counted 22 folds a seed in twenty years,
 // reckless's Rival ten, and the Halls it measured were mostly those of replacements founded with next
 // to nothing. Here every Check asks 0.15, under which the Rivals live off their Quests and fold now
-// and then (about seven a seed), as the core's do. The Dispositions, the rules and every other number
-// are the game's. A seed takes about ten seconds; DL-58 records the sweeps.
+// and then (about seven a seed), as the core's do. The rules and every other number are the game's;
+// the Dispositions are the test content's rows, M6-S1 to S4's, not the core's as the M6 close retuned
+// them (DL-69 item 8). A seed takes about ten seconds; DL-58 records the sweeps.
 
 const years = 20;
 const seeds = ['build-and-buy-1', 'build-and-buy-2', 'build-and-buy-3', 'build-and-buy-4'];

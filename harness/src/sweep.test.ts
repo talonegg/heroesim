@@ -1,7 +1,15 @@
 import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, encounterKinds, type EngineDeps, type RegardBand } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { controllerKinds, rivalTransferWays, transferDirections } from './counters.js';
+import {
+  controllerKinds,
+  noWealth,
+  rivalTransferWays,
+  transferDirections,
+  type DispositionTally,
+  type OfferTally,
+  type TransferTally,
+} from './counters.js';
 import type { GameRecord } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -273,6 +281,161 @@ describe('sweepPlay', () => {
       // By Fame: first and second once each; by Wealth: third both times.
       expect(text).toContain('| 0 | 2 | 1.50 | 1 (50.0%) | 1 (50.0%) | 0 (0.0%) |');
       expect(text).toContain('| 0 | 2 | 3.00 | 0 (0.0%) | 0 (0.0%) | 2 (100.0%) |');
+    });
+
+    test('counts a Roster or a Wealth on a bound of the generation range as within it', () => {
+      const [first, second] = sweep.games;
+      if (first === undefined || second === undefined) throw new Error('Fewer than two games');
+      const rival = (heroes: number, wealth: number) => ({ disposition: 'steady', heroes, wealth });
+      const made: PlaySweep = {
+        ...sweep,
+        games: [
+          { ...first, observations: { ...first.observations, rivals: [[rival(4, 300)]] } },
+          { ...second, observations: { ...second.observations, rivals: [[rival(8, 700)]] } },
+        ],
+      };
+      const text = playReport(made, { ...context, deps: { ...deps, config: { ...deps.config, rivalRosterMin: 4, rivalRosterMax: 8, rivalStartingWealthMin: 300, rivalStartingWealthMax: 700 } } });
+      // Rosters 4 and 8 against 4 to 8, Wealth 300 and 700 against 300 to 700: none below, none above.
+      expect(text).toContain('| 0 | 2 | 6.00 | 4 | 0.0% | 0.0% | 500 | 300 | 0.0% | 0.0% |');
+      expect(text).toContain('| Every Rival | 2 | 6.00 | 4 | 0.0% | 0.0% | 500 | 300 | 0.0% | 0.0% |');
+    });
+
+    test("totals and renders M6's counters where they are not zero: the Transfers, the offers, each Disposition, the grades, the purchases and the fees (DL-71)", () => {
+      // The fixture's two games hold no Transfer, offer or fold: here each game k (1, then 2) is given
+      // made-up M6 counters, k times a pattern, and Guild-years of 0.5 (the player's) and 2 (the Rivals').
+      const t = (transfers: number, fees: number): TransferTally => ({ transfers, fees });
+      const offer = (made: number, fees: number, accepted: number, declined: number, expired: number, left: number, folded: number): OfferTally => ({
+        made,
+        fees,
+        accepted,
+        declined,
+        ended: { expired, 'hero-left': left, 'guild-folded': folded },
+      });
+      const disposition = (k: number): DispositionTally => ({
+        guilds: 1,
+        guildYears: 2,
+        questsTaken: 10 * k,
+        questsWithDifficulty: 10 * k,
+        difficulty: 400 * k,
+        questsResolved: { fail: k, success: 2 * k, strong: 3 * k },
+        deaths: k,
+        recruits: 2 * k,
+        folds: { retirement: 0, bankruptcy: k, 'roster-wiped': 0 },
+      });
+      const shape = (game: GameRecord, k: number): GameRecord => ({
+        ...game,
+        counters: {
+          ...game.counters,
+          guildYears: { player: [0.5], rival: [2] },
+          transfers: { in: t(k, 100 * k), out: t(2 * k, 310 * k), 'rival-to-rival': t(5 * k, 970 * k) },
+          rivalTransfers: { afternoon: t(2 * k, 300 * k), 'afternoon-seller-in-debt': t(k, 210 * k), generator: t(k, 160 * k), 'accepted-offer': t(k, 300 * k) },
+          transfersBySide: {
+            player: { ambitious: t(2 * k, 310 * k) },
+            ambitious: { player: t(k, 100 * k), reckless: t(3 * k, 500 * k) },
+            reckless: { steady: t(2 * k, 470 * k) },
+          },
+          transfersBack: 3 * k,
+          offers: {
+            ambitious: { player: offer(6 * k, 1300 * k, k, 2 * k, k, k, 0) },
+            reckless: { player: offer(2 * k, 500 * k, 0, k, 0, 0, k) },
+          },
+          dispositions: Object.fromEntries(Object.keys(content.dispositions).map((key) => [key, disposition(k)])),
+          marketPurchases: { player: { purchases: 4 * k, items: 6 * k, cost: 400 * k }, ambitious: { purchases: k, items: k, cost: 100 * k } },
+          improvementGradesByDisposition: {
+            ambitious: { infirmary: [0, k, 1], trainingYard: [k], quarters: [0, 0, k] },
+            miserly: { infirmary: [2 * k], trainingYard: [0, k], quarters: [k] },
+          },
+          wealth: {
+            player: { ...noWealth(), signing: 100 * k, transferFeesPaid: 100 * k, items: 200 * k, upkeep: 600 * k, questRewards: 1000 * k, transferFeesTaken: 310 * k },
+            rival: {
+              ...noWealth(),
+              signing: 50 * k,
+              transferFeesPaid: 1280 * k,
+              items: 150 * k,
+              improvements: 500 * k,
+              upkeep: 2000 * k,
+              questRewards: 4000 * k,
+              transferFeesTaken: 1070 * k,
+            },
+          },
+        },
+        observations: {
+          ...game.observations,
+          rivals: [Object.keys(content.dispositions).map((key) => ({ disposition: key, heroes: 4 + k, wealth: 1000 * k }))],
+        },
+      });
+      const [first, second] = sweep.games;
+      if (first === undefined || second === undefined) throw new Error('Fewer than two games');
+      const made: PlaySweep = { ...sweep, games: [shape(first, 1), shape(second, 2)] };
+
+      const summed = sweepTotals(made, deps.config.turnsPerYear);
+      expect(summed.transfersBack).toBe(9);
+      expect(summed.transfersBySide).toEqual({
+        player: { ambitious: t(6, 930) },
+        ambitious: { player: t(3, 300), reckless: t(9, 1500) },
+        reckless: { steady: t(6, 1410) },
+      });
+      expect(summed.offers).toEqual({
+        ambitious: { player: offer(18, 3900, 3, 6, 3, 3, 0) },
+        reckless: { player: offer(6, 1500, 0, 3, 0, 0, 3) },
+      });
+      for (const key of Object.keys(content.dispositions)) {
+        expect(summed.dispositions[key]).toEqual({
+          guilds: 2,
+          guildYears: 4,
+          questsTaken: 30,
+          questsWithDifficulty: 30,
+          difficulty: 1200,
+          questsResolved: { fail: 3, success: 6, strong: 9 },
+          deaths: 3,
+          recruits: 6,
+          folds: { retirement: 0, bankruptcy: 3, 'roster-wiped': 0 },
+        });
+      }
+      expect(summed.improvementGradesByDisposition).toEqual({
+        ambitious: { infirmary: [0, 3, 2], trainingYard: [3], quarters: [0, 0, 3] },
+        miserly: { infirmary: [6], trainingYard: [0, 3], quarters: [3] },
+      });
+
+      const text = playReport(made, context);
+      // Wealth (M5's table): the player's 0.5 + 0.5 Guild-years, the Rivals' 2 + 2.
+      expect(text).toContain('| Spent: Transfers (`hero.transferred` `fee`, the buying Guild) | 300 | 300.0 | 3,840 | 960.0 |');
+      expect(text).toContain('| Spent in all | 3,000 | 3,000.0 | 11,940 | 2,985.0 |');
+      expect(text).toContain('| Taken: Transfers (`hero.transferred` `fee`, the selling Guild) | 930 | 930.0 | 3,210 | 802.5 |');
+      expect(text).toContain('| Taken in all | 3,930 | 3,930.0 | 15,210 | 3,802.5 |');
+      expect(text).toContain("The player's Guild: signing 10.0%, Transfers 10.0%, Items 20.0%, Improvements 0.0%, Upkeep 60.0%;");
+      // The Transfers by direction and by way, over two games.
+      expect(text).toContain("| Into the player's Guild | 3 | 1.50 | 300 | 100 |");
+      expect(text).toContain("| Out of the player's Guild | 6 | 3.00 | 930 | 155 |");
+      expect(text).toContain('| Rival to Rival | 15 | 7.50 | 2,910 | 194 |');
+      expect(text).toContain('| Every Transfer | 24 | 12.00 | 4,140 | 173 |');
+      expect(text).toContain('seller out of debt: the buyer\'s choice (`transferChoice`) | 6 | 3.00 | 900 | 150 |');
+      expect(text).toContain("seller's debt sale (`debtTransfer`) | 3 | 1.50 | 630 | 210 |");
+      expect(text).toContain('| A night: the Transfer Generator | 3 | 1.50 | 480 | 160 |');
+      expect(text).toContain('| An accepted Transfer Offer (`offerId` set) | 3 | 1.50 | 900 | 300 |');
+      expect(text).toContain("Transfers that took a Hero to a Guild that had sold them before (DL-60's lock): 9.");
+      // By side: bought, fees paid, sold, fees taken, net Heroes; then sold by (rows), bought by (columns).
+      expect(text).toContain("| The player's Guild | 3 | 300 | 6 | 930 | -3 |");
+      expect(text).toContain('| `ambitious` | 6 | 930 | 12 | 1,800 | -6 |');
+      expect(text).toContain('| `reckless` | 9 | 1,500 | 6 | 1,410 | 3 |');
+      expect(text).toContain('| `steady` | 6 | 1,410 | 0 | 0 | 6 |');
+      expect(text).toContain("| The player's Guild | 0 | 6 | 0 | 0 | 0 |");
+      expect(text).toContain('| `ambitious` | 3 | 0 | 0 | 9 | 0 |');
+      expect(text).toContain('| `reckless` | 0 | 0 | 0 | 0 | 6 |');
+      // Offers: made, mean fee, accepted, declined, ended by cause, standing.
+      expect(text).toContain("| `ambitious` to the player's Guild | 18 | 217 | 3 | 6 | 3 | 3 | 0 | 3 |");
+      expect(text).toContain("| `reckless` to the player's Guild | 6 | 250 | 0 | 3 | 0 | 0 | 3 | 0 |");
+      // Market purchases a Guild-year: the player's over its own Guild-years.
+      expect(text).toContain("| The player's Guild | 12 | 12.00 | 18 | 1,200 | 100 |");
+      expect(text).toContain('| The Rivals, `ambitious` | 3 | 0.75 | 3 | 300 | 100 |');
+      // Each Disposition's character: Rivals, Guild-years, Quests a Guild-year, mean difficulty, failed,
+      // Deaths and recruits a Guild-year, folds and folds a Guild-year, the Roster and Wealth at a year-start.
+      for (const key of Object.keys(content.dispositions)) {
+        expect(text).toContain(`| \`${key}\` | 2 | 4.0 | 7.5 | 40.0 | 16.7% | 0.75 | 1.50 | 3 (0 / 3 / 0) | 0.750 | 5.5 | 1,500 |`);
+      }
+      // The Improvement grades by Disposition (M3's table): Guilds, mean grade, then Guilds at each grade.
+      expect(text).toContain('| The Rivals, `ambitious`: infirmary | 5 | 1.40 | 0 | 3 | 2 | 0 |');
+      expect(text).toContain('| The Rivals, `miserly`: trainingYard | 3 | 1.00 | 0 | 3 | 0 | 0 |');
     });
 
     test('sums the Patron-years and the Regard after 10 years over the games that reached them', () => {

@@ -32,6 +32,21 @@ const deps: EngineDeps = { config: { ...defaultConfig }, content };
 /** Twenty Days: long enough for Parties to leave and come home, and short for `npm test`. */
 const years = 60 / deps.config.turnsPerYear;
 
+/**
+ * Rivals that deal whenever they can (DL-71): rich from the start, every Disposition's
+ * `transferAppetite` 1, and nothing they would build or buy first, so that an afternoon's one purchase
+ * is a Transfer and any Rival consents to take a Hero in. The same rule; only the numbers differ.
+ */
+const dealing: EngineDeps = {
+  config: { ...deps.config, rivalStartingWealthMin: 20_000, rivalStartingWealthMax: 20_000 },
+  content: {
+    ...content,
+    dispositions: Object.fromEntries(
+      Object.entries(content.dispositions).map(([key, row]) => [key, { ...row, transferAppetite: 1, buildThreshold: 1e9, gearThreshold: 1e9 }]),
+    ),
+  },
+};
+
 describe('validatingEveryTurn reads HEROESIM_VALIDATE (INPUTS §9)', () => {
   test.each([
     [undefined, false],
@@ -227,6 +242,59 @@ describe("playGame reads the Rivals' afternoons (M6, DL-69)", () => {
     readAdvance(before, mark, { ...after, world: { ...after.world, turn: after.world.turn + 1 } }, difficulties, none);
     expect(none.size).toBe(0);
   });
+
+  test('readAdvance judges only the Transfers of the advance it reads: a sale made out of debt stays so when the seller falls into debt later', () => {
+    const before = createWorld('play-debt', harnessSetup, deps).document;
+    const [seller, buyer] = Object.values(before.world.guilds).filter((guild) => dispositionOf(guild) !== null);
+    if (seller === undefined || buyer === undefined) throw new Error('Fewer than two Rivals');
+    const afternoon = (turn: number): WorldDocument => {
+      expect(timeOfDay(turn)).toBe('afternoon');
+      return { ...before, world: { ...structuredClone(before.world), turn } };
+    };
+    const sellerInDebt = new Set<number>();
+
+    // The first afternoon: the seller, out of debt, sells.
+    const first = markHistory(before);
+    const heroId = seller.rosterIds[0] as HeroId;
+    const position = before.history.entries.length;
+    append(before.history, {
+      turn: 1,
+      type: 'hero.transferred',
+      participants: [heroId, seller.id, buyer.id],
+      labels: {},
+      milestone: true,
+      payload: { heroId, fromGuildId: seller.id, toGuildId: buyer.id, fee: 100, offerId: null },
+    });
+    readAdvance(before, first, afternoon(1), new Map(), sellerInDebt);
+    expect(sellerInDebt.size).toBe(0);
+
+    // A night puts the seller in debt; the next afternoon makes no Transfer, and the first sale is not read again.
+    seller.belowFloorSince = 2;
+    readAdvance(before, markHistory(before), afternoon(4), new Map(), sellerInDebt);
+    expect(sellerInDebt.has(position)).toBe(false);
+    expect(sellerInDebt.size).toBe(0);
+  });
+
+  test('recordGame gives the counters the Transfers whose seller was in debt, which they count apart', () => {
+    // Every Guild below the floor from the first night, and none bankrupt within the game.
+    const inDebt: EngineDeps = { ...dealing, config: { ...dealing.config, bankruptcyFloor: 1e9, bankruptcyGraceDays: 10_000 } };
+    const game = playGame('play-a', inDebt, { years });
+    const { history, world } = game.document;
+    const rivalToRival = (position: number): boolean => {
+      const payload = history.entries[position]?.payload as { fromGuildId: GuildId; toGuildId: GuildId };
+      return [payload.fromGuildId, payload.toGuildId].every((guildId) => dispositionOf(world.guilds[guildId] as Guild) !== null);
+    };
+    const afternoons = (history.byType['hero.transferred'] ?? []).filter(
+      (position) => rivalToRival(position) && timeOfDay(history.entries[position]?.turn ?? 0) === 'afternoon',
+    );
+    const sold = [...game.sellerInDebt].filter(rivalToRival);
+    expect(sold.length).toBeGreaterThan(0);
+    expect(afternoons.length).toBeGreaterThan(sold.length);
+
+    const { record } = recordGame('play-a', inDebt, { years });
+    expect(record.counters.rivalTransfers['afternoon-seller-in-debt'].transfers).toBe(sold.length);
+    expect(record.counters.rivalTransfers.afternoon.transfers).toBe(afternoons.length - sold.length);
+  });
 });
 
 describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the player\'s Guild', () => {
@@ -280,6 +348,43 @@ describe('the M6-S3 harness assertion (DL-69): no hero.transferred names the pla
     expect(report).toContain('## Harness assertions broken');
     expect(report).toContain(`| \`play-a\` | 0 | player-transferred | \`$.history.entries[${position}]\` |`);
     expect(report).toContain("`hero.transferred` entries naming the player's Guild, 1; games it stopped, 1.");
+  });
+
+  test("fires on a Transfer out of the player's Guild on a later Turn, after Turns it has already checked, and not on the Rivals' own", () => {
+    // Out of the player's Guild is the way the assertion guards (the Generator never takes from it).
+    // The player's choices send a Hero not yet dispatched to a Rival on Turn 2, after two advances
+    // each checked, the Rivals dealing among themselves meanwhile, and otherwise play as the policy
+    // does.
+    const turn = 2;
+    const sendOne = (document: WorldDocument, given: EngineDeps, policy: Readonly<PolicyConfig>): GuildAction[] => {
+      const guild = playerGuild(document.world) as Guild;
+      if (document.world.turn !== turn) return automaticPolicy(document, given, policy);
+      for (const rival of Object.values(document.world.guilds).filter((other) => other.id !== guild.id)) {
+        for (const heroId of guild.rosterIds) {
+          const action: GuildAction = { kind: 'transferOut', guildId: guild.id, heroId, toGuildId: rival.id };
+          if (applyAction(structuredClone(document), action, given).ok) return [action];
+        }
+      }
+      throw new Error('No Rival would take a Hero in');
+    };
+    const game = playGame('play-a', dealing, { years, validate: true, choose: sendOne });
+
+    expect(game.refusals).toEqual([]);
+    expect(game.invalid).toBeNull();
+    const { history } = game.document;
+    const guildId = playerGuild(game.document.world)?.id;
+    const transferred = history.byType['hero.transferred'] ?? [];
+    const position = transferred.find((at) => (history.entries[at]?.payload as { fromGuildId: string }).fromGuildId === guildId);
+    if (position === undefined) throw new Error("No Hero left the player's Guild");
+    // The Rivals' Transfers of the Turns before, none naming the player's Guild, did not stop the game.
+    expect(transferred.filter((at) => at < position && (history.entries[at]?.turn ?? turn) < turn).length).toBeGreaterThan(0);
+    expect(game.assertion).toEqual({
+      turn,
+      check: 'player-transferred',
+      id: `$.history.entries[${position}]`,
+      detail: expect.stringContaining("out of the player's Guild"),
+    });
+    expect(game.turnsPlayed).toBe(turn + 1);
   });
 });
 

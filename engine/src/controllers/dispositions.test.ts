@@ -12,8 +12,9 @@ import { testContent, testDeps, withEncounters, withValid } from '../world.test-
 
 // M6-S1's first box (INPUTS 7.5, DL-56): over 100 seeds, `reckless` Rivals take higher mean
 // difficulty than `miserly` and lose more Heroes, and `ambitious` builds first. The four
-// Dispositions are the test content's rows, which mirror the core's, dealt round-robin to a
-// default world's four Rivals; nothing here tells a Rival what to do.
+// Dispositions are the test content's rows, M6-S1 to S4's, which the M6 close's balance pass left
+// behind when it retuned the core's (DL-69 item 8), dealt round-robin to a default world's four
+// Rivals; nothing here tells a Rival what to do.
 //
 // Each seed plays a month. A Death is rare under the test content's Encounters (a failure kills
 // one time in fifty, in two Encounters of twelve), too rare to count in a month of 100 worlds (4
