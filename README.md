@@ -27,6 +27,9 @@ needed anywhere (INPUTS 7.8 and 7.9, DL-68).
    publishes `web/dist` to <https://heroesims.pages.dev>. The page published is whatever the
    checkout builds; `--branch` is always given, because a deploy Pages takes for any other
    branch is a preview that never reaches the URL.
+3. **After each deploy:** `npm run e2e:live -w web` plays a game on <https://heroesims.pages.dev>
+   in Chromium at a phone's width and a desktop's, saves it in IndexedDB, reloads and loads it,
+   and fails if the page asks anything of another origin (DL-75).
 
 Wrangler keeps its working state in `.wrangler/`, which `.gitignore` excludes;
 `web/src/deploy.test.ts` fails if a token, an account id or that directory ever enters the

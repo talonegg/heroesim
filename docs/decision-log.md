@@ -6317,6 +6317,51 @@ skipped, 240 of them new, in each of three full runs in a row. `npm run build -w
 through the gate: 481.59 kB (140.03 kB gzipped), "no network or filesystem reference". `npm run e2e
 -w web` passes 16.
 
+## DL-75 — M7 close: the Pages project created on classic Pages, the first deploy, and a check of the deployed page
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (the orchestrator closing
+M7), carrying out the owner's INPUTS 7.8 and 7.9 answers; it chooses no default, content value or
+version
+
+**Context.** M7's stories and their verification (DL-64 to DL-68, DL-72 to DL-74) left M7-S5's
+first box to the orchestrator: deploy with DL-68's command and prove that the URL serves the build
+and a fresh browser creates a game and saves. INPUTS 7.8 names a Cloudflare Pages project
+`heroesims`, production branch `v1.0-release`, at `https://heroesims.pages.dev`; 7.9 a local
+`npx wrangler login` and no secret anywhere. This machine was already logged in (v1's deploy,
+DL-30 on `feature/poc`); the project did not exist.
+
+**Decision.**
+
+1. **The project is created on classic Cloudflare Pages, with `--force`.** Wrangler 4.141.0, asked
+   to create a Pages project that does not exist, delegates to "the latest version of Cloudflare
+   Pages, now part of Cloudflare Workers": it runs its framework detection, refuses at a
+   workspace's root, and would make a Workers project served from a `workers.dev` address, not the
+   `pages.dev` Pages project 7.8 names. Wrangler's own notice offers `--force` to create the
+   project directly on Pages. So, once, from `web/`:
+   `npx wrangler pages project create heroesims --production-branch v1.0-release --force`.
+   Wrangler says only creation needs it: the project now exists, so DL-68's
+   `npm run deploy` runs against Pages unchanged and never passes `--force`.
+2. **The first deploy** ran `npm run deploy` from `v1.0-dev` at `ba38eb5` (M7 merged; the code the
+   `m7-web` tag carries, which adds only documents): two files uploaded, the bundle 481.59 kB
+   (140.03 kB gzip) with the gate passing, the deployment published to the production branch and
+   `https://heroesims.pages.dev` answering 200. The release deploy follows README's procedure from a
+   checkout of `v1.0-release` at the tag.
+3. **The check is committed, not only run:** `web/e2e/deployed.live.ts` with its own
+   `web/playwright.live.config.ts`, run by `npm run e2e:live -w web`, in the shape of M7-S4's
+   measure (DL-67): kept out of `npm run e2e`, which never needs the network, and out of CI (7.10).
+   At 360×800 and 1280×800 it creates a game, plays a Day, saves in IndexedDB, reloads, loads the
+   save at the same Turn, finds no horizontal overflow, and fails if the page requests anything
+   from another origin. Both passed on 2026-09-27. README's Deploy section names it as the step
+   after each deploy.
+4. **Nothing of the account enters the repository.** No token, account id or `.wrangler/` state is
+   written here; `web/src/deploy.test.ts` (DL-68) still guards it.
+
+**Consequences.** M7-S5's first box is met and M7 closes, tagged `m7-web`, with one box open:
+M7-S4's twenty-year round trip through IndexedDB takes 3.6 s against 1 s (DL-67), and the lever is
+the save's size, a data-model decision for the owner. Left to the owner: Cloudflare is folding
+Pages into Workers; a later wrangler may stop offering classic Pages, and moving the page to a
+Workers project would change its address and DL-68's command.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

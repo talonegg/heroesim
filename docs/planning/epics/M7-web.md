@@ -4,7 +4,7 @@
 **Sessions:** 6–8 · **Depends on:** M6 · **Implements:** `plan.md` M7; R37, R38; N2; ADR-0007; principle 12
 **Gate:** `https://<project>.pages.dev` serves the browser front end; a game is created, advanced, dispatched, recruited, saved to IndexedDB and reloaded; Playwright proves it; the bundle contains no network call
 
-**Status:** in progress — M7-S1 to S5 built and verified (DL-74); deploy pending
+**Status:** done — 2026-09-27 (`m7-web`); M7-S4's twenty-year measure (under 1 s) is not met and is left to the owner (DL-67)
 
 ## 0. What lands in M7
 
@@ -152,11 +152,35 @@ reads the two secrets and nothing else.
 
 **Acceptance:**
 
-- [ ] The URL serves the build; a fresh browser creates a game and saves (the orchestrator's, after
-      the tag; DL-68)
+- [x] The URL serves the build; a fresh browser creates a game and saves — <https://heroesims.pages.dev>,
+      deployed 2026-09-27 with `npm run deploy`; `npm run e2e:live -w web` (`e2e/deployed.live.ts`) creates a
+      game, plays a Day, saves in IndexedDB, reloads and loads it at 360×800 and 1280×800, and no request
+      leaves the page's origin (DL-75)
 - [x] The repository contains no token, account id or `.wrangler/` state (`.gitignore` gains
       `.wrangler/`; M0-S1 added it) (`web/src/deploy.test.ts`, DL-68)
 - [x] `README.md` names the URL and the deploy command (`web/src/deploy.test.ts`, DL-68)
+
+## Measured
+
+Measured 2026-09-27 on v1.0-dev after M7's merge (`ba38eb5`): lint, typecheck and `npm test` 107 files,
+2,475 tests; `npm run e2e -w web` 16 passed (the journeys at 360×800 and 1280×800, the CLI loading the
+export, storage blocked three ways, no overflow on any section); the bundle 481.59 kB (140.03 kB gzip),
+two files, the gate passing; <https://heroesims.pages.dev> serving it, checked by `npm run e2e:live -w web`.
+
+| Measure | Result |
+| --- | --- |
+| A twenty-year save through IndexedDB (M7-S4, target under 1 s) | 3.6 to 3.8 s in Chromium: save 2.3 to 2.5 s, load after a reload 1.3 s — **not met**, left to the owner (DL-67) |
+| Its size, compressed | 12,662,505 bytes from 113,281,366 (8.9 to 1) |
+| Where the time goes | the engine's `serialise` and `deserialise` of a 113 MB save (about 1 s each way) and gzip (about 1.2 s); IndexedDB takes milliseconds |
+
+The lever is the save's size, not the storage: the History is most of a twenty-year save
+(`quest.encounter` alone about a third, M4's run). Shrinking it is a data-model decision for the
+owner, not a front-end one.
+
+Verified independently on 2026-09-27 by five lenses (acceptance, boundaries and the bundle gate,
+play in the browser as a human, 120 mutants, decisions); 21 confirmed findings fixed in DL-74, among
+them a stricter bundle gate (every comment and URL form, Node built-ins refused at build) and the
+journey recruiting as the Gate names; the deploy and its check in DL-75.
 
 ## 2. Configuration and events introduced
 
