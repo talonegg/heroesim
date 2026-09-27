@@ -157,7 +157,7 @@ sessions actually spent. `plan.md` §4's first line — Random Events — become
       `web/e2e/modules.spec.ts` in the built page at both widths (`npm run e2e -w web`, 20 of 20).
       Both narration maps give any module event type one generic sentence, never a crash
       (`cli/src/narrate.test.ts`, `web/src/state/narrate.test.ts`) (DL-79)
-- [ ] The M8 tag exists; `plan.md` says the first build is complete and when — `plan.md` §2 (the M8
+- [x] The M8 tag exists; `plan.md` says the first build is complete and when — `plan.md` §2 (the M8
       row and the line under the table) and §4 say the first build is complete, M8 tagged
       `m8-modules` on 2026-09-28, with Random Events next; ADR-0005's closing line and the README's
       line on the first build say the same, written by the M8 close after its tagged run (DL-81). The
