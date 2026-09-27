@@ -19,6 +19,7 @@ import {
   type Guild,
   type Party,
   type QuestId,
+  type TransferOffer,
   type World,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
@@ -28,6 +29,7 @@ import { sellFoldedGuildItems } from '../market.js';
 import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
 import { ageOf, dayOf } from '../time.js';
+import { withdrawOffers } from '../transfer.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
 export const endings: PhaseRun = (world, ctx) => {
@@ -111,9 +113,12 @@ function endGame(world: World, guild: Guild, reason: EndingReason, ctx: PhaseCon
  *    retired Heroes went back earlier tonight (`gearReturn`), so the Guild now holds all it had.
  * 3. Its unique Items are sold to the Market, one `item.sold` (`cause: 'fold'`) each in id order,
  * 4. and its stacks are discarded (`sellFoldedGuildItems`, M5-S4, DL-51).
- * 5. Its Heroes are released to the Unattached pool, in Roster order, each with `hero.left-guild`,
+ * 5. Every pending Transfer Offer naming the Guild, made by it or asking it (and so every offer for
+ *    one of its Heroes), is withdrawn, in id order, with `guild.transfer-offer-expired` for
+ *    `guild-folded` (M6-S2, DL-57): no offer outlives the Guild it names.
+ * 6. Its Heroes are released to the Unattached pool, in Roster order, each with `hero.left-guild`,
  *    keeping their Injuries, Levels and Morale; the Roster is emptied and `foldedOnTurn` set.
- * 6. `guild.folded`, a Milestone naming the Guild, its Guildmaster, each Party it disbanded and each
+ * 7. `guild.folded`, a Milestone naming the Guild, its Guildmaster, each Party it disbanded and each
  *    Quest it abandoned, closes the fold. It is made first, while those rows still exist (an event
  *    names only rows the world has, `emit`), and told last.
  *
@@ -156,7 +161,11 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
   // 3 and 4. Its unique Items to the Market, its stacks discarded.
   events.push(...sellFoldedGuildItems(world, guild, ctx.emit, ctx));
 
-  // 5. Its Heroes to the pool.
+  // 5. Its Transfer Offers, either way.
+  const named = (offer: TransferOffer) => offer.fromGuildId === guild.id || offer.toGuildId === guild.id;
+  events.push(...withdrawOffers(world, (offer) => (named(offer) ? 'guild-folded' : null), ctx.emit));
+
+  // 6. Its Heroes to the pool.
   for (const hero of roster) {
     events.push(
       ctx.emit({ type: 'hero.left-guild', participants: [hero.id, guild.id], payload: { heroId: hero.id, guildId: guild.id } }),
@@ -167,7 +176,7 @@ function fold(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContex
   guild.rosterIds = [];
   guild.foldedOnTurn = ctx.turn;
 
-  // 6. The fold itself.
+  // 7. The fold itself.
   events.push(folded);
   return events;
 }
@@ -184,7 +193,10 @@ function abandonedQuests(world: World, parties: readonly Party[]): QuestId[] {
 /**
  * Founds one new Rival for each Guild that folded `rivalReplacementDays` Days ago tonight, in the
  * folded Guilds' id order, through the Guild Generator as `createWorld` makes its Rivals, drawing
- * from `generation` (DL-28). Only a Rival folds, so this asks nothing of the folded Guild but when.
+ * from `generation` (DL-28). The new Rival takes the controller of the one it replaces, so it has
+ * that Rival's Disposition and a world keeps every Disposition it was dealt (M6-S1, DL-56). Only a
+ * Rival folds, so this asks nothing of the folded Guild but when, and copies its controller
+ * without reading it.
  */
 function replaceFolded(world: World, ctx: PhaseContext): EngineEvent[] {
   const today = dayOf(ctx.turn);
@@ -192,7 +204,7 @@ function replaceFolded(world: World, ctx: PhaseContext): EngineEvent[] {
     (guild) => guild.foldedOnTurn !== null && dayOf(guild.foldedOnTurn) + ctx.config.rivalReplacementDays === today,
   );
   const deps = { config: ctx.config, content: ctx.content };
-  return due.flatMap(() => generateRival(world, deps, { stream: 'generation' }).events);
+  return due.flatMap((folded) => generateRival(world, deps, { stream: 'generation', controller: folded.controller }).events);
 }
 
 /** Every Guild, in id order. */

@@ -20,6 +20,7 @@ import {
   plannedStreams,
   testContent,
   testDeps,
+  withDispositions,
   withEncounters,
   withValid,
 } from '../world.test-support.js';
@@ -422,7 +423,7 @@ describe('questsConclude', () => {
   // M4-S2's fourth box, in the engine: M2's bands still come out of the Quest Engine, for every
   // Guild, each Quest's Encounters recorded before it (the harness's own tests play the real content).
   test('over a month of Rivals and the player sending Parties, quest.resolved still gives every band, each after its Encounters', () => {
-    const deps = soloDeps({ rivalCount: 2, recruitWealthMultiple: 1000 });
+    const deps = soloDeps({ rivalCount: 2 }, withDispositions({ recruitThreshold: 1000 }));
     let document = createWorld('bands', setup, deps).document;
     const events: EngineEvent[] = [];
     while (document.world.turn < nightOf(45)) {

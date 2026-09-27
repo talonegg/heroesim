@@ -628,6 +628,53 @@ describe('an Injury type (M2-S5)', () => {
   });
 });
 
+describe('a Disposition (M6-S1)', () => {
+  const reckless = (json: Files['dispositions.json']) => json['reckless'] as Omit<Disposition, 'key'>;
+
+  test.each<[string, (it: Omit<Disposition, 'key'>) => void, RegExp]>([
+    ['with a questRiskAppetite above 1', (it) => (it.questRiskAppetite = 1.5), /dispositions\.reckless\.questRiskAppetite is 1\.5; it is a number from 0 to 1/],
+    ['with a transferAppetite below 0', (it) => (it.transferAppetite = -0.1), /dispositions\.reckless\.transferAppetite is -0\.1; it is a number from 0 to 1/],
+    ['with a negative recruitThreshold', (it) => (it.recruitThreshold = -1), /dispositions\.reckless\.recruitThreshold is -1; it is a number of 0 or more/],
+    ['with a negative buildThreshold', (it) => (it.buildThreshold = -2), /dispositions\.reckless\.buildThreshold is -2; it is a number of 0 or more/],
+    ['with a negative gearThreshold', (it) => (it.gearThreshold = -3), /dispositions\.reckless\.gearThreshold is -3; it is a number of 0 or more/],
+  ])('%s is refused, naming the Disposition and the field', (_, change, problem) => {
+    const files = withJson('dispositions.json', (json) => change(reckless(json)));
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
+  });
+
+  test('without a weight, or with one that is not a number, is refused, naming it', () => {
+    const missing = withJson('dispositions.json', (json) => {
+      Reflect.deleteProperty(reckless(json), 'buildThreshold');
+    });
+    const wrong = withJson('dispositions.json', (json) => {
+      Object.assign(reckless(json), { questRiskAppetite: 'high' });
+    });
+
+    expect(refusalOf(() => parseContent(missing)).message).toMatch(/dispositions\.json: reckless\.buildThreshold is missing/);
+    expect(refusalOf(() => parseContent(wrong)).message).toMatch(/dispositions\.json: reckless\.questRiskAppetite is "high"/);
+  });
+
+  test('is required: a set with none is refused, since every Rival is dealt one', () => {
+    expect(refusalOf(() => parseContent(withText('dispositions.json', '{}'))).message).toContain('dispositions is empty');
+  });
+
+  test('may be a fifth, with weights of its own, and is accepted as the four are', () => {
+    const files = withJson('dispositions.json', (json) => {
+      json['cautious'] = {
+        name: 'Cautious',
+        questRiskAppetite: 0.1,
+        recruitThreshold: 100,
+        buildThreshold: 0,
+        gearThreshold: 0,
+        transferAppetite: 0,
+      };
+    });
+
+    expect(Object.keys(parseContent(files).dispositions).sort()).toEqual(['ambitious', 'cautious', 'miserly', 'reckless', 'steady']);
+  });
+});
+
 describe('a file', () => {
   test('that is missing is refused, naming the file', () => {
     const files = realFiles();

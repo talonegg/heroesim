@@ -22,9 +22,9 @@ import { addStack, createItem, holdings } from '../items.js';
 import { marketHolder, sellPrice } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
-import { playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
+import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
 import { nightOf } from '../time.js';
-import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { plannedStreams, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
 
@@ -322,17 +322,14 @@ describe('advance after the ending', () => {
 
 describe("a Rival's ending folds it (pre-M0 review D6)", () => {
   test('a bankrupt Rival folds without ending the game: its Heroes are Unattached that night, it leaves the Rankings, it acts no more, and a new Rival is founded rivalReplacementDays later', () => {
-    const deps = testDeps({
-      rivalCount: 2,
-      bankruptcyGraceDays: 2,
-      rivalReplacementDays: 5,
-      // Out of every Rival's reach, so that none re-signs the released Heroes (M2-S9 recruits
-      // above this many Upkeeps), whose leaving the pool the test watches.
-      recruitWealthMultiple: 1_000_000,
-      // And no building (M3-S6), which would spend a new Rival's Wealth before its first Upkeep and,
-      // under this test's two Days' grace, fold it too.
-      buildWealthMultiple: 1_000_000,
-    });
+    const deps = testDeps(
+      { rivalCount: 2, bankruptcyGraceDays: 2, rivalReplacementDays: 5 },
+      // Out of every Rival's reach, so that none re-signs the released Heroes (a Rival recruits
+      // above its Disposition's recruitThreshold of Upkeeps), whose leaving the pool the test
+      // watches; and no building (M3-S6), which would spend a new Rival's Wealth before its first
+      // Upkeep and, under this test's two Days' grace, fold it too (DL-56).
+      withDispositions(thriftyRivals),
+    );
     const start = created('fold', deps);
     const player = thePlayer(start.world);
     const rival = firstRival(start.world);
@@ -395,11 +392,20 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const newcomerId = founded[0]?.payload.guildId ?? ('' as GuildId);
     const newcomer = guildOf(replaced.document.world, newcomerId);
     expect(founded[0]).toMatchObject({ turn: replacementNight, milestone: true });
+    // It takes the controller of the Rival it replaces, so the world keeps every Disposition it was
+    // dealt (M6-S1, DL-56): here the first Rival's, `ambitious`, dealt first in key order.
     expect(newcomer).toMatchObject({
       foundedTurn: replacementNight,
       foldedOnTurn: null,
-      controller: { kind: 'rival', disposition: 'steady' },
+      controller: { kind: 'rival', disposition: 'ambitious' },
     });
+    expect(newcomer.controller).toEqual(rival.controller);
+    const inPlay = (world: typeof start.world) =>
+      Object.values(world.guilds)
+        .filter((guild) => guild.foldedOnTurn === null)
+        .map((guild) => dispositionOf(guild))
+        .sort();
+    expect(inPlay(replaced.document.world)).toEqual(inPlay(start.world));
     expect(newcomer.name).not.toBe(folded.name);
     expect(newcomer.rosterIds.length).toBeGreaterThanOrEqual(deps.config.rivalRosterMin);
     expect(newcomer.rosterIds.length).toBeLessThanOrEqual(deps.config.rivalRosterMax);

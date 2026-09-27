@@ -26,6 +26,7 @@ import type {
   GuildmasterId,
   HeroId,
   ItemId,
+  OfferId,
   PartyId,
   PatronId,
   QuestId,
@@ -217,10 +218,11 @@ export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: Qu
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
 
 /**
- * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, or the
- * Morale consequences of a Quest's Encounters, summed (M4-S2).
+ * What moved a Hero's Morale: a Death on their Roster, a strong success, the nightly drift, the
+ * Morale consequences of a Quest's Encounters, summed (M4-S2), or a Hero they held in high Regard
+ * transferred away from their Roster (M6-S2, DL-57), emitted only on a band crossing.
  */
-export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters';
+export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encounters' | 'transfer';
 
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
@@ -317,8 +319,11 @@ export type PatronRegardChanged = Entry<
   }
 >;
 
-/** What moved a Guildmaster's Regard: in M4, a Quest their Guild resolved (M6-S2 adds Transfer deals). */
-export type GuildmasterRegardCause = 'quest-success' | 'quest-failure';
+/**
+ * What moved a Guildmaster's Regard: a Quest their Guild resolved (M4-S5), or a Transfer made between
+ * their Guild and another, for the other Guild's Guildmaster (M6-S2, DL-57).
+ */
+export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transfer-deal';
 
 /**
  * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
@@ -411,9 +416,10 @@ export type ItemUnequipped = Entry<'item.unequipped', GearMove>;
 /**
  * Why gear went back from a Hero to their Guild's holding without an `unequip` (DL-49): the Hero
  * died or retired (the night's `gearReturn`), or the Guild folded (its gear is back before the
- * fold does anything with the Guild's holding). M6's Transfers add theirs.
+ * fold does anything with the Guild's holding), or the Hero was transferred to another Guild, whose
+ * gear stays with the Guild they leave (M6-S2, DL-49 item 8, DL-57).
  */
-export type GearReturnCause = 'died' | 'retired' | 'guild-folded';
+export type GearReturnCause = 'died' | 'retired' | 'guild-folded' | 'transferred';
 
 /**
  * Gear a Hero carried went back to their Guild's holding, for `cause`, one entry per Item. Names the
@@ -464,6 +470,54 @@ export type ItemSold = Entry<
   }
 >;
 
+// ── Transfers (M6-S2, R28, data-model §3.2, DL-57) ────────────────────────────────────────────
+
+/**
+ * A Hero moved from `fromGuildId`'s Roster to `toGuildId`'s for `fee` Wealth, paid by the second to
+ * the first: through `transferIn`, `transferOut`, or `acceptTransfer`, which names the Transfer Offer
+ * accepted as `offerId` (`null` otherwise). A Milestone, naming the Hero, both Guilds and the offer.
+ */
+export type HeroTransferred = Entry<
+  'hero.transferred',
+  { heroId: HeroId; fromGuildId: GuildId; toGuildId: GuildId; fee: number; offerId: OfferId | null }
+>;
+
+/** A Transfer Offer as its events carry it: the offer, the two Guilds, the Hero and the fee. */
+export interface OfferTerms {
+  offerId: OfferId;
+  /** The Guild whose Roster the Hero is on, which answers the offer. */
+  fromGuildId: GuildId;
+  /** The Guild that made the offer and would pay the fee. */
+  toGuildId: GuildId;
+  heroId: HeroId;
+  fee: number;
+}
+
+/**
+ * A Guild offered `fee` for a Hero of another Guild whose controller answers for itself: a row in
+ * `world.offers`, standing until `expiresOnTurn`'s night unless accepted or declined first. Names the
+ * offer, the Hero and both Guilds. Not a Milestone: the Transfer is.
+ */
+export type GuildTransferOffered = Entry<'guild.transfer-offered', OfferTerms & { expiresOnTurn: Turn }>;
+
+/**
+ * The Guild asked declined a Transfer Offer through `declineTransfer`, and the offer was removed.
+ * Names the offer, the Hero and both Guilds.
+ */
+export type GuildTransferOfferDeclined = Entry<'guild.transfer-offer-declined', OfferTerms>;
+
+/**
+ * Why a Transfer Offer was removed unanswered: its time ran out (`expired`, the night of its last
+ * Day), its Hero left the Roster it was made for (`hero-left`: transferred, dead or retired), or one
+ * of the two Guilds folded (`guild-folded`).
+ */
+export type TransferOfferEndCause = 'expired' | 'hero-left' | 'guild-folded';
+
+/**
+ * A Transfer Offer was removed unanswered, for `cause`. Names the offer, the Hero and both Guilds.
+ */
+export type GuildTransferOfferExpired = Entry<'guild.transfer-offer-expired', OfferTerms & { cause: TransferOfferEndCause }>;
+
 /** Every event the engine emits. */
 export type EngineEvent =
   | WorldCreated
@@ -501,7 +555,11 @@ export type EngineEvent =
   | ItemUnequipped
   | ItemReturned
   | ItemBought
-  | ItemSold;
+  | ItemSold
+  | HeroTransferred
+  | GuildTransferOffered
+  | GuildTransferOfferDeclined
+  | GuildTransferOfferExpired;
 
 /** Every event type the engine emits. */
 export type EngineEventType = EngineEvent['type'];
@@ -553,6 +611,10 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'item.returned': false,
   'item.bought': false,
   'item.sold': false,
+  'hero.transferred': true,
+  'guild.transfer-offered': false,
+  'guild.transfer-offer-declined': false,
+  'guild.transfer-offer-expired': false,
 } satisfies Record<EngineEventType, boolean>);
 
 /** A rule saying, from its payload, whether an entry of `Type` is a Milestone. */

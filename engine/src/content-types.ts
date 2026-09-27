@@ -32,7 +32,7 @@ export type QuestTemplateKey = string;
 export type QuestTagKey = string;
 /** A type of Injury (M2-S5, `injuries.json`). */
 export type InjuryTypeKey = string;
-/** A Rival Guild's Disposition: `steady` from M2, the rest in M6. */
+/** A Rival Guild's Disposition: `steady` from M2, `ambitious`, `miserly` and `reckless` from M6-S1. */
 export type DispositionKey = string;
 /** An Encounter a Quest is drawn with (M4). */
 export type EncounterKey = string;
@@ -347,13 +347,39 @@ export interface InjuryType {
 }
 
 /**
- * A Rival Guild's Disposition (R7, INPUTS 4.12; `dispositions.json`, M2-S9): the named rule set
- * that makes its choices. The row is a name only; the rule is engine code keyed by the row's key
- * (approach §4, `controllers/rival.ts`), until M6-S1 gives each row the weights one rule reads.
+ * A Rival Guild's Disposition (R7, INPUTS 4.12 and 7.5; `dispositions.json`, M2-S9, M6-S1): the
+ * named rule set that makes its choices, as weights that one rule reads (`rivalChoices` in
+ * `controllers/rival.ts`, DL-56). A Disposition is a row, never a code path: a new row with other
+ * weights plays with no engine change (principle 6).
  */
 export interface Disposition {
   key: DispositionKey;
   name: string;
+  /**
+   * Which of the Quests it can staff it takes, from 0 to 1: its place along those Quests ranked
+   * by difficulty, 0 the easiest and 1 the hardest (M6-S1). 0 is DL-30's "easiest", `steady`'s until
+   * the M6 close moved it to the middle, 0.5 (DL-69).
+   */
+  questRiskAppetite: number;
+  /**
+   * It recruits only while its Wealth is above this many times its Upkeep (M6-S1: M2-S9's
+   * `recruitWealthMultiple`, which the row replaces, DL-56). 0 or more.
+   */
+  recruitThreshold: number;
+  /**
+   * It builds a facility's next grade only while its Wealth is above this many times that
+   * grade's cost (M6-S1: M3-S6's `buildWealthMultiple`, which the row replaces, DL-56; every
+   * facility of the Hall from M6-S4, DL-58). 0 or more.
+   */
+  buildThreshold: number;
+  /**
+   * It buys a piece of gear at the Market only while its Wealth is above this many times the price
+   * (M6-S4, DL-58: a piece an afternoon for its Heroes who lack one, armour first, the dearest within
+   * those means; `gearPurchase`). 0 or more.
+   */
+  gearThreshold: number;
+  /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */
+  transferAppetite: number;
 }
 
 /**
@@ -484,7 +510,7 @@ export interface ContentSet {
   questTemplates: Record<QuestTemplateKey, QuestTemplate>;
   /** The types of Injury a Quest can leave; at least one (M2-S5). */
   injuries: Record<InjuryTypeKey, InjuryType>;
-  /** The Rival Dispositions, each a Rival controller's rule by key (M2-S9). */
+  /** The Rival Dispositions, each the weights a Rival controller's one rule reads (M2-S9, M6-S1); at least one. */
   dispositions: Record<DispositionKey, Disposition>;
   /** The Hall Improvements, each one grade of one facility and its cost (M3-S6). */
   improvements: Record<ImprovementKey, Improvement>;

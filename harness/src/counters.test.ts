@@ -6,6 +6,7 @@ import {
   createWorld,
   defaultConfig,
   dispatch,
+  dispositionOf,
   makeId,
   milestoneTypes,
   playerGuild,
@@ -27,9 +28,13 @@ import {
   countGame,
   emptyObservations,
   noConsumables,
+  noDisposition,
   noGear,
+  noOffers,
+  noTransfers,
   noWealth,
   observe,
+  playerRanking,
   questsTakenByController,
   regardSnapshot,
   takeCensus,
@@ -232,12 +237,21 @@ describe("M3's counters, from the History", () => {
     improved(document, 320, d, 'infirmary', 1);
     document.world.turn = 330;
 
-    const { improvementGrades } = countGame(document, shortYears);
+    const { improvementGrades, improvementGradesByDisposition } = countGame(document, shortYears);
 
     expect(improvementGrades).toEqual({
       player: { infirmary: [0, 0, 1, 0], trainingYard: [0, 1, 0, 0], quarters: [1, 0, 0, 0] },
       // Rivals A, B and the replacement C.
       rival: { infirmary: [2, 1, 0, 0], trainingYard: [3, 0, 0, 0], quarters: [2, 1, 0, 0] },
+    });
+    // The Rivals again by Disposition (M6, DL-69): A is `ambitious`, B `miserly`, and C inherits B's.
+    expect([a, b, c].map((guild) => dispositionOf(guild))).toEqual(['ambitious', 'miserly', 'miserly']);
+    const none = { infirmary: [0, 0, 0, 0], trainingYard: [0, 0, 0, 0], quarters: [0, 0, 0, 0] };
+    expect(improvementGradesByDisposition).toEqual({
+      ambitious: { infirmary: [0, 1, 0, 0], trainingYard: [1, 0, 0, 0], quarters: [1, 0, 0, 0] },
+      miserly: { infirmary: [2, 0, 0, 0], trainingYard: [2, 0, 0, 0], quarters: [1, 1, 0, 0] },
+      reckless: none,
+      steady: none,
     });
   });
 
@@ -245,6 +259,7 @@ describe("M3's counters, from the History", () => {
     const { document } = fixture('counters-short');
     document.world.turn = 299;
     expect(countGame(document, shortYears).improvementGrades).toBeNull();
+    expect(countGame(document, shortYears).improvementGradesByDisposition).toBeNull();
 
     document.world.turn = 400;
     document.world.ended = { turn: 250, reason: 'bankruptcy' };
@@ -635,21 +650,25 @@ describe("M5's counters, from the History", () => {
     expect(wealth).toEqual({
       player: {
         signing: 120,
+        transferFeesPaid: 0,
         items: 200,
         itemsBought: 3,
         improvements: 200,
         upkeep: 70,
         questRewards: 150,
+        transferFeesTaken: 0,
         sales: { sale: 120, fold: 0 },
         itemsSold: { sale: 2, fold: 0 },
       },
       rival: {
         signing: 80,
+        transferFeesPaid: 0,
         items: 0,
         itemsBought: 0,
         improvements: 200,
         upkeep: 150,
         questRewards: 90,
+        transferFeesTaken: 0,
         sales: { sale: 0, fold: 300 },
         itemsSold: { sale: 0, fold: 1 },
       },
@@ -774,11 +793,13 @@ describe("M5's counters, from the History", () => {
     move(8, 'item.returned', rivals[0], 'retired');
     move(9, 'item.returned', rivals[1], 'guild-folded');
     move(10, 'item.returned', rivals[1], 'guild-folded');
+    // A Hero's gear goes back to the selling Guild with them transferred (M6-S2, DL-57; the merge, DL-63).
+    move(11, 'item.returned', rivals[0], 'transferred');
     document.world.turn = 20;
 
     expect(countGame(document, shortYears).gear).toEqual({
-      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0 } },
-      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2 } },
+      player: { equipped: 2, unequipped: 1, returned: { died: 1, retired: 0, 'guild-folded': 0, transferred: 0 } },
+      rival: { equipped: 1, unequipped: 0, returned: { died: 0, retired: 1, 'guild-folded': 2, transferred: 1 } },
     });
   });
 
@@ -850,5 +871,293 @@ describe("M5's counters, from the History", () => {
       add(document, 5, type, [player.id], { guildId: player.id, ...payload });
       expect(() => countGame(document, shortYears), type).toThrow(message);
     }
+  });
+});
+
+// M6's counters (DL-69), on the same fixture games: the fixture's two Rivals are dealt `ambitious`
+// and `miserly` (DL-56 item 6), and the entries each counter reads are given by hand in the engine's
+// shapes, a Transfer naming its two Guilds in its payload as `makeTransfer` does.
+
+describe("M6's counters, from the History", () => {
+  /** Appends a `hero.transferred` and returns its position in the History. */
+  function transferred(document: WorldDocument, turn: number, heroId: HeroId, from: Guild, to: Guild, fee: number, offerId: EntityId | null = null): number {
+    const position = document.history.entries.length;
+    add(document, turn, 'hero.transferred', [heroId, from.id, to.id], { heroId, fromGuildId: from.id, toGuildId: to.id, fee, offerId });
+    return position;
+  }
+
+  test('a new world has made no Transfer and no offer; every Disposition content holds is listed, with the Rivals dealt it', () => {
+    const { document, rivals } = fixture('counters-m6-new');
+    expect(rivals.map((guild) => dispositionOf(guild))).toEqual(['ambitious', 'miserly']);
+    document.world.turn = 30;
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.transfers).toEqual({ in: noTransfers(), out: noTransfers(), 'rival-to-rival': noTransfers() });
+    expect(Object.values(counted.rivalTransfers)).toEqual([noTransfers(), noTransfers(), noTransfers(), noTransfers()]);
+    expect(counted.transfersBySide).toEqual({});
+    expect(counted.transfersBack).toBe(0);
+    expect(counted.offers).toEqual({});
+    expect(counted.marketPurchases).toEqual({});
+    expect(counted.dispositions).toEqual({
+      ambitious: { ...noDisposition(), guilds: 1, guildYears: 1 },
+      miserly: { ...noDisposition(), guilds: 1, guildYears: 1 },
+      reckless: noDisposition(),
+      steady: noDisposition(),
+    });
+  });
+
+  test('Transfers by direction, by how those between Rivals happened, by side, back to a seller, and their fees among the Wealth flows', () => {
+    const { document, player, rivals } = fixture('counters-transfers');
+    const [a, b] = rivals;
+    const [h1, h2, h3] = a.rosterIds;
+    const [p1] = player.rosterIds;
+    if (h1 === undefined || h2 === undefined || h3 === undefined || p1 === undefined) throw new Error('Rosters too small');
+    // Turn 3k + 1 is an afternoon, 3k + 2 a night.
+    transferred(document, 4, h1, a, b, 100);
+    const inDebt = transferred(document, 7, h1, b, a, 120); // h1 back to A, which sold them; B in debt that afternoon
+    transferred(document, 8, h2, a, b, 90); // a night: the Generator
+    transferred(document, 10, p1, player, a, 200, makeId('offers', 1)); // out of the player's Guild, an offer accepted
+    transferred(document, 13, h3, a, player, 150); // into it
+    transferred(document, 16, h2, b, a, 50, makeId('offers', 2)); // an offer between Rivals; h2 back to A
+    document.world.turn = 20;
+
+    const counted = countGame(document, shortYears, undefined, { questDifficulty: new Map(), sellerInDebt: new Set([inDebt]) });
+
+    expect(counted.transfers).toEqual({
+      in: { transfers: 1, fees: 150 },
+      out: { transfers: 1, fees: 200 },
+      'rival-to-rival': { transfers: 4, fees: 360 },
+    });
+    expect(counted.rivalTransfers).toEqual({
+      afternoon: { transfers: 1, fees: 100 },
+      'afternoon-seller-in-debt': { transfers: 1, fees: 120 },
+      generator: { transfers: 1, fees: 90 },
+      'accepted-offer': { transfers: 1, fees: 50 },
+    });
+    expect(counted.transfersBySide).toEqual({
+      ambitious: { miserly: { transfers: 2, fees: 190 }, player: { transfers: 1, fees: 150 } },
+      miserly: { ambitious: { transfers: 2, fees: 170 } },
+      player: { ambitious: { transfers: 1, fees: 200 } },
+    });
+    expect(counted.transfersBack).toBe(2);
+    expect(counted.wealth.player).toMatchObject({ transferFeesPaid: 150, transferFeesTaken: 200 });
+    expect(counted.wealth.rival).toMatchObject({ transferFeesPaid: 560, transferFeesTaken: 510 });
+    // An accepted offer counts among the offers too, for the Guild that made it.
+    expect(counted.offers).toEqual({
+      ambitious: { player: { ...noOffers(), accepted: 1 }, miserly: { ...noOffers(), accepted: 1 } },
+    });
+
+    // Without the play loop's record, every afternoon's Transfer between Rivals counts as the buyer's choice.
+    expect(countGame(document, shortYears).rivalTransfers).toMatchObject({
+      afternoon: { transfers: 2, fees: 220 },
+      'afternoon-seller-in-debt': { transfers: 0, fees: 0 },
+    });
+  });
+
+  test('Transfer Offers by the Guild that made them and the Guild asked: made, accepted, declined, ended by cause, and standing', () => {
+    const { document, player, rivals } = fixture('counters-offers');
+    const [a, b] = rivals;
+    const [p1, p2, p3, p4] = player.rosterIds;
+    if (p1 === undefined || p2 === undefined || p3 === undefined || p4 === undefined) throw new Error('Not a Roster of four');
+    const terms = (n: number, maker: Guild, heroId: HeroId, fee: number) => ({
+      offerId: makeId('offers', n),
+      fromGuildId: player.id,
+      toGuildId: maker.id,
+      heroId,
+      fee,
+    });
+    const offered = (turn: number, n: number, maker: Guild, heroId: HeroId, fee: number): void => {
+      add(document, turn, 'guild.transfer-offered', [makeId('offers', n), heroId, player.id, maker.id], {
+        ...terms(n, maker, heroId, fee),
+        expiresOnTurn: turn + 8,
+      });
+    };
+    const ended = (turn: number, n: number, maker: Guild, heroId: HeroId, fee: number, cause?: string): void => {
+      const type = cause === undefined ? 'guild.transfer-offer-declined' : 'guild.transfer-offer-expired';
+      add(document, turn, type, [makeId('offers', n), heroId, player.id, maker.id], {
+        ...terms(n, maker, heroId, fee),
+        ...(cause === undefined ? {} : { cause }),
+      });
+    };
+    offered(1, 1, a, p1, 200);
+    offered(1, 2, a, p2, 180);
+    ended(3, 2, a, p2, 180);
+    transferred(document, 3, p1, player, a, 200, makeId('offers', 1));
+    offered(4, 3, b, p3, 100);
+    offered(4, 4, a, p4, 220);
+    offered(7, 5, b, p1, 90);
+    ended(11, 3, b, p3, 100, 'expired');
+    ended(11, 4, a, p4, 220, 'hero-left');
+    ended(11, 5, b, p1, 90, 'guild-folded');
+    offered(13, 6, a, p2, 150); // still standing when the game stops
+    document.world.turn = 15;
+
+    const { offers } = countGame(document, shortYears);
+
+    expect(offers).toEqual({
+      ambitious: { player: { made: 4, fees: 750, accepted: 1, declined: 1, ended: { expired: 0, 'hero-left': 1, 'guild-folded': 0 } } },
+      miserly: { player: { made: 2, fees: 190, accepted: 0, declined: 0, ended: { expired: 1, 'hero-left': 0, 'guild-folded': 1 } } },
+    });
+  });
+
+  test("each Disposition's Quests taken with the difficulty the play loop read, resolved, Deaths, recruits, folds and years in play", () => {
+    const { document, player, rivals } = fixture('counters-dispositions');
+    const [a, b] = rivals;
+    const partyId = makeId('parties', 900);
+    const quest = (n: number): EntityId => makeId('quests', n);
+    const taken = (turn: number, guild: Guild, id: EntityId): void => {
+      add(document, turn, 'quest.taken', [id, partyId, guild.id], { questId: id, partyId, guildId: guild.id, heroIds: [], returnsOnTurn: turn + 5 });
+    };
+    const resolved = (turn: number, guild: Guild, id: EntityId, band: string): void => {
+      add(document, turn, 'quest.resolved', [id, partyId, guild.id], {
+        band,
+        wealthDelta: 0,
+        questId: id,
+        partyId,
+        guildId: guild.id,
+        heroIds: [],
+        templateKey: 'escort-the-tithe',
+      });
+    };
+    taken(1, a, quest(1));
+    taken(1, a, quest(2));
+    taken(3, player, quest(4)); // the player's: in no Disposition
+    taken(4, b, quest(3));
+    resolved(8, a, quest(1), 'strong');
+    resolved(9, a, quest(2), 'fail');
+    add(document, 9, 'hero.died', [firstHero(a), a.id], { heroId: firstHero(a), questId: quest(2) });
+    add(document, 9, 'hero.died', [firstHero(player), player.id], { heroId: firstHero(player), questId: quest(4) });
+    resolved(11, b, quest(3), 'success');
+    resolved(11, player, quest(4), 'success');
+    add(document, 12, 'hero.recruited', [firstHero(b), b.id], { heroId: firstHero(b), guildId: b.id, fee: 80 });
+    b.foldedOnTurn = 45;
+    add(document, 45, 'guild.folded', [b.id], { guildId: b.id, reason: 'bankruptcy' });
+    // Its replacement inherits its Disposition (DL-56 item 7).
+    const c: Guild = { ...structuredClone(b), id: makeId('guilds', 90), foundedTurn: 50, foldedOnTurn: null };
+    document.world.guilds[c.id] = c;
+    document.world.turn = 60;
+    const questDifficulty = new Map<string, number>([
+      [quest(1), 40],
+      [quest(3), 20],
+      [quest(4), 99],
+    ]);
+
+    const { dispositions } = countGame(document, shortYears, undefined, { questDifficulty, sellerInDebt: new Set() });
+
+    expect(dispositions.ambitious).toEqual({
+      ...noDisposition(),
+      guilds: 1,
+      guildYears: 2,
+      questsTaken: 2,
+      questsWithDifficulty: 1,
+      difficulty: 40,
+      questsResolved: { fail: 1, success: 0, strong: 1 },
+      deaths: 1,
+    });
+    expect(dispositions.miserly).toEqual({
+      ...noDisposition(),
+      guilds: 2,
+      guildYears: 1.5 + 10 / 30,
+      questsTaken: 1,
+      questsWithDifficulty: 1,
+      difficulty: 20,
+      questsResolved: { fail: 0, success: 1, strong: 0 },
+      recruits: 1,
+      folds: { retirement: 0, bankruptcy: 1, 'roster-wiped': 0 },
+    });
+    expect(dispositions.reckless).toEqual(noDisposition());
+  });
+
+  test("Market purchases by the buying Guild's side: purchases, Items and cost", () => {
+    const { document, player, rivals } = fixture('counters-purchases');
+    const bought = (turn: number, guild: Guild, quantity: number, unitPrice: number): void => {
+      add(document, turn, 'item.bought', [guild.id], {
+        guildId: guild.id,
+        definitionKey: 'padded-jack',
+        quantity,
+        unitPrice,
+        cost: quantity * unitPrice,
+        itemIds: [],
+      });
+    };
+    bought(1, player, 2, 40);
+    bought(4, rivals[0], 1, 120);
+    bought(7, rivals[0], 3, 10);
+    bought(7, rivals[1], 1, 300);
+    document.world.turn = 10;
+
+    expect(countGame(document, shortYears).marketPurchases).toEqual({
+      player: { purchases: 1, items: 2, cost: 80 },
+      ambitious: { purchases: 2, items: 4, cost: 150 },
+      miserly: { purchases: 1, items: 1, cost: 300 },
+    });
+  });
+
+  test('refuses a hero.transferred naming no Guild, and an offer ended without a cause', () => {
+    const { document, player } = fixture('counters-malformed-transfer');
+    const heroId = firstHero(player);
+    add(document, 5, 'hero.transferred', [heroId, player.id], { heroId, fromGuildId: player.id, toGuildId: makeId('guilds', 99), fee: 10, offerId: null });
+    expect(() => countGame(document, shortYears)).toThrow(/hero.transferred entry 0 has no toGuildId naming a Guild/);
+
+    const other = fixture('counters-malformed-offer');
+    const [rival] = other.rivals;
+    const offerId = makeId('offers', 1);
+    const otherHero = firstHero(other.player);
+    add(other.document, 5, 'guild.transfer-offer-expired', [offerId, otherHero, other.player.id, rival.id], {
+      offerId,
+      fromGuildId: other.player.id,
+      toGuildId: rival.id,
+      heroId: otherHero,
+      fee: 10,
+    });
+    expect(() => countGame(other.document, shortYears)).toThrow(/guild.transfer-offer-expired entry 0 has no cause/);
+  });
+});
+
+describe("M6's counters, from the World State as each year begins", () => {
+  test("playerRanking: the player's Guild's place by Fame and by Wealth among the Guilds in play, by the engine's rankings", () => {
+    const { document, player, rivals } = fixture('counters-rankings');
+    const { world } = document;
+    const [a, b] = rivals;
+    player.fame = 10;
+    a.fame = 50;
+    b.fame = 5;
+    player.wealth = 1_000;
+    a.wealth = 100;
+    b.wealth = 5_000;
+    expect(playerRanking(world)).toEqual({ fame: 2, wealth: 2, guilds: 3 });
+
+    // A folded Guild is not ranked (pre-M0 review D6).
+    a.foldedOnTurn = 0;
+    expect(playerRanking(world)).toEqual({ fame: 1, wealth: 2, guilds: 2 });
+  });
+
+  test('the census takes each Rival in play, its Disposition, Roster size and Wealth, and the Rankings, with the Rosters', () => {
+    const { document, player, rivals } = fixture('counters-rival-census');
+    const { world } = document;
+    const [a, b] = rivals;
+    a.wealth = 2_000;
+    a.rosterIds = a.rosterIds.slice(0, 3);
+    player.fame = 1;
+    a.fame = 5;
+    b.fame = 3;
+    expect(b.wealth).toBeLessThan(player.wealth);
+    const observations = emptyObservations();
+    takeCensus(observations, world, shortYears);
+    const miserly = { disposition: 'miserly', heroes: b.rosterIds.length, wealth: b.wealth };
+    world.turn = 30;
+    b.foldedOnTurn = 20;
+    player.wealth = 5_000;
+    takeCensus(observations, world, shortYears);
+    world.turn = 45;
+    takeCensus(observations, world, shortYears);
+
+    expect(observations.rivals).toEqual([[{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }, miserly], [{ disposition: 'ambitious', heroes: 3, wealth: 2_000 }]]);
+    expect(observations.rankings).toEqual([
+      { fame: 3, wealth: 2, guilds: 3 },
+      { fame: 2, wealth: 1, guilds: 2 },
+    ]);
+    expect(observations.rosters).toHaveLength(2);
   });
 });

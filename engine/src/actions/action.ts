@@ -3,7 +3,7 @@
 // through the same functions a front end calls one by one. Each action's file defines its action
 // and its rejection; a story adding an action adds both to the unions here and a case to
 // `applyAction` (M2-S4 `dispatch`, M2-S8 `recruit`, M3-S6 `build`, M5-S2 `equip` and `unequip`,
-// M5-S4 `buy` and `sell`).
+// M5-S4 `buy` and `sell`, M6-S2 the five Transfer actions).
 
 import type { EngineDeps } from '../config.js';
 import type { World, WorldDocument } from '../document.js';
@@ -24,6 +24,20 @@ import { rebase, type RebaseAction, type RebaseRejection } from './rebase.js';
 import { applyRecruit, recruit, type RecruitAction, type RecruitRejection } from './recruit.js';
 import type { ActionResult, WorldActionResult } from './result.js';
 import { applySell, sell, type SellAction, type SellRejection } from './sell.js';
+import {
+  acceptTransfer,
+  applyAcceptTransfer,
+  applyDeclineTransfer,
+  applyOfferTransfer,
+  applyTransferIn,
+  applyTransferOut,
+  declineTransfer,
+  offerTransfer,
+  transferIn,
+  transferOut,
+  type TransferAction,
+  type TransferRejection,
+} from './transfer.js';
 
 /** Every action, told apart by `kind`. */
 export type Action =
@@ -34,7 +48,8 @@ export type Action =
   | EquipAction
   | UnequipAction
   | BuyAction
-  | SellAction;
+  | SellAction
+  | TransferAction;
 
 export type ActionKind = Action['kind'];
 
@@ -47,7 +62,8 @@ export type ActionRejection =
   | EquipRejection
   | UnequipRejection
   | BuyRejection
-  | SellRejection;
+  | SellRejection
+  | TransferRejection;
 
 /**
  * The actions a Guild takes in the world, which a controller chooses (M2-S9): every action but
@@ -60,7 +76,8 @@ export type GuildAction =
   | EquipAction
   | UnequipAction
   | BuyAction
-  | SellAction;
+  | SellAction
+  | TransferAction;
 
 /** Every way a Guild's action can be refused. */
 export type GuildActionRejection =
@@ -70,7 +87,8 @@ export type GuildActionRejection =
   | EquipRejection
   | UnequipRejection
   | BuyRejection
-  | SellRejection;
+  | SellRejection
+  | TransferRejection;
 
 /** Applies `action` to `document` through the action's own function. */
 export function applyAction(document: WorldDocument, action: Action, deps: EngineDeps): ActionResult<ActionRejection> {
@@ -91,13 +109,23 @@ export function applyAction(document: WorldDocument, action: Action, deps: Engin
       return buy(document, action, deps);
     case 'sell':
       return sell(document, action, deps);
+    case 'transferIn':
+      return transferIn(document, action, deps);
+    case 'transferOut':
+      return transferOut(document, action, deps);
+    case 'offerTransfer':
+      return offerTransfer(document, action, deps);
+    case 'acceptTransfer':
+      return acceptTransfer(document, action, deps);
+    case 'declineTransfer':
+      return declineTransfer(document, action, deps);
   }
 }
 
 /**
  * Applies a Guild's `action` to `world` in place through the rule its document-level action runs
  * (`applyDispatch`, `applyRecruit`, `applyBuild`, `applyEquip`, `applyUnequip`, `applyBuy`,
- * `applySell`), returning the events without appending them: how a phase of the Turn pipeline
+ * `applySell`, and the Transfer rules), returning the events without appending them: how a phase of the Turn pipeline
  * takes an action on the Turn's copy of the world (M2-S9's Rival controllers, DL-30). A refusal
  * changes nothing.
  */
@@ -121,5 +149,15 @@ export function applyGuildAction(
       return applyBuy(world, action, deps);
     case 'sell':
       return applySell(world, action, deps);
+    case 'transferIn':
+      return applyTransferIn(world, action, deps);
+    case 'transferOut':
+      return applyTransferOut(world, action, deps);
+    case 'offerTransfer':
+      return applyOfferTransfer(world, action, deps);
+    case 'acceptTransfer':
+      return applyAcceptTransfer(world, action, deps);
+    case 'declineTransfer':
+      return applyDeclineTransfer(world, action, deps);
   }
 }

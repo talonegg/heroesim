@@ -18,14 +18,14 @@ import {
 
 export interface FastForwardOptions {
   /**
-   * The Guild whose Parties and decisions stop the fast forward. A front end passes the player's
+   * The Guild whose Parties, decisions and Transfer Offers stop the fast forward. A front end passes the player's
    * (`playerGuild`); the engine never asks whose it is (ADR-0002), so another Guild's Parties never
    * stop it.
    */
   guildId: GuildId;
   /**
    * The opt-in conditions to stop on as well (`pool-refreshed`). The always-on ones (`ended`,
-   * `party-returned`, `decision-needed`) stop it whether listed or not (`alwaysStops`).
+   * `party-returned`, `decision-needed`, `transfer-offer`) stop it whether listed or not (`alwaysStops`).
    */
   until: readonly StopCondition[];
   /** The most Turns to play: a whole number from 0. At 0 nothing is played. */

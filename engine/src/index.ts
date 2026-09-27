@@ -93,17 +93,66 @@ export {
   type SellStackAction,
   type SellUnknownItem,
 } from './actions/sell.js';
+export {
+  acceptTransfer,
+  applyAcceptTransfer,
+  applyDeclineTransfer,
+  applyOfferTransfer,
+  applyTransferIn,
+  applyTransferOut,
+  declineTransfer,
+  offerTransfer,
+  transferIn,
+  transferOut,
+  type AcceptTransferAction,
+  type AcceptTransferRejection,
+  type DeclineTransferAction,
+  type DeclineTransferRejection,
+  type NoOfferNeeded,
+  type OfferNotFound,
+  type OfferPending,
+  type OfferTransferAction,
+  type OfferTransferRejection,
+  type TransferAction,
+  type TransferGuildFolded,
+  type TransferHeroInParty,
+  type TransferHeroNotOnRoster,
+  type TransferInAction,
+  type TransferInRejection,
+  type TransferInsufficientWealth,
+  type TransferOutAction,
+  type TransferOutRejection,
+  type TransferRefused,
+  type TransferRejection,
+  type TransferSameGuild,
+} from './actions/transfer.js';
 export * from './advance.js';
 export * from './config.js';
 export * from './content-types.js';
-export { availableHeroes, partyFor, rivalChoices, staffableQuests, type DispositionRule } from './controllers/rival.js';
+export {
+  availableHeroes,
+  partyFor,
+  rivalChoices,
+  staffableQuests,
+  transferAnswer,
+  type TransferAnswer,
+  type TransferRefusalReason,
+  type TransferSide,
+} from './controllers/rival.js';
 export * from './create.js';
 export * from './document.js';
 export * from './events.js';
 export * from './fast-forward.js';
 export * from './gear.js';
 export * from './guildmaster.js';
-export { generateGuild, generateRival, type GeneratedGuild, type GuildOptions } from './generators/guilds.js';
+export {
+  dealtDisposition,
+  generateGuild,
+  generateRival,
+  type GeneratedGuild,
+  type GuildOptions,
+  type RivalOptions,
+} from './generators/guilds.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
@@ -139,6 +188,12 @@ export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';
 export * from './time.js';
+export {
+  offerExpiresBy,
+  offerExpiresOnTurn,
+  offersTo,
+  pendingOffers,
+} from './transfer.js';
 export * from './validate.js';
 // A stream's state type stays inside the engine: nothing reaches it except through `world.rng`.
 export { streamNames, type StreamName } from './rng.js';

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { applyBuild } from '../actions/build.js';
+import { applyBuy } from '../actions/buy.js';
 import { applyDispatch, dispatch, type DispatchAction } from '../actions/dispatch.js';
 import { applyRecruit } from '../actions/recruit.js';
 import { advance } from '../advance.js';
@@ -16,9 +17,10 @@ import {
   type WorldDocument,
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
-import { createStreams } from '../rng.js';
+import { addStack } from '../items.js';
+import { createStreams, next } from '../rng.js';
 import { dispositionOf, playerGuild } from '../selectors.js';
-import { plannedStreams, testDeps, withValid } from '../world.test-support.js';
+import { plannedStreams, testDeps, withDispositions, withValid } from '../world.test-support.js';
 import { phaseContext } from './phase.js';
 import { rivalControllers } from './rival-controllers.js';
 
@@ -40,23 +42,42 @@ vi.mock('../actions/build.js', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../actions/build.js')>();
   return { ...actual, applyBuild: vi.fn(actual.applyBuild) };
 });
+// M6-S4: a Rival buys at the Market through the player's `buy` (DL-58).
+vi.mock('../actions/buy.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../actions/buy.js')>();
+  return { ...actual, applyBuy: vi.fn(actual.applyBuy) };
+});
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
 /**
  * INPUTS 4.6's wage and 4.12's three Upkeeps, under which every starting Rival has the Wealth to
- * recruit on its first afternoon: the tests that watch a recruit pin them, since the first balance
- * pass raised both defaults (DL-35). Building is put out of reach unless a test asks for it, since
- * `steady` builds its infirmary in place of a recruit once its Wealth is three times the cost
- * (M3-S6, DL-38), which a starting Rival's may be.
+ * recruit on its first afternoon: the tests that watch a recruit pin them on every Disposition, since
+ * the balance passes raised both (DL-35, DL-41) and M6-S1 moved the threshold into the rows (DL-56).
+ * Building is put out of reach unless a test asks for it, at three times the cost, since a Rival
+ * builds its infirmary in place of a recruit once its Wealth is above its `buildThreshold` times the
+ * cost (M3-S6, DL-38), which a starting Rival's may be. Transfers are stilled (`transferAppetite` 0):
+ * a Rival that would hire weighs a Transfer before a recruit (M6-S2, DL-57), which these tests do not
+ * watch; controllers/rival.test.ts shows that weighing one draws from `rivals` alone. Buying gear is
+ * put out of reach unless a test asks for it, at three times the price, since a Rival buys gear after
+ * it builds and before it hires (M6-S4, DL-58), and a starting Rival's Heroes carry none.
  */
-const recruitingDeps = (building = false): EngineDeps =>
-  testDeps({ wagePerLevel: 5, recruitWealthMultiple: 3, ...(building ? {} : { buildWealthMultiple: 1_000_000 }) });
+const recruitingDeps = (building = false, buying = false): EngineDeps =>
+  testDeps(
+    { wagePerLevel: 5 },
+    withDispositions({
+      recruitThreshold: 3,
+      buildThreshold: building ? 3 : 1_000_000,
+      gearThreshold: buying ? 3 : 1_000_000,
+      transferAppetite: 0,
+    }),
+  );
 
 afterEach(() => {
   vi.mocked(applyDispatch).mockClear();
   vi.mocked(applyRecruit).mockClear();
   vi.mocked(applyBuild).mockClear();
+  vi.mocked(applyBuy).mockClear();
 });
 
 function created(seed: string, deps: EngineDeps): WorldDocument {
@@ -103,7 +124,7 @@ describe('rivalControllers', () => {
       expect(taken.length, `Day ${day}`).toBeGreaterThan(0);
       for (const event of taken) {
         const { questId, guildId } = event.payload;
-        expect(dispositionOf(guildOf(document, guildId))).toBe('steady');
+        expect(Object.keys(deps.content.dispositions)).toContain(dispositionOf(guildOf(document, guildId)));
         expect(morning).toContain(questId);
         expect(document.world.quests[questId]?.status).toBe('taken');
         expect(document.history.byEntity[questId]?.some((position) => document.history.entries[position] === event)).toBe(true);
@@ -120,7 +141,8 @@ describe('rivalControllers', () => {
     // What the first Rival takes when the player leaves the Board alone.
     const alone = created('after-the-player', deps);
     const first = firstRival(alone.world);
-    const wanted = rivalChoices(alone.world, first, deps).find((action) => action.kind === 'dispatch');
+    // On a copy: a Rival's choice draws from `rivals` (M6-S1), which the afternoon must find unmoved.
+    const wanted = rivalChoices(structuredClone(alone.world), first, deps).find((action) => action.kind === 'dispatch');
     if (wanted === undefined) throw new Error('The first Rival takes nothing');
     const untouched = ofType(advance(alone, deps).events, 'quest.taken');
     expect(untouched.find((event) => event.payload.questId === wanted.questId)?.payload.guildId).toBe(first.id);
@@ -141,11 +163,21 @@ describe('rivalControllers', () => {
     expect(partyIds.map((partyId) => document.world.parties[partyId]?.guildId)).toEqual([player.id]);
   });
 
-  test("apply each choice through the player's dispatch, recruit and build rules, and emit only what those return", () => {
-    const deps = recruitingDeps(true);
+  test("apply each choice through the player's dispatch, recruit, build and buy rules, and emit only what those return", () => {
+    const deps = recruitingDeps(true, true);
     const document = created('through-the-actions', deps);
-    // The first Rival rich enough to build its infirmary (M3-S6), the others to recruit and no more.
-    rivals(document.world).forEach((rival, index) => (rival.wealth = index === 0 ? 10_000 : 500));
+    // The first Rival rich enough to build its infirmary (M3-S6); the second to buy gear for its
+    // Heroes, who carry none (M6-S4); the others, whose Heroes carry a piece in every slot, to recruit.
+    rivals(document.world).forEach((rival, index) => {
+      rival.wealth = index === 0 ? 10_000 : 500;
+      if (index < 2) return;
+      for (const heroId of rival.rosterIds) {
+        for (const [slot, key] of [['weapon', 'short-sword'], ['armour', 'padded-jack'], ['trinket', 'lucky-charm']] as const) {
+          addStack(document.world, key, 1, { kind: 'hero', id: heroId, slot });
+        }
+      }
+    });
+    withValid(document, deps);
     // Each Rival's choices as it will make them, in Guild id order, on the world each leaves the next.
     const world = structuredClone(document.world);
     world.turn += 1;
@@ -156,21 +188,24 @@ describe('rivalControllers', () => {
         if (action.kind === 'dispatch') applyDispatch(world, action, deps);
         else if (action.kind === 'recruit') applyRecruit(world, action, deps);
         else if (action.kind === 'build') applyBuild(world, action, deps);
+        else if (action.kind === 'buy') applyBuy(world, action, deps);
       }
     }
     vi.mocked(applyDispatch).mockClear();
     vi.mocked(applyRecruit).mockClear();
     vi.mocked(applyBuild).mockClear();
-    expect(expected.map((each) => each.kind)).toContain('dispatch');
-    expect(expected.map((each) => each.kind)).toContain('recruit');
-    expect(expected.map((each) => each.kind)).toContain('build');
+    vi.mocked(applyBuy).mockClear();
+    for (const kind of ['dispatch', 'recruit', 'build', 'buy']) expect(expected.map((each) => each.kind)).toContain(kind);
 
     const { document: afternoon, events } = advance(document, deps);
 
     withValid(afternoon, deps);
-    const seen = [...calls(applyDispatch, 'dispatch'), ...calls(applyRecruit, 'recruit'), ...calls(applyBuild, 'build')].sort(
-      (a, b) => a.order - b.order,
-    );
+    const seen = [
+      ...calls(applyDispatch, 'dispatch'),
+      ...calls(applyRecruit, 'recruit'),
+      ...calls(applyBuild, 'build'),
+      ...calls(applyBuy, 'buy'),
+    ].sort((a, b) => a.order - b.order);
     // Every choice, in order, went to the rule with the Turn's world and the deps' rules.
     expect(seen.map(({ guildId, kind }) => ({ guildId, kind }))).toEqual(expected);
     for (const call of seen) {
@@ -180,7 +215,7 @@ describe('rivalControllers', () => {
     }
     // Each was accepted, and the afternoon's events are theirs, in the same order: no side path.
     expect(events).toEqual(seen.flatMap((call) => call.events));
-    const eventOf = { dispatch: 'quest.taken', recruit: 'hero.recruited', build: 'guild.improved' } as const;
+    const eventOf = { dispatch: 'quest.taken', recruit: 'hero.recruited', build: 'guild.improved', buy: 'item.bought' } as const;
     expect(events.map((event) => event.type)).toEqual(expected.map(({ kind }) => eventOf[kind as keyof typeof eventOf]));
     expect(afternoon.history.entries.slice(-events.length)).toEqual(events);
   });
@@ -200,12 +235,16 @@ describe('rivalControllers', () => {
       ...vi.mocked(applyDispatch).mock.results,
       ...vi.mocked(applyRecruit).mock.results,
       ...vi.mocked(applyBuild).mock.results,
+      ...vi.mocked(applyBuy).mock.results,
     ];
     expect(results.length).toBeGreaterThan(10);
     for (const result of results) expect(result).toMatchObject({ type: 'return', value: { ok: true } });
     expect(ofType(events, 'quest.taken').length).toBe(vi.mocked(applyDispatch).mock.calls.length);
     expect(ofType(events, 'hero.recruited').length).toBe(vi.mocked(applyRecruit).mock.calls.length);
     expect(ofType(events, 'guild.improved').length).toBe(vi.mocked(applyBuild).mock.calls.length);
+    // M6-S4: the Rivals build and buy, every purchase at the Market through `buy` (the player buys nothing).
+    expect(vi.mocked(applyBuy).mock.calls.length).toBeGreaterThan(0);
+    expect(ofType(events, 'item.bought').length).toBe(vi.mocked(applyBuy).mock.calls.length);
   });
 
   test("drops a refused choice, changing nothing, and applies the Guild's next", () => {
@@ -227,22 +266,35 @@ describe('rivalControllers', () => {
     expect(Object.values(world.parties).some((party) => party.guildId === rival.id)).toBe(false);
   });
 
-  test('moves no random stream: steady draws nothing, from rivals or any other', () => {
-    const deps = recruitingDeps();
-    const document = created('streams', deps);
-    const world = structuredClone(document.world);
-    // Every planned stream, so that each can be seen to stand still.
-    Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
-    world.turn += 1;
-    const before = structuredClone(world.rng);
+  // M6-S1's third box: only `rivals` advances during Rival choice, one draw for each dispatch chosen;
+  // building and buying (M6-S4) draw nothing.
+  test.each(['streams-a', 'streams-b', 'streams-c'])(
+    'advances only the rivals stream, one draw for each dispatch, every Disposition alike (%s)',
+    (seed) => {
+      const deps = recruitingDeps(true, true);
+      const document = created(seed, deps);
+      const world = structuredClone(document.world);
+      // Every planned stream, so that each can be seen to stand still.
+      Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
+      world.turn += 1;
+      const before = structuredClone(world.rng);
 
-    const events = rivalControllers(world, phaseContext(world, deps));
+      const events = rivalControllers(world, phaseContext(world, deps));
 
-    expect(ofType(events, 'quest.taken').length).toBeGreaterThan(0);
-    expect(ofType(events, 'hero.recruited').length).toBeGreaterThan(0);
-    expect(world.rng).toEqual(before);
-    expect(Object.keys(world.rng).sort()).toEqual([...plannedStreams].sort());
-  });
+      const taken = ofType(events, 'quest.taken');
+      expect(new Set(taken.map((event) => dispositionOf(guildOf(document, event.payload.guildId)))).size).toBeGreaterThan(1);
+      const purchases = ['hero.recruited', 'guild.improved', 'item.bought'] as const;
+      expect(purchases.reduce((count, type) => count + ofType(events, type).length, 0)).toBeGreaterThan(0);
+      for (const name of plannedStreams) {
+        if (name !== 'rivals') expect(world.rng[name as keyof typeof world.rng], name).toEqual(before[name as keyof typeof before]);
+      }
+      const expected = structuredClone(before.rivals);
+      for (let draw = 0; draw < taken.length; draw += 1) next(expected);
+      expect(world.rng.rivals).toEqual(expected);
+      expect(world.rng.rivals).not.toEqual(before.rivals);
+      expect(Object.keys(world.rng).sort()).toEqual([...plannedStreams].sort());
+    },
+  );
 
   test('acts for the Rivals in Guild id order, never for the player, and never for a folded Guild', () => {
     const deps = testDeps();
@@ -266,7 +318,7 @@ describe('rivalControllers', () => {
 interface SeenCall {
   /** When it was called, among every spy's calls. */
   order: number;
-  kind: 'dispatch' | 'recruit' | 'build';
+  kind: 'dispatch' | 'recruit' | 'build' | 'buy';
   guildId: GuildId;
   world: World;
   deps: EngineDeps;
@@ -275,7 +327,10 @@ interface SeenCall {
 }
 
 /** Every call a spied rule saw since it was last cleared, each accepted, or the test fails. */
-function calls(rule: typeof applyDispatch | typeof applyRecruit | typeof applyBuild, kind: SeenCall['kind']): SeenCall[] {
+function calls(
+  rule: typeof applyDispatch | typeof applyRecruit | typeof applyBuild | typeof applyBuy,
+  kind: SeenCall['kind'],
+): SeenCall[] {
   const { mock } = vi.mocked(rule);
   return mock.calls.map(([world, request, deps], index) => {
     const result = mock.results[index];

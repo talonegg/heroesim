@@ -154,6 +154,7 @@ export function validateContent(set: ContentSet): ContentSet {
     }
   }
 
+  checkDispositions(set.dispositions, problems);
   checkImprovements(set.improvements, problems);
   checkEncounters(set, heroStats, skills, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
@@ -174,6 +175,27 @@ export function validateContent(set: ContentSet): ContentSet {
 
   if (problems.length > 0) throw new ContentError(problems);
   return set;
+}
+
+/**
+ * The Dispositions (M2-S9, M6-S1, DL-56): at least one, since the Guild Generator deals one to
+ * every Rival; each appetite a fraction from 0 to 1, and each threshold a multiple of 0 or more.
+ */
+function checkDispositions(dispositions: ContentSet['dispositions'], problems: string[]): void {
+  if (Object.keys(dispositions).length === 0) {
+    problems.push('dispositions is empty: the Guild Generator deals one to every Rival');
+  }
+  for (const [key, disposition] of Object.entries(dispositions)) {
+    const where = `dispositions.${key}`;
+    for (const field of ['questRiskAppetite', 'transferAppetite'] as const) {
+      const value = disposition[field];
+      if (!(value >= 0 && value <= 1)) problems.push(`${where}.${field} is ${value}; it is a number from 0 to 1`);
+    }
+    for (const field of ['recruitThreshold', 'buildThreshold', 'gearThreshold'] as const) {
+      const value = disposition[field];
+      if (!(value >= 0)) problems.push(`${where}.${field} is ${value}; it is a number of 0 or more`);
+    }
+  }
 }
 
 /**

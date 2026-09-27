@@ -714,10 +714,10 @@ describe('a key the content does not define warns and never refuses', () => {
     ],
     [
       "a Rival's Disposition",
-      (d) => (guild(d, ids.rivalGuild).controller = { kind: 'rival', disposition: 'reckless' }),
+      (d) => (guild(d, ids.rivalGuild).controller = { kind: 'rival', disposition: 'timid' }),
       'unknown-disposition',
       ids.rivalGuild,
-      'reckless',
+      'timid',
     ],
     [
       'gear a Hero holds in a slot it is not made for (M5-S1)',

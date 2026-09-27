@@ -8,8 +8,9 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52). Every "Min/Max" pair is an
-// inclusive range drawn with `int`. A field holding an object or a list is frozen with `defaultConfig`.
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every
+// "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
+// frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
 import type { ModuleId } from './document.js';
@@ -17,7 +18,8 @@ import type { ModuleId } from './document.js';
 export interface GameConfig {
   /**
    * The World State schema this engine writes as `meta.version`; a load compares the two and
-   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27).
+   * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
+   * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60).
    */
   schemaVersion: number;
   /**
@@ -28,7 +30,10 @@ export interface GameConfig {
    * merging those two (DL-47) and from M3's infirmary factor for its third grade (DL-53); 6 from
    * merging those, so that no save made under either 5 reads as current (DL-55); 7 from merging
    * that main line with M5's Items, whose new fields' defaults were made under 4 (DL-61); 8 from the
-   * M5 close's Loot threshold (DL-62).
+   * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
+   * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
+   * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
+   * Transfer lock of a season (DL-69).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -41,9 +46,20 @@ export interface GameConfig {
   startingWealth: number;
   /** Rival Guilds generated with the world. */
   rivalCount: number;
-  /** Each Rival's starting Roster size is drawn from this range. */
+  /**
+   * Each Rival's starting Roster size is drawn from this range. A Rival whose Roster falls below
+   * `rivalRosterMin` hires back towards it while it can keep `rivalHireReserveUpkeeps` Upkeeps
+   * (DL-60), and the Transfer Generator keeps its moves within the range (DL-59).
+   */
   rivalRosterMin: number;
   rivalRosterMax: number;
+  /**
+   * A Rival whose Roster is below `rivalRosterMin` hires, from the pool or by Transfer, whenever its
+   * Wealth covers the fee with this many times its Upkeep left over, whatever its Disposition's
+   * `recruitThreshold` says (DL-60): the need of a Roster too small to staff its Quests, beside the
+   * choice of a Disposition that hires above its threshold.
+   */
+  rivalHireReserveUpkeeps: number;
   /** Each Rival's starting Wealth is drawn from this range. */
   rivalStartingWealthMin: number;
   rivalStartingWealthMax: number;
@@ -210,20 +226,9 @@ export interface GameConfig {
   rivalReplacementDays: number;
 
   // ── Rival controllers (M2-S9, INPUTS 4.12, DL-30) ─────────────────────────────────────────
-  /**
-   * `steady` recruits only while its Wealth is above this many times its Upkeep (INPUTS 4.12:
-   * "when Wealth exceeds three Upkeeps"; ten since the first balance pass, so that a Rival keeps
-   * more than a month's Upkeep in hand, DL-35; sixty since Heroes gain Levels, so that a Rival stops
-   * recruiting before its Roster's rising wages outrun its one Quest a day, DL-41). M6-S1 moves the
-   * threshold into each Disposition's row. The harness's automatic policy has its own (DL-34).
-   */
-  recruitWealthMultiple: number;
-  /**
-   * `steady` builds its infirmary's next grade only while its Wealth is above this many times that
-   * grade's cost (M3-S6: "when Wealth exceeds three times its cost", DL-38). The harness's
-   * automatic policy has its own multiple, as it has its own `recruitWealthMultiple` (DL-34).
-   */
-  buildWealthMultiple: number;
+  // `recruitWealthMultiple` (DL-30, DL-35) and `buildWealthMultiple` (DL-38) are gone: a Rival's
+  // thresholds are its Disposition's `recruitThreshold` and `buildThreshold`, content (M6-S1,
+  // DL-56). The harness's automatic policy keeps its own multiples (DL-34).
 
   // ── Progression (M3-S1, M3-S2, INPUTS 5.1–5.3, DL-36) ──────────────────────────────────────
   /**
@@ -342,6 +347,51 @@ export interface GameConfig {
   /** Added (negative) for each such Hero after a failure. */
   guildmasterRegardOnHeroFailure: number;
 
+  // ── Transfers (M6-S2, R28, INPUTS 7.6, pre-M0 review D5, DL-57) ────────────────────────────
+  /**
+   * A Transfer fee is the Hero's signing fee before Negotiation (`signingFee`'s list price) times
+   * this, times the buying Guildmaster's Negotiation, rounded down once (`transferFee`; INPUTS 7.6:
+   * two signing fees).
+   */
+  transferFeeFactor: number;
+  /**
+   * Added (negative) to the Morale of each Hero who stays on the Roster the Hero transferred leaves, whose own
+   * Regard for the Hero transferred is in `transferRegardBand` or above (INPUTS 7.6: −15; pre-M0
+   * review D5: pairwise, not the Roster's mean). `hero.morale-changed` only on a band crossing.
+   */
+  transferMoraleCost: number;
+  /** The lowest Regard band whose holders pay `transferMoraleCost` (D5: `warm` or above). */
+  transferRegardBand: RegardBand;
+  /**
+   * Added to each of the two Guildmasters' Regard for the other when a Transfer between their Guilds
+   * is made (R9; Guildmaster Regard's third writer, after M4-S5's Patrons and Heroes).
+   */
+  guildmasterRegardPerTransferDeal: number;
+  /**
+   * Days a Transfer Offer stands, the Day it is made included: it expires on that last Day's night
+   * and is removed then, with `guild.transfer-offer-expired`, unless answered first.
+   */
+  transferOfferDays: number;
+  /**
+   * The Transfer Generator (M6-S3, DL-59) runs on the night of every Day this many apart: the Days
+   * `d` with `d mod transferGeneratorEveryDays` equal to `transferGeneratorEveryDays − 1`, as
+   * `upkeepEveryDays` names its Days (DL-26). Weekly: 7.
+   */
+  transferGeneratorEveryDays: number;
+  /**
+   * On a Transfer Generator night, the chance, one draw from `rivals` for each pair of Rivals in play,
+   * that the one of the pair with the greater `transferAppetite` bids for a Hero of the other.
+   */
+  transferGeneratorChance: number;
+  /**
+   * Days after a Hero's Transfer before they may be transferred again (DL-60): a Transfer on Day `d`
+   * holds them on their new Roster through Day `d + transferLockDays − 1`, whoever asks, by any
+   * Transfer action, so that no Guild sells a Hero back, or on, the afternoon it bought them. 0 locks
+   * no one. 90 since the M6 close (DL-69), for 30: a season, so that no Hero goes back to a Guild
+   * that sold them within one.
+   */
+  transferLockDays: number;
+
   // ── Items (M5-S1, INPUTS 7.1, DL-48) ──────────────────────────────────────────────────────
   /**
    * The gear slots every Hero has, in the order a front end lists them: each one of content's
@@ -406,8 +456,8 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 2,
-  configVersion: 8,
+  schemaVersion: 3,
+  configVersion: 10,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -415,6 +465,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   rivalCount: 4,
   rivalRosterMin: 4,
   rivalRosterMax: 8,
+  rivalHireReserveUpkeeps: 3,
   rivalStartingWealthMin: 300,
   rivalStartingWealthMax: 700,
   patronCount: 12,
@@ -479,8 +530,6 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
 
   guildmasterRetirementAge: 65,
   rivalReplacementDays: 30,
-  recruitWealthMultiple: 60,
-  buildWealthMultiple: 3,
 
   xpCurveBase: 100,
   xpCurveExponent: 2,
@@ -511,6 +560,15 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterRegardOnPatronFailure: -1,
   guildmasterRegardOnHeroSuccess: 1,
   guildmasterRegardOnHeroFailure: -1,
+
+  transferFeeFactor: 2,
+  transferMoraleCost: -15,
+  transferRegardBand: 'warm',
+  guildmasterRegardPerTransferDeal: 2,
+  transferOfferDays: 3,
+  transferGeneratorEveryDays: 7,
+  transferGeneratorChance: 0.5,
+  transferLockDays: 90,
 
   gearSlots: Object.freeze(['weapon' as const, 'armour' as const, 'trinket' as const]),
 
