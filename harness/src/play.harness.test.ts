@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
 import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
-import { defaultWorkers, playReport, sweepPlayInParallel, sweepTotals } from './sweep.js';
+import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
 // The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
 // M6's, DL-69), collected only by the harness-run project, which exists when HEROESIM_HARNESS is set
@@ -31,7 +31,8 @@ test(`${seeds.length} games of 20 years play to an ending or their last Turn`, {
   console.log(
     `${seeds.length} games: ${JSON.stringify(totals.endings)}; years survived mean ` +
       `${totals.yearsSurvived.mean.toFixed(2)}; advance ${sweep.advance.mean.toFixed(3)} ms mean, ` +
-      `${sweep.advance.p99.toFixed(3)} ms p99; validated: ${validate}; ${(sweep.totalMs / 1000).toFixed(1)} s in all\nReport: ${path}`,
+      `${sweep.advance.p99.toFixed(3)} ms p99; validated: ${validate}; ${(sweep.totalMs / 1000).toFixed(1)} s in all\n` +
+      `Fingerprint of every seed's last save (DL-76): ${sweepFingerprint(sweep.games)}\nReport: ${path}`,
   );
   expect(sweep.games).toHaveLength(seeds.length);
   for (const game of sweep.games) expect(game.counters.ending !== null || game.ranFullLength, game.seed).toBe(true);

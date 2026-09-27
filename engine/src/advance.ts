@@ -6,6 +6,7 @@ import type { EngineDeps } from './config.js';
 import type { WorldDocument } from './document.js';
 import type { EngineEvent } from './events.js';
 import { append } from './history.js';
+import { ensureModules } from './modules.js';
 import { phaseContext } from './phases/phase.js';
 import { runTurn } from './pipeline.js';
 import { ensureStreams } from './rng.js';
@@ -26,22 +27,29 @@ export interface AdvanceResult {
 
 /**
  * Plays the next Turn (data-model §1): copies `world` once with `structuredClone`, gives the copy
- * any core random stream it lacks (`ensureStreams`), advances its Turn by one, runs the pipeline's phases for the new Turn's time of day on the copy under
- * `deps.config` and `deps.content`, appends every event to the History through `append`, and
+ * any core random stream it lacks (`ensureStreams`) and any installed module's stream and slice it
+ * lacks (`ensureModules`), advances its Turn by one, runs the pipeline's phases for the new Turn's
+ * time of day on the copy under `deps.config`, `deps.content` and `deps.modules`, whose hooks run
+ * at their three positions, appends every event to the History through `append`, and
  * returns a document with the new `world` that shares `meta` and `history` with the old one. The
  * old document's `world` is left as it was; its `history` sees the new entries too (ADR-0008).
  *
  * On an ended world (`world.ended` set, M2-S10) nothing happens: the same document comes back,
  * with no events and `stoppedBecause: { kind: 'ended' }`. The Turn whose phases end the game
  * reports `ended` too.
+ *
+ * Throws a `ModuleError` naming the module when an installed module throws (M8-S1): modules are
+ * code, so that is a programming error. The document given is left as it was.
  */
 export function advance(document: WorldDocument, deps: EngineDeps): AdvanceResult {
   const ended = endedStop(document.world);
   if (ended !== null) return { document, events: [], stoppedBecause: ended };
 
   const world = structuredClone(document.world);
-  // A save made before a stream existed gains it here, seeded as a new world's (DL-25).
+  // A save made before a stream existed gains it here, seeded as a new world's (DL-25); one made
+  // before a module was installed gains its stream and slice likewise (DL-76).
   ensureStreams(world, document.meta.seed);
+  ensureModules(world, document.meta.seed, deps);
   world.turn += 1;
   const events = runTurn(world, phaseContext(world, deps, document.history));
   for (const event of events) append(document.history, event);

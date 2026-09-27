@@ -224,7 +224,11 @@ stream; a unique Item it lists stays until a Guild buys it (M5-S4, DL-51).
 modules:  Record<ModuleId, unknown>
 ```
 The core clones the slice with the rest of `world` and never reads inside it. A module owns
-validation and migration of its slice and stores its own version there if it needs one.
+validation and migration of its slice and stores its own version there if it needs one. A
+module that draws keeps its stream in `rng` under a name of its own (§3.1). An installed
+module's slice and stream are made when the world is created or, for a save made before the
+module was installed, the first time it is played; a slice no installed module owns is kept,
+never read, and warned of (M8-S1, DL-76).
 
 ## 4. `history`
 
@@ -290,7 +294,8 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 
 `meta.version` is set from the first save. On load: if a migration chain exists from the
 document's version to the current one, it runs, forward only, one step per version. If none
-exists, the load is refused with the versions named. Modules migrate their own slices.
+exists, the load is refused with the versions named. Modules migrate their own slices, after
+the chain and before the validator, each reading its own version from inside its slice (DL-76).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -308,8 +313,10 @@ runs per Turn in play.
 | An offer whose Hero is not on `fromGuildId`'s Roster, or whose `expiresOnTurn` is past | refuse |
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
+| A module slice its installed module refuses, or cannot migrate or read (DL-76) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
+| A module slice no installed module owns (DL-76) | warn |
 
 A refused document names the failed check. Nothing is repaired silently.
 

@@ -4,7 +4,7 @@
 **Sessions:** 4–6 · **Depends on:** M7 · **Implements:** `plan.md` M8; N6; ADR-0005 as amended 2026-09-25; `data-model.md` §3.4
 **Gate:** the module contract exists; a test-only probe module registers a slice, a stream and all three hooks, changes core tables only through the effects API, and requests a stop; the harness with no module installed is byte-identical to M7's tagged run
 
-**Status:** not started
+**Status:** in progress — M8-S1 done
 
 ## 0. What lands in M8
 
@@ -59,11 +59,18 @@ never reads inside a slice; a lint test greps `engine/src` outside `modules.ts` 
 
 **Acceptance:**
 
-- [ ] With `modules: []` every M2–M6 harness counter is identical to the M7 tag's run for the
-      same seeds (byte-equal saves)
-- [ ] A module with a stream draws without moving any core stream
-- [ ] A module that throws inside a hook fails the `advance` with the module id in the error
-      (programming error; modules are code, not content)
+- [x] With `modules: []` every M2–M6 harness counter is identical to the M7 tag's run for the
+      same seeds (byte-equal saves) — 200 seeds × 20 years played at `m7-web` and here with the
+      harness's own `playGame`: per seed, SHA-256 of the last save and of the game's counters and
+      observations, all 200 equal; the harness now prints the sweep's fingerprint
+      (`sweepFingerprint`), `7c71caae…458b` at `m7-web` over those seeds (DL-76)
+- [x] A module with a stream draws without moving any core stream — `engine/src/modules.test.ts`:
+      a module drawing at every hook for 30 Turns leaves every core stream, and the world without
+      its slice and stream, equal Turn by Turn to the same seed with no module (DL-76)
+- [x] A module that throws inside a hook fails the `advance` with the module id in the error
+      (programming error; modules are code, not content) — `engine/src/modules.test.ts`: a
+      `ModuleError` with `moduleId`, the hook and the cause, the document given left as it was
+      (DL-76)
 
 ### M8-S2 · Phase hooks, effects and stops · 1 session
 

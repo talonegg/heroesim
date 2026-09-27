@@ -15,6 +15,7 @@
 // The harness may read the clock and the environment: it is not the engine (ADR-0001 binds the
 // engine only).
 
+import { createHash } from 'node:crypto';
 import {
   advance,
   applyAction,
@@ -312,9 +313,15 @@ export interface DocumentMeasures {
   deserialiseMs: number;
   /** Whether the load gave back the same text when serialised again. */
   roundTrips: boolean;
+  /**
+   * SHA-256 of `serialise(document)`, in hex: equal for two games only when their saves are byte for
+   * byte equal, so a run's games compare with another run's without keeping either's documents
+   * (M8-S1, DL-76). Not a counter: it changes none.
+   */
+  fingerprint: string;
 }
 
-/** Serialises `document`, loads it back, and times both. */
+/** Serialises `document`, loads it back, times both, and fingerprints the save. */
 export function measureDocument(
   document: WorldDocument,
   deps: EngineDeps,
@@ -332,6 +339,7 @@ export function measureDocument(
     serialiseMs,
     deserialiseMs,
     roundTrips: loaded.ok && serialise(loaded.document) === text,
+    fingerprint: createHash('sha256').update(text).digest('hex'),
   };
 }
 

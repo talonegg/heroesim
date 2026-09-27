@@ -6,6 +6,7 @@
 // the method and the numbers.
 
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -147,6 +148,19 @@ export function sweepPlay(seeds: readonly string[], deps: EngineDeps, options: S
   const started = now();
   const played = playSeeds(seeds, deps, options);
   return sweepOf(seeds, played, deps, options, { workers: 1, started, gamesMs: now() - started, now });
+}
+
+/**
+ * The sweep's fingerprint (M8-S1, DL-76): SHA-256, in hex, over one line per game, in seed order,
+ * of its seed, a tab and its last save's fingerprint (`DocumentMeasures.fingerprint`). Two runs of
+ * the same seeds give the same one only when every game's save is byte for byte equal, so it shows in
+ * one line of a report whether a change moved any game at all.
+ */
+export function sweepFingerprint(games: readonly GameRecord[]): string {
+  const lines = [...games]
+    .sort((a, b) => compareByCodeUnit(a.seed, b.seed))
+    .map((game) => `${game.seed}\t${game.measures.fingerprint}\n`);
+  return createHash('sha256').update(lines.join('')).digest('hex');
 }
 
 /** Processes a parallel sweep uses by default: half the logical processors, one a core with SMT. */
@@ -1503,6 +1517,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
             : `\`${sweep.replay.seed}\`: ${sweep.replay.identical ? 'identical' : 'DIFFERENT'} (${whole(sweep.replay.length)} characters)`,
         ],
         ['Saves that load and serialise back identically', `${whole(roundTrips)} of ${whole(count)}`],
+        ["Fingerprint of every seed's last save", `\`${sweepFingerprint(sweep.games)}\``],
         ['`advance` per Turn', `mean ${ms(sweep.advance.mean)} ms, p99 ${ms(sweep.advance.p99)} ms`],
         ['Total run time', `${fixed(sweep.totalMs / 1000, 1)} s, the games ${fixed(sweep.gamesMs / 1000, 1)} s of it`],
       ],

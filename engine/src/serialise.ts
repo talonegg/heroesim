@@ -9,6 +9,7 @@
 import type { EngineDeps } from './config.js';
 import type { WorldDocument } from './document.js';
 import { findJsonUnsafe } from './json-safe.js';
+import { migrateSlices } from './modules.js';
 import { validate, type ValidationFailure, type ValidationWarning } from './validate.js';
 
 // ── Save ─────────────────────────────────────────────────────────────────────────────────────
@@ -158,8 +159,10 @@ export type LoadResult =
 
 /**
  * Reads a save: parses `text`, checks `meta.version` against `deps.config.schemaVersion`, runs
- * the migration chain, then the validator against `deps.content`. The warnings (content keys the
- * content does not define, rule 5) come back beside the document; nothing is repaired.
+ * the migration chain, then each installed module's `migrateSlice` on its slice (M8-S1,
+ * `migrateSlices`), then the validator against `deps.content` and `deps.modules`, which has each
+ * module validate its slice. The warnings (content keys the content does not define, rule 5, and
+ * slices no installed module owns) come back beside the document; nothing is repaired.
  *
  * `deps.config` here is the engine's own configuration, `defaultConfig` in a front end: one built
  * as `{ ...defaultConfig, ...meta.config }` carries the save's own `schemaVersion` and would skip
@@ -180,20 +183,17 @@ export function deserialise(text: string, deps: EngineDeps): LoadResult {
 
   const migrated = migrate(parsed, deps.config.schemaVersion);
   if (!migrated.ok) return migrated;
+  const sliced = migrateSlices(migrated.document, deps);
+  if (!sliced.ok) return { ok: false, reason: invalid(sliced.failures) };
 
-  const result = validate(migrated.document, deps);
-  if (!result.ok) {
-    const checks = [...new Set(result.failures.map(({ check }) => check))].join(', ');
-    return {
-      ok: false,
-      reason: {
-        kind: 'invalid',
-        failures: result.failures,
-        message: `The save fails the validator (${checks}): ${result.failures[0]?.detail ?? ''}`,
-      },
-    };
-  }
-  return { ok: true, document: migrated.document as unknown as WorldDocument, warnings: result.warnings };
+  const result = validate(sliced.document, deps);
+  if (!result.ok) return { ok: false, reason: invalid(result.failures) };
+  return { ok: true, document: sliced.document as unknown as WorldDocument, warnings: result.warnings };
+}
+
+function invalid(failures: ValidationFailure[]): LoadRefusal {
+  const checks = [...new Set(failures.map(({ check }) => check))].join(', ');
+  return { kind: 'invalid', failures, message: `The save fails the validator (${checks}): ${failures[0]?.detail ?? ''}` };
 }
 
 function isSavedDocument(value: unknown): value is SavedDocument {

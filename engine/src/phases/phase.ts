@@ -7,6 +7,7 @@ import type { History, Turn, World } from '../document.js';
 import { eventEmitter, type Emit } from '../emit.js';
 import type { EngineEvent } from '../events.js';
 import { createHistory } from '../history.js';
+import type { Module } from '../modules.js';
 import type { TimeOfDay } from '../time.js';
 
 /** What every phase is given beside the World State it changes. */
@@ -27,6 +28,11 @@ export interface PhaseContext {
    * its Milestone flag (emit.ts). The phase returns what it makes.
    */
   emit: Emit;
+  /**
+   * The installed modules, in registration order: `deps.modules`, none when absent. Only the three
+   * module hook positions read it (modules.ts, M8-S1).
+   */
+  modules: readonly Module[];
 }
 
 /**
@@ -49,5 +55,12 @@ export interface Phase {
  * and get an empty one (DL-27).
  */
 export function phaseContext(world: World, deps: EngineDeps, history: Readonly<History> = createHistory()): PhaseContext {
-  return { config: deps.config, content: deps.content, turn: world.turn, history, emit: eventEmitter(world) };
+  return {
+    config: deps.config,
+    content: deps.content,
+    turn: world.turn,
+    history,
+    emit: eventEmitter(world),
+    modules: deps.modules ?? [],
+  };
 }

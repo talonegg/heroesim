@@ -13,7 +13,7 @@
 // frozen with `defaultConfig`.
 
 import type { ContentSet, SlotKey, StatArea } from './content-types.js';
-import type { ModuleId } from './document.js';
+import type { Module } from './modules.js';
 
 export interface GameConfig {
   /**
@@ -582,14 +582,13 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   lootOnlyPrice: 600,
 });
 
-/** A module as the core knows it until M8-S1 writes the module contract: its id. */
-export interface Module {
-  readonly id: ModuleId;
-}
-
 /** The one object every engine entry point takes (approach §3, pre-M0 review D1). */
 export interface EngineDeps {
   config: GameConfig;
   content: ContentSet;
+  /**
+   * The installed modules, in the order their hooks run (M8-S1, modules.ts); none when absent,
+   * which is every game the front ends and the harness play.
+   */
   modules?: readonly Module[];
 }

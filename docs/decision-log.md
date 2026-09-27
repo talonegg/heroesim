@@ -6362,6 +6362,101 @@ the save's size, a data-model decision for the owner. Left to the owner: Cloudfl
 Pages into Workers; a later wrangler may stop offering classic Pages, and moving the page to a
 Workers project would change its address and DL-68's command.
 
+## DL-76 — The module contract: the `Module` interface in the engine's own types, slices and streams made by `ensureModules`, the three hooks as entries of the phase list, a slice migrated without a version from the core, and byte identity with `m7-web` on 200 × 20 (M8-S1)
+
+**Status:** Accepted · **Date:** 2026-09-27 · **Decided by:** an agent (M8-S1's implementer), where
+the epic's sketch had to meet the engine's real types or left a choice open; no default, content
+value, `configVersion` or schema version changes
+
+**Context.** M8-S1 writes the module contract (ADR-0005 as amended 2026-09-25, data-model §3.4,
+approach §2, N6). The epic sketches the interface with names that predate the engine (`Event`,
+`Failure`, `StreamName`, `createWorld(content, config, seed, setup, modules = [])`), and says a
+slice is migrated with `migrateSlice(slice, fromVersion)` while data-model §3.4 says the core
+never reads inside a slice and a module keeps its own version there. Its first box asks that with
+no module installed every harness counter equals the M7 tag's run, byte-equal saves included.
+
+**Decision.**
+
+1. **The interface, in `engine/src/modules.ts`, in the engine's own types.** `Module<Slice>` has
+   `id`, `streamName?`, `createSlice(ctx)`, `validateSlice(slice)`, `migrateSlice?(slice)` and
+   `onMorning?`/`onAfternoon?`/`onNight?(world, slice, ctx)` returning
+   `ModuleResult = { events: EngineEvent[]; stop?: StopReason }`. Where it differs from the epic:
+   - `Event` is `EngineEvent` and `StopReason` is stops.ts's (M8-S2 adds `module` to it);
+   - `Failure` is `SliceFailure = { at, detail }`, a place in the slice and prose, which the
+     validator reports as a `module-slice` refusal at `$.world.modules.<id>` followed by `at`, so a
+     refusal names the module;
+   - `streamName` is a `string`: `StreamName` is the union of the core's streams;
+   - **`migrateSlice(slice)` takes no `fromVersion`.** Only the slice holds its version (§3.4),
+     and the core, which never reads inside a slice, cannot pass it; the module reads its own.
+     It is called on every present slice of an installed module that has the method, after the
+     core's migration chain and before the validator, and returns the slice as it is when current;
+   - `createWorld(seed, setup, deps)` and `deserialise(text, deps)` keep their signatures and take
+     the modules as `deps.modules`, none when absent, as every entry point takes them (approach §3,
+     pre-M0 review D1); the placeholder `Module` of `config.ts` is replaced by this one;
+   - hooks receive the world typed `Readonly<World>`, a shallow promise that M8-S2's frozen-world
+     test makes binding.
+   A module that throws in a hook or in `createSlice` throws `ModuleError`, naming `moduleId` and
+   `during` (the hook, or `createSlice`), with what it threw as `cause`: modules are code, so it is a
+   programming error.
+2. **Registration.** `installedModules(deps)` refuses, with a RangeError, an empty id, two modules
+   with one id, and a stream named as a core stream or another module's. `ensureModules(world,
+   seed, deps)` gives the world each installed module's stream it lacks, seeded as a core stream is
+   (`createStreams(seed, [name])`) and kept in `world.rng` beside the core's, then each slice it
+   lacks from `createSlice`, in registration order. `createWorld` calls it last, after the Market
+   refresh; `advance` calls it on its copy beside `ensureStreams`, so a save made before a module was
+   installed gains its stream and slice the first time it is played (DL-25's rule for streams).
+   `world.modules` and `world.rng` already hold both, so the document's shape is unchanged and the
+   schema stays at version 3, with no migration.
+3. **The hooks are three entries of the flat phase list**, named `onMorning`, `onAfternoon` and
+   `onNight`, at approach §2's positions: after the Market refresh, after Quests in flight advance,
+   and after the pool refresh, before Transfer Offers expire and the ending checks. pipeline.test.ts's
+   literal holds them there. `PhaseContext` gains `modules`. Each entry calls the installed modules
+   that have the hook, in registration order, with the Turn's world, the module's slice (changed in
+   place, in the Turn's copy) and a minimal context: `config`, `content`, `turn`, `emit`, and `rng`,
+   the module's own stream bound, every draw of which throws for a module that registered none.
+   M8-S2 adds the selectors and the `effects` API. A hook's events join the Turn's at its position
+   and the History; its `stop` is accepted by the type and not yet acted on (M8-S2). `advance` plays
+   on a copy and appends only after the whole Turn, so a throwing module leaves the document it was
+   given as it was.
+4. **Loading and validation.** `deserialise` runs the chain, then `migrateSlices`, then the
+   validator. `validate` has each installed module validate its present slice (`module-slice`) and
+   warns, with `unknown-module`, of a slice no installed module owns, which is kept and never read,
+   as rule 5 keeps an unknown content key; an installed module whose slice is absent is not asked. A
+   module that throws migrating or validating a save's slice refuses the load rather than throwing,
+   since a save is outside the engine's control. Data-model §3.4 and §6 say so.
+5. **The core never reads inside a slice.** modules.test.ts reads every non-test source file of
+   the engine, comments removed as controller-reads.test.ts removes them, for `world.modules`,
+   `world?.modules` and `world['modules']`, and finds them in `modules.ts` only.
+6. **A harness fingerprint.** `DocumentMeasures.fingerprint` is SHA-256 of a game's last save, and
+   `sweepFingerprint` is SHA-256 over one line per game, in seed order, of its seed, a tab and that
+   fingerprint. The play report gives it in one row ("Fingerprint of every seed's last save") and
+   `npm run harness` prints it, so a later M8 story, or the M8 close, shows in one line whether
+   anything moved a game. It changes no counter.
+7. **Byte identity with `m7-web`, proved on 200 seeds × 20 years.** A detached scratch worktree of
+   the tag (`d792a76`, the same tree as `a83f9d9`), `npm ci`, and one scratch driver run unchanged
+   against both trees: 16 child processes, each playing its seeds with the harness's own `playGame`
+   under the core content and `defaultConfig`, as `npm run harness` does (not validated per Turn),
+   and writing per seed the SHA-256 of `serialise` of the last document and the SHA-256 of the
+   game's harness record: `countGame` with the Rivals' afternoons, the observations, the Turns
+   played, the policy's refusals and the harness assertion. At `m7-web` the deps carried no
+   `modules`; on this branch, `modules: []`. **All 200 seeds agree, saves and counters alike.**
+   The two 200-line tables are byte for byte equal (each table's SHA-256
+   `9d1d5ec0a2d52457c681e868dd9ded00088cb691731bae6f77b7a58042d28477`), over 4,314,028 Turns
+   played (198 games ran the full 20 years, 2 ended), 51,885,237 History entries and
+   20,630,181,665 characters of saves; `seed-0001`'s last save is 113,281,366 characters, the
+   length the M6 report's replay records. The tag played in 67.1 minutes, this branch in 61.8, and
+   the engine, content and harness played here are the trees this commit carries. In
+   `sweepFingerprint`'s form, the fingerprint of `m7-web` over `seed-0001` to `seed-0200` × 20
+   years is `7c71caae3e08c4405e14f3fae3a0c8cc95d1f6deac55e9b80de45a929c07458b`: a later 200-seed
+   `npm run harness` with no module installed prints that value unless something moved a game.
+
+**Consequences.** With no module installed the engine plays as `m7-web` did; the three hook
+entries cost an empty loop a Turn. M8-S2 makes the context real (selectors, `effects`), acts on a
+hook's `stop` with a `module` stop reason, and freezes the world a hook sees. Left open for M8-S2
+and M8-S3: a module's own event types (`probe.fired`) are not in `EngineEvent`, so either the union
+gains them or `ModuleResult.events` widens to entries of any type, which M8-S4's narration fallback
+then meets.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -162,6 +162,17 @@ export * from './history.js';
 export * from './items.js';
 export * from './json-safe.js';
 export * from './market.js';
+export {
+  hookNames,
+  ModuleError,
+  type HookName,
+  type Module,
+  type ModuleContext,
+  type ModuleRandom,
+  type ModuleResult,
+  type SliceContext,
+  type SliceFailure,
+} from './modules.js';
 export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
