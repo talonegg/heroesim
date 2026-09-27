@@ -21,6 +21,7 @@ made an interface. The decision stands; only its timing moved. Decided by the ow
 *Closed by M8.* The timing this amendment records has happened: the contract (registration, a
 state slice, the three phases, events, a stop and the effects API) was built as M8, the last
 milestone of the first build, after the pipeline's phases were settled by use, and was proved by a
-test-only probe module before any story module exists (DL-76 to DL-80). The first build is complete
-when M8 is tagged `m8-modules`. Random Events, the first real module, is the next work
+test-only probe module before any story module exists (DL-76 to DL-80). The first build was
+completed when M8 was tagged `m8-modules` on 2026-09-28 (DL-81). Random Events, the first real
+module, is the next work
 ([`../plan.md`](../plan.md) §4), and the test of whether the contract fits a real feature.

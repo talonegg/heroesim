@@ -6948,6 +6948,163 @@ core did not, and cannot act outside the call it was given. What it can still do
 contract's reach and stated in the `Module` doc: write a slice it kept past its call, which changes
 only a document already handed back. The M8 close (DL-81) writes the tag's date where item 4 says.
 
+## DL-81 — M8 close: the first build's 1,000 × 20 tagged run, byte identity with `m7-web` read from inside it, the first build's close-out lines dated, and what the first build leaves to the owner
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the M8 close), running the
+tagged run and choosing how its figures are read; no rule, default, content value, `configVersion`
+or schema version changes, and the owner has not seen the figures
+
+**Context.** DL-39 item 4 made the 1,000 × 20 run that INPUTS 4.13 calls "the tagged run" once, for
+the first build's tag at M8, each milestone before it carrying a 200 × 20 run. M8's gate asks that the
+harness with no module installed be byte-identical to M7's tagged run. DL-76 proved that on 200 × 20 at
+M8-S1; DL-77 to DL-80 changed the engine after it, and DL-80 item 8 left "the 200 × 20 proof at the M8
+close" to this entry. DL-80 item 4 left the tag's date, in `plan.md`, ADR-0005 and the README, to the
+close. With no module installed M8 changes no rule, and M7 changed none, so the M6 run (DL-69: 200 ×
+20, validated, `harness/reports/m6-2026-09-27.md`) is the picture this run is read against.
+
+**Decision.**
+
+1. **The run.** `HEROESIM_VALIDATE=1 HEROESIM_SEEDS=1000 npm run harness -- play.harness`, M6's command
+   with 1,000 seeds, on `m8-integration` at `21fd4d4` with one change: `play.harness.test.ts`'s
+   milestone is `m8`, so the report is M8's, as each close before retitled it
+   (`harness/reports/m8-2026-09-28.md`, force-added with this entry). No `HEROESIM_MODULES`, so no
+   module was installed. 1,000 seeds, `seed-0001` to `seed-1000`, each up to 20 years, validated after
+   every advance, config version 10, content version 14, schema version 3, the policy of DL-63 item 3,
+   16 processes on DL-13's machine. Begun 2026-09-28 00:50:48, ended 07:02:54 (UTC+10): 22,327 s, the
+   games 21,990 s of it. The close started no other heavy work meanwhile.
+2. **Validation.** No refusal or warning, no policy action refused, and no game the M6-S3 assertion
+   stopped: no `hero.transferred` names the player's Guild. All 1,000 last documents load and
+   serialise back alike, and `seed-0001` played twice more is identical (113,281,366 characters).
+3. **Byte identity with `m7-web`, read from inside the run.** The sweep deletes its shards' result
+   files when it ends, so a scratch watcher copied each of the 16 as it was written. Their
+   `sweepFingerprint` over all 1,000 games is the report's own, `9d804517…b19e`. Over `seed-0001` to
+   `seed-0200` they give `7c71caae3e08c4405e14f3fae3a0c8cc95d1f6deac55e9b80de45a929c07458b`, which is
+   `m7-web`'s 200-seed fingerprint (DL-76 item 7). Over the first 50 they give DL-78's `11a18457…9e02`.
+   The validator reads and never writes, so a validated game plays as an unvalidated one. So with no
+   module installed, M8 at the close plays those 200 seeds' 20 years to the same saves as `m7-web`,
+   byte for byte: M8's gate and M8-S1's first box hold at the tag. Counted from the same records, the
+   first 200 games give the M6 report's counters exactly: 576 Rival folds, 6,813 and 15,404 Deaths,
+   1,093 Transfers, and 207,794 of 1,392,652 player's Quests failed. **Every difference between this
+   run and the M6 run therefore comes from seeds 201 to 1,000.**
+4. **The figures against the M6 run** (a Guild-year and "a game" as the reports use them):
+
+   | Measure | M6, 200 × 20 | M8, 1,000 × 20 |
+   | --- | --- | --- |
+   | The player's games that ended | 2 Bankruptcies (`seed-0049`, `seed-0188`) | 4 Bankruptcies: those two, `seed-0942` (Turn 18,569) and `seed-0807` (Turn 21,269); every other game ran 20 years |
+   | Rival folds a game | 2.88 | 2.78: 2,779 Bankruptcies and one Roster wiped, the first of either run (`seed-0849`, a `reckless` Rival) |
+   | Folds a Guild-year, `ambitious` / `miserly` / `reckless` / `steady` | 0.021 / 0.038 / 0.052 / 0.034 | 0.022 / 0.037 / 0.046 / 0.035 |
+   | Rival-to-Rival Transfers | 1,093, 5.47 a game | 6,075, 6.08 a game: 5,687 an afternoon's choice, 8 with the seller in debt, 380 the Generator's; mean fee 493 |
+   | … back to a Guild that had sold the Hero | 117 (10.7%) | 629 (10.4%) |
+   | Transfers into or out of the player's Guild; offers for its Heroes | none; 161, all declined | none; 951, all declined |
+   | The player's Quests failed / succeeded / strong | 14.9 / 13.7 / 71.3% | 14.8 / 13.7 / 71.5% |
+   | The Rivals' Quests | 12.9 / 12.0 / 75.1% | 12.9 / 12.1 / 75.0% |
+   | Deaths a game, the player's / the Rivals' | 34.1 / 77.0 | 33.6 / 78.4 |
+   | Mean Level after 10 years, the player's / the Rivals' | 7.60 / 6.98 | 7.58 / 6.93 |
+   | The player's Wealth after 10 and 20 years | 123,818; 189,977 | 125,897; 192,614 |
+   | A Rival's Wealth after 10 and 20 years | 27,918; 22,487 | 28,354; 22,923 |
+   | Wealth spent, the player: Upkeep / Items / signing / Improvements | 86.1 / 13.3 / 0.4 / 0.2% | 86.1 / 13.3 / 0.4 / 0.2% |
+   | Wealth spent, the Rivals: Upkeep / Improvements / Items / signing / Transfers | 98.0 / 1.3 / 0.3 / 0.3 / 0.1% | 98.0 / 1.2 / 0.3 / 0.3 / 0.1% |
+   | The player first in the Rankings, of all year-starts: by Fame; by Wealth | 89.5%; 91.6% | 88.8%; 91.4% |
+   | Loot awards a Guild-year (a Quest resolved), the player's / the Rivals' | 47.1 (0.135) / 20.6 (0.102) | 47.2 (0.135) / 21.1 (0.103) |
+   | Unique Items awarded a game | 4.99 | 4.99 |
+   | Consumables a player's Quest: carried; expended; Quests using one | 2.90; 0.70; 52.6% | 2.91; 0.70; 52.8% |
+   | Rival Rosters at year-starts: within 4 to 8; above 8 | 84.9%; 14.8% | 84.1%; 15.6% |
+   | Rival Market purchases a Guild-year | 1.52 | 1.51 |
+   | History entries after 20 years, mean | 259,815 | 261,462 |
+
+5. **Against the 200-seed picture, nothing moves beyond what 200 seeds could tell.** Seeds 201 to
+   1,000 on their own, from the kept records: Rival folds 2.76 a game against the first 200's 2.88 (a
+   game's folds have a standard deviation of 1.12, so a mean of 200 games a standard error of 0.08); Rival-to-Rival Transfers
+   6.23 a game against 5.47 (a standard error of 0.41: a game's deviate by 5.8, from none to dozens
+   as an `ambitious` and a `reckless` Rival meet); the player's Quests failed 14.8% against 14.9%; Deaths 33.4 and 78.8 a game
+   against 34.1 and 77.0; the player first by Fame at 88.6% of year-starts against 89.5%. The one
+   figure the 200 seeds overstated by more than their noise is `reckless`'s folds: 0.044 a Guild-year on
+   the new seeds against 0.052, about two standard errors (207 folds, 0.004). It is still the Disposition that folds most, and
+   `miserly` (0.037), `steady` (0.035) and `ambitious` (0.022) keep DL-69's order. Every DL-69 item 4
+   target the report shows still holds: 2.78 folds a game, `steady` not the most; 84.1% of Rival Rosters
+   within 4 to 8, each Disposition's median 4 to 6, and above 8 at most 26.8% (`reckless`); 6.08
+   Transfers a game, 10.4% back to a former seller. The four player Bankruptcies are 0.4% of games, all
+   in years 16 to 19, and the earliest is still M6's `seed-0188`.
+6. **Measures** against data-model §7 (recorded, not chased, DL-08):
+   - *Under load*, 16 processes: `advance` 5.91 ms a Turn (p99 14.2), M6's 5.98 (13.8); `validate`
+     after it 6.09 ms.
+   - *A Turn alone.* The report's replay of `seed-0001` in the sweep's own process gives 4.96 ms, M6's
+     1.50 ms, and so a year of fast forward of 5.4 s against M6's 1.6 s. That is the machine, not M8.
+     After the run, `seed-0001` was replayed alone for 20 years in fresh processes, unvalidated as the
+     replay is, at this tree and at `m7-web` (a scratch worktree of the tag, since removed), taking
+     turns: M8 4.30, 4.08 and 3.79 ms, `m7-web` 4.45 and 4.04 ms. The processor ran at 86% to 92% of its
+     base clock under one busy thread, with no boost. So M8 is no slower than `m7-web`, which the
+     under-load figure agrees with. A Turn alone was 1.5 ms on this machine on 2026-09-27 and about 4
+     ms on 2026-09-28. A year of fast forward is 1.6 s at the first rate and 4.1 to 5.4 s at the second,
+     against 1 s either way.
+   - *Save and load*: a save after 20 years is 99.2 MiB on the mean and 118.3 MiB at most (the same
+     game as M6's largest), against 20 MiB. Loading one under load takes 4.6 s on the mean (7.8 s at
+     most) against 1 s; serialising one takes 3.8 s.
+   - *The harness*: 1,000 games of 20 years took 367 minutes of games in 16 processes, 372 in all,
+     against §7's 10 minutes: 37 times over, as M6's projection of 366 minutes said.
+7. **The close-out lines** (DL-80 item 4): `plan.md`'s M8 row reads "Done 2026-09-28 (`m8-modules`)",
+   the line under the table and §4 say the first build is complete with Random Events next, ADR-0005's
+   closing line says the first build was completed when M8 was tagged `m8-modules` on 2026-09-28, and
+   the README says the first build is complete. The epic's Status is "done — 2026-09-28
+   (`m8-modules`)", and its "Measured" section gives this run and the probe run. The tag is the
+   orchestrator's, on this commit, so M8-S4's second box is ticked when it exists. The epics README's
+   time table still measures M8 to M8-S3 (DL-79 item 7). This close adds the run's 6 h 12 min of machine
+   time to M8's span.
+
+**Consequences.** The first build is complete: the core plays as a measurable game with no module
+installed, and it plays the same with a contract for modules in place. What the first build leaves to
+the owner, collected from the decisions that left it and read again in this run:
+
+- **Content read by an agent** (DL-17 item 5). INPUTS 5.3's "weighted 2:1 toward the Class's leading
+  Stats" was read as a split of each Level's points: the four leading Stats share two thirds and the
+  sixteen others one third, so a leading Stat grows 8 times as fast as another. Read per Stat, 2:1 would
+  make it twice as fast. Under this reading 47.8% of the player's Heroes and 42.3% of the Rivals' have
+  a Stat at its Potential by year 10. Every name, key and first
+  value in `content/` is an agent's choice too.
+- **Regard and Relationship** (DL-55). Guildmaster Regard has nothing to decay it and saturates: after
+  10 years the player's Guildmaster is close with 11,994 of 12,000 Patrons, and nothing in the first
+  build reads it. Relationship within the player's Roster never falls below neutral (73.1% close, none
+  cool or hostile), so teamwork only rewards. No Patron fell silent (0 of 239,880 Patron-years). Each
+  needs a rule, not a value.
+- **The plain success band is thin** (DL-55): 13.7% of the player's Quests and 12.1% of the Rivals'.
+- **The player's Wealth grows without end** (DL-41, DL-55, DL-69): 19,460 after a year, 125,897 after
+  10 and 192,614 after 20, first by Wealth at 91.4% of year-starts and by Fame at 88.8%. The Rivals are
+  no threat in the Rankings. Four of 1,000 player's Guilds went bankrupt, all late. The policy declines
+  every Transfer Offer (951) and never transfers. A smarter policy, and whether it should ever accept,
+  is a decision after these counters (DL-69).
+- **Items** (DL-62). Items are the player's second cost, 13.3% of what it spends. Its Parties carry
+  2.91 consumables a Quest, where the Rivals carry and buy none. Surplus Loot gear piles up: nothing
+  sells it (no `sale` in 1,000 games), and `gearChoices` never replaces worn gear with better.
+- **Rivals** (DL-69):
+  - Folds come from Levels outrunning income. A Rival's Wealth at a year-start peaks in year 8
+    (29,928) and falls to 22,923 by year 20. Changing that is a rule, or values the player pays too
+    (`wagePerLevel`, `xpPerTrainingDay`, `hallMaintenancePerGrade`).
+  - `transferAppetite` does two jobs: the chance of seeking a Transfer, and consent. A consent floor at
+    `rivalRosterMin` in `transferAnswer` would free it.
+  - Transfers are few and mostly between two: 4,369 of 6,075 are between `ambitious` and `reckless`.
+  - `steady` and `miserly` sit near the floor on idle Wealth. `steady`'s median Roster is 4 at a mean
+    Wealth of 20,418, `miserly`'s 5 at 24,229. The share at the floor with more than 20 Upkeeps is the
+    scratch script's measure and is not repeated here.
+  - The engine's test content keeps M6-S1 to S4's Disposition rows.
+- **The measures over target** (data-model §7, item 6):
+  - a Turn under load is 5.9 ms against 5;
+  - a year of fast forward is 1.6 s or more against 1;
+  - a save after 20 years is 99.2 MiB against 20;
+  - loading one takes 4.6 s against 1;
+  - 1,000 games take six hours against ten minutes;
+  - in the browser, a twenty-year save round trip through IndexedDB is 3.6 s against 1 (DL-67, M7-S4's
+    open box).
+  The History is most of a save. A leaner `quest.encounter` entry is the lever DL-42 and DL-55 named,
+  and it is a data-model decision. The single-thread rate this machine gives varies by a factor of
+  about three between days (item 6), so a later comparison of Turns alone should replay both trees
+  side by side, as item 6 did.
+- **The deploy** (DL-75). Cloudflare is folding Pages into Workers, and a later wrangler may stop
+  offering classic Pages; moving the page would change its address and DL-68's command.
+- **Modules** (M8). The `effects` API is deliberately narrow, and Random Events, the next work, is the
+  test of whether the contract fits a real feature (the epic's risks). A module that keeps its slice
+  past its call can still write a document already handed back (DL-80). The probe is in the web bundle,
+  so a deployed M8 page accepts `?modules=probe` (DL-79 item 3).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

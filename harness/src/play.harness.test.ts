@@ -8,16 +8,17 @@ import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
 import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
 // The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
-// M6's, DL-69), collected only by the harness-run project, which exists when HEROESIM_HARNESS is set
+// M6's, DL-69; M8's, the first build's tagged run with HEROESIM_SEEDS=1000, DL-81), collected only
+// by the harness-run project, which exists when HEROESIM_HARNESS is set
 // (`npm run harness`): play HEROESIM_SEEDS games (200 by default, INPUTS 4.13) from `seed-0001`
 // onward for 20 years or to their ending, under the automatic policy, the core content and
 // `defaultConfig`, shared among child processes (half the logical processors); with
 // HEROESIM_VALIDATE=1, validate after every advance; check M6-S3's harness assertion, that no
 // `hero.transferred` names the player's Guild; replay the first seed and compare the two games byte
-// for byte; and write the counters and measures to harness/reports/m6-<date>.md. Not run when
+// for byte; and write the counters and measures to harness/reports/m8-<date>.md. Not run when
 // HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78).
 
-const milestone = 'm6';
+const milestone = 'm8';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const validate = validatingEveryTurn();
 
