@@ -42,10 +42,10 @@ describe('loadContent()', () => {
       // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
       // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
       // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
-      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 3, 3, 0.2) },
+      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2) },
       ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3) },
-      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 70, 40, 10, 0.1) },
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 35, 4, 3, 0.25) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25) },
     });
   });
 
