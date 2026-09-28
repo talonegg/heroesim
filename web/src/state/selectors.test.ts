@@ -41,6 +41,7 @@ import {
   logView,
   partyChoices,
   previewView,
+  progressView,
   rosterView,
   stopView,
 } from './selectors';
@@ -428,6 +429,49 @@ describe('the log and why time stopped', () => {
 
     expect(stopView(state)).toEqual({ kind: 'max-turns', sentence: `Stopped: played the most Turns allowed, ${defaultConfig.turnsPerYear}.` });
     expect(stopView({ ...state, stoppedBecause: null })).toBeNull();
+  });
+
+  test("says the player's Stop in the page's own words, with the stops it was asked for (v1.0.1-S5, DL-96)", () => {
+    const document = newGame();
+    const state: GameState = { ...initialGameState, document, stopped: { until: ['pool-refreshed'], turnsPlayed: 90 } };
+
+    expect(stopView(state)).toEqual({ kind: 'player', sentence: 'Stopped: you asked to stop, after 90 Turns.', until: ['pool-refreshed'] });
+  });
+});
+
+describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', () => {
+  /** A fast forward between steps: the game held 90 Turns on from `document`, played under its own rules. */
+  function between(document: WorldDocument): GameState {
+    const own = { config: { ...defaultConfig, ...document.meta.config }, content };
+    let played = document;
+    for (let turn = 0; turn < 90; turn += 1) played = advance(played, own).document;
+    return { ...initialGameState, document, busy: true, forwarding: { until: [], turnsPlayed: 90, document: played, events: [] } };
+  }
+
+  test('is none while no fast forward is between its steps', () => {
+    expect(progressView(initialGameState)).toBeNull();
+    expect(progressView({ ...initialGameState, document: newGame() })).toBeNull();
+  });
+
+  test('gives the Turns played and the Day reached from the game the last step left, not the game in hand', () => {
+    expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.', countdown: null });
+  });
+
+  test("gives the countdown while the player's Guild is below the floor in that game, under the game's own grace", () => {
+    const document = structuredClone(newGame());
+    document.meta.config = { ...document.meta.config, bankruptcyGraceDays: 60 };
+    player(document).wealth = -5_000;
+    const state = between(document);
+
+    expect(state.forwarding === null ? null : countdownView(state.forwarding.document)).not.toBeNull();
+    expect(progressView(state)).toEqual({
+      sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.',
+      countdown:
+        'The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 60 unless Wealth is back ' +
+        'to 0 or more on a night by then, after any Upkeep due.',
+    });
+    // The game in hand, before the first night's check, has none.
+    expect(countdownView(document)).toBeNull();
   });
 });
 

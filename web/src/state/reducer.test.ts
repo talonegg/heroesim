@@ -18,13 +18,26 @@ import {
   serialise,
   unattachedHeroes,
   type EngineDeps,
+  type FastForwardResult,
   type Guild,
   type Module,
+  type StopCondition,
+  type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { gameReducer, initialGameState, type GameAction, type GameState, type Play } from './reducer';
+import { started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
+import {
+  fastForwardStepTurns,
+  gameReducer,
+  initialGameState,
+  noModules,
+  playDeps,
+  type GameAction,
+  type GameState,
+  type Play,
+} from './reducer';
 
 // The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that
 // call the real ones, so a test can count the engine calls a play makes and read the deps it
@@ -54,9 +67,11 @@ const newGame: Play = {
   createdAt: '2026-09-27T09:00:00.000Z',
 };
 
-/** Plays `action` as the page does: accepted, then settled. */
+/** Plays `action` as the page does: accepted, then settled, a fast forward step by step. */
 function play(state: GameState, action: Play): GameState {
-  return gameReducer(gameReducer(state, action), { kind: 'settle' });
+  let next = gameReducer(state, action);
+  while (next.pending !== null) next = gameReducer(next, { kind: 'settle' });
+  return next;
 }
 
 function started(): GameState {
@@ -278,9 +293,11 @@ describe("a loaded save's warnings, the CLI's notice of content keys this conten
 });
 
 describe('the modules installed (M8-S4): none unless the page is given some', () => {
-  /** Plays `action` as the page does with `modules` installed: accepted, then settled. */
+  /** Plays `action` as the page does with `modules` installed: accepted, then settled, a fast forward step by step. */
   function withModules(modules: readonly Module[], state: GameState, action: Play): GameState {
-    return gameReducer(gameReducer(state, action, modules), { kind: 'settle' }, modules);
+    let next = gameReducer(state, action, modules);
+    while (next.pending !== null) next = gameReducer(next, { kind: 'settle' }, modules);
+    return next;
   }
   const withProbe = (state: GameState, action: Play): GameState => withModules([probe], state, action);
 
@@ -460,14 +477,17 @@ describe('each play is the engine’s', () => {
     expect(three.stoppedBecause).toBeNull();
   });
 
-  test("fast forward watches the player's Guild, for a year unless told, and keeps why it stopped", () => {
+  test("fast forward watches the player's Guild, for a year unless told, a step at a time, and keeps why it stopped", () => {
     const state = started();
     const guild = playerOf(state);
     const forward = play(state, { kind: 'fastForward', until: ['pool-refreshed'] });
 
+    // A year, played in steps (v1.0.1-S5, DL-96): a new game stops in its first, one call of the
+    // first 30 Turns of the year.
+    expect(fastForward).toHaveBeenCalledTimes(1);
     expect(fastForward).toHaveBeenCalledWith(
       state.document,
-      { guildId: guild.id, until: ['pool-refreshed'], maxTurns: defaultConfig.turnsPerYear },
+      { guildId: guild.id, until: ['pool-refreshed'], maxTurns: fastForwardStepTurns },
       expect.anything(),
     );
     expect(forward.stoppedBecause).not.toBeNull();
@@ -479,6 +499,242 @@ describe('each play is the engine’s', () => {
     // A refusal leaves the stop as it was; any other play carried out clears it.
     expect(play(capped, { kind: 'rebase' }).stoppedBecause).toBe(capped.stoppedBecause);
     expect(play(capped, { kind: 'load', text: serialise(documentOf(capped)) }).stoppedBecause).toBeNull();
+  });
+});
+
+// ── Fast forward in steps (v1.0.1-S5, DL-96) ─────────────────────────────────────────────────
+
+/** Accepts `action` and settles it as `useGame` does, a step a settle, with `modules` installed: the state after each step. */
+function stepped(state: GameState, action: Play, modules: readonly Module[] = noModules): GameState[] {
+  const states: GameState[] = [];
+  let next = gameReducer(state, action, modules);
+  while (next.pending !== null) {
+    next = gameReducer(next, { kind: 'settle' }, modules);
+    states.push(next);
+  }
+  return states;
+}
+
+/** The last of `states`: the state a fast forward ended in. */
+function lastOf(states: readonly GameState[]): GameState {
+  const last = states.at(-1);
+  if (last === undefined) throw new Error('expected a step');
+  return last;
+}
+
+/** The engine's calls to `fastForward` since the mocks were last cleared: each step's document and options. */
+function fastForwardCalls(): Parameters<typeof fastForward>[] {
+  return vi.mocked(fastForward).mock.calls;
+}
+
+describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
+  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', () => {
+    const before = withRosterReleased(started());
+    const guildId = playerOf(before).id;
+    const turn = documentOf(before).world.turn;
+    const entries = documentOf(before).history.entries.length;
+    const year = defaultConfig.turnsPerYear;
+
+    const states = stepped(before, { kind: 'fastForward', until: [] });
+    const calls = fastForwardCalls();
+
+    expect(fastForwardStepTurns).toBe(30);
+    expect(calls).toHaveLength(year / fastForwardStepTurns);
+    expect(states).toHaveLength(calls.length);
+    for (const [index, [document, options]] of calls.entries()) {
+      expect(options).toEqual({ guildId, until: [], maxTurns: fastForwardStepTurns });
+      expect(document.world.turn).toBe(turn + index * fastForwardStepTurns);
+      expect(document).toBe(index === 0 ? before.document : states[index - 1]?.forwarding?.document);
+    }
+    // Between steps: busy, the rest pending, how far it has come held; the game in hand and the log
+    // stand as they were until it ends.
+    for (const [index, between] of states.slice(0, -1).entries()) {
+      const played = (index + 1) * fastForwardStepTurns;
+      expect(between).toMatchObject({ busy: true, rejection: null, stoppedBecause: null, stopped: null });
+      expect(between.pending).toEqual({ kind: 'fastForward', until: [], maxTurns: year - played });
+      expect(between.forwarding).toMatchObject({ until: [], turnsPlayed: played });
+      expect(between.forwarding?.document.world.turn).toBe(turn + played);
+      expect(between.document).toBe(before.document);
+      expect(between.log).toBe(before.log);
+    }
+    // The step that ends it stores the game it left, and every step's events, in order, as the log.
+    const last = lastOf(states);
+    expect(last).toMatchObject({ busy: false, pending: null, forwarding: null, stoppedBecause: { kind: 'max-turns' } });
+    expect(documentOf(last).world.turn).toBe(turn + year);
+    expect(last.log).toEqual(documentOf(last).history.entries.slice(entries));
+  });
+
+  test('a cap not a multiple of 30 ends with a step of what is left of it', () => {
+    const before = withRosterReleased(started());
+    const states = stepped(before, { kind: 'fastForward', until: [], maxTurns: 100 });
+
+    expect(fastForwardCalls().map(([, options]) => options.maxTurns)).toEqual([30, 30, 30, 10]);
+    expect(states.map((state) => state.forwarding?.turnsPlayed ?? null)).toEqual([30, 60, 90, null]);
+    expect(documentOf(lastOf(states)).world.turn).toBe(documentOf(before).world.turn + 100);
+    expect(lastOf(states).stoppedBecause).toEqual({ kind: 'max-turns' });
+  });
+
+  test('checks the whole cap as the engine does: one that is not a whole number from 0 throws, and 0 plays nothing', () => {
+    for (const maxTurns of [1.5, -1, Number.POSITIVE_INFINITY, Number.NaN]) {
+      expect(() => play(started(), { kind: 'fastForward', until: [], maxTurns })).toThrow(RangeError);
+    }
+    const state = started();
+    const none = play(state, { kind: 'fastForward', until: [], maxTurns: 0 });
+    expect(documentOf(none).world.turn).toBe(documentOf(state).world.turn);
+    expect(none).toMatchObject({ busy: false, stoppedBecause: { kind: 'max-turns' }, log: [] });
+  });
+
+  test('between steps a play is dropped as busy; settle plays the next step, and dismiss changes nothing', () => {
+    const between = gameReducer(gameReducer(withRosterReleased(started()), { kind: 'fastForward', until: [] }), { kind: 'settle' });
+    expect(between.forwarding).not.toBeNull();
+    const plays: Play[] = [newGame, { kind: 'load', text: '{}' }, { kind: 'advance' }, { kind: 'fastForward', until: [] }, { kind: 'rebase' }];
+
+    for (const next of plays) expect(gameReducer(between, next)).toBe(between);
+    expect(gameReducer(between, { kind: 'dismiss' })).toBe(between);
+    expect(gameReducer(between, { kind: 'settle' }).forwarding?.turnsPlayed).toBe(2 * fastForwardStepTurns);
+  });
+});
+
+describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', () => {
+  /** A Party of the player's out on the longest Quest it can staff, back on the night of Day 10, the 32nd Turn: partway through the second step. */
+  const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
+  /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Day 30, the 91st Turn, in the fourth step. */
+  const probeGame = (): GameState => {
+    const made = gameReducer(gameReducer(initialGameState, { ...newGame, seed: 'reducer-test' }, [probe]), { kind: 'settle' }, [probe]);
+    return withRosterReleased(made);
+  };
+  const released = (): GameState => withRosterReleased(startedFrom('reducer-test'));
+  const cases: {
+    name: string;
+    game: () => GameState;
+    until: StopCondition[];
+    maxTurns?: number;
+    modules: readonly Module[];
+    stop: StopReason['kind'];
+    turns: number;
+  }[] = [
+    {
+      name: "the player's Roster released to the pool, Wealth to spare: a year to max-turns",
+      game: released,
+      until: [],
+      modules: noModules,
+      stop: 'max-turns',
+      turns: defaultConfig.turnsPerYear,
+    },
+    { name: 'a Party out, back partway through a later step', game: partyOut, until: [], modules: noModules, stop: 'party-returned', turns: 32 },
+    { name: 'pool-refreshed listed', game: released, until: ['pool-refreshed'], modules: noModules, stop: 'pool-refreshed', turns: 32 },
+    { name: 'a cap not a multiple of 30', game: released, until: [], maxTurns: 100, modules: noModules, stop: 'max-turns', turns: 100 },
+    { name: 'the probe installed, its module stop in a later step', game: probeGame, until: [], modules: [probe], stop: 'module', turns: 91 },
+  ];
+
+  /** A save's game, loaded as the page loads one, with `modules` installed. */
+  function loaded(text: string, modules: readonly Module[]): GameState {
+    const state = gameReducer(gameReducer(initialGameState, { kind: 'load', text }, modules), { kind: 'settle' }, modules);
+    if (state.rejection !== null) throw new Error(`the save does not load: ${state.rejection.reason}`);
+    return state;
+  }
+
+  /** The same save loaded again and fast forwarded by one call of the whole cap, as the page did before v1.0.1. */
+  function oneCall(text: string, until: readonly StopCondition[], maxTurns: number, modules: readonly Module[]): FastForwardResult {
+    const document = documentOf(loaded(text, modules));
+    const guild = playerGuild(document.world);
+    if (guild === undefined) throw new Error("expected the player's Guild");
+    return fastForward(document, { guildId: guild.id, until, maxTurns }, playDeps(document, modules));
+  }
+
+  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns }) => {
+    const text = serialise(documentOf(game()));
+    const start = loaded(text, modules);
+    vi.clearAllMocks();
+
+    const states = stepped(start, { kind: 'fastForward', until, ...(maxTurns === undefined ? {} : { maxTurns }) }, modules);
+    const steps = fastForwardCalls().length;
+    const last = lastOf(states);
+    const one = oneCall(text, until, maxTurns ?? defaultConfig.turnsPerYear, modules);
+
+    expect(steps).toBeGreaterThan(1);
+    expect(steps).toBe(Math.ceil(turns / fastForwardStepTurns));
+    expect(documentOf(last).world.turn - documentOf(start).world.turn).toBe(turns);
+    expect(last.stoppedBecause?.kind).toBe(stop);
+    expect(serialise(documentOf(last))).toBe(serialise(one.document));
+    expect(last.log).toEqual(one.events);
+    expect(last.stoppedBecause).toEqual(one.stoppedBecause);
+  });
+
+  test('a Party out comes home partway through a step, not at its end', () => {
+    const state = partyOut();
+    const states = stepped(state, { kind: 'fastForward', until: [] });
+
+    expect(states).toHaveLength(2);
+    expect((documentOf(lastOf(states)).world.turn - documentOf(state).world.turn) % fastForwardStepTurns).not.toBe(0);
+  });
+
+  test('a new game stops after 3 Turns, inside one step, as one call does', () => {
+    const text = serialise(documentOf(started()));
+    const start = loaded(text, noModules);
+    vi.clearAllMocks();
+
+    const states = stepped(start, { kind: 'fastForward', until: [] });
+    const one = oneCall(text, [], defaultConfig.turnsPerYear, noModules);
+
+    expect(states).toHaveLength(1);
+    expect(documentOf(lastOf(states)).world.turn - documentOf(start).world.turn).toBe(3);
+    expect(serialise(documentOf(lastOf(states)))).toBe(serialise(one.document));
+    expect(lastOf(states).log).toEqual(one.events);
+    expect(lastOf(states).stoppedBecause).toEqual(one.stoppedBecause);
+    expect(one.stoppedBecause.kind).toBe('decision-needed');
+  });
+});
+
+describe("the player's Stop (v1.0.1-S5, DL-96)", () => {
+  test('between steps, ends the fast forward with the game and the log the last step left, and how far it came', () => {
+    const before = withRosterReleased(started());
+    const entries = documentOf(before).history.entries.length;
+    const first = gameReducer(gameReducer(before, { kind: 'fastForward', until: ['pool-refreshed'] }), { kind: 'settle' });
+    const held = first.forwarding;
+    if (held === null) throw new Error('expected a fast forward between its steps');
+
+    const stopped = gameReducer(first, { kind: 'stop' });
+
+    expect(stopped).toMatchObject({ busy: false, pending: null, forwarding: null, stoppedBecause: null, rejection: null });
+    expect(stopped.stopped).toEqual({ until: ['pool-refreshed'], turnsPlayed: fastForwardStepTurns });
+    expect(stopped.document).toBe(held.document);
+    expect(stopped.log).toBe(held.events);
+    expect(documentOf(stopped).world.turn).toBe(documentOf(before).world.turn + fastForwardStepTurns);
+    expect(stopped.log).toEqual(documentOf(stopped).history.entries.slice(entries));
+  });
+
+  test('a settle scheduled before the Stop runs nothing; the next play is taken, from where it stopped, and clears it', () => {
+    const first = gameReducer(gameReducer(withRosterReleased(started()), { kind: 'fastForward', until: ['pool-refreshed'] }), { kind: 'settle' });
+    const stopped = gameReducer(first, { kind: 'stop' });
+    vi.clearAllMocks();
+
+    expect(gameReducer(stopped, { kind: 'settle' })).toBe(stopped);
+    expect(fastForward).not.toHaveBeenCalled();
+
+    // "Fast forward again", with the stops it was asked for: the pool refreshed two Turns on.
+    const again = play(stopped, { kind: 'fastForward', until: ['pool-refreshed'] });
+    expect(fastForwardCalls()[0]?.[0]).toBe(stopped.document);
+    expect(again).toMatchObject({ stopped: null, stoppedBecause: { kind: 'pool-refreshed' } });
+    expect(documentOf(again).world.turn).toBe(documentOf(stopped).world.turn + 2);
+  });
+
+  test('with no fast forward between its steps, changes nothing', () => {
+    const state = started();
+    const accepted = gameReducer(withRosterReleased(state), { kind: 'fastForward', until: [] });
+    const ended = play(state, { kind: 'fastForward', until: [] });
+
+    expect(gameReducer(state, { kind: 'stop' })).toBe(state);
+    expect(gameReducer(accepted, { kind: 'stop' })).toBe(accepted);
+    expect(gameReducer(ended, { kind: 'stop' })).toBe(ended);
+  });
+
+  test('the next play carried out clears it; a refusal keeps it', () => {
+    const first = gameReducer(gameReducer(withRosterReleased(started()), { kind: 'fastForward', until: [] }), { kind: 'settle' });
+    const stopped = gameReducer(first, { kind: 'stop' });
+
+    expect(play(stopped, { kind: 'rebase' }).stopped).toBe(stopped.stopped);
+    expect(play(stopped, { kind: 'advance' }).stopped).toBeNull();
   });
 });
 

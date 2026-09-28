@@ -62,6 +62,7 @@ import {
   type SlotKey,
   type Stack,
   type StackId,
+  type StopCondition,
   type StopReason,
   type Synergy,
   type UniqueItem,
@@ -676,16 +677,50 @@ function gearChoices(world: World, guild: Guild): GearChoice[] {
 // ── Time ─────────────────────────────────────────────────────────────────────────────────────
 
 export interface StopView {
-  kind: StopReason['kind'];
+  /** The engine's reason, or `player` for the player's Stop, the page's own (v1.0.1-S5, DL-96). */
+  kind: StopReason['kind'] | 'player';
   sentence: string;
+  /** After the player's Stop, the stops the fast forward was asked for, which "Fast forward again" asks for again. */
+  until?: readonly StopCondition[];
 }
 
-/** Why the last advance or fast forward stopped, in words; `null` when the last play was neither. */
+/**
+ * Why the last advance or fast forward stopped, in words, the player's Stop among them; `null`
+ * when the last play was neither, and while a fast forward is between its steps.
+ */
 export function stopView(state: GameState): StopView | null {
-  const { document, stoppedBecause } = state;
-  if (document === null || stoppedBecause === null) return null;
+  const { document, stoppedBecause, stopped } = state;
+  if (document === null) return null;
+  // Between steps, so after a step's Turns: never fewer than one.
+  if (stopped !== null) return { kind: 'player', sentence: `Stopped: you asked to stop, after ${stopped.turnsPlayed} Turns.`, until: stopped.until };
+  if (stoppedBecause === null) return null;
   const maxTurns = playDeps(document).config.turnsPerYear;
   return { kind: stoppedBecause.kind, sentence: narrateStop(stoppedBecause, document, maxTurns, narrationFor(document, content)) };
+}
+
+export interface ProgressView {
+  /** `Played 90 Turns so far. Now Day 30, morning, Year 0.`: the Turns played and the Day reached. */
+  sentence: string;
+  /** The Bankruptcy countdown while the player's Guild is below the floor (`countdownView`); `null` otherwise. */
+  countdown: string | null;
+}
+
+/**
+ * How far a fast forward has come, between its steps (v1.0.1-S5, DL-96): the Turns its steps have
+ * played, and from the game its last step left, which the page holds until it ends, the Day they
+ * reached and the countdown while the player's Guild is below the floor; `null` while none is
+ * under way.
+ */
+export function progressView(state: GameState): ProgressView | null {
+  const { forwarding } = state;
+  if (forwarding === null) return null;
+  const { document } = forwarding;
+  const { turn } = document.world;
+  const { config } = playDeps(document);
+  return {
+    sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)}.`,
+    countdown: countdownView(document),
+  };
 }
 
 // ── The log ──────────────────────────────────────────────────────────────────────────────────
@@ -695,7 +730,7 @@ export function stopView(state: GameState): StopView | null {
  * name the player's Guild alone when `mine`. The engine lists a Hero's Guild among the participants
  * of each event naming the Hero, so the player's Heroes' events are the Guild's too.
  */
-export function logView(state: GameState, mine = false): LogLine[] {
+export function logView(state: Pick<GameState, 'document' | 'log'>, mine = false): LogLine[] {
   const { document, log } = state;
   if (document === null) return [];
   const guild: Guild | undefined = playerGuild(document.world);
