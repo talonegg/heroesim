@@ -12,6 +12,7 @@ import {
   nextImprovement,
   patronRegardFor,
   playerGuild,
+  rankingPlaces,
   rankings,
   regardBand,
   regardValue,
@@ -102,9 +103,37 @@ describe('rankingsView', () => {
       const rows = rankingsView(document, by);
       const ranked = rankings(document.world, by);
       expect(rows.map(({ guildId, value }) => ({ guildId, value }))).toEqual(ranked.map(({ guildId, value }) => ({ guildId, value })));
-      expect(rows.map((row) => row.place)).toEqual(ranked.map((ranking) => `${ranking.rank}${['th', 'st', 'nd', 'rd'][ranking.rank] ?? 'th'}`));
+      const places = rankingPlaces(document.world, by);
+      expect(rows.map((row) => row.place)).toEqual(
+        places.map(({ place, joint }) => `${joint ? 'joint ' : ''}${place}${['th', 'st', 'nd', 'rd'][place] ?? 'th'}`),
+      );
       expect(rows.filter((row) => row.mine).map((row) => row.guildId)).toEqual([player(document).id]);
     }
+  });
+
+  test('a new game, every Guild at Fame 0, has joint 1st on each row (v1.0.1-S4, DL-95)', () => {
+    const document = newGame();
+
+    const rows = rankingsView(document, 'fame');
+
+    expect(rows.map((row) => row.value)).toEqual([0, 0, 0, 0, 0]);
+    expect(rows.map((row) => row.place)).toEqual(['joint 1st', 'joint 1st', 'joint 1st', 'joint 1st', 'joint 1st']);
+  });
+
+  test('Guilds level on the measure share a place, and the next place counts every Guild ahead of it (DL-95)', () => {
+    const document = structuredClone(newGame());
+    const guilds = Object.values(document.world.guilds);
+    [9, 4, 4, 1, 0].forEach((fame, index) => Object.assign(guilds[index] ?? {}, { fame }));
+    Object.assign(guilds[4] ?? {}, { foldedOnTurn: 3 });
+
+    const rows = rankingsView(document, 'fame');
+
+    expect(rows.map(({ place, value }) => [place, value])).toEqual([
+      ['1st', 9],
+      ['joint 2nd', 4],
+      ['joint 2nd', 4],
+      ['4th', 1],
+    ]);
   });
 });
 

@@ -7105,6 +7105,1733 @@ the owner, collected from the decisions that left it and read again in this run:
   past its call can still write a document already handed back (DL-80). The probe is in the web bundle,
   so a deployed M8 page accepts `?modules=probe` (DL-79 item 3).
 
+## DL-82 — Random Events and the module contract: the owner's inputs as a blocking INPUTS §8 table, the player's Guild only as a fourth exception to ADR-0002, outcomes only, an opt-in stop, and the contract's gaps closed before the first real module
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** Random Events is the next work (`plan.md` §2 and §4; GitHub issue #12, which asks for
+an epic "with the owner's inputs it needs"). The owner kept it out of the first build (pre-M0 A5),
+and M8 proved the module contract with a test-only probe instead (DL-76 to DL-81). The agenda's
+theme A, "Random Events: what the feature is" (agenda 1 to 11), asked what the feature is; its theme
+C, "Random Events: the module contract, saves and acceptance" (agenda 30 to 38), asked what its
+module needs from the contract, how a save records it and what its harness run must show. What left
+each open:
+
+- **1.** No document lists a Random Event, a rate, a target or an effect size. INPUTS 8.1 said M8
+  needed no input only because the probe stood in, and M1 to M8 show that non-blocking rows go
+  unanswered (50 of 58).
+- **2.** CONTEXT's "befalls the Guild or its Heroes" reads as the player's Guild, but ADR-0002 says
+  no rule asks whether a Guild is the player's, `plan.md` §1 says a fourth exception "needs a
+  decision, not a commit", and DL-77 item 2 says a real module that needs the player's Guild asks
+  the owner first.
+- **3.** The `Module` interface has no action entry, so a player's answer has no way back to a
+  module, and M8 left a module's own view as a later decision.
+- **4.** The contract has five effects (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
+  `offerQuest`); none touches Fame, Items, Traits or Stats or causes a Death, and nothing said which
+  an event may use.
+- **5.** R6 asks for "content with conditions, not code", but the engine's only conditions concern a
+  Party (approach §4, pre-M0 B2, ADR-0006).
+- **6.** A5 deferred both the Random Event and the Inciting Event generators, but plan §4 lists
+  Random Events and Campaigns and not the Inciting Event generator, while the effects API lets any
+  module offer a Quest.
+- **7.** No rule reads Morale; DL-29 item 10 chose its band edges, and requirements §5 lists the
+  Morale scale as open.
+- **8.** Relationship within the player's Roster never falls below neutral (73.1% close, none cool
+  or hostile, DL-81), so INPUTS 6.3's ×0.9 never happens; DL-55 and DL-81 said friction needs a
+  rule.
+- **9.** DL-77 item 6's module stop is always on, cannot be narrowed by `--until` and names no
+  Guild; pre-M0 B7 kept stops opt-in so that fast forward stays useful.
+- **10.** Both front ends render a module's events as one generic sentence (DL-79 item 4), and issue #12
+  asks for them narrated in both.
+- **11.** DL-25 item 1 added Quest tags with "no rule reads them yet", and none has.
+- **30.** DL-79 said Random Events "will need" to be installed by default and a save that says which
+  modules it needs: "both are its decisions, with a DL"; modules are installed per command, and a
+  save holds slices, not a list (N1).
+- **31.** The core keeps Unattached Heroes out of every non-passive entry (data-model rule 8,
+  DL-27), but DL-77 item 3's effects accept one, and an `injure` on one makes the harness throw;
+  DL-78 avoided it by targeting Roster Heroes.
+- **32.** ADR-0005 says modules read content files, but `ContentSet` has no place for a module's
+  rows, and `meta.content` records one set.
+- **33.** DL-78 item 2's tunables live on the slice for the game's life; `rebase` and the rules
+  notice handle `configVersion` only (pre-M0 D1).
+- **34.** DL-16 and DL-64 item 7 left the engine's lint gaps (`fetch`, storage, `navigator`,
+  `document`, the `Function` constructor; no `no-eval`) as "a later decision".
+- **35.** ADR-0005 keeps the core measurable alone, and nothing said which run carries the targets
+  once a module is on by default.
+- **36.** Issue #12 asks for a run with and without the module and names no acceptance; the probe's
+  run only reported differences (DL-78 item 7).
+- **37.** DL-79 item 3 put the test-only probe in the web bundle, so the live page accepts
+  `?modules=probe`; the M8 epic's §0 ("never installed by a front end") contradicts M8-S4, and DL-81
+  left it to the owner.
+- **38.** DL-80 item 3 left one route open: a module that keeps its slice past its call can still
+  write a document already handed back.
+
+**Decision.** One item per agenda item, in the agenda's order, the follow-up after its item.
+
+1. **Random Events' inputs (agenda 1).** An agent drafts an INPUTS §8 table for Random Events in the
+   M1 to M8 form (a question, a default and an Answer column). Its catalogue, rate and "whom" rows
+   are **blocking**, as 7.8 and 7.9 were: the build story cannot start on agent defaults for them.
+   As recommended.
+2. **Whom Random Events befall (agenda 2).** The player's Guild only, a fourth exception to ADR-0002
+   — against the recommended "every Guild alike".
+3. **The fourth exception, confirmed (agenda 2a, a follow-up).** The owner confirmed it: Random
+   Events befall the player's Guild only. ADR-0002 and `plan.md` §1 are amended with a fourth
+   accepted exception; this is the decision plan §1's "A fourth needs a decision, not a commit" asks
+   for, and the answer DL-77 item 2 said a real module would need. Pre-M0 A2 kept the first three in
+   plan §1 and left the ADR unchanged; this one is written into the ADR too. The harness reports
+   event effects on the player's Guild alone. The follow-up carried no recommendation of its own.
+4. **Outcomes or choices (agenda 3).** Outcomes only: a Random Event befalls, and the contract gains
+   no action path. The pending-decision shape (a decision recorded in the module's slice, and one
+   core action that forwards `answer(moduleId, decisionId, choice)` to it) is recorded for a later
+   module that needs choices. As recommended.
+5. **Effects (agenda 4).** The five effects the contract has, plus the kinds the owner's catalogue
+   needs, each added to the union by a DL of its own; no effect causes a Death. As recommended.
+6. **Conditions (agenda 5).** A closed union of condition kinds, validated when content loads,
+   combined by AND only, with a weight per event. As recommended.
+7. **Quests from events (agenda 6).** Random Events never produce Quests. The Inciting Event
+   generator goes into plan §4 beside Campaigns. As recommended.
+8. **Morale's job (agenda 7).** Random Events are Morale's first reader. The owner confirms Morale's
+   band edges (`moraleBands`, DL-29 item 10) as inputs of the Random Events table. As recommended.
+9. **Friction (agenda 8).** Three rules, partly against the recommendation, which was Random Events
+   alone:
+   - Random Events carry quarrels, through `adjustRegard`.
+   - A core rule: a failed Quest or a Death sours the Party, lowering Regard between its members. It
+     supersedes DL-46 item 9's "a failed Quest shared still counts 1".
+   - A new rule of the owner's own, in no option: transferring out a Hero whom Heroes who stay hold
+     in high Regard also lowers those Heroes' Regard for the Guildmaster. It sits beside the Morale
+     cost the same Heroes pay (pre-M0 D5, DL-57 item 4; CONTEXT's Transfer entry).
+
+   The two core rules hold for every Guild (ADR-0002).
+10. **Event stops (agenda 9).** An opt-in stop condition: a new `--until` condition for a Random
+    Event, not always on — against the recommended "no stops in the first release".
+11. **Event words (agenda 10).** Templates on the events' content rows, filled by one shared helper
+    outside the engine's returns (ADR-0003), with the generic sentence (DL-79 item 4) as the
+    fallback. As recommended.
+12. **Quest tags (agenda 11).** Reserved for Random Events' conditions. As recommended.
+13. **Installation (agenda 30).** Random Events is chosen at new game and on by default, and the
+    save's meta records the modules a game plays with (schema version 4). An old save adopts a
+    module only by an explicit action. As recommended.
+14. **Unattached Heroes as targets (agenda 31).** Roster Heroes only: `injure`, `adjustMorale` and
+    `adjustRegard` refuse a Hero in the Unattached pool with a new rejection, `hero-unattached`, and
+    the harness counters count such a target under an `unattached` key instead of throwing. This
+    amends DL-77 item 3's effects. As recommended.
+15. **Random Events' content (agenda 32).** An opaque `modules` part of `ContentSet`, keyed by
+    module id and validated by each module; a module records its content version in its slice. As
+    recommended.
+16. **Module tunables and rebase (agenda 33).** Tunables stay on the slice (DL-78 item 2), and
+    `rebase` gains a hook through which each module adopts its current defaults: pre-M0 D1's rule,
+    under which tuning reaches a game when its player rebases, extended to modules. As recommended.
+17. **Engine lint (agenda 34).** Banned now: `fetch`, storage, `navigator`, `document`, `window`,
+    `XMLHttpRequest`, `WebSocket` and `Function` as globals, with `no-eval`, `no-new-func` and
+    `no-implied-eval`, each proved in `boundary.test.ts` as DL-16's bans are. Further steps, such as
+    narrowing the engine's `lib`, are reassessed as module needs demand. As recommended.
+18. **Which run carries the targets (agenda 35).** Both runs, each with a role: the run with no
+    module guards byte identity; the run with the default modules carries the balance targets
+    (DL-83). As recommended.
+19. **Random Events' harness acceptance (agenda 36).** An agent proposes the bands from the M8
+    baseline and the measured noise and sizes the seeds; the owner approves them before the run. As
+    recommended.
+20. **The probe on the public page (agenda 37).** It stays until Random Events' installation lands,
+    then leaves the page; the M8 epic's contradiction is fixed meanwhile. As recommended.
+21. **A kept slice reference (agenda 38).** Accepted for first-party modules; Random Events gets a
+    test asserting that it keeps no slice reference between calls. This settles DL-80 item 3's open
+    route for first-party modules. As recommended.
+
+**Consequences.** Amended in this recording, 2026-09-28: ADR-0002 and `plan.md` §1 carry the
+fourth exception (item 3); data-model §1 and §3.4 say that a save is to record its modules from
+schema 4 (item 13), as decided and not yet built; plan §4 places the Inciting Event generator
+beside Campaigns (item 7, with DL-89); and INPUTS §8 says what the Random Events table is to hold,
+the table itself not yet drafted (item 1). The work left, tracked as GitHub issues opened with
+these entries:
+
+- The Random Events epic (issue #12) with its INPUTS §8 table: the catalogue, rate and "whom" rows
+  blocking, Morale's band edges among its inputs, the first condition kinds and any new effect kind
+  chosen by the owner's catalogue. The epic records the pending-decision shape for a later module.
+- The fourth exception in the build: the module is given a way to know the player's Guild, which
+  DL-77 kept out of its context, with `controller-reads.test.ts` recording the read; the harness's
+  event counters report the player's Guild alone. Events that befall one Guild cannot be compared
+  with the Rivals' on the same counters, as the agenda warned.
+- Friction: the two core rules change every seed's game, so each comes with a `configVersion` bump
+  and a harness pass. The Transfer rule is the core's first writer of a Hero's Regard for a
+  Guildmaster, which no core rule writes today (agenda 47's sources).
+- Engine and front ends: the opt-in `--until` condition in both front ends; the narration templates
+  and their shared helper; schema version 4, its migration and a setup choice in both front ends,
+  which reshapes DL-79 items 1 and 2's per-command switches (`--modules`, `?modules=`,
+  `HEROESIM_MODULES`); the `hero-unattached` rejection and the `unattached` key;
+  `ContentSet.modules`; the rebase hook; the lint bans and their boundary tests; the slice-reference
+  test; the probe dropped from the page once installation lands, and the M8 epic's §0 corrected
+  against M8-S4 now.
+- The harness: both runs reported, with the targets read from the run with the default modules.
+
+What stays open: every row of the INPUTS §8 table until the owner answers it; the friction
+magnitudes (a failed Quest's and a Death's Regard loss, and the Transfer's cost to Regard for the
+Guildmaster), proposed for the owner's approval; and the acceptance bands and seed count, proposed
+by an agent and approved by the owner. DL-86 gives each module's tag a 50 × 20 pair; a 200-game mean
+of Rival folds has a standard error of 0.08 (DL-81 item 5), so a 50-game mean has about 0.16, and
+the proposal says whether 50 seeds can tell its bands apart.
+
+## DL-83 — Balance targets and the economy: target bands for the automatic policy's games with M8 as the baseline, the Rival income rule before the wage, the growth split confirmed, a twenty-year slice, and Rival succession
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** The agenda's theme B, "Balance, the economy and the automatic player" (agenda 12 to 29,
+with the target follow-ups 12a to 12f, 23a, 24a and 24b). Every balance pass had tuned towards goals
+an agent chose (DL-35, DL-36, DL-41, DL-69), DL-69's targets covered the Rivals only, and DL-81
+recorded that the owner had not seen the M8 figures: the player's Guild bankrupt in 0.4% of games,
+first by Wealth at 91.4% of year-starts and by Fame at 88.8%, 71.5% of its Quests strong successes,
+and its Wealth 125,897 after 10 years and 192,614 after 20. What left each open:
+
+- **12.** No target existed for the player's side, and DL-69's Rival targets were set by an agent
+  "before the first trial".
+- **13.** DL-69: "The pass moves where each Disposition sits on that curve, not the curve. Changing
+  it is a rule for the owner." A Rival's Wealth peaks in year 8 and falls; 2.78 Rival folds a game.
+- **14.** DL-41 traced the player's missing Bankruptcies to a wage held down by what Rivals can pay
+  and said Rival income should grow first; every close since M3 passed it on.
+- **15.** DL-17 item 5 read INPUTS 5.3's "weighted 2:1 toward the Class's leading Stats" as a split,
+  so a leading Stat grows about 8 times as fast as another; 5.3 was never answered, and DL-81 listed
+  the reading first.
+- **16.** DL-57, DL-69 and DL-81 left a smarter policy to a decision after the M6 counters. The
+  policy never transfers, never sells, builds only the infirmary and sends the fewest Heroes (DL-34
+  left the Party-size reading to the owner).
+- **17.** DL-36 cut the wage from 70 to 20 as "a stopgap" and left its shape to the owner; DL-41
+  said a base and a smaller per-Level part could follow once Rival income grows with Level.
+- **18.** DL-69 retuned the four Disposition rows to targets of its own, unseen by the owner, and
+  moved `steady` from INPUTS 4.12's easiest Quest to the middle one.
+- **19.** DL-57 item 3's `transferAppetite` is both the chance of seeking a Transfer and consent;
+  DL-69 left a consent floor to the owner.
+- **20.** DL-50 and DL-62 deferred Rivals' consumables to M6, which gave Rivals gear buying only
+  (DL-58) and decided nothing about carrying.
+- **21.** Requirements §5 still lists Hall grades and costs as open; pre-M0 D8 brought Improvements
+  forward "so Wealth has a sink", and all nine grades cost 5,100 together.
+- **22.** DL-42 item 11's `bandBySuccessShare` makes a strong success the norm, and a Quest of two
+  Encounters cannot be a plain success; DL-55 let it stand.
+- **23.** Plan §2's M2 row says the harness plays "whole games to an ending", INPUTS 4.10 implies
+  games of 20 to 35 years, and the harness stops at 20 (996 of 1,000 games at M8). DL-28 item 1, an
+  agent's reading, folds a Rival when its Guildmaster retires, and no run has reached it.
+- **24.** The mean Level stays near 7.6 at year 10; M3's named risk was measured three times (DL-36,
+  DL-40, DL-41) with no intended pace, and nothing counts the highest Level.
+- **25.** Growth outruns decline 19 to 1 for the player, and 1,000 games saw 210 of the player's
+  Retirements against 33,557 Deaths; DL-40 deferred judging ageing, and INPUTS 4.11 and 5.5 were
+  never answered.
+- **26.** DL-69 reported `steady` and `miserly` near the Roster floor on idle Wealth, its target met
+  narrowly and measured only by a scratch script.
+- **27.** DL-59 left `transferGeneratorChance` (0.5) to the owner; the Transfer Generator the owner
+  asked for (A5) made 380 Transfers in 1,000 games.
+- **28.** DL-69 read M6-S3's "within the generation range" as a distribution; no rule caps a Roster,
+  and only the harness policy stops at 8.
+- **29.** `unattachedStayDays` 10 (DL-27 item 2) and `rivalReplacementDays` 30 (DL-28 item 5) are
+  agents' values with no INPUTS row, and DL-28 accepted that a `rebase` shortening the delay past a
+  pending night loses that replacement.
+
+**Decision.** One item per agenda item, in the agenda's order, each follow-up after its item. The
+targets describe the automatic policy's games over 20 years.
+
+1. **Balance targets (agenda 12).** Target bands are set now; the M8 run (DL-81) is the baseline;
+   the tuning follows Random Events. As recommended.
+2. **The player's Bankruptcy or wiped Roster (agenda 12a).** 5 to 15% of games (0.4% at M8). As
+   recommended.
+3. **The player first in the Rankings (agenda 12b).** 40 to 60% of year-starts (about 90% at M8:
+   88.8% by Fame, 91.4% by Wealth). As recommended.
+4. **The player's Quest outcomes (agenda 12c).** Failed 20 to 30%, strong success at most 50% (14.8%
+   failed, 13.7% success and 71.5% strong at M8). As recommended.
+5. **Rival folds a game (agenda 12d).** 1.5 to 3.5, confirming DL-69 item 4's band (2.78 at M8) —
+   against the recommended 1 to 2.
+6. **The player's Hero Deaths a game (agenda 12e).** 25 to 40, keeping about M8's 34 (33.6) —
+   against the recommended 15 to 25.
+7. **The player's Wealth curve (agenda 12f).** After year 2, Wealth held at 6 to 12 months' Upkeep
+   (about three years' Upkeep at year 10 and five at year 20 at M8) — against the recommended 1 to 6
+   months.
+8. **The Rival economy rule (agenda 13).** First, risk appetite rises with Level: a Disposition
+   weight moves a Rival towards harder Quests it can staff as its Roster's mean Level rises. Second
+   in priority, a Rival lets its dearest Hero go before it falls into debt. As recommended, with the
+   recommendation's fallback taken as the second step.
+9. **The player's dominance (agenda 14).** Rival income first, then the wage (DL-41's route),
+   measuring after each step. As recommended.
+10. **Growth weights (agenda 15).** The split is confirmed: DL-17 item 5's reading of INPUTS 5.3
+    stands, the leading Stats together taking two thirds of each Level's points, about 8:1 per Stat.
+    As recommended.
+11. **The automatic policy (agenda 16).** The baseline policy is kept, and an active policy is added
+    beside it: it builds every facility, accepts Transfer Offers above a fee multiple, transfers in,
+    sells surplus Loot and composes Parties for Synergies. The report shows both. Its thresholds are
+    proposed in the epic for the owner's approval. As recommended.
+12. **The wage's shape (agenda 17).** 20 per Level until the Rival income rule is measured; then a
+    base plus a per-Level part is trialled against the targets. As recommended.
+13. **Disposition characters and targets (agenda 18).** Deferred until the Rival income rule (agenda 13)
+    is in; the rows are retuned then — against the recommendation that the owner write each
+    character and the targets that matter.
+14. **`transferAppetite`'s two jobs (agenda 19).** Split into two weights per Disposition, one for
+    seeking a Transfer and one for consent, a content and schema change — against the recommended
+    consent floor at `rivalRosterMin`. It supersedes DL-57 item 3's one weight for both.
+15. **Rivals' consumables (agenda 20).** Rivals carry the consumables they hold, through a carry
+    helper shared with the policy; they buy none. As recommended.
+16. **Hall Improvements (agenda 21).** Dearer grades 4 to 6 are added as late-game Wealth sinks,
+    with upkeep; their effects and prices are proposed for the owner's approval — against the
+    recommendation to keep three grades and re-price them with the Wealth decision.
+17. **Strong success (agenda 22).** A strong success needs a margin: every Check succeeds by a
+    configured mean or minimum margin. As recommended. It amends DL-42 item 11's rule, under which
+    every Check succeeding is enough.
+18. **Game length (agenda 23).** The measured game is a twenty-year slice: plan §2 is reworded to
+    say so, in place of "whole games to an ending" — against the recommended small full-length run
+    at each close. A game still runs 20 to 35 years (INPUTS 4.10); the harness measures its first
+    twenty. This recording made the rewording: plan §2's M2 row, with a dated note keeping its
+    original words, and a dated paragraph below the table.
+19. **A Rival Guildmaster's Retirement (agenda 23a).** Succession: a retiring Rival Guildmaster is
+    succeeded, and the Guild, its Roster and its Wealth continue. It supersedes DL-28 item 1's "A
+    Rival Guildmaster's Retirement folds that Rival". As recommended. The player's Guildmaster's
+    Retirement still ends the game (A2, INPUTS 4.10).
+20. **Progression pace (agenda 24).** The owner sets the targets and an agent tunes to them; the
+    harness gains a highest-Level counter. As recommended.
+21. **Mean Level at year 10 (agenda 24a).** 8 to 10 (7.6 for the player's Heroes at M8). As
+    recommended.
+22. **Highest Level reached by year 20 (agenda 24b).** 14 to 17 (M8 has no counter for it). As
+    recommended.
+23. **Ageing (agenda 25).** That careers mostly end in Death is accepted; and decline lowers
+    Potential too, so that points lost cannot regrow; and Retirement reads a Hero's injury history
+    (R20's "with injury"). Partly against the recommendation, which was to accept alone. The
+    Potential rule supersedes DL-37 item 9's "Potential is untouched"; the injury-history rule
+    amends DL-29 item 13, which reads only a current Injury.
+24. **`steady` and `miserly` idle at the floor (agenda 26).** Accepted; the at-the-floor share joins
+    the harness report; revisited after the Rival income rule. As recommended.
+25. **The Transfer Generator (agenda 27).** `transferGeneratorChance` rises from 0.5 to 1 — against
+    the recommendation to accept a quiet Generator.
+26. **Roster cap (agenda 28).** No cap for any Guild; DL-69's distributional reading is accepted
+    (Rival Rosters mostly within 4 to 8 at a year-start). As recommended.
+27. **Pool stay and Rival replacement (agenda 29).** The 30-Day Rival replacement delay (DL-28 item 5)
+    is confirmed and its rebase gap accepted; the Unattached pool stay changes from 10 to 30 Days
+    (DL-27 item 2's value). Partly against the recommendation, which confirmed both values.
+
+**Consequences.** Amended in this recording, 2026-09-28: plan §2, its M2 row and a paragraph on
+the twenty-year slice (item 18); requirements §5, whose balance line names the target bands and
+whose Hall grades line records grades 4 to 6 as decided with their effects and prices open (items
+1 and 16). The work left, tracked as GitHub issues:
+
+- The targets become checks in the harness report, read from the run with the default modules
+  (DL-82): each band beside its measure, the Rankings share with year 0's tie handled (DL-86), a
+  highest-Level counter, and the at-the-floor share among the measures DL-86 moves into the harness.
+- The order the owner set: Random Events first, the tuning after it; then the Rival income rule,
+  risk appetite first and the dearest Hero second, measured after each; then the wage trial against
+  the targets; then the Disposition rows retuned. The agenda noted that risk appetite may have to
+  choose by difficulty against the Party's strength rather than by place, and will not lower
+  `reckless`'s folds.
+- Rules and values changed, each with its DL, version bump and harness pass: the `transferAppetite`
+  split (content and schema); Rivals carrying consumables; Hall grades 4 to 6 (content, once
+  approved); the strong-success margin; Rival succession; decline lowering Potential and Retirement
+  reading injury history; `transferGeneratorChance` 1 and `unattachedStayDays` 30, which reach a
+  saved game through `rebase`.
+- The active policy, beside the baseline, with the owner's approved thresholds.
+
+What stays open: the active policy's thresholds and Hall grades 4 to 6's effects and prices,
+proposed for the owner's approval; the Disposition characters and every DL-69 target but the fold
+band and the Roster reading, deferred until the Rival income rule; whether the strong-success margin
+is a mean or a minimum, and its size; whether agenda 12b reads the Rankings by Fame, by Wealth or
+both, which the answer does not say; how the Wealth curve's "months" are counted; how a successor
+Guildmaster is made (DL-88's Trait point budget binds a drawn Guildmaster); how the leading Stats
+share two thirds once DL-87 gives each Class a fifth; and what injury history Retirement reads. With
+a twenty-year slice, years 20 to 35 stay unmeasured, and with them the founding Rivals'
+Guildmasters' Retirements and so their succession.
+
+## DL-84 — Saves, History and performance: data-model §7 rebaselined on M8's figures, saves compressed everywhere, the core's Regard changes and the Transfer's Morale cost named as exceptions to principle 11, content changes recorded against a save, and a historical set outside the per-Turn copy
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** The agenda's theme D, "Saves, History size and performance" (agenda 39 to 47, with the
+follow-up 41a). M8 measured every data-model §7 target missed (DL-81 item 6): a Turn under load 5.9
+ms against 5; a year of fast forward 1.6 to 5.4 s against 1; a twenty-year save 99.2 MiB against 20;
+a load 4.6 s against 1; 1,000 games of 20 years six hours against ten minutes; and in the browser a
+twenty-year round trip of 3.6 s against 1 (DL-67, M7-S4's open box). What left each open:
+
+- **39.** §7 is "provisional ... to be rebaselined against the first harness runs", and the
+  rebaseline never happened; DL-08's "recorded, not chased" covered the first build, and DL-67 and
+  DL-75 left save size and the round trip to the owner.
+- **40.** DL-81 called a leaner `quest.encounter` entry "a data-model decision", the lever DL-42 and
+  DL-55 had named; the CLI still writes saves uncompressed.
+- **41.** The owner's A7, principle 11, R36 and data-model rule 10 exempt only nightly drift from
+  recording every discrete change as an event. DL-43 item 2 made every Regard change emit only on a
+  band crossing, carried into a module's `adjustRegard` (data-model §3.4), and DL-57 item 4 did the
+  same for the Transfer's Morale cost, noting the departure.
+- **41a.** A follow-up, once agenda 41 was answered: whether a module's Regard effect falls under
+  the exemption.
+- **42.** `meta.content` is written at creation and read by nothing. Pre-M0 D3 settled that a
+  content change needs no migration, not how it is recorded against a game in progress, and much
+  balance lives in content.
+- **43.** The M2 epic's risk table named fewer rows in `world` as the lever for the per-Turn copy's
+  cost ("If it shows"); it has, and nothing has been profiled.
+- **44.** D3's text says "tuning reaches every game", written for an option of D1 the owner did not
+  choose; the pre-M0 tracker says D3's point was settled by D1. Separately, config fields newer than
+  a save follow the current defaults with no record.
+- **45.** ADR-0009's Consequences accept new draws inside a subsystem, while the owner's D7
+  amendment warns against a later milestone's draws in an earlier stream; the Transfer Generator
+  draws from `rivals`.
+- **46.** DL-17 item 6 chose a default of 10 so that an added Stat "neither cripples nor flatters",
+  but a Hero's non-leading Stats start at 3 to 10.
+- **47.** DL-43 item 3 made a Guild's opinion its Guildmaster's and left `guild.regard` with no
+  writer and no reader.
+
+**Decision.** One item per agenda item, in the agenda's order, the follow-up after its item.
+
+1. **Data-model §7's targets (agenda 39).** The goals are revised on the current verified baselines:
+   §7 is rebaselined on the M8 run's figures (DL-81 item 6) — against the recommendation to chase
+   what players feel (the browser round trip, save size and fast forward) and budget the rest. This
+   is the rebaseline §7 promised, and this recording made it: §7 now sets each target at DL-81
+   item 6's figure (a Turn 5.91 ms under load, a year of fast forward 5.4 s, the 1,000 × 20 run
+   367 min, a load 4.62 s) and keeps the first targets beside them. The answer does not say the
+   revised goals are chased, so DL-08's "recorded, not chased" is not changed by it.
+2. **Save size (agenda 40).** Saves are compressed everywhere: the CLI's and the harness's saves are
+   gzipped as the browser's are (DL-67), and §7's save target is rebaselined on the compressed size.
+   No lean-entry schema change now — against the recommended lean entries with gzipped CLI saves.
+   This recording set §7's save target on the one twenty-year save measured gzipped, 12.08 MiB
+   (DL-67 item 8); the compressed mean over a run waits for the harness to gzip its saves.
+3. **Band-crossing logging against principle 11 (agenda 41).** Both are named as exceptions:
+   principle 11, R36 and data-model rule 10 are amended to exempt Regard changes and the Transfer's
+   Morale cost, which are recorded only when they cross a band — against the recommendation (the
+   Transfer's Morale cost always emitting, the core's Regard changes exempt as recomputable, a
+   module's Regard always emitting). DL-43 item 2 and DL-57 item 4 become the documented rule rather
+   than departures from it.
+4. **A module's Regard (agenda 41a).** A module's Regard effect always emits an entry; the exemption
+   covers the core's Regard changes and the Transfer's Morale cost only. As recommended. It changes
+   `adjustRegard` as DL-77 built it and data-model §3.4 describes it ("only on a band crossing").
+5. **Content changes against saved games (agenda 42).** Recorded: on load, a mismatch of content
+   version is shown, a `world.content-changed` Milestone is appended and `meta.content` is updated;
+   approach §3, data-model §2 and N1 are amended. As recommended. D3's "a content bump needs no
+   migration" stands.
+6. **Per-Turn cost (agenda 43).** Profile first; then out-of-play rows (dead and retired Heroes, old
+   Loot and the like) become a historical set, referenced and appended to each Turn but not copied
+   per Turn, in the spirit of ADR-0008's History by reference. The recommended option, in the
+   owner's shape.
+7. **D3 against D1 (agenda 44).** A superseding note: D1 governs, and data-model §2 says that config
+   fields newer than a save follow the defaults until a rebase. As recommended. This item is that
+   note: D3's "tuning reaches every game and missing config fields never arise" is superseded, since
+   under D1 tuning reaches a game when its player rebases; D3's fill-forward on load and its content
+   rulings stand.
+8. **ADR-0009's streams (agenda 45).** ADR-0009 is amended to match practice: a subsystem is a
+   component, and the Transfer Generator's draws from `rivals` are an accepted exception. As
+   recommended.
+9. **The default for a Stat a save lacks (agenda 46).** A Hero Stat a save lacks defaults to the
+   generated mean of a non-leading Stat (6 to 7), not 10 — against the recommendation to decide when
+   a release adds a Stat. It supersedes DL-17 item 6's default of 10 for Hero Stats; the answer
+   leaves the Guildmaster's Stats as they are.
+10. **The Guild row's regard map (agenda 47).** Documented as reserved: unused, kept for a later
+    reader such as Factions. As recommended.
+
+**Consequences.** Amended in this recording, 2026-09-28: data-model §7, rewritten on DL-81 item
+6's figures with the save counted gzipped (items 1 and 2), and its levers paragraph (items 2 and
+6), with plan §1's note on §7; principle 11, R36 and data-model rule 10, naming the two exceptions
+and a module's Regard as not exempt (items 3 and 4), with data-model §3.4's note; data-model §1
+and §2, approach §3 and N1 on content changes recorded against a save, as decided and not yet
+built (item 5); data-model §2 and approach §3 on D1 governing D3 (item 7); ADR-0009 and data-model
+§3.1 (item 8); and `guild.regard` marked reserved in data-model §3.2 (item 10). The work left,
+tracked as GitHub issues:
+
+- §7's two open details: the harness's compressed mean over a run, in place of the one save
+  measured gzipped, and the margin past a figure that counts as a regression; M7-S4's open box
+  (DL-67) is then read against §7.
+- gzip for the CLI's and the harness's saves, with their load paths.
+- For agenda 41, no engine change; for agenda 41a, `adjustRegard` changed to emit every change a
+  module makes, which moves the probe's with-module runs and not the core-only one.
+- The content record in the build: the comparison on load, the `world.content-changed` Milestone
+  and its narration in both front ends, and `meta.content` updated. It covers module content too
+  (DL-82's `ContentSet.modules`).
+- A profile of a Turn, then the historical set: a schema change with its migration and its own DL.
+- The Hero Stats' default in `content/stats.json`, which matters only when a Stat is added (none is
+  planned).
+
+What stays open: the margin past a §7 figure that counts as a regression, and the compressed mean
+over a run, which the harness measures once it gzips its saves; and the whole number a missing
+Hero Stat defaults to, the generated mean being 6.5.
+
+## DL-85 — Game rules and design gaps: Fame left dormant, the Hero asked before a Transfer, a Board that grows harder with the world, hostile Patrons, Guildmaster Regard that recovers, the Bankruptcy clock heard, Hero Traits with effects, and a strong success paid more
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** The agenda's theme E, "Game rules and design gaps" (agenda 48 to 60): rules the first
+build left without a job or with a gap, each shown by the M8 figures or by a decision that handed it
+on. What left each open:
+
+- **48.** DL-40 expected Fame's signing gate (the owner's B4) to bind once Levelled Heroes reached
+  the pool, but Transfers never pass through the pool: the player was refused on 0 of 7,196,890
+  Guild-Days, and INPUTS 5.6 was never answered.
+- **49.** DL-57 item 3 made a Transfer's consent the other Guild's Disposition alone: neither Fame
+  nor the Hero is asked, and the policy never transfers, so the harness cannot see it.
+- **50.** Nothing ties the Board's difficulty to a Guild's development (pull 3, R22), and no
+  decision records that as intended.
+- **51.** DL-43 read R22 as the mean Regard across all Guilds, so a Guild's own standing with a
+  Patron earns it nothing, and no Patron has fallen silent (0 of 239,880 Patron-years); DL-81 said
+  it needs a rule.
+- **52.** A Hero's Regard decays (DL-46) and a Patron's recovers (DL-43), but a Guildmaster's never
+  moves back: close with 11,994 of 12,000 Patrons by year 10. DL-55, DL-81 and the M4 epic left it
+  to the owner.
+- **53.** DL-26 item 3 kept crossing the Bankruptcy floor silent because a front end would read
+  `belowFloorSince`; neither does, and no stop covers it.
+- **54.** `gearChoices` fills empty slots only, and nothing sells surplus Loot gear (DL-49 item 9,
+  DL-62, DL-81: no sale in 1,000 games).
+- **55.** DL-33 item 5's `decision-needed` stop is "the M2 reading", firing only when the whole
+  Roster is home; nothing widened it.
+- **56.** DL-60 left the Transfer lock to the owner; DL-69 raised it to 90 Days, unseen by the
+  owner, and it binds the player too.
+- **57.** Hero Traits and Backgrounds were to get effects "with the rules that read them", and R24's
+  "Stat changes" and "new Traits" outcomes were never built, with no DL dropping them.
+- **58.** DL-43 item 7 read "narrowed" literally, so a better Judge's hint is more generous, not
+  more accurate; INPUTS 5.4 was never answered, and D9 leaves the hint-sharpening Trait's stacking
+  open.
+- **59.** Agents chose between readings of INPUTS rows (DL-26 item 1, DL-29 items 4 and 13, DL-36
+  item 1), and DL-81 put only the growth reading before the owner.
+- **60.** Plan §1 expects three reads of `controller.kind`; `controller-reads.test.ts` allows six,
+  justified by agents, among them the player's answering Transfers through offers (DL-57 item 3),
+  and the owner reserved any fourth exception (A2).
+
+**Decision.** One item per agenda item, in the agenda's order.
+
+1. **Fame's job (agenda 48).** Accepted as dormant: Fame orders the Rankings only and waits for
+   Scouting or Contacts — against the recommended veterans in the pool. B4's signing gate stays as
+   built.
+2. **A Transfer asks the Hero (agenda 49).** A Hero who is content, or close with their Roster,
+   refuses to leave, which gives Morale and Relationship a job — against the recommendation, which
+   after agenda 48's answer was to measure before choosing (the agenda's first recommendation, the
+   Fame gate on Transfers in, fell with Fame left dormant). As a core rule it holds for every Guild
+   (ADR-0002).
+3. **Harder Quests (agenda 50).** The Board's difficulty mix scales with the world, by mean Level or
+   by year, for every Guild. The recommendation, re-pointed to this option after agenda 48 (the
+   agenda's first was Fame-gated Quests).
+4. **Patron Regard (agenda 51).** A Patron hostile to a Guild will not deal with it: a new dispatch
+   rejection for every controller, reading the Guild's own Regard with the Patron. As recommended.
+5. **Guildmaster Regard (agenda 52).** It recovers towards neutral as a Patron's does: one config
+   field, with events on band crossings, before any module reads it. As recommended.
+6. **The Bankruptcy clock (agenda 53).** `guild.below-floor` and `guild.floor-recovered` events, and
+   an always-on fast-forward stop for the Guild being fast-forwarded. As recommended. It supersedes
+   DL-26 item 3's silence.
+7. **Surplus Loot gear (agenda 54).** Controllers change to better gear, then sell gear beyond one
+   spare per slot. As recommended. It extends DL-49 item 9's `gearChoices`, which fills empty slots
+   only.
+8. **"A decision is needed" (agenda 55).** An opt-in `--until` condition, "a Quest I can staff
+   appears"; the always-on stop stays M2's (DL-33 item 5). As recommended.
+9. **The Transfer lock (agenda 56).** 90 Days for every Guild, confirmed. As recommended.
+10. **Traits and Backgrounds (agenda 57).** Hero Traits get effects now; Backgrounds stay flavour
+    and are revisited later — partly against the recommendation, which gave Backgrounds effects with
+    Scenarios. For R24's unbuilt "Stat changes" and "new Traits" outcomes, the owner's stated intent
+    is to reword R24 to match what is built. This recording reworded R24 provisionally, with a
+    dated note; the wording is open until the owner confirms it.
+11. **Potential hints and Judgement (agenda 58).** A resolution model: a poor Judge sees fewer,
+    coarser bands and a sharp one finer bands, deterministically. As recommended. It supersedes
+    DL-43 item 7's literal narrowing.
+12. **Agents' readings of INPUTS rows (agenda 59).** Three are confirmed: Retirement's chance rising
+    with age (DL-29 item 13), the first Upkeep Day (DL-26 item 1, under which the first Upkeep falls
+    once ten Days have completed; the interview record calls it "first Upkeep on the first night"),
+    and cumulative XP (DL-36 item 1). A strong success pays a premium, a config field with a harness
+    pass — against the recommendation to confirm all four. It supersedes DL-29 item 4's "A strong
+    success earns no more than a success". The owner took the option that confirms the agents'
+    three readings, but the record's words for the Upkeep Day, the first night, are not DL-26 item
+    1's reading, the tenth Day; the owner is to confirm which was meant. Until then DL-26 item 1's
+    reading stays in force, as the build plays it.
+13. **Controller-kind reads (agenda 60).** The agents' reading is confirmed: answering Transfers
+    through offers is the controller's difference (ADR-0002's "what differs is the controller"), not
+    a fourth exception. Plan §1 is reworded to point to the guard test's recorded list plus the
+    Random Events exception (DL-82). As recommended.
+
+**Consequences.** Amended in this recording, 2026-09-28: plan §1, pointing to the guard test's
+recorded list and naming the Random Events exception (item 13); R24, reworded provisionally with
+its words open (item 10); INPUTS 4.6, whose Answer carries item 12's open question. The work left,
+tracked as GitHub issues, each rule change with its DL, `configVersion` or content version and
+harness pass:
+
+- The Hero's refusal in every route by which a Transfer is made, and in what the controllers and the
+  policy choose; the active policy, which transfers in (DL-83), measures it.
+- The Board's difficulty scaling; the hostile-Patron rejection, with the Rivals choosing around it;
+  Guildmaster Regard's recovery; the Bankruptcy clock's two events, their narration and the stop in
+  both front ends; changing to better gear and selling the surplus; the opt-in `--until` condition
+  in both front ends.
+- Hero Trait effects, an engine change to the Traits' effect union; the resolution model for hints,
+  under which INPUTS 5.4's three words become a scale; the strong-success premium beside DL-83's
+  margin.
+
+What stays open: the Morale and Relationship thresholds for a Hero's refusal; whether the Board
+scales by mean Level or by year, and how steeply; the recovery rate; the premium's size; which
+effects Hero Traits get; the hint bands; R24's words, for the owner to confirm; and which reading
+of the first Upkeep Day the owner meant, the first night or DL-26 item 1's tenth Day (item 12).
+
+## DL-86 — Process, harness and documents: v1.0.0 cut at `m8-modules` and new work on `v1.1-dev`, production serving the latest release, one ratification, a Now column in INPUTS, a 50 × 20 pair per module, and an event for a refused Rival choice
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation. The steps already carried out (items 2 and 8) were the orchestrator's, an agent's,
+on the owner's answers
+
+**Context.** The agenda's theme F, "Process, harness, documents and inputs" (agenda 61 to 70, with
+the follow-ups 61a and 61b). What left each open:
+
+- **61.** The M0 to M8 process (DL-01, DL-09, pre-M0 E3: an issue, a merge of `v1.0-dev` into
+  `v1.0-release`, a tag, a plan §2 row) ends at M8; issue #12 gives no number, tag or release rule,
+  and nothing says what "v1.0" means now.
+- **61a, 61b.** Follow-ups: the new line's shape, and which branch production serves (INPUTS 7.8's
+  production branch is `v1.0-release`).
+- **62.** The channel for disagreeing (the epics README) was never used: 50 INPUTS rows ran on their
+  defaults, some were later changed by passes (DL-35), many values have no row, and some DLs treat
+  unanswered defaults as the owner's.
+- **63.** DL-35 left INPUTS 4.3, 4.6 and 4.12 stale on purpose, 3.8, 4.4 and 4.14 have since been
+  superseded, and requirements §5 treats 7.5 and 7.3 differently; the agenda also found a stale line
+  in the epics README.
+- **64.** DL-39 item 4 tied the 1,000 × 20 run to the first build's tag; nothing says what a
+  module's tag carries, and issue #12 points only at the probe's 50-seed pair (DL-78).
+- **65.** Three of DL-69's targets and M8's byte identity (DL-76 item 7, DL-81 item 3) were checked
+  only by uncommitted scratch tools, and reports keep only the sweep's fingerprint.
+- **66.** `AGENTS.md` and `docs/agents/` name triage and wayfinding labels that did not exist on
+  GitHub.
+- **67.** Baseline documents still describe what the build has passed (the stub Quest Engine,
+  choices as inputs to `advance`, template keys, an immutable meta, fractional age).
+- **68.** The engine's test Disposition rows no longer mirror the core's (DL-69 item 8), left to "a
+  later pass".
+- **69.** DL-40 named the gap: a Rival's refused choice is invisible to the harness, and the ten-Day
+  test covers no Transfers, equips or long games.
+- **70.** "First by Fame at 88.8%" counts 1,000 year-0 ties at Fame 0, each won by the lowest Guild
+  id, the player's.
+
+**Decision.** One item per agenda item, in the agenda's order, each follow-up after its item.
+
+1. **Process after the first build (agenda 61).** v1.0 is cut now and a new line opened — against
+   the recommendation that Random Events be M9 under DL-09 on the v1.0 branches.
+2. **The new line (agenda 61a).** `v1.0.0` is tagged at `m8-modules`; new work is on `v1.1-dev` and
+   released by merging into `v1.1-release`; milestone tags continue in DL-09's form, the next being
+   `m9-random-events`; `v1.0-dev` and `v1.0-release` are frozen. As recommended. It amends DL-09,
+   plan §1's tracking paragraph and INPUTS 1.2 for new work. Carried out on 2026-09-28: the
+   annotated tag `v1.0.0` on `70508c6`, the commit `m8-modules` tags on `v1.0-release`, and the
+   branch `v1.1-dev` from `v1.0-dev` at `934aeb9`, both pushed. `v1.1-release` does not exist yet.
+3. **The production branch (agenda 61b).** Production serves the latest release: the Pages
+   production branch and the deploy script move to `v1.1-release` at its first release, and v1.0.0
+   stays live until then. As recommended. It amends INPUTS 7.8's production branch from that
+   release.
+4. **Ratifying agents' defaults (agenda 62).** Review by group, which this interview was, then one
+   ratification DL accepting the values in force at `m8-modules` except those named (DL-90); INPUTS
+   rows are marked answered or superseded. As recommended.
+5. **Stale INPUTS (agenda 63).** INPUTS-REQUIRED gains a "Now" column (each row's current value and
+   the DL that set it), and the stale lines in the epics README and requirements §5 are fixed. As
+   recommended.
+6. **The harness run a tag carries (agenda 64).** A 50 × 20 pair per module, with the module and
+   without, as for the probe (DL-78) — against the recommended 200 × 20 pair per module tag, with
+   more on a signal.
+7. **Scratch-only measures (agenda 65).** They join the harness as counters with tests, and reports
+   gain per-seed fingerprints. As recommended.
+8. **GitHub labels (agenda 66).** The missing labels are created. The recommendation was to decide
+   with agenda 61 and create them if triage was kept; the interview record counts the answer as the
+   recommendation. Carried out on 2026-09-28: `needs-triage`, `needs-info`, `ready-for-agent`,
+   `ready-for-human`, and `wayfinder:map`, `wayfinder:research`, `wayfinder:prototype`,
+   `wayfinder:grilling` and `wayfinder:task`.
+9. **Stale baseline lines (agenda 67).** Each is corrected with a dated note naming the decision. As
+   recommended.
+10. **Test Disposition rows (agenda 68).** One multi-year test on the shipped rows is added, and the
+    fixture rows are renamed as fixtures. As recommended.
+11. **A refused Rival choice (agenda 69).** It emits an event, a new event type in saves — against
+    the recommended engine test.
+12. **Year 0's Rankings tie (agenda 70).** The report is fixed: year 0 excluded, or its ties marked.
+    As recommended.
+
+**Consequences.** Amended in this recording, 2026-09-28:
+
+- The v1.1 line in the documents: plan §1's tracking paragraph and plan §2's paragraph on releases,
+  INPUTS 1.2 and 7.8, the epics README and the README (items 2 and 3). Random Events is built on
+  `v1.1-dev` and tagged `m9-random-events`; the deploy script and the Pages production branch move
+  at `v1.1-release`'s first release, as GitHub's default branch does (DL-88). Until then the v1.0
+  line serves production: v1.0.0, and then the one release DL-88 item 9 makes on that line before
+  Random Events.
+- DL-90, the ratification, and INPUTS' Now column with each row marked (items 4 and 5). The epics
+  README's "Nothing has been built", the line the agenda quoted as stale, is corrected in this
+  recording to "Nothing had been built when this plan was written; the first build has since been
+  completed ..."; requirements §5's line on INPUTS 7.3 carries a dated note, beside 7.5's line,
+  already struck as resolved (item 5).
+- Dated notes on the stale baseline lines (item 9): requirements §2 and R25, approach §1's Quest
+  Engine and Controllers paragraphs and §3's action sketch, plan §3's M1 and M2 increments, and
+  data-model §1's `meta` row and §3.2's age; with them the lines the agenda left pending on agenda
+  21 and 91 (DL-83, DL-89).
+
+The work left, tracked as GitHub issues:
+
+- The v1.1 line in CI: `.github/workflows/check.yml` runs lint, typecheck and test on push and
+  pull request to `v1.0-dev` and `v1.0-release` only (INPUTS 1.3), so nothing pushed to
+  `v1.1-dev` is checked; its triggers gain `v1.1-dev` and `v1.1-release`, now.
+- The harness: the scratch measures as counters with fixture tests, per-seed fingerprints, the
+  Rankings report without year 0's tie, and a 50 × 20 pair at each module's tag. DL-82 item 19's
+  seed count for Random Events' acceptance is proposed against that pair.
+- The test on the shipped Disposition rows, with renamed fixtures.
+- The refused-choice event: an engine change adding an event type, which changes the saves, and so
+  the fingerprints, of any game in which a Rival's choice is refused.
+
+## DL-87 — Content and vocabulary: content keys settled before Random Events, CONTEXT corrected and completed, a fifth leading Stat for each Class, more Unique Items, Traits that exclude each other, Traits with several effects, and a folded Guild's Unique Items
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** The agenda's theme G, "Content and vocabulary" (agenda 71 to 77, with follow-ups to
+agenda 73). What left each open:
+
+- **71.** Every name, key and first value in `content/` is an agent's (DL-17, DL-25, DL-29 item 7,
+  DL-81), and the INPUTS rows inviting the owner's own lists were never answered; keys live in saves
+  (data-model rule 5), and Random Events will reference them.
+- **72.** CONTEXT entries were not updated as decisions moved (Outing, Turn, Hero, Background, Fame,
+  Rankings, Retirement, History, and the Guildmaster, written as "the player's character" before
+  Rivals had Guildmasters), and terms the build uses are undefined (controller, a module's slice,
+  hook and effect, Roster wiped, fold, fast-forward stops, Quest template, Loot table, Transfer
+  Generator); principle 13, pre-M0 F3.
+- **73.** Endurance, Resistance, Leadership and Diplomacy are led by no Class (DL-17's weights), yet
+  7 of 12 Quest templates and 5 of 12 Encounters demand at least one of them.
+- **74.** DL-62's five Unique Items, all at DL-51 item 2's flat `lootOnlyPrice` of 600, unseen by
+  the owner: 4.99 of 5 awarded a game, 57% by year 2.
+- **75.** DL-19 item 6 noted content has no exclusion field "yet", and DL-43 gave pairs of
+  Guildmaster Traits opposite effects; about 1 Guildmaster in 22 is drawn with both of a pair.
+- **76.** The owner's INPUTS 3.13 example, Miser (Upkeep ×0.9, Morale baseline −5), conflicted with
+  the M4 epic's one effect per Trait; DL-43 item 8 split it into Thrifty and Miser, and 3.13 was
+  never answered.
+- **77.** The owner's pre-M0 tracker actioned D6 as a folded Guild's Unique Items going to the
+  Market (DL-51 item 6), but D6's text in this log and CONTEXT's Bankruptcy entry say "Items".
+
+**Decision.** One item per agenda item, in the agenda's order.
+
+1. **Agent-written content (agenda 71).** Content keys are settled now, each confirmed or renamed;
+   names, Quest templates and Injury flavour are reviewed with Random Events' content. As
+   recommended.
+2. **`CONTEXT.md` (agenda 72).** Stale entries are corrected and every missing term is added now;
+   the Random Event entry follows DL-82 item 2 (the player's Guild only). As recommended.
+3. **Orphan Stats (agenda 73, with its follow-ups).** A fifth leading Stat for each Class, in the
+   owner's mapping: Warrior Endurance, Mage Resistance, Rogue Diplomacy, Healer Resistance. Mage and
+   Healer both lead Resistance, which the owner confirmed. Leadership is intrinsic to a Hero's
+   character: no Class leads it, and it keeps growing slowly and equally for every Hero, as now. The
+   recommended option in the owner's mapping, in place of the agenda's example (Healer Diplomacy,
+   Rogue Leadership).
+4. **Unique Items (agenda 74).** Their values are confirmed, and 10 to 15 more Unique Items are
+   written. As recommended.
+5. **Opposed Guildmaster Traits (agenda 75).** Trait content gains an `excludes` list, and the draw
+   skips excluded Traits. As recommended.
+6. **Trade-off Traits (agenda 76).** A Trait may carry a list of effects (an engine, validation and
+   content change) — against the recommendation to keep the split. It supersedes DL-43 item 8's one
+   effect per Trait. The owner's stated intent is that Miser can become the owner's original
+   two-effect Trait; that is to be confirmed and is open.
+7. **A folded Guild's Items (agenda 77).** The words follow the rule: CONTEXT's Bankruptcy entry is
+   reworded, and this item is the dated note on D6, which the log's rule forbids editing. D6's "its
+   Items go to the Market at sell price" is read as its Unique Items, as the owner's tracker
+   actioned it and DL-51 item 6 built it. As recommended.
+
+**Consequences.** Amended in this recording, 2026-09-28: `CONTEXT.md`, its stale entries
+corrected and the missing terms added, Guild Battle's among them (item 2, DL-89), the Random Event
+entry following DL-82 item 2, and the Bankruptcy entry's words aligned to the rule (item 7). The
+work left, tracked as GitHub issues:
+
+- A review of every content key, confirming or renaming each before Random Events references it;
+  under rule 5 a renamed key loses its effect in an old save without a migration, and the live page
+  may hold such saves.
+- The Classes' growth weights with a fifth leading Stat, a new content version that changes every
+  seed's growth and so every fingerprint; how the two thirds DL-83 confirmed are shared among five
+  leading Stats is part of that change.
+- 10 to 15 Unique Items and the Loot tables that hold them.
+- The `excludes` field in the content schema, the validator and the Guildmaster Trait draw, which
+  changes the seeds that drew an excluded pair.
+- A list of effects per Trait in the engine's union, the validator and content, meeting DL-88's
+  Trait point budget (a Trait's cost over its effects).
+
+What stays open: the review of names and flavour, which waits for Random Events' content; and Miser,
+with Thrifty beside it.
+
+## DL-88 — Front end and deploy: fast forward in chunks with a Stop, names not reused while in use, the Guildmaster set up by the player within a Trait point budget, the single-script page made binding, each deploy recorded, a move to Workers static assets beside Pages, and a default branch that follows the latest release
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation. The default branch, item 10, was set by the orchestrator (an agent) on the owner's
+answer
+
+**Context.** The agenda's theme H, "Front end and deploy" (agenda 78 to 84, with the follow-ups 80a,
+83a and 83b). What left each open:
+
+- **78.** DL-65 item 4 deferred chunking fast forward in the browser "if it needs finer feedback",
+  and M7-S3 changed only the busy text (DL-73 item 11): a year is 1.6 to 5 s of busy page per tap.
+- **79.** DL-19 recorded that names are not unique; the CLI shows Hero ids and the web narrates by
+  name alone (DL-66), with about 5,900 Heroes a game drawn from 3,600 name pairs per sex.
+- **80.** R8 lists the Guildmaster's "sex, details"; setup draws the sex, "details" exist nowhere,
+  and CONTEXT's Attribute entry lists "Detail" among the words to avoid.
+- **80a.** A follow-up: what limits the Traits a player chooses.
+- **81.** Opening the page from `file://` as one script is required only by an M7-S1 box (DL-64 item
+  3), not by the requirements or an ADR, and the page has been hosted since DL-75.
+- **82.** Only M7's deploy is recorded (DL-75); the live page serves an M8 build, the probe in its
+  bundle, with no commit, date or `e2e:live` result recorded.
+- **83.** Cloudflare is folding Pages into Workers; DL-75 and DL-81 left the risk to the owner, and
+  the deploy fetches the latest wrangler 4.x each run (DL-68 item 2). A move changes the address,
+  and saves in IndexedDB belong to their origin.
+- **83a, 83b.** Follow-ups: what becomes of `https://heroesims.pages.dev`, and when to move.
+- **84.** GitHub's default branch was still `master`, v1's history; M0 deferred it to the owner.
+
+**Decision.** One item per agenda item, in the agenda's order, each follow-up after its item.
+
+1. **Fast forward in the browser (agenda 78).** Chunked in the reducer, about 30 Turns a step, with
+   progress shown and a Stop button. As recommended.
+2. **Namesake Heroes (agenda 79).** Longer name lists, and a generator that avoids names in use,
+   which changes every seed's draws — against the recommendation to tell namesakes apart in the web,
+   with no seed or content change.
+3. **The Guildmaster's setup (agenda 80).** Defined now: at setup the player may set the
+   Guildmaster's sex (optional) and age (optional, 30 to 45), chooses the Traits, and may write
+   "descriptive-only details" with no rule effect ("origin, appearance, short bio" in the owner's
+   words); anything left unset is drawn from the seed. Against the recommendation (an optional sex,
+   and "details" struck from R8). R8 is amended to say so, in this recording, quoting the owner's
+   words. CONTEXT avoids "Detail" (Attribute) and "Origin" (Background), so the terms these
+   descriptive fields take are settled with DL-87 item 2's CONTEXT work.
+4. **The Traits a player chooses (agenda 80a).** A point budget: each Trait has a content cost, a
+   buff costing points and a penalty refunding them, and the player spends a fixed budget, so buffs
+   need penalties. A drawn Guildmaster, a Rival's, follows the same budget. As recommended.
+5. **The `file://` single-script page (agenda 81).** Kept, and made binding in the requirements or
+   an ADR. As recommended. The owner's answer allowed either; this recording wrote the rule into
+   R38 (requirements §3.10, added 2026-09-28).
+6. **Deploy records (agenda 82).** The local deploy stays (INPUTS 7.9), and each release records its
+   commit, its date and its `e2e:live` result; M8's deploy is recorded after the fact. As
+   recommended.
+7. **Pages to Workers (agenda 83).** The page moves to Workers static assets now, at a new
+   `*.workers.dev` address, and INPUTS 7.8 is answered anew here — against the recommendation to pin
+   wrangler to the working version and wait. It supersedes DL-75's placing of the page on classic
+   Pages alone, and DL-68's deploy command changes with it.
+8. **The `pages.dev` address (agenda 83a).** Both are kept: each deploy goes to both for now, and
+   the Pages project stays until Cloudflare retires it — against the recommendation (a notice to
+   export saves, then retiring the Pages address).
+9. **When to move (agenda 83b).** First, on v1.0, as a small v1.0.x release before Random Events,
+   with the deploy script, the README and `e2e:live` updated. As recommended.
+10. **GitHub's default branch (agenda 84).** The latest release branch: `v1.0-release` now,
+    `v1.1-release` at its first release. As recommended. Carried out on 2026-09-28: the default
+    branch is `v1.0-release`.
+
+INPUTS 7.8, answered anew: the page is served from Workers static assets at a `*.workers.dev`
+address and from the Pages project `heroesims` at `https://heroesims.pages.dev` while Cloudflare
+keeps Pages; each deploy goes to both, from the latest release branch (DL-86 item 3). 7.9 stands: a
+local `npx wrangler login` and no secrets anywhere.
+
+**Consequences.** Amended in this recording, 2026-09-28: R8, with the setup and the point budget
+as decided and not yet built, the descriptive Attributes in the owner's words (items 3 and 4); R38,
+carrying the `file://` rule (item 5); INPUTS 7.8, answered anew below; and the README and plan §2,
+which say the Workers move is decided and not yet made and name the default branch (items 7 to
+10). The work left, tracked as GitHub issues:
+
+- The web reducer's chunked fast forward, its progress and its Stop.
+- Longer name lists (content, reviewed with Random Events' content, DL-87) and a generator rule that
+  avoids names in use: every seed's world changes, so the fingerprints are re-baselined.
+- The Guildmaster's setup in both front ends, and the Trait point budget in content, the setup and
+  the draw for any Guildmaster not chosen, a Rival's among them, which changes the seeds; it meets
+  DL-87's `excludes` and lists of effects.
+- A deploy record in each release's close, and M8's recorded after the fact.
+- The v1.0.x release: the deploy script deploying to both, `web/src/deploy.test.ts`, the README and
+  `e2e:live` against both addresses, recorded as item 6 says.
+- GitHub's default branch moved to `v1.1-release` at its first release.
+
+What stays open: the Trait costs and the budget, proposed for the owner's approval; the Workers
+project's name and address, recorded when the v1.0.x release is made; how that release is branched
+and tagged, since DL-86 item 2 freezes `v1.0-dev` and `v1.0-release`; which names count as in use;
+and the terms for the Guildmaster's descriptive Attributes (item 3). Saves stay with the origin they
+were made at, so a player's saves at `heroesims.pages.dev` stay there.
+
+## DL-89 — The roadmap and deferred scope: plan §4 completed and ordered after Random Events, modules decided per feature, Guild Battle read two ways, several Parties on one Quest kept, and hosted saves and recall struck
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, in an interview on an
+agenda of 91 open items prepared by agents after the first build; the options and the
+recommendations were agents', every answer below is the owner's, and each says whether it took the
+recommendation
+
+**Context.** The agenda's theme I, "After Random Events: the roadmap and deferred scope" (agenda 85
+to 91). What left each open:
+
+- **85.** Plan §4 omits deferrals recorded elsewhere: the Inciting Event generator, Patron visits,
+  Poaching, Rival encounters, the hint-sharpening Trait (D9), mid-Quest reports (the M4 epic) and
+  Guild Battle.
+- **86.** Plan §4 calls Skill growth, the Guildmaster in a Party and the deferred endings modules,
+  while ADR-0005 names only story features, and Workers change core rules too.
+- **87.** The owner's diagram (`docs/images/herosim-conceptual-gameflow.png`) has a Guild Battle box
+  linked to Guild, and the words appear in no document.
+- **88.** The data model's `partyIds` is a list for "later, at most one per Guild" (DL-20 item 5),
+  and nothing schedules it.
+- **89.** Pre-M0 B1 deferred the Outing limit until scouting or Patron visits; §4 lists Scouting but
+  not Patron visits, and R4 does not say whether the limit binds Rivals or the Market.
+- **90.** Requirements §2's later column offers hosted saves following a player across devices,
+  against principle 12, N2 and D10.2's static hosting.
+- **91.** Approach §3's "recall?" is the only mention of calling a Party home.
+
+**Decision.** One item per agenda item, in the agenda's order.
+
+1. **Plan §4 (agenda 85).** The list is completed now (the Inciting Event generator, Patron visits,
+   Poaching, Rival encounters, the hint-sharpening Trait, mid-Quest reports, Guild Battle) and
+   ordered after Random Events. As recommended.
+2. **Which later features are modules (agenda 86).** Decided per feature in its epic; there is no
+   general rule — against the recommendation that story features be modules and rule extensions core
+   increments.
+3. **Guild Battle (agenda 87).** Both: it maps to "Defeated by a Rival" and to Rival encounters
+   during Quests, with a CONTEXT term; and direct contests between Guilds are a separate later
+   feature, in requirements §2 and plan §4. Partly the recommendation, which was the first reading
+   alone.
+4. **Several Parties on one Quest (agenda 88).** Still intended, and listed in plan §4 as a
+   candidate. As recommended.
+5. **The Outing limit (agenda 89).** B1's deferral stays; Patron visits join plan §4; the limit,
+   when it comes, applies to every Guild. As recommended.
+6. **Hosted saves (agenda 90).** Files only: hosted saves are struck from requirements §2. As
+   recommended.
+7. **Recalling a Party (agenda 91).** No recall: "recall?" is struck from approach §3. As
+   recommended.
+
+**Consequences.** Every change this entry makes is to documents, and this recording made them,
+2026-09-28, each with a dated note: plan §4 gains the items above, several Parties on one Quest
+and the Inciting Event generator beside Campaigns (DL-82 item 7), with Guild Battle kept in
+CONTEXT's sense and direct contests between Guilds as a separate line; requirements §2 gains
+direct contests between Guilds and strikes hosted saves; R4 says the Outing limit binds every
+Guild; approach §3 loses "recall?"; CONTEXT gains Guild Battle's term (DL-87). No issue is left
+for them. Each later feature's epic says
+whether it is a module, and ADR-0005 and requirements §2's "later module or expansion" column are
+read with that. What stays open: §4's order, chosen at Random Events' close, and what a direct
+contest between Guilds is.
+
+## DL-90 — Ratification: the values in force at `m8-modules` (config version 10, content version 14) accepted as the owner's, except those DL-82 to DL-89 change or leave for proposals
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, answering agenda 62 in an
+interview on an agenda of 91 open items prepared by agents after the first build (the options and
+the recommendation were agents'); the lists below were drawn up by an agent from the owner's answers
+in DL-82 to DL-89
+
+**Context.** Agenda 62 asked how the owner signs off the values agents chose. INPUTS-REQUIRED's 58
+rows had 7 answers (1.1 to 1.5, 7.8 and 7.9) and 8.1 needed none, so 50 ran on their defaults; DL-35
+left some rows stating defaults the config no longer used; many values have no row at all (the
+generation ranges, `quartersMoraleBonus`, the Regard rates, the Guildmaster's Stat factors, the
+infirmary's third grade); DL-11 to DL-81 were almost all decided by agents; and DL-69 and DL-81
+recorded that the owner had not seen the values. The owner chose a review by group, which DL-82 to
+DL-89 record, then one ratification DL (DL-86 item 4): this entry.
+
+**Decision.**
+
+1. **What is ratified.** Every value in force at `m8-modules` — `defaultConfig` at `configVersion`
+   10 and the core content at content version 14, under schema version 3 — is accepted as the
+   owner's, except those item 3 names. This covers the INPUTS defaults in force: a row's default
+   where the game uses it, and the value in force where a pass replaced it (4.6's wage is 20 per
+   Level, not 5). It covers values with no INPUTS row and agents' first content values not named in
+   item 3.
+2. **The agents' readings the owner confirmed**, which become the owner's:
+   - DL-17 item 5's growth split (DL-83 item 10);
+   - DL-26 item 1's first Upkeep Day, DL-29 item 13's Retirement chance rising with age and DL-36
+     item 1's cumulative XP (DL-85 item 12); for the Upkeep Day, the interview record's words ("first
+     Upkeep on the first night") are not DL-26 item 1's reading (the tenth Day), so the owner is to
+     confirm which was meant, and DL-26 item 1's reading stands as the value in force until then;
+   - DL-57 item 3's consent through offers as the controller's difference (DL-85 item 13);
+   - DL-69 item 4's band of 1.5 to 3.5 Rival folds a game (DL-83 item 5) and its distributional
+     reading of Rival Rosters, with no Roster cap (DL-83 item 26);
+   - DL-28 item 5's 30-Day Rival replacement and its rebase gap (DL-83 item 27);
+   - DL-69's 90-Day Transfer lock for every Guild (DL-85 item 9);
+   - DL-62's Unique Items and DL-51 item 2's flat price (DL-87 item 4);
+   - DL-33 item 5's always-on stop in M2's reading (DL-85 item 8) and DL-78 item 2's tunables on the
+     slice (DL-82 item 16);
+   - INPUTS 4.13's 20 years as a twenty-year slice (DL-83 item 18);
+   - and, accepted as they stand: careers mostly ending in Death (DL-83 item 23), `steady` and
+     `miserly` at the floor (DL-83 item 24), a kept slice reference for first-party modules (DL-82
+     item 21), and Fame's signing gate, dormant (DL-85 item 1).
+3. **What is excluded**, each left to the decision named:
+   - DL-82: Morale's band edges (`moraleBands`), which the owner confirms as Random Events' inputs;
+     and the rules DL-82 changes, with any value tied to them (DL-46 item 9's "a failed Quest shared
+     still counts 1", superseded by item 9's souring of the Party; DL-77 item 3's effects on an
+     Unattached Hero; DL-79 items 1 and 2's modules installed per command).
+   - DL-83: `bandBySuccessShare`, which gains a margin; every Disposition row, whose
+     `transferAppetite` splits in two and whose values are retuned after the Rival income rule, with
+     the characters and every DL-69 target but the fold band and the Roster reading deferred;
+     `transferGeneratorChance` 0.5, now 1; `unattachedStayDays` 10, now 30; and the rules DL-83
+     changes, with any value tied to them (a Rival Guildmaster's Retirement, decline and Potential,
+     Retirement and injury history).
+   - DL-84: DL-17 item 6's default of 10 for a Hero Stat a save lacks; data-model §7's targets,
+     rebaselined; and the rules DL-84 changes, with any value tied to them (INPUTS 3.12's CLI saves
+     as plain JSON, gzipped by item 2; a module's Regard logged only on a band crossing, item 4).
+   - DL-85: the Potential hints' sharpening (`judgementHintSharpening`) and INPUTS 5.4's three
+     words, which become a resolution model; the Hero Traits, which gain effects; and the rules
+     DL-85 changes, with any value tied to them (DL-29 item 4's reading that a strong success pays
+     as a success, INPUTS 4.2, superseded by item 12's premium; DL-57 item 3's consent without the
+     Hero; DL-26 item 3's silent Bankruptcy floor; DL-43 item 7's narrowing; DL-49 item 9's
+     `gearChoices` filling empty slots only).
+   - DL-86: INPUTS 1.2's branches, INPUTS 4.13's run for a module's tag (a 50 × 20 pair) and INPUTS
+     7.8's production branch from `v1.1-release`'s first release.
+   - DL-87: every content key, until it is confirmed or renamed; content names and flavour (names,
+     Quest templates, Injury flavour, INPUTS 3.8 to 3.10's lists), reviewed with Random Events'
+     content; the Classes' growth weights, with a fifth leading Stat; and the Guildmaster Traits
+     (Miser and Thrifty, `excludes`, lists of effects).
+   - DL-88: the name lists; the Guildmaster Trait draw (`guildmasterTraitsMin` and
+     `guildmasterTraitsMax`, INPUTS 3.13), under a point budget; INPUTS 7.8's address, answered
+     anew.
+   - New values no pass has set, proposed for the owner's approval with their work: Random Events'
+     INPUTS §8 table; the friction magnitudes; the active policy's thresholds; Hall grades 4 to 6's
+     effects and prices; the strong-success margin and premium; Guildmaster Regard's recovery; the
+     Hero's refusal thresholds; the Board's difficulty scaling; and the Trait costs and budget.
+4. **Ratified values that later passes tune.** The wage, 20 per Level, until the Rival income rule
+   is measured and a base plus a per-Level part is trialled (DL-83 item 12); the progression values,
+   against the targets of DL-83 items 21 and 22; and every balance value, against DL-83's target
+   bands once Random Events is in. They are the owner's now, and a pass that changes one does so
+   with its DL, as before.
+5. **INPUTS-REQUIRED.** It gains a Now column (DL-86 item 5): each row's value in force and the DL
+   that set it. Each row is marked answered, by this entry or by the DL that answered it, or
+   superseded by the DL that changed it; a row DL-82 to DL-89 leave to a proposal says so.
+
+**Consequences.** From `m8-modules`, a value in force is the owner's unless item 3 names it, and
+later agents treat it so: a change to one is a change to an owner's value, made by a DL as before.
+The earlier entries keep "Decided by: an agent" as their history; this entry changes the standing of
+their values, not who chose them. The excluded values wait for their work or for the owner's
+approval of a proposal. Pre-M0 A1 to F4 and DL-01 to DL-10 were already the owner's. The INPUTS edit
+of item 5 is made in this recording, 2026-09-28: the Now column, and each row marked.
+
+## DL-91 — Four points the recording left open, settled: the first Upkeep stays on the tenth Day, the Rankings band holds by Fame and by Wealth, five leading Stats share the two thirds, and v1.0.x releases are hotfixes on the v1.0 branches
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, answering four follow-up
+questions after DL-82 to DL-90 were recorded (the options and the recommendations were an agent's)
+
+**Context.** Recording the interview (DL-82 to DL-90) left four points open because the answers, read
+together, did not settle them: DL-85 item 12 and INPUTS 4.6 (agenda 59), DL-83 item 3 (agenda 12b),
+DL-83 item 10 with DL-87 item 3 (agendas 15 and 73), and DL-86 item 2 with DL-88 item 9 (agendas 61a
+and 83b).
+
+**Decision.**
+
+1. **The first Upkeep Day (agenda 59).** DL-26 item 1's reading stands: Upkeep is first paid once ten
+   Days have completed (Day index 9), then every `upkeepEveryDays`. The interview record's words
+   "first Upkeep on the first night" were a loose restatement, not a change; DL-85 item 12's caveat is
+   closed and nothing changes in the rules.
+2. **The Rankings target (agenda 12b).** The band of 40 to 60% of year-starts applies to both
+   Rankings: the player's Guild is first by Fame at 40 to 60% of year-starts and first by Wealth at 40
+   to 60%, each measured on its own (as recommended).
+3. **Growth with a fifth leading Stat (agendas 15 and 73).** The confirmed split carries over to five
+   leading Stats: the five share two thirds of each Level's growth points (each leading Stat's share
+   falls from 1/6 to 2/15) and the other Stats share the remaining third (as recommended). Leadership
+   is led by no Class and keeps its share of the third (DL-87 item 3). This is a content change made
+   with the fifth leading Stats, with a new content version and a harness pass (issue #35).
+4. **How v1.0.x releases are made (agendas 61a and 83b).** The v1.0 branches are frozen to new
+   features but open to v1.0.x hotfix releases: the Workers move (issue #13) is committed on
+   `v1.0-dev`, merged to `v1.0-release` and tagged `v1.0.1`, and `v1.0-dev` is then merged into
+   `v1.1-dev` so the line carries it (as recommended). DL-86 item 2's "frozen" reads "frozen but for
+   v1.0.x hotfixes".
+
+**Consequences.** DL-85 item 12's caveat and the open points DL-83, DL-87 and DL-88 named for these
+four questions are closed. INPUTS 4.6's note is updated. Issues #13, #14, #19, #21 and #35 carry the
+answers.
+
+## DL-92 — v1.0.1 planned: the Workers move and the deploy records, with three page fixes the owner added; `v1.0-dev` fast-forwarded to this plan first; the Worker named `heroesim`; a deploy only from a clean checkout of a release tag
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, answering four questions
+after an agent's assessment of the open issues (the options and the recommendations were an
+agent's); items 1 and 3 to 5 are the owner's four answers, each saying whether it took the
+recommendation. Item 2 is an agent's reading of wrangler's changelog, put to the owner in the
+first question's preface; the owner's choice to keep the move after reading it is answer 1.
+Item 6 lists the plan's own proposals, an agent's, which stand unless the owner objects before the
+story they concern starts. The plan, `docs/planning/epics/v1.0.1-release.md`, was written by an
+agent
+
+**Context.** The owner asked to "plan a 1.0.1 release to be developed prior to building random
+events for 1.1", "based on review of open items and answers provided". An agent assessed every
+open issue (#12 to #38) and the defects found since the first build against a bar for a hotfix on
+a line DL-91 item 4 froze to new features: play-neutral (no engine rule, content, `GameConfig`,
+schema, event type or save change, so every seed plays the same), justified on the v1.0 line, and
+small, not a feature. #13 and #14 (DL-88 items 6 to 9) passed; #18's note and three display fixes
+passed as play-neutral and small. A reading of wrangler's own changelog corrected the premise of
+the Workers move (item 2). Four questions followed: what v1.0.1 contains; how DL-82 to DL-91,
+recorded only on `v1.1-dev`, reach the v1.0 line, whose v1.0.1 entries must cite them with no gap;
+the Worker's name, which DL-88 left open; and whether the deploy, which on Workers has no branches,
+refuses a checkout that is not a release.
+
+**Decision.**
+
+1. **What v1.0.1 contains (answer 1).** The Workers move beside Pages, as DL-88 items 7 to 9
+   decided (#13); M8's deploy and v1.0.1's recorded, as DL-88 item 6 decided (#14); the M8 epic's
+   §0 note (#18, DL-82 item 20); and three page fixes that change no play: the Bankruptcy countdown
+   shown on the page, tied Rankings shown as a shared place, and fast forward run in the browser in
+   steps of about 30 Turns with progress and a Stop button (DL-88 item 1, brought forward from
+   #32). Against the recommendation, which was the move and the records alone; the options not
+   taken were records only, superseding DL-88 items 7 to 9, and no v1.0.1. The three add interface
+   to a line frozen to new features, so this amends DL-91 item 4's "frozen to new features" for
+   these three, on v1.0.1 only. Everything else stays on the v1.1 line.
+2. **The corrected premise: an erratum to DL-75 item 1's reading, and context to DL-88 item 7.**
+   Wrangler, since about 4.108, hands `pages deploy` and `pages project create` to Workers static
+   assets only when an AI coding agent runs them against a new static project: "non-agent (human)
+   sessions ... are unaffected and continue to use Pages", and "a command targeting a project that
+   already exists stays on Pages"; `--force` opts out (wrangler's `packages/wrangler/CHANGELOG.md`,
+   #14312 and #15004). So DL-75 item 1's `--force` was needed because an agent created the
+   project, not because wrangler refuses classic Pages, and DL-75's Consequences ("a later wrangler
+   may stop offering classic Pages") and #13's "Why" overstate the risk. Pages has no announced
+   retirement: its changelog was active in August 2026, and wrangler 4.142 keeps `pages deploy`;
+   Cloudflare's Pages overview (August 2026) says "Start new projects with Workers". The owner,
+   told this in the question's preface, chose to proceed with the move: DL-88 item 7 stands.
+3. **The decision records onto v1.0 (answer 2).** Before any v1.0.1 work, `v1.0-dev` is
+   fast-forwarded to the plan commit: the commit on `v1.1-dev` that records this entry and v1.0.1's
+   epic directly on `a8848c1`, documents only. v1.0.1 then carries DL-82 to DL-92 and the documents
+   they amend, "decided, not yet built" lines included, and its own entries continue from DL-93
+   with no gap. As recommended. It is a first step before DL-91 item 4's flow, which then applies
+   as written; the target is that commit's hash, never a later tip of `v1.1-dev`.
+4. **The Worker's name (answer 3).** `heroesim`, against the recommendation, `heroesims`, the Pages
+   project's name. Its address is `https://heroesim.<account subdomain>.workers.dev`: the Worker's
+   name, then the account's workers.dev subdomain, which is account-wide and read or set in the
+   Cloudflare dashboard (Workers & Pages, "Your subdomain"). The Pages project stays `heroesims` at
+   <https://heroesims.pages.dev>. INPUTS 7.8 is answered further with the name and this rule; the
+   full address is written there once the owner has read or set the subdomain.
+5. **The deploy guard (answer 4).** `npm run deploy` refuses unless the checkout is clean and HEAD
+   is a release tag (`v*`). A small Node script builds once, checks the tag and the clean tree,
+   deploys to the Worker and then to Pages, with the tag as the Worker version's message, and
+   prints the lines the deploy record needs. As recommended.
+6. **The plan's proposals** (an agent's; they stand unless the owner objects before the story they
+   concern starts):
+   - **Who runs wrangler, and when.** The owner, or the orchestrator with the owner's go-ahead for
+     that run, as for M7's and M8's deploys; and only once the owner has read or set the
+     subdomain, since an agent's first Worker deploy on an account without one registers one named
+     from `web/package.json` (`heroesim-web`) without asking. `npm run deploy` itself is run only
+     in the release's deploy step; elsewhere the guard is tried with `--dry-run`, which runs the
+     checks and the build and no wrangler.
+   - **The Worker's configuration.** `web/wrangler.jsonc`, with no account id; `workers_dev` true;
+     `preview_urls` false, since each preview or version URL would be a further origin with its own
+     saves; not-found handling `none`, set explicitly (Pages serves `index.html` for any path, but
+     the page has one route and a deep path is broken on both hosts, its script being
+     `./assets/…`); no `_headers` file.
+   - **The address before the tag.** The owner gives the full address before `v1.0.1` is tagged,
+     and the tag carries it in the live check, the README and INPUTS 7.8. If wrangler prints
+     another, the live check runs on it under a one-address override before any push, and it is
+     corrected in the commit that records the deploy, never by moving a pushed tag.
+   - **The deploy.** From a clean checkout of the local, unpushed tag, the tag and `v1.0-release`
+     pushed only after the deploy and the live checks on both addresses pass. The Worker first,
+     then Pages; every attempt is recorded, one in which one upload succeeded and the other failed
+     as such. If production then serves the unpushed tag, the owner chooses between rolling Pages
+     back to its previous deployment and fixing forward: the local tag dropped, the fix made on
+     `v1.0-dev`, the release tagged and deployed again.
+     The record (commit, UTC time, both addresses, wrangler's version, the Worker version id, the
+     Pages deployment URL, each address's `e2e:live` result) is an entry committed on `v1.0-dev`
+     after the tag and merged to `v1.0-release` with no new tag.
+   - **Numbering.** v1.0.1 takes DL-93 onwards on `v1.0-dev`, in commit order; expected: DL-93 M8's
+     deploy, DL-94 the Worker, DL-95 the shared place and the countdown, DL-96 fast forward in
+     steps, DL-97 the verification and close, DL-98 v1.0.1's deploy after the tag. `v1.1-dev`
+     records no entry until `v1.0-dev` is merged into it.
+   - **CI.** #38 lands on `v1.1-dev` now, directly after the plan commit and with no entry, so the
+     merge forward is checked in CI.
+   - **Verification.** Before the tag, independent, by opus: the acceptance, the decisions, mutants
+     of the new code (the guard, the steps, the shared place, the countdown), and play-neutrality
+     proved by a core-only 50 × 20 harness sweep whose fingerprint equals the `v1.0.0` tagged run's
+     first 50 seeds, `11a18457…9e02` (`harness/reports/m8-probe-2026-09-27.md`), with
+     `git diff --stat v1.0.0` showing no content, config or schema change.
+   - **Within the fixes.** The shared place and the countdown are engine selectors beside
+     `rankings`, read by both front ends, so the CLI shows them too at little cost; `rankings`
+     itself, the rules and `StopReason` are unchanged. Fast forward in steps is the page's alone,
+     30 Turns a step, a web constant rather than a `GameConfig` field.
+
+**Consequences.** Recorded with this entry, 2026-09-28: the plan,
+`docs/planning/epics/v1.0.1-release.md`; the epics README (the register's v1.0.1 row, and the lines
+on the epics' scope, on who proposed them, on the total and on v1.0.x releases); plan §2's
+paragraphs on the next work and on releases after the first build, and §4's first line; INPUTS
+7.8's Answer (the Worker's name and the address rule). The README is unchanged: no line of it
+became false, and v1.0.1's S3 rewrites its Play and Deploy. The three page fixes are tracked
+in #39; #12, #13, #14, #18, #32 and #38 carry comments pointing here. Found in the assessment
+and filed as #40, a v1.1 issue: founding Fame is a module constant (`foundingFame`,
+`engine/src/generators/guilds.ts`), not a `GameConfig` field (N9). What stays open: the account's
+workers.dev subdomain, and so the Worker's full address (the owner, before any Worker deploy); the
+not-found handling, if the owner objects to `none`; the rule for a v1.0.x deploy once #37 has moved
+production to `v1.1-release`, when Pages would take it as a preview but the Worker, which has no
+branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
+source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
+
+## DL-93 — M8's deploy recorded after the fact: the orchestrator's run of 2026-09-27 21:30 UTC, with the owner's login, from `70508c6` to Pages deployment `5bef971d`; the exact second and the wrangler version used are not recovered (v1.0.1-S2, DL-88 item 6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S2 within
+the plan the owner approved in DL-92
+
+**Context.** DL-88 item 6 asked that M8's deploy, which shipped ahead of any record (#14), be
+recorded before a v1.0.1 deploy replaces the live page (DL-92's Consequences names this risk). The
+evidence is the orchestrator's own session transcript of 2026-09-27; a Pages deployment list read
+2026-09-28 ~07:23 UTC with the owner's login; a byte comparison of a clean `v1.0.0` build against
+the live bundle; and a fresh `npm run e2e:live -w web` against `https://heroesims.pages.dev`, run
+before any v1.0.1 deploy. No wrangler, curl or build was run for this story: this entry is written
+from that evidence alone, gathered by the orchestrator.
+
+**Decision.**
+
+1. **Who ran it, and with whose login.** The orchestrator, an agent, ran the deploy in the main
+   working tree `C:/JHH/source/heroesim`, using the owner's local wrangler login, not an agent's
+   own.
+2. **When.** Between 2026-09-27 21:30:00.351 UTC (the command's start) and 21:30:50.736 UTC (its
+   printed result), i.e. 07:30 on 2026-09-28 at UTC+10. Not recovered: the exact creation second
+   (the deployment list gives only a relative time, "9 hours ago" when read at ~07:23 UTC on
+   2026-09-28, consistent with these bounds) and the wrangler version used (the deploy command's
+   output did not print one).
+3. **From which commit.** `70508c6`, the merge of `v1.0-dev` into `v1.0-release` tagged
+   `m8-modules` ("Merge v1.0-dev into v1.0-release: M8 Modules complete, the first build"), as one
+   command: push `v1.0-dev`; checkout `v1.0-release`; the merge; the tag; push branch and tag;
+   `npm run deploy` (`npm run build && npx -y wrangler@4 pages deploy dist --project-name
+   heroesims --branch v1.0-release`); `npm run e2e:live -w web`. Proved two ways: the deployment
+   list's own `source` field for the deployment in item 4, and a byte comparison, 2026-09-28 07:22
+   UTC — a clean clone of tag `v1.0.0` (`70508c6`), built on this machine (Node v26.9.0, Vite
+   8.3.1 with Rolldown), gives `dist/index.html` 457 bytes
+   (`721ee2ad792a5c80f12da8103c96a60bf90b3fc0cbfff4099962b0b653abfee8`) and
+   `dist/assets/index-BhY-O45V.js` 496,884 bytes
+   (`384c76307eb206e8ab369c0786681b675bd8f8b97a8db92f92554676b7c809bf`); both files served at
+   `https://heroesims.pages.dev/` and `/assets/index-BhY-O45V.js` at 07:22:20 UTC hash
+   identically, so the live page is byte-identical to a build of `70508c6`.
+4. **The deployment.** Id `5bef971d-d876-4473-be20-84a17096830c`, URL
+   `https://5bef971d.heroesims.pages.dev`, environment Production, branch `v1.0-release`; read
+   2026-09-28 ~07:23 UTC with the owner's login (`npx -y wrangler@4 pages deployment list
+   --project-name heroesims --json`, wrangler 4.142.0), and the latest of three deployments
+   listed, so production.
+5. **Both `e2e:live` results.** At the deploy, 2026-09-27 21:30 UTC: 2 passed (6.0 s), "ok 2
+   [phone] ... the deployed page creates a game, saves it, and loads it after a reload (5.0s)"
+   (phone and desktop). Fresh, before any v1.0.1 deploy, 2026-09-28 07:22:20–07:22:25 UTC, from
+   the `v1.0.0` clone against `https://heroesims.pages.dev`: 2 passed (2.0 s), "ok 1 [desktop] ...
+   (1.1s)", "ok 2 [phone] ... (1.1s)".
+6. **M7's deployments, for completeness (DL-75).** The same list shows two earlier Production
+   deployments on `v1.0-release`: `df0a073a-662d-48d2-a01d-6073908b1165`
+   (`https://df0a073a.heroesims.pages.dev`, source `ba38eb5`, 07:47 UTC 2026-09-27) and
+   `3ba30ba0-5419-422f-a352-2fd6f51e35e2` (`https://3ba30ba0.heroesims.pages.dev`, source
+   `d792a76`, 07:51 UTC 2026-09-27); three deployments in the project in all.
+7. **What is never recorded.** No Cloudflare account id and no dashboard link appear in this
+   entry or in the evidence it is written from; the deployment list's dashboard links were
+   dropped before the list reached this story.
+
+**Consequences.** M8's deploy (#14, DL-88 item 6) is on the record before any v1.0.1 deploy
+replaces the live page. Item 5's fresh `e2e:live` result meets S2's second acceptance box; INPUTS
+7.8's Now column gains a dated note naming this entry, made in v1.0.1-S3 rather than here, to
+avoid a conflict with S3's own edit of that row. What stays missing, not guessed: the exact deploy
+second and the wrangler version used at deploy time, neither recoverable from the evidence
+gathered.
+
+## DL-94 — The Worker beside Pages: `web/wrangler.jsonc`, a deploy script that refuses all but a clean checkout of a release tag, builds once and uploads to the Worker then Pages, its record read from wrangler's output file, and the live check on both addresses (v1.0.1-S3)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S3 within
+the plan the owner approved in DL-92; the account's workers.dev subdomain, `magical-potato`, is the
+owner's, read in the dashboard and given on 2026-09-28 (the epic's S7 step 1)
+
+**Context.** DL-88 items 7 to 9 move the page to Cloudflare Workers static assets beside Pages
+(#13), and item 6 has each deploy recorded. DL-92 names the Worker `heroesim` (item 4), has the
+deploy refuse anything but a clean checkout of a release tag (item 5) and proposes the Worker's
+configuration and the address rule (item 6). v1.0.1-S3 builds them: the configuration, a deploy
+script behind `npm run deploy`, `web/src/deploy.test.ts`'s pins changed in one commit, the live
+check on both addresses, and the documents, with the M8 epic's §0 note that DL-82 item 20 asked
+for (#18). DL-68's command, `npm run build && npx -y wrangler@4 pages deploy dist …`, uploaded to
+Pages alone, from any checkout. The owner gave the subdomain before this story closed, so the
+Worker's full address is written in: `https://heroesim.magical-potato.workers.dev`. Wrangler's
+behaviour below was read in wrangler 4.142.0's own `wrangler-dist/cli.js` (the npx cache on this
+machine), beside the Cloudflare documentation the plan's research cites.
+
+**Decision.**
+
+1. **`web/wrangler.jsonc`, as DL-92 item 6 and the epic give it:** `name` `heroesim`;
+   `compatibility_date` `2026-09-28`, the day it was written (already that date in UTC);
+   `assets` with `directory` `./dist` and `not_found_handling` `none`; `workers_dev` true;
+   `preview_urls` false; no `main`, `account_id`, `pages_build_output_dir` or `$schema`. Its
+   comments, whole lines, say why each is so. The address is not written in it, so that a
+   correction touches one constant (item 3). With the go-ahead the orchestrator gave for this run
+   (the owner's subdomain being set), from `web/` after `npm run build -w web`,
+   `npx -y wrangler@4 deploy --dry-run --config wrangler.jsonc` (wrangler 4.142.0) read the file
+   and uploaded nothing, exit 0: "Read 3 files from the assets directory …\web\dist" (a recursive
+   `readdir` that counts `assets/` itself; the manifest skips directories, so two files), "Total
+   Upload: 0.37 KiB / gzip: 0.27 KiB", "No bindings found.", "--dry-run: exiting now.". Its
+   output file held a `wrangler-session` entry (`wrangler_version` 4.142.0) and a `deploy` entry,
+   `worker_name` `heroesim`, `version_id` null and no `targets`, as a dry run leaves them.
+2. **The deploy is `web/scripts/deploy.mjs`,** zero-dependency Node beside `check-bundle.mjs`.
+   `web/package.json`'s `deploy` is `node scripts/deploy.mjs`; the root's stays
+   `npm run deploy -w web`. `deploy.d.mts` declares its exports, and TypeScript resolves the
+   import of `deploy.mjs` to it, so web's strict typecheck covers its callers with
+   `web/tsconfig.json` unchanged. The script:
+   - **refuses before building,** exit 1, naming every reason at once, unless `git status
+     --porcelain` prints nothing; `git tag --points-at HEAD` lists exactly one tag beginning `v`
+     (none, a milestone tag alone or two release tags refuse); and no wrangler configuration but
+     `web/wrangler.jsonc` sits in `web/` or any directory above it to the filesystem's root. The
+     names are the three `findWranglerConfig` walks up for, `wrangler.json` in every directory
+     first, then `wrangler.jsonc`, then `wrangler.toml`, so a stray `wrangler.json` anywhere above
+     would win for `pages deploy`, which takes no `--config`. Two refusals are this story's own:
+     any argument but `--dry-run`, so that a mistyped `--dryrun` never deploys; and npm's
+     `npm-cli.js` or `npx-cli.js` missing where they are looked for.
+   - **builds once,** `npm run build` in `web/` (Vite, then the bundle gate), and stops if it fails.
+   - **uploads to the Worker, then to Pages,** from `web/`, stopping at the first failure:
+     `npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit
+     <sha>"`, the only places a Worker version keeps a commit; then, as before,
+     `npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release`, which
+     reads the commit from git. Each failure says what was uploaded and what was not.
+   - **runs no shell.** npm and npx run as `process.execPath` with the `npm-cli.js` that
+     `npm_execpath` names and the `npx-cli.js` beside it, or, when `node` runs the script and sets
+     no `npm_execpath`, the two in `node_modules/npm/bin/` beside `process.execPath`
+     (`C:\Program Files\nodejs\` on this machine); git runs as `git`. No `shell` option is
+     passed, so `--message` reaches wrangler as one argument.
+   - **inherits wrangler's stdio,** for its prompts, and reads the record from
+     `WRANGLER_OUTPUT_FILE_PATH`, set for each run to its own file in a directory made in
+     `os.tmpdir()` and removed afterwards. Wrangler appends one JSON object a line, each with a
+     `timestamp` (`writeOutput`): `wrangler-session` (`wrangler_version`), `deploy` (`version_id`,
+     `targets`) and `pages-deploy-detailed` (`url`, `environment`,
+     `deployment_trigger.metadata.commit_hash`). After both uploads the script prints the tag, the
+     commit, the UTC time, each run's wrangler version, the Worker's version id, address and time,
+     and the Pages deployment's URL, environment, commit and time. It warns loudly, in lines
+     marked WARNING, when the Worker's `targets` do not hold `addresses.worker`, naming
+     `HEROESIM_LIVE_URL` and what to correct. Beyond the epic, it also warns when Pages took the
+     deploy as other than production, when Pages recorded another commit (compared as a prefix,
+     in case it keeps an abbreviated hash), and when wrangler wrote no record. A warning leaves
+     the exit status 0, since both uploads were made.
+   - **`--dry-run`,** or `npm_config_dry_run` set to anything but empty or "false", runs the
+     checks and the build and prints both wrangler commands, running neither. npm 11.19.1 was
+     tried in a scratch package: `npm run <script> --dry-run`, from a workspace or through the
+     root's `-w` delegate, still runs the script, with no argument, and sets
+     `npm_config_dry_run=true`; `npm run <script> -- --dry-run` passes the argument instead.
+   - **takes its process as options** (`argv`, `env`, `webDir`, `execPath`, `tmpdir`, `spawn`,
+     `log`, `warn`, `now`), `spawn` in `spawnSync`'s shape, so the tests run every path with a
+     fake and see the exact options each child is given. It runs when Node runs the file
+     (`import.meta.main`, or, on a Node 22 without it, `process.argv[1]` against the module's URL),
+     never when a test or the live configuration imports it.
+   - **writes the release branch once,** `releaseBranch`, for #37.
+3. **The addresses are one constant, `addresses` in `web/scripts/deploy.mjs`:**
+   `{ worker: 'https://heroesim.magical-potato.workers.dev', pages: 'https://heroesims.pages.dev' }`,
+   which `web/playwright.live.config.ts` imports. **A departure from the epic's words**, which put
+   the constant in the live configuration: the deploy's warning needs the Worker's address in
+   plain Node, which cannot import that TypeScript file on every supported Node without a loader,
+   and one constant both read cannot drift as two copies kept equal by a test could.
+4. **The live check: four projects,** `worker-phone`, `worker-desktop`, `pages-phone` and
+   `pages-desktop`, each address at 360 × 800 and 1280 × 800. **`HEROESIM_LIVE_URL`**, the
+   one-address override this entry names, replaces both addresses with the one it holds when set
+   and not blank: `override-phone`, `override-desktop`. It is added to INPUTS §9, with
+   `WRANGLER_OUTPUT_FILE_PATH`, and `CLOUDFLARE_ACCOUNT_ID`'s row notes an agent's deploy.
+   `web/e2e/deployed.live.ts` is unchanged (it reads `baseURL`), no configuration file was added,
+   and `web/tsconfig.json`'s include list stays. `npm run e2e:live -w web -- --list` lists 4
+   tests, and 2 with `HEROESIM_LIVE_URL=https://heroesims.pages.dev`.
+5. **The tests.** `web/src/deploy.test.ts` keeps DL-68's (the root's delegate, npx-only
+   wrangler, `.gitignore`, no `.wrangler/` file, the credential scan and its fixtures, the Pages
+   fixture updated and the Worker's command added beside it) and adds: the new `deploy` string;
+   both wrangler commands; the release branch written once; the configuration's exact keys; the
+   Worker's full address, matching `https://heroesim.<subdomain>.workers.dev` with no
+   placeholder, in the constant, the README and INPUTS 7.8's row; the README's strings; the live
+   configuration imported, four projects and two under the override; and, with a fake spawn
+   answering for git, npm and wrangler (the record in wrangler 4.142.0's shape), the refusals
+   (dirty, untagged, a milestone tag alone, two release tags, git failing, a dry run untagged,
+   each of the three names above `web/` and a second one in it, a mistyped flag, npm missing),
+   one build then the Worker then Pages with no `shell` option and `--message` whole, npm found
+   both ways, the first failure stopping each of the three steps, a record file for each run in
+   the temporary directory and removed, the record printed, each warning, and the dry run by
+   `--dry-run` and by `npm_config_dry_run` alone calling no wrangler. The file has 54 tests,
+   33 more than before; no test runs npm, wrangler or a git command that writes. Fifteen mutants
+   of the script made by hand each fail a test: a `shell` option, Pages uploaded first, the
+   message cut to the tag, `npm_config_dry_run` ignored, the dry run ignored, each of the five
+   refusals dropped (dirty, untagged, two tags, a stray configuration, an unknown argument), a
+   failed build or Worker upload ignored, the address warning dropped, the record directory kept,
+   and npx looked for in the wrong place.
+6. **The documents.** The README's Play names both addresses and says saves stay with each,
+   moved only by "Export this game" and "Load a save file"; its Deploy gives the subdomain, the
+   deploy from a clean checkout of its release tag (`npm ci`, `npm run deploy`, `npm run e2e:live
+   -w web`), the guard, both commands, Pages' expected warning, the dry run, the record and the
+   override; its opening paragraph says what `v1.0.1` is rather than "next comes", so that it
+   holds at the tag. INPUTS 7.8's Answer gains the full address and the deploy, and its Now
+   column a dated note that M8's deploy is recorded in DL-93: S2's, made here so that the two
+   parallel branches do not both edit that cell. INPUTS 7.9's Answer and §9, plan §2 (a dated
+   note), and the M8 epic's §0: a dated note naming DL-82 item 20, that the probe has been in the
+   web bundle behind `?modules=probe` since M8-S4 (DL-79 item 3) and leaves the page once Random
+   Events' installation lands (#18).
+7. **Tried, by dry run only.** On this branch, dirty and untagged, `node scripts/deploy.mjs
+   --dry-run` and `npm run deploy --dry-run` from `web/` refused ("the checkout is not clean",
+   "HEAD carries no release tag (v*)"), exit 1, building nothing. In a scratch clone of this
+   branch with S3's files committed there: clean and untagged, the dry run refused on the tag
+   alone, as did `npm run deploy --dry-run` from the root and a milestone tag alone; a
+   `wrangler.json` in the directory above the clone refused; `--dryrun` refused. With a local
+   scratch tag, `v9.9.9-scratch`, both `node scripts/deploy.mjs --dry-run` and `npm run deploy
+   --dry-run` from the root passed the guard, built once (the gate: 2 files, the script 496.88
+   kB, 144.94 kB gzipped) and printed both commands, the message as "v9.9.9-scratch at commit
+   ecc8183…", exit 0. The build is byte for byte the page served on 2026-09-28 (the epic's S2):
+   `index.html` SHA-256 `721ee2ad…abfee8`, `assets/index-BhY-O45V.js` `384c7630…c809bf`, since
+   nothing here reaches the bundle. Besides item 1's dry run, wrangler ran only twice more, by a
+   quoting slip in a shell command of this story's that split `npx -y wrangler@4 deploy
+   --dry-run --config wrangler.jsonc` before the file name: wrangler refused both at its argument
+   parsing ("Not enough arguments following: config"). Nothing was uploaded. The scratch clone
+   and its tag were deleted.
+
+**Consequences.** #13's code is built; its deploy is S7's, the first to both addresses.
+`npm run build -w web` still passes the gate, `web/e2e/smoke.spec.ts` still opens the page from
+`file://` (`npm run e2e`, 20 of 20), and lint, typecheck and `npm test` (114 files, 2,755 tests)
+pass. #18's one box is met here and the issue is closed in S7. What stays open: each host's
+headers, recorded in DL-98 (no `_headers` file, as DL-92 item 6 proposed); the Worker's first
+deploy, which S7 runs and DL-98 records with any correction of the address; the rule for a v1.0.x
+deploy once #37 moves production to `v1.1-release`, left to #37; and one route the guard does not
+cover, wrangler's redirected configuration (`.wrangler/deploy/config.json`, found by walking up,
+which `pages deploy` honours): nothing in this repository writes one, `.wrangler/` is ignored,
+and a fresh clone of the tag holds none.
+
+## DL-95 — Shared places and the Bankruptcy countdown: `rankingPlaces` beside an unchanged `rankings`, shown as "joint 1st" on the page and "joint 1" in the CLI; `bankruptcyCountdown` from `belowFloorSince` and the game's own grace, in the header, after `advance` and in `show` (v1.0.1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S4 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S4 (#39, DL-92 item 1) fixes two things both front ends showed badly. `rankings`
+gives each Guild its own rank, ties ordered by Guild id, so a new game, every Guild at Fame 0, showed
+"1st of 5 by Fame" in the page's header, 1st to 5th in its Rankings and Rank 1 to 5 in the CLI's
+`show rankings`: a place won by being made first. And the Bankruptcy grace ran unseen: each night
+the Guild State Engine, after any Upkeep due, sets `belowFloorSince` while Wealth is below
+`bankruptcyFloor` and clears it otherwise, and later that night the ending check ends the Guild once
+`dayOf(turn) >= dayOf(belowFloorSince) + bankruptcyGraceDays`. DL-26 item 3 gave that no event
+because a front end would read `belowFloorSince`; neither did. The hotfix bar (H1) allows no rule,
+content, config, schema or event change: in `engine/` only two read-only selectors and their tests,
+and `rankings` stays as it is, since the harness report and a module's `ctx.select` read it.
+
+**Decision.**
+
+1. **`rankingPlaces(world, by)`, beside `rankings` in `engine/src/selectors.ts`.** Rows
+   `{ guildId, value, place, joint }` in `rankings`' order, so a folded Guild is absent and level
+   Guilds still list by Guild id; `place` is one more than the Guilds in play with a greater value,
+   and `joint` is set when another Guild in play has the same value. Five Guilds at Fame 0 are all
+   first and joint; Fame 9, 4, 4 and 1 give 1st, joint 2nd, joint 2nd and 4th, the place after a
+   tie skipping as a league's does. `joint` is the engine's answer, so neither front end counts
+   level Guilds itself (ADR-0007). `rankings` and its tests are unchanged, and `ModuleSelectors`
+   does not gain the new selector: the module API is as M8 left it.
+2. **The words for a place.** The page says `joint 1st` for a shared place (`placeWords`,
+   `web/src/state/names.ts`): the header's "joint 1st of 5 by Fame", and the Place of each row of
+   its Rankings. The CLI's `show rankings` prints the Rank column as `joint 2` for a shared place and
+   `4` for one no Guild shares, right-aligned as before: the epic's "the CLI marks its Rank joint".
+3. **`bankruptcyCountdown(guild, config)`**, beside it: `null` while `belowFloorSince` is null,
+   else `{ sinceDay: dayOf(belowFloorSince), dueDay: sinceDay + config.bankruptcyGraceDays }`. It
+   reads only the rule's input and takes the grace from the config it is given, never a literal: the
+   page passes `playDeps(document).config` and the CLI the save's own deps, so a save playing under
+   another grace counts down by it. Because it does not read Wealth, it stands after Wealth rises
+   during a Day until that night's check clears it, as the rule does. `endings.ts` is unchanged, and
+   one test ties the selector to it: `engine/src/selectors.test.ts` plays a Bankruptcy under graces
+   of 0, 3, 10 and 30 Days and finds `world.ended` on the night of the countdown's `dueDay`, and not
+   on the Turn before.
+4. **One sentence, in both front ends:** "The Lantern has been below the Bankruptcy floor since Day 4:
+   Bankruptcy on the night of Day 34 unless Wealth is back to 0 or more on a night by then, after any
+   Upkeep due." The epic's sentence was a guide; this one says the same with two changes. It names
+   the Guild, so it stands alone in the CLI's output and, from S5, in the Time section. It gives the
+   floor's value, `bankruptcyFloor` from the same config, since "the floor" alone tells a player
+   nothing. "On a night by then" includes the due night, whose own check, after Upkeep and before
+   the ending check, clears the countdown if Wealth is back. The page's `countdownView(document)`
+   (`web/src/state/selectors.ts`, exported for S5) and the CLI's `renderCountdown(document, deps)`
+   (`cli/src/render.ts`) word it.
+5. **Where it shows.** The page's header shows it as a paragraph under its facts
+   (`data-testid="countdown"`), styled as the ending's line. The CLI prints it on the line after
+   `advance`'s "Played … Now …" and any stop line, in `renderAdvance`, so `advance --until` prints
+   it too, and in `show`'s summary on the line after the seed and Turn. **Neither shows it once the
+   game has ended**: a Bankruptcy leaves `belowFloorSince` set, and the header and `advance` then
+   say how the game ended; a countdown to a night that has come would mislead. This is the one
+   reading beyond the epic's "while it is set".
+6. **No event, no stop, no rule.** Fast forward still runs through the grace; the stop is #32's, on
+   the v1.1 line. S5 shows the countdown between steps through `countdownView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine` lists `engine/src/selectors.ts` and
+`engine/src/selectors.test.ts` alone: `rankings`, `endings.ts`, `GameConfig`, content, the schema and
+the events are `v1.0.0`'s, so every seed plays as before. The tests that asserted a new game's
+unshared ordinal now assert the shared place: `web/src/app.test.tsx` (the header),
+`web/src/state/selectors.test.ts` (`headerView`) and `web/src/state/world-views.test.ts`
+(`rankingsView`, now against `rankingPlaces`). The page's Rankings by Wealth after six Turns
+(`web/src/views/world.test.tsx`) and the CLI's `show rankings` test
+(`cli/src/commands/recruit.test.ts`) arrange distinct values and pass unchanged. The web bundle is
+497.73 kB (145.14 kB gzipped) after this story. Left open: the harness's "player's Rankings place"
+reads `rankings`' rank, in which the player's Guild, `guild-000001`, wins every tie by its id, so a
+place it shares counts as its own; the report is unchanged here, and whether it should count a
+shared place is for the v1.1 line's reading of the Rankings band (DL-91 item 2). CONTEXT.md is
+unchanged: a shared place is how the Rankings are shown, not a new rule or term.
+
+## DL-96 — Fast forward in steps: `fastForward` calls of at most 30 Turns (`fastForwardStepTurns`), each settled after a paint, the steps' game held until the end, progress and the countdown in the Time section, and a Stop that ends it between steps with the page's own sentence (v1.0.1-S5)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S5 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S5 (#39, #32's chunked part; DL-88 item 1, brought forward by DL-92 item 1)
+fixes the page's fast forward. `run` (`web/src/state/reducer.ts`) made one `fastForward` call of up
+to `turnsPerYear` (1,080) Turns once `useGame` had painted "Playing the Turns…": a year blocked the
+page for 1.6 to 5.4 s (DL-81 item 6), with no progress and no way to stop. DL-88 item 1 chose steps
+of about 30 Turns in the reducer, with progress and a Stop; DL-65 item 4 had left chunking open. The
+hotfix bar (H1) allows no engine change: `fastForward`'s `maxTurns` (`engine/src/fast-forward.ts`)
+already caps a call, and `engine/src/stops.ts` detects each reason from the Turn alone. The epic left
+one question to this story: whether each step's document reaches the page, moving the header.
+
+**Decision.**
+
+1. **Steps of at most 30 Turns, each after a paint.** `fastForwardStepTurns = 30` is a constant in
+   `web/src/state/reducer.ts`: pacing, how often the page paints its progress and can take a Stop,
+   not a rule, so not a `GameConfig` field (DL-92 item 6). `settle` on a pending fast forward makes
+   one `fastForward` call of the smaller of 30 and the Turns left of its cap (a year unless the play
+   names one), with `playDeps(document, modules)` (DL-79 item 2). A step that stops on `max-turns`
+   with Turns of the cap left makes the rest, the same `until` and `maxTurns` the Turns left, the
+   pending play, so `useGame` settles it after the next paint as it settles any play (DL-65 item 4:
+   a frame, then a task). Any other stop, or the cap reached, ends the fast forward. The cap is
+   checked whole, with the engine's own message: a step's smaller cap would let an infinite one step
+   on for ever, where one call threw. A cap of 0 is one call that plays nothing and stops on
+   `max-turns`, as before.
+2. **Why the steps end where one call would.** `fastForward` is `advance` in a loop, and every reason
+   to stop is read from one Turn: the world before and after it, its events, and what `advance` said
+   of a module's stop. A split between Turns changes none of these; the History is appended in place
+   by the same Turns in the same order (ADR-0008); the probe counts its stop from `lastStopTurn` on
+   its own slice, in the document (DL-78). `max-turns` is the one reason a step can give that the
+   whole fast forward would not, and it is the one on which the steps go on. Tested, not argued:
+   `web/src/state/reducer.test.ts` loads one save twice and gives byte-equal `serialise(document)`,
+   the same events and the same stop reason for the steps and for one call, in more than one step
+   each: the player's Roster released to the pool with Wealth to spare (36 steps to `max-turns`); a
+   Party out on a Quest of ten Days, home on the 32nd Turn, partway through the second step;
+   `pool-refreshed` listed (the 32nd Turn); a cap of 100 (steps of 30, 30, 30 and 10); and the probe
+   installed, its stop on the 91st Turn, in the fourth step. A new game stops after 3 Turns inside
+   one step, as one call does.
+3. **The steps' game is held until the fast forward ends: settled here, no.** Between steps the
+   state's `forwarding` holds `{ until, turnsPlayed, document, events }`, the game the last step left
+   and every step's events; the game in hand, the log, and so the header and every section, stand as
+   they were until the fast forward ends or is stopped, when they become its game and its log, as one
+   call's would. Measured in the built page (Playwright's Chromium on the build machine, the spec's
+   year with the Roster released, four runs at each width): one call 491 to 554 ms; steps with each
+   step's document on the page 1,160 to 1,770 ms; steps with it held 645 to 933 ms. Re-rendering every
+   section, and narrating the growing log again, at each of 36 steps more than doubled a year; held,
+   the steps cost little more than their paints. The header's Day and countdown would also repeat
+   what the progress says. So that
+   holding stays cheap, the log section now reads its lines again only when the game or the log
+   changes (`web/src/views/log.tsx`), not at each step, where a year's log from the play before
+   would otherwise be narrated again 36 times.
+4. **Progress in the Time section.** `progressView(state)` (`web/src/state/selectors.ts`) reads the
+   held game: "Played 90 Turns so far. Now Day 30, morning, Year 0.", in the CLI's "Played … Now …"
+   words, and S4's `countdownView` of that game while the player's Guild is below the floor (DL-95
+   item 4). The section shows it under "Playing the Turns…" between steps (`data-testid="progress"`),
+   with the Stop, so a fast forward that ends in its first step, as a new game's 3 Turns do, shows
+   neither.
+5. **The Stop.** `{ kind: 'stop' }` is a control action beside `settle` and `dismiss`, taken while
+   busy, and only while a fast forward is between steps; otherwise it changes nothing. A step runs in
+   one task, so a tap is taken between steps, at most a step after it was made, and the Stop ends the
+   fast forward there, with no further step: the held game and events become the game in hand and
+   the log, and `stopped` keeps
+   `{ until, turnsPlayed }`. `StopReason` is unchanged: `stoppedBecause` is `null` after a Stop, and
+   `stopView` gives the page's own sentence, kind `player`: "Stopped: you asked to stop, after 90
+   Turns.", with "Fast forward again", which asks for the stops the stopped fast forward was asked for
+   (`pool-refreshed` among them), for a new year from where it stopped. The button says "Stop the
+   fast forward", since every control's name says what it does. `useGame` now calls off a settle it
+   has asked for when the pending play changes or is cleared (its effect's cleanup cancels the frame
+   and the task), so a fast forward asked for straight after a Stop is not settled, without a paint,
+   by the settle asked for before it (`web/src/state/use-game.test.tsx`).
+6. **Plays while it runs are dropped as busy**, by the rule the page already had (DL-65 item 3): the
+   state is busy from the tap to the step that ends it, the Time section's buttons are disabled, and
+   any play gets the same state back. The CLI's `advance --until` stays one call.
+7. **Departures from the epic, each small.** The epic's "ending the fast forward after the current
+   step" is read as item 5 does: the Stop is taken once the running step has ended, and no further
+   step runs. The progress and the Stop show from the end of the first step, not from the tap: no Turn has
+   been played before it. "Fast forward again" after a Stop keeps the stopped one's `until`, which the
+   epic left unsaid; after `max-turns` it asks for none, as before. The names are
+   `fastForwardStepTurns`, `Stop`, `forwarding`, `stopped` and `progressView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine/src/fast-forward.ts engine/src/stops.ts` is
+empty, and `engine/` still differs from `v1.0.0` only by S4's selectors (DL-95): every seed plays as
+before. Changed in `web/`: `src/state/reducer.ts` (the steps, `Stop`, `forwarding`, `stopped`, the
+cancellable settle), `src/state/selectors.ts` (`progressView`, the player's stop in `stopView`),
+`src/views/time.tsx` (the progress and the Stop), `src/app.tsx`, `src/views/log.tsx`; tests in
+`src/state/reducer.test.ts` (the one-call test now expects a step of 30), `src/state/use-game.test.tsx`,
+`src/state/selectors.test.ts`, `src/app.test.tsx`, with `withRosterReleased` and `withPartyOut` in
+`src/state/game.test-support.ts`, whose `played` now settles step by step; and a new browser spec,
+`e2e/fast-forward.spec.ts`, which makes its year save from a new game's export, opens it with "Load a
+save file", sees at least two Days in the progress and a Stop take effect within a step, at both
+widths. The web bundle is 499,648 bytes (145.70 kB gzipped), against `v1.0.0`'s 496,884 and S4's
+497.73 kB. CONTEXT.md is unchanged: the player's Stop is the page's control, not a Fast-forward stop,
+and a fast forward still lands exactly where as many single Turns would. Left open: during a fast
+forward the header shows the game as it was when it began, and a section that reads the History
+(shared, ADR-0008) may already show the steps' entries, every one of which the game keeps, a Stop
+included; #32's Bankruptcy stop and events stay on the v1.1 line.
+
+## DL-97 — v1.0.1 verified and closed: "Export this game" held while a fast forward is between its steps, a mistyped dry run given to npm refused, the guard's other gaps and a half-made deploy's record closed, tests that kill the 23 surviving mutants, `v1.0.0`'s fingerprint on 50 × 20, and the close-out lines (v1.0.1-S6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the fixer and closer of
+v1.0.1-S6), within the plan the owner approved in DL-92, acting on the findings of the story's
+verification lenses, each checked again against the code before it was acted on; no engine rule,
+content value, `GameConfig` field, schema, event type or `StopReason` changes, and the owner has not
+seen the findings
+
+**Context.** v1.0.1-S6 verifies S1 to S5 (DL-93 to DL-96) as merged on `v1.0-dev` at `3e4e1fb`, the
+plan commit `45fd6ea` and the five stories, independently of their builders and against `v1.0.0`
+(`70508c6`). Four verifiers, agents, ran the epic's lenses, each in a worktree or scratch clone of its
+own at `3e4e1fb`: play-neutrality; mutants of the new code, as DL-74 and DL-80 did; the deploy's
+guard, by dry run only; and every acceptance box with the decisions. None deployed, and wrangler ran
+only with `--dry-run`. They found one major defect in play, S5's; one major gap in the guard, S3's;
+23 mutants of the new code that the suite let live, seven of them major; and minor points in the
+guard and its record, the page's words, the documents and this story's own procedure. The fixer
+checked each finding against the code again (each surviving mutant re-applied in this story's
+worktree and seen to survive: the deploy's and the live check's against `web/src/deploy.test.ts`,
+the only test that imports them, the rest against the whole suite, 2,801 tests), fixed each within
+the hotfix bar, and closed the epic.
+
+**Decision.**
+
+1. **What the lenses ran and measured, at `3e4e1fb`.**
+   - *Play-neutrality*, in a detached worktree, Node 26.9.0, 16 processes, no module installed. The
+     sweep twice: `HEROESIM_VALIDATE=1 HEROESIM_SEEDS=50 npm run harness -- play.harness`, as
+     `v1.0.0`'s reference was taken (DL-78 item 7), 2026-09-28 08:55:30–09:07:56 UTC, 742.7 s; and the
+     epic's command with `--silent=false` (item 6), 09:09:30–09:18:10 UTC, 517.5 s. Both gave the
+     "Fingerprint of every seed's last save"
+     `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, the `v1.0.0` tagged run's
+     for its first 50 seeds (DL-81 item 3; `git diff --stat 21fd4d4 v1.0.0 -- engine content harness
+     package-lock.json` shows only that run's report and milestone line). 49 games ran their 20 years
+     and `seed-0049` went bankrupt; 148 Rival folds; no refused action, validator refusal or stopped
+     assertion; `seed-0001` replayed identical (113,281,366 characters); 50 of 50 saves round trip;
+     every counter equals the probe report's "with no module" column. A watcher copied the 16 shards'
+     results before each sweep deleted them: the two runs' per-seed tables are byte-identical and
+     hash to the fingerprint, so validating changes no play. `git diff --stat v1.0.0 -- content
+     harness package-lock.json engine ':!engine/src/selectors.ts' ':!engine/src/selectors.test.ts'`
+     printed nothing before and after both. Schema version 3, config version 10, content version
+     14; `events.ts`, `stops.ts`, `document.ts`, `config.ts`, `fast-forward.ts` and the engine's
+     `index.ts` are `v1.0.0`'s; `rankings` and both its test blocks are byte-identical; the two new
+     selectors only read. The report was restored after each sweep and none committed.
+   - *Mutants*, in a detached worktree: 126 made by hand, each applied alone and run against the
+     tests that cover it, the file reverted after. 103 were killed and 23 survived: S3 12 of 54, S4
+     2 of 30, S5 9 of 42. Four more were set aside as equivalent (a child's `error`, which
+     `spawnSync` gives only with a null status; a rest's Turns, which follow only a full step;
+     `!belowFloorSince` for a Turn never 0; `find` for `findLast`). No wrangler, deploy or build ran.
+   - *The guard*, in a scratch clone of `3e4e1fb` with `npm ci`, a tripwire in `NODE_OPTIONS` ready
+     to kill any `npx-cli.js` or wrangler process, which started none. Untagged, `node
+     scripts/deploy.mjs --dry-run` refused on the tag, exit 1, building nothing; a changed file
+     refused as "not clean". With a local tag `v9.9.9-guardtest` on a clean tree, `node
+     scripts/deploy.mjs --dry-run`, and `npm run deploy --dry-run` from `web/` and from the root,
+     each passed the guard, built once (the script 499,648 bytes) and printed both commands.
+     `--dryrun` given to the script refused, and so did a `wrangler.json` in the clone's root.
+     Wrangler 4.142.0's `cli.js` was read for the record's entries, the configuration walk, the
+     redirect and the `.env` files; a dry run there makes no API call. Four `wrangler deploy
+     --dry-run` runs, nothing uploaded. `npm run e2e:live -w web -- --list`: 4 tests, 2 under
+     `HEROESIM_LIVE_URL`, 4 under a blank one. The tag and the clone were deleted.
+   - *Acceptance and decisions*, in a detached worktree: `npm run lint` and `npm run typecheck`
+     clean; `npm test` 114 files, 2,801 tests; `npm run e2e` 22 passed; the ten test files the S3 to
+     S5 boxes cite, 318 tests, every name cited present and passing; CI green at `45fd6ea` and at
+     `3e4e1fb` (runs 36391149970 and 36399962158) and on `v1.1-dev` (36391223869). The built page,
+     played at 360 and 1,280 px in Chromium: joint places in the header and the Rankings; a year's
+     progress in 35 sentences, Day 10 to Day 350; the Stop taken at the Turns shown in 9 of 10 real
+     clicks, and a step later once; the countdown between steps and after a Stop, gone once the game
+     ended; no horizontal overflow in any state. DL-92 to DL-96 agree with the owner's answers and
+     the house rules; the log runs DL-01 to DL-96 with no gap and was appended to only; no account
+     id or dashboard link is in the tree; the 22 relative links in the documents changed resolve. S1
+     to S5 accepted.
+2. **"Export this game" waits while a fast forward is between its steps** (play-neutrality, major;
+   S5's). Between steps the game in hand is the document from before the fast forward (DL-96 item
+   3), and its History is the one the steps' documents append to (ADR-0008; `advance`), so it holds
+   the Turns the steps have played and its World has not. The button was enabled while busy and
+   exported that document: the verifier's file, at Day 0 with a History to Day 10, failed the page's
+   own load ("counter-range, history-turn-order"), so a player who exported mid-run and closed the
+   tab lost the game. In `v1.0.0` a fast forward was one blocking call, and only a click queued
+   during it could have met a document in that state. The button is now disabled while busy, as
+   "Save in this browser" and "Load a save file" already were (`web/src/views/game-file.tsx`).
+   `web/src/app.test.tsx` ('"Export this game" waits between steps, …') finds it disabled between
+   steps, with no download on a click, and after a Stop enabled, its file loading through the
+   reducer's `load` at the Turn the Stop names; `web/e2e/fast-forward.spec.ts` reads, in the page's
+   task that takes the Stop, the button disabled and the year's stop gone, and the button enabled
+   after, at both widths. Nothing in the engine, the saves or the History changes; a History
+   section read mid-run may still show the steps' entries, as DL-96's Consequences say.
+3. **A mistyped `--dry-run` given to npm is refused** (the guard, major; S3's). npm keeps a flag
+   given before its own `--` and hands the script only `npm_config_<name>`: `--dryrun` becomes
+   `npm_config_dryrun`, and the root's `deploy`, `npm run deploy -w web`, puts even `npm run deploy
+   -- --dryrun` before the inner npm's `--`. The script saw neither `--dry-run` nor
+   `npm_config_dry_run`, so that typo, typed at the root as the README and S7 run the deploy, on a
+   clean checkout of a `v*` tag, would have uploaded to both hosts: the verifier showed it with a
+   fake spawn, exit 0 and two wrangler runs. Tried again here, in a scratch workspace copying the
+   delegate, with npm 11.19.1: at the root `-- --dryrun` and `--dryrun` arrive as no argument and
+   `npm_config_dryrun=true`, `--dryRun` likewise, `--dry-rn` as `npm_config_dry_rn`; in `web/`,
+   `-- --dryrun` arrives as the argument; of the `npm_config_*` names npm sets for a script, none
+   has "dry" or "run" in it. The script now refuses, before it builds, any `npm_config_*` name holding
+   "dry" or "run" other than `npm_config_dry_run`, which still means a dry run
+   (`web/scripts/deploy.mjs`). A typo holding neither would still pass; a deploy that uploads only
+   when told to, and dry-runs otherwise, would close that too, but changes how a release is
+   deployed, and is left to the owner. **Erratum to DL-94 item 2:** "`npm run <script> -- --dry-run`
+   passes the argument instead" holds in `web/` only; through the root's delegate the flag arrives
+   as `npm_config_dry_run`, and until this entry a mistyped one would have deployed.
+4. **Three more gaps in the guard and its record** (the guard, minor), each read in wrangler
+   4.142.0's `cli.js`:
+   - Wrangler loads `web/.env` and `web/.env.local` into its environment on every command
+     (`getDefaultEnvFiles`, `loadDotEnv`), and `.gitignore` ignores `.env`, so the clean check
+     passed a checkout whose `.env` named another account, token or Worker; the verifier saw
+     `WRANGLER_CI_OVERRIDE_NAME` in one rename the Worker in a dry run. The guard refuses either file
+     in `web/`: an untracked `.env.local` already failed the clean check, unless a global ignore
+     file hid it.
+   - `pages deploy` follows a redirect, `.wrangler/deploy/config.json`, found by walking up from
+     `web/` (`findRedirectedWranglerConfig`), and `.wrangler/` is ignored: DL-94's Consequences left
+     it open. The guard refuses one in `web/` or any directory above it, the filesystem's root among
+     them, as it refuses the three configuration names.
+   - When Pages failed after the Worker took the build, the script returned before printing any of
+     the Worker's record, and removed wrangler's file with it, so the attempt DL-92 item 6 and S7
+     step 4 record "as such" would have lost the Worker's version id. It now prints the Worker's part
+     (wrangler's version, the version id, the address and the time) and its address warning, then
+     exits with Pages' status.
+   The README's Deploy says all three, and item 3's typo.
+5. **Tests that kill the 23 surviving mutants.** Each mutant was applied alone in this story's
+   worktree after the tests were written, the tests named run and seen to fail, and the file written
+   back:
+   - the guard's git reads (D23 `tag --list`, D24 `--untracked-files=no`, D25 `rev-parse HEAD~1`):
+     `web/src/deploy.test.ts`'s fake git now answers only `status --porcelain`, `tag --points-at
+     HEAD` and `rev-parse HEAD`, each asked whole, and throws at anything else, so that every test
+     proves what the guard asks (40 fail under each), and 'asks git exactly what it reads…' pins the
+     three;
+   - a deploy run by an import (D41): `web/src/deploy-import.test.ts` imports the script and the live
+     configuration with `spawnSync` mocked to throw;
+   - the environment npm and wrangler are given (D19): 'hands npm and wrangler the deploy's own
+     environment…', `PATH`, the profile and an account id among it;
+   - a child ended by a signal, its status null (D21): the build's and the Worker's, in 'stops at the
+     first failure';
+   - `git status` failing alone (D22), `npx-cli.js` missing (D38) and a record line left unfinished
+     (D36): a refusal case and a test each;
+   - a stray configuration at the filesystem's root (D07): `web/src/deploy-root.test.ts`, with
+     `existsSync` answering for one file there;
+   - the live check's specs (P03) and a blank override (P02): two tests in 'the live check';
+   - the CLI's countdown under the save's floor (C04): `cli/src/render.test.ts` ("names the save's
+     own floor…", a floor of 50);
+   - a stop reason, the player's Stop or a refusal left standing between steps (R17, R16, R18):
+     `web/src/state/reducer.test.ts` ('between its steps holds none of what the play before it left:
+     %s'), and in the browser, item 2's check that the year's stop has gone;
+   - a year of the defaults' Turns rather than the game's (R29): `reducer.test.ts` ("with no cap,
+     plays a year of the game's own rules", `turnsPerYear` 90, three steps);
+   - a fired frame's task, and the branch with no frames, not called off (R20, R22):
+     `web/src/state/use-game.test.tsx` ('with %s, a settle asked for before a Stop is called off as
+     well': frames that fire at once, and none);
+   - "Fast forward again" after a Stop dropping its stops (T02): `web/src/views/time.test.tsx`;
+   - the log read again at every step (T07): `web/src/views/log.test.tsx`;
+   - the progress's Year and the header's "of N" (S10, S11): `web/src/state/selectors.test.ts`, a
+     game under `turnsPerYear` 30 and a folded Rival.
+   None is recorded as unkillable. Ten mutants of this entry's own code, run the same way, each fail
+   a test: the npm typo refusal dropped, narrowed to "dry", or refusing `npm_config_dry_run` itself;
+   no `.env` file, `.env.local`, or the redirect refused; the Worker's record not printed when Pages
+   fails, or printed with a Pages line; "Export this game" enabled while busy; the Time help's old
+   words.
+6. **The page's words and the documents** (acceptance and decisions, minor; and play-neutrality's
+   procedure):
+   - The Time section's help said a fast forward plays "a few Days at a time"; a step is 30 Turns,
+     ten Days. It says "30 Turns, ten Days, at a time", and `app.test.tsx` ties the words to
+     `fastForwardStepTurns`.
+   - Plan §2's DL-94 note called pages.dev the project "which M7 alone served"; `v1.0.0` has been
+     served there since 2026-09-27 (DL-93). It reads "which alone served the page from M7 to
+     `v1.0.0`".
+   - S4's first box said the diff of `engine/src/selectors.test.ts` was "adding lines only": its
+     import line also gains `type WorldDocument`. The box says so; both `rankings` blocks are
+     untouched.
+   - The S6 command block: run by an agent, Vitest 5.0.2 detects one (`std-env`: `CLAUDECODE` or
+     `AI_AGENT`) and reports minimally, printing no passing test's output, so the sweep printed no
+     fingerprint, and the block's next line removed the only copy, in the report. The sweep line
+     takes `--silent=false`. A run begun on another local date writes a report that
+     `harness/reports/*` makes git ignore, so neither `git checkout` nor `git status` sees it: the
+     block deletes it with `git clean -fX -- harness/reports/`, which leaves the tracked reports.
+7. **The sweep at this story's tree.** `HEROESIM_SEEDS=50 npm run harness -- play.harness
+   --silent=false`, the corrected line, in this story's worktree with its fixes in place (`engine/`,
+   `content/`, `harness/` and the lockfile as at `3e4e1fb`), 2026-09-28 09:55:54–10:03:44 UTC,
+   467.7 s on 16 processes, printed "Fingerprint of every seed's last save (DL-76):
+   11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02", `v1.0.0`'s: 49 games to their
+   20 years and one Bankruptcy, 148 Rival folds, no policy action refused, `seed-0001` identical
+   (113,281,366 characters), 50 of 50 saves round trip. The report was restored, none committed and
+   none left behind, and the epic's `git diff --stat` printed nothing.
+8. **After the fixes**, at this entry's commit: `npm run lint` and `npm run typecheck` clean;
+   `npm test` 118 files and 2,836 tests, 4 files and 35 tests more than at `3e4e1fb`; `npm run e2e`
+   22 passed, under the lock, the fast-forward spec's new checks among them. The bundle gate passed:
+   `web/dist/assets/index-CRCIF6ue.js` is 499,668 bytes (145.71 kB gzipped, Vite's count), 2,784
+   more than `v1.0.0`'s 496,884 and 20 more than S5's 499,648 (the Export button's `disabled` and the
+   help's words); `index.html` is 457 bytes.
+9. **Checked and left.** The owner's confirmation that no Worker `heroesim` exists in the account
+   (the epic's Inputs and S7 step 1) is recorded nowhere: DL-94 records the subdomain alone, and
+   nothing records whether S7 step 1 came before S2's deployment list (read about 07:23 UTC) and
+   DL-94's dry run. The wrangler runs so far were that list and dry runs, and a dry run makes no API
+   call (wrangler 4.142.0), so none could register a subdomain or touch a Worker. The owner is asked
+   before S7 step 3, and DL-98 records the answer; if a Worker `heroesim` exists, the deploy waits
+   for the owner.
+10. **The close-out lines.** The epic's Status is "done — 2026-09-28 (`v1.0.1`)", as M8's close wrote
+    M8's (DL-81 item 7); the epics README's register row, and plan §2's paragraph under the
+    milestones, say v1.0.1 is complete as of its tag, `v1.0.1`, on 2026-09-28, citing this entry.
+    The tag is the orchestrator's, in S7 step 2, on the merge of `v1.0-dev` into `v1.0-release`, so
+    the lines are true from it, as M8's were from `m8-modules`. S6's three boxes are ticked; S7's
+    are S7's.
+
+**Consequences.** v1.0.1 is verified: every seed plays as `v1.0.0` plays it, S1 to S5 meet their
+boxes, the page can no longer export a save it would refuse, the deploy refuses every checkout and
+flag the lenses found it letting through and records a half-made deploy, and no mutant of the new
+code survives the suite. What remains is S7's: the owner's confirmation of item 9, the tag, the
+deploy to both addresses and its record (DL-98), and the merge forward. Left open: a typo of
+`--dry-run` holding neither "dry" nor "run" (item 3); the History section showing a fast forward's
+steps as they are played (DL-96); and, as before, the rule for a v1.0.x deploy once #37 moves
+production, left to #37.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

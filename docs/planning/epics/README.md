@@ -3,18 +3,23 @@
 **Companion to:** [`docs/plan.md`](../../plan.md) (the delivery plan) · **Baselined:** 2026-09-25
 **Build model:** session-sized increments grouped into milestones; working software after every increment
 
-One epic per milestone of the delivery plan, M0 to M8. Each epic turns a milestone's increment
-list into stories with acceptance boxes, the files and functions each story lands, the tests
-that prove it, the configuration fields it introduces and the harness counters it must report.
+One epic per milestone of the delivery plan, M0 to M8, and, after the first build, one per release
+that needs a plan of its own: v1.0.1 (added 2026-09-28, DL-92). Each epic turns a milestone's
+increment list into stories with acceptance boxes, the files and functions each story lands, the
+tests that prove it, the configuration fields it introduces and the harness counters it must report.
 The inputs the build needs from the owner are gathered in
-[`INPUTS-REQUIRED.md`](./INPUTS-REQUIRED.md), ordered by when they are needed.
+[`INPUTS-REQUIRED.md`](./INPUTS-REQUIRED.md), ordered by when they are needed, each beside the
+value in force at `m8-modules` and the owner's answer.
 
 **Who decided what.** The milestone order, the "done" bars and the ten decisions in
 `plan.md` §5 are the owner's. Everything below that — story boundaries, function names, file
 layout, event names, the defaults offered for every tunable — is an agent's proposal made on
 2026-09-25 from the design documents and from what the v1 proof of concept on `feature/poc`
-proved to work. Nothing has been built. Where a story can be done two ways, the epic says which
-and why; disagree in the milestone's GitHub issue before the story starts.
+proved to work (v1.0.1's on 2026-09-28, from the open issues and the owner's four answers in
+DL-92). Nothing had been built when this plan was written; the first build has since been
+completed, to `m8-modules` (§1, *What the first build actually took*). Where a story can be done
+two ways, the epic says which and why; disagree in the milestone's GitHub issue before the story
+starts.
 
 ## 1. Epic register
 
@@ -29,9 +34,10 @@ and why; disagree in the milestone's GitHub issue before the story starts.
 | [M6](./M6-rivals.md) | Rivals | Named dispositions; Transfers both ways; Rivals transfer among themselves | 4–6 | M5 |
 | [M7](./M7-web.md) | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | 6–8 | M6 |
 | [M8](./M8-modules.md) | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | 4–6 | M7 |
+| [v1.0.1](./v1.0.1-release.md) | Workers beside Pages, and three page fixes; complete as of its tag, `v1.0.1`, on 2026-09-28 (DL-97) | `v1.0.1` deployed from a clean checkout of its tag to the Worker `heroesim` and to Pages, `e2e:live` passing on both; M8's and v1.0.1's deploys recorded; a core-only 50 × 20 sweep with `v1.0.0`'s fingerprint | 5–7 | v1.0.0 |
 
 **Total: 60–78 sessions** of two to three hours, against no calendar. That sum is stated only
-here.
+here. It is the first build's, M0 to M8; v1.0.1's row is outside it (added 2026-09-28, DL-92).
 
 A session is the unit of the estimate because it is the unit the owner has: intermittent
 hours. A story that will not fit in two sessions is split before it starts, not during.
@@ -115,13 +121,23 @@ so they follow it; Transfers are the last thing the automatic policy needs to be
 5. Merge `v1.0-dev` into `v1.0-release`, tag that merge `m<n>-<name>`, close the issue, and
    set the status and date in the milestone table of `docs/plan.md`.
 
+**After the first build (DL-86).** The first build ends at `m8-modules`, which is also tagged
+`v1.0.0`. Work after it continues on the v1.1 line: stories are built on `v1.1-dev`, a milestone
+completes by merging `v1.1-dev` into `v1.1-release` and tagging that merge, and the milestone tags
+go on from `m9-random-events`. Read step 5 with those branch names. `v1.0-dev` and `v1.0-release`
+are frozen but for v1.0.x hotfix releases, the first of which moves the deploy to Cloudflare
+Workers (DL-88, DL-91). That release is v1.0.1, with three page fixes beside the move, planned in
+[its epic](./v1.0.1-release.md); it begins by fast-forwarding `v1.0-dev` to the commit that
+recorded its plan, and is deployed only from a clean checkout of its tag (added 2026-09-28, DL-92).
+
 ## 4. Conventions the epics assume
 
 - Packages are `@heroesim/engine`, `@heroesim/content`, `@heroesim/harness`, `@heroesim/cli`,
   `@heroesim/web`, in directories of the same short name (approach §5).
 - Every tunable is a field on `GameConfig` with a value in `defaultConfig` (principle 8). Each
   story lists the fields it adds; the defaults are the agent's and are inputs the owner may
-  change (INPUTS-REQUIRED).
+  change (INPUTS-REQUIRED). The owner ratified those in force at `m8-modules` in DL-90, except
+  those DL-82 to DL-89 change or leave for proposals.
 - Events are typed records `{ type, turn, participants, labels, milestone, payload }` with
   `type` in the form `<entity>.<what-happened>`: `hero.recruited`, `quest.resolved`. Each story
   lists the event types it adds.

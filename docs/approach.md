@@ -44,9 +44,13 @@ Quest Engine for Parties whose Quests conclude, and every registered module at i
 
 **Quest Engine** resolves a Quest against a Party and returns outcomes and events. First
 build: a stub. Target: a sequence of typed encounters, each a check with typed consequences.
+(Amended 2026-09-28, DL-86: the first build reached the target, M4 replacing M2's stub, DL-42.)
 
-**Controllers** decide what a Guild does in a Turn. The player's choices arrive as inputs to
-`advance`; a Rival's come from its disposition. Neither is special to the engine.
+**Controllers** decide what a Guild does in a Turn. The player acts through standalone actions
+on the current document, at any time of day, and `advance` only moves time; a Rival's choices
+come from its disposition, at the start of the afternoon. Neither is special to the engine.
+(Amended 2026-09-28, DL-86: originally "The player's choices arrive as inputs to `advance`";
+pre-M0 review D2.)
 
 **Modules** register with the World Engine, own a named slice of World State, and are called
 at defined Turn phases. The core runs with none installed.
@@ -84,17 +88,28 @@ engine. Sketch, to be refined in the first increment:
 deps = { config, content, modules }         every entry point takes the same object
 createWorld(seed, setup, deps)              -> { document, events }
 advance(document, deps)                     -> { document, events, stoppedBecause }
-actions: dispatch, recall?, recruit, transferIn, transferOut, buy, sell, equip, build, rebase
+actions: dispatch, recruit, transferIn, transferOut, offerTransfer, acceptTransfer,
+         declineTransfer, buy, sell, equip, unequip, build, rebase
          each (document, params, deps) -> { document, events } or a typed rejection
 selectors: rankings, roster, board, hero, history   (read-only, shared by front ends)
 serialise(document) / deserialise(text, deps)   -> one format, one version field
 ```
 
+The action list is amended 2026-09-28. `recall?` is struck: no Party is recalled (DL-89). The
+actions it had missed are added, as DL-86 corrects: `offerTransfer`, `acceptTransfer` and
+`declineTransfer` from M6 (DL-57), and `unequip` from M5 (DL-49).
+
 Rules read `deps.config`. A front end passes the document's own `meta.config`, so a loaded
 game plays under the rules it was started with; `rebase` rewrites `meta.config` to the
 current defaults and records a `world.rules-adopted` Milestone, so tuning reaches a game when
 the player says so and the History says when. The harness passes its configuration
-explicitly (owner, 2026-09-25, pre-M0 review D1).
+explicitly (owner, 2026-09-25, pre-M0 review D1). Where pre-M0 review D3's record says tuning
+reaches every game, D1 governs: a config field newer than a save follows the current default
+until the save is rebased (amended 2026-09-28, DL-84). Content has no `rebase`: a content
+change reaches a saved game when it is loaded (D3). Decided, to be built: on load a content
+version other than `meta.content`'s is shown, a `world.content-changed` Milestone is appended
+and `meta.content` is updated, so the History says when content changed as it says when rules
+were adopted (amended 2026-09-28, DL-84).
 
 Events are typed records with the Day and Turn they happened on. Front ends narrate them; the
 History stores them; tests assert on them.

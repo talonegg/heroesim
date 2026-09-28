@@ -4,10 +4,10 @@
 // The CLI holds no rule. Every number printed here is a document field (Wealth, Fame, Level, XP,
 // Morale, a Turn, a Hall grade), a content row's field (an Improvement's cost), the size of a
 // document table or list, or the result of an engine selector (`ageOf`, `baseStat`,
-// `effectiveStats`, `signingFee`, `transferFee`, `signingRefusal`, `rankings`, `unattachedHeroes`,
-// `nextImprovement`, `holdings`, `carriedGear`); every name is a document field or a content row's
-// display name. Where the engine has no selector for something a view needs, the selector goes
-// into the engine, not here.
+// `effectiveStats`, `signingFee`, `transferFee`, `signingRefusal`, `rankingPlaces`,
+// `bankruptcyCountdown`, `unattachedHeroes`, `nextImprovement`, `holdings`, `carriedGear`); every
+// name is a document field or a content row's display name. Where the engine has no selector for
+// something a view needs, the selector goes into the engine, not here.
 //
 // Potential is stored plainly and never shown (data-model rule 9): no view reads
 // `hero.potential`, only the engine's `potentialHint` word for it, and main.test.ts checks the
@@ -19,6 +19,7 @@
 
 import {
   ageOf,
+  bankruptcyCountdown,
   baseStat,
   carriedGear,
   dayOf,
@@ -34,7 +35,7 @@ import {
   playerGuild,
   regardBand,
   regardValue,
-  rankings,
+  rankingPlaces,
   signingFee,
   signingRefusal,
   skillsThatHelp,
@@ -194,8 +195,27 @@ function inPlay(guild: Guild): boolean {
 }
 
 /**
- * `show`: the seed, the Turn, the Guilds in play, and how many of everything there are. A folded
- * Guild is counted, and listed by `show guilds` (DL-33).
+ * The player's Guild's Bankruptcy countdown as a line (v1.0.1-S4, DL-95), from the engine's
+ * `bankruptcyCountdown` under the save's own rules; none while its `belowFloorSince` is null, and
+ * none once the game has ended. It stands after Wealth rises during a Day, until that night's
+ * check clears it, as the rule does. Printed by `show` and after `advance`.
+ */
+export function renderCountdown(document: WorldDocument, deps: EngineDeps): string[] {
+  const { world } = document;
+  const guild = playerGuild(world);
+  if (guild === undefined || world.ended !== null) return [];
+  const countdown = bankruptcyCountdown(guild, deps.config);
+  if (countdown === null) return [];
+  return [
+    `${guild.name} has been below the Bankruptcy floor since Day ${countdown.sinceDay}: Bankruptcy on the night of ` +
+      `Day ${countdown.dueDay} unless Wealth is back to ${deps.config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`,
+  ];
+}
+
+/**
+ * `show`: the seed, the Turn, the Bankruptcy countdown while the player's Guild is below the floor,
+ * the Guilds in play, and how many of everything there are. A folded Guild is counted, and listed
+ * by `show guilds` (DL-33).
  */
 export function renderSummary(document: WorldDocument, deps: EngineDeps): string[] {
   const { meta, world, history } = document;
@@ -220,6 +240,7 @@ export function renderSummary(document: WorldDocument, deps: EngineDeps): string
         ];
   return [
     `Seed ${meta.seed}, ${renderTime(world.turn, deps.config)}, created ${meta.createdAt}`,
+    ...renderCountdown(document, deps),
     '',
     ...guildTable(playing, document, deps),
     '',
@@ -539,15 +560,16 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
 
 /**
  * `show rankings [--by wealth]` (M3-S5, R10): every Guild in play, the player's among them, in the
- * order the engine's `rankings` gives, by Fame unless by Wealth. A folded Guild is not ranked.
+ * order the engine's `rankings` gives, by Fame unless by Wealth. Guilds level on the measure share
+ * a Rank, marked `joint` (`rankingPlaces`, v1.0.1-S4, DL-95). A folded Guild is not ranked.
  */
 export function renderRankings(document: WorldDocument, deps: EngineDeps, by: RankingMeasure): string[] {
   const { world } = document;
   const measure = by === 'fame' ? 'Fame' : 'Wealth';
-  const rows = rankings(world, by).map((ranking) => {
+  const rows = rankingPlaces(world, by).map((ranking) => {
     const guild = rowIn(world.guilds, ranking.guildId);
     return [
-      String(ranking.rank),
+      ranking.joint ? `joint ${ranking.place}` : String(ranking.place),
       ranking.guildId,
       guild?.name ?? ranking.guildId,
       guild === undefined ? '' : controllerOf(guild),

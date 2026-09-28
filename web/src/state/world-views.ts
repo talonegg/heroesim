@@ -6,7 +6,7 @@
 // takes.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every number is a document field or an
-// engine selector's answer (`rankings`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
+// engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
 // `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`,
 // `entriesFor`). Regard is shown as its band, never its number (M4-S5); Potential not at all.
 
@@ -22,7 +22,7 @@ import {
   nextImprovement,
   patronRegardFor,
   playerGuild,
-  rankings,
+  rankingPlaces,
   regardBand,
   regardValue,
   transferFee,
@@ -38,7 +38,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, ordinal, rowOf, signed } from './names';
+import { capitalised, controllerWords, nameIn, placeWords, rowOf, signed } from './names';
 import { narrationFor } from './narrate';
 import { playDeps } from './reducer';
 import { facilityNames } from './rejections';
@@ -92,7 +92,7 @@ export function guildsView(document: WorldDocument): GuildRow[] {
 // ── The Rankings ─────────────────────────────────────────────────────────────────────────────
 
 export interface RankingRow {
-  /** `1st`: the engine's rank as an ordinal. */
+  /** `1st`, or `joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95). */
   place: string;
   guildId: GuildId;
   name: string;
@@ -102,13 +102,16 @@ export interface RankingRow {
   mine: boolean;
 }
 
-/** `show rankings --by <fame|wealth>`: the Guilds in play in the engine's order (R10); a folded one is not ranked. */
+/**
+ * `show rankings --by <fame|wealth>`: the Guilds in play in the engine's order (R10), each at its
+ * place, Guilds level on the measure sharing one (`rankingPlaces`, DL-95); a folded one is not ranked.
+ */
 export function rankingsView(document: WorldDocument, by: RankingMeasure): RankingRow[] {
   const { world } = document;
-  return rankings(world, by).map((ranking) => {
+  return rankingPlaces(world, by).map((ranking) => {
     const guild = rowOf(world.guilds, ranking.guildId);
     return {
-      place: ordinal(ranking.rank),
+      place: placeWords(ranking),
       guildId: ranking.guildId,
       name: guild?.name ?? 'a Guild',
       controller: guild === undefined ? '' : controllerWords(guild),

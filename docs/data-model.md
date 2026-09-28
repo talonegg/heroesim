@@ -11,9 +11,13 @@ One JSON document, three top-level sections with different lifecycles:
 
 | Section | Lifecycle | Holds |
 | --- | --- | --- |
-| `meta` | Written at creation; changed only by the `rebase` action, which rewrites `config` | schema version, seed, content set id and version, the configuration in force, creation timestamp supplied by the caller |
+| `meta` | Written at creation; changed by the `rebase` action, which rewrites `config`, and by a migration on load, which rewrites `version` (§6; amended 2026-09-28, DL-86, originally "changed only by the `rebase` action") | schema version, seed, content set id and version, the configuration in force, creation timestamp supplied by the caller |
 | `world` | Copied once per Turn with `structuredClone`, then mutated | every table, the Board, random stream states, id counters, module slices, the current Turn |
 | `history` | Append-only, shared by reference across Turns, never copied | entries and their indexes |
+
+Decided, to be built (amended 2026-09-28): a load under content of another version also
+updates `meta.content` (§2, DL-84), and from schema 4 `meta` records the modules a game was
+created with (§3.4, DL-82).
 
 `advance(document, deps)` clones `world`, mutates the clone, appends to `history`, and
 returns a new document that shares `meta` and `history` with the old one. `deps` is
@@ -45,6 +49,16 @@ predates reads as the current default, a field the current `GameConfig` lacks is
 (pre-M0 review D3). `configVersion` is a field of `GameConfig`,
 bumped in the decision log whenever a default changes (owner, 2026-09-25, pre-M0 review D1).
 
+Where pre-M0 review D3's record says tuning reaches every game, D1 governs: tuning reaches a
+saved game only through `rebase`, except that a config field newer than the save follows the
+current default until the save is rebased (amended 2026-09-28, DL-84).
+
+Content has no `rebase`: a content change reaches a saved game when it is loaded (D3), and
+the build never reads `meta.content`. Decided, to be built (amended 2026-09-28, DL-84): on load, a
+content version other than `meta.content`'s is shown, a `world.content-changed` Milestone is
+appended and `meta.content` is updated to the content now in force, so `content` above names
+the content set the game was last loaded under rather than the one it was created under.
+
 ## 3. `world`
 
 ### 3.1 Time, randomness, identity
@@ -67,7 +81,9 @@ draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero
 Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
 subsystem (ADR-0009 as amended 2026-09-26). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
-random numbers registers a stream of its own.
+random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
+component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
+accepted exception (amended 2026-09-28, DL-84; ADR-0009 as amended 2026-09-28).
 
 Ids are strings with a table prefix and a counter zero-padded to six digits in every table:
 `hero-000042`, `guild-000002`, `quest-001337`, so that string order is numeric order for the
@@ -93,7 +109,10 @@ foldedOnTurn:   turn | null                 a Rival that reached an ending; out 
                                             Rankings, its Roster released to the pool (DL-28)
 hall:           Record<FacilityKey, grade>  infirmary, trainingYard, quarters
 controller:     { kind: "player" } | { kind: "rival", disposition: DispositionKey }
-regard:         Record<EntityId, RegardEntry>
+regard:         Record<EntityId, RegardEntry>  reserved: nothing writes or reads it, a Guild's
+                                            opinion being its Guildmaster's (DL-43 item 3); kept
+                                            for a later use such as Factions (amended
+                                            2026-09-28, DL-84)
 ```
 Upkeep is computed from the Roster and the Hall, not stored.
 
@@ -109,7 +128,10 @@ regard:         Record<EntityId, RegardEntry>
 **heroes**
 ```
 id, name, sex, backgroundKey, classKey
-enteredTurn, ageAtEntry                     age now = ageAtEntry + (turn - enteredTurn) / turnsPerYear
+enteredTurn, ageAtEntry                     age now, in whole years: ageAtEntry plus the years
+                                            completed since enteredTurn, read through ageOf
+                                            (DL-21 item 9; amended 2026-09-28, DL-86; originally
+                                            ageAtEntry + (turn - enteredTurn) / turnsPerYear)
 guildId:        GuildId | null              null means on no Roster: Unattached, or gone from the pool
 unattachedSince: integer | null             the Turn the Hero last entered the Unattached pool; null
                                             on a Roster and once they have left the pool (DL-27)
@@ -237,16 +259,20 @@ reads (a property's descriptor included), and changes its own slice in place. It
 table only through its effects (`adjustMorale`, `adjustWealth`, `adjustRegard`, `injure`,
 `offerQuest`), each run by the core's own rule and explained by the core's own event naming the
 module (for Regard, as for the core's own changes, only on a band crossing; the Regard entry names
-the module as its reason), so the core stays the only writer of its rows. Its own events, typed
-`<module id>.<what-happened>` by the module and not by the engine's union, are History entries like
-any other (M8-S2, DL-77). Every event a hook is handed, its own or an effect's, is the History's
-copy and frozen, and what a hook is given works only for that call, so no module rewrites an entry
-or changes a row later through something it kept (DL-80).
+the module as its reason; decided, to be built: a module's Regard effect always emits its event,
+crossing or not, amended 2026-09-28, DL-84), so the core stays the only writer of its rows.
+Its own events, typed `<module id>.<what-happened>` by the module and not by the engine's union,
+are History entries like any other (M8-S2, DL-77). Every event a hook is handed, its own or an
+effect's, is the History's copy and frozen, and what a hook is given works only for that call, so
+no module rewrites an entry or changes a row later through something it kept (DL-80).
 
 The document holds slices, not a list of the modules installed: whoever plays it installs them, for
 each run or command (`HEROESIM_MODULES` for the harness, `--modules` for the CLI, `?modules=` for
 the web, all naming only the test-only probe so far), and a front end gives a module's event one
-generic sentence naming the module, the type and whom it concerns (M8-S4, DL-79).
+generic sentence naming the module, the type and whom it concerns (M8-S4, DL-79). Decided, to be
+built with Random Events (amended 2026-09-28, DL-82): a game's modules are chosen when it is
+created, on by default, and recorded in the save's `meta` (schema 4); a save made before then
+adopts a module only by an explicit action.
 
 ## 4. `history`
 
@@ -306,7 +332,11 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
     a Transfer, a purchase: each appends an entry. Morale drifting toward its baseline,
     training XP accruing, Regard decaying: each is a rule of `meta.config` applied at night,
     recomputable from the entries that bound it, and appends an entry only when the value
-    crosses a band. No entry is ever dropped (R36, principle 11).
+    crosses a band. No entry is ever dropped (R36, principle 11). Two discrete changes are named
+    exceptions and also append an entry only on a band crossing: a Regard change made by the
+    core's own rules (DL-43 item 2) and the Morale cost a Transfer lays on the Heroes who stay
+    (DL-57 item 4). A module's `adjustRegard` always appends an entry (decided, to be built).
+    (Amended 2026-09-28, DL-84.)
 
 ## 6. Versioning and the validator
 
@@ -338,23 +368,43 @@ runs per Turn in play.
 
 A refused document names the failed check. Nothing is repaired silently.
 
-## 7. Performance targets (provisional)
+## 7. Performance targets (provisional; rebaselined 2026-09-28)
 
-Not a priority in the first increments; to be rebaselined against the first harness runs.
+As settled on 2026-09-25: not a priority in the first increments; to be rebaselined against
+the first harness runs. That rebaseline was made on 2026-09-28, below.
 
-| Measure | Target to react to |
-| --- | --- |
-| Advance one Turn | under 5 ms |
-| Fast forward a year | under 1 s |
-| Harness: 1,000 games of 20 years | under 10 min |
-| Save after 20 years | under 20 MB |
-| Load a save | under 1 s |
+*Rebaselined 2026-09-28 (DL-84).* The targets are now the M8 run's verified figures
+(`harness/reports/m8-2026-09-28.md`, DL-81 item 6), and save size is measured compressed, every
+save being gzipped. The owner's decision, where the agents recommended chasing the measures a
+player feels and budgeting the rest. The first, provisional targets, which the first build
+recorded and did not chase (DL-08), are kept beside them.
+
+| Measure | First target (provisional) | Target: the M8 run's figure |
+| --- | --- | --- |
+| Advance one Turn | under 5 ms | mean 5.91 ms (p99 14.2) under 16 processes' load; 4.96 ms alone |
+| Fast forward a year | under 1 s | 5.4 s (4.96 ms × 1,080 Turns) |
+| Harness: 1,000 games of 20 years | under 10 min | 367 min of games in 16 processes, validated after every advance |
+| Save after 20 years | under 19.07 MiB (first written "under 20 MB") | gzipped: 12.08 MiB for `seed-0001`, the one twenty-year save measured compressed (DL-67 item 8), whose bytes the M8 run reproduced (DL-81 item 2); uncompressed: mean 99.21 MiB, max 118.29 MiB |
+| Load a save | under 1 s | mean 4.62 s, max 7.82 s under 16 processes' load |
+
+Two details are open: how far past its figure a later run may go before it counts as a
+regression, and the compressed mean over a run, which the harness measures once it gzips its
+saves. The machine's single-thread rate varied by a factor of about three between days (DL-81
+item 6: a Turn alone took 1.5 ms on 2026-09-27 and about 4 ms on 2026-09-28), so the figures
+for a Turn alone and a year of fast forward depend on the day they were taken.
 
 The History will dominate save size. The levers, in order: lean entries (ids and labels,
 never entity copies), rule 10 (drift is not an event), and compression on write with Node's
 built-in `zlib` or the browser's `CompressionStream`. Archiving or dropping old entries is not
-a lever: R36 forbids it. A browser's `localStorage` holds about
-5 MB per origin, so the web front end saves to IndexedDB.
+a lever: R36 forbids it. Compression is taken everywhere (amended 2026-09-28, DL-84): the
+browser's saves are gzipped already (DL-67), and the CLI's and the harness's are to be gzipped
+too. A leaner entry shape (DL-81's leaner `quest.encounter` entry) is not taken now, and no
+schema change is made for it (the owner's decision, where the agents recommended lean entries as
+well as gzip). For the cost of a Turn, the lever decided is to profile first and then to keep
+the rows out of play (dead and retired Heroes, old Loot and the like) as a historical set that
+each Turn references and appends to but does not copy, in the spirit of ADR-0008 (DL-84; to be
+built). A browser's `localStorage` holds about
+5 MiB per origin, so the web front end saves to IndexedDB.
 
 ## 8. Type sketch
 

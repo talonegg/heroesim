@@ -10,7 +10,7 @@
     "e2e": "npm run build && playwright test",
     "measure": "npm run build && playwright test -c playwright.measure.config.ts",
     "e2e:live": "playwright test -c playwright.live.config.ts",
-    "deploy": "npm run build && npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release"
+    "deploy": "node scripts/deploy.mjs"
   },
   "dependencies": {
     "react": "19.3.0",

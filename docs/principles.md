@@ -90,7 +90,12 @@ The History inside the World State keeps every engine event and every Milestone,
 Hero's page is their History. Every discrete change — a Quest's outcome, an Injury, a Level, a
 Transfer, a purchase — is an event. A nightly drift toward a baseline (Morale, training XP,
 Regard decay) is a rule of the configuration, not an event; it is recorded when it crosses a
-band, and is otherwise recomputable from the events that bound it.
+band, and is otherwise recomputable from the events that bound it. Two discrete changes are
+named exceptions, recorded in the same way only when they cross a band: a change of Regard made
+by the core's own rules, and the Morale a Transfer costs the Heroes who stay. A module's change
+of Regard is not exempt and always appends an entry (amended 2026-09-28, DL-84; the module rule
+is to be built; the owner's decision, where the agents recommended that the Transfer's Morale
+cost always be recorded).
 
 *Without it:* the Hero the player grew for ten years is a row of numbers.
 
