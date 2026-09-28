@@ -15,7 +15,10 @@ export const logPageSize = 100;
 export function Log({ state, guildName }: { state: GameState; guildName: string }) {
   // The choice outlives each play, as the History's does; the paging starts again with each play's log.
   const [mine, setMine] = useState(false);
-  const lines = useMemo(() => logView(state, mine), [state, mine]);
+  // Read again only when the game or the log changes: not between the steps of a fast forward,
+  // which change neither until it ends (v1.0.1-S5, DL-96).
+  const { document, log } = state;
+  const lines = useMemo(() => logView({ document, log }, mine), [document, log, mine]);
   return (
     <Section
       id="log"

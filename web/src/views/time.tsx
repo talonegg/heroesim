@@ -3,14 +3,16 @@
 // comes home, a decision is needed, a Transfer Offer arrives or the game ends, and at the latest
 // after a year; new Heroes in the Unattached pool stop it only when asked (pre-M0 review B7). Why
 // it stopped is a sentence, and where the CLI points to a command, a button takes the player there.
+// A fast forward plays in steps (v1.0.1-S5, DL-96): between them this section shows the Turns
+// played, the Day reached and, while the Guild is below the Bankruptcy floor, the countdown, and a
+// Stop that ends it there, with the page's own sentence and "Fast forward again".
 
-import type { StopReason } from '@heroesim/engine';
 import type { GameAction } from '../state/reducer';
-import type { StopView } from '../state/selectors';
+import type { ProgressView, StopView } from '../state/selectors';
 import { Section, type SectionId } from './section';
 
-/** What each stop reason offers the player next: a section to go to, another fast forward, or nothing. */
-const nextFor: Readonly<Record<StopReason['kind'], { label: string; section: SectionId } | { label: string; again: true } | null>> = {
+/** What each stop offers the player next: a section to go to, another fast forward, or nothing. */
+const nextFor: Readonly<Record<StopView['kind'], { label: string; section: SectionId } | { label: string; again: true } | null>> = {
   ended: null,
   'party-returned': { label: 'Read what happened', section: 'log' },
   'decision-needed': { label: 'Choose a Party on the Board', section: 'board' },
@@ -19,12 +21,15 @@ const nextFor: Readonly<Record<StopReason['kind'], { label: string; section: Sec
   module: { label: 'Read what happened', section: 'log' },
   'max-turns': { label: 'Fast forward again', again: true },
   'pool-refreshed': { label: 'See who joined the pool', section: 'pool' },
+  // v1.0.1-S5: the player's Stop, which goes on with the stops it was asked for.
+  player: { label: 'Fast forward again', again: true },
 };
 
 export function Time({
   busy,
   playing,
   ended,
+  progress,
   stop,
   play,
   goTo,
@@ -33,6 +38,8 @@ export function Time({
   /** Busy playing Turns, not an action within one. */
   playing: boolean;
   ended: boolean;
+  /** How far a fast forward has come, between its steps; `null` while none is. */
+  progress: ProgressView | null;
   stop: StopView | null;
   play: (action: GameAction) => void;
   goTo: (section: SectionId) => void;
@@ -47,7 +54,8 @@ export function Time({
       help={
         'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
         'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives or ' +
-        'the game ends, and at the latest after a year; it can also stop when new Heroes join the Unattached pool.'
+        'the game ends, and at the latest after a year; it can also stop when new Heroes join the Unattached pool. ' +
+        'It plays them a few Days at a time, showing how far it has come, and Stop ends it there.'
       }
     >
       <div className="actions">
@@ -64,6 +72,17 @@ export function Time({
       <p className="busy" role="status">
         {playing ? 'Playing the Turns…' : ''}
       </p>
+      {progress === null ? null : (
+        <div className="progress" data-testid="progress">
+          <p>{progress.sentence}</p>
+          {progress.countdown === null ? null : <p className="countdown">{progress.countdown}</p>}
+          <div className="actions">
+            <button type="button" onClick={() => play({ kind: 'stop' })}>
+              Stop the fast forward
+            </button>
+          </div>
+        </div>
+      )}
       {stop === null ? null : (
         <div className="stop" data-testid="stop">
           <p>{stop.sentence}</p>
@@ -71,7 +90,7 @@ export function Time({
             <button
               type="button"
               disabled={'again' in next && idle}
-              onClick={() => ('again' in next ? play({ kind: 'fastForward', until: [] }) : goTo(next.section))}
+              onClick={() => ('again' in next ? play({ kind: 'fastForward', until: stop.until ?? [] }) : goTo(next.section))}
             >
               {next.label}
             </button>

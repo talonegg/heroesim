@@ -21,6 +21,16 @@
 // The modules installed are the reducer's deps beside the state (M8-S4, DL-79): the page's address
 // names them (`modules.ts`, a test switch), `useGame` is given them, and every engine call a play
 // makes installs them, none unless given, so a page without the switch plays as it did before M8.
+//
+// A fast forward is settled in steps (v1.0.1-S5, DL-96): each `settle` makes one `fastForward` call
+// of at most `fastForwardStepTurns` Turns, and a step that stops on `max-turns` with Turns of the
+// cap left leaves the rest pending, so `useGame` settles it after the next paint, as it settles any
+// play. Between steps `forwarding` holds the game as the last step left it and every step's events,
+// and the page shows how far it has come; the game in hand and the log stay as they were until the
+// fast forward ends, when they become its game and its events, as one call's would. `stop`, a
+// control action like `settle` and `dismiss`, ends it between steps with the game and the events
+// the last step left; a play meanwhile is dropped as busy. `engine/src/stops.ts` detects every
+// reason to stop from the Turn alone, so the steps end where one call would, with the same game.
 
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 import {
@@ -109,7 +119,22 @@ export interface Dismiss {
   kind: 'dismiss';
 }
 
-export type GameAction = Play | Settle | Dismiss;
+/**
+ * The player's Stop (v1.0.1-S5, DL-96): ends a fast forward between its steps, leaving the game
+ * and the log as the last step left them. Not a play, so it is taken while busy.
+ */
+export interface Stop {
+  kind: 'stop';
+}
+
+export type GameAction = Play | Settle | Dismiss | Stop;
+
+/**
+ * The most Turns one step of a fast forward plays (v1.0.1-S5, DL-96): the page's pacing, how
+ * often it paints its progress and a Stop can be taken, and not a rule, so a constant here and
+ * not a `GameConfig` field.
+ */
+export const fastForwardStepTurns = 30;
 
 // ── Rejections ───────────────────────────────────────────────────────────────────────────────
 
@@ -150,6 +175,22 @@ export type PlayRejection = ActionRejection | NewGameRejection | LoadRejection |
 
 // ── State ────────────────────────────────────────────────────────────────────────────────────
 
+/** How far a fast forward has come over its steps (v1.0.1-S5, DL-96). */
+export interface FastForwardProgress {
+  /** The opt-in stops it was asked for: "Fast forward again" after a Stop asks for them again. */
+  until: readonly StopCondition[];
+  /** The Turns its steps have played. */
+  turnsPlayed: number;
+}
+
+/** A fast forward between its steps (v1.0.1-S5, DL-96): how far it has come, and what it has made. */
+export interface Forwarding extends FastForwardProgress {
+  /** The game as the last step left it: the next step plays on from it, and a Stop keeps it. */
+  document: WorldDocument;
+  /** Every step's events, in order: the log once it ends or is stopped. */
+  events: TurnEvent[];
+}
+
 export interface GameState {
   /** The game in hand, or `null` before one is started or loaded. */
   document: WorldDocument | null;
@@ -164,8 +205,18 @@ export interface GameState {
   busy: boolean;
   /** The play accepted and not yet run: set exactly while `busy`. */
   pending: Play | null;
-  /** Why the last `advance` or `fastForward` stopped; `null` after any other play. */
+  /**
+   * Why the last `advance` or `fastForward` stopped; `null` after any other play, while a fast
+   * forward is between its steps, and after the player's Stop.
+   */
   stoppedBecause: StopReason | null;
+  /**
+   * While a fast forward is between its steps, how far it has come and the game its last step left;
+   * `null` otherwise. Set exactly while its rest is `pending` (v1.0.1-S5, DL-96).
+   */
+  forwarding: Forwarding | null;
+  /** The fast forward the player stopped, and how far it came; `null` after any other play. */
+  stopped: FastForwardProgress | null;
   /** The loaded save's content keys this content lacks (data-model rule 5); none for a new game. */
   warnings: ValidationWarning[];
   /**
@@ -183,6 +234,8 @@ export const initialGameState: GameState = Object.freeze({
   busy: false,
   pending: null,
   stoppedBecause: null,
+  forwarding: null,
+  stopped: null,
   warnings: [],
   games: 0,
 });
@@ -194,7 +247,8 @@ export const noModules: readonly Module[] = Object.freeze([]);
  * The one reducer. A play arriving while idle is accepted: the state is marked `busy` with the
  * play `pending`, and nothing else changes. A play arriving while busy is dropped: the same state
  * comes back. `settle` runs the engine on the pending play, with `modules` installed (M8-S4), and
- * stores the result; `dismiss` puts a rejection away. Programming errors throw; a refusal never does.
+ * stores the result, a fast forward one step at a time (v1.0.1-S5); `dismiss` puts a rejection
+ * away; `stop` ends a fast forward between its steps. Programming errors throw; a refusal never does.
  */
 export function gameReducer(state: GameState, action: GameAction, modules: readonly Module[] = noModules): GameState {
   switch (action.kind) {
@@ -202,25 +256,53 @@ export function gameReducer(state: GameState, action: GameAction, modules: reado
       return state.pending === null ? state : settled(state, state.pending, modules);
     case 'dismiss':
       return state.rejection === null ? state : { ...state, rejection: null };
+    case 'stop':
+      return state.forwarding === null ? state : stoppedByPlayer(state, state.forwarding);
     default:
       return state.busy ? state : { ...state, busy: true, pending: action };
   }
 }
 
-/** The state after the engine has run `play` with `modules` installed: its result stored, or its refusal. */
+/**
+ * The state after the engine has run `play` with `modules` installed: its result stored, or its
+ * refusal. A fast forward's step plays on from the game the last step left, and one that leaves
+ * Turns to play stays busy with the rest pending, holding its game and every step's events in
+ * `forwarding`; the step that ends it stores them as the game and the log.
+ */
 function settled(state: GameState, play: Play, modules: readonly Module[]): GameState {
-  const outcome = run(state.document, play, modules);
-  if (!outcome.ok) return { ...state, rejection: outcome.rejection, busy: false, pending: null };
+  const { forwarding } = state;
+  const outcome = run(forwarding?.document ?? state.document, play, modules);
+  if (!outcome.ok) return { ...state, rejection: outcome.rejection, busy: false, pending: null, forwarding: null };
+  const events = forwarding === null ? outcome.events : [...forwarding.events, ...outcome.events];
+  const { rest } = outcome;
+  if (rest !== undefined) {
+    const turnsPlayed = (forwarding?.turnsPlayed ?? 0) + rest.turnsPlayed;
+    return {
+      ...state,
+      rejection: null,
+      pending: rest.play,
+      stoppedBecause: null,
+      forwarding: { until: rest.play.until, turnsPlayed, document: outcome.document, events },
+      stopped: null,
+    };
+  }
   return {
     document: outcome.document,
-    log: outcome.events,
+    log: events,
     rejection: null,
     busy: false,
     pending: null,
     stoppedBecause: outcome.stoppedBecause ?? null,
+    forwarding: null,
+    stopped: null,
     warnings: outcome.warnings ?? state.warnings,
     games: play.kind === 'newGame' || play.kind === 'load' ? state.games + 1 : state.games,
   };
+}
+
+/** The player's Stop between steps: the game and the log as the last step left them, and how far it came. */
+function stoppedByPlayer(state: GameState, { until, turnsPlayed, document, events }: Forwarding): GameState {
+  return { ...state, document, log: events, busy: false, pending: null, forwarding: null, stopped: { until, turnsPlayed } };
 }
 
 // ── Running a play ───────────────────────────────────────────────────────────────────────────
@@ -233,6 +315,8 @@ type Outcome =
       stoppedBecause?: StopReason | null;
       /** Replaces the state's warnings when given: a new game's none, a load's own. */
       warnings?: ValidationWarning[];
+      /** A fast forward's step that left Turns to play: the Turns it played, and the rest, its next step. */
+      rest?: { turnsPlayed: number; play: FastForward };
     }
   | { ok: false; rejection: PlayRejection };
 
@@ -268,11 +352,27 @@ function run(document: WorldDocument | null, play: Play, modules: readonly Modul
 
   const guild = playerGuild(document.world);
   if (guild === undefined) return refused(play.kind, 'no-player-guild');
-  if (play.kind === 'fastForward') {
-    const maxTurns = play.maxTurns ?? deps.config.turnsPerYear;
-    return { ok: true, ...fastForward(document, { guildId: guild.id, until: play.until, maxTurns }, deps) };
-  }
+  if (play.kind === 'fastForward') return fastForwardStep(document, guild.id, play, deps);
   return applyAction(document, forGuild(play, guild.id), deps);
+}
+
+/**
+ * One step of a fast forward (v1.0.1-S5, DL-96): one `fastForward` call of at most
+ * `fastForwardStepTurns` of the Turns the play allows, a year unless it names a cap. A step that
+ * stops on `max-turns` with Turns of the cap left gives the rest, the same stops and the Turns
+ * left, as the next step; any other stop, or the cap reached, ends the fast forward. Every reason
+ * to stop is detected from the Turn alone (`engine/src/stops.ts`), so the steps play the Turns one
+ * call of the whole cap would, and stop where it would.
+ */
+function fastForwardStep(document: WorldDocument, guildId: GuildId, play: FastForward, deps: EngineDeps): Outcome {
+  const cap = play.maxTurns ?? deps.config.turnsPerYear;
+  // The engine's own check on the whole cap, which a step's smaller one would not make.
+  if (!Number.isSafeInteger(cap) || cap < 0) throw new RangeError(`maxTurns must be a whole number from 0, not ${cap}`);
+  const turns = Math.min(fastForwardStepTurns, cap);
+  const step = fastForward(document, { guildId, until: play.until, maxTurns: turns }, deps);
+  const left = cap - turns;
+  if (step.stoppedBecause.kind !== 'max-turns' || left === 0) return { ok: true, ...step };
+  return { ok: true, ...step, rest: { turnsPlayed: turns, play: { kind: 'fastForward', until: play.until, maxTurns: left } } };
 }
 
 function refused(action: DocumentPlayKind, reason: (NoGame | NoPlayerGuild)['reason']): Outcome {
@@ -342,19 +442,31 @@ function stored(_: GameState, next: GameState): GameState {
 
 /**
  * Runs `task` once the browser has painted what is committed now: after the next frame, as a task
- * of its own. Where there are no frames (a test's DOM), as the next task.
+ * of its own. Where there are no frames (a test's DOM), as the next task. Gives a way to call it
+ * off before it runs.
  */
-function afterPaint(task: () => void): void {
-  if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(task, 0));
-  else setTimeout(task, 0);
+function afterPaint(task: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  if (typeof requestAnimationFrame !== 'function') {
+    timer = setTimeout(task, 0);
+    return () => clearTimeout(timer);
+  }
+  const frame = requestAnimationFrame(() => {
+    timer = setTimeout(task, 0);
+  });
+  return () => {
+    cancelAnimationFrame(frame);
+    clearTimeout(timer);
+  };
 }
 
 /**
  * The game's state and the one way to change it. `play` runs `gameReducer` on the latest state,
  * whether React has rendered it yet or not, so a second play in the same batch finds the first
  * accepted and is dropped; an accepted play is settled, calling the engine once with `modules`
- * installed, after the busy state has been painted. The page gives the same `modules` for its
- * lifetime.
+ * installed, after the busy state has been painted, and so is each step of a fast forward after
+ * the one before it (v1.0.1-S5). A settle called off by a Stop, or by the pending play changing
+ * first, never runs. The page gives the same `modules` for its lifetime.
  */
 export function useGame(
   initial: GameState = initialGameState,
@@ -374,9 +486,7 @@ export function useGame(
   );
 
   const { pending } = state;
-  useEffect(() => {
-    if (pending !== null) afterPaint(() => play({ kind: 'settle' }));
-  }, [pending, play]);
+  useEffect(() => (pending === null ? undefined : afterPaint(() => play({ kind: 'settle' }))), [pending, play]);
 
   return [state, play];
 }

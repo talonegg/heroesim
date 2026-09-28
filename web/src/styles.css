@@ -283,7 +283,9 @@ main {
   font-weight: 600;
 }
 
-.ended {
+/* The game's end, and the countdown to Bankruptcy while the Guild is below the floor (DL-95). */
+.ended,
+.countdown {
   margin-top: var(--gap);
   font-weight: 600;
   color: var(--bad);

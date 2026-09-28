@@ -1,14 +1,17 @@
 import {
   addStack,
   advance,
+  bankruptcyCountdown,
   createWorld,
   dayOf,
   defaultConfig,
   entriesFor,
   guildmasterOf,
   judgedHintBands,
+  nightOf,
   playerGuild,
   potentialHint,
+  rankingPlaces,
   rankings,
   signingFee,
   signingRefusal,
@@ -29,6 +32,7 @@ import { initialGameState, type GameState } from './reducer';
 import {
   boardView,
   consumableChoices,
+  countdownView,
   guildBackgrounds,
   headerView,
   heldView,
@@ -37,6 +41,7 @@ import {
   logView,
   partyChoices,
   previewView,
+  progressView,
   rosterView,
   stopView,
 } from './selectors';
@@ -71,18 +76,39 @@ describe('headerView', () => {
   test("names the player's Guild, its Wealth and Fame, the Day and time of day, and its place in the Rankings", () => {
     const document = played(4);
     const guild = player(document);
-    const byFame = rankings(document.world, 'fame');
-    const place = byFame.find((ranking) => ranking.guildId === guild.id)?.rank;
+    // No Quest has come home yet: every Guild is still at Fame 0, so all five share 1st.
+    expect(rankingPlaces(document.world, 'fame').map(({ value }) => value)).toEqual([0, 0, 0, 0, 0]);
 
     expect(headerView(document)).toEqual({
       guildName: 'The Lantern',
       wealth: guild.wealth,
       fame: guild.fame,
       time: `Day ${dayOf(4)}, ${timeOfDay(4)}, Year 0`,
-      rankings: expect.stringMatching(new RegExp(`^${place}(st|nd|rd|th) of ${byFame.length} by Fame$`)),
+      rankings: 'joint 1st of 5 by Fame',
       seed: 'selectors-played',
+      countdown: null,
       ended: null,
     });
+  });
+
+  test('a new game, every Guild at Fame 0, is joint 1st of 5 by Fame; a place no Guild shares is not joint', () => {
+    expect(headerView(newGame())?.rankings).toBe('joint 1st of 5 by Fame');
+
+    const document = structuredClone(newGame());
+    const [mine, ...rivals] = Object.values(document.world.guilds);
+    if (mine === undefined || mine.id !== player(document).id) throw new Error("the player's Guild is made first");
+    const fames = (ours: number, ...others: number[]) => {
+      mine.fame = ours;
+      rivals.forEach((guild, index) => (guild.fame = others[index] ?? 0));
+      return headerView(document)?.rankings;
+    };
+
+    expect(fames(9, 4, 4, 1, 0)).toBe('1st of 5 by Fame');
+    expect(fames(4, 9, 4, 1, 0)).toBe('joint 2nd of 5 by Fame');
+    expect(fames(1, 9, 4, 4, 0)).toBe('4th of 5 by Fame');
+    expect(fames(0, 9, 4, 4, 1)).toBe('5th of 5 by Fame');
+    // The engine's `rankings` gives these Guilds ranks 1 to 5, ties by Guild id; it is unchanged.
+    expect(rankings(document.world, 'fame').map(({ rank }) => rank)).toEqual([1, 2, 3, 4, 5]);
   });
 
   test('says how the game ended, once it has', () => {
@@ -90,6 +116,59 @@ describe('headerView', () => {
     document.world.ended = { turn: 30, reason: 'bankruptcy' };
 
     expect(headerView(document)?.ended).toBe('The game ended on Day 10: The Lantern went bankrupt.');
+  });
+});
+
+describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-95)', () => {
+  /** A new game whose player's Guild starts below the floor, played through the night of Day 0. */
+  function belowTheFloor(config: Partial<typeof defaultConfig> = {}): WorldDocument {
+    const start = structuredClone(newGame('countdown'));
+    start.meta.config = { ...start.meta.config, ...config };
+    player(start).wealth = start.meta.config.bankruptcyFloor - 1;
+    const playDeps = { config: { ...defaultConfig, ...start.meta.config }, content };
+    let document = start;
+    while (document.world.turn < nightOf(0)) document = advance(document, playDeps).document;
+    return document;
+  }
+
+  const sentence = (sinceDay: number, dueDay: number, floor = 0) =>
+    `The Lantern has been below the Bankruptcy floor since Day ${sinceDay}: Bankruptcy on the night of Day ${dueDay} ` +
+    `unless Wealth is back to ${floor} or more on a night by then, after any Upkeep due.`;
+
+  test("is none while the player's Guild's belowFloorSince is null", () => {
+    const document = played(6);
+    expect(player(document).belowFloorSince).toBeNull();
+
+    expect(countdownView(document)).toBeNull();
+    expect(headerView(document)?.countdown).toBeNull();
+  });
+
+  test("while it is set, says since which Day and on which Day's night Bankruptcy falls, under the game's own grace", () => {
+    const document = belowTheFloor();
+    expect(player(document).belowFloorSince).toBe(nightOf(0));
+    const due = bankruptcyCountdown(player(document), document.meta.config)?.dueDay;
+    expect(due).toBe(defaultConfig.bankruptcyGraceDays);
+
+    expect(countdownView(document)).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
+    expect(headerView(document)?.countdown).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
+    // The game's own rules, not this release's defaults: a save playing under a grace of 10 Days.
+    expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10 }))).toBe(sentence(0, 10));
+    expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 }))).toBe(sentence(0, 10, 50));
+  });
+
+  test("still stands after Wealth rises during a Day, until that night's check clears it; none once the game has ended", () => {
+    const document = belowTheFloor({ bankruptcyGraceDays: 10 });
+    player(document).wealth = 1_000;
+    expect(countdownView(document)).toBe(sentence(0, 10));
+
+    const deps10 = { config: { ...defaultConfig, ...document.meta.config }, content };
+    let later = document;
+    while (later.world.turn < nightOf(1)) later = advance(later, deps10).document;
+    expect(countdownView(later)).toBeNull();
+
+    const ended = structuredClone(belowTheFloor());
+    ended.world.ended = { turn: ended.world.turn, reason: 'bankruptcy' };
+    expect(countdownView(ended)).toBeNull();
   });
 });
 
@@ -350,6 +429,49 @@ describe('the log and why time stopped', () => {
 
     expect(stopView(state)).toEqual({ kind: 'max-turns', sentence: `Stopped: played the most Turns allowed, ${defaultConfig.turnsPerYear}.` });
     expect(stopView({ ...state, stoppedBecause: null })).toBeNull();
+  });
+
+  test("says the player's Stop in the page's own words, with the stops it was asked for (v1.0.1-S5, DL-96)", () => {
+    const document = newGame();
+    const state: GameState = { ...initialGameState, document, stopped: { until: ['pool-refreshed'], turnsPlayed: 90 } };
+
+    expect(stopView(state)).toEqual({ kind: 'player', sentence: 'Stopped: you asked to stop, after 90 Turns.', until: ['pool-refreshed'] });
+  });
+});
+
+describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', () => {
+  /** A fast forward between steps: the game held 90 Turns on from `document`, played under its own rules. */
+  function between(document: WorldDocument): GameState {
+    const own = { config: { ...defaultConfig, ...document.meta.config }, content };
+    let played = document;
+    for (let turn = 0; turn < 90; turn += 1) played = advance(played, own).document;
+    return { ...initialGameState, document, busy: true, forwarding: { until: [], turnsPlayed: 90, document: played, events: [] } };
+  }
+
+  test('is none while no fast forward is between its steps', () => {
+    expect(progressView(initialGameState)).toBeNull();
+    expect(progressView({ ...initialGameState, document: newGame() })).toBeNull();
+  });
+
+  test('gives the Turns played and the Day reached from the game the last step left, not the game in hand', () => {
+    expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.', countdown: null });
+  });
+
+  test("gives the countdown while the player's Guild is below the floor in that game, under the game's own grace", () => {
+    const document = structuredClone(newGame());
+    document.meta.config = { ...document.meta.config, bankruptcyGraceDays: 60 };
+    player(document).wealth = -5_000;
+    const state = between(document);
+
+    expect(state.forwarding === null ? null : countdownView(state.forwarding.document)).not.toBeNull();
+    expect(progressView(state)).toEqual({
+      sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.',
+      countdown:
+        'The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 60 unless Wealth is back ' +
+        'to 0 or more on a night by then, after any Upkeep due.',
+    });
+    // The game in hand, before the first night's check, has none.
+    expect(countdownView(document)).toBeNull();
   });
 });
 

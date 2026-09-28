@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from './app';
+import { started as startedFrom, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
 import { gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
 
 // The page (M7-S3): a new game, the header, time, the Board with dispatch, the Roster with Hero
@@ -55,7 +56,9 @@ describe('before a game', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
     expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
-    expect(screen.getByTestId('rankings').textContent).toMatch(/^\d+(st|nd|rd|th) of \d+ by Fame$/);
+    // Every Guild starts at Fame 0, so all five share the first place (DL-95).
+    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(screen.queryByTestId('countdown')).toBeNull();
     expect(screen.getByTestId('wealth').textContent).toMatch(/^\d+$/);
   });
 
@@ -161,6 +164,79 @@ describe('a game in hand', () => {
     expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
     expect(box().checked).toBe(true);
   });
+});
+
+describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', () => {
+  /** The Turns the player's Stop says it played. */
+  function stoppedAfter(): number {
+    const sentence = within(screen.getByTestId('stop')).getByText(/^Stopped: you asked to stop, after \d+ Turns\.$/).textContent ?? '';
+    return Number(/after (\d+) Turns/.exec(sentence)?.[1]);
+  }
+
+  test('between steps it shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
+    // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
+    // the floor, so the night's check starts the countdown on Day 0.
+    render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100)} />);
+    const time = section('Time');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+
+    await waitFor(() => {
+      const progress = screen.getByTestId('progress');
+      expect(within(progress).getByText('Played 30 Turns so far. Now Day 10, morning, Year 0.')).toBeDefined();
+      expect(
+        within(progress).getByText(
+          'The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 30 unless Wealth is back ' +
+            'to 0 or more on a night by then, after any Upkeep due.',
+        ),
+      ).toBeDefined();
+      expect(within(time).getByRole('status').textContent).toBe('Playing the Turns…');
+      for (const name of ['Advance a Turn', 'Fast forward', 'Fast forward until new Heroes join the pool']) {
+        expect((within(time).getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+      }
+      expect(within(time).getByRole('button', { name: 'Stop the fast forward' })).toBeDefined();
+      // The game in hand, and so the header, stand until the fast forward ends (DL-96).
+      expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
+    });
+    await idle();
+
+    expect(screen.queryByTestId('progress')).toBeNull();
+    expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
+    expect(screen.getByTestId('time').textContent).toBe('Day 10, night, Year 0');
+    // The log gathers both steps' events, the first step's first.
+    const log = section('Since your last action');
+    expect(within(log).getByText(/^\d+ events, oldest first\.$/)).toBeDefined();
+    expect(within(log).getAllByRole('listitem')[0]?.textContent).toMatch(/^Day 0, /);
+  });
+
+  test('Stop leaves the game, the log and the sentence as its step left them, and "Fast forward again" goes on from there', async () => {
+    // The Roster released and Wealth to spare: a year with nothing of the player's to stop it.
+    render(<App initial={withRosterReleased(startedFrom())} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    await idle();
+
+    const first = stoppedAfter();
+    expect(first % 30).toBe(0);
+    expect(first).toBeGreaterThan(0);
+    expect(first).toBeLessThan(1080);
+    expect(screen.queryByTestId('progress')).toBeNull();
+    expect(screen.getByTestId('time').textContent).toBe(`Day ${first / 3}, morning, Year 0`);
+    const log = section('Since your last action');
+    expect(within(log).getByText(/^\d+ events, oldest first\.$/)).toBeDefined();
+    expect(within(log).getAllByRole('listitem')[0]?.textContent).toMatch(/^Day 0, /);
+    expect((screen.getByRole('button', { name: 'Advance a Turn' }) as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Fast forward again' }));
+    await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    await idle();
+
+    const second = stoppedAfter();
+    expect(screen.getByTestId('time').textContent).toBe(`Day ${(first + second) / 3}, morning, Year 0`);
+  }, 30_000);
 });
 
 describe("the page's own words, the CLI's help", () => {

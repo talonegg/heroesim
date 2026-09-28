@@ -8452,6 +8452,177 @@ cover, wrangler's redirected configuration (`.wrangler/deploy/config.json`, foun
 which `pages deploy` honours): nothing in this repository writes one, `.wrangler/` is ignored,
 and a fresh clone of the tag holds none.
 
+## DL-95 — Shared places and the Bankruptcy countdown: `rankingPlaces` beside an unchanged `rankings`, shown as "joint 1st" on the page and "joint 1" in the CLI; `bankruptcyCountdown` from `belowFloorSince` and the game's own grace, in the header, after `advance` and in `show` (v1.0.1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S4 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S4 (#39, DL-92 item 1) fixes two things both front ends showed badly. `rankings`
+gives each Guild its own rank, ties ordered by Guild id, so a new game, every Guild at Fame 0, showed
+"1st of 5 by Fame" in the page's header, 1st to 5th in its Rankings and Rank 1 to 5 in the CLI's
+`show rankings`: a place won by being made first. And the Bankruptcy grace ran unseen: each night
+the Guild State Engine, after any Upkeep due, sets `belowFloorSince` while Wealth is below
+`bankruptcyFloor` and clears it otherwise, and later that night the ending check ends the Guild once
+`dayOf(turn) >= dayOf(belowFloorSince) + bankruptcyGraceDays`. DL-26 item 3 gave that no event
+because a front end would read `belowFloorSince`; neither did. The hotfix bar (H1) allows no rule,
+content, config, schema or event change: in `engine/` only two read-only selectors and their tests,
+and `rankings` stays as it is, since the harness report and a module's `ctx.select` read it.
+
+**Decision.**
+
+1. **`rankingPlaces(world, by)`, beside `rankings` in `engine/src/selectors.ts`.** Rows
+   `{ guildId, value, place, joint }` in `rankings`' order, so a folded Guild is absent and level
+   Guilds still list by Guild id; `place` is one more than the Guilds in play with a greater value,
+   and `joint` is set when another Guild in play has the same value. Five Guilds at Fame 0 are all
+   first and joint; Fame 9, 4, 4 and 1 give 1st, joint 2nd, joint 2nd and 4th, the place after a
+   tie skipping as a league's does. `joint` is the engine's answer, so neither front end counts
+   level Guilds itself (ADR-0007). `rankings` and its tests are unchanged, and `ModuleSelectors`
+   does not gain the new selector: the module API is as M8 left it.
+2. **The words for a place.** The page says `joint 1st` for a shared place (`placeWords`,
+   `web/src/state/names.ts`): the header's "joint 1st of 5 by Fame", and the Place of each row of
+   its Rankings. The CLI's `show rankings` prints the Rank column as `joint 2` for a shared place and
+   `4` for one no Guild shares, right-aligned as before: the epic's "the CLI marks its Rank joint".
+3. **`bankruptcyCountdown(guild, config)`**, beside it: `null` while `belowFloorSince` is null,
+   else `{ sinceDay: dayOf(belowFloorSince), dueDay: sinceDay + config.bankruptcyGraceDays }`. It
+   reads only the rule's input and takes the grace from the config it is given, never a literal: the
+   page passes `playDeps(document).config` and the CLI the save's own deps, so a save playing under
+   another grace counts down by it. Because it does not read Wealth, it stands after Wealth rises
+   during a Day until that night's check clears it, as the rule does. `endings.ts` is unchanged, and
+   one test ties the selector to it: `engine/src/selectors.test.ts` plays a Bankruptcy under graces
+   of 0, 3, 10 and 30 Days and finds `world.ended` on the night of the countdown's `dueDay`, and not
+   on the Turn before.
+4. **One sentence, in both front ends:** "The Lantern has been below the Bankruptcy floor since Day 4:
+   Bankruptcy on the night of Day 34 unless Wealth is back to 0 or more on a night by then, after any
+   Upkeep due." The epic's sentence was a guide; this one says the same with two changes. It names
+   the Guild, so it stands alone in the CLI's output and, from S5, in the Time section. It gives the
+   floor's value, `bankruptcyFloor` from the same config, since "the floor" alone tells a player
+   nothing. "On a night by then" includes the due night, whose own check, after Upkeep and before
+   the ending check, clears the countdown if Wealth is back. The page's `countdownView(document)`
+   (`web/src/state/selectors.ts`, exported for S5) and the CLI's `renderCountdown(document, deps)`
+   (`cli/src/render.ts`) word it.
+5. **Where it shows.** The page's header shows it as a paragraph under its facts
+   (`data-testid="countdown"`), styled as the ending's line. The CLI prints it on the line after
+   `advance`'s "Played … Now …" and any stop line, in `renderAdvance`, so `advance --until` prints
+   it too, and in `show`'s summary on the line after the seed and Turn. **Neither shows it once the
+   game has ended**: a Bankruptcy leaves `belowFloorSince` set, and the header and `advance` then
+   say how the game ended; a countdown to a night that has come would mislead. This is the one
+   reading beyond the epic's "while it is set".
+6. **No event, no stop, no rule.** Fast forward still runs through the grace; the stop is #32's, on
+   the v1.1 line. S5 shows the countdown between steps through `countdownView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine` lists `engine/src/selectors.ts` and
+`engine/src/selectors.test.ts` alone: `rankings`, `endings.ts`, `GameConfig`, content, the schema and
+the events are `v1.0.0`'s, so every seed plays as before. The tests that asserted a new game's
+unshared ordinal now assert the shared place: `web/src/app.test.tsx` (the header),
+`web/src/state/selectors.test.ts` (`headerView`) and `web/src/state/world-views.test.ts`
+(`rankingsView`, now against `rankingPlaces`). The page's Rankings by Wealth after six Turns
+(`web/src/views/world.test.tsx`) and the CLI's `show rankings` test
+(`cli/src/commands/recruit.test.ts`) arrange distinct values and pass unchanged. The web bundle is
+497.73 kB (145.14 kB gzipped) after this story. Left open: the harness's "player's Rankings place"
+reads `rankings`' rank, in which the player's Guild, `guild-000001`, wins every tie by its id, so a
+place it shares counts as its own; the report is unchanged here, and whether it should count a
+shared place is for the v1.1 line's reading of the Rankings band (DL-91 item 2). CONTEXT.md is
+unchanged: a shared place is how the Rankings are shown, not a new rule or term.
+
+## DL-96 — Fast forward in steps: `fastForward` calls of at most 30 Turns (`fastForwardStepTurns`), each settled after a paint, the steps' game held until the end, progress and the countdown in the Time section, and a Stop that ends it between steps with the page's own sentence (v1.0.1-S5)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S5 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S5 (#39, #32's chunked part; DL-88 item 1, brought forward by DL-92 item 1)
+fixes the page's fast forward. `run` (`web/src/state/reducer.ts`) made one `fastForward` call of up
+to `turnsPerYear` (1,080) Turns once `useGame` had painted "Playing the Turns…": a year blocked the
+page for 1.6 to 5.4 s (DL-81 item 6), with no progress and no way to stop. DL-88 item 1 chose steps
+of about 30 Turns in the reducer, with progress and a Stop; DL-65 item 4 had left chunking open. The
+hotfix bar (H1) allows no engine change: `fastForward`'s `maxTurns` (`engine/src/fast-forward.ts`)
+already caps a call, and `engine/src/stops.ts` detects each reason from the Turn alone. The epic left
+one question to this story: whether each step's document reaches the page, moving the header.
+
+**Decision.**
+
+1. **Steps of at most 30 Turns, each after a paint.** `fastForwardStepTurns = 30` is a constant in
+   `web/src/state/reducer.ts`: pacing, how often the page paints its progress and can take a Stop,
+   not a rule, so not a `GameConfig` field (DL-92 item 6). `settle` on a pending fast forward makes
+   one `fastForward` call of the smaller of 30 and the Turns left of its cap (a year unless the play
+   names one), with `playDeps(document, modules)` (DL-79 item 2). A step that stops on `max-turns`
+   with Turns of the cap left makes the rest, the same `until` and `maxTurns` the Turns left, the
+   pending play, so `useGame` settles it after the next paint as it settles any play (DL-65 item 4:
+   a frame, then a task). Any other stop, or the cap reached, ends the fast forward. The cap is
+   checked whole, with the engine's own message: a step's smaller cap would let an infinite one step
+   on for ever, where one call threw. A cap of 0 is one call that plays nothing and stops on
+   `max-turns`, as before.
+2. **Why the steps end where one call would.** `fastForward` is `advance` in a loop, and every reason
+   to stop is read from one Turn: the world before and after it, its events, and what `advance` said
+   of a module's stop. A split between Turns changes none of these; the History is appended in place
+   by the same Turns in the same order (ADR-0008); the probe counts its stop from `lastStopTurn` on
+   its own slice, in the document (DL-78). `max-turns` is the one reason a step can give that the
+   whole fast forward would not, and it is the one on which the steps go on. Tested, not argued:
+   `web/src/state/reducer.test.ts` loads one save twice and gives byte-equal `serialise(document)`,
+   the same events and the same stop reason for the steps and for one call, in more than one step
+   each: the player's Roster released to the pool with Wealth to spare (36 steps to `max-turns`); a
+   Party out on a Quest of ten Days, home on the 32nd Turn, partway through the second step;
+   `pool-refreshed` listed (the 32nd Turn); a cap of 100 (steps of 30, 30, 30 and 10); and the probe
+   installed, its stop on the 91st Turn, in the fourth step. A new game stops after 3 Turns inside
+   one step, as one call does.
+3. **The steps' game is held until the fast forward ends: settled here, no.** Between steps the
+   state's `forwarding` holds `{ until, turnsPlayed, document, events }`, the game the last step left
+   and every step's events; the game in hand, the log, and so the header and every section, stand as
+   they were until the fast forward ends or is stopped, when they become its game and its log, as one
+   call's would. Measured in the built page (Playwright's Chromium on the build machine, the spec's
+   year with the Roster released, four runs at each width): one call 491 to 554 ms; steps with each
+   step's document on the page 1,160 to 1,770 ms; steps with it held 645 to 933 ms. Re-rendering every
+   section, and narrating the growing log again, at each of 36 steps more than doubled a year; held,
+   the steps cost little more than their paints. The header's Day and countdown would also repeat
+   what the progress says. So that
+   holding stays cheap, the log section now reads its lines again only when the game or the log
+   changes (`web/src/views/log.tsx`), not at each step, where a year's log from the play before
+   would otherwise be narrated again 36 times.
+4. **Progress in the Time section.** `progressView(state)` (`web/src/state/selectors.ts`) reads the
+   held game: "Played 90 Turns so far. Now Day 30, morning, Year 0.", in the CLI's "Played … Now …"
+   words, and S4's `countdownView` of that game while the player's Guild is below the floor (DL-95
+   item 4). The section shows it under "Playing the Turns…" between steps (`data-testid="progress"`),
+   with the Stop, so a fast forward that ends in its first step, as a new game's 3 Turns do, shows
+   neither.
+5. **The Stop.** `{ kind: 'stop' }` is a control action beside `settle` and `dismiss`, taken while
+   busy, and only while a fast forward is between steps; otherwise it changes nothing. A step runs in
+   one task, so a tap is taken between steps, at most a step after it was made, and the Stop ends the
+   fast forward there, with no further step: the held game and events become the game in hand and
+   the log, and `stopped` keeps
+   `{ until, turnsPlayed }`. `StopReason` is unchanged: `stoppedBecause` is `null` after a Stop, and
+   `stopView` gives the page's own sentence, kind `player`: "Stopped: you asked to stop, after 90
+   Turns.", with "Fast forward again", which asks for the stops the stopped fast forward was asked for
+   (`pool-refreshed` among them), for a new year from where it stopped. The button says "Stop the
+   fast forward", since every control's name says what it does. `useGame` now calls off a settle it
+   has asked for when the pending play changes or is cleared (its effect's cleanup cancels the frame
+   and the task), so a fast forward asked for straight after a Stop is not settled, without a paint,
+   by the settle asked for before it (`web/src/state/use-game.test.tsx`).
+6. **Plays while it runs are dropped as busy**, by the rule the page already had (DL-65 item 3): the
+   state is busy from the tap to the step that ends it, the Time section's buttons are disabled, and
+   any play gets the same state back. The CLI's `advance --until` stays one call.
+7. **Departures from the epic, each small.** The epic's "ending the fast forward after the current
+   step" is read as item 5 does: the Stop is taken once the running step has ended, and no further
+   step runs. The progress and the Stop show from the end of the first step, not from the tap: no Turn has
+   been played before it. "Fast forward again" after a Stop keeps the stopped one's `until`, which the
+   epic left unsaid; after `max-turns` it asks for none, as before. The names are
+   `fastForwardStepTurns`, `Stop`, `forwarding`, `stopped` and `progressView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine/src/fast-forward.ts engine/src/stops.ts` is
+empty, and `engine/` still differs from `v1.0.0` only by S4's selectors (DL-95): every seed plays as
+before. Changed in `web/`: `src/state/reducer.ts` (the steps, `Stop`, `forwarding`, `stopped`, the
+cancellable settle), `src/state/selectors.ts` (`progressView`, the player's stop in `stopView`),
+`src/views/time.tsx` (the progress and the Stop), `src/app.tsx`, `src/views/log.tsx`; tests in
+`src/state/reducer.test.ts` (the one-call test now expects a step of 30), `src/state/use-game.test.tsx`,
+`src/state/selectors.test.ts`, `src/app.test.tsx`, with `withRosterReleased` and `withPartyOut` in
+`src/state/game.test-support.ts`, whose `played` now settles step by step; and a new browser spec,
+`e2e/fast-forward.spec.ts`, which makes its year save from a new game's export, opens it with "Load a
+save file", sees at least two Days in the progress and a Stop take effect within a step, at both
+widths. The web bundle is 499,648 bytes (145.70 kB gzipped), against `v1.0.0`'s 496,884 and S4's
+497.73 kB. CONTEXT.md is unchanged: the player's Stop is the page's control, not a Fast-forward stop,
+and a fast forward still lands exactly where as many single Turns would. Left open: during a fast
+forward the header shows the game as it was when it began, and a section that reads the History
+(shared, ADR-0008) may already show the steps' entries, every one of which the game keeps, a Stop
+included; #32's Bankruptcy stop and events stay on the v1.1 line.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

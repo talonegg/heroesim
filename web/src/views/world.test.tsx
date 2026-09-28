@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { saveText } from '../state/game-file';
-import { played, started, withOlderRules, withTheGone } from '../state/game.test-support';
+import { changed, played, started, withOlderRules, withTheGone, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 
 // The views of the wider world and the game as a file (M7-S3 part 2, DL-73): the CLI's `show
@@ -43,6 +43,57 @@ describe('the Rankings', () => {
     const values = rows.map((row) => Number(within(row).getAllByRole('cell').at(-1)?.textContent));
     expect([...values].sort((a, b) => b - a)).toEqual(values);
     expect(within(table).getByRole('rowheader', { name: 'The Lantern' })).toBeDefined();
+  });
+});
+
+describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => {
+  test('a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', () => {
+    render_(started());
+
+    const table = within(section('Rankings')).getByRole('table', { name: 'Rankings by Fame' });
+    const rows = within(table).getAllByRole('row').slice(1);
+    expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual(Array(5).fill('joint 1st'));
+    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+  });
+
+  /** The Lantern below the floor from the start, played through the night of Day 0, under `grace` Days. */
+  function belowTheFloor(grace?: number): GameState {
+    const rules =
+      grace === undefined
+        ? started()
+        : changed(started(), (document) => {
+            document.meta.config = { ...document.meta.config, bankruptcyGraceDays: grace };
+          });
+    return played(withWealth(rules, -1), { kind: 'advance', turns: 2 });
+  }
+
+  const countdown = (dueDay: number) =>
+    `The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
+    'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+
+  test("the header shows the countdown only while the player's Guild is below the floor, from the game's own grace", () => {
+    render_(played(started(), { kind: 'advance', turns: 2 }));
+    expect(screen.queryByTestId('countdown')).toBeNull();
+    cleanup();
+
+    render_(belowTheFloor());
+    expect(screen.getByTestId('time').textContent).toBe('Day 0, night, Year 0');
+    expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(countdown(30));
+    cleanup();
+
+    render_(belowTheFloor(10));
+    expect(screen.getByTestId('countdown').textContent).toBe(countdown(10));
+  });
+
+  test("stays after Wealth rises during a Day, and goes at that night's check", () => {
+    const risen = withWealth(belowTheFloor(10), 1_000);
+    render_(risen);
+    expect(screen.getByTestId('countdown').textContent).toBe(countdown(10));
+    cleanup();
+
+    render_(played(risen, { kind: 'advance', turns: 3 }));
+    expect(screen.getByTestId('time').textContent).toBe('Day 1, night, Year 0');
+    expect(screen.queryByTestId('countdown')).toBeNull();
   });
 });
 

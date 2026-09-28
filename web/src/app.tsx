@@ -18,7 +18,7 @@ import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
 import { listed } from './state/narrate';
 import { useGame, type GameState } from './state/reducer';
-import { headerView, stopView } from './state/selectors';
+import { headerView, progressView, stopView } from './state/selectors';
 import { Board } from './views/board';
 import { GameFile } from './views/game-file';
 import { Guildmaster } from './views/guildmaster';
@@ -88,6 +88,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const header = useMemo(() => (current === null ? null : headerView(current)), [current]);
   const notice = useMemo(() => (current === null ? null : rulesNotice(current)), [current]);
   const stop = useMemo(() => stopView(game), [game]);
+  const progress = useMemo(() => progressView(game), [game]);
   const onGoTo = useCallback((section: SectionId) => goTo(section), []);
   const playing = busy && (pending?.kind === 'advance' || pending?.kind === 'fastForward');
 
@@ -122,7 +123,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
               </ul>
             </nav>
             {notice === null ? null : <RulesNotice notice={notice} busy={busy} play={play} />}
-            <Time busy={busy} playing={playing} ended={current.world.ended !== null} stop={stop} play={play} goTo={onGoTo} />
+            <Time busy={busy} playing={playing} ended={current.world.ended !== null} progress={progress} stop={stop} play={play} goTo={onGoTo} />
             {/* Keyed by the game in hand: what one game had open (a Hero's page, a Guild, a Quest's
                 Party, whose History) is not open in the next one started or loaded (DL-74). */}
             <Fragment key={game.games}>
