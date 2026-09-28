@@ -55,7 +55,7 @@ export function Time({
         'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
         'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives or ' +
         'the game ends, and at the latest after a year; it can also stop when new Heroes join the Unattached pool. ' +
-        'It plays them a few Days at a time, showing how far it has come, and Stop ends it there.'
+        'It plays them 30 Turns, ten Days, at a time, showing how far it has come, and Stop ends it there.'
       }
     >
       <div className="actions">

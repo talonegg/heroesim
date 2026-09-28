@@ -442,8 +442,8 @@ function stored(_: GameState, next: GameState): GameState {
 
 /**
  * Runs `task` once the browser has painted what is committed now: after the next frame, as a task
- * of its own. Where there are no frames (a test's DOM), as the next task. Gives a way to call it
- * off before it runs.
+ * of its own. Where there are no frames (a DOM without `requestAnimationFrame`), as the next task.
+ * Gives a way to call it off before it runs, the frame or the task, whichever is waiting.
  */
 function afterPaint(task: () => void): () => void {
   let timer: ReturnType<typeof setTimeout> | undefined;

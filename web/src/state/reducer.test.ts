@@ -27,7 +27,7 @@ import {
 } from '@heroesim/engine';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
+import { changed, started as startedFrom, withPartyOut, withRosterReleased } from './game.test-support';
 import {
   fastForwardStepTurns,
   gameReducer,
@@ -38,6 +38,7 @@ import {
   type GameState,
   type Play,
 } from './reducer';
+import { stopView } from './selectors';
 
 // The one reducer (M7-S2). The engine's entry points the reducer calls are wrapped in spies that
 // call the real ones, so a test can count the engine calls a play makes and read the deps it
@@ -592,6 +593,38 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
     for (const next of plays) expect(gameReducer(between, next)).toBe(between);
     expect(gameReducer(between, { kind: 'dismiss' })).toBe(between);
     expect(gameReducer(between, { kind: 'settle' }).forwarding?.turnsPlayed).toBe(2 * fastForwardStepTurns);
+  });
+
+  test("with no cap, plays a year of the game's own rules (v1.0.1-S6, DL-97)", () => {
+    const short = changed(withRosterReleased(started()), (document) => {
+      document.meta.config = { ...document.meta.config, turnsPerYear: 90 };
+    });
+
+    const done = play(short, { kind: 'fastForward', until: [] });
+
+    expect(fastForwardCalls().map(([, options]) => options.maxTurns)).toEqual([30, 30, 30]);
+    expect(done.stoppedBecause).toEqual({ kind: 'max-turns' });
+    expect(documentOf(done).world.turn).toBe(documentOf(short).world.turn + 90);
+  });
+
+  // The play before a fast forward may have left a stop, the player's Stop or a refusal on the
+  // page: the first step clears each, so none stands beside the progress (v1.0.1-S6, DL-97).
+  test.each([
+    ['a stop reason', (state: GameState) => play(state, { kind: 'fastForward', until: [], maxTurns: fastForwardStepTurns })],
+    [
+      "the player's Stop",
+      (state: GameState) => gameReducer(gameReducer(gameReducer(state, { kind: 'fastForward', until: [] }), { kind: 'settle' }), { kind: 'stop' }),
+    ],
+    ['a refusal', (state: GameState) => play(state, { kind: 'rebase' })],
+  ])('between its steps holds none of what the play before it left: %s', (_left, before) => {
+    const left = before(withRosterReleased(started()));
+    expect([left.stoppedBecause, left.stopped, left.rejection].filter((value) => value !== null)).toHaveLength(1);
+
+    const between = gameReducer(gameReducer(left, { kind: 'fastForward', until: [] }), { kind: 'settle' });
+
+    expect(between.forwarding).not.toBeNull();
+    expect(between).toMatchObject({ stoppedBecause: null, stopped: null, rejection: null });
+    expect(stopView(between)).toBeNull();
   });
 });
 

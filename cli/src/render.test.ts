@@ -104,6 +104,14 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
     expect(renderSummary(ten, playDeps(ten))[1]).toBe(line(10));
   });
 
+  test("names the save's own floor, from its rules (v1.0.1-S6, DL-97)", () => {
+    const fifty = belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 });
+    const expected = line(10).replace('back to 0 or more', 'back to 50 or more');
+
+    expect(renderCountdown(fifty, playDeps(fifty))).toEqual([expected]);
+    expect(renderSummary(fifty, playDeps(fifty))[1]).toBe(expected);
+  });
+
   test('prints nothing while belowFloorSince is null, or once the game has ended', () => {
     const fresh = newGame();
     expect(playerGuild(fresh.world)?.belowFloorSince).toBeNull();
