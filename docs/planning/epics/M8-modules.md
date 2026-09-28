@@ -16,6 +16,11 @@
 - A typed `effects` API, the only way a module changes a core table.
 - A probe module under `engine/src/modules/probe.ts`, exported for tests and the harness only,
   never installed by a front end.
+  *Amended 2026-09-28 (DL-82 item 20, #18).* "Never installed by a front end" no longer holds:
+  since M8-S4 the probe is in the web bundle behind the test-only query parameter
+  `?modules=probe` (DL-79 item 3), which no control on the page sets, and the CLI installs it with
+  `--modules probe` (DL-79 item 1). It stays on the public page until Random Events' installation
+  lands, and then leaves the page.
 - ADR-0005's amendment closed out: the timing it records has happened.
 
 **Deliberately deferred:** every real module — Random Events first (the owner moved it after

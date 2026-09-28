@@ -8297,6 +8297,161 @@ avoid a conflict with S3's own edit of that row. What stays missing, not guessed
 second and the wrangler version used at deploy time, neither recoverable from the evidence
 gathered.
 
+## DL-94 — The Worker beside Pages: `web/wrangler.jsonc`, a deploy script that refuses all but a clean checkout of a release tag, builds once and uploads to the Worker then Pages, its record read from wrangler's output file, and the live check on both addresses (v1.0.1-S3)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S3 within
+the plan the owner approved in DL-92; the account's workers.dev subdomain, `magical-potato`, is the
+owner's, read in the dashboard and given on 2026-09-28 (the epic's S7 step 1)
+
+**Context.** DL-88 items 7 to 9 move the page to Cloudflare Workers static assets beside Pages
+(#13), and item 6 has each deploy recorded. DL-92 names the Worker `heroesim` (item 4), has the
+deploy refuse anything but a clean checkout of a release tag (item 5) and proposes the Worker's
+configuration and the address rule (item 6). v1.0.1-S3 builds them: the configuration, a deploy
+script behind `npm run deploy`, `web/src/deploy.test.ts`'s pins changed in one commit, the live
+check on both addresses, and the documents, with the M8 epic's §0 note that DL-82 item 20 asked
+for (#18). DL-68's command, `npm run build && npx -y wrangler@4 pages deploy dist …`, uploaded to
+Pages alone, from any checkout. The owner gave the subdomain before this story closed, so the
+Worker's full address is written in: `https://heroesim.magical-potato.workers.dev`. Wrangler's
+behaviour below was read in wrangler 4.142.0's own `wrangler-dist/cli.js` (the npx cache on this
+machine), beside the Cloudflare documentation the plan's research cites.
+
+**Decision.**
+
+1. **`web/wrangler.jsonc`, as DL-92 item 6 and the epic give it:** `name` `heroesim`;
+   `compatibility_date` `2026-09-28`, the day it was written (already that date in UTC);
+   `assets` with `directory` `./dist` and `not_found_handling` `none`; `workers_dev` true;
+   `preview_urls` false; no `main`, `account_id`, `pages_build_output_dir` or `$schema`. Its
+   comments, whole lines, say why each is so. The address is not written in it, so that a
+   correction touches one constant (item 3). With the go-ahead the orchestrator gave for this run
+   (the owner's subdomain being set), from `web/` after `npm run build -w web`,
+   `npx -y wrangler@4 deploy --dry-run --config wrangler.jsonc` (wrangler 4.142.0) read the file
+   and uploaded nothing, exit 0: "Read 3 files from the assets directory …\web\dist" (a recursive
+   `readdir` that counts `assets/` itself; the manifest skips directories, so two files), "Total
+   Upload: 0.37 KiB / gzip: 0.27 KiB", "No bindings found.", "--dry-run: exiting now.". Its
+   output file held a `wrangler-session` entry (`wrangler_version` 4.142.0) and a `deploy` entry,
+   `worker_name` `heroesim`, `version_id` null and no `targets`, as a dry run leaves them.
+2. **The deploy is `web/scripts/deploy.mjs`,** zero-dependency Node beside `check-bundle.mjs`.
+   `web/package.json`'s `deploy` is `node scripts/deploy.mjs`; the root's stays
+   `npm run deploy -w web`. `deploy.d.mts` declares its exports, and TypeScript resolves the
+   import of `deploy.mjs` to it, so web's strict typecheck covers its callers with
+   `web/tsconfig.json` unchanged. The script:
+   - **refuses before building,** exit 1, naming every reason at once, unless `git status
+     --porcelain` prints nothing; `git tag --points-at HEAD` lists exactly one tag beginning `v`
+     (none, a milestone tag alone or two release tags refuse); and no wrangler configuration but
+     `web/wrangler.jsonc` sits in `web/` or any directory above it to the filesystem's root. The
+     names are the three `findWranglerConfig` walks up for, `wrangler.json` in every directory
+     first, then `wrangler.jsonc`, then `wrangler.toml`, so a stray `wrangler.json` anywhere above
+     would win for `pages deploy`, which takes no `--config`. Two refusals are this story's own:
+     any argument but `--dry-run`, so that a mistyped `--dryrun` never deploys; and npm's
+     `npm-cli.js` or `npx-cli.js` missing where they are looked for.
+   - **builds once,** `npm run build` in `web/` (Vite, then the bundle gate), and stops if it fails.
+   - **uploads to the Worker, then to Pages,** from `web/`, stopping at the first failure:
+     `npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit
+     <sha>"`, the only places a Worker version keeps a commit; then, as before,
+     `npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release`, which
+     reads the commit from git. Each failure says what was uploaded and what was not.
+   - **runs no shell.** npm and npx run as `process.execPath` with the `npm-cli.js` that
+     `npm_execpath` names and the `npx-cli.js` beside it, or, when `node` runs the script and sets
+     no `npm_execpath`, the two in `node_modules/npm/bin/` beside `process.execPath`
+     (`C:\Program Files\nodejs\` on this machine); git runs as `git`. No `shell` option is
+     passed, so `--message` reaches wrangler as one argument.
+   - **inherits wrangler's stdio,** for its prompts, and reads the record from
+     `WRANGLER_OUTPUT_FILE_PATH`, set for each run to its own file in a directory made in
+     `os.tmpdir()` and removed afterwards. Wrangler appends one JSON object a line, each with a
+     `timestamp` (`writeOutput`): `wrangler-session` (`wrangler_version`), `deploy` (`version_id`,
+     `targets`) and `pages-deploy-detailed` (`url`, `environment`,
+     `deployment_trigger.metadata.commit_hash`). After both uploads the script prints the tag, the
+     commit, the UTC time, each run's wrangler version, the Worker's version id, address and time,
+     and the Pages deployment's URL, environment, commit and time. It warns loudly, in lines
+     marked WARNING, when the Worker's `targets` do not hold `addresses.worker`, naming
+     `HEROESIM_LIVE_URL` and what to correct. Beyond the epic, it also warns when Pages took the
+     deploy as other than production, when Pages recorded another commit (compared as a prefix,
+     in case it keeps an abbreviated hash), and when wrangler wrote no record. A warning leaves
+     the exit status 0, since both uploads were made.
+   - **`--dry-run`,** or `npm_config_dry_run` set to anything but empty or "false", runs the
+     checks and the build and prints both wrangler commands, running neither. npm 11.19.1 was
+     tried in a scratch package: `npm run <script> --dry-run`, from a workspace or through the
+     root's `-w` delegate, still runs the script, with no argument, and sets
+     `npm_config_dry_run=true`; `npm run <script> -- --dry-run` passes the argument instead.
+   - **takes its process as options** (`argv`, `env`, `webDir`, `execPath`, `tmpdir`, `spawn`,
+     `log`, `warn`, `now`), `spawn` in `spawnSync`'s shape, so the tests run every path with a
+     fake and see the exact options each child is given. It runs when Node runs the file
+     (`import.meta.main`, or, on a Node 22 without it, `process.argv[1]` against the module's URL),
+     never when a test or the live configuration imports it.
+   - **writes the release branch once,** `releaseBranch`, for #37.
+3. **The addresses are one constant, `addresses` in `web/scripts/deploy.mjs`:**
+   `{ worker: 'https://heroesim.magical-potato.workers.dev', pages: 'https://heroesims.pages.dev' }`,
+   which `web/playwright.live.config.ts` imports. **A departure from the epic's words**, which put
+   the constant in the live configuration: the deploy's warning needs the Worker's address in
+   plain Node, which cannot import that TypeScript file on every supported Node without a loader,
+   and one constant both read cannot drift as two copies kept equal by a test could.
+4. **The live check: four projects,** `worker-phone`, `worker-desktop`, `pages-phone` and
+   `pages-desktop`, each address at 360 × 800 and 1280 × 800. **`HEROESIM_LIVE_URL`**, the
+   one-address override this entry names, replaces both addresses with the one it holds when set
+   and not blank: `override-phone`, `override-desktop`. It is added to INPUTS §9, with
+   `WRANGLER_OUTPUT_FILE_PATH`, and `CLOUDFLARE_ACCOUNT_ID`'s row notes an agent's deploy.
+   `web/e2e/deployed.live.ts` is unchanged (it reads `baseURL`), no configuration file was added,
+   and `web/tsconfig.json`'s include list stays. `npm run e2e:live -w web -- --list` lists 4
+   tests, and 2 with `HEROESIM_LIVE_URL=https://heroesims.pages.dev`.
+5. **The tests.** `web/src/deploy.test.ts` keeps DL-68's (the root's delegate, npx-only
+   wrangler, `.gitignore`, no `.wrangler/` file, the credential scan and its fixtures, the Pages
+   fixture updated and the Worker's command added beside it) and adds: the new `deploy` string;
+   both wrangler commands; the release branch written once; the configuration's exact keys; the
+   Worker's full address, matching `https://heroesim.<subdomain>.workers.dev` with no
+   placeholder, in the constant, the README and INPUTS 7.8's row; the README's strings; the live
+   configuration imported, four projects and two under the override; and, with a fake spawn
+   answering for git, npm and wrangler (the record in wrangler 4.142.0's shape), the refusals
+   (dirty, untagged, a milestone tag alone, two release tags, git failing, a dry run untagged,
+   each of the three names above `web/` and a second one in it, a mistyped flag, npm missing),
+   one build then the Worker then Pages with no `shell` option and `--message` whole, npm found
+   both ways, the first failure stopping each of the three steps, a record file for each run in
+   the temporary directory and removed, the record printed, each warning, and the dry run by
+   `--dry-run` and by `npm_config_dry_run` alone calling no wrangler. The file has 54 tests,
+   33 more than before; no test runs npm, wrangler or a git command that writes. Fifteen mutants
+   of the script made by hand each fail a test: a `shell` option, Pages uploaded first, the
+   message cut to the tag, `npm_config_dry_run` ignored, the dry run ignored, each of the five
+   refusals dropped (dirty, untagged, two tags, a stray configuration, an unknown argument), a
+   failed build or Worker upload ignored, the address warning dropped, the record directory kept,
+   and npx looked for in the wrong place.
+6. **The documents.** The README's Play names both addresses and says saves stay with each,
+   moved only by "Export this game" and "Load a save file"; its Deploy gives the subdomain, the
+   deploy from a clean checkout of its release tag (`npm ci`, `npm run deploy`, `npm run e2e:live
+   -w web`), the guard, both commands, Pages' expected warning, the dry run, the record and the
+   override; its opening paragraph says what `v1.0.1` is rather than "next comes", so that it
+   holds at the tag. INPUTS 7.8's Answer gains the full address and the deploy, and its Now
+   column a dated note that M8's deploy is recorded in DL-93: S2's, made here so that the two
+   parallel branches do not both edit that cell. INPUTS 7.9's Answer and §9, plan §2 (a dated
+   note), and the M8 epic's §0: a dated note naming DL-82 item 20, that the probe has been in the
+   web bundle behind `?modules=probe` since M8-S4 (DL-79 item 3) and leaves the page once Random
+   Events' installation lands (#18).
+7. **Tried, by dry run only.** On this branch, dirty and untagged, `node scripts/deploy.mjs
+   --dry-run` and `npm run deploy --dry-run` from `web/` refused ("the checkout is not clean",
+   "HEAD carries no release tag (v*)"), exit 1, building nothing. In a scratch clone of this
+   branch with S3's files committed there: clean and untagged, the dry run refused on the tag
+   alone, as did `npm run deploy --dry-run` from the root and a milestone tag alone; a
+   `wrangler.json` in the directory above the clone refused; `--dryrun` refused. With a local
+   scratch tag, `v9.9.9-scratch`, both `node scripts/deploy.mjs --dry-run` and `npm run deploy
+   --dry-run` from the root passed the guard, built once (the gate: 2 files, the script 496.88
+   kB, 144.94 kB gzipped) and printed both commands, the message as "v9.9.9-scratch at commit
+   ecc8183…", exit 0. The build is byte for byte the page served on 2026-09-28 (the epic's S2):
+   `index.html` SHA-256 `721ee2ad…abfee8`, `assets/index-BhY-O45V.js` `384c7630…c809bf`, since
+   nothing here reaches the bundle. Besides item 1's dry run, wrangler ran only twice more, by a
+   quoting slip in a shell command of this story's that split `npx -y wrangler@4 deploy
+   --dry-run --config wrangler.jsonc` before the file name: wrangler refused both at its argument
+   parsing ("Not enough arguments following: config"). Nothing was uploaded. The scratch clone
+   and its tag were deleted.
+
+**Consequences.** #13's code is built; its deploy is S7's, the first to both addresses.
+`npm run build -w web` still passes the gate, `web/e2e/smoke.spec.ts` still opens the page from
+`file://` (`npm run e2e`, 20 of 20), and lint, typecheck and `npm test` (114 files, 2,755 tests)
+pass. #18's one box is met here and the issue is closed in S7. What stays open: each host's
+headers, recorded in DL-98 (no `_headers` file, as DL-92 item 6 proposed); the Worker's first
+deploy, which S7 runs and DL-98 records with any correction of the address; the rule for a v1.0.x
+deploy once #37 moves production to `v1.1-release`, left to #37; and one route the guard does not
+cover, wrangler's redirected configuration (`.wrangler/deploy/config.json`, found by walking up,
+which `pages deploy` honours): nothing in this repository writes one, `.wrangler/` is ignored,
+and a fresh clone of the tag holds none.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
