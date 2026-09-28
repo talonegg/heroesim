@@ -8832,6 +8832,94 @@ deploy to both addresses and its record (DL-98), and the merge forward. Left ope
 steps as they are played (DL-96); and, as before, the rule for a v1.0.x deploy once #37 moves
 production, left to #37.
 
+## DL-98 — v1.0.1 deployed: the tag's build on the Worker `heroesim` at `https://heroesim.magical-potato.workers.dev` and on Pages, the live check passing on both addresses at both widths, and the release merged forward (v1.0.1-S7)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, the orchestrator, releasing
+v1.0.1 (S7) on the owner's go-ahead: the owner's goal of 2026-09-28, "implement the v1.0.1 plan",
+which gave the account's workers.dev subdomain, `magical-potato`, and asked for the page at
+`heroesim.magical-potato.workers.dev`. A record of what was run, with one departure (item 1)
+
+**Context.** DL-88 item 6 has each release record its commit, its date and its `e2e:live` result.
+DL-92 item 6 and S7 set the order: the owner's inputs first; the merge and a local tag; the deploy
+from a clean checkout of the tag; the live check on both addresses; the tag and `v1.0-release`
+pushed only then; this record; and the merge forward. S6 (DL-97) verified the release at `a536b8b`
+on `v1.0-dev`, whose `check` run 36411166282 passed on both matrix jobs.
+
+**Decision.** The record, in S7's order.
+
+1. **The owner's inputs (S7 step 1).** The subdomain, `magical-potato`, is the owner's, given with
+   the goal on 2026-09-28; with the Worker's name, `heroesim` (DL-92 item 4), it makes the address
+   `https://heroesim.magical-potato.workers.dev`, the constant S3 wrote (DL-94). The owner was not
+   asked whether a Worker `heroesim` already existed, as S7 step 1 and DL-97 item 9 planned: the
+   goal asked for the work to go on without pausing, and the account answers that question itself.
+   At 10:45 UTC the orchestrator ran, on the owner's login and from a directory with no wrangler
+   configuration, `npx -y wrangler@4 deployments list --name heroesim` (wrangler 4.142.0,
+   read-only): "This Worker does not exist on your account. [code: 10007]". No Worker was
+   overwritten; the deploy below created it.
+2. **The tag (S7 step 2).** `v1.0-dev` at `a536b8b` was merged into `v1.0-release` as `5b0d66e`
+   ("Merge v1.0-dev into v1.0-release: v1.0.1 complete"), its tree `v1.0-dev`'s
+   (`git diff --quiet`), and the annotated tag `v1.0.1` made on it locally at 20:45 on 2026-09-28
+   (UTC+10), not pushed until item 6.
+3. **The deploy (S7 step 3).** By the orchestrator, on the owner's local wrangler login (OAuth, one
+   account, as `npx -y wrangler@4 whoami` showed), from a clean clone of the tag (`git clone
+   --branch v1.0.1`, then `npm ci`; HEAD `5b0d66e`, `git tag --points-at HEAD` giving `v1.0.1`,
+   `git status --porcelain` empty): `npm run deploy` from the root, 10:46:11 to 10:46:32 UTC, one
+   attempt, exit 0.
+   - The guard passed ("v1.0.1 at commit 5b0d66e…, from a clean checkout"), and one build:
+     `dist/index.html` 457 bytes and `dist/assets/index-CRCIF6ue.js` 499,668 bytes (145.71 kB
+     gzipped; `v1.0.0`'s was 496,884 bytes); the bundle gate: "2 built files, no network or
+     filesystem reference".
+   - **The Worker.** Wrangler 4.142.0, `deploy --config wrangler.jsonc --tag v1.0.1 --message
+     "v1.0.1 at commit 5b0d66e0e040782685215251f952480d98ea347f"`: two assets uploaded, "Deployed
+     heroesim triggers", `https://heroesim.magical-potato.workers.dev`, version
+     `f7304e73-713a-4798-b3ae-4924c0b738e2` at 10:46:23.323 UTC, the Worker's first. The address
+     wrangler printed is the constant's, so nothing is corrected.
+   - **Pages.** Wrangler 4.142.0, `pages deploy dist --project-name heroesims --branch
+     v1.0-release`: the expected warning that `web/wrangler.jsonc` lacks `pages_build_output_dir`
+     and is ignored (DL-94); two files uploaded; `https://4aff6a78.heroesims.pages.dev`,
+     environment production, commit `5b0d66e`, at 10:46:31.715 UTC. M8's deployment, `5bef971d`
+     (DL-93), is now the previous production deployment, the one a rollback would return to.
+4. **The live check (S7 step 3).** `npm run e2e:live -w web` from the same checkout, 10:46:42 to
+   10:46:52 UTC: 4 passed (6.7 s), `worker-desktop` 5.0 s, `worker-phone` 5.0 s, `pages-desktop`
+   5.8 s and `pages-phone` 5.7 s. On each a game was created, saved in IndexedDB, reloaded and
+   loaded, with no request to another origin.
+5. **What the two addresses serve** (10:47 UTC, read with `curl`). Both serve the tag's build byte
+   for byte: `index.html` with SHA-256
+   `76154127a5271172137a05a0e7d8b9ab517f835e989d5490bdd6b50302958315` and
+   `assets/index-CRCIF6ue.js` with
+   `18953f47a4f2dc0992ba7a4e306b9e24567dfcc40d4cf777bc5e1a61de8e38f0`, the hashes of the
+   checkout's `web/dist`. Their headers differ as DL-92 item 6 foresaw:
+   - the Worker: `200`, `Content-Type: text/html`, `Cache-Control: public, max-age=0,
+     must-revalidate`; the script as `text/javascript`; an unknown path a `404`
+     (`not_found_handling` `none`); `/index.html` a `307` to `/`;
+   - Pages: `200`, `text/html; charset=utf-8`, the same `Cache-Control`,
+     `Access-Control-Allow-Origin: *`, `Referrer-Policy: strict-origin-when-cross-origin` and
+     `X-Content-Type-Options: nosniff`; the script as `application/javascript`; an unknown path a
+     `200` (the page); `/index.html` a `308` to `/`.
+
+   The Worker sends the page without a charset, which changes nothing: `index.html` declares UTF-8,
+   and the page's one classic script takes the page's encoding.
+6. **Published (S7 step 4).** Only then were `v1.0-release` (`70508c6..5b0d66e`) and the tag
+   (`v1.0.1`, tag object `c97e4b4`, on `5b0d66e`) pushed; `check` run 36411834139 on
+   `v1.0-release` passed on both jobs.
+7. **The merge forward (S7 step 5, DL-91 item 4).** #38 had landed on `v1.1-dev` (`dc9ddf1`, run
+   36391223869 green), so `v1.0-dev` was merged into `v1.1-dev` as `47b0551`, with no conflict;
+   `v1.1-dev` then differed from `v1.0-dev` only by #38's two files. Lint, typecheck and 2,836
+   tests passed there, and `check` run 36412057057 passed on both jobs. This entry is committed on
+   `v1.0-dev`, merged into `v1.0-release` with no new tag, and reaches `v1.1-dev` by a second merge
+   of `v1.0-dev`.
+8. **Not recorded:** the account id, which wrangler shows in `whoami` and in its API paths, and
+   any dashboard link.
+
+**Consequences.** From 10:46 UTC on 2026-09-28 both addresses serve v1.0.1:
+`https://heroesim.magical-potato.workers.dev` and `https://heroesims.pages.dev`. Saves stay with
+the address they were made at: a player's games at pages.dev stay there, the Worker's address
+starts with none, and a game moves between them only by export and import. v1.0.1 is complete:
+#13, #14, #18 and #39 are closed with this entry, #32's fourth box is ticked, and the next work is
+on `v1.1-dev`, Random Events first (#12). Left open, as before: the rule for a v1.0.x deploy once
+#37 moves production to `v1.1-release` (DL-92); and a typo of `--dry-run` holding neither "dry" nor
+"run" (DL-97 item 3), against which a deploy that uploads only when told to is the owner's option.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
