@@ -8233,9 +8233,7 @@ production to `v1.1-release`, when Pages would take it as a preview but the Work
 branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
 source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
 
-## DL-93 — M8's deploy recorded after the fact: the orchestrator's run of 2026-09-27 21:30 UTC,
-with the owner's login, from `70508c6` to Pages deployment `5bef971d`; the exact second and the
-wrangler version used are not recovered (v1.0.1-S2, DL-88 item 6)
+## DL-93 — M8's deploy recorded after the fact: the orchestrator's run of 2026-09-27 21:30 UTC, with the owner's login, from `70508c6` to Pages deployment `5bef971d`; the exact second and the wrangler version used are not recovered (v1.0.1-S2, DL-88 item 6)
 
 **Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S2 within
 the plan the owner approved in DL-92
