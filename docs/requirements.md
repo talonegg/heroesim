@@ -38,16 +38,17 @@ Every system in the game must serve at least one of these:
 | Turn structure, fast forward | Yes | — |
 | Heroes: Attributes, Stats, Skills (rated), Traits, States | Yes | Skill growth, Class change, gender-linked mechanics |
 | Progression: XP, Level, Potential, ageing decline | Yes | Guildmaster Traits that sharpen Potential hints |
-| Quest Engine | Stub: difficulty against Party | Full: encounters, checks, Synergies, Relationship, Items |
+| Quest Engine | Full: encounters, checks, Synergies, Relationship, Items (a stub in M2, replaced in M4; amended 2026-09-28, DL-86, originally "Stub: difficulty against Party" here and the full engine later) | — |
 | Board and Patrons | Yes | Patrons approaching the Guild; visiting Patrons; Factions |
 | Recruitment from the Unattached pool | Yes | Scouting and hidden information |
 | Transfers with Rivals | Yes | Poaching |
-| Items, Loot, Market | After the stub loop | — |
-| Hall Improvements | After the stub loop | Workers |
+| Items, Loot, Market | Yes, from M5 (amended 2026-09-28, DL-86; originally "After the stub loop") | — |
+| Hall Improvements | Yes, from M3, pre-M0 review D8 (amended 2026-09-28, DL-86; originally "After the stub loop") | Workers |
 | Rival Guilds: Roster, Wealth, disposition | Yes | Rival encounters during Quests; fuller Guild engine |
+| Direct contests between Guilds (DL-89; one reading of the owner's diagram's Guild Battle box) | No | A later feature (added 2026-09-28, DL-89). The term Guild Battle keeps CONTEXT's meaning: Defeated by a Rival and Rival encounters during Quests |
 | Rankings by Fame and Wealth | Yes | Rankings by any Guild statistic |
 | Endings: Retirement, Bankruptcy, Roster wiped | Yes | Defeated by a Rival, Hall lost, capture and indenture, Ultimate Campaign Victory |
-| Saves: snapshot with History | Yes | Hosted saves following a player across devices |
+| Saves: snapshot with History | Yes | ~~Hosted saves following a player across devices~~ Struck 2026-09-28 (DL-89): saves are files only, exported and imported |
 | Front ends: CLI and browser, exposing every engine action as it lands | Yes | — |
 | Harness: automatic policy over many seeds | Yes | — |
 | Scenarios, Campaigns, Contacts, Factions | No | Modules |
@@ -68,7 +69,8 @@ Every system in the game must serve at least one of these:
 - R4. The player has one Outing per Turn (Market, scouting, a Patron visit) and unlimited Hall
   actions (dispatch, recruit, equip, inspect, build). The Outing limit is built with the
   second kind of Outing — scouting or Patron visits, both modules; in the first build the
-  Market is the only Outing and is not limited (owner, 2026-09-25, pre-M0 review B1).
+  Market is the only Outing and is not limited (owner, 2026-09-25, pre-M0 review B1). When the
+  limit is built it applies to every Guild, not only the player's (amended 2026-09-28, DL-89).
 - R5. Generation: a new world is created from a seed and a setup (Guildmaster, Guild
   Background, starting Roster and Wealth) by the Heroes, Guild and Patron Generators. The
   Heroes Generator also refreshes the Unattached pool over time.
@@ -81,11 +83,21 @@ Every system in the game must serve at least one of these:
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a controller. The player's
   Guild is controlled by the player; a Rival by a disposition (three or four named kinds) that
   weights its draws from the Board and the Unattached pool.
-- R8. The Guildmaster has Attributes (name, sex, details), Stats (Inspiration, Influence,
+- R8. The Guildmaster has Attributes (name, sex, age, and descriptive Attributes with no rule
+  effect, in the owner's words "origin, appearance, short bio", their terms to be settled with
+  CONTEXT, DL-88), Stats (Inspiration, Influence,
   Negotiation, Coaching, Judgement — renamed from Leadership and Perception on 2026-09-26 so
   no Stat key is shared with Heroes, pre-M0 review D4) and Traits that buff or penalise the Guild or a Class.
   Guildmaster Stats resolve Guild-side actions only: negotiation, recruitment, Morale, training.
   The Guildmaster never joins a Party in the first build.
+  At setup the player chooses the Guildmaster's Traits and may set their sex, their age (30 to
+  45) and the descriptive Attributes; whatever is left unset is drawn from the seed. Traits are
+  chosen within a point budget: each Trait has a cost in content, a buff costing points and a
+  penalty refunding them, and the player spends a fixed budget, so buffs need penalties. A drawn
+  Guildmaster, as a Rival's is, follows the same budget. The budget and each Trait's cost are
+  not yet set. (Amended 2026-09-28, DL-88; decided, to be built. Originally "Attributes (name,
+  sex, details)", with "details" undefined and the sex drawn at setup; the owner's decision,
+  where the agents recommended an optional sex at setup and striking "details".)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never
@@ -137,12 +149,19 @@ Every system in the game must serve at least one of these:
 - R23. A Party is dispatched from the Roster with consumable Items assigned. The Party is
   unavailable while away.
 - R24. The Quest Engine assesses the Quest against the Party: Stats, Skills, Relationship,
-  Synergies, Items and further qualifiers as they are added. It produces the outcome: XP, Stat
-  changes, new Traits, Injuries or Death, Regard changes, reward or penalty, Fame effect, Loot,
-  and typed events the front end narrates and the World Engine feeds back into the world.
+  Synergies, Items and further qualifiers as they are added. It produces the outcome: XP,
+  Injuries or Death, Morale and Regard changes, reward or penalty, Fame effect, Loot, and typed
+  events the front end narrates and the World Engine feeds back into the world. A Hero's Stats
+  change through the Levels that XP brings and through ageing, and a Hero gains a Trait when
+  certain Injuries heal (R18); Hero Traits gain effects (decided, to be built). (Amended
+  2026-09-28, DL-85: originally the outcome also listed "Stat changes" and "new Traits", which
+  no Quest outcome was built to produce. This rewording to what is built is the owner's stated
+  intent, made provisionally; its exact words await the owner's confirmation, DL-85 item 10.)
 - R25. First build: a stub Quest Engine that compares difficulty against the Party's summed
   Stats and applies simple outcomes. Target: a sequence of typed encounters, each a check with
-  typed consequences.
+  typed consequences. (Amended 2026-09-28, DL-86: the first build reached the target. M2 built
+  the stub, scoring weighted Stat demands carried on the Quest (DL-06), and M4 replaced it with
+  typed encounters (DL-42).)
 - R26. Synergies are authored bonuses for combinations of Classes or Skills, defined as
   content.
 
@@ -183,7 +202,10 @@ Every system in the game must serve at least one of these:
 - R36. The History inside the World State keeps every engine event, per Guild and per Hero,
   and a list of Milestones. Neither list is bounded: no event is dropped. Every discrete
   change is an event; a nightly drift (Morale toward its baseline, training XP, Regard decay)
-  is a configured rule that emits an event only when it crosses a band (principle 11).
+  is a configured rule that emits an event only when it crosses a band (principle 11). Two
+  discrete changes are named exceptions and also emit only on a band crossing: a change of
+  Regard made by the core's own rules, and the Morale cost of a Transfer to the Heroes who stay.
+  A module's change of Regard always emits (amended 2026-09-28, DL-84; decided, to be built).
 
 ### 3.10 Front ends
 
@@ -191,14 +213,20 @@ Every system in the game must serve at least one of these:
   a CLI and a browser front end, each a viewer of the world plus every engine action, added to
   the front end in the increment that adds it to the engine (owner, 2026-09-25, pre-M0 review
   A6; originally "advance, dispatch and recruit").
-- R38. The browser build deploys as static files at zero running cost.
+- R38. The browser build deploys as static files at zero running cost. It is one page with one
+  classic script, so it opens from the filesystem (`file://`) as well as from its host,
+  and a later change may not break that (added 2026-09-28, DL-88; until then only M7-S1's
+  acceptance box, DL-64).
 
 ## 4. Non-functional requirements
 
 - N1. **Deterministic engine.** A seeded random source whose state is part of the World State,
   and time that advances only when the engine is told to. A game is reproducible from its seed,
   the player's choices and the rules in force, which `meta.config` holds and a
-  `world.rules-adopted` entry records whenever they change. Front-end cosmetics may use global randomness (ADR-0001).
+  `world.rules-adopted` entry records whenever they change. Decided, to be built: the content
+  in force is recorded too, `meta.content` naming it and a `world.content-changed` Milestone
+  marking a load under content of another version (amended 2026-09-28, DL-84; data-model §2).
+  Front-end cosmetics may use global randomness (ADR-0001).
 - N2. **Single player, siloed, local.** Each player has their own World State and saves
   locally. No player accounts, no server, no network call, no paid dependency; a hosting
   account that serves static files at zero running cost is allowed (pre-M0 review D10.2).
@@ -222,11 +250,18 @@ Every system in the game must serve at least one of these:
 ## 5. Open items
 
 - Balance numbers everywhere: Stat ranges, XP curves, Upkeep, fees, difficulty, harm rates,
-  Morale and Regard scales. Set defaults per increment and measure them (N10).
+  Morale and Regard scales. Set defaults per increment and measure them (N10). *2026-09-28:*
+  the values in force at `m8-modules` are accepted as the owner's, except those DL-82 to DL-89
+  change or leave for proposals (DL-90), and the owner has set target bands for the balance
+  that tuning aims at after Random Events (DL-83).
 - ~~Whether the stub Quest Engine assesses a Quest by area sums or by a weighted list of Stat
   demands carried on the Quest.~~ Resolved 2026-09-25 in the plan interview: weighted Stat
   demands and Skill keys carried on the Quest template and copied to the Quest row; the area
   grouping stays display-only (`plan.md` §5, pre-M0 review F4).
 - ~~Rival disposition names.~~ Resolved by INPUTS 7.5 in M6-S1: `steady`, `ambitious`,
   `miserly` and `reckless`, four rows of weights in `content/dispositions.json` (DL-56).
-- Which Hall Improvement grades exist and what each costs.
+- Which Hall Improvement grades exist and what each costs. *2026-09-28:* three grades of each
+  facility exist, priced in `content/improvements.json` since M3-S6 (DL-38). The owner adds
+  dearer grades 4 to 6 as late-game Wealth sinks with upkeep; their effects and prices are
+  still open, to be proposed for the owner's approval (DL-83; the owner's decision, where the
+  agents recommended keeping three grades and re-pricing them).

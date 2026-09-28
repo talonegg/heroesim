@@ -5,20 +5,37 @@ from Patrons, choose who to send, and grow the Heroes and the Guild over the yea
 is mechanical first; story-rich modules such as Campaigns and Scenarios come later.
 
 The design is v2, baselined 2026-09-24. Its first build is complete, built milestone by milestone
-and tagged `m8-modules` on 2026-09-28 ([`docs/plan.md`](./docs/plan.md)); Random Events, the first
-real module, is next.
+and tagged `m8-modules` on 2026-09-28 ([`docs/plan.md`](./docs/plan.md)); the same commit is
+tagged `v1.0.0`, the first release. Next comes a small v1.0.x release that moves the deploy (see
+[Deploy](#deploy)), then Random Events, the first real module, on the v1.1 line: built on
+`v1.1-dev`, released by merging into `v1.1-release`, with milestone tags continuing from
+`m9-random-events`. `v1.0-dev` and `v1.0-release` are otherwise frozen (DL-86, DL-88). GitHub's
+default branch is the latest release branch: `v1.0-release`, until `v1.1-release`'s first release
+(DL-88).
 
 ## Play
 
 - **In a browser:** <https://heroesims.pages.dev>. One static page, the same engine as the
-  terminal: no account, no server, no network call, and saves kept in the browser (R38, N2).
+  terminal: no account, no server, no network call, and saves kept in the browser (R38, N2). A
+  move to Cloudflare Workers, at a new `workers.dev` address, is decided and not yet made; this
+  address stays deployed beside it (DL-88). The browser keeps saves per address, so a game saved
+  at one is not seen at the other.
 - **In a terminal:** `npm ci` once, then `npm run play -- help` for the commands.
 
 ## Deploy
 
 The page is built and gated on this machine and uploaded already built to Cloudflare Pages,
 project `heroesims`, production branch `v1.0-release`. Nothing deploys from CI and no secret is
-needed anywhere (INPUTS 7.8 and 7.9, DL-68).
+needed anywhere (INPUTS 7.8 and 7.9, DL-68). The steps below are the deploy until the move to
+Cloudflare Workers lands.
+
+**Decided, not yet built.** The page moves to Cloudflare Workers static assets, at a new
+`workers.dev` address, in a small v1.0.x release before Random Events, which also changes
+`npm run deploy`, this section and `e2e:live`. <https://heroesims.pages.dev> goes on being
+deployed beside it until Cloudflare retires Pages (INPUTS 7.8, answered anew in DL-88).
+Production serves the latest release: the deploy moves to `v1.1-release` at that branch's first
+release, and v1.0 stays live until then (DL-86). Each release records the commit deployed, the
+date and the `e2e:live` result (DL-88).
 
 1. **Once per machine:** `npx wrangler login`. It opens the browser to sign in to Cloudflare and
    keeps its token in wrangler's own directory under your user profile, never in this repository.

@@ -7,14 +7,17 @@ One epic per milestone of the delivery plan, M0 to M8. Each epic turns a milesto
 list into stories with acceptance boxes, the files and functions each story lands, the tests
 that prove it, the configuration fields it introduces and the harness counters it must report.
 The inputs the build needs from the owner are gathered in
-[`INPUTS-REQUIRED.md`](./INPUTS-REQUIRED.md), ordered by when they are needed.
+[`INPUTS-REQUIRED.md`](./INPUTS-REQUIRED.md), ordered by when they are needed, each beside the
+value in force at `m8-modules` and the owner's answer.
 
 **Who decided what.** The milestone order, the "done" bars and the ten decisions in
 `plan.md` §5 are the owner's. Everything below that — story boundaries, function names, file
 layout, event names, the defaults offered for every tunable — is an agent's proposal made on
 2026-09-25 from the design documents and from what the v1 proof of concept on `feature/poc`
-proved to work. Nothing has been built. Where a story can be done two ways, the epic says which
-and why; disagree in the milestone's GitHub issue before the story starts.
+proved to work. Nothing had been built when this plan was written; the first build has since been
+completed, to `m8-modules` (§1, *What the first build actually took*). Where a story can be done
+two ways, the epic says which and why; disagree in the milestone's GitHub issue before the story
+starts.
 
 ## 1. Epic register
 
@@ -115,13 +118,20 @@ so they follow it; Transfers are the last thing the automatic policy needs to be
 5. Merge `v1.0-dev` into `v1.0-release`, tag that merge `m<n>-<name>`, close the issue, and
    set the status and date in the milestone table of `docs/plan.md`.
 
+**After the first build (DL-86).** The first build ends at `m8-modules`, which is also tagged
+`v1.0.0`. Work after it continues on the v1.1 line: stories are built on `v1.1-dev`, a milestone
+completes by merging `v1.1-dev` into `v1.1-release` and tagging that merge, and the milestone tags
+go on from `m9-random-events`. Read step 5 with those branch names. `v1.0-dev` and `v1.0-release`
+are frozen, but for the v1.0.x release that moves the deploy to Cloudflare Workers (DL-88).
+
 ## 4. Conventions the epics assume
 
 - Packages are `@heroesim/engine`, `@heroesim/content`, `@heroesim/harness`, `@heroesim/cli`,
   `@heroesim/web`, in directories of the same short name (approach §5).
 - Every tunable is a field on `GameConfig` with a value in `defaultConfig` (principle 8). Each
   story lists the fields it adds; the defaults are the agent's and are inputs the owner may
-  change (INPUTS-REQUIRED).
+  change (INPUTS-REQUIRED). The owner ratified those in force at `m8-modules` in DL-90, except
+  those DL-82 to DL-89 change or leave for proposals.
 - Events are typed records `{ type, turn, participants, labels, milestone, payload }` with
   `type` in the form `<entity>.<what-happened>`: `hero.recruited`, `quest.resolved`. Each story
   lists the event types it adds.
