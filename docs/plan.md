@@ -114,6 +114,14 @@ that recorded its plan, so the v1.0 line carries DL-82 onwards; then DL-91's flo
 deployed only from a clean checkout of its tag, to the Worker and then to Pages. From its deploy,
 `v1.0.1`, not `v1.0.0`, is what production serves until `v1.1-release`'s first release.
 
+*Amended 2026-09-28 (DL-94).* From `v1.0.1` the page is served at two addresses: the Worker
+`heroesim` on Cloudflare Workers static assets, at <https://heroesim.magical-potato.workers.dev>,
+and the Pages project `heroesims` at <https://heroesims.pages.dev>, which M7 alone served.
+`npm run deploy` runs only from a clean checkout of a release tag (`v*`) and refuses anything
+else before it builds; it builds once, uploads that build to the Worker and then to Pages,
+stopping at the first failure, and prints the record the release's decision-log entry keeps.
+`npm run e2e:live -w web` then checks both addresses at both widths.
+
 ## 3. Increments
 
 The detailed implementation plan — stories, acceptance, files, config fields, events and
