@@ -1,11 +1,12 @@
 // What the views read (M7-S3, DL-66): each function takes the game in hand and returns plain rows
 // of words and numbers for a component to lay out. Nothing in `web/` computes a rule (ADR-0007,
 // principle 12), so every number here is a document field or the answer of an engine selector,
-// the same ones the CLI's `render.ts` reads (`rankings`, `ageOf`, `baseStat`, `effectiveStats`,
-// `potentialHint`, `judgedHintBands`, `carriedGear`, `regardBand`, `relationship`, `transferFee`,
-// `previewDispatch`, `skillsThatHelp`, `entriesFor`); where a view needed an answer no selector
-// gave, the selector went into the engine (`previewDispatch`, `skillsThatHelp`, `dispatchRefusal`),
-// never here. The words are the CLI's, as its `show` views print them.
+// the same ones the CLI's `render.ts` reads (`rankingPlaces`, `bankruptcyCountdown`, `ageOf`,
+// `baseStat`, `effectiveStats`, `potentialHint`, `judgedHintBands`, `carriedGear`, `regardBand`,
+// `relationship`, `transferFee`, `previewDispatch`, `skillsThatHelp`, `entriesFor`); where a view
+// needed an answer no selector gave, the selector went into the engine (`previewDispatch`,
+// `skillsThatHelp`, `dispatchRefusal`, `rankingPlaces`, `bankruptcyCountdown`), never here. The
+// words are the CLI's, as its `show` views print them.
 //
 // Potential is never in a view (data-model rule 9, M3-S3): a Hero's page carries each Stat's hint,
 // the word `potentialHint` gives through the bands the player's Guildmaster reads, and no row type
@@ -15,6 +16,7 @@
 
 import {
   ageOf,
+  bankruptcyCountdown,
   baseStat,
   carriedGear,
   dayOf,
@@ -29,7 +31,7 @@ import {
   playerGuild,
   potentialHint,
   previewDispatch,
-  rankings,
+  rankingPlaces,
   regardBand,
   regardValue,
   relationship,
@@ -67,7 +69,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, nameIn, nightOf, none, ordinal, rowOf } from './names';
+import { capitalised, nameIn, nightOf, none, placeWords, rowOf } from './names';
 import { listed, narrate, narrateStop, narrationFor, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
@@ -87,10 +89,15 @@ export interface HeaderView {
   fame: number;
   /** `Day 3, afternoon, Year 0`: the Turn and where it falls, as the CLI's `renderTime` says it. */
   time: string;
-  /** `3rd of 5 by Fame`, or that the Guild has folded and is not ranked. */
+  /**
+   * `3rd of 5 by Fame`, `joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
+   * DL-95), or that the Guild has folded and is not ranked.
+   */
   rankings: string;
   /** The seed the world was made from: a game is reproducible from it (N1). */
   seed: string;
+  /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
+  countdown: string | null;
   /** How the game ended, when it has. */
   ended: string | null;
 }
@@ -101,7 +108,7 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const guild = playerGuild(world);
   if (guild === undefined) return null;
   const { config } = playDeps(document);
-  const byFame = rankings(world, 'fame');
+  const byFame = rankingPlaces(world, 'fame');
   const place = byFame.find((ranking) => ranking.guildId === guild.id);
   const { ended } = world;
   return {
@@ -110,9 +117,30 @@ export function headerView(document: WorldDocument): HeaderView | null {
     fame: guild.fame,
     time: `Day ${dayOf(world.turn)}, ${timeOfDay(world.turn)}, Year ${yearOf(world.turn, config)}`,
     seed: document.meta.seed,
-    rankings: place === undefined ? 'not ranked: the Guild has folded' : `${ordinal(place.rank)} of ${byFame.length} by Fame`,
+    rankings: place === undefined ? 'not ranked: the Guild has folded' : `${placeWords(place)} of ${byFame.length} by Fame`,
+    countdown: countdownView(document),
     ended: ended === null ? null : `The game ended on Day ${dayOf(ended.turn)}: ${guild.name} ${endingWords[ended.reason]}.`,
   };
+}
+
+/**
+ * The Bankruptcy countdown of the player's Guild as a sentence (v1.0.1-S4, DL-95), from the
+ * engine's `bankruptcyCountdown` under the game's own rules; `null` while its `belowFloorSince` is,
+ * and once the game has ended. It stands after Wealth rises during a Day, until that night's check
+ * clears it, as the rule does. The header shows it; v1.0.1-S5 shows it in the Time section too,
+ * between the steps of a fast forward.
+ */
+export function countdownView(document: WorldDocument): string | null {
+  const { world } = document;
+  const guild = playerGuild(world);
+  if (guild === undefined || world.ended !== null) return null;
+  const { config } = playDeps(document);
+  const countdown = bankruptcyCountdown(guild, config);
+  if (countdown === null) return null;
+  return (
+    `${guild.name} has been below the Bankruptcy floor since Day ${countdown.sinceDay}: Bankruptcy on the night of ` +
+    `Day ${countdown.dueDay} unless Wealth is back to ${config.bankruptcyFloor} or more on a night by then, after any Upkeep due.`
+  );
 }
 
 // ── The Board ────────────────────────────────────────────────────────────────────────────────

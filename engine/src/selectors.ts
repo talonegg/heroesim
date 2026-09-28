@@ -21,6 +21,7 @@ import {
 } from './document.js';
 import { gearModifiers } from './gear.js';
 import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
+import { dayOf } from './time.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -222,6 +223,61 @@ export function rankings(world: Pick<World, 'guilds'>, by: RankingMeasure): Rank
     .filter((guild) => guild.foldedOnTurn === null)
     .sort((a, b) => b[by] - a[by] || compareByCodeUnit(a.id, b.id))
     .map((guild, index) => ({ guildId: guild.id, value: guild[by], rank: index + 1 }));
+}
+
+/** One Guild's place in the Rankings, shared with every Guild level with it (v1.0.1-S4, DL-95). */
+export interface RankingPlace {
+  guildId: GuildId;
+  /** The Guild's Fame or Wealth, whichever the Rankings are by. */
+  value: number;
+  /** 1 for the first place: one more than the Guilds in play with a greater value. */
+  place: number;
+  /** Whether another Guild in play has the same value, and so the same place. */
+  joint: boolean;
+}
+
+/**
+ * The Rankings as the front ends show them (v1.0.1-S4, DL-95): `rankings`' rows in its order, each
+ * Guild's place one more than the Guilds in play with a greater value, so Guilds level on the
+ * measure share a place and are marked `joint`. Five Guilds at Fame 0 are all first; Fame 9, 4, 4
+ * and 1 place 1st, joint 2nd, joint 2nd and 4th. A folded Guild is not in them, as it is not in
+ * `rankings`, which stays as it is: the harness and a module's `ctx.select` read its own ranks.
+ */
+export function rankingPlaces(world: Pick<World, 'guilds'>, by: RankingMeasure): RankingPlace[] {
+  const ranked = rankings(world, by);
+  return ranked.map(({ guildId, value }) => ({
+    guildId,
+    value,
+    place: 1 + ranked.filter((other) => other.value > value).length,
+    joint: ranked.filter((other) => other.value === value).length > 1,
+  }));
+}
+
+/** When a Guild below the Bankruptcy floor reaches Bankruptcy, unless its Wealth recovers (DL-95). */
+export interface BankruptcyCountdown {
+  /** The Day of the night the Guild was first found below the floor: `belowFloorSince`'s Day. */
+  sinceDay: number;
+  /** The Day on whose night the ending check finds Bankruptcy: `sinceDay` plus `bankruptcyGraceDays`. */
+  dueDay: number;
+}
+
+/**
+ * The Bankruptcy countdown (v1.0.1-S4, DL-95), or `null` while `belowFloorSince` is. It reads only
+ * the rule's own input: each night the Guild State Engine, after any Upkeep due, sets
+ * `belowFloorSince` to that night's Turn if Wealth is below `bankruptcyFloor` and clears it if not,
+ * and later that night the ending check (`endings.ts`) finds Bankruptcy once the Day reaches
+ * `sinceDay + bankruptcyGraceDays`. So the countdown stands while Wealth has risen during a Day,
+ * until that night's check clears it, and `config` must be the game's own, never a literal: a
+ * save plays under its own grace. DL-26 item 3 left `belowFloorSince` silent, with no event, for a
+ * front end to read: the front ends read it here.
+ */
+export function bankruptcyCountdown(
+  guild: Pick<Guild, 'belowFloorSince'>,
+  config: Pick<GameConfig, 'bankruptcyGraceDays'>,
+): BankruptcyCountdown | null {
+  if (guild.belowFloorSince === null) return null;
+  const sinceDay = dayOf(guild.belowFloorSince);
+  return { sinceDay, dueDay: sinceDay + config.bankruptcyGraceDays };
 }
 
 /**

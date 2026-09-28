@@ -679,6 +679,40 @@ describe('advance', () => {
     expect(play(['advance', '--turns', '0']).code).toBe(exitCodes.usage);
     expect(document().world.turn).toBe(0);
   });
+
+  test("prints the Bankruptcy countdown after the Turns while the player's Guild is below the floor, under the save's grace (DL-95)", () => {
+    const countdown = (dueDay: number) =>
+      `The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
+      'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1;
+    });
+
+    const morning = play(['advance']);
+    expect(morning.out).not.toContain('Bankruptcy floor');
+
+    // The night of Day 0 finds it below the floor: the line follows the Turns played.
+    const night = play(['advance']);
+    expect(night.code).toBe(exitCodes.ok);
+    expect(night.out.split('\n').slice(0, 2)).toEqual(['Played 1 Turn. Now Turn 2 (Day 0, night, Year 0).', countdown(10)]);
+    expect(play(['show']).out.split('\n')[1]).toBe(countdown(10));
+
+    // Wealth back above the floor during Day 1: the countdown stands until that night's check.
+    edit((edited) => {
+      (edited.world.guilds[playerId] as Guild).wealth = 1_000;
+    });
+    // A fast forward, which stops for a decision the next morning, prints it after why it stopped.
+    const risen = play(['advance', '--until', 'ended']).out.split('\n');
+    expect(risen[0]).toBe('Played 1 Turn. Now Turn 3 (Day 1, morning, Year 0).');
+    expect(risen[1]).toMatch(/^Stopped: a decision is needed: /);
+    expect(risen[2]).toBe(countdown(10));
+    expect(play(['advance']).out.split('\n')[1]).toBe(countdown(10));
+    const cleared = play(['advance']);
+    expect(cleared.out).toContain('Now Turn 5 (Day 1, night, Year 0).');
+    expect(cleared.out).not.toContain('Bankruptcy floor');
+    expect(play(['show']).out).not.toContain('Bankruptcy floor');
+  });
 });
 
 describe('advance --until: fast forward (M2-S11)', () => {

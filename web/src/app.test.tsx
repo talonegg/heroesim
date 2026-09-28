@@ -55,7 +55,9 @@ describe('before a game', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
     expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
-    expect(screen.getByTestId('rankings').textContent).toMatch(/^\d+(st|nd|rd|th) of \d+ by Fame$/);
+    // Every Guild starts at Fame 0, so all five share the first place (DL-95).
+    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(screen.queryByTestId('countdown')).toBeNull();
     expect(screen.getByTestId('wealth').textContent).toMatch(/^\d+$/);
   });
 

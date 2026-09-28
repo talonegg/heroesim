@@ -8233,6 +8233,78 @@ production to `v1.1-release`, when Pages would take it as a preview but the Work
 branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
 source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
 
+## DL-95 — Shared places and the Bankruptcy countdown: `rankingPlaces` beside an unchanged `rankings`, shown as "joint 1st" on the page and "joint 1" in the CLI; `bankruptcyCountdown` from `belowFloorSince` and the game's own grace, in the header, after `advance` and in `show` (v1.0.1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S4 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S4 (#39, DL-92 item 1) fixes two things both front ends showed badly. `rankings`
+gives each Guild its own rank, ties ordered by Guild id, so a new game, every Guild at Fame 0, showed
+"1st of 5 by Fame" in the page's header, 1st to 5th in its Rankings and Rank 1 to 5 in the CLI's
+`show rankings`: a place won by being made first. And the Bankruptcy grace ran unseen: each night
+the Guild State Engine, after any Upkeep due, sets `belowFloorSince` while Wealth is below
+`bankruptcyFloor` and clears it otherwise, and later that night the ending check ends the Guild once
+`dayOf(turn) >= dayOf(belowFloorSince) + bankruptcyGraceDays`. DL-26 item 3 gave that no event
+because a front end would read `belowFloorSince`; neither did. The hotfix bar (H1) allows no rule,
+content, config, schema or event change: in `engine/` only two read-only selectors and their tests,
+and `rankings` stays as it is, since the harness report and a module's `ctx.select` read it.
+
+**Decision.**
+
+1. **`rankingPlaces(world, by)`, beside `rankings` in `engine/src/selectors.ts`.** Rows
+   `{ guildId, value, place, joint }` in `rankings`' order, so a folded Guild is absent and level
+   Guilds still list by Guild id; `place` is one more than the Guilds in play with a greater value,
+   and `joint` is set when another Guild in play has the same value. Five Guilds at Fame 0 are all
+   first and joint; Fame 9, 4, 4 and 1 give 1st, joint 2nd, joint 2nd and 4th, the place after a
+   tie skipping as a league's does. `joint` is the engine's answer, so neither front end counts
+   level Guilds itself (ADR-0007). `rankings` and its tests are unchanged, and `ModuleSelectors`
+   does not gain the new selector: the module API is as M8 left it.
+2. **The words for a place.** The page says `joint 1st` for a shared place (`placeWords`,
+   `web/src/state/names.ts`): the header's "joint 1st of 5 by Fame", and the Place of each row of
+   its Rankings. The CLI's `show rankings` prints the Rank column as `joint 2` for a shared place and
+   `4` for one no Guild shares, right-aligned as before: the epic's "the CLI marks its Rank joint".
+3. **`bankruptcyCountdown(guild, config)`**, beside it: `null` while `belowFloorSince` is null,
+   else `{ sinceDay: dayOf(belowFloorSince), dueDay: sinceDay + config.bankruptcyGraceDays }`. It
+   reads only the rule's input and takes the grace from the config it is given, never a literal: the
+   page passes `playDeps(document).config` and the CLI the save's own deps, so a save playing under
+   another grace counts down by it. Because it does not read Wealth, it stands after Wealth rises
+   during a Day until that night's check clears it, as the rule does. `endings.ts` is unchanged, and
+   one test ties the selector to it: `engine/src/selectors.test.ts` plays a Bankruptcy under graces
+   of 0, 3, 10 and 30 Days and finds `world.ended` on the night of the countdown's `dueDay`, and not
+   on the Turn before.
+4. **One sentence, in both front ends:** "The Lantern has been below the Bankruptcy floor since Day 4:
+   Bankruptcy on the night of Day 34 unless Wealth is back to 0 or more on a night by then, after any
+   Upkeep due." The epic's sentence was a guide; this one says the same with two changes. It names
+   the Guild, so it stands alone in the CLI's output and, from S5, in the Time section. It gives the
+   floor's value, `bankruptcyFloor` from the same config, since "the floor" alone tells a player
+   nothing. "On a night by then" includes the due night, whose own check, after Upkeep and before
+   the ending check, clears the countdown if Wealth is back. The page's `countdownView(document)`
+   (`web/src/state/selectors.ts`, exported for S5) and the CLI's `renderCountdown(document, deps)`
+   (`cli/src/render.ts`) word it.
+5. **Where it shows.** The page's header shows it as a paragraph under its facts
+   (`data-testid="countdown"`), styled as the ending's line. The CLI prints it on the line after
+   `advance`'s "Played … Now …" and any stop line, in `renderAdvance`, so `advance --until` prints
+   it too, and in `show`'s summary on the line after the seed and Turn. **Neither shows it once the
+   game has ended**: a Bankruptcy leaves `belowFloorSince` set, and the header and `advance` then
+   say how the game ended; a countdown to a night that has come would mislead. This is the one
+   reading beyond the epic's "while it is set".
+6. **No event, no stop, no rule.** Fast forward still runs through the grace; the stop is #32's, on
+   the v1.1 line. S5 shows the countdown between steps through `countdownView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine` lists `engine/src/selectors.ts` and
+`engine/src/selectors.test.ts` alone: `rankings`, `endings.ts`, `GameConfig`, content, the schema and
+the events are `v1.0.0`'s, so every seed plays as before. The tests that asserted a new game's
+unshared ordinal now assert the shared place: `web/src/app.test.tsx` (the header),
+`web/src/state/selectors.test.ts` (`headerView`) and `web/src/state/world-views.test.ts`
+(`rankingsView`, now against `rankingPlaces`). The page's Rankings by Wealth after six Turns
+(`web/src/views/world.test.tsx`) and the CLI's `show rankings` test
+(`cli/src/commands/recruit.test.ts`) arrange distinct values and pass unchanged. The web bundle is
+497.73 kB (145.14 kB gzipped) after this story. Left open: the harness's "player's Rankings place"
+reads `rankings`' rank, in which the player's Guild, `guild-000001`, wins every tie by its id, so a
+place it shares counts as its own; the report is unchanged here, and whether it should count a
+shared place is for the v1.1 line's reading of the Rankings band (DL-91 item 2). CONTEXT.md is
+unchanged: a shared place is how the Rankings are shown, not a new rule or term.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
