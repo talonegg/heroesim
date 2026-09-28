@@ -31,7 +31,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
-import { facilityIs, facilityNames, nameIn, renderTime, rowIn, table } from './render.js';
+import { facilityIs, facilityNames, nameIn, renderCountdown, renderTime, rowIn, table } from './render.js';
 
 /** The labels an event carries, by participant: an engine's event's or a module's. */
 type Labelled = Pick<TurnEvent, 'labels'>;
@@ -389,8 +389,9 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
 
 /**
  * `advance`: how many Turns were played, where time stands now, why a fast forward stopped when it
- * was one (`stop`), whether the game has ended, and each event of the Turns played, oldest first,
- * one line each in the CLI's words.
+ * was one (`stop`), the Bankruptcy countdown while the player's Guild is below the floor
+ * (`renderCountdown`, DL-95), whether the game has ended, and each event of the Turns played,
+ * oldest first, one line each in the CLI's words.
  */
 export function renderAdvance(
   played: number,
@@ -403,6 +404,7 @@ export function renderAdvance(
   return [
     `Played ${played} ${played === 1 ? 'Turn' : 'Turns'}. Now ${renderTime(turn, deps.config)}.`,
     ...(stop === undefined ? [] : [stop]),
+    ...renderCountdown(document, deps),
     ...(ended === null ? [] : [`The game ended on Turn ${ended.turn}: ${ended.reason}.`]),
     '',
     ...(events.length === 0

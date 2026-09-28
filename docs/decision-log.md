@@ -8233,6 +8233,605 @@ production to `v1.1-release`, when Pages would take it as a preview but the Work
 branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
 source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
 
+## DL-93 — M8's deploy recorded after the fact: the orchestrator's run of 2026-09-27 21:30 UTC, with the owner's login, from `70508c6` to Pages deployment `5bef971d`; the exact second and the wrangler version used are not recovered (v1.0.1-S2, DL-88 item 6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S2 within
+the plan the owner approved in DL-92
+
+**Context.** DL-88 item 6 asked that M8's deploy, which shipped ahead of any record (#14), be
+recorded before a v1.0.1 deploy replaces the live page (DL-92's Consequences names this risk). The
+evidence is the orchestrator's own session transcript of 2026-09-27; a Pages deployment list read
+2026-09-28 ~07:23 UTC with the owner's login; a byte comparison of a clean `v1.0.0` build against
+the live bundle; and a fresh `npm run e2e:live -w web` against `https://heroesims.pages.dev`, run
+before any v1.0.1 deploy. No wrangler, curl or build was run for this story: this entry is written
+from that evidence alone, gathered by the orchestrator.
+
+**Decision.**
+
+1. **Who ran it, and with whose login.** The orchestrator, an agent, ran the deploy in the main
+   working tree `C:/JHH/source/heroesim`, using the owner's local wrangler login, not an agent's
+   own.
+2. **When.** Between 2026-09-27 21:30:00.351 UTC (the command's start) and 21:30:50.736 UTC (its
+   printed result), i.e. 07:30 on 2026-09-28 at UTC+10. Not recovered: the exact creation second
+   (the deployment list gives only a relative time, "9 hours ago" when read at ~07:23 UTC on
+   2026-09-28, consistent with these bounds) and the wrangler version used (the deploy command's
+   output did not print one).
+3. **From which commit.** `70508c6`, the merge of `v1.0-dev` into `v1.0-release` tagged
+   `m8-modules` ("Merge v1.0-dev into v1.0-release: M8 Modules complete, the first build"), as one
+   command: push `v1.0-dev`; checkout `v1.0-release`; the merge; the tag; push branch and tag;
+   `npm run deploy` (`npm run build && npx -y wrangler@4 pages deploy dist --project-name
+   heroesims --branch v1.0-release`); `npm run e2e:live -w web`. Proved two ways: the deployment
+   list's own `source` field for the deployment in item 4, and a byte comparison, 2026-09-28 07:22
+   UTC — a clean clone of tag `v1.0.0` (`70508c6`), built on this machine (Node v26.9.0, Vite
+   8.3.1 with Rolldown), gives `dist/index.html` 457 bytes
+   (`721ee2ad792a5c80f12da8103c96a60bf90b3fc0cbfff4099962b0b653abfee8`) and
+   `dist/assets/index-BhY-O45V.js` 496,884 bytes
+   (`384c76307eb206e8ab369c0786681b675bd8f8b97a8db92f92554676b7c809bf`); both files served at
+   `https://heroesims.pages.dev/` and `/assets/index-BhY-O45V.js` at 07:22:20 UTC hash
+   identically, so the live page is byte-identical to a build of `70508c6`.
+4. **The deployment.** Id `5bef971d-d876-4473-be20-84a17096830c`, URL
+   `https://5bef971d.heroesims.pages.dev`, environment Production, branch `v1.0-release`; read
+   2026-09-28 ~07:23 UTC with the owner's login (`npx -y wrangler@4 pages deployment list
+   --project-name heroesims --json`, wrangler 4.142.0), and the latest of three deployments
+   listed, so production.
+5. **Both `e2e:live` results.** At the deploy, 2026-09-27 21:30 UTC: 2 passed (6.0 s), "ok 2
+   [phone] ... the deployed page creates a game, saves it, and loads it after a reload (5.0s)"
+   (phone and desktop). Fresh, before any v1.0.1 deploy, 2026-09-28 07:22:20–07:22:25 UTC, from
+   the `v1.0.0` clone against `https://heroesims.pages.dev`: 2 passed (2.0 s), "ok 1 [desktop] ...
+   (1.1s)", "ok 2 [phone] ... (1.1s)".
+6. **M7's deployments, for completeness (DL-75).** The same list shows two earlier Production
+   deployments on `v1.0-release`: `df0a073a-662d-48d2-a01d-6073908b1165`
+   (`https://df0a073a.heroesims.pages.dev`, source `ba38eb5`, 07:47 UTC 2026-09-27) and
+   `3ba30ba0-5419-422f-a352-2fd6f51e35e2` (`https://3ba30ba0.heroesims.pages.dev`, source
+   `d792a76`, 07:51 UTC 2026-09-27); three deployments in the project in all.
+7. **What is never recorded.** No Cloudflare account id and no dashboard link appear in this
+   entry or in the evidence it is written from; the deployment list's dashboard links were
+   dropped before the list reached this story.
+
+**Consequences.** M8's deploy (#14, DL-88 item 6) is on the record before any v1.0.1 deploy
+replaces the live page. Item 5's fresh `e2e:live` result meets S2's second acceptance box; INPUTS
+7.8's Now column gains a dated note naming this entry, made in v1.0.1-S3 rather than here, to
+avoid a conflict with S3's own edit of that row. What stays missing, not guessed: the exact deploy
+second and the wrangler version used at deploy time, neither recoverable from the evidence
+gathered.
+
+## DL-94 — The Worker beside Pages: `web/wrangler.jsonc`, a deploy script that refuses all but a clean checkout of a release tag, builds once and uploads to the Worker then Pages, its record read from wrangler's output file, and the live check on both addresses (v1.0.1-S3)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S3 within
+the plan the owner approved in DL-92; the account's workers.dev subdomain, `magical-potato`, is the
+owner's, read in the dashboard and given on 2026-09-28 (the epic's S7 step 1)
+
+**Context.** DL-88 items 7 to 9 move the page to Cloudflare Workers static assets beside Pages
+(#13), and item 6 has each deploy recorded. DL-92 names the Worker `heroesim` (item 4), has the
+deploy refuse anything but a clean checkout of a release tag (item 5) and proposes the Worker's
+configuration and the address rule (item 6). v1.0.1-S3 builds them: the configuration, a deploy
+script behind `npm run deploy`, `web/src/deploy.test.ts`'s pins changed in one commit, the live
+check on both addresses, and the documents, with the M8 epic's §0 note that DL-82 item 20 asked
+for (#18). DL-68's command, `npm run build && npx -y wrangler@4 pages deploy dist …`, uploaded to
+Pages alone, from any checkout. The owner gave the subdomain before this story closed, so the
+Worker's full address is written in: `https://heroesim.magical-potato.workers.dev`. Wrangler's
+behaviour below was read in wrangler 4.142.0's own `wrangler-dist/cli.js` (the npx cache on this
+machine), beside the Cloudflare documentation the plan's research cites.
+
+**Decision.**
+
+1. **`web/wrangler.jsonc`, as DL-92 item 6 and the epic give it:** `name` `heroesim`;
+   `compatibility_date` `2026-09-28`, the day it was written (already that date in UTC);
+   `assets` with `directory` `./dist` and `not_found_handling` `none`; `workers_dev` true;
+   `preview_urls` false; no `main`, `account_id`, `pages_build_output_dir` or `$schema`. Its
+   comments, whole lines, say why each is so. The address is not written in it, so that a
+   correction touches one constant (item 3). With the go-ahead the orchestrator gave for this run
+   (the owner's subdomain being set), from `web/` after `npm run build -w web`,
+   `npx -y wrangler@4 deploy --dry-run --config wrangler.jsonc` (wrangler 4.142.0) read the file
+   and uploaded nothing, exit 0: "Read 3 files from the assets directory …\web\dist" (a recursive
+   `readdir` that counts `assets/` itself; the manifest skips directories, so two files), "Total
+   Upload: 0.37 KiB / gzip: 0.27 KiB", "No bindings found.", "--dry-run: exiting now.". Its
+   output file held a `wrangler-session` entry (`wrangler_version` 4.142.0) and a `deploy` entry,
+   `worker_name` `heroesim`, `version_id` null and no `targets`, as a dry run leaves them.
+2. **The deploy is `web/scripts/deploy.mjs`,** zero-dependency Node beside `check-bundle.mjs`.
+   `web/package.json`'s `deploy` is `node scripts/deploy.mjs`; the root's stays
+   `npm run deploy -w web`. `deploy.d.mts` declares its exports, and TypeScript resolves the
+   import of `deploy.mjs` to it, so web's strict typecheck covers its callers with
+   `web/tsconfig.json` unchanged. The script:
+   - **refuses before building,** exit 1, naming every reason at once, unless `git status
+     --porcelain` prints nothing; `git tag --points-at HEAD` lists exactly one tag beginning `v`
+     (none, a milestone tag alone or two release tags refuse); and no wrangler configuration but
+     `web/wrangler.jsonc` sits in `web/` or any directory above it to the filesystem's root. The
+     names are the three `findWranglerConfig` walks up for, `wrangler.json` in every directory
+     first, then `wrangler.jsonc`, then `wrangler.toml`, so a stray `wrangler.json` anywhere above
+     would win for `pages deploy`, which takes no `--config`. Two refusals are this story's own:
+     any argument but `--dry-run`, so that a mistyped `--dryrun` never deploys; and npm's
+     `npm-cli.js` or `npx-cli.js` missing where they are looked for.
+   - **builds once,** `npm run build` in `web/` (Vite, then the bundle gate), and stops if it fails.
+   - **uploads to the Worker, then to Pages,** from `web/`, stopping at the first failure:
+     `npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit
+     <sha>"`, the only places a Worker version keeps a commit; then, as before,
+     `npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release`, which
+     reads the commit from git. Each failure says what was uploaded and what was not.
+   - **runs no shell.** npm and npx run as `process.execPath` with the `npm-cli.js` that
+     `npm_execpath` names and the `npx-cli.js` beside it, or, when `node` runs the script and sets
+     no `npm_execpath`, the two in `node_modules/npm/bin/` beside `process.execPath`
+     (`C:\Program Files\nodejs\` on this machine); git runs as `git`. No `shell` option is
+     passed, so `--message` reaches wrangler as one argument.
+   - **inherits wrangler's stdio,** for its prompts, and reads the record from
+     `WRANGLER_OUTPUT_FILE_PATH`, set for each run to its own file in a directory made in
+     `os.tmpdir()` and removed afterwards. Wrangler appends one JSON object a line, each with a
+     `timestamp` (`writeOutput`): `wrangler-session` (`wrangler_version`), `deploy` (`version_id`,
+     `targets`) and `pages-deploy-detailed` (`url`, `environment`,
+     `deployment_trigger.metadata.commit_hash`). After both uploads the script prints the tag, the
+     commit, the UTC time, each run's wrangler version, the Worker's version id, address and time,
+     and the Pages deployment's URL, environment, commit and time. It warns loudly, in lines
+     marked WARNING, when the Worker's `targets` do not hold `addresses.worker`, naming
+     `HEROESIM_LIVE_URL` and what to correct. Beyond the epic, it also warns when Pages took the
+     deploy as other than production, when Pages recorded another commit (compared as a prefix,
+     in case it keeps an abbreviated hash), and when wrangler wrote no record. A warning leaves
+     the exit status 0, since both uploads were made.
+   - **`--dry-run`,** or `npm_config_dry_run` set to anything but empty or "false", runs the
+     checks and the build and prints both wrangler commands, running neither. npm 11.19.1 was
+     tried in a scratch package: `npm run <script> --dry-run`, from a workspace or through the
+     root's `-w` delegate, still runs the script, with no argument, and sets
+     `npm_config_dry_run=true`; `npm run <script> -- --dry-run` passes the argument instead.
+   - **takes its process as options** (`argv`, `env`, `webDir`, `execPath`, `tmpdir`, `spawn`,
+     `log`, `warn`, `now`), `spawn` in `spawnSync`'s shape, so the tests run every path with a
+     fake and see the exact options each child is given. It runs when Node runs the file
+     (`import.meta.main`, or, on a Node 22 without it, `process.argv[1]` against the module's URL),
+     never when a test or the live configuration imports it.
+   - **writes the release branch once,** `releaseBranch`, for #37.
+3. **The addresses are one constant, `addresses` in `web/scripts/deploy.mjs`:**
+   `{ worker: 'https://heroesim.magical-potato.workers.dev', pages: 'https://heroesims.pages.dev' }`,
+   which `web/playwright.live.config.ts` imports. **A departure from the epic's words**, which put
+   the constant in the live configuration: the deploy's warning needs the Worker's address in
+   plain Node, which cannot import that TypeScript file on every supported Node without a loader,
+   and one constant both read cannot drift as two copies kept equal by a test could.
+4. **The live check: four projects,** `worker-phone`, `worker-desktop`, `pages-phone` and
+   `pages-desktop`, each address at 360 × 800 and 1280 × 800. **`HEROESIM_LIVE_URL`**, the
+   one-address override this entry names, replaces both addresses with the one it holds when set
+   and not blank: `override-phone`, `override-desktop`. It is added to INPUTS §9, with
+   `WRANGLER_OUTPUT_FILE_PATH`, and `CLOUDFLARE_ACCOUNT_ID`'s row notes an agent's deploy.
+   `web/e2e/deployed.live.ts` is unchanged (it reads `baseURL`), no configuration file was added,
+   and `web/tsconfig.json`'s include list stays. `npm run e2e:live -w web -- --list` lists 4
+   tests, and 2 with `HEROESIM_LIVE_URL=https://heroesims.pages.dev`.
+5. **The tests.** `web/src/deploy.test.ts` keeps DL-68's (the root's delegate, npx-only
+   wrangler, `.gitignore`, no `.wrangler/` file, the credential scan and its fixtures, the Pages
+   fixture updated and the Worker's command added beside it) and adds: the new `deploy` string;
+   both wrangler commands; the release branch written once; the configuration's exact keys; the
+   Worker's full address, matching `https://heroesim.<subdomain>.workers.dev` with no
+   placeholder, in the constant, the README and INPUTS 7.8's row; the README's strings; the live
+   configuration imported, four projects and two under the override; and, with a fake spawn
+   answering for git, npm and wrangler (the record in wrangler 4.142.0's shape), the refusals
+   (dirty, untagged, a milestone tag alone, two release tags, git failing, a dry run untagged,
+   each of the three names above `web/` and a second one in it, a mistyped flag, npm missing),
+   one build then the Worker then Pages with no `shell` option and `--message` whole, npm found
+   both ways, the first failure stopping each of the three steps, a record file for each run in
+   the temporary directory and removed, the record printed, each warning, and the dry run by
+   `--dry-run` and by `npm_config_dry_run` alone calling no wrangler. The file has 54 tests,
+   33 more than before; no test runs npm, wrangler or a git command that writes. Fifteen mutants
+   of the script made by hand each fail a test: a `shell` option, Pages uploaded first, the
+   message cut to the tag, `npm_config_dry_run` ignored, the dry run ignored, each of the five
+   refusals dropped (dirty, untagged, two tags, a stray configuration, an unknown argument), a
+   failed build or Worker upload ignored, the address warning dropped, the record directory kept,
+   and npx looked for in the wrong place.
+6. **The documents.** The README's Play names both addresses and says saves stay with each,
+   moved only by "Export this game" and "Load a save file"; its Deploy gives the subdomain, the
+   deploy from a clean checkout of its release tag (`npm ci`, `npm run deploy`, `npm run e2e:live
+   -w web`), the guard, both commands, Pages' expected warning, the dry run, the record and the
+   override; its opening paragraph says what `v1.0.1` is rather than "next comes", so that it
+   holds at the tag. INPUTS 7.8's Answer gains the full address and the deploy, and its Now
+   column a dated note that M8's deploy is recorded in DL-93: S2's, made here so that the two
+   parallel branches do not both edit that cell. INPUTS 7.9's Answer and §9, plan §2 (a dated
+   note), and the M8 epic's §0: a dated note naming DL-82 item 20, that the probe has been in the
+   web bundle behind `?modules=probe` since M8-S4 (DL-79 item 3) and leaves the page once Random
+   Events' installation lands (#18).
+7. **Tried, by dry run only.** On this branch, dirty and untagged, `node scripts/deploy.mjs
+   --dry-run` and `npm run deploy --dry-run` from `web/` refused ("the checkout is not clean",
+   "HEAD carries no release tag (v*)"), exit 1, building nothing. In a scratch clone of this
+   branch with S3's files committed there: clean and untagged, the dry run refused on the tag
+   alone, as did `npm run deploy --dry-run` from the root and a milestone tag alone; a
+   `wrangler.json` in the directory above the clone refused; `--dryrun` refused. With a local
+   scratch tag, `v9.9.9-scratch`, both `node scripts/deploy.mjs --dry-run` and `npm run deploy
+   --dry-run` from the root passed the guard, built once (the gate: 2 files, the script 496.88
+   kB, 144.94 kB gzipped) and printed both commands, the message as "v9.9.9-scratch at commit
+   ecc8183…", exit 0. The build is byte for byte the page served on 2026-09-28 (the epic's S2):
+   `index.html` SHA-256 `721ee2ad…abfee8`, `assets/index-BhY-O45V.js` `384c7630…c809bf`, since
+   nothing here reaches the bundle. Besides item 1's dry run, wrangler ran only twice more, by a
+   quoting slip in a shell command of this story's that split `npx -y wrangler@4 deploy
+   --dry-run --config wrangler.jsonc` before the file name: wrangler refused both at its argument
+   parsing ("Not enough arguments following: config"). Nothing was uploaded. The scratch clone
+   and its tag were deleted.
+
+**Consequences.** #13's code is built; its deploy is S7's, the first to both addresses.
+`npm run build -w web` still passes the gate, `web/e2e/smoke.spec.ts` still opens the page from
+`file://` (`npm run e2e`, 20 of 20), and lint, typecheck and `npm test` (114 files, 2,755 tests)
+pass. #18's one box is met here and the issue is closed in S7. What stays open: each host's
+headers, recorded in DL-98 (no `_headers` file, as DL-92 item 6 proposed); the Worker's first
+deploy, which S7 runs and DL-98 records with any correction of the address; the rule for a v1.0.x
+deploy once #37 moves production to `v1.1-release`, left to #37; and one route the guard does not
+cover, wrangler's redirected configuration (`.wrangler/deploy/config.json`, found by walking up,
+which `pages deploy` honours): nothing in this repository writes one, `.wrangler/` is ignored,
+and a fresh clone of the tag holds none.
+
+## DL-95 — Shared places and the Bankruptcy countdown: `rankingPlaces` beside an unchanged `rankings`, shown as "joint 1st" on the page and "joint 1" in the CLI; `bankruptcyCountdown` from `belowFloorSince` and the game's own grace, in the header, after `advance` and in `show` (v1.0.1-S4)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S4 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S4 (#39, DL-92 item 1) fixes two things both front ends showed badly. `rankings`
+gives each Guild its own rank, ties ordered by Guild id, so a new game, every Guild at Fame 0, showed
+"1st of 5 by Fame" in the page's header, 1st to 5th in its Rankings and Rank 1 to 5 in the CLI's
+`show rankings`: a place won by being made first. And the Bankruptcy grace ran unseen: each night
+the Guild State Engine, after any Upkeep due, sets `belowFloorSince` while Wealth is below
+`bankruptcyFloor` and clears it otherwise, and later that night the ending check ends the Guild once
+`dayOf(turn) >= dayOf(belowFloorSince) + bankruptcyGraceDays`. DL-26 item 3 gave that no event
+because a front end would read `belowFloorSince`; neither did. The hotfix bar (H1) allows no rule,
+content, config, schema or event change: in `engine/` only two read-only selectors and their tests,
+and `rankings` stays as it is, since the harness report and a module's `ctx.select` read it.
+
+**Decision.**
+
+1. **`rankingPlaces(world, by)`, beside `rankings` in `engine/src/selectors.ts`.** Rows
+   `{ guildId, value, place, joint }` in `rankings`' order, so a folded Guild is absent and level
+   Guilds still list by Guild id; `place` is one more than the Guilds in play with a greater value,
+   and `joint` is set when another Guild in play has the same value. Five Guilds at Fame 0 are all
+   first and joint; Fame 9, 4, 4 and 1 give 1st, joint 2nd, joint 2nd and 4th, the place after a
+   tie skipping as a league's does. `joint` is the engine's answer, so neither front end counts
+   level Guilds itself (ADR-0007). `rankings` and its tests are unchanged, and `ModuleSelectors`
+   does not gain the new selector: the module API is as M8 left it.
+2. **The words for a place.** The page says `joint 1st` for a shared place (`placeWords`,
+   `web/src/state/names.ts`): the header's "joint 1st of 5 by Fame", and the Place of each row of
+   its Rankings. The CLI's `show rankings` prints the Rank column as `joint 2` for a shared place and
+   `4` for one no Guild shares, right-aligned as before: the epic's "the CLI marks its Rank joint".
+3. **`bankruptcyCountdown(guild, config)`**, beside it: `null` while `belowFloorSince` is null,
+   else `{ sinceDay: dayOf(belowFloorSince), dueDay: sinceDay + config.bankruptcyGraceDays }`. It
+   reads only the rule's input and takes the grace from the config it is given, never a literal: the
+   page passes `playDeps(document).config` and the CLI the save's own deps, so a save playing under
+   another grace counts down by it. Because it does not read Wealth, it stands after Wealth rises
+   during a Day until that night's check clears it, as the rule does. `endings.ts` is unchanged, and
+   one test ties the selector to it: `engine/src/selectors.test.ts` plays a Bankruptcy under graces
+   of 0, 3, 10 and 30 Days and finds `world.ended` on the night of the countdown's `dueDay`, and not
+   on the Turn before.
+4. **One sentence, in both front ends:** "The Lantern has been below the Bankruptcy floor since Day 4:
+   Bankruptcy on the night of Day 34 unless Wealth is back to 0 or more on a night by then, after any
+   Upkeep due." The epic's sentence was a guide; this one says the same with two changes. It names
+   the Guild, so it stands alone in the CLI's output and, from S5, in the Time section. It gives the
+   floor's value, `bankruptcyFloor` from the same config, since "the floor" alone tells a player
+   nothing. "On a night by then" includes the due night, whose own check, after Upkeep and before
+   the ending check, clears the countdown if Wealth is back. The page's `countdownView(document)`
+   (`web/src/state/selectors.ts`, exported for S5) and the CLI's `renderCountdown(document, deps)`
+   (`cli/src/render.ts`) word it.
+5. **Where it shows.** The page's header shows it as a paragraph under its facts
+   (`data-testid="countdown"`), styled as the ending's line. The CLI prints it on the line after
+   `advance`'s "Played … Now …" and any stop line, in `renderAdvance`, so `advance --until` prints
+   it too, and in `show`'s summary on the line after the seed and Turn. **Neither shows it once the
+   game has ended**: a Bankruptcy leaves `belowFloorSince` set, and the header and `advance` then
+   say how the game ended; a countdown to a night that has come would mislead. This is the one
+   reading beyond the epic's "while it is set".
+6. **No event, no stop, no rule.** Fast forward still runs through the grace; the stop is #32's, on
+   the v1.1 line. S5 shows the countdown between steps through `countdownView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine` lists `engine/src/selectors.ts` and
+`engine/src/selectors.test.ts` alone: `rankings`, `endings.ts`, `GameConfig`, content, the schema and
+the events are `v1.0.0`'s, so every seed plays as before. The tests that asserted a new game's
+unshared ordinal now assert the shared place: `web/src/app.test.tsx` (the header),
+`web/src/state/selectors.test.ts` (`headerView`) and `web/src/state/world-views.test.ts`
+(`rankingsView`, now against `rankingPlaces`). The page's Rankings by Wealth after six Turns
+(`web/src/views/world.test.tsx`) and the CLI's `show rankings` test
+(`cli/src/commands/recruit.test.ts`) arrange distinct values and pass unchanged. The web bundle is
+497.73 kB (145.14 kB gzipped) after this story. Left open: the harness's "player's Rankings place"
+reads `rankings`' rank, in which the player's Guild, `guild-000001`, wins every tie by its id, so a
+place it shares counts as its own; the report is unchanged here, and whether it should count a
+shared place is for the v1.1 line's reading of the Rankings band (DL-91 item 2). CONTEXT.md is
+unchanged: a shared place is how the Rankings are shown, not a new rule or term.
+
+## DL-96 — Fast forward in steps: `fastForward` calls of at most 30 Turns (`fastForwardStepTurns`), each settled after a paint, the steps' game held until the end, progress and the countdown in the Time section, and a Stop that ends it between steps with the page's own sentence (v1.0.1-S5)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S5 within
+the plan the owner approved in DL-92
+
+**Context.** v1.0.1-S5 (#39, #32's chunked part; DL-88 item 1, brought forward by DL-92 item 1)
+fixes the page's fast forward. `run` (`web/src/state/reducer.ts`) made one `fastForward` call of up
+to `turnsPerYear` (1,080) Turns once `useGame` had painted "Playing the Turns…": a year blocked the
+page for 1.6 to 5.4 s (DL-81 item 6), with no progress and no way to stop. DL-88 item 1 chose steps
+of about 30 Turns in the reducer, with progress and a Stop; DL-65 item 4 had left chunking open. The
+hotfix bar (H1) allows no engine change: `fastForward`'s `maxTurns` (`engine/src/fast-forward.ts`)
+already caps a call, and `engine/src/stops.ts` detects each reason from the Turn alone. The epic left
+one question to this story: whether each step's document reaches the page, moving the header.
+
+**Decision.**
+
+1. **Steps of at most 30 Turns, each after a paint.** `fastForwardStepTurns = 30` is a constant in
+   `web/src/state/reducer.ts`: pacing, how often the page paints its progress and can take a Stop,
+   not a rule, so not a `GameConfig` field (DL-92 item 6). `settle` on a pending fast forward makes
+   one `fastForward` call of the smaller of 30 and the Turns left of its cap (a year unless the play
+   names one), with `playDeps(document, modules)` (DL-79 item 2). A step that stops on `max-turns`
+   with Turns of the cap left makes the rest, the same `until` and `maxTurns` the Turns left, the
+   pending play, so `useGame` settles it after the next paint as it settles any play (DL-65 item 4:
+   a frame, then a task). Any other stop, or the cap reached, ends the fast forward. The cap is
+   checked whole, with the engine's own message: a step's smaller cap would let an infinite one step
+   on for ever, where one call threw. A cap of 0 is one call that plays nothing and stops on
+   `max-turns`, as before.
+2. **Why the steps end where one call would.** `fastForward` is `advance` in a loop, and every reason
+   to stop is read from one Turn: the world before and after it, its events, and what `advance` said
+   of a module's stop. A split between Turns changes none of these; the History is appended in place
+   by the same Turns in the same order (ADR-0008); the probe counts its stop from `lastStopTurn` on
+   its own slice, in the document (DL-78). `max-turns` is the one reason a step can give that the
+   whole fast forward would not, and it is the one on which the steps go on. Tested, not argued:
+   `web/src/state/reducer.test.ts` loads one save twice and gives byte-equal `serialise(document)`,
+   the same events and the same stop reason for the steps and for one call, in more than one step
+   each: the player's Roster released to the pool with Wealth to spare (36 steps to `max-turns`); a
+   Party out on a Quest of ten Days, home on the 32nd Turn, partway through the second step;
+   `pool-refreshed` listed (the 32nd Turn); a cap of 100 (steps of 30, 30, 30 and 10); and the probe
+   installed, its stop on the 91st Turn, in the fourth step. A new game stops after 3 Turns inside
+   one step, as one call does.
+3. **The steps' game is held until the fast forward ends: settled here, no.** Between steps the
+   state's `forwarding` holds `{ until, turnsPlayed, document, events }`, the game the last step left
+   and every step's events; the game in hand, the log, and so the header and every section, stand as
+   they were until the fast forward ends or is stopped, when they become its game and its log, as one
+   call's would. Measured in the built page (Playwright's Chromium on the build machine, the spec's
+   year with the Roster released, four runs at each width): one call 491 to 554 ms; steps with each
+   step's document on the page 1,160 to 1,770 ms; steps with it held 645 to 933 ms. Re-rendering every
+   section, and narrating the growing log again, at each of 36 steps more than doubled a year; held,
+   the steps cost little more than their paints. The header's Day and countdown would also repeat
+   what the progress says. So that
+   holding stays cheap, the log section now reads its lines again only when the game or the log
+   changes (`web/src/views/log.tsx`), not at each step, where a year's log from the play before
+   would otherwise be narrated again 36 times.
+4. **Progress in the Time section.** `progressView(state)` (`web/src/state/selectors.ts`) reads the
+   held game: "Played 90 Turns so far. Now Day 30, morning, Year 0.", in the CLI's "Played … Now …"
+   words, and S4's `countdownView` of that game while the player's Guild is below the floor (DL-95
+   item 4). The section shows it under "Playing the Turns…" between steps (`data-testid="progress"`),
+   with the Stop, so a fast forward that ends in its first step, as a new game's 3 Turns do, shows
+   neither.
+5. **The Stop.** `{ kind: 'stop' }` is a control action beside `settle` and `dismiss`, taken while
+   busy, and only while a fast forward is between steps; otherwise it changes nothing. A step runs in
+   one task, so a tap is taken between steps, at most a step after it was made, and the Stop ends the
+   fast forward there, with no further step: the held game and events become the game in hand and
+   the log, and `stopped` keeps
+   `{ until, turnsPlayed }`. `StopReason` is unchanged: `stoppedBecause` is `null` after a Stop, and
+   `stopView` gives the page's own sentence, kind `player`: "Stopped: you asked to stop, after 90
+   Turns.", with "Fast forward again", which asks for the stops the stopped fast forward was asked for
+   (`pool-refreshed` among them), for a new year from where it stopped. The button says "Stop the
+   fast forward", since every control's name says what it does. `useGame` now calls off a settle it
+   has asked for when the pending play changes or is cleared (its effect's cleanup cancels the frame
+   and the task), so a fast forward asked for straight after a Stop is not settled, without a paint,
+   by the settle asked for before it (`web/src/state/use-game.test.tsx`).
+6. **Plays while it runs are dropped as busy**, by the rule the page already had (DL-65 item 3): the
+   state is busy from the tap to the step that ends it, the Time section's buttons are disabled, and
+   any play gets the same state back. The CLI's `advance --until` stays one call.
+7. **Departures from the epic, each small.** The epic's "ending the fast forward after the current
+   step" is read as item 5 does: the Stop is taken once the running step has ended, and no further
+   step runs. The progress and the Stop show from the end of the first step, not from the tap: no Turn has
+   been played before it. "Fast forward again" after a Stop keeps the stopped one's `until`, which the
+   epic left unsaid; after `max-turns` it asks for none, as before. The names are
+   `fastForwardStepTurns`, `Stop`, `forwarding`, `stopped` and `progressView`.
+
+**Consequences.** `git diff --stat v1.0.0 -- engine/src/fast-forward.ts engine/src/stops.ts` is
+empty, and `engine/` still differs from `v1.0.0` only by S4's selectors (DL-95): every seed plays as
+before. Changed in `web/`: `src/state/reducer.ts` (the steps, `Stop`, `forwarding`, `stopped`, the
+cancellable settle), `src/state/selectors.ts` (`progressView`, the player's stop in `stopView`),
+`src/views/time.tsx` (the progress and the Stop), `src/app.tsx`, `src/views/log.tsx`; tests in
+`src/state/reducer.test.ts` (the one-call test now expects a step of 30), `src/state/use-game.test.tsx`,
+`src/state/selectors.test.ts`, `src/app.test.tsx`, with `withRosterReleased` and `withPartyOut` in
+`src/state/game.test-support.ts`, whose `played` now settles step by step; and a new browser spec,
+`e2e/fast-forward.spec.ts`, which makes its year save from a new game's export, opens it with "Load a
+save file", sees at least two Days in the progress and a Stop take effect within a step, at both
+widths. The web bundle is 499,648 bytes (145.70 kB gzipped), against `v1.0.0`'s 496,884 and S4's
+497.73 kB. CONTEXT.md is unchanged: the player's Stop is the page's control, not a Fast-forward stop,
+and a fast forward still lands exactly where as many single Turns would. Left open: during a fast
+forward the header shows the game as it was when it began, and a section that reads the History
+(shared, ADR-0008) may already show the steps' entries, every one of which the game keeps, a Stop
+included; #32's Bankruptcy stop and events stay on the v1.1 line.
+
+## DL-97 — v1.0.1 verified and closed: "Export this game" held while a fast forward is between its steps, a mistyped dry run given to npm refused, the guard's other gaps and a half-made deploy's record closed, tests that kill the 23 surviving mutants, `v1.0.0`'s fingerprint on 50 × 20, and the close-out lines (v1.0.1-S6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the fixer and closer of
+v1.0.1-S6), within the plan the owner approved in DL-92, acting on the findings of the story's
+verification lenses, each checked again against the code before it was acted on; no engine rule,
+content value, `GameConfig` field, schema, event type or `StopReason` changes, and the owner has not
+seen the findings
+
+**Context.** v1.0.1-S6 verifies S1 to S5 (DL-93 to DL-96) as merged on `v1.0-dev` at `3e4e1fb`, the
+plan commit `45fd6ea` and the five stories, independently of their builders and against `v1.0.0`
+(`70508c6`). Four verifiers, agents, ran the epic's lenses, each in a worktree or scratch clone of its
+own at `3e4e1fb`: play-neutrality; mutants of the new code, as DL-74 and DL-80 did; the deploy's
+guard, by dry run only; and every acceptance box with the decisions. None deployed, and wrangler ran
+only with `--dry-run`. They found one major defect in play, S5's; one major gap in the guard, S3's;
+23 mutants of the new code that the suite let live, seven of them major; and minor points in the
+guard and its record, the page's words, the documents and this story's own procedure. The fixer
+checked each finding against the code again (each surviving mutant re-applied in this story's
+worktree and seen to survive: the deploy's and the live check's against `web/src/deploy.test.ts`,
+the only test that imports them, the rest against the whole suite, 2,801 tests), fixed each within
+the hotfix bar, and closed the epic.
+
+**Decision.**
+
+1. **What the lenses ran and measured, at `3e4e1fb`.**
+   - *Play-neutrality*, in a detached worktree, Node 26.9.0, 16 processes, no module installed. The
+     sweep twice: `HEROESIM_VALIDATE=1 HEROESIM_SEEDS=50 npm run harness -- play.harness`, as
+     `v1.0.0`'s reference was taken (DL-78 item 7), 2026-09-28 08:55:30–09:07:56 UTC, 742.7 s; and the
+     epic's command with `--silent=false` (item 6), 09:09:30–09:18:10 UTC, 517.5 s. Both gave the
+     "Fingerprint of every seed's last save"
+     `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, the `v1.0.0` tagged run's
+     for its first 50 seeds (DL-81 item 3; `git diff --stat 21fd4d4 v1.0.0 -- engine content harness
+     package-lock.json` shows only that run's report and milestone line). 49 games ran their 20 years
+     and `seed-0049` went bankrupt; 148 Rival folds; no refused action, validator refusal or stopped
+     assertion; `seed-0001` replayed identical (113,281,366 characters); 50 of 50 saves round trip;
+     every counter equals the probe report's "with no module" column. A watcher copied the 16 shards'
+     results before each sweep deleted them: the two runs' per-seed tables are byte-identical and
+     hash to the fingerprint, so validating changes no play. `git diff --stat v1.0.0 -- content
+     harness package-lock.json engine ':!engine/src/selectors.ts' ':!engine/src/selectors.test.ts'`
+     printed nothing before and after both. Schema version 3, config version 10, content version
+     14; `events.ts`, `stops.ts`, `document.ts`, `config.ts`, `fast-forward.ts` and the engine's
+     `index.ts` are `v1.0.0`'s; `rankings` and both its test blocks are byte-identical; the two new
+     selectors only read. The report was restored after each sweep and none committed.
+   - *Mutants*, in a detached worktree: 126 made by hand, each applied alone and run against the
+     tests that cover it, the file reverted after. 103 were killed and 23 survived: S3 12 of 54, S4
+     2 of 30, S5 9 of 42. Four more were set aside as equivalent (a child's `error`, which
+     `spawnSync` gives only with a null status; a rest's Turns, which follow only a full step;
+     `!belowFloorSince` for a Turn never 0; `find` for `findLast`). No wrangler, deploy or build ran.
+   - *The guard*, in a scratch clone of `3e4e1fb` with `npm ci`, a tripwire in `NODE_OPTIONS` ready
+     to kill any `npx-cli.js` or wrangler process, which started none. Untagged, `node
+     scripts/deploy.mjs --dry-run` refused on the tag, exit 1, building nothing; a changed file
+     refused as "not clean". With a local tag `v9.9.9-guardtest` on a clean tree, `node
+     scripts/deploy.mjs --dry-run`, and `npm run deploy --dry-run` from `web/` and from the root,
+     each passed the guard, built once (the script 499,648 bytes) and printed both commands.
+     `--dryrun` given to the script refused, and so did a `wrangler.json` in the clone's root.
+     Wrangler 4.142.0's `cli.js` was read for the record's entries, the configuration walk, the
+     redirect and the `.env` files; a dry run there makes no API call. Four `wrangler deploy
+     --dry-run` runs, nothing uploaded. `npm run e2e:live -w web -- --list`: 4 tests, 2 under
+     `HEROESIM_LIVE_URL`, 4 under a blank one. The tag and the clone were deleted.
+   - *Acceptance and decisions*, in a detached worktree: `npm run lint` and `npm run typecheck`
+     clean; `npm test` 114 files, 2,801 tests; `npm run e2e` 22 passed; the ten test files the S3 to
+     S5 boxes cite, 318 tests, every name cited present and passing; CI green at `45fd6ea` and at
+     `3e4e1fb` (runs 36391149970 and 36399962158) and on `v1.1-dev` (36391223869). The built page,
+     played at 360 and 1,280 px in Chromium: joint places in the header and the Rankings; a year's
+     progress in 35 sentences, Day 10 to Day 350; the Stop taken at the Turns shown in 9 of 10 real
+     clicks, and a step later once; the countdown between steps and after a Stop, gone once the game
+     ended; no horizontal overflow in any state. DL-92 to DL-96 agree with the owner's answers and
+     the house rules; the log runs DL-01 to DL-96 with no gap and was appended to only; no account
+     id or dashboard link is in the tree; the 22 relative links in the documents changed resolve. S1
+     to S5 accepted.
+2. **"Export this game" waits while a fast forward is between its steps** (play-neutrality, major;
+   S5's). Between steps the game in hand is the document from before the fast forward (DL-96 item
+   3), and its History is the one the steps' documents append to (ADR-0008; `advance`), so it holds
+   the Turns the steps have played and its World has not. The button was enabled while busy and
+   exported that document: the verifier's file, at Day 0 with a History to Day 10, failed the page's
+   own load ("counter-range, history-turn-order"), so a player who exported mid-run and closed the
+   tab lost the game. In `v1.0.0` a fast forward was one blocking call, and only a click queued
+   during it could have met a document in that state. The button is now disabled while busy, as
+   "Save in this browser" and "Load a save file" already were (`web/src/views/game-file.tsx`).
+   `web/src/app.test.tsx` ('"Export this game" waits between steps, …') finds it disabled between
+   steps, with no download on a click, and after a Stop enabled, its file loading through the
+   reducer's `load` at the Turn the Stop names; `web/e2e/fast-forward.spec.ts` reads, in the page's
+   task that takes the Stop, the button disabled and the year's stop gone, and the button enabled
+   after, at both widths. Nothing in the engine, the saves or the History changes; a History
+   section read mid-run may still show the steps' entries, as DL-96's Consequences say.
+3. **A mistyped `--dry-run` given to npm is refused** (the guard, major; S3's). npm keeps a flag
+   given before its own `--` and hands the script only `npm_config_<name>`: `--dryrun` becomes
+   `npm_config_dryrun`, and the root's `deploy`, `npm run deploy -w web`, puts even `npm run deploy
+   -- --dryrun` before the inner npm's `--`. The script saw neither `--dry-run` nor
+   `npm_config_dry_run`, so that typo, typed at the root as the README and S7 run the deploy, on a
+   clean checkout of a `v*` tag, would have uploaded to both hosts: the verifier showed it with a
+   fake spawn, exit 0 and two wrangler runs. Tried again here, in a scratch workspace copying the
+   delegate, with npm 11.19.1: at the root `-- --dryrun` and `--dryrun` arrive as no argument and
+   `npm_config_dryrun=true`, `--dryRun` likewise, `--dry-rn` as `npm_config_dry_rn`; in `web/`,
+   `-- --dryrun` arrives as the argument; of the `npm_config_*` names npm sets for a script, none
+   has "dry" or "run" in it. The script now refuses, before it builds, any `npm_config_*` name holding
+   "dry" or "run" other than `npm_config_dry_run`, which still means a dry run
+   (`web/scripts/deploy.mjs`). A typo holding neither would still pass; a deploy that uploads only
+   when told to, and dry-runs otherwise, would close that too, but changes how a release is
+   deployed, and is left to the owner. **Erratum to DL-94 item 2:** "`npm run <script> -- --dry-run`
+   passes the argument instead" holds in `web/` only; through the root's delegate the flag arrives
+   as `npm_config_dry_run`, and until this entry a mistyped one would have deployed.
+4. **Three more gaps in the guard and its record** (the guard, minor), each read in wrangler
+   4.142.0's `cli.js`:
+   - Wrangler loads `web/.env` and `web/.env.local` into its environment on every command
+     (`getDefaultEnvFiles`, `loadDotEnv`), and `.gitignore` ignores `.env`, so the clean check
+     passed a checkout whose `.env` named another account, token or Worker; the verifier saw
+     `WRANGLER_CI_OVERRIDE_NAME` in one rename the Worker in a dry run. The guard refuses either file
+     in `web/`: an untracked `.env.local` already failed the clean check, unless a global ignore
+     file hid it.
+   - `pages deploy` follows a redirect, `.wrangler/deploy/config.json`, found by walking up from
+     `web/` (`findRedirectedWranglerConfig`), and `.wrangler/` is ignored: DL-94's Consequences left
+     it open. The guard refuses one in `web/` or any directory above it, the filesystem's root among
+     them, as it refuses the three configuration names.
+   - When Pages failed after the Worker took the build, the script returned before printing any of
+     the Worker's record, and removed wrangler's file with it, so the attempt DL-92 item 6 and S7
+     step 4 record "as such" would have lost the Worker's version id. It now prints the Worker's part
+     (wrangler's version, the version id, the address and the time) and its address warning, then
+     exits with Pages' status.
+   The README's Deploy says all three, and item 3's typo.
+5. **Tests that kill the 23 surviving mutants.** Each mutant was applied alone in this story's
+   worktree after the tests were written, the tests named run and seen to fail, and the file written
+   back:
+   - the guard's git reads (D23 `tag --list`, D24 `--untracked-files=no`, D25 `rev-parse HEAD~1`):
+     `web/src/deploy.test.ts`'s fake git now answers only `status --porcelain`, `tag --points-at
+     HEAD` and `rev-parse HEAD`, each asked whole, and throws at anything else, so that every test
+     proves what the guard asks (40 fail under each), and 'asks git exactly what it reads…' pins the
+     three;
+   - a deploy run by an import (D41): `web/src/deploy-import.test.ts` imports the script and the live
+     configuration with `spawnSync` mocked to throw;
+   - the environment npm and wrangler are given (D19): 'hands npm and wrangler the deploy's own
+     environment…', `PATH`, the profile and an account id among it;
+   - a child ended by a signal, its status null (D21): the build's and the Worker's, in 'stops at the
+     first failure';
+   - `git status` failing alone (D22), `npx-cli.js` missing (D38) and a record line left unfinished
+     (D36): a refusal case and a test each;
+   - a stray configuration at the filesystem's root (D07): `web/src/deploy-root.test.ts`, with
+     `existsSync` answering for one file there;
+   - the live check's specs (P03) and a blank override (P02): two tests in 'the live check';
+   - the CLI's countdown under the save's floor (C04): `cli/src/render.test.ts` ("names the save's
+     own floor…", a floor of 50);
+   - a stop reason, the player's Stop or a refusal left standing between steps (R17, R16, R18):
+     `web/src/state/reducer.test.ts` ('between its steps holds none of what the play before it left:
+     %s'), and in the browser, item 2's check that the year's stop has gone;
+   - a year of the defaults' Turns rather than the game's (R29): `reducer.test.ts` ("with no cap,
+     plays a year of the game's own rules", `turnsPerYear` 90, three steps);
+   - a fired frame's task, and the branch with no frames, not called off (R20, R22):
+     `web/src/state/use-game.test.tsx` ('with %s, a settle asked for before a Stop is called off as
+     well': frames that fire at once, and none);
+   - "Fast forward again" after a Stop dropping its stops (T02): `web/src/views/time.test.tsx`;
+   - the log read again at every step (T07): `web/src/views/log.test.tsx`;
+   - the progress's Year and the header's "of N" (S10, S11): `web/src/state/selectors.test.ts`, a
+     game under `turnsPerYear` 30 and a folded Rival.
+   None is recorded as unkillable. Ten mutants of this entry's own code, run the same way, each fail
+   a test: the npm typo refusal dropped, narrowed to "dry", or refusing `npm_config_dry_run` itself;
+   no `.env` file, `.env.local`, or the redirect refused; the Worker's record not printed when Pages
+   fails, or printed with a Pages line; "Export this game" enabled while busy; the Time help's old
+   words.
+6. **The page's words and the documents** (acceptance and decisions, minor; and play-neutrality's
+   procedure):
+   - The Time section's help said a fast forward plays "a few Days at a time"; a step is 30 Turns,
+     ten Days. It says "30 Turns, ten Days, at a time", and `app.test.tsx` ties the words to
+     `fastForwardStepTurns`.
+   - Plan §2's DL-94 note called pages.dev the project "which M7 alone served"; `v1.0.0` has been
+     served there since 2026-09-27 (DL-93). It reads "which alone served the page from M7 to
+     `v1.0.0`".
+   - S4's first box said the diff of `engine/src/selectors.test.ts` was "adding lines only": its
+     import line also gains `type WorldDocument`. The box says so; both `rankings` blocks are
+     untouched.
+   - The S6 command block: run by an agent, Vitest 5.0.2 detects one (`std-env`: `CLAUDECODE` or
+     `AI_AGENT`) and reports minimally, printing no passing test's output, so the sweep printed no
+     fingerprint, and the block's next line removed the only copy, in the report. The sweep line
+     takes `--silent=false`. A run begun on another local date writes a report that
+     `harness/reports/*` makes git ignore, so neither `git checkout` nor `git status` sees it: the
+     block deletes it with `git clean -fX -- harness/reports/`, which leaves the tracked reports.
+7. **The sweep at this story's tree.** `HEROESIM_SEEDS=50 npm run harness -- play.harness
+   --silent=false`, the corrected line, in this story's worktree with its fixes in place (`engine/`,
+   `content/`, `harness/` and the lockfile as at `3e4e1fb`), 2026-09-28 09:55:54–10:03:44 UTC,
+   467.7 s on 16 processes, printed "Fingerprint of every seed's last save (DL-76):
+   11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02", `v1.0.0`'s: 49 games to their
+   20 years and one Bankruptcy, 148 Rival folds, no policy action refused, `seed-0001` identical
+   (113,281,366 characters), 50 of 50 saves round trip. The report was restored, none committed and
+   none left behind, and the epic's `git diff --stat` printed nothing.
+8. **After the fixes**, at this entry's commit: `npm run lint` and `npm run typecheck` clean;
+   `npm test` 118 files and 2,836 tests, 4 files and 35 tests more than at `3e4e1fb`; `npm run e2e`
+   22 passed, under the lock, the fast-forward spec's new checks among them. The bundle gate passed:
+   `web/dist/assets/index-CRCIF6ue.js` is 499,668 bytes (145.71 kB gzipped, Vite's count), 2,784
+   more than `v1.0.0`'s 496,884 and 20 more than S5's 499,648 (the Export button's `disabled` and the
+   help's words); `index.html` is 457 bytes.
+9. **Checked and left.** The owner's confirmation that no Worker `heroesim` exists in the account
+   (the epic's Inputs and S7 step 1) is recorded nowhere: DL-94 records the subdomain alone, and
+   nothing records whether S7 step 1 came before S2's deployment list (read about 07:23 UTC) and
+   DL-94's dry run. The wrangler runs so far were that list and dry runs, and a dry run makes no API
+   call (wrangler 4.142.0), so none could register a subdomain or touch a Worker. The owner is asked
+   before S7 step 3, and DL-98 records the answer; if a Worker `heroesim` exists, the deploy waits
+   for the owner.
+10. **The close-out lines.** The epic's Status is "done — 2026-09-28 (`v1.0.1`)", as M8's close wrote
+    M8's (DL-81 item 7); the epics README's register row, and plan §2's paragraph under the
+    milestones, say v1.0.1 is complete as of its tag, `v1.0.1`, on 2026-09-28, citing this entry.
+    The tag is the orchestrator's, in S7 step 2, on the merge of `v1.0-dev` into `v1.0-release`, so
+    the lines are true from it, as M8's were from `m8-modules`. S6's three boxes are ticked; S7's
+    are S7's.
+
+**Consequences.** v1.0.1 is verified: every seed plays as `v1.0.0` plays it, S1 to S5 meet their
+boxes, the page can no longer export a save it would refuse, the deploy refuses every checkout and
+flag the lenses found it letting through and records a half-made deploy, and no mutant of the new
+code survives the suite. What remains is S7's: the owner's confirmation of item 9, the tag, the
+deploy to both addresses and its record (DL-98), and the merge forward. Left open: a typo of
+`--dry-run` holding neither "dry" nor "run" (item 3); the History section showing a fast forward's
+steps as they are played (DL-96); and, as before, the rule for a v1.0.x deploy once #37 moves
+production, left to #37.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

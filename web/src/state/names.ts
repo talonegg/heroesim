@@ -35,6 +35,11 @@ export function ordinal(n: number): string {
   return `${n}${suffix}`;
 }
 
+/** A place in the Rankings (`rankingPlaces`, DL-95): `4th`, or `joint 2nd` for one Guilds share. */
+export function placeWords({ place, joint }: { place: number; joint: boolean }): string {
+  return joint ? `joint ${ordinal(place)}` : ordinal(place);
+}
+
 /** Who makes a Guild's choices, in the CLI's words (`show guilds`), the player's Guild as `Yours`. */
 export function controllerWords(guild: Pick<Guild, 'controller'>): string {
   return guild.controller.kind === 'player' ? 'Yours' : `Rival (${guild.controller.disposition})`;

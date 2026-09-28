@@ -1,13 +1,19 @@
 import { describe, expect, expectTypeOf, test } from 'vitest';
+import { advance } from './advance.js';
+import type { EngineDeps } from './config.js';
 import { createWorld } from './create.js';
-import { makeId, type Guild, type Hero } from './document.js';
+import { makeId, type Guild, type Hero, type WorldDocument } from './document.js';
+import type { TurnEvent } from './events.js';
+import { nightOf } from './time.js';
 import { testDeps } from './world.test-support.js';
 import {
+  bankruptcyCountdown,
   baseStat,
   cheapestUnattached,
   effectiveStats,
   offeredQuests,
   playerGuild,
+  rankingPlaces,
   rankings,
   signingFee,
   signingRefusal,
@@ -305,6 +311,171 @@ describe('rankings (M3-S5)', () => {
     player.fame = 0;
 
     expect(rankings(world, 'fame').at(-1)?.guildId).toBe(player.id);
+  });
+});
+
+describe('rankingPlaces (v1.0.1-S4, DL-95)', () => {
+  test('five Guilds at Fame 0, as a new game has them, share 1st, in the order rankings gives', () => {
+    const { document } = createWorld('places-new', setup, testDeps());
+    const { world } = document;
+    expect(Object.values(world.guilds).map((guild) => guild.fame)).toEqual([0, 0, 0, 0, 0]);
+
+    const places = rankingPlaces(world, 'fame');
+
+    expect(places).toEqual(rankings(world, 'fame').map(({ guildId, value }) => ({ guildId, value, place: 1, joint: true })));
+    expect(places).toHaveLength(5);
+  });
+
+  test('Fame 9, 4, 4 and 1 give 1st, joint 2nd, joint 2nd and 4th; a folded Guild is absent', () => {
+    const { document } = createWorld('places-tied', setup, testDeps());
+    const { world } = document;
+    const [g1, g2, g3, g4, g5] = Object.values(world.guilds);
+    if (g1 === undefined || g2 === undefined || g3 === undefined || g4 === undefined || g5 === undefined) {
+      throw new Error('need five Guilds');
+    }
+    // Listed out of order, so the places follow the values and not the table; the folded Guild's
+    // Fame would lead them all.
+    Object.assign(g1, { fame: 4, wealth: 300 });
+    Object.assign(g2, { fame: 1, wealth: 300 });
+    Object.assign(g3, { fame: 9, wealth: 300 });
+    Object.assign(g4, { fame: 4, wealth: 700 });
+    Object.assign(g5, { fame: 50, wealth: 900, foldedOnTurn: 8 });
+
+    expect(rankingPlaces(world, 'fame')).toEqual([
+      { guildId: g3.id, value: 9, place: 1, joint: false },
+      { guildId: g1.id, value: 4, place: 2, joint: true },
+      { guildId: g4.id, value: 4, place: 2, joint: true },
+      { guildId: g2.id, value: 1, place: 4, joint: false },
+    ]);
+    // By Wealth, three level behind one: 1st, then joint 2nd three times.
+    expect(rankingPlaces(world, 'wealth')).toEqual([
+      { guildId: g4.id, value: 700, place: 1, joint: false },
+      { guildId: g1.id, value: 300, place: 2, joint: true },
+      { guildId: g2.id, value: 300, place: 2, joint: true },
+      { guildId: g3.id, value: 300, place: 2, joint: true },
+    ]);
+  });
+
+  test("gives rankings' rows in its order, and its rank wherever no two Guilds are level", () => {
+    const { document } = createWorld('places-apart', setup, testDeps());
+    const { world } = document;
+    Object.values(world.guilds).forEach((guild, index) => Object.assign(guild, { fame: 10 * index, wealth: 1_000 - index }));
+
+    for (const by of ['fame', 'wealth'] as const) {
+      expect(rankingPlaces(world, by)).toEqual(
+        rankings(world, by).map(({ guildId, value, rank }) => ({ guildId, value, place: rank, joint: false })),
+      );
+    }
+  });
+});
+
+describe('bankruptcyCountdown (v1.0.1-S4, DL-95)', () => {
+  /** A new game whose player's Guild has `wealth` Wealth. */
+  function created(seed: string, deps: EngineDeps, wealth: number): WorldDocument {
+    const { document } = createWorld(seed, setup, deps);
+    (playerGuild(document.world) as Guild).wealth = wealth;
+    return document;
+  }
+
+  /** Plays Turn by Turn until Turn `turn` has been played (the world's Turn is `turn`) or the game ends. */
+  function playTo(document: WorldDocument, turn: number, deps: EngineDeps): { document: WorldDocument; events: TurnEvent[] } {
+    let current = document;
+    const events: TurnEvent[] = [];
+    while (current.world.turn < turn && current.world.ended === null) {
+      const result = advance(current, deps);
+      current = result.document;
+      events.push(...result.events);
+    }
+    return { document: current, events };
+  }
+
+  const player = (document: WorldDocument): Guild => playerGuild(document.world) as Guild;
+
+  /**
+   * Played through the night of Day 3 with Wealth to spare, then put below the floor: the Guild
+   * State Engine finds it so on the night of Day 4, the Turn the world is left at.
+   */
+  function belowSinceDay4(seed: string, deps: EngineDeps): WorldDocument {
+    const aboveTheFloor = playTo(created(seed, deps, 1_000), nightOf(3), deps).document;
+    player(aboveTheFloor).wealth = deps.config.bankruptcyFloor - 1;
+    return playTo(aboveTheFloor, nightOf(4), deps).document;
+  }
+
+  test('is none while belowFloorSince is null: a new game, and a Guild at the floor after a night', () => {
+    const deps = testDeps();
+    const fresh = created('countdown-none', deps, deps.config.bankruptcyFloor);
+    expect(player(fresh).belowFloorSince).toBeNull();
+    expect(bankruptcyCountdown(player(fresh), deps.config)).toBeNull();
+
+    const night = playTo(fresh, nightOf(0), deps).document;
+    expect(player(night).belowFloorSince).toBeNull();
+    expect(bankruptcyCountdown(player(night), deps.config)).toBeNull();
+  });
+
+  test("runs from the Day it was set to that Day plus the game's grace: 10 gives d + 10, the default 30 d + 30", () => {
+    const deps = testDeps({ bankruptcyGraceDays: 10 });
+    const document = belowSinceDay4('countdown-grace', deps);
+    const guild = player(document);
+    expect(guild.belowFloorSince).toBe(nightOf(4));
+
+    expect(bankruptcyCountdown(guild, deps.config)).toEqual({ sinceDay: 4, dueDay: 14 });
+    expect(bankruptcyCountdown(guild, testDeps().config)).toEqual({ sinceDay: 4, dueDay: 34 });
+    // Only the rule's input is read, as a Day: not the Guild's Wealth, nor which Turn of the Day.
+    expect(bankruptcyCountdown({ belowFloorSince: nightOf(4) }, { bankruptcyGraceDays: 10 })).toEqual({ sinceDay: 4, dueDay: 14 });
+    expect(bankruptcyCountdown({ belowFloorSince: nightOf(4) - 2 }, { bankruptcyGraceDays: 10 })).toEqual({ sinceDay: 4, dueDay: 14 });
+  });
+
+  test("still stands after Wealth rises during a Day, until that night's check clears it", () => {
+    const deps = testDeps({ bankruptcyGraceDays: 10 });
+    const document = structuredClone(belowSinceDay4('countdown-risen', deps));
+    // After the night's check, Wealth back above the floor, as a sale would put it.
+    player(document).wealth = deps.config.bankruptcyFloor + 500;
+
+    expect(bankruptcyCountdown(player(document), deps.config)).toEqual({ sinceDay: 4, dueDay: 14 });
+    const afternoon = playTo(document, nightOf(5) - 1, deps).document;
+    expect(bankruptcyCountdown(player(afternoon), deps.config)).toEqual({ sinceDay: 4, dueDay: 14 });
+
+    const cleared = playTo(afternoon, nightOf(5), deps).document;
+    expect(player(cleared).belowFloorSince).toBeNull();
+    expect(bankruptcyCountdown(player(cleared), deps.config)).toBeNull();
+  });
+
+  test('an Upkeep night that keeps the Guild below the floor leaves the countdown as it was', () => {
+    const deps = testDeps({ bankruptcyGraceDays: 10 });
+    expect(deps.config.upkeepEveryDays).toBe(10);
+    const below = belowSinceDay4('countdown-upkeep', deps);
+
+    // Day 9 is the first Upkeep Day (DL-26, DL-91 item 1).
+    const { document, events } = playTo(below, nightOf(9), deps);
+
+    const guildId = player(document).id;
+    expect(events).toContainEqual(
+      expect.objectContaining({ turn: nightOf(9), type: 'guild.upkeep-paid', payload: expect.objectContaining({ guildId }) }),
+    );
+    expect(player(document).wealth).toBeLessThan(deps.config.bankruptcyFloor);
+    expect(player(document).belowFloorSince).toBe(nightOf(4));
+    expect(bankruptcyCountdown(player(document), deps.config)).toEqual({ sinceDay: 4, dueDay: 14 });
+  });
+
+  test("a played Bankruptcy falls on the night of the countdown's due Day, as endings.ts rules, whatever the grace", () => {
+    for (const bankruptcyGraceDays of [0, 3, 10, 30]) {
+      const deps = testDeps({ bankruptcyGraceDays });
+      // The History is appended in place, so each play starts from a game of its own.
+      const start = () => created(`countdown-played-${bankruptcyGraceDays}`, deps, deps.config.bankruptcyFloor - 1);
+      const first = playTo(start(), nightOf(0), deps).document;
+      const countdown = bankruptcyCountdown(player(first), deps.config);
+      expect(countdown).toEqual({ sinceDay: 0, dueDay: bankruptcyGraceDays });
+      const dueDay = countdown?.dueDay ?? Number.NaN;
+
+      const { document } = playTo(start(), nightOf(dueDay) + 3, deps);
+
+      expect(document.world.ended, `grace ${bankruptcyGraceDays}`).toEqual({ turn: nightOf(dueDay), reason: 'bankruptcy' });
+      if (dueDay > 0) {
+        const eve = playTo(start(), nightOf(dueDay) - 1, deps).document;
+        expect(eve.world.ended, `grace ${bankruptcyGraceDays}`).toBeNull();
+        expect(bankruptcyCountdown(player(eve), deps.config)).toEqual(countdown);
+      }
+    }
   });
 });
 

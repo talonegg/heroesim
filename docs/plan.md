@@ -87,7 +87,7 @@ Workers static assets, which now heads §4's list (amended 2026-09-28, DL-88; or
 first line of §4"). That release is v1.0.1: the move, M8's deploy and its own recorded, and three
 page fixes that change no play, planned in
 [`planning/epics/v1.0.1-release.md`](./planning/epics/v1.0.1-release.md) (amended 2026-09-28,
-DL-92).
+DL-92). v1.0.1 is complete as of its tag, `v1.0.1`, on 2026-09-28 (amended 2026-09-28, DL-97).
 
 **The measured game is a twenty-year slice** (amended 2026-09-28, DL-83). The harness plays each
 seed for twenty years unless an ending comes first, so M2's row, which said "whole games to an
@@ -113,6 +113,15 @@ DL-91 item 4 for these three alone. Before its work, `v1.0-dev` is fast-forwarde
 that recorded its plan, so the v1.0 line carries DL-82 onwards; then DL-91's flow applies. It is
 deployed only from a clean checkout of its tag, to the Worker and then to Pages. From its deploy,
 `v1.0.1`, not `v1.0.0`, is what production serves until `v1.1-release`'s first release.
+
+*Amended 2026-09-28 (DL-94).* From `v1.0.1` the page is served at two addresses: the Worker
+`heroesim` on Cloudflare Workers static assets, at <https://heroesim.magical-potato.workers.dev>,
+and the Pages project `heroesims` at <https://heroesims.pages.dev>, which alone served the page
+from M7 to `v1.0.0` (corrected 2026-09-28, DL-97). `npm run deploy` runs only from a clean
+checkout of a release tag (`v*`) and refuses anything else before it builds; it builds once,
+uploads that build to the Worker and then to Pages, stopping at the first failure, and prints the
+record the release's decision-log entry keeps. `npm run e2e:live -w web` then checks both
+addresses at both widths.
 
 ## 3. Increments
 

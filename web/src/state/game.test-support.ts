@@ -1,14 +1,20 @@
 // Games in a given state, for the page's tests (M7-S3 part 2, DL-73). Tests outside `state/` take
 // only types from the engine (M7-S2's import check), so the setups that need its values live here:
 // a Transfer Offer standing, rules behind this release's, Items held, Wealth, Heroes dead, retired
-// and gone from the world (DL-74). Never imported by the page, so never bundled.
+// and gone from the world (DL-74); the Roster released, and a Party out, for fast forward's steps
+// (v1.0.1-S5, DL-96). Never imported by the page, so never bundled.
 
 import {
   addStack,
+  availableHeroes,
   defaultConfig,
+  durationDaysOf,
   offerTransfer,
+  offeredQuests,
+  partyFor,
   playerGuild,
   type Guild,
+  type Hero,
   type HeroId,
   type ItemDefinitionKey,
   type WorldDocument,
@@ -16,9 +22,11 @@ import {
 import { content } from '../content';
 import { gameReducer, initialGameState, type GameState, type Play } from './reducer';
 
-/** Plays `action` as the page does, accepted then settled, outside React. */
+/** Plays `action` as the page does, accepted then settled, a fast forward step by step, outside React. */
 export function played(state: GameState, action: Play): GameState {
-  return gameReducer(gameReducer(state, action), { kind: 'settle' });
+  let next = gameReducer(state, action);
+  while (next.pending !== null) next = gameReducer(next, { kind: 'settle' });
+  return next;
 }
 
 /** A new game of The Lantern, led by Ada Vell, from `seed`. */
@@ -60,6 +68,41 @@ export function withWealth(state: GameState, wealth: number): GameState {
   return changed(state, (_, player) => {
     player.wealth = wealth;
   });
+}
+
+/**
+ * The player's Roster released to the Unattached pool, as a fold releases a Rival's (DL-28), and
+ * `wealth` to spare: no Party of theirs comes home, no decision is needed and no offer made for a
+ * Hero of theirs, so a fast forward plays its whole cap unless the pool, a module or the end stops it.
+ */
+export function withRosterReleased(state: GameState, wealth = 1_000_000): GameState {
+  return changed(state, (document, player) => {
+    for (const heroId of player.rosterIds) {
+      Object.assign(document.world.heroes[heroId] as Hero, { guildId: null, unattachedSince: document.world.turn });
+    }
+    player.rosterIds = [];
+    player.wealth = wealth;
+  });
+}
+
+/**
+ * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
+ * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
+ * comes home (or for an offer, or at the end).
+ */
+export function withPartyOut(state: GameState): GameState {
+  const document = documentOf(state);
+  const available = availableHeroes(document.world, playerOf(document));
+  const [longest] = offeredQuests(document.world)
+    .flatMap((quest) => {
+      const heroIds = partyFor(quest, available, content);
+      return heroIds === null ? [] : [{ quest, heroIds }];
+    })
+    .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
+  if (longest === undefined) throw new Error('no Quest on the Board the Roster can staff');
+  const sent = played(state, { kind: 'dispatch', questId: longest.quest.id, heroIds: longest.heroIds });
+  if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
+  return sent;
 }
 
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */

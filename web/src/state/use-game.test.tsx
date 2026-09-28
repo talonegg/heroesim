@@ -3,12 +3,15 @@ import { advance, fastForward } from '@heroesim/engine';
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { StrictMode } from 'react';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { useGame, type GameState, type Play } from './reducer';
+import { started, withRosterReleased } from './game.test-support';
+import { fastForwardStepTurns, useGame, type GameState, type Play } from './reducer';
 
 // The reducer wired to React (M7-S2): a play is accepted at once, the busy state is committed and
 // painted, and only then does the engine run, once, however many taps arrived meanwhile. Rendered
 // under StrictMode, which calls a component's reducer twice: the engine must still run once, and
-// the shared History take each Turn's events once (ADR-0008).
+// the shared History take each Turn's events once (ADR-0008). A fast forward plays in steps, each
+// settled after the one before it is painted, and the player's Stop is taken between them
+// (v1.0.1-S5, DL-96).
 vi.mock('@heroesim/engine', async (importOriginal) => {
   const engine = await importOriginal<typeof Engine>();
   return { ...engine, advance: vi.fn(engine.advance), fastForward: vi.fn(engine.fastForward) };
@@ -17,7 +20,10 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const newGame: Play = {
   kind: 'newGame',
@@ -90,6 +96,102 @@ describe('useGame', () => {
 
     expect(advance).toHaveBeenCalledTimes(2);
     expect(turnOf(result.current[0])).toBe(turnOf(before) + 2);
+  });
+
+  test('a fast forward is steps of at most 30 Turns, each settled after the step before it is rendered', async () => {
+    const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
+    const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
+    // What the page had rendered of the fast forward as each step began: how far it had come.
+    const rendered: (number | null)[] = [];
+    vi.mocked(fastForward).mockImplementation((...args) => {
+      rendered.push(result.current[0].forwarding?.turnsPlayed ?? null);
+      return engine.fastForward(...args);
+    });
+    try {
+      act(() => result.current[1]({ kind: 'fastForward', until: [], maxTurns: 5 * fastForwardStepTurns }));
+      expect(result.current[0]).toMatchObject({ busy: true, forwarding: null });
+      expect(fastForward).not.toHaveBeenCalled();
+
+      await waitFor(() => expect(result.current[0].busy).toBe(false));
+
+      expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30, 30, 30]);
+      expect(rendered).toEqual([null, 30, 60, 90, 120]);
+      expect(result.current[0]).toMatchObject({ forwarding: null, stoppedBecause: { kind: 'max-turns' } });
+    } finally {
+      vi.mocked(fastForward).mockImplementation(engine.fastForward);
+    }
+  });
+
+  test('a Stop between steps is taken at once, while busy, and no step runs after it', async () => {
+    const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
+
+    act(() => result.current[1]({ kind: 'fastForward', until: [] }));
+    await waitFor(() => expect(result.current[0].forwarding).not.toBeNull());
+    act(() => result.current[1]({ kind: 'stop' }));
+
+    const stopped = result.current[0];
+    const calls = vi.mocked(fastForward).mock.calls.length;
+    expect(stopped).toMatchObject({ busy: false, pending: null, forwarding: null });
+    expect(stopped.stopped?.turnsPlayed).toBe(calls * fastForwardStepTurns);
+    // Any settle already asked for comes due, and finds nothing to play.
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(fastForward).toHaveBeenCalledTimes(calls);
+    expect(result.current[0]).toBe(stopped);
+  });
+
+  test('a fast forward asked for again straight after a Stop is settled a step a render, the settle asked for before the Stop called off', async () => {
+    const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
+    const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
+    act(() => result.current[1]({ kind: 'fastForward', until: [] }));
+    await waitFor(() => expect(result.current[0].forwarding).not.toBeNull());
+
+    const rendered: (number | null)[] = [];
+    vi.mocked(fastForward).mockImplementation((...args) => {
+      rendered.push(result.current[0].forwarding?.turnsPlayed ?? null);
+      return engine.fastForward(...args);
+    });
+    try {
+      act(() => {
+        result.current[1]({ kind: 'stop' });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+      });
+      await waitFor(() => expect(result.current[0].busy).toBe(false));
+
+      expect(rendered).toEqual([null, 30, 60, 90]);
+    } finally {
+      vi.mocked(fastForward).mockImplementation(engine.fastForward);
+    }
+  });
+
+  // The same, when the settle asked for before the Stop is waiting as a task, not a frame: where
+  // frames fire at once, so each settle waits as a task after its frame, and where there are none
+  // (v1.0.1-S6, DL-97). jsdom has frames, so neither way is taken above.
+  test.each([
+    ['frames that fire at once', (callback: FrameRequestCallback) => (callback(0), 1)],
+    ['no frames', undefined],
+  ])('with %s, a settle asked for before a Stop is called off as well', async (_frames, frame) => {
+    vi.stubGlobal('requestAnimationFrame', frame);
+    const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
+    const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
+    act(() => result.current[1]({ kind: 'fastForward', until: [] }));
+    await waitFor(() => expect(result.current[0].forwarding).not.toBeNull());
+
+    const rendered: (number | null)[] = [];
+    vi.mocked(fastForward).mockImplementation((...args) => {
+      rendered.push(result.current[0].forwarding?.turnsPlayed ?? null);
+      return engine.fastForward(...args);
+    });
+    try {
+      act(() => {
+        result.current[1]({ kind: 'stop' });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+      });
+      await waitFor(() => expect(result.current[0].busy).toBe(false));
+
+      expect(rendered).toEqual([null, 30, 60, 90]);
+    } finally {
+      vi.mocked(fastForward).mockImplementation(engine.fastForward);
+    }
   });
 
   test('a refusal is stored, not thrown, and dismissed', async () => {
