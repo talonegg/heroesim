@@ -84,7 +84,10 @@ The first build is complete: M8 was tagged `m8-modules` on 2026-09-28. The next 
 Events (§4): the first real module, and the test of whether the module contract fits a real
 feature (ADR-0005 as amended). Before it comes one small v1.0.x release, the move to Cloudflare
 Workers static assets, which now heads §4's list (amended 2026-09-28, DL-88; originally "the
-first line of §4").
+first line of §4"). That release is v1.0.1: the move, M8's deploy and its own recorded, and three
+page fixes that change no play, planned in
+[`planning/epics/v1.0.1-release.md`](./planning/epics/v1.0.1-release.md) (amended 2026-09-28,
+DL-92).
 
 **The measured game is a twenty-year slice** (amended 2026-09-28, DL-83). The harness plays each
 seed for twenty years unless an ending comes first, so M2's row, which said "whole games to an
@@ -102,6 +105,14 @@ Pages production branch and the deploy script move to `v1.1-release`. GitHub's d
 follows the same rule: `v1.0-release` from 2026-09-28, `v1.1-release` at its first release
 (DL-88). The owner's decision to cut v1.0 now and open a new line, where
 the agents recommended making Random Events M9 on the v1.0 line.
+
+*Amended 2026-09-28 (DL-92).* The first v1.0.x release is `v1.0.1`: the Workers move, M8's deploy
+and its own recorded, and three page fixes the owner added against the recommendation (tied
+Rankings as a shared place, the Bankruptcy countdown, fast forward in steps with a Stop), amending
+DL-91 item 4 for these three alone. Before its work, `v1.0-dev` is fast-forwarded to the commit
+that recorded its plan, so the v1.0 line carries DL-82 onwards; then DL-91's flow applies. It is
+deployed only from a clean checkout of its tag, to the Worker and then to Pages. From its deploy,
+`v1.0.1`, not `v1.0.0`, is what production serves until `v1.1-release`'s first release.
 
 ## 3. Increments
 
@@ -254,7 +265,8 @@ the agents recommended that story features be modules and rule extensions core i
 
 - **First, before Random Events:** the move to Cloudflare Workers static assets, as the first
   v1.0.x release, on v1.0; it deploys to both the new `*.workers.dev` address and Pages, and
-  Pages stays until Cloudflare retires it (DL-88).
+  Pages stays until Cloudflare retires it (DL-88). It is `v1.0.1`, with three page fixes beside
+  the move and the Worker named `heroesim` (amended 2026-09-28, DL-92).
 - **Next:** Random Events, on `v1.1-dev` (§2). Random Events never produce Quests (DL-82).
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;

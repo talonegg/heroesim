@@ -8115,6 +8115,124 @@ and 83b).
 four questions are closed. INPUTS 4.6's note is updated. Issues #13, #14, #19, #21 and #35 carry the
 answers.
 
+## DL-92 — v1.0.1 planned: the Workers move and the deploy records, with three page fixes the owner added; `v1.0-dev` fast-forwarded to this plan first; the Worker named `heroesim`; a deploy only from a clean checkout of a release tag
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, answering four questions
+after an agent's assessment of the open issues (the options and the recommendations were an
+agent's); items 1 and 3 to 5 are the owner's four answers, each saying whether it took the
+recommendation. Item 2 is an agent's reading of wrangler's changelog, put to the owner in the
+first question's preface; the owner's choice to keep the move after reading it is answer 1.
+Item 6 lists the plan's own proposals, an agent's, which stand unless the owner objects before the
+story they concern starts. The plan, `docs/planning/epics/v1.0.1-release.md`, was written by an
+agent
+
+**Context.** The owner asked to "plan a 1.0.1 release to be developed prior to building random
+events for 1.1", "based on review of open items and answers provided". An agent assessed every
+open issue (#12 to #38) and the defects found since the first build against a bar for a hotfix on
+a line DL-91 item 4 froze to new features: play-neutral (no engine rule, content, `GameConfig`,
+schema, event type or save change, so every seed plays the same), justified on the v1.0 line, and
+small, not a feature. #13 and #14 (DL-88 items 6 to 9) passed; #18's note and three display fixes
+passed as play-neutral and small. A reading of wrangler's own changelog corrected the premise of
+the Workers move (item 2). Four questions followed: what v1.0.1 contains; how DL-82 to DL-91,
+recorded only on `v1.1-dev`, reach the v1.0 line, whose v1.0.1 entries must cite them with no gap;
+the Worker's name, which DL-88 left open; and whether the deploy, which on Workers has no branches,
+refuses a checkout that is not a release.
+
+**Decision.**
+
+1. **What v1.0.1 contains (answer 1).** The Workers move beside Pages, as DL-88 items 7 to 9
+   decided (#13); M8's deploy and v1.0.1's recorded, as DL-88 item 6 decided (#14); the M8 epic's
+   §0 note (#18, DL-82 item 20); and three page fixes that change no play: the Bankruptcy countdown
+   shown on the page, tied Rankings shown as a shared place, and fast forward run in the browser in
+   steps of about 30 Turns with progress and a Stop button (DL-88 item 1, brought forward from
+   #32). Against the recommendation, which was the move and the records alone; the options not
+   taken were records only, superseding DL-88 items 7 to 9, and no v1.0.1. The three add interface
+   to a line frozen to new features, so this amends DL-91 item 4's "frozen to new features" for
+   these three, on v1.0.1 only. Everything else stays on the v1.1 line.
+2. **The corrected premise: an erratum to DL-75 item 1's reading, and context to DL-88 item 7.**
+   Wrangler, since about 4.108, hands `pages deploy` and `pages project create` to Workers static
+   assets only when an AI coding agent runs them against a new static project: "non-agent (human)
+   sessions ... are unaffected and continue to use Pages", and "a command targeting a project that
+   already exists stays on Pages"; `--force` opts out (wrangler's `packages/wrangler/CHANGELOG.md`,
+   #14312 and #15004). So DL-75 item 1's `--force` was needed because an agent created the
+   project, not because wrangler refuses classic Pages, and DL-75's Consequences ("a later wrangler
+   may stop offering classic Pages") and #13's "Why" overstate the risk. Pages has no announced
+   retirement: its changelog was active in August 2026, and wrangler 4.142 keeps `pages deploy`;
+   Cloudflare's Pages overview (August 2026) says "Start new projects with Workers". The owner,
+   told this in the question's preface, chose to proceed with the move: DL-88 item 7 stands.
+3. **The decision records onto v1.0 (answer 2).** Before any v1.0.1 work, `v1.0-dev` is
+   fast-forwarded to the plan commit: the commit on `v1.1-dev` that records this entry and v1.0.1's
+   epic directly on `a8848c1`, documents only. v1.0.1 then carries DL-82 to DL-92 and the documents
+   they amend, "decided, not yet built" lines included, and its own entries continue from DL-93
+   with no gap. As recommended. It is a first step before DL-91 item 4's flow, which then applies
+   as written; the target is that commit's hash, never a later tip of `v1.1-dev`.
+4. **The Worker's name (answer 3).** `heroesim`, against the recommendation, `heroesims`, the Pages
+   project's name. Its address is `https://heroesim.<account subdomain>.workers.dev`: the Worker's
+   name, then the account's workers.dev subdomain, which is account-wide and read or set in the
+   Cloudflare dashboard (Workers & Pages, "Your subdomain"). The Pages project stays `heroesims` at
+   <https://heroesims.pages.dev>. INPUTS 7.8 is answered further with the name and this rule; the
+   full address is written there once the owner has read or set the subdomain.
+5. **The deploy guard (answer 4).** `npm run deploy` refuses unless the checkout is clean and HEAD
+   is a release tag (`v*`). A small Node script builds once, checks the tag and the clean tree,
+   deploys to the Worker and then to Pages, with the tag as the Worker version's message, and
+   prints the lines the deploy record needs. As recommended.
+6. **The plan's proposals** (an agent's; they stand unless the owner objects before the story they
+   concern starts):
+   - **Who runs wrangler, and when.** The owner, or the orchestrator with the owner's go-ahead for
+     that run, as for M7's and M8's deploys; and only once the owner has read or set the
+     subdomain, since an agent's first Worker deploy on an account without one registers one named
+     from `web/package.json` (`heroesim-web`) without asking. `npm run deploy` itself is run only
+     in the release's deploy step; elsewhere the guard is tried with `--dry-run`, which runs the
+     checks and the build and no wrangler.
+   - **The Worker's configuration.** `web/wrangler.jsonc`, with no account id; `workers_dev` true;
+     `preview_urls` false, since each preview or version URL would be a further origin with its own
+     saves; not-found handling `none`, set explicitly (Pages serves `index.html` for any path, but
+     the page has one route and a deep path is broken on both hosts, its script being
+     `./assets/…`); no `_headers` file.
+   - **The address before the tag.** The owner gives the full address before `v1.0.1` is tagged,
+     and the tag carries it in the live check, the README and INPUTS 7.8. If wrangler prints
+     another, the live check runs on it under a one-address override before any push, and it is
+     corrected in the commit that records the deploy, never by moving a pushed tag.
+   - **The deploy.** From a clean checkout of the local, unpushed tag, the tag and `v1.0-release`
+     pushed only after the deploy and the live checks on both addresses pass. The Worker first,
+     then Pages; every attempt is recorded, one in which one upload succeeded and the other failed
+     as such. If production then serves the unpushed tag, the owner chooses between rolling Pages
+     back to its previous deployment and fixing forward: the local tag dropped, the fix made on
+     `v1.0-dev`, the release tagged and deployed again.
+     The record (commit, UTC time, both addresses, wrangler's version, the Worker version id, the
+     Pages deployment URL, each address's `e2e:live` result) is an entry committed on `v1.0-dev`
+     after the tag and merged to `v1.0-release` with no new tag.
+   - **Numbering.** v1.0.1 takes DL-93 onwards on `v1.0-dev`, in commit order; expected: DL-93 M8's
+     deploy, DL-94 the Worker, DL-95 the shared place and the countdown, DL-96 fast forward in
+     steps, DL-97 the verification and close, DL-98 v1.0.1's deploy after the tag. `v1.1-dev`
+     records no entry until `v1.0-dev` is merged into it.
+   - **CI.** #38 lands on `v1.1-dev` now, directly after the plan commit and with no entry, so the
+     merge forward is checked in CI.
+   - **Verification.** Before the tag, independent, by opus: the acceptance, the decisions, mutants
+     of the new code (the guard, the steps, the shared place, the countdown), and play-neutrality
+     proved by a core-only 50 × 20 harness sweep whose fingerprint equals the `v1.0.0` tagged run's
+     first 50 seeds, `11a18457…9e02` (`harness/reports/m8-probe-2026-09-27.md`), with
+     `git diff --stat v1.0.0` showing no content, config or schema change.
+   - **Within the fixes.** The shared place and the countdown are engine selectors beside
+     `rankings`, read by both front ends, so the CLI shows them too at little cost; `rankings`
+     itself, the rules and `StopReason` are unchanged. Fast forward in steps is the page's alone,
+     30 Turns a step, a web constant rather than a `GameConfig` field.
+
+**Consequences.** Recorded with this entry, 2026-09-28: the plan,
+`docs/planning/epics/v1.0.1-release.md`; the epics README (the register's v1.0.1 row, and the lines
+on the epics' scope, on who proposed them, on the total and on v1.0.x releases); plan §2's
+paragraphs on the next work and on releases after the first build, and §4's first line; INPUTS
+7.8's Answer (the Worker's name and the address rule). The README is unchanged: no line of it
+became false, and v1.0.1's S3 rewrites its Play and Deploy. The three page fixes are tracked
+in #39; #12, #13, #14, #18, #32 and #38 carry comments pointing here. Found in the assessment
+and filed as #40, a v1.1 issue: founding Fame is a module constant (`foundingFame`,
+`engine/src/generators/guilds.ts`), not a `GameConfig` field (N9). What stays open: the account's
+workers.dev subdomain, and so the Worker's full address (the owner, before any Worker deploy); the
+not-found handling, if the owner objects to `none`; the rule for a v1.0.x deploy once #37 has moved
+production to `v1.1-release`, when Pages would take it as a preview but the Worker, which has no
+branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
+source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
