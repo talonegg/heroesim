@@ -77,8 +77,10 @@ deploy runs only from a clean checkout of a release tag, and refuses anything el
    The Worker goes first, so that a failure there leaves pages.dev, where the players' saves are,
    as it was. `npm run deploy --dry-run` (or `node scripts/deploy.mjs --dry-run` from `web/`)
    runs the checks and the build and prints both wrangler commands, running neither. Any other
-   flag is refused, a mistyped one npm keeps for itself among them: npm hands the script
-   `--dryrun` as `npm_config_dryrun`, and from the root even `npm run deploy -- --dryrun` (DL-97).
+   argument the script receives is refused, and so is a flag npm keeps for itself whose name
+   holds "dry" or "run": npm hands the script `--dryrun` as `npm_config_dryrun`, and from the
+   root even `npm run deploy -- --dryrun`. A flag npm keeps under any other name never reaches
+   the script, and on a clean checkout of a release tag the deploy goes ahead (DL-97).
 3. **The record.** After both uploads the script prints what the release's decision-log entry
    records with the live check's result (DL-88): the tag, the commit, the UTC time, each wrangler
    run's version, the Worker's version id and address, and the Pages deployment's URL,

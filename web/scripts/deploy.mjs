@@ -31,10 +31,12 @@
  * `--dry-run` runs the checks and the build and prints both wrangler commands, running neither.
  * So does `npm run deploy --dry-run`: npm keeps that flag for itself and hands this script only
  * `npm_config_dry_run=true`, which is read here as `--dry-run`. Any other argument is refused,
- * so that a mistyped `--dry-run` never deploys; so is a mistyped one npm kept, which reaches this
- * script only as another `npm_config_*` name: `--dryrun` becomes `npm_config_dryrun`. From the
- * repository's root, whose `deploy` is `npm run deploy -w web`, even `npm run deploy -- --dryrun`
- * arrives so, since the flag then comes before the inner npm's own `--` (v1.0.1-S6, DL-97).
+ * so that a mistyped `--dry-run` never deploys; so is a flag npm kept whose name holds "dry" or
+ * "run", which reaches this script only as another `npm_config_*` name: `--dryrun` becomes
+ * `npm_config_dryrun`. From the repository's root, whose `deploy` is `npm run deploy -w web`,
+ * even `npm run deploy -- --dryrun` arrives so, since the flag then comes before the inner npm's
+ * own `--`. A flag npm keeps under a name holding neither never reaches this script, so it is
+ * not refused: on a clean checkout of a release tag the deploy goes ahead (v1.0.1-S6, DL-97).
  *
  * No shell. npm runs scripts under cmd.exe on Windows, which expands no `$(…)`, and Node spawns
  * neither `npx` nor `npx.cmd` there without a shell, which would split an argument at its spaces.
