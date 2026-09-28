@@ -56,10 +56,12 @@ deploy runs only from a clean checkout of a release tag, and refuses anything el
 
    `npm run deploy` runs `web/scripts/deploy.mjs`. It refuses, before it builds anything, unless
    `git status --porcelain` prints nothing, `git tag --points-at HEAD` lists one release tag
-   (`v*`), and no other wrangler configuration sits in `web/` or above it, where wrangler would
-   find it first. Then it builds once (`npm run build -w web`: the Vite build and the bundle gate)
-   and uploads that build from `web/`, stopping at the first failure, first to the Worker, then
-   to Pages:
+   (`v*`), no other wrangler configuration, nor the redirect `.wrangler/deploy/config.json`, sits
+   in `web/` or above it, where wrangler would find it first, and no `.env` or `.env.local` sits
+   in `web/`, which wrangler would load into its environment (git ignores `.wrangler/` and `.env`,
+   so the clean check does not see them; DL-97). Then it builds once (`npm run build -w web`: the
+   Vite build and the bundle gate) and uploads that build from `web/`, stopping at the first
+   failure, first to the Worker, then to Pages:
 
    ```sh
    npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit <sha>"
@@ -74,12 +76,16 @@ deploy runs only from a clean checkout of a release tag, and refuses anything el
 
    The Worker goes first, so that a failure there leaves pages.dev, where the players' saves are,
    as it was. `npm run deploy --dry-run` (or `node scripts/deploy.mjs --dry-run` from `web/`)
-   runs the checks and the build and prints both wrangler commands, running neither.
+   runs the checks and the build and prints both wrangler commands, running neither. Any other
+   flag is refused, a mistyped one npm keeps for itself among them: npm hands the script
+   `--dryrun` as `npm_config_dryrun`, and from the root even `npm run deploy -- --dryrun` (DL-97).
 3. **The record.** After both uploads the script prints what the release's decision-log entry
    records with the live check's result (DL-88): the tag, the commit, the UTC time, each wrangler
    run's version, the Worker's version id and address, and the Pages deployment's URL,
    environment and commit, read from the file wrangler writes when `WRANGLER_OUTPUT_FILE_PATH`
-   names one. It warns loudly if the Worker is not at the address the live check reads.
+   names one. It warns loudly if the Worker is not at the address the live check reads. If Pages
+   fails after the Worker took the build, it prints the Worker's part, for the entry that records
+   the attempt.
 4. **After each deploy:** `npm run e2e:live -w web` plays a game on both addresses, each in
    Chromium at a phone's width and a desktop's (four tests), saves it in IndexedDB, reloads and
    loads it, and fails if the page asks anything of another origin (DL-75). With

@@ -103,14 +103,19 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   // Again, stopped midway: the Turns it played are those the progress showed as Stop was taken, or one step more.
   await stop.getByRole('button', { name: 'Fast forward again' }).click();
   await expect(page.getByTestId('progress')).toBeVisible();
-  // Read the progress and take Stop in one task of the page's, so no step runs between them.
+  // Read the page between steps and take Stop in one task of the page's, so no step runs between
+  // them. Between steps the year's stop has gone, and "Export this game" waits: the game in hand's
+  // History holds the steps' Turns, which its World has not played (v1.0.1-S6, DL-97).
   const shown = await page.evaluate(() => {
     const text = document.querySelector('[data-testid="progress"] p')?.textContent ?? '';
-    const button = [...document.querySelectorAll('button')].find((each) => each.textContent === 'Stop the fast forward');
-    button?.click();
-    return text;
+    const stopShown = document.querySelector('[data-testid="stop"]') !== null;
+    const buttons = [...document.querySelectorAll('button')];
+    const exportDisabled = buttons.find((each) => each.textContent === 'Export this game')?.disabled ?? null;
+    buttons.find((each) => each.textContent === 'Stop the fast forward')?.click();
+    return { text, stopShown, exportDisabled };
   });
-  const before = readProgress(shown);
+  expect(shown).toMatchObject({ stopShown: false, exportDisabled: true });
+  const before = readProgress(shown.text);
   await expect(stop.locator('p')).toHaveText(/^Stopped: you asked to stop, after \d+ Turns\.$/);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   const sentence = (await stop.locator('p').textContent()) ?? '';
@@ -124,5 +129,6 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await expect(page.getByTestId('progress')).toHaveCount(0);
   await expect(stop.getByRole('button', { name: 'Fast forward again' })).toBeEnabled();
   await expect(time.getByRole('button', { name: 'Advance a Turn' })).toBeEnabled();
+  await expect(region(page, 'This game').getByRole('button', { name: 'Export this game' })).toBeEnabled();
   await expectNoHorizontalOverflow(page, 'a fast forward stopped');
 });

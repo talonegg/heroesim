@@ -8621,6 +8621,217 @@ forward the header shows the game as it was when it began, and a section that re
 (shared, ADR-0008) may already show the steps' entries, every one of which the game keeps, a Stop
 included; #32's Bankruptcy stop and events stay on the v1.1 line.
 
+## DL-97 — v1.0.1 verified and closed: "Export this game" held while a fast forward is between its steps, a mistyped dry run given to npm refused, the guard's other gaps and a half-made deploy's record closed, tests that kill the 23 surviving mutants, `v1.0.0`'s fingerprint on 50 × 20, and the close-out lines (v1.0.1-S6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent (the fixer and closer of
+v1.0.1-S6), within the plan the owner approved in DL-92, acting on the findings of the story's
+verification lenses, each checked again against the code before it was acted on; no engine rule,
+content value, `GameConfig` field, schema, event type or `StopReason` changes, and the owner has not
+seen the findings
+
+**Context.** v1.0.1-S6 verifies S1 to S5 (DL-93 to DL-96) as merged on `v1.0-dev` at `3e4e1fb`, the
+plan commit `45fd6ea` and the five stories, independently of their builders and against `v1.0.0`
+(`70508c6`). Four verifiers, agents, ran the epic's lenses, each in a worktree or scratch clone of its
+own at `3e4e1fb`: play-neutrality; mutants of the new code, as DL-74 and DL-80 did; the deploy's
+guard, by dry run only; and every acceptance box with the decisions. None deployed, and wrangler ran
+only with `--dry-run`. They found one major defect in play, S5's; one major gap in the guard, S3's;
+23 mutants of the new code that the suite let live, seven of them major; and minor points in the
+guard and its record, the page's words, the documents and this story's own procedure. The fixer
+checked each finding against the code again (each surviving mutant re-applied in this story's
+worktree and seen to survive: the deploy's and the live check's against `web/src/deploy.test.ts`,
+the only test that imports them, the rest against the whole suite, 2,801 tests), fixed each within
+the hotfix bar, and closed the epic.
+
+**Decision.**
+
+1. **What the lenses ran and measured, at `3e4e1fb`.**
+   - *Play-neutrality*, in a detached worktree, Node 26.9.0, 16 processes, no module installed. The
+     sweep twice: `HEROESIM_VALIDATE=1 HEROESIM_SEEDS=50 npm run harness -- play.harness`, as
+     `v1.0.0`'s reference was taken (DL-78 item 7), 2026-09-28 08:55:30–09:07:56 UTC, 742.7 s; and the
+     epic's command with `--silent=false` (item 6), 09:09:30–09:18:10 UTC, 517.5 s. Both gave the
+     "Fingerprint of every seed's last save"
+     `11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02`, the `v1.0.0` tagged run's
+     for its first 50 seeds (DL-81 item 3; `git diff --stat 21fd4d4 v1.0.0 -- engine content harness
+     package-lock.json` shows only that run's report and milestone line). 49 games ran their 20 years
+     and `seed-0049` went bankrupt; 148 Rival folds; no refused action, validator refusal or stopped
+     assertion; `seed-0001` replayed identical (113,281,366 characters); 50 of 50 saves round trip;
+     every counter equals the probe report's "with no module" column. A watcher copied the 16 shards'
+     results before each sweep deleted them: the two runs' per-seed tables are byte-identical and
+     hash to the fingerprint, so validating changes no play. `git diff --stat v1.0.0 -- content
+     harness package-lock.json engine ':!engine/src/selectors.ts' ':!engine/src/selectors.test.ts'`
+     printed nothing before and after both. Schema version 3, config version 10, content version
+     14; `events.ts`, `stops.ts`, `document.ts`, `config.ts`, `fast-forward.ts` and the engine's
+     `index.ts` are `v1.0.0`'s; `rankings` and both its test blocks are byte-identical; the two new
+     selectors only read. The report was restored after each sweep and none committed.
+   - *Mutants*, in a detached worktree: 126 made by hand, each applied alone and run against the
+     tests that cover it, the file reverted after. 103 were killed and 23 survived: S3 12 of 54, S4
+     2 of 30, S5 9 of 42. Four more were set aside as equivalent (a child's `error`, which
+     `spawnSync` gives only with a null status; a rest's Turns, which follow only a full step;
+     `!belowFloorSince` for a Turn never 0; `find` for `findLast`). No wrangler, deploy or build ran.
+   - *The guard*, in a scratch clone of `3e4e1fb` with `npm ci`, a tripwire in `NODE_OPTIONS` ready
+     to kill any `npx-cli.js` or wrangler process, which started none. Untagged, `node
+     scripts/deploy.mjs --dry-run` refused on the tag, exit 1, building nothing; a changed file
+     refused as "not clean". With a local tag `v9.9.9-guardtest` on a clean tree, `node
+     scripts/deploy.mjs --dry-run`, and `npm run deploy --dry-run` from `web/` and from the root,
+     each passed the guard, built once (the script 499,648 bytes) and printed both commands.
+     `--dryrun` given to the script refused, and so did a `wrangler.json` in the clone's root.
+     Wrangler 4.142.0's `cli.js` was read for the record's entries, the configuration walk, the
+     redirect and the `.env` files; a dry run there makes no API call. Four `wrangler deploy
+     --dry-run` runs, nothing uploaded. `npm run e2e:live -w web -- --list`: 4 tests, 2 under
+     `HEROESIM_LIVE_URL`, 4 under a blank one. The tag and the clone were deleted.
+   - *Acceptance and decisions*, in a detached worktree: `npm run lint` and `npm run typecheck`
+     clean; `npm test` 114 files, 2,801 tests; `npm run e2e` 22 passed; the ten test files the S3 to
+     S5 boxes cite, 318 tests, every name cited present and passing; CI green at `45fd6ea` and at
+     `3e4e1fb` (runs 36391149970 and 36399962158) and on `v1.1-dev` (36391223869). The built page,
+     played at 360 and 1,280 px in Chromium: joint places in the header and the Rankings; a year's
+     progress in 35 sentences, Day 10 to Day 350; the Stop taken at the Turns shown in 9 of 10 real
+     clicks, and a step later once; the countdown between steps and after a Stop, gone once the game
+     ended; no horizontal overflow in any state. DL-92 to DL-96 agree with the owner's answers and
+     the house rules; the log runs DL-01 to DL-96 with no gap and was appended to only; no account
+     id or dashboard link is in the tree; the 22 relative links in the documents changed resolve. S1
+     to S5 accepted.
+2. **"Export this game" waits while a fast forward is between its steps** (play-neutrality, major;
+   S5's). Between steps the game in hand is the document from before the fast forward (DL-96 item
+   3), and its History is the one the steps' documents append to (ADR-0008; `advance`), so it holds
+   the Turns the steps have played and its World has not. The button was enabled while busy and
+   exported that document: the verifier's file, at Day 0 with a History to Day 10, failed the page's
+   own load ("counter-range, history-turn-order"), so a player who exported mid-run and closed the
+   tab lost the game. In `v1.0.0` a fast forward was one blocking call, and only a click queued
+   during it could have met a document in that state. The button is now disabled while busy, as
+   "Save in this browser" and "Load a save file" already were (`web/src/views/game-file.tsx`).
+   `web/src/app.test.tsx` ('"Export this game" waits between steps, …') finds it disabled between
+   steps, with no download on a click, and after a Stop enabled, its file loading through the
+   reducer's `load` at the Turn the Stop names; `web/e2e/fast-forward.spec.ts` reads, in the page's
+   task that takes the Stop, the button disabled and the year's stop gone, and the button enabled
+   after, at both widths. Nothing in the engine, the saves or the History changes; a History
+   section read mid-run may still show the steps' entries, as DL-96's Consequences say.
+3. **A mistyped `--dry-run` given to npm is refused** (the guard, major; S3's). npm keeps a flag
+   given before its own `--` and hands the script only `npm_config_<name>`: `--dryrun` becomes
+   `npm_config_dryrun`, and the root's `deploy`, `npm run deploy -w web`, puts even `npm run deploy
+   -- --dryrun` before the inner npm's `--`. The script saw neither `--dry-run` nor
+   `npm_config_dry_run`, so that typo, typed at the root as the README and S7 run the deploy, on a
+   clean checkout of a `v*` tag, would have uploaded to both hosts: the verifier showed it with a
+   fake spawn, exit 0 and two wrangler runs. Tried again here, in a scratch workspace copying the
+   delegate, with npm 11.19.1: at the root `-- --dryrun` and `--dryrun` arrive as no argument and
+   `npm_config_dryrun=true`, `--dryRun` likewise, `--dry-rn` as `npm_config_dry_rn`; in `web/`,
+   `-- --dryrun` arrives as the argument; of the `npm_config_*` names npm sets for a script, none
+   has "dry" or "run" in it. The script now refuses, before it builds, any `npm_config_*` name holding
+   "dry" or "run" other than `npm_config_dry_run`, which still means a dry run
+   (`web/scripts/deploy.mjs`). A typo holding neither would still pass; a deploy that uploads only
+   when told to, and dry-runs otherwise, would close that too, but changes how a release is
+   deployed, and is left to the owner. **Erratum to DL-94 item 2:** "`npm run <script> -- --dry-run`
+   passes the argument instead" holds in `web/` only; through the root's delegate the flag arrives
+   as `npm_config_dry_run`, and until this entry a mistyped one would have deployed.
+4. **Three more gaps in the guard and its record** (the guard, minor), each read in wrangler
+   4.142.0's `cli.js`:
+   - Wrangler loads `web/.env` and `web/.env.local` into its environment on every command
+     (`getDefaultEnvFiles`, `loadDotEnv`), and `.gitignore` ignores `.env`, so the clean check
+     passed a checkout whose `.env` named another account, token or Worker; the verifier saw
+     `WRANGLER_CI_OVERRIDE_NAME` in one rename the Worker in a dry run. The guard refuses either file
+     in `web/`: an untracked `.env.local` already failed the clean check, unless a global ignore
+     file hid it.
+   - `pages deploy` follows a redirect, `.wrangler/deploy/config.json`, found by walking up from
+     `web/` (`findRedirectedWranglerConfig`), and `.wrangler/` is ignored: DL-94's Consequences left
+     it open. The guard refuses one in `web/` or any directory above it, the filesystem's root among
+     them, as it refuses the three configuration names.
+   - When Pages failed after the Worker took the build, the script returned before printing any of
+     the Worker's record, and removed wrangler's file with it, so the attempt DL-92 item 6 and S7
+     step 4 record "as such" would have lost the Worker's version id. It now prints the Worker's part
+     (wrangler's version, the version id, the address and the time) and its address warning, then
+     exits with Pages' status.
+   The README's Deploy says all three, and item 3's typo.
+5. **Tests that kill the 23 surviving mutants.** Each mutant was applied alone in this story's
+   worktree after the tests were written, the tests named run and seen to fail, and the file written
+   back:
+   - the guard's git reads (D23 `tag --list`, D24 `--untracked-files=no`, D25 `rev-parse HEAD~1`):
+     `web/src/deploy.test.ts`'s fake git now answers only `status --porcelain`, `tag --points-at
+     HEAD` and `rev-parse HEAD`, each asked whole, and throws at anything else, so that every test
+     proves what the guard asks (40 fail under each), and 'asks git exactly what it reads…' pins the
+     three;
+   - a deploy run by an import (D41): `web/src/deploy-import.test.ts` imports the script and the live
+     configuration with `spawnSync` mocked to throw;
+   - the environment npm and wrangler are given (D19): 'hands npm and wrangler the deploy's own
+     environment…', `PATH`, the profile and an account id among it;
+   - a child ended by a signal, its status null (D21): the build's and the Worker's, in 'stops at the
+     first failure';
+   - `git status` failing alone (D22), `npx-cli.js` missing (D38) and a record line left unfinished
+     (D36): a refusal case and a test each;
+   - a stray configuration at the filesystem's root (D07): `web/src/deploy-root.test.ts`, with
+     `existsSync` answering for one file there;
+   - the live check's specs (P03) and a blank override (P02): two tests in 'the live check';
+   - the CLI's countdown under the save's floor (C04): `cli/src/render.test.ts` ("names the save's
+     own floor…", a floor of 50);
+   - a stop reason, the player's Stop or a refusal left standing between steps (R17, R16, R18):
+     `web/src/state/reducer.test.ts` ('between its steps holds none of what the play before it left:
+     %s'), and in the browser, item 2's check that the year's stop has gone;
+   - a year of the defaults' Turns rather than the game's (R29): `reducer.test.ts` ("with no cap,
+     plays a year of the game's own rules", `turnsPerYear` 90, three steps);
+   - a fired frame's task, and the branch with no frames, not called off (R20, R22):
+     `web/src/state/use-game.test.tsx` ('with %s, a settle asked for before a Stop is called off as
+     well': frames that fire at once, and none);
+   - "Fast forward again" after a Stop dropping its stops (T02): `web/src/views/time.test.tsx`;
+   - the log read again at every step (T07): `web/src/views/log.test.tsx`;
+   - the progress's Year and the header's "of N" (S10, S11): `web/src/state/selectors.test.ts`, a
+     game under `turnsPerYear` 30 and a folded Rival.
+   None is recorded as unkillable. Ten mutants of this entry's own code, run the same way, each fail
+   a test: the npm typo refusal dropped, narrowed to "dry", or refusing `npm_config_dry_run` itself;
+   no `.env` file, `.env.local`, or the redirect refused; the Worker's record not printed when Pages
+   fails, or printed with a Pages line; "Export this game" enabled while busy; the Time help's old
+   words.
+6. **The page's words and the documents** (acceptance and decisions, minor; and play-neutrality's
+   procedure):
+   - The Time section's help said a fast forward plays "a few Days at a time"; a step is 30 Turns,
+     ten Days. It says "30 Turns, ten Days, at a time", and `app.test.tsx` ties the words to
+     `fastForwardStepTurns`.
+   - Plan §2's DL-94 note called pages.dev the project "which M7 alone served"; `v1.0.0` has been
+     served there since 2026-09-27 (DL-93). It reads "which alone served the page from M7 to
+     `v1.0.0`".
+   - S4's first box said the diff of `engine/src/selectors.test.ts` was "adding lines only": its
+     import line also gains `type WorldDocument`. The box says so; both `rankings` blocks are
+     untouched.
+   - The S6 command block: run by an agent, Vitest 5.0.2 detects one (`std-env`: `CLAUDECODE` or
+     `AI_AGENT`) and reports minimally, printing no passing test's output, so the sweep printed no
+     fingerprint, and the block's next line removed the only copy, in the report. The sweep line
+     takes `--silent=false`. A run begun on another local date writes a report that
+     `harness/reports/*` makes git ignore, so neither `git checkout` nor `git status` sees it: the
+     block deletes it with `git clean -fX -- harness/reports/`, which leaves the tracked reports.
+7. **The sweep at this story's tree.** `HEROESIM_SEEDS=50 npm run harness -- play.harness
+   --silent=false`, the corrected line, in this story's worktree with its fixes in place (`engine/`,
+   `content/`, `harness/` and the lockfile as at `3e4e1fb`), 2026-09-28 09:55:54–10:03:44 UTC,
+   467.7 s on 16 processes, printed "Fingerprint of every seed's last save (DL-76):
+   11a184571482f3f3f1ebe057970d72aa7ccac86b45b8930c3d12e9f5321a9e02", `v1.0.0`'s: 49 games to their
+   20 years and one Bankruptcy, 148 Rival folds, no policy action refused, `seed-0001` identical
+   (113,281,366 characters), 50 of 50 saves round trip. The report was restored, none committed and
+   none left behind, and the epic's `git diff --stat` printed nothing.
+8. **After the fixes**, at this entry's commit: `npm run lint` and `npm run typecheck` clean;
+   `npm test` 118 files and 2,836 tests, 4 files and 35 tests more than at `3e4e1fb`; `npm run e2e`
+   22 passed, under the lock, the fast-forward spec's new checks among them. The bundle gate passed:
+   `web/dist/assets/index-CRCIF6ue.js` is 499,668 bytes (145.71 kB gzipped, Vite's count), 2,784
+   more than `v1.0.0`'s 496,884 and 20 more than S5's 499,648 (the Export button's `disabled` and the
+   help's words); `index.html` is 457 bytes.
+9. **Checked and left.** The owner's confirmation that no Worker `heroesim` exists in the account
+   (the epic's Inputs and S7 step 1) is recorded nowhere: DL-94 records the subdomain alone, and
+   nothing records whether S7 step 1 came before S2's deployment list (read about 07:23 UTC) and
+   DL-94's dry run. The wrangler runs so far were that list and dry runs, and a dry run makes no API
+   call (wrangler 4.142.0), so none could register a subdomain or touch a Worker. The owner is asked
+   before S7 step 3, and DL-98 records the answer; if a Worker `heroesim` exists, the deploy waits
+   for the owner.
+10. **The close-out lines.** The epic's Status is "done — 2026-09-28 (`v1.0.1`)", as M8's close wrote
+    M8's (DL-81 item 7); the epics README's register row, and plan §2's paragraph under the
+    milestones, say v1.0.1 is complete as of its tag, `v1.0.1`, on 2026-09-28, citing this entry.
+    The tag is the orchestrator's, in S7 step 2, on the merge of `v1.0-dev` into `v1.0-release`, so
+    the lines are true from it, as M8's were from `m8-modules`. S6's three boxes are ticked; S7's
+    are S7's.
+
+**Consequences.** v1.0.1 is verified: every seed plays as `v1.0.0` plays it, S1 to S5 meet their
+boxes, the page can no longer export a save it would refuse, the deploy refuses every checkout and
+flag the lenses found it letting through and records a half-made deploy, and no mutant of the new
+code survives the suite. What remains is S7's: the owner's confirmation of item 9, the tag, the
+deploy to both addresses and its record (DL-98), and the merge forward. Left open: a typo of
+`--dry-run` holding neither "dry" nor "run" (item 3); the History section showing a fast forward's
+steps as they are played (DL-96); and, as before, the rule for a v1.0.x deploy once #37 moves
+production, left to #37.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

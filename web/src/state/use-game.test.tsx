@@ -20,7 +20,10 @@ vi.mock('@heroesim/engine', async (importOriginal) => {
 beforeEach(() => {
   vi.clearAllMocks();
 });
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 const newGame: Play = {
   kind: 'newGame',
@@ -137,6 +140,37 @@ describe('useGame', () => {
   });
 
   test('a fast forward asked for again straight after a Stop is settled a step a render, the settle asked for before the Stop called off', async () => {
+    const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
+    const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
+    act(() => result.current[1]({ kind: 'fastForward', until: [] }));
+    await waitFor(() => expect(result.current[0].forwarding).not.toBeNull());
+
+    const rendered: (number | null)[] = [];
+    vi.mocked(fastForward).mockImplementation((...args) => {
+      rendered.push(result.current[0].forwarding?.turnsPlayed ?? null);
+      return engine.fastForward(...args);
+    });
+    try {
+      act(() => {
+        result.current[1]({ kind: 'stop' });
+        result.current[1]({ kind: 'fastForward', until: [], maxTurns: 4 * fastForwardStepTurns });
+      });
+      await waitFor(() => expect(result.current[0].busy).toBe(false));
+
+      expect(rendered).toEqual([null, 30, 60, 90]);
+    } finally {
+      vi.mocked(fastForward).mockImplementation(engine.fastForward);
+    }
+  });
+
+  // The same, when the settle asked for before the Stop is waiting as a task, not a frame: where
+  // frames fire at once, so each settle waits as a task after its frame, and where there are none
+  // (v1.0.1-S6, DL-97). jsdom has frames, so neither way is taken above.
+  test.each([
+    ['frames that fire at once', (callback: FrameRequestCallback) => (callback(0), 1)],
+    ['no frames', undefined],
+  ])('with %s, a settle asked for before a Stop is called off as well', async (_frames, frame) => {
+    vi.stubGlobal('requestAnimationFrame', frame);
     const engine = await vi.importActual<typeof Engine>('@heroesim/engine');
     const { result } = renderHook(() => useGame(withRosterReleased(started('use-game-test'))), { wrapper: StrictMode });
     act(() => result.current[1]({ kind: 'fastForward', until: [] }));

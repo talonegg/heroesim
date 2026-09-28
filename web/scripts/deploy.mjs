@@ -12,7 +12,12 @@
  *   - no other wrangler configuration sits in web/ or any directory above it. Wrangler walks up
  *     from web/ for `wrangler.json`, then `wrangler.jsonc`, then `wrangler.toml`, so a stray
  *     `wrangler.json` anywhere above would win over web/wrangler.jsonc for `pages deploy`, which
- *     takes no --config.
+ *     takes no --config; and `pages deploy` follows a redirect, `.wrangler/deploy/config.json`,
+ *     found the same way;
+ *   - no `.env` or `.env.local` sits in web/: wrangler loads them into its environment on every
+ *     run, where an account, a token or a Worker's name would send the uploads elsewhere, and the
+ *     clean check does not see `.env`, which .gitignore ignores, nor a `.env.local` that a global
+ *     ignore file hides (v1.0.1-S6, DL-97).
  *
  * Then it builds once (`npm run build`: Vite, then the bundle gate) and runs
  *
@@ -26,7 +31,10 @@
  * `--dry-run` runs the checks and the build and prints both wrangler commands, running neither.
  * So does `npm run deploy --dry-run`: npm keeps that flag for itself and hands this script only
  * `npm_config_dry_run=true`, which is read here as `--dry-run`. Any other argument is refused,
- * so that a mistyped `--dry-run` never deploys.
+ * so that a mistyped `--dry-run` never deploys; so is a mistyped one npm kept, which reaches this
+ * script only as another `npm_config_*` name: `--dryrun` becomes `npm_config_dryrun`. From the
+ * repository's root, whose `deploy` is `npm run deploy -w web`, even `npm run deploy -- --dryrun`
+ * arrives so, since the flag then comes before the inner npm's own `--` (v1.0.1-S6, DL-97).
  *
  * No shell. npm runs scripts under cmd.exe on Windows, which expands no `$(…)`, and Node spawns
  * neither `npx` nor `npx.cmd` there without a shell, which would split an argument at its spaces.
@@ -40,7 +48,9 @@
  * for each run: its wrangler version, the Worker's version id and addresses, and the Pages
  * deployment's URL, environment and commit. They are printed with the tag, the commit and the UTC
  * time, for the release's decision-log entry, with a loud warning when the Worker's addresses do
- * not hold `addresses.worker`, the address the live check reads (playwright.live.config.ts).
+ * not hold `addresses.worker`, the address the live check reads (playwright.live.config.ts). When
+ * Pages fails after the Worker took the build, the Worker's part is printed, for the entry that
+ * records the attempt.
  *
  * `deploy()` takes its process, its directories and its spawn as options, so that its tests
  * (src/deploy.test.ts) run every path with a fake spawn and never run git's writes, npm or
@@ -74,7 +84,14 @@ export const pagesProject = 'heroesims';
 export const workerConfig = 'wrangler.jsonc';
 
 const wrangler = 'wrangler@4';
-const configNames = ['wrangler.json', 'wrangler.jsonc', 'wrangler.toml'];
+/**
+ * What wrangler finds by walking up from web/: its three configuration names, and the redirect
+ * `pages deploy` follows (`.wrangler/deploy/config.json`, wrangler 4.142.0's
+ * `findRedirectedWranglerConfig`), which `.gitignore`'s `.wrangler/` hides from the clean check.
+ */
+const configNames = ['wrangler.json', 'wrangler.jsonc', 'wrangler.toml', path.join('.wrangler', 'deploy', 'config.json')];
+/** The files in web/ that wrangler loads into its environment on every run (`getDefaultEnvFiles`). */
+const envFiles = ['.env', '.env.local'];
 const defaultWebDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /** The two wrangler runs as npx's arguments: the Worker's first, then Pages'. */
@@ -100,13 +117,28 @@ function isDryRun(argv, env) {
   return argv.includes('--dry-run') || (npmFlag !== undefined && npmFlag !== '' && npmFlag !== 'false');
 }
 
+/**
+ * The flags npm kept for itself that look like a mistyped `--dry-run`: npm hands a script a flag
+ * given before its own `--` only as `npm_config_<name>`, `--dryrun` as `npm_config_dryrun`. Of
+ * the names npm 11.19.1 sets for a script, none but `npm_config_dry_run` has "dry" or "run" in it.
+ */
+function npmTypos(env) {
+  return Object.keys(env).filter((key) => {
+    const name = key.toLowerCase();
+    return name.startsWith('npm_config_') && name !== 'npm_config_dry_run' && /dry|run/.test(name.slice('npm_config_'.length));
+  });
+}
+
 /** npm's `npm-cli.js`, from `npm_execpath` or beside Node itself, and the `npx-cli.js` beside it. */
 function npmClis(env, execPath) {
   const npm = env.npm_execpath || path.join(path.dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js');
   return { npm, npx: path.join(path.dirname(npm), 'npx-cli.js') };
 }
 
-/** Every wrangler configuration wrangler could find from web/ other than web/wrangler.jsonc. */
+/**
+ * Every wrangler configuration wrangler could find from web/ other than web/wrangler.jsonc: in
+ * web/ and each directory above it, the filesystem's root among them.
+ */
 function strayConfigurations(webDir) {
   const found = [];
   for (let dir = webDir; ; dir = path.dirname(dir)) {
@@ -158,6 +190,9 @@ export function deploy({
   const refusals = [];
   const unknown = argv.filter((arg) => arg !== '--dry-run');
   if (unknown.length > 0) refusals.push(`it takes only --dry-run, and was given ${unknown.join(' ')}.`);
+  for (const key of npmTypos(env)) {
+    refusals.push(`it takes only --dry-run, and npm handed it ${key}=${env[key]}: a flag npm was given, not --dry-run.`);
+  }
 
   const clis = npmClis(env, execPath);
   for (const cli of [clis.npm, clis.npx]) {
@@ -168,6 +203,9 @@ export function deploy({
 
   for (const file of strayConfigurations(webDir)) {
     refusals.push(`a wrangler configuration sits at ${file}, where wrangler would find it; move it away.`);
+  }
+  for (const file of envFiles.map((name) => path.join(webDir, name)).filter((file) => existsSync(file))) {
+    refusals.push(`${file} would be loaded into wrangler's environment, where it could send the uploads elsewhere; move it away.`);
   }
 
   const git = (args) => {
@@ -241,42 +279,31 @@ export function deploy({
         `the Pages upload failed after the Worker took this build: the Worker serves ${tag}, ` +
           `${addresses.pages} what it served before. See the release epic's deploy step for what follows.`,
       );
+      // The Worker went live: print its record, for the entry that records this attempt, before
+      // its file goes with the directory (v1.0.1-S6, DL-97).
+      report({ tag, commit, records, say, complain, now, pagesFailed: true });
       return statusOf(pages);
     }
 
-    return report({ tag, commit, records, say, complain, now });
+    return report({ tag, commit, records, say, complain, now, pagesFailed: false });
   } finally {
     rmSync(recordDir, { recursive: true, force: true });
   }
 }
 
-/** Print the deploy's record from the two files wrangler wrote, and warn of anything unexpected in it. */
-function report({ tag, commit, records, say, complain, now }) {
-  const workerEntries = readRecord(records.worker);
-  const pagesEntries = readRecord(records.pages);
-  const workerDeploy = entryOf(workerEntries, 'deploy');
-  const pagesDeploy = entryOf(pagesEntries, 'pages-deploy-detailed');
-  const versionOf = (entries) => entryOf(entries, 'wrangler-session')?.wrangler_version ?? 'unknown';
-  const targets = Array.isArray(workerDeploy?.targets) ? workerDeploy.targets : [];
-  const pagesCommit = pagesDeploy?.deployment_trigger?.metadata?.commit_hash;
-  const at = (entry) => (entry?.timestamp ? `; ${entry.timestamp}` : '');
+const versionOf = (entries) => entryOf(entries, 'wrangler-session')?.wrangler_version ?? 'unknown';
+const at = (entry) => (entry?.timestamp ? `; ${entry.timestamp}` : '');
 
-  say("both uploads succeeded. The record, for the release's decision-log entry:");
-  say(`  tag             ${tag}`);
-  say(`  commit          ${commit}`);
-  say(`  finished (UTC)  ${now().toISOString()}`);
-  say(
-    `  Worker          wrangler ${versionOf(workerEntries)}; version ${workerDeploy?.version_id ?? 'unknown'}; ` +
-      `at ${targets.join(', ') || 'no address'}${at(workerDeploy)}`,
-  );
-  say(
-    `  Pages           wrangler ${versionOf(pagesEntries)}; ${pagesDeploy?.url ?? 'no URL'}; ` +
-      `environment ${pagesDeploy?.environment ?? 'unknown'}; commit ${pagesCommit || 'unknown'}${at(pagesDeploy)}`,
-  );
-  say('Next, the live check on both addresses: npm run e2e:live -w web');
-
+/** The Worker's line of the record, from the file its wrangler run wrote, and what in it to warn of. */
+function workerRecord(file) {
+  const entries = readRecord(file);
+  const deployed = entryOf(entries, 'deploy');
+  const targets = Array.isArray(deployed?.targets) ? deployed.targets : [];
+  const line =
+    `  Worker          wrangler ${versionOf(entries)}; version ${deployed?.version_id ?? 'unknown'}; ` +
+    `at ${targets.join(', ') || 'no address'}${at(deployed)}`;
   const problems = [];
-  if (workerDeploy === undefined) {
+  if (deployed === undefined) {
     problems.push(`wrangler wrote no record of the Worker's deploy; read its version and address in its output above.`);
   } else if (!targets.includes(addresses.worker)) {
     problems.push(
@@ -287,17 +314,55 @@ function report({ tag, commit, records, say, complain, now }) {
       'in the commit that records this deploy.',
     );
   }
-  if (pagesDeploy === undefined) {
+  return { line, problems };
+}
+
+/** The Pages deployment's line of the record, from the file its wrangler run wrote, and what in it to warn of. */
+function pagesRecord(file, commit) {
+  const entries = readRecord(file);
+  const deployed = entryOf(entries, 'pages-deploy-detailed');
+  const pagesCommit = deployed?.deployment_trigger?.metadata?.commit_hash;
+  const line =
+    `  Pages           wrangler ${versionOf(entries)}; ${deployed?.url ?? 'no URL'}; ` +
+    `environment ${deployed?.environment ?? 'unknown'}; commit ${pagesCommit || 'unknown'}${at(deployed)}`;
+  const problems = [];
+  if (deployed === undefined) {
     problems.push('wrangler wrote no record of the Pages deploy; read its URL in its output above.');
   } else {
-    if (pagesDeploy.environment !== 'production') {
-      problems.push(`Pages took this deploy as ${pagesDeploy.environment ?? 'an unknown environment'}, not production.`);
+    if (deployed.environment !== 'production') {
+      problems.push(`Pages took this deploy as ${deployed.environment ?? 'an unknown environment'}, not production.`);
     }
     // Compared as a prefix, in case Pages keeps an abbreviated hash.
     if (pagesCommit && !commit.startsWith(pagesCommit)) {
       problems.push(`Pages recorded commit ${pagesCommit}, not ${commit}.`);
     }
   }
+  return { line, problems };
+}
+
+/**
+ * Print the deploy's record from the files wrangler wrote, and warn of anything unexpected in it:
+ * both uploads', or, when Pages failed after the Worker took the build, the Worker's alone.
+ */
+function report({ tag, commit, records, say, complain, now, pagesFailed }) {
+  const worker = workerRecord(records.worker);
+  const pages = pagesFailed ? null : pagesRecord(records.pages, commit);
+
+  say(
+    pages === null
+      ? "the Worker's record, for the release's decision-log entry, which records this attempt:"
+      : "both uploads succeeded. The record, for the release's decision-log entry:",
+  );
+  say(`  tag             ${tag}`);
+  say(`  commit          ${commit}`);
+  say(`  finished (UTC)  ${now().toISOString()}`);
+  say(worker.line);
+  if (pages !== null) {
+    say(pages.line);
+    say('Next, the live check on both addresses: npm run e2e:live -w web');
+  }
+
+  const problems = [...worker.problems, ...(pages?.problems ?? [])];
   if (problems.length > 0) {
     complain('WARNING '.repeat(8).trim());
     for (const problem of problems) complain(`WARNING: ${problem}`);

@@ -117,6 +117,15 @@ describe('headerView', () => {
 
     expect(headerView(document)?.ended).toBe('The game ended on Day 10: The Lantern went bankrupt.');
   });
+
+  test('counts the Guilds in play, a folded one not among them (v1.0.1-S6, DL-97)', () => {
+    const document = structuredClone(newGame());
+    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== player(document).id);
+    if (rival === undefined) throw new Error('expected a Rival');
+    rival.foldedOnTurn = 0;
+
+    expect(headerView(document)?.rankings).toBe('joint 1st of 4 by Fame');
+  });
 });
 
 describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-95)', () => {
@@ -455,6 +464,13 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
 
   test('gives the Turns played and the Day reached from the game the last step left, not the game in hand', () => {
     expect(progressView(between(newGame()))).toEqual({ sentence: 'Played 90 Turns so far. Now Day 30, morning, Year 0.', countdown: null });
+  });
+
+  test("gives the Year under the game's own turnsPerYear (v1.0.1-S6, DL-97)", () => {
+    const document = structuredClone(newGame());
+    document.meta.config = { ...document.meta.config, turnsPerYear: 30 };
+
+    expect(progressView(between(document))?.sentence).toBe('Played 90 Turns so far. Now Day 30, morning, Year 3.');
   });
 
   test("gives the countdown while the player's Guild is below the floor in that game, under the game's own grace", () => {

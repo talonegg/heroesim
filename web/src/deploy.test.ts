@@ -26,7 +26,9 @@ import {
 // keep the deploy what INPUTS 7.8 says; run its guard, its order and its dry run with a fake
 // spawn, so that no test runs npm, wrangler or a git command that writes; and keep every
 // credential and `.wrangler/` out of the repository. Like the bundle gate (bundle.test.ts) they
-// run on every `npm test`, in CI included.
+// run on every `npm test`, in CI included. Two need a module mocked, so have files of their own:
+// deploy-import.test.ts, that an import runs nothing, and deploy-root.test.ts, that the guard
+// looks at the filesystem's root (v1.0.1-S6, DL-97).
 
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const repoDir = path.join(webDir, '..');
@@ -206,6 +208,19 @@ describe('the live check', () => {
       ['override-desktop', 'https://heroesim.elsewhere.workers.dev', 1280],
     ]);
   });
+
+  test('takes a blank HEROESIM_LIVE_URL for none (v1.0.1-S6, DL-97)', async () => {
+    vi.stubEnv('HEROESIM_LIVE_URL', '   ');
+
+    expect((await projects()).map(([name]) => name)).toEqual(['worker-phone', 'worker-desktop', 'pages-phone', 'pages-desktop']);
+  });
+
+  test('runs e2e/*.live.ts alone, never the local specs, one of which sets ?modules= (DL-82 item 20; v1.0.1-S6, DL-97)', async () => {
+    vi.stubEnv('HEROESIM_LIVE_URL', '');
+    const { default: config } = await import('../playwright.live.config');
+
+    expect([config.testDir, config.testMatch]).toEqual(['./e2e', '**/*.live.ts']);
+  });
 });
 
 describe('the README', () => {
@@ -233,13 +248,18 @@ interface Checkout {
   porcelain?: string;
   tags?: string;
   gitFails?: boolean;
-  build?: number;
-  worker?: number;
-  pages?: number;
+  /** `git status` alone fails, as on a damaged index, which `tag` and `rev-parse` never read. */
+  statusFails?: boolean;
+  /** Each child's exit status; `null` for one ended by a signal, as `spawnSync` reports it. */
+  build?: number | null;
+  worker?: number | null;
+  pages?: number | null;
   targets?: string[];
   environment?: string;
   pagesCommit?: string;
   records?: boolean;
+  /** Wrangler's record starts with a line it left unfinished, as an interrupted append leaves one. */
+  brokenRecordLine?: boolean;
 }
 
 interface Call {
@@ -282,28 +302,37 @@ function recordEntries(pages: boolean, checkout: Checkout): object[] {
   ];
 }
 
-/** git answering as the checkout would, npm building, and wrangler writing its record: all pretended. */
+/**
+ * git answering as the checkout would, npm building, and wrangler writing its record: all
+ * pretended. git answers only the three reads the guard makes, each asked whole, so that a test
+ * proves what the guard asks as well as what it does with the answer (v1.0.1-S6, DL-97).
+ */
 function fakeSpawn(checkout: Checkout): { spawn: Spawn; calls: Call[] } {
   const calls: Call[] = [];
+  const exited = (status: number | null | undefined): SpawnResult => ({ status: status === undefined ? 0 : status });
   const spawn: Spawn = (command, args, options): SpawnResult => {
     calls.push({ command, args: [...args], options });
     if (command === 'git') {
       if (checkout.gitFails) return { status: 128, stdout: '' };
-      if (args[0] === 'status') return { status: 0, stdout: checkout.porcelain ?? '' };
-      if (args[0] === 'tag') return { status: 0, stdout: checkout.tags ?? 'v1.0.1\n' };
-      if (args[0] === 'rev-parse') return { status: 0, stdout: `${commit}\n` };
-      throw new Error(`an unexpected git ${args.join(' ')}`);
+      const asked = args.join(' ');
+      if (asked === 'status --porcelain') {
+        return checkout.statusFails ? { status: 128, stdout: '' } : { status: 0, stdout: checkout.porcelain ?? '' };
+      }
+      if (asked === 'tag --points-at HEAD') return { status: 0, stdout: checkout.tags ?? 'v1.0.1\n' };
+      if (asked === 'rev-parse HEAD') return { status: 0, stdout: `${commit}\n` };
+      throw new Error(`an unexpected git ${asked}`);
     }
-    if (args[0]?.endsWith('npm-cli.js')) return { status: checkout.build ?? 0 };
+    if (args[0]?.endsWith('npm-cli.js')) return exited(checkout.build);
 
     const pages = args.includes('pages');
     const record = options.env?.WRANGLER_OUTPUT_FILE_PATH;
     if (record !== undefined && checkout.records !== false) {
+      if (checkout.brokenRecordLine) appendFileSync(record, '{"type":"wrangler-sess\n');
       for (const entry of recordEntries(pages, checkout)) {
         appendFileSync(record, `${JSON.stringify({ ...entry, timestamp: '2026-09-28T08:00:00.000Z' })}\n`);
       }
     }
-    return { status: (pages ? checkout.pages : checkout.worker) ?? 0 };
+    return exited(pages ? checkout.pages : checkout.worker);
   };
   return { spawn, calls };
 }
@@ -353,6 +382,8 @@ describe('the deploy refuses before building', () => {
     ['HEAD carries a milestone tag alone', { tags: 'm8-modules\n' }, 'no release tag (v*)'],
     ['HEAD carries two release tags', { tags: 'v1.0.1\nv1.0.2\n' }, '2 release tags, v1.0.1 and v1.0.2'],
     ['git cannot read the checkout', { gitFails: true }, 'git could not read the checkout'],
+    // Its empty output is no clean tree (v1.0.1-S6, DL-97).
+    ['git status alone fails', { statusFails: true }, 'git could not read the checkout'],
   ])('when %s: non-zero, and neither npm nor wrangler runs', (_case, checkout, reason) => {
     const { status, output, builds, wrangler } = run(checkout);
 
@@ -371,7 +402,11 @@ describe('the deploy refuses before building', () => {
     expect(builds).toEqual([]);
   });
 
-  test.each(['wrangler.json', 'wrangler.jsonc', 'wrangler.toml'])(
+  // The redirect `pages deploy` follows is found by the same walk, and `.wrangler/` is ignored by
+  // git, so the clean check never sees it (v1.0.1-S6, DL-97).
+  const redirect = path.join('.wrangler', 'deploy', 'config.json');
+
+  test.each(['wrangler.json', 'wrangler.jsonc', 'wrangler.toml', redirect])(
     'when a %s sits above web/, where wrangler would find it',
     (name) => {
       const root = temporaryDir();
@@ -387,9 +422,9 @@ describe('the deploy refuses before building', () => {
     },
   );
 
-  test('when another wrangler configuration sits in web/ beside wrangler.jsonc', () => {
+  test.each(['wrangler.json', redirect])('when a %s sits in web/ beside wrangler.jsonc', (name) => {
     const place = machine();
-    const stray = touch(path.join(place.webDir, 'wrangler.json'));
+    const stray = touch(path.join(place.webDir, name));
 
     const { status, output, builds } = run({}, { webDir: place.webDir });
 
@@ -397,6 +432,21 @@ describe('the deploy refuses before building', () => {
     expect(output).toContain(`a wrangler configuration sits at ${stray}`);
     expect(builds).toEqual([]);
   });
+
+  test.each(['.env', '.env.local'])(
+    'when a %s sits in web/, which wrangler loads into its environment on every run (v1.0.1-S6, DL-97)',
+    (name) => {
+      const place = machine();
+      const file = touch(path.join(place.webDir, name));
+
+      const { status, output, builds, wrangler } = run({}, { webDir: place.webDir });
+
+      expect(status).not.toBe(0);
+      expect(output).toContain(`${file} would be loaded into wrangler's environment`);
+      expect(builds).toEqual([]);
+      expect(wrangler).toEqual([]);
+    },
+  );
 
   test('when given any argument but --dry-run, so that a mistyped one never deploys', () => {
     const { status, output, builds } = run({}, { argv: ['--dryrun'] });
@@ -406,12 +456,51 @@ describe('the deploy refuses before building', () => {
     expect(builds).toEqual([]);
   });
 
+  // npm keeps a flag given before its own `--` and hands the script only `npm_config_<name>`: from
+  // the root, whose deploy is `npm run deploy -w web`, even `npm run deploy -- --dryrun` arrives so
+  // (npm 11.19.1; v1.0.1-S6, DL-97).
+  test.each([
+    ['npm_config_dryrun', '--dryrun, or --dryRun'],
+    ['npm_config_dry_rn', '--dry-rn'],
+    ['npm_config_dyr_run', '--dyr-run'],
+  ])('when npm hands it %s, a mistyped --dry-run (%s) given to npm', (key) => {
+    const { status, output, builds, wrangler } = run({}, { env: { [key]: 'true' } });
+
+    expect(status).not.toBe(0);
+    expect(output).toContain(`npm handed it ${key}=true: a flag npm was given, not --dry-run`);
+    expect(builds).toEqual([]);
+    expect(wrangler).toEqual([]);
+  });
+
+  test('but not for the names npm sets for any script it runs', () => {
+    const env = {
+      npm_command: 'run-script',
+      npm_lifecycle_event: 'deploy',
+      npm_lifecycle_script: 'node scripts/deploy.mjs',
+      npm_config_cache: '/home/someone/.npm',
+      npm_config_local_prefix: '/home/someone/heroesim',
+      npm_config_user_agent: 'npm/11.19.1 node/v26.9.0',
+    };
+
+    expect(run({}, { env }).wrangler).toHaveLength(2);
+  });
+
   test('when npm is not where npm_execpath says', () => {
     const elsewhere = path.join(temporaryDir(), 'npm-cli.js');
     const { status, output, builds } = run({}, { env: { npm_execpath: elsewhere } });
 
     expect(status).not.toBe(0);
     expect(output).toContain(`npm's npm-cli.js is not at ${elsewhere}`);
+    expect(builds).toEqual([]);
+  });
+
+  test("when npx-cli.js is not beside npm_execpath's npm-cli.js", () => {
+    const dir = temporaryDir();
+    const npmCli = touch(path.join(dir, 'npm-cli.js'));
+    const { status, output, builds } = run({}, { env: { npm_execpath: npmCli } });
+
+    expect(status).not.toBe(0);
+    expect(output).toContain(`npm's npx-cli.js is not at ${path.join(dir, 'npx-cli.js')}`);
     expect(builds).toEqual([]);
   });
 });
@@ -438,6 +527,28 @@ describe('the deploy', () => {
     for (const call of [...builds, ...wrangler]) expect(call.options.stdio).toBe('inherit');
   });
 
+  test('asks git exactly what it reads: status --porcelain, tag --points-at HEAD and rev-parse HEAD (v1.0.1-S6, DL-97)', () => {
+    // Every tag in the repository, untracked files left out, or HEAD's parent would each let
+    // through a checkout the guard exists to refuse, or record the wrong commit.
+    const { calls } = run();
+
+    expect(calls.filter((call) => call.command === 'git').map((call) => call.args)).toEqual([
+      ['status', '--porcelain'],
+      ['tag', '--points-at', 'HEAD'],
+      ['rev-parse', 'HEAD'],
+    ]);
+  });
+
+  test("hands npm and wrangler the deploy's own environment: the login's profile, PATH and an account id (v1.0.1-S6, DL-97)", () => {
+    // Assembled, so that the credential scan below stays quiet.
+    const account = ['CLOUDFLARE', 'ACCOUNT', 'ID'].join('_');
+    const env = { PATH: '/usr/bin', HOME: '/home/someone', USERPROFILE: 'C:\\Users\\someone', [account]: 'the-account' };
+    const { builds, wrangler } = run({}, { env });
+
+    expect(wrangler).toHaveLength(2);
+    for (const call of [...builds, ...wrangler]) expect(call.options.env).toMatchObject(env);
+  });
+
   test('runs npm and npx from npm_execpath when npm runs it, and from beside Node when node does', () => {
     const elsewhere = path.join(temporaryDir(), 'npm', 'bin');
     const npmCli = touch(path.join(elsewhere, 'npm-cli.js'));
@@ -456,12 +567,42 @@ describe('the deploy', () => {
     ['the build fails', { build: 2 }, 2, 0],
     ["the Worker's upload fails", { worker: 1 }, 1, 1],
     ['the Pages upload fails', { pages: 7 }, 7, 2],
+    // spawnSync gives a child ended by a signal no status and no error (v1.0.1-S6, DL-97).
+    ['the build is ended by a signal', { build: null }, 1, 0],
+    ["the Worker's upload is ended by a signal", { worker: null }, 1, 1],
   ])('stops at the first failure: when %s', (_case, checkout, status, uploads) => {
     const result = run(checkout);
 
     expect(result.status).toBe(status);
     expect(result.builds).toHaveLength(1);
     expect(result.wrangler).toHaveLength(uploads);
+  });
+
+  test("when Pages fails after the Worker took the build, prints the Worker's record for the entry that records the attempt (v1.0.1-S6, DL-97)", () => {
+    const { status, output } = run({ pages: 7 });
+
+    expect(status).toBe(7);
+    expect(output).toContain('the Pages upload failed after the Worker took this build');
+    expect(output).toContain(
+      `Worker          wrangler 4.142.0; version 11111111-2222-3333-4444-555555555555; at ${addresses.worker}; ` +
+        '2026-09-28T08:00:00.000Z',
+    );
+    expect(output).toContain(`commit          ${commit}`);
+    expect(output).not.toContain('Pages           wrangler');
+    expect(output).not.toContain('WARNING');
+    // And the address warning, when the Worker went live somewhere else.
+    expect(run({ pages: 7, targets: ['https://heroesim.someone-else.workers.dev'] }).output).toContain(
+      `WARNING: the Worker is served at https://heroesim.someone-else.workers.dev, not at ${addresses.worker}`,
+    );
+  });
+
+  test('reads its record past a line wrangler left unfinished (v1.0.1-S6, DL-97)', () => {
+    const { status, output } = run({ brokenRecordLine: true });
+
+    expect(status).toBe(0);
+    expect(output).toContain(`version 11111111-2222-3333-4444-555555555555; at ${addresses.worker}`);
+    expect(output).toContain('https://0a1b2c3d.heroesims.pages.dev; environment production');
+    expect(output).not.toContain('WARNING');
   });
 
   test('has each wrangler run write its record to its own file in the temporary directory, removed after', () => {

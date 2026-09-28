@@ -61,7 +61,14 @@ export function GameFile({
       }
     >
       <div className="actions">
-        <button type="button" onClick={() => download(new File([saveText(document)], saveFileName(document), { type: 'application/json' }))}>
+        {/* Not while busy, as saving here is not: between the steps of a fast forward the game in hand
+            shares its History with the steps' games (ADR-0008), so the History holds Turns its World
+            has not played, and a save of it would not load (v1.0.1-S6, DL-97). */}
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => download(new File([saveText(document)], saveFileName(document), { type: 'application/json' }))}
+        >
           Export this game
         </button>
       </div>

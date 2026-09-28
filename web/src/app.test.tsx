@@ -1,14 +1,20 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
 import { started as startedFrom, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
-import { gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
+import { fastForwardStepTurns, gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
+import { download } from './views/download';
 
 // The page (M7-S3): a new game, the header, time, the Board with dispatch, the Roster with Hero
 // pages and the log, driven through the page's own controls. Every play settles after the busy
-// state is painted (M7-S2), so each test waits for the page to be idle again.
+// state is painted (M7-S2), so each test waits for the page to be idle again. The file a player
+// saves is kept, not downloaded: "Export this game" hands it to `download`.
+vi.mock('./views/download', () => ({ download: vi.fn() }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
 
 const newGame: Play = {
   kind: 'newGame',
@@ -237,6 +243,31 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     const second = stoppedAfter();
     expect(screen.getByTestId('time').textContent).toBe(`Day ${(first + second) / 3}, morning, Year 0`);
   }, 30_000);
+
+  test('"Export this game" waits between steps, when the game in hand\'s History runs ahead of its World; stopped, it exports a save that loads (v1.0.1-S6, DL-97)', async () => {
+    // Between steps the game in hand shares its History with the steps' games (ADR-0008): a save of
+    // it would hold Turns its World has not played, and the page's own load refuses one.
+    render(<App initial={withRosterReleased(startedFrom())} />);
+    const exporting = () => within(section('This game')).getByRole('button', { name: 'Export this game' }) as HTMLButtonElement;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
+    expect(exporting().disabled).toBe(true);
+    fireEvent.click(exporting());
+    expect(download).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    await idle();
+    expect(exporting().disabled).toBe(false);
+    fireEvent.click(exporting());
+
+    expect(download).toHaveBeenCalledTimes(1);
+    const file = vi.mocked(download).mock.calls[0]?.[0];
+    if (file === undefined) throw new Error('expected a file');
+    const loaded = played(initialGameState, { kind: 'load', text: await file.text() });
+    expect(loaded.rejection).toBeNull();
+    expect(loaded.document?.world.turn).toBe(stoppedAfter());
+  });
 });
 
 describe("the page's own words, the CLI's help", () => {
@@ -254,6 +285,12 @@ describe("the page's own words, the CLI's help", () => {
       for (const region of regions) expect(described(region), region.getAttribute('aria-labelledby') ?? '').toMatch(/^[A-Z].{40,}\.$/);
       unmount();
     }
+  });
+
+  test('Time says how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
+    render(<App initial={started()} />);
+
+    expect(described(section('Time'))).toContain(`It plays them ${fastForwardStepTurns} Turns, ten Days, at a time`);
   });
 
   test('every control has a name that says what it does', () => {
