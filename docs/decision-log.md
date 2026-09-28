@@ -8233,6 +8233,70 @@ production to `v1.1-release`, when Pages would take it as a preview but the Work
 branches, would serve it, left to #37 and probably that v1.0.x no longer deploys; and M8's deploy's
 source commit and exact time as the Pages deployment list gives them, read in v1.0.1's S2.
 
+## DL-93 — M8's deploy recorded after the fact: the orchestrator's run of 2026-09-27 21:30 UTC,
+with the owner's login, from `70508c6` to Pages deployment `5bef971d`; the exact second and the
+wrangler version used are not recovered (v1.0.1-S2, DL-88 item 6)
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** an agent, building v1.0.1-S2 within
+the plan the owner approved in DL-92
+
+**Context.** DL-88 item 6 asked that M8's deploy, which shipped ahead of any record (#14), be
+recorded before a v1.0.1 deploy replaces the live page (DL-92's Consequences names this risk). The
+evidence is the orchestrator's own session transcript of 2026-09-27; a Pages deployment list read
+2026-09-28 ~07:23 UTC with the owner's login; a byte comparison of a clean `v1.0.0` build against
+the live bundle; and a fresh `npm run e2e:live -w web` against `https://heroesims.pages.dev`, run
+before any v1.0.1 deploy. No wrangler, curl or build was run for this story: this entry is written
+from that evidence alone, gathered by the orchestrator.
+
+**Decision.**
+
+1. **Who ran it, and with whose login.** The orchestrator, an agent, ran the deploy in the main
+   working tree `C:/JHH/source/heroesim`, using the owner's local wrangler login, not an agent's
+   own.
+2. **When.** Between 2026-09-27 21:30:00.351 UTC (the command's start) and 21:30:50.736 UTC (its
+   printed result), i.e. 07:30 on 2026-09-28 at UTC+10. Not recovered: the exact creation second
+   (the deployment list gives only a relative time, "9 hours ago" when read at ~07:23 UTC on
+   2026-09-28, consistent with these bounds) and the wrangler version used (the deploy command's
+   output did not print one).
+3. **From which commit.** `70508c6`, the merge of `v1.0-dev` into `v1.0-release` tagged
+   `m8-modules` ("Merge v1.0-dev into v1.0-release: M8 Modules complete, the first build"), as one
+   command: push `v1.0-dev`; checkout `v1.0-release`; the merge; the tag; push branch and tag;
+   `npm run deploy` (`npm run build && npx -y wrangler@4 pages deploy dist --project-name
+   heroesims --branch v1.0-release`); `npm run e2e:live -w web`. Proved two ways: the deployment
+   list's own `source` field for the deployment in item 4, and a byte comparison, 2026-09-28 07:22
+   UTC — a clean clone of tag `v1.0.0` (`70508c6`), built on this machine (Node v26.9.0, Vite
+   8.3.1 with Rolldown), gives `dist/index.html` 457 bytes
+   (`721ee2ad792a5c80f12da8103c96a60bf90b3fc0cbfff4099962b0b653abfee8`) and
+   `dist/assets/index-BhY-O45V.js` 496,884 bytes
+   (`384c76307eb206e8ab369c0786681b675bd8f8b97a8db92f92554676b7c809bf`); both files served at
+   `https://heroesims.pages.dev/` and `/assets/index-BhY-O45V.js` at 07:22:20 UTC hash
+   identically, so the live page is byte-identical to a build of `70508c6`.
+4. **The deployment.** Id `5bef971d-d876-4473-be20-84a17096830c`, URL
+   `https://5bef971d.heroesims.pages.dev`, environment Production, branch `v1.0-release`; read
+   2026-09-28 ~07:23 UTC with the owner's login (`npx -y wrangler@4 pages deployment list
+   --project-name heroesims --json`, wrangler 4.142.0), and the latest of three deployments
+   listed, so production.
+5. **Both `e2e:live` results.** At the deploy, 2026-09-27 21:30 UTC: 2 passed (6.0 s), "ok 2
+   [phone] ... the deployed page creates a game, saves it, and loads it after a reload (5.0s)"
+   (phone and desktop). Fresh, before any v1.0.1 deploy, 2026-09-28 07:22:20–07:22:25 UTC, from
+   the `v1.0.0` clone against `https://heroesims.pages.dev`: 2 passed (2.0 s), "ok 1 [desktop] ...
+   (1.1s)", "ok 2 [phone] ... (1.1s)".
+6. **M7's deployments, for completeness (DL-75).** The same list shows two earlier Production
+   deployments on `v1.0-release`: `df0a073a-662d-48d2-a01d-6073908b1165`
+   (`https://df0a073a.heroesims.pages.dev`, source `ba38eb5`, 07:47 UTC 2026-09-27) and
+   `3ba30ba0-5419-422f-a352-2fd6f51e35e2` (`https://3ba30ba0.heroesims.pages.dev`, source
+   `d792a76`, 07:51 UTC 2026-09-27); three deployments in the project in all.
+7. **What is never recorded.** No Cloudflare account id and no dashboard link appear in this
+   entry or in the evidence it is written from; the deployment list's dashboard links were
+   dropped before the list reached this story.
+
+**Consequences.** M8's deploy (#14, DL-88 item 6) is on the record before any v1.0.1 deploy
+replaces the live page. Item 5's fresh `e2e:live` result meets S2's second acceptance box; INPUTS
+7.8's Now column gains a dated note naming this entry, made in v1.0.1-S3 rather than here, to
+avoid a conflict with S3's own edit of that row. What stays missing, not guessed: the exact deploy
+second and the wrangler version used at deploy time, neither recoverable from the evidence
+gathered.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
