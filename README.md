@@ -9,7 +9,7 @@ and tagged `m8-modules` on 2026-09-28 ([`docs/plan.md`](./docs/plan.md)); the sa
 tagged `v1.0.0`, the first release. Next comes a small v1.0.x release that moves the deploy (see
 [Deploy](#deploy)), then Random Events, the first real module, on the v1.1 line: built on
 `v1.1-dev`, released by merging into `v1.1-release`, with milestone tags continuing from
-`m9-random-events`. `v1.0-dev` and `v1.0-release` are otherwise frozen (DL-86, DL-88). GitHub's
+`m9-random-events`. `v1.0-dev` and `v1.0-release` are frozen but for v1.0.x hotfix releases (DL-86, DL-88, DL-91). GitHub's
 default branch is the latest release branch: `v1.0-release`, until `v1.1-release`'s first release
 (DL-88).
 

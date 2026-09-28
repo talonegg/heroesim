@@ -95,7 +95,8 @@ to the ending at each close.
 **Releases after the first build** (amended 2026-09-28, DL-86). The first build is released as
 `v1.0.0`, tagged at `m8-modules`. New work is on `v1.1-dev` and is released by merging into
 `v1.1-release`; milestone tags continue (`m9-random-events`); `v1.0-dev` and `v1.0-release` are
-frozen, but for the one v1.0.x release DL-88 places on v1.0, the Workers move. Production
+frozen but for v1.0.x hotfix releases, each committed on `v1.0-dev`, tagged on `v1.0-release`
+and merged into `v1.1-dev` (DL-91); the first is the Workers move (DL-88). Production
 serves the latest release: `v1.0.0` stays live until `v1.1-release`'s first release, when the
 Pages production branch and the deploy script move to `v1.1-release`. GitHub's default branch
 follows the same rule: `v1.0-release` from 2026-09-28, `v1.1-release` at its first release

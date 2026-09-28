@@ -8081,6 +8081,40 @@ their values, not who chose them. The excluded values wait for their work or for
 approval of a proposal. Pre-M0 A1 to F4 and DL-01 to DL-10 were already the owner's. The INPUTS edit
 of item 5 is made in this recording, 2026-09-28: the Now column, and each row marked.
 
+## DL-91 — Four points the recording left open, settled: the first Upkeep stays on the tenth Day, the Rankings band holds by Fame and by Wealth, five leading Stats share the two thirds, and v1.0.x releases are hotfixes on the v1.0 branches
+
+**Status:** Accepted · **Date:** 2026-09-28 · **Decided by:** the owner, answering four follow-up
+questions after DL-82 to DL-90 were recorded (the options and the recommendations were an agent's)
+
+**Context.** Recording the interview (DL-82 to DL-90) left four points open because the answers, read
+together, did not settle them: DL-85 item 12 and INPUTS 4.6 (agenda 59), DL-83 item 3 (agenda 12b),
+DL-83 item 10 with DL-87 item 3 (agendas 15 and 73), and DL-86 item 2 with DL-88 item 9 (agendas 61a
+and 83b).
+
+**Decision.**
+
+1. **The first Upkeep Day (agenda 59).** DL-26 item 1's reading stands: Upkeep is first paid once ten
+   Days have completed (Day index 9), then every `upkeepEveryDays`. The interview record's words
+   "first Upkeep on the first night" were a loose restatement, not a change; DL-85 item 12's caveat is
+   closed and nothing changes in the rules.
+2. **The Rankings target (agenda 12b).** The band of 40 to 60% of year-starts applies to both
+   Rankings: the player's Guild is first by Fame at 40 to 60% of year-starts and first by Wealth at 40
+   to 60%, each measured on its own (as recommended).
+3. **Growth with a fifth leading Stat (agendas 15 and 73).** The confirmed split carries over to five
+   leading Stats: the five share two thirds of each Level's growth points (each leading Stat's share
+   falls from 1/6 to 2/15) and the other Stats share the remaining third (as recommended). Leadership
+   is led by no Class and keeps its share of the third (DL-87 item 3). This is a content change made
+   with the fifth leading Stats, with a new content version and a harness pass (issue #35).
+4. **How v1.0.x releases are made (agendas 61a and 83b).** The v1.0 branches are frozen to new
+   features but open to v1.0.x hotfix releases: the Workers move (issue #13) is committed on
+   `v1.0-dev`, merged to `v1.0-release` and tagged `v1.0.1`, and `v1.0-dev` is then merged into
+   `v1.1-dev` so the line carries it (as recommended). DL-86 item 2's "frozen" reads "frozen but for
+   v1.0.x hotfixes".
+
+**Consequences.** DL-85 item 12's caveat and the open points DL-83, DL-87 and DL-88 named for these
+four questions are closed. INPUTS 4.6's note is updated. Issues #13, #14, #19, #21 and #35 carry the
+answers.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

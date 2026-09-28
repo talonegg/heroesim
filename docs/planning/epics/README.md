@@ -122,7 +122,8 @@ so they follow it; Transfers are the last thing the automatic policy needs to be
 `v1.0.0`. Work after it continues on the v1.1 line: stories are built on `v1.1-dev`, a milestone
 completes by merging `v1.1-dev` into `v1.1-release` and tagging that merge, and the milestone tags
 go on from `m9-random-events`. Read step 5 with those branch names. `v1.0-dev` and `v1.0-release`
-are frozen, but for the v1.0.x release that moves the deploy to Cloudflare Workers (DL-88).
+are frozen but for v1.0.x hotfix releases, the first of which moves the deploy to Cloudflare
+Workers (DL-88, DL-91).
 
 ## 4. Conventions the epics assume
 
