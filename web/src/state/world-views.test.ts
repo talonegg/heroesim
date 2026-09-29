@@ -294,6 +294,16 @@ describe('guildmasterView', () => {
       expect(guildmasterView(aged(50, 3960 * 3 + 2))?.retirement).toBe('Retired at 61 on the night of Day 3960, Year 11.');
     });
 
+    test('gives the age they will be, for one already past the Retirement age when they entered, as a save adopting the rules has (code review)', () => {
+      const document = aged(30);
+      const player = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'player');
+      const guildmaster = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      guildmaster.ageAtEntry = 63;
+      // They retire on the first night from their entry, at the age they are.
+      expect(guildmasterView(document)?.retirement).toBe('Retires at 63 on the night of Day 0, Year 0: later this Year.');
+    });
+
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
       const document = newGame();
       expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ years\.$/);

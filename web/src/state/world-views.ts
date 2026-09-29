@@ -299,7 +299,9 @@ function retirementWords(
   config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>,
 ): string {
   const retires = retirementTurn(guildmaster, config);
-  const when = `at ${config.guildmasterRetirementAge} on the night of Day ${dayOf(retires)}, Year ${yearOf(retires, config)}`;
+  // The age they will be that night: the Retirement age, or more for one who entered past it (a save
+  // adopting younger rules, DL-113 item 3), who retires on their first night (code review).
+  const when = `at ${ageOf(guildmaster, retires, config)} on the night of Day ${dayOf(retires)}, Year ${yearOf(retires, config)}`;
   if (turn >= retires) return `Retired ${when}.`;
   const years = yearOf(retires, config) - yearOf(turn, config);
   return `Retires ${when}: ${years === 0 ? 'later this Year' : `in ${years} ${years === 1 ? 'year' : 'years'}`}.`;

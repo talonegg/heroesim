@@ -11764,6 +11764,159 @@ so every web test that touches an age reads it from the configuration and holds 
 `web/src/app.tsx`, `web/src/styles.css`, `web/src/state/` (`selectors.ts`, `setup.ts`,
 `world-views.ts`), `web/e2e/`; `docs/planning/epics/M9-feedback.md`.
 
+## DL-116 — M9-F3 built: the Guild's Stores and Treasury, the ledger read from the History by six categories and proved complete over seeded games, the Upkeep sentence moved from the Hall, and the Guildmaster's Retirement on the Guildmaster view
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-F3's implementer. What the
+page does is the owner's (DL-111 item 5, DL-113 items 2 and 5). The mapping of events to categories is
+DL-112 item 6's, the agent's then. The choices below that the epic left open are the implementer's, for
+the owner to change. One item is the orchestrator's (item 12).
+
+**Context.** M9-F3 builds DL-112 item 6: the Guild's Stores and Treasury, the last two of its four
+parts. It was built on its own branch from `v1.1-dev` at `94e8c16`, after M9-F1 (DL-114) and M9-F2
+(DL-115). M9-F4 (DL-117) was being built beside it and changes the History's scopes. So the ledger reads
+the History directly and touches none of M9-F4's files. The owner gave the word to build on 2026-09-29.
+
+**Decision.**
+
+1. **The ledger reads the History, not the History view** (the implementer's).
+   - `web/src/state/treasury.ts` walks the History's own index of entries by participant for the
+     Guild, newest first. It never goes through the History view's scopes or filters.
+   - This is safe because every event that moves Wealth names its Guild as a participant.
+   - Every amount is the event's payload, as the engine wrote it.
+2. **Each event type is decided** (DL-112 item 6's mapping; the reader's form is the implementer's).
+   - One reader per event type is keyed by every type in the engine's union. A type the engine adds is
+     refused by `tsc -b` until it is decided, as the History's `routineKinds` is.
+   - *The mapping:*
+     - Upkeep: `guild.upkeep-paid`, against the Guild.
+     - Quest rewards: `quest.resolved`'s `wealthDelta`.
+     - Market: `item.bought`'s `cost`, against the Guild, and `item.sold`'s `proceeds`, for it. A
+       folding Guild's sale (`cause: 'fold'`) is a Market row too.
+     - Hall: `guild.improved`'s `cost`.
+     - Heroes: `hero.recruited`'s `fee`, and `hero.transferred`'s `fee`, against the Guild it goes to
+       and for the one it leaves.
+     - Other: a module's `guild.wealth-changed`, `after − before`.
+   - A module's own event is never a row.
+   - *The names on the page* are Upkeep, Quest rewards, Market, Hall, Heroes and Other, which are
+     DL-112's.
+3. **A change of nothing gives no row** (the implementer's). This covers a failed Quest's nil reward,
+   as the epic asks. It also covers any other zero, such as an Upkeep of 0 or a reward rounded to 0,
+   since the ledger lists changes to the Wealth.
+4. **The ledger misses nothing, and a test proves it.**
+   - *The games:* three seeds, each played two years with the probe module installed. The probe fires
+     on one night in ten, for +40 Wealth, so "Other" comes up.
+   - *The player's Guild* plays a scripted month every 30 Days: it signs a Hero, builds, buys and sells,
+     and sends a Party. Every third month it takes a Rival's Hero in and lets one of its own go.
+   - It starts with 100,000 Wealth. A first try went bankrupt on Turn 179.
+   - *The check:* for every founding Guild, the player's and each Rival's, the Wealth at the start plus
+     the ledger equals the Wealth now. A second test holds that every category comes up on both sides.
+   - *Mutation check:* taking out the reader for `guild.wealth-changed` fails the completeness test.
+   - *What it cannot check:* the Wealth at the start is read from the world as created. No event
+     carries a Guild's founding Wealth (`guild.founded` has none), so the Treasury gives no opening
+     balance, and a replacement Rival founded later is not in the check. No engine change was made
+     for this.
+   - No event was found that changes Wealth without an amount.
+5. **What the ledger shows** (the implementer's).
+   - *Each row:* the Day and time of day, what happened in the History's words (names open whom they
+     name, as in the History), the category, and the signed amount.
+   - *The filters:* chips for Both, Income and Expense, and for All and each category the Guild's
+     ledger holds, with its count.
+   - *Pages:* 20 rows, the History's page size, with Newest, Newer, Older and Oldest. A change of filter
+     returns to the first page.
+   - *The totals* (income, expense and net) are of every row the filters let through, on every page,
+     not the page alone.
+   - *Sentences:* one while the Wealth has not changed, and one when the filters leave nothing.
+6. **Upkeep** (DL-112 item 3's figures; the words are the implementer's).
+   - The Hall's sentence moves here: "Upkeep of The Lantern: 120 Wealth every 10 Days".
+   - Then "Next paid on the night of Day 19: 120 Wealth.", from `nextUpkeepDay` and `upkeepParts`'
+     total.
+   - Then its parts: Wages and Hall maintenance, and the Guildmaster's Traits' factor (for example
+     "×0.9") only when one bears on Upkeep.
+   - The figures are at the Roster and Hall of now, as the engine reckons them.
+   - There is no next payment once the game has ended or the Guild has folded.
+7. **The floor and the countdown.**
+   - "The Bankruptcy floor is 0 Wealth." is always shown.
+   - While the Guild is below the floor, the countdown is `countdownView`'s sentence, the one Home
+     gives, in a warning banner.
+8. **The Upkeep sentence leaves the Hall everywhere** (the implementer's).
+   - It is gone from `HallDetails`, so a Rival's page no longer shows it under its Hall either. A
+     Rival's Upkeep stays in the Rankings' Guilds table.
+   - `HallView.upkeep` is removed.
+   - The Hall's sentence now says that each grade adds to the Upkeep, "which the Treasury gives".
+9. **The Guild's four parts.** `guildParts` is Home, Hall, Stores and Treasury, as DL-115 item 3 left
+   it to be extended. Each part has its title and its sentence in the Guild's "About this view", and
+   this browser remembers the part open.
+10. **The Stores** (DL-112 item 6; the details are the implementer's).
+    - *Its order:* first the Holding (stacks, then unique Items, as the Market lists them). Then each
+      Hero on the Roster, in its order, with their gear in `carriedGear`'s order. Then each of the
+      Guild's Parties, in id order.
+    - *Its rows:* one for a unique Item or a stack in one place, so a stack held in two places is two
+      rows.
+    - *Where it is:*
+      - "Held".
+      - "Carried by Bran Tull", with ", away on The Barrow" while that Hero is out. The name opens
+        their page, as a name in the History does.
+      - "With the Party on The Barrow".
+    - *Kind* is in the Market's words: `kindOf` and `kindKeyOf` are now exported from
+      `trade-views.ts`.
+    - *Sells for* is `sellPrice` for a held Item, and "—" for one carried or away.
+11. **The Stores' filters and sentences** (the implementer's).
+    - There are chips by kind (the gear slots, then consumables) and by where (Held, Carried, With a
+      Party). Each set is drawn only when it offers two or more.
+    - A kind or place no longer owned shows everything again.
+    - *The summary sentence:* "The Lantern owns 6 Items: 3 held, 2 carried by its Heroes and 1 with its
+      Parties."
+    - *Other sentences:* one when the Guild owns nothing (with no table and no chips), and one when the
+      filters leave nothing.
+    - *"Sell at the Market"* opens the Market's Sell. It shows only while the Guild holds something
+      (from the code review, item 15).
+    - `FilterChips` in `views/ui.tsx` draws the Stores' and the Treasury's chips.
+12. **The Guildmaster's Retirement on the Guildmaster view** (moved to M9-F3 by the orchestrator,
+    DL-115 item 11; DL-113 item 5).
+    - `guildmasterView` gives `retirement`, read from the engine's `retirementTurn`.
+    - *Before it:* "Retires at 61 on the night of Day 11160, Year 31: in 31 years."
+    - *After it:* "Retired at 61 on the night of Day 11160, Year 31." once that night has been played.
+    - *The years left* are counted as the calendar's Years, which is the Year of the Retirement less
+      the Year now, as the status bar says "Year N". So a Guildmaster retiring in the Year now reads
+      "later this Year", and one Year on reads "in 1 year" (the implementer's reading of "the years
+      left").
+    - *The age* is `ageOf` at the Retirement Turn. One who entered already past the age, as in a save
+      adopting the new rules (DL-113 item 3), shows the age they will be (from the code review).
+    - It is shown under the Guildmaster's Attributes. A Rival's Guildmaster on its Guild's page, drawn
+      by the same component, shows theirs too.
+13. **Test ids.** The Treasury's Wealth is `treasury-wealth`, since the status bar's is `wealth` and
+    the browser specs read that one page-wide.
+14. **Nothing outside `web/` changed** but `CONTEXT.md`. `engine/`, `cli/` and `harness/` are
+    untouched, and no gap forced a change.
+    - `CONTEXT.md`: the Treasury and the Stores lose "to be built". The Treasury names its categories,
+      and the Stores says it is read only for now.
+15. **The code review** (`/code-review` medium).
+    - *The first pass* reviewed `v1.1-dev` itself by mistake. It reported two low findings in the
+      History's code of M9-F4 (DL-117), which this branch does not touch. They are left for M9-F4 or
+      the close (M9-F6):
+      - the debug view's Hero page's back button reads "Back to Debug: the whole History";
+      - with no player's Guild, a `null` History falls back to the debug view.
+    - *The second pass,* over `94e8c16...m9-f3`, found two low issues, both fixed test first:
+      - the Retirement sentence gave the Retirement age, not the age at the Retirement Turn;
+      - "Sell at the Market" showed while the Guild held nothing to sell.
+
+**Consequences.**
+- The Guild view has its four parts (DL-111 item 5), and M9-F2's Retirement box is whole.
+- The CLI has no Stores or Treasury, as the epic says. `show hall` still prints the Upkeep; the page's
+  counterpart is now the Treasury, for M9-F6's §3 to tick.
+- *For the merge with M9-F4:*
+  - This entry and DL-117 both sit before the section's end, so the merge places them in number
+    order.
+  - This branch changes none of `history.ts`, `digest.ts`, the History view or the game menu.
+- *Counts:* 3,308 tests before and 3,355 after. All 60 browser runs pass: each spec at a phone's, a
+  tablet's and a desktop's width.
+
+**Actioned in:** `web/src/state/` (the new `treasury.ts` and `stores.ts` with their tests;
+`world-views.ts`, `trade-views.ts`, `game.test-support.ts`), `web/src/views/` (the new `stores.tsx` and
+`treasury.tsx` with their tests; `section.tsx`, `guild.tsx`, `hall.tsx`, `guildmaster.tsx`, `ui.tsx`,
+`page.test-support.ts`), `web/src/styles.css`, `web/e2e/` (`support.ts`, `journey.spec.ts`,
+`layout.spec.ts`); `CONTEXT.md`; `docs/planning/epics/M9-feedback.md` (M9-F3's boxes, and M9-F2's
+Retirement box).
+
 
 ---
 

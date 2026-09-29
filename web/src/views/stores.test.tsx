@@ -91,6 +91,24 @@ describe('the Stores (M9-F3)', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Sell' }));
   });
 
+  test("offers no way to the Market's Sell while the Guild holds nothing, all it owns carried (code review)", () => {
+    render(
+      <App
+        initial={carrying(
+          changed(started(), (document) => {
+            document.world.items = {};
+            document.world.stacks = {};
+          }),
+          'padded-jack',
+          'armour',
+        )}
+      />,
+    );
+
+    expect(rows().map((row) => row[0])).toEqual(['Padded jack']);
+    expect(within(stores()).queryByRole('button', { name: 'Sell at the Market' })).toBeNull();
+  });
+
   test('says so when the Guild owns nothing, with no table and no filters', () => {
     render(
       <App

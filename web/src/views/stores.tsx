@@ -24,6 +24,8 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
   const view = useMemo(() => storesView(document, { kind: shownKind, where: shownWhere }), [document, shownKind, shownWhere]);
   if (view === null || everything === null) return <p>The save has no player’s Guild.</p>;
   const owns = everything.rows.length > 0;
+  // Only what the Guild holds is the Market's to buy (code review).
+  const holds = everything.wheres.some((each) => each.key === 'held');
 
   return (
     <div className="stores">
@@ -70,7 +72,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
           </table>
         </div>
       )}
-      {owns ? (
+      {holds ? (
         <div className="actions">
           <button type="button" onClick={() => onGo('sell')}>
             <Icon name="market" />

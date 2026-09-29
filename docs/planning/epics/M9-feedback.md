@@ -244,7 +244,7 @@ accessibility; tests before code at the seams; green at each boundary.
       ('gives the Sex capitalised, and the Age as a label'), `views/roster.test.tsx` (the Roster's
       cards, and the Hero's page line in 'a Hero's page'; the page's own tests,
       `views/hero-page.test.tsx`, hold Potential and did not need the words).
-- [ ] The setup form says "Retires at 61". The Guildmaster view gives the Retirement's Day and the
+- [x] The setup form says "Retires at 61". The Guildmaster view gives the Retirement's Day and the
       years left, read from the engine — `state/selectors.test.ts`, `views/new-game.test.tsx`,
       `views/guildmaster.test.tsx`.
   - *The setup form's half is built:* "Retires at N", N `guildmasterRetirementAge` (65 on this
@@ -252,7 +252,13 @@ accessibility; tests before code at the seams; green at each boundary.
     at…"), `state/setup.test.ts`, `views/new-game.test.tsx` ('when the Guildmaster retires');
     `e2e/journey.spec.ts`.
   - *The Guildmaster view's half* was moved to M9-F3 by the orchestrator (it needs M9-F1's
-    Retirement Turn). DL-115 item 11 records it.
+    Retirement Turn). DL-115 item 11 records it. *Built in M9-F3* (DL-116 item 12):
+    `guildmasterView`'s `retirement`, from the engine's `retirementTurn` —
+    `state/world-views.test.ts` ("the Guildmaster's Retirement, read from the engine's
+    retirementTurn": five tests, among them 'gives when it will come, in the calendar’s words, and
+    the years left' and 'says it came, once the night has been played'),
+    `views/guildmaster.test.tsx` ("gives the Guildmaster's Retirement: its Day and the years left,
+    read from the engine").
 - [x] `e2e/support.ts` is changed first. `journey`, `layout` (no sideways scroll at 360, 820 and
       1280), `fast-forward` and `party-and-pool` pass through the new views — all 60 runs pass at the
       three widths.
@@ -286,22 +292,45 @@ Depends on M9-F1 for Upkeep's parts and Day, and on M9-F2 for the Guild's parts.
 
 **Acceptance:**
 
-- [ ] `storesView` matches the engine's holdings for every holder: an Item on a Hero away, a
+- [x] `storesView` matches the engine's holdings for every holder: an Item on a Hero away, a
       consumable with a Party, a stack held in two places, and a unique Item —
-      `state/stores.test.ts`.
-- [ ] The Stores part gives the table, filters it and opens a Hero's page from a name. It shows its
-      sentence when the Guild owns nothing — `views/stores.test.tsx`.
-- [ ] The ledger misses nothing. Over seeded games, the Guild's Wealth at the start plus the sum of
+      `state/stores.test.ts` ("matches the engine's holdings for every holder: the Holding, each
+      Hero on the Roster, and each Party away", 'a stack held in two places is a row in each…', 'an
+      Item on a Hero away names the Hero, away on the Quest, and a unique Item is a row of one', and
+      four more) (DL-116 item 10)
+- [x] The Stores part gives the table, filters it and opens a Hero's page from a name. It shows its
+      sentence when the Guild owns nothing — `views/stores.test.tsx` (six tests: 'is one table…',
+      'filters by kind and by where…', "a Hero's name opens their page", "goes to the Market's
+      Sell", "offers no way to the Market's Sell while the Guild holds nothing…", 'says so when the
+      Guild owns nothing…') (DL-116 items 10 and 11)
+- [x] The ledger misses nothing. Over seeded games, the Guild's Wealth at the start plus the sum of
       its ledger is its Wealth now, for the player's Guild and a Rival —
-      `state/treasury.test.ts`.
-- [ ] Each category takes exactly its events. A Transfer fee counts against the Guild it goes to
-      and for the one it leaves, and a failed Quest's nil reward gives no row.
-- [ ] Upkeep's figures are `upkeepParts`' and `nextUpkeepDay`'s, and the countdown shows only
-      while the Guild is below the floor.
-- [ ] The Treasury part's filters and totals work, and the Hall no longer has the Upkeep sentence —
-      `views/treasury.test.tsx`, `views/hall.test.tsx`.
-- [ ] A journey step opens Stores and Treasury at a phone's width and a desktop's.
-- [ ] DL-116 records the choices.
+      `state/treasury.test.ts` ('the ledger misses nothing': three seeds of two years, every
+      founding Guild, the player's and each Rival's, and 'the games bring up every category, for
+      the player’s Guild and for the Rivals') (DL-116 items 1 and 4)
+- [x] Each category takes exactly its events. A Transfer fee counts against the Guild it goes to
+      and for the one it leaves, and a failed Quest's nil reward gives no row —
+      `state/treasury.test.ts` ('wealthChangeOf: each category takes exactly its events': seven
+      tests, among them 'Heroes take a signing fee, and a Transfer fee counts against the Guild it
+      goes to and for the one it leaves' and "a Quest's reward is what it paid the Guild, and a
+      failed Quest's nil reward gives no row") (DL-116 items 2 and 3)
+- [x] Upkeep's figures are `upkeepParts`' and `nextUpkeepDay`'s, and the countdown shows only
+      while the Guild is below the floor — `state/treasury.test.ts` ("gives the Guild's Wealth, and
+      Upkeep's next payment with its Day and its parts, as the engine reckons them", "names the
+      Guildmaster's Traits' factor…", 'gives the Bankruptcy floor, and the countdown only while the
+      Guild is below it', 'gives no next payment once the game has ended'); `views/treasury.test.tsx`
+      (the first two tests) (DL-116 items 6 and 7)
+- [x] The Treasury part's filters and totals work, and the Hall no longer has the Upkeep sentence —
+      `views/treasury.test.tsx` (seven tests, among them 'filters by income or expense and by
+      category, and totals only what is shown' and 'pages the ledger by 20, from the newest'),
+      `state/treasury.test.ts` ("the ledger's filters, totals and pages": five tests),
+      `views/hall.test.tsx`, `views/guild.test.tsx`, `state/world-views.test.ts` ('hallView')
+      (DL-116 items 5, 8 and 9)
+- [x] A journey step opens Stores and Treasury at a phone's width and a desktop's —
+      `e2e/journey.spec.ts` (the Stores, then the Treasury with the signing fee in its ledger,
+      filtered to expense, at 360, 820 and 1280); `e2e/layout.spec.ts` (each table in its own box,
+      no sideways scroll and 44px targets, and every Guild part at each width). All 60 runs pass.
+- [x] DL-116 records the choices.
 
 ### M9-F4 · The History's scopes: the Guilds' filters, the World History, the debug view · 1–1.5 sessions · opus
 
