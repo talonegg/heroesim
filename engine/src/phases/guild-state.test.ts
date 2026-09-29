@@ -5,6 +5,7 @@ import { createWorld } from '../create.js';
 import type { Guild } from '../document.js';
 import type { EngineEventOf, TurnEvent } from '../events.js';
 import { phases } from '../pipeline.js';
+import { nextUpkeepDay } from '../selectors.js';
 import { dayOf, nightOf } from '../time.js';
 import { testDeps, withValid } from '../world.test-support.js';
 import { guildState } from './guild-state.js';
@@ -181,6 +182,27 @@ describe('guildState', () => {
     expect(folded.belowFloorSince).toBeNull();
     expect(folded.fame).toBe(-9);
     expect(events.some((event) => event.type === 'guild.upkeep-paid' && event.payload.guildId === folded.id)).toBe(false);
+  });
+});
+
+// M9-F1 (DL-112 item 3): the phase and the Treasury read one rule for the Upkeep Day.
+describe('the Upkeep Day, nextUpkeepDay (M9-F1)', () => {
+  test('Upkeep is charged on the night of nextUpkeepDay from every Turn before it, and on no other night', () => {
+    for (const upkeepEveryDays of [10, 7]) {
+      const { deps } = smallWorld({ upkeepEveryDays, startingWealth: 100_000 });
+      let document = createWorld('upkeep-day', setup, deps).document;
+      const paid: number[] = [];
+      while (document.world.turn < nightOf(40)) {
+        const result = advance(document, deps);
+        document = result.document;
+        for (const event of result.events) if (event.type === 'guild.upkeep-paid' && !paid.includes(event.turn)) paid.push(event.turn);
+      }
+      expect(paid.length).toBeGreaterThan(2);
+      for (let turn = 0; turn < document.world.turn; turn += 1) {
+        const next = paid.find((charged) => charged > turn);
+        if (next !== undefined) expect(nightOf(nextUpkeepDay(turn, deps.config)), `Turn ${turn}`).toBe(next);
+      }
+    }
   });
 });
 

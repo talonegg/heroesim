@@ -3,7 +3,8 @@
 //
 // Runs the same rule over every Guild alike, player and Rival (ADR-0002), skipping a folded one
 // (`foldedOnTurn` set — M2-CONTEXT: every per-Guild rule skips a folded Guild). On the Day
-// `upkeepEveryDays` names (DL-26 says which Days precisely), deducts `upkeep` (selectors.ts)
+// `upkeepEveryDays` names (DL-26 says which Days precisely; `nextUpkeepDay` gives it, from M9-F1),
+// deducts `upkeep` (selectors.ts)
 // from Wealth — which may go negative — and emits `guild.upkeep-paid`. Every night, whether or
 // not it is an Upkeep Day, a Guild whose Wealth is now below `bankruptcyFloor` has
 // `belowFloorSince` set to this Turn if it was not already set, and one at or above the floor
@@ -17,13 +18,15 @@
 // `guild.floor-recovered`. Nothing is said while it stays set or stays clear.
 
 import type { EngineEvent } from '../events.js';
-import { bankruptcyCountdown, upkeep } from '../selectors.js';
+import { bankruptcyCountdown, nextUpkeepDay, upkeep } from '../selectors.js';
 import { dayOf } from '../time.js';
 import type { PhaseRun } from './phase.js';
 
 export const guildState: PhaseRun = (world, ctx) => {
   const events: EngineEvent[] = [];
-  const isUpkeepDay = dayOf(ctx.turn) % ctx.config.upkeepEveryDays === ctx.config.upkeepEveryDays - 1;
+  // Tonight is the Upkeep night when it is the next one seen from the Turn before: the rule the
+  // Treasury reads (`nextUpkeepDay`, M9-F1, DL-112 item 3).
+  const isUpkeepDay = nextUpkeepDay(ctx.turn - 1, ctx.config) === dayOf(ctx.turn);
 
   for (const guild of Object.values(world.guilds)) {
     if (guild.foldedOnTurn !== null) continue;

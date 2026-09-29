@@ -18,9 +18,9 @@ export interface SetupFormChoices {
   sexes: { value: Sex; label: string }[];
   /** Each starting age, whole years, youngest first. */
   ages: number[];
-  /** `30 to 45`. */
+  /** `21 to 50`: the ages `guildmasterStartingAgeMin` to `Max`. */
   agesWords: string;
-  /** `Retires at 65`: the age a Guildmaster retires at, `guildmasterRetirementAge` (DL-113 item 5). */
+  /** `Retires at 61`: the age a Guildmaster retires at, `guildmasterRetirementAge` (DL-113 item 5). */
   retiresWords: string;
   /** How many Traits, and the budget they keep to, in words. */
   traitsWords: string;

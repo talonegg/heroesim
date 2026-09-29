@@ -17,11 +17,12 @@ import {
   type Hero,
   type Quest,
   type StatValues,
+  type Turn,
   type World,
 } from './document.js';
 import { gearModifiers } from './gear.js';
 import { feeFactor, guildmasterOf, traitStatBonuses, traitUpkeepFactor } from './guildmaster.js';
-import { dayOf } from './time.js';
+import { dayOf, nightOf } from './time.js';
 
 /** The Guild the player controls; `undefined` in a world without one. */
 export function playerGuild(world: Pick<World, 'guilds'>): Guild | undefined {
@@ -309,17 +310,61 @@ export function upkeep(
   config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
   content?: Pick<ContentSet, 'traits'>,
 ): number {
+  return upkeepParts(guild, world, config, content).total;
+}
+
+/** Upkeep in its parts (`upkeepParts`): what the Treasury shows of the next payment. */
+export interface UpkeepParts {
+  /** `wagePerLevel` for each Level of each living Hero on the Roster. */
+  wages: number;
+  /** `hallMaintenancePerGrade` for each grade summed over every Hall facility. */
+  hallMaintenance: number;
+  /** The Guildmaster's `upkeepFactor` Traits multiplied together: 1 with none, or without `content`. */
+  traitFactor: number;
+  /** The wages and the maintenance times the factor, rounded once: what `upkeep` gives. */
+  total: number;
+}
+
+/**
+ * A Guild's Upkeep in its parts (M9-F1, DL-112 item 3): the wages, the Hall's maintenance, the
+ * Guildmaster Trait's factor, and the total, which is `upkeep`'s, since `upkeep` reads it. The rule
+ * is `upkeep`'s, above; the Treasury shows the parts, so the page computes none (ADR-0007).
+ */
+export function upkeepParts(
+  guild: Pick<Guild, 'rosterIds' | 'hall'> & Partial<Pick<Guild, 'guildmasterId'>>,
+  world: Pick<World, 'heroes'> & Partial<Pick<World, 'guildmasters'>>,
+  config: Pick<GameConfig, 'wagePerLevel' | 'hallMaintenancePerGrade'>,
+  content?: Pick<ContentSet, 'traits'>,
+): UpkeepParts {
   const wages = guild.rosterIds.reduce((total, heroId) => {
     const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
     if (hero === undefined || hero.diedOnTurn !== null || hero.retiredOnTurn !== null) return total;
     return total + config.wagePerLevel * hero.level;
   }, 0);
   const hallGrades = Object.values(guild.hall).reduce((total, grade) => total + grade, 0);
-  const listed = wages + config.hallMaintenancePerGrade * hallGrades;
+  const hallMaintenance = config.hallMaintenancePerGrade * hallGrades;
+  const listed = wages + hallMaintenance;
   const { guildmasterId } = guild;
   const { guildmasters } = world;
-  if (content === undefined || guildmasters === undefined || guildmasterId === undefined) return listed;
-  return Math.round(listed * traitUpkeepFactor(guildmasterOf({ guildmasterId }, { guildmasters }), content));
+  if (content === undefined || guildmasters === undefined || guildmasterId === undefined) {
+    return { wages, hallMaintenance, traitFactor: 1, total: listed };
+  }
+  const traitFactor = traitUpkeepFactor(guildmasterOf({ guildmasterId }, { guildmasters }), content);
+  return { wages, hallMaintenance, traitFactor, total: Math.round(listed * traitFactor) };
+}
+
+/**
+ * The Day on whose night Upkeep is next charged, once Turn `turn` has been played (M9-F1, DL-112
+ * item 3): the first Day from `turn`'s whose night is after `turn` and which ends a run of
+ * `upkeepEveryDays` Days counted from Day 0, so Days 9, 19, 29 and so on by default (DL-26). On an
+ * Upkeep night itself, once played, it is the next one. The Guild State Engine charges Upkeep by
+ * this rule, and the Treasury shows it.
+ */
+export function nextUpkeepDay(turn: Turn, config: Pick<GameConfig, 'upkeepEveryDays'>): number {
+  const every = config.upkeepEveryDays;
+  const day = dayOf(turn);
+  const upkeepDay = day + ((every - 1 - (day % every)) % every);
+  return nightOf(upkeepDay) > turn ? upkeepDay : upkeepDay + every;
 }
 
 /**

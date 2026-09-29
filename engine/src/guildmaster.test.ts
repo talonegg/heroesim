@@ -97,7 +97,7 @@ function footprint(stats: Partial<Record<GuildmasterRule, number>>): Footprint {
 
   const regardWorld = structuredClone(world);
   const regardGuild = regardWorld.guilds[guild.id] as Guild;
-  regardOnQuestResolved(regardWorld, phaseContext(regardWorld, deps), { patronId: ids.patron, guild: regardGuild, heroIds: [], succeeded: true });
+  regardOnQuestResolved(regardWorld, phaseContext(regardWorld, deps), { questId: ids.takenQuest, patronId: ids.patron, guild: regardGuild, heroIds: [], succeeded: true });
 
   return {
     reward: (dispatching.quests[ids.offeredQuest] as Quest).reward,

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from './config.js';
-import { ageOf, dayOf, durationDaysOf, nightOf, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
+import * as engine from './index.js';
+import { ageOf, dayOf, durationDaysOf, nightOf, retirementTurn, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
 
 describe('Days and times of day', () => {
   test('a Day is three Turns, morning, afternoon and night, counted from Turn 0', () => {
@@ -77,5 +78,37 @@ describe('durationDaysOf', () => {
   test('refuses a duration that is not a whole number of Turns from 0', () => {
     expect(() => durationDaysOf({ durationTurns: -3 })).toThrow(RangeError);
     expect(() => durationDaysOf({ durationTurns: 1.5 })).toThrow(RangeError);
+  });
+});
+
+// M9-F1 (DL-113 items 4 and 5): the Turn a Guildmaster retires on, for the endings and the page.
+describe('retirementTurn', () => {
+  const rules = { turnsPerYear: 1080, guildmasterRetirementAge: 61 };
+
+  test('a Guildmaster founded at 50 on Turn 0 turns 61 on the morning of Turn 11,880 and retires that night, Turn 11,882', () => {
+    expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, rules)).toBe(11_882);
+    expect(ageOf({ ageAtEntry: 50, enteredTurn: 0 }, 11_879, rules)).toBe(60);
+    expect(ageOf({ ageAtEntry: 50, enteredTurn: 0 }, 11_880, rules)).toBe(61);
+  });
+
+  test('one who entered mid-game retires on the night of the Day they turn 61, whichever time of day they entered', () => {
+    // A successor at 45 on the night of Day 100, Turn 302: sixteen years on is Turn 17,582, a night.
+    expect(retirementTurn({ ageAtEntry: 45, enteredTurn: nightOf(100) }, rules)).toBe(17_582);
+    // At 60 on the afternoon of Turn 1: 61 on the afternoon of Turn 1,081, retired that night.
+    expect(retirementTurn({ ageAtEntry: 60, enteredTurn: 1 }, rules)).toBe(1_082);
+    // At 21, the youngest: forty years.
+    expect(retirementTurn({ ageAtEntry: 21, enteredTurn: 0 }, rules)).toBe(40 * 1080 + 2);
+  });
+
+  test('one already at the age, as in a save that adopts younger rules, retires on the first night from their entry', () => {
+    expect(retirementTurn({ ageAtEntry: 61, enteredTurn: 0 }, rules)).toBe(2);
+    expect(retirementTurn({ ageAtEntry: 64, enteredTurn: 0 }, rules)).toBe(2);
+    expect(retirementTurn({ ageAtEntry: 63, enteredTurn: nightOf(5) }, rules)).toBe(nightOf(5));
+  });
+
+  test("reads the age and the year from the config it is given, and is exported from the engine's index", () => {
+    expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, defaultConfig)).toBe(11_882);
+    expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, { turnsPerYear: 30, guildmasterRetirementAge: 65 })).toBe(15 * 30 + 2);
+    expect(engine.retirementTurn).toBe(retirementTurn);
   });
 });

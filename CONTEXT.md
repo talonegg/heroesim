@@ -541,9 +541,10 @@ _Avoid_: Game over (for a Rival), Loss, Defeat (alone)
 A Hero or Guildmaster leaving the game at the end of a career. A Hero's is a yearly chance that
 rises with each year of age past a threshold and is higher while injured (R20, DL-29); by DL-83
 it reads the Hero's injury history (to be built). A Guildmaster's comes at a fixed age,
-`guildmasterRetirementAge`: the player's Guildmaster's is an ending (R34, DL-28), and a Rival's
-Guildmaster's is met by Succession, the retired Guildmaster keeping their row and History with
-the Turn of their Retirement (DL-83 item 19, DL-100).
+`guildmasterRetirementAge`, 61 from DL-113, on the night of the Day they reach it, a Turn known
+from their founding (`retirementTurn`, DL-114): the player's Guildmaster's is an ending (R34,
+DL-28), and a Rival's Guildmaster's is met by Succession, the retired Guildmaster keeping their
+row and History with the Turn of their Retirement (DL-83 item 19, DL-100).
 _Avoid_: Ageing out, Quitting
 
 **Succession**:

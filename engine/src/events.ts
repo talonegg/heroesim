@@ -255,7 +255,10 @@ export type HeroInjured = Entry<
  */
 export type HeroDied = Entry<'hero.died', { heroId: HeroId; questId: QuestId }>;
 
-/** A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero. */
+/**
+ * A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero and,
+ * from M9-F1, the Quest (DL-112 item 2).
+ */
 export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: QuestId; amount: number }>;
 
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
@@ -271,13 +274,17 @@ export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encount
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
  * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero. `moduleId`
- * names the module whose effect moved it, for the `module` cause alone.
+ * names the module whose effect moved it, for the `module` cause alone. From M9-F1 (DL-112 item 2),
+ * `questId` names the Quest whose return caused it, for `encounters`, `strong-success` and
+ * `roster-death`, and the Quest is a participant; an entry written before M9-F1 has none.
  */
 export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
   {
     heroId: HeroId;
     cause: MoraleCause;
+    /** The Quest whose return caused it, for a Quest's causes (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: MoraleBand;
@@ -360,7 +367,8 @@ export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expir
  * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
  * discrete change and for the nightly recovery alike, and only on a crossing (data-model rule 10).
  * `before` and `after` are the values, which a front end shows as bands. Names the Patron and the
- * Guild.
+ * Guild, and from M9-F1, for `quest-success` and `quest-failure`, the Quest (`questId`, DL-112
+ * item 2).
  */
 export type PatronRegardChanged = Entry<
   'patron.regard-changed',
@@ -368,6 +376,8 @@ export type PatronRegardChanged = Entry<
     patronId: PatronId;
     guildId: GuildId;
     cause: PatronRegardCause;
+    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
@@ -387,7 +397,8 @@ export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transf
 /**
  * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
  * from one of `regardBands` into another; only on a crossing (data-model rule 10, pre-M0 review
- * B3). Names the Guildmaster, the entity and the Guildmaster's Guild.
+ * B3). Names the Guildmaster, the entity and the Guildmaster's Guild, and from M9-F1, for
+ * `quest-success` and `quest-failure`, the Quest (`questId`, DL-112 item 2).
  */
 export type GuildmasterRegardChanged = Entry<
   'guildmaster.regard-changed',
@@ -396,6 +407,8 @@ export type GuildmasterRegardChanged = Entry<
     guildId: GuildId;
     entityId: EntityId;
     cause: GuildmasterRegardCause;
+    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
@@ -419,7 +432,8 @@ export type HeroRegardCause = 'shared-quest' | 'decay' | 'module';
  * emitted for a shared Quest's change and for the nightly decay alike, and only on a crossing
  * (data-model rule 10), one entry for each Hero whose Regard crossed, so the two of a pair each
  * have their own. `before` and `after` are the values, which a front end shows as bands. Names the
- * Hero, the other Hero, and their Guilds. Not a Milestone.
+ * Hero, the other Hero, and their Guilds, and from M9-F1, for `shared-quest`, the Quest (`questId`,
+ * DL-112 item 2). Not a Milestone.
  */
 export type HeroRegardChanged = Entry<
   'hero.regard-changed',
@@ -427,6 +441,8 @@ export type HeroRegardChanged = Entry<
     heroId: HeroId;
     entityId: EntityId;
     cause: HeroRegardCause;
+    /** The Quest shared, for `shared-quest` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;

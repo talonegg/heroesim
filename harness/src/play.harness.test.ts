@@ -4,6 +4,7 @@ import { expect, test } from 'vitest';
 import { moduleIds } from './modules.js';
 import { validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
+import { probeName } from './succession.js';
 import { defaultPlaySeedCount, seedCount, seedNames, yearCount } from './seeds.js';
 import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
@@ -19,13 +20,14 @@ import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, swee
 // HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78).
 // HEROESIM_YEARS plays each game that many years in place of twenty, and HEROESIM_MILESTONE names
 // the report in place of the milestone's (M9-S2: a run past the slice to see Succession, DL-102).
+// Not run when HEROESIM_PROBE names a probe either: that run is its own (M9-F1, succession.harness.test.ts).
 
 const milestone = process.env.HEROESIM_MILESTONE ?? 'm8';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
 const years = yearCount();
 const validate = validatingEveryTurn();
 
-test.skipIf(moduleIds().length > 0)(`${seeds.length} games of ${years} years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
+test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} games of ${years} years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
   const startedAt = new Date();
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 

@@ -5,7 +5,7 @@
 
 import { moraleBandNames, type GameConfig, type MoraleBand } from './config.js';
 import type { ContentSet } from './content-types.js';
-import type { Hero, World } from './document.js';
+import type { Hero, QuestId, World } from './document.js';
 import type { Emit } from './emit.js';
 import type { HeroMoraleChanged, MoraleCause } from './events.js';
 import { guildmasterOf, inspirationShift, traitMoraleShift } from './guildmaster.js';
@@ -53,7 +53,7 @@ export function moraleBaselineFor(
 /**
  * Adds `delta` to `hero`'s Morale, held inside `moraleMin` to `moraleMax`, and returns the
  * `hero.morale-changed` a discrete change always emits, even when the scale's end leaves the value
- * where it was.
+ * where it was. `questId`, given for a change a Quest's return causes, names the Quest (M9-F1).
  */
 export function changeMorale(
   hero: Hero,
@@ -61,27 +61,33 @@ export function changeMorale(
   cause: Exclude<MoraleCause, 'drift'>,
   config: Pick<GameConfig, 'moraleBands' | 'moraleMin' | 'moraleMax'>,
   emit: Emit,
+  questId?: QuestId,
 ): HeroMoraleChanged {
   const before = hero.morale;
   hero.morale = Math.min(config.moraleMax, Math.max(config.moraleMin, before + delta));
-  return moraleChanged(hero, before, cause, config, emit);
+  return moraleChanged(hero, before, cause, config, emit, questId);
 }
 
-/** The `hero.morale-changed` for `hero`'s Morale having moved from `before` to where it is now. */
+/**
+ * The `hero.morale-changed` for `hero`'s Morale having moved from `before` to where it is now,
+ * naming the Quest `questId` when given: in the payload, and as a participant (M9-F1, DL-112 item 2).
+ */
 export function moraleChanged(
   hero: Hero,
   before: number,
   cause: MoraleCause,
   config: Pick<GameConfig, 'moraleBands'>,
   emit: Emit,
+  questId?: QuestId,
 ): HeroMoraleChanged {
   const after = hero.morale;
   return emit({
     type: 'hero.morale-changed',
-    participants: [hero.id],
+    participants: questId === undefined ? [hero.id] : [hero.id, questId],
     payload: {
       heroId: hero.id,
       cause,
+      ...(questId === undefined ? {} : { questId }),
       before,
       after,
       bandBefore: moraleBand(before, config),

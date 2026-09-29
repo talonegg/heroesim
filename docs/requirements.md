@@ -90,7 +90,7 @@ Every system in the game must serve at least one of these:
   no Stat key is shared with Heroes, pre-M0 review D4) and Traits that buff or penalise the Guild or a Class.
   Guildmaster Stats resolve Guild-side actions only: negotiation, recruitment, Morale, training.
   The Guildmaster never joins a Party in the first build.
-  At setup the player may choose the Guildmaster's Traits, their sex, their age (30 to 45) and
+  At setup the player may choose the Guildmaster's Traits, their sex, their age (21 to 50) and
   the descriptive Attributes, each a short text trimmed and held to a length; whatever is left
   unset is drawn from the seed, and a player who chooses no Traits has none. Traits are chosen
   within a point budget: each Guildmaster Trait has a whole-number cost in content, a buff costing
@@ -99,14 +99,17 @@ Every system in the game must serve at least one of these:
   another, each exclusion holding both ways, and no Guildmaster holds an excluded pair or more
   than `guildmasterTraitsMax` Traits. A drawn Guildmaster, a Rival's or a successor's, follows
   the same budget and exclusions, and their descriptive Attributes are empty. A setup that breaks
-  one of these rules is refused with a reason of its own. A Rival's Guildmaster who retires is
+  one of these rules is refused with a reason of its own. Every Guildmaster, the player's and every
+  drawn one, starts 21 to 50 and retires at 61. A Rival's Guildmaster who retires is
   succeeded, and the Guild carries on (Succession, DL-83, DL-100). (Amended 2026-09-28, DL-88;
   originally "Attributes (name, sex, details)", with "details" undefined and the sex drawn at
   setup; the owner's decision, where the agents recommended an optional sex at setup and striking
   "details". Amended again 2026-09-29 with the terms, the costs, the budget and the exclusions of
   DL-100 item 3, the owner's approval of an agent's values; built in M9-S2, DL-102. A drawn
   Guildmaster's Traits are then drawn as one whole legal set, uniformly among the sets of the count
-  drawn, by the owner's DL-109 item 1; built in DL-110.)
+  drawn, by the owner's DL-109 item 1; built in DL-110. Amended again 2026-09-29 by the owner's
+  DL-113 item 4: every Guildmaster 21 to 50 at the start, originally 30 to 45, and retiring at 61,
+  originally 65; built in M9-F1, DL-114.)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never

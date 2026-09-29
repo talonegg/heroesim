@@ -59,8 +59,11 @@ function context(world: World, with_: EngineDeps = deps) {
   return phaseContext(world, with_);
 }
 
+/** The Quest every resolution below is of: the fixture's taken Quest, a row in every scene's world. */
+const questId = buildDocument().ids.takenQuest;
+
 function resolved(guild: Guild, patronId: PatronId, heroIds: HeroId[], succeeded: boolean): ResolvedForRegard {
-  return { patronId, guild, heroIds, succeeded };
+  return { questId, patronId, guild, heroIds, succeeded };
 }
 
 describe('the Regard scale and its bands', () => {
@@ -192,7 +195,23 @@ describe('the Guildmaster Regard writers (M4-S5, R9, pre-M0 review B3): one test
       [other.id, 'quest-success', 'neutral', 'warm'],
       [patron.id, 'quest-failure', 'neutral', 'cool'],
     ]);
-    expect(crossings[0]?.participants).toEqual([guildmaster.id, other.id, guild.id]);
+    expect(crossings[0]?.participants).toEqual([guildmaster.id, other.id, guild.id, questId]);
+    expect(crossings[0]?.payload.questId).toBe(questId);
+  });
+
+  test("names the Quest on each crossing, for the Patron, a Hero and the Guildmaster's Guild alike (M9-F1, DL-112 item 2)", () => {
+    const { world, guild, guildmaster, patron, heroes } = scene();
+    const [heroId] = heroes as [HeroId];
+    guildmaster.regard[patron.id] = { value: 3.5, since: 0, reason: 'test' };
+    guildmaster.regard[heroId] = { value: 3.5, since: 0, reason: 'test' };
+
+    const events = regardOnQuestResolved(world, context(world), resolved(guild, patron.id, [heroId], true));
+
+    const crossings = ofType(events, 'guildmaster.regard-changed');
+    expect(crossings.map(({ participants, payload }) => [participants, payload.cause, payload.questId])).toEqual([
+      [[guildmaster.id, patron.id, guild.id, questId], 'quest-success', questId],
+      [[guildmaster.id, heroId, guild.id, questId], 'quest-success', questId],
+    ]);
   });
 
   test('a Rival Guildmaster accrues Regard the same way, for the Rival Guild (ADR-0002)', () => {
@@ -239,7 +258,7 @@ describe('Patron Regard for a Guild (M4-S5)', () => {
     expect(events).toEqual([]);
   });
 
-  test('emits patron.regard-changed only on a band crossing, naming the Patron and the Guild', () => {
+  test('emits patron.regard-changed only on a band crossing, naming the Patron, the Guild and the Quest (M9-F1)', () => {
     const { world, guild, patron } = scene();
     const events: TurnEvent[] = [];
     for (let quest = 0; quest < 5; quest += 1) {
@@ -248,11 +267,12 @@ describe('Patron Regard for a Guild (M4-S5)', () => {
     // -2, -4 (still neutral), -6 (cool), -8, -10: one crossing.
     const crossings = ofType(events, 'patron.regard-changed');
     expect(crossings).toHaveLength(1);
-    expect(crossings[0]?.participants).toEqual([patron.id, guild.id]);
+    expect(crossings[0]?.participants).toEqual([patron.id, guild.id, questId]);
     expect(crossings[0]?.payload).toEqual({
       patronId: patron.id,
       guildId: guild.id,
       cause: 'quest-failure',
+      questId,
       before: -4,
       after: -6,
       bandBefore: 'neutral',

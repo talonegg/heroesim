@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
 import { next, type StreamName } from '../rng.js';
-import { dealtDisposition, generateGuild, generateRival, type GuildOptions } from './guilds.js';
+import { dealtDisposition, generateGuild, generateRival, generateSuccessor, type GuildOptions } from './guilds.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
 const player: Controller = { kind: 'player' };
@@ -256,9 +256,9 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-1
   const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
     keys.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
 
-  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 11', () => {
+  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 12 (DL-102, DL-113)', () => {
     expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
-    expect(testDeps().config.configVersion).toBe(11);
+    expect(testDeps().config.configVersion).toBe(12);
   });
 
   test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {
@@ -433,5 +433,26 @@ describe('dealtDisposition (M6-S1, DL-56)', () => {
     expect(() => dealtDisposition(content, -1)).toThrow(RangeError);
     expect(() => dealtDisposition(content, 1.5)).toThrow(RangeError);
     expect(() => dealtDisposition({ dispositions: {} }, 0)).toThrow(/no Disposition/);
+  });
+});
+
+// M9-F1 (DL-113 item 4): a replacement Rival's Guildmaster and a successor are drawn 21 to 50, as a
+// founder is.
+describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
+  test("replacements' and successors' span 21 to 50 over a thousand draws each", () => {
+    const deps = testDeps();
+    const replacements = new Set<number>();
+    const successors = new Set<number>();
+    for (let round = 0; round < 125; round += 1) {
+      const world = testWorld(`drawn-ages-${round}`, deps);
+      for (let i = 0; i < 8; i += 1) {
+        const { guild } = generateRival(world, deps, { controller: rival });
+        replacements.add((world.guildmasters[guild.guildmasterId] as { ageAtEntry: number }).ageAtEntry);
+        successors.add(generateSuccessor(world, deps, guild).ageAtEntry);
+      }
+    }
+    for (const ages of [replacements, successors]) {
+      expect([Math.min(...ages), Math.max(...ages), ages.size]).toEqual([21, 50, 30]);
+    }
   });
 });

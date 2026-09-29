@@ -70,6 +70,16 @@ export interface PlayOptions {
    */
   choose?: (document: WorldDocument, deps: EngineDeps, policy: Readonly<PolicyConfig>) => GuildAction[];
   setup?: WorldSetup;
+  /**
+   * Called once on the created world, before the first Turn: a probe's arrangement, such as the
+   * Succession probe's Rival Guildmaster at 50 (M9-F1, DL-113 item 7). It may change the document.
+   */
+  prepare?: (document: WorldDocument) => void;
+  /**
+   * Called after each `advance` with the document it began from, whose World State `advance` left as
+   * it was, and the one it gave: what a probe watches (M9-F1). It changes neither.
+   */
+  afterAdvance?: (before: WorldDocument, after: WorldDocument) => void;
   /** A millisecond clock: `performance.now` unless a test gives its own. */
   now?: () => number;
 }
@@ -226,10 +236,13 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     policy = defaultPolicyConfig,
     choose = automaticPolicy,
     setup = harnessSetup,
+    prepare,
+    afterAdvance,
     now = () => performance.now(),
   } = options;
   const lastTurn = years * deps.config.turnsPerYear;
   let { document } = createWorld(seed, setup, deps);
+  prepare?.(document);
   const advanceMs: number[] = [];
   const validateMs: number[] = [];
   const refusals: PolicyRefusal[] = [];
@@ -273,6 +286,7 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       document = advance(document, deps).document;
       advanceMs.push(now() - started);
       readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
+      afterAdvance?.(unadvanced, document);
 
       if (validating && !check(validated, validateMs)) break;
       // The M6-S3 harness assertion, over every Transfer since the last Turn's check, the policy's own included.

@@ -456,7 +456,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
   const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
 
   const attributes: [string, string][] = [
-    ['Sex', hero.sex],
+    ['Sex', capitalised(hero.sex)],
     ['Age', String(ageOf(hero, world.turn, config))],
     ['Class', nameIn(content.classes, hero.classKey)],
     ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
@@ -694,7 +694,7 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     `${guildmaster.name} (${guildmaster.id}), Guildmaster of ${guild.name} (${guild.id})`,
     '',
     ...fields([
-      ['Sex', guildmaster.sex],
+      ['Sex', capitalised(guildmaster.sex)],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
       // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
       ...descriptiveAttributes.flatMap((attribute): [string, string][] =>

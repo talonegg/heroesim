@@ -103,9 +103,9 @@ describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
       'Female',
       'Male',
       'Drawn from the seed',
-      ...Array.from({ length: 16 }, (_, index) => String(30 + index)),
+      ...setupFormChoices().ages.map(String),
     ]);
-    expect(details.textContent).toContain('30 to 45');
+    expect(details.textContent).toContain(setupFormChoices().agesWords);
     for (const [label, bound] of [
       ['Birthplace', 'At most 60 characters'],
       ['Appearance', 'At most 280 characters'],

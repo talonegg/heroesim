@@ -117,28 +117,57 @@ accessibility; tests before code at the seams; green at each boundary.
 
 **Acceptance:**
 
-- [ ] The events named above carry `questId`, and the Quest is a participant of them and of
+- [x] The events named above carry `questId`, and the Quest is a participant of them and of
       `hero.xp-gained`. A Level gained by a Party's Hero on the night of the return follows the
-      Quest's XP, stated by a test — `phases/quests-conclude.test.ts`, `regard.test.ts`,
-      `morale.test.ts`, `hero-regard.test.ts`.
-- [ ] Nothing else moves. For the same seed, the History's entries keep their number, order, types
-      and every other field; only the new field and participants differ — a test over seeded games.
-- [ ] Both front ends narrate the events as before. Their narration tests over the union pass
-      unchanged.
-- [ ] `upkeepParts` sums to `upkeep()` for every Guild over seeded worlds. `nextUpkeepDay` is the
-      night the Guild-state phase charges Upkeep — `selectors.test.ts`, `phases/guild-state.test.ts`.
-- [ ] Setup accepts ages 21 and 50 and refuses 20 and 51, with the same refusal as before. Drawn
+      Quest's XP, stated by a test — `phases/quests-conclude.test.ts` ('the Quest named on what its
+      return causes (M9-F1)': "each event of a Quest's return carries its questId and names the
+      Quest; the other causes name none", "a Level a Party's Hero gains on the night of the return
+      follows the Quest's XP: away, they trained for none"), `regard.test.ts` ("names the Quest on
+      each crossing, for the Patron, a Hero and the Guildmaster's Guild alike (M9-F1, DL-112 item
+      2)", 'emits patron.regard-changed only on a band crossing, naming the Patron, the Guild and
+      the Quest (M9-F1)'), `morale.test.ts` (new: 'a change a Quest caused carries its questId, and
+      the Quest is a participant', 'a change nothing named a Quest for carries no questId…'),
+      `hero-regard.test.ts` ('emits hero.regard-changed only for a change that crosses a band, one
+      for each Hero whose Regard crossed, naming the Quest (M9-F1)', 'two Heroes after ten shared
+      successful Quests are close…') (DL-114 item 1)
+- [x] Nothing else moves. For the same seed, the History's entries keep their number, order, types
+      and every other field; only the new field and participants differ — a test over seeded games:
+      `phases/quests-conclude.test.ts` ('nothing else moves: the same seed gives the History of
+      86c7afa, entry for entry, but for the new field and participants', three seeds of 120 Days
+      pinned to fingerprints recorded at `86c7afa`; 'the games hold every type and Quest cause
+      named…'; 'a History written before M9-F1, with neither, still validates and loads')
+      (DL-114 item 2)
+- [x] Both front ends narrate the events as before. Their narration tests over the union pass
+      unchanged: `cli/src/narrate.test.ts` and `web/src/state/narrate.test.ts` are untouched and
+      green.
+- [x] `upkeepParts` sums to `upkeep()` for every Guild over seeded worlds. `nextUpkeepDay` is the
+      night the Guild-state phase charges Upkeep — `selectors.test.ts` ("upkeepParts and
+      nextUpkeepDay (M9-F1)": four tests, among them 'sums to upkeep() for every Guild over seeded
+      worlds, played a season'), `phases/guild-state.test.ts` ('Upkeep is charged on the night of
+      nextUpkeepDay from every Turn before it, and on no other night') (DL-114 item 3)
+- [x] Setup accepts ages 21 and 50 and refuses 20 and 51, with the same refusal as before. Drawn
       founders, replacements and successors span 21 to 50 over 1,000 worlds, and the number of
-      draws is unchanged — `create.test.ts`, `generators/guilds.test.ts`.
-- [ ] A Guildmaster founded at 50 retires on the first night they are 61, the Turn the new function
+      draws is unchanged — `create.test.ts` ('accepts ages 21 and 50, the ends of the range, and
+      refuses 20 and 51 with the refusal it gave before…'; "the founders' ages, 21 to 50, over
+      1,000 worlds (M9-F1)": each world is the one drawn under 30 to 45 but for the ages),
+      `generators/guilds.test.ts` ("replacements' and successors' span 21 to 50 over a thousand
+      draws each") (DL-114 item 4)
+- [x] A Guildmaster founded at 50 retires on the first night they are 61, the Turn the new function
       gives. A Rival's is succeeded then, and the player's ends the game —
-      `phases/endings.test.ts`.
-- [ ] Every sweep game's player's Guildmaster is 30. The Succession probe, over a few seeds, shows
+      `phases/endings.test.ts` ('Retirement at 61, on the Turn retirementTurn gives (M9-F1)': four
+      tests, the mid-game successor among them), `time.test.ts` ('retirementTurn': four tests)
+      (DL-114 item 5)
+- [x] Every sweep game's player's Guildmaster is 30. The Succession probe, over a few seeds, shows
       one Succession for each game whose first Rival is still in play at 61 —
-      `harness/src/*.test.ts`.
-- [ ] The CLI prints "Male" and "Female", and its usage says 21 to 50 — `cli/src/render.test.ts`,
-      `cli/src/main.test.ts`.
-- [ ] DL-114 records the choices.
+      `harness/src/creation.test.ts` ("the harness's player's Guildmaster, 30": two tests),
+      `harness/src/succession.test.ts` (seven tests, among them 'shows one Succession of the first
+      Rival for each game whose Rival is still in play at 61, on the Turn retirementTurn gives')
+      (DL-114 items 6 and 7)
+- [x] The CLI prints "Male" and "Female", and its usage says 21 to 50 — `cli/src/render.test.ts`
+      ('the Sex values, capitalised (M9-F1)'), `cli/src/main.test.ts` ("help gives new's ages as
+      the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", 'refuses %s…' for 20 and 51)
+      (DL-114 item 8)
+- [x] DL-114 records the choices.
 
 ### M9-F2 · Seven views: the Guildmaster, the Guild in parts, the Market; the Hall view gone; one order at every width; the page's words · 1.5–2 sessions · opus
 

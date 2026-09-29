@@ -29,7 +29,7 @@ import { generateRival, generateSuccessor } from '../generators/guilds.js';
 import { sellFoldedGuildItems } from '../market.js';
 import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
-import { ageOf, dayOf } from '../time.js';
+import { ageOf, dayOf, retirementTurn } from '../time.js';
 import { withdrawOffers } from '../transfer.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
@@ -45,8 +45,8 @@ export const endings: PhaseRun = (world, ctx) => {
 };
 
 /**
- * The ending `guild` has reached tonight, or `null`: the first that holds of Retirement,
- * Bankruptcy and Roster wiped, in that order (DL-28). Runs after the Guild State Engine and the
+ * The ending `guild` has reached tonight, or `null`: the first that holds of Retirement, from the
+ * night `retirementTurn` gives (M9-F1), Bankruptcy and Roster wiped, in that order (DL-28). Runs after the Guild State Engine and the
  * pool refresh, so it reads tonight's `belowFloorSince` and tonight's pool.
  */
 function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason | null {
@@ -54,7 +54,7 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
   const guildmaster = world.guildmasters[guild.guildmasterId];
   if (guildmaster === undefined) throw new RangeError(`${guild.id} names ${guild.guildmasterId}, who has no row`);
 
-  if (ageOf(guildmaster, ctx.turn, config) >= config.guildmasterRetirementAge) return 'retirement';
+  if (ctx.turn >= retirementTurn(guildmaster, config)) return 'retirement';
   if (
     guild.belowFloorSince !== null &&
     dayOf(ctx.turn) >= dayOf(guild.belowFloorSince) + config.bankruptcyGraceDays

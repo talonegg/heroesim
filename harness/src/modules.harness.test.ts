@@ -5,6 +5,7 @@ import { moduleReport } from './module-report.js';
 import { defaultModuleSeedCount, moduleIds, modulesFor } from './modules.js';
 import { validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
+import { probeName } from './succession.js';
 import { seedCount, seedNames } from './seeds.js';
 import { defaultWorkers, sweepFingerprint, sweepPlayInParallel, sweepTotals, type PlaySweep } from './sweep.js';
 
@@ -20,7 +21,7 @@ const ids = moduleIds();
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultModuleSeedCount));
 const validate = validatingEveryTurn();
 
-test.runIf(ids.length > 0)(
+test.runIf(ids.length > 0 && probeName() === null)(
   `${seeds.length} games of 20 years with ${ids.join(', ') || 'no module'} installed, and with none`,
   { timeout: 24 * 60 * 60_000 },
   async () => {

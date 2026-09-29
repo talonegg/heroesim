@@ -142,8 +142,10 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
       { value: 'female', label: 'Female' },
       { value: 'male', label: 'Male' },
     ]);
-    expect(choices.ages).toEqual([30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45]);
-    expect(choices.agesWords).toBe('30 to 45');
+    // The rules' range, 21 to 50 from M9-F1 (DL-113 item 4), read from the config.
+    const { guildmasterStartingAgeMin: min, guildmasterStartingAgeMax: max } = defaultConfig;
+    expect(choices.ages).toEqual(Array.from({ length: max - min + 1 }, (_, index) => min + index));
+    expect(choices.agesWords).toBe(`${min} to ${max}`);
     expect(choices.traitsWords).toBe('Up to 2 Traits, costing no more than the budget of 1 in all: a buff costs, and a penalty refunds.');
     expect(choices.attributes).toEqual([
       { attribute: 'birthplace', label: 'Birthplace', maxLength: 60, boundWords: 'At most 60 characters' },

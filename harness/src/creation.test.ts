@@ -1,7 +1,8 @@
 import { loadContent } from '@heroesim/content/node';
-import { createWorld, defaultConfig, validate, type EngineDeps, type WorldSetup } from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
+import { playGame } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
 
@@ -23,6 +24,32 @@ describe('createWorld with the core content', () => {
   test.each(seedNames(5))('returns a document the validator accepts, with no warning (%s)', (seed) => {
     const { document } = createWorld(seed, harnessSetup, deps);
     expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
+  });
+});
+
+// M9-F1 (DL-113 item 6): the sweep's player's Guildmaster is 30, so that every sweep game can run
+// its twenty years; any age up to 41 plays the same, since age decides nothing but Retirement.
+describe("the harness's player's Guildmaster, 30", () => {
+  test('harnessSetup gives the age 30, and every game played starts with the Guildmaster at 30', () => {
+    expect(harnessSetup.guildmasterAge).toBe(30);
+    for (const seed of seedNames(3)) {
+      const { world } = playGame(seed, deps, { years: 30 / deps.config.turnsPerYear }).document;
+      const player = playerGuild(world) as Guild;
+      expect(world.guildmasters[player.guildmasterId]?.ageAtEntry, seed).toBe(30);
+    }
+  });
+
+  test("moves no draw: each world is the one drawn with the age left to the seed, but for the Guildmaster's age", () => {
+    const drawnAge: WorldSetup = { ...harnessSetup };
+    delete drawnAge.guildmasterAge;
+    for (const seed of seedNames(5)) {
+      const aged = createWorld(seed, harnessSetup, deps).document;
+      const drawn = createWorld(seed, drawnAge, deps).document;
+      const player = playerGuild(drawn.world) as Guild;
+      const guildmaster = drawn.world.guildmasters[player.guildmasterId];
+      if (guildmaster !== undefined) guildmaster.ageAtEntry = 30;
+      expect(aged, seed).toEqual(drawn);
+    }
   });
 });
 
