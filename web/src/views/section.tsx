@@ -118,8 +118,12 @@ export const help: Readonly<Record<SectionId, string>> = {
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
-    'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the whole History or a ' +
-    'Rival’s, one choice away. What your last play added is marked new. A Party’s Encounters fold under how its ' +
+    'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the world’s or a ' +
+    'Rival’s, one choice away. Your Guild’s leaves out your Heroes’ XP and Morale, Regard, the Upkeep and the ' +
+    'Market’s purchases and sales, and a Rival’s its Upkeep, purchases and sales; a Hero’s own History keeps ' +
+    'everything. The world’s is what changed the world: Guilds founded, succeeded and folded, every Guild’s Quests ' +
+    'taken and how they went, and a Patron’s Regard for a Guild moving into a new band. What your last play added ' +
+    'is marked new. A Party’s Encounters fold under how its ' +
     'Quest went, and each Rival’s routine under one line, save in a Hero’s own History; open either to read it all. ' +
     'A name opens whom it names: ' +
     'a Hero’s page, a Guild’s page, or anyone else’s History. Find anyone the History names by name, a Hero who has ' +
@@ -165,7 +169,8 @@ export const help: Readonly<Record<SectionId, string>> = {
   game:
     'Save the game in this browser under a name, to load it here later, even after the page is closed; export the ' +
     'game, or a save kept here, as the file the CLI writes, which the CLI or this page can load. Loading a save, or ' +
-    'starting a new game, puts it in place of the game in hand, which is lost unless saved or exported first.',
+    'starting a new game, puts it in place of the game in hand, which is lost unless saved or exported first. ' +
+    '“Debug: the whole History” opens every entry of the History, unfiltered and unfolded, with its event type.',
   rules:
     'This release’s rules differ from those the game was started with. The game keeps playing under its own until ' +
     'you adopt the new ones, which changes how it plays from then on; its History records when.',

@@ -4,7 +4,7 @@ import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } f
 import { cameHome as partyHome, changed, namesakes, played, started, withNamesakesHurt, withOffer, withPartyOut } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterView, whenOf } from './selectors';
-import { historyView } from './history';
+import { historyView, leftOutOfYourGuild } from './history';
 import { narrate, narrationFor } from './narrate';
 import { content } from '../content';
 
@@ -37,18 +37,34 @@ describe('navCounts', () => {
     expect(navCounts(state)).toEqual({
       quests: document.world.board.length,
       offers: 0,
-      // Everything a new game's History holds came from the play that made it.
-      fresh: entriesFor(document.history, playerOf(state).id).length,
+      // Everything a new game's History holds came from the play that made it: all its Guild's History shows.
+      fresh: historyView(document, state.log, null, 0).entries,
     });
     expect(navCounts(state).quests).toBeGreaterThan(0);
     expect(navCounts(withOffer(state)).offers).toBe(1);
   });
 
-  test("counts as new only the last play's entries that name the player's Guild: one purchase is one", () => {
+  test("counts as new only the last play's entries that name the player's Guild, as its History shows them: a Party sent is one, a purchase none (M9-F4)", () => {
+    const sent = withPartyOut(started());
+    expect(navCounts(sent).fresh).toBe(1);
+
     const bought = played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
     expect(bought.rejection).toBeNull();
+    expect(bought.log.map((event) => event.type)).toEqual(['item.bought']);
+    expect(navCounts(bought).fresh).toBe(0);
+  });
 
-    expect(navCounts(bought).fresh).toBe(1);
+  test('counts a Party home as its History does: not its Heroes’ XP and Morale (M9-F4)', () => {
+    const state = partyHome(started('reducer-test'));
+    const guild = playerOf(state);
+    const naming = state.log.filter((event) => event.participants.includes(guild.id));
+    // The owner's list: XP, Morale, the Regards, Upkeep, purchases and sales.
+    const leftOut = ['hero.xp-gained', 'hero.morale-changed', 'patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold'];
+    expect(naming.some((event) => event.type === 'hero.xp-gained')).toBe(true);
+
+    expect(navCounts(state).fresh).toBe(naming.filter((event) => !leftOut.includes(event.type)).length);
+    expect(navCounts(state).fresh).toBe(historyView(documentOf(state), state.log, null, 0).fresh);
+    expect([...leftOutOfYourGuild].sort()).toEqual([...leftOut].sort());
   });
 
   test('counts nothing before a game, and nothing new after a load', () => {
@@ -190,7 +206,9 @@ describe('railView', () => {
     const document = documentOf(state);
     const guild = playerOf(state);
     const narration = narrationFor(document, content);
-    const history = entriesFor(document.history, guild.id).map((entry) => ({ when: whenOf(entry.turn), sentence: narrate(entry as never, narration) }));
+    const history = entriesFor(document.history, guild.id)
+      .filter((entry) => !leftOutOfYourGuild.has(entry.type))
+      .map((entry) => ({ when: whenOf(entry.turn), sentence: narrate(entry as never, narration) }));
     const rail = railView(state, 8);
 
     expect(rail?.guildName).toBe('The Lantern');
@@ -200,15 +218,30 @@ describe('railView', () => {
     expect(rail?.lines.filter((line) => line.fresh).every((line) => line.when === 'Day 0, night')).toBe(true);
   });
 
-  test('marks one purchase new and what came before it not, and nothing new after a load', () => {
-    const bought = played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
-    const [first, second] = railView(bought, 5)?.lines ?? [];
+  test('marks a Party sent new and what came before it not, and nothing new after a load', () => {
+    const sent = withPartyOut(started());
+    const [first, second] = railView(sent, 5)?.lines ?? [];
 
-    expect(first?.sentence).toMatch(/^The Lantern bought Padded jack at the Market for \d+ Wealth\.$/);
+    expect(first?.sentence).toMatch(/^The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
     expect(first?.fresh).toBe(true);
     expect(second?.fresh).toBe(false);
-    expect(railView(bought, 5)?.fresh).toBe(1);
-    expect(railView({ ...bought, log: [] }, 5)?.lines.some((line) => line.fresh)).toBe(false);
+    expect(railView(sent, 5)?.fresh).toBe(1);
+    expect(railView({ ...sent, log: [] }, 5)?.lines.some((line) => line.fresh)).toBe(false);
+  });
+
+  test("leaves out what the Guild's History leaves out: a purchase is not in it, and nothing is new (M9-F4)", () => {
+    const bought = played(started(), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+    const rail = railView(bought, 24);
+
+    expect(rail?.lines.some((line) => / bought /.test(line.sentence))).toBe(false);
+    expect(rail?.fresh).toBe(0);
+    // A Party home: the rail holds its return, and none of its Heroes' XP or Morale.
+    const home = partyHome(started('reducer-test'));
+    const lines = railView(home, 24)?.lines ?? [];
+    expect(lines.some((line) => / Party came home from /.test(line.sentence))).toBe(true);
+    expect(lines.some((line) => / gained \d+ XP\.$/.test(line.sentence))).toBe(false);
+    expect(lines.some((line) => /Morale/.test(line.sentence))).toBe(false);
+    expect(lines).toHaveLength(Math.min(24, historyView(documentOf(home), [], null, 0).entries));
   });
 
   test('gives no rail before a game', () => {

@@ -72,6 +72,12 @@ export function openMenu(): HTMLElement {
   return screen.getByRole('dialog', { name: 'Game' });
 }
 
+/** The whole History, opened from the game menu's debug view (M9-F4): the History view's region. */
+export function openDebugHistory(): HTMLElement {
+  fireEvent.click(within(openMenu()).getByRole('button', { name: 'Debug: the whole History' }));
+  return screen.getByRole('region', { name: 'History' });
+}
+
 /** Closes the game menu, if it is open. */
 export function closeMenu(): void {
   const open = screen.queryByRole('dialog', { name: 'Game' });

@@ -1,11 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { groupOf, history, historyText, playTurns, startGame } from './support';
+import { debugHistory, groupOf, historyText, playTurns, startGame } from './support';
 
 // The test-only switch for modules (M8-S4, DL-79), in the built page: opened at `?modules=probe`, the
 // page says the probe is installed, and a game from seed `modules`, on which the probe's stream first
 // draws below its threshold on the eleventh Turn, the night of Day 3, shows `probe.fired` in the log
 // of that Turn. Opened without the switch, the same Turns install and show nothing of a module.
-// What a play did is read in the History, the whole History here, marked new (M9-S5, DL-105).
+// What a play did is read in the History, the whole History here, the game menu's debug view, where
+// a module's events are (M9-S5, DL-105; M9-F4, DL-117).
 
 /** Starts a game from the firing seed and plays eleven Turns, one at a time. */
 async function elevenTurns(page: Page): Promise<void> {
@@ -21,7 +22,7 @@ test('?modules=probe installs the probe, and its probe.fired is in the log on a 
 
   await elevenTurns(page);
 
-  const whole = await history(page, 'The whole History');
+  const whole = await debugHistory(page);
   const fired = historyText(whole, /^The probe module recorded probe\.fired for .+\.$/);
   await expect(fired).toHaveCount(1);
   await expect(groupOf(fired)).toHaveText('Day 3, night');
@@ -35,5 +36,5 @@ test('without the switch nothing is installed: no word of a module, and no probe
   await elevenTurns(page);
 
   await expect(page.getByText(/Installed for testing/)).toHaveCount(0);
-  await expect(historyText(await history(page, 'The whole History'), /probe/)).toHaveCount(0);
+  await expect(historyText(await debugHistory(page), /probe/)).toHaveCount(0);
 });

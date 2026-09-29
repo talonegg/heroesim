@@ -10,6 +10,7 @@ import {
   inHistory,
   nav,
   navButton,
+  openDebugHistory,
   openMenu,
   openView,
   rosterList,
@@ -53,10 +54,9 @@ async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
 }
 
-/** The whole History, chosen in the History view (M9-S5). */
+/** The whole History, the game menu's debug view (M9-F4): a module's events are there alone. */
 function wholeHistory(): HTMLElement {
-  fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The whole History' }));
-  return section('History');
+  return openDebugHistory();
 }
 
 /** What the History's summary says: its entries in all, and how many of them are new. */
@@ -372,15 +372,13 @@ describe('a game in hand', () => {
     for (const line of lines) expect(line.classList.contains('is-new')).toBe(true);
   });
 
-  test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', async () => {
-    render(<App initial={started()} />);
-
-    fireEvent.click(within(section('Market')).getByRole('button', { name: 'Buy Padded jack' }));
-    await idle();
+  test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', () => {
+    // The last play sent a Party: a purchase is no longer in the Guild's History, nor the rail (M9-F4).
+    render(<App initial={withPartyOut(started())} />);
 
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
     const [newest, next] = within(rail).getAllByRole('listitem');
-    expect(newest?.textContent).toMatch(/^Day 0, morningNew The Lantern bought .+ at the Market for \d+ Wealth\.$/);
+    expect(newest?.textContent).toMatch(/^Day 0, morningNew The Lantern sent .+ on .+, back on the night of Day \d+\.$/);
     expect(newest?.classList.contains('is-new')).toBe(true);
     expect(next?.classList.contains('is-new')).toBe(false);
     expect(within(rail).getByText('1 new')).toBeDefined();

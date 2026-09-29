@@ -1,5 +1,6 @@
 // The History rail (M9-S3, DL-103; the review's A1 and D6): from 1100px the view sits beside the
-// player's Guild's latest entries, those the last play appended marked new, so a result is read
+// player's Guild's latest entries, as its History shows them (M9-F4: no XP, Morale, Regard, Upkeep,
+// purchase or sale), those the last play appended marked new, so a result is read
 // beside the decision that caused it (DL-99 item 1). By CSS alone, as the navigation is: under
 // 1100px, and while the History view itself is open, it is not drawn. The lines are `railView`'s.
 // "Open the History" opens the History on the player's Guild, at its newest, where what the last play

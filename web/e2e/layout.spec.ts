@@ -1,6 +1,7 @@
 import { expect, test, type Locator } from '@playwright/test';
 import {
   closeGameMenu,
+  debugHistory,
   expectNoHorizontalOverflow,
   expectTargets,
   guildmasterSetup,
@@ -27,7 +28,8 @@ import {
 // page and one of its Heroes' pages, the Rankings by Wealth, an older page of the History, names
 // found in the History and a page opened from them (DL-74), a name in the History opened, the
 // new-game form over a game, and a save with a long name. The History opens on the player's Guild;
-// its search is in its head, and its whole History a choice away (M9-S5, DL-105). The Guild's and
+// its search is in its head, and the World History a choice away (M9-S5, DL-105); the whole History
+// is the game menu's debug view (M9-F4, DL-117). The Guild's and
 // the Guildmaster's names are long, and one word runs 61 letters unbroken. The Board's cards, one
 // unfolded, and the Party builder are checked at each width, the phone's at 390px as well, with
 // Send in view at the foot of the form (M9-S4, DL-104). So are the Roster's cards and a Hero's page
@@ -205,10 +207,14 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expectNoHorizontalOverflow(page, 'the Rankings by Wealth');
   const history = await openView(page, 'History');
   await expect(history.getByRole('heading', { level: 3 })).toHaveText(`The History of ${longGuild}`);
-  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The whole History', exact: true }).click();
+  // The World History, then the whole History's oldest page, each line with its event type (M9-F4).
+  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true }).click();
+  await expect(history.getByRole('heading', { level: 3 })).toHaveText('The World History');
+  await expectNoHorizontalOverflow(page, 'the World History');
+  await debugHistory(page);
   await history.getByRole('button', { name: 'Oldest' }).click();
-  await expectNoHorizontalOverflow(page, 'the oldest page of the History');
-  await expectTargets(page, 'the oldest page of the History');
+  await expectNoHorizontalOverflow(page, 'the oldest page of the whole History');
+  await expectTargets(page, 'the oldest page of the whole History');
 
   // Someone found in the History by name, the Guildmaster's long one among them, and a Hero's page
   // opened from it (DL-74).

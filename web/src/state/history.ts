@@ -5,6 +5,14 @@
 // Hero's (DL-109 item 2, Q14); every line says whose it is, whether the last play appended it, and
 // on an outcome how the Quest went.
 //
+// Each History is a scope (M9-F4, DL-111 item 4, DL-112 item 7): the player's Guild's leaves out its
+// Heroes' XP and Morale, Regard, Upkeep, purchases and sales (`leftOutOfYourGuild`); a Rival's its
+// Upkeep, purchases and sales (`leftOutOfARival`); a Hero's, a Guildmaster's, a Patron's and a
+// Quest's leave out nothing. The World History takes the world's news from every Guild
+// (`inTheWorldHistory`), and folds nothing. The whole History, the game menu's debug view, is every
+// entry, unfolded, each with its event type. Paging, folds, the count and what is new all read what
+// the scope shows (`historyFilter`), and so does the rail (`historyEntries`).
+//
 // Nothing here computes a rule (ADR-0007, principle 12): every line is a History entry as the engine
 // appended it, put in words by `narrate.ts`, and read through the History's own index of entries by
 // participant (`byEntity`, as `entriesFor` reads it). What is new is the last play's events, which
@@ -33,10 +41,17 @@ import { listed, narrateSegments, narrationFor, textOf, type Narration, type Seg
 import { historyPageSize, whenOf } from './selectors';
 
 /**
- * Whose History: `null` for the player's Guild's, where it opens (DL-99 item 2); `all` for the
- * whole History; or a Guild, a Hero, a Guildmaster or a Patron.
+ * Whose History: `null` for the player's Guild's, where it opens (DL-99 item 2); `world` for the
+ * World History (M9-F4); `all` for the whole History, the game menu's debug view; or a Guild, a
+ * Hero, a Guildmaster or a Patron.
  */
-export type HistoryWhose = EntityId | 'all' | null;
+export type HistoryWhose = EntityId | 'world' | 'all' | null;
+
+/**
+ * Which History a page reads (M9-F4): the player's Guild's, a Rival's, the World History, the whole
+ * History (the debug view), or anyone else's, a Hero's, a Guildmaster's or a Patron's.
+ */
+export type HistoryScope = 'mine' | 'rival' | 'world' | 'whole' | 'entity';
 
 /** Whose an entry is: the player's Guild's, a Rival's, or neither (a Patron's offer, the pool, the world). */
 export type HistorySide = 'mine' | 'rival' | 'world';
@@ -61,6 +76,8 @@ export interface HistoryLine {
   outcome: { band: QuestBand; words: string } | null;
   /** On a Party's outcome, `outcome-party-000004`: an id the page can be taken to; `null` otherwise. */
   anchor: string | null;
+  /** The entry's event type, `quest.resolved`, which the debug view shows. */
+  type: string;
 }
 
 /**
@@ -98,12 +115,14 @@ export interface HistoryGroup {
 }
 
 export interface HistoryView {
-  /** `The whole History`, or `The History of The Lantern`. */
+  /** `The History of The Lantern`, `The World History`, or `Debug: the whole History`. */
   title: string;
-  /** Whose History it is, by name; `null` for the whole History. */
+  /** Whose History it is, by name; `null` for the World History and the whole History. */
   name: string | null;
-  /** Whose History it is; `null` for the whole History. */
+  /** Whose History it is; `null` for the World History and the whole History. */
   entityId: EntityId | null;
+  /** Which History it is, and so what it leaves out and what it folds. */
+  scope: HistoryScope;
   /** It is the player's Guild's. */
   mine: boolean;
   /** A Hero the world still holds, whose page the History opens in their place (DL-74); `null` otherwise. */
@@ -196,77 +215,256 @@ export function entityName(document: WorldDocument, entityId: EntityId): string 
   return newest?.labels[entityId] ?? null;
 }
 
-/** A scope's entries by their place in the History: the whole History's, or an entity's index. */
+// ── The scopes: what each History leaves out (M9-F4) ─────────────────────────────────────────
+
+/**
+ * What the player's Guild's History leaves out (DL-111 item 4): its Heroes' XP and Morale, Regard
+ * moving, its Upkeep, and its purchases and sales. A Hero's own History keeps their XP, Morale and
+ * Regard; the Treasury reads the Upkeep and the Market's entries; the debug view keeps everything.
+ */
+export const leftOutOfYourGuild: ReadonlySet<string> = new Set<EngineEventType>([
+  'hero.xp-gained',
+  'hero.morale-changed',
+  'patron.regard-changed',
+  'guildmaster.regard-changed',
+  'hero.regard-changed',
+  'guild.upkeep-paid',
+  'item.bought',
+  'item.sold',
+]);
+
+/** What a Rival's History leaves out (DL-111 item 4): its Upkeep, and its purchases and sales. */
+export const leftOutOfARival: ReadonlySet<string> = new Set<EngineEventType>(['guild.upkeep-paid', 'item.bought', 'item.sold']);
+
+/**
+ * What the World History takes (DL-112 item 7, DL-113 item 1), keyed by every event type, so that
+ * `tsc -b` refuses a type the engine adds until it is decided: the world made and its rules
+ * adopted; Guilds founded and folded (a Bankruptcy is a fold's reason), and a Guildmaster
+ * succeeded; the game's end; every Guild's Quests, taken and resolved; and a Patron's Regard for a
+ * Guild moving into a new band. A Guild below the floor is left out: a Rival's warning comes and
+ * goes, and its fold is the news. A module's events wait for M10 to decide, so none is taken.
+ */
+export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Object.freeze({
+  'world.created': true,
+  'guild.founded': true,
+  'guildmaster.generated': false,
+  'hero.generated': false,
+  'patron.generated': false,
+  'world.rules-adopted': true,
+  'guild.upkeep-paid': false,
+  'guild.below-floor': false,
+  'guild.floor-recovered': false,
+  'hero.recruited': false,
+  'hero.left-pool': false,
+  'quest.offered': false,
+  'quest.expired': false,
+  'quest.taken': true,
+  'quest.encounter': false,
+  'quest.resolved': true,
+  'quest.loot': false,
+  'hero.injured': false,
+  'hero.died': false,
+  'hero.xp-gained': false,
+  'hero.morale-changed': false,
+  'hero.healed': false,
+  'hero.retired': false,
+  'hero.declined': false,
+  'game.ended': true,
+  'guild.folded': true,
+  'guildmaster.succeeded': true,
+  'hero.left-guild': false,
+  'guild.improved': false,
+  'hero.levelled': false,
+  'patron.regard-changed': true,
+  'guildmaster.regard-changed': false,
+  'hero.regard-changed': false,
+  'item.expended': false,
+  'item.equipped': false,
+  'item.unequipped': false,
+  'item.returned': false,
+  'item.bought': false,
+  'item.sold': false,
+  'hero.transferred': false,
+  'guild.transfer-offered': false,
+  'guild.transfer-offer-declined': false,
+  'guild.transfer-offer-expired': false,
+  'guild.wealth-changed': false,
+} satisfies Record<EngineEventType, boolean>);
+
+/** An entry of the World History: one of its types; never a module's (M10 decides those). */
+export function isWorldNews(entry: Pick<Entry, 'type'>): boolean {
+  return Object.hasOwn(inTheWorldHistory, entry.type) && inTheWorldHistory[entry.type as EngineEventType];
+}
+
+/** Which kind of History `target` is: the whole or the world's, a Guild's, the player's or a Rival's, or anyone else's. */
+function scopeKind(document: WorldDocument, target: EntityId | 'world' | 'all'): HistoryScope {
+  if (target === 'all') return 'whole';
+  if (target === 'world') return 'world';
+  const guild = rowOf(document.world.guilds, target);
+  if (guild === undefined) return 'entity';
+  return guild.controller.kind === 'player' ? 'mine' : 'rival';
+}
+
+/** What a History of `kind` leaves out: the player's Guild's and a Rival's leave some types out; the rest leave out nothing. */
+function leftOutOf(kind: HistoryScope): ReadonlySet<string> | null {
+  if (kind === 'mine') return leftOutOfYourGuild;
+  return kind === 'rival' ? leftOutOfARival : null;
+}
+
+/**
+ * Whether an entry is shown in `target`'s History (M9-F4): the World History's filter, a Guild's
+ * (`leftOutOfYourGuild`, `leftOutOfARival`), or none. It does not ask whether the entry names
+ * `target`: the History's index by participant does that.
+ */
+export function historyFilter(document: WorldDocument, target: EntityId | 'world' | 'all'): (entry: Pick<Entry, 'type'>) => boolean {
+  const kind = scopeKind(document, target);
+  if (kind === 'world') return isWorldNews;
+  const leftOut = leftOutOf(kind);
+  return leftOut === null ? () => true : (entry) => !leftOut.has(entry.type);
+}
+
+/**
+ * `entityId`'s newest entries, newest first, as its History shows them (its filter applied), at
+ * most `limit`: the rail reads the player's Guild's this way.
+ */
+export function historyEntries(document: WorldDocument, entityId: EntityId, limit: number): Entry[] {
+  const { history } = document;
+  const shows = historyFilter(document, entityId);
+  const positions = Object.hasOwn(history.byEntity, entityId) ? (history.byEntity[entityId] ?? []) : [];
+  const found: Entry[] = [];
+  for (let index = positions.length - 1; index >= 0 && found.length < limit; index -= 1) {
+    const entry = history.entries[positions[index] ?? -1];
+    if (entry !== undefined && shows(entry)) found.push(entry);
+  }
+  return found;
+}
+
+/** A scope's entries by their place in the History, and what it folds. */
 interface Scope {
+  kind: HistoryScope;
   count: number;
   /** The place in the History of the `index`-th newest entry, from 0. */
   at: (index: number) => number;
+  /** Where the entry at `position` of the History stands, counted from the newest; `null` when it is not in the scope. */
+  indexOf: (position: number) => number | null;
+  /** A Party's steps fold under its outcome: everywhere but the World History and the whole History. */
+  foldsSteps: boolean;
+  /** Each Rival's routine folds into one line: in a Guild's History and a Guildmaster's or a Patron's, not a Hero's own (Q14), the world's or the whole. */
+  foldsRoutine: boolean;
 }
 
-function scopeOf(document: WorldDocument, entityId: EntityId | null): Scope {
+/** The ascending places in the History of `target`'s entries, as its filter leaves them: an entity's from its index, the world's from the whole. */
+function positionsIn(document: WorldDocument, target: EntityId | 'world'): number[] {
   const { history } = document;
-  if (entityId === null) {
-    const count = history.entries.length;
-    return { count, at: (index) => count - 1 - index };
+  const shows = historyFilter(document, target);
+  if (target === 'world') {
+    const positions: number[] = [];
+    history.entries.forEach((entry, position) => {
+      if (shows(entry)) positions.push(position);
+    });
+    return positions;
   }
-  const positions = Object.hasOwn(history.byEntity, entityId) ? (history.byEntity[entityId] ?? []) : [];
-  return { count: positions.length, at: (index) => positions[positions.length - 1 - index] ?? -1 };
+  const indexed = Object.hasOwn(history.byEntity, target) ? (history.byEntity[target] ?? []) : [];
+  return scopeKind(document, target) === 'entity' ? indexed : indexed.filter((position) => shows(history.entries[position] as Entry));
 }
 
-/** Whose History `whose` is, and their name: the whole History's, `null` and `null`, for an entity the History does not name. */
-function resolved(document: WorldDocument, whose: HistoryWhose): { entityId: EntityId | null; name: string | null } {
-  const wanted = whose === null ? (playerGuild(document.world)?.id ?? null) : whose === 'all' ? null : whose;
-  const name = wanted === null ? null : entityName(document, wanted);
-  return name === null ? { entityId: null, name: null } : { entityId: wanted, name };
+function scopeOf(document: WorldDocument, target: EntityId | 'world' | 'all'): Scope {
+  const { history } = document;
+  const kind = scopeKind(document, target);
+  const folds = { foldsSteps: kind !== 'world' && kind !== 'whole', foldsRoutine: kind !== 'world' && kind !== 'whole' && rowOf(document.world.heroes, target) === undefined };
+  if (target === 'all') {
+    const count = history.entries.length;
+    return { kind, count, at: (index) => count - 1 - index, indexOf: (position) => (position >= 0 && position < count ? count - 1 - position : null), ...folds };
+  }
+  const positions = positionsIn(document, target);
+  return {
+    kind,
+    count: positions.length,
+    at: (index) => positions[positions.length - 1 - index] ?? -1,
+    indexOf: (position) => {
+      // The positions ascend (`append`): a binary search finds the entry's.
+      let low = 0;
+      let high = positions.length - 1;
+      while (low <= high) {
+        const middle = (low + high) >>> 1;
+        const at = positions[middle] ?? -1;
+        if (at === position) return positions.length - 1 - middle;
+        if (at < position) low = middle + 1;
+        else high = middle - 1;
+      }
+      return null;
+    },
+    ...folds,
+  };
 }
 
-function titleOf(name: string | null): string {
-  return name === null ? 'The whole History' : `The History of ${name}`;
+/**
+ * Which History `whose` is, and whose by name: the player's Guild's for `null`, and for an entity the
+ * History does not name (where the History opens); the World History and the whole History, which
+ * are no one's.
+ */
+function resolved(document: WorldDocument, whose: HistoryWhose): { target: EntityId | 'world' | 'all'; entityId: EntityId | null; name: string | null } {
+  if (whose === 'all' || whose === 'world') return { target: whose, entityId: null, name: null };
+  const player = playerGuild(document.world)?.id ?? null;
+  for (const wanted of [whose, player]) {
+    const name = wanted === null ? null : entityName(document, wanted);
+    if (wanted !== null && name !== null) return { target: wanted, entityId: wanted, name };
+  }
+  return { target: 'all', entityId: null, name: null };
+}
+
+function titleOf(target: EntityId | 'world' | 'all', name: string | null): string {
+  if (target === 'all') return 'Debug: the whole History';
+  if (target === 'world') return 'The World History';
+  return `The History of ${name ?? 'no one'}`;
 }
 
 /** The title of `whose` History, `The History of The Lantern`, as its page gives it: what leads back to it. */
 export function historyTitle(document: WorldDocument, whose: HistoryWhose): string {
-  return titleOf(resolved(document, whose).name);
+  const { target, name } = resolved(document, whose);
+  return titleOf(target, name);
 }
 
 /**
- * A page of the History of `whose` (from 0): `historyPageSize` entries counted from the newest, a
- * Party's steps kept with its outcome, grouped by Day and time of day, newest first, each group in
- * the order it happened. Each page starts where the one before ends (`pageStarts`), so none is empty
- * and `pages` is exact. A page past the last reads as the last; an entity the History does not
- * name, as the whole History. `log` is the last play's events, which the engine appended to the
- * History as they are: those entries are new.
+ * A page of the History of `whose` (from 0): `historyPageSize` entries counted from the newest of
+ * what its scope shows, a Party's steps kept with its outcome where they fold, grouped by Day and
+ * time of day, newest first, each group in the order it happened. Each page starts where the one
+ * before ends (`pageStarts`), so none is empty and `pages` is exact. A page past the last reads as
+ * the last; an entity the History does not name, as the player's Guild's. `log` is the last play's
+ * events, which the engine appended to the History as they are: those the scope shows are new.
  */
 export function historyView(document: WorldDocument, log: readonly TurnEvent[], whose: HistoryWhose, page: number): HistoryView {
   const { world, history } = document;
   const player = playerGuild(world);
-  const { entityId, name } = resolved(document, whose);
+  const { target, entityId, name } = resolved(document, whose);
 
-  const scope = scopeOf(document, entityId);
+  const scope = scopeOf(document, target);
   const starts = pageStarts(scope, history.entries);
   const pages = starts.length;
   const shown = Math.min(Math.max(0, Math.floor(page)), pages - 1);
   const positions = pagePositions(scope, history.entries, starts[shown] ?? 0);
   const hero = entityId !== null && rowOf(world.heroes, entityId) !== undefined ? (entityId as HeroId) : null;
+  const shows = historyFilter(document, target);
   const reading: Reading = {
     entries: history.entries,
     narration: narrationFor(document, content),
     world,
     player: player?.id ?? null,
     fresh: new Set<object>(log),
-    // A Hero's own History folds no routine: every line there is the Hero's (Q14).
-    foldsRoutine: hero === null,
+    foldsSteps: scope.foldsSteps,
+    foldsRoutine: scope.foldsRoutine,
   };
   return {
-    title: titleOf(name),
+    title: titleOf(target, name),
     name,
     entityId,
-    mine: entityId !== null && entityId === player?.id,
+    scope: scope.kind,
+    mine: scope.kind === 'mine',
     hero,
     page: shown,
     pages,
     entries: scope.count,
-    fresh: entityId === null ? log.length : log.filter((event) => event.participants.includes(entityId)).length,
+    fresh: log.filter((event) => (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
     groups: groupsOf(positions, reading),
   };
 }
@@ -281,28 +479,9 @@ export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry:
   const { history } = document;
   const position = history.entries.lastIndexOf(entry);
   if (position < 0) return null;
-  const { entityId } = resolved(document, whose);
-  const scope = scopeOf(document, entityId);
-  const index = indexIn(document, entityId, position);
+  const scope = scopeOf(document, resolved(document, whose).target);
+  const index = scope.indexOf(position);
   return index === null ? null : pageStarts(scope, history.entries, index).length - 1;
-}
-
-/** Where the entry at `position` of the History stands in `entityId`'s, counted from the newest; `null` when it is not there. */
-function indexIn(document: WorldDocument, entityId: EntityId | null, position: number): number | null {
-  const { history } = document;
-  if (entityId === null) return history.entries.length - 1 - position;
-  const positions = Object.hasOwn(history.byEntity, entityId) ? (history.byEntity[entityId] ?? []) : [];
-  // The index's positions ascend (`append`): a binary search finds the entry's.
-  let low = 0;
-  let high = positions.length - 1;
-  while (low <= high) {
-    const middle = (low + high) >>> 1;
-    const at = positions[middle] ?? -1;
-    if (at === position) return positions.length - 1 - middle;
-    if (at < position) low = middle + 1;
-    else high = middle - 1;
-  }
-  return null;
 }
 
 // ── A page ───────────────────────────────────────────────────────────────────────────────────
@@ -339,7 +518,7 @@ function outcomeIndex(scope: Scope, entries: readonly Entry[], index: number): n
  */
 function pageEnd(scope: Scope, entries: readonly Entry[], start: number): number {
   let end = Math.min(scope.count, start + historyPageSize);
-  while (end < scope.count && isStep(entries[scope.at(end)]) && outcomeIndex(scope, entries, end) >= start) end += 1;
+  while (scope.foldsSteps && end < scope.count && isStep(entries[scope.at(end)]) && outcomeIndex(scope, entries, end) >= start) end += 1;
   return end;
 }
 
@@ -371,7 +550,9 @@ interface Reading {
   player: GuildId | null;
   /** The last play's events, which are the History's entries themselves. */
   fresh: ReadonlySet<object>;
-  /** Each Rival's routine folds into one line: in a Guild's History and the whole History, not a Hero's own (Q14). */
+  /** A Party's steps fold under its outcome: not in the World History or the whole History (M9-F4). */
+  foldsSteps: boolean;
+  /** Each Rival's routine folds into one line: in a Guild's History, not a Hero's own (Q14), the world's or the whole. */
   foldsRoutine: boolean;
 }
 
@@ -425,7 +606,7 @@ function routineOf(entry: Entry, reading: Reading): GuildId | null {
 function rowsOf(positions: readonly number[], reading: Reading): HistoryRow[] {
   const { entries } = reading;
   const outcomes = new Set(positions.flatMap((position) => (entries[position]?.type === 'quest.resolved' ? [partyOf(entries[position] as Entry)] : [])));
-  const folded = (entry: Entry): boolean => isStep(entry) && outcomes.has(partyOf(entry));
+  const folded = (entry: Entry): boolean => reading.foldsSteps && isStep(entry) && outcomes.has(partyOf(entry));
   const routine = new Map<GuildId, number[]>();
   for (const position of positions) {
     const entry = entries[position] as Entry;
@@ -507,6 +688,7 @@ function lineOf(position: number, reading: Reading): HistoryLine {
     side: sideOf(entry, reading.player),
     outcome: resolved === null ? null : { band: resolved.band, words: bandWords[resolved.band] },
     anchor: resolved === null ? null : `outcome-${resolved.partyId}`,
+    type: entry.type,
   };
 }
 
@@ -521,8 +703,9 @@ export interface HistoryChoice {
 }
 
 /**
- * The Histories one step away (DL-99 item 2): the player's Guild's, where it opens, the whole
- * History, and each Rival's in play, in the world's order. A folded Guild's History is still read,
+ * The Histories one step away (DL-99 item 2): the player's Guild's, where it opens, the World
+ * History, and each Rival's in play, in the world's order (M9-F4). The whole History is not among
+ * them: it is the game menu's debug view (DL-111 item 4). A folded Guild's History is still read,
  * found by name (`findInHistory`), as anyone else's is.
  */
 export function historyChoices(document: WorldDocument): HistoryChoice[] {
@@ -530,7 +713,7 @@ export function historyChoices(document: WorldDocument): HistoryChoice[] {
   const player = playerGuild(document.world);
   return [
     ...(player === undefined ? [] : [{ whose: null, label: player.name, mine: true }]),
-    { whose: 'all', label: 'The whole History', mine: false },
+    { whose: 'world', label: 'The world', mine: false },
     ...guilds.filter((guild) => guild.id !== player?.id && guild.foldedOnTurn === null).map((guild) => ({ whose: guild.id, label: guild.name, mine: false })),
   ];
 }
