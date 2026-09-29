@@ -10,6 +10,7 @@
 
 import {
   carriedGear,
+  compareByCodeUnit,
   holdings,
   itemDefinition,
   playerGuild,
@@ -23,7 +24,7 @@ import {
 } from '@heroesim/engine';
 import { content } from '../content';
 import { capitalised, rowOf } from './names';
-import { questNamer, textOf, type Segment } from './narrate';
+import { listed, questNamer, textOf, type Segment } from './narrate';
 import { playDeps } from './reducer';
 import { kindKeyOf, kindOf, type MarketKind } from './trade-views';
 
@@ -81,9 +82,12 @@ function itemsWords(count: number): string {
   return `${count} ${count === 1 ? 'Item' : 'Items'}`;
 }
 
-/** `a`, `a and b`, `a, b and c`. */
-function listed(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+/**
+ * The rows of `rows` that `filter` shows: of its kind and in its place, or all. The Stores part reads
+ * every row once and shows these, rather than reading the Guild's Items again for each filter (M9-F6).
+ */
+export function storesRowsShown(rows: readonly StoresRow[], filter: StoresFilter): StoresRow[] {
+  return rows.filter((row) => (filter.kind === null || row.kindKey === filter.kind) && (filter.where === null || row.where === filter.where));
 }
 
 /**
@@ -130,7 +134,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
   });
   const away = Object.values(world.parties)
     .filter((party) => party.guildId === guild.id)
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
+    .sort((a, b) => compareByCodeUnit(a.id, b.id))
     .flatMap((party) => {
       const taken = holdings(world, { kind: 'party', id: party.id });
       const words: Segment[] = [{ kind: 'text', text: `With the Party on ${questName(party.questId)}` }];
@@ -161,7 +165,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
 
   return {
     guildName: guild.name,
-    rows: owned.filter((row) => (filter.kind === null || row.kindKey === filter.kind) && (filter.where === null || row.where === filter.where)),
+    rows: storesRowsShown(owned, filter),
     kinds,
     wheres,
     summary,

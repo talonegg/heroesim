@@ -42,7 +42,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { rowOf } from './names';
+import { bandWords, rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
@@ -63,9 +63,6 @@ export type HistoryScope = 'mine' | 'rival' | 'world' | 'whole' | 'entity';
 /** Whose an entry is: the player's Guild's, a Rival's, or neither (a Patron's offer, the pool, the world). */
 export type HistorySide = 'mine' | 'rival' | 'world';
 
-/** A Quest band in words, as the home view says it. */
-const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
-
 /** One entry of the History as the page shows it. */
 export interface HistoryLine {
   /** The entry's place in the History: unique, and the same on every page. */
@@ -81,8 +78,6 @@ export interface HistoryLine {
   side: HistorySide;
   /** How a Quest went, on a Party's outcome: its band and its word; `null` on any other entry. */
   outcome: { band: QuestBand; words: string } | null;
-  /** On a Party's outcome, `outcome-party-000004`: an id the page can be taken to; `null` otherwise. */
-  anchor: string | null;
   /** The entry's event type, `quest.resolved`, which the debug view shows. */
   type: string;
   /**
@@ -368,8 +363,26 @@ interface Scope {
   foldsRoutine: boolean;
 }
 
+/**
+ * The positions `positionsIn` found, by History and target, with the History's length then. The
+ * History is appended to, never changed, so the positions hold until it grows: a page turned, a
+ * choice made or the count read again does not walk it again (M9-F6, code review).
+ */
+const positionsFound = new WeakMap<WorldDocument['history'], Map<string, { length: number; positions: number[] }>>();
+
 /** The ascending places in the History of `target`'s entries, as its filter leaves them: an entity's from its index, the world's from the whole. */
 function positionsIn(document: WorldDocument, target: EntityId | 'world'): number[] {
+  const { history } = document;
+  const found = positionsFound.get(history) ?? new Map<string, { length: number; positions: number[] }>();
+  positionsFound.set(history, found);
+  const known = found.get(target);
+  if (known !== undefined && known.length === history.entries.length) return known.positions;
+  const positions = walkedPositions(document, target);
+  found.set(target, { length: history.entries.length, positions });
+  return positions;
+}
+
+function walkedPositions(document: WorldDocument, target: EntityId | 'world'): number[] {
   const { history } = document;
   const shows = historyFilter(document, target);
   if (target === 'world') {
@@ -707,7 +720,6 @@ function lineOf(position: number, reading: Reading): HistoryLine {
     fresh: reading.fresh.has(entry),
     side: sideOf(entry, reading.player),
     outcome: resolved === null ? null : { band: resolved.band, words: bandWords[resolved.band] },
-    anchor: resolved === null ? null : `outcome-${resolved.partyId}`,
     type: entry.type,
     questReturn: resolved === null || !reading.returns ? null : returnEntry(reading.document, { partyId: resolved.partyId, questId: resolved.questId }),
   };

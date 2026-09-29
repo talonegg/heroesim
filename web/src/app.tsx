@@ -185,19 +185,29 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     [game.log, openName, openHistory, openReport],
   );
 
+  /**
+   * Guild › Home, the menu closed, with the keyboard on `focusId` or else the Guild's heading: where a
+   * new game, a load, the end of a fast forward and a Party's return each lead. Called while
+   * rendering, as those are decided in the render the play ends in (M9-F6, code review: one way
+   * there for the three).
+   */
+  function toGuildHome(focusId: string = headingOf('guild')): void {
+    setView('guild');
+    setGuildPart('home');
+    setMenuOpen(false);
+    setFocus({ id: focusId, fallback: headingOf('guild') });
+  }
+
   // A new game or a load: the home view, and nothing the last game had open (DL-74 item 7).
   const [games, setGames] = useState(game.games);
   if (games !== game.games) {
     setGames(game.games);
-    setView('guild');
-    setGuildPart('home');
-    setMenuOpen(false);
+    toGuildHome();
     setBoardQuest(null);
     setPartyChoices(noPartyChoices);
     setRankingsGuild(null);
     setWhose(null);
     setReport(null);
-    setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
   }
 
   // The end of a fast forward, by its stop or the player's: the home view, which says why and what
@@ -205,12 +215,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [wasForwarding, setWasForwarding] = useState(forwarding);
   if (wasForwarding !== forwarding) {
     setWasForwarding(forwarding);
-    if (wasForwarding && game.rejection === null) {
-      setView('guild');
-      setGuildPart('home');
-      setMenuOpen(false);
-      setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
-    }
+    if (wasForwarding && game.rejection === null) toGuildHome();
   }
 
   // A play that brought a Party of the player's home, one Turn or a fast forward: Guild › Home at its
@@ -221,12 +226,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setSeenLog(game.log);
     setReport(null);
     const [home] = returnsIn({ document: current, log: game.log });
-    if (home !== undefined && game.rejection === null) {
-      setView('guild');
-      setGuildPart('home');
-      setMenuOpen(false);
-      setFocus({ id: reportHeadingId(home), fallback: headingOf('guild') });
-    }
+    if (home !== undefined && game.rejection === null) toGuildHome(reportHeadingId(home));
   }
 
   useEffect(() => rememberView(view), [view]);

@@ -6,7 +6,7 @@
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { storesView, type StoresWhere } from '../state/stores';
+import { storesRowsShown, storesView, type StoresWhere } from '../state/stores';
 import type { MarketKind } from '../state/trade-views';
 import { Names } from './history-entries';
 import { Icon } from './icons';
@@ -21,8 +21,12 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
   // A kind or place the Guild no longer has shows everything again.
   const shownKind = kind !== null && everything?.kinds.some((each) => each.key === kind) === true ? kind : null;
   const shownWhere = where !== null && everything?.wheres.some((each) => each.key === where) === true ? where : null;
-  const view = useMemo(() => storesView(document, { kind: shownKind, where: shownWhere }), [document, shownKind, shownWhere]);
-  if (view === null || everything === null) return <p>The save has no player’s Guild.</p>;
+  const rows = useMemo(
+    () => (everything === null ? [] : storesRowsShown(everything.rows, { kind: shownKind, where: shownWhere })),
+    [everything, shownKind, shownWhere],
+  );
+  if (everything === null) return <p>The save has no player’s Guild.</p>;
+  const view = everything;
   const owns = everything.rows.length > 0;
   // Only what the Guild holds is the Market's to buy (code review).
   const holds = everything.wheres.some((each) => each.key === 'held');
@@ -36,7 +40,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
           <FilterChips label="Show where" options={view.wheres} shown={shownWhere} onShow={setWhere} />
         </>
       ) : null}
-      {!owns ? null : view.rows.length === 0 ? (
+      {!owns ? null : rows.length === 0 ? (
         <p className="subtle">Nothing {view.guildName} owns is of that kind and there.</p>
       ) : (
         <div className="table-wrap">
@@ -55,7 +59,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
               </tr>
             </thead>
             <tbody>
-              {view.rows.map((row) => (
+              {rows.map((row) => (
                 <tr key={row.key} data-testid="owned">
                   <th scope="row" className="trade__name">
                     {row.name}

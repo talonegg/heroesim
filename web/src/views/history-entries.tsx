@@ -164,8 +164,6 @@ function Row({ row, types }: { row: HistoryRow; types: boolean }) {
   const { line, steps, stepsWords } = row;
   return (
     <li
-      id={line.anchor ?? undefined}
-      tabIndex={line.anchor === null ? undefined : -1}
       className={classes('entry', `entry--${line.side}`, line.fresh && 'is-new', line.milestone && 'is-milestone', line.questReturn !== null && 'entry--return')}
     >
       {line.questReturn === null ? <Line line={line} types={types} /> : <Return line={line} />}

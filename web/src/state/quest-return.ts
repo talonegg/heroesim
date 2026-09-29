@@ -35,7 +35,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { nameIn, nightOf } from './names';
+import { bandWords, nameIn, nightOf } from './names';
 import { crossed, itemsWords, listed, narrateSegments, narrationFor, resolvedWords, textOf, type Narration, type Segment } from './narrate';
 import { playDeps } from './reducer';
 import { whenOf } from './selectors';
@@ -45,9 +45,6 @@ export interface ReturnKey {
   partyId: PartyId;
   questId: QuestId;
 }
-
-/** A Quest band in words, as the home view says it. */
-const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
 
 /** A line in the History's words: its segments, each name opening whom it names, and its sentence. */
 export interface ReturnLine {
@@ -219,6 +216,11 @@ function cameHomeThatNight(history: History, levelled: EngineEventOf<'hero.level
 
 /** `key`'s return, read from `document`'s History; `null` when the History holds no such return. */
 export function questReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null {
+  return readReturn(document, key)?.report ?? null;
+}
+
+/** `key`'s return and its outcome's entry, found once for the report and the entry both (M9-F6, code review). */
+function readReturn(document: WorldDocument, key: ReturnKey): { report: QuestReturn; outcome: Resolved } | null {
   const { world, history } = document;
   const found = outcomeOf(history, key);
   if (found === null) return null;
@@ -279,7 +281,7 @@ export function questReturn(document: WorldDocument, key: ReturnKey): QuestRetur
     return { heroId, name: named(heroId), xp, levels, morale: mood, injury, died, gear, regard: mates, words };
   });
 
-  return {
+  const report: QuestReturn = {
     key,
     guildId: payload.guildId,
     turn: outcome.turn,
@@ -296,6 +298,7 @@ export function questReturn(document: WorldDocument, key: ReturnKey): QuestRetur
     outcomes,
     patronRegard: patronId === undefined || patronName === undefined ? null : standing(document, ofQuest, { patronId, name: patronName, guildId: payload.guildId, guildName }),
   };
+  return { report, outcome };
 }
 
 /** The Patron's Regard for the Guild after the return: the crossing its `patron.regard-changed` names, and the band now. */
@@ -372,10 +375,10 @@ export interface ReturnEntry {
 
 /** `key`'s return as its entry; `null` when the History holds no such return. */
 export function returnEntry(document: WorldDocument, key: ReturnKey): ReturnEntry | null {
-  const report = questReturn(document, key);
-  const found = report === null ? null : outcomeOf(document.history, key);
-  if (report === null || found === null) return null;
-  const { lead, band, rest } = resolvedWords(found.entry, { content });
+  const read = readReturn(document, key);
+  if (read === null) return null;
+  const { report } = read;
+  const { lead, band, rest } = resolvedWords(read.outcome, { content });
   const [first, ...after] = lead;
   const opening = first === undefined ? [] : [{ ...first, text: first.text.charAt(0).toUpperCase() + first.text.slice(1) }, ...after];
   const count = report.outcomes.length;

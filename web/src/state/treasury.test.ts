@@ -252,6 +252,17 @@ describe('treasuryView: the Wealth, Upkeep and the Bankruptcy floor (M9-F3)', ()
     expect(treasuryView(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.9' });
   });
 
+  test("gives a factor of two Traits as a figure a player reads, not the float's digits (M9-F6, code review)", () => {
+    // Thrifty and Spendthrift together are no legal set, but a row that holds both multiplies their
+    // factors, 0.9 × 1.1, which is 0.9900000000000001 in floating point.
+    const state = changed(started('treasury-factors'), (document, player) => {
+      const guildmaster = document.world.guildmasters[player.guildmasterId];
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      guildmaster.traits = ['spendthrift', 'thrifty'];
+    });
+    expect(treasuryView(documentOf(state), both, 0)?.upkeep.parts.at(-1)).toEqual({ label: 'Guildmaster’s Traits', value: '×0.99' });
+  });
+
   test('gives the Bankruptcy floor, and the countdown only while the Guild is below it', () => {
     const state = started('treasury-floor');
     const floor = playDeps(documentOf(state)).config.bankruptcyFloor;

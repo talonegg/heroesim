@@ -146,31 +146,46 @@ export interface LedgerRow {
   amountWords: string;
 }
 
-/** Every change to `guildId`'s Wealth the History holds, newest first. */
-export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[] {
+/** A change to a Guild's Wealth where the History holds it, before it is put in words. */
+interface LedgerChange extends WealthChange {
+  position: number;
+  entry: Entry;
+}
+
+/** Every change to `guildId`'s Wealth the History holds, newest first, not yet in words. */
+function changesOf(document: WorldDocument, guildId: GuildId): LedgerChange[] {
   const { history } = document;
   const positions = Object.hasOwn(history.byEntity, guildId) ? (history.byEntity[guildId] ?? []) : [];
-  const narration = narrationFor(document, content);
-  const rows: LedgerRow[] = [];
+  const changes: LedgerChange[] = [];
   for (let index = positions.length - 1; index >= 0; index -= 1) {
     const position = positions[index] ?? -1;
     const entry = history.entries[position];
     if (entry === undefined) continue;
     const change = wealthChangeOf(entry, guildId);
-    if (change === null) continue;
-    const segments = narrateSegments(entry as TurnEvent, narration);
-    rows.push({
-      key: `ledger-${position}`,
-      when: whenOf(entry.turn),
-      segments,
-      sentence: textOf(segments),
-      category: change.category,
-      categoryWords: categoryWords[change.category],
-      amount: change.amount,
-      amountWords: signed(change.amount),
-    });
+    if (change !== null) changes.push({ ...change, position, entry });
   }
-  return rows;
+  return changes;
+}
+
+/** A change as the ledger shows it, in the History's words. */
+function ledgerRow({ position, entry, category, amount }: LedgerChange, narration: ReturnType<typeof narrationFor>): LedgerRow {
+  const segments = narrateSegments(entry as TurnEvent, narration);
+  return {
+    key: `ledger-${position}`,
+    when: whenOf(entry.turn),
+    segments,
+    sentence: textOf(segments),
+    category,
+    categoryWords: categoryWords[category],
+    amount,
+    amountWords: signed(amount),
+  };
+}
+
+/** Every change to `guildId`'s Wealth the History holds, newest first. */
+export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[] {
+  const narration = narrationFor(document, content);
+  return changesOf(document, guildId).map((change) => ledgerRow(change, narration));
 }
 
 // ── The Treasury part ────────────────────────────────────────────────────────────────────────
@@ -227,12 +242,12 @@ export interface TreasuryView {
 }
 
 /** Whether `row` is one `filter` shows. */
-function shows(row: LedgerRow, filter: TreasuryFilter): boolean {
+function shows(row: WealthChange, filter: TreasuryFilter): boolean {
   if (filter.category !== null && row.category !== filter.category) return false;
   return filter.flow === 'both' || (filter.flow === 'income' ? row.amount > 0 : row.amount < 0);
 }
 
-function totalsOf(rows: readonly LedgerRow[]): LedgerTotals {
+function totalsOf(rows: readonly WealthChange[]): LedgerTotals {
   const income = rows.reduce((sum, row) => (row.amount > 0 ? sum + row.amount : sum), 0);
   const expense = rows.reduce((sum, row) => (row.amount < 0 ? sum + row.amount : sum), 0);
   const net = income + expense;
@@ -253,9 +268,11 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
   const parts = upkeepParts(guild, world, config, content);
   const playing = world.ended === null && guild.foldedOnTurn === null;
 
-  const all = ledgerOf(document, guild.id);
+  // Filtered, counted and totalled before words: only the page shown is narrated (M9-F6, code review).
+  const all = changesOf(document, guild.id);
   const shown = all.filter((row) => shows(row, filter));
   const pages = Math.max(1, Math.ceil(shown.length / historyPageSize));
+  const narration = narrationFor(document, content);
   const at = Math.min(Math.max(0, Math.floor(page)), pages - 1);
 
   return {
@@ -268,13 +285,14 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
       parts: [
         { label: 'Wages', value: String(parts.wages) },
         { label: 'Hall maintenance', value: String(parts.hallMaintenance) },
-        ...(parts.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${parts.traitFactor}` }]),
+        // Two factors multiply in floating point (1.1 × 0.9): shown to two places, as a player reads it (M9-F6).
+        ...(parts.traitFactor === 1 ? [] : [{ label: 'Guildmaster’s Traits', value: `×${Number(parts.traitFactor.toFixed(2))}` }]),
       ],
     },
     floor: config.bankruptcyFloor,
     countdown: countdownView(document),
     ledger: {
-      rows: shown.slice(at * historyPageSize, (at + 1) * historyPageSize),
+      rows: shown.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, narration)),
       page: at,
       pages,
       shown: shown.length,

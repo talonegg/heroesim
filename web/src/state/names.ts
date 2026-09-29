@@ -2,7 +2,10 @@
 // ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
 // `trade-views.ts` (DL-73).
 
-import { dayOf, type ContentSet, type Guild, type TraitEffect } from '@heroesim/engine';
+import { dayOf, type ContentSet, type Guild, type QuestBand, type TraitEffect } from '@heroesim/engine';
+
+/** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
+export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
 
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {

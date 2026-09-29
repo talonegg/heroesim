@@ -705,12 +705,10 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
       expect(line.milestone).toBe(entry.milestone);
       if (entry.type === 'quest.resolved') {
         outcomes += 1;
-        const { band, partyId } = entry.payload as { band: keyof typeof bands; partyId: string };
+        const { band } = entry.payload as { band: keyof typeof bands };
         expect(line.outcome).toEqual({ band, words: bands[band] });
-        expect(line.anchor).toBe(`outcome-${partyId}`);
       } else {
         expect(line.outcome).toBeNull();
-        expect(line.anchor).toBeNull();
       }
     }
     expect(outcomes).toBeGreaterThan(0);
