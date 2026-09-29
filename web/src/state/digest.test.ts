@@ -176,6 +176,15 @@ describe('railView', () => {
     expect(railView(initialGameState, 5)).toBeNull();
   });
 
+  test("keys a return's line by its Party, so the key holds as newer lines come in above it (the M9-F5 review)", () => {
+    const written = withReturn(withPartyOut(started('rail-return')), { band: 'success', wealth: 10, xp: 5 });
+    const keyOf = (state: GameState): string | undefined => railView(state, 24)?.lines.find((line) => line.questReturn !== null)?.key;
+    const later = played(written.state, { kind: 'advance', turns: 3 });
+
+    expect(keyOf(written.state)).toBe(`return-${written.party.partyId}`);
+    expect(keyOf(later)).toBe(keyOf(written.state));
+  });
+
   test("gives a Party's return as its one entry, the Loot next after it, and no Encounter (M9-F5)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'success',

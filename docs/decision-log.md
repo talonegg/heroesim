@@ -12030,6 +12030,143 @@ the retirement age from the game's rules, and no filter reads a `questId`.
 (`history.tsx`, `history-entries.tsx`, `game-menu.tsx`, `rail.tsx`, `section.tsx`), `web/src/app.tsx`,
 `web/src/styles.css`, `web/e2e/`; `CONTEXT.md`; `docs/planning/epics/M9-feedback.md`.
 
+## DL-118 — M9-F5 built: a Quest's return read from the History by its Party and Quest, one entry in the rail and the player's Guild's History with its band in bold and a line per Hero, and its Quest report on Guild › Home, where a play that brings a Party home opens
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-F5's implementer. What the page
+does is the owner's (DL-111 items 2 and 3, Q3 and Q7; DL-113 items 1 and 3), on the plan's reading
+(DL-112 item 8). The choices below that the epic left open, and the deviations, are the implementer's,
+and each is marked. The orchestrator asked for the report as its own component and a small change to
+Home, so that the merge with M9-F3 stayed small; M9-F3 (DL-116) was merged into this branch before its
+views were built.
+
+**Context.** M9-F5 builds DL-112 item 8 as DL-113 amends it. It reads what M9-F1 made the engine say (the
+Quest named on the XP, Morale and Regard its return causes, DL-114), puts the report in M9-F2's Guild ›
+Home (DL-115), and builds on M9-F4's scopes (`historyFilter`, `HistoryView.scope`, DL-117). It changes
+nothing in `engine/`, `cli/` or `harness/`: no gap in the engine forced it.
+
+**Decision.**
+
+1. **`questReturn` reads one return by its Party and Quest** (DL-112 item 8), in the new
+   `web/src/state/quest-return.ts`.
+   - *What belongs to it* is what an event says it belongs to (principle 5): every entry naming the Quest,
+     through the History's own index (`entriesFor`). Since M9-F1 that is the Encounters, the consumables
+     used, the outcome, the Loot, the Injuries and Deaths, and the XP, Morale and Regard it caused.
+   - *By Hero and night* (DL-112 item 2): a Level, since `levelUps` runs straight after the return and a
+     Hero away trains for none; and a dead Hero's gear going back that night (`gearReturn`), which names
+     no Quest either. Both are found among the night's entries after the outcome, for the Party's Heroes
+     only. A test states the rule (below).
+   - *What it gives:* the Quest, its Patron (the `quest.offered`'s `patronId`), the Party and the band; the
+     Encounters in the History's words, each with the consumables used on it, and a heal used apart from
+     them; the reward, Wealth, Fame and XP; the Loot; each Hero's outcome; and the Patron's Regard.
+   - *Each Hero's outcome* (the implementer's words): the XP, or a Death with the gear that went back; the
+     Levels reached; the Morale, from before the return's first change to after its last, with its band
+     (the return may move it three times: its Encounters, a strong success, a Death on the Roster); an
+     Injury with the night it heals; and the Regard for each Party mate that crossed a band. Only the
+     Party's Heroes are in it: the Morale a Death costs a Hero at home, which also names the Quest, is in
+     that Hero's own History and not in the report.
+   - *The Patron's Regard* (DL-111 item 3, Q3): the Patron's for the Guild alone, as a band. When the
+     return's `patron.regard-changed` names the Quest, "rose from neutral to warm with this Quest";
+     otherwise, since DL-84 records a crossing only, "did not move into a new band with this Quest: it is
+     warm now", the band now read from the world by the engine's `regardBand` of `patronRegardFor`. Two
+     Parties home the same night for the same Patron each read their own line, by their own Quest. The
+     Guildmaster's Regard is not shown.
+   - *Older saves* (DL-113 item 3): nothing is built. A return written before M9-F1 names its Quest on no
+     Morale or Regard, so its report has no Morale lines and says the Patron's band did not move even
+     where it did. That is accepted with DL-113's answer.
+2. **The report is a list of typed sections** (`reportSections`): the Quest, its Patron and its band;
+   the Encounters; the rewards; the Heroes; the Patron, in DL-112 item 8's order. A section with nothing
+   to say is left out: the Encounters when there are none, the Patron when the History names none. So a
+   later feature adds a section by adding a kind (DL-111 item 3's "further outcomes").
+3. **The report on Guild › Home** (`views/quest-report.tsx`; the layout is the implementer's).
+   - It is a card, "Quest report: Clear the barrow" as its heading, which takes the keyboard. The Quest's
+     band is a chip with an icon and a word, then the Patron, the Party and the night it came home. Each
+     other section has a heading: Encounters, Rewards, Heroes and The Patron. The rewards are chips, and
+     the Loot a line, "No Loot" when there is none.
+   - Names in its lines open whom they name, as the History's do. They are held to 24px high, not 44px,
+     as a name in a History line is (`expectTargets`), since the lines are the History's words.
+   - It takes the "Came home" cards' place: one report for each Party of the player's home in the last
+     play (`returnsIn`). `outcomesView` and its cards are gone.
+   - *An older report* opens from its entry and stands in Home's place, alone, with "Close the report"
+     (the implementer's). Closing it shows Home again, with the keyboard on the Guild's heading. The next
+     play, a new game or a load puts it away.
+4. **The entry** (DL-111 item 2, DL-113 item 1), one shape in the rail and the player's Guild's History
+   (`ReturnEntryParts`).
+   - *The band in bold.* The History's own sentence of the outcome, cut at its band by the narration
+     (`resolvedWords`, which the `quest.resolved` sentence is now made of, so the words cannot drift): the
+     words before it, the band in `<strong>`, then the reward. The chip the History put before an outcome
+     is not drawn on this entry: the bold word says it (the implementer's).
+   - *A line per Hero* behind a disclosure, "2 Heroes": each Hero's name, then what happened to them, as
+     in "Sigbert Fenwick: gained 30 XP; reached Level 2." In the History the name opens the Hero's page; in
+     the rail, as every rail line, it is words.
+   - *"Open the report"* opens it on Guild › Home. The two buttons take their names from `aria-label`
+     ("2 Heroes: how each fared on …", "Open the report: …, Day 4, night"). Chromium put a space before a
+     hidden suffix, which the browser specs caught.
+   - *The Loot is the next entry.* In the History it follows the outcome, as it happened. In the rail,
+     newest first, each Loot is moved to straight after its return, so it is the next line read down
+     (the implementer's).
+   - *No Encounter.* The player's Guild's History, and so the rail and the navigation's count, leave out
+     a return's parts, which its one entry gathers (`partOfAReturn`): its Encounters and the consumables
+     used, its Injuries and Deaths, its Heroes' Levels that night, and the gear of its dead. This goes past
+     DL-111 item 4's list, which names types. It is the implementer's reading of item 2's "one entry"
+     with "each gathers that Hero's XP, Morale and other changes": an Injury, a Death or a Level standing
+     beside the entry would say it twice. A Level gained at the Hall, and an Injury a module inflicts, stay.
+     A Rival's History keeps DL-105's fold of a Party's steps under its outcome. A Hero's own History, the
+     Quest's, the World History and the debug view are unchanged.
+   - A return's rail line is keyed by its Party, so an open disclosure stays with its entry as new lines
+     come in above it (found by the code review, below).
+5. **Where a return opens** (DL-112 item 8).
+   - A play whose events hold a return of the player's, one Turn, several or a fast forward, opens Guild ›
+     Home at the first return's report, with the keyboard on its heading, from whichever view. It is
+     decided in the render the play ends in, as the end of a fast forward is, and after it, so the report
+     wins over the Guild's heading. A refused play changes nothing.
+   - "Read it in the History" goes, and with it the History's start page, which only it used. The Party
+     stop offers no step: the report is under its card. A module's stop keeps "Read what happened".
+   - `pageOfEntry` stays: nothing on the page calls it now, but the History's page-edge tests read every
+     entry's page through it (the implementer's).
+6. **Tests.**
+   - `state/quest-return.test.ts` (new, 12 tests): the five returns the epic names, a strong success with a
+     Level, a failure with an Injury, a Death with its gear returned, a Loot, and two Parties home the same
+     night for the same Patron; the Level matched by Hero and night, DL-112 item 2's test; a return the
+     engine played, read part for part against its History; the report's sections in order and a section
+     left out; the entry; the Guild's History gathering a return's parts; `returnsIn`.
+   - *The returns are written* by `withReturn` in `game.test-support.ts`, in the order the Quest Engine
+     writes them, each entry completed as `emit` completes one. The engine's draws rarely give a Death or a
+     Level, so the outcome is the test's to choose. One test reads a return the engine played.
+   - `views/quest-report.test.tsx` (new): the sections in order, one left out with no gap, the Patron's band
+     moved or now, "Close the report", and two Heroes of one name, which moved here from the outcome cards'
+     test.
+   - `state/history.test.ts`: the player's Guild's scope, exact over seeded games, less the return's parts;
+     the entry on a return's line in that History and in no other. `state/digest.test.ts`: the rail's entry,
+     its Loot next, its key. `views/rail.test.tsx`, `views/history.test.tsx`, `app.test.tsx` (a return opens
+     the report after one Turn and after a fast forward, from the Board and the History; "Open the report"
+     from the History and the rail; Close), `views/guild.test.tsx`.
+   - *A flake explained.* A test that clicks a play, waits for the page to be idle and then reads the
+     keyboard's place can read it before the effect that moves it runs, on a busy machine. The baseline
+     suite showed it once, in `guild.test.tsx`. The tests that read the keyboard after a play now wait for it.
+   - *Browser specs:* `journey.spec.ts` reads the report, the History's entry with its Heroes opened, "Open
+     the report" and Close, and from 1100px the rail's entry, at 360, 820 and 1280. `fast-forward.spec.ts`
+     gains a fast forward from the Board that stops at the report. `support.ts` shares `dispatchAParty`.
+7. **Screenshots** at 360, 820, 1100 and 1280 of the report, the History's entry with its Heroes open and,
+   from 1100, the rail's entry. None scrolls the page sideways. The rail is 336px wide, and the entry, its
+   Heroes open, reaches no further than its edge at 1100 and 1280 (the epic's §5 risk).
+8. **The code review** (`/code-review` medium, over `v1.1-dev...m9-f5`) found one low issue, fixed test
+   first: the rail's lines were keyed by their place in the list, so an open "2 Heroes" could move to
+   another return when a play added lines above it.
+
+**Consequences.**
+- *Superseded:* DL-109 item 3's Q8 for a Party, "Read what happened" reopening the History (as DL-111 said);
+  DL-105's fold of a Party's steps, in the player's Guild's History only (DL-113 item 1); M9-S5's "Read it in
+  the History" on the home view's outcome cards, and the cards.
+- *For M9-F6:* the report and the entry are in the screenshots to take; M9's §3 has no CLI row for them. The
+  CLI's `show history` is unchanged, since the owner asked for the page.
+- *Counts:* 3,333 tests at the start (one known focus flake under load), 3,392 after merging M9-F3, 3,405 after. All 63 browser runs pass.
+
+**Actioned in:** `web/src/state/` (`quest-return.ts`, new; `history.ts`, `digest.ts`, `narrate.ts`,
+`game.test-support.ts`), `web/src/views/` (`quest-report.tsx`, new; `guild.tsx`, `rail.tsx`,
+`history-entries.tsx`, `history.tsx`, `stop.tsx`, `section.tsx`), `web/src/app.tsx`, `web/src/styles.css`,
+`web/e2e/` (`journey.spec.ts`, `fast-forward.spec.ts`, `support.ts`); `CONTEXT.md` (Quest report, History);
+`docs/planning/epics/M9-feedback.md`.
+
 
 ---
 

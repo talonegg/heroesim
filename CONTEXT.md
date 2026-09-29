@@ -239,8 +239,11 @@ Items awarded by a Quest's outcome.
 _Avoid_: Drops, Rewards (for Items), Treasure
 
 **Quest report**:
-What a Party's return tells the Guild, read from the History: each Encounter, the reward and
-the Loot, each Hero's outcome, and the Patron's Regard for the Guild (DL-111; to be built).
+What a Party's return tells the Guild, read from the History: the Quest, its Patron and its band;
+each Encounter with the consumables used; the reward, Wealth, Fame, XP and the Loot; each Hero's
+outcome; and the Patron's Regard for the Guild, the band the Quest moved it into or its band now
+(DL-111, DL-118). Shown on the Guild's Home when a Party comes home, and again from the return's
+entry.
 _Avoid_: Debrief, Summary, Result
 
 **Loot table**:
@@ -308,7 +311,9 @@ Milestones; never bounded, and no entry is dropped (R36). Every discrete change 
 nightly drift, and the changes DL-84 names, are recorded only when they cross a band. The page
 shows a Guild's History with some entries left out, none dropped: the player's Guild's without
 its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
-purchases and sales (DL-111, DL-117). A Hero's, a Guildmaster's and a Patron's leave out nothing.
+purchases and sales (DL-111, DL-117). In the player's Guild's, a Party's return is one entry, its
+Encounters, Injuries, Deaths and its Heroes' Levels that night gathered under it (DL-118). A Hero's,
+a Guildmaster's and a Patron's leave out nothing.
 _Avoid_: Event log, Journal, Audit trail
 
 **World History**:

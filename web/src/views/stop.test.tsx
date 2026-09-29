@@ -105,3 +105,16 @@ describe('a Quest to staff (M9-S7, #32)', () => {
     expect(onGo).toHaveBeenCalledWith('board');
   });
 });
+
+describe("a Party's return and a module's stop (M9-F5, DL-112 item 8)", () => {
+  test('the Party stop offers nothing more: its report is under it on Guild › Home; a module’s stop keeps "Read what happened"', () => {
+    card({ kind: 'party-returned', sentence: "Stopped: The Lantern's Party came home." });
+    expect(screen.queryByRole('button', { name: 'Read what happened' })).toBeNull();
+    expect(screen.queryAllByRole('button')).toHaveLength(0);
+    cleanup();
+
+    const { onGo } = card({ kind: 'module', sentence: 'Stopped: the probe module asked to stop.' });
+    fireEvent.click(screen.getByRole('button', { name: 'Read what happened' }));
+    expect(onGo).toHaveBeenCalledWith('history');
+  });
+});

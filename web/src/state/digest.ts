@@ -149,6 +149,8 @@ export function railView(state: Pick<GameState, 'document' | 'log'>, limit = rai
       const resolved = entry.type === 'quest.resolved' ? (entry as EngineEventOf<'quest.resolved'>).payload : null;
       return {
         ...line,
+        // A return's line keeps its key as newer lines come in above it, and with it the state of its disclosure.
+        key: resolved === null ? line.key : `return-${resolved.partyId}`,
         fresh: fresh.has(entry),
         questReturn: resolved === null ? null : returnEntry(document, { partyId: resolved.partyId, questId: resolved.questId }),
       };

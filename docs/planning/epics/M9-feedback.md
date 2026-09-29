@@ -415,27 +415,48 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
 
 **Acceptance:**
 
-- [ ] `questReturn` gives every part above for:
+- [x] `questReturn` gives every part above for:
   - a strong success with a Level;
   - a failure with an Injury;
   - a Death with its gear returned;
   - a Loot;
   - two Parties home the same night for the same Patron, each with its own Regard line.
 
-  Tested in `state/quest-return.test.ts`.
-- [ ] The report's sections come in order, and one section's absence leaves no gap.
-- [ ] The report says the Patron's band moved, or gives it now — `views/quest-report.test.tsx`.
-- [ ] The entry is one in the rail and in the Guild's History: the band bold, a line per Hero
+  Tested in `state/quest-return.test.ts` ("questReturn (M9-F5)": 'a strong success with a Level…',
+  'a failure with an Injury…', 'a Death with its gear returned…', 'a Loot…', 'two Parties home the
+  same night for the same Patron…'; with 'a Level is matched by Hero and night (DL-112 item 2)…', the
+  test DL-112 asks for, and 'a return the engine played: every part is its History's…') (DL-118 item 1)
+- [x] The report's sections come in order, and one section's absence leaves no gap —
+      `state/quest-return.test.ts` ("the report's sections", two tests), `views/quest-report.test.tsx`
+      ('its sections come in order…', 'a section with nothing to say is not drawn, and leaves no gap…')
+      (DL-118 item 2)
+- [x] The report says the Patron's band moved, or gives it now — `views/quest-report.test.tsx` ('says
+      the Patron's Regard for the Guild moved into a new band with this Quest, or gives its band now')
+- [x] The entry is one in the rail and in the Guild's History: the band bold, a line per Hero
       behind a disclosure, the Loot the next entry, and no Encounter —
-      `views/rail.test.tsx`, `views/history.test.tsx`.
-- [ ] A play that brings a Party home opens Guild › Home at its report, from the Board and the
-      History, after one Turn and after a fast forward — `app.test.tsx`, `views/stops.test.tsx`.
-- [ ] "Open the report" on an older entry shows it on Guild › Home, and closing it returns to Home —
-      `app.test.tsx`.
-- [ ] The Party stop has no "Read what happened"; a module's stop keeps it.
-- [ ] `e2e/journey.spec.ts` sends a Party, plays it home, reads the report, and opens the entry's
-      Heroes, at a phone's width and a desktop's. `fast-forward.spec.ts` stops at the report.
-- [ ] DL-118 records the choices.
+      `views/rail.test.tsx` ("a Party's return in the rail": 'is one entry…'), `views/history.test.tsx`
+      ("a Party's return in the player's Guild's History": 'is one entry…'); `state/digest.test.ts` (the
+      rail's entry, its Loot next, its key), `state/history.test.ts` ("…leaves out exactly … and a
+      return's parts (M9-F5)", "a return's line carries its entry…") (DL-118 item 4)
+- [x] A play that brings a Party home opens Guild › Home at its report, from the Board and the
+      History, after one Turn and after a fast forward — `app.test.tsx` ("a Party's return opens its
+      report on Guild › Home": 'after one Turn, from the %s…' and 'after a fast forward, from the %s…',
+      each from the Board and the History; 'a play that brings no Party home leaves the view where it
+      was'), `views/guild.test.tsx` ('the end of a fast forward… at the report of a Party home'). The
+      tests are in `app.test.tsx` rather than `views/stops.test.tsx`, beside the shell's other ways in.
+      (DL-118 item 5)
+- [x] "Open the report" on an older entry shows it on Guild › Home, and closing it returns to Home —
+      `app.test.tsx` ('"Open the report" on an older entry shows it on Guild › Home; closing it returns
+      to Home', '"Open the report" in the rail shows it on Guild › Home too'), `views/history.test.tsx`,
+      `views/quest-report.test.tsx` ('an older report has a way to close it')
+- [x] The Party stop has no "Read what happened"; a module's stop keeps it — `views/stop.test.tsx`
+      ("a Party's return and a module's stop"), `views/history.test.tsx` ('the rail opens the History…;
+      a Party home opens Guild › Home at its report'), `views/world.test.tsx` (a module's stop, unchanged)
+- [x] `e2e/journey.spec.ts` sends a Party, plays it home, reads the report, and opens the entry's
+      Heroes, at a phone's width and a desktop's (and a tablet's; from 1100px the rail's entry too).
+      `fast-forward.spec.ts` stops at the report ("a Party's return stops a fast forward at its Quest
+      report on Guild › Home, from the Board") — all 63 browser runs pass.
+- [x] DL-118 records the choices.
 
 ### M9-F6 · The close · 1 session · opus
 
