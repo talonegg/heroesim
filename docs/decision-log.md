@@ -10884,6 +10884,232 @@ order the questions were put; DL-108 item 12's number follows in brackets.
 
 **Actioned in:** this entry. The build follows in DL-110.
 
+## DL-110 — DL-109 items 1 and 2 built: a drawn Guildmaster's Traits as one whole legal set by the same draws, Well liked and Thrifty at 378 and 379 of 5,000, the 50 × 20 sweep run again with 134 Rival folds, and the page's eight changes with a Party kept off the Board and Recruit disabled
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, the implementer of DL-109's
+items 1 and 2. What is built is the owner's (DL-109). Every mechanism, word and place below that
+DL-109 left open is the implementer's, and stands unless the owner objects.
+
+**Context.** DL-109 gave the owner's answers to M9's open questions. Its items 1 and 2 are built
+before `v1.1.0`, on `v1.1-dev` from `c972fc9`, test first. At `c972fc9` the suite held 3,231 tests
+and the browser specs 51. The close's sweep (DL-108 item 3, `harness/reports/m9-close-2026-09-29.md`)
+had 161 Rival folds, no player ending, `guild.below-floor` 977 and `guild.floor-recovered` 813, and
+the fingerprint `4e77b3c6…6219eeb`.
+
+**Decision.**
+
+1. **A drawn Guildmaster's Traits are one whole legal set** (DL-109 item 1; `drawTraits` in
+   `engine/src/generators/guilds.ts`, `bf36654`).
+   - *The count.* It is drawn as before: one draw from `guildmasterTraitsMin` to `Max`, held to the
+     number of Guildmaster Traits.
+   - *The legal sets* (`legalTraitSets`). They are the sets of that many distinct Guildmaster
+     Traits (`guildmasterTraitsOf(content)`) with no excluded pair, either way, and a total cost
+     within `guildmasterTraitBudget`. They are enumerated in the content's Trait order (key order),
+     each set's Traits in that order, and the sets in the order of their first difference. An
+     excluded pair prunes the enumeration; the cost is judged on the whole set, since penalties make
+     a running cost no guide.
+   - *The rule when none has the count* (recorded here, as the brief asked). The largest smaller
+     size that has a legal set is drawn from. The empty set is always legal, whatever the budget,
+     even a budget below 0. So a count of 6 at the core's values draws one of the two legal sets of
+     four, since no five are free of an excluded pair. At a budget of −3, a count of 3 draws one of
+     the two pairs that cost −3, and no single Trait is cheap enough.
+   - *The draw.* One set is drawn uniformly from those of the size reached.
+   - *The draws taken stay fixed* (DL-102 item 5, draw.ts's rule). There is one for the count, then
+     one for each Guildmaster Trait but the last, as DL-19's shuffle took. The first of these picks
+     the set, and the rest are spent (`pickInDraws` in `generators/draw.ts`, which replaces
+     `pickOrNone`, whose only caller this was). With one Guildmaster Trait or none there is no draw
+     after the count, as before, and at most one legal set of each size.
+   - *What a Guildmaster holds.* The set's Traits are held in key order. Before, they were held in
+     the order drawn.
+   - *What stays.* The budget stays 1 and the costs stay DL-100 item 3's. The player's own chosen
+     Traits are untouched. A player who leaves them "drawn from the seed" gets this draw, as founders,
+     Rival replacements and successors do.
+   - *Versions.* No new field and no new content, so `configVersion` stays 11, the content version
+     15 and the save schema 4. A save made before keeps its Guildmasters' Traits as drawn. A
+     replacement or a successor drawn in it later draws by this rule.
+   - *Cost.* The draw runs only when a Guildmaster is made. With the core's six Traits and at most
+     two held, it looks at 22 sets at the most: 15 pairs, 6 singles and the empty set. Nothing is
+     added to a Turn.
+   - *Tests.* `generators/guilds.test.ts`:
+     - 1,800 drawn with a count of 2 hold exactly the nine legal pairs, each between 140 and 260
+       times; a Trait at a time gave Mistrusts magic beside Thrifty one time in twenty;
+     - the Traits are held in key order;
+     - a count no legal set has falls to a smaller size, and the empty set is always legal;
+     - 17 draws are taken at the defaults, at a count of 6 and at a budget of −4;
+     - content with one Guildmaster Trait takes no draw after the count.
+
+     `create.test.ts`:
+     - every Guildmaster of 40 seeded worlds, the player's left to the draw among them, holds a
+       legal set in key order, and all six Traits are drawn among them;
+     - each of those worlds equals the one drawn with every Trait free of cost and exclusion, but for
+       the Guildmasters' Traits.
+
+     The four tests of the draw's behaviour failed against `c972fc9`'s `guilds.ts` and `draw.ts`.
+2. **Nothing else in a seed moves.** 1,000 created worlds (`seed-0001` to `seed-1000`, the
+   harness's setup) were serialised at `c972fc9` and at `bf36654`.
+   - *With every Guildmaster's Traits blanked* they are byte-identical, `meta` included. Names,
+     sexes, ages, Stats, Heroes, Quests, Patrons and every stream are unchanged.
+   - *The Traits* changed for 1,439 of the 5,000 Guildmasters, in 804 of the 1,000 seeds. For 1,378
+     the set changed; for 61 only the order (item 1). The player's Guildmaster changed in 284 seeds.
+   - *The counts are unchanged* (1,639 with none, 1,677 with one, 1,684 with two). The one-Trait
+     Guildmasters are unchanged too: the four legal singles are what the first slot could take, and
+     they are drawn by the same draw.
+3. **The new shares, over the same 5,000 Guildmasters** (DL-102 item 17's measure).
+   - *At `c972fc9`,* DL-102's figures again: Mistrusts magic 1,259, Old soldier 1,235, Spendthrift
+     1,080, Miser 1,046, Well liked 224 and Thrifty 201. The mean cost was −0.685.
+   - *Now:* Mistrusts magic 1,369, Spendthrift 1,005, Miser 960, Old soldier 954, Thrifty 379 and
+     Well liked 378. The mean cost is −0.566.
+   - *So Well liked and Thrifty rise* from about a quarter of their share before the budget (830 and
+     852) to about 45% of it. Each of the nine legal pairs is drawn 154 to 214 times of 1,684.
+   - *Against the arithmetic.* A count of 0, 1 or 2 is equally likely, and there are four legal
+     singles and nine legal pairs. That gives each buff 2/27 of 5,000, 370, and a mean cost of
+     −5/9, −0.556. The measure agrees.
+   - *Drawn Guildmasters still lean to penalties,* as DL-109 item 1 keeps the budget at 1 so that
+     buffs need penalties. The costs now fall 0 for 2,163, 1 for 815, −1 for 799, −2 for 822 and −3
+     for 401.
+4. **The 50 × 20 sweep, run again** at `bf36654`, the page's work not yet begun, on the quiet
+   machine. `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-answers npm run harness`, 16 processes, not
+   validated. Its report is `harness/reports/m9-answers-2026-09-29.md`, force-added as the close's
+   was.
+   - *What held.* All 50 games ran their 20 years, with no player ending. There were no
+     Successions and no refused policy action. `seed-0001` replayed identical (103,734,506
+     characters), and 50 of 50 saves round trip.
+   - *What changed:*
+
+     | Measure | The close | Now |
+     | --- | ---: | ---: |
+     | Rival folds, all by Bankruptcy | 161 | 134 |
+     | `guild.below-floor`, all the Rivals' | 977 | 843 |
+     | `guild.floor-recovered`, all the Rivals' | 813 | 706 |
+
+     The fingerprint is `34636bfd4f52426828941496419e7b0f52c92c33e2c9a69b74266785d373d11b`.
+   - *Every difference is item 1's.* Between `c972fc9` and `bf36654` only the Trait draw changed
+     play: `config.ts` changed in comments alone, and `web/` was untouched. Created worlds differ in
+     the Guildmasters' Traits alone (item 2). Those Traits set Upkeep (Thrifty, Spendthrift), the
+     Guild's Morale (Well liked, Miser) and a Class's Stat (Old soldier, Mistrusts magic), so each
+     game played from them is another game from its first Upkeep on. Over seeds 1 to 50:
+
+     | The Rivals' 200 founding Guildmasters | The close | Now |
+     | --- | ---: | ---: |
+     | Spendthrift | 40 | 34 |
+     | Miser | 32 | 29 |
+     | Thrifty | 11 | 16 |
+     | Well liked | 10 | 12 |
+     | Mean cost | −0.510 | −0.410 |
+
+     - *Founders.* 57 of the 200 changed. Dearer Upkeep and lower Morale are rarer, which fits 27
+       fewer Bankruptcies and 134 fewer falls below the floor.
+     - *The player's Guildmaster* changed in 19 of the 50 seeds, and the mean cost rose from −0.88 to
+       −0.56.
+     - *Replacements.* Each Rival founded to replace a fold draws by the new rule too.
+     - *Every other counter moves with the games.* Examples: Rival-to-Rival Transfers, 175 to 282,
+       with more Rivals in play and out of debt; Quests taken; Injuries and deaths.
+   - *Its time is the machine's.* The run took 630.4 s, the games 483.3 s, with `advance` at 3.500 ms
+     a Turn (p99 7.455). The close's took 936.9 s at 6.542 ms. Item 1 adds no work to a Turn (item 1,
+     *Cost*), and DL-108 item 5's A/B measured 3.3 to 3.5 ms a Turn for M9, with four processes. The close's figure is
+     taken to be the machine's state then; it is not explained further. Single test files ran now
+     and then during this run, and nothing else.
+5. **The page's eight changes** (DL-109 item 2, `84fec07`), each tested first at its seam.
+   - *Q7.* The fast-forward option reads "Fast forward until a Quest you can staff appears"
+     (`views/status-bar.tsx`). `engine/src/stops.ts` keeps DL-85 item 8's quoted words.
+     - *Tests:* `views/stops.test.tsx`, two tests renamed and reworded.
+     - *The epic's §3 table row* is amended to the new words and the renamed test.
+   - *Q9.* The Quest card's Fame chip reads "Fame ±2", its title "Won on a success, lost on a
+     failure" (`views/board.tsx`).
+     - *Tests:* `views/board.test.tsx` 'is two lines…'.
+   - *Q11.* The Board's order is kept in this browser under `heroesim.boardOrder`, read and written
+     by `remembered.ts` as the pool's and the Rankings' are. An unknown value, or a browser that
+     refuses its storage, gives the Board as posted. It holds from game to game, as theirs do.
+     - *Tests:* `views/board.test.tsx`, the order test extended, and 'a browser that keeps a Board
+       order it does not know, or refuses its storage, shows the Board as posted'.
+   - *Q14.* A Rival's routine does not fold in a Hero's own History (`state/history.ts`). It still
+     folds in a Guild's History and in the whole History.
+     - *The implementer's choice:* a Guildmaster's and a Patron's Histories fold as before, since
+       DL-109 names a Hero's alone.
+     - *Tests:* `state/history.test.ts`, "a Hero's own History, where a Rival's routine does not
+       fold": a Rival's busiest Hero over 240 Turns has no folded line, though their History holds
+       groups a Guild's History would fold. Their Guild's History and the whole History still fold.
+   - *Q16.* The Party chosen and not sent is lifted from the Board into the shell. It is kept by
+     Quest in `state/party-choices.ts` (`PartyChoices`, `choiceFor`, `withChoice`,
+     `standingChoices`), held in `app.tsx`.
+     - *What each choice holds:* the Heroes ticked and the consumables' numbers, one choice per
+       Quest. Another Quest's builder starts empty, and the first's stays as it was.
+     - *When it goes.* A choice stands while its Quest is on the Board. A Party sent takes its Quest
+       off the Board, and so do the Quest's last Day passing and a Rival taking it, so the choice
+       goes with it. A refused dispatch keeps it. A new game or a load clears them all, since a new
+       game's Quests reuse the same ids.
+     - *What the builder shows* is still judged afresh by `partyRows` and `consumableChoices`: a
+       Hero who can no longer go is not sent, and no more of a consumable than is held.
+     - *Tests:* `state/party-choices.test.ts`, two tests. `views/board.test.tsx`, "a Party chosen
+       and not sent", four tests: kept across views; kept for each Quest; gone when the Quest
+       leaves the Board; gone when another game is started with the same seed.
+   - *Q17.* Recruit is disabled for a Hero whom `signingRefusal` says will not sign. This is the
+     pool row's own `willSign` (`poolView`). The row's "Signs" cell, "needs Fame 30", describes the
+     disabled button (`aria-describedby`).
+     - *The implementer's choice:* the Hero's page opened from the pool disables its Recruit too,
+       beside its "Signs for your Guild: needs Fame 30." `heroPage`'s pool actions gain
+       `willSign`, from the same `signingRefusal` already called there. Nothing else of C9 is built.
+     - *Tests:* `views/roster.test.tsx`, the rows test extended, and "a Hero's page opened from the
+       pool disables Recruit…". `state/selectors.test.ts`, the Hero's actions test extended.
+   - *Q20.* The Bankruptcy card's step reads "Sell what the Guild holds" and opens the Hall's "What
+     the Guild holds", where Sell is (`views/stop.tsx`, target `held`).
+     - *When the Guild holds nothing,* that part is not drawn (DL-103), so the step opens the Hall
+       at its heading, the shell's fallback.
+     - *Tests:* `views/stop.test.tsx` and `views/stops.test.tsx`, the Sell step tests reworded,
+       the latter with two healing draughts held.
+   - *Q22.* Before any field of the new-game form is touched, it says "Name your Guild and its
+     Guildmaster to start." in place of a refusal (`setupNotice` and `setupHint` in
+     `state/setup.ts`).
+     - *Touched* means any change in the form: typed, chosen or ticked (the form's `onChange`).
+       After that, the engine's refusal shows as before.
+     - *The hint's style.* It is a hint, not a warning: `.form__hint`, soft ink, with the About
+       icon, and `data-testid="setup-hint"`.
+     - *"Start the game"* stays disabled while the engine would refuse, and is described by
+       whichever is shown.
+     - *Tests:* `state/setup.test.ts`, one test. `views/new-game.test.tsx`, the refusal test
+       extended.
+   - *The help sentences* (`views/section.tsx`) follow:
+     - the Board's says its order is kept and a Party chosen and not sent is kept;
+     - the History's says a Rival's routine folds save in a Hero's own History;
+     - the pool's says Recruit is disabled for one who will not sign;
+     - the home view's names the ways to sell what the Guild holds and to the Board.
+6. **The browser specs.** `web/e2e/party-and-pool.spec.ts` is new, at all three widths:
+   - an empty form's hint, then the refusal once a field is touched (Q22);
+   - a Party with a bought consumable kept across the Roster and the Hall (Q16);
+   - Recruit disabled for a pool Hero set to Level 4 in an exported save loaded back, on the row and
+     on their page (Q17).
+
+   `fast-forward.spec.ts`'s Bankruptcy test buys an Item first, and its Sell step now focuses "What
+   the Guild holds" (Q20).
+7. **Plan §2's releases paragraph** carries DL-109 item 5, marked as amended by DL-109. The v1.0
+   line is never deployed again once `v1.1.0` is live, and a fix after it goes out as v1.1.x.
+   Its M9 row notes the answers built. `docs/requirements.md` R8's note records the whole-set draw.
+
+**Consequences.**
+- *Play changes once more inside `v1.1.0`.* Every seed's drawn Guildmasters change as item 2 says,
+  and the games with them. The 50 × 20 fingerprint for the release is `34636bfd…d11b`, with 134
+  Rival folds.
+- *Tests.* The suite grew from 3,231 tests to 3,247 (5 for item 1, 11 for item 2) in 132 files. The
+  browser specs grew from 51 to 60. Lint and the typecheck are clean, the bundle gate passes, and
+  every browser spec passes on port 4184.
+- *Versions unchanged:* `configVersion` 11, content 15, schema 4.
+- *For the owner.*
+  - The four choices named above: the Hero's page's Recruit disabled too (Q17); a Guildmaster's
+    and a Patron's Histories still folding (Q14); the Sell step's fallback to the Hall (Q20); and
+    what counts as touched (Q22).
+  - The sweep's time against the close's (item 4).
+- *What is left:* the release, M9-S9 (#37), on the owner's go-ahead (DL-108 item 13). `v1.1-dev` is
+  not pushed.
+
+**Actioned in:** `engine/src/generators/guilds.ts`, `engine/src/generators/draw.ts`,
+`engine/src/config.ts` (comments), `engine/src/generators/guilds.test.ts`, `engine/src/create.test.ts`;
+`web/src/app.tsx`, `web/src/state/` (`party-choices.ts`, `history.ts`, `selectors.ts`, `setup.ts`
+and their tests), `web/src/views/` (`board.tsx`, `pool.tsx`, `hero-page.tsx`, `stop.tsx`,
+`status-bar.tsx`, `new-game.tsx`, `section.tsx`, `remembered.ts` and their tests),
+`web/src/styles.css`; `web/e2e/party-and-pool.spec.ts`, `web/e2e/fast-forward.spec.ts`;
+`harness/reports/m9-answers-2026-09-29.md`; `docs/plan.md` §2, `docs/requirements.md` R8,
+`docs/planning/epics/M9-redesign.md` §3.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

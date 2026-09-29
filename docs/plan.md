@@ -79,7 +79,7 @@ rather than investigated beforehand.
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | Done 2026-09-27 (`m6-rivals`) |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | Done 2026-09-27 (`m7-web`); the twenty-year save measure left to the owner |
 | M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | Done 2026-09-28 (`m8-modules`); the first build's 1,000 × 20 tagged run in DL-81 |
-| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108); release pending: `m9-redesign` and `v1.1.0` wait for the owner's go-ahead (M9-S9, #37) |
+| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108), with the owner's answers built (DL-109, DL-110); release pending: `m9-redesign` and `v1.1.0` wait for the owner's go-ahead (M9-S9, #37) |
 
 The first build is complete: M8 was tagged `m8-modules` on 2026-09-28. The next work is Random
 Events (§4): the first real module, and the test of whether the module contract fits a real
@@ -96,7 +96,7 @@ ending", now says a game played to an ending or to its twentieth year, and the y
 twentieth are outside what the harness measures. The owner's decision, where the agents recommended a small full-length run
 to the ending at each close.
 
-**Releases after the first build** (amended 2026-09-28, DL-86). The first build is released as
+**Releases after the first build** (amended 2026-09-28, DL-86; 2026-09-29, DL-109). The first build is released as
 `v1.0.0`, tagged at `m8-modules`. New work is on `v1.1-dev` and is released by merging into
 `v1.1-release`; milestone tags continue (`m9-random-events`); `v1.0-dev` and `v1.0-release` are
 frozen but for v1.0.x hotfix releases, each committed on `v1.0-dev`, tagged on `v1.0-release`
@@ -136,6 +136,11 @@ addresses at both widths.
 
 The order is the owner's decision. The branch and tag names are an agent's proposal (DL-99
 item 10).
+
+*Amended 2026-09-29 (DL-109).* The v1.0 line is never deployed again once `v1.1.0` is live. A
+Worker has no branches, so a v1.0.x deploy would replace v1.1 at the workers.dev address. A fix
+after `v1.1.0` goes out as v1.1.x on the v1.1 branches, merged forward, which amends DL-91 item 4's
+flow for v1.0 from then on. The owner's decision (DL-109 item 5).
 
 ## 3. Increments
 
