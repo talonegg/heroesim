@@ -8,12 +8,12 @@ release. These are:
 - the Guild view in four parts, Home, Hall, Stores and Treasury;
 - the Market and the Guildmaster as views of their own, and the Hall view gone;
 - "Age", "Male" and "Female" capitalised;
-- every Guildmaster from 21.
+- every Guildmaster 21 to 50 at the start and retiring at 61, with the page saying when (DL-113).
 
 M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
 
-**Sessions:** 8–10.5 · **Depends on:** M9-S1 to M9-S8 and DL-110 (`v1.1-dev` at `d476deb`) ·
-**Implements:** DL-111 and DL-112.
+**Sessions:** 8.5–11 · **Depends on:** M9-S1 to M9-S8 and DL-110 (`v1.1-dev` at `d476deb`) ·
+**Implements:** DL-111, DL-112 and DL-113.
 
 **Gate:**
 - Each of DL-111's nine points is met, and a test drives each through the page's own controls, or
@@ -30,18 +30,23 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
     sideways scroll of the page.
   - The journeys pass through them.
   - Every CLI command's row in M9's §3 is ticked again against its new place.
-- *Every Guildmaster is 21 to 45 at the start* under `configVersion` 12. A 50 × 20 sweep is recorded
-  against `d476deb`'s, with every difference explained by the ages and the new `questId`s.
+- *Every Guildmaster is 21 to 50 at the start and retires at 61,* under `configVersion` 12.
+  - The setup form and the Guildmaster view say when.
+  - A 50 × 20 sweep, with the player's Guildmaster at 30, is recorded against `d476deb`'s. Every
+    difference is explained by the ages, the Successions and the new `questId`s.
+  - A Succession probe, a Rival Guildmaster at 50 over 12 years, is recorded.
 
-**Status:** planned — 2026-09-29 (DL-112). No story has started. The plan waits for the owner's
-approval.
+**Status:** approved as amended — 2026-09-29 (DL-112, DL-113). No story has started, and the build
+starts on the owner's word.
 
 ## 0. What lands
 
 - **The engine** (M9-F1).
   - The Quest is named on what its return causes.
   - Upkeep's parts and Day are exported.
-  - `guildmasterStartingAgeMin` 21, `configVersion` 12.
+  - Every Guildmaster 21 to 50, retiring at 61, `configVersion` 12; a Guildmaster's Retirement Turn
+    exported.
+  - The harness's player at 30, and the Succession probe's option.
   - The CLI's words.
 - **The navigation** (M9-F2). Seven views: Guildmaster, Guild (Home and Hall; Stores and Treasury
   from M9-F3), Roster, Board, Market, Rankings and History. There is one order at every width, the
@@ -55,6 +60,9 @@ approval.
     `show history` is unchanged, since the owner asked for the page.
   - Autosave, keyboard shortcuts and C9 stay after M9 (DL-99, DL-108).
   - Random Events stays M10 on v1.2.
+  - Moving gear from one Hero to another in one step, from Stores, is later work, a candidate for
+    v1.2 (DL-113 item 2).
+  - Nothing is built for older saves beyond what exists (DL-113 item 3).
 
 **Rules that bind every story.** M9's rules hold unchanged: the web computes no rule (ADR-0007);
 the page requests nothing (principle 12, R38); Potential is never rendered; `CONTEXT.md`'s words;
@@ -69,7 +77,7 @@ accessibility; tests before code at the seams; green at each boundary.
 
 ## 1. Stories
 
-### M9-F1 · The engine: the Quest named on its return, Upkeep's parts and Day, every Guildmaster from 21, and the CLI's words · 1–1.5 sessions · opus
+### M9-F1 · The engine: the Quest named on its return, Upkeep's parts and Day, every Guildmaster 21 to 50 and retiring at 61, the harness's ages, and the CLI's words · 1.5–2 sessions · opus
 
 - *The Quest named* (DL-112 item 2).
   - The optional `questId`, in `engine/src/events.ts`:
@@ -86,12 +94,23 @@ accessibility; tests before code at the seams; green at each boundary.
     total.
   - `nextUpkeepDay` gives the Day, and `phases/guild-state.ts` reads the same rule.
   - Both are exported from the engine's index.
-- *Every Guildmaster from 21* (DL-111 item 10).
-  - `guildmasterStartingAgeMin` 21, `configVersion` 12 (`engine/src/config.ts`), and the tests
-    pinned to 11 move.
+- *Every Guildmaster 21 to 50, retiring at 61* (DL-113 item 4).
+  - In `engine/src/config.ts`: `guildmasterStartingAgeMin` 21, `guildmasterStartingAgeMax` 50,
+    `guildmasterRetirementAge` 61, and `configVersion` 12.
+  - The tests that pin them move: the three pinned to `configVersion` 11, `endings.test.ts`'s
+    Retirement at 65, the Guild generator's range, and the five literal "30 to 45"s.
   - R8 is amended (`docs/requirements.md`), with a note beside INPUTS-REQUIRED 3.13 and 4.10.
+- *A Guildmaster's Retirement Turn* (DL-113 item 5).
+  - A function beside `ageOf` gives the Turn on which a Guildmaster reaches
+    `guildmasterRetirementAge`.
+  - `endingOf` (`engine/src/phases/endings.ts`) reads the same rule, and the engine's index exports
+    it for the page.
+- *The harness's ages* (DL-113 items 6 and 7).
+  - `harnessSetup` sets `guildmasterAge` to 30 (`harness/src/creation.ts`).
+  - A Succession probe option sets the first Rival's Guildmaster, in id order, to 50 at founding,
+    and reports as DL-113 item 7 says.
 - *The CLI's words.*
-  - The usage says "21 to 45" (`cli/src/args.ts`).
+  - The usage says "21 to 50" (`cli/src/args.ts`).
   - `renderHero` and `renderGuildmaster` capitalise the Sex values (`cli/src/render.ts`).
 - *Scope.* This story touches `engine/`, `cli/`, `harness/` and the docs above. It leaves
   `web/src/views/` alone.
@@ -104,18 +123,22 @@ accessibility; tests before code at the seams; green at each boundary.
       `morale.test.ts`, `hero-regard.test.ts`.
 - [ ] Nothing else moves. For the same seed, the History's entries keep their number, order, types
       and every other field; only the new field and participants differ — a test over seeded games.
-- [ ] A save written at `d476deb` loads under schema 4, plays on, and adopts `configVersion` 12
-      through the rules notice.
 - [ ] Both front ends narrate the events as before. Their narration tests over the union pass
       unchanged.
 - [ ] `upkeepParts` sums to `upkeep()` for every Guild over seeded worlds. `nextUpkeepDay` is the
       night the Guild-state phase charges Upkeep — `selectors.test.ts`, `phases/guild-state.test.ts`.
-- [ ] Setup accepts an age of 21 and refuses 20, with the same refusal as before. Drawn founders,
-      replacements and successors span 21 to 45 over 1,000 worlds, and the number of draws is
-      unchanged — `create.test.ts`, `generators/guilds.test.ts`.
-- [ ] The CLI prints "Male" and "Female", and its usage says 21 to 45 — `cli/src/render.test.ts`,
+- [ ] Setup accepts ages 21 and 50 and refuses 20 and 51, with the same refusal as before. Drawn
+      founders, replacements and successors span 21 to 50 over 1,000 worlds, and the number of
+      draws is unchanged — `create.test.ts`, `generators/guilds.test.ts`.
+- [ ] A Guildmaster founded at 50 retires on the first night they are 61, the Turn the new function
+      gives. A Rival's is succeeded then, and the player's ends the game —
+      `phases/endings.test.ts`.
+- [ ] Every sweep game's player's Guildmaster is 30. The Succession probe, over a few seeds, shows
+      one Succession for each game whose first Rival is still in play at 61 —
+      `harness/src/*.test.ts`.
+- [ ] The CLI prints "Male" and "Female", and its usage says 21 to 50 — `cli/src/render.test.ts`,
       `cli/src/main.test.ts`.
-- [ ] DL-113 records the choices.
+- [ ] DL-114 records the choices.
 
 ### M9-F2 · Seven views: the Guildmaster, the Guild in parts, the Market; the Hall view gone; one order at every width; the page's words · 1.5–2 sessions · opus
 
@@ -147,6 +170,10 @@ accessibility; tests before code at the seams; green at each boundary.
     "Age 18 · Male".
   - The Sex values are capitalised on the Hero's page and the Guildmaster view.
   - Ages inside sentences stay lowercase.
+- *When the Guildmaster retires* (DL-113 item 5).
+  - The setup form's Age field says "Retires at 61", from the config.
+  - The Guildmaster view gives the Retirement, its Day and the years left, from M9-F1's Retirement
+    Turn.
 - *Scope.* `web/src/views/`, `web/src/app.tsx`, `web/src/styles.css`, `web/e2e/`, and
   `web/src/state/` for the words only.
 
@@ -169,9 +196,12 @@ accessibility; tests before code at the seams; green at each boundary.
 - [ ] "Age" and the Sex values are capitalised where item 9 says, and the sentences keep "age" —
       `state/selectors.test.ts`, `state/world-views.test.ts`, `views/hero-page.test.tsx`,
       `views/roster.test.tsx`.
+- [ ] The setup form says "Retires at 61". The Guildmaster view gives the Retirement's Day and the
+      years left, read from the engine — `state/selectors.test.ts`, `views/new-game.test.tsx`,
+      `views/guildmaster.test.tsx`.
 - [ ] `e2e/support.ts` is changed first. `journey`, `layout` (no sideways scroll at 360, 820 and
       1280), `fast-forward` and `party-and-pool` pass through the new views.
-- [ ] DL-114 records the choices.
+- [ ] DL-115 records the choices.
 
 ### M9-F3 · Stores and Treasury · 1.5–2 sessions · opus
 
@@ -216,7 +246,7 @@ Depends on M9-F1 for Upkeep's parts and Day, and on M9-F2 for the Guild's parts.
 - [ ] The Treasury part's filters and totals work, and the Hall no longer has the Upkeep sentence —
       `views/treasury.test.tsx`, `views/hall.test.tsx`.
 - [ ] A journey step opens Stores and Treasury at a phone's width and a desktop's.
-- [ ] DL-115 records the choices.
+- [ ] DL-116 records the choices.
 
 ### M9-F4 · The History's scopes: the Guilds' filters, the World History, the debug view · 1–1.5 sessions · opus
 
@@ -252,7 +282,7 @@ M9-F5.
 - [ ] The game menu's debug view shows every entry with its type, and folds nothing —
       `views/history.test.tsx`, `views/game-menu.test.tsx`.
 - [ ] The World History's entries in a year of a sweep game are counted and recorded in the DL.
-- [ ] DL-116 records the choices.
+- [ ] DL-117 records the choices.
 
 ### M9-F5 · A Quest's return: one entry, and its report on Guild › Home · 2–2.5 sessions · opus
 
@@ -268,7 +298,7 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
     heals, or a Death; and Regard with Party mates on a band change;
   - the Patron's Regard for the Guild: moved into a new band, or its band now.
 
-  A return from before M9-F1 gives no Morale or Regard lines.
+  Nothing is built for a return from before M9-F1 (DL-113 item 3).
 - *The report* is a list of typed sections, in DL-112 item 8's order, drawn on Guild › Home.
   - It takes the "Came home" cards' place, one for each Party home in the last play.
   - An older report opens from its entry, with a way to close it.
@@ -292,8 +322,7 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
   - a failure with an Injury;
   - a Death with its gear returned;
   - a Loot;
-  - two Parties home the same night for the same Patron, each with its own Regard line;
-  - a return from a save made at `d476deb`.
+  - two Parties home the same night for the same Patron, each with its own Regard line.
 
   Tested in `state/quest-return.test.ts`.
 - [ ] The report's sections come in order, and one section's absence leaves no gap.
@@ -308,29 +337,34 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
 - [ ] The Party stop has no "Read what happened"; a module's stop keeps it.
 - [ ] `e2e/journey.spec.ts` sends a Party, plays it home, reads the report, and opens the entry's
       Heroes, at a phone's width and a desktop's. `fast-forward.spec.ts` stops at the report.
-- [ ] DL-117 records the choices.
+- [ ] DL-118 records the choices.
 
 ### M9-F6 · The close · 1 session · opus
 
 - [ ] A code review over the follow-on (`/code-review high`), with every finding fixed test first
       where there is a seam.
-- [ ] A 50 × 20 sweep against `d476deb`'s (`34636bfd…d11b`, 134 Rival folds). Every difference is
-      explained by the Guildmasters' ages (retirements, Successions, and the Rivals kept by them)
-      and by the new `questId`s. It is recorded in `harness/reports/`.
+- [ ] A 50 × 20 sweep, with the player's Guildmaster at 30, against `d476deb`'s (`34636bfd…d11b`,
+      134 Rival folds). Every difference is explained by the Guildmasters' ages (Retirements,
+      Successions, and the Rivals kept by them) and by the new `questId`s. It is recorded in
+      `harness/reports/`.
+- [ ] The Succession probe: a Rival Guildmaster at 50, over 50 seeds × 12 years (DL-113 item 7).
+      It is recorded in `harness/reports/`, with what item 7 lists.
 - [ ] Screenshots of every view and every Guild part at 360, 820 and 1280, with no sideways scroll
       and the heights recorded.
 - [ ] M9's §3 is ticked again against the new places.
 - [ ] Lint, the typecheck, the suite, the bundle gate and every browser spec pass.
-- [ ] This epic's boxes are ticked, §4 is corrected, and DL-118 is written.
+- [ ] This epic's boxes are ticked, §4 is corrected, and DL-119 is written.
 
-M9-S9, the release, follows on the owner's go-ahead, with DL-119.
+M9-S9, the release, follows on the owner's go-ahead, with DL-120.
 
 ## 2. Configuration, content and events
 
-- `guildmasterStartingAgeMin` 30 → 21, `configVersion` 11 → 12 (M9-F1).
+- `guildmasterStartingAgeMin` 30 → 21, `guildmasterStartingAgeMax` 45 → 50,
+  `guildmasterRetirementAge` 65 → 61, `configVersion` 11 → 12 (M9-F1, DL-113 item 4).
 - Events: an optional `questId` on four types, and the Quest a participant of five (M9-F1). No new
   event type.
-- Engine exports: `upkeepParts` and `nextUpkeepDay` (M9-F1).
+- Engine exports: `upkeepParts`, `nextUpkeepDay` and a Guildmaster's Retirement Turn (M9-F1).
+- The harness: `harnessSetup.guildmasterAge` 30, and the Succession probe's option (M9-F1).
 - Content stays at 15 and the save schema at 4.
 
 ## 3. The CLI table's rows that move
@@ -344,19 +378,21 @@ These rows of M9's §3 are ticked again at M9-F6 against their new places:
 | `show guildmaster` | The Hall view's "Guildmaster" | The Guildmaster view |
 | `show roster` | "What the Guild holds" in the Hall | Guild › Stores, for everything the Guild owns |
 | `show history [entityId]` | "The whole History" among the choices | "The world" among the choices, and the whole History in the game menu's debug view |
-| `new --age` | "Age" (30 to 45) | "Age" (21 to 45) |
+| `new --age` | "Age" (30 to 45) | "Age" (21 to 50), "Retires at 61" |
 
 ## 4. Decision numbers
 
 - DL-111: the owner's nine points and eight answers.
 - DL-112: this plan.
-- DL-113: M9-F1.
-- DL-114: M9-F2.
-- DL-115: M9-F3.
-- DL-116: M9-F4.
-- DL-117: M9-F5.
-- DL-118: the close, M9-F6.
-- DL-119: the release, M9-S9.
+- DL-113: the plan approved as amended, with the owner's answers on DL-112's readings and the
+  Guildmasters' ages.
+- DL-114: M9-F1.
+- DL-115: M9-F2.
+- DL-116: M9-F3.
+- DL-117: M9-F4.
+- DL-118: M9-F5.
+- DL-119: the close, M9-F6.
+- DL-120: the release, M9-S9.
 
 ## 5. Risks
 
@@ -368,7 +404,11 @@ These rows of M9's §3 are ticked again at M9-F6 against their new places:
   1100px. M9-F5's screenshots check it.
 - *The World History's size.* Every Guild's Quests, taken and resolved, are most of it. It is paged
   by 20, and M9-F4 records a year's count.
-- *Succession all but leaves the sweep.* With founders at 21 to 45, only one drawn at 45 reaches 65
-  within twenty years. Tests make it happen, and the close says how many the sweep shows.
-- *Older saves.* Their returns from before M9-F1 have no Morale or Regard lines. A fixture from
-  `d476deb` tests it.
+- *The sweep changes more than before.* Under the old ages no founder retired within twenty years, so
+  `d476deb`'s sweep had no Succession. Founders drawn at 42 to 50, about 30% of the founding
+  Rivals, now retire within twenty years, and each successor starts with Regard neutral. The
+  close's comparison has to explain those differences, and the probe shows a Succession on its own.
+- *A game's length follows the Guildmaster's age.* A player who chooses or draws 50 has 11 years
+  before Retirement ends the game; one at 21 has 40. The page says so (M9-F2).
+- *Older saves.* Nothing is built for them (DL-113 item 3). A save that adopts the new rules sees
+  any Guildmaster aged 61 to 64 retire that night.

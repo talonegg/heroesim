@@ -11379,6 +11379,133 @@ code needs for them, which was checked before the questions were put.
 **Actioned in:** `docs/planning/epics/M9-feedback.md`; `docs/planning/epics/M9-redesign.md` (status,
 M9-S9), `docs/planning/epics/README.md`, `docs/plan.md` §2 and §4.
 
+## DL-113 — The follow-on's plan approved as amended: DL-112's readings confirmed, every Guildmaster 21 to 50 and retiring at 61, a Succession probe of a Rival Guildmaster at 50 over 12 years, Stores read only for now, older saves not a priority in the 1.x line, and the stories renumbered
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** the owner, on the agent's analysis.
+- *Owner-decided.* Items 1 to 4 and 7 are the owner's answers.
+- *Agent-recommended, owner-approved.* Items 5 and 6 are the agent's recommendations, which the
+  owner approved with the plan.
+
+The owner asked for the documents and the plan to be updated, committed and pushed. The build
+starts on their word (item 8).
+
+**Context.** DL-112 left seven readings for the owner to confirm. The agent put them as a list, and
+the owner answered each one.
+
+Their answer on Succession ("a dummy 45-year-old Rival Guildmaster") led the agent to check the
+sweep. It found that DL-111 item 10 was wrong:
+- *The claim.* Only a founder drawn at 45 reaches 65 within twenty years.
+- *The fact.* None does. Age is the age at entry plus whole years of 1,080 Turns, so a founder at
+  45 turns 65 on Turn 21,600. The 20-year sweep never plays that Turn, as DL-34 already noted.
+- *The evidence.* M9's close sweep (DL-108) and DL-110's both record 0 Successions.
+
+With that shown, the owner changed the ages and the probe.
+
+**Decision.**
+
+1. **DL-112's readings are confirmed** (the owner):
+   - *The side navigation's order:* Guildmaster, Guild, Roster, Board, Rankings, Market and History
+     (DL-112 item 5).
+   - *The report's rewards* include the Wealth paid (item 8).
+   - *No Encounter under a return in the Guild's History* (item 8). This supersedes, there, DL-105's
+     fold of a Party's steps under its outcome.
+   - *The World History* (item 7) leaves out `guild.below-floor` and takes `world.created` and
+     `world.rules-adopted`.
+2. **Stores is read only "for now"** (the owner; DL-112 item 6).
+   - *Later.* Moving gear from one Hero to another in one step, from Stores, is future work, a
+     candidate for the v1.2 line.
+   - *Today.* It takes two plays on the Heroes' pages: unequip, then equip.
+3. **Older saves are not a priority in the 1.x line** (the owner). The follow-on builds nothing for
+   them.
+   - *What goes.* M9-F1's box for a save written at `d476deb`, and M9-F5's return from such a save.
+   - *What stays.* The save schema stays 4, `questId` stays optional, and the rules notice still
+     offers the new rules.
+   - *What follows, accepted with this answer:* a save that adopts `configVersion` 12 sees any
+     Guildmaster already aged 61 to 64 retire that night. If the Guildmaster is the player's, the
+     game ends.
+4. **Every Guildmaster is 21 to 50 at the start and retires at 61** (the owner). This supersedes
+   DL-111 item 10.
+   - *The rule.*
+     - `guildmasterStartingAgeMin` goes from 30 to 21, and `guildmasterStartingAgeMax` from 45 to
+       50.
+     - `guildmasterRetirementAge` goes from 65 to 61.
+     - All under the one rise to `configVersion` 12.
+   - *Who.* The player's choice at setup, and every drawn Guildmaster: Rivals' founders, their
+     replacements and successors.
+   - *What follows* (the agent's analysis, put to the owner before they approved):
+     - A Guildmaster founded at age A retires after 61 − A years. At 50 that is 11 years; at 21 it
+       is 40.
+     - So a player's age at setup sets how long their game can last. The old ranges gave at least
+       20 years.
+     - Within twenty years, founders drawn at 42 to 50 retire, about 30% of the founding Rivals.
+       Succession returns to the sweep.
+     - Each Rival succeeds at most once in that time: a successor would have to start at 53 or
+       older to retire again.
+   - *What it amends:*
+     - R8's "30 to 45";
+     - DL-19's range, and DL-28 item 10's 65;
+     - DL-88 item 3's range;
+     - INPUTS-REQUIRED 3.13 and 4.10.
+
+     M9-F1 amends R8 and adds notes beside the two INPUTS rows, together with the code.
+5. **The player is told when their Guildmaster retires** (the agent's recommendation, approved by
+   the owner).
+   - *On the setup form,* the Age field says "Retires at 61".
+   - *On the Guildmaster view,* a line gives the Guildmaster's retirement, when it will come and in
+     how many years.
+   - *The rule's source.* M9-F1 exports the Turn of a Guildmaster's Retirement from the engine, and
+     `endingOf` reads the same rule, so the page computes nothing (ADR-0007). M9-F2 shows it.
+6. **The sweep's player's Guildmaster is 30** (the agent's recommendation, approved by the owner).
+   - *The setting.* `harnessSetup` sets `guildmasterAge` to 30.
+   - *Why.* Every sweep game can then run its twenty years. With a drawn age, about 30% of them
+     would end in Retirement between years 11 and 19.
+   - *Why 30.* Any age up to 41 plays the same, since age decides nothing but Retirement.
+   - *What stays.* The Rivals keep their draws. The player's Retirement ending stays covered by the
+     engine's tests.
+7. **A Succession probe: a Rival Guildmaster at 50, over 12 years** (the owner). It replaces the
+   agent's proposal of a 45-year-old over 21 years.
+   - *The setup.* The harness sets the first Rival's Guildmaster, in id order, to 50 at founding.
+     It plays 50 seeds for 12 years.
+   - *When.* The Guildmaster turns 61 on about Turn 11,880, leaving the last year to show the
+     successor.
+   - *The report gives:*
+     - the Successions and their Turns;
+     - the Rival's Roster, Wealth, Fame and Hall across its Succession;
+     - the Regard held for the Guild through its Guildmaster, neutral with the successor;
+     - the Rival's folds in the year after, beside the other Rivals'.
+   - *It is test-only.*
+     - No player's world holds this Guildmaster.
+     - The 50 × 20 sweep and its comparison with `d476deb` do not use it.
+     - 50 is inside the new range, so the age is a legal one, set rather than drawn.
+   - *Where it is built.*
+     - M9-F1 builds the option, with a harness test over a few seeds.
+     - M9-F6 runs it, and records it in `harness/reports/` and its DL.
+8. **The plan is approved as amended here, and the build waits for the owner's word.**
+   - *Decision numbers.* These supersede DL-112 item 11: M9-F1 is DL-114, M9-F2 DL-115, M9-F3
+     DL-116, M9-F4 DL-117, M9-F5 DL-118, M9-F6 DL-119, and the release DL-120.
+   - *Sessions.* The follow-on is re-estimated at 8.5 to 11:
+     - M9-F1 grows, taking the Retirement Turn, the harness's age and the probe's option.
+     - M9-F5 loses the older save.
+
+**Consequences.**
+- *Superseded:*
+  - DL-111 item 10 (21 to 45);
+  - DL-112 item 4's rule, though its words stand;
+  - DL-112 item 11's numbers;
+  - DL-28 item 10's Retirement age of 65.
+- *Corrected:* DL-111 item 10's and the epic's claim that a founder at 45 reaches 65 within twenty
+  years.
+- *Versions after the follow-on* are unchanged from DL-112: `configVersion` 12, content 15,
+  schema 4.
+- *The tests that move in M9-F1* are:
+  - the three that pin `configVersion` 11;
+  - `endings.test.ts`'s Retirement at 65;
+  - the Guild generator's pinned range;
+  - the five that hold the literal "30 to 45".
+
+**Actioned in:** `docs/planning/epics/M9-feedback.md`; `docs/planning/epics/M9-redesign.md` (M9-S9's
+DL), `docs/planning/epics/README.md`, `docs/plan.md` §2.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
