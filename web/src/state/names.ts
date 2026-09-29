@@ -2,7 +2,7 @@
 // ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
 // `trade-views.ts` (DL-73).
 
-import { dayOf, type ContentSet, type DescriptiveAttribute, type Guild, type TraitEffect } from '@heroesim/engine';
+import { dayOf, type ContentSet, type Guild, type TraitEffect } from '@heroesim/engine';
 
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
@@ -52,13 +52,6 @@ export const transferCostWords = 'Their gear stays with your Guild, and the Hero
 export function signed(n: number): string {
   return n > 0 ? `+${n}` : String(n);
 }
-
-/** Each descriptive Attribute's label (M9-S2, `CONTEXT.md`): the CLI's `show guildmaster` words. */
-export const attributeLabels: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
-  birthplace: 'Birthplace',
-  appearance: 'Appearance',
-  biography: 'Biography',
-});
 
 /**
  * A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`,

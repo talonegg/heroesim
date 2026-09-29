@@ -2,7 +2,7 @@
 // typed data; this says it in the CLI's words, naming the flag to change. The names and the
 // Background keep the words `new` gave them before M9-S2.
 
-import { sexes, type ContentSet, type DescriptiveAttribute, type SetupRefusal, type Trait } from '@heroesim/engine';
+import { guildmasterTraitsOf, sexes, type ContentSet, type DescriptiveAttribute, type SetupRefusal, type Trait } from '@heroesim/engine';
 
 /** The flag that sets each descriptive Attribute. */
 const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
@@ -19,9 +19,7 @@ function costWords(trait: Pick<Trait, 'cost'>): string {
 
 /** Every Guildmaster Trait by key, with its name and cost: `miser (Miser, refunds 2)`, in key order. */
 export function guildmasterTraitChoices(content: Pick<ContentSet, 'traits'>): string {
-  return Object.values(content.traits)
-    .filter((trait) => trait.owner === 'guildmaster')
-    .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0))
+  return guildmasterTraitsOf(content)
     .map((trait) => `${trait.key} (${trait.name}, ${costWords(trait)})`)
     .join(', ');
 }

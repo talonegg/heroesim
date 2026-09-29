@@ -21,6 +21,7 @@ import {
   type World,
 } from '../document.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
+import { guildmasterTraitsOf } from '../guildmaster.js';
 import { int, pick } from '../rng.js';
 import {
   checkName,
@@ -288,7 +289,7 @@ function drawGuildName(state: Stream, names: readonly string[], guilds: readonly
  * Traits changed with the budget (DL-102).
  */
 function drawTraits(state: Stream, config: GameConfig, content: ContentSet): TraitKey[] {
-  const rows = sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+  const rows = guildmasterTraitsOf(content);
   const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, rows.length);
   const held: Trait[] = [];
   let cost = 0;

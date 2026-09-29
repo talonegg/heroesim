@@ -22,6 +22,7 @@ import {
   compareByCodeUnit,
   dayOf,
   defaultConfig,
+  descriptiveAttributeLabels,
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
   durationDaysOf,
@@ -29,6 +30,7 @@ import {
   entriesFor,
   guildmasterOf,
   guildmasterTraitCost,
+  guildmasterTraitsOf,
   holdings,
   itemDefinition,
   judgedHintBands,
@@ -86,7 +88,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { attributeLabels, capitalised, nameIn, nightOf, placeWords, rowOf, signed, traitEffectWords, transferCostWords } from './names';
+import { capitalised, nameIn, nightOf, placeWords, rowOf, signed, traitEffectWords, transferCostWords } from './names';
 import { listed, narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
@@ -1044,9 +1046,7 @@ export interface GuildmasterSetupChoices {
  * through `newGameRefusal`; this only says what there is to choose.
  */
 export function guildmasterSetupChoices(set: ContentSet = content, config: GameConfig = defaultConfig): GuildmasterSetupChoices {
-  const traits = Object.values(set.traits)
-    .filter((trait) => trait.owner === 'guildmaster')
-    .sort((a, b) => compareByCodeUnit(a.key, b.key));
+  const traits = guildmasterTraitsOf(set);
   return {
     sexes,
     ageMin: config.guildmasterStartingAgeMin,
@@ -1062,7 +1062,7 @@ export function guildmasterSetupChoices(set: ContentSet = content, config: GameC
     })),
     attributes: descriptiveAttributes.map((attribute) => ({
       attribute,
-      label: attributeLabels[attribute],
+      label: descriptiveAttributeLabels[attribute],
       maxLength: descriptiveAttributeMaxLength[attribute],
     })),
   };

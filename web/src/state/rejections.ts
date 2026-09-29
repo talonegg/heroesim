@@ -9,6 +9,7 @@
 
 import {
   dayOf,
+  descriptiveAttributeLabels,
   playerGuild,
   sexes,
   type ContentSet,
@@ -21,7 +22,6 @@ import {
   type Unavailability,
   type World,
 } from '@heroesim/engine';
-import { attributeLabels } from './names';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -207,7 +207,7 @@ const sentences: Sentences = {
   'newGame over-budget': ({ cost, budget }) =>
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>
-    `The ${attributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
+    `The ${descriptiveAttributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
   'load malformed-json': ({ message }) => `Cannot load the save: ${message}.`,
   'load not-a-document': ({ message }) => `Cannot load the save: ${message}.`,
   'load unsupported-version': ({ message }) => `Cannot load the save: ${message}.`,

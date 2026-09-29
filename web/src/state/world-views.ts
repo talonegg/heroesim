@@ -15,6 +15,7 @@ import {
   baseStat,
   compareByCodeUnit,
   dayOf,
+  descriptiveAttributeLabels,
   descriptiveAttributes,
   facilityKeys,
   guildmasterOf,
@@ -38,7 +39,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { attributeLabels, capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
+import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
 import { playDeps } from './reducer';
 import { facilityNames } from './rejections';
 
@@ -260,7 +261,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
       ['Age', String(ageOf(guildmaster, world.turn, config))],
       // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
       ...descriptiveAttributes.flatMap((attribute): [string, string][] =>
-        guildmaster[attribute] === '' ? [] : [[attributeLabels[attribute], guildmaster[attribute]]],
+        guildmaster[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], guildmaster[attribute]]],
       ),
     ],
     stats: Object.values(content.stats)

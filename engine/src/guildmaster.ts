@@ -13,8 +13,9 @@
 // Guildmaster Stat has no effect; one the row lacks reads as the content's default (rule 5).
 
 import type { GameConfig, PotentialHint } from './config.js';
-import type { ClassKey, ContentSet, StatKey, TraitEffect } from './content-types.js';
+import type { ClassKey, ContentSet, StatKey, Trait, TraitEffect } from './content-types.js';
 import type { Guild, Guildmaster, World } from './document.js';
+import { sortedRows } from './generators/draw.js';
 import { baseStat } from './selectors.js';
 
 /** The content key of the Stat each Guildmaster rule reads (R8 as renamed by pre-M0 review D4). */
@@ -25,6 +26,15 @@ export const guildmasterStatKeys = Object.freeze({
   influence: 'influence',
   judgement: 'judgement',
 } as const);
+
+/**
+ * Every Guildmaster Trait of `content`, in key order (M9-S2): those a drawn Guildmaster's are drawn
+ * from, and a setup may choose from, as the front ends list them (the M9 review). A Hero's Trait is
+ * not among them.
+ */
+export function guildmasterTraitsOf(content: Pick<ContentSet, 'traits'>): Trait[] {
+  return sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+}
 
 /** The Guildmaster rules, each named after the Stat it reads. */
 export type GuildmasterRule = keyof typeof guildmasterStatKeys;

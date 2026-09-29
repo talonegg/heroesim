@@ -5,7 +5,7 @@ import type { GameConfig } from './config.js';
 import type { ContentSet, TraitKey } from './content-types.js';
 import type { Guild, Guildmaster, Hero, HeroId, Patron, Quest, World } from './document.js';
 import type { EngineEvent } from './events.js';
-import { guildmasterStatKeys, judgedHintBands, type GuildmasterRule } from './guildmaster.js';
+import { guildmasterStatKeys, guildmasterTraitsOf, judgedHintBands, type GuildmasterRule } from './guildmaster.js';
 import { moraleBaselineFor } from './morale.js';
 import { guildState } from './phases/guild-state.js';
 import { phaseContext } from './phases/phase.js';
@@ -305,5 +305,20 @@ describe('the Guildmaster Trait effects, each through the selector it lives in a
     const plain = withTraits([]);
     const unknown = withTraits(['luck-of-the-draw', 'scarred']);
     expect(traitFootprint(unknown.world, unknown.guild)).toEqual(traitFootprint(plain.world, plain.guild));
+  });
+});
+
+describe('guildmasterTraitsOf (the M9 review)', () => {
+  test("gives every Guildmaster Trait of the content in key order, whatever the content's order, and no Hero Trait", () => {
+    expect(guildmasterTraitsOf(testContent).map((trait) => trait.key)).toEqual([
+      'miser',
+      'mistrusts-magic',
+      'old-soldier',
+      'spendthrift',
+      'thrifty',
+      'well-liked',
+    ]);
+    expect(guildmasterTraitsOf(testContent)[0]).toBe(testContent.traits.miser);
+    expect(guildmasterTraitsOf({ traits: {} })).toEqual([]);
   });
 });

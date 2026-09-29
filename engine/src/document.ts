@@ -295,6 +295,16 @@ export const descriptiveAttributeMaxLength: Readonly<Record<DescriptiveAttribute
   biography: 1000,
 });
 
+/**
+ * Each descriptive Attribute's name, as `CONTEXT.md` gives it and both front ends show it beside the
+ * text: a name of the engine's own field, not a sentence, which no rule reads (the M9 review).
+ */
+export const descriptiveAttributeLabels: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
+  birthplace: 'Birthplace',
+  appearance: 'Appearance',
+  biography: 'Biography',
+});
+
 /** A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot. */
 export interface Hero {
   id: HeroId;
