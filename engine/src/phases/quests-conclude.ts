@@ -11,7 +11,9 @@
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
 // Regard for each other, the Encounters' Regard (`outcome.regardDelta`) with it, once for the
-// Quest (M4-S4, hero-regard.ts, events only on a band crossing); the survivors are free again
+// Quest (M4-S4, hero-regard.ts, events only on a band crossing); every event of the XP, Morale and
+// Regard the return causes names the Quest, in its payload and as a participant, so the Quest's own
+// History holds its whole return (M9-F1, DL-112 item 2); the survivors are free again
 // (`partyId: null`); the consumables the Party used are expended, each an `item.expended` after the
 // Encounters, and the rest go home to the Guild's holding (M5-S3, DL-50); and the Party and the
 // Quest rows go, the History keeping their record. Every Guild alike (ADR-0002 as amended by
@@ -109,7 +111,7 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     events.push(
       emit({
         type: 'hero.xp-gained',
-        participants: [hero.id],
+        participants: [hero.id, quest.id],
         payload: { heroId: hero.id, questId: quest.id, amount: outcome.xpPerHero },
       }),
     );
@@ -117,12 +119,12 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
 
   if (outcome.moraleDelta !== 0) {
     for (const hero of survivors) {
-      events.push(changeMorale(hero, outcome.moraleDelta, 'encounters', config, emit));
+      events.push(changeMorale(hero, outcome.moraleDelta, 'encounters', config, emit, quest.id));
     }
   }
   if (outcome.band === 'strong') {
     for (const hero of survivors) {
-      events.push(changeMorale(hero, config.moraleOnStrongSuccess, 'strong-success', config, emit));
+      events.push(changeMorale(hero, config.moraleOnStrongSuccess, 'strong-success', config, emit, quest.id));
     }
   }
   // Each Death costs every Hero left on the Roster, those away on other Quests included.
@@ -130,18 +132,20 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     for (const heroId of guild.rosterIds) {
       const mate = row(world.heroes, heroId);
       if (mate.diedOnTurn !== null || mate.retiredOnTurn !== null) continue;
-      events.push(changeMorale(mate, config.moraleOnRosterDeath, 'roster-death', config, emit));
+      events.push(changeMorale(mate, config.moraleOnRosterDeath, 'roster-death', config, emit, quest.id));
     }
   }
 
   // Regard the outcome moves: the Patron's for the Guild, the Guildmaster's for the Patron and for
   // each Hero home on the Roster (M4-S5, regard.ts).
   const home = survivors.filter((hero) => guild.rosterIds.includes(hero.id)).map((hero) => hero.id);
-  const resolved = { patronId: quest.patronId, guild, heroIds: home, succeeded: outcome.band !== 'fail' };
+  const resolved = { questId: quest.id, patronId: quest.patronId, guild, heroIds: home, succeeded: outcome.band !== 'fail' };
   events.push(...regardOnQuestResolved(world, ctx, resolved));
   // Regard between the Heroes who came home alive, each for each other, once for the Quest, the
   // Encounters' Regard in the same change; the dead take no part (M4-S4, hero-regard.ts, DL-46).
-  events.push(...regardOnSharedQuest(survivors, ctx, { succeeded: outcome.band !== 'fail', regardDelta: outcome.regardDelta }));
+  events.push(
+    ...regardOnSharedQuest(survivors, ctx, { questId: quest.id, succeeded: outcome.band !== 'fail', regardDelta: outcome.regardDelta }),
+  );
 
   for (const hero of survivors) hero.partyId = null;
   // M5-S3: what the Party carried and did not use goes home to the Guild's holding.

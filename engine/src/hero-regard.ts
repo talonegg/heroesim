@@ -28,6 +28,7 @@ import {
   type EntityId,
   type Hero,
   type HeroId,
+  type QuestId,
   type RegardEntry,
   type RegardMap,
   type Turn,
@@ -68,12 +69,13 @@ export function sharedQuestRegardDelta(
  * home alive, in Party order, gains `sharedQuestRegardDelta` Regard for each other of them, in Party
  * order, held inside the scale, with `since` tonight and `reason` `quest.resolved`, even when the
  * change is 0 (they shared the Quest; the decay reads it). `hero.regard-changed` for each change
- * that crosses a band, and nothing else. Fewer than two Heroes share nothing.
+ * that crosses a band, naming the Quest `questId` (M9-F1, DL-112 item 2), and nothing else. Fewer
+ * than two Heroes share nothing.
  */
 export function regardOnSharedQuest(
   heroes: readonly Hero[],
   ctx: HeroRegardContext,
-  { succeeded, regardDelta }: { succeeded: boolean; regardDelta: number },
+  { questId, succeeded, regardDelta }: { questId: QuestId; succeeded: boolean; regardDelta: number },
 ): EngineEvent[] {
   if (heroes.length < 2) return [];
   const delta = sharedQuestRegardDelta(succeeded, regardDelta, ctx.config);
@@ -82,7 +84,7 @@ export function regardOnSharedQuest(
     for (const other of heroes) {
       if (other.id === hero.id) continue;
       const change = adjustRegard(hero.regard, other.id, delta, ctx.turn, 'quest.resolved', ctx.config);
-      events.push(...heroRegardChanged(ctx, hero.id, other.id, 'shared-quest', change));
+      events.push(...heroRegardChanged(ctx, hero.id, other.id, 'shared-quest', change, questId));
     }
   }
   return events;
@@ -133,16 +135,26 @@ export function decayHeroRegard(hero: Hero, world: Pick<World, 'heroes'>, ctx: H
   return events;
 }
 
-/** `hero.regard-changed` for `change`, when it crossed a band; nothing otherwise. */
+/**
+ * `hero.regard-changed` for `change`, when it crossed a band; nothing otherwise. `questId`, given for
+ * a shared Quest's change, is named in the payload and as a participant (M9-F1).
+ */
 export function heroRegardChanged(
   ctx: Pick<HeroRegardContext, 'emit'>,
   heroId: HeroId,
   entityId: EntityId,
   cause: HeroRegardCause,
   change: RegardChange,
+  questId?: QuestId,
 ): EngineEvent[] {
   if (!crossedBand(change)) return [];
-  return [ctx.emit({ type: 'hero.regard-changed', participants: [heroId, entityId], payload: { heroId, entityId, cause, ...change } })];
+  return [
+    ctx.emit({
+      type: 'hero.regard-changed',
+      participants: questId === undefined ? [heroId, entityId] : [heroId, entityId, questId],
+      payload: { heroId, entityId, cause, ...(questId === undefined ? {} : { questId }), ...change },
+    }),
+  ];
 }
 
 // ── Relationship: computed, never stored ─────────────────────────────────────────────────────

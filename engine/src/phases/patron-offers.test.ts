@@ -59,10 +59,10 @@ function yearOfOffers(seed: string): { failing: number; succeeding: number } {
     for (const questId of [...world.board]) {
       const quest = world.quests[questId];
       if (quest === undefined || (quest.patronId !== failing.id && quest.patronId !== succeeding.id)) continue;
+      const succeeded = quest.patronId === succeeding.id;
+      regardOnQuestResolved(world, morning, { questId, patronId: quest.patronId, guild, heroIds: [], succeeded });
       world.board = world.board.filter((id) => id !== questId);
       delete world.quests[questId];
-      const succeeded = quest.patronId === succeeding.id;
-      regardOnQuestResolved(world, morning, { patronId: quest.patronId, guild, heroIds: [], succeeded });
     }
     world.turn = 3 * day + 2;
     patronState(world, phaseContext(world, deps));

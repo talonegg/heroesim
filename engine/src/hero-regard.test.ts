@@ -6,7 +6,7 @@ import { advance } from './advance.js';
 import type { EngineDeps, GameConfig } from './config.js';
 import type { ContentSet } from './content-types.js';
 import { createWorld } from './create.js';
-import { makeId, type Guild, type GuildId, type Hero, type HeroId, type Party, type Quest, type RegardMap, type World, type WorldDocument } from './document.js';
+import { makeId, type Guild, type GuildId, type Hero, type HeroId, type Party, type Quest, type QuestId, type RegardMap, type World, type WorldDocument } from './document.js';
 import type { EngineEventOf, EngineEventType, TurnEvent } from './events.js';
 import {
   decayHeroRegard,
@@ -155,6 +155,7 @@ describe('Regard between Heroes on shared Quests', () => {
     const guild = playerGuild(document.world) as Guild;
     const [a, b] = guild.rosterIds as [HeroId, HeroId];
     const resolvedOn: number[] = [];
+    const questOn: QuestId[] = [];
     const crossings: EngineEventOf<'hero.regard-changed'>[] = [];
 
     for (let quest = 1; quest <= 10; quest += 1) {
@@ -165,6 +166,7 @@ describe('Regard between Heroes on shared Quests', () => {
       const resolved = ofType(home.events, 'quest.resolved');
       expect(resolved.map((event) => event.payload.band)).toEqual(['strong']);
       resolvedOn.push(sent.party.returnsOnTurn);
+      questOn.push(sent.party.questId);
       crossings.push(...ofType(home.events, 'hero.regard-changed'));
     }
 
@@ -174,11 +176,13 @@ describe('Regard between Heroes on shared Quests', () => {
     expect(regardValue(hero(world, b).regard, a)).toBe(15);
     expect(regardBand(relationship(a, b, world, deps.config), deps.config)).toBe('close');
     const at = (n: number) => resolvedOn[n - 1];
+    // Each crossing names the Quest that made it (M9-F1).
+    const q = (n: number) => questOn[n - 1] as QuestId;
     expect(crossings.map(({ turn, participants, milestone, payload }) => ({ turn, participants, milestone, payload }))).toEqual([
-      { turn: at(3), participants: [a, b, guild.id], milestone: false, payload: { heroId: a, entityId: b, cause: 'shared-quest', before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' } },
-      { turn: at(3), participants: [b, a, guild.id], milestone: false, payload: { heroId: b, entityId: a, cause: 'shared-quest', before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' } },
-      { turn: at(8), participants: [a, b, guild.id], milestone: false, payload: { heroId: a, entityId: b, cause: 'shared-quest', before: 10.5, after: 12, bandBefore: 'warm', bandAfter: 'close' } },
-      { turn: at(8), participants: [b, a, guild.id], milestone: false, payload: { heroId: b, entityId: a, cause: 'shared-quest', before: 10.5, after: 12, bandBefore: 'warm', bandAfter: 'close' } },
+      { turn: at(3), participants: [a, b, q(3), guild.id], milestone: false, payload: { heroId: a, entityId: b, cause: 'shared-quest', questId: q(3), before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' } },
+      { turn: at(3), participants: [b, a, q(3), guild.id], milestone: false, payload: { heroId: b, entityId: a, cause: 'shared-quest', questId: q(3), before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' } },
+      { turn: at(8), participants: [a, b, q(8), guild.id], milestone: false, payload: { heroId: a, entityId: b, cause: 'shared-quest', questId: q(8), before: 10.5, after: 12, bandBefore: 'warm', bandAfter: 'close' } },
+      { turn: at(8), participants: [b, a, q(8), guild.id], milestone: false, payload: { heroId: b, entityId: a, cause: 'shared-quest', questId: q(8), before: 10.5, after: 12, bandBefore: 'warm', bandAfter: 'close' } },
     ]);
     // In the History too, and nowhere else.
     expect((document.history.byType['hero.regard-changed'] ?? []).map((position) => document.history.entries[position]?.turn)).toEqual(
@@ -278,22 +282,23 @@ describe('regardOnSharedQuest', () => {
     for (const row of Object.values(world.heroes)) row.regard = {};
     const guild = world.guilds[ids.playerGuild] as Guild;
     const heroes = guild.rosterIds.map((id) => hero(world, id)) as [Hero, Hero, Hero];
-    return { document, world, heroes };
+    return { document, world, heroes, questId: ids.takenQuest };
   }
 
-  test('emits hero.regard-changed only for a change that crosses a band, one for each Hero whose Regard crossed', () => {
+  test('emits hero.regard-changed only for a change that crosses a band, one for each Hero whose Regard crossed, naming the Quest (M9-F1)', () => {
     const deps = soloDeps();
-    const { document, world, heroes } = scene();
+    const { document, world, heroes, questId } = scene();
     const [a, b, c] = heroes;
     a.regard[b.id] = { value: 3, since: 0, reason: 'quest.resolved' };
     const ctx = phaseContext(world, deps);
 
-    const events = regardOnSharedQuest([a, b, c], ctx, { succeeded: true, regardDelta: 0 });
+    const events = regardOnSharedQuest([a, b, c], ctx, { questId, succeeded: true, regardDelta: 0 });
 
     // a's for b goes 3 to 4.5, into warm; every other goes 0 to 1.5, staying neutral.
     expect(events.map((event) => [event.type, event.payload])).toEqual([
-      ['hero.regard-changed', { heroId: a.id, entityId: b.id, cause: 'shared-quest', before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' }],
+      ['hero.regard-changed', { heroId: a.id, entityId: b.id, cause: 'shared-quest', questId, before: 3, after: 4.5, bandBefore: 'neutral', bandAfter: 'warm' }],
     ]);
+    expect(events[0]?.participants).toEqual([a.id, b.id, questId, a.guildId]);
     for (const [holder, other, value] of [[a, c, 1.5], [b, a, 1.5], [b, c, 1.5], [c, a, 1.5], [c, b, 1.5]] as const) {
       expect(holder.regard[other.id]).toEqual({ value, since: world.turn, reason: 'quest.resolved' });
     }
@@ -302,17 +307,17 @@ describe('regardOnSharedQuest', () => {
 
   test("holds Regard inside the scale, and a Party of one shares nothing", () => {
     const deps = soloDeps();
-    const { world, heroes } = scene();
+    const { world, heroes, questId } = scene();
     const [a, b] = heroes;
     a.regard[b.id] = { value: 19.5, since: 0, reason: 'quest.resolved' };
     const ctx = phaseContext(world, deps);
 
-    regardOnSharedQuest([a, b], ctx, { succeeded: true, regardDelta: 5 });
+    regardOnSharedQuest([a, b], ctx, { questId, succeeded: true, regardDelta: 5 });
     expect(regardValue(a.regard, b.id)).toBe(20);
     expect(regardValue(b.regard, a.id)).toBe(6.5);
 
-    expect(regardOnSharedQuest([a], ctx, { succeeded: true, regardDelta: 5 })).toEqual([]);
-    expect(regardOnSharedQuest([], ctx, { succeeded: true, regardDelta: 5 })).toEqual([]);
+    expect(regardOnSharedQuest([a], ctx, { questId, succeeded: true, regardDelta: 5 })).toEqual([]);
+    expect(regardOnSharedQuest([], ctx, { questId, succeeded: true, regardDelta: 5 })).toEqual([]);
     expect(regardValue(a.regard, b.id)).toBe(20);
   });
 });
