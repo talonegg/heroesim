@@ -130,6 +130,12 @@ Workers (DL-88, DL-91). That release is v1.0.1, with three page fixes beside the
 [its epic](./v1.0.1-release.md); it begins by fast-forwarding `v1.0-dev` to the commit that
 recorded its plan, and is deployed only from a clean checkout of its tag (added 2026-09-28, DL-92).
 
+*Amended 2026-09-29 (DL-99).* The v1.1 line's milestone is M9, the page redesigned. It carries #30
+and #32 and is tagged `m9-redesign`. Random Events moves to the v1.2 line as M10
+(`m10-random-events`), built on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Read
+step 5 with `v1.2-dev` and `v1.2-release` for it. M9's epic is to be written next, and joins the
+register when it is.
+
 ## 4. Conventions the epics assume
 
 - Packages are `@heroesim/engine`, `@heroesim/content`, `@heroesim/harness`, `@heroesim/cli`,

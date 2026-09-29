@@ -123,6 +123,19 @@ uploads that build to the Worker and then to Pages, stopping at the first failur
 record the release's decision-log entry keeps. `npm run e2e:live -w web` then checks both
 addresses at both widths.
 
+*Amended 2026-09-29 (DL-99).* The v1.1 line is the page redesigned.
+- *M9, the redesign.* It is built on `v1.1-dev` with #30 (the Guildmaster's setup) and #32 (the
+  Bankruptcy and staffable-Quest stops) as stories. It is tagged `m9-redesign` and released as
+  `v1.1.0`, when #37 moves production and GitHub's default branch to `v1.1-release`.
+- *Random Events moves to the v1.2 line.* It becomes M10, tagged `m10-random-events` in place of
+  `m9-random-events`, on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Every other
+  open issue goes with it, in the order it had against Random Events.
+- *The v1.1 line after `v1.1.0`.* It is frozen but for v1.1.x hotfixes, merged forward into
+  `v1.2-dev`, as the v1.0 line is. Production moves to `v1.2-release` at its first release.
+
+The order is the owner's decision. The branch and tag names are an agent's proposal (DL-99
+item 10).
+
 ## 3. Increments
 
 The detailed implementation plan — stories, acceptance, files, config fields, events and
@@ -276,7 +289,14 @@ the agents recommended that story features be modules and rule extensions core i
   v1.0.x release, on v1.0; it deploys to both the new `*.workers.dev` address and Pages, and
   Pages stays until Cloudflare retires it (DL-88). It is `v1.0.1`, with three page fixes beside
   the move and the Worker named `heroesim` (amended 2026-09-28, DL-92).
-- **Next:** Random Events, on `v1.1-dev` (§2). Random Events never produce Quests (DL-82).
+- **Next:** the page redesigned, M9, on `v1.1-dev`, with #30 and #32, released as `v1.1.0`
+  (§2). Views in a shell, the History for any Guild, Hero or Patron, a Party builder showing each
+  Hero's availability and attributes, and a new visual style (DL-99). Autosave and keyboard
+  shortcuts come after it (DL-99 items 4 and 5). *Amended 2026-09-29 (DL-99): the owner put the
+  redesign before Random Events.*
+- **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
+  against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
+  "Next", on `v1.1-dev`.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

@@ -8920,6 +8920,222 @@ on `v1.1-dev`, Random Events first (#12). Left open, as before: the rule for a v
 #37 moves production to `v1.1-release` (DL-92); and a typo of `--dry-run` holding neither "dry" nor
 "run" (DL-97 item 3), against which a deploy that uploads only when told to is the owner's option.
 
+## DL-99 — The page redesigned: views in a shell in place of one column, the History as the one place to read what happened to any Guild, Hero or Patron, a Party builder that shows each Hero's availability and attributes, and a new visual style; autosave and keyboard shortcuts later; the redesign is v1.1 with #30 and #32, and Random Events moves to v1.2
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** the owner, in three rounds.
+- *The six questions.* The owner answered the six questions that close an agent's review of the
+  page (`docs/web-ui-review-2026-09-29.md` §7). Items 2 to 6 are those answers, each saying whether
+  it took the review's recommendation.
+- *Item 1 is an agent's.* Asked whether to leave the single column, the owner answered "revisit DL
+  based on UX design review and principles", and item 1 is that revisit.
+- *Two follow-up rounds.* Item 8 is the owner's answer to where the redesign sits against Random
+  Events. Item 9 is the owner's choice among three options for what else v1.1 carries.
+- *An agent's proposals.* Item 7 is an agent's reading of what follows. Item 10 is an agent's
+  proposal for the branches and tags.
+
+Items 1 and 10 stand unless the owner objects before the redesign's first story starts.
+
+**Context.** The owner asked for an in-depth assessment of the web page with recommendations for
+its experience, clutter, organisation, readability, emphasis and style. An agent read every view
+and the stylesheet at `v1.0-dev` 80987fd (the page `v1.1-dev` also has), and played seed
+`heroesim-e2e-01` in Chromium. The play went from a new Guild to Day 15, at 390×844 and at
+1440×900, in both schemes. The agent measured the page at each stage. A new game's page is 21,937px
+tall at 390px (26 screens) and 17,991px at 1440px (20 screens). It has 55 to 65 buttons and about
+3,050 words, of which 632 are the sections' help sentences. The Board alone is 3.5 screens on a phone.
+"Since your last action" is the twelfth of fourteen sections, about 15 screens below Time. A 1440px
+window uses 44rem of its 90. The review makes 40 recommendations and asks six questions.
+
+**Decision.**
+
+1. **Views in a shell, in place of one column** (an agent's revisit, at the owner's request).
+   - *What this supersedes.* This supersedes DL-66 item 1's layout and DL-73 item 4's single
+     column, whose index of links it replaces.
+   - *Why the revisit.* M7 §0 deferred "responsive layouts beyond 'works on a phone width without
+     horizontal scroll'" to keep the first build small. DL-66 item 1 built one column within that
+     deferral. It was a choice of scope, not a finding about play, and the figures above are its
+     cost.
+   - *Against the principles.*
+     - **Principle 10.** A rhythm the player can learn needs the stop, the decision it asks for and
+       the result it reports in one place; in the column they are up to 15 screens apart.
+     - **Principle 2.** Growth is the pull, yet the Roster, where Heroes grow, sits below
+       3.5 screens of Quests.
+     - **Principles 11 and 1.** They shape the History (item 2).
+     - **Principle 12 and R38.** They bound the answer: nothing is fetched, and the page stays one
+       page with one classic script that opens from `file://`. So views are React state, as a
+       Hero's page already is, and the router M7 §0 deferred stays deferred.
+     - **Principle 13.** Views are named in `CONTEXT.md`'s terms. The review's "Chronicle" is not
+       used, and neither is "Event log" or "Quest log".
+     - **Principle 14.** The layout changes no save, rule or event, and is reversible. So it takes
+       this entry, not an ADR.
+   - *The shell.* A status bar stays in view on every view. It holds the Guild's name, Wealth,
+     Fame, the Day and time of day, the Rankings place and the Bankruptcy countdown. It also holds
+     the time controls: Advance a Turn, Fast forward, and a fast forward's progress with its Stop.
+   - *The views.* Views take the place of the fourteen sections, one at a time on a phone. The
+     review's A1 proposes the grouping:
+     - a home view of what needs attention this Turn: the stop and the choices it names, the
+       Parties out and when they return, Transfer Offers awaiting an answer, and the last results;
+     - the Board with the Party builder;
+     - the Roster with the Unattached pool and the Transfer Offers;
+     - the Hall with the Guildmaster, what the Guild holds and the Market;
+     - the Rankings with the Guilds and the Patrons;
+     - the History (item 2).
+
+     The epic settles the grouping and the names, in `CONTEXT.md`'s terms.
+   - *By width, by CSS alone.* A bottom bar on a phone and two columns on a tablet, as v1 did
+     (`feature/poc`, E8-S3, `web/src/layout/Shell.tsx`), whose mechanism, not its model, is
+     harvested. On a desktop the view sits beside the History, so a result is read beside the
+     decision that caused it.
+   - *Game management moves to a menu.* That covers export, the saves kept in the browser,
+     loading a file, a new game, the rules notice, the seed and the content set's version. The
+     seed and the version leave the header and the footer.
+   - *What stays.*
+     - Controls at least 44px, and no horizontal scroll of the page at 360px or 1280px.
+     - Each view a labelled region with a heading, which takes the keyboard's focus when the view
+       opens.
+     - Every engine action reachable (R37). The table of CLI commands and their browser
+       equivalents (DL-66 item 9, DL-73 item 14) is ticked again against the shell.
+     - Nothing in `web/` computes a rule (ADR-0007).
+   - *The help sentences.* Each view's help sentence stays its accessible description, but the
+     page shows it on request, not by default. This amends DL-73 item 9, whose test still holds
+     every view to its sentence.
+2. **The History is where the player reads what happened, to any Guild, Hero or Patron** (answer 2:
+   "yes, and have log be a history feature for different entities e.g. guild, hero, etc"). This is
+   the review's recommendation (B6), extended by the owner.
+   - *"Since your last action" is no longer a section of its own.* The entries the last play
+     appended are the History's newest, marked as new. The engine appends every event of a play to
+     the History (`engine/src/advance.ts`, `engine/src/actions/result.ts`), so no engine change
+     is needed.
+   - *It opens on the player's Guild.* The whole History and each Rival's are one choice away.
+     This supersedes DL-66 item 6's filter, unticked by default. DL-74 item 8's rule, that the
+     choice holds while the game is in hand, stays.
+   - *Any entity's History.* That covers a Guild, a Hero, a Guildmaster or a Patron. The engine
+     indexes entries by participant (`engine/src/history.ts`, `byEntity`), and DL-74 already
+     reaches any of them by name. This extends DL-73 item 8, under which a Patron's History had no
+     control of its own. Each entity's page, a Guild's, a Patron's or a Guildmaster's, opens its
+     History, as a Hero's page already shows theirs.
+   - *Names in an entry open that entity* (an agent's proposal, standing unless the owner objects).
+     The events carry their participants (principle 5), so the narration can mark a name without
+     parsing its own sentences.
+   - *Grouped and folded.* Entries are grouped by Day and time of day, newest first as DL-73
+     item 8 decided. A Party's Encounters fold under its outcome, which is a report, not a story
+     (principle 1). Whether a Rival's routine entries fold into one line per Guild, and the order
+     within a group, are left to the epic.
+3. **The Party builder shows each Hero's availability and key attributes, with the Hero's page one
+   step away** (answer 3: "key availability and attributes, and have ability to drill down to hero
+   details"). The review (C4) recommended the attributes; the drill-down is the owner's.
+   - *For each Hero on the Roster:*
+     - whether they can go, and when not, why and until when: the engine's `unavailability`
+       (away with a Party, or injured), with the night the Party returns or the Injury heals, as
+       the Roster already words it;
+     - their Class and Level;
+     - their Morale and its band;
+     - the effective values of the Stats the Quest demands;
+     - the Skills the Quest names that the Hero has, with their ratings.
+   - *The drill-down.* The player can open a Hero's page from the builder and come back to it,
+     with the Party and the consumables still as chosen.
+   - *No new rule.* Every value is one the selectors already give for the Roster, a Hero's page
+     and the Board (`rosterView`, `heroPage`, `boardView`); the builder's rows combine them. Nothing in `web/` computes a rule, and the verdict stays
+     the engine's preview (DL-66 item 2).
+   - *No fit score and no odds.* Neither was asked for, and the review did not propose one. Such
+     an indicator would be a game-design decision of its own, about what a player may know before
+     a Quest.
+4. **Autosave: yes, later** (answer 4: "yes, but in future"). The review (A6) recommended a
+   reserved slot saved automatically, against the commonest loss, a closed tab. It is not part of
+   the redesign. It comes after it, as its own story.
+5. **Keyboard shortcuts: yes, later** (answer 5: "yes, but in future"). The review (E3) proposed
+   A to advance, F to fast forward, Esc to close, and 1 to 6 for the views. They are not part of the
+   redesign; they come after it and are keyed to its views.
+6. **A new visual style** (answer 6: "open to redesign of style"). The page's style is redesigned
+   with its layout.
+   - *How the direction is chosen.* An agent proposes it as a throwaway prototype. The review's
+     D1 to D8 suggest a "guild ledger" direction: serif display headings from the system's own
+     fonts, fewer nested frames, three tiers of button, and a small inline icon set. The owner
+     approves a direction before it is built.
+   - *Its bounds.*
+     - Nothing fetched (principle 12 and the bundle gate): system font stacks, and icons as
+       inline SVG in the bundle.
+     - One classic script (R38).
+     - Colour tokens on `:root`, with a dark scheme.
+     - Text contrast of at least WCAG AA, and colour never the only cue.
+     - The 44px controls of item 1.
+7. **The review's other recommendations are the epic's candidates, not decisions.** The epic
+   takes them up as proposals, like DL-92 item 6's:
+   - decluttering, B1 to B12;
+   - readability and emphasis, C1, C2, C3 and C5 to C8;
+   - design, D1 to D8;
+   - interaction, E1, E2, E4 and E5.
+
+   C9 is decided in the epic. It would have buy, build, recruit and transfer say before the click
+   why they would be refused. That needs engine refusal functions like DL-66 item 2's
+   `dispatchRefusal`, the only engine change the review implies.
+8. **The redesign comes before Random Events, which moves to v1.2.** The owner answered: "yes
+   this redesign should come before random events move random events to 1.2".
+   - *What this supersedes.* It supersedes plan §4's "Next: Random Events, on `v1.1-dev`" (DL-89).
+   - *What it amends.* It amends DL-86 item 2 as to what the v1.1 line carries. That line is now
+     the redesign, and Random Events is no longer "the v1.1 work".
+   - *What stays.* Random Events' own decisions (DL-82 and those that name it) are unchanged. Only
+     their line moves.
+9. **v1.1 carries the redesign, #30 and #32, and #37 releases it.** The owner chose "redesign +
+   page issues" of three options. This was against the recommendation, "redesign only", under
+   which v1.1 would have changed no play. The option not taken was "redesign + the unordered
+   issues".
+   - *#30 and #32.* They change surfaces the redesign rebuilds. #30 changes the new-game form's
+     Guildmaster setup, and #32 changes fast forward's stops.
+   - *#37.* It is the v1.1 line's first release, moving production and GitHub's default branch to
+     `v1.1-release`. Its "at Random Events' close" becomes "at the redesign's close".
+   - *Every other open issue moves to v1.2.* That is #12, #15, #16, #17, #19 to #29, #31, #33 to
+     #36, and #40: 21 issues. Each keeps its order against Random Events as the v1.0.1 epic's
+     table set it (before, with, after or in any order).
+   - *v1.1 changes play.* #30 and #32 are not page-only:
+     - #30's Guildmaster draw, which gains a Trait budget and exclusions, changes every seed's
+       Guildmasters once, and a Rival Guildmaster's Retirement no longer folds the Guild.
+     - #32 adds the `guild.below-floor` and `guild.floor-recovered` events and two stops.
+
+     So v1.1 closes with a harness sweep, as a milestone does, and not with v1.0.1's fingerprint
+     check.
+   - *#30 waits on the owner.* It cannot be built until the owner approves its first box: the
+     Trait costs and budget, how a drawn Guildmaster spends it, how a successor is made, and the
+     words for the descriptive facts.
+10. **The lines and their tags** (an agent's proposal, as DL-86 and DL-91 set the pattern).
+    - *M9, on `v1.1-dev`.* The v1.1 line has one milestone, M9, the redesign. It carries #30 and
+      #32 as stories, and its epic sets their order.
+    - *The v1.1 release.* M9 completes by merging `v1.1-dev` into `v1.1-release`, tagged
+      `m9-redesign`. The release is tagged `v1.1.0`, with #37's move of production and GitHub's
+      default branch.
+    - *v1.2 opens at `v1.1.0`.* `v1.2-dev` is then created from `v1.1-release`, as `v1.1-dev` was
+      at `v1.0.0`, with `v1.2-release` created at the v1.2 line's first merge.
+    - *Random Events is M10.* It is built there and tagged `m10-random-events`, superseding DL-86
+      item 2's `m9-random-events`.
+    - *After `v1.1.0`, the v1.1 line takes hotfixes only.* `v1.1-dev` and `v1.1-release` take
+      v1.1.x hotfixes, merged forward into `v1.2-dev`, as DL-91 item 4 has for v1.0.
+    - *CI and production follow.* CI's triggers gain the v1.2 branches, as #38 gave the v1.1
+      branches. Production serves the latest release (DL-86 item 3, DL-88 item 10), so it moves to
+      `v1.2-release` at v1.2's first release, under an issue like #37 opened then.
+
+**Consequences.**
+- *What changes.*
+  - DL-66 item 1, DL-66 item 6's default and DL-73 item 4's single column are superseded.
+  - DL-73 items 8 and 9 are amended.
+  - M7 §0's deferral of responsive layouts is taken up; its router stays deferred.
+  - Plan §4's order and DL-86 item 2's `m9-random-events` are superseded.
+- *Play.* The redesign itself decides no engine, content, `GameConfig`, schema or save change.
+  #30 and #32 do, under their own decisions: DL-83 item 19, DL-85 items 6 and 8, DL-87 item 5 and
+  DL-88 items 3 and 4.
+- *The tests change.* The browser specs and `app.test.tsx` find sections as regions on one page,
+  and the live check (`e2e/deployed.live.ts`) does too. They change with the views.
+- *Random Events waits.* It waits for `v1.1.0`, and so do its groundwork (#15, #16's lint bans,
+  #17, #19) and the owner's INPUTS §8 table, whose answers are no longer on the critical path.
+- *Evidence.* The review is kept beside this entry, at `docs/web-ui-review-2026-09-29.md`.
+
+**Actioned in:**
+- plan §2's releases paragraph and §4's order;
+- the epics register's "After the first build";
+- INPUTS 1.2;
+- the GitHub issues: the release line of the 21 that move becomes v1.2; #30's, #32's and #37's
+  "Line and order" is updated; #12 notes the move.
+
+Next comes the redesign's epic, M9.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
