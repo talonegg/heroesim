@@ -65,7 +65,16 @@ export function HeroPage({
   return (
     <article className="hero-page" aria-labelledby="hero-name">
       {back}
-      {level === 3 ? <h3 id="hero-name">{view.name}</h3> : <h4 id="hero-name">{view.name}</h4>}
+      {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
+      {level === 3 ? (
+        <h3 id="hero-name" tabIndex={-1}>
+          {view.name}
+        </h3>
+      ) : (
+        <h4 id="hero-name" tabIndex={-1}>
+          {view.name}
+        </h4>
+      )}
       <dl className="terms">
         {view.attributes.map(([label, value]) => (
           <div key={label}>

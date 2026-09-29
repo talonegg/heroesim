@@ -577,10 +577,16 @@ describe('the Board with dispatch', () => {
     expect(send.disabled).toBe(verdict !== 'Dispatch would send this Party.');
     expect(send.disabled).toBe(false);
 
+    const named = (): HTMLElement[] => within(section('Board')).queryAllByRole('article', { name: questName });
+    const before = named().length;
+
     fireEvent.click(send);
     await idle();
 
-    expect(within(section('Board')).queryByRole('heading', { level: 3, name: questName })).toBeNull();
+    // The Quest has left the Board, and its card is the Party out card in its place (M9-S4, DL-104).
+    const [sent, ...others] = named();
+    expect(sent?.dataset.testid).toBe('sent');
+    expect(others.filter((card) => card.dataset.testid !== 'sent')).toHaveLength(before - 1);
     expect(within(section('Since your last action')).getByText(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`))).toBeDefined();
     expect(within(rosterList()).getAllByText(/^away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;

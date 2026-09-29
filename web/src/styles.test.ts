@@ -42,7 +42,8 @@ function contrast(a: string, b: string): number {
 
 /** Text on a surface: each pairing the stylesheet sets. */
 const textPairs: readonly (readonly [string, string])[] = [
-  ...['paper', 'surface', 'sunk', 'accent-soft', 'bad-soft', 'warn-soft', 'brass-soft'].map((surface) => ['ink', surface] as const),
+  // The good ground is a banner's too since M9-S4: the Party builder's verdict when dispatch would send.
+  ...['paper', 'surface', 'sunk', 'accent-soft', 'bad-soft', 'warn-soft', 'brass-soft', 'good-soft'].map((surface) => ['ink', surface] as const),
   ...['paper', 'surface', 'sunk', 'accent-soft', 'bad-soft', 'warn-soft', 'brass-soft'].map((surface) => ['ink-soft', surface] as const),
   ...['paper', 'surface', 'sunk', 'accent-soft'].map((surface) => ['accent', surface] as const),
   ['on-accent', 'accent'],
