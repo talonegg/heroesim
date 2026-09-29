@@ -4,7 +4,7 @@
 
 import type { Names } from '../content-types.js';
 import { compareByCodeUnit, type Sex, type World } from '../document.js';
-import { int, pick, shuffle, type StreamName } from '../rng.js';
+import { int, next, pick, shuffle, type StreamName } from '../rng.js';
 
 /** A stream's state, reached through `world.rng` as the rest of the engine reaches it (M1-S2). */
 export type Stream = World['rng'][StreamName];
@@ -68,14 +68,45 @@ export function pickUnused(state: Stream, names: readonly string[], used: Readon
   return pick(state, free);
 }
 
-/** The sexes a person is generated with, in draw order. */
-export const sexes: readonly Sex[] = ['female', 'male'];
+/**
+ * One of `items`, each equally likely, taking exactly `draws` draws: the first picks, as `pick`
+ * draws, and the rest are spent, so that how many items there are to choose from never moves a
+ * later draw (DL-109 item 1: a Guildmaster's legal sets of Traits). With no draw to take, the one
+ * item is taken. Throws on an empty list, a count of draws that is not a whole number from 0, or
+ * several items and no draw to choose between them.
+ */
+export function pickInDraws<T>(state: Stream, items: readonly T[], draws: number): T {
+  if (!Number.isSafeInteger(draws) || draws < 0) throw new RangeError(`A count of draws is a whole number from 0; got ${draws}`);
+  if (draws === 0) {
+    if (items.length !== 1) throw new RangeError(`With no draw to take there must be one item; got ${items.length}`);
+    return items[0] as T;
+  }
+  const item = pick(state, items);
+  for (let spent = 1; spent < draws; spent += 1) next(state);
+  return item;
+}
+
+/**
+ * The sexes a person is generated with, in draw order, and the ones a setup may choose for its
+ * Guildmaster (`setupRefusal`). Exported from the engine for the front ends to offer (the M9 review).
+ */
+export const sexes: readonly Sex[] = Object.freeze(['female', 'male'] as const);
 
 /** A person's name: a given name for their sex, then a family name. Two draws. */
 export function drawPersonName(state: Stream, names: Names, sex: Sex): string {
   const given = pick(state, names.given[sex]);
   const family = pick(state, names.family);
   return `${given} ${family}`;
+}
+
+/**
+ * A person's name that is not in `used`: a given name for their sex and a family name, drawn in one
+ * draw from the pairs no one in `used` has, each pair equally likely (M9-S2, a successor's name).
+ * Throws when every pair is in use.
+ */
+export function drawUnusedPersonName(state: Stream, names: Names, sex: Sex, used: ReadonlySet<string>): string {
+  const pairs = names.given[sex].flatMap((given) => names.family.map((family) => `${given} ${family}`));
+  return pickUnused(state, pairs, used, `${sex} person's`);
 }
 
 /** `value` held inside `[floor, ceiling]`. */

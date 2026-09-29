@@ -158,6 +158,7 @@ export function validateContent(set: ContentSet): ContentSet {
   checkImprovements(set.improvements, problems);
   checkEncounters(set, heroStats, skills, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
+  checkTraitCosts(set.traits, problems);
   checkSynergies(set.synergies, classes, skills, problems);
   checkItems(set.items, heroStats, problems);
   checkLootTables(set, problems);
@@ -348,6 +349,42 @@ function checkTraitEffects(
         }
         break;
     }
+  }
+}
+
+/**
+ * The Trait budget's content (M9-S2, DL-100 item 3, DL-102). A Guildmaster Trait's cost is a whole
+ * number, a buff's positive and a penalty's negative, though the sign is the author's to choose.
+ * Its exclusions name Guildmaster Traits other than itself, each once, and hold both ways, so that
+ * the draw and the player's choice read the same pairs from either side. A Hero Trait is never
+ * chosen or drawn against the budget: it costs 0 and excludes nothing.
+ */
+function checkTraitCosts(traits: ContentSet['traits'], problems: string[]): void {
+  const guildmasterTraits = new Set(
+    Object.entries(traits)
+      .filter(([, trait]) => trait.owner === 'guildmaster')
+      .map(([key]) => key),
+  );
+  for (const [key, trait] of Object.entries(traits)) {
+    const where = `traits.${key}`;
+    if (trait.owner === 'hero') {
+      if (trait.cost !== 0) {
+        problems.push(`${where}.cost is ${trait.cost}; a Hero Trait is never chosen against the budget, and costs 0`);
+      }
+      if (trait.excludes.length > 0) problems.push(`${where}.excludes: a Hero Trait excludes nothing`);
+      continue;
+    }
+    if (!Number.isSafeInteger(trait.cost)) problems.push(`${where}.cost is ${trait.cost}; it is a whole number`);
+    for (const other of trait.excludes) {
+      if (other === key) {
+        problems.push(`${where}.excludes: a Trait cannot exclude itself`);
+      } else if (!guildmasterTraits.has(other)) {
+        problems.push(`${where}.excludes: "${other}" is not a Guildmaster Trait`);
+      } else if (!(traits[other]?.excludes.includes(key) ?? false)) {
+        problems.push(`${where}.excludes: "${other}" does not exclude "${key}" in return`);
+      }
+    }
+    for (const other of repeated(trait.excludes)) problems.push(`${where}.excludes: "${other}" is listed twice`);
   }
 }
 

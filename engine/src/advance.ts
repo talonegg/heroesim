@@ -23,8 +23,9 @@ export interface AdvanceResult {
   /**
    * Why time should stop after this Turn, whoever is watching, or `null`: `ended` when the game is
    * over, and otherwise `module` when an installed module's hook asked for a stop, the first to ask
-   * (M8-S2, DL-77). The reasons that belong to one Guild (`party-returned`, `decision-needed`) and the
-   * opt-in `pool-refreshed` are fast forward's to report, from the same detectors (stops.ts, DL-33).
+   * (M8-S2, DL-77). The reasons that belong to one Guild (`below-floor`, `party-returned`,
+   * `decision-needed`, `quest-staffable`) and the opt-in `pool-refreshed` are fast forward's to
+   * report, from the same detectors (stops.ts, DL-33, DL-101).
    */
   stoppedBecause: StopReason | null;
 }

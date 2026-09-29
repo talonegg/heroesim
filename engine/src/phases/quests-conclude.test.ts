@@ -1,14 +1,17 @@
+import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { EngineDeps, GameConfig } from '../config.js';
 import type { Consequence, ContentSet, Encounter } from '../content-types.js';
 import { createWorld } from '../create.js';
-import type { Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
+import type { Entry, Guild, GuildId, Guildmaster, Hero, HeroId, Party, Patron, Quest, World, WorldDocument } from '../document.js';
 import type { EngineEvent, EngineEventOf, EngineEventType, TurnEvent } from '../events.js';
-import { entriesFor } from '../history.js';
+import { append, createHistory, entriesFor } from '../history.js';
+import { deserialise, serialise } from '../serialise.js';
 import { addStack, holdings } from '../items.js';
 import { phases } from '../pipeline.js';
+import { xpForLevel } from '../progression.js';
 import { encounterCount } from '../quest-engine/encounters.js';
 import { regardValue } from '../regard.js';
 import { createStreams } from '../rng.js';
@@ -666,21 +669,21 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
 describe("a folded Rival's Party", () => {
   /**
    * A Rival's Party sent away as `sentAway` sends it, played to the afternoon `daysEarly` Days
-   * before its return night, the Rival's Guildmaster then made old enough to retire that night.
+   * before its return night, the Rival then made bankrupt that night: Wealth far below the floor,
+   * under no grace. (Until M9-S2 its Guildmaster's Retirement folded it; now that is met by
+   * Succession, DL-102.)
    */
-  function retiringRival(seed: string, daysEarly: number) {
-    const deps = testDeps({ rivalCount: 1 });
+  function foldingRival(seed: string, daysEarly: number) {
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const away = sentAway(seed, deps, { rival: true, daysEarly });
-    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
-    if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    guildOf(away.eve.world, away.guildId).wealth = -1_000_000;
     return { deps, ...away };
   }
 
   test('is disbanded by a fold before its return night and never resolved, nor left behind', () => {
     // The Rival folds the night before its Party is due.
-    const { deps, eve, party, quest, guildId } = retiringRival('fold-away', 1);
+    const { deps, eve, party, quest, guildId } = foldingRival('fold-away', 1);
     expect(eve.world.parties[party.id]).toEqual(party);
 
     const { document, events } = playTo(eve, party.returnsOnTurn + 3, deps);
@@ -696,12 +699,10 @@ describe("a folded Rival's Party", () => {
   // whose stacks the fold then discards (M5-S4, DL-51; the fold's order is DL-54's, endings.test.ts).
   test("is disbanded with its consumables sent back to the Guild's holding: no stack is left held by the removed Party", () => {
     // An empty Market (M5-S4), so that the only whetstones in the world are the ones carried.
-    const deps = testDeps({ rivalCount: 1, marketSize: 0 });
+    const deps = testDeps({ rivalCount: 1, marketSize: 0, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const away = sentAway('fold-carried', deps, { rival: true, daysEarly: 1, consumables: [['whetstone', 2]] });
-    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
-    if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    guildOf(away.eve.world, away.guildId).wealth = -1_000_000;
     const { eve, party, guildId } = away;
     expect(holdings(eve.world, { kind: 'party', id: party.id }).stacks).toHaveLength(1);
 
@@ -718,7 +719,7 @@ describe("a folded Rival's Party", () => {
 
   test('home on the night its Guild folds is resolved first, then the fold finds no Party', () => {
     // The Rival folds on the night its Party comes home.
-    const { deps, eve, party, guildId } = retiringRival('fold-home', 0);
+    const { deps, eve, party, guildId } = foldingRival('fold-home', 0);
 
     const { document, events } = playTo(eve, party.returnsOnTurn, deps);
 
@@ -733,5 +734,151 @@ describe("a folded Rival's Party", () => {
     expect(fold?.participants).not.toContain(party.id);
     expect(guildOf(document.world, guildId).foldedOnTurn).toBe(party.returnsOnTurn);
     expect(Object.values(document.world.parties).filter((it) => it.guildId === guildId)).toEqual([]);
+  });
+});
+
+// M9-F1 (DL-112 item 2, DL-114): what a return causes names its Quest. Four event types carry an
+// optional `questId` for their Quest causes, and the Quest is a participant of those and of
+// `hero.xp-gained`, so the Quest's own History holds its whole return. Nothing else moves.
+describe('the Quest named on what its return causes (M9-F1)', () => {
+  /** The types that name the Quest from M9-F1, and the causes for which they do. */
+  const namedCauses: Record<string, readonly string[] | null> = {
+    'hero.xp-gained': null,
+    'hero.morale-changed': ['encounters', 'strong-success', 'roster-death'],
+    'patron.regard-changed': ['quest-success', 'quest-failure'],
+    'guildmaster.regard-changed': ['quest-success', 'quest-failure'],
+    'hero.regard-changed': ['shared-quest'],
+  };
+
+  /**
+   * Seeded games of 120 Days with every Rival sending Parties. The player's Guild is idle and rich,
+   * so no Bankruptcy ends a game early, and a failed Encounter may kill and costs Morale, so every
+   * cause above comes up. The Guildmasters' ages are those before DL-113, so that the fingerprints
+   * below, recorded at `86c7afa` before M9-F1, still hold.
+   */
+  const deps = testDeps(
+    { guildmasterStartingAgeMin: 30, guildmasterStartingAgeMax: 45, guildmasterRetirementAge: 65, startingWealth: 100_000 },
+    withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
+  );
+  const seeds = ['named-a', 'named-b', 'named-c'] as const;
+  const played = new Map(
+    seeds.map((seed) => {
+      let document = createWorld(seed, setup, deps).document;
+      while (document.world.turn < nightOf(120)) document = advance(document, deps).document;
+      return [seed, withValid(document, deps)] as const;
+    }),
+  );
+
+  /**
+   * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
+   * and, from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth.
+   */
+  function unnamed(entry: WorldDocument['history']['entries'][number]): object {
+    if (entry.type === 'guild.founded') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wealth;
+      return { ...entry, payload };
+    }
+    if (!(entry.type in namedCauses)) return entry;
+    const payload = { ...(entry.payload as Record<string, unknown>) };
+    const questId = payload.questId;
+    if (entry.type !== 'hero.xp-gained') delete payload.questId;
+    return { ...entry, participants: entry.participants.filter((id) => id !== questId), payload };
+  }
+
+  test('the games hold every type and Quest cause named, so the fingerprints below cover them', () => {
+    const entries = seeds.flatMap((seed) => (played.get(seed) as WorldDocument).history.entries);
+    for (const [type, causes] of Object.entries(namedCauses)) {
+      const ofIt = entries.filter((entry) => entry.type === type);
+      if (causes === null) expect(ofIt.length, type).toBeGreaterThan(0);
+      else for (const cause of causes) expect(ofIt.filter((entry) => (entry.payload as { cause: string }).cause === cause).length, `${type} ${cause}`).toBeGreaterThan(0);
+    }
+  });
+
+  test("each event of a Quest's return carries its questId and names the Quest; the other causes name none", () => {
+    let named = 0;
+    for (const seed of seeds) {
+      const { history } = played.get(seed) as WorldDocument;
+      const resolved = new Map(
+        history.entries.filter((entry) => entry.type === 'quest.resolved').map((entry) => [(entry.payload as { questId: string }).questId, entry]),
+      );
+      for (const entry of history.entries) {
+        const causes = namedCauses[entry.type];
+        if (causes === undefined) continue;
+        const payload = entry.payload as { questId?: string; cause?: string; heroId?: string; guildId?: string };
+        if (causes !== null && !causes.includes(payload.cause as string)) {
+          expect(payload, `${entry.type} ${payload.cause}`).not.toHaveProperty('questId');
+          continue;
+        }
+        named += 1;
+        const questId = payload.questId as string;
+        expect(entry.participants, entry.type).toContain(questId);
+        // The Quest resolved that night, for the Guild the event is of.
+        const home = resolved.get(questId);
+        expect(home?.turn, entry.type).toBe(entry.turn);
+        const { heroIds, guildId } = home?.payload as { heroIds: string[]; guildId: string };
+        expect(entry.participants, entry.type).toContain(guildId);
+        if (payload.guildId !== undefined) expect(payload.guildId, entry.type).toBe(guildId);
+        if (payload.cause !== 'roster-death' && payload.heroId !== undefined) expect(heroIds, entry.type).toContain(payload.heroId);
+      }
+    }
+    expect(named).toBeGreaterThan(0);
+  });
+
+  test("a Level a Party's Hero gains on the night of the return follows the Quest's XP: away, they trained for none", () => {
+    const deps = soloDeps();
+    const { eve, heroIds, quest } = sentAway('levelled-home', deps, { difficulty: 1 });
+    // One XP short of Level 2 on the eve, so only the Quest's XP brings the Level.
+    for (const heroId of heroIds) hero(eve.world, heroId).xp = xpForLevel(2, deps.config) - 1;
+
+    const { document, events } = playTo(withValid(eve, deps), eve.world.turn + 1, deps);
+
+    const gained = ofType(events, 'hero.xp-gained');
+    const levelled = ofType(events, 'hero.levelled');
+    expect(levelled.map((event) => event.payload.heroId).sort()).toEqual([...heroIds].sort());
+    for (const heroId of heroIds) {
+      const xp = gained.find((event) => event.payload.heroId === heroId);
+      const level = levelled.find((event) => event.payload.heroId === heroId);
+      expect(xp?.payload.questId).toBe(quest.id);
+      expect(xp?.participants).toContain(quest.id);
+      expect(level?.turn).toBe(xp?.turn);
+      expect(events.indexOf(level as TurnEvent)).toBeGreaterThan(events.indexOf(xp as TurnEvent));
+      // Nothing but the Quest's XP moved theirs that night.
+      expect(hero(document.world, heroId).xp).toBe(xpForLevel(2, deps.config) - 1 + (xp?.payload.amount ?? 0));
+    }
+  });
+
+  test("every founding in the games names its Guild's founding Wealth, the player's, the Rivals' and any replacement's (M9-F7)", () => {
+    for (const seed of seeds) {
+      const document = played.get(seed) as WorldDocument;
+      const founded = document.history.entries.filter((entry) => entry.type === 'guild.founded');
+      expect(founded.length, seed).toBe(Object.keys(document.world.guilds).length);
+      for (const entry of founded) expect(entry.payload, seed).toHaveProperty('wealth', expect.any(Number));
+    }
+  });
+
+  test('a History written before M9-F1, with none of the three, still validates and loads', () => {
+    const document = played.get('named-a') as WorldDocument;
+    const history = createHistory();
+    for (const entry of document.history.entries) append(history, unnamed(entry) as Entry);
+
+    const loaded = deserialise(serialise({ ...document, history }), deps);
+
+    expect(loaded.ok && loaded.warnings).toEqual([]);
+  });
+
+  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth)", () => {
+    const fingerprints = seeds.map((seed) => {
+      const { history } = played.get(seed) as WorldDocument;
+      return createHash('sha256').update(JSON.stringify(history.entries.map(unnamed))).digest('hex');
+    });
+    // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
+    // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
+    // values: with it set aside, the History is unchanged (DL-121).
+    expect(fingerprints).toEqual([
+      'a85e889aec1df8341984e146796c9f761387ce6c7d08946fce9fc688a4494b82',
+      'c5afab2df5c747649e2c0d39c977cb36b08dec94829ed3d82d8ced72917d72a9',
+      '55432d24ff8cb68d4608f49a4da7ab9d10d8b02edeb0bf3abd3ebfe09c9434f7',
+    ]);
   });
 });

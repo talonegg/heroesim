@@ -22,7 +22,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { narrate, narratedTypes, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
+import { narrate, narratedTypes, narrateSegments, narrateStop, narrationFor, questNamer, textOf, type Narration, type Segment } from './narrate';
 
 // The log's words (M7-S3's first box): every event type in the engine's union has a sentence. The
 // samples table's type is derived from the union, so a type the engine adds fails `npm run
@@ -35,6 +35,8 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
+/** A Rival Guildmaster's successor (M9-S2). */
+const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
@@ -48,6 +50,7 @@ const labels: Record<string, string> = {
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [successorId]: 'Wenna Tolley',
   [rivalId]: 'The Iron Wardens',
   [otherHeroId]: 'Aldred Barrowby',
 };
@@ -81,6 +84,8 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
   'guild.upkeep-paid': event('guild.upkeep-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
+  'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -144,6 +149,12 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
+  'guildmaster.succeeded': event('guildmaster.succeeded', [guildId, guildmasterId, successorId], {
+    guildId,
+    guildmasterId: guildmasterId as never,
+    successorId: successorId as never,
+    age: 65,
+  }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], {
     guildId,
@@ -308,6 +319,10 @@ const exactly: { [Type in EngineEventType]: string } = {
   'patron.generated': `Lady Maud of the ${named(content.spheres, 'crown')} became a Patron.`,
   'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
   'guild.upkeep-paid': 'The Kestrel Guild paid 40 Upkeep, leaving 460 Wealth.',
+  'guild.below-floor':
+    "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 34 unless it is back to 0 or more on a night by then.",
+  'guild.floor-recovered':
+    "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 1: no Bankruptcy is due.",
   'hero.recruited': 'The Kestrel Guild signed Brenna Ashcombe for 110 Wealth.',
   'hero.left-pool': 'Brenna Ashcombe left the Unattached pool.',
   'quest.offered': `Lady Maud offered ${barrow}.`,
@@ -325,6 +340,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
   'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',
   'guild.folded': 'The Kestrel Guild had its Roster wiped out and folded.',
+  'guildmaster.succeeded': 'Osric Vane retired at 65 as Guildmaster of The Kestrel Guild, and Wenna Tolley succeeded them.',
   'hero.left-guild': 'Brenna Ashcombe left The Kestrel Guild for the Unattached pool.',
   'guild.improved': `The Kestrel Guild built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`,
   'hero.levelled': `Brenna Ashcombe reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,
@@ -393,6 +409,85 @@ describe('every sample in so many words', () => {
   ] as const)('%s', (_name, event, sentence) => {
     if (typeof sentence === 'string') expect(narrate(event, narration)).toBe(sentence);
     else expect(narrate(event, narration)).toMatch(sentence);
+  });
+});
+
+/** The names a line marks, in its order: whom each opens, and the words it shows. */
+function namesIn(segments: readonly Segment[]): [string, string][] {
+  return segments.flatMap((segment) => (segment.kind === 'name' ? [[segment.entityId, segment.text] as [string, string]] : []));
+}
+
+describe('a line as segments: its words, and the names in it the page can open (M9-S5)', () => {
+  test.each(union)('%s reads word for word as its sentence, and marks only names of whom the event names', (type) => {
+    const segments = narrateSegments(samples[type], narration);
+
+    expect(textOf(segments)).toBe(exactly[type]);
+    for (const [entityId, text] of namesIn(segments)) {
+      expect(samples[type].participants).toContain(entityId);
+      expect(text).toBe(labels[entityId]);
+    }
+  });
+
+  test('marks each name from the id the sentence reads, in the order the sentence gives them', () => {
+    expect(namesIn(narrateSegments(samples['quest.taken'], narration))).toEqual([
+      [guildId, 'The Kestrel Guild'],
+      [heroId, 'Brenna Ashcombe'],
+      [otherHeroId, 'Aldred Barrowby'],
+    ]);
+    expect(namesIn(narrateSegments(samples['hero.transferred'], narration))).toEqual([
+      [rivalId, 'The Iron Wardens'],
+      [heroId, 'Brenna Ashcombe'],
+      [guildId, 'The Kestrel Guild'],
+    ]);
+    expect(namesIn(narrateSegments(samples['guildmaster.regard-changed'], narration))).toEqual([
+      [guildmasterId, 'Osric Vane'],
+      [heroId, 'Brenna Ashcombe'],
+    ]);
+    expect(namesIn(narrateSegments(samples['patron.regard-changed'], narration))).toEqual([
+      [patronId, 'Lady Maud'],
+      [guildId, 'The Kestrel Guild'],
+    ]);
+    expect(namesIn(narrateSegments(samples['quest.encounter'], narration))).toEqual([
+      [guildId, 'The Kestrel Guild'],
+      [heroId, 'Brenna Ashcombe'],
+    ]);
+    // M9-S2's Succession, each Guildmaster a name that opens their History.
+    expect(namesIn(narrateSegments(samples['guildmaster.succeeded'], narration))).toEqual([
+      [guildmasterId, 'Osric Vane'],
+      [guildId, 'The Kestrel Guild'],
+      [successorId, 'Wenna Tolley'],
+    ]);
+    // What each name is, for the page to know where it opens.
+    const [guild, hero] = narrateSegments(samples['hero.recruited'], narration).filter((segment) => segment.kind === 'name');
+    expect(guild).toMatchObject({ table: 'guilds' });
+    expect(hero).toMatchObject({ table: 'heroes' });
+  });
+
+  test('never finds a name by reading its own sentence: two of one name are told apart by their ids', () => {
+    // A Hero who shares the Guild's name: the sentence reads the same twice, the ids do not.
+    const twin = { ...samples['hero.recruited'], labels: { [guildId]: 'Wren', [heroId]: 'Wren' } };
+
+    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 110 Wealth.');
+    expect(namesIn(narrateSegments(twin, narration))).toEqual([
+      [guildId, 'Wren'],
+      [heroId, 'Wren'],
+    ]);
+  });
+
+  test('leaves as words someone the event has no label for, capitalised where the line opens with them', () => {
+    const unlabelled = { ...samples['hero.recruited'], labels: {} };
+
+    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 110 Wealth.' }]);
+  });
+
+  test("marks the names in a module's own event too, from its participants", () => {
+    const fired = { type: 'probe.fired', turn: 9, participants: [heroId, patronId], labels: { [heroId]: labels[heroId], [patronId]: labels[patronId] }, milestone: false, payload: {} } as unknown as ModuleEvent;
+
+    expect(textOf(narrateSegments(fired, narration))).toBe('The probe module recorded probe.fired for Brenna Ashcombe and Lady Maud.');
+    expect(namesIn(narrateSegments(fired, narration))).toEqual([
+      [heroId, 'Brenna Ashcombe'],
+      [patronId, 'Lady Maud'],
+    ]);
   });
 });
 
@@ -511,6 +606,14 @@ describe('narrateStop', () => {
     'decision-needed': [
       { kind: 'decision-needed', guildId: player.id, questIds: [quest] },
       /^Stopped: a decision is needed: The Lantern has no Party out, and could send one on [A-Z][^.]+\.$/,
+    ],
+    'below-floor': [
+      { kind: 'below-floor', guildId: player.id, dueDay: 34 },
+      /^Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then\.$/,
+    ],
+    'quest-staffable': [
+      { kind: 'quest-staffable', guildId: player.id, questIds: [quest] },
+      /^Stopped: a Quest to staff: The Lantern's Heroes at home could go on [A-Z][^.]+\.$/,
     ],
     'transfer-offer': [{ kind: 'transfer-offer', guildId: player.id, offerIds: [offerId] }, /^Stopped: a Transfer Offer: an offer since withdrawn\.$/],
     module: [{ kind: 'module', moduleId: 'probe' }, /^Stopped: the probe module asked to stop\.$/],

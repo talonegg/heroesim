@@ -80,9 +80,16 @@ _Avoid_: Guild war, Battle (alone), Clash
 
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
-Class (R12); a Guildmaster's are name, sex and age, and descriptive Attributes the player may
-write at setup that no rule reads (R8; DL-88, to be built).
+Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
+(R8; DL-88, DL-100).
 _Avoid_: Property, Field, Detail
+
+**Descriptive Attribute**:
+One of three short texts about a Guildmaster that no rule reads: **Birthplace**, a place and not
+the Guild's Background; **Appearance**; and **Biography**. The player may write them for their
+Guildmaster at setup, each trimmed and held to a length; a drawn Guildmaster's are empty (R8;
+DL-88 item 3, DL-100 item 3, DL-102).
+_Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its
@@ -113,10 +120,18 @@ _Avoid_: Ability, Talent, Trait (on a Hero), Perk
 
 **Trait**:
 A named binary mark: on a Guildmaster, a buff or penalty to the Guild or to a Class; on a Hero,
-a lasting mark such as one left by a healed Injury. Hero Traits have no effect yet: DL-85 gives
-them effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty
-(both to be built).
+a lasting mark such as one left by a healed Injury. A Guildmaster Trait has a cost, a buff
+costing points and a penalty refunding them, and may exclude others, each exclusion holding both
+ways (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no effect yet: DL-85 gives them
+effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty (both
+to be built).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
+
+**Trait budget**:
+The points a Guildmaster's Traits may cost in all, `guildmasterTraitBudget`, so the dearer buffs
+need a penalty beside them. The player's choice at setup and every drawn Guildmaster, a Rival's
+or a successor's, keep within it and hold no excluded pair (DL-88 item 4, DL-100 item 3).
+_Avoid_: Point buy, Allowance, Points (alone)
 
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
@@ -223,6 +238,14 @@ _Avoid_: Quest log, Noticeboard, Job board
 Items awarded by a Quest's outcome.
 _Avoid_: Drops, Rewards (for Items), Treasure
 
+**Quest report**:
+What a Party's return tells the Guild, read from the History: the Quest, its Patron and its band;
+each Encounter with the consumables used; the reward, Wealth, Fame, XP and the Loot; each Hero's
+outcome, and what a Death cost the Heroes at home (DL-120); and the Patron's Regard for the Guild,
+the band the Quest moved it into or its band now (DL-111, DL-118). Shown on the Guild's Home when a Party comes home, and again from the return's
+entry.
+_Avoid_: Debrief, Summary, Result
+
 **Loot table**:
 A content list of Items, each with a weight and a quantity range, from which a Quest's Loot is
 drawn. A Quest carries one only when its template names one and it is hard enough (DL-52).
@@ -285,8 +308,22 @@ _Avoid_: Message, Log line; "Event" alone for a Random or Inciting Event
 **History**:
 The record inside the World State of every event, kept per Guild and per Hero with a list of
 Milestones; never bounded, and no entry is dropped (R36). Every discrete change is an entry;
-nightly drift, and the changes DL-84 names, are recorded only when they cross a band.
+nightly drift, and the changes DL-84 names, are recorded only when they cross a band. The page
+shows a Guild's History with some entries left out, none dropped: the player's Guild's without
+its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
+purchases and sales (DL-111, DL-117). In the player's Guild's, a Party's return is one entry, its
+Encounters and its Heroes' Levels that night gathered under it (DL-118), and its Injuries and Deaths
+standing beside it as entries of their own (DL-120). A Hero's,
+a Guildmaster's and a Patron's leave out nothing.
 _Avoid_: Event log, Journal, Audit trail
+
+**World History**:
+The History's entries that change the world rather than one Guild: the world made and its rules
+adopted, Guilds founded, succeeded and folded, the game's end, every Guild's Quests taken and
+their outcomes, and a Patron's Regard for a Guild moving into a new band (DL-111, DL-117). A
+choice of the History's beside the player's Guild's and each Rival's. The whole History, every
+entry unfiltered, is not a choice but the game menu's debug view, "Debug: Whole History" (DL-120).
+_Avoid_: World log, Chronicle, News
 
 **Milestone**:
 A History entry marked as one a Hero's or a Guild's page always shows first: a Level gained,
@@ -324,11 +361,11 @@ Turns has passed; it lands exactly where as many single Turns would (DL-33).
 _Avoid_: Skip, Auto-play, Simulate
 
 **Fast-forward stop**:
-A typed reason fast forward halts. Some always stop it: an ending, the watched Guild's Party
-coming home, a decision it needs to make, a Transfer Offer for it, and a module asking; others
-only when the caller names them, such as the Unattached pool refreshing (approach §2, DL-33).
-To be built: an always-on stop when the watched Guild falls below the Bankruptcy floor, and
-opt-in stops for a Quest it can staff appearing (DL-85) and for a Random Event (DL-82).
+A typed reason fast forward halts. Some always stop it: an ending, the watched Guild falling below
+the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
+and a module asking; others only when the caller names them: a Quest its free Heroes can staff
+appearing, even with a Party out, and the Unattached pool refreshing (approach §2, DL-33, DL-85,
+DL-101). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:
@@ -393,8 +430,14 @@ _Avoid_: Difficulty, Preset, Mode, Start
 
 **Wealth**:
 A Guild's coin: the currency that buys Items, recruits Heroes, pays Upkeep and builds the
-Hall.
-_Avoid_: Gold, Money, Funds, Treasury
+Hall. Its accounts are read in the Treasury (DL-111).
+_Avoid_: Gold, Money, Funds
+
+**Treasury**:
+The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
+History by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other); a part of the Guild's
+view (DL-111, built in M9-F3, DL-116).
+_Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
 The recurring cost of the Roster's wages and the Hall's maintenance.
@@ -439,6 +482,12 @@ _Avoid_: Supplies, Potion (for the general concept)
 **Holding**:
 The Items a Guild owns that no Hero carries and no Party has taken (DL-48).
 _Avoid_: Inventory, Stash, Vault
+
+**Stores**:
+Everything the Guild owns, wherever it is: its Holding, the Gear its Heroes carry, and what its
+Parties have taken; a part of the Guild's view, read only for now (DL-111, DL-113 item 2, built in
+M9-F3, DL-116). Not the Market, where Items are bought and sold.
+_Avoid_: Inventory, Armoury, Stash
 
 **Common Item**:
 An Item that is not an individual: tools, potions, ordinary gear. It has a quantity and may
@@ -495,21 +544,29 @@ _Avoid_: League, Leaderboard, Ladder, Score
 **Ending**:
 How a Guild's story closes: Retirement, Bankruptcy or Roster wiped in the first build; Defeated
 by a Rival, Hall lost, capture and indenture, and Ultimate Campaign Victory later (R34). The
-player's Guild's ending ends the game; a Rival's folds it (pre-M0 review A2, DL-28), save that
-by DL-83 a Rival whose Guildmaster retires continues under a successor (to be built).
+player's Guild's ending ends the game; a Rival's folds it (pre-M0 review A2, DL-28). Retirement
+is an ending for the player's Guild alone: a Rival whose Guildmaster retires carries on under a
+successor (Succession; DL-83 item 19, DL-100).
 _Avoid_: Game over (for a Rival), Loss, Defeat (alone)
 
 **Retirement**:
 A Hero or Guildmaster leaving the game at the end of a career. A Hero's is a yearly chance that
 rises with each year of age past a threshold and is higher while injured (R20, DL-29); by DL-83
-it reads the Hero's injury history (to be built). A Guildmaster's comes at a fixed age and is an
-ending (R34, DL-28).
+it reads the Hero's injury history (to be built). A Guildmaster's comes at a fixed age,
+`guildmasterRetirementAge`, 61 from DL-113, on the night of the Day they reach it, a Turn known
+from their founding (`retirementTurn`, DL-114): the player's Guildmaster's is an ending (R34,
+DL-28), and a Rival's Guildmaster's is met by Succession, the retired Guildmaster keeping their
+row and History with the Turn of their Retirement (DL-83 item 19, DL-100).
 _Avoid_: Ageing out, Quitting
 
 **Succession**:
-A new Guildmaster taking over a Rival Guild whose Guildmaster retires, the Guild, its Roster and
-its Wealth continuing (DL-83, superseding DL-28's fold). To be built; until then such a Rival
-folds.
+A new Guildmaster taking over a Rival Guild whose Guildmaster retires, the Guild carrying on with
+its Roster, Wealth, Fame, Hall and Items (DL-83 item 19, superseding DL-28's fold; DL-100). The
+successor is drawn as a founding Rival's Guildmaster is, within the Trait budget, with a name no
+one in play has; their Regard starts neutral, and the Regard others held for the retired
+Guildmaster stays with the retired Guildmaster. A Milestone names the Guild and both
+Guildmasters, and no replacement Rival is founded. The player's Guildmaster is never succeeded:
+their Retirement ends the game.
 _Avoid_: Replacement (a new Rival after a fold), Handover
 
 **Bankruptcy**:

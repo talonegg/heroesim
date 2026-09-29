@@ -35,6 +35,8 @@ starts.
 | [M7](./M7-web.md) | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | 6–8 | M6 |
 | [M8](./M8-modules.md) | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | 4–6 | M7 |
 | [v1.0.1](./v1.0.1-release.md) | Workers beside Pages, and three page fixes; complete as of its tag, `v1.0.1`, on 2026-09-28 (DL-97) | `v1.0.1` deployed from a clean checkout of its tag to the Worker `heroesim` and to Pages, `e2e:live` passing on both; M8's and v1.0.1's deploys recorded; a core-only 50 × 20 sweep with `v1.0.0`'s fingerprint | 5–7 | v1.0.0 |
+| [M9](./M9-redesign.md) | The page redesigned, the Guildmaster's setup (#30) and two fast-forward stops (#32); the v1.1 line (DL-99, DL-100) | The page as views in a shell at 360, 820 and 1280px with the journeys through it; the History for any entity; the Guildmaster set up within a Trait budget from both front ends; Succession for a Rival Guildmaster; the Bankruptcy and staffable-Quest stops; a 50 × 20 sweep with every difference from `v1.0.1`'s explained | 12–16 | v1.0.1 |
+| [M9, follow-on](./M9-feedback.md) | The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the History's scopes with a World History, the Guild in four parts, the Market and the Guildmaster as views, every Guildmaster 21 to 50 and retiring at 61 (DL-111, DL-112, DL-113); built and verified on `v1.1-dev` 2026-09-30 (DL-119), the owner's answers on the close built as M9-F7 (DL-120, DL-121), the release, M9-S9 (DL-123), deployed from CI (DL-122), waiting for the owner's steps | Each of DL-111's nine points driven by a test through the page or the CLI; the seven views at 360, 820 and 1280px with the journeys through them; `configVersion` 12 with a 50 × 20 sweep against `d476deb`'s, every difference explained, and a Succession probe of a Rival Guildmaster at 50 over 12 years | 8.5–11 | M9-S8 |
 
 **Total: 60–78 sessions** of two to three hours, against no calendar. That sum is stated only
 here. It is the first build's, M0 to M8; v1.0.1's row is outside it (added 2026-09-28, DL-92).
@@ -129,6 +131,12 @@ are frozen but for v1.0.x hotfix releases, the first of which moves the deploy t
 Workers (DL-88, DL-91). That release is v1.0.1, with three page fixes beside the move, planned in
 [its epic](./v1.0.1-release.md); it begins by fast-forwarding `v1.0-dev` to the commit that
 recorded its plan, and is deployed only from a clean checkout of its tag (added 2026-09-28, DL-92).
+
+*Amended 2026-09-29 (DL-99).* The v1.1 line's milestone is M9, the page redesigned. It carries #30
+and #32 and is tagged `m9-redesign`. Random Events moves to the v1.2 line as M10
+(`m10-random-events`), built on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Read
+step 5 with `v1.2-dev` and `v1.2-release` for it. M9's epic is
+[M9-redesign.md](./M9-redesign.md), in the register above (DL-100).
 
 ## 4. Conventions the epics assume
 

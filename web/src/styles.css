@@ -1,43 +1,96 @@
 /*
- * The page's styling (M7-S3, DL-66): one column that stacks, at any width, from a phone's 360px
- * up, with no horizontal scroll of the page (M7 §0 defers every other layout). A wide table
- * scrolls inside its own box instead. System fonts, no icon set, no stylesheet from anywhere
- * else: the page requests nothing (principle 12). Adapted from v1's (feature/poc, E8-S3), whose
- * three layouts by width are left out.
+ * The page's style (M9-S3, DL-103; the review's D1 to D8, the direction DL-100 item 6 goes ahead
+ * with): a guild ledger. Parchment and ink surfaces, an oxblood accent, brass for the numbers that
+ * matter, headings in the system's own serif, one surface level per view with space and hairlines
+ * between things rather than frames around them, three tiers of button, and a small inline icon set.
+ *
+ * The shell by width, by CSS alone (DL-99 item 1; the mechanism harvested from v1's feature/poc
+ * E8-S3, not its model): under 600px one view at a time over a bottom bar; from 600px a side rail;
+ * from 1100px a History rail beside the view as well. No horizontal scroll of the page at any width;
+ * a wide table scrolls inside its own box. Controls are at least 44px.
+ *
+ * Nothing is fetched (principle 12, the bundle gate): system font stacks, and icons as inline SVG
+ * in the bundle. Text contrast is at least WCAG AA in both schemes, which `styles.test.ts` checks
+ * token by token. Motion is short, and off under `prefers-reduced-motion`.
  */
 
+/* ── Tokens ─────────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg: #f6f3ee;
-  --bg-raised: #fffdfa;
-  --bg-sunken: #ebe5db;
-  --ink: #241f1a;
-  --ink-soft: #5d554b;
-  --line: #d6cdbf;
-  --accent: #7a4e2d;
-  --accent-ink: #fffdfa;
-  --good: #2f6b3f;
-  --bad: #8c2f2f;
+  /* Surfaces: the page, a card on it, a well sunk into it. */
+  --paper: #f5f0e6;
+  --surface: #fcf9f3;
+  --sunk: #ece4d6;
+  /* Ink, and ink for what is said beside the point. */
+  --ink: #2a221b;
+  --ink-soft: #5f5244;
+  /* Hairlines, and the edge of a field. */
+  --line: #dcd2c2;
+  --line-strong: #857560;
+  /* The accent, oxblood, and what is written on it. */
+  --accent: #7c2d24;
+  --accent-strong: #63221b;
+  --on-accent: #fcf9f3;
+  --accent-soft: #f3e3dd;
+  /* Brass, for the numbers that matter. */
+  --brass: #7f5b12;
+  --brass-soft: #f2e6c9;
+  /* How a thing went, and a warning: never colour alone, always with a word or an icon. */
+  --good: #2b6a3c;
+  --good-soft: #e1eedf;
+  --bad: #a12a22;
+  --bad-soft: #f7e1dc;
+  --warn: #875200;
+  --warn-soft: #f8e8c9;
+  --focus: #7c2d24;
+  --shadow: 0 1px 2px rgb(42 34 27 / 8%), 0 8px 24px rgb(42 34 27 / 10%);
+  --backdrop: rgb(42 34 27 / 40%);
+
+  /* Faces: the display serif ships with the systems themselves (the review's D2). */
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
   --tap: 44px;
   --gap: 0.75rem;
+  --space: 1.25rem;
   --gutter: 16px;
   --radius: 10px;
+  --radius-small: 6px;
+  --frame: 92rem;
+  --nav-h: 64px;
+  --status-h: 0px;
+  --quick: 160ms;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #171513;
-    --bg-raised: #221f1c;
-    --bg-sunken: #100e0d;
-    --ink: #ece5dc;
-    --ink-soft: #a89e92;
-    --line: #3b3630;
-    --accent: #d09b6a;
-    --accent-ink: #1a1613;
-    --good: #85c59a;
-    --bad: #e29a9a;
+    --paper: #181410;
+    --surface: #221d17;
+    --sunk: #110e0b;
+    --ink: #f0e8db;
+    --ink-soft: #b9ab97;
+    --line: #3a3228;
+    --line-strong: #7a6d5c;
+    --accent: #e6a896;
+    --accent-strong: #f0bfb0;
+    --on-accent: #1c1410;
+    --accent-soft: #3d2520;
+    --brass: #e3bf6f;
+    --brass-soft: #3a2e14;
+    --good: #94d1a3;
+    --good-soft: #1c3323;
+    --bad: #f2a399;
+    --bad-soft: #40201c;
+    --warn: #f1c374;
+    --warn-soft: #3b2c11;
+    --focus: #e6a896;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+    --backdrop: rgb(0 0 0 / 60%);
   }
 }
+
+/* ── Base ───────────────────────────────────────────────────────────────────────────────── */
 
 *,
 *::before,
@@ -51,13 +104,20 @@ body {
   padding: 0;
 }
 
+html {
+  scroll-padding-top: calc(var(--status-h) + 0.75rem);
+}
+
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--sans);
   font-size: 16px;
   line-height: 1.5;
+  /* Every number in tabular figures, so columns and changing values do not jitter. */
+  font-variant-numeric: tabular-nums;
   -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
 }
 
 /* Names and sentences wrap, however long a word; nothing is cut off. */
@@ -65,6 +125,8 @@ h1,
 h2,
 h3,
 h4,
+h5,
+h6,
 p,
 li,
 dt,
@@ -72,37 +134,59 @@ dd,
 span,
 label,
 legend,
-button {
+button,
+summary {
   overflow-wrap: anywhere;
 }
 
 h1,
 h2,
 h3,
-h4 {
-  line-height: 1.25;
+h4,
+h5,
+h6 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.2;
   margin: 0 0 0.5rem;
+  letter-spacing: 0.005em;
+  scroll-margin-top: calc(var(--status-h) + 0.75rem);
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
 }
 
 h2 {
-  font-size: 1.25rem;
+  font-size: 1.625rem;
 }
 
 h3 {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
 }
 
 h4 {
+  font-size: 1.075rem;
+  margin-top: 1.1rem;
+}
+
+h5 {
   font-size: 1rem;
   margin-top: 1rem;
 }
 
+h6 {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 0.75rem;
+}
+
 p {
   margin: 0 0 0.5rem;
+  max-width: 68ch;
 }
 
 ul,
@@ -111,145 +195,31 @@ ol {
   padding-left: 1.25rem;
 }
 
+strong {
+  font-weight: 650;
+}
+
 [tabindex='-1']:focus {
   outline: none;
 }
 
-/* ── Controls ───────────────────────────────────────────────────────────────────────────── */
-
-button {
-  font: inherit;
-  color: inherit;
-  min-height: var(--tap);
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-raised);
-  cursor: pointer;
-  text-align: left;
-  max-width: 100%;
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.button--primary {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-/* A button that reads as a name: a Hero on the Roster. */
-.link {
-  border: none;
-  background: none;
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  min-height: var(--tap);
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: underline;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-input[type='text'],
-input[type='number'],
-select {
-  font: inherit;
-  color: inherit;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  min-height: var(--tap);
-  padding: 0.4rem 0.6rem;
-  width: 100%;
-  max-width: 22rem;
-}
-
-input[type='number'] {
-  max-width: 7rem;
-}
-
-input[type='checkbox'] {
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.15rem 0 0;
+.icon {
+  width: 1.25em;
+  height: 1.25em;
   flex: none;
-}
-
-fieldset {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin: 0 0 var(--gap);
-  padding: 0.5rem var(--gap) var(--gap);
-  min-width: 0;
-}
-
-legend {
-  font-weight: 600;
-  padding: 0 0.25rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: var(--gap);
-}
-
-.choice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  min-height: var(--tap);
-  padding: 0.35rem 0;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: var(--gap) 0;
-}
-
-/* ── The one column ─────────────────────────────────────────────────────────────────────── */
-
-.app {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: var(--gutter);
-}
-
-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  min-width: 0;
-}
-
-.brand {
-  color: var(--ink-soft);
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin: 0 0 0.25rem;
-}
-
-.panel,
-.guild {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--gap);
-  min-width: 0;
+  vertical-align: -0.25em;
 }
 
 .subtle,
@@ -261,53 +231,1630 @@ main {
   font-size: 0.875rem;
 }
 
-.busy:empty {
+.warning {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* ── Buttons: three tiers ───────────────────────────────────────────────────────────────── */
+
+/* Secondary, the default: outlined. */
+button,
+.button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  max-width: 100%;
+  line-height: 1.25;
+}
+
+button:hover:not(:disabled),
+.button:hover:not(.is-disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+button:disabled,
+.button.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Primary: filled. Advance, Send the Party, Accept, Start the game. */
+.button--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+/* Tertiary: quiet text. Close, Back, Dismiss, Keep it. */
+.button--quiet {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.6rem;
+}
+
+.button--quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-soft);
+}
+
+.button--danger {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+}
+
+/* A button that reads as a name: a Hero on a Roster. The card around it is the space it needs. */
+.link {
+  border: none;
+  background: none;
+  padding: 0.35rem 0;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  color: var(--accent);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  justify-content: flex-start;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.link:hover:not(:disabled) {
+  background: none;
+  text-decoration-thickness: 2px;
+}
+
+/* A toggle that is on: the Rankings' measure. */
+button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+/* Under the pointer it stays on, a shade deeper, as a primary button does: the hover's soft face with
+   the pressed one's light words could not be read (M9-F6). */
+button[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The file picker's own input is hidden: the button it sits in shows the keyboard is there. */
+.file-button:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: var(--gap) 0;
+}
+
+.actions--back {
+  margin: 0 0 0.5rem -0.6rem;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────────────────────── */
+
+input[type='text'],
+input[type='number'],
+input[type='search'],
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  min-height: var(--tap);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  max-width: 24rem;
+}
+
+input::placeholder {
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
+input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+fieldset {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0 0 var(--gap);
+  padding: 0.5rem 0 0;
+  min-width: 0;
+}
+
+legend {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 0 0.5rem 0 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: var(--gap);
+}
+
+.field > span:first-child,
+.stepper-field > label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: var(--tap);
+  padding: 0.55rem 0;
+  cursor: pointer;
+}
+
+.choice + .choice {
+  border-top: 1px solid var(--line);
+}
+
+/* A search field with its glass. */
+.search {
+  position: relative;
+  display: block;
+  max-width: 24rem;
+}
+
+.search .icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.search input[type='search'] {
+  padding-left: 2.25rem;
+  border-radius: 999px;
+}
+
+/* A number with − and + beside it. */
+.stepper-field {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.stepper__step {
+  border: none;
+  border-radius: 0;
+  min-width: var(--tap);
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.stepper input[type='number'] {
+  border: none;
+  border-inline: 1px solid var(--line);
+  border-radius: 0;
+  width: 3.5rem;
+  min-width: 0;
+  padding: 0.25rem;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stepper input[type='number']::-webkit-inner-spin-button,
+.stepper input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* The browser's file picker, hidden behind a button of the page's own. */
+.file-button {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-button input {
+  cursor: pointer;
+}
+
+/* ── Disclosures: help on request, and anything else that folds ─────────────────────────── */
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
   display: none;
 }
 
-/* The header's facts: as many to a row as fit, each a label over its value. */
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin: 0;
+.about {
+  flex: 1 1 100%;
+  order: 3;
 }
 
-.facts dt {
+.about > summary,
+.disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--tap);
+  padding: 0.25rem 0.6rem 0.25rem 0;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-small);
+}
+
+.about > summary:hover,
+.disclosure > summary:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.about__body {
+  border-left: 3px solid var(--brass-soft);
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  margin: 0.25rem 0 0.5rem;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
-.facts dd {
+.about__body p,
+.about__body dd {
+  max-width: 68ch;
+}
+
+.about__parts {
+  margin: 0.5rem 0 0;
+}
+
+.about__parts dt {
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 0.5rem;
+}
+
+.about__parts dd {
   margin: 0;
-  font-weight: 600;
 }
 
-/* The game's end, and the countdown to Bankruptcy while the Guild is below the floor (DL-95). */
-.ended,
-.countdown {
-  margin-top: var(--gap);
+.disclosure__mark {
+  transition: transform var(--quick) ease;
+}
+
+.disclosure[open] .disclosure__mark {
+  transform: rotate(180deg);
+}
+
+/* ── Chips, stats, badges, banners ──────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.chip .icon {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.chip--good {
+  background: var(--good-soft);
+  border-color: transparent;
+  color: var(--good);
+}
+
+.chip--bad {
+  background: var(--bad-soft);
+  border-color: transparent;
   color: var(--bad);
 }
 
-/* A refusal stays in view at the top while the player scrolls, whichever section they acted from. */
-.refusal {
+.chip--warn {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--warn);
+}
+
+.chip--accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.chip--brass {
+  background: var(--brass-soft);
+  border-color: transparent;
+  color: var(--brass);
+}
+
+/* A chip that does something: the countdown, which opens the home view. */
+.chip--button {
+  min-height: var(--tap);
+  padding-inline: 0.75rem;
+  white-space: normal;
+  text-align: left;
+}
+
+.chip--button:hover:not(:disabled) {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+/* A number that matters, with its icon: Wealth and Fame in brass. */
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  white-space: nowrap;
+}
+
+.stat .icon {
+  color: var(--ink-soft);
+}
+
+.stat--brass .icon,
+.stat--brass .stat__value {
+  color: var(--brass);
+}
+
+.stat__value {
+  font-weight: 700;
+}
+
+.stat--brass .stat__value {
+  font-size: 1.0625rem;
+}
+
+.stat--plain {
+  white-space: normal;
+}
+
+.stat__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  background: var(--surface);
+  margin: 0 0 var(--space);
+}
+
+.banner__icon {
+  margin-top: 0.1rem;
+}
+
+.banner__body p:last-child {
+  margin-bottom: 0;
+}
+
+.banner__actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.banner--accent {
+  border-left-color: var(--accent);
+}
+
+.banner--accent .banner__icon {
+  color: var(--accent);
+}
+
+.banner--warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.banner--warn .banner__icon {
+  color: var(--warn);
+}
+
+.banner--bad {
+  border-left-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+/* How a thing would go, well: the Party builder's verdict when dispatch would send the Party (M9-S4). */
+.banner--good {
+  border-left-color: var(--good);
+  background: var(--good-soft);
+}
+
+.banner--good .banner__icon {
+  color: var(--good);
+}
+
+.banner--bad .banner__icon {
+  color: var(--bad);
+}
+
+/* ── The page before a game ─────────────────────────────────────────────────────────────── */
+
+.app--start {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem var(--gutter) 1rem;
+}
+
+.start > h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.brand {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem;
+}
+
+/* An ornamental rule under a name (the review's D8). */
+.start > h1::after {
+  content: '';
+  display: block;
+  width: 4.5rem;
+  height: 3px;
+  margin-top: 0.6rem;
+  background: linear-gradient(90deg, var(--accent), var(--brass));
+  border-radius: 2px;
+}
+
+.start .view {
+  margin-top: var(--space);
+}
+
+.form {
+  margin-bottom: var(--space);
+}
+
+/* The Guildmaster's setup (M9-S7): behind "Your Guildmaster", a field's hint under it, the Traits
+   as rows of a box, a name and a cost, then what each does and how it stands against those chosen. */
+.field > label:first-child {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field__hint {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  min-height: var(--tap);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  max-width: 36rem;
+  resize: vertical;
+}
+
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input[type='radio'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.form > .disclosure {
+  display: block;
+  margin: 0 0 var(--gap);
+  border-block: 1px solid var(--line);
+}
+
+.disclosure__title {
+  font-family: var(--serif);
+  font-size: 1.125rem;
+}
+
+.disclosure__hint {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.setup {
+  border-left: 3px solid var(--brass-soft);
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  margin: 0.25rem 0 var(--gap);
+}
+
+.setup__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0 1rem;
+  max-width: 36rem;
+}
+
+.setup__traits {
+  margin-top: 0.25rem;
+}
+
+.setup__how {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+}
+
+.setup__how .choice + .choice {
+  border-top: none;
+}
+
+.budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.budget .chip {
+  font-size: 0.875rem;
+}
+
+.trait-picks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 36rem;
+}
+
+.trait-pick {
+  border-top: 1px solid var(--line);
+  padding-bottom: 0.4rem;
+}
+
+.trait-pick__choice {
+  align-items: center;
+  padding-bottom: 0.1rem;
+}
+
+.trait-pick__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.trait-pick__cost {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brass);
+  white-space: nowrap;
+}
+
+.trait-pick__does,
+.trait-pick__stands {
+  margin: 0 0 0 1.9rem;
+  font-size: 0.875rem;
+}
+
+.trait-pick__stands {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  font-weight: 600;
+}
+
+.trait-pick__stands:empty {
+  display: none;
+}
+
+.trait-pick--over-budget .trait-pick__stands {
+  color: var(--warn);
+}
+
+.trait-pick--excluded .trait-pick__stands,
+.trait-pick--at-most .trait-pick__stands {
+  color: var(--ink-soft);
+}
+
+.trait-pick--excluded .trait-pick__choice,
+.trait-pick--at-most .trait-pick__choice {
+  cursor: default;
+}
+
+.trait-pick--excluded .trait-pick__name,
+.trait-pick--at-most .trait-pick__name,
+.trait-pick--excluded .trait-pick__cost,
+.trait-pick--at-most .trait-pick__cost {
+  color: var(--ink-soft);
+}
+
+.form__refusal,
+.form__hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+  color: var(--warn);
+  font-weight: 600;
+}
+
+/* Before anything is typed, the new-game form asks for the names: a hint, not a warning (Q22). */
+.form__hint {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.footer {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  margin-top: var(--space);
+}
+
+.footer--shell {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0 var(--gutter) calc(var(--nav-h) + 1rem);
+}
+
+/* ── The status bar ─────────────────────────────────────────────────────────────────────── */
+
+.status {
   position: sticky;
   top: 0;
-  z-index: 2;
-  border: 2px solid var(--bad);
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--line), 0 6px 18px rgb(0 0 0 / 5%);
+}
+
+.status__bar {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.5rem var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'guild menu'
+    'facts facts'
+    'time time';
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.status__guild {
+  grid-area: guild;
+  min-width: 0;
+}
+
+.status__guild h1 {
+  font-size: 1.3rem;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.status__facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 1rem;
+  font-size: 0.9375rem;
+  min-width: 0;
+}
+
+.status__time {
+  grid-area: time;
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  padding-top: 0.25rem;
+}
+
+.status__time > .button--primary,
+.split,
+.split__main {
+  flex: 1 1 auto;
+}
+
+.status__time button {
+  white-space: nowrap;
+  padding-inline: 0.75rem;
+}
+
+.status__time .split__more {
+  flex: none;
+  padding-inline: 0.5rem;
+}
+
+/* On a phone the bar keeps to the point: the Year and "by Fame" are read, not shown. */
+@media (max-width: 599px) {
+  .wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .status__facts {
+    font-size: 0.875rem;
+    gap: 0 0.75rem;
+  }
+
+  .status__guild h1 {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 419px) {
+  .status__time > button .icon,
+  .split__main .icon {
+    display: none;
+  }
+}
+
+.status__menu {
+  grid-area: menu;
+  justify-self: end;
+}
+
+/* Fast forward, and its other ways behind a chevron. */
+.split {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 auto;
+}
+
+.split__main {
+  flex: 1 1 auto;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.split__more {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-left-width: 0;
+  padding-inline: 0.5rem;
+}
+
+.dialog .part:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.status__progress {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.5rem var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--brass-soft);
+}
+
+.status__progress p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.status__progress .countdown {
+  color: var(--bad);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* A refusal, docked under the bar: it covers nothing of the view. */
+.refusal {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.4rem var(--gutter);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  background: var(--bad-soft);
+  color: var(--ink);
+  border-top: 2px solid var(--bad);
+}
+
+.refusal p {
+  margin: 0;
+  max-width: none;
+}
+
+.refusal__icon {
+  color: var(--bad);
+}
+
+.app--start .refusal {
   border-radius: var(--radius);
-  background: var(--bg-raised);
-  padding: var(--gap);
+  border: 1px solid var(--bad);
+  border-left-width: 4px;
+  margin-bottom: var(--space);
 }
 
-.stop {
-  border-left: 4px solid var(--accent);
-  padding-left: var(--gap);
+/* ── Popovers and the game menu ─────────────────────────────────────────────────────────── */
+
+.popover {
+  position: absolute;
+  z-index: 30;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* ── Cards: Quests on the Board, Heroes on the Roster ───────────────────────────────────── */
+.popover--time {
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: min(22rem, calc(100vw - 2 * var(--gutter)));
+}
+
+.popover--time .note {
+  margin: 0;
+}
+
+.popover--time button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+/* The status bar keeps its own buttons to a line; a longer way to fast forward wraps (M9-S7). */
+.status__time .popover--time button {
+  white-space: normal;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--backdrop);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog {
+  background: var(--paper);
+  width: min(32rem, 100%);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem var(--gutter) 2rem;
+  box-shadow: var(--shadow);
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  position: sticky;
+  top: -1rem;
+  margin: -1rem calc(-1 * var(--gutter)) 0.5rem;
+  padding: 0.75rem var(--gutter);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  z-index: 1;
+}
+
+.dialog__head h2 {
+  margin: 0;
+}
+
+.facts-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0 var(--space);
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--line);
+}
+
+.facts-list dt,
+.terms dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.facts-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.dialog .part {
+  margin-top: var(--space);
+}
+
+.load-save {
+  display: contents;
+}
+
+/* ── The shell ──────────────────────────────────────────────────────────────────────────── */
+
+.shell {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.main {
+  min-width: 0;
+  padding: var(--space) 0 calc(var(--nav-h) + var(--space));
+}
+
+/* Under 600px: the navigation is a bar at the foot of the screen. */
+.nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 25;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.25rem;
+  display: flex;
+  justify-content: space-around;
+}
+
+.nav__item {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+}
+
+.nav__item--wide {
+  display: none;
+}
+
+.nav__button {
+  width: 100%;
+  min-height: var(--nav-h);
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0.25rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  position: relative;
+}
+
+.nav__button .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+/* A view's label, the Guildmaster's name among them, cut with an ellipsis where it does not fit
+   (M9-F2, DL-112 item 5); the name is whole in the Guildmaster view. */
+.nav__label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav__button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav__button[aria-current='page'],
+.nav__button.is-current {
+  color: var(--accent);
+}
+
+.nav__button[aria-current='page']::before,
+.nav__button.is-current::before {
+  content: '';
+  position: absolute;
+  inset: 0 25% auto;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+}
+
+.nav__button .badge,
+.nav__button .dot {
+  position: absolute;
+  top: 0.35rem;
+  left: calc(50% + 0.4rem);
+}
+
+.popover--nav {
+  bottom: calc(100% + 0.5rem);
+  right: 0.25rem;
+  min-width: 11rem;
+  padding: 0.35rem;
+}
+
+.popover--nav .nav__button {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-small);
+  font-size: 0.9375rem;
+}
+
+.popover--nav .nav__button[aria-current='page']::before {
+  inset: 20% auto 20% 0;
+  width: 3px;
+  height: auto;
+  border-radius: 0 3px 3px 0;
+}
+
+.popover--nav .nav__button .badge {
+  position: static;
+}
+
+.rail {
+  display: none;
+}
+
+/* From 600px: the navigation is a rail at the side; the status bar takes two rows. */
+@media (min-width: 600px) {
+  .status__bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'guild menu'
+      'facts time';
+  }
+
+  .status__time {
+    padding-top: 0;
+  }
+
+  .status__time > .button--primary,
+  .split,
+  .split__main {
+    flex: 0 0 auto;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 0 var(--space);
+  }
+
+  .main {
+    padding-bottom: 3rem;
+  }
+
+  .footer--shell {
+    padding-bottom: 1.5rem;
+  }
+
+  .nav {
+    position: sticky;
+    top: var(--status-h);
+    inset: var(--status-h) auto auto;
+    align-self: start;
+    background: none;
+    border-top: none;
+    border-right: 1px solid var(--line);
+    padding: var(--space) 0.5rem var(--space) 0;
+    /* The whole height below the status bar, so its rule runs to the foot of the screen. */
+    height: calc(100vh - var(--status-h));
+    overflow-y: auto;
+  }
+
+  .nav__list {
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0;
+  }
+
+  .nav__item--wide {
+    display: block;
+  }
+
+  .nav__item--more {
+    display: none;
+  }
+
+  .nav__button {
+    border-radius: var(--radius);
+    min-height: 3.75rem;
+  }
+
+  .nav__button[aria-current='page'] {
+    background: var(--accent-soft);
+  }
+
+  .nav__button[aria-current='page']::before {
+    inset: 20% auto 20% -0.5rem;
+    width: 3px;
+    height: auto;
+    border-radius: 0 3px 3px 0;
+  }
+
+  .nav__button .badge,
+  .nav__button .dot {
+    left: calc(50% + 0.5rem);
+  }
+}
+
+/* From 1100px: the rail names its views beside their icons, and the History rail sits at the right. */
+@media (min-width: 1100px) {
+  .status__bar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'guild facts time menu';
+    gap: 0.25rem 1.5rem;
+    padding-block: 0.6rem;
+  }
+
+  .status__guild h1 {
+    font-size: 1.5rem;
+    max-width: 22rem;
+  }
+
+  .stat__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .stat--plain .stat__label {
+    display: none;
+  }
+
+  .shell {
+    grid-template-columns: 12rem minmax(0, 1fr) 21rem;
+    gap: 0 1.75rem;
+  }
+
+  .app[data-view='history'] .shell {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+
+  .nav__button {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    min-height: var(--tap);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .nav__button .icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .nav__button .badge,
+  .nav__button .dot {
+    position: static;
+    margin-left: auto;
+  }
+
+  .rail {
+    display: block;
+    position: sticky;
+    top: var(--status-h);
+    align-self: start;
+    height: calc(100vh - var(--status-h));
+    overflow-y: auto;
+    padding: var(--space) 0 var(--space) 1.25rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .app[data-view='history'] .rail {
+    display: none;
+  }
+}
+
+/* ── Views and their parts ──────────────────────────────────────────────────────────────── */
+
+.view__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.view__head h2 {
+  margin: 0;
+  font-size: 1.875rem;
+}
+
+.view__lead {
+  color: var(--ink-soft);
+}
+
+.part {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+/* A part straight under its view's head (the Rankings' Guilds) has nothing above it to rule off, as
+   the game menu's first part has not (M9-S8, DL-108). */
+.view__head + .part {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.part > h3 {
+  font-size: 1.375rem;
+}
+
+.part--notice {
+  border-top: 3px solid var(--accent);
+}
+
+/* The Guild's parts as tabs under its heading (M9-F2, DL-115): a row that scrolls in its own box,
+   never the page, should the tabs outgrow a phone's width. */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+  padding: 0.5rem 1rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.tab:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  min-width: 0;
+}
+
+/* ── The History (M9-S5, DL-105) ─────────────────────────────────────────────────────────── */
+
+/* Its search in the view's head, beside the heading (the review's B11). */
+.history__search {
+  flex: 1 1 14rem;
+  max-width: 22rem;
+  margin: 0;
+}
+
+/* Whose History: the player's Guild, the whole History and each Rival, one choice away, as chips. */
+.history__whose {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.history__whose > button {
+  border-radius: 999px;
+  padding-inline: 0.95rem;
+}
+
+/* On a phone the chips are one row that scrolls in its own box, never the page, rather than a
+   column of six rows above the History. */
+@media (max-width: 599px) {
+  .history__whose {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: thin;
+  }
+
+  .history__whose > button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.view--history .history__top {
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--line);
+}
+
+.history__top h3 {
+  margin-bottom: 0.15rem;
+}
+
+/* A Day and time of day, over its entries: a label, not a heading's weight. */
+.history-group {
+  margin-top: 1.1rem;
+}
+
+.history-group > :is(h4, h5, h6) {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.history-group__when {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.entries {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entries[hidden] {
+  display: none;
+}
+
+/* Every entry keeps a rule's room at its left: the player's own is drawn in the accent (the review's C7). */
+.entry {
+  padding: 0.45rem 0 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+
+.entry--mine {
+  border-left-color: var(--accent);
+}
+
+/* A Rival's is muted: said, and set back. */
+.entry--rival {
+  color: var(--ink-soft);
+}
+
+.entry__line .new-tag,
+.entry__line .chip,
+.entry__milestone {
+  margin-right: 0.4rem;
+  vertical-align: 0.05em;
+}
+
+.entry__milestone .icon {
+  color: var(--brass);
+}
+
+.is-milestone > .entry__line .entry__text {
+  font-weight: 650;
+}
+
+/* The debug view's event type after each line (M9-F4): small, set back, and free to break at a dot so
+   a long type never scrolls the page sideways. */
+.entry__type {
+  margin-left: 0.4rem;
+  font-size: 0.8em;
+  color: var(--ink-soft);
+  overflow-wrap: anywhere;
+}
+
+/* A name in a line opens whom it names: a link's look, in the line's own words. It is in a sentence,
+   so its height is the line's (WCAG 2.5.8's inline targets), not the 44px of a control. */
+.entry button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  border-radius: 2px;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.entry--mine button.name {
+  color: var(--accent);
+}
+
+.entry button.name:hover:not(:disabled) {
+  background: none;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+}
+
+/* What is folded under a line, and the button that opens it. */
+.entry .fold {
+  margin-top: 0.1rem;
+  padding: 0.25rem 0.6rem 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.fold__mark {
+  transition: transform var(--quick) ease;
+}
+
+.fold[aria-expanded='true'] .fold__mark {
+  transform: rotate(180deg);
+}
+
+.entries--folded {
+  margin: 0 0 0.25rem 0.35rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+}
+
+.entries--folded .entry {
+  padding: 0.3rem 0;
+  border-left: none;
+  border-bottom: none;
+}
+
+/* ── Cards: one surface on the page ─────────────────────────────────────────────────────── */
 
 .cards {
   list-style: none;
@@ -318,69 +1865,1071 @@ main {
   gap: var(--gap);
 }
 
+.cards--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
 .card {
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: var(--gap);
-  background: var(--bg);
+  padding: 0.9rem 1rem;
   min-width: 0;
 }
 
-.hero-row p {
+.card > :last-child {
+  margin-bottom: 0;
+}
+
+.card .actions:last-child {
+  margin-bottom: 0;
+}
+
+.card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.card__head h3,
+.card__head h4 {
   margin: 0;
 }
 
-/* Label and value pairs: the label above on a phone, beside it where there is room. */
+.card__head .subtle {
+  margin: 0;
+}
+
+
+/* Label and value pairs: small capitals over the value, as many to a row as fit. */
 .terms {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.25rem 1rem;
-  margin: 0 0 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: 0.6rem 1.25rem;
+  margin: 0.5rem 0;
 }
 
 .terms > div {
-  display: grid;
-  grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
-  gap: 0.75rem;
+  min-width: 0;
 }
 
-.terms dt {
-  color: var(--ink-soft);
+.terms > .is-wide {
+  grid-column: 1 / -1;
 }
 
 .terms dd {
+  margin: 0.1rem 0 0;
+}
+
+/* ── The Board's Quest cards (M9-S4): two lines, unfolding to the details ─────────────────── */
+
+.board__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.board__bar .view__lead {
   margin: 0;
 }
 
-.dispatch {
-  margin-top: var(--gap);
+/* A field whose label sits beside it: the Board's order. */
+.field--inline {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.field--inline select {
+  width: auto;
+}
+
+.quest {
+  padding: 0.6rem 1rem 0.75rem;
+}
+
+.quest.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* Two lines, the name and its Patron, then the terms, with "Choose a Party" at their end. */
+.quest__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'line choose'
+    'chips choose';
+  align-items: center;
+  gap: 0 1rem;
+}
+
+.quest__line {
+  grid-area: line;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.4rem;
+  min-width: 0;
+}
+
+.quest__name {
+  margin: 0;
+  font-size: 1.1875rem;
+  min-width: 0;
+}
+
+.quest__toggle {
+  max-width: none;
+  border: none;
+  background: none;
+  padding: 0.3rem 0.4rem 0.3rem 0;
+  margin-left: -0.15rem;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  justify-content: flex-start;
+  text-align: left;
+  gap: 0.35rem;
+}
+
+.quest__toggle:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+.quest__mark {
+  flex: none;
+  color: var(--accent);
+  transform: rotate(-90deg);
+}
+
+.quest__toggle[aria-expanded='true'] .quest__mark {
+  transform: none;
+}
+
+.quest__patron {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.quest__choose {
+  grid-area: choose;
+}
+
+/* The second line: its terms as chips. */
+ul.chips {
+  list-style: none;
+  padding: 0;
+}
+
+.quest__chips {
+  grid-area: chips;
+  margin: 0.1rem 0 0;
+}
+
+.quest__details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 0.9rem 1.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
   border-top: 1px solid var(--line);
-  padding-top: var(--gap);
+}
+
+.quest__detail h4 {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 0.4rem;
+}
+
+.quest__detail .chips {
+  margin: 0;
+}
+
+.quest__detail p {
+  margin: 0;
+}
+
+/* The Demands as bars of their share of the work. */
+.demands {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(3rem, 1fr) 2.75rem;
+  align-items: center;
+  gap: 0.3rem 0.6rem;
+}
+
+.demands li {
+  display: contents;
+}
+
+.demand__bar {
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+
+.demand__bar > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.demand__share {
+  text-align: right;
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+/* The difficulty placed against the Quests on the Board now: display only. */
+.meter {
+  max-width: 20rem;
+}
+
+.meter__track {
+  position: relative;
+  display: block;
+  height: 0.5rem;
+  margin: 0.55rem 0.4rem 0.2rem;
+  border-radius: 999px;
+  background: var(--sunk);
+}
+
+.meter__tick,
+.meter__mark {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  border-radius: 999px;
+}
+
+.meter__tick {
+  width: 2px;
+  height: 0.85rem;
+  background: var(--ink-soft);
+}
+
+.meter__mark {
+  width: 0.95rem;
+  height: 0.95rem;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.meter__ends {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.meter__words {
+  font-size: 0.9375rem;
+}
+
+/* The card a Quest becomes once its Party is sent. */
+.sent {
+  border-left: 4px solid var(--good);
+}
+
+.sent p {
+  margin: 0.25rem 0 0;
+}
+
+.sent .actions {
+  margin: 0.25rem 0 0 -0.6rem;
+}
+
+.sent h3 {
+  font-size: 1.1875rem;
+}
+
+@media (max-width: 599px) {
+  .quest__summary {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'line'
+      'chips'
+      'choose';
+  }
+
+  .quest__line {
+    display: block;
+  }
+
+  .quest__patron {
+    margin-left: 1.55rem;
+  }
+
+  .quest__patron > [aria-hidden] {
+    display: none;
+  }
+
+  .quest__choose {
+    justify-self: start;
+    margin-top: 0.25rem;
+  }
+}
+
+/* ── The Party builder (M9-S4) ──────────────────────────────────────────────────────────── */
+
+.dispatch {
+  margin-top: 0.9rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+
+.dispatch .stepper-field {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+}
+
+.dispatch .stepper-field > label {
+  flex: 1 1 12rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.party {
+  border-top: none;
+}
+
+.party__rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* A Hero's row: the checkbox and who they are, the page, then what bears on this Quest. */
+.party-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'pick open'
+    'facts facts'
+    'stats stats';
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  padding: 0.35rem 0 0.6rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.party-row__pick {
+  grid-area: pick;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: var(--tap);
+  cursor: pointer;
+}
+
+.party-row__pick input {
+  margin: 0;
+}
+
+.party-row__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.6rem;
+}
+
+.party-row__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.party-row__class {
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.party-row__open {
+  grid-area: open;
+}
+
+.party-row__facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding-left: 1.9rem;
+}
+
+.party-row__stats {
+  grid-area: stats;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.15rem 1rem;
+  margin: 0.2rem 0 0;
+  padding-left: 1.9rem;
+  font-size: 0.9375rem;
+}
+
+.party-row__stats > div {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.party-row__stats dt {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.party-row__stats dd {
+  margin: 0;
+  font-weight: 700;
+}
+
+.party-row.is-away .party-row__pick {
+  cursor: default;
+}
+
+.party-row.is-away .party-row__name,
+.party-row.is-away .party-row__stats {
+  color: var(--ink-soft);
+}
+
+@media (min-width: 900px) {
+  .party-row {
+    grid-template-columns: minmax(10rem, 0.9fr) minmax(0, 1fr) minmax(0, 1.6fr) auto;
+    grid-template-areas: 'pick facts stats open';
+    padding: 0.25rem 0;
+  }
+
+  .party-row__facts,
+  .party-row__stats {
+    padding-left: 0;
+  }
 }
 
 .preview {
-  background: var(--bg-sunken);
+  background: var(--sunk);
   border-radius: var(--radius);
-  padding: var(--gap);
+  padding: 0.85rem 1rem;
+}
+
+.preview h4 {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0.35rem;
 }
 
 .preview h4:first-child {
   margin-top: 0;
 }
 
-.verdict {
-  font-weight: 600;
+.preview ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.preview > p {
+  margin: 0.75rem 0 0;
+}
+
+.marks,
+.preview .marks {
+  list-style: none;
+  padding: 0;
+}
+
+.marks li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.15rem 0;
+}
+
+.marks .icon {
+  margin-top: 0.15rem;
+}
+
+.marks .is-met .icon {
   color: var(--good);
 }
 
-.verdict--refused {
+.marks .is-missed .icon {
   color: var(--bad);
 }
 
-/* ── Tables and lines ───────────────────────────────────────────────────────────────────── */
+.marks .is-hurt .icon {
+  color: var(--warn);
+}
 
-/* A table wider than the column scrolls inside this box, never the page. */
+.checklist .is-met strong {
+  color: var(--good);
+}
+
+.checklist .is-missed strong {
+  color: var(--bad);
+}
+
+/* Send stays in view at the foot of the form while it scrolls, with the verdict beside it; on a
+   phone, above the navigation's bar. */
+.dispatch__foot {
+  position: sticky;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0.75rem -1rem -0.75rem;
+  padding: 0.6rem 1rem 0.75rem;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.dispatch__foot .banner {
+  flex: 1 1 16rem;
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+}
+
+.dispatch__foot .button--primary {
+  flex: none;
+}
+
+@media (min-width: 600px) {
+  .dispatch__foot {
+    bottom: 0;
+  }
+}
+
+/* ── The Roster, the Hall and the Rankings (M9-S6) ───────────────────────────────────────── */
+
+/* A label over what it names, in small capitals: gear held, a kind of Regard. */
+.caption {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* The Roster's Heroes: compact cards, as many to a row as fit. */
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+
+.hero-card {
+  padding: 0.5rem 0.9rem 0.7rem;
+}
+
+.hero-card__line {
+  margin: 0 0 0.35rem;
+  color: var(--ink-soft);
+}
+
+.hero-card__state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.hero-card__state .chip {
+  white-space: normal;
+}
+
+/* A Hero's page: a line and chips for who they are, the Stats in four blocks, two by two when there is room. */
+.hero-page {
+  container: hero-page / inline-size;
+}
+
+.hero-page__head {
+  margin-bottom: 0.5rem;
+}
+
+.hero-page__head h3,
+.hero-page__head h4 {
+  margin-bottom: 0.1rem;
+}
+
+.hero-page__line {
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.hero-page__state .chip {
+  white-space: normal;
+}
+
+.hero-page__act {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.hero-page__act .actions {
+  margin-bottom: 0;
+}
+
+.stat-blocks {
+  display: grid;
+  align-items: start;
+  gap: 0.75rem 1.75rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+@container hero-page (min-width: 34rem) {
+  .stat-blocks {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.stat-block caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0.2rem 0;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.stat-block th,
+.stat-block td {
+  padding: 0.2rem 0.5rem 0.2rem 0;
+  vertical-align: middle;
+}
+
+.stat-block__value {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stat-block__outlook {
+  width: 1%;
+  padding-right: 0;
+  text-align: right;
+}
+
+/* What gear and the Guildmaster's Traits add to a Stat: the accent when it lifts it. */
+.lift {
+  margin-left: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.lift--up {
+  color: var(--accent);
+}
+
+.lift--down {
+  color: var(--bad);
+}
+
+/* Gear: each slot and what is in it, with its button. */
+.gear__slot {
+  flex: 0 0 5.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.rows li > .gear__slot {
+  flex: 0 0 5.5rem;
+}
+
+.gear__row.is-empty .gear__item {
+  color: var(--ink-soft);
+}
+
+/* Regard and Relationships: a name, what they are, and the bands as chips; the neutral folded. */
+.regards {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.regards li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.regards__name {
+  font-weight: 600;
+}
+
+.regards__detail {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.regards__bands {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.folded .disclosure {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* The confirmation an act that lets a Hero go asks for (the review's E4). */
+.confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--bad);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.confirm__icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--bad);
+}
+
+.confirm__body p {
+  margin: 0 0 0.5rem;
+}
+
+.confirm .actions {
+  margin: 0.25rem 0 0;
+}
+
+/* Tables whose headings order them, and rows with their buttons. */
+.table th,
+.table td {
+  vertical-align: middle;
+  padding-block: 0.3rem;
+}
+
+.table .number {
+  white-space: nowrap;
+}
+
+/* A row's button and a heading that orders the table keep their words on one line. */
+.table td > button,
+.table .sort {
+  white-space: nowrap;
+}
+
+/* The Market's tables and the pool's are wider than a phone: they scroll in their box, never
+   squeezing an Item's effect or a Hero's Background to a word a line. */
+.trade-table {
+  min-width: 46rem;
+}
+
+.pool-table {
+  min-width: 38rem;
+}
+
+/* The Stores has no Effect column: it fits a tablet's width, and scrolls on a phone (M9-F6). */
+.stores .trade-table {
+  min-width: 32rem;
+}
+
+.sort {
+  min-width: var(--tap);
+  padding: 0;
+  gap: 0.25rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  justify-content: flex-start;
+}
+
+th.number .sort {
+  justify-content: flex-end;
+}
+
+.sort:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+.sort__mark {
+  width: 0.9rem;
+  height: 0.9rem;
+  opacity: 0.35;
+}
+
+.sort.is-active {
+  color: var(--accent);
+}
+
+.sort.is-active .sort__mark {
+  opacity: 1;
+}
+
+/* A wide table keeps its first column in view as it scrolls in its box. */
+.table--first-sticky thead th:first-child,
+.table--first-sticky tbody th[scope='row'] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--paper);
+}
+
+.table--first-sticky tbody th[scope='row'] {
+  min-width: 9rem;
+}
+
+/* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
+.pool-table tr.is-set-back th,
+.pool-table tr.is-set-back td {
+  background: var(--sunk);
+  color: var(--ink-soft);
+}
+
+/* The Hall's facilities: one row each, its grade as pips; four columns when there is room. */
+.facilities {
+  container: facilities / inline-size;
+  margin-bottom: 0.5rem;
+}
+
+.upkeep {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.upkeep strong {
+  color: var(--brass);
+}
+
+.facility-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.facility {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name grade'
+    'does does'
+    'next next';
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@container facilities (min-width: 46rem) {
+  .facility {
+    grid-template-columns: 8.5rem 12rem minmax(0, 1fr) auto;
+    grid-template-areas: 'name grade does next';
+  }
+}
+
+.facility__name {
+  grid-area: name;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.facility__grade {
+  grid-area: grade;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+}
+
+.pips {
+  color: var(--brass);
+  font-size: 1.0625rem;
+  letter-spacing: 0.12em;
+}
+
+.facility__does {
+  grid-area: does;
+  color: var(--ink-soft);
+}
+
+.facility__next {
+  grid-area: next;
+}
+
+/* The Market's chips, which show one kind at a time. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.filter {
+  border-radius: 999px;
+  padding-inline: 0.9rem;
+  font-size: 0.875rem;
+}
+
+.filter__count {
+  font-weight: 500;
+}
+
+/* The Treasury (M9-F3): the Wealth large, the ledger's amounts by which way they go, never by colour alone (each has its sign). */
+.treasury__wealth {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+}
+
+.treasury__wealth strong {
+  color: var(--brass);
+}
+
+.treasury__totals {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.ledger__when {
+  white-space: nowrap;
+}
+
+.ledger__amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.ledger__amount.is-income {
+  color: var(--good);
+}
+
+.ledger__amount.is-expense {
+  color: var(--bad);
+}
+
+.guildmaster__retirement {
+  margin: 0 0 0.75rem;
+  color: var(--ink-soft);
+}
+
+/* The Guildmaster: Stats beside Traits and Regard when there is room. */
+.guildmaster {
+  container: guildmaster / inline-size;
+}
+
+.guildmaster .terms > div:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.guildmaster__grid {
+  display: grid;
+  gap: 0 2rem;
+}
+
+@container guildmaster (min-width: 46rem) {
+  .guildmaster__grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+}
+
+.traits {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.traits li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  padding: 0.2rem 0;
+}
+
+/* The Guilds and the Rankings in one table; a folded Guild set back at its foot. */
+.guilds-table th[scope='row'] {
+  min-width: 10rem;
+}
+
+.guilds-table__place {
+  white-space: nowrap;
+}
+
+.guilds-table__folded {
+  border-top: 2px solid var(--line-strong);
+}
+
+tr.is-folded th,
+tr.is-folded td {
+  color: var(--ink-soft);
+}
+
+.guild-page__line {
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.guild-page .disclosure {
+  margin-top: 1rem;
+}
+
+/* The Patrons neutral both ways, folded under their count. */
+.fold-row td {
+  padding-block: 0.15rem;
+}
+
+.fold-button[aria-expanded='true'] .fold-button__mark {
+  transform: rotate(180deg);
+}
+
+/* ── Tables, rows and lines ─────────────────────────────────────────────────────────────── */
+
+/* A table wider than the column scrolls inside this box, never the page. It holds what a cell hides
+   for a screen reader too (absolutely placed), which would otherwise widen the page (M9-S6). */
 .table-wrap {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
 }
@@ -393,15 +2942,18 @@ table {
 th,
 td {
   text-align: left;
-  padding: 0.3rem 0.5rem 0.3rem 0;
+  padding: 0.45rem 0.75rem 0.45rem 0;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
 thead th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 0.875rem;
+  border-bottom-color: var(--line-strong);
 }
 
 tbody th {
@@ -409,65 +2961,26 @@ tbody th {
 }
 
 th.area {
+  font-family: var(--serif);
   font-weight: 600;
-  padding-top: 0.6rem;
+  padding-top: 0.9rem;
 }
 
 .number {
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
-.lines {
-  list-style: none;
-  padding: 0;
-}
-
-.lines li {
-  padding: 0.3rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.lines .when {
-  display: block;
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-}
-
-.lines .milestone {
-  font-weight: 600;
-}
-
-.footer {
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-  margin-top: var(--gap);
-}
-
-/* ── Part 2 (DL-73): the index, rows with a button, trades, notices ─────────────────────── */
-
-/* The sections a game shows, as links that wrap onto as many lines as a phone needs. */
-.index ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-}
-
-.index a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  color: var(--accent);
-  overflow-wrap: anywhere;
+tr.mine th,
+tr.mine td {
+  font-weight: 700;
+  background: var(--accent-soft);
 }
 
 /* A line with its button: side by side where they fit, the button below where they do not. */
 .rows {
   list-style: none;
   padding: 0;
+  margin: 0 0 0.5rem;
 }
 
 .rows li {
@@ -476,8 +2989,9 @@ th.area {
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem 0.75rem;
-  padding: 0.25rem 0;
+  padding: 0.4rem 0;
   border-bottom: 1px solid var(--line);
+  min-height: var(--tap);
 }
 
 .rows li > span {
@@ -485,59 +2999,466 @@ th.area {
   flex: 1 1 12rem;
 }
 
-.trade p {
-  margin-bottom: 0.25rem;
+.rows--plain li {
+  min-height: 0;
 }
 
-.trade .actions {
-  align-items: center;
-  margin: 0.25rem 0 0;
+.lines {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
 }
 
-.inline-field {
-  display: inline-flex;
+.lines li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lines .when {
+  display: flex;
   align-items: center;
+  gap: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lines .milestone {
+  font-weight: 650;
+}
+
+.new-tag {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+
+.lines .is-new {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.quest-name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+}
+
+/* ── The home view ──────────────────────────────────────────────────────────────────────── */
+
+.stop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 0 0 var(--space);
+}
+
+.stop__icon {
+  color: var(--accent);
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.1rem;
+}
+
+.stop p {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.stop .actions {
+  margin-bottom: 0;
+}
+
+/* The Bankruptcy stop (M9-S7): a warning, by its icon and words as well as its colour. */
+.stop--warning {
+  border-left-color: var(--bad);
+}
+
+.stop--warning .stop__icon {
+  color: var(--bad);
+}
+
+.stop p.stop__words {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--ink);
+}
+
+.stop__caption {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.quest-buttons {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
   gap: 0.5rem;
 }
 
-.inline-field input[type='number'] {
-  width: 5.5rem;
+.quest-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name go'
+    'patron go';
+  justify-items: start;
+  text-align: left;
+  gap: 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--paper);
+  color: var(--ink);
 }
 
-.notice {
-  border: 2px solid var(--accent);
+.quest-button__name {
+  grid-area: name;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  color: var(--accent);
 }
 
-.warning {
+.quest-button__patron {
+  grid-area: patron;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.quest-button__go {
+  grid-area: go;
+  align-self: center;
+  color: var(--accent);
+}
+
+.digest {
+  margin: 0 0 var(--space);
+}
+
+.digest > h3 {
+  font-size: 1.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.digest--quiet {
+  padding: 1.25rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+}
+
+.outcome h4 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* ── A Quest's return (M9-F5): its report on Guild › Home, and its one entry ─────────────── */
+
+.report {
+  margin: 0 0 var(--space);
+}
+
+.report__title {
+  font-size: 1.25rem;
+  margin: 0 0 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.report__lead {
+  margin: 0 0 0.5rem;
+}
+
+.report__section {
+  margin-top: 0.9rem;
+}
+
+.report__section h4 {
+  font-size: 1rem;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.report__section p {
+  margin: 0.4rem 0 0;
+}
+
+.report__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.report__list > li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.2rem 0;
+}
+
+.report__list > li > .icon {
+  flex: none;
+  margin-top: 0.2rem;
+}
+
+.report__list .is-met > .icon {
+  color: var(--good);
+}
+
+.report__list .is-missed > .icon {
   color: var(--bad);
+}
+
+.report__used {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+.report__heroes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.report__heroes > li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.report__heroes > li:last-child {
+  border-bottom: none;
+}
+
+.report__heroes .marks {
+  margin: 0.1rem 0 0;
+}
+
+.report__heroes .marks li {
+  display: list-item;
+  margin-left: 1rem;
+  list-style: disc;
+}
+
+/* What a Death cost the Heroes at home, after the Party's outcomes (M9-F7, DL-120 item 7). */
+.report__home {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.report__home .disclosure {
+  margin-top: 0.25rem;
+}
+
+/* A name in the report opens whom it names, as in the History; so does one in the Treasury's ledger
+   and the Stores' "Carried by", which are sentences too (M9-F6). */
+.report button.name,
+.ledger-table button.name,
+.stores button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-weight: 600;
+  line-height: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.18em;
 }
 
-tr.mine th,
-tr.mine td {
+.entry__band {
+  font-weight: 700;
+}
+
+.return__heroes {
+  list-style: none;
+  margin: 0 0 0.25rem 0.35rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.return__heroes[hidden] {
+  display: none;
+}
+
+.return__heroes li {
+  padding: 0.25rem 0;
+}
+
+.return__heroes button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  font: inherit;
   font-weight: 600;
+  line-height: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.18em;
 }
 
-.guild-page h4,
-.guildmaster h4 {
-  margin-top: 1rem;
+.rail__return .fold,
+.entry .return__open {
+  font-size: 0.875rem;
 }
 
-/* A toggle that is on: the Rankings' measure. */
-button[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
+.rail__return .fold,
+.rail__return .return__open {
+  display: flex;
+  padding: 0.2rem 0.4rem 0.2rem 0;
 }
 
-/* ── Saved in this browser (M7-S4, DL-67) ────────────────────────────────────────────────── */
+/* ── The History rail ───────────────────────────────────────────────────────────────────── */
+
+.rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.rail__head h2 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.lines--rail {
+  font-size: 0.875rem;
+}
+
+.lines--rail li {
+  padding: 0.4rem 0;
+}
+
+/* ── Trades and saves ───────────────────────────────────────────────────────────────────── */
+
+.trade__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+}
 
 .saved {
-  margin-top: 1rem;
+  margin-top: var(--space);
 }
 
 .save-name {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.busy:empty {
+  display: none;
+}
+
+.guild-page h5,
+.guildmaster h4,
+.guildmaster h5 {
+  margin-top: 1.25rem;
+}
+
+/* ── Motion: short, and off when the player asks for less ───────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .button,
+  .chip,
+  .nav__button {
+    transition:
+      background-color var(--quick) ease,
+      color var(--quick) ease,
+      border-color var(--quick) ease;
+  }
+
+  .view {
+    animation: view-in 200ms ease-out;
+  }
+
+  details[open] > .about__body,
+  details[open] > .disclosure__body,
+  .dispatch,
+  .popover {
+    animation: unfold var(--quick) ease-out;
+  }
+
+  .stat__value {
+    animation: value-in 700ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes value-in {
+  from {
+    background: var(--brass-soft);
+  }
+
+  to {
+    background: transparent;
+  }
 }

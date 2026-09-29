@@ -1,7 +1,7 @@
-import { advance, createWorld, defaultConfig, playerGuild, rankings, type Guild, type WorldDocument } from '@heroesim/engine';
+import { advance, createWorld, defaultConfig, playerGuild, rankings, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { renderCountdown, renderRankings, renderSummary, table } from './render.js';
+import { renderCountdown, renderGuildmaster, renderHero, renderRankings, renderSummary, table } from './render.js';
 
 test('a table aligns its columns, numbers to the right, and leaves no trailing space', () => {
   const lines = table(
@@ -121,5 +121,28 @@ describe('the Bankruptcy countdown in show (v1.0.1-S4, DL-95)', () => {
     const ended = belowTheFloor();
     ended.world.ended = { turn: 2, reason: 'bankruptcy' };
     expect(renderCountdown(ended, playDeps(ended))).toEqual([]);
+  });
+});
+
+// M9-F1 (DL-111 item 9, DL-112 item 4): the values of Sex are capitalised where the CLI prints them.
+describe('the Sex values, capitalised (M9-F1)', () => {
+  const sexLine = (lines: readonly string[]) => lines.find((line) => line.startsWith('Sex'));
+
+  test('renderHero prints "Male" and "Female"', () => {
+    const document = newGame();
+    const deps = playDeps(document);
+    const heroes = Object.values(document.world.heroes);
+    for (const [sex, word] of [['male', 'Male'], ['female', 'Female']] as const) {
+      const hero = heroes.find((it) => it.sex === sex) as Hero;
+      expect(sexLine(renderHero(hero, document, deps))?.split(/\s+/)).toEqual(['Sex', word]);
+    }
+  });
+
+  test('renderGuildmaster prints "Male" and "Female"', () => {
+    for (const [sex, word] of [['male', 'Male'], ['female', 'Female']] as const) {
+      const document = createWorld('render', { ...setup, guildmasterSex: sex }, { config: defaultConfig, content }).document;
+      const guild = playerGuild(document.world) as Guild;
+      expect(sexLine(renderGuildmaster(guild, document, playDeps(document)))?.split(/\s+/)).toEqual(['Sex', word]);
+    }
   });
 });

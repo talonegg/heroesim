@@ -2,8 +2,9 @@ import { describe, expect, expectTypeOf, test } from 'vitest';
 import { advance } from './advance.js';
 import type { EngineDeps } from './config.js';
 import { createWorld } from './create.js';
-import { makeId, type Guild, type Hero, type WorldDocument } from './document.js';
+import { makeId, type Guild, type Guildmaster, type Hero, type WorldDocument } from './document.js';
 import type { TurnEvent } from './events.js';
+import * as engine from './index.js';
 import { nightOf } from './time.js';
 import { testDeps } from './world.test-support.js';
 import {
@@ -19,7 +20,9 @@ import {
   signingRefusal,
   unattachedHeroes,
   unsignableHeroes,
+  nextUpkeepDay,
   upkeep,
+  upkeepParts,
 } from './selectors.js';
 
 const setup = { guildmasterName: 'Aldith Barrowby', guildName: 'The Salt Road Guild', createdAt: 'test' };
@@ -144,6 +147,66 @@ describe('effectiveStats (M4-S2, M4-S5, DL-44)', () => {
     expect(Object.keys(stats).sort()).toEqual(heroStats.map((stat) => stat.key).sort());
     for (const stat of heroStats) expect(stats[stat.key], stat.key).toBe(baseStat(hero.stats, stat));
     expect(stats['wits']).toBe(deps.content.stats['wits']?.default);
+  });
+});
+
+// M9-F1 (DL-112 item 3): Upkeep's parts and its Day, for the Treasury, read from the engine.
+describe("upkeepParts and nextUpkeepDay (M9-F1)", () => {
+  test("are exported from the engine's index, for the page", () => {
+    expect(engine.upkeepParts).toBe(upkeepParts);
+    expect(engine.nextUpkeepDay).toBe(nextUpkeepDay);
+  });
+
+  test("gives the wages, the Hall's maintenance, the Guildmaster Trait's factor, and the total upkeep() gives", () => {
+    const deps = testDeps({ wagePerLevel: 5, hallMaintenancePerGrade: 10 });
+    const { world } = createWorld('upkeep-parts', setup, deps).document;
+    const guild = playerGuild(world) as Guild;
+    for (const [index, id] of guild.rosterIds.entries()) (world.heroes[id] as Hero).level = index === 0 ? 3 : 1;
+    guild.hall = { infirmary: 1, trainingYard: 2, quarters: 0 };
+    (world.guildmasters[guild.guildmasterId] as Guildmaster).traits = ['spendthrift'];
+    const rest = guild.rosterIds.length - 1;
+
+    // Wages 15 + 5 a Hero at Level 1; maintenance 30; the spendthrift's factor 1.1, rounded once.
+    const wages = 15 + 5 * rest;
+    expect(upkeepParts(guild, world, deps.config, deps.content)).toEqual({
+      wages,
+      hallMaintenance: 30,
+      traitFactor: 1.1,
+      total: Math.round((wages + 30) * 1.1),
+    });
+    expect(upkeep(guild, world, deps.config, deps.content)).toBe(Math.round((wages + 30) * 1.1));
+    // Without the content, no Trait applies, as upkeep() has it (DL-43).
+    expect(upkeepParts(guild, world, deps.config)).toEqual({ wages, hallMaintenance: 30, traitFactor: 1, total: wages + 30 });
+  });
+
+  test('sums to upkeep() for every Guild over seeded worlds, played a season', () => {
+    const deps = testDeps({ startingWealth: 100_000 });
+    const factors = new Set<number>();
+    for (const seed of ['parts-a', 'parts-b', 'parts-c', 'parts-d']) {
+      let document = createWorld(seed, setup, deps).document;
+      while (document.world.turn < nightOf(90) && document.world.ended === null) document = advance(document, deps).document;
+      const { world } = document;
+      for (const guild of Object.values(world.guilds)) {
+        const parts = upkeepParts(guild, world, deps.config, deps.content);
+        factors.add(parts.traitFactor);
+        expect(parts.total, guild.id).toBe(upkeep(guild, world, deps.config, deps.content));
+        expect(parts.total, guild.id).toBe(Math.round((parts.wages + parts.hallMaintenance) * parts.traitFactor));
+      }
+    }
+    // The seeded Guildmasters' Traits give more than one factor.
+    expect(factors.size).toBeGreaterThan(1);
+  });
+
+  test('nextUpkeepDay is the next Day whose night charges Upkeep, after the Turn given has been played (DL-26)', () => {
+    const { config } = testDeps({ upkeepEveryDays: 10 });
+    expect(nextUpkeepDay(0, config)).toBe(9);
+    expect(nextUpkeepDay(nightOf(9) - 1, config)).toBe(9);
+    expect(nextUpkeepDay(nightOf(9), config)).toBe(19);
+    expect(nextUpkeepDay(nightOf(9) + 1, config)).toBe(19);
+    expect(nextUpkeepDay(nightOf(19), config)).toBe(29);
+    const weekly = testDeps({ upkeepEveryDays: 7 }).config;
+    expect(nextUpkeepDay(0, weekly)).toBe(6);
+    expect(nextUpkeepDay(nightOf(6), weekly)).toBe(13);
   });
 });
 

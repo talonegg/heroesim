@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
-import type { EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import {
@@ -23,8 +23,9 @@ import { marketHolder, sellPrice } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
-import { nightOf } from '../time.js';
-import { plannedStreams, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
+import { nightOf, retirementTurn, retiresOn } from '../time.js';
+import { guildmasterRegardForGuild } from '../regard.js';
+import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
 
@@ -115,6 +116,9 @@ function cheapestFee(world: World, deps: EngineDeps, guild: Guild): number {
 
 const reasons = ['retirement', 'bankruptcy', 'roster-wiped'] as const satisfies readonly EndingReason[];
 
+/** The endings that fold a Rival: a Rival's Guildmaster's Retirement is met by Succession (M9-S2). */
+const foldReasons = ['bankruptcy', 'roster-wiped'] as const satisfies readonly EndingReason[];
+
 type Arrangement = (world: World, guild: Guild, deps: EngineDeps) => void;
 
 /**
@@ -138,16 +142,16 @@ const arrange: Record<(typeof reasons)[number], Arrangement> = {
 // ── The player's endings ─────────────────────────────────────────────────────────────────────
 
 describe("the player's ending ends the game", () => {
-  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge, 65 by default', () => {
+  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge, 61 by default (DL-113)', () => {
     const deps = testDeps({ turnsPerYear: 30 }); // ten Days a year, so that a birthday comes soon
-    expect(deps.config.guildmasterRetirementAge).toBe(65);
+    expect(deps.config.guildmasterRetirementAge).toBe(61);
     const start = created('retirement', deps);
     const player = thePlayer(start.world);
     const guildmaster = start.world.guildmasters[player.guildmasterId];
     if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = 64;
+    guildmaster.ageAtEntry = 60;
 
-    // 64 until Turn 30, the morning of Day 10; the check is at night.
+    // 60 until Turn 30, the morning of Day 10; the check is at night.
     const before = playTo(start, nightOf(9), deps);
     expect(before.document.world.ended).toBeNull();
     const { document, events, stoppedBecause } = playTo(before.document, nightOf(10), deps);
@@ -295,6 +299,84 @@ describe("the player's ending ends the game", () => {
   });
 });
 
+// M9-F1 (DL-113 items 4 and 5): every Guildmaster 21 to 50 at the start and retiring at 61, on the
+// Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
+// world is moved to the night before, and the Rivals stilled.
+describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
+  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 12', () => {
+    expect(defaultConfig).toMatchObject({
+      guildmasterStartingAgeMin: 21,
+      guildmasterStartingAgeMax: 50,
+      guildmasterRetirementAge: 61,
+      configVersion: 12,
+    });
+  });
+
+  /** A world whose Guildmaster of the Guild `pick` gives entered aged `age` on `enteredTurn`, moved to the night before their Retirement. */
+  function toTheEve(seed: string, pick: (world: World) => Guild, age: number, enteredTurn = 0) {
+    stillRivalControllers();
+    const deps = testDeps({ startingWealth: 100_000 });
+    const start = created(seed, deps);
+    const guild = pick(start.world);
+    // Every other Guildmaster is 21, so that none of them retires in the years skipped.
+    for (const other of Object.values(start.world.guildmasters)) other.ageAtEntry = 21;
+    const guildmaster = start.world.guildmasters[guild.guildmasterId];
+    if (guildmaster === undefined) throw new Error('No Guildmaster');
+    Object.assign(guildmaster, { ageAtEntry: age, enteredTurn });
+    const retires = retirementTurn(guildmaster, deps.config);
+    start.world.turn = retires - 3;
+    return { deps, eve: withValid(start, deps), guild, guildmaster, retires };
+  }
+
+  test("the player's Guildmaster founded at 50 retires on the first night they are 61, Turn 11,882, and the game ends", () => {
+    const { deps, eve, guild, retires } = toTheEve('at-fifty', thePlayer, 50);
+    expect(retires).toBe(11_882);
+
+    const before = playTo(eve, retires - 1, deps);
+    expect(before.document.world.ended).toBeNull();
+    const { document, events } = playTo(before.document, retires, deps);
+
+    expect(document.world.ended).toEqual({ turn: retires, reason: 'retirement' });
+    expect(ofType(events, 'game.ended').map((event) => [event.turn, event.payload])).toEqual([[retires, { guildId: guild.id, reason: 'retirement' }]]);
+  });
+
+  test("a Rival's Guildmaster founded at 50 is succeeded on the Turn retirementTurn gives, at 61", () => {
+    const { deps, eve, guild, guildmaster, retires } = toTheEve('rival-at-fifty', firstRival, 50);
+
+    const before = playTo(eve, retires - 1, deps);
+    expect(ofType(before.events, 'guildmaster.succeeded')).toEqual([]);
+    const { document, events } = playTo(before.document, retires, deps);
+
+    expect(document.world.ended).toBeNull();
+    const succeeded = ofType(events, 'guildmaster.succeeded');
+    expect(succeeded.map((event) => [event.turn, event.payload.guildmasterId, event.payload.age])).toEqual([[retires, guildmaster.id, 61]]);
+    expect(guildOf(document.world, guild.id).guildmasterId).toBe(succeeded[0]?.payload.successorId);
+  });
+
+  test('a Guildmaster who entered mid-game, a successor at 45 on the night of Day 100, retires on the Turn it gives', () => {
+    const { deps, eve, guildmaster, retires } = toTheEve('mid-game', firstRival, 45, nightOf(100));
+    expect(retires).toBe(17_582);
+
+    const { events } = playTo(eve, retires, deps);
+
+    expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId])).toEqual([[retires, guildmaster.id]]);
+  });
+
+  test('one past the night retirementTurn gave, as in a save that adopted younger rules, retires on the night retiresOn gives (M9-F6)', () => {
+    const { deps, eve, guildmaster, retires } = toTheEve('past-it', firstRival, 45);
+    // A year past their Retirement night, on a morning played: they are 62 and still in office.
+    const since = structuredClone(eve);
+    since.world.turn = retires + 1080 - 2;
+    expect(since.world.turn % 3).toBe(0);
+    const night = retiresOn(guildmaster, since.world.turn, deps.config);
+    expect(night).toBe(since.world.turn + 2);
+
+    const { events } = playTo(since, night, deps);
+
+    expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId, event.payload.age])).toEqual([[night, guildmaster.id, 62]]);
+  });
+});
+
 describe('advance after the ending', () => {
   test('is a no-op with the typed stop: the same document, no events, nothing appended', () => {
     const deps = testDeps();
@@ -392,6 +474,10 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const newcomerId = founded[0]?.payload.guildId ?? ('' as GuildId);
     const newcomer = guildOf(replaced.document.world, newcomerId);
     expect(founded[0]).toMatchObject({ turn: replacementNight, milestone: true });
+    // Its founding names its founding Wealth, drawn as a founding Rival's is (M9-F7, DL-120 item 4).
+    expect(founded[0]?.payload.wealth).toBe(newcomer.wealth);
+    expect(newcomer.wealth).toBeGreaterThanOrEqual(deps.config.rivalStartingWealthMin);
+    expect(newcomer.wealth).toBeLessThanOrEqual(deps.config.rivalStartingWealthMax);
     // It takes the controller of the Rival it replaces, so the world keeps every Disposition it was
     // dealt (M6-S1, DL-56): here the first Rival's, `ambitious`, dealt first in key order.
     expect(newcomer).toMatchObject({
@@ -427,7 +513,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     }
   });
 
-  test.each(reasons)('%s arranged on a Rival folds it and the game goes on', (reason) => {
+  test.each(foldReasons)('%s arranged on a Rival folds it and the game goes on', (reason) => {
     const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
     // The Rival's controller is stilled: from M2-S9 it signs a Hero in the afternoon, onto the
     // Roster recorded here at Turn 0.
@@ -447,14 +533,14 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
   });
 
   test("a folded Rival's Party in flight is disbanded: its Quest is abandoned unresolved and its Heroes are in the pool that night", () => {
-    const deps = testDeps({ rivalCount: 1 });
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
     // The Rival's controller is stilled: from M2-S9 it sends a Party of its own in the afternoon,
     // which the fold would disband beside the one made here.
     stillRivalControllers();
     const start = created('party', deps);
     const { world } = start;
     const rival = firstRival(world);
-    arrange.retirement(world, rival, deps);
+    arrange.bankruptcy(world, rival, deps);
     // A Party away on a taken Quest, as dispatch (M2-S4) leaves one, made by hand here.
     const patronId = Object.keys(world.patrons)[0] as keyof World['patrons'];
     const questId = takeId(world, 'quests');
@@ -515,7 +601,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       // Every planned stream, so that each can be seen to stand still.
       Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
       world.turn = nightOf(0);
-      arrange.retirement(world, firstRival(world), deps);
+      arrange['roster-wiped'](world, firstRival(world), deps);
       const before = structuredClone(world.rng) as Record<string, unknown>;
 
       const events = endings(world, phaseContext(world, deps, document.history));
@@ -529,6 +615,197 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
         else expect(rng[name], name).toEqual(before[name]);
       }
     }
+  });
+});
+
+// ── Succession (M9-S2, DL-83 item 19, DL-100 item 3) ────────────────────────────────────────
+
+describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
+  /** A world whose first Rival's Guildmaster retires on the first night, the Rivals stilled. */
+  function retiring(seed: string, deps: EngineDeps) {
+    stillRivalControllers();
+    const start = created(seed, deps);
+    const rival = firstRival(start.world);
+    const retiree = start.world.guildmasters[rival.guildmasterId];
+    if (retiree === undefined) throw new Error('No Guildmaster');
+    arrange.retirement(start.world, rival, deps);
+    return { start, rival, retiree: structuredClone(retiree), before: structuredClone(rival) };
+  }
+
+  test('on the first night the Guildmaster is guildmasterRetirementAge, a successor takes over and the Guild carries on with its Roster, Wealth, Fame, Hall and Items', () => {
+    const deps = testDeps({ rivalCount: 2 });
+    const { start, rival, retiree, before } = retiring('succession', deps);
+    const heldBefore = holdings(start.world, { kind: 'guild', id: rival.id });
+
+    const { document, events } = playTo(start, nightOf(0), deps);
+    const { world } = document;
+    const guild = guildOf(world, rival.id);
+    const successor = world.guildmasters[guild.guildmasterId];
+    if (successor === undefined) throw new Error('No successor');
+
+    expect(world.ended).toBeNull();
+    expect(guild).toEqual({ ...before, guildmasterId: successor.id });
+    expect(holdings(world, { kind: 'guild', id: rival.id })).toEqual(heldBefore);
+    expect(world.guildmasters[retiree.id]).toEqual({ ...retiree, retiredOnTurn: nightOf(0) });
+    expect(successor.id).not.toBe(retiree.id);
+    expect(successor).toMatchObject({
+      guildId: rival.id,
+      enteredTurn: nightOf(0),
+      birthplace: '',
+      appearance: '',
+      biography: '',
+      retiredOnTurn: null,
+      regard: {},
+    });
+    expect(successor.ageAtEntry).toBeGreaterThanOrEqual(deps.config.guildmasterStartingAgeMin);
+    expect(successor.ageAtEntry).toBeLessThanOrEqual(deps.config.guildmasterStartingAgeMax);
+    for (const value of Object.values(successor.stats)) {
+      expect(value).toBeGreaterThanOrEqual(deps.config.guildmasterStatMin);
+      expect(value).toBeLessThanOrEqual(deps.config.guildmasterStatMax);
+    }
+    const cost = successor.traits.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
+    expect(cost).toBeLessThanOrEqual(deps.config.guildmasterTraitBudget);
+
+    expect(ofType(events, 'guildmaster.succeeded')).toEqual([
+      {
+        turn: nightOf(0),
+        type: 'guildmaster.succeeded',
+        participants: [rival.id, retiree.id, successor.id],
+        labels: { [rival.id]: rival.name, [retiree.id]: retiree.name, [successor.id]: successor.name },
+        milestone: true,
+        payload: { guildId: rival.id, guildmasterId: retiree.id, successorId: successor.id, age: 61 },
+      },
+    ]);
+    expect(ofType(events, 'guild.folded')).toEqual([]);
+    expect(ofType(events, 'hero.left-guild')).toEqual([]);
+    // The retired Guildmaster's History ends with it, and the successor's begins with it.
+    expect(entriesFor(document.history, retiree.id)[0]?.type).toBe('guildmaster.succeeded');
+    expect(entriesFor(document.history, successor.id).map((entry) => entry.type)).toEqual(['guildmaster.succeeded']);
+  });
+
+  test('the replacement path does not run: no Rival is founded rivalReplacementDays later, and the Guilds in play hold', () => {
+    const deps = testDeps({ rivalCount: 2, rivalReplacementDays: 2 });
+    const { start } = retiring('no-replacement', deps);
+    const guilds = Object.keys(start.world.guilds).sort();
+
+    const { document, events } = playTo(start, nightOf(3), deps);
+
+    expect(ofType(events, 'guild.founded')).toEqual([]);
+    expect(Object.keys(document.world.guilds).sort()).toEqual(guilds);
+    expect(Object.values(document.world.guilds).filter((guild) => guild.foldedOnTurn !== null)).toEqual([]);
+    expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
+  });
+
+  test('Regard others held for the retired Guildmaster stays with them, and the successor holds none', () => {
+    const deps = testDeps({ rivalCount: 2 });
+    const { start, rival, retiree } = retiring('regard', deps);
+    const player = thePlayer(start.world);
+    const mine = start.world.guildmasters[player.guildmasterId];
+    if (mine === undefined) throw new Error("No player's Guildmaster");
+    const held = { value: 10, since: 0, reason: 'guild.transfer' };
+    mine.regard[retiree.id] = held;
+    const patronId = Object.values(start.world.patrons)[0]?.id;
+    if (patronId === undefined) throw new Error('No Patron');
+    const theirs = start.world.guildmasters[retiree.id];
+    if (theirs !== undefined) theirs.regard[patronId] = { value: -8, since: 0, reason: 'quest.resolved' };
+
+    const { world } = playTo(start, nightOf(0), deps).document;
+    const successor = world.guildmasters[guildOf(world, rival.id).guildmasterId];
+
+    expect(world.guildmasters[player.guildmasterId]?.regard[retiree.id]).toEqual(held);
+    expect(guildmasterRegardForGuild(world.guildmasters[player.guildmasterId] ?? mine, rival.id, world)).toBe(0);
+    expect(world.guildmasters[retiree.id]?.regard[patronId]?.value).toBe(-8);
+    expect(successor?.regard).toEqual({});
+  });
+
+  test('the successor is drawn from generation alone', () => {
+    const deps = testDeps({ rivalCount: 1 });
+    const document = created('succession-streams', deps);
+    const world = structuredClone(document.world);
+    Object.assign(world.rng, createStreams(document.meta.seed, plannedStreams), structuredClone(world.rng));
+    world.turn = nightOf(0);
+    arrange.retirement(world, firstRival(world), deps);
+    const before = structuredClone(world.rng) as Record<string, unknown>;
+
+    const events = endings(world, phaseContext(world, deps, document.history));
+
+    expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
+    const rng = world.rng as Record<string, unknown>;
+    for (const name of plannedStreams) {
+      if (name === 'generation') expect(rng[name], name).not.toEqual(before[name]);
+      else expect(rng[name], name).toEqual(before[name]);
+    }
+  });
+
+  test("the successor's name is none in use: not a Guildmaster's in office, nor a Hero's in play", () => {
+    // Two names in all, so a successor must take the one not in use, and cannot be named when both are.
+    const names = { ...testContent.names, given: { female: ['Ada'], male: ['Ada'] }, family: ['Vell', 'Hale'] };
+    const deps = testDeps({ rivalCount: 1, unattachedPoolSize: 0, startingRosterSize: 0 }, { ...testContent, names });
+    const other = (name: string) => (name === 'Ada Vell' ? 'Ada Hale' : 'Ada Vell');
+
+    for (const seed of ['names-1', 'names-2', 'names-3', 'names-4']) {
+      const document = created(seed, deps);
+      const { world } = document;
+      world.turn = nightOf(0);
+      const rival = firstRival(world);
+      // No Hero on the Rival's Roster shares either name, so only the retiring Guildmaster is in use.
+      for (const heroId of Object.keys(world.heroes)) world.heroes[heroId as HeroId] = { ...world.heroes[heroId as HeroId]!, name: `Hero ${heroId}` };
+      const retiree = world.guildmasters[rival.guildmasterId];
+      if (retiree === undefined) throw new Error('No Guildmaster');
+      arrange.retirement(world, rival, deps);
+
+      const events = endings(world, phaseContext(world, deps, document.history));
+
+      const successor = world.guildmasters[guildOf(world, rival.id).guildmasterId];
+      expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
+      expect(successor?.name).toBe(other(retiree.name));
+    }
+
+    // A living Hero on a Roster holds the other name: every name is in use, and the draw throws.
+    const document = created('names-taken', deps);
+    const { world } = document;
+    world.turn = nightOf(0);
+    const rival = firstRival(world);
+    const retiree = world.guildmasters[rival.guildmasterId];
+    const heroId = rival.rosterIds[0];
+    if (retiree === undefined || heroId === undefined) throw new Error('No Guildmaster or Hero');
+    for (const id of Object.keys(world.heroes)) world.heroes[id as HeroId] = { ...world.heroes[id as HeroId]!, name: `Hero ${id}` };
+    world.heroes[heroId] = { ...world.heroes[heroId]!, name: other(retiree.name) };
+    arrange.retirement(world, rival, deps);
+    expect(() => endings(structuredClone(world), phaseContext(world, deps, document.history))).toThrow(/already in use/);
+
+    // Once that Hero has died, their name is free again.
+    world.heroes[heroId] = { ...world.heroes[heroId]!, diedOnTurn: 0 };
+    endings(world, phaseContext(world, deps, document.history));
+    expect(world.guildmasters[guildOf(world, rival.id).guildmasterId]?.name).toBe(other(retiree.name));
+  });
+
+  test("a Rival whose Guildmaster retires on the night it goes bankrupt is succeeded, then folds that night with its successor", () => {
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
+    const { start, rival } = retiring('succeeded-then-folded', deps);
+    arrange.bankruptcy(start.world, rival, deps);
+
+    const { document, events } = playTo(start, nightOf(0), deps);
+
+    const [succeeded] = ofType(events, 'guildmaster.succeeded');
+    const [folded] = ofType(events, 'guild.folded');
+    expect(folded?.payload).toEqual({ guildId: rival.id, reason: 'bankruptcy' });
+    expect(folded?.participants.slice(0, 2)).toEqual([rival.id, succeeded?.payload.successorId]);
+    expect(guildOf(document.world, rival.id)).toMatchObject({ foldedOnTurn: nightOf(0), guildmasterId: succeeded?.payload.successorId });
+  });
+
+  test("the player's Guildmaster is never succeeded: their Retirement ends the game", () => {
+    const deps = testDeps({ rivalCount: 1 });
+    const start = created('player-retires', deps);
+    const player = thePlayer(start.world);
+    arrange.retirement(start.world, player, deps);
+
+    const { document, events } = playTo(start, nightOf(0), deps);
+
+    expect(document.world.ended).toEqual({ turn: nightOf(0), reason: 'retirement' });
+    expect(ofType(events, 'guildmaster.succeeded')).toEqual([]);
+    expect(guildOf(document.world, player.id).guildmasterId).toBe(player.guildmasterId);
+    expect(document.world.guildmasters[player.guildmasterId]?.retiredOnTurn).toBeNull();
   });
 });
 
@@ -560,12 +837,13 @@ describe("a fold's one order (DL-54)", () => {
       sellRatio: 0.5,
       lootOnlyPrice: 600,
       gearSlots: ['weapon', 'armour', 'trinket'],
+      bankruptcyGraceDays: 0,
     });
     stillRivalControllers();
     const start = created('one-order', deps);
     const { world } = start;
     const rival = firstRival(world);
-    arrange.retirement(world, rival, deps); // it folds on the first night
+    arrange.bankruptcy(world, rival, deps); // it folds on the first night
     const vault: Holder = { kind: 'guild', id: rival.id };
 
     // In its holding: two unique Items, and stacks, some of which a Party carries away.

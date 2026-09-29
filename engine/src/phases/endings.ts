@@ -9,8 +9,9 @@
 // What an ending does is the one place this phase asks whose Guild it is, one of the three
 // exceptions to ADR-0002 the owner accepted (`plan.md` §1): the player's ending ends the game
 // (`world.ended`, after which `advance` is a no-op); a Rival's folds that Guild and releases its
-// Heroes into the Unattached pool. `rivalReplacementDays` after a fold a new Rival is founded, so
-// the Rival count holds.
+// Heroes into the Unattached pool, save its Guildmaster's Retirement, which is met by Succession
+// (M9-S2, DL-83 item 19, DL-100 item 3). `rivalReplacementDays` after a fold a new Rival is founded,
+// so the Rival count holds; a succeeded Rival has not folded, and none replaces it.
 
 import type { EngineDeps } from '../config.js';
 import {
@@ -24,11 +25,11 @@ import {
 } from '../document.js';
 import type { EngineEvent } from '../events.js';
 import { returnGear } from '../gear.js';
-import { generateRival } from '../generators/guilds.js';
+import { generateRival, generateSuccessor } from '../generators/guilds.js';
 import { sellFoldedGuildItems } from '../market.js';
 import { sendHome } from '../quest-engine/consumables.js';
 import { cheapestUnattached } from '../selectors.js';
-import { ageOf, dayOf } from '../time.js';
+import { ageOf, dayOf, retirementTurn } from '../time.js';
 import { withdrawOffers } from '../transfer.js';
 import type { PhaseContext, PhaseRun } from './phase.js';
 
@@ -44,8 +45,8 @@ export const endings: PhaseRun = (world, ctx) => {
 };
 
 /**
- * The ending `guild` has reached tonight, or `null`: the first that holds of Retirement,
- * Bankruptcy and Roster wiped, in that order (DL-28). Runs after the Guild State Engine and the
+ * The ending `guild` has reached tonight, or `null`: the first that holds of Retirement, from the
+ * night `retirementTurn` gives (M9-F1), Bankruptcy and Roster wiped, in that order (DL-28). Runs after the Guild State Engine and the
  * pool refresh, so it reads tonight's `belowFloorSince` and tonight's pool.
  */
 function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason | null {
@@ -53,7 +54,7 @@ function endingOf(guild: Guild, world: World, ctx: PhaseContext): EndingReason |
   const guildmaster = world.guildmasters[guild.guildmasterId];
   if (guildmaster === undefined) throw new RangeError(`${guild.id} names ${guild.guildmasterId}, who has no row`);
 
-  if (ageOf(guildmaster, ctx.turn, config) >= config.guildmasterRetirementAge) return 'retirement';
+  if (ctx.turn >= retirementTurn(guildmaster, config)) return 'retirement';
   if (
     guild.belowFloorSince !== null &&
     dayOf(ctx.turn) >= dayOf(guild.belowFloorSince) + config.bankruptcyGraceDays
@@ -81,10 +82,42 @@ function cheapestSigningFee(world: World, guild: Guild, deps: Pick<EngineDeps, '
 
 /**
  * What reaching an ending does: the one read of `controller.kind` in this phase, and one of the
- * three the owner accepted (`plan.md` §1). The player's ending ends the game; a Rival's folds it.
+ * three the owner accepted (`plan.md` §1). The player's ending ends the game; a Rival's folds it,
+ * save Retirement, which a Rival meets by Succession (M9-S2): the Guild carries on under a
+ * successor, and its other endings are checked again that night under them, so a Rival that is
+ * also bankrupt or wiped folds as it would have, its successor the Guildmaster it folds with.
  */
 function end(world: World, guild: Guild, reason: EndingReason, ctx: PhaseContext): EngineEvent[] {
-  return guild.controller.kind === 'player' ? endGame(world, guild, reason, ctx) : fold(world, guild, reason, ctx);
+  if (guild.controller.kind === 'player') return endGame(world, guild, reason, ctx);
+  if (reason !== 'retirement') return fold(world, guild, reason, ctx);
+  const events = succeed(world, guild, ctx);
+  const then = endingOf(guild, world, ctx);
+  return then === null || then === 'retirement' ? events : [...events, ...fold(world, guild, then, ctx)];
+}
+
+/**
+ * Succession (M9-S2, DL-83 item 19, DL-100 item 3): the Rival's Guildmaster retires, their row kept
+ * with `retiredOnTurn` and their History, and a successor drawn from `generation` as a founding
+ * Rival's Guildmaster is (`generateSuccessor`) takes over. The Guild keeps its Roster, Wealth,
+ * Fame, Hall and Items. `guildmaster.succeeded`, a Milestone, names the Guild, the retired
+ * Guildmaster and the successor, whose row exists by then. Regard others held for the retired
+ * Guildmaster stays keyed to them, so Regard for the Guild, read through its Guildmaster, starts
+ * neutral with the successor, as the successor's own does.
+ */
+function succeed(world: World, guild: Guild, ctx: PhaseContext): EngineEvent[] {
+  const retiring = world.guildmasters[guild.guildmasterId];
+  if (retiring === undefined) throw new RangeError(`${guild.id} names ${guild.guildmasterId}, who has no row`);
+  const age = ageOf(retiring, ctx.turn, ctx.config);
+  const successor = generateSuccessor(world, { config: ctx.config, content: ctx.content }, guild, { stream: 'generation' });
+  retiring.retiredOnTurn = ctx.turn;
+  guild.guildmasterId = successor.id;
+  return [
+    ctx.emit({
+      type: 'guildmaster.succeeded',
+      participants: [guild.id, retiring.id, successor.id],
+      payload: { guildId: guild.id, guildmasterId: retiring.id, successorId: successor.id, age },
+    }),
+  ];
 }
 
 /**

@@ -1,0 +1,64 @@
+name: deploy
+
+# DL-122 (the owner, 2026-09-30): a release deploys from CI. Pushing a `v*` tag deploys that tag
+# to the Worker and to Pages with `npm run deploy` (web/scripts/deploy.mjs, whose guard still
+# refuses anything but a clean checkout of a `v*` tag), then runs the live check on both addresses
+# (`npm run e2e:live -w web`). A tag whose commit is not on the release branch the deploy names
+# (`releaseBranch`) is refused, so a tag on the frozen v1.0 line never deploys (DL-110). A tag
+# already pushed can be deployed again by hand (workflow_dispatch). The two Cloudflare credentials
+# are secrets of the `production` environment, never a file in the repository (INPUTS 7.9).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'A release tag already pushed, to deploy again (for example v1.1.0)'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: production
+      url: https://heroesims.pages.dev
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.node-version'
+          cache: npm
+      - run: npm ci
+      - name: The tag is on the release branch
+        run: |
+          branch="$(node --input-type=module -e "import { releaseBranch } from './web/scripts/deploy.mjs'; console.log(releaseBranch)")"
+          tag="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
+          if [ -z "$tag" ]; then echo "HEAD is not a v* tag: nothing to deploy." >&2; exit 1; fi
+          if ! git merge-base --is-ancestor HEAD "origin/$branch"; then
+            echo "$tag is not on origin/$branch, the branch the deploy names: refused." >&2
+            exit 1
+          fi
+          echo "$tag at $(git rev-parse HEAD), on origin/$branch."
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - name: Deploy to the Worker and Pages
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      - run: npx playwright install --with-deps chromium
+      - name: The live check on both addresses
+        run: npm run e2e:live -w web

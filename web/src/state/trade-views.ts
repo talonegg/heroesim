@@ -8,6 +8,7 @@
 
 import {
   ageOf,
+  compareByCodeUnit,
   guildmasterOf,
   holdings,
   itemDefinition,
@@ -23,17 +24,18 @@ import {
   type ItemDefinitionKey,
   type ItemId,
   type OfferId,
+  type SlotKey,
   type StackId,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { nameIn, nightOf, rowOf } from './names';
+import { capitalised, nameIn, nightOf, rowOf, transferCostWords } from './names';
 import { playDeps } from './reducer';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
-/** An Item's kind as the CLI's Market shows it: its gear slot or `consumable`, and whether it is unique. */
-function kindOf(definition: ItemDefinition): string {
+/** An Item's kind as the CLI's Market shows it: its gear slot or `consumable`, and whether it is unique. The Stores says it too (M9-F3). */
+export function kindOf(definition: ItemDefinition): string {
   const kind = definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable';
   return definition.unique ? `${kind}, unique` : kind;
 }
@@ -56,12 +58,22 @@ function doesOf(definition: ItemDefinition): string {
   }
 }
 
+/** A kind of Item the Market's table can be filtered by: a gear slot, or `consumable` (M9-S6). */
+export type MarketKind = SlotKey | 'consumable';
+
+/** An Item's kind for the Market's filter, and the Stores' (M9-F3): its gear slot, or `consumable`. */
+export function kindKeyOf(definition: ItemDefinition): MarketKind {
+  return definition.kind === 'gear' ? definition.slot : 'consumable';
+}
+
 export interface ListingRow {
   /** What `buy` takes. */
   definitionKey: ItemDefinitionKey;
   name: string;
   /** `weapon gear`, `consumable`, `trinket gear, unique`. */
   kind: string;
+  /** The kind the Market's filter chips name (M9-S6). */
+  kindKey: MarketKind;
   does: string;
   /** How many the Market has. */
   quantity: number;
@@ -73,6 +85,10 @@ export interface HeldForSale {
   /** Unique within the list. */
   key: string;
   name: string;
+  /** `weapon gear`, `consumable`, as the Market says it; empty for an Item content does not define. */
+  kind: string;
+  /** What it does, as the Market says it; empty for an Item content does not define. */
+  does: string;
   /** How many the Guild holds: a stack's quantity, or 1 for a unique Item. */
   held: number;
   /** What the Market pays for one (`sellPrice`), or `null` when it cannot price it. */
@@ -82,7 +98,13 @@ export interface HeldForSale {
 }
 
 export interface MarketView {
+  /** What the Market has for sale, of the kind asked for, or all of it. */
   forSale: ListingRow[];
+  /**
+   * Each kind the Market has for sale, the gear slots in their order then consumables, with how many
+   * of its listings there are, whatever is asked for: the filter's chips (M9-S6, the review's B3).
+   */
+  kinds: { key: MarketKind; label: string; count: number }[];
   /** Items for sale counted one by one, a stack by its quantity. */
   totalForSale: number;
   /** The player's Guild, its Wealth and what it holds itself; `null` and empty without one. */
@@ -92,31 +114,43 @@ export interface MarketView {
 }
 
 /**
- * `show market`: what the Market has for sale, with each price; then what the player's Guild holds
- * itself, stacks then unique Items as the CLI lists them, with what each sells for. An Item a Hero
- * carries or a Party took is not the Guild's to sell here, and is not listed.
+ * `show market`: what the Market has for sale, with each price, of the kind asked for or all of it
+ * (display only, M9-S6); then what the player's Guild holds itself, stacks then unique Items as the
+ * CLI lists them, each with its kind, what it does and what it sells for. An Item a Hero carries or
+ * a Party took is not the Guild's to sell here, and is not listed.
  */
-export function marketView(document: WorldDocument): MarketView {
+export function marketView(document: WorldDocument, only: MarketKind | null = null): MarketView {
   const { world } = document;
   const deps = playDeps(document);
   const stock = marketStock(world, deps);
   const guild = playerGuild(world);
-  const forSale = stock.map(({ definition, quantity, price }) => ({
+  const listed = stock.map(({ definition, quantity, price }) => ({
     definitionKey: definition.key,
     name: definition.name,
     kind: kindOf(definition),
+    kindKey: kindKeyOf(definition),
     does: doesOf(definition),
     quantity,
     price,
   }));
+  const kinds = [...deps.config.gearSlots, 'consumable' as const].flatMap((key) => {
+    const count = listed.filter((row) => row.kindKey === key).length;
+    return count === 0 ? [] : [{ key, label: capitalised(key), count }];
+  });
+  const forSale = only === null ? listed : listed.filter((row) => row.kindKey === only);
   const totalForSale = stock.reduce((sum, { quantity }) => sum + quantity, 0);
-  if (guild === undefined) return { forSale, totalForSale, guildName: null, wealth: null, held: [] };
+  if (guild === undefined) return { forSale, kinds, totalForSale, guildName: null, wealth: null, held: [] };
 
   const { items, stacks } = holdings(world, { kind: 'guild', id: guild.id });
+  const described = (key: ItemDefinitionKey): { kind: string; does: string } => {
+    const definition = itemDefinition(content, key);
+    return definition === undefined ? { kind: '', does: '' } : { kind: kindOf(definition), does: doesOf(definition) };
+  };
   const held: HeldForSale[] = [
     ...stacks.map((stack) => ({
       key: stack.id,
       name: nameIn(content.items, stack.definitionKey),
+      ...described(stack.definitionKey),
       held: stack.quantity,
       sellsFor: sellPrice(stack.definitionKey, deps),
       sale: { stackId: stack.id },
@@ -124,12 +158,13 @@ export function marketView(document: WorldDocument): MarketView {
     ...items.map((item) => ({
       key: item.id,
       name: itemDefinition(content, item.definitionKey)?.name ?? item.definitionKey,
+      ...described(item.definitionKey),
       held: 1,
       sellsFor: sellPrice(item.definitionKey, deps),
       sale: { itemId: item.id },
     })),
   ];
-  return { forSale, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
+  return { forSale, kinds, totalForSale, guildName: guild.name, wealth: guild.wealth, held };
 }
 
 // ── The Unattached pool ──────────────────────────────────────────────────────────────────────
@@ -146,7 +181,12 @@ export interface PoolRow {
   fee: number;
   /** `yes`, or `needs Fame 40` (`signingRefusal`); `null` in a save with no player's Guild. */
   signs: string | null;
+  /** Whether they would sign for the player's Guild now (`signingRefusal`), for the row to be set back when not; `null` as `signs`. */
+  willSign: boolean | null;
 }
+
+/** How the pool may be ordered for display (M9-S6): as it lists them, by Class A to Z, or by fee, lowest first. */
+export type PoolOrder = 'listed' | 'class' | 'fee';
 
 export interface PoolView {
   rows: PoolRow[];
@@ -154,8 +194,12 @@ export interface PoolView {
   note: string | null;
 }
 
-/** `show pool`: the Unattached Heroes, in id order, each with the fee and whether they would sign. */
-export function poolView(document: WorldDocument): PoolView {
+/**
+ * `show pool`: the Unattached Heroes, each with the fee and whether they would sign, in id order, or
+ * by Class A to Z or fee lowest first, ties in id order: an order for display, which changes nothing
+ * in the world (M9-S6, the review's B8).
+ */
+export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): PoolView {
   const { world } = document;
   const deps = playDeps(document);
   const guild = playerGuild(world);
@@ -172,8 +216,12 @@ export function poolView(document: WorldDocument): PoolView {
       background: nameIn(content.backgrounds, hero.backgroundKey),
       fee: signingFee(hero, deps, buyer),
       signs: guild === undefined ? null : refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+      willSign: guild === undefined ? null : refusal === null,
     };
   });
+  // A stable sort: ties keep the pool's own order.
+  if (order === 'class') rows.sort((a, b) => compareByCodeUnit(a.className, b.className));
+  if (order === 'fee') rows.sort((a, b) => a.fee - b.fee);
   const note =
     guild === undefined ? null : `${guild.name} has ${guild.fame} Fame. A Hero who needs more will not sign for it until it has that much.`;
   return { rows, note };
@@ -186,6 +234,15 @@ export interface OfferRow {
   offerId: OfferId;
   /** `The Ashford Guild offers 180 Wealth for Bran Tull, until the night of Day 12.` */
   sentence: string;
+  /** The Guild that makes the offer. */
+  guildName: string;
+  heroName: string;
+  fee: number;
+  /**
+   * What Accept asks before it lets the Hero go (M9-S6, the review's E4): `Accepting sends Bran Tull
+   * to The Ashford Guild for 180 Wealth.`, then what a Transfer out costs, in the page's words.
+   */
+  confirm: string;
 }
 
 /**
@@ -201,7 +258,14 @@ export function offersView(document: WorldDocument): { guildName: string; offers
     offers: offersTo(world, guild.id).map((offer) => {
       const bidder = rowOf(world.guilds, offer.toGuildId)?.name ?? 'A Guild';
       const hero = rowOf(world.heroes, offer.heroId)?.name ?? 'a Hero';
-      return { offerId: offer.id, sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOf(offer.expiresOnTurn)}.` };
+      return {
+        offerId: offer.id,
+        sentence: `${bidder} offers ${offer.fee} Wealth for ${hero}, until ${nightOf(offer.expiresOnTurn)}.`,
+        guildName: bidder,
+        heroName: hero,
+        fee: offer.fee,
+        confirm: `Accepting sends ${hero} to ${bidder} for ${offer.fee} Wealth. ${transferCostWords}`,
+      };
     }),
   };
 }

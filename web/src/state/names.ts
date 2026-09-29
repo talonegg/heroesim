@@ -2,7 +2,10 @@
 // ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
 // `trade-views.ts` (DL-73).
 
-import { dayOf, type Guild } from '@heroesim/engine';
+import { dayOf, type ContentSet, type Guild, type QuestBand, type TraitEffect } from '@heroesim/engine';
+
+/** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
+export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
 
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
@@ -16,11 +19,6 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
 
 export function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
-/** A list joined with commas, or `none`. */
-export function none(list: readonly string[]): string {
-  return list.length === 0 ? 'none' : list.join(', ');
 }
 
 /** `the night of Day 7`. */
@@ -45,7 +43,31 @@ export function controllerWords(guild: Pick<Guild, 'controller'>): string {
   return guild.controller.kind === 'player' ? 'Yours' : `Rival (${guild.controller.disposition})`;
 }
 
+/**
+ * What a Transfer out costs the Guild that lets a Hero go, in the words the page has always given
+ * the rule (DL-73): what a confirmation states beside the fee before the player lets one go (M9-S6,
+ * the review's E4). The rule is the engine's (`makeTransfer`): gear returns to the Guild, and each
+ * Hero who stays and holds the Hero in `transferRegardBand` or above loses `transferMoraleCost`.
+ */
+export const transferCostWords = 'Their gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale.';
+
 /** `+2`, `-1`, `0`. */
 export function signed(n: number): string {
   return n > 0 ? `+${n}` : String(n);
+}
+
+/**
+ * A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`,
+ * `Morale baseline -5`, `Upkeep ×0.9`; the Guildmaster's page's and the new-game form's (M9-S2).
+ */
+export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSet, 'stats' | 'classes'>): string {
+  if (effect === null) return 'no effect';
+  switch (effect.kind) {
+    case 'classStatBonus':
+      return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;
+    case 'guildMoraleShift':
+      return `Morale baseline ${signed(effect.delta)}`;
+    case 'upkeepFactor':
+      return `Upkeep ×${effect.factor}`;
+  }
 }

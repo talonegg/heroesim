@@ -21,6 +21,7 @@ import {
   type FastForwardResult,
   type Guild,
   type Module,
+  type Sex,
   type StopCondition,
   type StopReason,
   type WorldDocument,
@@ -32,10 +33,12 @@ import {
   fastForwardStepTurns,
   gameReducer,
   initialGameState,
+  newGameRefusal,
   noModules,
   playDeps,
   type GameAction,
   type GameState,
+  type NewGame,
   type Play,
 } from './reducer';
 import { stopView } from './selectors';
@@ -60,7 +63,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const newGame: Play = {
+const newGame: NewGame = {
   kind: 'newGame',
   seed: 'reducer-test',
   guildName: 'The Lantern',
@@ -132,6 +135,74 @@ describe('a new game', () => {
     expect(state.rejection).toMatchObject(refusal);
     expect(state.document).toBeNull();
     expect(state.busy).toBe(false);
+  });
+
+  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does (M9-S2)", () => {
+    const setup = {
+      guildmasterSex: 'female',
+      guildmasterAge: 33,
+      guildmasterTraitKeys: ['miser', 'thrifty'],
+      guildmasterBirthplace: ' Harrowgate ',
+      guildmasterAppearance: 'Tall.',
+      guildmasterBiography: 'A life at sea.',
+    } as const;
+    const state = play(initialGameState, { ...newGame, ...setup });
+    const { guildName, guildmasterName, createdAt } = newGame;
+    const expected = createWorld('reducer-test', { guildName, guildmasterName, createdAt, ...setup }, { config: defaultConfig, content }).document;
+
+    expect(serialise(documentOf(state))).toBe(serialise(expected));
+    expect(documentOf(state).world.guildmasters[playerOf(state).guildmasterId]).toMatchObject({
+      sex: 'female',
+      ageAtEntry: 33,
+      traits: ['miser', 'thrifty'],
+      birthplace: 'Harrowgate',
+    });
+  });
+
+  test.each([
+    // The M9 review: a sex that is not one was let through here, and createWorld threw inside the reducer.
+    ['a sex that is not one', { guildmasterSex: 'other' as Sex }, { action: 'newGame', reason: 'unknown-sex', sex: 'other' }],
+    [
+      'an age out of range',
+      { guildmasterAge: defaultConfig.guildmasterStartingAgeMax + 1 },
+      {
+        action: 'newGame',
+        reason: 'age-out-of-range',
+        age: defaultConfig.guildmasterStartingAgeMax + 1,
+        min: defaultConfig.guildmasterStartingAgeMin,
+        max: defaultConfig.guildmasterStartingAgeMax,
+      },
+    ],
+    ['a Trait that is no Guildmaster Trait', { guildmasterTraitKeys: ['scarred'] }, { action: 'newGame', reason: 'unknown-trait', traitKey: 'scarred' }],
+    ['a Trait twice', { guildmasterTraitKeys: ['miser', 'miser'] }, { action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' }],
+    [
+      'too many Traits',
+      { guildmasterTraitKeys: ['miser', 'old-soldier', 'mistrusts-magic'] },
+      { action: 'newGame', reason: 'too-many-traits', count: 3, max: 2 },
+    ],
+    [
+      'an excluded pair',
+      { guildmasterTraitKeys: ['miser', 'well-liked'] },
+      { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
+    ],
+    ['Traits over the budget', { guildmasterTraitKeys: ['thrifty'] }, { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 }],
+    [
+      'a text too long',
+      { guildmasterAppearance: 'a'.repeat(281) },
+      { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
+    ],
+  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing (M9-S2)", (_name, change, refusal) => {
+    const state = play(initialGameState, { ...newGame, ...change });
+
+    expect(state.rejection).toEqual(refusal);
+    expect(newGameRefusal({ ...newGame, ...change })).toEqual(refusal);
+    expect(state.document).toBeNull();
+  });
+
+  test('newGameRefusal lets a form check a setup before the click, and passes one that keeps the rules', () => {
+    expect(newGameRefusal(newGame)).toBeNull();
+    expect(newGameRefusal({ ...newGame, guildmasterTraitKeys: [] })).toBeNull();
+    expect(newGameRefusal({ ...newGame, guildName: ' ' })).toEqual({ action: 'newGame', reason: 'guild-name-blank' });
   });
 
   test("refuses a Hero's Background for a Guild", () => {
@@ -628,7 +699,10 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
   });
 });
 
-describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', () => {
+// A year of Turns played twice, in steps and in one call: 3 to 6 s on a loaded machine, past
+// Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
+// not the speed, as DL-74 item 1 bounded a slow test.
+describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
   /** A Party of the player's out on the longest Quest it can staff, back on the night of Day 10, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Day 30, the 91st Turn, in the fourth step. */
@@ -675,7 +749,9 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     return fastForward(document, { guildId: guild.id, until, maxTurns }, playDeps(document, modules));
   }
 
-  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns }) => {
+  // A year's case plays 2,160 Turns, about 4 s alone: past the default 5 s when other suites share
+  // the machine, as M9's parallel builds do (M9-S1, DL-101).
+  test.each(cases)('$name', { timeout: 30_000 }, ({ game, until, maxTurns, modules, stop, turns }) => {
     const text = serialise(documentOf(game()));
     const start = loaded(text, modules);
     vi.clearAllMocks();
@@ -716,6 +792,50 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(lastOf(states).log).toEqual(one.events);
     expect(lastOf(states).stoppedBecause).toEqual(one.stoppedBecause);
     expect(one.stoppedBecause.kind).toBe('decision-needed');
+  });
+
+  // M9-S1 (DL-101): the new stops, through the reducer's `fastForward` and the page's sentence.
+  test("until a Quest the Heroes at home can staff: with a Party out it stops where one call would, before the Party is home", () => {
+    const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'))));
+    const start = loaded(text, noModules);
+    const party = Object.values(documentOf(start).world.parties)[0];
+    vi.clearAllMocks();
+
+    const last = lastOf(stepped(start, { kind: 'fastForward', until: ['quest-staffable'] }));
+    const one = oneCall(text, ['quest-staffable'], defaultConfig.turnsPerYear, noModules);
+
+    expect(fastForwardCalls().every(([, options]) => options.until.includes('quest-staffable'))).toBe(true);
+    expect(last.stoppedBecause?.kind).toBe('quest-staffable');
+    expect(last.stoppedBecause).toEqual(one.stoppedBecause);
+    expect(serialise(documentOf(last))).toBe(serialise(one.document));
+    expect(documentOf(last).world.turn).toBeLessThan(party?.returnsOnTurn ?? 0);
+    // Its Quests are buttons on the home view, as a decision needed's are (M9-S3's merge, DL-103).
+    const staffable = last.stoppedBecause?.kind === 'quest-staffable' ? last.stoppedBecause.questIds : [];
+    expect(stopView(last)).toEqual({
+      kind: 'quest-staffable',
+      sentence: expect.stringMatching(/^Stopped: a Quest to staff: The Lantern's Heroes at home could go on [A-Z][^.]+\.$/) as unknown,
+      quests: staffable.map((questId) => expect.objectContaining({ questId }) as unknown),
+    });
+    expect(staffable.length).toBeGreaterThan(0);
+    // Unasked, the same game plays on to the Party's return: the always-on decision is unchanged.
+    expect(lastOf(stepped(loaded(text, noModules), { kind: 'fastForward', until: [] })).stoppedBecause?.kind).toBe('party-returned');
+  });
+
+  test("the player's Guild falling below the floor stops it unasked, where one call would, with the page's sentence", () => {
+    const text = serialise(documentOf(changed(startedFrom('reducer-test'), (_, player) => void (player.wealth = -1))));
+    const start = loaded(text, noModules);
+
+    const last = lastOf(stepped(start, { kind: 'fastForward', until: [] }));
+    const one = oneCall(text, [], defaultConfig.turnsPerYear, noModules);
+
+    const due = defaultConfig.bankruptcyGraceDays;
+    expect(last.stoppedBecause).toEqual({ kind: 'below-floor', guildId: playerOf(start).id, dueDay: due });
+    expect(last.stoppedBecause).toEqual(one.stoppedBecause);
+    expect(serialise(documentOf(last))).toBe(serialise(one.document));
+    expect(stopView(last)).toEqual({
+      kind: 'below-floor',
+      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day ${due} unless its Wealth recovers by then.`,
+    });
   });
 });
 

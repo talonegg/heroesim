@@ -332,7 +332,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
   while (document.world.turn < nightOf(days)) {
     const { world } = document;
     const guild = playerGuild(world) as Guild;
-    const offered = staffableQuests(world, guild, deps.content).sort(
+    const offered = staffableQuests(world, guild, deps).sort(
       (a, b) => (regime === 'easiest' ? a.difficulty - b.difficulty : b.difficulty - a.difficulty) || a.id.localeCompare(b.id),
     );
     const [quest] = offered;

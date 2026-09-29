@@ -1,11 +1,12 @@
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import { expectNoHorizontalOverflow, playTurns, region, startGame } from './support';
+import { closeGameMenu, expectNoHorizontalOverflow, playTurns, region, startGame, thisGame } from './support';
 
 // Where the browser keeps nothing for the page (M7-S4, DL-67; the epic's §3 risk): `saves.ts`
 // reports the typed failure `unavailable`, the page says so, and the game plays on without saving.
 // Once where Chromium itself refuses IndexedDB, a sandboxed frame, whose origin is opaque; and twice
 // with the refusals other browsers give stood in for before the page loads: a private window whose
-// database will not open (Firefox's), and a browser with no IndexedDB at all.
+// database will not open (Firefox's), and a browser with no IndexedDB at all. What a game has to
+// say of its saves is in the game menu (M9-S3, DL-103).
 
 const unavailable = /^This browser will not keep saves for this page, as in a private window or with site data blocked \(.+\)\. The game plays on; export it to keep it\.$/;
 
@@ -16,10 +17,11 @@ async function playsWithoutSaving(page: Page, scope: Page | FrameLocator): Promi
   await form.getByRole('textbox', { name: /Guildmaster/ }).fill('Ada Vell');
   await form.getByRole('button', { name: 'Start the game' }).click();
   await expect(scope.getByTestId('time')).toHaveText('Day 0, morning, Year 0');
-  const game = region(scope, 'This game');
+  const game = await thisGame(scope);
   await expect(game.getByTestId('saves-unavailable')).toHaveText(unavailable);
   await expect(game.getByRole('button', { name: 'Save in this browser' })).toHaveCount(0);
   await expect(game.getByRole('button', { name: 'Export this game' })).toBeVisible();
+  await closeGameMenu(scope);
   const time = scope.getByTestId('time');
   await scope.getByRole('button', { name: 'Advance a Turn' }).click();
   await expect(time).toHaveText('Day 0, afternoon, Year 0');
@@ -36,7 +38,7 @@ test('in a sandboxed frame, where Chromium refuses IndexedDB itself, the page sa
   const frame = page.frameLocator('iframe');
 
   await playsWithoutSaving(page, frame);
-  await expect(region(frame, 'This game').getByTestId('saves-unavailable')).toContainText('SecurityError');
+  await expect((await thisGame(frame)).getByTestId('saves-unavailable')).toContainText('SecurityError');
 });
 
 const standIns: { name: string; script: string; says: string }[] = [
@@ -66,14 +68,15 @@ for (const { name, script, says } of standIns) {
     await page.goto('/');
 
     await playsWithoutSaving(page, page);
-    await expect(region(page, 'This game').getByTestId('saves-unavailable')).toContainText(says);
+    await expect((await thisGame(page)).getByTestId('saves-unavailable')).toContainText(says);
   });
 }
 
 test('with storage kept, a new game offers saving: the stand-ins above are what took it away', async ({ page }) => {
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-storage' });
-  await expect(region(page, 'This game').getByRole('button', { name: 'Save in this browser' })).toBeVisible();
+  await expect((await thisGame(page)).getByRole('button', { name: 'Save in this browser' })).toBeVisible();
   await expect(page.getByTestId('saves-unavailable')).toHaveCount(0);
+  await closeGameMenu(page);
   await playTurns(page, page.getByRole('button', { name: 'Advance a Turn' }));
 });

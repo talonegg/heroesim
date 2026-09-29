@@ -240,9 +240,12 @@ function synergy(key: string, requires: Synergy['requires'], bonus: Synergy['bon
   return [key, { key, name: title(key), requires, bonus, ...(kinds === undefined ? {} : { kinds }) }];
 }
 
-/** A Guildmaster Trait with its one effect (M4-S5), keyed by `key` and named after it. */
-function guildmasterTrait(key: string, effect: TraitEffect): Record<string, Trait> {
-  return { [key]: { key, name: title(key), owner: 'guildmaster', effect } };
+/**
+ * A Guildmaster Trait with its one effect (M4-S5), its cost and what it excludes (M9-S2), keyed by
+ * `key` and named after it.
+ */
+function guildmasterTrait(key: string, effect: TraitEffect, cost: number, excludes: string[] = []): Record<string, Trait> {
+  return { [key]: { key, name: title(key), owner: 'guildmaster', cost, excludes, effect } };
 }
 
 /**
@@ -354,15 +357,16 @@ export const testContent: ContentSet = deepFreeze({
     ...['swordcraft', 'shieldwork', 'tactics', 'lockpicking', 'stealth', 'trapcraft'],
     ...['evocation', 'warding', 'runecraft', 'field-surgery', 'herbalism', 'benediction'],
   ),
-  // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties.
+  // The core's six Guildmaster Traits and their effects (M4-S5, DL-43): three buffs, three penalties;
+  // with the core's costs and exclusions (M9-S2, DL-100 item 3).
   traits: {
-    ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }),
-    ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }),
-    ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }),
-    ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }),
-    ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }),
-    ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }),
-    ...keyed({ owner: 'hero' as const, effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
+    ...guildmasterTrait('old-soldier', { kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }, 1),
+    ...guildmasterTrait('well-liked', { kind: 'guildMoraleShift', delta: 5 }, 2, ['miser']),
+    ...guildmasterTrait('thrifty', { kind: 'upkeepFactor', factor: 0.9 }, 2, ['spendthrift']),
+    ...guildmasterTrait('miser', { kind: 'guildMoraleShift', delta: -5 }, -2, ['well-liked', 'spendthrift']),
+    ...guildmasterTrait('spendthrift', { kind: 'upkeepFactor', factor: 1.1 }, -2, ['thrifty', 'miser']),
+    ...guildmasterTrait('mistrusts-magic', { kind: 'classStatBonus', classKey: 'mage', statKey: 'arcana', delta: -1 }, -1),
+    ...keyed({ owner: 'hero' as const, cost: 0, excludes: [] as string[], effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   },
   backgrounds: {
     ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
@@ -765,6 +769,10 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       ageAtEntry: 40 + g,
       stats: Object.fromEntries(Object.keys(guildmasterStats).map((key, i) => [key, 8 + ((g + i) % 8)])),
       traits: g === 0 ? ['old-soldier'] : [],
+      birthplace: '',
+      appearance: '',
+      biography: '',
+      retiredOnTurn: null,
       regard: {},
     };
     log(0, 'guild.founded', [id, guildmasterId], true);

@@ -74,6 +74,30 @@ export function ageOf(person: Aged, turn: Turn, config: Pick<GameConfig, 'turnsP
   return person.ageAtEntry + Math.floor(elapsed / config.turnsPerYear);
 }
 
+/**
+ * The Turn a Guildmaster retires on (M9-F1, DL-113 item 5): the night of the Day they reach
+ * `guildmasterRetirementAge`, the first night on which `ageOf` gives it, since the endings are
+ * checked at night. Their age rises on the Turn a year completes, at the time of day they entered,
+ * so one founded at 50 on Turn 0 turns 61 on the morning of Turn 11,880 and retires on Turn 11,882.
+ * One already at the age when they entered, as in a save that adopts younger rules (DL-113 item 3),
+ * retires on the first night from their entry. The endings read this rule (`endings.ts`), and a
+ * front end shows it, so neither does the arithmetic itself.
+ */
+export function retirementTurn(person: Aged, config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>): Turn {
+  const years = Math.max(0, config.guildmasterRetirementAge - person.ageAtEntry);
+  return nightOf(dayOf(person.enteredTurn + years * config.turnsPerYear));
+}
+
+/**
+ * The night a Guildmaster still in office retires, once Turn `turn` has been played (M9-F6): the
+ * night `retirementTurn` gives, or, when that night has passed unplayed, as in a save that adopted
+ * younger rules since (DL-113 item 3), the next night to be played, since the endings retire on the
+ * first night at or past it. A front end shows this; the endings read `retirementTurn` itself.
+ */
+export function retiresOn(person: Aged, turn: Turn, config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>): Turn {
+  return Math.max(retirementTurn(person, config), nightOf(dayOf(turn + 1)));
+}
+
 /** Throws unless `value` is a whole number from 0, as every Turn and Day is. */
 function checkWhole(what: string, value: number): void {
   if (!Number.isSafeInteger(value) || value < 0) {

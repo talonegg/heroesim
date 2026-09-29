@@ -34,6 +34,7 @@ import {
   type HeroId,
   type Patron,
   type PatronId,
+  type QuestId,
   type RegardMap,
   type Turn,
   type World,
@@ -209,6 +210,8 @@ export interface RegardContext {
 
 /** A Quest's resolution, as the Regard writers read it. */
 export interface ResolvedForRegard {
+  /** The Quest resolved, which each event names (M9-F1, DL-112 item 2). */
+  questId: QuestId;
   patronId: PatronId;
   guild: Guild;
   /** The Heroes of the Party who came home to the Roster, in Party order. */
@@ -223,13 +226,13 @@ export interface ResolvedForRegard {
  * `patronRegardOnFailure`, unscaled; then the Guildmaster's Regard for the Patron, by
  * `guildmasterRegardOnPatronSuccess` or `…Failure`; then their Regard for each Hero of the Party
  * who came home to the Roster, by `guildmasterRegardOnHeroSuccess` or `…Failure`. Emits
- * `patron.regard-changed` and `guildmaster.regard-changed` only for a change that crosses a band.
- * `questsConclude` calls it for every Guild's Party alike (ADR-0002). A Patron the world lacks
+ * `patron.regard-changed` and `guildmaster.regard-changed` only for a change that crosses a band,
+ * each naming the Quest (M9-F1, DL-112 item 2). `questsConclude` calls it for every Guild's Party alike (ADR-0002). A Patron the world lacks
  * holds nothing; a Guild whose Guildmaster has no row writes no Guildmaster Regard.
  */
 export function regardOnQuestResolved(world: World, ctx: RegardContext, resolved: ResolvedForRegard): EngineEvent[] {
   const { config, content, turn } = ctx;
-  const { patronId, guild, heroIds, succeeded } = resolved;
+  const { questId, patronId, guild, heroIds, succeeded } = resolved;
   const events: EngineEvent[] = [];
   const cause: PatronRegardCause & GuildmasterRegardCause = succeeded ? 'quest-success' : 'quest-failure';
   const guildmaster = guildmasterOf(guild, world);
@@ -240,14 +243,14 @@ export function regardOnQuestResolved(world: World, ctx: RegardContext, resolved
       ? config.patronRegardOnSuccess * influenceMultiplier(guildmaster, content, config)
       : config.patronRegardOnFailure;
     const change = adjustRegard(patron.regard, guild.id, delta, turn, 'quest.resolved', config);
-    events.push(...patronRegardChanged(ctx, patronId, guild.id, cause, change));
+    events.push(...patronRegardChanged(ctx, patronId, guild.id, cause, change, questId));
   }
 
   if (guildmaster !== undefined) {
     const onPatron = succeeded ? config.guildmasterRegardOnPatronSuccess : config.guildmasterRegardOnPatronFailure;
-    events.push(...guildmasterRegard(ctx, guildmaster, patronId, onPatron, cause));
+    events.push(...guildmasterRegard(ctx, guildmaster, patronId, onPatron, cause, 'quest.resolved', questId));
     const onHero = succeeded ? config.guildmasterRegardOnHeroSuccess : config.guildmasterRegardOnHeroFailure;
-    for (const heroId of heroIds) events.push(...guildmasterRegard(ctx, guildmaster, heroId, onHero, cause));
+    for (const heroId of heroIds) events.push(...guildmasterRegard(ctx, guildmaster, heroId, onHero, cause, 'quest.resolved', questId));
   }
   return events;
 }
@@ -269,16 +272,26 @@ export function regardOnOfferExpired(world: World, ctx: RegardContext, patronId:
   return events;
 }
 
-/** `patron.regard-changed` for `change`, when it crossed a band; nothing otherwise. */
+/**
+ * `patron.regard-changed` for `change`, when it crossed a band; nothing otherwise. `questId`, given
+ * for a resolved Quest's change, is named in the payload and as a participant (M9-F1).
+ */
 export function patronRegardChanged(
   ctx: Pick<RegardContext, 'emit'>,
   patronId: PatronId,
   guildId: GuildId,
   cause: PatronRegardCause,
   change: RegardChange,
+  questId?: QuestId,
 ): EngineEvent[] {
   if (!crossedBand(change)) return [];
-  return [ctx.emit({ type: 'patron.regard-changed', participants: [patronId, guildId], payload: { patronId, guildId, cause, ...change } })];
+  return [
+    ctx.emit({
+      type: 'patron.regard-changed',
+      participants: questId === undefined ? [patronId, guildId] : [patronId, guildId, questId],
+      payload: { patronId, guildId, cause, ...(questId === undefined ? {} : { questId }), ...change },
+    }),
+  ];
 }
 
 /**
@@ -307,7 +320,7 @@ export function regardOnTransferDeal(
 /**
  * Moves `guildmaster`'s Regard for `entityId` by `delta`, recording `reason` (an event type, or the
  * id of the module whose `adjustRegard` effect moved it, M8-S2); `guildmaster.regard-changed` on a
- * band crossing.
+ * band crossing, naming the Quest `questId` when given, in the payload and as a participant (M9-F1).
  */
 export function guildmasterRegard(
   ctx: RegardContext,
@@ -316,6 +329,7 @@ export function guildmasterRegard(
   delta: number,
   cause: GuildmasterRegardCause,
   reason = 'quest.resolved',
+  questId?: QuestId,
 ): EngineEvent[] {
   const change = adjustRegard(guildmaster.regard, entityId, delta, ctx.turn, reason, ctx.config);
   if (!crossedBand(change)) return [];
@@ -323,8 +337,8 @@ export function guildmasterRegard(
   return [
     ctx.emit({
       type: 'guildmaster.regard-changed',
-      participants: [guildmasterId, entityId, guildId],
-      payload: { guildmasterId, guildId, entityId, cause, ...change },
+      participants: questId === undefined ? [guildmasterId, entityId, guildId] : [guildmasterId, entityId, guildId, questId],
+      payload: { guildmasterId, guildId, entityId, cause, ...(questId === undefined ? {} : { questId }), ...change },
     }),
   ];
 }

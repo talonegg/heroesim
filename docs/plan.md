@@ -79,6 +79,7 @@ rather than investigated beforehand.
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | Done 2026-09-27 (`m6-rivals`) |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | Done 2026-09-27 (`m7-web`); the twenty-year save measure left to the owner |
 | M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | Done 2026-09-28 (`m8-modules`); the first build's 1,000 × 20 tagged run in DL-81 |
+| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108), with the owner's answers built (DL-109, DL-110); release pending: the owner's player test added a follow-on, M9-F1 to M9-F6 (DL-111, DL-112), planned 2026-09-29, approved as amended the same day (DL-113: every Guildmaster 21 to 50 and retiring at 61), built (DL-114 to DL-118) and verified 2026-09-30 on `v1.1-dev` (DL-119); the owner's answers on the close built as M9-F7 (DL-120, DL-121); `m9-redesign` and `v1.1.0` wait for the owner's steps (M9-S9, #37, DL-123, deployed from CI by DL-122) |
 
 The first build is complete: M8 was tagged `m8-modules` on 2026-09-28. The next work is Random
 Events (§4): the first real module, and the test of whether the module contract fits a real
@@ -95,7 +96,7 @@ ending", now says a game played to an ending or to its twentieth year, and the y
 twentieth are outside what the harness measures. The owner's decision, where the agents recommended a small full-length run
 to the ending at each close.
 
-**Releases after the first build** (amended 2026-09-28, DL-86). The first build is released as
+**Releases after the first build** (amended 2026-09-28, DL-86; 2026-09-29, DL-109). The first build is released as
 `v1.0.0`, tagged at `m8-modules`. New work is on `v1.1-dev` and is released by merging into
 `v1.1-release`; milestone tags continue (`m9-random-events`); `v1.0-dev` and `v1.0-release` are
 frozen but for v1.0.x hotfix releases, each committed on `v1.0-dev`, tagged on `v1.0-release`
@@ -122,6 +123,24 @@ checkout of a release tag (`v*`) and refuses anything else before it builds; it 
 uploads that build to the Worker and then to Pages, stopping at the first failure, and prints the
 record the release's decision-log entry keeps. `npm run e2e:live -w web` then checks both
 addresses at both widths.
+
+*Amended 2026-09-29 (DL-99).* The v1.1 line is the page redesigned.
+- *M9, the redesign.* It is built on `v1.1-dev` with #30 (the Guildmaster's setup) and #32 (the
+  Bankruptcy and staffable-Quest stops) as stories. It is tagged `m9-redesign` and released as
+  `v1.1.0`, when #37 moves production and GitHub's default branch to `v1.1-release`.
+- *Random Events moves to the v1.2 line.* It becomes M10, tagged `m10-random-events` in place of
+  `m9-random-events`, on `v1.2-dev`, which is created from `v1.1-release` at `v1.1.0`. Every other
+  open issue goes with it, in the order it had against Random Events.
+- *The v1.1 line after `v1.1.0`.* It is frozen but for v1.1.x hotfixes, merged forward into
+  `v1.2-dev`, as the v1.0 line is. Production moves to `v1.2-release` at its first release.
+
+The order is the owner's decision. The branch and tag names are an agent's proposal (DL-99
+item 10).
+
+*Amended 2026-09-29 (DL-109).* The v1.0 line is never deployed again once `v1.1.0` is live. A
+Worker has no branches, so a v1.0.x deploy would replace v1.1 at the workers.dev address. A fix
+after `v1.1.0` goes out as v1.1.x on the v1.1 branches, merged forward, which amends DL-91 item 4's
+flow for v1.0 from then on. The owner's decision (DL-109 item 5).
 
 ## 3. Increments
 
@@ -276,7 +295,15 @@ the agents recommended that story features be modules and rule extensions core i
   v1.0.x release, on v1.0; it deploys to both the new `*.workers.dev` address and Pages, and
   Pages stays until Cloudflare retires it (DL-88). It is `v1.0.1`, with three page fixes beside
   the move and the Worker named `heroesim` (amended 2026-09-28, DL-92).
-- **Next:** Random Events, on `v1.1-dev` (§2). Random Events never produce Quests (DL-82).
+- **Next:** the page redesigned, M9, on `v1.1-dev`, with #30 and #32, released as `v1.1.0`
+  (§2). Views in a shell, the History for any Guild, Hero or Patron, a Party builder showing each
+  Hero's availability and attributes, and a new visual style (DL-99). Autosave and keyboard
+  shortcuts come after it (DL-99 items 4 and 5). *Amended 2026-09-29 (DL-99): the owner put the
+  redesign before Random Events.* *Amended 2026-09-29 (DL-111): the owner's player test of M9 adds a
+  follow-on inside `v1.1.0` (`docs/planning/epics/M9-feedback.md`).*
+- **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
+  against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
+  "Next", on `v1.1-dev`.*
 - **After Random Events, in an order chosen at its close:**
   - Scenarios; Campaigns, with the Inciting Event generator beside them (DL-82); Contacts;
     Factions; Scouting and hidden information.

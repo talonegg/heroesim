@@ -2,65 +2,70 @@
 // grade and the Improvement built at it, what it does, and the next grade's Improvement and cost
 // (`nextImprovement`); in the player's own Hall, a button to build it. Another Guild's Hall is shown
 // on its page, without one. The engine's `build` decides.
+//
+// A view of the shell (M9-S3, DL-103), with the Guildmaster, the Market and what the Guild holds as
+// its parts, until M9-F2 (DL-111 items 5 to 7, DL-112 item 5): the Hall is now a part of the Guild,
+// its tab's panel, and the Guildmaster and the Market are views of their own. Each facility is one
+// row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
+// defines, what it does, and "Build <name> · <cost>". The Upkeep, which each grade adds to, sat above
+// them until M9-F3 moved it to the Treasury (DL-112 item 6, DL-116).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import type { GameAction } from '../state/reducer';
 import { hallView, type HallView } from '../state/world-views';
-import { Heading, Section } from './section';
+import { Icon } from './icons';
+import { VisuallyHidden } from './ui';
 
+/** The Guild's Hall part: the player's Hall, with Build. */
 export function Hall({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const view = useMemo(() => hallView(document), [document]);
-  return (
-    <Section
-      id="hall"
-      title="Hall"
-      help={
-        'Your Guild’s premises. Build raises a facility one grade for the next grade’s cost. Each grade does more than ' +
-        'the one below it, and each adds to the Upkeep.'
-      }
-    >
-      {view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} level={3} busy={busy} play={play} />}
-    </Section>
-  );
+  return view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} busy={busy} play={play} />;
 }
 
-/** A Hall's facilities and Upkeep; with `play`, and the Hall the player's own, a Build button for each next grade. */
-export function HallDetails({
-  view,
-  level,
-  busy = false,
-  play,
-}: {
-  view: HallView;
-  level: 3 | 5;
-  busy?: boolean;
-  play?: (action: GameAction) => void;
-}) {
+/** A Hall's facilities; with `play`, and the Hall the player's own, a Build button for each next grade. */
+export function HallDetails({ view, busy = false, play }: { view: HallView; busy?: boolean; play?: (action: GameAction) => void }) {
+  const builds = view.mine && play !== undefined;
   return (
-    <>
-      <ul className="cards">
+    <div className="facilities">
+      <ul className="facility-rows" aria-label={`The facilities of ${view.guildName}'s Hall`}>
         {view.facilities.map((row) => (
-          <li key={row.facility} className="card">
-            <Heading level={level}>
-              {row.name}: grade {row.grade}
-            </Heading>
-            <p className="subtle">Built: {row.built}.</p>
-            <p>{row.does}</p>
-            <p>{row.next === null ? 'At the top grade.' : `Next grade: ${row.next.name}, ${row.next.cost} Wealth.`}</p>
-            {view.mine && row.next !== null && play !== undefined ? (
-              <div className="actions">
-                <button type="button" disabled={busy} onClick={() => play({ kind: 'build', facility: row.facility })}>
-                  Build {row.next.name}
+          <li key={row.facility} className="facility" data-testid="facility">
+            <span className="facility__name">{row.name}</span>
+            <span className="facility__grade">
+              <span className="pips" role="img" aria-label={`Grade ${row.grade} of ${row.top}`}>
+                {'●'.repeat(row.grade)}
+                {'○'.repeat(Math.max(0, row.top - row.grade))}
+              </span>
+              {row.built === 'none' ? null : <span className="subtle">{row.built}</span>}
+            </span>
+            <span className="facility__does">{row.does}</span>
+            <span className="facility__next">
+              {row.next === null ? (
+                <span className="subtle">At the top grade</span>
+              ) : builds && play !== undefined ? (
+                <button
+                  type="button"
+                  aria-label={`Build ${row.next.name} for ${row.next.cost} Wealth`}
+                  disabled={busy}
+                  onClick={() => play({ kind: 'build', facility: row.facility })}
+                >
+                  <Icon name="build" />
+                  <span>
+                    Build {row.next.name} · {row.next.cost}
+                  </span>
+                  <Icon name="wealth" />
                 </button>
-              </div>
-            ) : null}
+              ) : (
+                <span className="subtle">
+                  Next: {row.next.name}, {row.next.cost}
+                  <VisuallyHidden> Wealth</VisuallyHidden>
+                </span>
+              )}
+            </span>
           </li>
         ))}
       </ul>
-      <p>
-        Upkeep of {view.guildName}: {view.upkeep}.
-      </p>
-    </>
+    </div>
   );
 }

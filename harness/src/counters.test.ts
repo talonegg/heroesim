@@ -267,6 +267,26 @@ describe("M3's counters, from the History", () => {
   });
 });
 
+describe("M9-S2's counter, from the History", () => {
+  test('Rival folds by cause, and the Successions that met a Rival Guildmaster\'s Retirement (guildmaster.succeeded), which fold nothing', () => {
+    const { document, rivals } = fixture('counters-succession');
+    const [a, b] = rivals;
+    add(document, 20, 'guildmaster.succeeded', [a.id, a.guildmasterId], { guildId: a.id, guildmasterId: a.guildmasterId, successorId: a.guildmasterId, age: 65 });
+    add(document, 30, 'guildmaster.succeeded', [b.id, b.guildmasterId], { guildId: b.id, guildmasterId: b.guildmasterId, successorId: b.guildmasterId, age: 65 });
+    add(document, 40, 'guild.folded', [b.id], { guildId: b.id, reason: 'bankruptcy' });
+    document.world.turn = 50;
+
+    const counters = countGame(document, shortYears);
+
+    expect(counters.rivalSuccessions).toBe(2);
+    expect(counters.rivalFolds).toEqual({ retirement: 0, bankruptcy: 1, 'roster-wiped': 0 });
+  });
+
+  test('a new world has no Succession', () => {
+    expect(countGame(fixture('counters-no-succession').document, shortYears).rivalSuccessions).toBe(0);
+  });
+});
+
 describe("M3's counters, from the World State while a game is played", () => {
   test('the Fame gate: each morning, the pool Heroes who would refuse each Guild in play, by controller', () => {
     const { document, player, rivals } = fixture('counters-fame');
@@ -1159,5 +1179,34 @@ describe("M6's counters, from the World State as each year begins", () => {
       { fame: 2, wealth: 1, guilds: 2 },
     ]);
     expect(observations.rosters).toHaveLength(2);
+  });
+});
+
+describe("M9-S1's counters, from the History (DL-101)", () => {
+  test('a new world has fallen below the Bankruptcy floor, and recovered, never', () => {
+    const { document } = fixture('counters-floor-new');
+    const counted = countGame(document, shortYears);
+
+    expect(counted.belowFloor).toEqual({ player: 0, rival: 0 });
+    expect(counted.floorRecovered).toEqual({ player: 0, rival: 0 });
+  });
+
+  test('guild.below-floor and guild.floor-recovered, by the controller of the Guild each names', () => {
+    const { document, player, rivals } = fixture('counters-floor');
+    const below = (turn: number, guild: Guild): void =>
+      add(document, turn, 'guild.below-floor', [guild.id], { guildId: guild.id, wealth: -5, floor: 0, dueDay: 40 });
+    const recovered = (turn: number, guild: Guild): void =>
+      add(document, turn, 'guild.floor-recovered', [guild.id], { guildId: guild.id, wealth: 5, floor: 0, belowFloorSince: 2 });
+    below(2, player);
+    below(2, rivals[0]);
+    recovered(5, player);
+    below(5, rivals[1]);
+    below(8, player);
+    recovered(8, rivals[1]);
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.belowFloor).toEqual({ player: 2, rival: 2 });
+    expect(counted.floorRecovered).toEqual({ player: 1, rival: 1 });
   });
 });

@@ -1,0 +1,55 @@
+// The child processes a parallel run shares its seeds among (M2-S12, DL-34): each job is written
+// to a file, played by `shard.ts` in a child process under tsx (`node --import tsx shard.ts <job>
+// <result>`), and its result read back. The play sweep (`sweepPlayInParallel`) and the Succession
+// probe (`probeInParallel`, M9-F1) both run their shards through here.
+
+import { spawn } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { ShardJob, ShardResult } from './shard.js';
+
+const shardModule = fileURLToPath(new URL('./shard.ts', import.meta.url));
+const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
+
+/** Runs one shard in a child process under tsx; resolves when it has written its result. */
+function runChild(jobPath: string, resultPath: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, ['--import', 'tsx', shardModule, jobPath, resultPath], {
+      cwd: repositoryRoot,
+      stdio: ['ignore', 'inherit', 'inherit'],
+    });
+    child.on('error', reject);
+    child.on('exit', (code, signal) => {
+      if (code === 0) resolve();
+      else reject(new Error(`A play shard exited with ${signal ?? `code ${code}`}: ${jobPath}`));
+    });
+  });
+}
+
+/**
+ * Plays each job in a child process of its own, all at once, and returns their results in the
+ * jobs' order. The job and result files live in a temporary directory, removed after.
+ *
+ * @throws Error when a child fails: a broken run, not a finding
+ */
+export async function runShardJobs(jobs: readonly ShardJob[]): Promise<ShardResult[]> {
+  const dir = mkdtempSync(join(tmpdir(), 'heroesim-play-'));
+  try {
+    const paths = jobs.map((job, shard) => {
+      const jobPath = join(dir, `job-${shard}.json`);
+      writeFileSync(jobPath, JSON.stringify(job), 'utf8');
+      return { jobPath, resultPath: join(dir, `result-${shard}.json`) };
+    });
+    await Promise.all(paths.map(({ jobPath, resultPath }) => runChild(jobPath, resultPath)));
+    return paths.map(({ resultPath }) => JSON.parse(readFileSync(resultPath, 'utf8')) as ShardResult);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** The seeds dealt in turn among `workers` shards: seed i to shard i mod workers. */
+export function dealSeeds(seeds: readonly string[], workers: number): string[][] {
+  return Array.from({ length: workers }, (_, shard) => seeds.filter((_, index) => index % workers === shard));
+}

@@ -2,9 +2,12 @@
 // the game plays under, its `meta.config`, are behind this release's `defaultConfig`. A game keeps
 // its own rules until the player adopts the new ones, and its History records when
 // (`world.rules-adopted`).
+//
+// A part of the game menu (M9-S3, DL-103), which names the versions; the home view shows a banner
+// while the notice stands.
 
 import type { GameAction } from '../state/reducer';
-import { Section } from './section';
+import { Part } from './section';
 
 export function RulesNotice({
   notice,
@@ -16,15 +19,7 @@ export function RulesNotice({
   play: (action: GameAction) => void;
 }) {
   return (
-    <Section
-      id="rules"
-      title="New rules available"
-      className="notice"
-      help={
-        'This release’s rules differ from those the game was started with. The game keeps playing under its own until ' +
-        'you adopt the new ones, which changes how it plays from then on; its History records when.'
-      }
-    >
+    <Part id="rules" className="part--notice">
       <p>
         This game plays under configVersion {notice.from}; this release’s rules are configVersion {notice.to}.
       </p>
@@ -33,6 +28,6 @@ export function RulesNotice({
           Adopt the new rules
         </button>
       </div>
-    </Section>
+    </Part>
   );
 }

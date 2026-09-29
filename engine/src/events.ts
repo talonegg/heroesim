@@ -43,13 +43,29 @@ import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 /** The first entry of every History. It names no participant. */
 export type WorldCreated = Entry<'world.created', { seed: string }>;
 
-/** A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster. */
-export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId }>;
+/**
+ * A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster.
+ * `wealth` is the Guild's founding Wealth, for every Guild founded from M9-F7 (DL-120 item 4), the
+ * player's, the founding Rivals' and each replacement's; optional, as `questId` is, since an older save's
+ * foundings have none.
+ */
+export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId; wealth?: number }>;
 
 /** A Guildmaster was generated for a Guild; names both. */
 export type GuildmasterGenerated = Entry<
   'guildmaster.generated',
   { guildmasterId: GuildmasterId; guildId: GuildId }
+>;
+
+/**
+ * A Rival's Guildmaster retired at `age` and was succeeded (M9-S2, DL-83 item 19, DL-100 item 3):
+ * the Guild carries on under `successorId`, drawn as a founding Rival's Guildmaster is. A Milestone
+ * naming the Guild, the retired Guildmaster and the successor, in that order; the successor's
+ * History begins with it, and no `guildmaster.generated` is made for them.
+ */
+export type GuildmasterSucceeded = Entry<
+  'guildmaster.succeeded',
+  { guildId: GuildId; guildmasterId: GuildmasterId; successorId: GuildmasterId; age: number }
 >;
 
 /**
@@ -83,6 +99,26 @@ export type WorldRulesAdopted = Entry<
  * and Wealth after paying it, which may be negative.
  */
 export type GuildUpkeepPaid = Entry<'guild.upkeep-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+
+/**
+ * A Guild's Wealth was below the Bankruptcy floor at the night's check, and was not the night before:
+ * `belowFloorSince` was set tonight (M9-S1, DL-85 item 6, superseding DL-26 item 3's silence). It
+ * carries the Wealth, the floor it is below (`bankruptcyFloor`) and the Day on whose night the Guild
+ * reaches Bankruptcy unless Wealth is back to the floor or more on a night before it: tonight's Day
+ * plus `bankruptcyGraceDays`, as `bankruptcyCountdown` reckons it and `endings.ts` rules. Names the
+ * Guild. Not a Milestone: the ending is, if it comes.
+ */
+export type GuildBelowFloor = Entry<'guild.below-floor', { guildId: GuildId; wealth: number; floor: number; dueDay: number }>;
+
+/**
+ * A Guild's Wealth was back to the Bankruptcy floor or more at the night's check, having been below
+ * it: `belowFloorSince` was cleared tonight (M9-S1, DL-85 item 6). It carries the Wealth, the floor
+ * and the Turn it had fallen below. Names the Guild. Not a Milestone.
+ */
+export type GuildFloorRecovered = Entry<
+  'guild.floor-recovered',
+  { guildId: GuildId; wealth: number; floor: number; belowFloorSince: Turn }
+>;
 // ── Recruitment and the Unattached pool (M2-S8, DL-27) ───────────────────────────────────────
 
 /**
@@ -224,7 +260,10 @@ export type HeroInjured = Entry<
  */
 export type HeroDied = Entry<'hero.died', { heroId: HeroId; questId: QuestId }>;
 
-/** A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero. */
+/**
+ * A Hero gained XP from a Quest (training XP, M3-S2, is a drift and emits none). Names the Hero and,
+ * from M9-F1, the Quest (DL-112 item 2).
+ */
 export type HeroXpGained = Entry<'hero.xp-gained', { heroId: HeroId; questId: QuestId; amount: number }>;
 
 // ── The Hero State Engine (M2-S6, DL-29) ─────────────────────────────────────────────────────
@@ -240,13 +279,17 @@ export type MoraleCause = 'roster-death' | 'strong-success' | 'drift' | 'encount
 /**
  * A Hero's Morale changed: always for a discrete change, and for the nightly drift only when it
  * crosses from one of `moraleBands` to another (data-model rule 10). Names the Hero. `moduleId`
- * names the module whose effect moved it, for the `module` cause alone.
+ * names the module whose effect moved it, for the `module` cause alone. From M9-F1 (DL-112 item 2),
+ * `questId` names the Quest whose return caused it, for `encounters`, `strong-success` and
+ * `roster-death`, and the Quest is a participant; an entry written before M9-F1 has none.
  */
 export type HeroMoraleChanged = Entry<
   'hero.morale-changed',
   {
     heroId: HeroId;
     cause: MoraleCause;
+    /** The Quest whose return caused it, for a Quest's causes (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: MoraleBand;
@@ -329,7 +372,8 @@ export type PatronRegardCause = 'quest-success' | 'quest-failure' | 'offer-expir
  * A Patron's Regard for a Guild crossed from one of `regardBands` into another: emitted for a
  * discrete change and for the nightly recovery alike, and only on a crossing (data-model rule 10).
  * `before` and `after` are the values, which a front end shows as bands. Names the Patron and the
- * Guild.
+ * Guild, and from M9-F1, for `quest-success` and `quest-failure`, the Quest (`questId`, DL-112
+ * item 2).
  */
 export type PatronRegardChanged = Entry<
   'patron.regard-changed',
@@ -337,6 +381,8 @@ export type PatronRegardChanged = Entry<
     patronId: PatronId;
     guildId: GuildId;
     cause: PatronRegardCause;
+    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
@@ -356,7 +402,8 @@ export type GuildmasterRegardCause = 'quest-success' | 'quest-failure' | 'transf
 /**
  * A Guildmaster's Regard for `entityId`, a Patron or a Hero (from M6-S2 a Guildmaster), crossed
  * from one of `regardBands` into another; only on a crossing (data-model rule 10, pre-M0 review
- * B3). Names the Guildmaster, the entity and the Guildmaster's Guild.
+ * B3). Names the Guildmaster, the entity and the Guildmaster's Guild, and from M9-F1, for
+ * `quest-success` and `quest-failure`, the Quest (`questId`, DL-112 item 2).
  */
 export type GuildmasterRegardChanged = Entry<
   'guildmaster.regard-changed',
@@ -365,6 +412,8 @@ export type GuildmasterRegardChanged = Entry<
     guildId: GuildId;
     entityId: EntityId;
     cause: GuildmasterRegardCause;
+    /** The Quest resolved, for `quest-success` and `quest-failure` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
@@ -388,7 +437,8 @@ export type HeroRegardCause = 'shared-quest' | 'decay' | 'module';
  * emitted for a shared Quest's change and for the nightly decay alike, and only on a crossing
  * (data-model rule 10), one entry for each Hero whose Regard crossed, so the two of a pair each
  * have their own. `before` and `after` are the values, which a front end shows as bands. Names the
- * Hero, the other Hero, and their Guilds. Not a Milestone.
+ * Hero, the other Hero, and their Guilds, and from M9-F1, for `shared-quest`, the Quest (`questId`,
+ * DL-112 item 2). Not a Milestone.
  */
 export type HeroRegardChanged = Entry<
   'hero.regard-changed',
@@ -396,6 +446,8 @@ export type HeroRegardChanged = Entry<
     heroId: HeroId;
     entityId: EntityId;
     cause: HeroRegardCause;
+    /** The Quest shared, for `shared-quest` (M9-F1, DL-112 item 2). */
+    questId?: QuestId;
     before: number;
     after: number;
     bandBefore: RegardBand;
@@ -571,6 +623,8 @@ export type EngineEvent =
   | PatronGenerated
   | WorldRulesAdopted
   | GuildUpkeepPaid
+  | GuildBelowFloor
+  | GuildFloorRecovered
   | HeroRecruited
   | HeroLeftPool
   | QuestOffered
@@ -588,6 +642,7 @@ export type EngineEvent =
   | HeroDeclined
   | GameEnded
   | GuildFolded
+  | GuildmasterSucceeded
   | HeroLeftGuild
   | GuildImproved
   | HeroLevelled
@@ -627,6 +682,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'patron.generated': false,
   'world.rules-adopted': true,
   'guild.upkeep-paid': false,
+  'guild.below-floor': false,
+  'guild.floor-recovered': false,
   'hero.recruited': true,
   'hero.left-pool': false,
   'quest.offered': false,
@@ -644,6 +701,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.declined': false,
   'game.ended': true,
   'guild.folded': true,
+  'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': true,
   'hero.levelled': true,

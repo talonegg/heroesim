@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, test } from 'vitest';
 import {
   defaultConfig,
+  descriptiveAttributeLabels,
+  descriptiveAttributes,
   emptyDocument,
   facilityKeys,
   idPrefixes,
@@ -110,6 +112,10 @@ const guildmaster: Guildmaster = {
   ageAtEntry: 38,
   stats: { inspiration: 12, influence: 9, negotiation: 11, coaching: 8, judgement: 14 },
   traits: ['old-soldier'],
+  birthplace: 'Stannary',
+  appearance: 'Grey at the temples.',
+  biography: '',
+  retiredOnTurn: null,
   regard: { [heroId]: regardEntry },
 };
 
@@ -359,6 +365,13 @@ describe('the World State document', () => {
 
   test('the Hall has the three facilities of data-model §3.2', () => {
     expect(facilityKeys).toEqual(['infirmary', 'trainingYard', 'quarters']);
+  });
+
+  test("a Guildmaster's descriptive Attributes are three, each labelled by its CONTEXT.md name, which both front ends show (the M9 review)", () => {
+    expect(descriptiveAttributes).toEqual(['birthplace', 'appearance', 'biography']);
+    expect(descriptiveAttributes.map((attribute) => descriptiveAttributeLabels[attribute])).toEqual(['Birthplace', 'Appearance', 'Biography']);
+    expect(Object.keys(descriptiveAttributeLabels)).toEqual([...descriptiveAttributes]);
+    expect(Object.isFrozen(descriptiveAttributeLabels)).toBe(true);
   });
 });
 

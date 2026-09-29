@@ -1,10 +1,12 @@
 import { expect, test, type Page } from '@playwright/test';
-import { playTurns, region, startGame } from './support';
+import { debugHistory, groupOf, historyText, playTurns, startGame } from './support';
 
 // The test-only switch for modules (M8-S4, DL-79), in the built page: opened at `?modules=probe`, the
 // page says the probe is installed, and a game from seed `modules`, on which the probe's stream first
 // draws below its threshold on the eleventh Turn, the night of Day 3, shows `probe.fired` in the log
 // of that Turn. Opened without the switch, the same Turns install and show nothing of a module.
+// What a play did is read in the History, the whole History here, the game menu's debug view, where
+// a module's events are (M9-S5, DL-105; M9-F4, DL-117).
 
 /** Starts a game from the firing seed and plays eleven Turns, one at a time. */
 async function elevenTurns(page: Page): Promise<void> {
@@ -20,9 +22,13 @@ test('?modules=probe installs the probe, and its probe.fired is in the log on a 
 
   await elevenTurns(page);
 
-  const log = region(page, 'Since your last action').getByRole('listitem');
-  await expect(log.filter({ hasText: /^Day 3, night The probe module recorded probe\.fired for .+\.$/ })).toHaveCount(1);
-  await expect(log.filter({ hasText: /^Day 3, night .+'s Wealth went from \d+ to \d+\.$/ })).toHaveCount(1);
+  const whole = await debugHistory(page);
+  const fired = historyText(whole, /^The probe module recorded probe\.fired for .+\.$/);
+  await expect(fired).toHaveCount(1);
+  await expect(groupOf(fired)).toHaveText('Day 3, night');
+  const wealth = historyText(whole, /^.+'s Wealth went from \d+ to \d+\.$/);
+  await expect(wealth).toHaveCount(1);
+  await expect(groupOf(wealth)).toHaveText('Day 3, night');
 });
 
 test('without the switch nothing is installed: no word of a module, and no probe.fired on the same Turns', async ({ page }) => {
@@ -30,5 +36,5 @@ test('without the switch nothing is installed: no word of a module, and no probe
   await elevenTurns(page);
 
   await expect(page.getByText(/Installed for testing/)).toHaveCount(0);
-  await expect(region(page, 'Since your last action').getByRole('listitem').filter({ hasText: /probe/ })).toHaveCount(0);
+  await expect(historyText(await debugHistory(page), /probe/)).toHaveCount(0);
 });

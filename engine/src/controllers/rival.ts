@@ -14,7 +14,7 @@
 // stream, `world.rng.rivals`, and from no other (ADR-0009).
 
 import type { GuildAction } from '../actions/action.js';
-import { unavailability, type DispatchAction } from '../actions/dispatch.js';
+import { dispatchRefusal, unavailability, type DispatchAction } from '../actions/dispatch.js';
 import type { TransferInAction } from '../actions/transfer.js';
 import type { EngineDeps } from '../config.js';
 import type { ContentSet, Disposition, SlotKey } from '../content-types.js';
@@ -348,18 +348,31 @@ export function availableHeroes(world: Pick<World, 'heroes'>, guild: Pick<Guild,
 
 /**
  * The Quests on offer on the Board that `guild` could staff now, in the Board's order: those for
- * which some Party of its available Heroes (`availableHeroes`, `dispatch`'s own test) meets the
- * Quest's size and requirements, as a Rival staffs a Quest (`partyFor`). Fast forward's
- * `decision-needed` reads it (M2-S11, DL-33), so a stop and a Rival agree on what can be staffed.
+ * which `dispatch` would send some Party of its Heroes (`staffingParty`). Fast forward's
+ * `decision-needed` and `quest-staffable` read it (M2-S11, DL-33; M9-S1, DL-101), so a stop, a
+ * Rival and `dispatch` agree on what can be staffed.
  */
-export function staffableQuests(
-  world: Pick<World, 'board' | 'quests' | 'heroes'>,
-  guild: Pick<Guild, 'rosterIds'>,
-  content: ContentSet,
-): Quest[] {
+export function staffableQuests(world: World, guild: Guild, deps: EngineDeps): Quest[] {
   const available = availableHeroes(world, guild);
   if (available.length === 0) return [];
-  return offeredQuests(world).filter((quest) => partyFor(quest, available, content) !== null);
+  return offeredQuests(world).filter((quest) => staffingParty(world, guild, quest, available, deps) !== null);
+}
+
+/**
+ * A Party of `available`, `guild`'s free Heroes, that `dispatch` would send on `quest` as it stands,
+ * or `null` when there is none (M9-S1, DL-101). The search is `partyFor`, the one staffing rule, and
+ * the verdict is `dispatch`'s own (`dispatchRefusal`, with no consumables), so no second copy of
+ * the rule decides what can be staffed: a check `dispatch` gains is a check here at once.
+ *
+ * `partyFor` misses no Party: `dispatch` asks of free Heroes on the Roster only the Quest's
+ * requirements (`unmetRequirements`: a size, a Class and a Skill), and `partyFor` names a Party
+ * whenever one of `available` meets them, which `stops.test.ts` holds against every Party of a
+ * Roster. Reads, never writes, and draws nothing.
+ */
+function staffingParty(world: World, guild: Guild, quest: Quest, available: readonly Hero[], deps: EngineDeps): HeroId[] | null {
+  const heroIds = partyFor(quest, available, deps.content);
+  if (heroIds === null) return null;
+  return dispatchRefusal(world, { guildId: guild.id, questId: quest.id, heroIds }, deps) === null ? heroIds : null;
 }
 
 // ── The rule's parts ────────────────────────────────────────────────────────────────────────────
@@ -433,8 +446,8 @@ function gearBuy(world: World, guild: Guild, disposition: Disposition, deps: Eng
  * the rest stay free for tomorrow's Board. A requirement is met by the strongest Hero who meets
  * it (one who meets both when there is one); the other places go to the strongest of the rest.
  * Strength is the Hero's Stats weighted by the Quest's demands (`strengthFor`), ties by Hero id.
- * `null` exactly when no Party of `available` could go, so `staffableQuests` reads it as the test
- * of whether a Quest can be staffed.
+ * `null` exactly when no Party of `available` could go, so `staffableQuests` searches with it and
+ * lets `dispatch`'s own checks judge the Party it names (`staffingParty`, M9-S1).
  *
  * Exported as the one staffing rule: the harness's automatic policy (M2-S12, DL-34) sends the
  * Party it names rather than keeping a copy. It reads nothing but its arguments and draws nothing.

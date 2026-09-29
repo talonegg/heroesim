@@ -35,7 +35,7 @@ function ofType<Type extends EngineEvent['type']>(events: readonly TurnEvent[], 
  */
 function sendEveryone(document: WorldDocument, deps: EngineDeps): { document: WorldDocument; party: Party } {
   const guild = player(document);
-  const quests = staffableQuests(document.world, guild, deps.content).filter(
+  const quests = staffableQuests(document.world, guild, deps).filter(
     (quest) => quest.requirements.partySizeMax >= guild.rosterIds.length,
   );
   const quest = quests.sort((a, b) => b.durationTurns - a.durationTurns)[0];
@@ -105,7 +105,7 @@ describe('fastForward: a decision needed (always on)', () => {
     const document = created('ff-decide', deps);
     const guild = player(document);
     // Quests the Roster could staff stand on the Board from the start: the caller has seen them.
-    expect(staffableQuests(document.world, guild, deps.content).length).toBeGreaterThan(0);
+    expect(staffableQuests(document.world, guild, deps).length).toBeGreaterThan(0);
 
     const result = fastForward(document, { guildId: guild.id, until: [], maxTurns: 1080 }, deps);
 
@@ -151,7 +151,7 @@ describe('fastForward: a decision needed (always on)', () => {
     const document = created('ff-2', deps);
     const guild = player(document);
     // Two of the four go on the longest Quest a pair can take; two stay at home.
-    const pairs = staffableQuests(document.world, guild, deps.content).filter(
+    const pairs = staffableQuests(document.world, guild, deps).filter(
       (quest) => quest.requirements.partySizeMin <= 2 && quest.requirements.partySizeMax >= 2 && quest.durationTurns >= 12,
     );
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
@@ -177,9 +177,127 @@ describe('fastForward: a decision needed (always on)', () => {
     let couldStaffNew = false;
     while (replay.world.turn < party.returnsOnTurn) {
       replay = advance(replay, deps).document;
-      if (staffableQuests(replay.world, player(replay), deps.content).some((row) => offered.has(row.id))) couldStaffNew = true;
+      if (staffableQuests(replay.world, player(replay), deps).some((row) => offered.has(row.id))) couldStaffNew = true;
     }
     expect(couldStaffNew).toBe(true);
+  });
+});
+
+describe('fastForward: the Bankruptcy floor (always on, M9-S1)', () => {
+  /** A new game from `seed` with the Guild `pick` chooses given `wealth`, and `belowFloorSince` as given. */
+  function withWealth(seed: string, deps: EngineDeps, pick: (document: WorldDocument) => Guild, wealth: number, belowFloorSince: number | null = null) {
+    const document = structuredClone(created(seed, deps));
+    Object.assign(pick(document), { wealth, belowFloorSince });
+    return document;
+  }
+
+  test("stops, unasked, on the night the watched Guild falls below the floor, with the Day its Bankruptcy falls on", () => {
+    const deps = testDeps({ bankruptcyGraceDays: 12 });
+    const document = withWealth('ff-floor', deps, player, -1);
+    const guildId = player(document).id;
+
+    const result = fastForward(document, { guildId, until: [], maxTurns: 1080 }, deps);
+
+    const after = withValid(result.document, deps);
+    // The night of Day 0, Turn 2: before the morning's decision a new game would stop for.
+    expect(after.world.turn).toBe(2);
+    expect(result.stoppedBecause).toEqual({ kind: 'below-floor', guildId, dueDay: 12 });
+    expect(ofType(result.events, 'guild.below-floor').map((event) => event.payload.guildId)).toContain(guildId);
+    expect(player(after).belowFloorSince).toBe(2);
+  });
+
+  test("a Rival's crossing does not stop the player's fast forward", () => {
+    const deps = testDeps();
+    const rivalOf = (document: WorldDocument) => Object.values(document.world.guilds).find((guild) => guild.controller.kind !== 'player') as Guild;
+    const document = withWealth('ff-floor', deps, rivalOf, -1);
+    const rivalId = rivalOf(document).id;
+
+    const result = fastForward(document, { guildId: player(document).id, until: [], maxTurns: 1080 }, deps);
+
+    expect(ofType(result.events, 'guild.below-floor').map((event) => event.payload.guildId)).toContain(rivalId);
+    expect(result.stoppedBecause.kind).not.toBe('below-floor');
+    expect(result.document.world.turn).toBeGreaterThan(2);
+    // Watching the Rival instead, it stops there.
+    const watched = fastForward(withWealth('ff-floor', deps, rivalOf, -1), { guildId: rivalId, until: [], maxTurns: 1080 }, deps);
+    expect(watched.stoppedBecause).toEqual({ kind: 'below-floor', guildId: rivalId, dueDay: deps.config.bankruptcyGraceDays });
+  });
+
+  test('a Guild already below the floor when it starts does not stop it: its countdown already stands', () => {
+    const deps = testDeps();
+    const document = withWealth('ff-floor', deps, player, -1, 0);
+
+    const result = fastForward(document, { guildId: player(document).id, until: [], maxTurns: 1080 }, deps);
+
+    expect(ofType(result.events, 'guild.below-floor')).toEqual([]);
+    expect(result.stoppedBecause.kind).toBe('decision-needed');
+  });
+});
+
+describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () => {
+  // No Rivals, which would take the Board each afternoon; two of four Heroes out on a long Quest.
+  const deps = testDeps({ rivalCount: 0 });
+
+  function pairOut(seed: string): { document: WorldDocument; party: Party } {
+    const document = created(seed, deps);
+    const guild = player(document);
+    const pairs = staffableQuests(document.world, guild, deps).filter(
+      (quest) => quest.requirements.partySizeMin <= 2 && quest.requirements.partySizeMax >= 2 && quest.durationTurns >= 12,
+    );
+    const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
+    if (quest === undefined) throw new Error('No long Quest a pair can take');
+    const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
+    const going = partyFor({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps.content);
+    if (going === null) throw new Error('No pair for the Quest');
+    const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: going }, deps);
+    if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
+    return { document: withValid(sent.document, deps), party: Object.values(sent.document.world.parties)[0] as Party };
+  }
+
+  test('when asked, stops with a Party out on the morning a Quest the Heroes at home can staff reaches the Board', () => {
+    const { document, party } = pairOut('ff-2');
+    const guildId = player(document).id;
+
+    const result = fastForward(document, { guildId, until: ['quest-staffable'], maxTurns: 1080 }, deps);
+
+    const after = withValid(result.document, deps);
+    expect(result.stoppedBecause.kind).toBe('quest-staffable');
+    if (result.stoppedBecause.kind !== 'quest-staffable') return;
+    expect(after.world.turn).toBeLessThan(party.returnsOnTurn);
+    expect(timeOfDay(after.world.turn)).toBe('morning');
+    expect(after.world.parties[party.id]).toBeDefined();
+    // Each Quest named is new this morning, and dispatch sends a Party of the Heroes at home on it.
+    const offered = ofType(result.events, 'quest.offered').filter((event) => event.turn === after.world.turn);
+    const newToday = new Set(offered.map((event) => event.payload.questId));
+    const home = player(after).rosterIds.map((id) => after.world.heroes[id] as Hero).filter((hero) => hero.partyId === null);
+    expect(result.stoppedBecause.guildId).toBe(guildId);
+    expect(result.stoppedBecause.questIds.length).toBeGreaterThan(0);
+    for (const questId of result.stoppedBecause.questIds) {
+      expect(newToday.has(questId), questId).toBe(true);
+      const heroIds = partyFor(after.world.quests[questId] as Quest, home, deps.content);
+      expect(heroIds, questId).not.toBeNull();
+      expect(dispatch(after, { guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
+    }
+  });
+
+  test('unasked, the same fast forward plays on to the Party coming home: the always-on decision is unchanged', () => {
+    const { document, party } = pairOut('ff-2');
+
+    const result = fastForward(document, { guildId: player(document).id, until: [], maxTurns: 1080 }, deps);
+
+    expect(result.stoppedBecause.kind).toBe('party-returned');
+    expect(result.document.world.turn).toBe(party.returnsOnTurn);
+  });
+
+  test('on an idle Roster the decision is reported first, naming the same Quests', () => {
+    const document = created('ff-decide', deps);
+    const guildId = player(document).id;
+
+    const asked = fastForward(document, { guildId, until: ['quest-staffable'], maxTurns: 1080 }, deps);
+    const unasked = fastForward(created('ff-decide', deps), { guildId, until: [], maxTurns: 1080 }, deps);
+
+    expect(asked.stoppedBecause).toEqual(unasked.stoppedBecause);
+    expect(asked.stoppedBecause.kind).toBe('decision-needed');
+    expect(serialise(asked.document)).toBe(serialise(unasked.document));
   });
 });
 

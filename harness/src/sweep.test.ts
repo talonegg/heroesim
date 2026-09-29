@@ -70,6 +70,8 @@ describe('sweepPlay', () => {
 
   test("totals the games' counters", () => {
     expect(totals.games).toBe(2);
+    // Two short games: no founding Guildmaster reaches 65 (M9-S2).
+    expect(totals.rivalSuccessions).toBe(0);
     expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0, survived: 2 });
     const taken = sweep.games.reduce((sum, game) => sum + game.counters.questsTaken.player, 0);
     expect(totals.questsTaken.player).toBe(taken);
@@ -174,6 +176,22 @@ describe('sweepPlay', () => {
     expect(totals.rankings[0]?.fame.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
+  test("totals and renders M9-S1's counters: each game's nights below the Bankruptcy floor and back, by controller (DL-101)", () => {
+    const games = sweep.games.map((game, index) => ({
+      ...game,
+      counters: { ...game.counters, belowFloor: { player: index + 1, rival: 3 }, floorRecovered: { player: index, rival: 2 } },
+    }));
+    const floored = { ...sweep, games };
+    const summed = sweepTotals(floored, deps.config.turnsPerYear);
+
+    expect(summed.belowFloor).toEqual({ player: 3, rival: 6 });
+    expect(summed.floorRecovered).toEqual({ player: 1, rival: 4 });
+    const report = playReport(floored, { deps, machine: machine(), startedAt: new Date(2026, 8, 29, 12), milestone: 'm9' });
+    expect(report).toContain("| Bankruptcy floor | Player's | a game | Rivals' | a game |");
+    expect(report).toContain('| Fell below it (`guild.below-floor`) | 3 | 1.50 | 6 | 3.00 |');
+    expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
+  });
+
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
     const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
 
@@ -194,6 +212,9 @@ describe('sweepPlay', () => {
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
       expect(report).toContain('2 seeds, `seed-0001` to `seed-0002`');
+      // M9-S2: the Rival Guildmasters succeeded, beside the folds by cause.
+      expect(report).toContain('| Rival Guildmasters succeeded | 0, 0.00 a game |');
+      expect(report).toContain("A Rival Guildmaster's Retirement is met by Succession (`guildmaster.succeeded`, M9-S2), not a fold: 0 in all.");
       expect(report).toContain('ran the full 0.06 years 2');
       expect(report).toContain('Games ending in each year (year 0 is the first): 0: 0.');
       expect(report).toContain('| Games the validator refused | 0 |');

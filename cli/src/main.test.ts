@@ -163,6 +163,63 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
+  test("sets the Guildmaster's sex, age, Traits and descriptive Attributes from its flags, as the engine makes them (M9-S2)", () => {
+    const run = newDemo(
+      '--sex', 'male', '--age', '44', '--traits', 'spendthrift,well-liked',
+      '--birthplace', ' Harrowgate ', '--appearance', 'Grey at the temples.', '--biography', 'Once a quartermaster.',
+    );
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const expected = createWorld(
+      'demo',
+      {
+        guildName: 'The Test',
+        guildmasterName: 'Ada',
+        guildmasterSex: 'male',
+        guildmasterAge: 44,
+        guildmasterTraitKeys: ['spendthrift', 'well-liked'],
+        guildmasterBirthplace: 'Harrowgate',
+        guildmasterAppearance: 'Grey at the temples.',
+        guildmasterBiography: 'Once a quartermaster.',
+        createdAt: clock.toISOString(),
+      },
+      { config: defaultConfig, content },
+    ).document;
+    expect(saved()).toBe(serialise(expected));
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)).toMatchObject({
+      sex: 'male',
+      ageAtEntry: 44,
+      traits: ['spendthrift', 'well-liked'],
+      birthplace: 'Harrowgate',
+    });
+
+    expect(newDemo('--traits', 'none', '--force').code).toBe(exitCodes.ok);
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.traits).toEqual([]);
+  });
+
+  test.each<[string, string[], string]>([
+    ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 20 is not.'],
+    ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 51 is not.'],
+    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is keyed "brave". Choose from: miser (Miser, refunds 2),'],
+    ['a Hero Trait', ['--traits', 'scarred'], 'No Guildmaster Trait is keyed "scarred".'],
+    ['a Trait twice', ['--traits', 'miser,miser'], '--traits names miser twice.'],
+    ['too many Traits', ['--traits', 'miser,old-soldier,mistrusts-magic'], 'A Guildmaster holds at most 2 Traits; --traits names 3.'],
+    ['an excluded pair', ['--traits', 'thrifty,spendthrift'], 'Thrifty and Spendthrift exclude each other: a Guildmaster holds one or the other.'],
+    [
+      'Traits over the budget',
+      ['--traits', 'thrifty,old-soldier'],
+      'Those Traits cost 3 points and the budget is 1: a buff costs points and a penalty refunds them.',
+    ],
+    ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
+    ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
+  ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
+    const run = newDemo(...flags);
+
+    expect(run.code).toBe(exitCodes.usage);
+    expect(run.err).toContain(sentence);
+    expect(existsSync(current())).toBe(false);
+  });
+
   test('writes to the save --save names, in HEROESIM_SAVE_DIR when it is set', () => {
     expect(newDemo('--save', 'demo').code).toBe(exitCodes.ok);
     expect(existsSync(join(dir, '.saves', 'demo.json'))).toBe(true);
@@ -710,7 +767,11 @@ describe('advance', () => {
     expect(play(['advance']).out.split('\n')[1]).toBe(countdown(10));
     const cleared = play(['advance']);
     expect(cleared.out).toContain('Now Turn 5 (Day 1, night, Year 0).');
-    expect(cleared.out).not.toContain('Bankruptcy floor');
+    expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
+    // That night's check is heard (M9-S1): the event says so, and the countdown is gone.
+    expect(cleared.out).toContain(
+      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 0: no Bankruptcy is due.",
+    );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
 });
@@ -791,6 +852,47 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain('Now Turn 3 (Day 1, morning, Year 0).');
     expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
+  });
+
+  test('staffable stops, with a Party out, the morning a Quest the Heroes at home could take reaches the Board (M9-S1)', () => {
+    const { returnsOnTurn } = sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['quest-staffable'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+    expect(expected.stoppedBecause.kind).toBe('quest-staffable');
+
+    const run = play(['advance', '--until', 'staffable']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(document().world.turn).toBeLessThan(returnsOnTurn);
+    expect(run.out).toMatch(/Stopped: a Quest to staff: The Test's Heroes at home could go on quest-\d{6}.* \(show board\)\./);
+    // Unasked, the Party out keeps the always-on decision quiet until it comes home.
+    expect(play(['advance', '--until', 'decision']).out).toContain("Stopped: The Test's Party came home");
+    expect(document().world.turn).toBe(returnsOnTurn);
+  });
+
+  test("the player's Guild falling below the floor stops it unasked, naming the night, the countdown after (M9-S1)", () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1;
+    });
+
+    const run = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out.split('\n').slice(0, 3)).toEqual([
+      'Played 2 Turns. Now Turn 2 (Day 0, night, Year 0).',
+      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Day 10 unless its Wealth recovers by then.',
+      'The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 10 unless Wealth is back to 0 or ' +
+        'more on a night by then, after any Upkeep due.',
+    ]);
+    expect(run.out).toContain(
+      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 10 unless it is back to 0 or more on a night by then.",
+    );
   });
 
   test('--max caps the Turns and says so', () => {
@@ -1334,6 +1436,22 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     for (const number of ['13.25', '13', '7.5', '-7.5']) expect(run.out).not.toContain(` ${number}\n`);
   });
 
+  test('show guildmaster prints the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
+    const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
+    edit((edited) => {
+      Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { birthplace: 'Harrowgate', biography: 'Once a quartermaster of the river levies.' });
+    });
+
+    const mine = play(['show', 'guildmaster']).out.split('\n');
+    const theirs = play(['show', 'guildmaster', makeId('guilds', 2)]).out;
+
+    const age = mine.findIndex((line) => line.startsWith('Age'));
+    expect(mine[age + 1]).toMatch(/^Birthplace\s+Harrowgate$/);
+    expect(mine[age + 2]).toMatch(/^Biography\s+Once a quartermaster of the river levies\.$/);
+    expect(mine.some((line) => line.startsWith('Appearance'))).toBe(false);
+    for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).not.toContain(label);
+  });
+
   test("show guildmaster <guildId> prints another Guild's Guildmaster, and refuses a Guild the save lacks", () => {
     const rivalId = makeId('guilds', 2);
     const { world } = document();
@@ -1534,5 +1652,13 @@ describe('the command line', () => {
     // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
     for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
+  });
+
+  test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", () => {
+    const { out } = play(['help']);
+    const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
+
+    expect(newHelp).toContain('their age, 21 to 50 (a Guildmaster retires at 61);');
+    expect(newHelp).not.toContain('30 to 45');
   });
 });

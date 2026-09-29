@@ -9,7 +9,9 @@
 
 import {
   dayOf,
+  descriptiveAttributeLabels,
   playerGuild,
+  sexes,
   type ContentSet,
   type EndingReason,
   type FacilityKey,
@@ -191,6 +193,21 @@ const sentences: Sentences = {
       .join(', ');
     return `No Guild Background is called "${backgroundKey}". Choose one of: ${choices}.`;
   },
+  // The Guildmaster's setup (M9-S2): the CLI's `new` words, less its flags.
+  'newGame unknown-sex': ({ sex }) => `A Guildmaster's sex is ${sexes.join(' or ')}; "${sex}" is not.`,
+  'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole years; ${age} is not.`,
+  'newGame unknown-trait': ({ traitKey }, { content }) =>
+    rowOf(content.traits, traitKey) === undefined
+      ? `No Guildmaster Trait is called "${traitKey}".`
+      : `${nameIn(content.traits, traitKey)} is not a Guildmaster Trait.`,
+  'newGame repeated-trait': ({ traitKey }, { content }) => `${nameIn(content.traits, traitKey)} is chosen twice.`,
+  'newGame too-many-traits': ({ count, max }) => `A Guildmaster holds at most ${max} Traits; ${count} are chosen.`,
+  'newGame excluded-pair': ({ traitKey, otherKey }, { content }) =>
+    `${nameIn(content.traits, traitKey)} and ${nameIn(content.traits, otherKey)} exclude each other: a Guildmaster holds one or the other.`,
+  'newGame over-budget': ({ cost, budget }) =>
+    `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
+  'newGame text-too-long': ({ attribute, length, max }) =>
+    `The ${descriptiveAttributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
   'load malformed-json': ({ message }) => `Cannot load the save: ${message}.`,
   'load not-a-document': ({ message }) => `Cannot load the save: ${message}.`,
   'load unsupported-version': ({ message }) => `Cannot load the save: ${message}.`,

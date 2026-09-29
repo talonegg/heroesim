@@ -4,6 +4,7 @@ import { expect, test } from 'vitest';
 import { creationReport, sweepCreation } from './creation.js';
 import { moduleIds } from './modules.js';
 import { machine, reportPath, writeReport } from './report.js';
+import { probeName } from './succession.js';
 import { seedCount, seedNames } from './seeds.js';
 
 // M1-S10's harness run, collected only by the harness-run project, which exists when
@@ -11,11 +12,12 @@ import { seedCount, seedNames } from './seeds.js';
 // from `seed-0001` onward with the core content and `defaultConfig`, validate each, create each
 // again and compare the two serialisations byte for byte, and write the report to
 // harness/reports/m1-<date>.md. The determinism measure is recorded in DL-13. Not run when
-// HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78).
+// HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78); nor when
+// HEROESIM_PROBE names a probe (M9-F1, succession.harness.test.ts).
 
 const seeds = seedNames(seedCount());
 
-test.skipIf(moduleIds().length > 0)(`${seeds.length} worlds are valid, and byte-identical when created again`, { timeout: 30 * 60_000 }, () => {
+test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} worlds are valid, and byte-identical when created again`, { timeout: 30 * 60_000 }, () => {
   const startedAt = new Date();
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 

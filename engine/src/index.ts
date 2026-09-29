@@ -168,6 +168,7 @@ export {
   type GuildOptions,
   type RivalOptions,
 } from './generators/guilds.js';
+export { sexes } from './generators/draw.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';

@@ -8,7 +8,8 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57); M9-S2
+// the Trait budget (DL-102). Every
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
@@ -19,7 +20,8 @@ export interface GameConfig {
   /**
    * The World State schema this engine writes as `meta.version`; a load compares the two and
    * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
-   * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60).
+   * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
+   * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102).
    */
   schemaVersion: number;
   /**
@@ -33,7 +35,8 @@ export interface GameConfig {
    * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
    * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
-   * Transfer lock of a season (DL-69).
+   * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
+   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -90,15 +93,31 @@ export interface GameConfig {
   moraleBaseline: number;
 
   // ── A generated Guildmaster (M1-S6, INPUTS 3.13, 4.10) ───────────────────────────────────
-  /** A generated Guildmaster's age, in whole years. */
+  /**
+   * A generated Guildmaster's age, in whole years, and the range the player chooses from at setup:
+   * 21 to 50 from M9-F1 (DL-113 item 4), 30 to 45 before.
+   */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
   /** Each Guildmaster Stat is drawn from this range (DL-19). */
   guildmasterStatMin: number;
   guildmasterStatMax: number;
-  /** How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2). */
+  /**
+   * How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2): the count is
+   * drawn from this range, and a smaller set is drawn when no legal set has that many
+   * (`guildmasterTraitBudget`, DL-109 item 1). The maximum caps the Traits a player chooses at setup
+   * too (DL-100 item 3).
+   */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
+  /**
+   * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
+   * in all, each Trait's cost being content's (`Trait.cost`), a buff costing and a penalty
+   * refunding. A drawn Guildmaster's Traits are one set drawn from every set within it (DL-109
+   * item 1); a player's choice at setup is refused over it. At 1, the dearer buffs need a penalty
+   * beside them.
+   */
+  guildmasterTraitBudget: number;
 
   // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
   /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
@@ -220,7 +239,10 @@ export interface GameConfig {
   declineAreas: readonly StatArea[];
 
   // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
-  /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
+  /**
+   * A Guildmaster this old, in whole years, retires, and their Guild reaches its ending, on the night
+   * `retirementTurn` gives: 61 from M9-F1 (DL-113 item 4), 65 before.
+   */
   guildmasterRetirementAge: number;
   /** Whole Days after a Rival folds until a new Rival is founded in its place, at night. */
   rivalReplacementDays: number;
@@ -456,8 +478,8 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 3,
-  configVersion: 10,
+  schemaVersion: 4,
+  configVersion: 12,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -484,12 +506,13 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   startingSkillRatingMax: 2,
   moraleBaseline: 60,
 
-  guildmasterStartingAgeMin: 30,
-  guildmasterStartingAgeMax: 45,
+  guildmasterStartingAgeMin: 21,
+  guildmasterStartingAgeMax: 50,
   guildmasterStatMin: 5,
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
+  guildmasterTraitBudget: 1,
 
   upkeepEveryDays: 10,
   wagePerLevel: 20,
@@ -528,7 +551,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   declinePerYear: 1,
   declineAreas: Object.freeze(['physical' as const]),
 
-  guildmasterRetirementAge: 65,
+  guildmasterRetirementAge: 61,
   rivalReplacementDays: 30,
 
   xpCurveBase: 100,

@@ -32,6 +32,9 @@
 // M8's counters (DL-78), for a run with modules installed (`HEROESIM_MODULES`), from the History: each
 // module event type, `probe.fired` among them, and the core's events each module's effects made,
 // which name it as `moduleId`. With no module installed both are empty.
+//
+// M9-S1's (DL-101), from the History: the nights each kind of Guild fell below the Bankruptcy floor
+// (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
 
 import {
   baseStat,
@@ -187,8 +190,13 @@ export interface GameCounters {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
-  /** `guild.folded`, by the reason the Rival reached its ending. */
+  /**
+   * `guild.folded`, by the reason the Rival reached its ending. Since M9-S2 a Rival's Guildmaster's
+   * Retirement is met by Succession, so `retirement` stays 0 in a game played under its rules.
+   */
   rivalFolds: Record<EndingReason, number>;
+  /** `guildmaster.succeeded`: the Rival Guildmasters whose Retirement was met by Succession (M9-S2, DL-102). */
+  rivalSuccessions: number;
   /** `game.ended`'s reason, or `null` when the player's game has not ended. */
   ending: EndingReason | null;
   /** The Turn the game ended on, or the world's Turn when it has not. */
@@ -264,6 +272,11 @@ export interface GameCounters {
    * (`effectEventTypes`). Empty with no module.
    */
   moduleEffects: Record<string, Record<string, number>>;
+  // M9-S1's (DL-101).
+  /** `guild.below-floor`: the nights a Guild's Wealth fell below the Bankruptcy floor, by the Guild's controller. */
+  belowFloor: ByController;
+  /** `guild.floor-recovered`: the nights it was back to the floor or more, likewise. */
+  floorRecovered: ByController;
 }
 
 /**
@@ -1238,6 +1251,7 @@ export function countGame(
     heroesRecruited: countByController(document, 'hero.recruited'),
     heroesRetired: countByController(document, 'hero.retired'),
     rivalFolds,
+    rivalSuccessions: entriesOf(document, 'guildmaster.succeeded').length,
     ending: reason,
     lastTurn,
     guildYears: padTo(guildYears, years),
@@ -1262,6 +1276,8 @@ export function countGame(
     marketPurchases: marketPurchaseCounters(document),
     improvementGradesByDisposition: grades?.byDisposition ?? null,
     ...moduleCounters(document),
+    belowFloor: countByController(document, 'guild.below-floor'),
+    floorRecovered: countByController(document, 'guild.floor-recovered'),
   };
 }
 
