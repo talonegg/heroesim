@@ -161,7 +161,8 @@ describe('the shell (M9-S3, DL-103)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
     await idle();
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
-    expect(localStorage.getItem('heroesim.view')).toBe('guild');
+    // The page remembers the view in an effect after the play's render, which settles outside the click.
+    await waitFor(() => expect(localStorage.getItem('heroesim.view')).toBe('guild'));
   });
 
   test('opens on the home view where the browser keeps nothing, or keeps a view it does not know', () => {
@@ -231,7 +232,8 @@ describe('the shell (M9-S3, DL-103)', () => {
 
 describe('the home view (M9-S3, DL-103)', () => {
   test('after a fast forward, opens with the stop, and each Quest it names opens that Quest’s Party on the Board', async () => {
-    render(<App initial={started()} />);
+    const initial = started();
+    render(<App initial={initial} />);
     openView('Roster');
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
@@ -258,6 +260,10 @@ describe('the home view (M9-S3, DL-103)', () => {
     const card = heading.closest('article') as HTMLElement;
     expect(within(card).getByRole('form', { name: `A Party for ${questName}` })).toBeDefined();
     expect(within(card).getByRole('button', { name: 'Close' }).getAttribute('aria-expanded')).toBe('true');
+    // The Party builder (M9-S4, DL-104): a row for each Hero on the Roster, and the card's details unfolded.
+    const roster = Object.values(initial.document?.world.guilds ?? {}).find((guild) => guild.controller.kind === 'player')?.rosterIds;
+    expect(within(card).getAllByTestId('party-row')).toHaveLength(roster?.length ?? -1);
+    expect(within(card).getByRole('heading', { level: 4, name: 'Demands' })).toBeDefined();
   });
 
   test('shows the Parties out, with who went and the night they return', () => {

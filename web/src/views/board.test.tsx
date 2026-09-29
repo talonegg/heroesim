@@ -335,7 +335,8 @@ describe('the Party builder', () => {
     expect(words).toBeDefined();
     const whoWent = [...who].sort();
     expect(whoWent.every((name) => words?.includes(name))).toBe(true);
-    expect(document.activeElement).toBe(within(sent).getByRole('heading', { level: 3 }));
+    // The play settles after a paint, outside the click, so the card's effect may come a moment later.
+    await waitFor(() => expect(document.activeElement).toBe(within(sent).getByRole('heading', { level: 3 })));
 
     // The home view lists it under the Parties out, in the same words.
     fireEvent.click(within(sent).getByRole('button', { name: 'See the Parties out' }));

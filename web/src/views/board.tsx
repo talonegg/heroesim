@@ -103,7 +103,9 @@ export function Board({
   const [viewing, setViewing] = useState<{ heroId: HeroId; questId: QuestId } | null>(null);
   // Where the Quest sent last stood on the Board as it was shown, so its "Party out" card takes its place.
   const [sentAt, setSentAt] = useState<{ questId: QuestId; index: number } | null>(null);
-  const [focus, setFocus] = useState<{ id: string } | null>(null);
+  // Where the keyboard goes next, and what is scrolled into view with it: the view's top for a Hero's
+  // page, so its "Back to the Party" shows; the middle of the screen for a row, clear of the sticky foot.
+  const [focus, setFocus] = useState<{ id: string; show: 'view' | 'it' } | null>(null);
 
   // A choice is for one Quest: another Quest's builder starts empty.
   const current = choice.questId === open ? choice : { ...noChoice, questId: open };
@@ -111,7 +113,8 @@ export function Board({
   useEffect(() => {
     if (focus === null) return;
     const target = globalThis.document.getElementById(focus.id);
-    target?.scrollIntoView?.({ block: 'nearest' });
+    if (focus.show === 'view') globalThis.document.getElementById('board')?.scrollIntoView?.({ block: 'start' });
+    else target?.scrollIntoView?.({ block: 'center' });
     target?.focus({ preventScroll: true });
   }, [focus]);
 
@@ -132,7 +135,7 @@ export function Board({
           backLabel="Back to the Party"
           onBack={() => {
             setViewing(null);
-            setFocus({ id: openerId(heroId) });
+            setFocus({ id: openerId(heroId), show: 'it' });
           }}
           play={play}
           busy={busy}
@@ -199,7 +202,7 @@ export function Board({
                     busy={busy}
                     onHero={(heroId) => {
                       setViewing({ heroId, questId: item.card.questId });
-                      setFocus({ id: 'hero-name' });
+                      setFocus({ id: 'hero-name', show: 'view' });
                     }}
                     onSend={(heroIds, consumables) => {
                       setSentAt({ questId: item.card.questId, index: cards.findIndex((card) => card.questId === item.card.questId) });
@@ -554,7 +557,7 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
 function SentCard({ sent, onGuild }: { sent: SentView; onGuild: () => void }) {
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {
-    heading.current?.scrollIntoView?.({ block: 'nearest' });
+    heading.current?.scrollIntoView?.({ block: 'center' });
     heading.current?.focus({ preventScroll: true });
   }, []);
   return (
