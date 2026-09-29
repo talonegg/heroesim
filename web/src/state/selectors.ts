@@ -659,7 +659,7 @@ export function heldView(document: WorldDocument): HeldRow[] {
 
 // ── A Hero's page ────────────────────────────────────────────────────────────────────────────
 
-/** How many History entries a page of a Hero's History shows. A front end's choice, not a rule. */
+/** How many History entries a page of the History shows, a Hero's among them. A front end's choice, not a rule. */
 export const historyPageSize = 20;
 
 export interface StatRow {
@@ -692,10 +692,8 @@ export interface HeroPageView {
   skills: { name: string; rating: number }[];
   /** Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null` off a Roster. */
   relationships: { name: string; className: string; regard: RegardBand; relationship: RegardBand }[] | null;
-  /** The Hero's Milestones, newest first: what a Hero's page always shows first (`CONTEXT.md`). */
+  /** The Hero's Milestones, newest first: what a Hero's page always shows first (`CONTEXT.md`). Their History is `historyView`'s (M9-S5). */
   milestones: LogLine[];
-  /** One page of the Hero's History, newest first. */
-  history: { lines: LogLine[]; page: number; pages: number; entries: number };
   /** What the player can do with the Hero, by where they are; `null` for none. */
   actions: HeroActions | null;
 }
@@ -750,10 +748,10 @@ export function linesOf(entries: readonly Entry[], narration: Narration): LogLin
 
 /**
  * `show hero`: the Hero's Attributes, State, Stats with their hints, gear, Skills and, on a Roster,
- * Relationships, as the CLI prints them; then their Milestones and page `page` (from 0) of their
- * History, newest first. `null` for a Hero the world does not hold.
+ * Relationships, as the CLI prints them; then their Milestones, newest first. Their History, a page
+ * at a time, is `historyView`'s (`history.ts`, M9-S5). `null` for a Hero the world does not hold.
  */
-export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): HeroPageView | null {
+export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView | null {
   const { world, history } = document;
   const hero = rowOf(world.heroes, heroId);
   if (hero === undefined) return null;
@@ -838,8 +836,6 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
 
   const narration = narrationFor(document, content);
   const all = entriesFor(history, hero.id);
-  const pages = Math.max(1, Math.ceil(all.length / historyPageSize));
-  const shown = Math.min(Math.max(0, Math.floor(page)), pages - 1);
   return {
     heroId: hero.id,
     name: hero.name,
@@ -852,12 +848,6 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
       all.filter((entry) => entry.milestone),
       narration,
     ),
-    history: {
-      lines: linesOf(entriesFor(history, hero.id, { from: shown * historyPageSize, limit: historyPageSize }), narration),
-      page: shown,
-      pages,
-      entries: all.length,
-    },
     actions: heroActions(hero, guild, onRoster, world, deps),
   };
 }
@@ -989,21 +979,6 @@ export function progressView(state: GameState): ProgressView | null {
     sentence: `Played ${forwarding.turnsPlayed} Turns so far. Now Day ${dayOf(turn)}, ${timeOfDay(turn)}, Year ${yearOf(turn, config)}.`,
     countdown: countdownView(document),
   };
-}
-
-// ── The log ──────────────────────────────────────────────────────────────────────────────────
-
-/**
- * The events of the last play the engine carried out, oldest first, each as a sentence: those that
- * name the player's Guild alone when `mine`. The engine lists a Hero's Guild among the participants
- * of each event naming the Hero, so the player's Heroes' events are the Guild's too.
- */
-export function logView(state: Pick<GameState, 'document' | 'log'>, mine = false): LogLine[] {
-  const { document, log } = state;
-  if (document === null) return [];
-  const guild: Guild | undefined = playerGuild(document.world);
-  const shown = mine && guild !== undefined ? log.filter((event) => event.participants.includes(guild.id)) : log;
-  return linesOf(shown, narrationFor(document, content));
 }
 
 // ── A new game ───────────────────────────────────────────────────────────────────────────────

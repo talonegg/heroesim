@@ -25,7 +25,10 @@ export async function expectNoHorizontalOverflow(page: Page, when: string): Prom
 /**
  * Every control on the screen is a target at least 44px each way (M7 §0, M9's rules): a button, a
  * disclosure's summary, a field, a select, the file picker's button; a checkbox by the label that
- * holds it. What the page hides, and the file input behind its button, are not counted.
+ * holds it. What the page hides, and the file input behind its button, are not counted. A name in
+ * a line of the History is a target in a sentence, whose size the sentence's line sets (WCAG 2.5.5
+ * and 2.5.8 except such a target): it is held to 24px high, WCAG 2.5.8's least, and not to 44px
+ * (M9-S5, DL-105).
  */
 export async function expectTargets(page: Page, when: string): Promise<void> {
   const small = await page.evaluate(() => {
@@ -38,6 +41,10 @@ export async function expectTargets(page: Page, when: string): Promise<void> {
       if (box.width === 0 && box.height === 0) continue;
       const target = element.matches('input[type="checkbox"]') ? (element.closest('label') ?? element) : element;
       const { width, height } = target.getBoundingClientRect();
+      if (element.matches('.entry button.name')) {
+        if (height < 23.5) found.push(`a name in a line, "${named(target)}": ${Math.round(width)}×${Math.round(height)}`);
+        continue;
+      }
       if (width < 43.5 || height < 43.5) found.push(`${target.tagName.toLowerCase()} "${named(target)}": ${Math.round(width)}×${Math.round(height)}`);
     }
     return found;
@@ -80,7 +87,6 @@ const viewOf: Readonly<Record<string, ViewName>> = {
   Market: 'Hall',
   Guilds: 'Rankings',
   Patrons: 'Rankings',
-  'Since your last action': 'History',
 };
 
 /** Opens the view a part is in, and gives the part's region. */
@@ -91,6 +97,34 @@ export async function part(scope: Scope, name: string): Promise<Locator> {
   const shown = region(scope, name);
   await expect(shown).toBeVisible();
   return shown;
+}
+
+/**
+ * The History view, opened, on the History `whose` names: the player's Guild's, where it opens,
+ * unless another is given (M9-S5, DL-105).
+ */
+export async function history(scope: Scope, whose?: string): Promise<Locator> {
+  const shown = await openView(scope, 'History');
+  if (whose !== undefined) await shown.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: whose, exact: true }).click();
+  return shown;
+}
+
+/**
+ * The sentences of the History's lines in `scope` that match `pattern`, each read whole, its names'
+ * words and all; a line's own, never one folded under it.
+ */
+export function historyText(scope: Locator, pattern: RegExp): Locator {
+  return scope.locator('.entry__text').filter({ hasText: pattern });
+}
+
+/** The line a sentence is, for its marks: `is-new`, `entry--mine`. */
+export function lineOf(text: Locator): Locator {
+  return text.locator('xpath=ancestor::li[1]');
+}
+
+/** The Day and time of day a line is grouped under. */
+export function groupOf(text: Locator): Locator {
+  return text.locator('xpath=ancestor::div[contains(concat(" ", @class, " "), " history-group ")][1]/*[1]');
 }
 
 /** Opens the game menu, and gives the dialog. */

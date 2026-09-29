@@ -22,7 +22,6 @@ const home: Readonly<Record<string, ViewName | 'menu'>> = {
   Guilds: 'Rankings',
   Patrons: 'Rankings',
   History: 'History',
-  'Since your last action': 'History',
   'This game': 'menu',
   'New rules available': 'menu',
 };
@@ -69,6 +68,34 @@ export function section(name: string): HTMLElement {
   closeMenu();
   openView(where);
   return screen.getByRole('region', { name });
+}
+
+/**
+ * The History's lines in `scope`, folded ones among them (M9-S5): each a list item, its sentence in
+ * `.entry__text`, where a name is a button of its own, so the sentence is read whole from there.
+ */
+export function historyLines(scope: HTMLElement): HTMLElement[] {
+  return Array.from(scope.querySelectorAll<HTMLElement>('li.entry'));
+}
+
+/** A History line's sentence, its names' words and all. */
+export function sentenceOf(line: HTMLElement): string {
+  return line.querySelector('.entry__text')?.textContent ?? '';
+}
+
+/**
+ * The History's line whose sentence matches `pattern`, in the History view, opened as it is (on the
+ * player's Guild unless another was chosen): what a play added is read there (M9-S5, DL-105).
+ */
+export function inHistory(pattern: RegExp | string): HTMLElement {
+  const lines = historyLines(section('History'));
+  const matches = (line: HTMLElement): boolean =>
+    typeof pattern === 'string' ? sentenceOf(line) === pattern : pattern.test(sentenceOf(line));
+  const found = lines.filter(matches);
+  if (found.length !== 1) {
+    throw new Error(`${found.length} lines of the History match ${String(pattern)}; its lines:\n${lines.map(sentenceOf).join('\n')}`);
+  }
+  return found[0] as HTMLElement;
 }
 
 /** The time controls in the status bar. */

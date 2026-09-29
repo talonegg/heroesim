@@ -5,7 +5,7 @@
 // A view of the shell (M9-S3, DL-103), with every Guild and the Patrons as its parts. The one
 // sortable table is M9-S6's.
 
-import type { RankingMeasure, WorldDocument } from '@heroesim/engine';
+import type { GuildId, RankingMeasure, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { rankingsView } from '../state/world-views';
@@ -23,11 +23,16 @@ export function Rankings({
   guildName,
   busy,
   play,
+  open,
+  onOpen,
 }: {
   document: WorldDocument;
   guildName: string;
   busy: boolean;
   play: (action: GameAction) => void;
+  /** The Guild whose page is open, the shell's, so a name in the History can open it (M9-S5); its own when not given. */
+  open?: GuildId | null;
+  onOpen?: (guildId: GuildId | null) => void;
 }) {
   const [by, setBy] = useState<RankingMeasure>('fame');
   const rows = useMemo(() => rankingsView(document, by), [document, by]);
@@ -65,7 +70,7 @@ export function Rankings({
           </tbody>
         </table>
       </div>
-      <Guilds document={document} busy={busy} play={play} />
+      <Guilds document={document} busy={busy} play={play} {...(open === undefined || onOpen === undefined ? {} : { open, onOpen })} />
       <Patrons document={document} guildName={guildName} />
     </View>
   );

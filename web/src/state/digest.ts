@@ -19,6 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
+import { pageOfEntry } from './history';
 import { nameIn, nightOf, rowOf } from './names';
 import { listed, narrationFor, questNamer } from './narrate';
 import type { GameState } from './reducer';
@@ -130,6 +131,10 @@ export interface OutcomeRow {
   injuries: string[];
   /** Who died on the Quest, by name. */
   deaths: string[];
+  /** Its line in the History, `outcome-party-000004`, which the home view opens (M9-S5, DL-105). */
+  anchor: string;
+  /** The page of the player's Guild's History the line stands on; `null` if it is not there. */
+  page: number | null;
 }
 
 type Resolved = EngineEventOf<'quest.resolved'>;
@@ -138,7 +143,8 @@ type Injured = EngineEventOf<'hero.injured'>;
 /**
  * Each Party of the player's that came home in the last play, in the order they came home: the
  * Quest Engine's outcome (`quest.resolved`) with the Injuries it recorded (`hero.injured`, which
- * says the night each heals). Names are the events' labels, written when it happened.
+ * says the night each heals). Names are the events' labels, written when it happened. Each says
+ * where its line is read in the player's Guild's History (M9-S5).
  */
 export function outcomesView(state: Pick<GameState, 'document' | 'log'>): OutcomeRow[] {
   const { document, log } = state;
@@ -168,6 +174,8 @@ export function outcomesView(state: Pick<GameState, 'document' | 'log'>): Outcom
           return `${named(heroId)}: ${nameIn(content.injuries, typeKey)}, ${until}`;
         }),
         deaths: payload.deaths.map(named),
+        anchor: `outcome-${payload.partyId}`,
+        page: document === null ? null : pageOfEntry(document, null, event),
       };
     });
 }

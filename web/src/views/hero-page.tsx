@@ -4,6 +4,9 @@
 // time. Potential is never shown (M3-S3): the "Outlook" column is the hint word `heroPage` gives,
 // and its rows carry no field that could hold the number.
 //
+// Their History is the History's own page of it (M9-S5, DL-105): grouped by Day and time of day,
+// folded and marked as the History view shows it, each name opening whom it names.
+//
 // Given `play`, it offers what can be done with the Hero where they are (M7-S3 part 2, DL-73): on
 // the player's Roster, the CLI's `equip`, `unequip` and `transfer --to`; on another Guild's, its
 // `transfer --in`; in the Unattached pool, its `recruit`. The fees are the engine's, and a play the
@@ -13,6 +16,7 @@ import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type HeroActions, type LogLine, type StatRow } from '../state/selectors';
+import { EntityHistory } from './history-entries';
 import { Icon } from './icons';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
@@ -41,8 +45,7 @@ export function HeroPage({
   /** The level of the Hero's name: 3 in a view, 4 in a part of one (M9-S3). */
   level?: Levels;
 }) {
-  const [page, setPage] = useState(0);
-  const view = useMemo(() => heroPage(document, heroId, page), [document, heroId, page]);
+  const view = useMemo(() => heroPage(document, heroId), [document, heroId]);
   const back =
     onBack === undefined ? null : (
       <div className="actions actions--back">
@@ -61,7 +64,6 @@ export function HeroPage({
       </div>
     );
   }
-  const { history } = view;
   return (
     <article className="hero-page" aria-labelledby="hero-name">
       {back}
@@ -179,18 +181,7 @@ export function HeroPage({
       )}
 
       <Sub level={level}>History, newest first</Sub>
-      <p className="subtle">
-        Page {history.page + 1} of {history.pages}, {history.entries} {history.entries === 1 ? 'entry' : 'entries'} in all.
-      </p>
-      <Lines lines={history.lines} empty="Nothing yet." />
-      <div className="actions actions--pages">
-        <button type="button" disabled={history.page === 0} onClick={() => setPage(history.page - 1)}>
-          Newer
-        </button>
-        <button type="button" disabled={history.page >= history.pages - 1} onClick={() => setPage(history.page + 1)}>
-          Older
-        </button>
-      </div>
+      <EntityHistory document={document} whose={heroId} level={level === 3 ? 5 : 6} />
     </article>
   );
 }
