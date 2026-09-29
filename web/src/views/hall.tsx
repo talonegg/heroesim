@@ -7,8 +7,8 @@
 // its parts, until M9-F2 (DL-111 items 5 to 7, DL-112 item 5): the Hall is now a part of the Guild,
 // its tab's panel, and the Guildmaster and the Market are views of their own. Each facility is one
 // row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
-// defines, what it does, and "Build <name> · <cost>"; the Upkeep, which each grade adds to, sits
-// above them until M9-F3 moves it to the Treasury.
+// defines, what it does, and "Build <name> · <cost>". The Upkeep, which each grade adds to, sat above
+// them until M9-F3 moved it to the Treasury (DL-112 item 6, DL-116).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
@@ -23,17 +23,11 @@ export function Hall({ document, busy, play }: { document: WorldDocument; busy: 
   return view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} busy={busy} play={play} />;
 }
 
-/** A Hall's facilities and Upkeep; with `play`, and the Hall the player's own, a Build button for each next grade. */
+/** A Hall's facilities; with `play`, and the Hall the player's own, a Build button for each next grade. */
 export function HallDetails({ view, busy = false, play }: { view: HallView; busy?: boolean; play?: (action: GameAction) => void }) {
   const builds = view.mine && play !== undefined;
   return (
     <div className="facilities">
-      <p className="upkeep">
-        <Icon name="wealth" />
-        <span>
-          Upkeep of {view.guildName}: <strong>{view.upkeep}</strong>
-        </span>
-      </p>
       <ul className="facility-rows" aria-label={`The facilities of ${view.guildName}'s Hall`}>
         {view.facilities.map((row) => (
           <li key={row.facility} className="facility" data-testid="facility">

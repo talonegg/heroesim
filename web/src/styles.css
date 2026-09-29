@@ -2792,6 +2792,46 @@ th.number .sort {
   font-weight: 500;
 }
 
+/* The Treasury (M9-F3): the Wealth large, the ledger's amounts by which way they go, never by colour alone (each has its sign). */
+.treasury__wealth {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.125rem;
+}
+
+.treasury__wealth strong {
+  color: var(--brass);
+}
+
+.treasury__totals {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+}
+
+.ledger__when {
+  white-space: nowrap;
+}
+
+.ledger__amount {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.ledger__amount.is-income {
+  color: var(--good);
+}
+
+.ledger__amount.is-expense {
+  color: var(--bad);
+}
+
+.guildmaster__retirement {
+  margin: 0 0 0.75rem;
+  color: var(--ink-soft);
+}
+
 /* The Guildmaster: Stats beside Traits and Regard when there is room. */
 .guildmaster {
   container: guildmaster / inline-size;

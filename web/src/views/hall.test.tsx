@@ -6,7 +6,7 @@ import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
 // The Hall redesigned (M9-S6, DL-106; the review's B9): each facility one row with its grade as pips
-// and the cost on its button, the Upkeep above them. A part of the Guild since M9-F2 (DL-115), its
+// and the cost on its button. The Upkeep sentence above them left for the Treasury in M9-F3 (DL-116). A part of the Guild since M9-F2 (DL-115), its
 // tab's panel; the Guildmaster and the Market left it for views of their own
 // (`guildmaster.test.tsx`, `market.test.tsx`).
 
@@ -26,7 +26,7 @@ function facility(name: string): HTMLElement {
 }
 
 describe("the Hall's facilities (M9-S6, the review's B9)", () => {
-  test('are one row each: the grade as pips to the top grade, what it does, and Build with its cost; the Upkeep above them', () => {
+  test('are one row each: the grade as pips to the top grade, what it does, and Build with its cost; the Upkeep is not here (M9-F3)', () => {
     render_(
       changed(started(), (_, player) => {
         player.hall.infirmary = 1;
@@ -47,6 +47,7 @@ describe("the Hall's facilities (M9-S6, the review's B9)", () => {
     expect(within(quarters).getByRole('img', { name: 'Grade 3 of 3' }).textContent).toBe('●●●');
     expect(within(quarters).getByText('At the top grade')).toBeDefined();
     expect(within(quarters).queryByRole('button')).toBeNull();
-    expect(within(section('Hall')).getByText(/^\d+ Wealth every \d+ Days$/).closest('p')?.textContent).toMatch(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/);
+    // The Upkeep sentence left the Hall for the Treasury (M9-F3, DL-112 item 6).
+    expect(within(section('Hall')).queryByText(/Upkeep/)).toBeNull();
   });
 });

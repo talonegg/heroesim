@@ -7,7 +7,7 @@
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every number is a document field or an
 // engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
-// `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`).
+// `retirementTurn`, `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`).
 // Regard is shown as its band, never its number (M4-S5); Potential not at all.
 
 import {
@@ -26,8 +26,10 @@ import {
   rankingPlaces,
   regardBand,
   regardValue,
+  retirementTurn,
   transferFee,
   upkeep,
+  yearOf,
   type FacilityKey,
   type GameConfig,
   type Guild,
@@ -164,16 +166,12 @@ export interface HallView {
   /** The player's own Hall, where `build` can raise a grade. */
   mine: boolean;
   facilities: HallRow[];
-  /** `120 Wealth every 10 Days`: the Guild's Upkeep (`upkeep`), which each grade adds to. */
-  upkeep: string;
 }
 
 /** `show hall [guildId]`: the Hall of the Guild named, or of the player's; `null` for a Guild the world lacks. */
 export function hallView(document: WorldDocument, guildId?: GuildId): HallView | null {
   const guild = guildOf(document, guildId);
   if (guild === undefined) return null;
-  const { world } = document;
-  const { config } = playDeps(document);
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? 'none';
   const topOf = (facility: FacilityKey): number =>
@@ -195,7 +193,6 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
         next: next === null ? null : { name: next.name, cost: next.cost },
       };
     }),
-    upkeep: `${upkeep(guild, world, config, content)} Wealth every ${config.upkeepEveryDays} Days`,
   };
 }
 
@@ -231,6 +228,12 @@ export interface GuildmasterView {
   name: string;
   guildName: string;
   attributes: [label: string, value: string][];
+  /**
+   * When they retire, from the engine's `retirementTurn` (M9-F3, DL-113 item 5): `Retires at 61 on the
+   * night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years; or,
+   * once that night has been played, `Retired at 61 on the night of Day 11160, Year 31.`
+   */
+  retirement: string;
   stats: { name: string; value: number; bearsOn: string }[];
   traits: { name: string; effect: string }[];
   patrons: RegardRow[];
@@ -265,6 +268,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
         guildmaster[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], guildmaster[attribute]]],
       ),
     ],
+    retirement: retirementWords(guildmaster, world.turn, config),
     stats: Object.values(content.stats)
       .filter((stat) => stat.owner === 'guildmaster')
       .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: bearsOn[stat.key] ?? '' })),
@@ -286,6 +290,19 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
         regardRow(other.name, guildmasterOf(other, world)?.name ?? 'no Guildmaster', guildmasterRegardForGuild(guildmaster, other.id, world), config),
       ),
   };
+}
+
+/** A Guildmaster's Retirement in words, as of `turn`: when it comes, and in how many of the calendar's Years. */
+function retirementWords(
+  guildmaster: Parameters<typeof retirementTurn>[0],
+  turn: number,
+  config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>,
+): string {
+  const retires = retirementTurn(guildmaster, config);
+  const when = `at ${config.guildmasterRetirementAge} on the night of Day ${dayOf(retires)}, Year ${yearOf(retires, config)}`;
+  if (turn >= retires) return `Retired ${when}.`;
+  const years = yearOf(retires, config) - yearOf(turn, config);
+  return `Retires ${when}: ${years === 0 ? 'later this Year' : `in ${years} ${years === 1 ? 'year' : 'years'}`}.`;
 }
 
 // ── The Patrons ──────────────────────────────────────────────────────────────────────────────

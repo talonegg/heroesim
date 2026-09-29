@@ -424,7 +424,8 @@ _Avoid_: Gold, Money, Funds
 
 **Treasury**:
 The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
-History; a part of the Guild's view (DL-111; to be built).
+History by category (Upkeep, Quest rewards, Market, Hall, Heroes and Other); a part of the Guild's
+view (DL-111, built in M9-F3, DL-116).
 _Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
@@ -473,8 +474,8 @@ _Avoid_: Inventory, Stash, Vault
 
 **Stores**:
 Everything the Guild owns, wherever it is: its Holding, the Gear its Heroes carry, and what its
-Parties have taken; a part of the Guild's view (DL-111; to be built). Not the Market, where Items
-are bought and sold.
+Parties have taken; a part of the Guild's view, read only for now (DL-111, DL-113 item 2, built in
+M9-F3, DL-116). Not the Market, where Items are bought and sold.
 _Avoid_: Inventory, Armoury, Stash
 
 **Common Item**:

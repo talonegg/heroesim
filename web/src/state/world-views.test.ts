@@ -185,7 +185,8 @@ describe('hallView', () => {
     }
     expect(view?.facilities.find((row) => row.facility === 'quarters')).toMatchObject({ built: 'Comfortable lodgings', next: null });
     expect(view?.facilities.find((row) => row.facility === 'infirmary')).toMatchObject({ built: 'none' });
-    expect(view?.upkeep).toBe(`${upkeep(guild, document.world, defaultConfig, content)} Wealth every ${defaultConfig.upkeepEveryDays} Days`);
+    // The Upkeep left the Hall for the Treasury (M9-F3, DL-112 item 6).
+    expect(view).not.toHaveProperty('upkeep');
   });
 
   test("is another Guild's when named, which the player cannot build", () => {
@@ -265,6 +266,38 @@ describe('guildmasterView', () => {
       expect(sexRow).toEqual(['Sex', sex === 'male' ? 'Male' : 'Female']);
       expect(ageRow?.[0]).toBe('Age');
     }
+  });
+
+  describe("the Guildmaster's Retirement, read from the engine's retirementTurn (M9-F3, DL-113 item 5, DL-116)", () => {
+    /** A world whose player's Guildmaster is `age` on Turn 0, played on to `turn`. */
+    function aged(age: number, turn = 0): WorldDocument {
+      const document = structuredClone(createWorld('world-views-retirement', { ...setup, guildmasterAge: age }, deps).document);
+      document.world.turn = turn;
+      return document;
+    }
+
+    test('gives when it will come, in the calendar’s words, and the years left', () => {
+      // At 30 on Turn 0, 61 in 31 years of 1,080 Turns: the night of Day 11160, in Year 31.
+      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
+      // Two Years on, in Year 2, the Day holds and 29 years are left.
+      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 years.');
+      // At 50: 11 years.
+      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 years.');
+    });
+
+    test('says "in 1 year", and "later this Year" in the Year it comes', () => {
+      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 year.');
+      expect(guildmasterView(aged(50, 11 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: later this Year.');
+    });
+
+    test('says it came, once the night has been played', () => {
+      expect(guildmasterView(aged(50, 3960 * 3 + 2))?.retirement).toBe('Retired at 61 on the night of Day 3960, Year 11.');
+    });
+
+    test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
+      const document = newGame();
+      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ years\.$/);
+    });
   });
 
   test("is another Guild's Guildmaster when named", () => {

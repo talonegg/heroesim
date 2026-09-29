@@ -20,6 +20,7 @@ import {
   type Hero,
   type HeroId,
   type ItemDefinitionKey,
+  type SlotKey,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
@@ -72,6 +73,15 @@ export function holding(state: GameState, definitionKey: ItemDefinitionKey, quan
  */
 export function holdingUnique(state: GameState, definitionKey: ItemDefinitionKey): GameState {
   return changed(state, (document, player) => void createItem(document.world, definitionKey, { kind: 'guild', id: player.id }));
+}
+
+/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it (M9-F3's Stores). */
+export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey): GameState {
+  return changed(state, (document, player) => {
+    const [first] = player.rosterIds;
+    if (first === undefined) throw new Error('no Hero on the Roster');
+    addStack(document.world, definitionKey, 1, { kind: 'hero', id: first, slot });
+  });
 }
 
 /**
