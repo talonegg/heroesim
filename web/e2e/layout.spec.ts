@@ -35,7 +35,7 @@ import {
 // holdings, and the Rankings' table, a Rival's page unfolded and the Patrons' table: a wide table
 // scrolls in its own box, never the page (M9-S6, DL-106). Since M9-F2 (DL-115) the seven views and
 // each of the Guild's parts, the navigation's one order at each width, and the Guildmaster's long
-// name cut in it.
+// name cut in it. Since M9-F3 (DL-116) the Stores and the Treasury, each with its table.
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
@@ -254,7 +254,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(longGuild);
 });
 
-test('the Roster, the Hall, the Guildmaster, the Market and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets (M9-S6, M9-F2)', async ({ page }) => {
+test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasury and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets (M9-S6, M9-F2, M9-F3)', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
@@ -305,6 +305,15 @@ test('the Roster, the Hall, the Guildmaster, the Market and the Rankings: no sid
     await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
     await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table')).toBeVisible();
     await check("the Market's Sell");
+
+    // The Guild's Stores, holding what was just bought, and its Treasury, the purchase in the
+    // ledger: each table in its own box (M9-F3).
+    const stores = await guildPart(page, 'Stores');
+    await expect(stores.getByRole('table')).toBeVisible();
+    await check("the Guild's Stores");
+    const treasury = await guildPart(page, 'Treasury');
+    await expect(treasury.getByRole('table', { name: /^The ledger of / })).toBeVisible();
+    await check("the Guild's Treasury");
 
     // The Rankings' table, ordered by Upkeep; a Rival's page, its Hall and Guildmaster unfolded.
     await openView(page, 'Rankings');
