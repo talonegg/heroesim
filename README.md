@@ -10,12 +10,13 @@ tagged `v1.0.0`, the first release. `v1.0.1`, a small hotfix release, serves the
 Cloudflare Workers beside Pages (see [Deploy](#deploy)). The v1.1 line is M9, the page
 redesigned (DL-99): views in a shell in place of one long column, the History as the one place to
 read what happened to any Guild, Hero or Patron, a Party builder, and a new style, with the
-Guildmaster's setup (#30) and two fast-forward stops (#32). It is built and verified on
-`v1.1-dev` (DL-108) and is released, when the owner goes ahead, by merging into `v1.1-release`,
-tagged `m9-redesign` and `v1.1.0` (#37). Random Events, the first real module, follows on the v1.2
-line as M10 (DL-99). `v1.0-dev` and `v1.0-release` are frozen but for v1.0.x hotfix releases
-(DL-86, DL-88, DL-91, DL-92). GitHub's default branch is the latest release branch:
-`v1.0-release`, until `v1.1-release`'s first release (DL-88).
+Guildmaster's setup (#30) and two fast-forward stops (#32), and the owner's follow-on from playing
+it (DL-111 to DL-121): a Quest's return as one entry with its report, the World History, the Guild
+in four parts with its Stores and Treasury, and the Market and the Guildmaster as views. It is
+released as `v1.1.0` on `v1.1-release`, tagged `m9-redesign` too (#37, DL-122). Random Events, the
+first real module, follows on the v1.2 line as M10 (DL-99). `v1.0-dev` and `v1.0-release` are
+frozen, and the v1.0 line is not deployed again after `v1.1.0` (DL-86, DL-88, DL-110). GitHub's
+default branch is the latest release branch, `v1.1-release` (DL-88).
 
 ## Play
 
@@ -37,12 +38,12 @@ The page is built and gated on this machine, and that one build is uploaded to b
   subdomain, `magical-potato`. The subdomain is account-wide and set in the Cloudflare dashboard
   (Workers & Pages, "Your subdomain"); changing it would move the address and strand the saves
   kept there;
-- the Pages project `heroesims`, production branch `v1.0-release`, at <https://heroesims.pages.dev>,
+- the Pages project `heroesims`, production branch `v1.1-release`, at <https://heroesims.pages.dev>,
   deployed until Cloudflare retires Pages.
 
 Nothing deploys from CI and no secret is needed anywhere (INPUTS 7.9, DL-68). Production serves
-the latest release: the deploy moves to `v1.1-release` at that branch's first release, and v1.0
-stays live until then (DL-86). A Worker has no branches, so every upload to it goes live: the
+the latest release: the deploy moved to `v1.1-release` at that branch's first release, `v1.1.0`
+(DL-86, DL-122). A Worker has no branches, so every upload to it goes live: the
 deploy runs only from a clean checkout of a release tag, and refuses anything else (DL-92).
 
 1. **Once per machine:** `npx wrangler login`. It opens the browser to sign in to Cloudflare and
@@ -69,7 +70,7 @@ deploy runs only from a clean checkout of a release tag, and refuses anything el
 
    ```sh
    npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit <sha>"
-   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release
+   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release
    ```
 
    A Worker version records its commit only in its message or tag; Pages reads the commit from

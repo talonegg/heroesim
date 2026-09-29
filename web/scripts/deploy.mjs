@@ -68,9 +68,9 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 /**
  * The branch Pages publishes as production, named on every Pages deploy: an upload for any other
  * branch is a preview that never reaches https://heroesims.pages.dev. The only place it is
- * written; it becomes `v1.1-release` at that branch's first release (DL-86, #37).
+ * written; it became `v1.1-release` at that branch's first release, `v1.1.0` (DL-86, #37, DL-122).
  */
-export const releaseBranch = 'v1.0-release';
+export const releaseBranch = 'v1.1-release';
 
 /**
  * The page's two addresses (INPUTS 7.8): the Worker's, `heroesim` on the account's workers.dev

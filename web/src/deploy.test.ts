@@ -117,16 +117,16 @@ describe('the deploy command', () => {
       worker: ['-y', 'wrangler@4', 'deploy', '--config', 'wrangler.jsonc', '--tag', 'v1.0.1', '--message', `v1.0.1 at commit ${sha}`],
       // `--branch` is written out, never inferred from git: a deploy for any other branch would be
       // a preview that never reaches https://heroesims.pages.dev (v1's DL-30 item 3).
-      pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'v1.0-release'],
+      pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'v1.1-release'],
     });
-    expect([pagesProject, workerConfig, releaseBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'v1.0-release']);
+    expect([pagesProject, workerConfig, releaseBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'v1.1-release']);
   });
 
-  test('writes the release branch once, as one constant, for the day it moves to v1.1-release (#37)', () => {
+  test('writes the release branch once, as one constant: v1.1-release since v1.1.0 (#37, DL-122)', () => {
     const source = readText('web/scripts/deploy.mjs');
 
-    expect(source.split("'v1.0-release'")).toHaveLength(2);
-    expect(source).toContain("export const releaseBranch = 'v1.0-release';");
+    expect(source.split("'v1.1-release'")).toHaveLength(2);
+    expect(source).toContain("export const releaseBranch = 'v1.1-release';");
   });
 });
 
@@ -281,9 +281,9 @@ function recordEntries(pages: boolean, checkout: Checkout): object[] {
         pages_project: 'heroesims',
         deployment_id: 'd-1',
         url,
-        alias: 'https://v1-0-release.heroesims.pages.dev',
+        alias: 'https://v1-1-release.heroesims.pages.dev',
         environment: checkout.environment ?? 'production',
-        production_branch: 'v1.0-release',
+        production_branch: 'v1.1-release',
         deployment_trigger: { metadata: { commit_hash: checkout.pagesCommit ?? commit } },
       },
     ];
@@ -669,7 +669,7 @@ describe('the dry run', () => {
     expect(output).toContain(
       `npx -y wrangler@4 deploy --config wrangler.jsonc --tag v1.0.1 --message "v1.0.1 at commit ${commit}"`,
     );
-    expect(output).toContain('npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release');
+    expect(output).toContain('npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release');
   });
 
   test.each(['', 'false'])('npm_config_dry_run=%j is no dry run', (value) => {
@@ -733,7 +733,7 @@ describe('the repository holds no deploy credential', () => {
     ['a secrets reference', 'CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}'],
     ['a placeholder', 'account_id = "<your account id>"'],
     ['the Worker command', `npx -y wrangler@4 deploy --config wrangler.jsonc --tag v1.0.1 --message "v1.0.1 at commit ${commit}"`],
-    ['the Pages command', 'npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.0-release'],
+    ['the Pages command', 'npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release'],
     ['a commit hash', `commit ${accountId}12345678`],
     ['a Guild name', 'The Company of the Lantern-Bearers of Aldmoor'],
   ])('the scan passes %s', (_kind, text) => {
