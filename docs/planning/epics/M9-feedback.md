@@ -36,8 +36,10 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
     difference is explained by the ages, the Successions and the new `questId`s.
   - A Succession probe, a Rival Guildmaster at 50 over 12 years, is recorded.
 
-**Status:** approved as amended — 2026-09-29 (DL-112, DL-113). No story has started, and the build
-starts on the owner's word.
+**Status:** built and verified on `v1.1-dev` — 2026-09-30 (DL-119). Every box of M9-F1 to M9-F6 is
+ticked and the gate is met. The release, M9-S9 (#37, DL-120), waits for the owner's go-ahead.
+*Approved as amended 2026-09-29 (DL-112, DL-113); built on the owner's word the same day (DL-114 to
+DL-118), and closed by M9-F6 (DL-119).*
 
 ## 0. What lands
 
@@ -460,19 +462,36 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
 
 ### M9-F6 · The close · 1 session · opus
 
-- [ ] A code review over the follow-on (`/code-review high`), with every finding fixed test first
-      where there is a seam.
-- [ ] A 50 × 20 sweep, with the player's Guildmaster at 30, against `d476deb`'s (`34636bfd…d11b`,
+- [x] A code review over the follow-on (`/code-review high`, over `86c7afa..v1.1-dev`), with every
+      finding fixed test first where there is a seam. Its ten findings and the six carried from the
+      stories' reviews are each answered in DL-119 items 1 and 2: the Guildmaster's Retirement as the
+      world stands (`time.test.ts` "retiresOn", `phases/endings.test.ts` '… retires on the night
+      retiresOn gives', `state/world-views.test.ts`, `views/guildmaster.test.tsx`); Quests tied for
+      easiest (`state/selectors.test.ts`); the Board's stepper (`views/board.test.tsx`); Home beside
+      the countdown (`views/guild.test.tsx`); the Treasury's factor (`state/treasury.test.ts`); the
+      History with no player's Guild (`state/history.test.ts`); and the cleanups, held by the tests
+      already there. What was left, and why, is in DL-119 items 1.4, 1.5 and 2.3.
+- [x] A 50 × 20 sweep, with the player's Guildmaster at 30, against `d476deb`'s (`34636bfd…d11b`,
       134 Rival folds). Every difference is explained by the Guildmasters' ages (Retirements,
       Successions, and the Rivals kept by them) and by the new `questId`s. It is recorded in
-      `harness/reports/`.
-- [ ] The Succession probe: a Rival Guildmaster at 50, over 50 seeds × 12 years (DL-113 item 7).
-      It is recorded in `harness/reports/`, with what item 7 lists.
-- [ ] Screenshots of every view and every Guild part at 360, 820 and 1280, with no sideways scroll
-      and the heights recorded.
-- [ ] M9's §3 is ticked again against the new places.
-- [ ] Lint, the typecheck, the suite, the bundle gate and every browser spec pass.
-- [ ] This epic's boxes are ticked, §4 is corrected, and DL-119 is written.
+      `harness/reports/`: `m9-follow-on-2026-09-30.md` (`978ddc75…c47741`, 138 Rival folds, 37
+      Successions) and `m9-follow-on-comparison-2026-09-30.md`, where 19 seeds' Histories are the same
+      with the `questId`s taken out and the other 31 first differ on the Day of their first Succession
+      (DL-119 items 4 and 5).
+- [x] The Succession probe: a Rival Guildmaster at 50, over 50 seeds × 12 years (DL-113 item 7).
+      It is recorded in `harness/reports/`, with what item 7 lists: `m9-succession-2026-09-30.md`, the
+      first Rival succeeded in 46 games on Turn 11,882, 4 folded first, none folding in the year after
+      (DL-119 item 6).
+- [x] Screenshots of every view and every Guild part at 360, 820 and 1280, with no sideways scroll
+      and the heights recorded: 51, with the Quest report, the World History, the debug view and the
+      new-game form, and the heights in DL-119 item 7. Three things they showed were fixed test first
+      in `e2e/layout.spec.ts` (DL-119 item 3).
+- [x] M9's §3 is ticked again against the new places: its eight moved rows, "(M9-F6: ticked again)"
+      (DL-119 item 8).
+- [x] Lint, the typecheck, the suite, the bundle gate and every browser spec pass: 3,416 tests, 63
+      browser runs (DL-119 item 9).
+- [x] This epic's boxes are ticked, §4 is corrected, and DL-119 is written. §4 needed no correction:
+      it already gives DL-119 to the close and DL-120 to the release.
 
 M9-S9, the release, follows on the owner's go-ahead, with DL-120.
 
