@@ -2786,8 +2786,10 @@ tr.is-folded td {
 
 /* ── Tables, rows and lines ─────────────────────────────────────────────────────────────── */
 
-/* A table wider than the column scrolls inside this box, never the page. */
+/* A table wider than the column scrolls inside this box, never the page. It holds what a cell hides
+   for a screen reader too (absolutely placed), which would otherwise widen the page (M9-S6). */
 .table-wrap {
+  position: relative;
   max-width: 100%;
   overflow-x: auto;
 }
