@@ -12411,6 +12411,84 @@ was shared with other agents' work throughout, so no timing below is comparable 
 `docs/planning/epics/M9-feedback.md`, `docs/planning/epics/M9-redesign.md` (status, §3),
 `docs/planning/epics/README.md`, `docs/plan.md` §2.
 
+## DL-120 — The owner's answers on the follow-on's close: "Debug: Whole History", Days before a Retirement under a year, an opening balance in the ledger, Injuries and Deaths standing out beside a return, the Heroes at home in the report, and the release on the owner's steps
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner. The agent walked the owner
+through DL-119's nine open questions and three open items one at a time, each with options.
+- The owner took the recommended option for seven: items 3, 4, 5, 7, 9, 10 and 11.
+- They took another option offered for four: items 2, 6, 8 and 12.
+- They wrote their own answer for one: item 1.
+
+**Context.** The follow-on is built and verified (DL-119, `v1.1-dev` at f22f493, CI green). DL-119
+left nine questions for the owner. There were also three open items:
+- two review findings only partly fixed;
+- the gear move DL-113 item 2 left for later;
+- the release.
+
+**Decision.**
+
+1. **The debug view is "Debug: Whole History"** (the owner's own wording).
+   - *Where.* The game menu's button, the view's heading and the back button of a page opened from
+     it ("Back to Debug: Whole History").
+   - *What it supersedes.* DL-112 item 7's "Debug: the whole History".
+   - *Carried.* It settles DL-119's carried finding 3, the back button's words.
+2. **Years left to a Retirement** are counted in calendar Years, as built. Once the Retirement is
+   less than a year away, the line gives the Days left instead.
+3. **A Rival's Guild page stays without its Upkeep sentence**, as built. A Rival's Upkeep is the
+   Rankings table's column.
+4. **The Treasury's ledger opens with the founding Wealth.**
+   - *The engine.* `guild.founded` gains an optional field carrying the Guild's founding Wealth, for
+     the player's Guild, the founding Rivals and every replacement. It is optional as `questId` is:
+     no schema change and no `configVersion` change.
+   - *The page.* The ledger's first row is "Founded with N Wealth".
+   - *The test.* The ledger-completeness test now covers replacement Rivals too.
+5. **The Retirement line's date stays as built**: "on the night of Day N, Year Y", the History's
+   phrasing.
+6. **Injuries and Deaths from a Quest also stand out as entries of their own**, beside the return's
+   one entry.
+   - *Where.* The player's Guild's History and the rail. They also stay in the return's Hero lines
+     and the report.
+   - *Still hidden.* A return's Encounters, consumables, that night's Levels and a dead Hero's gear
+     going back stay hidden there, as DL-118 built.
+   - *What it amends.* DL-118's list of a return's hidden parts.
+7. **The Quest report says what a Death cost the Heroes at home**, in one summary line after the
+   Heroes' outcomes. For example: "At home: the Guild mourned Aldric. Morale fell for 5 Heroes (−4
+   each)." The names are behind a disclosure. It reads the `roster-death` Morale changes that
+   M9-F1 tagged with the Quest.
+8. **Home during a Bankruptcy countdown** says "Your Guild is below the Bankruptcy floor: see the
+   steps above." where "Nothing is waiting on you" would stand. This amends DL-119's drop of the
+   sentence.
+9. **The Retirement line after another ending says why none came.** For example:
+   - "Never retired: the game ended in Bankruptcy on Day N."
+   - "Never retired: the Guild folded on Day N."
+
+   The same shape covers a wiped Roster.
+10. **The two partly-fixed review findings are tidied** in this round:
+    - `pageOfEntry` and `Scope.indexOf` move out of the page's code into test support;
+    - the rail reads a return's Hero lines without building the whole report.
+11. **Moving gear between Heroes** in one step from the Stores gets a GitHub issue on the v1.2
+    line.
+12. **The release follows this round** (the owner's choice of "build, then release on my steps").
+    - *Before it.* These changes are built as M9-F7, with DL-121, and verified.
+    - *The owner's steps.*
+      1. Set the Pages production branch of `heroesims` to `v1.1-release`.
+      2. Run `npx -y wrangler@4 whoami`.
+      3. Say "go ahead".
+    - *No separate look.* The owner asked for no look at the page between the build and the
+      release.
+    - *Numbering.* The release, M9-S9, is DL-122. This supersedes the DL-120 that DL-113 item 8
+      gave it.
+
+**Consequences.**
+- *M9-F7* is added to `docs/planning/epics/M9-feedback.md`, and built and closed with DL-121.
+- *Versions* are unchanged: `configVersion` 12, content 15, schema 4.
+- *The fingerprint.* The engine change is one optional payload field, so the History's fingerprint
+  moves. The 50 × 20 sweep is run again: its games must play Day for Day as at f22f493, with the
+  field set aside.
+
+**Actioned in:** this entry; `docs/planning/epics/M9-feedback.md`, `docs/planning/epics/M9-redesign.md`
+(M9-S9's DL); the GitHub issue (item 11).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

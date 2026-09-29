@@ -28,8 +28,8 @@ M9-S8 is ticked and the gate is met. The release, M9-S9 (#37), waits for the own
 [M9-F1 to M9-F6](./M9-feedback.md), built before the release and approved as amended by DL-113.
 M9-S9 runs after M9-F6.
 *The follow-on is built and verified on `v1.1-dev`* — 2026-09-30 (DL-119, M9-F6): §3's rows that
-moved are ticked again against their new places. The release, M9-S9 (#37, DL-120), still waits for
-the owner's go-ahead.
+moved are ticked again against their new places. *Amended 2026-09-30 (DL-120):* M9-F7 follows
+from the owner's answers, and the release, M9-S9 (#37, DL-122), waits for the owner's steps after it.
 
 ## 0. What lands in M9
 
@@ -630,7 +630,7 @@ After M9-S1 and M9-S2 are merged:
 ### M9-S9 · The release (#37) · 0.5–1 session · the owner, and an agent
 
 This story runs only with the owner's go-ahead, and after the follow-on's close, M9-F6
-(DL-112). Its DL is DL-120 (DL-113 item 8).
+(DL-112), and after M9-F7 (DL-120). Its DL is DL-122 (DL-120 item 12).
 - `v1.1-dev` is merged into `v1.1-release`, tagged `m9-redesign` and `v1.1.0`.
 - The deploy script's `--branch` and `deploy.test.ts` move to `v1.1-release`.
 - The owner sets the Pages production branch and GitHub's default branch.

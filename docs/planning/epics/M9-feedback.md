@@ -37,7 +37,9 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
   - A Succession probe, a Rival Guildmaster at 50 over 12 years, is recorded.
 
 **Status:** built and verified on `v1.1-dev` — 2026-09-30 (DL-119). Every box of M9-F1 to M9-F6 is
-ticked and the gate is met. The release, M9-S9 (#37, DL-120), waits for the owner's go-ahead.
+ticked and the gate is met. *Amended 2026-09-30 (DL-120):* the owner's answers on the close add
+M9-F7, built before the release. The release, M9-S9 (#37), is DL-122 and follows on the owner's
+steps.
 *Approved as amended 2026-09-29 (DL-112, DL-113); built on the owner's word the same day (DL-114 to
 DL-118), and closed by M9-F6 (DL-119).*
 
@@ -493,7 +495,46 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
 - [x] This epic's boxes are ticked, §4 is corrected, and DL-119 is written. §4 needed no correction:
       it already gives DL-119 to the close and DL-120 to the release.
 
-M9-S9, the release, follows on the owner's go-ahead, with DL-120.
+M9-S9, the release, follows on the owner's go-ahead, after M9-F7, with DL-122 (DL-120 item 12).
+
+### M9-F7 · The owner's answers on the close · 1 session · opus
+
+Added 2026-09-30 by DL-120, from the owner's answers to DL-119's open questions.
+
+- *Words.* The debug view is "Debug: Whole History": the game menu's button, its heading and the
+  back button of a page opened from it (DL-120 item 1).
+- *Retirement.*
+  - The years left are given in Days once the Retirement is less than a year away (item 2).
+  - After another ending or a fold, the line says why none came: "Never retired: the game ended in
+    Bankruptcy on Day N." or "Never retired: the Guild folded on Day N." (item 9).
+- *The opening balance* (item 4).
+  - `guild.founded` gains an optional founding-Wealth field, for every Guild founded.
+  - The Treasury's ledger opens with "Founded with N Wealth".
+  - The ledger-completeness test covers replacement Rivals.
+- *A return in the Guild's History* (item 6). Injuries and Deaths from the Quest stand out as entries
+  of their own beside the return's one entry, in the History and the rail, and stay in its Hero
+  lines.
+- *The report* (item 7). One summary line after the Heroes' outcomes gives the Morale a Death cost the
+  Heroes at home, with the names behind a disclosure.
+- *Home* (item 8). While the Bankruptcy countdown stands, Home says "Your Guild is below the Bankruptcy
+  floor: see the steps above."
+- *Tidy-ups* (item 10).
+  - `pageOfEntry` and `Scope.indexOf` move into test support.
+  - The rail reads a return's Hero lines without building the whole report.
+
+**Acceptance:**
+
+- [ ] Each item above is tested at its seam and through the page, and the browser specs pass through
+      the new words.
+- [ ] The field is optional: a document without it validates and loads. With the field set aside, the
+      History of seeded games is unchanged.
+- [ ] The ledger, from its opening row, adds up to Wealth now for the player's Guild, the founding
+      Rivals and a replacement Rival.
+- [ ] A 50 × 20 sweep is run again. Its games play Day for Day as at f22f493, and it is recorded in
+      `harness/reports/`.
+- [ ] A code review at medium, lint, the typecheck, the suite, the bundle gate and every browser spec
+      pass.
+- [ ] DL-121 records the choices.
 
 ## 2. Configuration, content and events
 
@@ -530,7 +571,9 @@ These rows of M9's §3 are ticked again at M9-F6 against their new places:
 - DL-117: M9-F4.
 - DL-118: M9-F5.
 - DL-119: the close, M9-F6.
-- DL-120: the release, M9-S9.
+- DL-120: the owner's answers on the close.
+- DL-121: M9-F7.
+- DL-122: the release, M9-S9 (DL-120 item 12).
 
 ## 5. Risks
 
