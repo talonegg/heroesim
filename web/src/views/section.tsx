@@ -65,8 +65,10 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 /** What each region is for and what its controls do: its accessible description. */
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
-    'What needs you this Turn: why time last stopped and the choices it names, how the Parties that came home fared, ' +
-    'the Transfer Offers waiting for an answer, the Parties still out and the night each returns, and the Quests on ' +
+    'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
+    'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to the Market and the ' +
+    'Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
+    'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',
   board:
     'The Quests on offer, each with its terms: a Quest’s Fame is won on a success and lost on a failure. Its name ' +
@@ -113,7 +115,9 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Those who offer Quests, each of a walk of life. A Patron’s Regard for your Guild rises and falls with how their ' +
     'Quests go, weighs on how often they post to the Board, and recovers toward neutral with time.',
   'new-game':
-    'Found a Guild, name its Guildmaster, and take Quests from the Board. The seed makes the world: the same seed and ' +
+    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their sex and ' +
+    'age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
+    'you leave is drawn from the seed. The seed makes the world: the same seed and ' +
     'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
     'exported here.',
   game:

@@ -3,6 +3,7 @@ import {
   closeGameMenu,
   expectNoHorizontalOverflow,
   expectTargets,
+  guildmasterSetup,
   openGameMenu,
   openView,
   part,
@@ -11,6 +12,7 @@ import {
   startGame,
   statusBar,
   thisGame,
+  traitBox,
   type ViewName,
 } from './support';
 
@@ -215,4 +217,24 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expectNoHorizontalOverflow(page, 'the new-game form over a game');
   await page.getByRole('button', { name: 'Back to the game in hand' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(longGuild);
+});
+
+test("the new-game form with the Guildmaster's setup open, a Trait chosen and others marked: no sideways scroll, and 44px targets (M9-S7)", async ({
+  page,
+}) => {
+  await page.goto('/');
+  const form = page.getByRole('region', { name: 'A new game', exact: true });
+  await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
+  await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
+  const setup = await guildmasterSetup(page);
+  await setup.getByRole('radio', { name: 'Choose them' }).check();
+  await traitBox(setup, 'Miser').check();
+  // Miser excludes two; two pass the budget of 1 with it or alone.
+  await expect(traitBox(setup, 'Well liked')).toBeDisabled();
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup, a Trait chosen");
+  await expectTargets(page, "the Guildmaster's setup, a Trait chosen");
+  await setup.getByRole('textbox', { name: 'Birthplace', exact: true }).fill('x'.repeat(61));
+  await expect(page.getByTestId('setup-refusal')).toHaveText('The Birthplace is 61 characters long; it holds at most 60.');
+  await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
 });

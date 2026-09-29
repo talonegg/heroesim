@@ -489,8 +489,43 @@ After M9-S1 and M9-S2 are merged:
 - *The Bankruptcy stop.* It shows in the home view with its countdown.
 - *The new events.* They are narrated in the History.
 
-**Acceptance:** the new-game form's rules come from `state/` selectors, written test first. The
-journey starts a game with a chosen Guildmaster.
+**Acceptance** (DL-107, the number the orchestrator gave this story; §4's numbers are out of date):
+- [x] The new-game form's rules come from `state/` selectors, written test first: each Trait's cost,
+      what it excludes and how it stands against those chosen, judged by the engine's own
+      `setupRefusal` on the Traits with it added; the budget left; the sexes, the starting ages and
+      the descriptive Attributes' bounds; the engine's refusal as a sentence —
+      `web/src/state/setup.test.ts` ("the Traits the new-game form offers, as they stand against
+      those chosen (M9-S7)", five tests; "what else the form offers for the Guildmaster, and the
+      engine's refusal as a sentence (M9-S7)", eight tests) (DL-107 items 1 to 4)
+- [x] The form: an optional sex and age, the Traits drawn from the seed or chosen within the budget
+      (none a choice), and the Birthplace, Appearance and Biography with their bounds, behind "Your
+      Guildmaster"; an excluded Trait or one past the most cannot be chosen and says why, one over
+      the budget is marked and may be chosen; the budget left moves as the player picks —
+      `web/src/views/new-game.test.tsx` ("the Guildmaster's setup in the new-game form (M9-S7)", seven
+      tests); `e2e/layout.spec.ts` ("the new-game form with the Guildmaster's setup open…", no
+      sideways scroll and 44px targets at 360px, 820px and 1280px) (DL-107 item 5)
+- [x] Each refusal of the setup is a sentence, beside the form, and a setup the engine would refuse
+      cannot be started — `web/src/views/new-game.test.tsx` ("a setup the engine would refuse cannot
+      be started, and the engine's sentence stands beside the form", "a Trait over the budget is
+      marked so…"); `e2e/layout.spec.ts` (a Birthplace too long) (DL-107 item 6)
+- [x] Fast forward offers "until a Quest I can staff appears" beside "until new Heroes join the
+      pool", its words name every stop, and its stop's Quests open their Parties —
+      `web/src/views/stops.test.tsx` ("the ways to fast forward (M9-S7, #32)", three tests, one
+      through a real fast forward with a Party out); `web/src/views/stop.test.tsx` ("a Quest to staff
+      (M9-S7, #32)", two tests) (DL-107 items 7 to 9)
+- [x] The Bankruptcy stop in the home view: a warning card with the Day Bankruptcy falls on, what can
+      be done in words, and buttons to the Hall's Market and the Board, in the countdown banner's
+      place — `web/src/views/stop.test.tsx` ("the Bankruptcy stop (M9-S7, #32)", two tests);
+      `web/src/views/stops.test.tsx` ("the Bankruptcy stop in the home view (M9-S7, #32)", two
+      tests through a real fast forward); `e2e/fast-forward.spec.ts` ("falling below the Bankruptcy
+      floor stops a fast forward unasked…", at three widths) (DL-107 items 10, 11)
+- [x] The new events read in the History: `guild.below-floor` seen in the History rail in the
+      screenshots, and all three held to their sentences by `web/src/state/narrate.test.ts` (M9-S1's
+      and M9-S2's, unchanged) (DL-107 item 12)
+- [x] The journey starts a game with a chosen Guildmaster: an age and two Traits within the budget,
+      read in the Hall; its later steps and the save round trip hold — `e2e/journey.spec.ts` at
+      360px, 820px and 1280px (DL-107 item 5)
+- [x] DL-107 records the story.
 
 ### M9-S8 · Verification and close · 1–2 sessions · opus
 

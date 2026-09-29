@@ -39,7 +39,8 @@ export async function expectTargets(page: Page, when: string): Promise<void> {
       if (element.closest('.visually-hidden') !== null || element.classList.contains('visually-hidden')) continue;
       const box = element.getBoundingClientRect();
       if (box.width === 0 && box.height === 0) continue;
-      const target = element.matches('input[type="checkbox"]') ? (element.closest('label') ?? element) : element;
+      // A box or a radio button is pressed by the label that holds it (the Guildmaster's Traits, M9-S7).
+      const target = element.matches('input[type="checkbox"], input[type="radio"]') ? (element.closest('label') ?? element) : element;
       const { width, height } = target.getBoundingClientRect();
       if (element.matches('.entry button.name')) {
         if (height < 23.5) found.push(`a name in a line, "${named(target)}": ${Math.round(width)}×${Math.round(height)}`);
@@ -153,7 +154,24 @@ export async function rosterList(scope: Scope): Promise<Locator> {
   return roster.getByRole('list', { name: 'Heroes on the Roster' });
 }
 
-/** Starts a game through the new-game form, and waits for its status bar. */
+/** "Your Guildmaster" in the new-game form, opened. */
+export async function guildmasterSetup(page: Page): Promise<Locator> {
+  const form = region(page, 'A new game');
+  const setup = form.locator('details', { has: page.getByText('Your Guildmaster', { exact: true }) });
+  if ((await setup.getAttribute('open')) === null) await setup.getByText('Your Guildmaster', { exact: true }).click();
+  await expect(setup.getByLabel('Sex', { exact: true })).toBeVisible();
+  return setup;
+}
+
+/** A Guildmaster Trait's box in the new-game form, by the Trait's name. */
+export function traitBox(scope: Locator, name: string): Locator {
+  return scope.getByRole('checkbox', { name: new RegExp(`^${escaped(name)} (Costs|Refunds)`) });
+}
+
+/**
+ * Starts a game through the new-game form, and waits for its status bar. What was set under "Your
+ * Guildmaster" before it is kept (M9-S7).
+ */
 export async function startGame(page: Page, { guild, master, seed }: { guild: string; master: string; seed: string }): Promise<void> {
   const form = region(page, 'A new game');
   await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(guild);

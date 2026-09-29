@@ -9,6 +9,7 @@ import {
   expectNoHorizontalOverflow,
   expectTargets,
   groupOf,
+  guildmasterSetup,
   history,
   historyText,
   lineOf,
@@ -18,6 +19,7 @@ import {
   rosterList,
   startGame,
   thisGame,
+  traitBox,
 } from './support';
 
 // The journey (M7-S4, DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
@@ -131,8 +133,31 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   test.setTimeout(120_000);
   await page.goto('/');
   await expectNoHorizontalOverflow(page, 'the new-game form');
+  // The Guildmaster set up under "Your Guildmaster" (M9-S7, #30): an age, and two Traits within the
+  // budget of 1, a buff and a penalty; the sex and the rest drawn from the seed.
+  const setup = await guildmasterSetup(page);
+  await setup.getByLabel('Age', { exact: true }).selectOption('38');
+  await setup.getByRole('radio', { name: 'Choose them' }).check();
+  const budget = setup.getByTestId('trait-budget');
+  await expect(budget).toContainText('Budget left: 1');
+  await traitBox(setup, 'Old soldier').check();
+  await expect(budget).toContainText('Budget left: 0');
+  // A buff beside it would pass the budget, and says so; one excluded by none is still open.
+  await expect(setup.getByText('Over the budget: with it, the Traits cost 3 and the budget is 1.')).toHaveCount(2);
+  await traitBox(setup, 'Mistrusts magic').check();
+  await expect(budget).toContainText('Budget left: 1');
+  // Two chosen, the most a Guildmaster holds: the rest wait until one is taken off.
+  await expect(traitBox(setup, 'Miser')).toBeDisabled();
+  // The Traits keep the rules: all the engine still asks for is the names, which come next.
+  await expect(page.getByTestId('setup-refusal')).toHaveText('The Guild needs a name.');
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup, two Traits chosen");
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });
   await expectNoHorizontalOverflow(page, 'a new game');
+  // The Guildmaster the game began with: the age and the Traits chosen.
+  const guildmaster = await part(page, 'Guildmaster');
+  await expect(guildmaster).toContainText(/Age\s*38/);
+  await expect(guildmaster).toContainText('Old soldier');
+  await expect(guildmaster).toContainText('Mistrusts magic');
 
   // A Day: three Turns, morning, afternoon and night.
   const advance = page.getByRole('button', { name: 'Advance a Turn' });
