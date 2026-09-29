@@ -112,7 +112,8 @@ describe('useGame', () => {
       expect(result.current[0]).toMatchObject({ busy: true, forwarding: null });
       expect(fastForward).not.toHaveBeenCalled();
 
-      await waitFor(() => expect(result.current[0].busy).toBe(false));
+      // Five steps of the real engine, each after a paint: longer than waitFor's second under load (M9-S4).
+      await waitFor(() => expect(result.current[0].busy).toBe(false), { timeout: 20_000 });
 
       expect(vi.mocked(fastForward).mock.calls.map(([, options]) => options.maxTurns)).toEqual([30, 30, 30, 30, 30]);
       expect(rendered).toEqual([null, 30, 60, 90, 120]);

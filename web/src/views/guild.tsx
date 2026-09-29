@@ -1,6 +1,6 @@
 // The home view, Guild (M9-S3, DL-103; the review's A3): a digest of what needs attention this
 // Turn. How the game ended, once it has; the rules notice while it stands; the Bankruptcy
-// countdown; why time stopped, each Quest a decision-needed stop names a button to its Party; how
+// countdown, which the Bankruptcy stop's warning card says in its place (M9-S7); why time stopped, each Quest a decision-needed stop names a button to its Party; how
 // the Parties that came home in the last play fared; the Transfer Offers waiting for an answer; the
 // Parties still out and the night each returns; and the Quests on their last Day on the Board.
 // Each is drawn only when there is something to say (the review's A5). Every word and number comes
@@ -84,7 +84,8 @@ export function GuildView({
           </p>
         </Banner>
       )}
-      {header.countdown === null ? null : (
+      {/* The Bankruptcy stop's card says the same Day, with what can be done: it stands in the banner's place (M9-S7). */}
+      {header.countdown === null || stop?.kind === 'below-floor' ? null : (
         <Banner tone="warn" icon="alert">
           <p>{header.countdown}</p>
         </Banner>

@@ -66,8 +66,10 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 /** What each region is for and what its controls do: its accessible description. */
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
-    'What needs you this Turn: why time last stopped and the choices it names, how the Parties that came home fared, ' +
-    'the Transfer Offers waiting for an answer, the Parties still out and the night each returns, and the Quests on ' +
+    'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
+    'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to the Market and the ' +
+    'Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
+    'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',
   board:
     'The Quests on offer. Choose a Party for one: as you pick Heroes and consumables, the preview says what the Party ' +
@@ -109,7 +111,9 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Quests go, weighs on how often they post to the Board, and recovers toward neutral with time.',
   log: 'What happened in the Turns you last played, or from the action you last took, each event as a sentence in the order it happened.',
   'new-game':
-    'Found a Guild, name its Guildmaster, and take Quests from the Board. The seed makes the world: the same seed and ' +
+    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their sex and ' +
+    'age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
+    'you leave is drawn from the seed. The seed makes the world: the same seed and ' +
     'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
     'exported here.',
   game:
