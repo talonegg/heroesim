@@ -1,11 +1,14 @@
-// The page (M7-S3; M9-S3, DL-103): views in a shell, in place of one column of sections (DL-99
-// item 1). The status bar stays in view on every view, with the Guild, its standing, time and the
-// game menu, and a refusal docked under it. The navigation opens one view at a time: Guild, the
-// home view's digest of what needs attention; the Board; the Roster with the Transfer Offers and the
-// Unattached pool; the Hall with the Guildmaster, what the Guild holds and the Market; the Rankings
+// The page (M7-S3; M9, DL-103 to DL-107): views in a shell, which replaced M7's one column of
+// fourteen sections (DL-99 item 1). The status bar stays in view on every view, with the Guild, its
+// standing, time and the game menu, and a refusal docked under it. The navigation opens one view at
+// a time: Guild, the home view's digest of what needs attention; the Board, with its Quest cards and
+// the Party builder (M9-S4, DL-104); the Roster with the Transfer Offers and the Unattached pool;
+// the Hall with the Guildmaster, the Market and what the Guild holds (M9-S6, DL-106); the Rankings
 // with the Guilds and the Patrons; and the History, the one place to read what happened, the last
-// play's entries its newest (M9-S5, DL-105). From 1100px the History rail sits beside the view.
-// Before there is a game, a new one, and the saves to load one from.
+// play's entries its newest (M9-S5, DL-105). Under 600px a bottom bar holds four views and "More"
+// the other two; from 600px a side rail holds all six; from 1100px the History rail sits beside the
+// view. Before there is a game, the new-game form with the Guildmaster's setup (M9-S7, DL-107), and
+// the saves to load one from.
 //
 // A name in the History opens whom it names, wherever the History is drawn: a Hero's page, in the
 // History; a Guild's page, in the Rankings; a Guildmaster's or a Patron's History (`HistoryLinks`).

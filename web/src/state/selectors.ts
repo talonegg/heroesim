@@ -172,8 +172,9 @@ export function headerView(document: WorldDocument): HeaderView | null {
  * The Bankruptcy countdown of the player's Guild as a sentence (v1.0.1-S4, DL-95), from the
  * engine's `bankruptcyCountdown` under the game's own rules; `null` while its `belowFloorSince` is,
  * and once the game has ended. It stands after Wealth rises during a Day, until that night's check
- * clears it, as the rule does. The header shows it; v1.0.1-S5 shows it in the Time section too,
- * between the steps of a fast forward.
+ * clears it, as the rule does. The home view says it in full, the status bar's pill gives its Day
+ * (`HeaderView.due`, M9-S3), and the status bar's time controls show it between the steps of a fast
+ * forward too (v1.0.1-S5).
  */
 export function countdownView(document: WorldDocument): string | null {
   const { world } = document;

@@ -79,7 +79,7 @@ rather than investigated beforehand.
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | Done 2026-09-27 (`m6-rivals`) |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | Done 2026-09-27 (`m7-web`); the twenty-year save measure left to the owner |
 | M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | Done 2026-09-28 (`m8-modules`); the first build's 1,000 × 20 tagged run in DL-81 |
-| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Planned 2026-09-29 |
+| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108); release pending: `m9-redesign` and `v1.1.0` wait for the owner's go-ahead (M9-S9, #37) |
 
 The first build is complete: M8 was tagged `m8-modules` on 2026-09-28. The next work is Random
 Events (§4): the first real module, and the test of whether the module contract fits a real

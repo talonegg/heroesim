@@ -22,7 +22,8 @@ and #37; DL-83 item 19, DL-85 items 6 and 8, DL-87 item 5, DL-88 items 3 and 4.
 - A 50 × 20 harness sweep is recorded against `v1.0.1`'s, and the changes are explained by #30
   and #32 alone.
 
-**Status:** planned — 2026-09-29.
+**Status:** built and verified on `v1.1-dev` — 2026-09-29 (DL-108). Every box of M9-S1 to
+M9-S8 is ticked and the gate is met. The release, M9-S9 (#37), waits for the owner's go-ahead.
 
 ## 0. What lands in M9
 
@@ -588,7 +589,37 @@ After M9-S1 and M9-S2 are merged:
 - Screenshots at three widths and in both schemes are read.
 - `/code-review` runs on the milestone's diff, and its findings are fixed or recorded.
 - The harness sweep: 50 × 20 against `v1.0.1`'s fingerprint, with every difference explained.
-- The epic's boxes are ticked, and the close's DL (DL-104) is written.
+- The epic's boxes are ticked, and the close's DL (DL-108, §4) is written.
+
+**Acceptance** (DL-108):
+- [x] Lint, the typecheck, the whole suite and the build pass — at the close's last commit:
+      `npm run lint` 0 errors, `npm run typecheck` clean, `npx vitest run` 3,231 tests in 131 files, and
+      `npm run build -w web` ending "check-bundle: 2 built files, no network or filesystem
+      reference" (DL-108 item 9)
+- [x] The browser specs pass at a phone's width, a tablet's and a desktop's. The tablet project
+      (820 × 1180) joined `web/playwright.config.ts` in M9-S3 (DL-103 item 13). 51 tests
+      across `phone`, `tablet` and `desktop`, run on a temporary copy of the config at port 4184,
+      since port 4173 serves another project on this machine (DL-108 item 9)
+- [x] §3 ticked: 31 rows, each control read in the code and driven through the page by the tests
+      named. Six controls had no such test, and M9-S8 added one for each:
+      `views/stops.test.tsx` (the pool's stop, and the end), `views/actions.test.tsx` (a unique
+      Item sold and equipped), `views/new-game.test.tsx` (a Background and an Appearance) and
+      `views/board.test.tsx` (a Party sent with consumables) (DL-108 item 4)
+- [x] Screenshots at 390 × 844, 820 × 1180 and 1440 × 900, in the light and the dark scheme, of
+      every view, the Party builder, a Hero's page, the game menu and the new-game form with the
+      setup open, read: 108 files, no sideways scroll. One defect was fixed test first, a rule under
+      the Rankings' head (`2df7ebd`, `e2e/layout.spec.ts`), and four small ones are listed. A new
+      game's longest view is the Hall, 2,695px at 390px and 1,895px at 1440px, where the one column
+      was 21,937px and 17,991px (DL-108 items 6 and 7)
+- [x] `/code-review high` ran over the milestone's diff, `5cb0c46..141dd32`. Its seven findings were
+      all fixed, test first, in `70e23cd` to `e3c48f2` (DL-108 item 2)
+- [x] The 50 × 20 sweep against `v1.0.1`'s: 161 Rival folds where `v1.0.1` had 148, no player
+      ending where `v1.0.1`'s `seed-0049` went bankrupt, the floor crossed 977 times and recovered
+      813, all by Rivals; fingerprint `4e77b3c6…9eeb` at `141dd32` and again at `e3c48f2`. Every
+      difference is explained by #30 and #32 alone (DL-108 item 3)
+- [x] M9 is no slower than `v1.0.1`: 3.50 ms a Turn against 3.79 at 4 × 20, and 936.9 s against
+      966.6 s at 50 × 20, one after the other on the quiet machine (DL-108 item 5)
+- [x] The epic's boxes are ticked, §4's numbers corrected, and DL-108 written.
 
 ### M9-S9 · The release (#37) · 0.5–1 session · the owner, and an agent
 
@@ -613,15 +644,62 @@ This story runs only with the owner's go-ahead.
 ## 3. Every CLI command in the browser
 
 Ticked at M9-S8 against the shell. The rows are M7's table (DL-66 item 9, DL-73 item 14), plus
-`new`'s Guildmaster flags (M9-S2) and `advance --until` staffable (M9-S1).
+`new`'s Guildmaster flags (M9-S2), `advance --until staffable` (M9-S1) and M8's `--modules`. A row
+is ticked when its control was read in the code and a test drives it through the page's own
+controls: `web/src/app.test.tsx` and `web/src/views/*.test.tsx`, which open each view from the
+navigation first (`views/page.test-support.ts`), and the browser specs in `web/e2e/`. Six controls
+had no such test until M9-S8 added one, named "(M9-S8)" below (DL-108 item 4).
+
+| CLI command | In the browser, M9's shell | Built |
+| --- | --- | --- |
+| `new --guild --master [--seed] [--background] [--force]` | "A new game", before a game or from the game menu's "Start a new game": "Guild name", "Background" (a Guild Background, or "Drawn from the seed"), "Guildmaster's name", and "Seed", a readable one made up that the player may change. Over a game in hand the form says "The game in hand is lost unless you export it first." and offers "Back to the game in hand" (`--force`). `app.test.tsx` 'starts one from the names given, and shows its status bar and the home view'; `views/world.test.tsx` 'starts a new game in place of the game in hand, or goes back to it'; `views/new-game.test.tsx` "a Background chosen for the Guild and the Guildmaster's Appearance start the game with them…" (M9-S8) | [x] |
+| `new --sex --age --traits <key,…> \| --traits none --birthplace --appearance --biography` (M9-S2) | "Your Guildmaster", a closed disclosure in the form: "Sex" and "Age" (30 to 45), each opening on "Drawn from the seed"; "Traits", drawn from the seed or "Choose them", each Guildmaster Trait a box with what it does, what it costs and what it excludes, and the budget left; "Choose them" with none ticked is `--traits none`; "Birthplace", "Appearance" and "Biography" with their bounds. "Start the game" is held while the engine's `setupRefusal` refuses, with its sentence beside it. `views/new-game.test.tsx` "the Guildmaster's setup in the new-game form (M9-S7)", seven tests, among them 'offers each sex, each starting age, and the three descriptive Attributes with their bounds, and starts with what was set', 'choosing none is a choice: the Guildmaster starts with no Trait' and "a setup the engine would refuse cannot be started…", and the M9-S8 test above for `--appearance`; `e2e/journey.spec.ts` starts with an age and two Traits and reads them in the Hall | [x] |
+| `show` | The status bar: the Guild's name, Wealth, Fame, the Day and time of day with its glyph, the place in the Rankings, the Bankruptcy countdown's pill and "The game has ended"; the home view, Guild, says the rest; the seed and the content version are in the game menu. `app.test.tsx` 'starts one from the names given…', 'the game menu holds the seed, the content version and the game as a file…'; `views/world.test.tsx` 'a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', 'the status bar shows the countdown only while the player's Guild is below the floor…' | [x] |
+| `show board` | The Board view: each Quest a card of two lines (the name and the Patron; chips for the difficulty, the Days away, the reward, the Fame, the Party size, what else it needs and the Day it leaves), unfolding to the Demands as bars, the Skills that help, the Encounters counted and the difficulty on a meter; "Order" for display. `views/board.test.tsx` 'is two lines, its name and Patron, then its terms as chips…', 'unfolds from its name…', 'is ordered by reward, by difficulty or by the Day each leaves…' | [x] |
+| `preview` | The Board's "Choose a Party": the Party builder, a row for each Hero (whether they can go and why not and until when, Class, Level, Morale, the Stats demanded and the Skills named), the requirements as a checklist, the Synergies, the consumables, and dispatch's verdict as a banner (the engine's `previewDispatch`). `views/board.test.tsx` 'gives each Hero on the Roster a row…', 'shows the requirements as a checklist of met and missed, and dispatch's verdict as a banner…'; `app.test.tsx` 'previews a Party as it is chosen, and sends it when dispatch would' | [x] |
+| `dispatch [--consumables]` | "Send the Party" at the builder's foot, with the Heroes ticked and a stepper for each consumable; the card becomes a "Party out" card. `views/board.test.tsx` 'once sent, the card becomes a Party out card…', "sends the Party with the consumables chosen, which leave what the Guild holds…" (M9-S8); `e2e/journey.spec.ts` | [x] |
+| `show roster` | The Roster view: a card for each Hero with Class, Level, age, a Morale chip and where they are; what the Guild holds is the Hall's "What the Guild holds". `views/roster.test.tsx` 'give each Hero their name, Class, Level and age, a Morale chip…'; `views/hall.test.tsx` 'what the Guild holds is not drawn while it holds nothing…' | [x] |
+| `show hero <heroId>` | A Hero's page, opened from a Roster card, a row of the pool, the builder's "Open", another Guild's Roster or a name in the History, or found by name in the History, the dead and the retired among them (DL-74): a line and chips, the Stats in four area blocks with the Outlook and what gear lifts, gear, Skills and Relationships as bands; Potential never shown. `app.test.tsx` "opens a Hero's page with Stats and hints, pages their History, and goes back"; `views/roster.test.tsx` 'is a line and chips, the Stats in four area blocks…'; `views/history.test.tsx` "a dead Hero's page opens from it, and a Hero gone from the world has their History"; `views/hero-page.test.tsx` 'Potential is never rendered' | [x] |
+| `show history <heroId>` | A Hero's page: their Milestones first, then their History, grouped, folded and paged as the History view's (M9-S5). `app.test.tsx` (above); `views/history.test.tsx` "a Hero's name opens their page in the History, and back goes to the History it came from" | [x] |
+| `advance [--turns n]` | The status bar's "Advance a Turn". One Turn a tap: `--turns n` is fast forward's work here. `app.test.tsx` 'advances a Turn, and narrates what happened in it' | [x] |
+| `advance --until <stops> [--max n]` | The status bar's "Fast forward", which stops on every stop that is always on: a Party home, a decision, a Transfer Offer, the Bankruptcy floor (M9-S1), a module, the end. "More ways to fast forward" adds "…until new Heroes join the pool" (`pool-refreshed`). Its progress and "Stop the fast forward" show between its steps; the stop is a sentence in the home view with its next step as a button; `--max` is a year. `app.test.tsx` 'after a fast forward, opens with the stop, and each Quest it names opens that Quest's Party on the Board', 'shows how the Party that came home fared…', 'Stop leaves the game, the log and the sentence…'; `views/stops.test.tsx` 'the split button offers…', the Bankruptcy stop's two tests, and M9-S8's '"until new Heroes join the pool" plays until the pool turns over…' and 'a game that ends in a fast forward stops it…'; `views/world.test.tsx` 'a Transfer Offer goes to the offers, new Heroes in the pool go to the pool'; `e2e/fast-forward.spec.ts` | [x] |
+| `advance --until staffable` (M9-S1) | "Fast forward until a Quest I can staff appears", first of "More ways to fast forward"; its stop names each Quest as a button to its Party on the Board. `views/stops.test.tsx` 'with a Party out, "until a Quest I can staff appears" stops before it is home, and each Quest it names opens its Party on the Board'; `views/stop.test.tsx` "a Quest to staff (M9-S7, #32)", two tests | [x] |
+| `show guilds` | The Rankings view's "Guilds": one table of every Guild, with Place, Guild, Disposition, Fame, Wealth, Heroes and Upkeep, a folded one last with its Day; a row opens its page, with its controller, Background and Guildmaster. `views/rankings.test.tsx` 'gives Place, Guild, Disposition, Fame, Wealth, Heroes and Upkeep…', 'lists a folded Guild last…'; `views/world.test.tsx` "list every Guild, and open a Rival's page…" | [x] |
+| `show rankings [--by fame\|wealth]` | The same table, by Fame, or by Wealth from its heading, level Guilds sharing a place ("joint 1st"). `views/rankings.test.tsx` 'by Wealth, orders and places the Guilds by Wealth…'; `views/world.test.tsx` 'rank the Guilds in play by Fame, or by Wealth when its heading is chosen…' | [x] |
+| `show roster <guildId>` | A Guild's page from its row: its Roster as a table with each Hero's Transfer fee and "Take in", each name opening the Hero's page. `views/rankings.test.tsx` 'opens from its row: its Roster as a table with the Transfer fees and Take in…', "the player's own Guild opens too…" | [x] |
+| `show hall [guildId]` | The Hall view: each facility a row with its grade as pips, the Improvement built, what it does and `Build <next> · <cost>`, the Upkeep above; another Guild's under "Hall" on its page. `views/hall.test.tsx` 'are one row each: the grade as pips to the top grade…'; `views/world.test.tsx` "list every Guild, and open a Rival's page: its Roster with fees, its Hall, its Guildmaster" | [x] |
+| `build` | `Build <Improvement> · <cost>` in the Hall. `views/actions.test.tsx` "builds a facility's next grade for its cost…", 'says why a grade cannot be built' | [x] |
+| `show pool` | The Roster view's "Unattached pool": a table of Name, Class, Level, Age, Background, Fee and whether each signs, ordered by Class or by Fee; a name opens the Hero's page. `views/roster.test.tsx` 'lists Name, Class, Level, Age, Background, Fee, whether they sign and Recruit…', 'orders its rows by Class or by fee…', "a Hero's name opens their page in place…" | [x] |
+| `recruit` | "Recruit" on the pool's row or the Hero's page. `views/actions.test.tsx` 'recruits a Hero for the signing fee shown, onto the Roster', 'says why a Hero will not sign, and recruits from their page too'; `e2e/journey.spec.ts` | [x] |
+| `show patrons` | The Rankings view's "Patrons": one table of Patron, Sphere, their Regard for the player's Guild, the Guildmaster's Regard for them and their Quests on the Board, the neutral folded. `views/rankings.test.tsx` "give each Patron's Sphere, their Regard for the Guild, the Guildmaster's for them…" | [x] |
+| `show guildmaster [guildId]` | The Hall view's "Guildmaster": sex, age and the descriptive Attributes written, the Stats and what each bears on, the Traits with what each does, Regard as chips; another Guild's under `Guildmaster: <name>` on its page. `views/hall.test.tsx` 'gives the Traits with what each does, the descriptive Attributes written…'; `views/world.test.tsx` "show the player's Guildmaster's Stats and what each bears on, and Regard as bands" | [x] |
+| `show market` | The Hall view's "Market": a table of what is for sale (Item, Kind, Effect, Price, Stock) with chips by kind; "What the Guild holds", each Item with what it sells for. `views/hall.test.tsx` 'lists what is for sale as Item, Kind, Effect, Price, Stock, how many and Buy…', 'what the Guild holds is not drawn while it holds nothing…' | [x] |
+| `buy`, `sell --stack [--quantity]`, `sell --item` | "Buy" with its stepper in the Market; "Sell" in "What the Guild holds", with a stepper for a stack and none for a unique Item. `views/actions.test.tsx` 'buys what it has for sale at its price…', 'sells from a stack the Guild holds…', "sells a unique Item the Guild holds, one of its own with no quantity to choose…" (M9-S8), "says why a purchase is refused…" | [x] |
+| `equip --stack \| --item`, `unequip` | `Equip <Item>` among the gear the Guild holds, and "Unequip" on a slot, on a Hero's page. `views/actions.test.tsx` 'equips gear the Guild holds, and unequips it', "equips a unique Item the Guild holds, and unequips it back to the Guild…" (M9-S8) | [x] |
+| `transfer --to`, `transfer --in` | "Transfer…" on the player's Hero's page, which asks first (`Transfer <Hero>?`) with the Guild to choose, its fee and the Morale it costs; "Take in" on another Guild's Roster or a Rival Hero's page. `views/actions.test.tsx` 'transfers the Hero to the Guild chosen, for the fee it would pay, once asked and confirmed', 'takes a Hero in for the Transfer fee shown', "offers the same from a Rival Hero's page…"; `views/roster.test.tsx` 'a Transfer out asks first…' | [x] |
+| `show offers`, `accept`, `decline` | The Roster view's "Transfer Offers", drawn while one stands, with a dot on the Roster's navigation and "Transfer Offers waiting" in the home view; "Accept…", which asks first, and "Decline". `views/actions.test.tsx` 'are not drawn while none stands…', 'accepts an offer, once asked and confirmed…', 'declines an offer: the Hero stays'; `views/roster.test.tsx` 'Accept asks first…'; `app.test.tsx` 'says when nothing waits, and names the Transfer Offers waiting…' | [x] |
+| `show history [entityId]` | The History view: the player's Guild's first, the whole History and each Rival's under "Whose History"; grouped by Day and time of day, folded, twenty entries a page with "Newest"; anyone it names found by "Find someone in the History by name" or opened from their name in a line; a Guild's page ("Read its History"), a Guildmaster's part ("Read their History") and a Patron's name open theirs. A Quest's and a Party's entries are read in the whole History (DL-73 item 8). `views/history.test.tsx` "opens on the player's Guild…", "gives the whole History and each Rival's in one choice…", 'pages twenty entries at a time…', "a Guild's name opens its page in the Rankings, and it opens the Guild's History", "a Patron's and a Guildmaster's names open their History", "a Rival's page in the Rankings, a Patron and a Guildmaster"; `e2e/layout.spec.ts` (the search) | [x] |
+| `rebase` | "Adopt the new rules", in the game menu's "New rules available" and in the home view's banner while the notice stands. `views/world.test.tsx` 'are offered while the game plays under older ones, and adopting them is recorded', "are not offered to a game under this release's rules"; `app.test.tsx` 'the rules notice is in the game menu with its versions, and a banner in the home view while it stands' | [x] |
+| `save --as`, `load` | The game menu's "This game": "Export this game", the file the CLI writes, named by its seed and Day; "Load a save file"; and "Saved in this browser" (IndexedDB), also offered before a game. `views/world.test.tsx` 'exports the game as the save the CLI writes, byte for byte…', 'loads a save file in place of the game in hand…', 'loads a save before any game is in hand'; `views/saves.test.tsx` 'saves the game in hand under a name, lists it, and loads it back…'; `e2e/journey.spec.ts` (the CLI loads the export) | [x] |
+| `new`, `load`, `advance` `--modules <ids>` (M8) | The address's test switch, `?modules=probe`, installed for every play while the page is open and named in the home view and the game menu (DL-79). `app.test.tsx` 'with it, the page says the probe is installed…', 'without it, nothing is installed…'; `e2e/modules.spec.ts` | [x] |
+| `help` | Each view's "About this view" and the game menu's "About the game menu", each the region's accessible description, and the time controls' description; each control is named by what it does. `app.test.tsx` 'every view and every part of one says what it is for and what its controls do, before a game and with one', 'the time controls say what time is…', 'every control has a name that says what it does, in every view and the game menu' | [x] |
 
 ## 4. Decision numbers
 
 - DL-100: this plan, #30's values, and the style's go-ahead.
 - DL-101: M9-S1.
 - DL-102: M9-S2.
-- DL-103: M9-S3 to M9-S7, the page.
-- DL-104: the close.
+- DL-103: M9-S3.
+- DL-104: M9-S4.
+- DL-105: M9-S5.
+- DL-106: M9-S6.
+- DL-107: M9-S7.
+- DL-108: the close, M9-S8, with the code review's fixes.
+
+*Corrected at the close (DL-108 item 10).* DL-100 item 1 planned DL-103 for the page (M9-S3 to
+M9-S7) and DL-104 for the close. The stories were built in parallel, each recording its own choices,
+so the orchestrator gave each page story an entry of its own, DL-103 to DL-107, and the close took
+DL-108.
 
 ## 5. Risks
 

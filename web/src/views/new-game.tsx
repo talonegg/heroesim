@@ -4,7 +4,7 @@
 // world (M7-S2, DL-65; M9-S2, DL-102). A save file can be loaded instead (the CLI's `load`, DL-73),
 // or a game saved in this browser, which is how one comes back after the page is closed or reloaded
 // (DL-67). With a game in hand, the CLI replaces a save only with `--force`; here the player asked
-// for this section, and it says the game in hand goes unless exported, with a way back to it.
+// for this form, and it says the game in hand goes unless exported, with a way back to it.
 //
 // The Guildmaster's setup (M9-S7, #30; the CLI's `new` flags, DL-102 item 10) sits behind "Your
 // Guildmaster", closed: an optional sex and age, the Traits drawn from the seed or chosen within

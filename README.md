@@ -7,11 +7,15 @@ is mechanical first; story-rich modules such as Campaigns and Scenarios come lat
 The design is v2, baselined 2026-09-24. Its first build is complete, built milestone by milestone
 and tagged `m8-modules` on 2026-09-28 ([`docs/plan.md`](./docs/plan.md)); the same commit is
 tagged `v1.0.0`, the first release. `v1.0.1`, a small hotfix release, serves the page from
-Cloudflare Workers beside Pages (see [Deploy](#deploy)); then comes Random Events, the first real
-module, on the v1.1 line: built on `v1.1-dev`, released by merging into `v1.1-release`, with
-milestone tags continuing from `m9-random-events`. `v1.0-dev` and `v1.0-release` are frozen but
-for v1.0.x hotfix releases (DL-86, DL-88, DL-91, DL-92). GitHub's default branch is the latest
-release branch: `v1.0-release`, until `v1.1-release`'s first release (DL-88).
+Cloudflare Workers beside Pages (see [Deploy](#deploy)). The v1.1 line is M9, the page
+redesigned (DL-99): views in a shell in place of one long column, the History as the one place to
+read what happened to any Guild, Hero or Patron, a Party builder, and a new style, with the
+Guildmaster's setup (#30) and two fast-forward stops (#32). It is built and verified on
+`v1.1-dev` (DL-108) and is released, when the owner goes ahead, by merging into `v1.1-release`,
+tagged `m9-redesign` and `v1.1.0` (#37). Random Events, the first real module, follows on the v1.2
+line as M10 (DL-99). `v1.0-dev` and `v1.0-release` are frozen but for v1.0.x hotfix releases
+(DL-86, DL-88, DL-91, DL-92). GitHub's default branch is the latest release branch:
+`v1.0-release`, until `v1.1-release`'s first release (DL-88).
 
 ## Play
 

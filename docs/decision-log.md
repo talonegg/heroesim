@@ -10515,6 +10515,302 @@ suite held 3,043 tests in 121 files.
 `stop.tsx`, `guild.tsx`, `section.tsx`); `web/src/styles.css`; `web/e2e/` (`journey.spec.ts`,
 `fast-forward.spec.ts`, `layout.spec.ts`, `support.ts`); the epic's M9-S7 boxes.
 
+## DL-108 — M9 verified and closed: the code review's seven findings fixed, the 50 × 20 sweep's every difference from `v1.0.1` explained by #30 and #32, the milestone no slower than `v1.0.1`, every CLI command ticked in the shell with six page tests added, the final screenshots and heights, and the owner's open questions gathered (M9-S8)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S8's implementer. Item 2's
+fixes were made by another agent, the review fixer, and are recorded here as its log gives them.
+Nothing here is the owner's. The release, M9-S9 (#37), waits for the owner's go-ahead (item 13).
+
+**Context.** M9, the page redesigned with #30 and #32 (DL-99, DL-100), was built on `v1.1-dev` from
+`5cb0c46` in seven stories, each on a branch of its own and merged from `1a6fd75` (M9-S1) to
+`141dd32` (M9-S6). `/code-review high` then ran over `5cb0c46..141dd32`, and its seven findings were
+fixed on `v1.1-dev` in `70e23cd` to `e3c48f2`. The close sweep ran at `141dd32` while the review was
+running on the same machine. M9-S8 is the epic's verification and close. `v1.0.1` and `5cb0c46` hold
+the same `engine/`, `content/`, `harness/`, `cli/` and `web/`, so every difference between `v1.0.1`
+and M9 is M9's. The suite held 3,225 tests in 131 files at `e3c48f2`.
+
+**Decision.**
+
+1. **What M9 built**, story by story.
+   - *M9-S1, DL-101* (#32 boxes 1, 2, 3 and 5). The Guild State Engine's nightly check emits
+     `guild.below-floor` and `guild.floor-recovered`, narrated in both front ends. An always-on
+     `below-floor` stop for the watched Guild alone, and an opt-in `quest-staffable` stop judged by
+     `dispatch`'s own checks on the Party `partyFor` proposes. The CLI's `advance --until staffable`.
+     The harness counts both events, and every other counter was unchanged.
+   - *M9-S2, DL-102* (#30 boxes 2 to 7). Traits gain a `cost` and `excludes` (content 15). Drawn
+     Guildmasters spend `guildmasterTraitBudget`, 1 (`configVersion` 11), by the draws DL-19's
+     shuffle took. `WorldSetup` takes the Guildmaster's sex, age, Traits and three descriptive
+     Attributes, checked by `setupRefusal` with a typed reason for each breach, and the CLI's `new`
+     takes them as flags. The Guildmaster's row gains the texts and `retiredOnTurn` (schema 4). A
+     Rival Guildmaster's Retirement is met by Succession, `guildmaster.succeeded`, a Milestone.
+   - *M9-S3, DL-103.* The page as views in a shell: a status bar that stays, six views opened as
+     React state and remembered in the browser, a bottom bar under 600px, a side rail from 600px and
+     a History rail from 1100px. The home view is a digest from new selectors; the game has a menu;
+     help is on request; empty parts are not drawn; the refusal is docked. The guild-ledger style is
+     in tokens with a dark scheme and 38 inline icons, and a tablet project joins the browser specs.
+   - *M9-S4, DL-104.* Two-line Quest cards that unfold, the Board ordered for display, and the Party
+     builder: a row for each Hero from the selectors the Roster reads, a Hero's page in place with
+     the choice kept, the requirements as a checklist, dispatch's verdict as a banner beside a Send
+     that stays in view, and a "Party out" card where the Quest stood.
+   - *M9-S5, DL-105.* The History as the one place to read what happened. It opens on the player's
+     Guild, with the last play's entries marked new, and reaches any Guild, Hero, Guildmaster or
+     Patron. Names are marked by the narration from the events' ids. Entries are grouped by Day and
+     time of day, a Party's Encounters fold under its outcome and a Rival's routine under one line,
+     and pages keep a Party's steps with its outcome.
+   - *M9-S6, DL-106.* The Roster's cards and a Hero's page of chips and four Stat blocks; the pool
+     and the Market as tables; the facilities with pips; one table for the Guilds and the Rankings
+     and one for the Patrons; a confirmation before a Transfer goes out or an offer is accepted; and
+     the tables' orders kept in the browser.
+   - *M9-S7, DL-107* (the page's side of #30 and #32). The new-game form's "Your Guildmaster", each
+     Trait judged by the engine's own check against those chosen, "Start the game" held while the
+     engine would refuse, "until a Quest I can staff appears" in the split button, and the
+     Bankruptcy stop as a warning card with the ways to the Market and the Board.
+2. **The code review's seven findings, all fixed, test first** (the review fixer's; 3,202 tests to
+   3,225).
+   1. *A retired Guildmaster read as their old Guild's Guildmaster* in the History search. `whatIs`
+      now reads "Guildmaster of <Guild>, retired" (`6805e71`).
+   2. *A bad sex passed `newGameRefusal`*, and `createWorld` threw inside the reducer. The sex is
+      now a `SetupRefusal` reason, `unknown-sex`, with a sentence in both front ends; `createWorld`
+      relies on `setupRefusal` alone (`b65955b`). The CLI still checks `--sex` among its fixed words
+      first, as it does `--by` and `--until`, so the command line reads as before.
+   3. *The last History page could be empty.* The pages are now walked from the newest, each
+      starting where the one before ends, and the count, the page shown and `pageOfEntry` read the
+      same edges. This goes beyond the finding: a Party with more steps than a page also left an
+      empty page in the middle, which no count could remove (`1d944e6`).
+   4. *The outcome card keyed deaths by name and Injuries by sentence*, and names are not unique.
+      Its rows carry each Hero's id, and the card keys by it (`e3c48f2`).
+   5. *The staffable stops searched the Board twice a Turn.* `stopsOfTurn` reads it once before and
+      once after each Turn, and both stops derive from that; the stops are unchanged, which the old
+      tests and a new 120-Turn test hold (`70e23cd`).
+   6. *The sexes were hardcoded in both front ends.* The engine exports `sexes`, and both read it
+      (`80efacf`).
+   7. *The descriptive Attributes' labels were defined twice, and the Guildmaster Trait list filtered
+      and sorted twice.* The engine exports `descriptiveAttributeLabels` and `guildmasterTraitsOf`,
+      which the draw also reads, in the same order, so no draw moves (`fda0382`).
+
+   The review did not flag `facilityNames`, still defined in both `cli/src/render.ts` and
+   `web/src/state/rejections.ts`; it is left.
+3. **The 50 × 20 sweep, and every difference from `v1.0.1` explained by #30 and #32 alone.**
+   - *One command, twice.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-close npm run harness`: 50
+     seeds, `seed-0001` to `seed-0050`, 20 years each, 16 processes, no validation. First the close
+     sweep at `141dd32`, while the code review ran; then, on the quiet machine, again at `e3c48f2`
+     (936.9 s). Both printed the fingerprint
+     `4e77b3c60f08e70592f9be16d8e701c0c837375d5d2ac89ff8409d15d6219eeb`, so the review's fixes change
+     no play in any of the fifty games. The second run's report is the one committed.
+   - *What it found.* All 50 games ran their 20 years, with no player ending. There were 161 Rival
+     folds, all by Bankruptcy, and no Succession. `guild.below-floor` came 977 times and
+     `guild.floor-recovered` 813, all the Rivals'. `seed-0001` replayed identical (108,021,041
+     characters), 50 of 50 saves round trip, and no policy action was refused.
+   - *`v1.0.1`'s, reproduced.* Its sweep was rerun at the tag in a temporary worktree with DL-97's
+     own command (`HEROESIM_SEEDS=50 npm run harness -- harness/src/play.harness.test.ts`). It gave
+     DL-97's fingerprint, `11a18457…9e02`: 148 Rival folds, `seed-0049` bankrupt, and `seed-0001`
+     113,281,366 characters.
+   - *#32, M9-S1, changes no play.* DL-101 item 6's pair of sweeps found every World State hash,
+     1,800 counters and 1,702 per-type History counts equal. The History grew by the two new events
+     alone.
+   - *#30, M9-S2, changes every seed's Guildmasters once, and the games with them.* Created worlds
+     are byte-identical but for the Guildmasters' Traits (DL-102 item 5). The games that follow
+     differ: 161 Rival folds where `v1.0.1` had 148, `seed-0049` running its 20 years, and the
+     player's Guild never below the floor, where `v1.0.1`'s play fell below it 5 times in 3 games
+     (DL-101 item 6). M9-S2's own 50 × 20 had 161 folds too (`8f02d242…5420`, DL-102 item 16).
+   - *Together, and nothing else.* The close report was compared line by line with M9-S2's. Every
+     counter, table and yearly figure is equal. Only these differ:
+     - the Bankruptcy floor table, 977 and 813: M9-S1's events, which M9-S2's branch did not have;
+     - the History's mean length, 255,132 against 255,096, which is 1,790 entries over 50 games,
+       35.8 a game;
+     - the saves' lengths, the fingerprint and the timings.
+   - *The page stories and the review change no play.* M9-S3 to M9-S7 change `web/` alone. The
+     review's engine changes move no draw (item 2), as the fingerprint above shows.
+   - *Succession falls outside the slice.* There were none here, and none in M9-S2's 50 × 20. M9-S2's
+     50 × 35 had 20 (DL-102 item 16).
+   - *So the gate's last line is met:* every difference from `v1.0.1`'s sweep is #30's or #32's.
+4. **Every CLI command in the browser (the epic's §3), and six page tests added.**
+   - *The table.* 31 rows: M7's, `new`'s Guildmaster flags, `advance --until staffable` and M8's
+     `--modules`. Each row names the view and the control, and is ticked only where the control was
+     read in the code and a test drives it through the page's own controls.
+   - *Six controls had no such test*, found by reading each row against the tests. M9-S8 added one
+     for each, driving it as a player would:
+     - the pool's stop, "Fast forward until new Heroes join the pool", with the Roster released so
+       that nothing else stops it, and "See who joined the pool" (`views/stops.test.tsx`);
+     - the end of the game in a fast forward, a wiped Roster with no Wealth to sign a Hero: the stop,
+       the home view's sentence and the time controls disabled (`views/stops.test.tsx`);
+     - a unique Item sold, with no quantity to choose (`sell --item`), and a unique Item equipped
+       and unequipped (`equip --item`), from a new `holdingUnique` in `state/game.test-support.ts`
+       (`views/actions.test.tsx`);
+     - a Background and an Appearance chosen in the new-game form (`views/new-game.test.tsx`);
+     - a Party sent with consumables, read in the History and in what the Guild holds
+       (`views/board.test.tsx`).
+   - *Flags with no control, by design,* as M7's table has them: `--turns` (a tap is a Turn),
+     `--max` (fast forward's cap is a year), `--force` (the form warns and offers the way back),
+     `save --as`'s name (the export is named by its seed and Day), and `--modules` (the address's
+     test switch, DL-79).
+5. **The A/B timing: M9 is not slower than `v1.0.1`.** On the quiet machine, one run after another,
+   4 seeds × 20 years (`HEROESIM_SEEDS=4 npm run harness -- harness/src/play.harness.test.ts`), 4
+   processes, `v1.0.1` in a temporary worktree (`npm ci`), removed afterwards:
+
+   | Run | `advance` a Turn, mean (p99) | `seed-0001` replayed alone | Total | Fingerprint |
+   | --- | ---: | ---: | ---: | --- |
+   | `v1.0.1`, first | 3.864 ms (8.422) | 2.247 ms | 296.2 s | `200a47f9…dbde2` |
+   | `e3c48f2`, first | 3.520 ms (7.390) | 1.907 ms | 258.8 s | `dd0af55a…cd95` |
+   | `v1.0.1`, second | 3.720 ms (7.776) | 2.084 ms | 302.6 s | `200a47f9…dbde2` |
+   | `e3c48f2`, second | 3.488 ms (7.124) | 1.896 ms | 258.4 s | `dd0af55a…cd95` |
+   | `141dd32` | 3.319 ms (6.521) | 1.923 ms | 256.7 s | `dd0af55a…cd95` |
+
+   - *M9 is about 8% faster a Turn* (3.50 ms against 3.79), and 12% faster alone. Its games are
+     other games: #30's Traits change every seed's Guildmasters, and `seed-0001`'s last save is
+     108,021,041 characters where `v1.0.1`'s is 113,281,366. M9's per-Turn work (the floor's
+     events, a branch on an existing check) is too small to see here. The stops run only in fast
+     forward, which the harness does not use.
+   - *The review fixes change no play:* `141dd32` and `e3c48f2` give one fingerprint on these four
+     seeds, as the 50 × 20 does on all fifty (item 3).
+   - *The slow sweeps were neither load nor M9.* M9-S2's 50 × 20 (1,097.9 s) shared the machine
+     with other agents, and the close sweep (954.6 s) ran beside the code review. A quiet 50 × 20 is
+     no quicker: `e3c48f2` took 936.9 s (the games 807.3 s, `advance` 6.542 ms a Turn), and
+     `v1.0.1`, rerun straight after with DL-97's command, 966.6 s (834.7 s, 6.831 ms). So M9 is 3%
+     quicker at 50 × 20 too.
+   - *DL-97's 467.7 s cannot be had on this machine today, whatever the code.* The gap is the
+     machine's, not M9's. One process alone is as quick at both (`seed-0001` replayed: 1.96 ms a Turn
+     at `e3c48f2`, 1.99 at `v1.0.1`). Sixteen at once take twice as long as on 2026-09-28 (DL-97),
+     for a reason not found here. The close sweep's 954.6 s beside the code review and the quiet
+     rerun's 936.9 s are within 2%.
+   - This answers DL-102 item 18's third point.
+6. **The final screenshots, read.**
+   - *Where.* 108 files in the scratchpad's `m9-shots-close\`, named `<width>-<scheme>-<nn>-<what>`:
+     13 shots at each of 390 × 844, 820 × 1180 and 1440 × 900, in the light and the dark scheme; and
+     full pages (`-full`) at 390 light, 1440 light and 1440 dark.
+   - *What.* 01 the new-game form with the setup open, 02 the home view after a stop, 03 the Party
+     builder opened from the stop's Quest, 04 the "Party out" card, 05 the home view once the Party
+     came home, 06 the Board, 07 the Roster, 08 a Hero's page, 09 the Hall, 10 the Rankings, 11 the
+     History, 12 the History with a Party's Encounters open, and 13 the game menu.
+   - *How.* On seed `heroesim-e2e-01`, from the built page on a preview at port 4185, since stopped.
+     No page scrolled sideways, and no page error was logged.
+   - *One defect, fixed test first* (`2df7ebd`). The Rankings alone opened with a hairline and a
+     band of space between the view's head and its first part, the Guilds. The game menu already
+     dropped these for its first part, and `.view__head + .part` now does the same for a view.
+     `e2e/layout.spec.ts`'s new test measured the rule at 1px at all three widths before the change,
+     and none after it.
+   - *Seen and left, each small.*
+     - Two hairlines meet where a list or table ends and the next part begins (the Hall's facilities
+       and the Guildmaster; the Guilds and the Patrons).
+     - The new-game form's "Traits" rule runs wider than the list of Traits under it.
+     - The History rail lists a Turn's lines newest first, so Encounter 3 stands above Encounter 1,
+       where the History view reads a Turn as it happened. That is DL-103 item 3's rail, as built.
+     - "Save as" offers `heroesim-heroesim-e2e-01-day-3`: the name's prefix doubles on a seed that
+       starts with it.
+7. **The page's height for a new game**, the document's height with each view open, seed
+   `heroesim-e2e-01`, against the review's 21,937px at 390px and 17,991px at 1440px for the one
+   column (DL-99):
+
+   | View open | 390 × 844 | 1440 × 900 |
+   | --- | ---: | ---: |
+   | Guild, the home view | 844 | 900 |
+   | Board | 1,728 | 965 |
+   | Roster | 1,583 | 1,200 |
+   | Hall | 2,695 | 1,895 |
+   | Rankings | 979 (1,016 before item 6's fix) | 900 |
+   | History | 859 | 900 |
+
+   - *One screen.* A height equal to the window's is one screen, as the home view is at both widths.
+   - *The longest view.* The Hall's is 12% of the old column's height at 390px and 11% at 1440px.
+   - *The History.* It was 6,549px and 5,531px after M9-S3 (DL-103), before M9-S5 paged it and
+     opened it on the player's Guild.
+8. **The documents that described the page.**
+   - *Corrected.* `README.md`'s account of the v1.1 line, which still said Random Events came next on
+     it with `m9-random-events` (DL-99 items 8 and 10). The comment at the top of `web/src/app.tsx`,
+     with the Hall's parts in their M9-S6 order, the navigation by width and the new-game form. The
+     comments of `views/guildmaster.tsx` ("in the Hall", not "in their own section"),
+     `views/new-game.tsx` ("this form") and `countdownView` in `state/selectors.ts` (the status
+     bar, not the Time section).
+   - *Read and left.* `docs/requirements.md` §3.10 (R37 and R38 describe no layout),
+     `CONTEXT.md` (no term of the page's layout), `web/src/styles.css`'s header (already the shell's)
+     and every other view's header comment. Accepted DL entries and the closed epics are unchanged.
+9. **The final checks,** on the last commit's tree:
+   - `npm run lint`: 0 errors. `npm run typecheck`: clean.
+   - `npx vitest run`, at the default timeout: 3,231 tests in 131 files, all passing.
+   - `npm run build -w web`: one script of 611.38 kB (174.42 kB gzipped), ending "check-bundle: 2
+     built files, no network or filesystem reference".
+   - *The browser specs:* 51 tests across `phone` (360 × 800), `tablet` (820 × 1180) and `desktop`
+     (1280 × 800), all passing. They ran on a temporary, uncommitted copy of `web/playwright.config.ts`
+     at port 4184, since deleted, because port 4173 serves another project on this machine.
+10. **The DL numbers changed.** DL-100 item 1 gave DL-103 to the page (M9-S3 to M9-S7) and DL-104 to
+    the close. The stories were built in parallel, each recording its own choices, so the
+    orchestrator gave each page story an entry of its own: DL-103 (M9-S3), DL-104 (M9-S4), DL-105
+    (M9-S5), DL-106 (M9-S6) and DL-107 (M9-S7). The close is DL-108, and it records the review's
+    fixes. The epic's §4 is corrected, and DL-100 stands as accepted.
+11. **The versions.** Save schema 4 (`v1.0.1`: 3), `configVersion` 11 (10) and content version 15
+    (14), all raised by M9-S2 (DL-102). A save from `v1.0.1` loads through migration 3, and plays
+    under its own rules until it is rebased. #15, on v1.2, takes the schema's next number.
+12. **For the owner: the builders' open questions**, gathered. None is decided here; each stands as
+    built until the owner answers.
+    1. Should drawn Guildmasters lean to penalties? At a budget of 1, Well liked and Thrifty fall to
+       about a quarter of their old share and a drawn Guildmaster's mean cost is −0.685; a budget
+       of 2, or cheaper buffs, would even it (DL-102 item 17; DL-107).
+    2. Is Miser one effect or two (DL-87 item 6)? It costs −2 until that is settled (DL-100 item 5,
+       DL-102 item 18).
+    3. Which names count as in use for founders, replacements and Heroes (DL-88 item 2)? Only a
+       successor's name avoids those in use (DL-102 items 12 and 18).
+    4. Should the end of a fast forward open the home view, as built (DL-103)?
+    5. Should the History's count on the navigation, and the rail's "New", stay scoped to the
+       player's Guild (DL-103)?
+    6. Is the remembered view worth keeping before autosave makes it matter (DL-103)?
+    7. Does "±2" read clearly as Fame won or lost (DL-104)?
+    8. Is "Until Day 7" clear, where the Board said "On offer through Day 7" (DL-104)?
+    9. Should the Board's order be kept in the browser, as the Rankings' and the pool's are (DL-104,
+       DL-106)?
+    10. Does dispatch's verdict belong beside Send, as built, or apart from it, as the epic worded it
+        (DL-104)?
+    11. Should a Rival's routine fold in a Hero's own History, where every line is that Hero's
+        (DL-105)?
+    12. Should the stop's "Read what happened" reopen the player's Guild's History, as built, or
+        keep the choice (DL-105)?
+    13. Should folded Guilds have chips under "Whose History", where they are now found by name only
+        (DL-105)?
+    14. Should Recruit be disabled for a Hero who will not sign, rather than refused with the
+        engine's sentence (DL-106)? That is C9's, left out of M9 (item 13).
+    15. Should a Transfer's confirmation name the Heroes who would lose Morale, and how much
+        (DL-106)? That needs an engine selector.
+    16. Should declining a Transfer Offer ask first too (DL-106)?
+    17. Should the Bankruptcy card's "Sell at the Market" open "What the Guild holds", where Sell now
+        is (DL-106)?
+    18. Should an empty new-game form say "The Guild needs a name." before anything is typed
+        (DL-107)?
+    19. Is "I" right in "until a Quest I can staff appears", where the page elsewhere says "you"
+        (DL-107)?
+    20. Should the Bankruptcy card stand in the countdown banner's place, as built (DL-107)?
+    21. A name in the History of a Hero's page opened from the Party builder leaves the Board, and
+        the Party chosen but not sent is lost, as leaving by the navigation loses it. Should the
+        builder keep it? (The M9-S5 merge's notes, under DL-105.)
+
+    DL-102 item 18's third point, the harness's time against DL-97's, is answered by item 5.
+13. **What is left.**
+    - *The release, M9-S9 (#37),* on the owner's go-ahead: `v1.1-dev` merged into `v1.1-release` and
+      tagged `m9-redesign` and `v1.1.0`; the deploy script's `--branch` and `deploy.test.ts` moved
+      to `v1.1-release`; the owner sets the Pages production branch and GitHub's default branch to
+      `v1.1-release`, and deploys from a clean checkout of the tag, then runs `e2e:live` on both
+      addresses; the deploy is recorded. Nothing of it is done here, and `v1.1-dev` is not pushed.
+    - *Autosave and keyboard shortcuts,* after M9 (DL-99 items 4 and 5).
+    - *C9, refusals before the click,* which need engine refusal functions like `dispatchRefusal`
+      for buy, build, recruit and transfer (DL-99 item 7, DL-100 item 5).
+    - *A stray preview server on port 4179, PID 63076,* left by M9-S5 in `heroesim-m9-s5`, which
+      its agent could not stop. The owner may stop it. Port 4173 is another project's.
+
+**Consequences.**
+- *M9 is built and verified on `v1.1-dev`.* Every box of M9-S1 to M9-S8 is ticked, and the gate is
+  met as worded, so its wording is unchanged. #30 and #32 are met on `v1.1-dev`; #37 is open.
+- *Tests.* The suite grew from 3,225 tests to 3,231, with item 4's six (`f8f9748`). The browser
+  specs grew from 48 to 51, with item 6's test at three widths (`2df7ebd`).
+- *The milestone's harness report* is committed, `harness/reports/m9-close-2026-09-29.md`, force-added
+  as M8's was. It is the quiet rerun at `e3c48f2` (item 3), with the close sweep's fingerprint.
+- *Plan.* §2's M9 row reads built and verified, release pending. The epics register's M9 row has
+  no status, and is unchanged.
+
+**Actioned in:** `docs/planning/epics/M9-redesign.md` (the status, §3, §4 and M9-S8's boxes);
+`docs/plan.md` §2; `README.md`; `web/src/app.tsx`, `web/src/state/selectors.ts`,
+`web/src/views/guildmaster.tsx` and `web/src/views/new-game.tsx` (comments);
+`web/src/state/game.test-support.ts` and `web/src/views/` (`stops.test.tsx`, `actions.test.tsx`,
+`new-game.test.tsx`, `board.test.tsx`); `web/src/styles.css` and `web/e2e/layout.spec.ts`;
+`harness/reports/m9-close-2026-09-29.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -1,5 +1,5 @@
 // The Guildmaster (M7-S3 part 2; the CLI's `show guildmaster [guildId]`, M4-S5): the player's
-// Guildmaster in their own section, another Guild's on its page. Their Stats and what each bears
+// Guildmaster in the Hall, another Guild's on its page. Their Stats and what each bears
 // on, their Traits and what each does, and their Regard for every Patron, each Hero on their Roster
 // and each other Guild in play, as bands and never as numbers (pre-M0 review B3).
 //
