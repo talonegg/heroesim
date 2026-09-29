@@ -317,3 +317,27 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
   await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
 });
+
+test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none (M9-S8)", async ({
+  page,
+}) => {
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-layout' });
+  // The Rankings open on their Guilds part, with nothing between it and the view's head.
+  const rankings = await openView(page, 'Rankings');
+  const first = rankings.locator('.view__head + .part');
+  await expect(first).toHaveCount(1);
+  const { rule, gap } = await first.evaluate((element) => {
+    const head = element.previousElementSibling?.getBoundingClientRect();
+    const heading = element.querySelector('h3')?.getBoundingClientRect();
+    return {
+      rule: getComputedStyle(element).borderTopWidth,
+      gap: heading === undefined || head === undefined ? Infinity : heading.top - head.bottom,
+    };
+  });
+  expect(rule).toBe('0px');
+  // The head's own space, not a part's margin, a rule and its padding on top of it.
+  expect(gap).toBeLessThanOrEqual(24);
+  // A part after other content keeps its rule: the Patrons, after the Guilds.
+  await expect(rankings.getByRole('region', { name: 'Patrons', exact: true })).toHaveCSS('border-top-width', '1px');
+});

@@ -1599,6 +1599,14 @@ input[type='radio'] {
   min-width: 0;
 }
 
+/* A part straight under its view's head (the Rankings' Guilds) has nothing above it to rule off, as
+   the game menu's first part has not (M9-S8, DL-108). */
+.view__head + .part {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
 .part > h3 {
   font-size: 1.375rem;
 }
