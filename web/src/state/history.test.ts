@@ -415,6 +415,30 @@ describe('anyone the History names, found by name (DL-74)', () => {
     });
   });
 
+  test("says a Rival's retired Guildmaster is retired, and their successor the Guildmaster of the Guild now (M9-S2, the M9 review)", () => {
+    const start = createWorld('history-succession', setup, deps).document;
+    const rival = Object.values(start.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
+    const retiring = start.world.guildmasters[rival.guildmasterId];
+    if (retiring === undefined) throw new Error('no Guildmaster');
+    // Of the age to retire from the start, so the first night's check meets it with Succession.
+    retiring.ageAtEntry = defaultConfig.guildmasterRetirementAge;
+    let document = start;
+    for (let turn = 0; turn < 3; turn += 1) document = advance(document, deps).document;
+    const successor = document.world.guildmasters[document.world.guilds[rival.id]?.guildmasterId ?? rival.guildmasterId];
+    if (successor === undefined || successor.id === retiring.id) throw new Error('no Succession');
+
+    expect(findInHistory(document, retiring.name).names).toContainEqual({
+      entityId: retiring.id,
+      name: retiring.name,
+      what: `Guildmaster of ${rival.name}, retired`,
+    });
+    expect(findInHistory(document, successor.name).names).toContainEqual({
+      entityId: successor.id,
+      name: successor.name,
+      what: `Guildmaster of ${rival.name}`,
+    });
+  });
+
   test('names no Quest or Party, shows at most a page of names in order, and nothing for a blank or unknown name', () => {
     const { document } = gone();
     const many = findInHistory(document, 'e');

@@ -524,7 +524,10 @@ function namedPrefixOf(entityId: string): NamedPrefix | null {
 export interface HistoryName {
   entityId: EntityId;
   name: string;
-  /** What they are, and for a Hero where: `Hero, dead`, `Hero of The Lantern`, `Guildmaster of The Lantern`. */
+  /**
+   * What they are, and for a Hero or Guildmaster where: `Hero, dead`, `Hero of The Lantern`,
+   * `Guildmaster of The Lantern`, `Guildmaster of The Kestrel Guild, retired`.
+   */
   what: string;
 }
 
@@ -546,9 +549,11 @@ function whatIs(document: WorldDocument, entityId: EntityId, prefix: NamedPrefix
       return guild?.foldedOnTurn === null || guild === undefined ? 'Guild' : 'Guild, folded';
     }
     case 'guildmaster': {
+      // A retired Guildmaster keeps their Guild's id, and a successor runs it now (Succession, M9-S2).
       const guildmaster = rowOf(world.guildmasters, entityId);
       const guild = guildmaster === undefined ? undefined : rowOf(world.guilds, guildmaster.guildId);
-      return guild === undefined ? 'Guildmaster' : `Guildmaster of ${guild.name}`;
+      const what = guild === undefined ? 'Guildmaster' : `Guildmaster of ${guild.name}`;
+      return guildmaster !== undefined && guildmaster.retiredOnTurn !== null ? `${what}, retired` : what;
     }
     case 'patron':
       return 'Patron';
