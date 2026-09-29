@@ -42,6 +42,13 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
   });
 
+  test('gives no Retirement to come once the game has ended by another ending (M9-F6, carried finding 5)', () => {
+    render_(changed(started(), (document) => void (document.world.ended = { turn: 0, reason: 'bankruptcy' })));
+
+    expect(within(section('Guildmaster')).queryByTestId('retirement')).toBeNull();
+    expect(within(section('Guildmaster')).queryByText(/Retires at/)).toBeNull();
+  });
+
   test('gives the Traits with what each does, the descriptive Attributes written and none left empty, and Regard as chips with the neutral folded', () => {
     const state = changed(started(), (document, player) => {
       const guildmaster = document.world.guildmasters[player.guildmasterId];

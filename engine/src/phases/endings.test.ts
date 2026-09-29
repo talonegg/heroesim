@@ -23,7 +23,7 @@ import { marketHolder, sellPrice } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
-import { nightOf, retirementTurn } from '../time.js';
+import { nightOf, retirementTurn, retiresOn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
 import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
 import { endings } from './endings.js';
@@ -360,6 +360,20 @@ describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
     const { events } = playTo(eve, retires, deps);
 
     expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId])).toEqual([[retires, guildmaster.id]]);
+  });
+
+  test('one past the night retirementTurn gave, as in a save that adopted younger rules, retires on the night retiresOn gives (M9-F6)', () => {
+    const { deps, eve, guildmaster, retires } = toTheEve('past-it', firstRival, 45);
+    // A year past their Retirement night, on a morning played: they are 62 and still in office.
+    const since = structuredClone(eve);
+    since.world.turn = retires + 1080 - 2;
+    expect(since.world.turn % 3).toBe(0);
+    const night = retiresOn(guildmaster, since.world.turn, deps.config);
+    expect(night).toBe(since.world.turn + 2);
+
+    const { events } = playTo(since, night, deps);
+
+    expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId, event.payload.age])).toEqual([[night, guildmaster.id, 62]]);
   });
 });
 

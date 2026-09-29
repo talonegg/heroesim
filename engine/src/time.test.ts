@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { defaultConfig } from './config.js';
 import * as engine from './index.js';
-import { ageOf, dayOf, durationDaysOf, nightOf, retirementTurn, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
+import { ageOf, dayOf, durationDaysOf, nightOf, retirementTurn, retiresOn, timeOfDay, timesOfDay, turnsPerDay, yearOf } from './time.js';
 
 describe('Days and times of day', () => {
   test('a Day is three Turns, morning, afternoon and night, counted from Turn 0', () => {
@@ -110,5 +110,27 @@ describe('retirementTurn', () => {
     expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, defaultConfig)).toBe(11_882);
     expect(retirementTurn({ ageAtEntry: 50, enteredTurn: 0 }, { turnsPerYear: 30, guildmasterRetirementAge: 65 })).toBe(15 * 30 + 2);
     expect(engine.retirementTurn).toBe(retirementTurn);
+  });
+});
+
+describe('retiresOn (M9-F6)', () => {
+  const rules = { turnsPerYear: 1080, guildmasterRetirementAge: 61 };
+
+  test("is retirementTurn while that night is still to be played", () => {
+    const founder = { ageAtEntry: 50, enteredTurn: 0 };
+    expect(retiresOn(founder, 0, rules)).toBe(11_882);
+    expect(retiresOn(founder, 11_881, rules)).toBe(11_882);
+  });
+
+  test('is the next night to be played once retirementTurn has passed unplayed, as in a save that adopted younger rules on a morning since', () => {
+    // Entered at 45 on Turn 0, now 62 on the morning of Day 6,000 (Turn 18,000): 61 a year ago, and
+    // the endings, which ask whether a night is at or past retirementTurn, retire them tonight.
+    const elder = { ageAtEntry: 45, enteredTurn: 0 };
+    expect(retirementTurn(elder, rules)).toBeLessThan(18_000);
+    expect(retiresOn(elder, 18_000 - 1, rules)).toBe(nightOf(6000));
+    // Once a morning has been played, that Day's night; once a night, the next Day's.
+    expect(retiresOn(elder, 18_000, rules)).toBe(nightOf(6000));
+    expect(retiresOn(elder, nightOf(6000), rules)).toBe(nightOf(6001));
+    expect(engine.retiresOn).toBe(retiresOn);
   });
 });

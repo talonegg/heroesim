@@ -27,6 +27,7 @@ import {
   regardBand,
   regardValue,
   retirementTurn,
+  retiresOn,
   transferFee,
   upkeep,
   yearOf,
@@ -229,11 +230,12 @@ export interface GuildmasterView {
   guildName: string;
   attributes: [label: string, value: string][];
   /**
-   * When they retire, from the engine's `retirementTurn` (M9-F3, DL-113 item 5): `Retires at 61 on the
-   * night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years; or,
-   * once that night has been played, `Retired at 61 on the night of Day 11160, Year 31.`
+   * When they retire, from the engine's `retiresOn` (M9-F3, DL-113 item 5; M9-F6): `Retires at 61 on
+   * the night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years; or,
+   * once that night has been played, `Retired at 61 on the night of Day 11160, Year 31.`; `null` when
+   * none is to come, the game over or the Guild folded first.
    */
-  retirement: string;
+  retirement: string | null;
   stats: { name: string; value: number; bearsOn: string }[];
   traits: { name: string; effect: string }[];
   patrons: RegardRow[];
@@ -268,7 +270,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
         guildmaster[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], guildmaster[attribute]]],
       ),
     ],
-    retirement: retirementWords(guildmaster, world.turn, config),
+    retirement: retirementWords(guildmaster, guild, world, config),
     stats: Object.values(content.stats)
       .filter((stat) => stat.owner === 'guildmaster')
       .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: bearsOn[stat.key] ?? '' })),
@@ -292,19 +294,27 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   };
 }
 
-/** A Guildmaster's Retirement in words, as of `turn`: when it comes, and in how many of the calendar's Years. */
+/**
+ * A Guildmaster's Retirement in words, as `world` stands: when it came, when it will come and in how
+ * many of the calendar's Years, or `null` when none is to come, the game over or the Guild folded
+ * first (M9-F6). The night it will come is the engine's (`retiresOn`), which is the next night to be
+ * played for one past the night `retirementTurn` gave, as a save adopting younger rules has.
+ */
 function retirementWords(
-  guildmaster: Parameters<typeof retirementTurn>[0],
-  turn: number,
+  guildmaster: Parameters<typeof retirementTurn>[0] & { retiredOnTurn: number | null },
+  guild: { foldedOnTurn: number | null; controller: { kind: string } },
+  world: Pick<WorldDocument['world'], 'turn' | 'ended'>,
   config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>,
-): string {
-  const retires = retirementTurn(guildmaster, config);
-  // The age they will be that night: the Retirement age, or more for one who entered past it (a save
-  // adopting younger rules, DL-113 item 3), who retires on their first night (code review).
-  const when = `at ${ageOf(guildmaster, retires, config)} on the night of Day ${dayOf(retires)}, Year ${yearOf(retires, config)}`;
-  if (turn >= retires) return `Retired ${when}.`;
-  const years = yearOf(retires, config) - yearOf(turn, config);
-  return `Retires ${when}: ${years === 0 ? 'later this Year' : `in ${years} ${years === 1 ? 'year' : 'years'}`}.`;
+): string | null {
+  const when = (night: number): string => `at ${ageOf(guildmaster, night, config)} on the night of Day ${dayOf(night)}, Year ${yearOf(night, config)}`;
+  // A Rival's retired Guildmaster keeps the night; the player's retires as their game ends.
+  if (guildmaster.retiredOnTurn !== null) return `Retired ${when(guildmaster.retiredOnTurn)}.`;
+  const { ended } = world;
+  if (ended !== null && ended.reason === 'retirement' && guild.controller.kind === 'player') return `Retired ${when(ended.turn)}.`;
+  if (ended !== null || guild.foldedOnTurn !== null) return null;
+  const night = retiresOn(guildmaster, world.turn, config);
+  const years = yearOf(night, config) - yearOf(world.turn, config);
+  return `Retires ${when(night)}: ${years === 0 ? 'later this Year' : `in ${years} ${years === 1 ? 'year' : 'years'}`}.`;
 }
 
 // ── The Patrons ──────────────────────────────────────────────────────────────────────────────
