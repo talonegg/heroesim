@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { dispatch, dispatchRefusal } from './actions/dispatch.js';
 import { advance } from './advance.js';
-import { staffableQuests } from './controllers/rival.js';
+import { availableHeroes, partyFor, staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
 import type { Guild, GuildId, Hero, HeroId, Party, Quest, World, WorldDocument } from './document.js';
 import type { EngineEvent } from './events.js';
@@ -374,5 +374,37 @@ describe('stopsOfTurn', () => {
       'below-floor',
       'quest-staffable',
     ]);
+  });
+
+  test('gives decision-needed and quest-staffable as each detector alone gives them, over played Turns with a Party out and home (M9 review)', () => {
+    const staffing = ['decision-needed', 'quest-staffable'] as const;
+    /** What the two detectors give for `turn`, each asked alone, in `stopConditions`' order. */
+    const alone = ({ before, after }: { before: World; after: World }, guildId: GuildId) =>
+      [decisionNeededStop(before, after, guildId, deps), questStaffableStop(before, after, guildId, deps)].filter((stop) => stop !== null);
+
+    let document = created('stops-both');
+    const guildId = player(document.world).id;
+    const seen = new Set<string>();
+    for (let turn = 0; turn < 120; turn += 1) {
+      // Every third Turn, send the smallest Party the staffing rule finds, when the Roster is idle.
+      const guild = player(document.world);
+      const idle = guild.rosterIds.every((heroId) => document.world.heroes[heroId]?.partyId === null);
+      const [quest] = idle && turn % 3 === 0 ? staffableQuests(document.world, guild, deps) : [];
+      const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(document.world, guild), deps.content);
+      if (quest !== undefined && heroIds !== null) {
+        const sent = dispatch(document, { guildId, questId: quest.id, heroIds }, deps);
+        if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
+        document = sent.document;
+      }
+      const played = advance(document, deps);
+      const step = { before: document.world, after: played.document.world, events: played.events };
+      const both = stopsOfTurn(step, guildId, deps, staffing);
+      expect(both).toEqual(alone(step, guildId));
+      for (const stop of both) seen.add(stop.kind);
+      expect(stopsOfTurn(step, 'guild-999999' as GuildId, deps, staffing)).toEqual([]);
+      document = played.document;
+    }
+    // Both stops were met, so the reading they share was read both ways.
+    expect([...seen].sort()).toEqual([...staffing]);
   });
 });

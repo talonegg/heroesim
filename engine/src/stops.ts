@@ -124,32 +124,51 @@ export function belowFloorStop(events: readonly TurnEvent[], guildId: GuildId): 
 }
 
 /**
- * The Quests on the Board `guildId` could staff from its free Heroes (`staffableQuests`: a Party
- * `dispatch` would send), `whileIdle` only while no Hero of its Roster is away in a Party, whose
- * return is then the next thing to wait for; none for a Guild not in `world`.
+ * What a Turn's two staffable stops read of one world, for the Guild watched: whether its Roster is
+ * idle, no Hero on it away in a Party, and the Quests on the Board it could staff from its free
+ * Heroes (`staffableQuests`: a Party `dispatch` would send), none for a Guild not in the world. The
+ * Quests are worked out once, when first asked, however many stops ask (the M9 review): each
+ * search runs `partyFor` and `dispatchRefusal` over the Board.
  */
-function staffable(world: World, guildId: GuildId, deps: EngineDeps, whileIdle: boolean): Quest[] {
+interface Staffing {
+  idle: boolean;
+  quests: () => readonly Quest[];
+}
+
+function staffingOf(world: World, guildId: GuildId, deps: EngineDeps): Staffing {
   const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
-  if (guild === undefined) return [];
-  const away =
-    whileIdle &&
-    guild.rosterIds.some((heroId) => {
-      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-      return hero !== undefined && hero.partyId !== null;
-    });
-  return away ? [] : staffableQuests(world, guild, deps);
+  if (guild === undefined) return { idle: true, quests: () => [] };
+  const idle = !guild.rosterIds.some((heroId) => {
+    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+    return hero !== undefined && hero.partyId !== null;
+  });
+  let quests: readonly Quest[] | undefined;
+  return { idle, quests: () => (quests ??= staffableQuests(world, guild, deps)) };
 }
 
 /**
- * The ids of the Quests `staffable` gives after the Turn and did not give before it, in the Board's
- * order: new on the Board, or newly within reach. A Quest the Guild could already staff before the
+ * The ids of the Quests the Guild could staff after the Turn and could not before it, in the Board's
+ * order: new on the Board, or newly within reach. `whileIdle` counts only a Roster with no Hero away
+ * in a Party, whose return is otherwise the next thing to wait for: after the Turn, nothing unless it
+ * is idle; before it, nothing then unless it was. A Quest the Guild could already staff before the
  * Turn is not among them: the caller has seen it and gone on.
  */
-function newlyStaffable(before: World, after: World, guildId: GuildId, deps: EngineDeps, whileIdle: boolean): QuestId[] {
-  const now = staffable(after, guildId, deps, whileIdle);
+function newlyStaffable(before: Staffing, after: Staffing, whileIdle: boolean): QuestId[] {
+  if (whileIdle && !after.idle) return [];
+  const now = after.quests();
   if (now.length === 0) return [];
-  const then = new Set(staffable(before, guildId, deps, whileIdle).map((quest) => quest.id));
+  const then = new Set(whileIdle && !before.idle ? [] : before.quests().map((quest) => quest.id));
   return now.filter((quest) => !then.has(quest.id)).map((quest) => quest.id);
+}
+
+function decisionNeeded(before: Staffing, after: Staffing, guildId: GuildId): StopReason | null {
+  const questIds = newlyStaffable(before, after, true);
+  return questIds.length === 0 ? null : { kind: 'decision-needed', guildId, questIds };
+}
+
+function questStaffable(before: Staffing, after: Staffing, guildId: GuildId): StopReason | null {
+  const questIds = newlyStaffable(before, after, false);
+  return questIds.length === 0 ? null : { kind: 'quest-staffable', guildId, questIds };
 }
 
 /**
@@ -157,8 +176,7 @@ function newlyStaffable(before: World, after: World, guildId: GuildId, deps: Eng
  * could staff that it could not before (`newlyStaffable` while idle), in the Board's order.
  */
 export function decisionNeededStop(before: World, after: World, guildId: GuildId, deps: EngineDeps): StopReason | null {
-  const questIds = newlyStaffable(before, after, guildId, deps, true);
-  return questIds.length === 0 ? null : { kind: 'decision-needed', guildId, questIds };
+  return decisionNeeded(staffingOf(before, guildId, deps), staffingOf(after, guildId, deps), guildId);
 }
 
 /**
@@ -167,8 +185,7 @@ export function decisionNeededStop(before: World, after: World, guildId: GuildId
  * the Guild is out (M9-S1, DL-85 item 8). On an idle Roster it names what `decision-needed` names.
  */
 export function questStaffableStop(before: World, after: World, guildId: GuildId, deps: EngineDeps): StopReason | null {
-  const questIds = newlyStaffable(before, after, guildId, deps, false);
-  return questIds.length === 0 ? null : { kind: 'quest-staffable', guildId, questIds };
+  return questStaffable(staffingOf(before, guildId, deps), staffingOf(after, guildId, deps), guildId);
 }
 
 /**
@@ -227,12 +244,15 @@ export function stopsOfTurn(
   conditions: Iterable<StopCondition> = stopConditions,
 ): StopReason[] {
   const { before, after, events } = turn;
+  // Both staffable stops read the same two searches of the Board, made once for the Turn.
+  let staffing: { before: Staffing; after: Staffing } | undefined;
+  const staffed = () => (staffing ??= { before: staffingOf(before, guildId, deps), after: staffingOf(after, guildId, deps) });
   const detect: Record<StopCondition, () => StopReason | null> = {
     ended: () => endedStop(after),
     'below-floor': () => belowFloorStop(events, guildId),
     'party-returned': () => partyReturnedStop(events, guildId),
-    'decision-needed': () => decisionNeededStop(before, after, guildId, deps),
-    'quest-staffable': () => questStaffableStop(before, after, guildId, deps),
+    'decision-needed': () => decisionNeeded(staffed().before, staffed().after, guildId),
+    'quest-staffable': () => questStaffable(staffed().before, staffed().after, guildId),
     'transfer-offer': () => transferOfferStop(events, guildId),
     module: () => moduleStop(turn.stoppedBecause),
     'pool-refreshed': () => poolRefreshedStop(before, after),
