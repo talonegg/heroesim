@@ -211,6 +211,11 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true }).click();
   await expect(history.getByRole('heading', { level: 3 })).toHaveText('The World History');
   await expectNoHorizontalOverflow(page, 'the World History');
+  // A choice that is on stays legible under the pointer: its words and its face at 4.5:1 or more
+  // (M9-F6, from the close's screenshots, where the hover's face took the pressed one's place).
+  const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true });
+  await world.hover();
+  expect(await world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
   await debugHistory(page);
   await history.getByRole('button', { name: 'Oldest' }).click();
   await expectNoHorizontalOverflow(page, 'the oldest page of the whole History');
@@ -317,9 +322,17 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     const stores = await guildPart(page, 'Stores');
     await expect(stores.getByRole('table')).toBeVisible();
     await check("the Guild's Stores");
+    // Its five columns fit a tablet's width and more, where the Market's wider table scrolls (M9-F6,
+    // from the close's screenshots, where "Sells for" was cut at 820px).
+    if (width >= 820) expect(await stores.locator('.table-wrap').evaluate((box) => box.scrollWidth - box.clientWidth)).toBeLessThanOrEqual(0);
     const treasury = await guildPart(page, 'Treasury');
     await expect(treasury.getByRole('table', { name: /^The ledger of / })).toBeVisible();
     await check("the Guild's Treasury");
+    // A name in the ledger's sentence reads as a name in the History's lines do: a link's look, in the
+    // sentence, not a bordered button (M9-F6, from the close's screenshots).
+    const named = treasury.getByRole('table', { name: /^The ledger of / }).locator('button.name').first();
+    await expect(named).toHaveCSS('border-top-style', 'none');
+    await expect(named).toHaveCSS('text-decoration-line', 'underline');
 
     // The Rankings' table, ordered by Upkeep; a Rival's page, its Hall and Guildmaster unfolded.
     await openView(page, 'Rankings');
@@ -391,3 +404,21 @@ test("a view's first part, straight under its head, draws no rule above it, as t
   // A part after other content keeps its rule: the Patrons, after the Guilds.
   await expect(rankings.getByRole('region', { name: 'Patrons', exact: true })).toHaveCSS('border-top-width', '1px');
 });
+
+/**
+ * The contrast of a button's words on its own face, as the browser draws it (M9-F6): WCAG 2.2's ratio
+ * of the computed `color` and `background-color`, each opaque. Runs in the page.
+ */
+function pressedContrast(element: Element): number {
+  const style = getComputedStyle(element);
+  const channels = (colour: string): number[] => (colour.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
+  const luminance = (colour: string): number => {
+    const [r = 0, g = 0, b = 0] = channels(colour).map((value) => {
+      const channel = value / 255;
+      return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const [high, low] = [luminance(style.color), luminance(style.backgroundColor)].sort((x, y) => y - x) as [number, number];
+  return (high + 0.05) / (low + 0.05);
+}

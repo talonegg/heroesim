@@ -35,7 +35,8 @@ export async function expectNoHorizontalOverflow(page: Page, when: string): Prom
  * holds it. What the page hides, and the file input behind its button, are not counted. A name in
  * a line of the History is a target in a sentence, whose size the sentence's line sets (WCAG 2.5.5
  * and 2.5.8 except such a target): it is held to 24px high, WCAG 2.5.8's least, and not to 44px
- * (M9-S5, DL-105); so is a name in a Quest report's lines, which are the History's words (M9-F5).
+ * (M9-S5, DL-105); so is a name in a Quest report's lines, which are the History's words (M9-F5), and
+ * one in the Treasury's ledger or the Stores' "Carried by", which are sentences too (M9-F6).
  */
 export async function expectTargets(page: Page, when: string): Promise<void> {
   const small = await page.evaluate(() => {
@@ -49,7 +50,7 @@ export async function expectTargets(page: Page, when: string): Promise<void> {
       // A box or a radio button is pressed by the label that holds it (the Guildmaster's Traits, M9-S7).
       const target = element.matches('input[type="checkbox"], input[type="radio"]') ? (element.closest('label') ?? element) : element;
       const { width, height } = target.getBoundingClientRect();
-      if (element.matches('.entry button.name, .report button.name')) {
+      if (element.matches('.entry button.name, .report button.name, .ledger-table button.name, .stores button.name')) {
         if (height < 23.5) found.push(`a name in a line, "${named(target)}": ${Math.round(width)}×${Math.round(height)}`);
         continue;
       }

@@ -337,6 +337,14 @@ button[aria-pressed='true'] {
   border-color: var(--accent);
 }
 
+/* Under the pointer it stays on, a shade deeper, as a primary button does: the hover's soft face with
+   the pressed one's light words could not be read (M9-F6). */
+button[aria-pressed='true']:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+
 button:focus-visible,
 input:focus-visible,
 select:focus-visible,
@@ -2652,6 +2660,11 @@ ul.chips {
   min-width: 38rem;
 }
 
+/* The Stores has no Effect column: it fits a tablet's width, and scrolls on a phone (M9-F6). */
+.stores .trade-table {
+  min-width: 32rem;
+}
+
 .sort {
   min-width: var(--tap);
   padding: 0;
@@ -3247,8 +3260,11 @@ tr.mine td {
   list-style: disc;
 }
 
-/* A name in the report opens whom it names, as in the History. */
-.report button.name {
+/* A name in the report opens whom it names, as in the History; so does one in the Treasury's ledger
+   and the Stores' "Carried by", which are sentences too (M9-F6). */
+.report button.name,
+.ledger-table button.name,
+.stores button.name {
   display: inline;
   min-height: 0;
   min-width: 0;
