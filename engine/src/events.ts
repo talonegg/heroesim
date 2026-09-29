@@ -83,6 +83,26 @@ export type WorldRulesAdopted = Entry<
  * and Wealth after paying it, which may be negative.
  */
 export type GuildUpkeepPaid = Entry<'guild.upkeep-paid', { guildId: GuildId; amount: number; wealthAfter: number }>;
+
+/**
+ * A Guild's Wealth was below the Bankruptcy floor at the night's check, and was not the night before:
+ * `belowFloorSince` was set tonight (M9-S1, DL-85 item 6, superseding DL-26 item 3's silence). It
+ * carries the Wealth, the floor it is below (`bankruptcyFloor`) and the Day on whose night the Guild
+ * reaches Bankruptcy unless Wealth is back to the floor or more on a night before it: tonight's Day
+ * plus `bankruptcyGraceDays`, as `bankruptcyCountdown` reckons it and `endings.ts` rules. Names the
+ * Guild. Not a Milestone: the ending is, if it comes.
+ */
+export type GuildBelowFloor = Entry<'guild.below-floor', { guildId: GuildId; wealth: number; floor: number; dueDay: number }>;
+
+/**
+ * A Guild's Wealth was back to the Bankruptcy floor or more at the night's check, having been below
+ * it: `belowFloorSince` was cleared tonight (M9-S1, DL-85 item 6). It carries the Wealth, the floor
+ * and the Turn it had fallen below. Names the Guild. Not a Milestone.
+ */
+export type GuildFloorRecovered = Entry<
+  'guild.floor-recovered',
+  { guildId: GuildId; wealth: number; floor: number; belowFloorSince: Turn }
+>;
 // ── Recruitment and the Unattached pool (M2-S8, DL-27) ───────────────────────────────────────
 
 /**
@@ -571,6 +591,8 @@ export type EngineEvent =
   | PatronGenerated
   | WorldRulesAdopted
   | GuildUpkeepPaid
+  | GuildBelowFloor
+  | GuildFloorRecovered
   | HeroRecruited
   | HeroLeftPool
   | QuestOffered
@@ -627,6 +649,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'patron.generated': false,
   'world.rules-adopted': true,
   'guild.upkeep-paid': false,
+  'guild.below-floor': false,
+  'guild.floor-recovered': false,
   'hero.recruited': true,
   'hero.left-pool': false,
   'quest.offered': false,

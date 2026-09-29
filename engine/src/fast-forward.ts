@@ -24,9 +24,9 @@ export interface FastForwardOptions {
    */
   guildId: GuildId;
   /**
-   * The opt-in conditions to stop on as well (`pool-refreshed`). The always-on ones (`ended`,
-   * `party-returned`, `decision-needed`, `transfer-offer`, and a module's stop, `module`) stop it
-   * whether listed or not (`alwaysStops`).
+   * The opt-in conditions to stop on as well (`quest-staffable`, `pool-refreshed`). The always-on
+   * ones (`ended`, `below-floor`, `party-returned`, `decision-needed`, `transfer-offer`, and a
+   * module's stop, `module`) stop it whether listed or not (`alwaysStops`).
    */
   until: readonly StopCondition[];
   /** The most Turns to play: a whole number from 0. At 0 nothing is played. */

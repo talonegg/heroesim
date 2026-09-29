@@ -324,11 +324,11 @@ Turns has passed; it lands exactly where as many single Turns would (DL-33).
 _Avoid_: Skip, Auto-play, Simulate
 
 **Fast-forward stop**:
-A typed reason fast forward halts. Some always stop it: an ending, the watched Guild's Party
-coming home, a decision it needs to make, a Transfer Offer for it, and a module asking; others
-only when the caller names them, such as the Unattached pool refreshing (approach §2, DL-33).
-To be built: an always-on stop when the watched Guild falls below the Bankruptcy floor, and
-opt-in stops for a Quest it can staff appearing (DL-85) and for a Random Event (DL-82).
+A typed reason fast forward halts. Some always stop it: an ending, the watched Guild falling below
+the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
+and a module asking; others only when the caller names them: a Quest its free Heroes can staff
+appearing, even with a Party out, and the Unattached pool refreshing (approach §2, DL-33, DL-85,
+DL-101). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:

@@ -181,8 +181,9 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
 
   test('between steps it shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
     // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
-    // the floor, so the night's check starts the countdown on Day 0.
-    render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100)} />);
+    // the floor since Day 0, before the fast forward, so its countdown stands and no new crossing
+    // stops it (M9-S1, DL-101).
+    render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100, 0)} />);
     const time = section('Time');
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));

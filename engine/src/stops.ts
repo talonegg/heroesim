@@ -16,12 +16,18 @@ import { unattachedHeroes } from './selectors.js';
 /**
  * Why time stopped (DL-33):
  * - `ended`: the game is over (`world.ended`, M2-S10).
+ * - `below-floor`: the watched Guild's Wealth fell below the Bankruptcy floor at tonight's check, a
+ *   `guild.below-floor` naming it this Turn; `dueDay` is the Day on whose night it reaches
+ *   Bankruptcy unless its Wealth recovers (M9-S1, DL-85 item 6). A Rival's crossing is its own.
  * - `party-returned`: Parties of the watched Guild came home this Turn and were resolved, each
  *   with a `quest.resolved` naming that Guild, in the order they resolved.
  * - `decision-needed`: the watched Guild's Roster is idle, no Hero on it away in a Party, and the
  *   Board holds Quests it could staff from its available Heroes that it could not before the Turn:
  *   new on the Board, or newly within reach because its last Party came home or a Hero healed. The
- *   M2 reading of "a decision is needed" (M2-S11); later milestones widen it.
+ *   M2 reading of "a decision is needed" (M2-S11), which DL-85 item 8 keeps.
+ * - `quest-staffable`: the same, whether or not a Party of the watched Guild is out: the Board holds
+ *   Quests its free Heroes could staff that they could not before the Turn (M9-S1, DL-85 item 8's
+ *   "a Quest I can staff appears"). Opt-in.
  * - `transfer-offer`: Transfer Offers for Heroes of the watched Guild arrived this Turn, in the
  *   order they were made (M6-S2, approach §2: "a Transfer offer arrives", DL-57).
  * - `module`: an installed module asked for time to stop at one of its hooks this Turn, naming
@@ -32,8 +38,10 @@ import { unattachedHeroes } from './selectors.js';
  */
 export type StopReason =
   | { kind: 'ended' }
+  | { kind: 'below-floor'; guildId: GuildId; dueDay: number }
   | { kind: 'party-returned'; guildId: GuildId; partyIds: PartyId[] }
   | { kind: 'decision-needed'; guildId: GuildId; questIds: QuestId[] }
+  | { kind: 'quest-staffable'; guildId: GuildId; questIds: QuestId[] }
   | { kind: 'transfer-offer'; guildId: GuildId; offerIds: OfferId[] }
   | { kind: 'module'; moduleId: ModuleId }
   | { kind: 'max-turns' }
@@ -54,8 +62,10 @@ export type StopCondition = Exclude<StopReasonKind, 'max-turns'>;
  */
 export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.freeze({
   ended: true,
+  'below-floor': true,
   'party-returned': true,
   'decision-needed': true,
+  'quest-staffable': false,
   'transfer-offer': true,
   module: true,
   'pool-refreshed': false,
@@ -63,13 +73,16 @@ export const alwaysStops: Readonly<Record<StopCondition, boolean>> = Object.free
 
 /**
  * Every condition, in the order a Turn that gives several reports them: an ending first, then the
- * watched Guild's Parties home, then a decision, then a Transfer Offer, then a module's stop, then
- * the pool.
+ * watched Guild below the floor, the step before an ending (M9-S1), then its Parties home, then a
+ * decision, then a Quest its free Heroes could staff, which on an idle Roster names what the
+ * decision names, then a Transfer Offer, then a module's stop, then the pool.
  */
 export const stopConditions: readonly StopCondition[] = Object.freeze([
   'ended',
+  'below-floor',
   'party-returned',
   'decision-needed',
+  'quest-staffable',
   'transfer-offer',
   'module',
   'pool-refreshed',
@@ -97,31 +110,65 @@ export function partyReturnedStop(events: readonly TurnEvent[], guildId: GuildId
 }
 
 /**
- * The Quests on the Board `guildId` could staff (`staffableQuests`, the Rivals' and `dispatch`'s
- * test) while its Roster is idle, no Hero on it away in a Party; none while a Party is out, whose
- * return is the next thing to wait for, and none for a Guild not in `world`.
+ * `below-floor` when this Turn's events have the Guild State Engine find `guildId`'s Wealth below the
+ * Bankruptcy floor, as it was not the night before (`guild.below-floor` naming it), with the Day its
+ * Bankruptcy falls on. Another Guild's crossing stops nothing: a Rival's is its own affair.
  */
-function idleStaffable(world: World, guildId: GuildId, deps: EngineDeps): Quest[] {
+export function belowFloorStop(events: readonly TurnEvent[], guildId: GuildId): StopReason | null {
+  for (const event of events) {
+    if (event.type === 'guild.below-floor' && event.payload.guildId === guildId) {
+      return { kind: 'below-floor', guildId, dueDay: event.payload.dueDay };
+    }
+  }
+  return null;
+}
+
+/**
+ * The Quests on the Board `guildId` could staff from its free Heroes (`staffableQuests`: a Party
+ * `dispatch` would send), `whileIdle` only while no Hero of its Roster is away in a Party, whose
+ * return is then the next thing to wait for; none for a Guild not in `world`.
+ */
+function staffable(world: World, guildId: GuildId, deps: EngineDeps, whileIdle: boolean): Quest[] {
   const guild = Object.hasOwn(world.guilds, guildId) ? world.guilds[guildId] : undefined;
   if (guild === undefined) return [];
-  const away = guild.rosterIds.some((heroId) => {
-    const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
-    return hero !== undefined && hero.partyId !== null;
-  });
-  return away ? [] : staffableQuests(world, guild, deps.content);
+  const away =
+    whileIdle &&
+    guild.rosterIds.some((heroId) => {
+      const hero = Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined;
+      return hero !== undefined && hero.partyId !== null;
+    });
+  return away ? [] : staffableQuests(world, guild, deps);
+}
+
+/**
+ * The ids of the Quests `staffable` gives after the Turn and did not give before it, in the Board's
+ * order: new on the Board, or newly within reach. A Quest the Guild could already staff before the
+ * Turn is not among them: the caller has seen it and gone on.
+ */
+function newlyStaffable(before: World, after: World, guildId: GuildId, deps: EngineDeps, whileIdle: boolean): QuestId[] {
+  const now = staffable(after, guildId, deps, whileIdle);
+  if (now.length === 0) return [];
+  const then = new Set(staffable(before, guildId, deps, whileIdle).map((quest) => quest.id));
+  return now.filter((quest) => !then.has(quest.id)).map((quest) => quest.id);
 }
 
 /**
  * `decision-needed` when, after the Turn, the Guild's Roster is idle and the Board holds Quests it
- * could staff that it could not before (`idleStaffable`), in the Board's order. A Quest the Guild
- * could already staff before the Turn stops nothing: the caller has seen it and gone on.
+ * could staff that it could not before (`newlyStaffable` while idle), in the Board's order.
  */
 export function decisionNeededStop(before: World, after: World, guildId: GuildId, deps: EngineDeps): StopReason | null {
-  const now = idleStaffable(after, guildId, deps);
-  if (now.length === 0) return null;
-  const then = new Set(idleStaffable(before, guildId, deps).map((quest) => quest.id));
-  const questIds = now.filter((quest) => !then.has(quest.id)).map((quest) => quest.id);
+  const questIds = newlyStaffable(before, after, guildId, deps, true);
   return questIds.length === 0 ? null : { kind: 'decision-needed', guildId, questIds };
+}
+
+/**
+ * `quest-staffable` when, after the Turn, the Board holds Quests the Guild's free Heroes could staff
+ * that they could not before (`newlyStaffable`), in the Board's order, whether or not a Party of
+ * the Guild is out (M9-S1, DL-85 item 8). On an idle Roster it names what `decision-needed` names.
+ */
+export function questStaffableStop(before: World, after: World, guildId: GuildId, deps: EngineDeps): StopReason | null {
+  const questIds = newlyStaffable(before, after, guildId, deps, false);
+  return questIds.length === 0 ? null : { kind: 'quest-staffable', guildId, questIds };
 }
 
 /**
@@ -182,8 +229,10 @@ export function stopsOfTurn(
   const { before, after, events } = turn;
   const detect: Record<StopCondition, () => StopReason | null> = {
     ended: () => endedStop(after),
+    'below-floor': () => belowFloorStop(events, guildId),
     'party-returned': () => partyReturnedStop(events, guildId),
     'decision-needed': () => decisionNeededStop(before, after, guildId, deps),
+    'quest-staffable': () => questStaffableStop(before, after, guildId, deps),
     'transfer-offer': () => transferOfferStop(events, guildId),
     module: () => moduleStop(turn.stoppedBecause),
     'pool-refreshed': () => poolRefreshedStop(before, after),

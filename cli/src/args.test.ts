@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseArgs } from './args.js';
+import { parseArgs, usage } from './args.js';
 
 function command(...argv: string[]) {
   const parsed = parseArgs(argv);
@@ -72,6 +72,25 @@ describe('parseArgs', () => {
       max: 40,
     });
     expect(command('advance', '--max=7')).toEqual({ name: 'advance', save: 'current', until: [], max: 7 });
+  });
+
+  test('reads --until staffable, the opt-in stop for a Quest the Heroes at home can staff, and below-floor (M9-S1)', () => {
+    expect(command('advance', '--until', 'staffable')).toEqual({ name: 'advance', save: 'current', until: ['quest-staffable'] });
+    expect(command('advance', '--until', 'staffable,below-floor', '--max', '90')).toEqual({
+      name: 'advance',
+      save: 'current',
+      until: ['quest-staffable', 'below-floor'],
+      max: 90,
+    });
+  });
+
+  test("the usage names every --until word, and says which stop without being named (M9-S1)", () => {
+    const fastForward = usage.slice(usage.indexOf('  advance --until'), usage.indexOf('  recruit '));
+    for (const word of ['party-returns', 'decision', 'staffable', 'transfer-offer', 'below-floor', 'ended', 'pool-refreshed']) {
+      expect(fastForward).toContain(word);
+    }
+    expect(fastForward).toMatch(/falls below the\s+Bankruptcy floor/);
+    expect(fastForward).toMatch(/staffable \(a Quest the Heroes at home could take reaches the Board, even with a\s+Party out\)/);
   });
 
   test('reads dispatch: a Quest id and Hero ids joined by commas (M2-S4)', () => {
@@ -217,7 +236,7 @@ describe('parseArgs', () => {
     [['advance', 'three'], 'does not take "three"'],
     [['advance', '--turns', '2', '--until', 'ended'], 'advance takes --turns, or --until and --max, not both'],
     [['advance', '--turns', '2', '--max', '5'], 'not both'],
-    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, transfer-offer, ended, pool-refreshed, joined by commas; got "party-returned"'],
+    [['advance', '--until', 'party-returned'], '--until takes party-returns, decision, staffable, transfer-offer, below-floor, ended, pool-refreshed, joined by commas; got "party-returned"'],
     [['advance', '--until', 'ended,,decision'], 'got ""'],
     [['advance', '--until', 'ended,ended'], '--until names ended twice'],
     [['advance', '--until', 'ended', '--max', '0'], '--max needs a whole number from 1; got "0"'],

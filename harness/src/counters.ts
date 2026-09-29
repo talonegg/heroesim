@@ -32,6 +32,9 @@
 // M8's counters (DL-78), for a run with modules installed (`HEROESIM_MODULES`), from the History: each
 // module event type, `probe.fired` among them, and the core's events each module's effects made,
 // which name it as `moduleId`. With no module installed both are empty.
+//
+// M9-S1's (DL-101), from the History: the nights each kind of Guild fell below the Bankruptcy floor
+// (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
 
 import {
   baseStat,
@@ -264,6 +267,11 @@ export interface GameCounters {
    * (`effectEventTypes`). Empty with no module.
    */
   moduleEffects: Record<string, Record<string, number>>;
+  // M9-S1's (DL-101).
+  /** `guild.below-floor`: the nights a Guild's Wealth fell below the Bankruptcy floor, by the Guild's controller. */
+  belowFloor: ByController;
+  /** `guild.floor-recovered`: the nights it was back to the floor or more, likewise. */
+  floorRecovered: ByController;
 }
 
 /**
@@ -1262,6 +1270,8 @@ export function countGame(
     marketPurchases: marketPurchaseCounters(document),
     improvementGradesByDisposition: grades?.byDisposition ?? null,
     ...moduleCounters(document),
+    belowFloor: countByController(document, 'guild.below-floor'),
+    floorRecovered: countByController(document, 'guild.floor-recovered'),
   };
 }
 

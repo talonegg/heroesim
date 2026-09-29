@@ -175,6 +175,21 @@ const sentences: Sentences = {
     `The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`,
   'guild.upkeep-paid': (event) =>
     `${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`,
+  // M9-S1: the night Bankruptcy falls on, as the countdown gives it (DL-95), from the event alone.
+  'guild.below-floor': (event) => {
+    const { guildId, wealth, floor, dueDay } = event.payload;
+    return (
+      `${called(event, guildId)}'s Wealth, ${wealth}, fell below the Bankruptcy floor of ${floor}: Bankruptcy on the night of ` +
+      `Day ${dueDay} unless it is back to ${floor} or more on a night by then.`
+    );
+  },
+  'guild.floor-recovered': (event) => {
+    const { guildId, wealth, floor, belowFloorSince } = event.payload;
+    return (
+      `${called(event, guildId)}'s Wealth, ${wealth}, is back to the Bankruptcy floor of ${floor} or more, after falling below it ` +
+      `on Day ${dayOf(belowFloorSince)}: no Bankruptcy is due.`
+    );
+  },
   'hero.recruited': (event) =>
     `${called(event, event.payload.guildId)} signed ${called(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`,
   'hero.left-pool': (event) => `${called(event, event.payload.heroId)} left the Unattached pool.`,
@@ -399,9 +414,21 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       const parties = stop.partyIds.length === 1 ? 'Party' : `${stop.partyIds.length} Parties`;
       return `Stopped: ${guildName(stop.guildId)}'s ${parties} came home.`;
     }
+    case 'below-floor':
+      // M9-S1: the countdown stands in the header with the floor and the rest (`countdownView`).
+      return (
+        `Stopped: ${guildName(stop.guildId)} fell below the Bankruptcy floor: Bankruptcy on the night of Day ${stop.dueDay} ` +
+        'unless its Wealth recovers by then.'
+      );
     case 'decision-needed':
       return (
         `Stopped: a decision is needed: ${guildName(stop.guildId)} has no Party out, and could send one on ` +
+        `${listed(stop.questIds.map((questId) => narration.questName(questId)))}.`
+      );
+    case 'quest-staffable':
+      // M9-S1: the opt-in stop, whether or not a Party is out.
+      return (
+        `Stopped: a Quest to staff: ${guildName(stop.guildId)}'s Heroes at home could go on ` +
         `${listed(stop.questIds.map((questId) => narration.questName(questId)))}.`
       );
     case 'transfer-offer': {
