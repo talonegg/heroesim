@@ -323,6 +323,20 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     expect(boardView(alike)[0]?.hardness).toBe('joint hardest of the 6 Quests on the Board');
   });
 
+  test('Quests that share the lowest difficulty are the joint easiest, not a joint place from the top (M9-F6, carried finding 6)', () => {
+    const document = board((quests) => {
+      [70, 40, 40, 55, 40, 90].forEach((difficulty, index) => ((quests[index] as Quest).difficulty = difficulty));
+    });
+    expect(boardView(document).map((card) => card.hardness)).toEqual([
+      '2nd hardest of the 6 Quests on the Board',
+      'joint easiest of the 6 Quests on the Board',
+      'joint easiest of the 6 Quests on the Board',
+      '3rd hardest of the 6 Quests on the Board',
+      'joint easiest of the 6 Quests on the Board',
+      'the hardest of the 6 Quests on the Board',
+    ]);
+  });
+
   test('names each requirement beyond the Party size, and marks a Quest whose last Day on the Board is today', () => {
     const document = board(([first, second]) => {
       if (first === undefined || second === undefined) throw new Error('expected two Quests');

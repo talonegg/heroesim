@@ -120,6 +120,16 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
+  test('Home does not say nothing is waiting beside the Bankruptcy countdown (M9-F6, carried finding 2)', () => {
+    render(<App initial={withWealth(started(), -100, 0)} />);
+    const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
+
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(within(home).queryByText(/^Nothing is waiting on you\./)).toBeNull();
+    // The way to the Board stays: a Quest's reward is a way back above the floor.
+    expect(within(home).getByRole('button', { name: 'Open the Board' })).toBeDefined();
+  });
+
   test('the end of a fast forward, and a way to the home view, open the Guild at its Home: at the report of a Party home (M9-F5)', async () => {
     render(<App initial={withPartyOut(started('reducer-test'))} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));

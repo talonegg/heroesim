@@ -204,8 +204,10 @@ function Home(props: HomeProps) {
 
       {quiet && !ended ? (
         <div className="digest digest--quiet">
+          {/* Below the floor, the countdown is waiting on the player: Home says nothing else is (M9-F6). */}
           <p>
-            Nothing is waiting on you. Choose a Party on the Board, then play the Turns with Advance a Turn or Fast forward.
+            {header.countdown === null ? 'Nothing is waiting on you. ' : ''}Choose a Party on the Board, then play the Turns with
+            Advance a Turn or Fast forward.
           </p>
           <div className="actions">
             <button type="button" onClick={() => onGo('board')}>

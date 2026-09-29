@@ -344,7 +344,8 @@ function hardnessWords(difficulty: number, difficulties: readonly number[]): str
   const joint = difficulties.filter((each) => each === difficulty).length > 1;
   const of = `of the ${length} Quests on the Board`;
   if (place === 1) return `${joint ? 'joint' : 'the'} hardest ${of}`;
-  if (place === length) return `the easiest ${of}`;
+  // No Quest easier: the easiest, alone or joint, where Quests share the lowest difficulty (M9-F6).
+  if (difficulties.every((each) => each >= difficulty)) return `${joint ? 'joint' : 'the'} easiest ${of}`;
   return `${placeWords({ place, joint })} hardest ${of}`;
 }
 

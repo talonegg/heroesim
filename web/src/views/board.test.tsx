@@ -454,6 +454,22 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     expect(draughts(again)).toBe('2');
   });
 
+  test('offers no more of a consumable than the Guild holds now, once some are sold (M9-F6, carried finding 1)', async () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    chooseSome();
+
+    openView('Market');
+    const sale = within(section('Sell')).getByRole('rowheader', { name: 'Healing draught' }).closest('tr') as HTMLElement;
+    fireEvent.change(within(sale).getByLabelText('How many Healing draught'), { target: { value: '2' } });
+    fireEvent.click(within(sale).getByRole('button', { name: 'Sell Healing draught' }));
+    await idle();
+    openView('Board');
+
+    // Two were chosen and one is left: the stepper says one, what the Party would carry.
+    const stepper = within(within(firstCard()).getByRole('form')).getByRole('spinbutton', { name: /^Healing draught, 1 held/ }) as HTMLInputElement;
+    expect(stepper.value).toBe('1');
+  });
+
   test("is kept for each Quest: another Quest's builder starts empty, and the first's is as it was", () => {
     render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
     const before = ticked(chooseSome());

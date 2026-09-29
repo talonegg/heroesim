@@ -399,8 +399,12 @@ function Builder({
 
   // Only Heroes who can still go, and no more of a consumable than the Guild holds now.
   const party = choice.heroIds.filter((heroId) => rows.some((row) => row.heroId === heroId && row.why === null));
+  // The stepper shows the same number the send takes: a choice kept from before a sale shows no more
+  // than is held now (M9-F6).
+  const carried = (definitionKey: ItemDefinitionKey, held: number): number =>
+    Math.min(Math.max(0, Math.floor(choice.carry[definitionKey] ?? 0)), held);
   const consumables = stocks.flatMap(({ definitionKey, held }) => {
-    const quantity = Math.min(Math.max(0, Math.floor(choice.carry[definitionKey] ?? 0)), held);
+    const quantity = carried(definitionKey, held);
     return quantity > 0 ? [{ definitionKey, quantity }] : [];
   });
   const preview = previewView(document, questId, party, consumables);
@@ -436,7 +440,7 @@ function Builder({
             <Stepper
               key={stock.definitionKey}
               label={`${stock.name}, ${stock.held} held: ${stock.does}`}
-              value={choice.carry[stock.definitionKey] ?? 0}
+              value={carried(stock.definitionKey, stock.held)}
               min={0}
               max={stock.held}
               onChange={(value) =>
