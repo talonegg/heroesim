@@ -305,13 +305,18 @@ _Avoid_: Message, Log line; "Event" alone for a Random or Inciting Event
 **History**:
 The record inside the World State of every event, kept per Guild and per Hero with a list of
 Milestones; never bounded, and no entry is dropped (R36). Every discrete change is an entry;
-nightly drift, and the changes DL-84 names, are recorded only when they cross a band.
+nightly drift, and the changes DL-84 names, are recorded only when they cross a band. The page
+shows a Guild's History with some entries left out, none dropped: the player's Guild's without
+its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
+purchases and sales (DL-111, DL-117). A Hero's, a Guildmaster's and a Patron's leave out nothing.
 _Avoid_: Event log, Journal, Audit trail
 
 **World History**:
-The History's entries that change the world rather than one Guild: Guilds founded, succeeded
-and folded, Quests taken and their outcomes, and a Patron's Regard for a Guild moving into a new
-band (DL-111; to be built).
+The History's entries that change the world rather than one Guild: the world made and its rules
+adopted, Guilds founded, succeeded and folded, the game's end, every Guild's Quests taken and
+their outcomes, and a Patron's Regard for a Guild moving into a new band (DL-111, DL-117). A
+choice of the History's beside the player's Guild's and each Rival's. The whole History, every
+entry unfiltered, is not a choice but the game menu's debug view.
 _Avoid_: World log, Chronicle, News
 
 **Milestone**:
