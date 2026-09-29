@@ -1,12 +1,13 @@
 // The home view, Guild (M9-S3, DL-103; the review's A3): a digest of what needs attention this
 // Turn. How the game ended, once it has; the rules notice while it stands; the Bankruptcy
-// countdown, which the Bankruptcy stop's warning card says in its place (M9-S7); why time stopped, each Quest a decision-needed stop names a button to its Party; how
-// the Parties that came home in the last play fared; the Transfer Offers waiting for an answer; the
+// countdown, which the Bankruptcy stop's warning card says in its place (M9-S7); why time stopped, each Quest a decision-needed stop names a button to its Party; the
+// Quest report of each Party that came home in the last play (M9-F5, DL-111 item 3, `quest-report.tsx`),
+// in the place the "Came home" cards had; the Transfer Offers waiting for an answer; the
 // Parties still out and the night each returns; and the Quests on their last Day on the Board.
 // Each is drawn only when there is something to say (the review's A5). Every word and number comes
-// from a selector (`state/digest.ts`, `stopView`, `headerView`, `offersView`): nothing here
-// computes a rule. How a Party fared opens its line in the History, on the page it stands on (M9-S5,
-// DL-105).
+// from a selector (`state/digest.ts`, `state/quest-return.ts`, `stopView`, `headerView`,
+// `offersView`): nothing here computes a rule. An older report, opened from its entry in the rail or
+// the History, stands in Home's place until it is closed (M9-F5, DL-111 item 3, Q7).
 //
 // The Guild in parts since M9-F2 (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
 // the digest above; Hall, its premises with Build (`hall.tsx`); and from M9-F3 (DL-116) Stores,
@@ -15,24 +16,19 @@
 
 import type { QuestId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import { leavingTodayView, outcomesView, partiesOutView, type OutcomeRow } from '../state/digest';
+import { leavingTodayView, partiesOutView } from '../state/digest';
+import { questReturn, returnsIn, type QuestReturn, type ReturnKey } from '../state/quest-return';
 import type { GameAction, GameState } from '../state/reducer';
 import type { HeaderView, StopView } from '../state/selectors';
 import { offersView } from '../state/trade-views';
 import { Hall } from './hall';
 import { Icon } from './icons';
+import { QuestReport } from './quest-report';
 import { guildParts, titles, View, type GuildPartId, type SectionId } from './section';
 import { StopCard } from './stop';
 import { Stores } from './stores';
 import { Treasury } from './treasury';
-import { Banner, Chip, Tabs, VisuallyHidden, type Tone } from './ui';
-
-const bandTone: Readonly<Record<OutcomeRow['band'], Tone>> = { fail: 'bad', success: 'good', strong: 'good' };
-
-/** `+302`, `-4`, `0`. */
-function signed(n: number): string {
-  return n > 0 ? `+${n}` : String(n);
-}
+import { Banner, Tabs } from './ui';
 
 /** What the Guild view and its Home take. */
 interface HomeProps {
@@ -46,8 +42,10 @@ interface HomeProps {
   onGo: (target: SectionId) => void;
   onOpenQuest: (questId: QuestId) => void;
   onOpenMenu: () => void;
-  /** Opens a Party's outcome where it stands in the History (M9-S5). */
-  onReadOutcome?: (outcome: OutcomeRow) => void;
+  /** An older Quest report, opened from its entry, which stands in Home's place (M9-F5); none when not given. */
+  report?: ReturnKey | null;
+  /** Closes the older report, back to Home. */
+  onCloseReport?: () => void;
 }
 
 /** The Guild's parts as tabs, each by its title. */
@@ -85,15 +83,23 @@ export function GuildView({
   );
 }
 
-/** The Guild's Home: what needs attention this Turn. */
-function Home({ state, document, header, notice, stop, busy, play, onGo, onOpenQuest, onOpenMenu, onReadOutcome }: HomeProps) {
+/** The Guild's Home: what needs attention this Turn; or an older Quest report, opened from its entry, until it is closed. */
+function Home(props: HomeProps) {
+  const { state, document, header, notice, stop, busy, play, onGo, onOpenQuest, onOpenMenu, report = null, onCloseReport } = props;
   const { log } = state;
-  const outcomes = useMemo(() => outcomesView({ document, log }), [document, log]);
+  // The report of each Party of the player's that came home in the last play, read from the History (M9-F5).
+  const reports = useMemo(
+    () => returnsIn({ document, log }).flatMap((key) => questReturn(document, key) ?? []),
+    [document, log],
+  );
+  const older = useMemo<QuestReturn | null>(() => (report === null ? null : questReturn(document, report)), [document, report]);
   const offers = useMemo(() => offersView(document)?.offers ?? [], [document]);
   const parties = useMemo(() => partiesOutView(document), [document]);
   const leaving = useMemo(() => leavingTodayView(document), [document]);
   const ended = header.ended !== null;
-  const quiet = stop === null && outcomes.length === 0 && offers.length === 0 && parties.length === 0 && leaving.length === 0;
+  const quiet = stop === null && reports.length === 0 && offers.length === 0 && parties.length === 0 && leaving.length === 0;
+
+  if (older !== null) return <QuestReport report={older} {...(onCloseReport === undefined ? {} : { onClose: onCloseReport })} />;
 
   return (
     <>
@@ -132,60 +138,9 @@ function Home({ state, document, header, notice, stop, busy, play, onGo, onOpenQ
 
       {stop === null ? null : <StopCard stop={stop} idle={busy || ended} play={play} onGo={onGo} onOpenQuest={onOpenQuest} />}
 
-      {outcomes.length === 0 ? null : (
-        <div className="digest">
-          <h3>Came home</h3>
-          <ul className="cards">
-            {outcomes.map((outcome) => (
-              <li key={outcome.key} className="card outcome">
-                <div className="card__head">
-                  <h4>{outcome.quest}</h4>
-                  <Chip tone={bandTone[outcome.band]} icon={outcome.band === 'fail' ? 'cross' : 'check'}>
-                    {outcome.bandWords}
-                  </Chip>
-                </div>
-                <p className="subtle">
-                  {outcome.heroes}, {outcome.when}
-                </p>
-                <div className="chips">
-                  <Chip tone="brass" icon="wealth">
-                    Wealth {signed(outcome.wealth)}
-                  </Chip>
-                  <Chip tone={outcome.fame < 0 ? 'bad' : 'brass'} icon="fame">
-                    Fame {signed(outcome.fame)}
-                  </Chip>
-                  <Chip icon="up">XP +{outcome.xp} each</Chip>
-                </div>
-                {outcome.injuries.length === 0 && outcome.deaths.length === 0 ? null : (
-                  <ul className="marks">
-                    {outcome.injuries.map(({ heroId, words }) => (
-                      <li key={`injured-${heroId}`} className="is-hurt">
-                        <Icon name="injury" />
-                        <span>{words}</span>
-                      </li>
-                    ))}
-                    {outcome.deaths.map(({ heroId, name }) => (
-                      <li key={`died-${heroId}`} className="is-missed">
-                        <Icon name="cross" />
-                        <span>{name} died on the Quest</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {onReadOutcome === undefined || outcome.page === null ? null : (
-                  <div className="actions">
-                    <button type="button" className="button--quiet" onClick={() => onReadOutcome(outcome)}>
-                      <Icon name="history" />
-                      <span>Read it in the History</span>
-                      <VisuallyHidden>: {outcome.quest}</VisuallyHidden>
-                    </button>
-                  </div>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {reports.map((each) => (
+        <QuestReport key={each.key.partyId} report={each} />
+      ))}
 
       {offers.length === 0 ? null : (
         <div className="digest">

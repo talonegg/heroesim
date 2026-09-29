@@ -1,7 +1,7 @@
 import { entriesFor, playerGuild, type EngineEventOf, type Guild, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } from './digest';
-import { cameHome as partyHome, changed, namesakes, played, started, withNamesakesHurt, withOffer, withPartyOut } from './game.test-support';
+import { leavingTodayView, navCounts, partiesOutView, railView } from './digest';
+import { cameHome as partyHome, changed, played, started, withOffer, withPartyOut, withReturn } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterView, whenOf } from './selectors';
 import { historyView, leftOutOfYourGuild } from './history';
@@ -128,85 +128,6 @@ describe('leavingTodayView', () => {
   });
 });
 
-describe('outcomesView', () => {
-  /** A Party of the player's sent, and fast forward played until it came home. */
-  function cameHome(): GameState {
-    let state = withPartyOut(started('reducer-test'));
-    for (let tries = 0; tries < 5 && state.stoppedBecause?.kind !== 'party-returned'; tries += 1) {
-      state = played(state, { kind: 'fastForward', until: [] });
-    }
-    expect(state.stoppedBecause?.kind).toBe('party-returned');
-    return state;
-  }
-
-  test("gives nothing when no Party of the player's came home in the last play", () => {
-    expect(outcomesView(started())).toEqual([]);
-    expect(outcomesView(withPartyOut(started()))).toEqual([]);
-    expect(outcomesView(initialGameState)).toEqual([]);
-  });
-
-  test("gives each Party of the player's that came home in the last play: its Quest, band, Wealth, Fame, XP and Injuries, as the log narrates them", () => {
-    const state = cameHome();
-    const rows = outcomesView(state);
-    const sentences = sentencesOf(state);
-    const homecomings = sentences.filter((sentence) => sentence.startsWith("The Lantern's Party came home from "));
-    // Rivals' Parties came home in the same Turns; only the player's are its outcomes.
-    expect(sentences.filter((sentence) => / Party came home from /.test(sentence)).length).toBeGreaterThan(homecomings.length);
-    expect(rows).toHaveLength(homecomings.length);
-
-    const bandWords = { fail: ['failed', 'Failure'], success: ['succeeded', 'Success'], strong: ['succeeded strongly', 'Strong success'] } as const;
-    rows.forEach((row, index) => {
-      const [went, words] = bandWords[row.band];
-      expect(row.bandWords).toBe(words);
-      const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
-      expect(homecomings[index]?.startsWith(`The Lantern's Party came home from ${row.quest} and ${went}: Wealth ${signed(row.wealth)}, Fame ${signed(row.fame)}.`)).toBe(true);
-      expect(row.when).toMatch(/^Day \d+, night$/);
-      // XP: each Hero who came home alive gained the same, which the log says Hero by Hero.
-      for (const name of row.names.filter((each) => !row.deaths.some((death) => death.name === each))) {
-        if (row.xp > 0) expect(sentences).toContain(`${name} gained ${row.xp} XP.`);
-      }
-      // Each Injury, as the log says it: the Hero, the Injury and the night it heals.
-      for (const injury of row.injuries) {
-        const [, name, rest] = /^(.+): (.+)$/.exec(injury.words) ?? [];
-        expect(sentences).toContain(`${name} was injured (${rest?.replace(', healing on ', '), healing on ')}.`);
-      }
-    });
-    const [sent] = partiesOutView(documentOf(withPartyOut(started('reducer-test'))));
-    expect(rows[0]?.quest).toBe(sent?.quest);
-    expect(rows[0]?.heroes).toBe(sent?.heroes);
-  });
-
-  test('tells two Heroes of one name apart: each death and Injury carries its Hero (the M9 review)', () => {
-    const [row] = outcomesView(withNamesakesHurt(partyHome(started('reducer-test'))));
-    const { died, injured, diedName, injuredName } = namesakes;
-    const injury = content.injuries[Object.keys(content.injuries)[0] ?? '']?.name;
-
-    expect(row?.deaths).toEqual([
-      { heroId: died[0], name: diedName },
-      { heroId: died[1], name: diedName },
-    ]);
-    expect(row?.injuries).toEqual([
-      { heroId: injured[0], words: `${injuredName}: ${injury}, healing in 3 Days` },
-      { heroId: injured[1], words: `${injuredName}: ${injury}, healing in 4 Days` },
-    ]);
-  });
-
-  test("gives where each is read in the player's History: the page it stands on, and its line's anchor (M9-S5)", () => {
-    const state = cameHome();
-    const rows = outcomesView(state);
-
-    expect(rows.length).toBeGreaterThan(0);
-    for (const row of rows) {
-      expect(row.page).not.toBeNull();
-      const view = historyView(documentOf(state), state.log, null, row.page ?? 0);
-      const lines = view.groups.flatMap((group) => group.rows.flatMap((each) => (each.kind === 'entry' ? [each.line] : [])));
-      const line = lines.find((each) => each.anchor === row.anchor);
-      expect(line?.sentence).toMatch(new RegExp(`^The Lantern's Party came home from ${row.quest} and `));
-      expect(line?.fresh).toBe(true);
-    }
-  });
-});
-
 describe('railView', () => {
   test("gives the player's Guild's latest entries, newest first, as its History gives them, each new one marked", () => {
     const state = played(started(), { kind: 'advance', turns: 3 });
@@ -253,5 +174,28 @@ describe('railView', () => {
 
   test('gives no rail before a game', () => {
     expect(railView(initialGameState, 5)).toBeNull();
+  });
+
+  test("gives a Party's return as its one entry, the Loot next after it, and no Encounter (M9-F5)", () => {
+    const written = withReturn(withPartyOut(started('rail-return')), {
+      band: 'success',
+      wealth: 150,
+      fame: 2,
+      xp: 40,
+      encounters: [{ outcome: 'success' }, { outcome: 'failure', injured: [0] }],
+      injuries: [{ hero: 0, typeKey: 'bruised-ribs', healsOnTurn: 999 }],
+      loot: [{ definitionKey: 'whetstone', quantity: 2 }],
+    });
+    const lines = railView(written.state, 24)?.lines ?? [];
+    const at = lines.findIndex((line) => line.questReturn !== null);
+    const [returned, next] = [lines[at], lines[at + 1]];
+
+    expect(returned?.questReturn?.key).toEqual({ partyId: written.party.partyId, questId: written.party.questId });
+    expect(returned?.sentence).toMatch(/^The Lantern's Party came home from .+ and succeeded: Wealth \+150, Fame \+2\.$/);
+    // The Loot is the next entry, read down the rail as it is in the History's order, though newer.
+    expect(next?.sentence).toMatch(/^The Lantern found Loot on .+: 2 × Whetstone\.$/);
+    expect(next?.questReturn).toBeNull();
+    expect(lines.filter((line) => line.questReturn !== null)).toHaveLength(1);
+    expect(lines.some((line) => /\(Encounter \d+\)| was injured /.test(line.sentence))).toBe(false);
   });
 });

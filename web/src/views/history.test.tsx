@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { played, started, withPartyOut, withRosterReleased, withTheGone, withWorldNews } from '../state/game.test-support';
+import { played, started, withPartyOut, withReturn, withRosterReleased, withTheGone, withWorldNews } from '../state/game.test-support';
 import { historyView } from '../state/history';
 import { gameReducer, type GameState } from '../state/reducer';
 import { History } from './history';
@@ -286,7 +286,7 @@ describe("each one's page opens their History (M9-S5)", () => {
     expect(title()).toBe('The History of Ada Vell');
   });
 
-  test('the rail and the stop open the History on the player’s Guild, at its newest, whatever was chosen before', async () => {
+  test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before; a Party home opens Guild › Home at its report (M9-F5)', async () => {
     render_(withPartyOut(started('reducer-test')));
     fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
     openView('Board');
@@ -297,38 +297,61 @@ describe("each one's page opens their History (M9-S5)", () => {
     fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
-    fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Read what happened' }));
+    // The Party's stop offers no "Read what happened": the play opened its report (M9-F5).
+    expect(within(screen.getByTestId('stop')).queryByRole('button', { name: 'Read what happened' })).toBeNull();
+    expect((document.activeElement as HTMLElement).textContent).toMatch(/^Quest report: /);
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: 'Open the History' }));
     expect(title()).toBe('The History of The Lantern');
-    expect(document.activeElement).toBe(within(section('History')).getByRole('heading', { level: 3 }));
     expect(inHistory(/^The Lantern's Party came home from /).classList.contains('is-new')).toBe(true);
   });
 });
 
-describe("the home view's outcomes open their line in the History (M9-S5)", () => {
-  test('on the page it stands on, with the keyboard on it', () => {
-    render_(cameHome());
-    const home = screen.getByRole('region', { name: 'Guild' });
-    const [outcome] = within(home).getAllByRole('listitem').filter((item) => item.classList.contains('outcome'));
-    const quest = within(outcome as HTMLElement).getByRole('heading', { level: 4 }).textContent ?? '';
-
-    fireEvent.click(within(outcome as HTMLElement).getByRole('button', { name: `Read it in the History: ${quest}` }));
-
-    expect(title()).toBe('The History of The Lantern');
-    const line = document.activeElement as HTMLElement;
-    expect(line.classList.contains('entry')).toBe(true);
-    expect(sentenceOf(line)).toMatch(new RegExp(`^The Lantern's Party came home from ${quest} and `));
-    expect(line.classList.contains('is-new')).toBe(true);
+describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 item 2)', () => {
+  const written = withReturn(withPartyOut(started('history-return')), {
+    band: 'fail',
+    fame: -2,
+    xp: 12,
+    encounters: [{ outcome: 'failure', injured: [0] }],
+    injuries: [{ hero: 0, typeKey: 'bruised-ribs', healsOnTurn: 999 }],
+    loot: [{ definitionKey: 'whetstone', quantity: 1 }],
   });
 
-  test('the History opens on the page it is given', () => {
-    const state = played(started(), { kind: 'advance', turns: 12 });
-    render(
-      <HistoryLinksContext value={{ log: state.log, onName: () => undefined, onHistory: () => undefined }}>
-        <History document={state.document as NonNullable<GameState['document']>} busy={false} play={() => undefined} whose="all" onWhose={() => undefined} startPage={2} />
-      </HistoryLinksContext>,
-    );
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, and no Encounter or Injury of its own', () => {
+    render_(written.state);
+    openView('History');
+    const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0, Fame -2\.$/);
 
-    expect(screen.getByText(/^Page 3 of \d+, /)).toBeDefined();
+    expect(entry.querySelector('.entry__text strong')?.textContent).toBe('failed');
+    const heroes = within(entry).getByRole('button', { name: /^\d+ Heroes?: how each fared on / });
+    const lines = document.getElementById(heroes.getAttribute('aria-controls') ?? '') as HTMLElement;
+    expect(lines.hidden).toBe(true);
+    fireEvent.click(heroes);
+    expect(heroes.getAttribute('aria-expanded')).toBe('true');
+    expect(within(lines).getAllByRole('listitem')).toHaveLength(written.party.heroIds.length);
+    const [first] = within(lines).getAllByRole('listitem');
+    expect(first?.textContent).toMatch(/^.+: gained 12 XP; injured: Bruised ribs, healing on the night of Day \d+\.$/);
+    // A Hero's name opens their page, as every name in the History does.
+    const name = within(first as HTMLElement).getByRole('button');
+    fireEvent.click(name);
+    expect(within(section('History')).getByRole('heading', { level: 3 }).textContent).toBe(name.textContent);
+    fireEvent.click(within(section('History')).getByRole('button', { name: /^Back to / }));
+
+    const lines_ = historyLines(section('History')).filter((line) => line.parentElement?.classList.contains('entries') && !line.parentElement.classList.contains('entries--folded'));
+    const sentences = lines_.map(sentenceOf);
+    const at = sentences.findIndex((sentence) => / Party came home from /.test(sentence));
+    expect(sentences[at + 1]).toMatch(/^The Lantern found Loot on .+: Whetstone\.$/);
+    expect(sentences.some((sentence) => /\(Encounter \d+\)| was injured /.test(sentence))).toBe(false);
+  });
+
+  test('"Open the report" opens it on Guild › Home, with the keyboard on its heading', () => {
+    render_(written.state);
+    openView('History');
+    const entry = inHistory(/^The Lantern's Party came home from /);
+
+    fireEvent.click(within(entry).getByRole('button', { name: /^Open the report: / }));
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: /^Quest report: / }));
   });
 });
 

@@ -187,6 +187,24 @@ describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
     expect(historyView(document, state.log, null, 0).entries).toBe(inYourGuild(document, guild.id).length);
   });
 
+  test("a return's line carries its entry in the player's Guild's History, and in no other History (M9-F5)", () => {
+    const home = cameHome(started('history-parts'));
+    const homeDocument = home.document as WorldDocument;
+    const lines = (whose: Parameters<typeof historyView>[2]): HistoryLine[] =>
+      pagesOf(homeDocument, home.log, whose).flatMap((view) => view.groups.flatMap((group) => group.rows.flatMap(linesOf)));
+    const outcomes = lines(null).filter((line) => line.type === 'quest.resolved');
+
+    expect(outcomes.length).toBeGreaterThan(0);
+    for (const line of outcomes) {
+      const { partyId, questId } = entryOf(homeDocument, line).payload as { partyId: string; questId: string };
+      expect(line.questReturn?.key).toEqual({ partyId, questId });
+    }
+    expect(lines(null).filter((line) => line.type !== 'quest.resolved').every((line) => line.questReturn === null)).toBe(true);
+    for (const whose of ['all', 'world', ...home.document!.world.guilds[guild.id]!.rosterIds] as const) {
+      expect(lines(whose as never).every((line) => line.questReturn === null), String(whose)).toBe(true);
+    }
+  });
+
   test("a return's parts are gathered under its entry: its Encounters, consumables, Injuries and Deaths, and its Heroes' Levels that night (M9-F5)", () => {
     const home = cameHome(started('history-parts'));
     const homeDocument = home.document as WorldDocument;

@@ -4,7 +4,7 @@ import { content } from '../content';
 import { cameHome, changed, started, withPartyOut, withReturn, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { narrate, narrationFor, textOf } from './narrate';
-import { questReturn, reportSections, returnEntry, type QuestReturn } from './quest-return';
+import { questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
 
 // A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party
 // and Quest, from the entries that name the Quest (M9-F1, DL-114), and a Level and a dead Hero's gear
@@ -294,5 +294,22 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
     const shown = night.filter(shows).map((entry) => (entry.type === 'hero.levelled' ? `${entry.type} ${(entry.payload as { heroId: string }).heroId}` : entry.type));
 
     expect(shown).toEqual(['quest.resolved', 'quest.loot', `hero.levelled ${home}`]);
+  });
+});
+
+describe('returnsIn (M9-F5)', () => {
+  test("gives the player's Parties home in the last play, in the order they came home; no Rival's, and none when none came home", () => {
+    const home = cameHome(started('reducer-test'));
+    const document = home.document as WorldDocument;
+    const guildId = playerGuild(document.world)?.id;
+    const outcomes = home.log.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved');
+    const mine = outcomes.filter((event) => event.payload.guildId === guildId).map(({ payload }) => ({ partyId: payload.partyId, questId: payload.questId }));
+
+    expect(mine.length).toBeGreaterThan(0);
+    expect(outcomes.length).toBeGreaterThan(mine.length);
+    expect(returnsIn(home)).toEqual(mine);
+    expect(returnsIn(base)).toEqual([]);
+    expect(returnsIn({ ...home, log: [] })).toEqual([]);
+    expect(returnsIn({ document: null, log: home.log })).toEqual([]);
   });
 });

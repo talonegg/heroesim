@@ -18,6 +18,11 @@
 // A name in the History opens whom it names, wherever the History is drawn: a Hero's page, in the
 // History; a Guild's page, in the Rankings; a Guildmaster's or a Patron's History (`HistoryLinks`).
 //
+// A Party's return (M9-F5, DL-111 items 2 and 3, DL-112 item 8): a play that brings a Party of the
+// player's home, one Turn or a fast forward, opens Guild › Home at its Quest report, with the keyboard
+// on the report's heading, from whichever view; its entry in the rail or the History opens its report
+// there again, in Home's place until it is closed or the next play.
+//
 // Views switch as React state, with no router (R38): the page stays one page with one classic
 // script that opens from `file://`. Which view is open is remembered in this browser, and so is the
 // Board's order; a Party chosen on the Board and not sent is kept here, by Quest. A new game or
@@ -32,8 +37,9 @@ import type { GuildId, Module, QuestId, WorldDocument } from '@heroesim/engine';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
-import { navCounts, type OutcomeRow } from './state/digest';
+import { navCounts } from './state/digest';
 import type { HistoryWhose } from './state/history';
+import { returnsIn, type ReturnKey } from './state/quest-return';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
 import { noPartyChoices, standingChoices, withChoice, type PartyChoices } from './state/party-choices';
@@ -48,6 +54,7 @@ import { HistoryLinksContext, type HistoryLinks, type NameSegment } from './view
 import { Market } from './views/market';
 import { Nav } from './views/nav';
 import { NewGame } from './views/new-game';
+import { reportHeadingId } from './views/quest-report';
 import { Rail } from './views/rail';
 import { Rankings } from './views/rankings';
 import { Refusal } from './views/refusal';
@@ -108,8 +115,9 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [boardOrder, setBoardOrder] = useState<BoardOrder>(() => rememberedChoice(boardOrderKey, boardOrders, 'posted'));
   const [rankingsGuild, setRankingsGuild] = useState<GuildId | null>(null);
   const [whose, setWhose] = useState<HistoryWhose>(null);
-  // The page the History opens on: its newest, save when the home view opens an outcome where it stands.
-  const [historyStart, setHistoryStart] = useState(0);
+  // An older Quest report, opened from its entry in the rail or the History, which stands in Guild ›
+  // Home's place until it is closed or the next play (M9-F5, DL-111 item 3, Q7).
+  const [report, setReport] = useState<ReturnKey | null>(null);
   const [focus, setFocus] = useState<Focus | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLElement>(null);
@@ -157,17 +165,25 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     [open, openHistory],
   );
 
-  /** How a Party fared, from the home view: its line in the player's Guild's History, on its page, with the keyboard on it. */
-  const openOutcome = useCallback(
-    (outcome: OutcomeRow) => {
-      setWhose(null);
-      setHistoryStart(outcome.page ?? 0);
-      open('history', outcome.anchor);
+  /** A Party's return, from its entry: its report on Guild › Home, with the keyboard on its heading (M9-F5). */
+  const openReport = useCallback(
+    (key: ReturnKey) => {
+      setReport(key);
+      open('home', reportHeadingId(key));
     },
     [open],
   );
 
-  const links = useMemo<HistoryLinks>(() => ({ log: game.log, onName: openName, onHistory: openHistory }), [game.log, openName, openHistory]);
+  /** Closes an older report: Guild › Home as it was, with the keyboard on the Guild's heading. */
+  const closeReport = useCallback(() => {
+    setReport(null);
+    open('home');
+  }, [open]);
+
+  const links = useMemo<HistoryLinks>(
+    () => ({ log: game.log, onName: openName, onHistory: openHistory, onReport: openReport }),
+    [game.log, openName, openHistory, openReport],
+  );
 
   // A new game or a load: the home view, and nothing the last game had open (DL-74 item 7).
   const [games, setGames] = useState(game.games);
@@ -180,6 +196,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setPartyChoices(noPartyChoices);
     setRankingsGuild(null);
     setWhose(null);
+    setReport(null);
     setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
   }
 
@@ -196,11 +213,24 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     }
   }
 
+  // A play that brought a Party of the player's home, one Turn or a fast forward: Guild › Home at its
+  // report, with the keyboard on the report's heading, from whichever view (M9-F5, DL-112 item 8). Any
+  // play puts an older report away. In the same render as the play's end, as the fast forward's.
+  const [seenLog, setSeenLog] = useState(game.log);
+  if (seenLog !== game.log) {
+    setSeenLog(game.log);
+    setReport(null);
+    const [home] = returnsIn({ document: current, log: game.log });
+    if (home !== undefined && game.rejection === null) {
+      setView('guild');
+      setGuildPart('home');
+      setMenuOpen(false);
+      setFocus({ id: reportHeadingId(home), fallback: headingOf('guild') });
+    }
+  }
+
   useEffect(() => rememberView(view), [view]);
   useEffect(() => rememberGuildPart(guildPart), [guildPart]);
-
-  // Away from the History, it opens at its newest again.
-  if (view !== 'history' && historyStart !== 0) setHistoryStart(0);
 
   useEffect(() => {
     if (focus === null) return;
@@ -291,7 +321,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                   open('board', `quest-${questId}`);
                 }}
                 onOpenMenu={() => setMenuOpen(true)}
-                onReadOutcome={openOutcome}
+                report={report}
+                onCloseReport={closeReport}
               />
             ) : null}
             {view === 'board' ? (
@@ -313,10 +344,10 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
             {view === 'roster' ? <Roster {...shared} /> : null}
             {view === 'rankings' ? <Rankings {...shared} guildName={guildName} open={rankingsGuild} onOpen={setRankingsGuild} /> : null}
             {view === 'market' ? <Market {...shared} /> : null}
-            {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} startPage={historyStart} /> : null}
+            {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} /> : null}
           </Fragment>
         </main>
-        <Rail state={game} onOpenHistory={() => openHistory(null)} />
+        <Rail state={game} onOpenHistory={() => openHistory(null)} onReport={openReport} />
       </div>
       </HistoryLinksContext>
       {modules.length === 0 ? null : (

@@ -7,6 +7,9 @@
 // falls on, what can be done about it in words that name no number and weigh no choice, and the ways
 // to Wealth: the Market's Sell, where what the Guild holds is sold (M9-S6; DL-109 item 2, Q20; moved
 // from the Hall by M9-F2, DL-112 item 5), and the Board.
+//
+// A Party's stop offers nothing more since M9-F5 (DL-112 item 8): the play that brought it home opened
+// Guild › Home at its Quest report, under the card. A module's stop keeps "Read what happened".
 
 import type { QuestId } from '@heroesim/engine';
 import type { GameAction } from '../state/reducer';
@@ -30,7 +33,8 @@ const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   ],
   // M9-S7: shown only when none of the Quests it named is still on the Board, as for a decision.
   'quest-staffable': { label: 'Open the Board', target: 'board' },
-  'party-returned': { label: 'Read what happened', target: 'history' },
+  // M9-F5: the play opened Guild › Home at the Quest report, below this card (DL-112 item 8).
+  'party-returned': null,
   // Shown only when none of the Quests it named is still on the Board.
   'decision-needed': { label: 'Open the Board', target: 'board' },
   'transfer-offer': { label: 'Answer the offer', target: 'offers' },

@@ -4,14 +4,26 @@
 // beside the decision that caused it (DL-99 item 1). By CSS alone, as the navigation is: under
 // 1100px, and while the History view itself is open, it is not drawn. The lines are `railView`'s.
 // "Open the History" opens the History on the player's Guild, at its newest, where what the last play
-// added is marked new (M9-S5, DL-105).
+// added is marked new (M9-S5, DL-105). A Party's return is one entry, as in the Guild's History
+// (M9-F5): its band in bold, a line per Hero behind a disclosure, and "Open the report".
 
 import { useMemo } from 'react';
 import { railView } from '../state/digest';
+import type { ReturnKey } from '../state/quest-return';
 import type { GameState } from '../state/reducer';
 import { Icon } from './icons';
+import { ReturnEntryParts } from './quest-report';
 
-export function Rail({ state, onOpenHistory }: { state: Pick<GameState, 'document' | 'log'>; onOpenHistory: () => void }) {
+export function Rail({
+  state,
+  onOpenHistory,
+  onReport,
+}: {
+  state: Pick<GameState, 'document' | 'log'>;
+  onOpenHistory: () => void;
+  /** Opens a Party's return's report on Guild › Home (M9-F5). */
+  onReport?: (key: ReturnKey) => void;
+}) {
   const { document, log } = state;
   // Read again only when the game or the log changes: not between the steps of a fast forward.
   const view = useMemo(() => railView({ document, log }), [document, log]);
@@ -24,12 +36,19 @@ export function Rail({ state, onOpenHistory }: { state: Pick<GameState, 'documen
       </div>
       <ol className="lines lines--rail">
         {view.lines.map((line) => (
-          <li key={line.key} className={[line.fresh ? 'is-new' : '', line.milestone ? 'milestone' : ''].join(' ').trim() || undefined}>
+          <li
+            key={line.key}
+            className={[line.fresh ? 'is-new' : '', line.milestone ? 'milestone' : '', line.questReturn === null ? '' : 'rail__return'].join(' ').trim() || undefined}
+          >
             <span className="when">
               {line.when}
               {line.fresh ? <span className="new-tag">New</span> : null}
             </span>{' '}
-            {line.sentence}
+            {line.questReturn === null ? (
+              line.sentence
+            ) : (
+              <ReturnEntryParts entry={line.questReturn} links={false} fresh={false} {...(onReport === undefined ? {} : { onReport })} />
+            )}
           </li>
         ))}
       </ol>

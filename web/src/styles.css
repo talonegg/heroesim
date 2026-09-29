@@ -3156,6 +3156,164 @@ tr.mine td {
   margin: 0;
 }
 
+/* ── A Quest's return (M9-F5): its report on Guild › Home, and its one entry ─────────────── */
+
+.report {
+  margin: 0 0 var(--space);
+}
+
+.report__title {
+  font-size: 1.25rem;
+  margin: 0 0 0.35rem;
+  overflow-wrap: anywhere;
+}
+
+.report__lead {
+  margin: 0 0 0.5rem;
+}
+
+.report__section {
+  margin-top: 0.9rem;
+}
+
+.report__section h4 {
+  font-size: 1rem;
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.report__section p {
+  margin: 0.4rem 0 0;
+}
+
+.report__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.report__list > li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.2rem 0;
+}
+
+.report__list > li > .icon {
+  flex: none;
+  margin-top: 0.2rem;
+}
+
+.report__list .is-met > .icon {
+  color: var(--good);
+}
+
+.report__list .is-missed > .icon {
+  color: var(--bad);
+}
+
+.report__used {
+  list-style: none;
+  margin: 0.15rem 0 0;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+  color: var(--ink-soft);
+}
+
+.report__heroes {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.report__heroes > li {
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.report__heroes > li:last-child {
+  border-bottom: none;
+}
+
+.report__heroes .marks {
+  margin: 0.1rem 0 0;
+}
+
+.report__heroes .marks li {
+  display: list-item;
+  margin-left: 1rem;
+  list-style: disc;
+}
+
+/* A name in the report opens whom it names, as in the History. */
+.report button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.18em;
+}
+
+.entry__band {
+  font-weight: 700;
+}
+
+.return__heroes {
+  list-style: none;
+  margin: 0 0 0.25rem 0.35rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.return__heroes[hidden] {
+  display: none;
+}
+
+.return__heroes li {
+  padding: 0.25rem 0;
+}
+
+.return__heroes button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.18em;
+}
+
+.rail__return .fold,
+.entry .return__open {
+  font-size: 0.875rem;
+}
+
+.rail__return .fold,
+.rail__return .return__open {
+  display: flex;
+  padding: 0.2rem 0.4rem 0.2rem 0;
+}
+
 /* ── The History rail ───────────────────────────────────────────────────────────────────── */
 
 .rail__head {

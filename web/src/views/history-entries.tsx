@@ -2,7 +2,9 @@
 // first, each in the order it happened; a Party's Encounters folded under its outcome, and each
 // Rival's routine under one line for its Guild, each fold opened by a button; every line marked
 // whose it is, new when the last play appended it, and on an outcome how the Quest went, with an
-// icon and a word, never colour alone. The History view shows it, and so does a Hero's page.
+// icon and a word, never colour alone. The History view shows it, and so does a Hero's page. In the
+// player's Guild's History a Party's return is one entry, the rail's shape (M9-F5,
+// `ReturnEntryParts`): its band in bold, a line per Hero behind a disclosure, and "Open the report".
 //
 // A name in a line opens whom it names, through the shell's `HistoryLinks`: a Hero's page, a
 // Guild's page, or anyone else's History. The names are marked by the narration, from the event's
@@ -13,7 +15,9 @@ import type { EntityId, TurnEvent, WorldDocument } from '@heroesim/engine';
 import { createContext, Fragment, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react';
 import { historyView, type HistoryGroup, type HistoryLine, type HistoryRow, type HistoryView, type HistoryWhose } from '../state/history';
 import type { Segment } from '../state/narrate';
+import type { ReturnKey } from '../state/quest-return';
 import { Icon } from './icons';
+import { ReturnEntryParts } from './quest-report';
 import { Heading } from './section';
 import { Chip, VisuallyHidden } from './ui';
 
@@ -28,6 +32,8 @@ export interface HistoryLinks {
   onName: (name: NameSegment) => void;
   /** Opens `whose` History in the History view. */
   onHistory: (whose: HistoryWhose) => void;
+  /** Opens a Party's return's report on Guild › Home (M9-F5). */
+  onReport?: (key: ReturnKey) => void;
 }
 
 export const HistoryLinksContext = createContext<HistoryLinks | null>(null);
@@ -160,12 +166,20 @@ function Row({ row, types }: { row: HistoryRow; types: boolean }) {
     <li
       id={line.anchor ?? undefined}
       tabIndex={line.anchor === null ? undefined : -1}
-      className={classes('entry', `entry--${line.side}`, line.fresh && 'is-new', line.milestone && 'is-milestone')}
+      className={classes('entry', `entry--${line.side}`, line.fresh && 'is-new', line.milestone && 'is-milestone', line.questReturn !== null && 'entry--return')}
     >
-      <Line line={line} types={types} />
+      {line.questReturn === null ? <Line line={line} types={types} /> : <Return line={line} />}
       {steps.length === 0 ? null : <Fold label={stepsWords} lines={steps} />}
     </li>
   );
+}
+
+/** A Party's return in the player's Guild's History, as its one entry (M9-F5): the rail's shape, its names opening whom they name. */
+function Return({ line }: { line: HistoryLine }) {
+  const links = useHistoryLinks();
+  if (line.questReturn === null) return null;
+  const onReport = links?.onReport;
+  return <ReturnEntryParts entry={line.questReturn} links fresh={line.fresh} {...(onReport === undefined ? {} : { onReport })} />;
 }
 
 /** A line's marks, then its words: new, how a Quest went, a Milestone; with `types`, its event type after them. */

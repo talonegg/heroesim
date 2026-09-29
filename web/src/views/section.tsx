@@ -98,7 +98,9 @@ export const help: Readonly<Record<SectionId, string>> = {
   home:
     'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
     'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to sell what it holds ' +
-    'and to the Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
+    'and to the Board; the Bankruptcy countdown while your Guild is below the floor; the Quest report of each Party ' +
+    'that came home in the last play, its Encounters, rewards, each Hero’s outcome and its Patron’s Regard for your ' +
+    'Guild, or an older report opened from its entry, until you close it; the ' +
     'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',
   board:
@@ -135,8 +137,10 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Market’s purchases and sales, and a Rival’s its Upkeep, purchases and sales; a Hero’s own History keeps ' +
     'everything. The world’s is what changed the world: Guilds founded, succeeded and folded, every Guild’s Quests ' +
     'taken and how they went, and a Patron’s Regard for a Guild moving into a new band. What your last play added ' +
-    'is marked new. A Party’s Encounters fold under how its ' +
-    'Quest went, and each Rival’s routine under one line, save in a Hero’s own History; open either to read it all. ' +
+    'is marked new. In your Guild’s, a Party’s return is one entry: how its Quest went in bold, its Heroes one line ' +
+    'each behind a button, and its report on Home a button away; its Loot is the entry after it. Elsewhere a Party’s ' +
+    'Encounters fold under how its Quest went, and each Rival’s routine under one line, save in a Hero’s own ' +
+    'History; open either to read it all. ' +
     'A name opens whom it names: ' +
     'a Hero’s page, a Guild’s page, or anyone else’s History. Find anyone the History names by name, a Hero who has ' +
     'died, retired or left the world among them.',

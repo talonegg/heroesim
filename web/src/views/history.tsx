@@ -39,7 +39,6 @@ export function History({
   play,
   whose,
   onWhose,
-  startPage = 0,
 }: {
   document: WorldDocument;
   busy: boolean;
@@ -47,12 +46,10 @@ export function History({
   /** Whose History is shown: the player's Guild's when `null`, where it opens. */
   whose: HistoryWhose;
   onWhose: (whose: HistoryWhose) => void;
-  /** The page it opens on: 0, its newest, save when the home view opens an outcome where it stands (M9-S5). */
-  startPage?: number;
 }) {
   const links = useHistoryLinks();
   const log = links?.log;
-  const [page, setPage] = useState(startPage);
+  const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
   // Whose History was shown before this one, which a Hero's page goes back to; a new choice starts at the newest page.
   const [trail, setTrail] = useState<{ whose: HistoryWhose; before: HistoryWhose }>({ whose, before: null });

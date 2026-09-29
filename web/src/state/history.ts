@@ -13,6 +13,11 @@
 // entry, unfolded, each with its event type. Paging, folds, the count and what is new all read what
 // the scope shows (`historyFilter`), and so does the rail (`historyEntries`).
 //
+// In the player's Guild's History a Party's return is one entry (M9-F5, DL-111 item 2, DL-113 item
+// 1): its parts, the Encounters, consumables, Injuries, Deaths, the Party's Levels that night and the
+// dead's gear, are left out of the scope (`partOfAReturn`), and its line carries the entry's shape
+// (`returnEntry`, `state/quest-return.ts`). Elsewhere a Party's steps still fold under its outcome.
+//
 // Nothing here computes a rule (ADR-0007, principle 12): every line is a History entry as the engine
 // appended it, put in words by `narrate.ts`, and read through the History's own index of entries by
 // participant (`byEntity`, as `entriesFor` reads it). What is new is the last play's events, which
@@ -22,6 +27,7 @@
 import {
   compareByCodeUnit,
   isId,
+  type EngineEventOf,
   playerGuild,
   timeOfDay,
   type EngineEventType,
@@ -38,7 +44,7 @@ import {
 import { content } from '../content';
 import { rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
-import { partOfAReturn } from './quest-return';
+import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
 
 /**
@@ -79,6 +85,11 @@ export interface HistoryLine {
   anchor: string | null;
   /** The entry's event type, `quest.resolved`, which the debug view shows. */
   type: string;
+  /**
+   * In the player's Guild's History, a Party's return as its one entry (M9-F5, DL-111 item 2): the
+   * band apart, a line per Hero and the way to its report; `null` on any other line and elsewhere.
+   */
+  questReturn: ReturnEntry | null;
 }
 
 /**
@@ -450,6 +461,8 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   const hero = entityId !== null && rowOf(world.heroes, entityId) !== undefined ? (entityId as HeroId) : null;
   const shows = historyFilter(document, target);
   const reading: Reading = {
+    document,
+    returns: scope.kind === 'mine',
     entries: history.entries,
     narration: narrationFor(document, content),
     world,
@@ -548,6 +561,9 @@ function pagePositions(scope: Scope, entries: readonly Entry[], start: number): 
 
 /** What reading a page needs: the History, its words, the world, the player's Guild, what is new, and whether a Rival's routine folds. */
 interface Reading {
+  document: WorldDocument;
+  /** A Party's return is its one entry: in the player's Guild's History (M9-F5). */
+  returns: boolean;
   entries: readonly Entry[];
   narration: Narration;
   world: World;
@@ -682,7 +698,7 @@ function sideOf(entry: Entry, player: GuildId | null): HistorySide {
 function lineOf(position: number, reading: Reading): HistoryLine {
   const entry = reading.entries[position] as Entry;
   const segments = narrateSegments(entry as TurnEvent, reading.narration);
-  const resolved = entry.type === 'quest.resolved' ? (entry.payload as { band: QuestBand; partyId: string }) : null;
+  const resolved = entry.type === 'quest.resolved' ? (entry as EngineEventOf<'quest.resolved'>).payload : null;
   return {
     key: String(position),
     segments,
@@ -693,6 +709,7 @@ function lineOf(position: number, reading: Reading): HistoryLine {
     outcome: resolved === null ? null : { band: resolved.band, words: bandWords[resolved.band] },
     anchor: resolved === null ? null : `outcome-${resolved.partyId}`,
     type: entry.type,
+    questReturn: resolved === null || !reading.returns ? null : returnEntry(reading.document, { partyId: resolved.partyId, questId: resolved.questId }),
   };
 }
 

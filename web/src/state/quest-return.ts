@@ -18,6 +18,7 @@
 import {
   entriesFor,
   patronRegardFor,
+  playerGuild,
   regardBand,
   type EncounterOutcome,
   type Entry,
@@ -156,6 +157,20 @@ function nightFrom(history: History, position: number): Entry[] {
 function lineOf(entry: Entry, narration: Narration): ReturnLine {
   const segments = narrateSegments(entry as TurnEvent, narration);
   return { segments, sentence: textOf(segments) };
+}
+
+/**
+ * The player's Parties that came home in the last play, in the order they came home: the returns
+ * whose reports Guild › Home shows, and which a play opens it at (DL-112 item 8). `log` is the last
+ * play's events, which are the History's entries themselves (ADR-0008).
+ */
+export function returnsIn(state: { document: WorldDocument | null; log: readonly TurnEvent[] }): ReturnKey[] {
+  const { document, log } = state;
+  const guild = document === null ? undefined : playerGuild(document.world);
+  if (guild === undefined) return [];
+  return log
+    .filter((event): event is Resolved => event.type === 'quest.resolved' && (event as Resolved).payload.guildId === guild.id)
+    .map(({ payload }) => ({ partyId: payload.partyId, questId: payload.questId }));
 }
 
 /**

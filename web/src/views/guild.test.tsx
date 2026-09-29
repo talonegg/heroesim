@@ -1,51 +1,16 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { cameHome, namesakes, started, withNamesakesHurt, withPartyOut, withWealth } from '../state/game.test-support';
-import { headerView } from '../state/selectors';
-import { GuildView } from './guild';
+import { started, withPartyOut, withWealth } from '../state/game.test-support';
 import { navButton, openView } from './page.test-support';
 
-// The home view's outcome cards (M9-S3, DL-103). A Hero's name is not unique (`drawPersonName`
-// avoids no name in use), so each death and Injury on a card is its own line, keyed by its Hero
-// (the M9 review).
+// The home view's report of a Party home is `quest-report.test.tsx`'s (M9-F5), which took the place
+// of the outcome cards' tests.
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   localStorage.clear();
-});
-
-describe('a Party that came home', () => {
-  test('shows each of two Heroes of one name who died, and each of two injured, as a line of its own', () => {
-    const errors = vi.spyOn(console, 'error').mockImplementation(() => {});
-    const state = withNamesakesHurt(cameHome(started('reducer-test')));
-    if (state.document === null) throw new Error('no game in hand');
-    const header = headerView(state.document);
-    if (header === null) throw new Error("no player's Guild");
-
-    render(
-      <GuildView
-        state={state}
-        document={state.document}
-        header={header}
-        notice={null}
-        stop={null}
-        busy={false}
-        play={vi.fn()}
-        onGo={vi.fn()}
-        onOpenQuest={vi.fn()}
-        onOpenMenu={vi.fn()}
-      />,
-    );
-
-    const [card] = screen.getAllByRole('listitem').filter((item) => item.classList.contains('outcome'));
-    if (card === undefined) throw new Error('no outcome shown');
-    expect(within(card).getAllByText(`${namesakes.diedName} died on the Quest`)).toHaveLength(2);
-    expect(within(card).getAllByText(new RegExp(`^${namesakes.injuredName}: `))).toHaveLength(2);
-    // React says so when two lines share a key: none do.
-    expect(errors.mock.calls.flat().join(' ')).not.toMatch(/same key/);
-  });
 });
 
 // The Guild in parts (M9-F2, DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
@@ -155,7 +120,7 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
-  test('the end of a fast forward, and a way to the home view, open the Guild at its Home', async () => {
+  test('the end of a fast forward, and a way to the home view, open the Guild at its Home: at the report of a Party home (M9-F5)', async () => {
     render(<App initial={withPartyOut(started('reducer-test'))} />);
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
 
@@ -164,6 +129,7 @@ describe("the Guild's parts (M9-F2)", () => {
 
     expect(within(guild()).getByRole('tab', { name: 'Home' }).getAttribute('aria-selected')).toBe('true');
     expect(within(guild()).getByTestId('stop')).toBeDefined();
-    expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
+    // The keyboard moves in an effect after the play's render, which a busy machine may paint first.
+    await waitFor(() => expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 3, name: /^Quest report: / })));
   });
 });

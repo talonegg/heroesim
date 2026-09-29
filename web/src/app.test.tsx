@@ -294,7 +294,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     expect(within(out).getByRole('listitem').textContent).toMatch(/^.+ · .+ · back on the night of Day \d+$/);
   });
 
-  test("shows how the Party that came home fared: its Quest band, Wealth, Fame, XP and Injuries, and the stop's words", async () => {
+  test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
     // A Party out on a Quest of ten Days, home on the night of Day 10.
     render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
 
@@ -303,20 +303,18 @@ describe('the home view (M9-S3, DL-103)', () => {
 
     const home = screen.getByRole('region', { name: 'Guild' });
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
-    const came = within(home).getByRole('heading', { level: 3, name: 'Came home' }).parentElement as HTMLElement;
-    const [outcome] = within(came).getAllByRole('listitem').filter((item) => item.classList.contains('outcome'));
-    if (outcome === undefined) throw new Error('no outcome shown');
-    const quest = within(outcome).getByRole('heading', { level: 4 }).textContent ?? '';
-    expect(within(outcome).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
-    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(outcome).getByText(/^Wealth /).textContent ?? '')?.[1];
-    const fame = /^Fame ([+-]?\d+)$/.exec(within(outcome).getByText(/^Fame /).textContent ?? '')?.[1];
-    expect(within(outcome).getByText(/^XP \+\d+ each$/)).toBeDefined();
-    // The same outcome, as the History narrates it, new, where it opens: on the player's Guild (M9-S5).
+    expect(within(home).queryByRole('heading', { level: 3, name: 'Came home' })).toBeNull();
+    const report = within(home).getByRole('region', { name: /^Quest report: / });
+    const quest = /^Quest report: (.+)$/.exec(within(report).getByRole('heading', { level: 3 }).textContent ?? '')?.[1] ?? '';
+    expect(within(report).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
+    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(report).getByText(/^Wealth /).textContent ?? '')?.[1];
+    const fame = /^Fame ([+-]?\d+)$/.exec(within(report).getByText(/^Fame /).textContent ?? '')?.[1];
+    expect(within(report).getByText(/^XP \+\d+ each$/)).toBeDefined();
+    // This seed's Party comes home with an Injury: named, with the night it heals.
+    expect(within(report).getByText(/^Injured: .+, healing on the night of Day \d+$/)).toBeDefined();
+    // The same outcome, as the History narrates it, new, on the player's Guild (M9-S5).
     const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
     expect(line.classList.contains('is-new')).toBe(true);
-    // This seed's Party comes home with an Injury: named, with the night it heals.
-    openView('Guild');
-    expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(/^.+: .+, healing on the night of Day \d+$/)).toBeDefined();
   });
 
   test('says when nothing waits, and names the Transfer Offers waiting with the way to answer them', () => {
@@ -329,6 +327,93 @@ describe('the home view (M9-S3, DL-103)', () => {
     expect(within(home).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/)).toBeDefined();
     fireEvent.click(within(home).getByRole('button', { name: 'Answer on the Roster' }));
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Transfer Offers' }));
+  });
+});
+
+describe('a Party’s return opens its report on Guild › Home (M9-F5, DL-112 item 8)', () => {
+  /** A Party of the player's out, and the game played to the Turn before the night it comes home. */
+  function onTheEve(): GameState {
+    const out = withPartyOut(startedFrom('reducer-test'));
+    const party = Object.values(out.document?.world.parties ?? {})[0];
+    if (party === undefined || out.document === null) throw new Error('no Party out');
+    return played(out, { kind: 'advance', turns: party.returnsOnTurn - out.document.world.turn - 1 });
+  }
+
+  function reportHeading(): HTMLElement {
+    return within(screen.getByRole('region', { name: 'Guild' })).getByRole('heading', { level: 3, name: /^Quest report: / });
+  }
+
+  test.each(['Board', 'History'] as const)('after one Turn, from the %s: Guild › Home at the report, with the keyboard on its heading', async (from) => {
+    render(<App initial={onTheEve()} />);
+    openView(from);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+    await idle();
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(within(screen.getByRole('region', { name: 'Guild' })).getByRole('tab', { name: 'Home' }).getAttribute('aria-selected')).toBe('true');
+    // The keyboard moves in an effect after the play's render, which a busy machine may paint first.
+    await waitFor(() => expect(document.activeElement).toBe(reportHeading()));
+  });
+
+  test.each(['Board', 'History'] as const)('after a fast forward, from the %s: Guild › Home at the report, with the keyboard on its heading', async (from) => {
+    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    openView(from);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    await waitFor(() => expect(document.activeElement).toBe(reportHeading()));
+  });
+
+  test('a play that brings no Party home leaves the view where it was', async () => {
+    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    openView('Board');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+    await idle();
+
+    expect(navButton('Board').getAttribute('aria-current')).toBe('page');
+  });
+
+  test('"Open the report" on an older entry shows it on Guild › Home; closing it returns to Home', async () => {
+    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+    await waitFor(() => expect(document.activeElement).toBe(reportHeading()));
+    const quest = reportHeading().textContent;
+    // A Turn on, the report is no longer the last play's: Home no longer shows it.
+    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+    await idle();
+    openView('Guild');
+    expect(within(screen.getByRole('region', { name: 'Guild' })).queryByRole('heading', { level: 3, name: /^Quest report: / })).toBeNull();
+
+    openView('History');
+    fireEvent.click(within(inHistory(/^The Lantern's Party came home from /)).getByRole('button', { name: /^Open the report: / }));
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(document.activeElement).toBe(reportHeading());
+    expect(reportHeading().textContent).toBe(quest);
+    // It stands in Home's place: no digest beside it.
+    expect(within(screen.getByRole('region', { name: 'Guild' })).queryByRole('heading', { level: 3, name: 'Parties out' })).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close the report' }));
+
+    expect(within(screen.getByRole('region', { name: 'Guild' })).queryByRole('heading', { level: 3, name: /^Quest report: / })).toBeNull();
+    expect(within(screen.getByRole('region', { name: 'Guild' })).getByRole('tabpanel', { name: 'Home' })).toBeDefined();
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Guild' }));
+  });
+
+  test('"Open the report" in the rail shows it on Guild › Home too', async () => {
+    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+    openView('Roster');
+
+    fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: /^Open the report: / }));
+
+    expect(document.activeElement).toBe(reportHeading());
   });
 });
 

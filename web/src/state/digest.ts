@@ -10,20 +10,20 @@
 
 import {
   playerGuild,
+  type Entry,
   type EngineEventOf,
-  type HeroId,
   type PartyId,
-  type QuestBand,
   type QuestId,
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { historyEntries, historyFilter, pageOfEntry } from './history';
-import { nameIn, nightOf, rowOf } from './names';
+import { historyEntries, historyFilter } from './history';
+import { returnEntry, type ReturnEntry } from './quest-return';
+import { nightOf, rowOf } from './names';
 import { listed, narrationFor, questNamer } from './narrate';
 import type { GameState } from './reducer';
-import { boardView, linesOf, whenOf, type LogLine } from './selectors';
+import { boardView, linesOf, type LogLine } from './selectors';
 import { offersView } from './trade-views';
 
 /** The counts the navigation shows. */
@@ -109,86 +109,6 @@ export function leavingTodayView(document: WorldDocument): LeavingRow[] {
     .map(({ questId, name, patron, reward }) => ({ questId, name, patron, reward }));
 }
 
-// ── The Parties that came home ───────────────────────────────────────────────────────────────
-
-/** A Quest band as a word the home view shows, `CONTEXT.md`'s: failure, success or strong success. */
-const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
-
-/** How a Party of the player's came home in the last play. */
-export interface OutcomeRow {
-  /** Unique within the list. */
-  key: string;
-  /** `Day 5, night`: when it came home. */
-  when: string;
-  quest: string;
-  band: QuestBand;
-  /** `Success`. */
-  bandWords: string;
-  /** Who went, by name. */
-  names: string[];
-  /** `Finn, Vigdis and Arne`. */
-  heroes: string;
-  /** Wealth to the Guild, and Fame, as the outcome gave them: Fame falls on a failure. */
-  wealth: number;
-  fame: number;
-  /** XP to each Hero who came home alive. */
-  xp: number;
-  /**
-   * Each Injury, with its Hero, whose name another Hero may share: `Finn Grimshaw: Broken arm,
-   * healing on the night of Day 12`.
-   */
-  injuries: { heroId: HeroId; words: string }[];
-  /** Who died on the Quest: each Hero, and their name, which another Hero may share. */
-  deaths: { heroId: HeroId; name: string }[];
-  /** Its line in the History, `outcome-party-000004`, which the home view opens (M9-S5, DL-105). */
-  anchor: string;
-  /** The page of the player's Guild's History the line stands on; `null` if it is not there. */
-  page: number | null;
-}
-
-type Resolved = EngineEventOf<'quest.resolved'>;
-type Injured = EngineEventOf<'hero.injured'>;
-
-/**
- * Each Party of the player's that came home in the last play, in the order they came home: the
- * Quest Engine's outcome (`quest.resolved`) with the Injuries it recorded (`hero.injured`, which
- * says the night each heals). Names are the events' labels, written when it happened. Each says
- * where its line is read in the player's Guild's History (M9-S5).
- */
-export function outcomesView(state: Pick<GameState, 'document' | 'log'>): OutcomeRow[] {
-  const { document, log } = state;
-  const guild = document === null ? undefined : playerGuild(document.world);
-  if (guild === undefined) return [];
-  const injured = log.filter((event): event is Injured => event.type === 'hero.injured');
-  return log
-    .filter((event): event is Resolved => event.type === 'quest.resolved' && (event as Resolved).payload.guildId === guild.id)
-    .map((event, index) => {
-      const { payload, labels } = event;
-      const named = (id: string): string => labels[id as keyof typeof labels] ?? 'a Hero';
-      const names = payload.heroIds.map(named);
-      return {
-        key: `${event.turn}-${index}`,
-        when: whenOf(event.turn),
-        quest: nameIn(content.questTemplates, payload.templateKey),
-        band: payload.band,
-        bandWords: bandWords[payload.band],
-        names,
-        heroes: listed(names),
-        wealth: payload.wealthDelta,
-        fame: payload.fameDelta,
-        xp: payload.xpPerHero,
-        injuries: payload.injuries.map(({ heroId, typeKey, healDays }) => {
-          const heals = injured.find((each) => each.payload.heroId === heroId && each.payload.questId === payload.questId);
-          const until = heals === undefined ? `healing in ${healDays} ${healDays === 1 ? 'Day' : 'Days'}` : `healing on ${nightOf(heals.payload.healsOnTurn)}`;
-          return { heroId, words: `${named(heroId)}: ${nameIn(content.injuries, typeKey)}, ${until}` };
-        }),
-        deaths: payload.deaths.map((heroId) => ({ heroId, name: named(heroId) })),
-        anchor: `outcome-${payload.partyId}`,
-        page: document === null ? null : pageOfEntry(document, null, event),
-      };
-    });
-}
-
 // ── The History rail ─────────────────────────────────────────────────────────────────────────
 
 /** How many entries the History rail shows. A front end's choice, not a rule. */
@@ -197,6 +117,8 @@ export const railLength = 24;
 /** A line of the rail: a line of the History, and whether the last play appended it. */
 export interface RailLine extends LogLine {
   fresh: boolean;
+  /** A Party's return, as its one entry (M9-F5, DL-111 item 2); `null` on any other line. */
+  questReturn: ReturnEntry | null;
 }
 
 export interface RailView {
@@ -218,11 +140,40 @@ export function railView(state: Pick<GameState, 'document' | 'log'>, limit = rai
   const guild = document === null ? undefined : playerGuild(document.world);
   if (document === null || guild === undefined) return null;
   const fresh = new Set<object>(freshFor(state));
-  const entries = historyEntries(document, guild.id, limit);
+  const entries = lootAfterItsReturn(historyEntries(document, guild.id, limit));
   const lines = linesOf(entries, narrationFor(document, content));
   return {
     guildName: guild.name,
-    lines: lines.map((line, index) => ({ ...line, fresh: fresh.has(entries[index] as object) })),
+    lines: lines.map((line, index) => {
+      const entry = entries[index] as Entry;
+      const resolved = entry.type === 'quest.resolved' ? (entry as EngineEventOf<'quest.resolved'>).payload : null;
+      return {
+        ...line,
+        fresh: fresh.has(entry),
+        questReturn: resolved === null ? null : returnEntry(document, { partyId: resolved.partyId, questId: resolved.questId }),
+      };
+    }),
     fresh: fresh.size,
   };
+}
+
+/**
+ * The rail's entries, newest first, with each Loot moved to straight after its Party's return, so the
+ * Loot is the entry next after it, read down the rail as in the History's order (M9-F5, DL-111 item
+ * 2). A Loot whose return is not among them stays where it is.
+ */
+function lootAfterItsReturn(entries: readonly Entry[]): Entry[] {
+  const questOf = (entry: Entry): unknown => (entry.payload as { questId?: unknown }).questId;
+  const returned = new Set(entries.filter((entry) => entry.type === 'quest.resolved').map(questOf));
+  const held = new Map<unknown, Entry[]>();
+  const ordered: Entry[] = [];
+  for (const entry of entries) {
+    if (entry.type === 'quest.loot' && returned.has(questOf(entry))) {
+      held.set(questOf(entry), [...(held.get(questOf(entry)) ?? []), entry]);
+      continue;
+    }
+    ordered.push(entry);
+    if (entry.type === 'quest.resolved') ordered.push(...(held.get(questOf(entry)) ?? []));
+  }
+  return ordered;
 }
