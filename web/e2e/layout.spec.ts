@@ -62,13 +62,13 @@ test('every view and the game menu, with no sideways scroll and every control a 
     phone ? ['Guild', 'Roster', 'Board', 'Rankings', 'More'] : [longMaster, 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'],
   );
   // The Guildmaster's name, whatever its length, is cut with an ellipsis rather than widen the navigation.
-  if (phone) await nav.getByRole('button', { name: 'More', exact: true }).click();
+  if (phone) await nav.getByRole('button', { name: /^More( ?,|$)/ }).click();
   await expect(navItem(page, 'Guildmaster')).toHaveAccessibleName(longMaster);
   await expect(navItem(page, 'Guildmaster')).toHaveAccessibleDescription('Guildmaster');
   if (phone) {
     await expect(page.locator('#nav-more .nav__label')).toHaveText([longMaster, 'Market', 'History']);
     await expectNoHorizontalOverflow(page, 'More, open');
-    await nav.getByRole('button', { name: 'More', exact: true }).click();
+    await nav.getByRole('button', { name: /^More( ?,|$)/ }).click();
   }
 
   for (const view of views) {

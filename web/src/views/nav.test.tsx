@@ -69,7 +69,7 @@ describe('the navigation (M9-F2)', () => {
     const inBar = items().filter((item) => !item.classList.contains('nav__item--wide'));
     expect(inBar.map((item) => item.querySelector('.nav__label')?.textContent)).toEqual(['Guild', 'Roster', 'Board', 'Rankings']);
 
-    fireEvent.click(within(nav()).getByRole('button', { name: 'More' }));
+    fireEvent.click(within(nav()).getByRole('button', { name: /^More/ }));
     const more = nav().querySelector('#nav-more') as HTMLElement;
     expect(within(more).getAllByRole('button').map((button) => button.querySelector('.nav__label')?.textContent)).toEqual([
       'Ada Vell',
@@ -79,7 +79,7 @@ describe('the navigation (M9-F2)', () => {
     // A view opened from More marks More as the place the player is.
     fireEvent.click(within(more).getByRole('button', { name: /^Market/ }));
     expect(screen.getByRole('region', { name: 'Market' })).toBeDefined();
-    expect(within(nav()).getByRole('button', { name: 'More' }).classList.contains('is-current')).toBe(true);
+    expect(within(nav()).getByRole('button', { name: /^More/ }).classList.contains('is-current')).toBe(true);
   });
 
   test('each of the seven opens from the navigation with its heading focused and aria-current set', () => {
@@ -91,5 +91,20 @@ describe('the navigation (M9-F2)', () => {
       expect(document.activeElement, view).toBe(within(region).getByRole('heading', { level: 2, name: view }));
       expect(navButton(view).getAttribute('aria-current'), view).toBe('page');
     }
+  });
+});
+
+describe('what More holds that is new (M9-F2, the code review)', () => {
+  test('More carries a dot, and says in words how many History entries are new, while the History under it has any', () => {
+    const { unmount } = render(<Nav current="guild" counts={{ ...noCounts, fresh: 3 }} guildmasterName="Ada Vell" onOpen={vi.fn()} />);
+    const more = within(nav()).getByRole('button', { name: /^More/ });
+    expect(more.textContent).toBe('More, 3 new in the History');
+    expect(more.querySelector('.dot')).not.toBeNull();
+    unmount();
+
+    render(<Nav current="guild" counts={noCounts} guildmasterName="Ada Vell" onOpen={vi.fn()} />);
+    const quiet = within(nav()).getByRole('button', { name: /^More/ });
+    expect(quiet.textContent).toBe('More');
+    expect(quiet.querySelector('.dot')).toBeNull();
   });
 });

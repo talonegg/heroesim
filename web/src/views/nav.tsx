@@ -6,10 +6,10 @@
 // Seven views in one order at every width since M9-F2 (DL-111 items 7 and 8, DL-112 item 5, DL-113
 // item 1): the Guildmaster at the top, then Guild, Roster, Board, Rankings, Market and History. By
 // width, and by CSS alone: under 600px a bottom bar holds Guild, Roster, Board and Rankings, and
-// "More" holds the Guildmaster, the Market and the History, in the same order; from 600px a side
-// rail holds all seven. The Guildmaster's label is the player's Guildmaster's name, cut with an
-// ellipsis where it does not fit, and "Guildmaster" is its accessible description; with no name it
-// reads "Guildmaster".
+// "More" holds the Guildmaster, the Market and the History, in the same order, with a dot while the
+// History has entries new since the last action; from 600px a side rail holds all seven. The
+// Guildmaster's label is the player's Guildmaster's name, cut with an ellipsis where it does not
+// fit, and "Guildmaster" is its accessible description; with no name it reads "Guildmaster".
 
 import { useCallback, useId, useRef, useState } from 'react';
 import type { NavCounts } from '../state/digest';
@@ -127,6 +127,13 @@ export function Nav({
           >
             <Icon name="more" />
             <span className="nav__label">More</span>
+            {/* The History is under More on a phone: its new entries show here as a dot and in words (M9-F2). */}
+            {counts.fresh === 0 ? null : (
+              <>
+                <span className="dot" aria-hidden="true" />
+                <VisuallyHidden>, {counts.fresh} new in the History</VisuallyHidden>
+              </>
+            )}
           </button>
           {more ? (
             <div className="popover popover--nav" id="nav-more">

@@ -118,7 +118,7 @@ describe('the shell (M9-S3, DL-103)', () => {
   test('opens on the home view, with the seven views in the navigation in order and the open one marked', () => {
     render(<App initial={started()} />);
 
-    const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More$/.test(button.textContent ?? ''));
+    const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More(,|$)/.test(button.textContent ?? ''));
     // The Guildmaster's is labelled with their name (M9-F2).
     expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(
       views.map((view) => (view === 'Guildmaster' ? 'Ada Vell' : view)),

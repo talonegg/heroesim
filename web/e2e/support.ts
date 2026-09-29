@@ -97,7 +97,7 @@ export function navItem(scope: Scope, view: ViewName): Locator {
 export async function openView(scope: Scope, view: ViewName): Promise<Locator> {
   const nav = scope.getByRole('navigation', { name: 'Views' });
   const item = navItem(scope, view);
-  if ((await item.count()) === 0) await nav.getByRole('button', { name: 'More', exact: true }).click();
+  if ((await item.count()) === 0) await nav.getByRole('button', { name: /^More( ?,|$)/ }).click();
   await item.first().click();
   const shown = region(scope, view);
   await expect(shown).toBeVisible();
