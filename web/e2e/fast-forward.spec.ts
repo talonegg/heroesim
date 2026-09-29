@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
+import { closeGameMenu, dispatchAParty, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
 
 // Fast forward in steps (v1.0.1-S5, DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
@@ -10,7 +10,8 @@ import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, part
 // the page's own sentence and "Fast forward again".
 //
 // Through the shell (M9-S3, DL-103): the game's file is the game menu's, the time controls are the
-// status bar's, and the end of a fast forward opens the home view, where its stop is.
+// status bar's, and the end of a fast forward opens the home view, where its stop is; a Party home
+// opens it at the Party's Quest report (M9-F5).
 
 /** The Turns in a step of fast forward: `fastForwardStepTurns` (`web/src/state/reducer.ts`). */
 const stepTurns = 30;
@@ -200,4 +201,28 @@ test("falling below the Bankruptcy floor stops a fast forward unasked; the home 
   await openView(page, 'Guild');
   await stop.getByRole('button', { name: 'Open the Board' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Board', exact: true })).toBeFocused();
+});
+
+test("a Party's return stops a fast forward at its Quest report on Guild › Home, from the Board (M9-F5)", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });
+  const quest = await dispatchAParty(page);
+  // Sent from the Board, and the fast forward taken there: its end opens Guild › Home, whichever stop
+  // comes first; another stop (a Transfer Offer, say) is played past until the Party is home.
+  const time = statusBar(page).getByRole('group', { name: 'Time' });
+  const stop = page.getByTestId('stop');
+  const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
+  for (let tries = 0; tries < 10 && !/came home/.test(await stopped()); tries += 1) {
+    await playTurns(page, time.getByRole('button', { name: 'Fast forward', exact: true }));
+  }
+  await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
+
+  const home = page.getByRole('region', { name: 'Guild', exact: true });
+  await expect(home.getByRole('tab', { name: 'Home', exact: true })).toHaveAttribute('aria-selected', 'true');
+  const report = home.getByRole('region', { name: `Quest report: ${quest}`, exact: true });
+  await expect(report.getByRole('heading', { level: 3 })).toBeFocused();
+  await expect(report.getByRole('heading', { level: 4 }).last()).toHaveText('The Patron');
+  await expect(stop.getByRole('button', { name: 'Read what happened' })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page, 'a fast forward stopped at the Quest report');
 });

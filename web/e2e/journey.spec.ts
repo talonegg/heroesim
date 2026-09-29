@@ -5,6 +5,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import {
+  dispatchAParty,
   escaped,
   expectNoHorizontalOverflow,
   expectTargets,
@@ -40,61 +41,6 @@ import {
 // fee in its ledger.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-
-/**
- * Sends a Party on the first Quest on the Board that dispatch would send one to, through the Party
- * builder (M9-S4, DL-104); its name. Each Hero's row says what they bring; the first one chosen has
- * their page opened in place, and "Back to the Party" finds the choice as it was. Once sent, the
- * Quest's card is the Party out card, naming who went and the night they return.
- */
-async function dispatchAParty(page: Page): Promise<string> {
-  const board = await openView(page, 'Board');
-  const quests = board.getByRole('article');
-  const count = await quests.count();
-  for (let index = 0; index < count; index += 1) {
-    const quest = quests.nth(index);
-    const name = (await quest.getByRole('heading', { level: 3 }).textContent()) ?? '';
-    await quest.getByRole('button', { name: 'Choose a Party' }).click();
-    const form = quest.getByRole('form');
-    const verdict = form.getByRole('status');
-    const rows = form.getByTestId('party-row');
-    // Each row: who, their Class and Level, their Morale and its band.
-    await expect(rows.first()).toContainText(/(Warrior|Rogue|Mage|Healer), Level \d+/);
-    await expect(rows.first()).toContainText(/Morale \d+, (wretched|low|steady|high|elated)/);
-    // Choose Heroes one at a time until dispatch would send them, or none are left.
-    const chosen: string[] = [];
-    for (let hero = 0; hero < (await rows.count()); hero += 1) {
-      const box = rows.nth(hero).getByRole('checkbox');
-      if (await box.isDisabled()) continue;
-      await box.check();
-      chosen.push((await rows.nth(hero).locator('.party-row__name').textContent()) ?? '');
-      if ((await verdict.textContent()) === 'Dispatch would send this Party.') break;
-    }
-    const send = form.getByRole('button', { name: 'Send the Party' });
-    if (await send.isEnabled()) {
-      await expectNoHorizontalOverflow(page, 'a Party chosen, with its preview');
-      // The first Hero chosen, their page opened in place, and back to the Party as it was chosen.
-      const [first = ''] = chosen;
-      await form.getByRole('button', { name: `Open ${first}'s page`, exact: true }).click();
-      await expect(board.getByRole('heading', { level: 3, name: first, exact: true })).toBeFocused();
-      await expectNoHorizontalOverflow(page, "a Hero's page opened from the Party builder");
-      await board.getByRole('button', { name: 'Back to the Party' }).click();
-      await expect(form.getByRole('button', { name: `Open ${first}'s page`, exact: true })).toBeFocused();
-      await expect(form.getByRole('checkbox', { checked: true })).toHaveCount(chosen.length);
-      await expect(verdict).toHaveText('Dispatch would send this Party.');
-
-      await send.click();
-      await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
-      const sent = board.getByTestId('sent');
-      await expect(sent.getByRole('heading', { level: 3 })).toHaveText(name);
-      await expect(sent.getByRole('heading', { level: 3 })).toBeFocused();
-      await expect(sent).toContainText(new RegExp(`Sent: ${chosen.map(escaped).join('.*')}\\. Back on the night of Day \\d+\\.`));
-      return name;
-    }
-    await quest.getByRole('button', { name: 'Close' }).click();
-  }
-  throw new Error('No Quest on the Board would take a Party from the Roster');
-}
 
 /**
  * Signs, from the Unattached pool, the Hero with the lowest signing fee among those who would sign
@@ -214,29 +160,60 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
   for (let tries = 0; tries < 10 && !/came home/.test(await stopped()); tries += 1) await playTurns(page, fastForward);
   await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
-  // The home view says how it fared: its Quest, its band, and what it brought.
-  const came = page.getByRole('region', { name: 'Guild' }).locator('.outcome');
-  await expect(came.first().getByRole('heading', { level: 4 })).toHaveText(quest);
-  await expect(came.first()).toContainText(/^.+(Success|Strong success|Failure).+, Day \d+, \w+Wealth [+-]?\d+Fame [+-]?\d+/);
-  await expectNoHorizontalOverflow(page, 'a fast forward stopped, its outcome shown');
+  // The play opened Guild › Home at the Party's Quest report, with the keyboard on its heading (M9-F5,
+  // DL-112 item 8): its sections in order, how it went, what it brought, each Hero, and the Patron.
+  const guild = page.getByRole('region', { name: 'Guild', exact: true });
+  const report = guild.getByRole('region', { name: `Quest report: ${quest}`, exact: true });
+  await expect(report.getByRole('heading', { level: 3 })).toBeFocused();
+  await expect(report.getByRole('heading', { level: 4 })).toHaveText(['Encounters', 'Rewards', 'Heroes', 'The Patron']);
+  await expect(report).toContainText(/(Success|Strong success|Failure)/);
+  await expect(report).toContainText(/Wealth [+-]?\d+/);
+  await expect(report).toContainText(/'s Regard for The Lantern /);
+  // The Party's stop offers nothing more: the report is here, under it.
+  await expect(stop.getByRole('button', { name: 'Read what happened' })).toHaveCount(0);
+  await expectNoHorizontalOverflow(page, "a Party's Quest report");
+  await expectTargets(page, "a Party's Quest report");
 
-  // The Party's return, read in the History: "Read what happened" opens it on the player's Guild,
-  // the return new, how it went in a word, and its Encounters folded under it, to be opened.
-  await page.getByTestId('stop').getByRole('button', { name: 'Read what happened' }).click();
-  const read = page.getByRole('region', { name: 'History', exact: true });
+  // The return in the History: one entry, new, how it went in bold, its Heroes a line each behind a
+  // disclosure, and no Encounter of its own (M9-F5, DL-111 item 2).
+  const read = await history(page);
   await expect(read.getByRole('heading', { level: 3 })).toHaveText('The History of The Lantern');
   const cameHome = historyText(read, new RegExp(`^The Lantern's Party came home from ${escaped(quest)} and (failed|succeeded|succeeded strongly): Wealth [+-]?\\d+, Fame [+-]?\\d+\\.`));
   await expect(cameHome).toHaveCount(1);
   const returned = lineOf(cameHome);
   await expect(returned).toHaveClass(/\bis-new\b/);
-  await expect(returned.locator(':scope > .entry__line .chip')).toHaveText(/^(Success|Strong success|Failure)$/);
-  const encounters = returned.getByRole('button', { name: /^\d+ Encounters?/ });
-  await expect(encounters).toHaveAttribute('aria-expanded', 'false');
-  await encounters.click();
-  await expect(encounters).toHaveAttribute('aria-expanded', 'true');
-  await expect(historyText(returned.locator('ol'), /^The Lantern's Party (came through|failed at) .+ \(Encounter \d+\)/).first()).toBeVisible();
-  await expectNoHorizontalOverflow(page, "the Party's return read in the History, its Encounters open");
-  await expectTargets(page, "the Party's return read in the History, its Encounters open");
+  await expect(cameHome.locator('strong')).toHaveText(/^(failed|succeeded|succeeded strongly)$/);
+  const heroes = returned.getByRole('button', { name: /^\d+ Heroes?: how each fared on / });
+  await expect(heroes).toHaveAttribute('aria-expanded', 'false');
+  await heroes.click();
+  await expect(heroes).toHaveAttribute('aria-expanded', 'true');
+  const heroLines = returned.locator('.return__heroes li');
+  await expect(heroLines.first()).toBeVisible();
+  for (const line of await heroLines.all()) await expect(line).toContainText(/^.+: (died on the Quest|gained \d+ XP)/);
+  await expect(historyText(read, /\(Encounter \d+\)/)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page, "the Party's return in the History, its Heroes open");
+  await expectTargets(page, "the Party's return in the History, its Heroes open");
+
+  // "Open the report" opens it again on Guild › Home, until it is closed.
+  await returned.getByRole('button', { name: /^Open the report: / }).click();
+  await expect(report.getByRole('heading', { level: 3 })).toBeFocused();
+  await report.getByRole('button', { name: 'Close the report' }).click();
+  // Home again, its digest back: the stop, and this report still, since its Party came home in the last play.
+  await expect(guild.getByRole('heading', { level: 2 })).toBeFocused();
+  await expect(guild.getByTestId('stop')).toBeVisible();
+  await expect(report.getByRole('button', { name: 'Close the report' })).toHaveCount(0);
+
+  // From 1100px the rail beside the view holds the same entry, its Heroes behind the same disclosure.
+  if ((page.viewportSize()?.width ?? 0) >= 1100) {
+    const rail = page.getByRole('complementary', { name: 'Latest for The Lantern' });
+    const entry = rail.locator('.rail__return').first();
+    await expect(entry.locator('strong')).toHaveText(/^(failed|succeeded|succeeded strongly)$/);
+    const railHeroes = entry.getByRole('button', { name: /^\d+ Heroes?: how each fared on / });
+    await railHeroes.click();
+    await expect(entry.locator('.return__heroes li').first()).toBeVisible();
+    await expectNoHorizontalOverflow(page, "the Party's return in the rail, its Heroes open");
+    await expectTargets(page, "the Party's return in the rail, its Heroes open");
+  }
 
   // Save in the browser, under a name.
   const turn = (await page.getByTestId('time').textContent()) ?? '';

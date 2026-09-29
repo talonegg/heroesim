@@ -11,7 +11,8 @@ import { expect, type FrameLocator, type Locator, type Page } from '@playwright/
 // Guild, Roster, Board, Rankings, Market and History. Under 600px the Guildmaster, the Market and
 // the History are under "More". The Guildmaster's button is named by the Guildmaster's name, and
 // described as "Guildmaster". The Guild's parts, Home and Hall, are tabs under its heading, each
-// part the panel its tab names.
+// part the panel its tab names. `dispatchAParty` sends a Party through the Party builder, for the
+// journey and for the fast forward that stops at its return (M9-F5).
 
 type Scope = Page | FrameLocator;
 
@@ -34,7 +35,7 @@ export async function expectNoHorizontalOverflow(page: Page, when: string): Prom
  * holds it. What the page hides, and the file input behind its button, are not counted. A name in
  * a line of the History is a target in a sentence, whose size the sentence's line sets (WCAG 2.5.5
  * and 2.5.8 except such a target): it is held to 24px high, WCAG 2.5.8's least, and not to 44px
- * (M9-S5, DL-105).
+ * (M9-S5, DL-105); so is a name in a Quest report's lines, which are the History's words (M9-F5).
  */
 export async function expectTargets(page: Page, when: string): Promise<void> {
   const small = await page.evaluate(() => {
@@ -48,7 +49,7 @@ export async function expectTargets(page: Page, when: string): Promise<void> {
       // A box or a radio button is pressed by the label that holds it (the Guildmaster's Traits, M9-S7).
       const target = element.matches('input[type="checkbox"], input[type="radio"]') ? (element.closest('label') ?? element) : element;
       const { width, height } = target.getBoundingClientRect();
-      if (element.matches('.entry button.name')) {
+      if (element.matches('.entry button.name, .report button.name')) {
         if (height < 23.5) found.push(`a name in a line, "${named(target)}": ${Math.round(width)}×${Math.round(height)}`);
         continue;
       }
@@ -238,4 +239,59 @@ export async function playTurns(page: Page, button: Locator): Promise<string> {
 
 export function escaped(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Sends a Party on the first Quest on the Board that dispatch would send one to, through the Party
+ * builder (M9-S4, DL-104); its name. Each Hero's row says what they bring; the first one chosen has
+ * their page opened in place, and "Back to the Party" finds the choice as it was. Once sent, the
+ * Quest's card is the Party out card, naming who went and the night they return.
+ */
+export async function dispatchAParty(page: Page): Promise<string> {
+  const board = await openView(page, 'Board');
+  const quests = board.getByRole('article');
+  const count = await quests.count();
+  for (let index = 0; index < count; index += 1) {
+    const quest = quests.nth(index);
+    const name = (await quest.getByRole('heading', { level: 3 }).textContent()) ?? '';
+    await quest.getByRole('button', { name: 'Choose a Party' }).click();
+    const form = quest.getByRole('form');
+    const verdict = form.getByRole('status');
+    const rows = form.getByTestId('party-row');
+    // Each row: who, their Class and Level, their Morale and its band.
+    await expect(rows.first()).toContainText(/(Warrior|Rogue|Mage|Healer), Level \d+/);
+    await expect(rows.first()).toContainText(/Morale \d+, (wretched|low|steady|high|elated)/);
+    // Choose Heroes one at a time until dispatch would send them, or none are left.
+    const chosen: string[] = [];
+    for (let hero = 0; hero < (await rows.count()); hero += 1) {
+      const box = rows.nth(hero).getByRole('checkbox');
+      if (await box.isDisabled()) continue;
+      await box.check();
+      chosen.push((await rows.nth(hero).locator('.party-row__name').textContent()) ?? '');
+      if ((await verdict.textContent()) === 'Dispatch would send this Party.') break;
+    }
+    const send = form.getByRole('button', { name: 'Send the Party' });
+    if (await send.isEnabled()) {
+      await expectNoHorizontalOverflow(page, 'a Party chosen, with its preview');
+      // The first Hero chosen, their page opened in place, and back to the Party as it was chosen.
+      const [first = ''] = chosen;
+      await form.getByRole('button', { name: `Open ${first}'s page`, exact: true }).click();
+      await expect(board.getByRole('heading', { level: 3, name: first, exact: true })).toBeFocused();
+      await expectNoHorizontalOverflow(page, "a Hero's page opened from the Party builder");
+      await board.getByRole('button', { name: 'Back to the Party' }).click();
+      await expect(form.getByRole('button', { name: `Open ${first}'s page`, exact: true })).toBeFocused();
+      await expect(form.getByRole('checkbox', { checked: true })).toHaveCount(chosen.length);
+      await expect(verdict).toHaveText('Dispatch would send this Party.');
+
+      await send.click();
+      await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+      const sent = board.getByTestId('sent');
+      await expect(sent.getByRole('heading', { level: 3 })).toHaveText(name);
+      await expect(sent.getByRole('heading', { level: 3 })).toBeFocused();
+      await expect(sent).toContainText(new RegExp(`Sent: ${chosen.map(escaped).join('.*')}\\. Back on the night of Day \\d+\\.`));
+      return name;
+    }
+    await quest.getByRole('button', { name: 'Close' }).click();
+  }
+  throw new Error('No Quest on the Board would take a Party from the Roster');
 }

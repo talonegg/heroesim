@@ -14,7 +14,7 @@ import type { Segment } from '../state/narrate';
 import { reportSections, type QuestReturn, type ReportSection, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';
 import { Icon } from './icons';
-import { Chip, VisuallyHidden } from './ui';
+import { Chip } from './ui';
 
 /** The id of a report's heading, which takes the keyboard when the report opens. */
 export function reportHeadingId(key: ReturnKey): string {
@@ -182,10 +182,16 @@ export function ReturnEntryParts({
           <Said segments={entry.rest} links={links} />
         </span>
       </div>
-      <button type="button" className="button--quiet fold" aria-expanded={open} aria-controls={id} onClick={() => setOpen(!open)}>
+      <button
+        type="button"
+        className="button--quiet fold"
+        aria-expanded={open}
+        aria-controls={id}
+        aria-label={`${entry.heroesWords}: how each fared on ${entry.quest}`}
+        onClick={() => setOpen(!open)}
+      >
         <Icon name="chevron" className="fold__mark" />
         <span>{entry.heroesWords}</span>
-        <VisuallyHidden>: how each fared on {entry.quest}</VisuallyHidden>
       </button>
       <ul id={id} className="return__heroes" hidden={!open}>
         {entry.heroes.map((hero) => (
@@ -195,12 +201,14 @@ export function ReturnEntryParts({
         ))}
       </ul>
       {onReport === undefined ? null : (
-        <button type="button" className="button--quiet return__open" onClick={() => onReport(entry.key)}>
+        <button
+          type="button"
+          className="button--quiet return__open"
+          aria-label={`Open the report: ${entry.quest}, ${entry.when}`}
+          onClick={() => onReport(entry.key)}
+        >
           <Icon name="about" />
           <span>Open the report</span>
-          <VisuallyHidden>
-            : {entry.quest}, {entry.when}
-          </VisuallyHidden>
         </button>
       )}
     </>
