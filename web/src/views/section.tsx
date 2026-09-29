@@ -16,7 +16,7 @@ import { About } from './ui';
 export type ViewId = 'guild' | 'board' | 'roster' | 'hall' | 'rankings' | 'history';
 
 /** A part of a view, a region inside it. */
-export type PartId = 'offers' | 'pool' | 'guildmaster' | 'held' | 'market' | 'guilds' | 'patrons' | 'log';
+export type PartId = 'offers' | 'pool' | 'guildmaster' | 'held' | 'market' | 'guilds' | 'patrons';
 
 /** Anything the page can take the player to: a view, a part, and the regions outside the views. */
 export type SectionId = ViewId | PartId | 'new-game' | 'game' | 'rules';
@@ -31,7 +31,7 @@ export const partsOf: Readonly<Record<ViewId, readonly PartId[]>> = {
   roster: ['offers', 'pool'],
   hall: ['guildmaster', 'market', 'held'],
   rankings: ['guilds', 'patrons'],
-  history: ['log'],
+  history: [],
 };
 
 /** The view a part is in. */
@@ -54,7 +54,6 @@ export const titles: Readonly<Record<SectionId, string>> = {
   market: 'Market',
   guilds: 'Guilds',
   patrons: 'Patrons',
-  log: 'Since your last action',
   'new-game': 'A new game',
   game: 'This game',
   rules: 'New rules available',
@@ -66,8 +65,10 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 /** What each region is for and what its controls do: its accessible description. */
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
-    'What needs you this Turn: why time last stopped and the choices it names, how the Parties that came home fared, ' +
-    'the Transfer Offers waiting for an answer, the Parties still out and the night each returns, and the Quests on ' +
+    'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
+    'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to the Market and the ' +
+    'Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
+    'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',
   board:
     'The Quests on offer, each with its terms: a Quest’s Fame is won on a success and lost on a failure. Its name ' +
@@ -86,9 +87,11 @@ export const help: Readonly<Record<SectionId, string>> = {
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
-    'Everything the world has recorded, or one Guild’s part of it, newest first, a page at a time. Find anyone else ' +
-    'it names by name, a Hero who has died, retired or left the world, a Guildmaster or a Patron, to read theirs; ' +
-    'a Hero the world still holds opens on their page.',
+    'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the whole History or a ' +
+    'Rival’s, one choice away. What your last play added is marked new. A Party’s Encounters fold under how its ' +
+    'Quest went, and each Rival’s routine under one line; open either to read it all. A name opens whom it names: ' +
+    'a Hero’s page, a Guild’s page, or anyone else’s History. Find anyone the History names by name, a Hero who has ' +
+    'died, retired or left the world among them.',
   offers:
     'A Rival’s bid for one of your Heroes waits here until you accept it, decline it or it expires. Accepting sends ' +
     'the Hero to that Guild for the fee; their gear stays with you, and the Heroes left behind who held them in high ' +
@@ -119,9 +122,10 @@ export const help: Readonly<Record<SectionId, string>> = {
     'and their Quests on the Board now. A Patron’s Regard for your Guild rises and falls with how their Quests go, ' +
     'weighs on how often they post to the Board, and recovers toward neutral with time. Those neutral both ways are ' +
     'folded under their count.',
-  log: 'What happened in the Turns you last played, or from the action you last took, each event as a sentence in the order it happened.',
   'new-game':
-    'Found a Guild, name its Guildmaster, and take Quests from the Board. The seed makes the world: the same seed and ' +
+    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their sex and ' +
+    'age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
+    'you leave is drawn from the seed. The seed makes the world: the same seed and ' +
     'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
     'exported here.',
   game:

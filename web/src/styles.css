@@ -820,6 +820,182 @@ details > summary::-webkit-details-marker {
   margin-bottom: var(--space);
 }
 
+/* The Guildmaster's setup (M9-S7): behind "Your Guildmaster", a field's hint under it, the Traits
+   as rows of a box, a name and a cost, then what each does and how it stands against those chosen. */
+.field > label:first-child {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.field__hint {
+  font-size: 0.8125rem;
+  color: var(--ink-soft);
+}
+
+textarea {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  min-height: var(--tap);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  max-width: 36rem;
+  resize: vertical;
+}
+
+textarea:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+input[type='radio'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+.form > .disclosure {
+  display: block;
+  margin: 0 0 var(--gap);
+  border-block: 1px solid var(--line);
+}
+
+.disclosure__title {
+  font-family: var(--serif);
+  font-size: 1.125rem;
+}
+
+.disclosure__hint {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 400;
+  color: var(--ink-soft);
+}
+
+.setup {
+  border-left: 3px solid var(--brass-soft);
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  margin: 0.25rem 0 var(--gap);
+}
+
+.setup__pair {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 11rem), 1fr));
+  gap: 0 1rem;
+  max-width: 36rem;
+}
+
+.setup__traits {
+  margin-top: 0.25rem;
+}
+
+.setup__how {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.5rem;
+}
+
+.setup__how .choice + .choice {
+  border-top: none;
+}
+
+.budget {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.75rem;
+  margin: 0.25rem 0 0.5rem;
+  font-size: 0.875rem;
+}
+
+.budget .chip {
+  font-size: 0.875rem;
+}
+
+.trait-picks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 36rem;
+}
+
+.trait-pick {
+  border-top: 1px solid var(--line);
+  padding-bottom: 0.4rem;
+}
+
+.trait-pick__choice {
+  align-items: center;
+  padding-bottom: 0.1rem;
+}
+
+.trait-pick__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.trait-pick__cost {
+  margin-left: auto;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--brass);
+  white-space: nowrap;
+}
+
+.trait-pick__does,
+.trait-pick__stands {
+  margin: 0 0 0 1.9rem;
+  font-size: 0.875rem;
+}
+
+.trait-pick__stands {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  margin-top: 0.2rem;
+  font-weight: 600;
+}
+
+.trait-pick__stands:empty {
+  display: none;
+}
+
+.trait-pick--over-budget .trait-pick__stands {
+  color: var(--warn);
+}
+
+.trait-pick--excluded .trait-pick__stands,
+.trait-pick--at-most .trait-pick__stands {
+  color: var(--ink-soft);
+}
+
+.trait-pick--excluded .trait-pick__choice,
+.trait-pick--at-most .trait-pick__choice {
+  cursor: default;
+}
+
+.trait-pick--excluded .trait-pick__name,
+.trait-pick--at-most .trait-pick__name,
+.trait-pick--excluded .trait-pick__cost,
+.trait-pick--at-most .trait-pick__cost {
+  color: var(--ink-soft);
+}
+
+.form__refusal {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.25rem 0 0;
+  color: var(--warn);
+  font-weight: 600;
+}
+
 .footer {
   color: var(--ink-soft);
   font-size: 0.8125rem;
@@ -1042,6 +1218,11 @@ details > summary::-webkit-details-marker {
 .popover--time button {
   justify-content: flex-start;
   text-align: left;
+}
+
+/* The status bar keeps its own buttons to a line; a longer way to fast forward wraps (M9-S7). */
+.status__time .popover--time button {
+  white-space: normal;
 }
 
 .dialog-backdrop {
@@ -1426,19 +1607,173 @@ details > summary::-webkit-details-marker {
   border-top: 3px solid var(--accent);
 }
 
-.view--history .part {
-  margin-top: 0.5rem;
-  margin-bottom: 2rem;
-  border-top: none;
-  padding-top: 0;
+/* ── The History (M9-S5, DL-105) ─────────────────────────────────────────────────────────── */
+
+/* Its search in the view's head, beside the heading (the review's B11). */
+.history__search {
+  flex: 1 1 14rem;
+  max-width: 22rem;
+  margin: 0;
 }
 
-.history__controls {
-  display: grid;
-  gap: 0 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
-  padding-top: 1.25rem;
+/* Whose History: the player's Guild, the whole History and each Rival, one choice away, as chips. */
+.history__whose {
+  margin: 0.25rem 0 0.75rem;
+}
+
+.history__whose > button {
+  border-radius: 999px;
+  padding-inline: 0.95rem;
+}
+
+/* On a phone the chips are one row that scrolls in its own box, never the page, rather than a
+   column of six rows above the History. */
+@media (max-width: 599px) {
+  .history__whose {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: thin;
+  }
+
+  .history__whose > button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.view--history .history__top {
+  padding-top: 0.75rem;
   border-top: 1px solid var(--line);
+}
+
+.history__top h3 {
+  margin-bottom: 0.15rem;
+}
+
+/* A Day and time of day, over its entries: a label, not a heading's weight. */
+.history-group {
+  margin-top: 1.1rem;
+}
+
+.history-group > :is(h4, h5, h6) {
+  margin: 0;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.history-group__when {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.entries {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.entries[hidden] {
+  display: none;
+}
+
+/* Every entry keeps a rule's room at its left: the player's own is drawn in the accent (the review's C7). */
+.entry {
+  padding: 0.45rem 0 0.45rem 0.7rem;
+  border-bottom: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+
+.entry--mine {
+  border-left-color: var(--accent);
+}
+
+/* A Rival's is muted: said, and set back. */
+.entry--rival {
+  color: var(--ink-soft);
+}
+
+.entry__line .new-tag,
+.entry__line .chip,
+.entry__milestone {
+  margin-right: 0.4rem;
+  vertical-align: 0.05em;
+}
+
+.entry__milestone .icon {
+  color: var(--brass);
+}
+
+.is-milestone > .entry__line .entry__text {
+  font-weight: 650;
+}
+
+/* A name in a line opens whom it names: a link's look, in the line's own words. It is in a sentence,
+   so its height is the line's (WCAG 2.5.8's inline targets), not the 44px of a control. */
+.entry button.name {
+  display: inline;
+  min-height: 0;
+  min-width: 0;
+  max-width: none;
+  margin: 0;
+  padding: 0.15rem 0;
+  border: none;
+  border-radius: 2px;
+  background: none;
+  font: inherit;
+  font-weight: 600;
+  line-height: inherit;
+  color: inherit;
+  text-align: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+}
+
+.entry--mine button.name {
+  color: var(--accent);
+}
+
+.entry button.name:hover:not(:disabled) {
+  background: none;
+  text-decoration-color: currentColor;
+  text-decoration-thickness: 2px;
+}
+
+/* What is folded under a line, and the button that opens it. */
+.entry .fold {
+  margin-top: 0.1rem;
+  padding: 0.25rem 0.6rem 0.25rem 0;
+  font-size: 0.875rem;
+}
+
+.fold__mark {
+  transition: transform var(--quick) ease;
+}
+
+.fold[aria-expanded='true'] .fold__mark {
+  transform: rotate(180deg);
+}
+
+.entries--folded {
+  margin: 0 0 0.25rem 0.35rem;
+  padding-left: 0.75rem;
+  border-left: 1px solid var(--line-strong);
+  font-size: 0.9375rem;
+}
+
+.entries--folded .entry {
+  padding: 0.3rem 0;
+  border-left: none;
+  border-bottom: none;
 }
 
 /* ── Cards: one surface on the page ─────────────────────────────────────────────────────── */
@@ -2600,6 +2935,21 @@ tr.mine td {
 
 .stop .actions {
   margin-bottom: 0;
+}
+
+/* The Bankruptcy stop (M9-S7): a warning, by its icon and words as well as its colour. */
+.stop--warning {
+  border-left-color: var(--bad);
+}
+
+.stop--warning .stop__icon {
+  color: var(--bad);
+}
+
+.stop p.stop__words {
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: var(--ink);
 }
 
 .stop__caption {

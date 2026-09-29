@@ -11,6 +11,8 @@
 // A row opens its Guild in place (no router, M7 §0): its page (B10) has its Roster as a table with
 // the Transfer fee your Guild would pay for each Hero and "Take in" (the CLI's `transfer --in`), and
 // its Hall and Guildmaster folded; a Hero's page opens from its Roster. A part of the Rankings view.
+// A Guild's page opens the Guild's History, and a Guild's name in the History opens its page here,
+// the player's Guild's included (M9-S5, DL-105): which Guild is open is then the shell's.
 
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
@@ -19,6 +21,7 @@ import { guildPage, guildsTable, type GuildRow, type GuildSort, type GuildsTable
 import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
+import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
@@ -46,10 +49,25 @@ function rowId(guildId: GuildId): string {
   return `guilds-${guildId}`;
 }
 
-export function Guilds({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
+export function Guilds({
+  document,
+  busy,
+  play,
+  open: given,
+  onOpen,
+}: {
+  document: WorldDocument;
+  busy: boolean;
+  play: Play;
+  /** The Guild whose page is open, when the shell keeps it; the part keeps its own otherwise (M9-S5). */
+  open?: GuildId | null;
+  onOpen?: (guildId: GuildId | null) => void;
+}) {
   const [sort, setSort] = useState<GuildSort>(() => rememberedChoice(guildsOrderKey, sorts, 'fame'));
   const table = useMemo(() => guildsTable(document, sort), [document, sort]);
-  const [open, setOpen] = useState<GuildId | null>(null);
+  const [own, setOwn] = useState<GuildId | null>(null);
+  const open = given === undefined ? own : given;
+  const setOpen = onOpen ?? setOwn;
   const back = useReturn();
   return (
     <Part id="guilds">
@@ -173,6 +191,7 @@ function GuildPage({
   const view = useMemo(() => guildPage(document, guildId), [document, guildId]);
   const [hero, setHero] = useState<HeroId | null>(null);
   const back = useReturn();
+  const links = useHistoryLinks();
   // The keyboard goes to the Guild's name as its page opens, and to a Hero's as theirs does; closing
   // a Hero's page returns it to their row (`useReturn`).
   useEffect(() => {
@@ -238,6 +257,14 @@ function GuildPage({
           </Chip>
         </li>
       </ul>
+      {links === null ? null : (
+        <div className="actions">
+          <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildId)}>
+            <Icon name="history" />
+            <span>Read its History</span>
+          </button>
+        </div>
+      )}
 
       <h5>Roster</h5>
       {view.roster.length === 0 ? (

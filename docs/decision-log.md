@@ -9991,6 +9991,330 @@ selectors were `boardView`, `partyChoices`, `consumableChoices` and `previewView
 `web/src/views/hero-page.tsx`, `web/src/views/section.tsx`, `web/src/app.tsx`, `web/src/styles.css`,
 `web/e2e/journey.spec.ts`, `web/e2e/layout.spec.ts`; the epic's M9-S4 boxes.
 
+## DL-105 — The History as the one place to read what happened: the last play's entries its newest, marked new; opened on the player's Guild, with the whole History and each Rival's a choice away; names that open whom they name, marked by the narration from the events' ids; groups by Day and time of day; a Party's Encounters under its outcome and each Rival's routine under one line; and pages of 20 entries that keep a Party's steps with its outcome (M9-S5)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S5's implementer. The one
+view, its opening on the player's Guild and the History of any Guild, Hero, Guildmaster or Patron
+are the owner's (DL-99 item 2, answer 2). Names that open whom they name are an agent's proposal in
+DL-99 item 2, standing unless the owner objects. The grouping, the two folds and the paging are the
+epic's M9-S5. Every choice below that the epic left open, and every departure from it, is the
+agent's, and stands unless the owner objects to it or to the screenshots.
+
+**Context.** Until M9-S5 the History view held two parts. "Since your last action" listed the last
+play's events oldest first, a hundred at a time, with a checkbox "Only what concerns" the player's
+Guild, unticked by default (DL-66 item 6, DL-74 item 8). Below it, the History listed the whole
+History or a Guild's, newest first, twenty entries a page, each line with its own Day and time of day
+(DL-73 item 8), and a search found anyone else it names (DL-74 item 2). DL-99 item 2 made the History
+the one place to read what happened. The review's B6, B11 and C7 proposed the grouping, the folds, the
+lighter controls and the marks. The engine appends every event of a play to the History as it is
+(`append`, ADR-0008), and indexes the entries by participant (`byEntity`), so no engine change is
+needed, and none was made. DL-100 planned one record, DL-103, for S3 to S7; this story's own is
+DL-105, as its brief numbers it.
+
+**Decision.**
+
+1. **One view.**
+   - *The log goes.* `views/log.tsx`, its test, `logView` in `state/selectors.ts` and the part
+     `log` of the History view are removed, with the "Only what concerns" checkbox.
+   - *What is new.* An entry is new when it is one of the last play's events, the same object the
+     History holds. Each new line carries a "New" tag, the rail's word. The page's summary says how
+     many of the History shown are new: "Page 1 of 7, 122 entries in all, newest first. 43 new since
+     your last action."
+   - *The navigation's count and the rail* keep M9-S3's scope, the player's Guild (DL-103 item 4).
+2. **Whose History.**
+   - *Where it opens.* On the player's Guild's, superseding DL-66 item 6's unticked filter. The
+     shell holds the choice (`whose`: `null` for the player's Guild, `all`, or an entity's id), so it
+     holds from view to view and from play to play, and a new game or a load starts it afresh
+     (DL-74 items 7 and 8).
+   - *The choices,* as chips in a group named "Whose History" (the review's B11): the player's
+     Guild, the whole History, then each Rival in play, in the world's order. Under 600px the chips
+     are one row that scrolls in its own box.
+   - *A folded Guild is not a chip.* Over twenty years folded Rivals accumulate. Their History is
+     still read (DL-73 item 8), found by name as anyone else's is ("Guild, folded").
+   - *The search* sits in the view's head beside its heading (B11), with its accessible name
+     unchanged, "Find someone in the History by name".
+   - *Two buttons reopen it on the player's Guild at its newest*, whatever was chosen before: the
+     rail's "Open the History" (as the brief asks) and the stop's "Read what happened" (the agent's,
+     since it points to the same entries). The keyboard goes to the History's title. The
+     navigation's History button keeps the choice.
+3. **Anyone's History.**
+   - *Found by name,* as DL-74 item 2 has it, unchanged.
+   - *From their pages.* A Guild's page in the Rankings has "Read its History". Each Patron in the
+     Rankings has "History". A Guildmaster, in the Hall and on a Guild's page, has "Read their
+     History". A Hero's page shows their History as the History view does, grouped, folded and
+     marked, with names that open.
+   - *A Hero the world still holds* opens on their page in the History view (DL-74). Its "Back" goes
+     to the History shown before it, "Back to the History of The Lantern", where it said "Back to the
+     whole History" (`historyTitle`).
+4. **Names that open whom they name.**
+   - *Marked by the narration, never parsed* (principle 5). `state/narrate.ts` gains
+     `narrateSegments`: a line as words and names, each name carrying the id the sentence read it
+     from and its table. The sentences are written with a tagged template, and `called` gives a name
+     where it gave a string. `narrate` is the segments' words (`textOf`), so every sentence the tests
+     pin word for word reads as before, and a test holds every event type's segments to its sentence
+     and each name to a participant of its event.
+   - *Which names.* A Guild, a Hero, a Guildmaster or a Patron, the rows with names. An entity the
+     event has no label for stays words ("a Hero").
+   - *Where each goes.* A Hero's name opens the Hero in the History view, which for a Hero the world
+     holds is their page. A Guild's opens its page in the Rankings, the player's Guild's included: the
+     shell now holds which Guild's page is open (`Guilds` takes `open` and `onOpen`). A Guildmaster's
+     or a Patron's opens their History.
+   - *As targets.* A name is a button that looks like a link, in the sentence. It is held to 24px
+     high, WCAG 2.5.8's least, not to the epic's 44px: WCAG 2.5.5 and 2.5.8 both except a target in
+     a sentence, whose size the line sets. `e2e/support.ts`'s `expectTargets` checks it so. This is a
+     departure from "Controls are at least 44px", for names alone.
+5. **Groups** by Day and time of day, one heading per group with the time's glyph, the groups newest
+   first and each group's entries in the order they happened, which is the order the engine appended
+   them: a Quest's night reads its Encounters, its outcome, its Loot, Injuries and XP as they came.
+   The heading is `h4` in the History view, and one level below the Hero's page's own headings there.
+6. **Folds.**
+   - *A Party's steps under its outcome.* A `quest.resolved` holds its Party's `quest.encounter`
+     entries and its `item.expended`, the consumables the Party used, which the Quest Engine appends
+     between its Encounters and its outcome. Their button names them: "3 Encounters and 1
+     consumable used". The player's Loot, Injuries, deaths and XP follow the outcome and stand as
+     lines, as the home view reports them; a Rival's fold into its routine (below), save a death,
+     which is a Milestone.
+   - *A Rival's routine, one line a Guild.* In a group, a Rival's routine entries, two or more, fold
+     into "The Guild at Harrow Cross: 5 routine entries (XP, Morale and purchases).", with its own
+     button, "5 entries", where the first
+     of them happened, the Guild's name a name. A single routine entry stands as itself: folding one
+     saves nothing.
+   - *Which types are routine* (`routineKinds`, keyed by every event type, so `tsc -b` refuses a
+     type the engine adds until it is decided): `guild.upkeep-paid`, `hero.xp-gained`,
+     `hero.morale-changed`, `hero.injured`, `hero.healed`, `hero.declined`, `hero.regard-changed`,
+     `guildmaster.regard-changed`, `patron.regard-changed`, `item.bought`, `item.sold`,
+     `item.equipped`, `item.unequipped`, `item.returned`, `item.expended` and a common `quest.loot`.
+     *Why:* they are what a Guild's ordinary running leaves behind every Day and at each return, and
+     change nothing on the Board, in the Rankings or on a Roster. The epic named purchases, equipping,
+     XP and Morale drift; the rest are "similar" in that sense. *Never routine:* what changes the
+     player's world (a Quest taken or resolved, a Hero recruited, leaving the Guild or moving, an offer
+     or its end), a Guild's standing (the Bankruptcy floor, a fold, a module's change of Wealth), the
+     world's own entries, and every Milestone whatever its type (a unique Item's Loot, a Level, an
+     Improvement).
+   - *Whose routine.* The Guild its payload names, else the one Guild among whom it concerns, which
+     `emit` adds for a Hero. Never the player's Guild's.
+   - *In every scope,* the whole History, a Guild's, a Patron's and a Hero's alike.
+   - *The words.* "routine" is the ordinary word, shown in a summary; it is not a term of
+     `CONTEXT.md`, which gains none.
+7. **Marks, never colour alone** (C7).
+   - *The player's lines* (those naming the player's Guild) have an accent rule at the left, and
+     their names are in the accent.
+   - *A Rival's lines* (naming another Guild) are muted, in the soft ink. Lines naming no Guild (a
+     Patron's offer, the pool, the world) have neither.
+   - *An outcome* carries the home view's chip: a check or a cross and "Success", "Strong success"
+     or "Failure".
+   - *A Milestone* is bold, with a brass star and "Milestone:" for a screen reader.
+8. **Paging.**
+   - *A page counts entries, not groups:* twenty, from the newest, as before (`historyPageSize`). A
+     group straddling two pages is headed on both.
+   - *A Party's steps stay with its outcome.* A page whose last entries are an outcome and some of
+     its steps takes the rest of them, and the next page starts after them, so a page may hold a few
+     more than twenty. Every entry is on one page and one only, which a test checks over every page of
+     a fifty-Day game.
+   - *The controls.* Newest, Newer, Older and Oldest, drawn only when there is more than one page. A
+     change of page puts the keyboard on the page's top, its title and summary, so "Newest" returns to
+     the top of the History.
+9. **The home view's outcomes open their line** (the optional link). Each outcome in "Came home"
+   has "Read it in the History", which opens the player's Guild's History on the page the outcome
+   stands on (`pageOfEntry`) with the keyboard on its line (`outcome-<party>`).
+10. **Where it lives.** `state/history.ts` is new: `historyView`, `historyTitle`, `historyChoices`,
+    `pageOfEntry` and `routineKinds`. `findInHistory` and `historySearchLimit` move there from
+    `state/world-views.ts`, whose History part goes. `heroPage` no longer pages a Hero's History; its
+    Milestones stay. `guildmasterView` gains the Guildmaster's id. The views are
+    `views/history-entries.tsx` (the page of groups, folds and marks, the names, and `EntityHistory`
+    for a Hero's page), `views/history.tsx`, and a context, `HistoryLinks`, through which the shell
+    gives any History what is new and where a name goes.
+11. **The tests.**
+    - *At the seams, written first:* `state/narrate.test.ts` (segments), `state/history.test.ts`
+      (grouping, folds, routine, marks, paging over every page, scope, choices, the search moved
+      from `world-views.test.ts`) and `state/digest.test.ts` (an outcome's page and anchor).
+    - *The views,* `views/history.test.tsx`: it opens on the player's Guild with the new marked; the
+      choice holds; paging and "Newest"; each fold opens; the marks; each kind of name opens the right
+      entity; each entity's page opens its History; the rail and the stop; an outcome opened from the
+      home view; and the History read again only when the game, the log or the page changes, not at
+      each step of a fast forward (ported from the log's test, v1.0.1-S6, DL-97).
+    - *Tests that read the old log* now read the History, new: `app.test.tsx`, `views/actions.test.tsx`,
+      `views/world.test.tsx`, `views/hero-page.test.tsx`.
+    - *The browser specs:* the journey reads the dispatch, the recruit and the Party's return in the
+      History, opens the return's Encounters, and checks the targets there; the layout spec reads the
+      History opened on the player's Guild, the whole History, the search and a name opened; the
+      modules spec reads `probe.fired` in the whole History.
+
+**Consequences.**
+- *The page.* One History, which opens on what happened to the player's Guild, newest first, what
+  the last play did marked new. A year's fast forward no longer lists thousands of lines in one part.
+- *Questions for the owner.*
+  - Should a Rival's routine fold in a Hero's own History, where every line is that Hero's?
+  - Is the stop's "Read what happened" right to reopen the player's Guild's History, rather than
+    keep the choice?
+  - Should folded Guilds have chips, now found by name only?
+- *For M9-S6*, which redesigns the Hero's page, the Rankings, the Guilds and the Patrons: the Hero's
+  History is `EntityHistory`; the Guild page's open Guild is the shell's (`open`, `onOpen`); a
+  Guild's page, each Patron and a Guildmaster have their History buttons through `useHistoryLinks`.
+- No engine, content, CLI, config, event or save change: `configVersion`, the content version and the
+  schema version are unchanged.
+
+**Actioned in:** `web/src/state/narrate.ts`, `web/src/state/history.ts`, `web/src/state/digest.ts`,
+`web/src/state/selectors.ts`, `web/src/state/world-views.ts`, `web/src/app.tsx`, `web/src/views/`
+(`history.tsx`, `history-entries.tsx`, `guilds.tsx`, `rankings.tsx`, `patrons.tsx`,
+`guildmaster.tsx`, `hero-page.tsx`, `guild.tsx`, `rail.tsx`, `stop.tsx`, `section.tsx`),
+`web/src/styles.css`, `web/e2e/`; the epic's M9-S5 boxes.
+
+## DL-107 — The page's side of #30 and #32: the Guildmaster set up under "Your Guildmaster", each Trait judged by the engine's own check against those chosen, "Start the game" held while the engine would refuse, "until a Quest I can staff appears" beside the pool's, and the Bankruptcy stop as a warning card with the ways to the Market and the Board (M9-S7)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S7's implementer.
+- *The owner's.* What the setup offers is DL-88 items 3 and 4 and DL-100 item 3, whose approval is
+  the owner's; the stops are DL-85 items 6 and 8. #30's and #32's acceptance boxes are the owner's
+  issues.
+- *The orchestrator's.* The brief: "Your Guildmaster" as a disclosure, the refusal beside the form,
+  the Bankruptcy card's words and buttons, the label "until a Quest I can staff appears", and the
+  help sentences to update.
+- *The agent's.* Every choice below that the epic and the brief left open, and stands unless the
+  owner objects to it or to the screenshots.
+- *The number.* The orchestrator gave this story DL-107. The epic's §4 still gives DL-103 to M9-S3 to
+  M9-S7.
+
+**Context.** M9-S1 (DL-101) built the `below-floor` and `quest-staffable` stops, and M9-S2 (DL-102)
+the Guildmaster's setup, with `guildmasterSetupChoices`, `traitBudgetView` and `newGameRefusal` in
+`web/src/state/` for this story's form. M9-S3 (DL-103) put the page in a shell. At `606fb35` the
+new-game form still took only the names, the Guild's Background and the seed, and the split button
+offered only "until new Heroes join the pool". `views/stop.tsx` sent the Bankruptcy stop to "Read
+what happened", M9-S1's placeholder, and the time controls' words named only the older stops. The
+suite held 3,043 tests in 121 files.
+
+**Decision.**
+
+1. **The form's rules in a module of their own, `web/src/state/setup.ts`, written test first.**
+   - *Why a new file.* `selectors.ts` is being changed by M9-S4 to M9-S6 at the same time. The
+     setup is a seam of its own, built on M9-S2's three selectors, which are unchanged.
+   - *What it holds:*
+     - `traitPicksView(chosen)`: each Guildmaster Trait, with its cost and its exclusions in words,
+       how it stands against those chosen and why, and the budget left;
+     - `setupFormChoices()`: the sexes by a word, each starting age, the Traits' limits in words,
+       and each descriptive Attribute with its bound;
+     - `setupRefusalWords(play)`: `newGameRefusal`'s verdict as `rejections.ts`'s sentence.
+2. **A Trait's standing is the engine's verdict on the Traits chosen with it added.**
+   - *How.* `setupRefusal` is asked about a setup that holds the chosen Traits and this one, with
+     placeholder names and nothing else set, so only the Traits can be refused. Refused as too many,
+     the Trait is `at-most`. Refused as an excluded pair, it is `excluded`, "Excluded by Miser, which
+     is chosen." Refused as over the budget, it is `over-budget`, "Over the budget: with it, the
+     Traits cost 3 and the budget is 1." Otherwise it is `open`.
+   - *Why.* The page copies neither the exclusion lookup nor the sum. The order is the engine's, so
+     with two chosen every other Trait reads "2 Traits are chosen, the most a Guildmaster holds",
+     even one that is excluded too.
+3. **Over the budget is marked but can be chosen; excluded and at-most cannot.**
+   - *Why.* With a budget of 1, Well liked or Thrifty (2) is over the budget on its own until a
+     penalty follows it. Choosing the buff first is the natural order, and it should not be refused.
+     An excluded Trait, or one past the most, is mended only by taking a Trait off.
+   - *How.* `TraitPick.choosable` is false for `excluded` and `at-most`, and the box is disabled.
+     The reason is the box's description, with a cross; an over-budget reason has a warning sign in
+     the warning colour. A chosen Trait can always be taken off.
+4. **The budget as the player picks.** "Budget left: 1", or "Over the budget by 1" with a warning
+   sign in the bad colour. Beside it: "The Traits chosen cost 2; the budget is 1.", "…refund 2…", or
+   "No Trait is chosen…". "Points" alone is avoided, as `CONTEXT.md`'s Trait budget asks. M9-S2's
+   refusal sentence, "Those Traits cost 2 points and the budget is 1…", is left as M9-S2 wrote it.
+5. **The form** (`web/src/views/new-game.tsx`).
+   - *Its order.* Guild name, Background, Guildmaster's name, "Your Guildmaster", Seed, the refusal,
+     "Start the game". The Background moves up beside the Guild's name, since it is the Guild's; under
+     the Guildmaster's name it read as theirs.
+   - *"Your Guildmaster".* The shared `Disclosure`, closed. Its summary has a hint: "Sex, age, Traits
+     and a few words about them, or all drawn from the seed".
+   - *Inside it:*
+     - Sex and Age are lists that open on "Drawn from the seed". The ages are 30 to 45, one by one,
+       with "Years, 30 to 45" under them, so no age out of range can be chosen.
+     - Traits are two radio buttons, "Drawn from the seed" and "Choose them". Chosen with none ticked,
+       the Guildmaster has none (`guildmasterTraitKeys: []`). Back on "Drawn from the seed", nothing
+       is sent, and the ticks come back if "Choose them" is taken again.
+     - Birthplace is one line, and Appearance and Biography are text areas, each with "At most N
+       characters" as its description.
+   - *No `maxLength`.* The browser counts UTF-16 units, where the engine counts characters after
+     trimming (DL-102 item 7). A `maxLength` would be a stricter rule of the page's own. Past the
+     bound, the engine's sentence says the length.
+   - *Labels.* The lists are labelled by a `<label for>` of their own. A label around a list puts its
+     options into its name in Chromium, where the specs could not find "Sex". The Background's label
+     is as it was.
+6. **A setup the engine would refuse cannot be started.** "Start the game" is disabled while
+   `setupRefusalWords` gives a sentence. The sentence stands above the button, as the button's
+   description and a polite live region, with a warning sign.
+   - *The blank names too* (the agent's choice). An empty form says "The Guild needs a name." beside
+     a disabled button: the reason it cannot start, and the next thing to do.
+   - *The docked alert.* It stays the reducer's, for a refusal after a play.
+7. **The split button** (`web/src/views/status-bar.tsx`).
+   - *Its ways.* "Fast forward until a Quest I can staff appears" first, then "…until new Heroes join
+     the pool". The label is the brief's, DL-85 item 8's words: the player's own voice in a command.
+   - *Its note.* It names every stop that is always on, the Bankruptcy floor among them. A second
+     note says "A Quest you can staff is one the Heroes at home could take, even with a Party out."
+   - *Wrapping.* The longer labels wrap inside the popover, which the status bar's `nowrap` had
+     stopped.
+8. **The words that name the stops** (DL-73 item 9's sentences).
+   - *The time controls' description* (`timeHelp`) names every stop fast forward makes of its own
+     accord, the Bankruptcy floor now among them. It also names the two it makes when asked from its
+     other ways: a Quest the Heroes at home can staff, even with a Party out, and new Heroes in the
+     pool.
+   - *The Guild view's sentence* names why time stopped, the Quests a decision or a Quest to staff
+     names, the Bankruptcy stop's Day and its ways to the Market and the Board, and the countdown.
+   - *The new game's sentence* names the setup under "Your Guildmaster".
+9. **The Quest-to-staff stop.** Its Quests are buttons to their Parties, as a decision's are: the
+   merge had done it in `views/stop.tsx`, and tests now prove it. When none of them is still on the
+   Board, "Open the Board".
+10. **The Bankruptcy stop in the home view** (`views/stop.tsx`, `views/guild.tsx`).
+    - *A warning card.* It has an oxblood edge and a warning sign, as the countdown pill has. Its
+      sentence is the stop's, which names the Day Bankruptcy falls on.
+    - *Its words.* Two paragraphs name no number and weigh no choice. "To stay in business, Wealth
+      must be back to the Bankruptcy floor or more on a night by then, after any Upkeep due." Then:
+      "Sell what the Guild holds at the Market, or send a Party on a Quest: its reward comes in when
+      it comes home. Recruiting, building and buying spend Wealth."
+    - *Its buttons.* "Sell at the Market" opens the Hall with the keyboard on the Market's heading.
+      "Open the Board" opens the Board. `nextFor` takes a list of steps for this.
+    - *No second countdown.* The countdown's banner is not drawn while the card stands, since it
+      would say the same Day again. After the next play the stop is gone, and the banner returns with
+      the floor's number, which the pill and the History's entry also give.
+11. **How the Bankruptcy stop is reached in the browser.** The spec and the screenshots use a save.
+    A new game is exported, its Guild's Wealth is set to −50 in the file, and it is loaded back.
+    Its fast forward stops on the first night, at Day 0 night. The status bar's time is the Turn
+    just played. So a save edited at "Day 0, night" plays into the next morning, where a decision
+    stops it first.
+12. **The new events in the History.** `guild.below-floor`, `guild.floor-recovered` and
+    `guildmaster.succeeded` read well as the History draws them today. The first is in the
+    screenshots' History rail: "The Lantern's Wealth, -50, fell below the Bankruptcy floor of 0:
+    Bankruptcy on the night of Day 30 unless it is back to 0 or more on a night by then." The others
+    are held to their sentences by `state/narrate.test.ts`. `state/narrate.ts` is M9-S5's and is
+    unchanged. Its `narrateStop` comment still points to `views/time.tsx` for `nextFor`, which is now
+    `views/stop.tsx`.
+13. **One test's wait.** `use-game.test.tsx`'s five steps take M9-S4's 20 s wait, the same line. It
+    ran past a second once under load here, as it had for M9-S4.
+
+**Consequences.**
+- *#30.* Box 4 is met in both front ends: the page's form sets up the Guildmaster within the budget,
+  with the engine's refusals.
+- *#32.* Box 3's "the web's fast-forward choices" is met by the page's control, and the Bankruptcy
+  stop is shown in the home view.
+- *Tests.* The suite grew from 3,043 tests in 121 files to 3,073 in 124:
+  - `state/setup.test.ts` (13 tests);
+  - `views/new-game.test.tsx` (8);
+  - `views/stops.test.tsx` (5);
+  - four more in `views/stop.test.tsx`.
+
+  The browser specs grew from 36 to 42 tests across the three projects:
+  - the journey starts with a chosen Guildmaster;
+  - `fast-forward.spec.ts` reaches the Bankruptcy stop;
+  - `layout.spec.ts` checks the open setup for sideways scroll and 44px targets.
+- *For the merges.*
+  - `views/stop.tsx`'s `below-floor` line is also changed by M9-S5, from `log` to `history`: this
+    story's list replaces it.
+  - `section.tsx`'s Guild and new-game sentences are this story's; M9-S4 and M9-S5 changed others.
+  - The styles are in two blocks: after `.form`, and after `.stop .actions`.
+- *Questions for the owner.*
+  - Should an empty form say "The Guild needs a name." before anything is typed?
+  - Is "I" right in "until a Quest I can staff appears", where the page elsewhere says "you"?
+  - Should the Bankruptcy card stand in the countdown banner's place, as it does?
+  - Should drawn Guildmasters lean to penalties? DL-102 item 17's question shows here too: with a
+    budget of 1, Well liked and Thrifty are over the budget until a penalty is chosen.
+
+**Actioned in:** `web/src/state/setup.ts`; `web/src/views/` (`new-game.tsx`, `status-bar.tsx`,
+`stop.tsx`, `guild.tsx`, `section.tsx`); `web/src/styles.css`; `web/e2e/` (`journey.spec.ts`,
+`fast-forward.spec.ts`, `layout.spec.ts`, `support.ts`); the epic's M9-S7 boxes.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -3,9 +3,12 @@
 // game menu, and a refusal docked under it. The navigation opens one view at a time: Guild, the
 // home view's digest of what needs attention; the Board; the Roster with the Transfer Offers and the
 // Unattached pool; the Hall with the Guildmaster, what the Guild holds and the Market; the Rankings
-// with the Guilds and the Patrons; and the History with what happened since the last action. From
-// 1100px the History rail sits beside the view. Before there is a game, a new one, and the saves to
-// load one from.
+// with the Guilds and the Patrons; and the History, the one place to read what happened, the last
+// play's entries its newest (M9-S5, DL-105). From 1100px the History rail sits beside the view.
+// Before there is a game, a new one, and the saves to load one from.
+//
+// A name in the History opens whom it names, wherever the History is drawn: a Hero's page, in the
+// History; a Guild's page, in the Rankings; a Guildmaster's or a Patron's History (`HistoryLinks`).
 //
 // Views switch as React state, with no router (R38): the page stays one page with one classic
 // script that opens from `file://`. Which view is open is remembered in this browser; a new game or
@@ -16,11 +19,12 @@
 // every number shown comes from a selector under `state/`. The modules it installs are those its
 // address names, `?modules=probe`, a test switch, none without it (M8-S4, DL-79).
 
-import type { EntityId, Module, QuestId, WorldDocument } from '@heroesim/engine';
+import type { GuildId, Module, QuestId, WorldDocument } from '@heroesim/engine';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
-import { navCounts } from './state/digest';
+import { navCounts, type OutcomeRow } from './state/digest';
+import type { HistoryWhose } from './state/history';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
 import { useGame, type GameState } from './state/reducer';
@@ -30,6 +34,7 @@ import { GameMenu, installedWords } from './views/game-menu';
 import { GuildView } from './views/guild';
 import { Hall } from './views/hall';
 import { History } from './views/history';
+import { HistoryLinksContext, type HistoryLinks, type NameSegment } from './views/history-entries';
 import { Nav } from './views/nav';
 import { NewGame } from './views/new-game';
 import { Rail } from './views/rail';
@@ -72,12 +77,16 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [view, setView] = useState<ViewId>(rememberedView);
   const [menuOpen, setMenuOpen] = useState(false);
   // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
-  // one; and the History's choices, which hold while the game is in hand (DL-74 item 8).
+  // one; the Guild whose page is open in the Rankings, so a name can open it; and whose History is
+  // shown, the player's Guild's at first, a choice that holds while the game is in hand (DL-74 item
+  // 8, DL-99 item 2).
   const [boardQuest, setBoardQuest] = useState<QuestId | null>(null);
   // How the Board is ordered: display only, and kept from view to view (M9-S4, DL-104).
   const [boardOrder, setBoardOrder] = useState<BoardOrder>('posted');
-  const [whose, setWhose] = useState<EntityId | null>(null);
-  const [mine, setMine] = useState(false);
+  const [rankingsGuild, setRankingsGuild] = useState<GuildId | null>(null);
+  const [whose, setWhose] = useState<HistoryWhose>(null);
+  // The page the History opens on: its newest, save when the home view opens an outcome where it stands.
+  const [historyStart, setHistoryStart] = useState(0);
   const [focus, setFocus] = useState<Focus | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLElement>(null);
@@ -98,6 +107,38 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setFocus({ id: id ?? headingOf(target), fallback: headingOf(next) });
   }, []);
 
+  /** Opens `whose` History in the History view, at its newest, with the keyboard on its title. */
+  const openHistory = useCallback(
+    (next: HistoryWhose) => {
+      setWhose(next);
+      open('history', 'history-title');
+    },
+    [open],
+  );
+
+  /** A name in the History: a Guild's page in the Rankings; a Hero's page, or anyone else's History, in the History. */
+  const openName = useCallback(
+    (name: NameSegment) => {
+      if (name.table === 'guilds') {
+        setRankingsGuild(name.entityId as GuildId);
+        open('rankings', 'guild-page-name');
+      } else openHistory(name.entityId);
+    },
+    [open, openHistory],
+  );
+
+  /** How a Party fared, from the home view: its line in the player's Guild's History, on its page, with the keyboard on it. */
+  const openOutcome = useCallback(
+    (outcome: OutcomeRow) => {
+      setWhose(null);
+      setHistoryStart(outcome.page ?? 0);
+      open('history', outcome.anchor);
+    },
+    [open],
+  );
+
+  const links = useMemo<HistoryLinks>(() => ({ log: game.log, onName: openName, onHistory: openHistory }), [game.log, openName, openHistory]);
+
   // A new game or a load: the home view, and nothing the last game had open (DL-74 item 7).
   const [games, setGames] = useState(game.games);
   if (games !== game.games) {
@@ -105,8 +146,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setView('guild');
     setMenuOpen(false);
     setBoardQuest(null);
+    setRankingsGuild(null);
     setWhose(null);
-    setMine(false);
     setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
   }
 
@@ -123,6 +164,9 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   }
 
   useEffect(() => rememberView(view), [view]);
+
+  // Away from the History, it opens at its newest again.
+  if (view !== 'history' && historyStart !== 0) setHistoryStart(0);
 
   useEffect(() => {
     if (focus === null) return;
@@ -188,6 +232,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
       >
         <Refusal state={game} play={play} />
       </StatusBar>
+      <HistoryLinksContext value={links}>
       <div className="shell">
         <Nav current={view} counts={counts} onOpen={(next) => open(next)} />
         <main aria-busy={busy} className="main">
@@ -203,12 +248,13 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                 stop={stop}
                 busy={busy}
                 play={play}
-                onGo={(target) => open(target)}
+                onGo={(target) => (target === 'history' ? openHistory(null) : open(target))}
                 onOpenQuest={(questId) => {
                   setBoardQuest(questId);
                   open('board', `quest-${questId}`);
                 }}
                 onOpenMenu={() => setMenuOpen(true)}
+                onReadOutcome={openOutcome}
               />
             ) : null}
             {view === 'board' ? (
@@ -224,14 +270,13 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
             ) : null}
             {view === 'roster' ? <Roster {...shared} /> : null}
             {view === 'hall' ? <Hall {...shared} /> : null}
-            {view === 'rankings' ? <Rankings {...shared} guildName={guildName} /> : null}
-            {view === 'history' ? (
-              <History {...shared} state={game} guildName={guildName} whose={whose} onWhose={setWhose} mine={mine} onMine={setMine} />
-            ) : null}
+            {view === 'rankings' ? <Rankings {...shared} guildName={guildName} open={rankingsGuild} onOpen={setRankingsGuild} /> : null}
+            {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} startPage={historyStart} /> : null}
           </Fragment>
         </main>
-        <Rail state={game} onOpenHistory={() => open('history')} />
+        <Rail state={game} onOpenHistory={() => openHistory(null)} />
       </div>
+      </HistoryLinksContext>
       {modules.length === 0 ? null : (
         <footer className="footer footer--shell">
           <p>Installed for testing: {installedWords(modules)}.</p>

@@ -109,8 +109,9 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
 
-      // Every page of the Hero's History too.
-      while (!(within(page).getByRole('button', { name: 'Older' }) as HTMLButtonElement).disabled) {
+      // Every page of the Hero's History too, its folds among them; a History of one page has no pages to turn (M9-S5).
+      const older = (): HTMLButtonElement | null => within(page).queryByRole('button', { name: 'Older' });
+      while (older()?.disabled === false) {
         fireEvent.click(within(page).getByRole('button', { name: 'Older' }));
         expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
         expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
@@ -170,7 +171,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
       expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
-      fireEvent.click(within(page).getByRole('button', { name: 'Back to the whole History' }));
+      fireEvent.click(within(page).getByRole('button', { name: 'Back to the History of The Lantern' }));
     }
   });
 

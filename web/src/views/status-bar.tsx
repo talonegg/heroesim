@@ -7,10 +7,13 @@
 // menu opens from it, and a refusal is docked under it.
 //
 // Time moves only here (the CLI's `advance` and `advance --until`): fast forward stops on its own
-// when a Party of the player's comes home, a decision is needed, a Transfer Offer arrives or the
-// game ends, and at the latest after a year; new Heroes in the Unattached pool stop it only when
-// asked (pre-M0 review B7). Why it stopped is the home view's to say.
+// when a Party of the player's comes home, a decision is needed, a Transfer Offer arrives, the Guild
+// falls below the Bankruptcy floor (M9-S1, DL-101) or the game ends, and at the latest after a year.
+// Two stops come only when asked, from the split button's other ways: a Quest the Heroes at home can
+// staff appearing, even with a Party out (`quest-staffable`, the CLI's `--until staffable`; M9-S7),
+// and new Heroes in the Unattached pool (pre-M0 review B7). Why it stopped is the home view's to say.
 
+import type { StopCondition } from '@heroesim/engine';
 import { useCallback, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GameAction } from '../state/reducer';
 import type { HeaderView, ProgressView } from '../state/selectors';
@@ -20,9 +23,18 @@ import { StatPill, useDismiss, VisuallyHidden } from './ui';
 /** What time is, and what its controls do: the time controls' accessible description (DL-73 item 9). */
 export const timeHelp =
   'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
-  'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives or ' +
-  'the game ends, and at the latest after a year; it can also stop when new Heroes join the Unattached pool. ' +
+  'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives, your ' +
+  'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a year; from its other ways, it ' +
+  'can also stop when a Quest the Heroes at home can staff appears, even with a Party out, or when new Heroes join ' +
+  'the Unattached pool. ' +
   'It plays them 30 Turns, ten Days, at a time, showing how far it has come, and Stop ends it there.';
+
+/** The stops a fast forward makes only when asked (the CLI's `--until staffable` and `--until pool`). */
+const sooner: readonly { label: string; until: readonly StopCondition[] }[] = [
+  // M9-S7 (#32, DL-85 item 8): even with a Party out.
+  { label: 'Fast forward until a Quest I can staff appears', until: ['quest-staffable'] },
+  { label: 'Fast forward until new Heroes join the pool', until: ['pool-refreshed'] },
+];
 
 const glyphs: Readonly<Record<HeaderView['timeOfDay'], IconName>> = { morning: 'morning', afternoon: 'afternoon', night: 'night' };
 
@@ -160,17 +172,21 @@ function TimeControls({ busy, playing, ended, play }: { busy: boolean; playing: 
           <div className="popover popover--time" id="fast-forward-ways">
             <p className="note">
               Fast forward stops of its own accord when a Party of yours comes home, a decision is needed, a Transfer
-              Offer arrives or the game ends. It can stop sooner:
+              Offer arrives, your Guild falls below the Bankruptcy floor or the game ends. It can stop sooner:
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setOpen(false);
-                play({ kind: 'fastForward', until: ['pool-refreshed'] });
-              }}
-            >
-              Fast forward until new Heroes join the pool
-            </button>
+            {sooner.map(({ label, until }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => {
+                  setOpen(false);
+                  play({ kind: 'fastForward', until });
+                }}
+              >
+                {label}
+              </button>
+            ))}
+            <p className="note">A Quest you can staff is one the Heroes at home could take, even with a Party out.</p>
           </div>
         ) : null}
       </span>

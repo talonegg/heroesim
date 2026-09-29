@@ -3,13 +3,13 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { holding, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { navButton, rosterList, section } from './page.test-support';
+import { inHistory, navButton, rosterList, section } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (M7-S3 part 2, DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
-// and `decline`. Each play is the engine's; the page shows what changed, the log narrates it, and a
-// refusal is the engine's rejection as a sentence. Each region is found by opening its view first
-// (M9-S3, DL-103).
+// and `decline`. Each play is the engine's; the page shows what changed, the History narrates it,
+// new, on the player's Guild's (M9-S5), and a refusal is the engine's rejection as a sentence. Each
+// region is found by opening its view first (M9-S3, DL-103).
 
 afterEach(cleanup);
 
@@ -26,8 +26,9 @@ function refusal(): string {
   return within(screen.getByRole('alert')).getByText(/./, { selector: 'p' }).textContent ?? '';
 }
 
+/** The History, opened on the player's Guild, has the play's line, marked new (M9-S5, DL-105). */
 function logSays(pattern: RegExp): void {
-  expect(within(section('Since your last action')).getByText(pattern)).toBeDefined();
+  expect(inHistory(pattern).classList.contains('is-new')).toBe(true);
 }
 
 function render_(state: GameState): void {

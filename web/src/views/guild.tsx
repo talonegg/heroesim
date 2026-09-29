@@ -1,11 +1,12 @@
 // The home view, Guild (M9-S3, DL-103; the review's A3): a digest of what needs attention this
 // Turn. How the game ended, once it has; the rules notice while it stands; the Bankruptcy
-// countdown; why time stopped, each Quest a decision-needed stop names a button to its Party; how
+// countdown, which the Bankruptcy stop's warning card says in its place (M9-S7); why time stopped, each Quest a decision-needed stop names a button to its Party; how
 // the Parties that came home in the last play fared; the Transfer Offers waiting for an answer; the
 // Parties still out and the night each returns; and the Quests on their last Day on the Board.
 // Each is drawn only when there is something to say (the review's A5). Every word and number comes
 // from a selector (`state/digest.ts`, `stopView`, `headerView`, `offersView`): nothing here
-// computes a rule.
+// computes a rule. How a Party fared opens its line in the History, on the page it stands on (M9-S5,
+// DL-105).
 
 import type { QuestId, WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
@@ -16,7 +17,7 @@ import { offersView } from '../state/trade-views';
 import { Icon } from './icons';
 import { View, type SectionId } from './section';
 import { StopCard } from './stop';
-import { Banner, Chip, type Tone } from './ui';
+import { Banner, Chip, VisuallyHidden, type Tone } from './ui';
 
 const bandTone: Readonly<Record<OutcomeRow['band'], Tone>> = { fail: 'bad', success: 'good', strong: 'good' };
 
@@ -36,6 +37,7 @@ export function GuildView({
   onGo,
   onOpenQuest,
   onOpenMenu,
+  onReadOutcome,
 }: {
   state: GameState;
   document: WorldDocument;
@@ -47,6 +49,8 @@ export function GuildView({
   onGo: (target: SectionId) => void;
   onOpenQuest: (questId: QuestId) => void;
   onOpenMenu: () => void;
+  /** Opens a Party's outcome where it stands in the History (M9-S5). */
+  onReadOutcome?: (outcome: OutcomeRow) => void;
 }) {
   const { log } = state;
   const outcomes = useMemo(() => outcomesView({ document, log }), [document, log]);
@@ -84,7 +88,8 @@ export function GuildView({
           </p>
         </Banner>
       )}
-      {header.countdown === null ? null : (
+      {/* The Bankruptcy stop's card says the same Day, with what can be done: it stands in the banner's place (M9-S7). */}
+      {header.countdown === null || stop?.kind === 'below-floor' ? null : (
         <Banner tone="warn" icon="alert">
           <p>{header.countdown}</p>
         </Banner>
@@ -131,6 +136,15 @@ export function GuildView({
                       </li>
                     ))}
                   </ul>
+                )}
+                {onReadOutcome === undefined || outcome.page === null ? null : (
+                  <div className="actions">
+                    <button type="button" className="button--quiet" onClick={() => onReadOutcome(outcome)}>
+                      <Icon name="history" />
+                      <span>Read it in the History</span>
+                      <VisuallyHidden>: {outcome.quest}</VisuallyHidden>
+                    </button>
+                  </div>
                 )}
               </li>
             ))}

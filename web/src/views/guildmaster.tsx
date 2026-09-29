@@ -6,10 +6,13 @@
 // A part of the Hall (M9-S3, DL-103). Their sex and age, then the descriptive Attributes written
 // (M9-S2), each only when set; each Trait with its effect's words; and Regard as chips on one ramp
 // from hostile to close, the neutral ones folded under their count (M9-S6, DL-106; the review's C8).
+// A Guildmaster opens their History (M9-S5, DL-105).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { guildmasterView, type GuildmasterView, type RegardRow } from '../state/world-views';
+import { useHistoryLinks } from './history-entries';
+import { Icon } from './icons';
 import { Heading, Part, Terms } from './section';
 import { Chip, Folded, regardTones } from './ui';
 
@@ -24,12 +27,21 @@ export function Guildmaster({ document }: { document: WorldDocument }) {
 
 export function GuildmasterDetails({ view, level }: { view: GuildmasterView; level: 4 | 5 }) {
   const sub = level === 4 ? 5 : 6;
+  const links = useHistoryLinks();
   return (
     <div className="guildmaster">
       <Heading level={level}>
         {view.name}, Guildmaster of {view.guildName}
       </Heading>
       <Terms pairs={view.attributes} />
+      {links === null ? null : (
+        <div className="actions">
+          <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildmasterId)}>
+            <Icon name="history" />
+            <span>Read their History</span>
+          </button>
+        </div>
+      )}
 
       <div className="guildmaster__grid">
         <div>

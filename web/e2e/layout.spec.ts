@@ -3,6 +3,7 @@ import {
   closeGameMenu,
   expectNoHorizontalOverflow,
   expectTargets,
+  guildmasterSetup,
   openGameMenu,
   openView,
   part,
@@ -11,6 +12,7 @@ import {
   startGame,
   statusBar,
   thisGame,
+  traitBox,
   type ViewName,
 } from './support';
 
@@ -19,10 +21,12 @@ import {
 // sideways scroll of the page and every control a target of at least 44px. Then everything that
 // opens, opened in turn: a Party being chosen, a Hero's page, a pool Hero's page, a Rival's Guild
 // page and one of its Heroes' pages, the Rankings by Wealth, an older page of the History, names
-// found in the History and a page opened from them (DL-74), the new-game form over a game, and a
-// save with a long name. The Guild's and the Guildmaster's names are long, and one word runs 61
-// letters unbroken. The Board's cards, one unfolded, and the Party builder are checked at each width,
-// the phone's at 390px as well, with Send in view at the foot of the form (M9-S4, DL-104).
+// found in the History and a page opened from them (DL-74), a name in the History opened, the
+// new-game form over a game, and a save with a long name. The History opens on the player's Guild;
+// its search is in its head, and its whole History a choice away (M9-S5, DL-105). The Guild's and
+// the Guildmaster's names are long, and one word runs 61 letters unbroken. The Board's cards, one
+// unfolded, and the Party builder are checked at each width, the phone's at 390px as well, with
+// Send in view at the foot of the form (M9-S4, DL-104).
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
@@ -165,8 +169,11 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await rankings.getByRole('button', { name: 'Order by Wealth' }).click();
   await expectNoHorizontalOverflow(page, 'the Rankings by Wealth');
   const history = await openView(page, 'History');
+  await expect(history.getByRole('heading', { level: 3 })).toHaveText(`The History of ${longGuild}`);
+  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The whole History', exact: true }).click();
   await history.getByRole('button', { name: 'Oldest' }).click();
   await expectNoHorizontalOverflow(page, 'the oldest page of the History');
+  await expectTargets(page, 'the oldest page of the History');
 
   // Someone found in the History by name, the Guildmaster's long one among them, and a Hero's page
   // opened from it (DL-74).
@@ -177,13 +184,22 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await history.getByRole('button', { name: /^Read Ælfwine/ }).click();
   await expect(history.getByRole('heading', { level: 3, name: /^The History of Ælfwine/ })).toBeVisible();
   await expectNoHorizontalOverflow(page, "the Guildmaster's History, found by name");
+  await expectTargets(page, "the Guildmaster's History, found by name");
   const heroName = (await (await rosterList(page)).locator('button.link').first().textContent()) ?? '';
   const again = await openView(page, 'History');
   await again.getByRole('searchbox', { name: 'Find someone in the History by name' }).fill(heroName);
   await again.getByRole('button', { name: `Read ${heroName}`, exact: true }).click();
-  await expect(again.getByRole('button', { name: 'Back to the whole History' })).toBeVisible();
+  // Back goes to the History it came from, the Guildmaster's, which the choice held.
+  const back = again.getByRole('button', { name: /^Back to the History of Ælfwine/ });
+  await expect(back).toBeVisible();
   await expectNoHorizontalOverflow(page, "a Hero's page opened from the History");
-  await again.getByRole('button', { name: 'Back to the whole History' }).click();
+  await back.click();
+  // A name in a line opens whom it names: the long Guild's name, its page in the Rankings.
+  await again.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: new RegExp(`^${longGuild}`) }).click();
+  await again.locator('.entry button.name', { hasText: longGuild }).first().click();
+  const guildPage = page.getByRole('region', { name: 'Guilds', exact: true });
+  await expect(guildPage.getByRole('heading', { level: 4, name: longGuild })).toBeVisible();
+  await expectNoHorizontalOverflow(page, "the player's Guild's page, opened from its name in the History");
 
   // A save with a long name, and its delete asked for.
   const game = await thisGame(page);
@@ -201,4 +217,24 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expectNoHorizontalOverflow(page, 'the new-game form over a game');
   await page.getByRole('button', { name: 'Back to the game in hand' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(longGuild);
+});
+
+test("the new-game form with the Guildmaster's setup open, a Trait chosen and others marked: no sideways scroll, and 44px targets (M9-S7)", async ({
+  page,
+}) => {
+  await page.goto('/');
+  const form = page.getByRole('region', { name: 'A new game', exact: true });
+  await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
+  await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
+  const setup = await guildmasterSetup(page);
+  await setup.getByRole('radio', { name: 'Choose them' }).check();
+  await traitBox(setup, 'Miser').check();
+  // Miser excludes two; two pass the budget of 1 with it or alone.
+  await expect(traitBox(setup, 'Well liked')).toBeDisabled();
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup, a Trait chosen");
+  await expectTargets(page, "the Guildmaster's setup, a Trait chosen");
+  await setup.getByRole('textbox', { name: 'Birthplace', exact: true }).fill('x'.repeat(61));
+  await expect(page.getByTestId('setup-refusal')).toHaveText('The Birthplace is 61 characters long; it holds at most 60.');
+  await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
 });

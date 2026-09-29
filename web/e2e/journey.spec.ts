@@ -4,7 +4,23 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { escaped, expectNoHorizontalOverflow, openView, part, playTurns, rosterList, startGame, thisGame } from './support';
+import {
+  escaped,
+  expectNoHorizontalOverflow,
+  expectTargets,
+  groupOf,
+  guildmasterSetup,
+  history,
+  historyText,
+  lineOf,
+  openView,
+  part,
+  playTurns,
+  rosterList,
+  startGame,
+  thisGame,
+  traitBox,
+} from './support';
 
 // The journey (M7-S4, DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
 // advanced, a Party dispatched, a Hero recruited from the Unattached pool (the milestone's Gate,
@@ -16,6 +32,9 @@ import { escaped, expectNoHorizontalOverflow, openView, part, playTurns, rosterL
 // Through the shell (M9-S3, DL-103): each view is opened from the navigation before its regions are
 // read, the home view shows the Party out and then how it fared, and the game's file is the game
 // menu's. The Party is chosen in the Party builder (M9-S4, DL-104), with a Hero's page opened from it.
+// What each play did is read in the History, opened on the player's Guild, new; the Party's return
+// is read there too, how it went marked in a word and its Encounters folded under it (M9-S5,
+// DL-105).
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -99,8 +118,9 @@ async function recruitAHero(page: Page): Promise<string> {
   await expect(page.getByTestId('wealth')).toHaveText(String(wealth - chosen.fee));
   await expect(pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true })).toHaveCount(0);
   await expect((await rosterList(page)).getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
-  const signed = new RegExp(`^Day \\d+, \\w+ The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`);
-  await expect((await part(page, 'Since your last action')).getByRole('listitem').filter({ hasText: signed })).toHaveCount(1);
+  const signed = historyText(await history(page), new RegExp(`^The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`));
+  await expect(signed).toHaveCount(1);
+  await expect(lineOf(signed)).toHaveClass(/\bis-new\b/);
   return chosen.name;
 }
 
@@ -113,8 +133,31 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   test.setTimeout(120_000);
   await page.goto('/');
   await expectNoHorizontalOverflow(page, 'the new-game form');
+  // The Guildmaster set up under "Your Guildmaster" (M9-S7, #30): an age, and two Traits within the
+  // budget of 1, a buff and a penalty; the sex and the rest drawn from the seed.
+  const setup = await guildmasterSetup(page);
+  await setup.getByLabel('Age', { exact: true }).selectOption('38');
+  await setup.getByRole('radio', { name: 'Choose them' }).check();
+  const budget = setup.getByTestId('trait-budget');
+  await expect(budget).toContainText('Budget left: 1');
+  await traitBox(setup, 'Old soldier').check();
+  await expect(budget).toContainText('Budget left: 0');
+  // A buff beside it would pass the budget, and says so; one excluded by none is still open.
+  await expect(setup.getByText('Over the budget: with it, the Traits cost 3 and the budget is 1.')).toHaveCount(2);
+  await traitBox(setup, 'Mistrusts magic').check();
+  await expect(budget).toContainText('Budget left: 1');
+  // Two chosen, the most a Guildmaster holds: the rest wait until one is taken off.
+  await expect(traitBox(setup, 'Miser')).toBeDisabled();
+  // The Traits keep the rules: all the engine still asks for is the names, which come next.
+  await expect(page.getByTestId('setup-refusal')).toHaveText('The Guild needs a name.');
+  await expectNoHorizontalOverflow(page, "the Guildmaster's setup, two Traits chosen");
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });
   await expectNoHorizontalOverflow(page, 'a new game');
+  // The Guildmaster the game began with: the age and the Traits chosen.
+  const guildmaster = await part(page, 'Guildmaster');
+  await expect(guildmaster).toContainText(/Age\s*38/);
+  await expect(guildmaster).toContainText('Old soldier');
+  await expect(guildmaster).toContainText('Mistrusts magic');
 
   // A Day: three Turns, morning, afternoon and night.
   const advance = page.getByRole('button', { name: 'Advance a Turn' });
@@ -122,8 +165,10 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(page.getByTestId('time')).toHaveText('Day 1, morning, Year 0');
 
   const quest = await dispatchAParty(page);
-  const sent = new RegExp(`^Day 1, morning The Lantern sent .+ on ${escaped(quest)}, back on the night of Day \\d+\\.$`);
-  await expect((await part(page, 'Since your last action')).getByRole('listitem').filter({ hasText: sent })).toHaveCount(1);
+  const sent = historyText(await history(page), new RegExp(`^The Lantern sent .+ on ${escaped(quest)}, back on the night of Day \\d+\\.$`));
+  await expect(sent).toHaveCount(1);
+  await expect(lineOf(sent)).toHaveClass(/\bis-new\b/);
+  await expect(groupOf(sent)).toHaveText('Day 1, morning');
   // The home view names the Party out, and the night it returns.
   const home = await openView(page, 'Guild');
   await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Day \\d+$`) })).toHaveCount(1);
@@ -143,6 +188,24 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(came.first().getByRole('heading', { level: 4 })).toHaveText(quest);
   await expect(came.first()).toContainText(/^.+(Success|Strong success|Failure).+, Day \d+, \w+Wealth [+-]?\d+Fame [+-]?\d+/);
   await expectNoHorizontalOverflow(page, 'a fast forward stopped, its outcome shown');
+
+  // The Party's return, read in the History: "Read what happened" opens it on the player's Guild,
+  // the return new, how it went in a word, and its Encounters folded under it, to be opened.
+  await page.getByTestId('stop').getByRole('button', { name: 'Read what happened' }).click();
+  const read = page.getByRole('region', { name: 'History', exact: true });
+  await expect(read.getByRole('heading', { level: 3 })).toHaveText('The History of The Lantern');
+  const cameHome = historyText(read, new RegExp(`^The Lantern's Party came home from ${escaped(quest)} and (failed|succeeded|succeeded strongly): Wealth [+-]?\\d+, Fame [+-]?\\d+\\.`));
+  await expect(cameHome).toHaveCount(1);
+  const returned = lineOf(cameHome);
+  await expect(returned).toHaveClass(/\bis-new\b/);
+  await expect(returned.locator(':scope > .entry__line .chip')).toHaveText(/^(Success|Strong success|Failure)$/);
+  const encounters = returned.getByRole('button', { name: /^\d+ Encounters?/ });
+  await expect(encounters).toHaveAttribute('aria-expanded', 'false');
+  await encounters.click();
+  await expect(encounters).toHaveAttribute('aria-expanded', 'true');
+  await expect(historyText(returned.locator('ol'), /^The Lantern's Party (came through|failed at) .+ \(Encounter \d+\)/).first()).toBeVisible();
+  await expectNoHorizontalOverflow(page, "the Party's return read in the History, its Encounters open");
+  await expectTargets(page, "the Party's return read in the History, its Encounters open");
 
   // Save in the browser, under a name.
   const turn = (await page.getByTestId('time').textContent()) ?? '';

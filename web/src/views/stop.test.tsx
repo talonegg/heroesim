@@ -1,5 +1,5 @@
 import type { QuestId } from '@heroesim/engine';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import type { StopView } from '../state/selectors';
 import { StopCard } from './stop';
@@ -54,6 +54,52 @@ describe('a decision needed', () => {
 
   test('when none of the Quests it named is still on the Board, opens the Board', () => {
     const { onGo } = card({ kind: 'decision-needed', sentence, quests: [] });
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Board' }));
+
+    expect(onGo).toHaveBeenCalledWith('board');
+  });
+});
+
+describe('the Bankruptcy stop (M9-S7, #32)', () => {
+  const sentence = 'Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.';
+
+  test('is a warning card with the Day Bankruptcy falls on, and says in words what can be done about it', () => {
+    card({ kind: 'below-floor', sentence });
+
+    const stop = screen.getByTestId('stop');
+    expect(stop.classList.contains('stop--warning')).toBe(true);
+    expect(within(stop).getByText(sentence)).toBeDefined();
+    expect(stop.textContent).toContain(
+      'To stay in business, Wealth must be back to the Bankruptcy floor or more on a night by then, after any Upkeep due.',
+    );
+    expect(stop.textContent).toContain('Sell what the Guild holds at the Market, or send a Party on a Quest: its reward comes in when it comes home.');
+  });
+
+  test("goes to the Hall's Market to sell, and to the Board", () => {
+    const { onGo } = card({ kind: 'below-floor', sentence });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Sell at the Market' }));
+    expect(onGo).toHaveBeenLastCalledWith('market');
+    fireEvent.click(screen.getByRole('button', { name: 'Open the Board' }));
+    expect(onGo).toHaveBeenLastCalledWith('board');
+    expect(screen.queryByRole('button', { name: 'Read what happened' })).toBeNull();
+  });
+});
+
+describe('a Quest to staff (M9-S7, #32)', () => {
+  const sentence = "Stopped: a Quest to staff: The Lantern's Heroes at home could go on Clear the barrow.";
+
+  test('makes each Quest it names a button to its Party, as a decision needed does', () => {
+    const quests = [{ questId: 'quest-000003' as QuestId, name: 'Clear the barrow', patron: 'Orabel Quint', reward: 120 }];
+    const { onOpenQuest } = card({ kind: 'quest-staffable', sentence, quests });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choose a Party for Clear the barrow, offered by Orabel Quint, for 120 Wealth' }));
+    expect(onOpenQuest).toHaveBeenCalledWith('quest-000003');
+    expect(screen.getByTestId('stop').classList.contains('stop--warning')).toBe(false);
+  });
+
+  test('when none of its Quests is still on the Board, opens the Board', () => {
+    const { onGo } = card({ kind: 'quest-staffable', sentence, quests: [] });
     fireEvent.click(screen.getByRole('button', { name: 'Open the Board' }));
 
     expect(onGo).toHaveBeenCalledWith('board');

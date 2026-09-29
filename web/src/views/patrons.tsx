@@ -4,11 +4,13 @@
 // A part of the Rankings (M9-S3, DL-103), as one table (M9-S6, DL-106; the review's B5): Patron,
 // Sphere, their Regard for the player's Guild, the player's Guildmaster's Regard for them (once a
 // list of its own in the Guildmaster's part), and their Quests on the Board now. Regard is a chip on
-// one ramp (C8); a Patron neutral both ways is folded under the count of them ("9 neutral").
+// one ramp (C8); a Patron neutral both ways is folded under the count of them ("9 neutral"). Each
+// Patron's name opens their History (M9-S5, DL-105).
 
-import type { WorldDocument } from '@heroesim/engine';
+import type { EntityId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import { patronsView, type PatronRow } from '../state/world-views';
+import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
 import { Part } from './section';
 import { Chip, regardTones } from './ui';
@@ -76,9 +78,18 @@ export function Patrons({ document, guildName }: { document: WorldDocument; guil
 }
 
 function Patron({ row }: { row: PatronRow }) {
+  const links = useHistoryLinks();
   return (
     <tr data-testid="patron">
-      <th scope="row">{row.name}</th>
+      <th scope="row">
+        {links === null ? (
+          row.name
+        ) : (
+          <button type="button" className="link" aria-label={`Read the History of ${row.name}`} onClick={() => links.onHistory(row.patronId as EntityId)}>
+            {row.name}
+          </button>
+        )}
+      </th>
       <td>{row.sphere}</td>
       <td>{row.regard === null ? <span className="subtle">none</span> : <Chip tone={regardTones[row.regard]}>{row.regard}</Chip>}</td>
       <td>
