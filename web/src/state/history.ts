@@ -231,7 +231,8 @@ export function historyTitle(document: WorldDocument, whose: HistoryWhose): stri
 /**
  * A page of the History of `whose` (from 0): `historyPageSize` entries counted from the newest, a
  * Party's steps kept with its outcome, grouped by Day and time of day, newest first, each group in
- * the order it happened. A page past the last reads as the last; an entity the History does not
+ * the order it happened. Each page starts where the one before ends (`pageStarts`), so none is empty
+ * and `pages` is exact. A page past the last reads as the last; an entity the History does not
  * name, as the whole History. `log` is the last play's events, which the engine appended to the
  * History as they are: those entries are new.
  */
@@ -241,9 +242,10 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   const { entityId, name } = resolved(document, whose);
 
   const scope = scopeOf(document, entityId);
-  const pages = Math.max(1, Math.ceil(scope.count / historyPageSize));
+  const starts = pageStarts(scope, history.entries);
+  const pages = starts.length;
   const shown = Math.min(Math.max(0, Math.floor(page)), pages - 1);
-  const positions = pagePositions(scope, history.entries, shown * historyPageSize);
+  const positions = pagePositions(scope, history.entries, starts[shown] ?? 0);
   const reading: Reading = {
     entries: history.entries,
     narration: narrationFor(document, content),
@@ -268,15 +270,23 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
 /**
  * On which page of `whose` History `entry` stands, from 0, so that the home view can open a Party's
  * outcome where it is; `null` when the History shown does not hold it. `entry` is the History's own,
- * as the last play's events are. A page keeps a Party's steps with its outcome, and moves nothing
- * else: an entry that is not a step stands on the page its place counts to.
+ * as the last play's events are. The pages' edges are `historyView`'s own (`pageStarts`), so a step
+ * stands on its outcome's page, and every other entry on the page that holds its place.
  */
 export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry: Entry): number | null {
   const { history } = document;
   const position = history.entries.lastIndexOf(entry);
   if (position < 0) return null;
   const { entityId } = resolved(document, whose);
-  if (entityId === null) return Math.floor((history.entries.length - 1 - position) / historyPageSize);
+  const scope = scopeOf(document, entityId);
+  const index = indexIn(document, entityId, position);
+  return index === null ? null : pageStarts(scope, history.entries, index).length - 1;
+}
+
+/** Where the entry at `position` of the History stands in `entityId`'s, counted from the newest; `null` when it is not there. */
+function indexIn(document: WorldDocument, entityId: EntityId | null, position: number): number | null {
+  const { history } = document;
+  if (entityId === null) return history.entries.length - 1 - position;
   const positions = Object.hasOwn(history.byEntity, entityId) ? (history.byEntity[entityId] ?? []) : [];
   // The index's positions ascend (`append`): a binary search finds the entry's.
   let low = 0;
@@ -284,7 +294,7 @@ export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry:
   while (low <= high) {
     const middle = (low + high) >>> 1;
     const at = positions[middle] ?? -1;
-    if (at === position) return Math.floor((positions.length - 1 - middle) / historyPageSize);
+    if (at === position) return positions.length - 1 - middle;
     if (at < position) low = middle + 1;
     else high = middle - 1;
   }
@@ -319,25 +329,33 @@ function outcomeIndex(scope: Scope, entries: readonly Entry[], index: number): n
 }
 
 /**
- * The page's entries, newest first: `historyPageSize` counted from `from`, save that a Party's steps
- * stay with its outcome. A page whose last entries are an outcome and some of its steps takes the
- * rest of them too, and the next page starts after them.
+ * Where the page that starts at `start` ends, counted from the newest: `historyPageSize` entries on,
+ * or the scope's end, and past that every step whose outcome the page holds, so that a Party's steps
+ * stay with its outcome however many there are.
  */
-function pagePositions(scope: Scope, entries: readonly Entry[], from: number): number[] {
-  const natural = Math.min(scope.count, from + historyPageSize);
-  let start = from;
-  while (start < natural && isStep(entries[scope.at(start)])) {
-    const outcome = outcomeIndex(scope, entries, start);
-    if (outcome < 0 || outcome >= from) break;
-    start += 1;
-  }
-  let end = natural;
-  while (end < scope.count && end > start && isStep(entries[scope.at(end)])) {
-    if (outcomeIndex(scope, entries, end) < start) break;
-    end += 1;
-  }
+function pageEnd(scope: Scope, entries: readonly Entry[], start: number): number {
+  let end = Math.min(scope.count, start + historyPageSize);
+  while (end < scope.count && isStep(entries[scope.at(end)]) && outcomeIndex(scope, entries, end) >= start) end += 1;
+  return end;
+}
+
+/**
+ * Where each page starts, counted from the newest (the M9 review): the first at the newest entry,
+ * and each next where the one before ends (`pageEnd`), up to the page that holds the entry at
+ * `through`, or every page. The one set of edges both the count and a page read, so no page is empty,
+ * every page but the last holds at least `historyPageSize`, and the count is exact. An empty scope has
+ * one page, empty.
+ */
+function pageStarts(scope: Scope, entries: readonly Entry[], through = scope.count - 1): number[] {
+  const starts = [0];
+  for (let end = pageEnd(scope, entries, 0); end < scope.count && end <= through; end = pageEnd(scope, entries, end)) starts.push(end);
+  return starts;
+}
+
+/** The page's entries' places in the History, newest first: from `start` to its end (`pageEnd`). */
+function pagePositions(scope: Scope, entries: readonly Entry[], start: number): number[] {
   const positions: number[] = [];
-  for (let index = start; index < end; index += 1) positions.push(scope.at(index));
+  for (let index = start, end = pageEnd(scope, entries, start); index < end; index += 1) positions.push(scope.at(index));
   return positions;
 }
 

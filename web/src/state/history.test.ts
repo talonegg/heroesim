@@ -1,5 +1,7 @@
 import {
   advance,
+  append,
+  createHistory,
   createWorld,
   dayOf,
   defaultConfig,
@@ -101,7 +103,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
     const second = historyView(document, log, hero.id, 1);
 
     expect(all.length).toBeGreaterThan(historyPageSize);
-    expect(first).toMatchObject({ page: 0, entries: all.length, pages: Math.ceil(all.length / historyPageSize), hero: hero.id });
+    expect(first).toMatchObject({ page: 0, entries: all.length, pages: expectExactPages(document, hero.id, all).length, hero: hero.id });
     for (const entry of all.slice(0, historyPageSize)) expect(entriesOn(document, first)).toContain(entry);
     for (const entry of entriesOn(document, second)) expect(entriesOn(document, first)).not.toContain(entry);
     expect(historyView(document, log, hero.id, 999).page).toBe(first.pages - 1);
@@ -110,7 +112,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
   test('pages twenty entries at a time from the newest, and reads a page past the last as the last', () => {
     const total = document.history.entries.length;
     const first = historyView(document, log, 'all', 0);
-    const pages = Math.ceil(total / historyPageSize);
+    const pages = expectExactPages(document, 'all', document.history.entries).length;
 
     expect(first).toMatchObject({ page: 0, pages, entries: total, title: 'The whole History', name: null, entityId: null });
     expect(entriesOn(document, first).length).toBeGreaterThanOrEqual(historyPageSize);
@@ -198,6 +200,116 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     // The page's edge fell among a Party's steps somewhere in this game, and they stayed together.
     expect(sizes.some((size) => size > historyPageSize)).toBe(true);
     expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(document.history.entries.length);
+  });
+});
+
+/**
+ * Every page of `whose` History in `document`, checked to be exact: none empty, together every entry
+ * of the History shown once, each page but the last holding at least `historyPageSize`, a page past
+ * the last read as the last, and each entry's page what `pageOfEntry` says.
+ */
+function expectExactPages(document: WorldDocument, whose: Parameters<typeof historyView>[2], inScope: readonly Entry[]): HistoryView[] {
+  const { pages } = historyView(document, [], whose, 0);
+  const views = Array.from({ length: pages }, (_, page) => historyView(document, [], whose, page));
+  const shown = views.map((view) => entriesOn(document, view));
+
+  expect(shown.map((entries) => entries.length).filter((length) => length === 0), 'empty pages').toEqual([]);
+  expect(shown.slice(0, -1).filter((entries) => entries.length < historyPageSize), 'short pages before the last').toEqual([]);
+  expect(shown.flat()).toHaveLength(inScope.length);
+  expect(new Set(shown.flat())).toEqual(new Set(inScope));
+  expect(historyView(document, [], whose, pages + 5).page).toBe(pages - 1);
+  // A step stands on its outcome's page, and pageOfEntry says so as it says it of every entry.
+  for (const [page, entries] of shown.entries()) {
+    for (const entry of entries) expect(pageOfEntry(document, whose, entry), `${entry.type} on page ${page}`).toBe(page);
+  }
+  return views;
+}
+
+describe("the pages' count, from the edges the pages keep (the M9 review)", () => {
+  // The same game as the folds': its History has Parties' outcomes, each after its steps.
+  const state = playedState(withPartyOut(started('history-folds')), { kind: 'advance', turns: 150 });
+  const game = state.document as WorldDocument;
+  const all = game.history.entries;
+
+  /** The game with a History of `entries` alone, in their order, indexed afresh. */
+  function holding(entries: readonly Entry[]): WorldDocument {
+    const history = createHistory();
+    for (const entry of entries) append(history, entry);
+    return { ...game, history };
+  }
+
+  /** How many steps of the outcome at `position`'s Party come straight before it, in its Turn. */
+  function stepsBefore(position: number): number {
+    const outcome = all[position] as Entry;
+    const partyId = (outcome.payload as { partyId: string }).partyId;
+    let steps = 0;
+    for (let at = position - 1; at >= 0; at -= 1) {
+      const entry = all[at] as Entry;
+      if (!stepTypes.includes(entry.type) || entry.turn !== outcome.turn || (entry.payload as { partyId?: string }).partyId !== partyId) break;
+      steps += 1;
+    }
+    return steps;
+  }
+
+  // An outcome with at least two steps, with twenty entries after it and ten before its steps.
+  let outcomeAt = -1;
+  for (let position = all.length - 21; position >= 0 && outcomeAt < 0; position -= 1) {
+    if (all[position]?.type === 'quest.resolved' && stepsBefore(position) >= 2 && position - stepsBefore(position) >= 10) outcomeAt = position;
+  }
+  const steps = stepsBefore(outcomeAt);
+  /** The History from `older` entries before the outcome's steps to `newer` entries after the outcome. */
+  const around = (older: number, newer: number): WorldDocument => holding(all.slice(outcomeAt - steps - older, outcomeAt + 1 + newer));
+
+  test('the game holds such an outcome', () => {
+    expect(outcomeAt).toBeGreaterThan(0);
+    expect(steps).toBeGreaterThanOrEqual(2);
+  });
+
+  test("a last page's edge falling on an outcome: its steps join the page, and no empty page follows", () => {
+    // The review's case: the outcome the twentieth entry from the newest, its steps past the page.
+    const document = around(0, 19);
+    expect(document.history.entries).toHaveLength(20 + steps);
+
+    const views = expectExactPages(document, 'all', document.history.entries);
+    expect(views).toHaveLength(1);
+    expect(views[0]).toMatchObject({ page: 0, pages: 1, entries: 20 + steps });
+  });
+
+  test("a page's edge falling among an outcome's steps keeps them together on one page", () => {
+    const document = around(0, 18);
+    expect(expectExactPages(document, 'all', document.history.entries)).toHaveLength(1);
+  });
+
+  test('an entry older than the steps starts the next page, which holds it alone', () => {
+    const document = around(1, 19);
+    const views = expectExactPages(document, 'all', document.history.entries);
+    expect(views).toHaveLength(2);
+    expect(entriesOn(document, views[1] as HistoryView)).toEqual([document.history.entries[0]]);
+  });
+
+  test('an outcome just past the edge opens the next page, with its steps', () => {
+    const document = around(0, 20);
+    const views = expectExactPages(document, 'all', document.history.entries);
+    expect(views).toHaveLength(2);
+    expect(entriesOn(document, views[1] as HistoryView)).toHaveLength(1 + steps);
+  });
+
+  test('a Party with more steps than a page holds leaves no empty page between', () => {
+    // Its steps repeated to more than a page's worth, between ten older entries and twenty newer.
+    const repeated = Array.from({ length: historyPageSize + 5 }, (_, index) => structuredClone(all[outcomeAt - steps + (index % steps)] as Entry));
+    const document = holding([...all.slice(outcomeAt - steps - 10, outcomeAt - steps), ...repeated, ...all.slice(outcomeAt, outcomeAt + 20)]);
+    const views = expectExactPages(document, 'all', document.history.entries);
+
+    expect(views).toHaveLength(2);
+    expect(entriesOn(document, views[0] as HistoryView)).toHaveLength(20 + historyPageSize + 5);
+    const outcome = views[0]?.groups.flatMap((group) => group.rows).find((row) => row.kind === 'entry' && row.steps.length > 0);
+    expect(outcome?.kind === 'entry' && outcome.steps).toHaveLength(historyPageSize + 5);
+  });
+
+  test("the whole game's History, and the player's Guild's, page exactly", () => {
+    const guild = playerOf(game);
+    expectExactPages(game, 'all', all);
+    expectExactPages(game, null, entriesFor(game.history, guild.id));
   });
 });
 
