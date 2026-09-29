@@ -122,7 +122,7 @@ describe('the deploy command', () => {
     expect([pagesProject, workerConfig, releaseBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'v1.1-release']);
   });
 
-  test('writes the release branch once, as one constant: v1.1-release since v1.1.0 (#37, DL-122)', () => {
+  test('writes the release branch once, as one constant: v1.1-release since v1.1.0 (#37, DL-123)', () => {
     const source = readText('web/scripts/deploy.mjs');
 
     expect(source.split("'v1.1-release'")).toHaveLength(2);
@@ -759,5 +759,60 @@ describe('the repository holds no deploy credential', () => {
     }
 
     expect(found).toEqual([]);
+  });
+});
+
+// A release deploys from CI (DL-122): `.github/workflows/deploy.yml` deploys a pushed `v*` tag,
+// only one on the release branch, after the same checks as `check.yml`, with the credentials as
+// the `production` environment's secrets, and then reads both addresses live.
+describe('the deploy workflow (DL-122)', () => {
+  const workflow = readText('.github/workflows/deploy.yml').replace(/\r\n/g, '\n');
+  const steps = workflow.slice(workflow.indexOf('    steps:'));
+  const order = (text: string): number => {
+    const at = steps.indexOf(text);
+    expect(at, text).toBeGreaterThan(-1);
+    return at;
+  };
+
+  test('runs on a pushed v* tag, or by hand for a tag already pushed, and never on a branch', () => {
+    expect(workflow).toMatch(/\non:\n {2}push:\n {4}tags:\n {6}- 'v\*'\n {2}workflow_dispatch:/);
+    expect(workflow).not.toMatch(/\n {4}branches:/);
+    expect(workflow).toContain("format('refs/tags/{0}', inputs.tag)");
+    expect(workflow).toContain('fetch-depth: 0');
+  });
+
+  test('refuses a tag whose commit is not on the branch the deploy names', () => {
+    expect(workflow).toContain("import { releaseBranch } from './web/scripts/deploy.mjs'");
+    expect(workflow).toContain('git merge-base --is-ancestor HEAD "origin/$branch"');
+    expect(releaseBranch).toBe('v1.1-release');
+  });
+
+  test('checks, then deploys with npm run deploy, then reads both addresses live, one run at a time', () => {
+    const guard = order('The tag is on the release branch');
+    const checks = [order('npm run lint'), order('npm run typecheck'), order('npm test')];
+    const deployed = order('run: npm run deploy');
+    const live = order('npm run e2e:live -w web');
+
+    expect(checks.every((at) => at > guard && at < deployed)).toBe(true);
+    expect(live).toBeGreaterThan(deployed);
+    expect(workflow).toContain('group: deploy-production');
+    expect(workflow).toContain('cancel-in-progress: false');
+  });
+
+  test('reads the two credentials from the production environment by reference, and asks for nothing else', () => {
+    expect(workflow).toMatch(/environment:\n {6}name: production/);
+    expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n/);
+    expect(workflow.match(/\$\{\{ secrets\.[A-Z_]+ \}\}/g)).toEqual([
+      '${{ secrets.CLOUDFLARE_API_TOKEN }}',
+      '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}',
+    ]);
+    expect(credentialsIn(workflow)).toEqual([]);
+  });
+
+  test('check.yml stays a check: no deploy and no secret', () => {
+    const check = readText('.github/workflows/check.yml');
+
+    expect(check).not.toContain('npm run deploy');
+    expect(check).not.toContain('secrets.');
   });
 });

@@ -12639,6 +12639,91 @@ new, and their tests), `web/src/views/` (`guildmaster.tsx`, `guild.tsx`, `treasu
 `m9-f7-comparison-2026-09-30.md`); `CONTEXT.md`; `docs/planning/epics/M9-feedback.md`,
 `docs/planning/epics/M9-redesign.md`, `docs/planning/epics/README.md`, `docs/plan.md`.
 
+## DL-122 — A release deploys from CI: pushing a `v*` tag on the release branch runs the checks, `npm run deploy` and the live check on both addresses, with the Cloudflare credentials as secrets of the `production` environment
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner, that the deploy be
+automated in CI when a release is made in the repository. How it is done is the agent's, marked
+below.
+
+**Context.** On 2026-09-30 the owner said "do it" to the release, M9-S9. The orchestrator:
+- moved the deploy to `v1.1-release` (b70a296, CI green);
+- made `v1.1-release` and the tags `m9-redesign` and `v1.1.0` locally;
+- ran the deploy's dry run from a clean clone of the tag, and it passed.
+
+The permission system then refused the orchestrator's `npm run deploy` as a production deploy.
+Nothing was uploaded, and nothing was pushed. The owner answered by asking for the deploy to run
+in CI when a release is made.
+
+Until now:
+- the deploy ran by hand from this machine, on a `wrangler login` (DL-68, INPUTS 7.9 and DL-88
+  item 82);
+- `check.yml` referenced no secret;
+- INPUTS 7.9 had already named the CI option and its two secrets.
+
+**Decision.**
+
+1. **A pushed `v*` tag deploys** (the owner's; the trigger is the agent's).
+   - *The workflow.* `.github/workflows/deploy.yml` runs on a pushed `v*` tag, never on a branch.
+   - *By hand.* `workflow_dispatch` with a tag deploys a tag already pushed, for a retry.
+   - *One at a time.* One deploy runs at a time: the concurrency group `deploy-production`, which
+     never cancels one in progress.
+2. **Only a tag on the release branch** (the agent's).
+   - *The rule.* The workflow reads `releaseBranch` from `web/scripts/deploy.mjs`, its one
+     constant. It refuses a tag whose commit is not on `origin/<releaseBranch>`.
+   - *Why.* A tag on the frozen v1.0 line never deploys (DL-110). The branch is written in one
+     place.
+3. **The same steps as by hand** (the agent's).
+   1. The checks `check.yml` runs: lint, typecheck and tests.
+   2. `npm run deploy` from the workflow's clean checkout of the tag. `deploy.mjs`'s guard is
+      unchanged and still refuses anything but a clean checkout of one `v*` tag.
+   3. `npm run e2e:live -w web` on both addresses, after installing Chromium.
+
+   A failed step stops the run. The Worker still goes first, so a failure there leaves Pages as
+   it was.
+4. **The credentials** (INPUTS 7.9's option, taken).
+   - *What.* `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`, secrets of the repository's
+     `production` environment, read by reference only.
+   - *The token.* A custom API token scoped to the one account, from Cloudflare's "Edit Cloudflare
+     Workers" template with Account › Cloudflare Pages › Edit added. That follows Cloudflare's
+     documentation for `wrangler deploy` and `wrangler pages deploy` in CI.
+   - *Permissions.* The workflow asks for `contents: read` and nothing else.
+   - *Who sets them.* The owner creates the token and sets both secrets (`gh secret set … --env
+     production`). No value is ever written in the repository or its record.
+5. **A release, from now on.**
+   1. Merge the release into its release branch and push the branch, so `check` runs.
+   2. Tag the branch's head `v*` and push the tag.
+
+   The live check now runs in CI after the upload. So the tag is pushed before the live check,
+   not after it as DL-92 and DL-98 did, and a failed deploy leaves a tag pushed but not live. It
+   is redeployed by hand or superseded by a patch tag.
+6. **The local deploy stays** as a fallback, from a clean clone of a release tag, as the README
+   gives it.
+7. **Tests.** `web/src/deploy.test.ts` pins the workflow:
+   - its triggers;
+   - the release-branch refusal;
+   - the order: checks, then the deploy, then the live check;
+   - the environment, the permissions, and exactly the two secret references;
+   - that `check.yml` still deploys nothing and names no secret.
+
+   The repository-wide credential scan covers the workflow as it does every file.
+8. **The release is renumbered.** M9-S9 is DL-123. This supersedes the DL-122 of DL-120 item 12.
+
+**Consequences.**
+- *Superseded.* DL-68's "nothing deploys from CI and no secret anywhere", and DL-92's order of a
+  tag pushed only after the live check.
+- *Before `v1.1.0` can deploy, the owner:*
+  1. creates the API token;
+  2. sets the two secrets on the `production` environment;
+  3. sets the Pages production branch to `v1.1-release`.
+
+  The local `v1.1-release` and tags made before this entry were deleted unpushed. They are made
+  again on a commit that holds the workflow, since a tag runs the workflow of its own commit.
+
+**Actioned in:** `.github/workflows/deploy.yml`; `web/src/deploy.test.ts`; `README.md` (Deploy);
+`docs/planning/epics/INPUTS-REQUIRED.md` (7.9); `web/scripts/deploy.mjs` (a comment);
+`docs/planning/epics/M9-feedback.md`, `docs/planning/epics/M9-redesign.md`,
+`docs/planning/epics/README.md`, `docs/plan.md` (the release as DL-123).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -13,7 +13,7 @@ read what happened to any Guild, Hero or Patron, a Party builder, and a new styl
 Guildmaster's setup (#30) and two fast-forward stops (#32), and the owner's follow-on from playing
 it (DL-111 to DL-121): a Quest's return as one entry with its report, the World History, the Guild
 in four parts with its Stores and Treasury, and the Market and the Guildmaster as views. It is
-released as `v1.1.0` on `v1.1-release`, tagged `m9-redesign` too (#37, DL-122). Random Events, the
+released as `v1.1.0` on `v1.1-release`, tagged `m9-redesign` too (#37, DL-123). Random Events, the
 first real module, follows on the v1.2 line as M10 (DL-99). `v1.0-dev` and `v1.0-release` are
 frozen, and the v1.0 line is not deployed again after `v1.1.0` (DL-86, DL-88, DL-110). GitHub's
 default branch is the latest release branch, `v1.1-release` (DL-88).
@@ -30,8 +30,7 @@ default branch is the latest release branch, `v1.1-release` (DL-88).
 
 ## Deploy
 
-The page is built and gated on this machine, and that one build is uploaded to both addresses
-(INPUTS 7.8; DL-88, DL-92, DL-94):
+One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, DL-92, DL-94):
 
 - the Worker `heroesim`, Cloudflare Workers static assets configured by `web/wrangler.jsonc`, at
   <https://heroesim.magical-potato.workers.dev>: the Worker's name, then the account's workers.dev
@@ -41,16 +40,37 @@ The page is built and gated on this machine, and that one build is uploaded to b
 - the Pages project `heroesims`, production branch `v1.1-release`, at <https://heroesims.pages.dev>,
   deployed until Cloudflare retires Pages.
 
-Nothing deploys from CI and no secret is needed anywhere (INPUTS 7.9, DL-68). Production serves
-the latest release: the deploy moved to `v1.1-release` at that branch's first release, `v1.1.0`
-(DL-86, DL-122). A Worker has no branches, so every upload to it goes live: the
-deploy runs only from a clean checkout of a release tag, and refuses anything else (DL-92).
+**A release deploys from CI** (DL-122, superseding DL-68's "nothing deploys from CI"). Pushing a
+`v*` tag runs `.github/workflows/deploy.yml`:
+- it refuses a tag whose commit is not on the branch the deploy names (`releaseBranch` in
+  `web/scripts/deploy.mjs`, `v1.1-release`), so a tag on the frozen v1.0 line never deploys;
+- it runs the checks `check.yml` runs (lint, typecheck, tests);
+- it runs `npm run deploy` from its clean checkout of the tag, and then `npm run e2e:live -w web`
+  on both addresses.
+
+A tag already pushed can be deployed again from the Actions tab ("deploy", "Run workflow", with
+the tag). One deploy runs at a time. The two credentials are secrets of the repository's
+`production` environment, never a file here (INPUTS 7.9):
+- `CLOUDFLARE_API_TOKEN`: a custom API token scoped to the one account, from the "Edit Cloudflare
+  Workers" template with Account › Cloudflare Pages › Edit added;
+- `CLOUDFLARE_ACCOUNT_ID`: the account's id.
+
+Set them with `gh secret set CLOUDFLARE_API_TOKEN --env production` and
+`gh secret set CLOUDFLARE_ACCOUNT_ID --env production`, each reading its value from the prompt.
+
+A release is therefore: merge the release into its release branch and push it (`check` runs),
+then tag its head `v*` and push the tag. Production serves the latest release: the deploy moved
+to `v1.1-release` at that branch's first release, `v1.1.0` (DL-86, DL-123). A Worker has no
+branches, so every upload to it goes live: the deploy runs only from a clean checkout of a release
+tag, and refuses anything else (DL-92).
+
+**By hand**, the same deploy runs from this machine, as every release before `v1.1.0` did:
 
 1. **Once per machine:** `npx wrangler login`. It opens the browser to sign in to Cloudflare and
    keeps its token in wrangler's own directory under your user profile, never in this repository.
    If the login sees more than one account, wrangler asks which at each upload.
 2. **Each release, from a clean checkout of its release tag,** cloned from the clone that holds
-   the tag, since the tag is pushed only once the deploy and the live check have passed (DL-92):
+   the tag (DL-92):
 
    ```sh
    git clone --branch v1.0.1 . ../heroesim-deploy   # the release's tag

@@ -38,7 +38,7 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
 
 **Status:** built and verified on `v1.1-dev` — 2026-09-30 (DL-119). Every box of M9-F1 to M9-F6 is
 ticked and the gate is met. *Amended 2026-09-30 (DL-120):* the owner's answers on the close add
-M9-F7, built before the release. The release, M9-S9 (#37), is DL-122 and follows on the owner's
+M9-F7, built before the release. The release, M9-S9 (#37), is DL-123, deployed from CI (DL-122), and follows on the owner's
 steps. *M9-F7 is built and its boxes ticked* — 2026-09-30 (DL-121), on its branch.
 *Approved as amended 2026-09-29 (DL-112, DL-113); built on the owner's word the same day (DL-114 to
 DL-118), and closed by M9-F6 (DL-119).*
@@ -495,7 +495,7 @@ Depends on M9-F1 for the `questId`s, M9-F2 for Guild › Home, and M9-F4 for the
 - [x] This epic's boxes are ticked, §4 is corrected, and DL-119 is written. §4 needed no correction:
       it already gives DL-119 to the close and DL-120 to the release.
 
-M9-S9, the release, follows on the owner's go-ahead, after M9-F7, with DL-122 (DL-120 item 12).
+M9-S9, the release, follows on the owner's go-ahead, after M9-F7, with DL-123, deployed from CI (DL-122).
 
 ### M9-F7 · The owner's answers on the close · 1 session · opus
 
@@ -607,7 +607,8 @@ These rows of M9's §3 are ticked again at M9-F6 against their new places:
 - DL-119: the close, M9-F6.
 - DL-120: the owner's answers on the close.
 - DL-121: M9-F7.
-- DL-122: the release, M9-S9 (DL-120 item 12).
+- DL-122: a release deploys from CI (the owner, 2026-09-30).
+- DL-123: the release, M9-S9 (DL-122 renumbers it from DL-120 item 12's DL-122).
 
 ## 5. Risks
 
