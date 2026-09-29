@@ -4,7 +4,7 @@
 // from and the content set's version. A dialog over the page: the keyboard starts on its heading,
 // stays inside it, and Escape or Close put it away and return to the button that opened it.
 //
-// Last, the debug view (M9-F4, DL-117): "Debug: the whole History" opens the History view on every
+// Last, the debug view (M9-F4, DL-117): "Debug: Whole History" opens the History view on every
 // entry, unfiltered and unfolded, with its event type. It is not a choice of the History's own
 // (DL-111 item 4), and it sits at the menu's end, after what concerns the game, since it is for
 // reading how the engine played rather than for playing.
@@ -123,7 +123,7 @@ export function GameMenu({
         <div className="actions dialog__debug">
           <button type="button" className="button--quiet" onClick={onDebugHistory}>
             <Icon name="history" />
-            <span>Debug: the whole History</span>
+            <span>Debug: Whole History</span>
           </button>
         </div>
       </div>

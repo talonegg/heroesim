@@ -146,13 +146,13 @@ export async function history(scope: Scope, whose?: string): Promise<Locator> {
 }
 
 /**
- * The whole History, opened from the game menu's "Debug: the whole History" (M9-F4, DL-117): the
+ * The whole History, opened from the game menu's "Debug: Whole History" (M9-F4, DL-117): the
  * History view on every entry, unfolded, each with its event type.
  */
 export async function debugHistory(scope: Scope): Promise<Locator> {
-  await (await openGameMenu(scope)).getByRole('button', { name: 'Debug: the whole History', exact: true }).click();
+  await (await openGameMenu(scope)).getByRole('button', { name: 'Debug: Whole History', exact: true }).click();
   const shown = region(scope, 'History');
-  await expect(shown.getByRole('heading', { level: 3 })).toHaveText('Debug: the whole History');
+  await expect(shown.getByRole('heading', { level: 3 })).toHaveText('Debug: Whole History');
   return shown;
 }
 

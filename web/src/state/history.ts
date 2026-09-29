@@ -122,7 +122,7 @@ export interface HistoryGroup {
 }
 
 export interface HistoryView {
-  /** `The History of The Lantern`, `The World History`, or `Debug: the whole History`. */
+  /** `The History of The Lantern`, `The World History`, or `Debug: Whole History`. */
   title: string;
   /** Whose History it is, by name; `null` for the World History and the whole History. */
   name: string | null;
@@ -444,7 +444,7 @@ function resolved(document: WorldDocument, whose: HistoryWhose): { target: Entit
 }
 
 function titleOf(target: EntityId | 'world' | 'all', name: string | null): string {
-  if (target === 'all') return 'Debug: the whole History';
+  if (target === 'all') return 'Debug: Whole History';
   if (target === 'world') return 'The World History';
   return `The History of ${name ?? 'no one'}`;
 }

@@ -204,9 +204,10 @@ function Home(props: HomeProps) {
 
       {quiet && !ended ? (
         <div className="digest digest--quiet">
-          {/* Below the floor, the countdown is waiting on the player: Home says nothing else is (M9-F6). */}
+          {/* Below the floor, the countdown is waiting on the player, and Home says so (M9-F6; the owner's words, DL-120 item 8). */}
           <p>
-            {header.countdown === null ? 'Nothing is waiting on you. ' : ''}Choose a Party on the Board, then play the Turns with
+            {header.countdown === null ? 'Nothing is waiting on you. ' : 'Your Guild is below the Bankruptcy floor: see the steps above. '}Choose a
+            Party on the Board, then play the Turns with
             Advance a Turn or Fast forward.
           </p>
           <div className="actions">

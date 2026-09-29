@@ -112,7 +112,7 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
     fireEvent.click(within(history()).getByRole('button', { name: 'Newest' }));
     expect(within(history()).getByText(/^Page 1 of \d+, /)).toBeDefined();
     expect(document.activeElement).toBe(history().querySelector('.history__top'));
-    expect(within(document.activeElement as HTMLElement).getByRole('heading', { level: 3, name: 'Debug: the whole History' })).toBeDefined();
+    expect(within(document.activeElement as HTMLElement).getByRole('heading', { level: 3, name: 'Debug: Whole History' })).toBeDefined();
   });
 
   test('reads its page again when the game, the log or the page changes, and not at each step of a fast forward', () => {
@@ -458,7 +458,7 @@ describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", () => {
     const history = openDebugHistory();
 
     expect(screen.queryByRole('dialog', { name: 'Game' })).toBeNull();
-    expect(title()).toBe('Debug: the whole History');
+    expect(title()).toBe('Debug: Whole History');
     expect(document.activeElement).toBe(within(history).getByRole('heading', { level: 3 }));
     expect(within(whose()).getAllByRole('button').every((button) => button.getAttribute('aria-pressed') === 'false')).toBe(true);
     const lines = historyLines(history);

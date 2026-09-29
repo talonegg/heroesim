@@ -76,7 +76,7 @@ export function openMenu(): HTMLElement {
 
 /** The whole History, opened from the game menu's debug view (M9-F4): the History view's region. */
 export function openDebugHistory(): HTMLElement {
-  fireEvent.click(within(openMenu()).getByRole('button', { name: 'Debug: the whole History' }));
+  fireEvent.click(within(openMenu()).getByRole('button', { name: 'Debug: Whole History' }));
   return screen.getByRole('region', { name: 'History' });
 }
 

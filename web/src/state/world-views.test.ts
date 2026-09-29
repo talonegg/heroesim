@@ -285,9 +285,13 @@ describe('guildmasterView', () => {
       expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 years.');
     });
 
-    test('says "in 1 year", and "later this Year" in the Year it comes', () => {
+    test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (M9-F7, DL-120 item 2)', () => {
+      // A year to the Day before: the night of Day 3600, 360 Days, is a year away.
       expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 year.');
-      expect(guildmasterView(aged(50, 11 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: later this Year.');
+      // A Day later it is less than a year away, though still the Year before.
+      expect(guildmasterView(aged(50, 10 * 1080 + 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 359 Days.');
+      expect(guildmasterView(aged(50, 3959 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Day.');
+      expect(guildmasterView(aged(50, 3960 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: tonight.');
     });
 
     test('says it came, once the night has been played and the game has ended with it', () => {
@@ -296,21 +300,38 @@ describe('guildmasterView', () => {
       expect(guildmasterView(document)?.retirement).toBe('Retired at 61 on the night of Day 3960, Year 11.');
     });
 
-    test('gives no Retirement to come once the game has ended otherwise, or the Guild has folded (M9-F6, carried finding 5)', () => {
+    test('says why none came once the game has ended otherwise, or the Guild has folded (M9-F7, DL-120 item 9)', () => {
       const bankrupt = aged(30, 900);
       bankrupt.world.ended = { turn: 900, reason: 'bankruptcy' };
-      expect(guildmasterView(bankrupt)?.retirement).toBeNull();
+      expect(guildmasterView(bankrupt)?.retirement).toBe('Never retired: the game ended in Bankruptcy on Day 300.');
+
+      const wiped = aged(30, 902);
+      wiped.world.ended = { turn: 902, reason: 'roster-wiped' };
+      expect(guildmasterView(wiped)?.retirement).toBe('Never retired: the game ended with the Roster wiped out on Day 300.');
 
       const folded = newGame();
       const other = rival(folded);
-      other.foldedOnTurn = 0;
-      expect(guildmasterView(folded, other.id)?.retirement).toBeNull();
+      other.foldedOnTurn = 3 * 45 + 2;
+      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Day 45.');
+      // A fold before the game's end is why, whatever ended the game after.
+      folded.world.ended = { turn: 900, reason: 'bankruptcy' };
+      expect(guildmasterView(folded, other.id)?.retirement).toBe('Never retired: the Guild folded on Day 45.');
+    });
+
+    test("says why a Rival's Guildmaster never retired when the player's game ended first, naming the player's Guild (M9-F7)", () => {
+      const document = aged(30, 900);
+      document.world.ended = { turn: 900, reason: 'bankruptcy' };
+      expect(guildmasterView(document, rival(document).id)?.retirement).toBe('Never retired: the game ended on Day 300, when The Lantern went bankrupt.');
+      document.world.ended = { turn: 900, reason: 'retirement' };
+      expect(guildmasterView(document, rival(document).id)?.retirement).toBe(
+        'Never retired: the game ended on Day 300, when The Lantern lost its Guildmaster to Retirement.',
+      );
     });
 
     test('says the coming night for one past the night retirementTurn gave but still in office, as a save adopting younger rules has (M9-F6, code review)', () => {
       // At 45 on Turn 0, the night of their 61st was Turn 17,282. On Turn 18,500 they are 62 and
       // still in office: the endings retire them on the next night, Turn 18,503, Day 6167.
-      expect(guildmasterView(aged(45, 18_500))?.retirement).toBe('Retires at 62 on the night of Day 6167, Year 17: later this Year.');
+      expect(guildmasterView(aged(45, 18_500))?.retirement).toBe('Retires at 62 on the night of Day 6167, Year 17: in 1 Day.');
     });
 
     test('gives the age they will be, for one already past the Retirement age when they entered, as a save adopting the rules has (code review)', () => {
@@ -320,7 +341,7 @@ describe('guildmasterView', () => {
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       guildmaster.ageAtEntry = 63;
       // They retire on the first night from their entry, at the age they are.
-      expect(guildmasterView(document)?.retirement).toBe('Retires at 63 on the night of Day 0, Year 0: later this Year.');
+      expect(guildmasterView(document)?.retirement).toBe('Retires at 63 on the night of Day 0, Year 0: tonight.');
     });
 
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {

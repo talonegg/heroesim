@@ -120,12 +120,13 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
-  test('Home does not say nothing is waiting beside the Bankruptcy countdown (M9-F6, carried finding 2)', () => {
+  test('Home says the Guild is below the Bankruptcy floor where it would say nothing is waiting, beside the countdown (M9-F7, DL-120 item 8)', () => {
     render(<App initial={withWealth(started(), -100, 0)} />);
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
 
     expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
     expect(within(home).queryByText(/^Nothing is waiting on you\./)).toBeNull();
+    expect(within(home).getByText(/^Your Guild is below the Bankruptcy floor: see the steps above\. Choose a Party on the Board/)).toBeDefined();
     // The way to the Board stays: a Quest's reward is a way back above the floor.
     expect(within(home).getByRole('button', { name: 'Open the Board' })).toBeDefined();
   });

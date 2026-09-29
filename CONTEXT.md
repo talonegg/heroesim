@@ -321,7 +321,7 @@ The History's entries that change the world rather than one Guild: the world mad
 adopted, Guilds founded, succeeded and folded, the game's end, every Guild's Quests taken and
 their outcomes, and a Patron's Regard for a Guild moving into a new band (DL-111, DL-117). A
 choice of the History's beside the player's Guild's and each Rival's. The whole History, every
-entry unfiltered, is not a choice but the game menu's debug view.
+entry unfiltered, is not a choice but the game menu's debug view, "Debug: Whole History" (DL-120).
 _Avoid_: World log, Chronicle, News
 
 **Milestone**:

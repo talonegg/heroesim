@@ -325,7 +325,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
 
   test('shows every entry, unfolded, each line with its event type', () => {
     const views = expectExactPages(document, 'all', document.history.entries);
-    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: the whole History', name: null, entityId: null, scope: 'whole', fresh: log.length });
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', name: null, entityId: null, scope: 'whole', fresh: log.length });
     expect(log.length).toBeGreaterThan(0);
     const rows = views.flatMap((view) => view.groups.flatMap((group) => group.rows));
     expect(rows.every((row) => row.kind === 'entry' && row.steps.length === 0)).toBe(true);
@@ -401,7 +401,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
     const first = historyView(document, log, 'all', 0);
     const pages = expectExactPages(document, 'all', document.history.entries).length;
 
-    expect(first).toMatchObject({ page: 0, pages, entries: total, title: 'Debug: the whole History', name: null, entityId: null });
+    expect(first).toMatchObject({ page: 0, pages, entries: total, title: 'Debug: Whole History', name: null, entityId: null });
     expect(entriesOn(document, first).length).toBeGreaterThanOrEqual(historyPageSize);
     // The newest twenty are on the first page.
     for (const entry of document.history.entries.slice(-historyPageSize)) expect(entriesOn(document, first)).toContain(entry);
@@ -783,7 +783,7 @@ describe('whose History (M9-S5)', () => {
     const master = Object.values(document.world.guildmasters).find((each) => each.guildId === guild.id);
     if (patron === undefined || hero === undefined || master === undefined) throw new Error('no Patron, Hero or Guildmaster');
 
-    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: the whole History', entityId: null, mine: false, scope: 'whole' });
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: Whole History', entityId: null, mine: false, scope: 'whole' });
     expect(historyView(document, log, 'world', 0)).toMatchObject({ title: 'The World History', entityId: null, mine: false, scope: 'world' });
     expect(historyView(document, log, rival.id, 0)).toMatchObject({ title: `The History of ${rival.name}`, entityId: rival.id, mine: false, scope: 'rival' });
     expect(historyView(document, log, patron.id, 0)).toMatchObject({ title: `The History of ${patron.name}`, hero: null });

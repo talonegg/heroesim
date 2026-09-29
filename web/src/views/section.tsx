@@ -186,7 +186,7 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Save the game in this browser under a name, to load it here later, even after the page is closed; export the ' +
     'game, or a save kept here, as the file the CLI writes, which the CLI or this page can load. Loading a save, or ' +
     'starting a new game, puts it in place of the game in hand, which is lost unless saved or exported first. ' +
-    '“Debug: the whole History” opens every entry of the History, unfiltered and unfolded, with its event type.',
+    '“Debug: Whole History” opens every entry of the History, unfiltered and unfolded, with its event type.',
   rules:
     'This release’s rules differ from those the game was started with. The game keeps playing under its own until ' +
     'you adopt the new ones, which changes how it plays from then on; its History records when.',

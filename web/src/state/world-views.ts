@@ -44,7 +44,7 @@ import {
 import { content } from '../content';
 import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
 import { playDeps } from './reducer';
-import { facilityNames } from './rejections';
+import { endingWords, facilityNames } from './rejections';
 
 /** The Guild named, or the player's when none is. */
 function guildOf(document: WorldDocument, guildId: GuildId | undefined): Guild | undefined {
@@ -231,11 +231,12 @@ export interface GuildmasterView {
   attributes: [label: string, value: string][];
   /**
    * When they retire, from the engine's `retiresOn` (M9-F3, DL-113 item 5; M9-F6): `Retires at 61 on
-   * the night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years; or,
-   * once that night has been played, `Retired at 61 on the night of Day 11160, Year 31.`; `null` when
-   * none is to come, the game over or the Guild folded first.
+   * the night of Day 11160, Year 31: in 31 years.`, the years left counted as the calendar's Years, or
+   * `in 359 Days.` once it is less than a year away (M9-F7); once that night has been played, `Retired
+   * at 61 on the night of Day 11160, Year 31.`; or why none came, the game over or the Guild folded
+   * first: `Never retired: the game ended in Bankruptcy on Day 300.` (M9-F7, DL-120 item 9).
    */
-  retirement: string | null;
+  retirement: string;
   stats: { name: string; value: number; bearsOn: string }[];
   traits: { name: string; effect: string }[];
   patrons: RegardRow[];
@@ -295,26 +296,53 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
 }
 
 /**
- * A Guildmaster's Retirement in words, as `world` stands: when it came, when it will come and in how
- * many of the calendar's Years, or `null` when none is to come, the game over or the Guild folded
- * first (M9-F6). The night it will come is the engine's (`retiresOn`), which is the next night to be
- * played for one past the night `retirementTurn` gave, as a save adopting younger rules has.
+ * A Guildmaster's Retirement in words, as `world` stands: when it came; when it will come, and in how
+ * many of the calendar's Years, or once it is less than a year away in how many Days (M9-F7, DL-120
+ * item 2); or why none came, the Guild folded or the game ended first (DL-120 item 9). The night it
+ * will come is the engine's (`retiresOn`), which is the next night to be played for one past the night
+ * `retirementTurn` gave, as a save adopting younger rules has.
  */
 function retirementWords(
   guildmaster: Parameters<typeof retirementTurn>[0] & { retiredOnTurn: number | null },
   guild: { foldedOnTurn: number | null; controller: { kind: string } },
-  world: Pick<WorldDocument['world'], 'turn' | 'ended'>,
+  world: Pick<WorldDocument['world'], 'turn' | 'ended' | 'guilds'>,
   config: Pick<GameConfig, 'turnsPerYear' | 'guildmasterRetirementAge'>,
-): string | null {
+): string {
   const when = (night: number): string => `at ${ageOf(guildmaster, night, config)} on the night of Day ${dayOf(night)}, Year ${yearOf(night, config)}`;
   // A Rival's retired Guildmaster keeps the night; the player's retires as their game ends.
   if (guildmaster.retiredOnTurn !== null) return `Retired ${when(guildmaster.retiredOnTurn)}.`;
   const { ended } = world;
-  if (ended !== null && ended.reason === 'retirement' && guild.controller.kind === 'player') return `Retired ${when(ended.turn)}.`;
-  if (ended !== null || guild.foldedOnTurn !== null) return null;
+  const mine = guild.controller.kind === 'player';
+  if (ended !== null && ended.reason === 'retirement' && mine) return `Retired ${when(ended.turn)}.`;
+  if (guild.foldedOnTurn !== null) return `Never retired: the Guild folded on Day ${dayOf(guild.foldedOnTurn)}.`;
+  if (ended !== null) return `Never retired: ${neverWords(ended, mine, world)}.`;
   const night = retiresOn(guildmaster, world.turn, config);
-  const years = yearOf(night, config) - yearOf(world.turn, config);
-  return `Retires ${when(night)}: ${years === 0 ? 'later this Year' : `in ${years} ${years === 1 ? 'year' : 'years'}`}.`;
+  return `Retires ${when(night)}: ${timeLeft(night, world.turn, config)}.`;
+}
+
+/** How long until `night`, from `turn`: in calendar Years a year or more away, in Days under a year (DL-120 item 2). */
+function timeLeft(night: number, turn: number, config: Pick<GameConfig, 'turnsPerYear'>): string {
+  if (night - turn >= config.turnsPerYear) {
+    const years = yearOf(night, config) - yearOf(turn, config);
+    return `in ${years} ${years === 1 ? 'year' : 'years'}`;
+  }
+  const days = dayOf(night) - dayOf(turn);
+  return days === 0 ? 'tonight' : `in ${days} ${days === 1 ? 'Day' : 'Days'}`;
+}
+
+/**
+ * Why a Guildmaster never retired, the game having ended first (DL-120 item 9): for the player's
+ * Guildmaster, the ending; for a Rival's, the ending and the player's Guild it befell.
+ */
+function neverWords(ended: NonNullable<WorldDocument['world']['ended']>, mine: boolean, world: Pick<WorldDocument['world'], 'guilds'>): string {
+  const day = dayOf(ended.turn);
+  if (mine) {
+    return ended.reason === 'bankruptcy'
+      ? `the game ended in Bankruptcy on Day ${day}`
+      : `the game ended with the Roster wiped out on Day ${day}`;
+  }
+  const player = Object.values(world.guilds).find((each) => each.controller.kind === 'player');
+  return player === undefined ? `the game ended on Day ${day}` : `the game ended on Day ${day}, when ${player.name} ${endingWords[ended.reason]}`;
 }
 
 // ── The Patrons ──────────────────────────────────────────────────────────────────────────────

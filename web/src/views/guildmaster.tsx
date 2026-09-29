@@ -38,12 +38,10 @@ export function GuildmasterDetails({ view, level }: { view: GuildmasterView; lev
         {view.name}, Guildmaster of {view.guildName}
       </Heading>
       <Terms pairs={view.attributes} />
-      {/* No Retirement to come once the game is over or the Guild has folded: nothing is drawn (M9-F6). */}
-      {view.retirement === null ? null : (
-        <p className="guildmaster__retirement" data-testid="retirement">
-          {view.retirement}
-        </p>
-      )}
+      {/* When they retire, or why they never did (M9-F7, DL-120 items 2 and 9). */}
+      <p className="guildmaster__retirement" data-testid="retirement">
+        {view.retirement}
+      </p>
       {links === null ? null : (
         <div className="actions">
           <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildmasterId)}>
