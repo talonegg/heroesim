@@ -76,6 +76,46 @@ and #37; DL-83 item 19, DL-85 items 6 and 8, DL-87 item 5, DL-88 items 3 and 4.
 
 **Acceptance:** #32's boxes 1, 2, 3 and 5, and its DL (DL-101).
 
+- [x] #32 box 1: the Guild-state phase emits `guild.below-floor`, with the Guild's Wealth, the floor
+      and the Day Bankruptcy falls on (`bankruptcyCountdown`), the night `belowFloorSince` is set,
+      and `guild.floor-recovered` the night it is cleared, for every Guild alike and never for a
+      folded one; both narrated in both front ends, whose tests enumerate the union —
+      `engine/src/phases/guild-state.test.ts` ('the Bankruptcy floor heard: guild.below-floor and
+      guild.floor-recovered (M9-S1, DL-85 item 6, DL-101)', five tests, one played through
+      `advance`); `cli/src/narrate.test.ts` ('the Bankruptcy floor (M9-S1, DL-101)', and 'gives %s
+      one short line in the CLI's words' over the union); `web/src/state/narrate.test.ts` ('the map
+      has words for exactly the union…', '%s says exactly what the CLI says, less its ids', 'every
+      entry of its History as a sentence…'); `cli/src/main.test.ts` ('prints the Bankruptcy
+      countdown after the Turns…', now reading `guild.floor-recovered`'s line) (DL-101 items 1, 2)
+- [x] #32 box 2: fast forward stops, unasked, when the watched Guild falls below the floor, naming
+      the Guild and the night; a Rival's crossing does not stop the player's; a Guild already below
+      when it starts does not stop it again — `engine/src/stops.test.ts` ('below-floor (M9-S1,
+      DL-85 item 6)', 'stopsOfTurn'); `engine/src/fast-forward.test.ts` ('fastForward: the
+      Bankruptcy floor (always on, M9-S1)', three tests); `cli/src/main.test.ts` ("the player's
+      Guild falling below the floor stops it unasked, naming the night, the countdown after
+      (M9-S1)"); `web/src/state/reducer.test.ts` ("the player's Guild falling below the floor stops
+      it unasked, where one call would, with the page's sentence"); `narrateStop` in both
+      `narrate.test.ts` (DL-101 item 3)
+- [x] #32 box 3: an opt-in stop, `--until staffable` in the CLI (with its usage) and
+      `quest-staffable` in the reducer's `fastForward` `until` and the page's stop sentence, when a
+      Quest the watched Guild's free Heroes can staff appears, even with a Party out; the always-on
+      decision unchanged; "can staff" is `dispatch`'s own verdict on the Party `partyFor` proposes —
+      `engine/src/stops.test.ts` ('quest-staffable (M9-S1, DL-85 item 8)', six tests; 'staffableQuests:
+      a Quest can be staffed exactly when dispatch would send some Party of the Roster (M9-S1)', two
+      tests, one against every Party of a six-Hero Roster judged by `dispatchRefusal`);
+      `engine/src/fast-forward.test.ts` ('fastForward: a Quest the free Heroes can staff (opt-in,
+      M9-S1)', three tests); `cli/src/args.test.ts` ('reads --until staffable…', 'the usage names
+      every --until word…'); `cli/src/main.test.ts` ('staffable stops, with a Party out, the morning a
+      Quest the Heroes at home could take reaches the Board (M9-S1)'); `web/src/state/reducer.test.ts`
+      ('until a Quest the Heroes at home can staff: with a Party out it stops where one call would,
+      before the Party is home') (DL-101 items 4, 5). The page's control is M9-S7's.
+- [x] #32 box 5: the harness counts both events, by controller, in its totals and its report; a
+      50 × 20 sweep against the same seeds before the change finds every other counter, every
+      History count by type and every game's World State unchanged —
+      `harness/src/counters.test.ts` ("M9-S1's counters, from the History (DL-101)", two tests);
+      `harness/src/sweep.test.ts` ("totals and renders M9-S1's counters…") (DL-101 item 6)
+- [x] DL-101 records the choices the epic left open.
+
 ### M9-S2 · The Guildmaster's setup, the Trait budget and Succession (#30) · 2–3 sessions · opus
 
 #30's acceptance boxes, with the values DL-100 item 3 sets.

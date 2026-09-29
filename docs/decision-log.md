@@ -9245,6 +9245,170 @@ schema is 3 and `configVersion` 10.
 **Actioned in:** `docs/planning/epics/M9-redesign.md`; the epics register; `CONTEXT.md` and R8
 (in S2); issues #30 and #15.
 
+## DL-101 — The Bankruptcy floor heard, and two fast-forward stops: `guild.below-floor` and `guild.floor-recovered` from the nightly check, an always-on `below-floor` stop for the watched Guild alone, an opt-in `quest-staffable` stop judged by `dispatch`'s own checks, and the harness counting both events with every other counter unchanged (M9-S1)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S1's implementer.
+- *The owner's.* The events, the always-on stop and the opt-in `--until` condition are DL-85
+  items 6 and 8. #32's acceptance boxes are the owner's issue.
+- *The orchestrator's.* The brief that "can staff" reuse `dispatchRefusal`, `unavailability` and
+  the Quest's requirements, and not copy the rule.
+- *This agent's.* Every choice below that the epic, the issue and the brief left open.
+
+**Context.** #32's boxes 1, 2, 3 and 5 are M9-S1's (box 4, fast forward in steps, shipped in
+v1.0.1 under DL-96).
+- *The floor was silent.* DL-26 item 3 left crossing the Bankruptcy floor without an event, for a
+  front end to read `belowFloorSince`. DL-95 made that reading a countdown, `bankruptcyCountdown`,
+  with no event and no stop. DL-85 item 6 supersedes the silence.
+- *The decision stop is M2's.* DL-33 item 5's `decision-needed` fires only while the whole Roster
+  is home. DL-85 item 8 keeps it and adds an opt-in condition: "a Quest I can staff appears".
+- *What the epic left open.* The events' payloads, and whether they are Milestones. The stops'
+  shapes, names and order. The CLI's word. What "appears" means. How a staffable Party is found.
+
+**Decision.**
+
+1. **Two events from the Guild State Engine's nightly check** (`engine/src/phases/guild-state.ts`).
+   Each is emitted in the branch of the check that sets or clears `belowFloorSince`, after any
+   Upkeep due, for every Guild in play alike (ADR-0002), and never for a folded one.
+   - `guild.below-floor` `{ guildId, wealth, floor, dueDay }`, the night `belowFloorSince` is set.
+     `dueDay` is `bankruptcyCountdown`'s, the Day on whose night `endings.ts` ends the Guild. DL-95's
+     test ties that selector to the ending under graces of 0, 3, 10 and 30 Days.
+   - `guild.floor-recovered` `{ guildId, wealth, floor, belowFloorSince }`, the night it is cleared.
+   - *Nothing in between.* Nothing is said while the Guild stays below or stays clear, and Wealth
+     equal to the floor is not below it (the rule's `<`).
+   - *The floor in the payload.* `floor` is `bankruptcyFloor` as the night found it. The History then
+     reads true under a save's own rules, and the CLI's narration, which takes the content alone,
+     needs no config. Numbers only, as `guild.upkeep-paid` carries them.
+   - *Participants:* the Guild.
+   - *Not Milestones.* Both recur: in the sweep the Rivals crossed the floor 17 times a game on
+     average (item 6), and the ending that may follow is the Milestone.
+2. **Their words, in both front ends** (`cli/src/narrate.ts`, `web/src/state/narrate.ts`; the page's
+   are the CLI's, with no id to leave out). "The Lantern's Wealth, -35, fell below the Bankruptcy
+   floor of 0: Bankruptcy on the night of Day 34 unless it is back to 0 or more on a night by then."
+   "The Lantern's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it
+   on Day 1: no Bankruptcy is due." Both front ends' tests enumerate the union.
+3. **The always-on stop, `below-floor` `{ guildId, dueDay }`** (`engine/src/stops.ts`).
+   - *Detected from the Turn's events.* It is the watched Guild's own `guild.below-floor`, so a
+     Rival's crossing never stops the player's fast forward, and watching the Rival it would.
+   - *A crossing, not a state.* A Guild already below the floor when the fast forward begins does
+     not stop it again: its countdown already stands (DL-95). Recovering and falling again stops it
+     again.
+   - *Its place in the order:* after `ended` and before `party-returned`, as the step before an
+     ending.
+   - *Its sentence:* "Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of
+     Day 34 unless its Wealth recovers by then." The CLI's countdown line follows it with the floor
+     and the rest (`renderAdvance`), and the page's header carries `countdownView`.
+   - *In `--until`.* The CLI accepts `below-floor`, which changes nothing, as naming any always-on
+     condition changes nothing (DL-33 item 3).
+4. **The opt-in stop, `quest-staffable` `{ guildId, questIds }`: `decision-needed` without its
+   idle-Roster clause.**
+   - *What it names.* The Quests the watched Guild's free Heroes could staff after the Turn that they
+     could not before it, whether or not a Party of the Guild is out.
+   - *"Appears", read as DL-33 item 5's "new, not standing".* A Quest new on the Board, or one newly
+     within reach because a Hero healed or Heroes came home. The brief's words were "appears on the
+     Board". This reading also stops when a standing Quest comes within reach: from the player's
+     side, a Quest they can now staff has appeared among their choices. It also keeps the two stops
+     one rule, differing only by the clause #32 names, "even with a Party out". A Quest the player
+     could staff before the Turn stops nothing, since it has been seen and passed over.
+   - *Against `decision-needed`.* On an idle Roster it names exactly `decision-needed`'s Quests, which
+     is always on and reported first; it comes next in the order. On the night a Party comes home,
+     `party-returned` is reported first. So in play it stops only while a Party is out.
+   - *The CLI.* `advance --until staffable`, the word the epic's §3 names, with the usage rewritten
+     to say which stops are always on and which only when named.
+   - *The page, at the `state/` level.* The reducer's `fastForward` `until` takes it, as a
+     `StopCondition`. The stop's sentence is in `web/src/state/narrate.ts`: "Stopped: a Quest to
+     staff: The Lantern's Heroes at home could go on Clear the barrow." The control is M9-S7's.
+   - *`web/src/views/time.tsx`.* `nextFor` is typed by every stop kind, so the compiler asks for two
+     entries: `below-floor` goes to "Read what happened" (the log), and `quest-staffable` to "Choose
+     a Party on the Board". Nothing else in `views/` changed.
+5. **How a staffable Party is found: `partyFor` proposes, `dispatch` decides**
+   (`engine/src/controllers/rival.ts`).
+   - *The one test.* `staffableQuests(world, guild, deps)` now takes the deps, where it took the
+     content. It is the one test of "can staff" for both stops. For each Quest on offer, its
+     `staffingParty` works in three steps:
+     - it takes the Heroes `dispatch`'s own `unavailability` leaves free (`availableHeroes`);
+     - it has `partyFor`, the staffing rule the Rivals and the policy send by, propose a Party;
+     - it asks `dispatchRefusal` for the verdict, with no consumables.
+   - *Why the search misses no Party.* Of free Heroes on the Guild's Roster, `dispatch` asks only the
+     Quest's requirements (`unmetRequirements`): a size range, one Class and one Skill. `partyFor`
+     names a Party whenever any subset meets them. It takes one Hero with both, or two with one each
+     when no one Hero has both, then fills to the smallest size allowed. It returns `null` only when
+     the size range cannot hold them or there are too few Heroes.
+   - *A test holds it to every Party.* `engine/src/stops.test.ts` judges every Party of a six-Hero
+     Roster (63 subsets) by `dispatchRefusal`, and finds a Quest staffable exactly when some Party
+     passes. It does so over three seeds, with none, one or two Heroes away or injured, 7 size ranges
+     and 6 shapes of Class and Skill: 378 cases, both answers reached more than 40 times.
+   - *Why not search every Party in play.* That would cost up to a few hundred `dispatch` checks for
+     each Quest, twice a Turn. `partyFor` sorts the free Heroes once, and the verdict is one
+     `dispatchRefusal`.
+   - *Why the verdict is `dispatch`'s.* A check `dispatch` gains holds for both stops at once, such
+     as DL-85 item 4's hostile Patron, which is not yet built. Already, a folded Guild staffs nothing
+     (`guild-folded`), where `partyFor` alone would have named a Party.
+   - *No play changes.* `decision-needed` names the same Quests as before, because `partyFor`'s Party
+     always passes (`rival.test.ts`, 'steady: staffing agrees with dispatch'). The Rivals' choice (`preferredQuest`) and the policy
+     still call `partyFor` directly.
+6. **The harness counts both events, and nothing else moved.**
+   - *The counters.* `belowFloor` and `floorRecovered` by controller (`harness/src/counters.ts`),
+     summed in `sweepTotals`, and a "Bankruptcy floor" table in the play report beside the endings.
+   - *The sweep.* 50 seeds (`seed-0001` to `seed-0050`) × 20 years, under the automatic policy, the
+     core content and `defaultConfig`. It was run once at `5cb0c46`, before any change, and once
+     with the change (engine at `b589586`). A scratch script, not committed, played it in 16
+     processes, 881 s and 855 s on a machine shared with two other builds.
+   - *What each game recorded.* Every `GameCounters` field, the observations, the History's count of
+     each event type, and a SHA-256 of the World State alone. The History is left out of the hash,
+     since it now holds the new entries.
+   - *The result: no difference.* Across the 50 games:
+     - every game's World State hash was equal, with the same Turns played and the same ending;
+     - all 1,800 counter entries (36 fields × 50 games) were equal, and so were the observations;
+     - all 1,702 per-type History counts were equal;
+     - the History grew by exactly the new entries, from 12,989,905 to 12,991,483, which is 1,578.
+   - *The new counts.*
+     - `guild.below-floor` 865 times. The player's Guild accounts for 5, in 3 games. In `seed-0049` it
+       fell three times, recovered twice, and went bankrupt on Turn 19,529. The Rivals account for
+       860, from 0 to 37 a game.
+     - `guild.floor-recovered` 713 times: 4 the player's and 709 the Rivals'.
+     - 148 Rivals folded bankrupt.
+   - *Why play cannot move.* The harness never calls fast forward, so a stop cannot change a game.
+     The events draw nothing and write no row.
+   - *The fingerprint does change.* Every save's fingerprint differs from `v1.0.1`'s, because the
+     History holds the new entries. M9-S8's sweep explains the change by these two event types.
+7. **Tests changed, not only added.**
+   - *The page's progress test.* `web/src/app.test.tsx` shows the countdown between steps. It had
+     arranged a Guild below the floor before a fast forward whose first night found it there, and
+     the new stop now ends that fast forward in its first step. It now starts the Guild below the
+     floor since Turn 0, through `withWealth(state, wealth, belowFloorSince)` in
+     `game.test-support.ts`. That is a one-line change in a file M9-S3 also rewrites.
+   - *The CLI's countdown test.* Its check that the countdown had gone looked for the words
+     "Bankruptcy floor", which the new `guild.floor-recovered` line now contains. It now looks for
+     the countdown's own sentence, and reads the recovery's line.
+   - *The engine's tests.* `stopsOfTurn`'s tests take the new order. The test of the night a Party
+     comes home now finds `quest-staffable` there too, listening to every condition.
+
+**Consequences.**
+- *No version moves.* `GameConfig` gains no field, so `configVersion` stays. Content and the save
+  schema are unchanged: an older save loads as it did.
+- *An older save below the floor.* A save already below the floor says nothing about the fall it
+  made before this release. Its first event is the recovery, or, if it falls again, the fall.
+- *Cost.* It is small. The phase adds a branch on its existing check. The stops run only in fast
+  forward: the new detectors scan one Turn's events, and `quest-staffable`, when asked, costs what
+  `decision-needed` costs. Timed here, a year of fast forward with the Roster released took 1,074
+  to 1,384 ms, against 1,082 to 1,243 ms for the same 1,080 `advance` calls: noise, on a loaded
+  machine.
+- *Load, not this change.* The reducer's year-long step test (`reducer.test.ts`, "the player's
+  Roster released…") can run past its 5 s budget under load. M9-S3's baseline at `5cb0c46` timed
+  out at 10 s, and two of this story's whole-suite runs timed out at 5.1 and 5.2 s while two other
+  builds shared the machine. It takes about 4 s run alone. Its cases now have 30 s: a year's case
+  plays 2,160 Turns.
+- *`CONTEXT.md`.* The Fast-forward stop entry now names both stops as built. No term is new.
+- *Left to M9-S7.* The page's control for `quest-staffable`, and the Bankruptcy stop in the home
+  view. So is the Time section's help sentence, which still names only the older stops and lives
+  in `views/`.
+- *#32.* Boxes 1, 2, 3 and 5 are met on `m9-s1`.
+
+**Actioned in:** `engine/src/phases/guild-state.ts`, `engine/src/events.ts`, `engine/src/stops.ts`,
+`engine/src/controllers/rival.ts`, `engine/src/fast-forward.ts`; `cli/src/narrate.ts`,
+`cli/src/args.ts`; `web/src/state/narrate.ts`, `web/src/views/time.tsx` (`nextFor` only);
+`harness/src/counters.ts`, `harness/src/sweep.ts`; `CONTEXT.md`; `docs/planning/epics/M9-redesign.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
