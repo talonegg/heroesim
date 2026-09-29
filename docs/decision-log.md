@@ -9834,6 +9834,161 @@ restyled, and builds the shared pieces those stories use.
 `game-menu.tsx`, `ui.tsx`, `icons.tsx`, `remembered.ts`, `section.tsx`), `web/src/styles.css`,
 `web/e2e/`, `web/playwright.config.ts`, `web/vite.config.ts`; the epic's M9-S3 boxes.
 
+## DL-107 — The page's side of #30 and #32: the Guildmaster set up under "Your Guildmaster", each Trait judged by the engine's own check against those chosen, "Start the game" held while the engine would refuse, "until a Quest I can staff appears" beside the pool's, and the Bankruptcy stop as a warning card with the ways to the Market and the Board (M9-S7)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S7's implementer.
+- *The owner's.* What the setup offers is DL-88 items 3 and 4 and DL-100 item 3, whose approval is
+  the owner's; the stops are DL-85 items 6 and 8. #30's and #32's acceptance boxes are the owner's
+  issues.
+- *The orchestrator's.* The brief: "Your Guildmaster" as a disclosure, the refusal beside the form,
+  the Bankruptcy card's words and buttons, the label "until a Quest I can staff appears", and the
+  help sentences to update.
+- *The agent's.* Every choice below that the epic and the brief left open, and stands unless the
+  owner objects to it or to the screenshots.
+- *The number.* The orchestrator gave this story DL-107. The epic's §4 still gives DL-103 to M9-S3 to
+  M9-S7.
+
+**Context.** M9-S1 (DL-101) built the `below-floor` and `quest-staffable` stops, and M9-S2 (DL-102)
+the Guildmaster's setup, with `guildmasterSetupChoices`, `traitBudgetView` and `newGameRefusal` in
+`web/src/state/` for this story's form. M9-S3 (DL-103) put the page in a shell. At `606fb35` the
+new-game form still took only the names, the Guild's Background and the seed, and the split button
+offered only "until new Heroes join the pool". `views/stop.tsx` sent the Bankruptcy stop to "Read
+what happened", M9-S1's placeholder, and the time controls' words named only the older stops. The
+suite held 3,043 tests in 121 files.
+
+**Decision.**
+
+1. **The form's rules in a module of their own, `web/src/state/setup.ts`, written test first.**
+   - *Why a new file.* `selectors.ts` is being changed by M9-S4 to M9-S6 at the same time. The
+     setup is a seam of its own, built on M9-S2's three selectors, which are unchanged.
+   - *What it holds:*
+     - `traitPicksView(chosen)`: each Guildmaster Trait, with its cost and its exclusions in words,
+       how it stands against those chosen and why, and the budget left;
+     - `setupFormChoices()`: the sexes by a word, each starting age, the Traits' limits in words,
+       and each descriptive Attribute with its bound;
+     - `setupRefusalWords(play)`: `newGameRefusal`'s verdict as `rejections.ts`'s sentence.
+2. **A Trait's standing is the engine's verdict on the Traits chosen with it added.**
+   - *How.* `setupRefusal` is asked about a setup that holds the chosen Traits and this one, with
+     placeholder names and nothing else set, so only the Traits can be refused. Refused as too many,
+     the Trait is `at-most`. Refused as an excluded pair, it is `excluded`, "Excluded by Miser, which
+     is chosen." Refused as over the budget, it is `over-budget`, "Over the budget: with it, the
+     Traits cost 3 and the budget is 1." Otherwise it is `open`.
+   - *Why.* The page copies neither the exclusion lookup nor the sum. The order is the engine's, so
+     with two chosen every other Trait reads "2 Traits are chosen, the most a Guildmaster holds",
+     even one that is excluded too.
+3. **Over the budget is marked but can be chosen; excluded and at-most cannot.**
+   - *Why.* With a budget of 1, Well liked or Thrifty (2) is over the budget on its own until a
+     penalty follows it. Choosing the buff first is the natural order, and it should not be refused.
+     An excluded Trait, or one past the most, is mended only by taking a Trait off.
+   - *How.* `TraitPick.choosable` is false for `excluded` and `at-most`, and the box is disabled.
+     The reason is the box's description, with a cross; an over-budget reason has a warning sign in
+     the warning colour. A chosen Trait can always be taken off.
+4. **The budget as the player picks.** "Budget left: 1", or "Over the budget by 1" with a warning
+   sign in the bad colour. Beside it: "The Traits chosen cost 2; the budget is 1.", "…refund 2…", or
+   "No Trait is chosen…". "Points" alone is avoided, as `CONTEXT.md`'s Trait budget asks. M9-S2's
+   refusal sentence, "Those Traits cost 2 points and the budget is 1…", is left as M9-S2 wrote it.
+5. **The form** (`web/src/views/new-game.tsx`).
+   - *Its order.* Guild name, Background, Guildmaster's name, "Your Guildmaster", Seed, the refusal,
+     "Start the game". The Background moves up beside the Guild's name, since it is the Guild's; under
+     the Guildmaster's name it read as theirs.
+   - *"Your Guildmaster".* The shared `Disclosure`, closed. Its summary has a hint: "Sex, age, Traits
+     and a few words about them, or all drawn from the seed".
+   - *Inside it:*
+     - Sex and Age are lists that open on "Drawn from the seed". The ages are 30 to 45, one by one,
+       with "Years, 30 to 45" under them, so no age out of range can be chosen.
+     - Traits are two radio buttons, "Drawn from the seed" and "Choose them". Chosen with none ticked,
+       the Guildmaster has none (`guildmasterTraitKeys: []`). Back on "Drawn from the seed", nothing
+       is sent, and the ticks come back if "Choose them" is taken again.
+     - Birthplace is one line, and Appearance and Biography are text areas, each with "At most N
+       characters" as its description.
+   - *No `maxLength`.* The browser counts UTF-16 units, where the engine counts characters after
+     trimming (DL-102 item 7). A `maxLength` would be a stricter rule of the page's own. Past the
+     bound, the engine's sentence says the length.
+   - *Labels.* The lists are labelled by a `<label for>` of their own. A label around a list puts its
+     options into its name in Chromium, where the specs could not find "Sex". The Background's label
+     is as it was.
+6. **A setup the engine would refuse cannot be started.** "Start the game" is disabled while
+   `setupRefusalWords` gives a sentence. The sentence stands above the button, as the button's
+   description and a polite live region, with a warning sign.
+   - *The blank names too* (the agent's choice). An empty form says "The Guild needs a name." beside
+     a disabled button: the reason it cannot start, and the next thing to do.
+   - *The docked alert.* It stays the reducer's, for a refusal after a play.
+7. **The split button** (`web/src/views/status-bar.tsx`).
+   - *Its ways.* "Fast forward until a Quest I can staff appears" first, then "…until new Heroes join
+     the pool". The label is the brief's, DL-85 item 8's words: the player's own voice in a command.
+   - *Its note.* It names every stop that is always on, the Bankruptcy floor among them. A second
+     note says "A Quest you can staff is one the Heroes at home could take, even with a Party out."
+   - *Wrapping.* The longer labels wrap inside the popover, which the status bar's `nowrap` had
+     stopped.
+8. **The words that name the stops** (DL-73 item 9's sentences).
+   - *The time controls' description* (`timeHelp`) names every stop fast forward makes of its own
+     accord, the Bankruptcy floor now among them. It also names the two it makes when asked from its
+     other ways: a Quest the Heroes at home can staff, even with a Party out, and new Heroes in the
+     pool.
+   - *The Guild view's sentence* names why time stopped, the Quests a decision or a Quest to staff
+     names, the Bankruptcy stop's Day and its ways to the Market and the Board, and the countdown.
+   - *The new game's sentence* names the setup under "Your Guildmaster".
+9. **The Quest-to-staff stop.** Its Quests are buttons to their Parties, as a decision's are: the
+   merge had done it in `views/stop.tsx`, and tests now prove it. When none of them is still on the
+   Board, "Open the Board".
+10. **The Bankruptcy stop in the home view** (`views/stop.tsx`, `views/guild.tsx`).
+    - *A warning card.* It has an oxblood edge and a warning sign, as the countdown pill has. Its
+      sentence is the stop's, which names the Day Bankruptcy falls on.
+    - *Its words.* Two paragraphs name no number and weigh no choice. "To stay in business, Wealth
+      must be back to the Bankruptcy floor or more on a night by then, after any Upkeep due." Then:
+      "Sell what the Guild holds at the Market, or send a Party on a Quest: its reward comes in when
+      it comes home. Recruiting, building and buying spend Wealth."
+    - *Its buttons.* "Sell at the Market" opens the Hall with the keyboard on the Market's heading.
+      "Open the Board" opens the Board. `nextFor` takes a list of steps for this.
+    - *No second countdown.* The countdown's banner is not drawn while the card stands, since it
+      would say the same Day again. After the next play the stop is gone, and the banner returns with
+      the floor's number, which the pill and the History's entry also give.
+11. **How the Bankruptcy stop is reached in the browser.** The spec and the screenshots use a save.
+    A new game is exported, its Guild's Wealth is set to −50 in the file, and it is loaded back.
+    Its fast forward stops on the first night, at Day 0 night. The status bar's time is the Turn
+    just played. So a save edited at "Day 0, night" plays into the next morning, where a decision
+    stops it first.
+12. **The new events in the History.** `guild.below-floor`, `guild.floor-recovered` and
+    `guildmaster.succeeded` read well as the History draws them today. The first is in the
+    screenshots' History rail: "The Lantern's Wealth, -50, fell below the Bankruptcy floor of 0:
+    Bankruptcy on the night of Day 30 unless it is back to 0 or more on a night by then." The others
+    are held to their sentences by `state/narrate.test.ts`. `state/narrate.ts` is M9-S5's and is
+    unchanged. Its `narrateStop` comment still points to `views/time.tsx` for `nextFor`, which is now
+    `views/stop.tsx`.
+13. **One test's wait.** `use-game.test.tsx`'s five steps take M9-S4's 20 s wait, the same line. It
+    ran past a second once under load here, as it had for M9-S4.
+
+**Consequences.**
+- *#30.* Box 4 is met in both front ends: the page's form sets up the Guildmaster within the budget,
+  with the engine's refusals.
+- *#32.* Box 3's "the web's fast-forward choices" is met by the page's control, and the Bankruptcy
+  stop is shown in the home view.
+- *Tests.* The suite grew from 3,043 tests in 121 files to 3,073 in 124:
+  - `state/setup.test.ts` (13 tests);
+  - `views/new-game.test.tsx` (8);
+  - `views/stops.test.tsx` (5);
+  - four more in `views/stop.test.tsx`.
+
+  The browser specs grew from 36 to 42 tests across the three projects:
+  - the journey starts with a chosen Guildmaster;
+  - `fast-forward.spec.ts` reaches the Bankruptcy stop;
+  - `layout.spec.ts` checks the open setup for sideways scroll and 44px targets.
+- *For the merges.*
+  - `views/stop.tsx`'s `below-floor` line is also changed by M9-S5, from `log` to `history`: this
+    story's list replaces it.
+  - `section.tsx`'s Guild and new-game sentences are this story's; M9-S4 and M9-S5 changed others.
+  - The styles are in two blocks: after `.form`, and after `.stop .actions`.
+- *Questions for the owner.*
+  - Should an empty form say "The Guild needs a name." before anything is typed?
+  - Is "I" right in "until a Quest I can staff appears", where the page elsewhere says "you"?
+  - Should the Bankruptcy card stand in the countdown banner's place, as it does?
+  - Should drawn Guildmasters lean to penalties? DL-102 item 17's question shows here too: with a
+    budget of 1, Well liked and Thrifty are over the budget until a penalty is chosen.
+
+**Actioned in:** `web/src/state/setup.ts`; `web/src/views/` (`new-game.tsx`, `status-bar.tsx`,
+`stop.tsx`, `guild.tsx`, `section.tsx`); `web/src/styles.css`; `web/e2e/` (`journey.spec.ts`,
+`fast-forward.spec.ts`, `layout.spec.ts`, `support.ts`); the epic's M9-S7 boxes.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

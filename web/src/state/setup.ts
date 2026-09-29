@@ -75,6 +75,8 @@ export interface TraitPick extends TraitChoice {
   excludesWords: string | null;
   chosen: boolean;
   standing: TraitStanding;
+  /** Whether its box can be ticked or unticked now: not while it is `excluded` or `at-most`. */
+  choosable: boolean;
   /** Why it is `over-budget`, `excluded` or `at-most`, in words; `null` otherwise. */
   reason: string | null;
 }
@@ -141,16 +143,16 @@ export function traitPicksView(
       costWords: costWords(trait.cost),
       excludesWords: trait.excludes.length === 0 ? null : `Excludes ${listed(trait.excludes.map(({ name }) => name))}`,
     };
-    if (chosen.includes(trait.key)) return { ...offered, chosen: true, standing: 'chosen', reason: null };
+    if (chosen.includes(trait.key)) return { ...offered, chosen: true, standing: 'chosen', choosable: true, reason: null };
     // The whole setup but the Traits keeps the rules, so the verdict is the Traits' alone.
     const refusal = setupRefusal({ guildName: 'Guild', guildmasterName: 'Guildmaster', createdAt: '', guildmasterTraitKeys: [...chosen, trait.key] }, deps);
-    const open = { ...offered, chosen: false };
+    const open = { ...offered, chosen: false, choosable: true };
     switch (refusal?.reason) {
       case 'too-many-traits':
-        return { ...open, standing: 'at-most', reason: `${refusal.max} Traits are chosen, the most a Guildmaster holds.` };
+        return { ...open, standing: 'at-most', choosable: false, reason: `${refusal.max} Traits are chosen, the most a Guildmaster holds.` };
       case 'excluded-pair': {
         const by = refusal.traitKey === trait.key ? refusal.otherKey : refusal.traitKey;
-        return { ...open, standing: 'excluded', reason: `Excluded by ${nameOf(by)}, which is chosen.` };
+        return { ...open, standing: 'excluded', choosable: false, reason: `Excluded by ${nameOf(by)}, which is chosen.` };
       }
       case 'over-budget':
         return {

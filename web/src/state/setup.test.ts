@@ -15,6 +15,11 @@ function standings(chosen: Parameters<typeof traitPicksView>[0]): Record<string,
   return Object.fromEntries(traitPicksView(chosen).traits.map(({ key, standing }) => [key, standing]));
 }
 
+/** The Traits whose box can be ticked or unticked now, by key. */
+function choosable(chosen: Parameters<typeof traitPicksView>[0]): string[] {
+  return traitPicksView(chosen).traits.filter((trait) => trait.choosable).map(({ key }) => key);
+}
+
 describe("the Traits the new-game form offers, as they stand against those chosen (M9-S7)", () => {
   test('with none chosen, the whole budget is left, and the dearer buffs would pass it alone', () => {
     const view = traitPicksView([]);
@@ -72,6 +77,8 @@ describe("the Traits the new-game form offers, as they stand against those chose
       'well-liked': 'excluded',
     });
     expect(view.traits.find(({ key }) => key === 'miser')).toMatchObject({ chosen: true, reason: null });
+    // An excluded Trait cannot be ticked until the one that excludes it is taken off; one chosen can always be.
+    expect(choosable(['miser'])).toEqual(['miser', 'mistrusts-magic', 'old-soldier', 'thrifty']);
     expect(view.traits.find(({ key }) => key === 'well-liked')).toMatchObject({ chosen: false, reason: 'Excluded by Miser, which is chosen.' });
   });
 
@@ -96,6 +103,8 @@ describe("the Traits the new-game form offers, as they stand against those chose
     expect(view.traits.find(({ key }) => key === 'old-soldier')?.reason).toBe(
       'Over the budget: with it, the Traits cost 3 and the budget is 1.',
     );
+    // Over the budget, a Trait can still be ticked: a penalty ticked after it may bring the cost back.
+    expect(choosable(['well-liked'])).toEqual(['mistrusts-magic', 'old-soldier', 'spendthrift', 'thrifty', 'well-liked']);
   });
 
   test('with as many chosen as a Guildmaster holds, no other can be chosen, whatever else would hold', () => {
@@ -111,6 +120,7 @@ describe("the Traits the new-game form offers, as they stand against those chose
       'well-liked': 'at-most',
     });
     expect(view.traits.find(({ key }) => key === 'old-soldier')?.reason).toBe('2 Traits are chosen, the most a Guildmaster holds.');
+    expect(choosable(['miser', 'thrifty'])).toEqual(['miser', 'thrifty']);
   });
 
   test('reads the budget and the most Traits from the config it is given', () => {

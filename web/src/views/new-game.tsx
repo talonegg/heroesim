@@ -275,11 +275,10 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
 /** A Guildmaster Trait: its box and name with its cost, then what it does and excludes, and how it stands. */
 function TraitRow({ pick, onToggle }: { pick: TraitPick; onToggle: () => void }) {
   const id = useId();
-  const blocked = pick.standing === 'excluded' || pick.standing === 'at-most';
   return (
     <li className={`trait-pick trait-pick--${pick.standing}`}>
       <label className="choice trait-pick__choice">
-        <input type="checkbox" checked={pick.chosen} disabled={blocked} aria-describedby={`${id}-does ${id}-stands`} onChange={onToggle} />
+        <input type="checkbox" checked={pick.chosen} disabled={!pick.choosable} aria-describedby={`${id}-does ${id}-stands`} onChange={onToggle} />
         <span className="trait-pick__name">{pick.name}</span>{' '}
         <span className="trait-pick__cost">{pick.costWords}</span>
       </label>
@@ -290,7 +289,7 @@ function TraitRow({ pick, onToggle }: { pick: TraitPick; onToggle: () => void })
       <p className="trait-pick__stands" id={`${id}-stands`}>
         {pick.reason === null ? null : (
           <>
-            <Icon name={blocked ? 'cross' : 'alert'} />
+            <Icon name={pick.choosable ? 'alert' : 'cross'} />
             <span>{pick.reason}</span>
           </>
         )}
