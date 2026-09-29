@@ -60,10 +60,11 @@ describe('navCounts', () => {
     const naming = state.log.filter((event) => event.participants.includes(guild.id));
     // The owner's list: XP, Morale, the Regards, Upkeep, purchases and sales.
     const leftOut = ['hero.xp-gained', 'hero.morale-changed', 'patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold'];
-    // What a return's entry gathers: its Encounters, consumables, Injuries and Deaths; its Heroes' Levels that night; the dead's gear.
+    // What a return's entry gathers: its Encounters and consumables; its Heroes' Levels that night; the dead's gear. Its
+    // Injuries and Deaths stand out beside it, and count (M9-F7, DL-120 item 6).
     const home = naming.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved').flatMap((event) => event.payload.heroIds);
     const gathered = (event: TurnEvent): boolean =>
-      ['quest.encounter', 'item.expended', 'hero.injured', 'hero.died'].includes(event.type) ||
+      ['quest.encounter', 'item.expended'].includes(event.type) ||
       (event.type === 'hero.levelled' && home.includes((event as EngineEventOf<'hero.levelled'>).payload.heroId)) ||
       (event.type === 'item.returned' && (event as EngineEventOf<'item.returned'>).payload.cause === 'died');
     expect(naming.some((event) => event.type === 'hero.xp-gained')).toBe(true);
@@ -185,7 +186,7 @@ describe('railView', () => {
     expect(keyOf(later)).toBe(keyOf(written.state));
   });
 
-  test("gives a Party's return as its one entry, the Loot next after it, and no Encounter (M9-F5)", () => {
+  test("gives a Party's return as its one entry, the Loot next after it, then its Injuries and Deaths, and no Encounter (M9-F5; M9-F7)", () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'success',
       wealth: 150,
@@ -193,18 +194,23 @@ describe('railView', () => {
       xp: 40,
       encounters: [{ outcome: 'success' }, { outcome: 'failure', injured: [0] }],
       injuries: [{ hero: 0, typeKey: 'bruised-ribs', healsOnTurn: 999 }],
+      deaths: [1],
       loot: [{ definitionKey: 'whetstone', quantity: 2 }],
     });
     const lines = railView(written.state, 24)?.lines ?? [];
     const at = lines.findIndex((line) => line.questReturn !== null);
-    const [returned, next] = [lines[at], lines[at + 1]];
+    const [returned, next, injured, died] = [lines[at], lines[at + 1], lines[at + 2], lines[at + 3]];
+    const [first, second] = written.party.heroIds.map((heroId) => documentOf(written.state).world.heroes[heroId]?.name ?? '');
 
     expect(returned?.questReturn?.key).toEqual({ partyId: written.party.partyId, questId: written.party.questId });
     expect(returned?.sentence).toMatch(/^The Lantern's Party came home from .+ and succeeded: Wealth \+150, Fame \+2\.$/);
     // The Loot is the next entry, read down the rail as it is in the History's order, though newer.
     expect(next?.sentence).toMatch(/^The Lantern found Loot on .+: 2 × Whetstone\.$/);
     expect(next?.questReturn).toBeNull();
+    // Then the Injury and the Death, as they happened, each an entry of its own beside the return (DL-120 item 6).
+    expect(injured?.sentence).toMatch(new RegExp(`^${first} was injured `));
+    expect(died?.sentence).toMatch(new RegExp(`^${second} died `));
     expect(lines.filter((line) => line.questReturn !== null)).toHaveLength(1);
-    expect(lines.some((line) => /\(Encounter \d+\)| was injured /.test(line.sentence))).toBe(false);
+    expect(lines.some((line) => /\(Encounter \d+\)/.test(line.sentence))).toBe(false);
   });
 });

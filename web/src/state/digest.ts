@@ -140,7 +140,7 @@ export function railView(state: Pick<GameState, 'document' | 'log'>, limit = rai
   const guild = document === null ? undefined : playerGuild(document.world);
   if (document === null || guild === undefined) return null;
   const fresh = new Set<object>(freshFor(state));
-  const entries = lootAfterItsReturn(historyEntries(document, guild.id, limit));
+  const entries = besideTheirReturn(historyEntries(document, guild.id, limit));
   const lines = linesOf(entries, narrationFor(document, content));
   return {
     guildName: guild.name,
@@ -160,18 +160,20 @@ export function railView(state: Pick<GameState, 'document' | 'log'>, limit = rai
 }
 
 /**
- * The rail's entries, newest first, with each Loot moved to straight after its Party's return, so the
- * Loot is the entry next after it, read down the rail as in the History's order (M9-F5, DL-111 item
- * 2). A Loot whose return is not among them stays where it is.
+ * The rail's entries, newest first, with each return's Loot, then its Injuries and Deaths, moved to
+ * straight after it in the order they happened, so they are the entries next after it, read down the
+ * rail as in the History's order (M9-F5, DL-111 item 2; M9-F7, DL-120 item 6). One whose return is not
+ * among them stays where it is.
  */
-function lootAfterItsReturn(entries: readonly Entry[]): Entry[] {
+function besideTheirReturn(entries: readonly Entry[]): Entry[] {
   const questOf = (entry: Entry): unknown => (entry.payload as { questId?: unknown }).questId;
   const returned = new Set(entries.filter((entry) => entry.type === 'quest.resolved').map(questOf));
   const held = new Map<unknown, Entry[]>();
   const ordered: Entry[] = [];
   for (const entry of entries) {
-    if (entry.type === 'quest.loot' && returned.has(questOf(entry))) {
-      held.set(questOf(entry), [...(held.get(questOf(entry)) ?? []), entry]);
+    if (besideAReturn.has(entry.type) && returned.has(questOf(entry))) {
+      // Newest first here: each older one goes before those held already.
+      held.set(questOf(entry), [entry, ...(held.get(questOf(entry)) ?? [])]);
       continue;
     }
     ordered.push(entry);
@@ -179,3 +181,6 @@ function lootAfterItsReturn(entries: readonly Entry[]): Entry[] {
   }
   return ordered;
 }
+
+/** The entries of a return that stand beside its entry in the rail: its Loot, Injuries and Deaths. */
+const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died']);

@@ -46,7 +46,7 @@ describe('the rail keeps to what the Guild’s History shows (M9-F4)', () => {
 });
 
 describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, and no Encounter', () => {
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, "Open the report", the Loot the next entry, its Injury after it (M9-F7), and no Encounter', () => {
     const written = withReturn(withPartyOut(started('rail-return')), {
       band: 'strong',
       wealth: 150,
@@ -74,8 +74,10 @@ describe('a Party’s return in the rail (M9-F5, DL-111 item 2)', () => {
     expect(within(lines).getAllByRole('listitem')[0]?.textContent).toMatch(/^.+: gained 40 XP; injured: Bruised ribs, healing on the night of Day \d+\.$/);
     expect(within(lines).getAllByRole('listitem')[1]?.textContent).toMatch(/^.+: gained 40 XP; reached Level 2\.$/);
     expect(within(entry).getByRole('button', { name: /^Open the report: / })).toBeDefined();
-    // The Loot is the next entry; no Encounter and no Injury stands in the rail.
+    // The Loot is the next entry, then the Injury, standing out as an entry of its own (DL-120 item 6); no Encounter.
     expect(items[at + 1]?.textContent).toMatch(/The Lantern found Loot on .+: 2 × Whetstone\.$/);
-    expect(railSentences().some((sentence) => /\(Encounter \d+\)|was injured/.test(sentence))).toBe(false);
+    expect(items[at + 2]?.textContent).toMatch(/ was injured /);
+    expect(railSentences().filter((sentence) => /was injured/.test(sentence))).toHaveLength(1);
+    expect(railSentences().some((sentence) => /\(Encounter \d+\)/.test(sentence))).toBe(false);
   });
 });

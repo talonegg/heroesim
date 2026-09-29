@@ -14,9 +14,10 @@
 // the scope shows (`historyFilter`), and so does the rail (`historyEntries`).
 //
 // In the player's Guild's History a Party's return is one entry (M9-F5, DL-111 item 2, DL-113 item
-// 1): its parts, the Encounters, consumables, Injuries, Deaths, the Party's Levels that night and the
-// dead's gear, are left out of the scope (`partOfAReturn`), and its line carries the entry's shape
-// (`returnEntry`, `state/quest-return.ts`). Elsewhere a Party's steps still fold under its outcome.
+// 1): its parts, the Encounters, consumables, the Party's Levels that night and the dead's gear, are
+// left out of the scope (`partOfAReturn`), and its line carries the entry's shape (`returnEntry`,
+// `state/quest-return.ts`). Its Injuries and Deaths stand out beside it as entries of their own (M9-F7,
+// DL-120 item 6). Elsewhere a Party's steps still fold under its outcome.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every line is a History entry as the engine
 // appended it, put in words by `narrate.ts`, and read through the History's own index of entries by
@@ -355,8 +356,6 @@ interface Scope {
   count: number;
   /** The place in the History of the `index`-th newest entry, from 0. */
   at: (index: number) => number;
-  /** Where the entry at `position` of the History stands, counted from the newest; `null` when it is not in the scope. */
-  indexOf: (position: number) => number | null;
   /** A Party's steps fold under its outcome: everywhere but the World History and the whole History. */
   foldsSteps: boolean;
   /** Each Rival's routine folds into one line: in a Guild's History and a Guildmaster's or a Patron's, not a Hero's own (Q14), the world's or the whole. */
@@ -402,26 +401,13 @@ function scopeOf(document: WorldDocument, target: EntityId | 'world' | 'all'): S
   const folds = { foldsSteps: kind !== 'world' && kind !== 'whole', foldsRoutine: kind !== 'world' && kind !== 'whole' && rowOf(document.world.heroes, target) === undefined };
   if (target === 'all') {
     const count = history.entries.length;
-    return { kind, count, at: (index) => count - 1 - index, indexOf: (position) => (position >= 0 && position < count ? count - 1 - position : null), ...folds };
+    return { kind, count, at: (index) => count - 1 - index, ...folds };
   }
   const positions = positionsIn(document, target);
   return {
     kind,
     count: positions.length,
     at: (index) => positions[positions.length - 1 - index] ?? -1,
-    indexOf: (position) => {
-      // The positions ascend (`append`): a binary search finds the entry's.
-      let low = 0;
-      let high = positions.length - 1;
-      while (low <= high) {
-        const middle = (low + high) >>> 1;
-        const at = positions[middle] ?? -1;
-        if (at === position) return positions.length - 1 - middle;
-        if (at < position) low = middle + 1;
-        else high = middle - 1;
-      }
-      return null;
-    },
     ...folds,
   };
 }
@@ -499,21 +485,6 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     fresh: log.filter((event) => (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
     groups: groupsOf(positions, reading),
   };
-}
-
-/**
- * On which page of `whose` History `entry` stands, from 0, so that the home view can open a Party's
- * outcome where it is; `null` when the History shown does not hold it. `entry` is the History's own,
- * as the last play's events are. The pages' edges are `historyView`'s own (`pageStarts`), so a step
- * stands on its outcome's page, and every other entry on the page that holds its place.
- */
-export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry: Entry): number | null {
-  const { history } = document;
-  const position = history.entries.lastIndexOf(entry);
-  if (position < 0) return null;
-  const scope = scopeOf(document, resolved(document, whose).target);
-  const index = scope.indexOf(position);
-  return index === null ? null : pageStarts(scope, history.entries, index).length - 1;
 }
 
 // ── A page ───────────────────────────────────────────────────────────────────────────────────

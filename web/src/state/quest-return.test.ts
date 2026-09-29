@@ -1,15 +1,21 @@
 import { append, dayOf, entriesFor, makeId, playerGuild, type EngineEventOf, type HeroId, type WorldDocument } from '@heroesim/engine';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
 import { cameHome, changed, started, withPartyOut, withReturn, type Written } from './game.test-support';
 import { historyFilter } from './history';
-import { narrate, narrationFor, textOf } from './narrate';
-import { questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
+import { narrate, narrateSegments, narrationFor, textOf } from './narrate';
+import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
 
 // A Quest's return read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8): by its Party
 // and Quest, from the entries that name the Quest (M9-F1, DL-114), and a Level and a dead Hero's gear
 // by Hero and night. Each return is written as the Quest Engine writes one (`withReturn`), with the
 // outcome the test chooses; the expectations are the words and numbers the test wrote.
+
+// Every narration passes through, counted: the entry reads its Hero lines without the report's (M9-F7).
+vi.mock('./narrate', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('./narrate')>();
+  return { ...actual, narrateSegments: vi.fn(actual.narrateSegments) };
+});
 
 const base = withPartyOut(started('quest-return'));
 
@@ -268,8 +274,30 @@ describe('the return’s entry (M9-F5, DL-111 item 2)', () => {
   });
 });
 
-describe('the player’s Guild’s History gathers a return’s parts under its entry (M9-F5, DL-113 item 1)', () => {
-  test('its Encounters, consumables, Injuries, Death, the dead’s gear, and its Heroes’ Levels that night; not a Level at home that night, nor the Loot', () => {
+describe('the entry reads its Hero lines without building the whole report (M9-F7, DL-120 item 10)', () => {
+  test('puts no Encounter or consumable in words, as the report does, and gives the report’s Hero lines', () => {
+    const written = withReturn(base, {
+      band: 'fail',
+      encounters: [{ outcome: 'success' }, { outcome: 'failure', injured: [1] }],
+      used: [{ definitionKey: 'healing-draught', heal: 1, days: 2 }],
+      injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 9999 }],
+    });
+    const key = { partyId: written.party.partyId, questId: written.party.questId };
+    const narrated = vi.mocked(narrateSegments);
+
+    narrated.mockClear();
+    const report = questReturn(documentOf(written), key);
+    expect(narrated.mock.calls.length).toBeGreaterThan(0);
+
+    narrated.mockClear();
+    const entry = returnEntry(documentOf(written), key);
+    expect(narrated.mock.calls).toHaveLength(0);
+    expect(entry?.heroes.map((hero) => hero.sentence)).toEqual(report?.outcomes.map((outcome) => `${outcome.name}: ${outcome.words.join('; ')}.`));
+  });
+});
+
+describe('the player’s Guild’s History gathers a return’s parts under its entry (M9-F5, DL-113 item 1; M9-F7, DL-120 item 6)', () => {
+  test('its Encounters, consumables, the dead’s gear, and its Heroes’ Levels that night; not a Level at home that night, nor the Loot; its Injuries and Deaths stand out beside it', () => {
     const document = base.document as WorldDocument;
     const guild = playerGuild(document.world);
     if (guild === undefined) throw new Error("no player's Guild");
@@ -293,7 +321,11 @@ describe('the player’s Guild’s History gathers a return’s parts under its 
     const night = after.history.entries.filter((entry) => entry.turn === written.turn);
     const shown = night.filter(shows).map((entry) => (entry.type === 'hero.levelled' ? `${entry.type} ${(entry.payload as { heroId: string }).heroId}` : entry.type));
 
-    expect(shown).toEqual(['quest.resolved', 'quest.loot', `hero.levelled ${home}`]);
+    // The Injury and the Death stand out as entries of their own, next after the return and its Loot (DL-120 item 6).
+    expect(shown).toEqual(['quest.resolved', 'quest.loot', 'hero.injured', 'hero.died', `hero.levelled ${home}`]);
+    expect(night.filter((entry) => partOfAReturn(after.history, entry)).map((entry) => entry.type).sort()).toEqual(
+      ['hero.levelled', 'item.expended', 'item.returned', 'quest.encounter'].sort(),
+    );
   });
 });
 

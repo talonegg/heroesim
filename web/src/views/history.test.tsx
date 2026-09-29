@@ -316,7 +316,7 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
     loot: [{ definitionKey: 'whetstone', quantity: 1 }],
   });
 
-  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, and no Encounter or Injury of its own', () => {
+  test('is one entry: the band in bold and the reward, a line per Hero behind a disclosure, the Loot the next entry, its Injury standing out after it (M9-F7), and no Encounter', () => {
     render_(written.state);
     openView('History');
     const entry = inHistory(/^The Lantern's Party came home from .+ and failed: Wealth 0, Fame -2\.$/);
@@ -340,7 +340,10 @@ describe('a Party’s return in the player’s Guild’s History (M9-F5, DL-111 
     const sentences = lines_.map(sentenceOf);
     const at = sentences.findIndex((sentence) => / Party came home from /.test(sentence));
     expect(sentences[at + 1]).toMatch(/^The Lantern found Loot on .+: Whetstone\.$/);
-    expect(sentences.some((sentence) => /\(Encounter \d+\)| was injured /.test(sentence))).toBe(false);
+    // The Injury stands out as an entry of its own, beside the return, and stays in its Hero line (DL-120 item 6).
+    expect(sentences[at + 2]).toMatch(/ was injured /);
+    expect(sentences.filter((sentence) => / was injured /.test(sentence))).toHaveLength(1);
+    expect(sentences.some((sentence) => /\(Encounter \d+\)/.test(sentence))).toBe(false);
   });
 
   test('"Open the report" opens it on Guild › Home, with the keyboard on its heading', () => {

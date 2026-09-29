@@ -1,6 +1,6 @@
 // A Quest's return, read from the History (M9-F5, DL-111 items 2 and 3, DL-112 item 8, DL-113): what
 // the report on Guild › Home shows, and what the return's one entry in the rail and the player's
-// Guild's History gathers. It is read by its Party and its Quest, never from the last play's log, so
+// Guild's History gathers; its Injuries and Deaths also stand beside that entry (M9-F7, DL-120 item 6). It is read by its Party and its Quest, never from the last play's log, so
 // a report reopens from its entry (Q7).
 //
 // What belongs to a return is what an event says it belongs to (principle 5, DL-112 item 2): every
@@ -172,19 +172,17 @@ export function returnsIn(state: { document: WorldDocument | null; log: readonly
 
 /**
  * Whether `entry` is a part of a Party's return, which the player's Guild's History gathers under
- * the return's one entry (DL-111 item 2, DL-113 item 1): an Encounter or a consumable used, an
- * Injury or a Death on a Quest; a Level a Hero gains on the night their Party came home (by Hero
- * and night, as `questReturn` reads it); and a dead Hero's gear going back that night. `entry` is
- * one of `history`'s. Its Loot is not a part: it is the next entry.
+ * the return's one entry (DL-111 item 2, DL-113 item 1): an Encounter or a consumable used; a Level
+ * a Hero gains on the night their Party came home (by Hero and night, as `questReturn` reads it);
+ * and a dead Hero's gear going back that night. `entry` is one of `history`'s. Its Loot is not a
+ * part: it is the next entry. Nor are its Injuries and Deaths, which stand out as entries of their
+ * own beside it, and are in its Hero lines too (M9-F7, DL-120 item 6).
  */
 export function partOfAReturn(history: History, entry: Entry): boolean {
   switch (entry.type) {
     case 'quest.encounter':
     case 'item.expended':
-    case 'hero.died':
       return true;
-    case 'hero.injured':
-      return (entry as EngineEventOf<'hero.injured'>).payload.questId !== null;
     case 'item.returned':
       return (entry as EngineEventOf<'item.returned'>).payload.cause === 'died';
     case 'hero.levelled':
@@ -216,12 +214,27 @@ function cameHomeThatNight(history: History, levelled: EngineEventOf<'hero.level
 
 /** `key`'s return, read from `document`'s History; `null` when the History holds no such return. */
 export function questReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null {
-  return readReturn(document, key)?.report ?? null;
+  return readReturn(document, key);
 }
 
-/** `key`'s return and its outcome's entry, found once for the report and the entry both (M9-F6, code review). */
-function readReturn(document: WorldDocument, key: ReturnKey): { report: QuestReturn; outcome: Resolved } | null {
-  const { world, history } = document;
+/**
+ * What the report and the entry both read of `key`'s return: its outcome, found once (M9-F6, code
+ * review), the entries naming its Quest in the order they happened, and each Hero's outcome. Nothing
+ * here is put in words by the narration, so the entry, which needs only its Hero lines, reads no
+ * Encounter and no Patron (M9-F7, DL-120 item 10).
+ */
+interface ReturnRead {
+  outcome: Resolved;
+  /** The entries naming the Quest, in the order they happened. */
+  ofQuest: Entry[];
+  /** The Party's entries of the Quest: its Encounters, consumables and Loot. */
+  ofParty: Entry[];
+  guildName: string;
+  outcomes: HeroOutcome[];
+}
+
+function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | null {
+  const { history } = document;
   const found = outcomeOf(history, key);
   if (found === null) return null;
   const { entry: outcome, position } = found;
@@ -229,29 +242,13 @@ function readReturn(document: WorldDocument, key: ReturnKey): { report: QuestRet
   const named = (id: string): string => labels[id as keyof typeof labels] ?? 'a Hero';
   // In the order they happened: `entriesFor` gives the newest first.
   const ofQuest = entriesFor(history, key.questId).reverse();
-  const offered = ofQuest.find((entry): entry is EngineEventOf<'quest.offered'> => entry.type === 'quest.offered');
-  const patronId = offered?.payload.patronId ?? (outcome.participants.find((id) => id.startsWith('patron-')) as PatronId | undefined);
-  const patronName = patronId === undefined ? undefined : (Object.hasOwn(world.patrons, patronId) ? world.patrons[patronId]?.name : undefined) ?? labels[patronId];
   const night = nightFrom(history, position);
-  const narration = narrationFor(document, content);
   const ofParty = ofQuest.filter((entry) => (entry.payload as { partyId?: unknown }).partyId === key.partyId);
-  const expended = ofParty.filter((entry): entry is EngineEventOf<'item.expended'> => entry.type === 'item.expended');
-  const encounters = ofParty
-    .filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter')
-    .map((entry): ReturnEncounter => ({
-      key: `encounter-${entry.payload.index}`,
-      outcome: entry.payload.outcome,
-      ...lineOf(entry, narration),
-      used: expended.filter((use) => 'encounterIndex' in use.payload && use.payload.encounterIndex === entry.payload.index).map((use) => lineOf(use, narration)),
-    }));
   const injured = ofQuest.filter((entry): entry is EngineEventOf<'hero.injured'> => entry.type === 'hero.injured');
   const morale = ofQuest.filter((entry): entry is EngineEventOf<'hero.morale-changed'> => entry.type === 'hero.morale-changed');
   const regard = ofQuest.filter((entry): entry is EngineEventOf<'hero.regard-changed'> => entry.type === 'hero.regard-changed');
   const returned = night.filter((entry): entry is EngineEventOf<'item.returned'> => entry.type === 'item.returned' && (entry as EngineEventOf<'item.returned'>).payload.cause === 'died');
   const guildName = labels[payload.guildId] ?? 'the Guild';
-  const loot = ofParty
-    .filter((entry): entry is EngineEventOf<'quest.loot'> => entry.type === 'quest.loot')
-    .map((entry) => itemsWords(content, entry.payload.definitionKey, entry.payload.quantity));
 
   const outcomes = payload.heroIds.map((heroId): HeroOutcome => {
     const died = payload.deaths.includes(heroId);
@@ -280,8 +277,35 @@ function readReturn(document: WorldDocument, key: ReturnKey): { report: QuestRet
     ];
     return { heroId, name: named(heroId), xp, levels, morale: mood, injury, died, gear, regard: mates, words };
   });
+  return { outcome, ofQuest, ofParty, guildName, outcomes };
+}
 
-  const report: QuestReturn = {
+/** `key`'s whole return, the report: what `readOutcomes` reads, with the Encounters in words, the Loot and the Patron. */
+function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null {
+  const read = readOutcomes(document, key);
+  if (read === null) return null;
+  const { outcome, ofQuest, ofParty, guildName, outcomes } = read;
+  const { world } = document;
+  const { payload, labels } = outcome;
+  const named = (id: string): string => labels[id as keyof typeof labels] ?? 'a Hero';
+  const offered = ofQuest.find((entry): entry is EngineEventOf<'quest.offered'> => entry.type === 'quest.offered');
+  const patronId = offered?.payload.patronId ?? (outcome.participants.find((id) => id.startsWith('patron-')) as PatronId | undefined);
+  const patronName = patronId === undefined ? undefined : (Object.hasOwn(world.patrons, patronId) ? world.patrons[patronId]?.name : undefined) ?? labels[patronId];
+  const narration = narrationFor(document, content);
+  const expended = ofParty.filter((entry): entry is EngineEventOf<'item.expended'> => entry.type === 'item.expended');
+  const encounters = ofParty
+    .filter((entry): entry is EngineEventOf<'quest.encounter'> => entry.type === 'quest.encounter')
+    .map((entry): ReturnEncounter => ({
+      key: `encounter-${entry.payload.index}`,
+      outcome: entry.payload.outcome,
+      ...lineOf(entry, narration),
+      used: expended.filter((use) => 'encounterIndex' in use.payload && use.payload.encounterIndex === entry.payload.index).map((use) => lineOf(use, narration)),
+    }));
+  const loot = ofParty
+    .filter((entry): entry is EngineEventOf<'quest.loot'> => entry.type === 'quest.loot')
+    .map((entry) => itemsWords(content, entry.payload.definitionKey, entry.payload.quantity));
+
+  return {
     key,
     guildId: payload.guildId,
     turn: outcome.turn,
@@ -298,7 +322,6 @@ function readReturn(document: WorldDocument, key: ReturnKey): { report: QuestRet
     outcomes,
     patronRegard: patronId === undefined || patronName === undefined ? null : standing(document, ofQuest, { patronId, name: patronName, guildId: payload.guildId, guildName }),
   };
-  return { report, outcome };
 }
 
 /** The Patron's Regard for the Guild after the return: the crossing its `patron.regard-changed` names, and the band now. */
@@ -375,23 +398,23 @@ export interface ReturnEntry {
 
 /** `key`'s return as its entry; `null` when the History holds no such return. */
 export function returnEntry(document: WorldDocument, key: ReturnKey): ReturnEntry | null {
-  const read = readReturn(document, key);
+  const read = readOutcomes(document, key);
   if (read === null) return null;
-  const { report } = read;
-  const { lead, band, rest } = resolvedWords(read.outcome, { content });
+  const { outcome, outcomes } = read;
+  const { lead, band, rest } = resolvedWords(outcome, { content });
   const [first, ...after] = lead;
   const opening = first === undefined ? [] : [{ ...first, text: first.text.charAt(0).toUpperCase() + first.text.slice(1) }, ...after];
-  const count = report.outcomes.length;
+  const count = outcomes.length;
   return {
     key,
-    quest: report.quest,
-    when: report.when,
-    band: report.band,
+    quest: nameIn(content.questTemplates, outcome.payload.templateKey),
+    when: whenOf(outcome.turn),
+    band: outcome.payload.band,
     lead: opening,
     bandSaid: band,
     rest,
     heroesWords: `${count} ${count === 1 ? 'Hero' : 'Heroes'}`,
-    heroes: report.outcomes.map(({ heroId, name, words }) => {
+    heroes: outcomes.map(({ heroId, name, words }) => {
       const segments: Segment[] = [
         { kind: 'name', text: name, entityId: heroId, table: 'heroes' },
         { kind: 'text', text: words.length === 0 ? '.' : `: ${words.join('; ')}.` },

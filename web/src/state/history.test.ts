@@ -29,12 +29,12 @@ import {
   historySearchLimit,
   historyTitle,
   historyView,
-  pageOfEntry,
   routineKinds,
   type HistoryLine,
   type HistoryRow,
   type HistoryView,
 } from './history';
+import { pageOfEntry } from './history.test-support';
 import { listed } from './narrate';
 import { historyPageSize } from './selectors';
 
@@ -134,15 +134,16 @@ function entriesLeaving(document: WorldDocument, entityId: Parameters<typeof ent
 
 /**
  * The parts of the player's Guild's returns, which its History gathers under each return's one entry
- * (M9-F5, DL-111 item 2, DL-113 item 1): each Encounter and consumable used, each Injury and Death
- * the Quest names, and, that night, its Heroes' Levels and the gear of its dead back to the Guild.
+ * (M9-F5, DL-111 item 2, DL-113 item 1): each Encounter and consumable used, and, that night, its
+ * Heroes' Levels and the gear of its dead back to the Guild. Its Injuries and Deaths stand out beside
+ * it (M9-F7, DL-120 item 6).
  */
 function returnParts(document: WorldDocument, guildId: GuildId): Set<Entry> {
   const parts = new Set<Entry>();
   for (const outcome of entriesFor(document.history, guildId).filter((entry) => entry.type === 'quest.resolved')) {
     const { questId, heroIds, deaths } = (outcome as EngineEventOf<'quest.resolved'>).payload;
     for (const entry of entriesFor(document.history, questId)) {
-      if (['quest.encounter', 'item.expended', 'hero.injured', 'hero.died'].includes(entry.type)) parts.add(entry);
+      if (['quest.encounter', 'item.expended'].includes(entry.type)) parts.add(entry);
     }
     for (const entry of entriesBetween(document.history, outcome.turn, outcome.turn + 1)) {
       const { heroId, cause } = entry.payload as { heroId?: HeroId; cause?: string };

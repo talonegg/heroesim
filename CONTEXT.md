@@ -312,7 +312,8 @@ nightly drift, and the changes DL-84 names, are recorded only when they cross a 
 shows a Guild's History with some entries left out, none dropped: the player's Guild's without
 its Heroes' XP and Morale, Regard moving, Upkeep, purchases and sales, and a Rival's without Upkeep,
 purchases and sales (DL-111, DL-117). In the player's Guild's, a Party's return is one entry, its
-Encounters, Injuries, Deaths and its Heroes' Levels that night gathered under it (DL-118). A Hero's,
+Encounters and its Heroes' Levels that night gathered under it (DL-118), and its Injuries and Deaths
+standing beside it as entries of their own (DL-120). A Hero's,
 a Guildmaster's and a Patron's leave out nothing.
 _Avoid_: Event log, Journal, Audit trail
 
