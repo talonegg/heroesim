@@ -9590,6 +9590,175 @@ restyled, and builds the shared pieces those stories use.
 `game-menu.tsx`, `ui.tsx`, `icons.tsx`, `remembered.ts`, `section.tsx`), `web/src/styles.css`,
 `web/e2e/`, `web/playwright.config.ts`, `web/vite.config.ts`; the epic's M9-S3 boxes.
 
+## DL-105 — The History as the one place to read what happened: the last play's entries its newest, marked new; opened on the player's Guild, with the whole History and each Rival's a choice away; names that open whom they name, marked by the narration from the events' ids; groups by Day and time of day; a Party's Encounters under its outcome and each Rival's routine under one line; and pages of 20 entries that keep a Party's steps with its outcome (M9-S5)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S5's implementer. The one
+view, its opening on the player's Guild and the History of any Guild, Hero, Guildmaster or Patron
+are the owner's (DL-99 item 2, answer 2). Names that open whom they name are an agent's proposal in
+DL-99 item 2, standing unless the owner objects. The grouping, the two folds and the paging are the
+epic's M9-S5. Every choice below that the epic left open, and every departure from it, is the
+agent's, and stands unless the owner objects to it or to the screenshots.
+
+**Context.** Until M9-S5 the History view held two parts. "Since your last action" listed the last
+play's events oldest first, a hundred at a time, with a checkbox "Only what concerns" the player's
+Guild, unticked by default (DL-66 item 6, DL-74 item 8). Below it, the History listed the whole
+History or a Guild's, newest first, twenty entries a page, each line with its own Day and time of day
+(DL-73 item 8), and a search found anyone else it names (DL-74 item 2). DL-99 item 2 made the History
+the one place to read what happened. The review's B6, B11 and C7 proposed the grouping, the folds, the
+lighter controls and the marks. The engine appends every event of a play to the History as it is
+(`append`, ADR-0008), and indexes the entries by participant (`byEntity`), so no engine change is
+needed, and none was made. DL-100 planned one record, DL-103, for S3 to S7; this story's own is
+DL-105, as its brief numbers it.
+
+**Decision.**
+
+1. **One view.**
+   - *The log goes.* `views/log.tsx`, its test, `logView` in `state/selectors.ts` and the part
+     `log` of the History view are removed, with the "Only what concerns" checkbox.
+   - *What is new.* An entry is new when it is one of the last play's events, the same object the
+     History holds. Each new line carries a "New" tag, the rail's word. The page's summary says how
+     many of the History shown are new: "Page 1 of 7, 122 entries in all, newest first. 43 new since
+     your last action."
+   - *The navigation's count and the rail* keep M9-S3's scope, the player's Guild (DL-103 item 4).
+2. **Whose History.**
+   - *Where it opens.* On the player's Guild's, superseding DL-66 item 6's unticked filter. The
+     shell holds the choice (`whose`: `null` for the player's Guild, `all`, or an entity's id), so it
+     holds from view to view and from play to play, and a new game or a load starts it afresh
+     (DL-74 items 7 and 8).
+   - *The choices,* as chips in a group named "Whose History" (the review's B11): the player's
+     Guild, the whole History, then each Rival in play, in the world's order. Under 600px the chips
+     are one row that scrolls in its own box.
+   - *A folded Guild is not a chip.* Over twenty years folded Rivals accumulate. Their History is
+     still read (DL-73 item 8), found by name as anyone else's is ("Guild, folded").
+   - *The search* sits in the view's head beside its heading (B11), with its accessible name
+     unchanged, "Find someone in the History by name".
+   - *Two buttons reopen it on the player's Guild at its newest*, whatever was chosen before: the
+     rail's "Open the History" (as the brief asks) and the stop's "Read what happened" (the agent's,
+     since it points to the same entries). The keyboard goes to the History's title. The
+     navigation's History button keeps the choice.
+3. **Anyone's History.**
+   - *Found by name,* as DL-74 item 2 has it, unchanged.
+   - *From their pages.* A Guild's page in the Rankings has "Read its History". Each Patron in the
+     Rankings has "History". A Guildmaster, in the Hall and on a Guild's page, has "Read their
+     History". A Hero's page shows their History as the History view does, grouped, folded and
+     marked, with names that open.
+   - *A Hero the world still holds* opens on their page in the History view (DL-74). Its "Back" goes
+     to the History shown before it, "Back to the History of The Lantern", where it said "Back to the
+     whole History" (`historyTitle`).
+4. **Names that open whom they name.**
+   - *Marked by the narration, never parsed* (principle 5). `state/narrate.ts` gains
+     `narrateSegments`: a line as words and names, each name carrying the id the sentence read it
+     from and its table. The sentences are written with a tagged template, and `called` gives a name
+     where it gave a string. `narrate` is the segments' words (`textOf`), so every sentence the tests
+     pin word for word reads as before, and a test holds every event type's segments to its sentence
+     and each name to a participant of its event.
+   - *Which names.* A Guild, a Hero, a Guildmaster or a Patron, the rows with names. An entity the
+     event has no label for stays words ("a Hero").
+   - *Where each goes.* A Hero's name opens the Hero in the History view, which for a Hero the world
+     holds is their page. A Guild's opens its page in the Rankings, the player's Guild's included: the
+     shell now holds which Guild's page is open (`Guilds` takes `open` and `onOpen`). A Guildmaster's
+     or a Patron's opens their History.
+   - *As targets.* A name is a button that looks like a link, in the sentence. It is held to 24px
+     high, WCAG 2.5.8's least, not to the epic's 44px: WCAG 2.5.5 and 2.5.8 both except a target in
+     a sentence, whose size the line sets. `e2e/support.ts`'s `expectTargets` checks it so. This is a
+     departure from "Controls are at least 44px", for names alone.
+5. **Groups** by Day and time of day, one heading per group with the time's glyph, the groups newest
+   first and each group's entries in the order they happened, which is the order the engine appended
+   them: a Quest's night reads its Encounters, its outcome, its Loot, Injuries and XP as they came.
+   The heading is `h4` in the History view, and one level below the Hero's page's own headings there.
+6. **Folds.**
+   - *A Party's steps under its outcome.* A `quest.resolved` holds its Party's `quest.encounter`
+     entries and its `item.expended`, the consumables the Party used, which the Quest Engine appends
+     between its Encounters and its outcome. Their button names them: "3 Encounters and 1
+     consumable used". The player's Loot, Injuries, deaths and XP follow the outcome and stand as
+     lines, as the home view reports them; a Rival's fold into its routine (below), save a death,
+     which is a Milestone.
+   - *A Rival's routine, one line a Guild.* In a group, a Rival's routine entries, two or more, fold
+     into "The Guild at Harrow Cross: 5 routine entries (XP, Morale and purchases).", with its own
+     button, "5 entries", where the first
+     of them happened, the Guild's name a name. A single routine entry stands as itself: folding one
+     saves nothing.
+   - *Which types are routine* (`routineKinds`, keyed by every event type, so `tsc -b` refuses a
+     type the engine adds until it is decided): `guild.upkeep-paid`, `hero.xp-gained`,
+     `hero.morale-changed`, `hero.injured`, `hero.healed`, `hero.declined`, `hero.regard-changed`,
+     `guildmaster.regard-changed`, `patron.regard-changed`, `item.bought`, `item.sold`,
+     `item.equipped`, `item.unequipped`, `item.returned`, `item.expended` and a common `quest.loot`.
+     *Why:* they are what a Guild's ordinary running leaves behind every Day and at each return, and
+     change nothing on the Board, in the Rankings or on a Roster. The epic named purchases, equipping,
+     XP and Morale drift; the rest are "similar" in that sense. *Never routine:* what changes the
+     player's world (a Quest taken or resolved, a Hero recruited, leaving the Guild or moving, an offer
+     or its end), a Guild's standing (the Bankruptcy floor, a fold, a module's change of Wealth), the
+     world's own entries, and every Milestone whatever its type (a unique Item's Loot, a Level, an
+     Improvement).
+   - *Whose routine.* The Guild its payload names, else the one Guild among whom it concerns, which
+     `emit` adds for a Hero. Never the player's Guild's.
+   - *In every scope,* the whole History, a Guild's, a Patron's and a Hero's alike.
+   - *The words.* "routine" is the ordinary word, shown in a summary; it is not a term of
+     `CONTEXT.md`, which gains none.
+7. **Marks, never colour alone** (C7).
+   - *The player's lines* (those naming the player's Guild) have an accent rule at the left, and
+     their names are in the accent.
+   - *A Rival's lines* (naming another Guild) are muted, in the soft ink. Lines naming no Guild (a
+     Patron's offer, the pool, the world) have neither.
+   - *An outcome* carries the home view's chip: a check or a cross and "Success", "Strong success"
+     or "Failure".
+   - *A Milestone* is bold, with a brass star and "Milestone:" for a screen reader.
+8. **Paging.**
+   - *A page counts entries, not groups:* twenty, from the newest, as before (`historyPageSize`). A
+     group straddling two pages is headed on both.
+   - *A Party's steps stay with its outcome.* A page whose last entries are an outcome and some of
+     its steps takes the rest of them, and the next page starts after them, so a page may hold a few
+     more than twenty. Every entry is on one page and one only, which a test checks over every page of
+     a fifty-Day game.
+   - *The controls.* Newest, Newer, Older and Oldest, drawn only when there is more than one page. A
+     change of page puts the keyboard on the page's top, its title and summary, so "Newest" returns to
+     the top of the History.
+9. **The home view's outcomes open their line** (the optional link). Each outcome in "Came home"
+   has "Read it in the History", which opens the player's Guild's History on the page the outcome
+   stands on (`pageOfEntry`) with the keyboard on its line (`outcome-<party>`).
+10. **Where it lives.** `state/history.ts` is new: `historyView`, `historyTitle`, `historyChoices`,
+    `pageOfEntry` and `routineKinds`. `findInHistory` and `historySearchLimit` move there from
+    `state/world-views.ts`, whose History part goes. `heroPage` no longer pages a Hero's History; its
+    Milestones stay. `guildmasterView` gains the Guildmaster's id. The views are
+    `views/history-entries.tsx` (the page of groups, folds and marks, the names, and `EntityHistory`
+    for a Hero's page), `views/history.tsx`, and a context, `HistoryLinks`, through which the shell
+    gives any History what is new and where a name goes.
+11. **The tests.**
+    - *At the seams, written first:* `state/narrate.test.ts` (segments), `state/history.test.ts`
+      (grouping, folds, routine, marks, paging over every page, scope, choices, the search moved
+      from `world-views.test.ts`) and `state/digest.test.ts` (an outcome's page and anchor).
+    - *The views,* `views/history.test.tsx`: it opens on the player's Guild with the new marked; the
+      choice holds; paging and "Newest"; each fold opens; the marks; each kind of name opens the right
+      entity; each entity's page opens its History; the rail and the stop; an outcome opened from the
+      home view; and the History read again only when the game, the log or the page changes, not at
+      each step of a fast forward (ported from the log's test, v1.0.1-S6, DL-97).
+    - *Tests that read the old log* now read the History, new: `app.test.tsx`, `views/actions.test.tsx`,
+      `views/world.test.tsx`, `views/hero-page.test.tsx`.
+    - *The browser specs:* the journey reads the dispatch, the recruit and the Party's return in the
+      History, opens the return's Encounters, and checks the targets there; the layout spec reads the
+      History opened on the player's Guild, the whole History, the search and a name opened; the
+      modules spec reads `probe.fired` in the whole History.
+
+**Consequences.**
+- *The page.* One History, which opens on what happened to the player's Guild, newest first, what
+  the last play did marked new. A year's fast forward no longer lists thousands of lines in one part.
+- *Questions for the owner.*
+  - Should a Rival's routine fold in a Hero's own History, where every line is that Hero's?
+  - Is the stop's "Read what happened" right to reopen the player's Guild's History, rather than
+    keep the choice?
+  - Should folded Guilds have chips, now found by name only?
+- *For M9-S6*, which redesigns the Hero's page, the Rankings, the Guilds and the Patrons: the Hero's
+  History is `EntityHistory`; the Guild page's open Guild is the shell's (`open`, `onOpen`); a
+  Guild's page, each Patron and a Guildmaster have their History buttons through `useHistoryLinks`.
+- No engine, content, CLI, config, event or save change: `configVersion`, the content version and the
+  schema version are unchanged.
+
+**Actioned in:** `web/src/state/narrate.ts`, `web/src/state/history.ts`, `web/src/state/digest.ts`,
+`web/src/state/selectors.ts`, `web/src/state/world-views.ts`, `web/src/app.tsx`, `web/src/views/`
+(`history.tsx`, `history-entries.tsx`, `guilds.tsx`, `rankings.tsx`, `patrons.tsx`,
+`guildmaster.tsx`, `hero-page.tsx`, `guild.tsx`, `rail.tsx`, `stop.tsx`, `section.tsx`),
+`web/src/styles.css`, `web/e2e/`; the epic's M9-S5 boxes.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

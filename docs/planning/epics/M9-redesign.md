@@ -285,8 +285,45 @@ newest, marked new.
   Guild, and expand.
 - *Paging.* History is paged as before, and "Newest" returns to the top.
 
-**Acceptance:** grouping and folding are `state/` selectors, written test first. Names link to
-the right entity (Testing Library). The journey reads the Party's return in the History.
+**Acceptance** (DL-105):
+- [x] Grouping and folding are `state/` selectors, written test first — `state/history.ts`'s
+  `historyView`, tested in `state/history.test.ts`: 'groups newest first, each headed by its Day
+  and time of day, and each holding the entries of its Turn as they happened', 'pages twenty
+  entries at a time from the newest…', "pages a Hero's History too, as their page shows it",
+  "a Party's Encounters, folded under its outcome" (every entry on one page and one only, and
+  each outcome's steps its Party's), "a page that ends on an outcome takes its Party's steps with
+  it…", 'are exactly these kinds, none of them a Milestone', 'fold, two or more in a group, into
+  one line for their Guild, never the player's and never a Milestone', "marks each line the
+  player's, a Rival's or neither, new when the last play appended it, and an outcome by how it
+  went", and 'whose History' and 'the choices one step away' (DL-105 items 1, 2, 5 to 8)
+- [x] Names are marked by the narration from the event's own ids, never by parsing — tested in
+  `state/narrate.test.ts`, 'a line as segments…': every event type 'reads word for word as its
+  sentence, and marks only names of whom the event names'; 'never finds a name by reading its own
+  sentence: two of one name are told apart by their ids' (DL-105 item 4)
+- [x] Names link to the right entity — tested with Testing Library in `views/history.test.tsx`:
+  "a Hero's name opens their page in the History, and back goes to the History it came from",
+  "a Guild's name opens its page in the Rankings, and it opens the Guild's History", "a Patron's
+  and a Guildmaster's names open their History"; each one's page opens their History: "a Rival's
+  page in the Rankings, a Patron and a Guildmaster", and the Hero's page's History in
+  `views/hero-page.test.tsx` (DL-105 items 3, 4)
+- [x] One view, opened on the player's Guild, the new marked, the choice holding, paging and
+  "Newest" — tested in `views/history.test.tsx`: "opens on the player's Guild, grouped by Day and
+  time of day, newest first, what the last play added marked new", 'gives the whole History and
+  each Rival's in one choice, a choice that holds from view to view and play to play', 'pages
+  twenty entries at a time; "Newest" returns to the top, the page and the keyboard', the folds
+  and marks, and 'the rail and the stop open the History on the player's Guild, at its newest,
+  whatever was chosen before'; the log's part and its checkbox are gone (DL-105 items 1, 2, 7, 8)
+- [x] The journey reads the Party's return in the History — `e2e/journey.spec.ts` opens it from
+  the stop's "Read what happened", reads the return, new, under its outcome's chip, opens its
+  Encounters, and holds the page to no sideways scroll and its targets; `e2e/layout.spec.ts`
+  reads the whole History, the search and a name opened at the three widths (DL-105 item 11)
+- [x] The home view's outcomes open their line in the History (the optional link) — tested in
+  `state/digest.test.ts` ("gives where each is read in the player's History…") and
+  `views/history.test.tsx` ('on the page it stands on, with the keyboard on it') (DL-105 item 9)
+- [x] Screenshotted and read: the History after a fast forward (groups, folds, the new marked, a
+  Party's Encounters open, a Rival's routine open) and a Hero's History, at 390 × 844 and
+  1440 × 900 in the light scheme
+- [x] DL-105 records the choices the epic left open, and its departures.
 
 ### M9-S6 · The Roster, Hall and Rankings views · 2 sessions · opus
 
