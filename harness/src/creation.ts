@@ -21,12 +21,15 @@ import { summarise, tally, type Summary } from './stats.js';
 /**
  * The player's choices in every harness world. `createdAt` is fixed so that `meta`, and so the
  * whole document, compares byte for byte (pre-M0 review D10.1); the Guild's Background is left
- * to the seed.
+ * to the seed. The Guildmaster is 30 (M9-F1, DL-113 item 6), so that every game can run its twenty
+ * years before a Retirement at 61; any age up to 41 plays the same, since age decides nothing but
+ * Retirement, and a chosen age moves no draw (M9-S2), so the worlds are the drawn ones but for it.
  */
 export const harnessSetup: Readonly<WorldSetup> = Object.freeze({
   guildmasterName: 'Aldith Barrowby',
   guildName: 'The Harness Guild',
   createdAt: 'harness',
+  guildmasterAge: 30,
 });
 
 /** What one world holds, in the numbers a report summarises. */

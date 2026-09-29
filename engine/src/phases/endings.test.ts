@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
-import type { EngineDeps } from '../config.js';
+import { defaultConfig, type EngineDeps } from '../config.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import {
@@ -23,7 +23,7 @@ import { marketHolder, sellPrice } from '../market.js';
 import { phases } from '../pipeline.js';
 import { createStreams } from '../rng.js';
 import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unattachedHeroes } from '../selectors.js';
-import { nightOf } from '../time.js';
+import { nightOf, retirementTurn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
 import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
 import { endings } from './endings.js';
@@ -142,16 +142,16 @@ const arrange: Record<(typeof reasons)[number], Arrangement> = {
 // ── The player's endings ─────────────────────────────────────────────────────────────────────
 
 describe("the player's ending ends the game", () => {
-  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge, 65 by default', () => {
+  test('Retirement: on the first night the Guildmaster is guildmasterRetirementAge, 61 by default (DL-113)', () => {
     const deps = testDeps({ turnsPerYear: 30 }); // ten Days a year, so that a birthday comes soon
-    expect(deps.config.guildmasterRetirementAge).toBe(65);
+    expect(deps.config.guildmasterRetirementAge).toBe(61);
     const start = created('retirement', deps);
     const player = thePlayer(start.world);
     const guildmaster = start.world.guildmasters[player.guildmasterId];
     if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = 64;
+    guildmaster.ageAtEntry = 60;
 
-    // 64 until Turn 30, the morning of Day 10; the check is at night.
+    // 60 until Turn 30, the morning of Day 10; the check is at night.
     const before = playTo(start, nightOf(9), deps);
     expect(before.document.world.ended).toBeNull();
     const { document, events, stoppedBecause } = playTo(before.document, nightOf(10), deps);
@@ -296,6 +296,70 @@ describe("the player's ending ends the game", () => {
     const reasonsOf = (events: TurnEvent[]) => ofType(events, 'game.ended').map((event) => event.payload.reason);
     expect(reasonsOf(endings(world, phaseContext(world, deps)))).toEqual(['retirement']);
     expect(reasonsOf(endings(withoutRetirement, phaseContext(withoutRetirement, deps)))).toEqual(['bankruptcy']);
+  });
+});
+
+// M9-F1 (DL-113 items 4 and 5): every Guildmaster 21 to 50 at the start and retiring at 61, on the
+// Turn `retirementTurn` gives, which the endings read. The year is the default's 1,080 Turns: the
+// world is moved to the night before, and the Rivals stilled.
+describe('Retirement at 61, on the Turn retirementTurn gives (M9-F1)', () => {
+  test('the defaults: every Guildmaster starts 21 to 50 and retires at 61, under configVersion 12', () => {
+    expect(defaultConfig).toMatchObject({
+      guildmasterStartingAgeMin: 21,
+      guildmasterStartingAgeMax: 50,
+      guildmasterRetirementAge: 61,
+      configVersion: 12,
+    });
+  });
+
+  /** A world whose Guildmaster of the Guild `pick` gives entered aged `age` on `enteredTurn`, moved to the night before their Retirement. */
+  function toTheEve(seed: string, pick: (world: World) => Guild, age: number, enteredTurn = 0) {
+    stillRivalControllers();
+    const deps = testDeps({ startingWealth: 100_000 });
+    const start = created(seed, deps);
+    const guild = pick(start.world);
+    // Every other Guildmaster is 21, so that none of them retires in the years skipped.
+    for (const other of Object.values(start.world.guildmasters)) other.ageAtEntry = 21;
+    const guildmaster = start.world.guildmasters[guild.guildmasterId];
+    if (guildmaster === undefined) throw new Error('No Guildmaster');
+    Object.assign(guildmaster, { ageAtEntry: age, enteredTurn });
+    const retires = retirementTurn(guildmaster, deps.config);
+    start.world.turn = retires - 3;
+    return { deps, eve: withValid(start, deps), guild, guildmaster, retires };
+  }
+
+  test("the player's Guildmaster founded at 50 retires on the first night they are 61, Turn 11,882, and the game ends", () => {
+    const { deps, eve, guild, retires } = toTheEve('at-fifty', thePlayer, 50);
+    expect(retires).toBe(11_882);
+
+    const before = playTo(eve, retires - 1, deps);
+    expect(before.document.world.ended).toBeNull();
+    const { document, events } = playTo(before.document, retires, deps);
+
+    expect(document.world.ended).toEqual({ turn: retires, reason: 'retirement' });
+    expect(ofType(events, 'game.ended').map((event) => [event.turn, event.payload])).toEqual([[retires, { guildId: guild.id, reason: 'retirement' }]]);
+  });
+
+  test("a Rival's Guildmaster founded at 50 is succeeded on the Turn retirementTurn gives, at 61", () => {
+    const { deps, eve, guild, guildmaster, retires } = toTheEve('rival-at-fifty', firstRival, 50);
+
+    const before = playTo(eve, retires - 1, deps);
+    expect(ofType(before.events, 'guildmaster.succeeded')).toEqual([]);
+    const { document, events } = playTo(before.document, retires, deps);
+
+    expect(document.world.ended).toBeNull();
+    const succeeded = ofType(events, 'guildmaster.succeeded');
+    expect(succeeded.map((event) => [event.turn, event.payload.guildmasterId, event.payload.age])).toEqual([[retires, guildmaster.id, 61]]);
+    expect(guildOf(document.world, guild.id).guildmasterId).toBe(succeeded[0]?.payload.successorId);
+  });
+
+  test('a Guildmaster who entered mid-game, a successor at 45 on the night of Day 100, retires on the Turn it gives', () => {
+    const { deps, eve, guildmaster, retires } = toTheEve('mid-game', firstRival, 45, nightOf(100));
+    expect(retires).toBe(17_582);
+
+    const { events } = playTo(eve, retires, deps);
+
+    expect(ofType(events, 'guildmaster.succeeded').map((event) => [event.turn, event.payload.guildmasterId])).toEqual([[retires, guildmaster.id]]);
   });
 });
 
@@ -591,7 +655,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
         participants: [rival.id, retiree.id, successor.id],
         labels: { [rival.id]: rival.name, [retiree.id]: retiree.name, [successor.id]: successor.name },
         milestone: true,
-        payload: { guildId: rival.id, guildmasterId: retiree.id, successorId: successor.id, age: 65 },
+        payload: { guildId: rival.id, guildmasterId: retiree.id, successorId: successor.id, age: 61 },
       },
     ]);
     expect(ofType(events, 'guild.folded')).toEqual([]);

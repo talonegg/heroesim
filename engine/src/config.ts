@@ -36,7 +36,7 @@ export interface GameConfig {
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
    * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
    * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
-   * (DL-102).
+   * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -93,7 +93,10 @@ export interface GameConfig {
   moraleBaseline: number;
 
   // ── A generated Guildmaster (M1-S6, INPUTS 3.13, 4.10) ───────────────────────────────────
-  /** A generated Guildmaster's age, in whole years. */
+  /**
+   * A generated Guildmaster's age, in whole years, and the range the player chooses from at setup:
+   * 21 to 50 from M9-F1 (DL-113 item 4), 30 to 45 before.
+   */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
   /** Each Guildmaster Stat is drawn from this range (DL-19). */
@@ -236,7 +239,10 @@ export interface GameConfig {
   declineAreas: readonly StatArea[];
 
   // ── Endings (M2-S10, INPUTS 4.10, pre-M0 review D6, DL-28) ────────────────────────────────
-  /** A Guildmaster this old, in whole years, retires, and their Guild reaches its ending. */
+  /**
+   * A Guildmaster this old, in whole years, retires, and their Guild reaches its ending, on the night
+   * `retirementTurn` gives: 61 from M9-F1 (DL-113 item 4), 65 before.
+   */
   guildmasterRetirementAge: number;
   /** Whole Days after a Rival folds until a new Rival is founded in its place, at night. */
   rivalReplacementDays: number;
@@ -473,7 +479,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 4,
-  configVersion: 11,
+  configVersion: 12,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -500,8 +506,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   startingSkillRatingMax: 2,
   moraleBaseline: 60,
 
-  guildmasterStartingAgeMin: 30,
-  guildmasterStartingAgeMax: 45,
+  guildmasterStartingAgeMin: 21,
+  guildmasterStartingAgeMax: 50,
   guildmasterStatMin: 5,
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
@@ -545,7 +551,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   declinePerYear: 1,
   declineAreas: Object.freeze(['physical' as const]),
 
-  guildmasterRetirementAge: 65,
+  guildmasterRetirementAge: 61,
   rivalReplacementDays: 30,
 
   xpCurveBase: 100,

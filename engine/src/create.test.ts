@@ -314,6 +314,13 @@ describe('setupRefusal', () => {
     expect(setupRefusal({ ...setup, guildmasterAge: 30, guildmasterTraitKeys: ['well-liked', 'spendthrift'] }, deps)).toBeNull();
   });
 
+  test('accepts ages 21 and 50, the ends of the range, and refuses 20 and 51 with the refusal it gave before (M9-F1, DL-113 item 4)', () => {
+    expect(setupRefusal({ ...setup, guildmasterAge: 21 }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterAge: 50 }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterAge: 20 }, deps)).toEqual({ reason: 'age-out-of-range', age: 20, min: 21, max: 50 });
+    expect(setupRefusal({ ...setup, guildmasterAge: 51 }, deps)).toEqual({ reason: 'age-out-of-range', age: 51, min: 21, max: 50 });
+  });
+
   test.each<[string, Partial<WorldSetup>, SetupRefusal]>([
     ['a blank Guild name', { guildName: '  ' }, { reason: 'guild-name-blank' }],
     ['a blank Guildmaster name', { guildmasterName: '' }, { reason: 'guildmaster-name-blank' }],
@@ -321,9 +328,9 @@ describe('setupRefusal', () => {
     // The M9 review: the sex is checked here, as everything else is, not by createWorld alone.
     ['a sex that is not one', { guildmasterSex: 'other' as Sex }, { reason: 'unknown-sex', sex: 'other' }],
     ['a sex in capitals', { guildmasterSex: 'Female' as Sex }, { reason: 'unknown-sex', sex: 'Female' }],
-    ['an age below the range', { guildmasterAge: 29 }, { reason: 'age-out-of-range', age: 29, min: 30, max: 45 }],
-    ['an age above the range', { guildmasterAge: 46 }, { reason: 'age-out-of-range', age: 46, min: 30, max: 45 }],
-    ['an age not whole', { guildmasterAge: 32.5 }, { reason: 'age-out-of-range', age: 32.5, min: 30, max: 45 }],
+    ['an age below the range', { guildmasterAge: 20 }, { reason: 'age-out-of-range', age: 20, min: 21, max: 50 }],
+    ['an age above the range', { guildmasterAge: 51 }, { reason: 'age-out-of-range', age: 51, min: 21, max: 50 }],
+    ['an age not whole', { guildmasterAge: 32.5 }, { reason: 'age-out-of-range', age: 32.5, min: 21, max: 50 }],
     ['a Trait content lacks', { guildmasterTraitKeys: ['miser', 'brave'] }, { reason: 'unknown-trait', traitKey: 'brave' }],
     ['a Hero Trait', { guildmasterTraitKeys: ['scarred'] }, { reason: 'unknown-trait', traitKey: 'scarred' }],
     ['a Trait twice', { guildmasterTraitKeys: ['miser', 'miser'] }, { reason: 'repeated-trait', traitKey: 'miser' }],
@@ -363,10 +370,10 @@ describe('setupRefusal', () => {
   });
 
   test('reads its bounds from the config it is given', () => {
-    const wider = testDeps({ guildmasterStartingAgeMin: 20, guildmasterTraitsMax: 3, guildmasterTraitBudget: 4 });
-    const setupWider = { ...setup, guildmasterAge: 20, guildmasterTraitKeys: ['well-liked', 'old-soldier', 'mistrusts-magic'] };
+    const wider = testDeps({ guildmasterStartingAgeMin: 18, guildmasterTraitsMax: 3, guildmasterTraitBudget: 4 });
+    const setupWider = { ...setup, guildmasterAge: 18, guildmasterTraitKeys: ['well-liked', 'old-soldier', 'mistrusts-magic'] };
     expect(setupRefusal(setupWider, wider)).toBeNull();
-    expect(setupRefusal(setupWider, deps)).toEqual({ reason: 'age-out-of-range', age: 20, min: 30, max: 45 });
+    expect(setupRefusal(setupWider, deps)).toEqual({ reason: 'age-out-of-range', age: 18, min: 21, max: 50 });
   });
 });
 
@@ -475,5 +482,28 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
       }
       expect(unpriced, seed).toEqual(priced);
     }
+  });
+});
+
+// M9-F1 (DL-113 item 4): every Guildmaster 21 to 50 at the start, drawn with the draws of before.
+describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
+  test("span 21 to 50, and each world is the one drawn under 30 to 45 but for the Guildmasters' ages: the draws are unchanged", () => {
+    const deps = testDeps();
+    const before = testDeps({ guildmasterStartingAgeMin: 30, guildmasterStartingAgeMax: 45 });
+    const ages = new Set<number>();
+    for (let index = 0; index < 1000; index += 1) {
+      const seed = `founders-${index}`;
+      const { world } = createWorld(seed, setup, deps).document;
+      const { world: was } = createWorld(seed, setup, before).document;
+      for (const guildmaster of Object.values(world.guildmasters)) {
+        ages.add(guildmaster.ageAtEntry);
+        const old = was.guildmasters[guildmaster.id];
+        if (old !== undefined) old.ageAtEntry = guildmaster.ageAtEntry;
+      }
+      expect(was, seed).toEqual(world);
+    }
+    expect(Math.min(...ages)).toBe(21);
+    expect(Math.max(...ages)).toBe(50);
+    expect(ages.size).toBe(30);
   });
 });

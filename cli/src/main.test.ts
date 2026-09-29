@@ -198,7 +198,8 @@ describe('new', () => {
   });
 
   test.each<[string, string[], string]>([
-    ['an age out of range', ['--age', '29'], 'A Guildmaster starts aged 30 to 45, in whole years; --age 29 is not.'],
+    ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 20 is not.'],
+    ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 51 is not.'],
     ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is keyed "brave". Choose from: miser (Miser, refunds 2),'],
     ['a Hero Trait', ['--traits', 'scarred'], 'No Guildmaster Trait is keyed "scarred".'],
     ['a Trait twice', ['--traits', 'miser,miser'], '--traits names miser twice.'],
@@ -1651,5 +1652,13 @@ describe('the command line', () => {
     // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
     for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
+  });
+
+  test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", () => {
+    const { out } = play(['help']);
+    const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
+
+    expect(newHelp).toContain('their age, 21 to 50 (a Guildmaster retires at 61);');
+    expect(newHelp).not.toContain('30 to 45');
   });
 });

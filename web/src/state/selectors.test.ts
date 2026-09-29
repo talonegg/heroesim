@@ -900,7 +900,13 @@ describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
   test('offers the sexes, the starting ages, the budget, the most Traits, and the three descriptive Attributes with their bounds', () => {
     const choices = guildmasterSetupChoices();
 
-    expect(choices).toMatchObject({ sexes: ['female', 'male'], ageMin: 30, ageMax: 45, traitBudget: 1, traitsMax: 2 });
+    expect(choices).toMatchObject({
+      sexes: ['female', 'male'],
+      ageMin: defaultConfig.guildmasterStartingAgeMin,
+      ageMax: defaultConfig.guildmasterStartingAgeMax,
+      traitBudget: 1,
+      traitsMax: 2,
+    });
     // The sexes are the engine's own, which createWorld checks a setup against (the M9 review).
     expect(choices.sexes).toBe(sexes);
     expect(choices.attributes).toEqual([
@@ -929,8 +935,8 @@ describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
   });
 
   test('reads the budget and the bounds from the config it is given', () => {
-    const wider = { ...defaultConfig, guildmasterTraitBudget: 3, guildmasterTraitsMax: 3, guildmasterStartingAgeMax: 50 };
-    expect(guildmasterSetupChoices(content, wider)).toMatchObject({ traitBudget: 3, traitsMax: 3, ageMax: 50 });
+    const wider = { ...defaultConfig, guildmasterTraitBudget: 3, guildmasterTraitsMax: 3, guildmasterStartingAgeMax: 55 };
+    expect(guildmasterSetupChoices(content, wider)).toMatchObject({ traitBudget: 3, traitsMax: 3, ageMax: 55 });
   });
 
   test("says what the Traits chosen cost and how much of the budget is left, by the engine's sum", () => {

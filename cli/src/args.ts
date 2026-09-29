@@ -4,6 +4,7 @@
 // of an id is checked here, by the engine's `isId`.
 
 import {
+  defaultConfig,
   gearSlotKeys,
   isId,
   sexes,
@@ -35,10 +36,11 @@ Commands:
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
       The rest sets up the Guildmaster, and whatever is left out is drawn from the seed:
-      their sex; their age, 30 to 45; their Traits, by key, within the Trait budget (a
-      buff costs points and a penalty refunds them, and two Traits that exclude each
-      other cannot be held together), or none; and their Birthplace, Appearance and
-      Biography, short texts no rule reads (at most 60, 280 and 1,000 characters).
+      their sex; their age, ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax} (a Guildmaster retires at ${defaultConfig.guildmasterRetirementAge}); their Traits, by
+      key, within the Trait budget (a buff costs points and a penalty refunds them, and
+      two Traits that exclude each other cannot be held together), or none; and their
+      Birthplace, Appearance and Biography, short texts no rule reads (at most 60, 280
+      and 1,000 characters).
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
