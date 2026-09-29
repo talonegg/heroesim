@@ -6,6 +6,7 @@
 import {
   gearSlotKeys,
   isId,
+  sexes,
   type ConsumableRequest,
   type FacilityKey,
   type GearRef,
@@ -28,7 +29,7 @@ export const usage = `Usage: heroesim <command> [flags]
 
 Commands:
   new --guild <name> --master <name> [--seed <seed>] [--background <key>] [--force]
-      [--sex female|male] [--age <years>] [--traits <key,key,...> | --traits none]
+      [--sex ${sexes.join('|')}] [--age <years>] [--traits <key,key,...> | --traits none]
       [--birthplace <text>] [--appearance <text>] [--biography <text>]
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
@@ -320,10 +321,9 @@ function modulesFlag(flags: Map<string, string>): { modules?: string[] } {
   return modules === undefined ? {} : { modules: moduleList(modules) };
 }
 
-/** `--sex` (M9-S2): one of the sexes a person is generated with. */
+/** `--sex` (M9-S2): one of the engine's `sexes`, those a person is generated with. */
 function sexFlag(value: string): Sex {
-  const sexes: readonly string[] = ['female', 'male'] satisfies readonly Sex[];
-  return sexes.includes(value) ? (value as Sex) : refuse(`--sex takes female or male; got "${value}"`);
+  return sexes.find((sex) => sex === value) ?? refuse(`--sex takes ${sexes.join(' or ')}; got "${value}"`);
 }
 
 /** `--age` (M9-S2): a whole number of years, in digits; whether it is in range is the engine's to say. */

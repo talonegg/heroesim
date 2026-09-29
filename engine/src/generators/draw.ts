@@ -79,8 +79,11 @@ export function pickOrNone<T>(state: Stream, items: readonly T[]): T | undefined
   return undefined;
 }
 
-/** The sexes a person is generated with, in draw order. */
-export const sexes: readonly Sex[] = ['female', 'male'];
+/**
+ * The sexes a person is generated with, in draw order, and the ones a setup may choose for its
+ * Guildmaster (`setupRefusal`). Exported from the engine for the front ends to offer (the M9 review).
+ */
+export const sexes: readonly Sex[] = Object.freeze(['female', 'male'] as const);
 
 /** A person's name: a given name for their sex, then a family name. Two draws. */
 export function drawPersonName(state: Stream, names: Names, sex: Sex): string {

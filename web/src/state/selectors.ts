@@ -40,6 +40,7 @@ import {
   regardBand,
   regardValue,
   relationship,
+  sexes,
   signingFee,
   signingRefusal,
   skillsThatHelp,
@@ -1047,7 +1048,7 @@ export function guildmasterSetupChoices(set: ContentSet = content, config: GameC
     .filter((trait) => trait.owner === 'guildmaster')
     .sort((a, b) => compareByCodeUnit(a.key, b.key));
   return {
-    sexes: ['female', 'male'],
+    sexes,
     ageMin: config.guildmasterStartingAgeMin,
     ageMax: config.guildmasterStartingAgeMax,
     traitBudget: config.guildmasterTraitBudget,

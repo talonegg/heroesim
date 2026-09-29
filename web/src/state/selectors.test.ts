@@ -13,6 +13,7 @@ import {
   potentialHint,
   rankingPlaces,
   rankings,
+  sexes,
   signingFee,
   signingRefusal,
   skillsThatHelp,
@@ -895,6 +896,8 @@ describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
     const choices = guildmasterSetupChoices();
 
     expect(choices).toMatchObject({ sexes: ['female', 'male'], ageMin: 30, ageMax: 45, traitBudget: 1, traitsMax: 2 });
+    // The sexes are the engine's own, which createWorld checks a setup against (the M9 review).
+    expect(choices.sexes).toBe(sexes);
     expect(choices.attributes).toEqual([
       { attribute: 'birthplace', label: 'Birthplace', maxLength: 60 },
       { attribute: 'appearance', label: 'Appearance', maxLength: 280 },
