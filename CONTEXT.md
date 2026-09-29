@@ -238,6 +238,11 @@ _Avoid_: Quest log, Noticeboard, Job board
 Items awarded by a Quest's outcome.
 _Avoid_: Drops, Rewards (for Items), Treasure
 
+**Quest report**:
+What a Party's return tells the Guild, read from the History: each Encounter, the reward and
+the Loot, each Hero's outcome, and the Patron's Regard for the Guild (DL-111; to be built).
+_Avoid_: Debrief, Summary, Result
+
 **Loot table**:
 A content list of Items, each with a weight and a quantity range, from which a Quest's Loot is
 drawn. A Quest carries one only when its template names one and it is hard enough (DL-52).
@@ -302,6 +307,12 @@ The record inside the World State of every event, kept per Guild and per Hero wi
 Milestones; never bounded, and no entry is dropped (R36). Every discrete change is an entry;
 nightly drift, and the changes DL-84 names, are recorded only when they cross a band.
 _Avoid_: Event log, Journal, Audit trail
+
+**World History**:
+The History's entries that change the world rather than one Guild: Guilds founded, succeeded
+and folded, Quests taken and their outcomes, and a Patron's Regard for a Guild moving into a new
+band (DL-111; to be built).
+_Avoid_: World log, Chronicle, News
 
 **Milestone**:
 A History entry marked as one a Hero's or a Guild's page always shows first: a Level gained,
@@ -408,8 +419,13 @@ _Avoid_: Difficulty, Preset, Mode, Start
 
 **Wealth**:
 A Guild's coin: the currency that buys Items, recruits Heroes, pays Upkeep and builds the
-Hall.
-_Avoid_: Gold, Money, Funds, Treasury
+Hall. Its accounts are read in the Treasury (DL-111).
+_Avoid_: Gold, Money, Funds
+
+**Treasury**:
+The Guild's accounts: its Wealth, its Upkeep, and every change to its Wealth, read from the
+History; a part of the Guild's view (DL-111; to be built).
+_Avoid_: Bank, Coffers, Vault
 
 **Upkeep**:
 The recurring cost of the Roster's wages and the Hall's maintenance.
@@ -454,6 +470,12 @@ _Avoid_: Supplies, Potion (for the general concept)
 **Holding**:
 The Items a Guild owns that no Hero carries and no Party has taken (DL-48).
 _Avoid_: Inventory, Stash, Vault
+
+**Stores**:
+Everything the Guild owns, wherever it is: its Holding, the Gear its Heroes carry, and what its
+Parties have taken; a part of the Guild's view (DL-111; to be built). Not the Market, where Items
+are bought and sold.
+_Avoid_: Inventory, Armoury, Stash
 
 **Common Item**:
 An Item that is not an individual: tools, potions, ordinary gear. It has a quantity and may

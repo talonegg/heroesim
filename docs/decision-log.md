@@ -11110,6 +11110,275 @@ and their tests), `web/src/views/` (`board.tsx`, `pool.tsx`, `hero-page.tsx`, `s
 `harness/reports/m9-answers-2026-09-29.md`; `docs/plan.md` §2, `docs/requirements.md` R8,
 `docs/planning/epics/M9-redesign.md` §3.
 
+## DL-111 — The owner's player test of M9: a Quest's return as one entry with a report on the Guild's home, the History filtered with a World History beside it, the Guild in four parts, the Market and the Guildmaster as views of their own, the Hall view gone, every Guildmaster from 21, all inside `v1.1.0`
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** the owner. On 2026-09-29 the owner
+played M9 on `v1.1-dev` and gave nine points of feedback, asking for a plan to build them before
+v1.2. The agent checked each point against the code and put eight questions with options.
+- For five, the owner took the recommended option (Q1, Q4, Q5, Q6, Q7).
+- For two, they took another option offered (Q2, Q3).
+- For one, they wrote their own answer (Q8).
+
+**Context.** M9 is built and verified (DL-108), and the owner's answers are built (DL-110). The
+release, M9-S9 (#37), had not started. The points are the owner's, in their order; the answers
+are folded in where they bear.
+
+**Decision.**
+
+1. **This lands inside `v1.1.0`** (Q1). The release waits for it. It is built on `v1.1-dev`, and
+   players meet one redesign, not two in a row. Random Events stays M10 on v1.2 (DL-99).
+2. **A Quest's return in the History rail is one entry** (point 1).
+   - The Quest band of its outcome is in bold, for example "succeeded strongly".
+   - It drills down to one entry for each Hero of the Party. Each gathers that Hero's XP, Morale
+     and other changes.
+   - No Encounter is shown in it.
+   - Its Loot is an entry of its own.
+3. **A Party's return opens the Guild view, not the History** (point 2).
+   - *What the Guild's home shows:*
+     - each Encounter, outlined;
+     - the rewards, meaning XP, Fame and Loot;
+     - each Hero's outcome;
+     - what the Quest did to the Guild's standing with its Patron.
+   - *The Patron's standing* (Q3) is the Patron's Regard for the Guild alone, as a band. The report
+     says when the Quest moved it into a new band. The Guildmaster's Regard for the Patron is not
+     shown, and no individual Hero's is.
+     - DL-84 stands: a Regard change the core makes is still recorded only when it crosses a band.
+     - The engine has no Patron's Regard for the Guildmaster. The Guildmaster's Influence scales
+       what a success adds to the Patron's Regard for the Guild.
+   - *Later:* this report is to be extended with further outcomes of a Quest.
+   - *Reopening it* (Q7). The return's entry, in the rail and in the History, opens its report
+     again on the Guild's home.
+4. **The History** (point 3).
+   - *The player's Guild* shows no XP gained, no Regard or Morale changes, no Upkeep, and no
+     Market purchases or sales.
+   - *A Rival Guild* shows no Upkeep and no Market purchases or sales.
+   - *Where the hidden entries show* (Q4). No toggle brings them back to the Guild's History.
+     - A Hero's own History keeps their XP, Morale and Regard.
+     - Upkeep and the Market's entries appear in the Treasury (item 5).
+     - A return's drill-down sums up each Hero's changes.
+     - The debug view keeps everything.
+   - *The whole History* is no longer offered among the History's choices. It stays as a debug
+     view, reached from the game menu, with every entry unfiltered (Q5).
+   - *A World History* is added. It shows:
+     - changes to Patrons: each Patron's Regard moving into a new band, for every Guild (Q6).
+       Patrons do not arrive or leave yet;
+     - changes to Guilds: new Guilds, Guildmasters and Bankruptcy;
+     - Quests, as two entries: when a Guild takes one, and when its outcome is known.
+
+     Random Events, Inciting Events and later features are to be added to it as they come.
+5. **The Guild view has four parts: Home, Hall, Stores and Treasury** (point 4).
+   - *Home* is today's home view.
+   - *Hall* is the building of the Hall's facilities, moved from the Hall view.
+   - *Stores* is a register of everything the Guild owns: gear carried and not carried, and
+     consumables.
+   - *Treasury* holds:
+     - the Guild's Wealth and its Upkeep figures;
+     - every Wealth transaction so far, filterable by income or expense;
+     - a filter by category: Upkeep, Quest reward, Market purchases and sales, Hall Improvements,
+       and Hero transactions (signing and Transfer fees).
+6. **A Market view** takes the Buy and Sell parts from the Hall view (point 5).
+7. **A Guildmaster view** is at the top of the side navigation (point 6).
+   - It is named with the player's Guildmaster's name.
+   - It takes the Guildmaster part from the Hall view.
+   - The Hall view is removed (point 7).
+8. **The phone's bottom bar** (Q8, the owner's own answer).
+   - The bar shows Guild, Roster, Board and Rankings, with More holding Guildmaster, Market and
+     History.
+   - Roster now comes before Board.
+9. **Words** (point 8). "Age" is capitalised for a Hero and a Guildmaster, and so are the values of
+   Sex: "Male" and "Female".
+10. **Every Guildmaster is 21 to 45 at the start** (point 9, Q2).
+    - *Who.* The player's choice at setup, and every drawn Guildmaster: Rivals' founders, their
+      replacements and successors.
+    - *The rule.* `guildmasterStartingAgeMin` falls from 30 to 21, and `configVersion` rises to 12.
+    - *What the owner accepted.* Rival Guildmasters start younger and retire later, so Succession is
+      rarer: within 20 years, only a founder drawn at 45 reaches 65. The balance sweep is run again.
+    - *What it amends.* R8's "30 to 45" and DL-88 item 3's range.
+11. **The owner's words enter the glossary**: Treasury, Stores and World History (principle 13: the
+    glossary changes first).
+    - "Treasury" leaves Wealth's words to avoid. Wealth stays the word for the coin, and the
+      Treasury is where its accounts are read.
+    - "Stores" is not the Market's "Store", a shop.
+
+**Consequences.**
+- *Superseded:*
+  - DL-103's six views (item 7);
+  - DL-105's whole History among the History's choices (item 4);
+  - DL-109 item 3's Q8, "Read what happened" reopening the History, for a Party's return (item 3);
+  - DL-109 item 2's Q20, where Sell opens "What the Guild holds" in the Hall (item 6).
+- *The plan* is DL-112 and the epic `docs/planning/epics/M9-feedback.md`. Each item is built on
+  `v1.1-dev`, test first at the seams, before M9-S9.
+- *`CONTEXT.md`* gains the three terms now, marked "to be built".
+
+**Actioned in:** this entry; `CONTEXT.md`. The plan is DL-112.
+
+## DL-112 — M9's follow-on planned: six stories, M9-F1 to M9-F6, before the release; the engine naming the Quest on what its return causes, and giving Upkeep's parts and Day; the report and the return's entry read from the History; one navigation order at every width
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, on the owner's request to
+develop a plan for DL-111. What the page does is the owner's (DL-111); how and in what order is
+the agent's, and each such choice is marked below. The owner can change any of them before its
+story starts.
+
+**Context.** DL-111 records the owner's nine points and eight answers. This entry records what the
+code needs for them, which was checked before the questions were put.
+- *Named Events.* A Party's Encounters, consumables, outcome and Loot name its Party.
+- *Events naming the Quest.* Its XP, Injuries and Deaths name the Quest.
+- *Named nothing.* The Morale and Regard changes it causes, and the Levels its XP brings, name
+  neither the Party nor the Quest. The History groups them with the return only because they fall
+  on the same night.
+- *Wealth.* Every change to a Guild's Wealth has an event that carries the amount.
+- *Upkeep.* The engine works out Upkeep's parts and its Day inside the Guild-state phase but does
+  not export them.
+- *Items.* No selector lists the gear carried across the Roster.
+
+**Decision.**
+
+1. **The shape: M9's follow-on, not a new milestone** (the agent's).
+   - Six stories, M9-F1 to M9-F6, go in `docs/planning/epics/M9-feedback.md`. M9-S9, the release,
+     runs after M9-F6.
+   - `m9-redesign` and `v1.1.0` tag the whole, and M10 stays Random Events.
+2. **The engine names the Quest on what its return causes** (M9-F1; the agent's).
+   - *Which events.* These gain an optional `questId`:
+     - `hero.morale-changed` with the causes `encounters`, `strong-success` and `roster-death`;
+     - `patron.regard-changed` and `guildmaster.regard-changed` with `quest-success` or
+       `quest-failure`;
+     - `hero.regard-changed` with `shared-quest`.
+   - *Participants.* The Quest becomes a participant of each of these and of `hero.xp-gained`, so
+     the Quest's own History holds its whole return.
+   - *Why.* The report and the return's entry read what an event says, never a guess from the Turn
+     (principle 5).
+   - *Levels.* A Level is matched by Hero and night. `levelUps` runs straight after the return, and
+     a Hero away cannot train, so a Level a Party's Hero gains that night comes from the Quest. A
+     test states it.
+   - *Old saves.* The field is optional, as `moduleId` is, so no migration is needed and the schema
+     stays 4. A return made before M9-F1 shows without Morale and Regard lines.
+3. **The engine exports Upkeep's parts and its Day** (M9-F1; the agent's).
+   - *What.* `upkeepParts` gives the wages, the Hall's maintenance, the Guildmaster Trait's factor
+     and the total, which is `upkeep()`'s. `nextUpkeepDay` gives the next Upkeep Day.
+   - *One rule.* The Guild-state phase reads the same function.
+   - *Why.* The Treasury shows them, and the page computes no rule (ADR-0007).
+4. **The age floor and the words** (M9-F1).
+   - *The rule:* `guildmasterStartingAgeMin` 21 and `configVersion` 12. The tests pinned to 11 move,
+     R8 and the CLI's usage say "21 to 45", and the rules notice offers it to older saves.
+   - *The words:* "Age" is capitalised as a label, and Sex values are capitalised in the page and
+     the CLI. An age inside a sentence stays lowercase, as in "retired at age 65" (the agent's
+     reading of DL-111 item 9).
+5. **The navigation** (M9-F2).
+   - *The views.* Guildmaster, Guild (Home, Hall, Stores and Treasury), Roster, Board, Market,
+     Rankings and History.
+   - *One order at every width* (the agent's).
+     - The side navigation puts the Guildmaster at the top (DL-111 item 7).
+     - Then the bar's order: Guild, Roster, Board, Rankings.
+     - Then More's: Market, History.
+
+     So Roster comes before Board on the side navigation too. That is the agent's reading of the
+     owner's order for the bar, for the owner to confirm.
+   - *The Guildmaster's label.*
+     - The name is given in full, cut with an ellipsis where it does not fit, with "Guildmaster" as
+       its accessible description.
+     - Before a game the label is "Guildmaster".
+   - *The Guild's parts* are tabs under the view's heading.
+     - The part open is remembered in this browser, as the view is (DL-109 Q21).
+     - A view remembered as "hall" opens the Guild's Hall part.
+   - *Links moved.* Every link to a moved part goes to its new place. The Bankruptcy card's Sell
+     step opens the Market's Sell.
+6. **Stores and Treasury** (M9-F3).
+   - *Stores* is one table, and it is read only: Sell is the Market's (DL-111 item 6), with a way
+     there.
+     - *Rows:* every Item the Guild owns, whether in its Holding, as gear each Hero on the Roster
+       carries, or as consumables and gear with a Party away.
+     - *Columns:* Item, Kind, where it is (held, carried by a Hero, or with the Party on a Quest),
+       Quantity, and what a held Item sells for.
+     - *Filters:* by kind and by where. Names open the Hero's page.
+   - *Treasury.*
+     - *Wealth and Upkeep:* the Guild's Wealth; Upkeep's next payment with its Day and its parts
+       (item 3); the Bankruptcy floor, and the countdown while below it.
+     - *The Upkeep sentence* leaves the Hall.
+     - *The ledger:* every change to the Guild's Wealth, newest first and paged, read from the
+       History.
+     - *Categories:*
+       - Upkeep: `guild.upkeep-paid`;
+       - Quest rewards: `quest.resolved` with Wealth paid;
+       - Market: `item.bought` and `item.sold`;
+       - Hall: `guild.improved`;
+       - Heroes: the fee of `hero.recruited` and of `hero.transferred`, paid by the Guild it goes
+         to and received by the one it leaves;
+       - Other: a module's `guild.wealth-changed`.
+     - *Filters:* income, expense, or both, and by category. The totals of what is shown are given:
+       income, expense and net.
+     - *Who decided:* the categories are the owner's (DL-111 item 5). The mapping to events, and
+       "Other", are the agent's.
+7. **The History's scopes** (M9-F4).
+   - *Filters.* They are DL-111 item 4's. The rail uses the player's Guild's filter, and the
+     History's count and the rail's "New" count what the filter leaves.
+   - *A Hero's, a Patron's, a Quest's and a Guildmaster's History* stay unfiltered.
+   - *"The world"* is a scope beside "Your Guild" and each Rival's. What it takes is the agent's
+     reading of DL-111 item 4:
+     - `world.created` and `world.rules-adopted`;
+     - `guild.founded`, `guild.folded` (with its reason, so a Bankruptcy is one) and
+       `guildmaster.succeeded`;
+     - `game.ended`;
+     - `quest.taken` and `quest.resolved` for every Guild;
+     - `patron.regard-changed` for every Guild.
+
+     `guild.below-floor` is left out: a Rival's warning comes and goes, and its fold is the news.
+     Module events wait for M10 to decide.
+   - *The debug view* is labelled "Debug: the whole History" in the game menu. That keeps the
+     glossary's word, which avoids "Log" (the agent's). It shows every entry unfiltered and
+     unfolded, with its event type.
+8. **A Quest's return and its report** (M9-F5).
+   - *One selector* reads a return from the History by its Party. It feeds the rail's entry, the
+     History's entry and the report, and does not read the last play's log, so a report reopens
+     (Q7).
+   - *The entry.*
+     - It takes one shape in the rail and in the Guild's History: the band in bold, the reward, a
+       line per Hero, and "Open the report".
+     - The Loot is the next entry.
+     - The Encounters and consumables are not under it; they are in the report, the Quest's own
+       History and the debug view. This supersedes, for the Guild's History, DL-105's fold of a
+       Party's steps under its outcome (the agent's, for one shape in both places).
+   - *The report's sections.* It is a list of typed sections, so a later feature adds one:
+     1. the Quest, its Patron and its band;
+     2. each Encounter outlined in the History's words, with the consumable used and who was hurt;
+     3. the rewards: Wealth, Fame, XP and Loot;
+     4. each Hero's outcome: XP, Level, Morale, Injury or Death, and Regard with Party mates when
+        it moved into a new band;
+     5. the Patron's Regard for the Guild: moved into a new band, or its band now.
+
+     The Wealth is in the rewards because it is what the Quest paid; that is the agent's reading
+     of "xp, fame, loot".
+   - *Where it opens.*
+     - A play in which a Party of the player's came home opens Guild › Home at its report, from
+       whichever view.
+     - The report takes the "Came home" cards' place.
+     - "Read it in the History" goes, and a Party's stop drops "Read what happened". A module's
+       stop keeps it.
+9. **The close** (M9-F6). It includes:
+   - the code review and its fixes;
+   - a 50 × 20 sweep against `d476deb`, with every difference explained by the ages and the new
+     `questId`s;
+   - screenshots at 360, 820 and 1280;
+   - the epic's CLI-to-browser table re-ticked against the new places.
+10. **Order and parallel work** (the agent's). The stories run as:
+    1. M9-F1 and M9-F2, together;
+    2. then M9-F3 and M9-F4, together;
+    3. then M9-F5, which needs M9-F1's events, M9-F2's views and M9-F4's scopes;
+    4. then M9-F6;
+    5. then M9-S9.
+
+    M9-F4 and M9-F5 both change `web/src/state/history.ts`, so they do not run side by side.
+11. **Decision numbers.** M9-F1 is DL-113, M9-F2 DL-114, M9-F3 DL-115, M9-F4 DL-116, M9-F5
+    DL-117, M9-F6 DL-118, and the release DL-119.
+
+**Consequences.**
+- No story starts until the owner approves the plan.
+- *Versions after the follow-on:* `configVersion` 12, content 15, schema 4.
+- *M9's epic.* Its status and M9-S9 point to the follow-on, and plan §2's M9 row says the release
+  waits for it.
+
+**Actioned in:** `docs/planning/epics/M9-feedback.md`; `docs/planning/epics/M9-redesign.md` (status,
+M9-S9), `docs/planning/epics/README.md`, `docs/plan.md` §2 and §4.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

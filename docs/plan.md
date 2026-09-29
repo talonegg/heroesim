@@ -79,7 +79,7 @@ rather than investigated beforehand.
 | M6 | Rivals | Named dispositions; Transfers in both directions; Rivals transfer among themselves | Done 2026-09-27 (`m6-rivals`) |
 | M7 | Web | The browser front end is served from a Cloudflare Pages URL with saves in IndexedDB | Done 2026-09-27 (`m7-web`); the twenty-year save measure left to the owner |
 | M8 | Modules | The module contract exists and a probe module proves every part of it; the core runs with none installed, byte-identical to M7 | Done 2026-09-28 (`m8-modules`); the first build's 1,000 × 20 tagged run in DL-81 |
-| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108), with the owner's answers built (DL-109, DL-110); release pending: `m9-redesign` and `v1.1.0` wait for the owner's go-ahead (M9-S9, #37) |
+| M9 | The page redesigned | The page as views in a shell, the History for any entity, a Party builder with each Hero's availability and attributes, a new style; the Guildmaster's setup within a Trait budget and Succession for a Rival (#30); the Bankruptcy and staffable-Quest stops (#32). The v1.1 line (DL-99, DL-100) | Built and verified 2026-09-29 on `v1.1-dev` (DL-108), with the owner's answers built (DL-109, DL-110); release pending: the owner's player test added a follow-on, M9-F1 to M9-F6 (DL-111, DL-112), planned 2026-09-29 and built before the release; `m9-redesign` and `v1.1.0` then wait for the owner's go-ahead (M9-S9, #37) |
 
 The first build is complete: M8 was tagged `m8-modules` on 2026-09-28. The next work is Random
 Events (§4): the first real module, and the test of whether the module contract fits a real
@@ -299,7 +299,8 @@ the agents recommended that story features be modules and rule extensions core i
   (§2). Views in a shell, the History for any Guild, Hero or Patron, a Party builder showing each
   Hero's availability and attributes, and a new visual style (DL-99). Autosave and keyboard
   shortcuts come after it (DL-99 items 4 and 5). *Amended 2026-09-29 (DL-99): the owner put the
-  redesign before Random Events.*
+  redesign before Random Events.* *Amended 2026-09-29 (DL-111): the owner's player test of M9 adds a
+  follow-on inside `v1.1.0` (`docs/planning/epics/M9-feedback.md`).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
