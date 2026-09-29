@@ -25,22 +25,35 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
+/** The Guilds' table, which holds the Rankings (M9-S6, DL-106; the review's B4). */
+function guildsTable(): HTMLElement {
+  return within(section('Guilds')).getByRole('table', { name: 'Every Guild, and the Rankings' });
+}
+
+/** Each Guild's row as its cells say it: Place, Disposition, Fame, Wealth, Heroes, Upkeep, after its name. */
+function guildRows(): string[][] {
+  return within(guildsTable())
+    .getAllByTestId('guild-row')
+    .map((row) => within(row).getAllByRole('cell').map((cell) => cell.textContent ?? ''));
+}
+
 describe('the Rankings', () => {
-  test('rank the Guilds in play by Fame, or by Wealth when asked', () => {
+  test('rank the Guilds in play by Fame, or by Wealth when its heading is chosen, in one table with the Guilds', () => {
     render_(played(started(), { kind: 'advance', turns: 6 }));
-    const rankings = section('Rankings');
-    expect(within(rankings).getByRole('button', { name: 'By Fame' }).getAttribute('aria-pressed')).toBe('true');
-    expect(within(rankings).getByRole('table', { name: 'Rankings by Fame' })).toBeDefined();
+    expect(within(guildsTable()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBe('descending');
+    expect(within(guildsTable()).getByRole('columnheader', { name: 'Place by Fame' })).toBeDefined();
 
-    fireEvent.click(within(rankings).getByRole('button', { name: 'By Wealth' }));
+    fireEvent.click(within(guildsTable()).getByRole('button', { name: 'Order by Wealth' }));
 
-    const table = within(rankings).getByRole('table', { name: 'Rankings by Wealth' });
-    const rows = within(table).getAllByRole('row').slice(1);
+    expect(within(guildsTable()).getByRole('columnheader', { name: 'Wealth' }).getAttribute('aria-sort')).toBe('descending');
+    expect(within(guildsTable()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBeNull();
+    expect(within(guildsTable()).getByRole('columnheader', { name: 'Place by Wealth' })).toBeDefined();
+    const rows = guildRows();
     expect(rows).toHaveLength(5);
-    expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual(['1st', '2nd', '3rd', '4th', '5th']);
-    const values = rows.map((row) => Number(within(row).getAllByRole('cell').at(-1)?.textContent));
+    expect(rows.map(([place]) => place)).toEqual(['1st', '2nd', '3rd', '4th', '5th']);
+    const values = rows.map((row) => Number(row[3]));
     expect([...values].sort((a, b) => b - a)).toEqual(values);
-    expect(within(table).getByRole('rowheader', { name: 'The Lantern' })).toBeDefined();
+    expect(within(guildsTable()).getByRole('button', { name: 'Open The Lantern' })).toBeDefined();
   });
 });
 
@@ -48,9 +61,7 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
   test('a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', () => {
     render_(started());
 
-    const table = within(section('Rankings')).getByRole('table', { name: 'Rankings by Fame' });
-    const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows.map((row) => within(row).getAllByRole('cell')[0]?.textContent)).toEqual(Array(5).fill('joint 1st'));
+    expect(guildRows().map(([place]) => place)).toEqual(Array(5).fill('joint 1st'));
     expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
   });
 
@@ -109,8 +120,7 @@ describe('the Guilds', () => {
   test("list every Guild, and open a Rival's page: its Roster with fees, its Hall, its Guildmaster", () => {
     render_(started());
     const guilds = section('Guilds');
-    expect(within(guilds).getAllByRole('listitem').filter((item) => item.parentElement?.className === 'cards')).toHaveLength(5);
-    expect(within(guilds).queryByRole('button', { name: 'Open The Lantern' })).toBeNull();
+    expect(within(guilds).getAllByTestId('guild-row')).toHaveLength(5);
     expect(within(guilds).getByText('The Ashford Guild')).toBeDefined();
 
     fireEvent.click(within(guilds).getByRole('button', { name: 'Open The Ashford Guild' }));
@@ -118,8 +128,11 @@ describe('the Guilds', () => {
     const page = within(section('Guilds')).getByRole('article');
     // Under the Guilds' heading, a part of the Rankings view (M9-S3): its levels one below.
     expect(within(page).getByRole('heading', { level: 4, name: 'The Ashford Guild' })).toBeDefined();
-    expect(within(page).getAllByText(/^Transfer fee \d+ Wealth\.$/).length).toBeGreaterThan(0);
-    expect(within(page).getByRole('heading', { level: 6, name: 'Infirmary: grade 0' })).toBeDefined();
+    const fees = within(page).getAllByTestId('fee').map((cell) => cell.textContent ?? '');
+    expect(fees.length).toBeGreaterThan(0);
+    for (const fee of fees) expect(fee).toMatch(/^\d+$/);
+    // Its Hall and Guildmaster folded (M9-S6, the review's B10).
+    expect(within(page).getAllByRole('img', { name: 'Grade 0 of 3' })).toHaveLength(3);
     expect(within(page).queryByRole('button', { name: /^Build / })).toBeNull();
     expect(within(page).getByRole('heading', { level: 5, name: /, Guildmaster of The Ashford Guild$/ })).toBeDefined();
 
@@ -136,12 +149,23 @@ describe('the Guildmaster and the Patrons', () => {
     expect(within(guildmaster).getByRole('heading', { level: 4, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
     expect(within(guildmaster).getByText('the reward agreed and the fees paid')).toBeDefined();
-    for (const item of within(guildmaster).getAllByRole('listitem').filter((each) => /: \w+$/.test(each.textContent ?? ''))) {
-      expect(item.textContent).not.toMatch(/\d+$/);
+    // Regard as bands, never numbers: a new game's are neutral, folded under their counts (M9-S6).
+    for (const list of within(guildmaster).getAllByRole('list').filter((each) => each.className.startsWith('regards'))) {
+      for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(hostile|cool|neutral|warm|close)$/);
     }
-    const patrons = within(section('Patrons')).getAllByRole('listitem');
-    expect(patrons.length).toBeGreaterThan(0);
-    for (const patron of patrons) expect(patron.textContent).toMatch(/^.+, of the .+: Regard for The Lantern (hostile|cool|neutral|warm|devoted)$/);
+    expect(within(guildmaster).getAllByText(/^\d+ neutral$/)).toHaveLength(3);
+    // A new game's Patrons are neutral both ways: folded under their count, until opened.
+    const fold = within(section('Patrons')).getByRole('button', { name: /^\d+ neutral$/ });
+    expect(fold.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(fold);
+    const patrons = within(section('Patrons')).getAllByTestId('patron');
+    expect(patrons.length).toBe(Number(/^(\d+)/.exec(fold.textContent ?? '')?.[1]));
+    for (const patron of patrons) {
+      const [, theirs, yours] = within(patron)
+        .getAllByRole('cell')
+        .map((cell) => cell.textContent ?? '');
+      expect([theirs, yours]).toEqual(['neutral', 'neutral']);
+    }
   });
 });
 

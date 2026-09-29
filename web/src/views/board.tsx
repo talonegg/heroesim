@@ -35,7 +35,7 @@ import {
 import { HeroPage } from './hero-page';
 import { Icon, type IconName } from './icons';
 import { View } from './section';
-import { Banner, Chip, Stepper, VisuallyHidden, type Tone } from './ui';
+import { Banner, Chip, moraleTones, Stepper, VisuallyHidden } from './ui';
 
 /** The orders the player may choose, in the words the control shows. */
 const orders: readonly (readonly [BoardOrder, string])[] = [
@@ -52,15 +52,6 @@ const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   social: 'social',
   arcane: 'arcane',
   stealth: 'stealth',
-};
-
-/** How a Morale band reads beside the Hero: a warning when low, never colour alone (the word is there). */
-const moraleTones: Readonly<Record<PartyRow['moraleBand'], Tone>> = {
-  wretched: 'bad',
-  low: 'warn',
-  steady: 'plain',
-  high: 'good',
-  elated: 'good',
 };
 
 /** The Party being chosen for a Quest: who is ticked and how many of each consumable, kept while a Hero's page is open. */

@@ -143,18 +143,18 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
 
   // A pool Hero's page.
   const pool = await part(page, 'Unattached pool');
-  await pool.getByRole('listitem').first().getByRole('button').first().click();
+  await pool.getByTestId('pool-row').first().locator('button.link').click();
   await expect(pool.getByRole('button', { name: 'Back to the pool' })).toBeVisible();
   await expectNoHorizontalOverflow(page, "a pool Hero's page");
   await pool.getByRole('button', { name: 'Back to the pool' }).click();
 
   // A Rival's Guild page, and one of its Heroes' pages.
   const guilds = await part(page, 'Guilds');
-  await guilds.getByRole('button', { name: /^Open / }).first().click();
+  await guilds.getByRole('button', { name: /^Open / }).nth(1).click();
   await expect(guilds.getByRole('button', { name: 'Back to the Guilds' })).toBeVisible();
   await expectNoHorizontalOverflow(page, "a Rival's Guild page");
   const rival = guilds.getByRole('article');
-  await rival.getByRole('listitem').first().getByRole('button').first().click();
+  await rival.getByTestId('guild-hero').first().locator('button.link').click();
   await expect(guilds.getByRole('button', { name: /^Back to (?!the Guilds)/ })).toBeVisible();
   await expectNoHorizontalOverflow(page, "a Rival's Hero's page");
   await guilds.getByRole('button', { name: /^Back to (?!the Guilds)/ }).click();
@@ -162,7 +162,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
 
   // The Rankings by Wealth, and an older page of the History.
   const rankings = await openView(page, 'Rankings');
-  await rankings.getByRole('button', { name: 'By Wealth' }).click();
+  await rankings.getByRole('button', { name: 'Order by Wealth' }).click();
   await expectNoHorizontalOverflow(page, 'the Rankings by Wealth');
   const history = await openView(page, 'History');
   await history.getByRole('button', { name: 'Oldest' }).click();

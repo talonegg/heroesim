@@ -85,7 +85,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { attributeLabels, capitalised, nameIn, nightOf, none, placeWords, rowOf, traitEffectWords } from './names';
+import { attributeLabels, capitalised, nameIn, nightOf, placeWords, rowOf, signed, traitEffectWords, transferCostWords } from './names';
 import { listed, narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
@@ -557,8 +557,10 @@ export interface RosterRow {
   className: string;
   level: number;
   age: number;
-  /** `50, steady`: the value and its band. */
-  morale: string;
+  morale: number;
+  moraleBand: MoraleBand;
+  /** The engine's `unavailability`: why the Hero is not at the Hall to be sent, or `null` (M9-S6). */
+  why: Unavailability | null;
   /** Where the Hero is: at the Hall, injured, or away with a Party, and until when. */
   whereabouts: string;
 }
@@ -620,40 +622,12 @@ export function rosterView(document: WorldDocument): RosterRow[] {
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
         age: ageOf(hero, world.turn, config),
-        morale: `${hero.morale}, ${moraleBand(hero.morale, config)}`,
+        morale: hero.morale,
+        moraleBand: moraleBand(hero.morale, config),
+        why: unavailability(hero),
         whereabouts: whereabouts(hero, world),
       },
     ];
-  });
-}
-
-// ── What the Guild holds ──────────────────────────────────────────────────────────────────
-
-export interface HeldRow {
-  /** Unique within the list. */
-  key: string;
-  name: string;
-  /** `weapon gear`, `consumable`. */
-  kind: string;
-  quantity: number;
-  /** Gear's Stat modifiers in words; empty for a consumable. */
-  modifies: string;
-}
-
-/** What the player's Guild holds (the CLI's `show roster`, M5-S2): each unique Item, then each stack. */
-export function heldView(document: WorldDocument): HeldRow[] {
-  const guild = playerGuild(document.world);
-  if (guild === undefined) return [];
-  const held = holdings(document.world, { kind: 'guild', id: guild.id });
-  return [...held.items, ...held.stacks].map((row) => {
-    const definition = itemDefinition(content, row.definitionKey);
-    return {
-      key: row.id,
-      name: nameIn(content.items, row.definitionKey),
-      kind: definition === undefined ? '' : definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable',
-      quantity: 'quantity' in row ? row.quantity : 1,
-      modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
-    };
   });
 }
 
@@ -663,14 +637,23 @@ export function heldView(document: WorldDocument): HeldRow[] {
 export const historyPageSize = 20;
 
 export interface StatRow {
-  /** The Stat's area, on the first Stat of each area only. */
-  area: string;
   name: string;
   base: number;
   /** What a Check reads: the Guildmaster's Class bonus and the Hero's gear applied (M5-S2). */
-  effective: number;
+  value: number;
+  /**
+   * What the Hero's gear and the Guildmaster's Traits add to the base, `+2` or `-1`, and whether it
+   * lifts it; `null` when the value is the base (M9-S6, the review's B7).
+   */
+  lift: { words: string; up: boolean } | null;
   /** The Potential hint: a word, never the number (M3-S3). */
   outlook: PotentialHint;
+}
+
+/** One of the four areas of a Hero's Stats, `Physical`, and its Stats in content's order (M9-S6). */
+export interface StatArea {
+  name: string;
+  stats: StatRow[];
 }
 
 export interface LogLine {
@@ -685,13 +668,30 @@ export interface LogLine {
 export interface HeroPageView {
   heroId: HeroId;
   name: string;
-  attributes: [label: string, value: string][];
-  stats: StatRow[];
+  /**
+   * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `age 18`, sex,
+   * Background, and `of The Lantern` while their Guild is known.
+   */
+  line: string[];
+  morale: { value: number; band: MoraleBand };
+  /** Where the Hero is, in the Roster's words, and the engine's `unavailability`: why they cannot go now. */
+  where: { why: Unavailability | null; words: string };
+  /** The Injury's name, while they have one; `where` says when it heals. */
+  injury: string | null;
+  xp: number;
+  traits: string[];
+  /** What the player's Guild would pay to take in a Hero on another Guild's Roster (`transferFee`); `null` otherwise. */
+  fee: number | null;
+  /** The Stats by area, each area a block on the page (M9-S6, the review's B7). */
+  areas: StatArea[];
   /** Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. */
-  gear: { slot: SlotKey; item: string; modifies: string; worn: boolean }[];
+  gear: { slot: SlotKey; slotName: string; item: string; modifies: string; worn: boolean }[];
   skills: { name: string; rating: number }[];
-  /** Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null` off a Roster. */
-  relationships: { name: string; className: string; regard: RegardBand; relationship: RegardBand }[] | null;
+  /**
+   * Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null`
+   * off a Roster. `neutral` when both bands are, which the page folds (M9-S6, the review's C8).
+   */
+  relationships: { name: string; className: string; regard: RegardBand; relationship: RegardBand; neutral: boolean }[] | null;
   /** The Hero's Milestones, newest first: what a Hero's page always shows first (`CONTEXT.md`). */
   milestones: LogLine[];
   /** One page of the Hero's History, newest first. */
@@ -717,6 +717,11 @@ export interface TransferTarget {
   guildId: GuildId;
   name: string;
   fee: number;
+  /**
+   * What the page asks before the Transfer (M9-S6, the review's E4): the fee, and what it costs in
+   * the words the page gives the rule. `The Ashford Guild would pay 120 Wealth for Finn Grimshaw, …`
+   */
+  sentence: string;
 }
 
 /**
@@ -765,37 +770,35 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
   const bands = { potentialHintBands: judgedHintBands(reader, content, config) };
   const onRoster = guild?.rosterIds.includes(hero.id) === true;
 
-  const attributes: [string, string][] = [
-    ['Sex', hero.sex],
-    ['Age', String(ageOf(hero, world.turn, config))],
-    ['Class', nameIn(content.classes, hero.classKey)],
-    ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
-    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'none' : 'Unattached') : (guild?.name ?? 'a Guild')],
-    ['Level', String(hero.level)],
-    ['XP', String(hero.xp)],
-    ['Morale', `${hero.morale}, ${moraleBand(hero.morale, config)}`],
-    ['Where', whereabouts(hero, world)],
-    [
-      'Injury',
-      hero.injury === null ? 'none' : `${nameIn(content.injuries, hero.injury.typeKey)}, healing on ${nightOf(hero.injury.healsOnTurn)}`,
-    ],
-    ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
+  // Who the Hero is in one line, and their State as chips (M9-S6, the review's B7): what were eleven
+  // label and value rows. A Hero in the pool or gone from it names no Guild; `where` says where they are.
+  const who = [
+    nameIn(content.classes, hero.classKey),
+    `Level ${hero.level}`,
+    `age ${ageOf(hero, world.turn, config)}`,
+    hero.sex,
+    nameIn(content.backgrounds, hero.backgroundKey),
+    ...(guild === undefined ? [] : [`of ${guild.name}`]),
   ];
   // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
-  if (player !== undefined && guild !== undefined && guild.id !== player.id && onRoster) {
-    attributes.push(['Transfer fee', `${transferFee(hero, reader, deps)} Wealth`]);
-  }
+  const fee = player !== undefined && guild !== undefined && guild.id !== player.id && onRoster ? transferFee(hero, reader, deps) : null;
 
-  let lastArea = '';
   const values = statValues(hero, world);
-  const stats = Object.values(content.stats)
-    .filter((stat) => stat.owner === 'hero')
-    .map((stat): StatRow => {
-      const area = stat.area === lastArea ? '' : capitalised(stat.area);
-      lastArea = stat.area;
-      const { base, effective } = values.get(stat.key) ?? { base: 0, effective: 0 };
-      return { area, name: stat.name, base, effective, outlook: potentialHint(hero, stat.key, bands) };
-    });
+  const areas: StatArea[] = [];
+  for (const stat of Object.values(content.stats).filter((each) => each.owner === 'hero')) {
+    const { base, effective } = values.get(stat.key) ?? { base: 0, effective: 0 };
+    const row: StatRow = {
+      name: stat.name,
+      base,
+      value: effective,
+      lift: effective === base ? null : { words: signed(effective - base), up: effective > base },
+      outlook: potentialHint(hero, stat.key, bands),
+    };
+    const name = capitalised(stat.area);
+    const area = areas.at(-1);
+    if (area?.name === name) area.stats.push(row);
+    else areas.push({ name, stats: [row] });
+  }
 
   // What the Hero carries, each in the slot it is held in: `carriedGear` gives only the Hero's own rows.
   const carried = carriedGear(world, hero.id).flatMap((row: UniqueItem | Stack) =>
@@ -805,6 +808,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
     const definition = itemDefinition(content, row.definitionKey);
     return {
       slot,
+      slotName: capitalised(slot),
       item: nameIn(content.items, row.definitionKey),
       modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
       worn: true,
@@ -814,7 +818,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
   const gear = [
     ...listedSlots.flatMap((slot) => {
       const inSlot = carried.filter((each) => each.slot === slot);
-      return inSlot.length === 0 ? [{ slot, item: 'none', modifies: '', worn: false }] : inSlot.map((each) => line(slot, each.row));
+      return inSlot.length === 0 ? [{ slot, slotName: capitalised(slot), item: 'none', modifies: '', worn: false }] : inSlot.map((each) => line(slot, each.row));
     }),
     ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
   ];
@@ -825,12 +829,15 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
     ? (guild?.rosterIds ?? []).flatMap((id) => {
         const mate = id === hero.id ? undefined : rowOf(world.heroes, id);
         if (mate === undefined) return [];
+        const regard = regardBand(regardValue(hero.regard, mate.id), config);
+        const between = regardBand(relationship(hero.id, mate.id, world, config), config);
         return [
           {
             name: mate.name,
             className: nameIn(content.classes, mate.classKey),
-            regard: regardBand(regardValue(hero.regard, mate.id), config),
-            relationship: regardBand(relationship(hero.id, mate.id, world, config), config),
+            regard,
+            relationship: between,
+            neutral: regard === 'neutral' && between === 'neutral',
           },
         ];
       })
@@ -843,8 +850,14 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
   return {
     heroId: hero.id,
     name: hero.name,
-    attributes,
-    stats,
+    line: who,
+    morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
+    where: { why: unavailability(hero), words: whereabouts(hero, world) },
+    injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
+    xp: hero.xp,
+    traits: hero.traits.map((key) => nameIn(content.traits, key)),
+    fee,
+    areas,
     gear,
     skills,
     relationships,
@@ -904,7 +917,11 @@ function heroActions(hero: Hero, guild: Guild | undefined, onRoster: boolean, wo
     equip: gearChoices(world, player),
     transferTo: Object.values(world.guilds)
       .filter((other) => other.id !== player.id && other.foldedOnTurn === null)
-      .map((other) => ({ guildId: other.id, name: other.name, fee: transferFee(hero, guildmasterOf(other, world), deps) })),
+      .map((other) => {
+        const fee = transferFee(hero, guildmasterOf(other, world), deps);
+        const sentence = `${other.name} would pay ${fee} Wealth for ${hero.name}, if it is willing to take them. ${transferCostWords}`;
+        return { guildId: other.id, name: other.name, fee, sentence };
+      }),
   };
 }
 

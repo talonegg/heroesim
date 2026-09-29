@@ -12,7 +12,6 @@ import {
   nextImprovement,
   patronRegardFor,
   playerGuild,
-  rankingPlaces,
   rankings,
   regardBand,
   regardValue,
@@ -30,13 +29,12 @@ import {
   findInHistory,
   guildPage,
   guildmasterView,
-  guildsView,
+  guildsTable,
   hallView,
   historyChoices,
   historySearchLimit,
   historyView,
   patronsView,
-  rankingsView,
 } from './world-views';
 
 // The views of the wider world (M7-S3 part 2, DL-73): every number beside the engine selector or
@@ -67,73 +65,112 @@ function rival(document: WorldDocument): Guild {
   return guild;
 }
 
-describe('guildsView', () => {
-  test('lists every Guild with its controller, Guildmaster, Roster, Wealth, Fame and Upkeep, a folded one with its Day', () => {
+describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review's B4)", () => {
+  /** A new game whose five Guilds have the names, Fame, Wealth and Roster sizes given, in the world's order. */
+  function arranged(rows: readonly [name: string, fame: number, wealth: number, heroes: number][]): WorldDocument {
     const document = structuredClone(newGame());
-    const folded = rival(document);
-    folded.foldedOnTurn = 7;
+    Object.values(document.world.guilds).forEach((guild, index) => {
+      const [name, fame, wealth, heroes] = rows[index] ?? ['', 0, 0, 0];
+      Object.assign(guild, { name, fame, wealth, rosterIds: guild.rosterIds.slice(0, heroes) });
+    });
+    return document;
+  }
 
-    const rows = guildsView(document);
+  test("gives every Guild in play its place by Fame, its Disposition, Fame, Wealth, Heroes and Upkeep, in the Rankings' order, the player's marked", () => {
+    const document = played(12);
 
-    expect(rows.map((row) => row.guildId)).toEqual(Object.keys(document.world.guilds));
-    for (const row of rows) {
+    const table = guildsTable(document, 'fame');
+
+    expect(table.measure).toBe('fame');
+    expect(table.rows.map((row) => row.guildId)).toEqual(rankings(document.world, 'fame').map((ranking) => ranking.guildId));
+    for (const row of table.rows) {
       const guild = document.world.guilds[row.guildId] as Guild;
       expect(row).toEqual({
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
-        controller: guild.controller.kind === 'player' ? 'Yours' : `Rival (${guild.controller.disposition})`,
-        guildmaster: guildmasterOf(guild, document.world)?.name,
-        background: content.backgrounds[guild.backgroundKey]?.name,
-        roster: guild.rosterIds.length,
-        wealth: guild.wealth,
+        place: expect.stringMatching(/^(joint )?\d+(st|nd|rd|th)$/),
+        disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
         fame: guild.fame,
+        wealth: guild.wealth,
+        heroes: guild.rosterIds.length,
         upkeep: upkeep(guild, document.world, defaultConfig, content),
-        folded: guild.id === folded.id ? `folded on Day ${dayOf(7)}` : null,
+        folded: null,
       });
     }
-  });
-});
-
-describe('rankingsView', () => {
-  test("orders the Guilds in play as the engine's rankings do, by Fame or by Wealth, marking the player's", () => {
-    const document = played(12);
-
-    for (const by of ['fame', 'wealth'] as const) {
-      const rows = rankingsView(document, by);
-      const ranked = rankings(document.world, by);
-      expect(rows.map(({ guildId, value }) => ({ guildId, value }))).toEqual(ranked.map(({ guildId, value }) => ({ guildId, value })));
-      const places = rankingPlaces(document.world, by);
-      expect(rows.map((row) => row.place)).toEqual(
-        places.map(({ place, joint }) => `${joint ? 'joint ' : ''}${place}${['th', 'st', 'nd', 'rd'][place] ?? 'th'}`),
-      );
-      expect(rows.filter((row) => row.mine).map((row) => row.guildId)).toEqual([player(document).id]);
-    }
+    expect(table.rows.filter((row) => row.mine).map((row) => row.name)).toEqual(['The Lantern']);
+    expect(table.folded).toEqual([]);
   });
 
-  test('a new game, every Guild at Fame 0, has joint 1st on each row (v1.0.1-S4, DL-95)', () => {
-    const document = newGame();
-
-    const rows = rankingsView(document, 'fame');
-
-    expect(rows.map((row) => row.value)).toEqual([0, 0, 0, 0, 0]);
-    expect(rows.map((row) => row.place)).toEqual(['joint 1st', 'joint 1st', 'joint 1st', 'joint 1st', 'joint 1st']);
-  });
-
-  test('Guilds level on the measure share a place, and the next place counts every Guild ahead of it (DL-95)', () => {
-    const document = structuredClone(newGame());
-    const guilds = Object.values(document.world.guilds);
-    [9, 4, 4, 1, 0].forEach((fame, index) => Object.assign(guilds[index] ?? {}, { fame }));
-    Object.assign(guilds[4] ?? {}, { foldedOnTurn: 3 });
-
-    const rows = rankingsView(document, 'fame');
-
-    expect(rows.map(({ place, value }) => [place, value])).toEqual([
-      ['1st', 9],
-      ['joint 2nd', 4],
-      ['joint 2nd', 4],
-      ['4th', 1],
+  test('Guilds level on Fame share a place; by Wealth, the order and the places are by Wealth, shared too (DL-95, DL-91)', () => {
+    const document = arranged([
+      ['The Lantern', 9, 100, 3],
+      ['Ashford', 4, 300, 3],
+      ['Old Weir', 4, 300, 3],
+      ['Barrow', 1, 50, 3],
+      ['Cinder', 0, 200, 3],
     ]);
+
+    expect(guildsTable(document, 'fame').rows.map(({ name, place }) => [name, place])).toEqual([
+      ['The Lantern', '1st'],
+      ['Ashford', 'joint 2nd'],
+      ['Old Weir', 'joint 2nd'],
+      ['Barrow', '4th'],
+      ['Cinder', '5th'],
+    ]);
+    const byWealth = guildsTable(document, 'wealth');
+    expect(byWealth.measure).toBe('wealth');
+    expect(byWealth.rows.map(({ name, place }) => [name, place])).toEqual([
+      ['Ashford', 'joint 1st'],
+      ['Old Weir', 'joint 1st'],
+      ['Cinder', '3rd'],
+      ['The Lantern', '4th'],
+      ['Barrow', '5th'],
+    ]);
+  });
+
+  test("by any other column, orders for display, ties in the Rankings' order by Fame, and Place still reads by Fame", () => {
+    const document = arranged([
+      ['The Lantern', 9, 100, 1],
+      ['Ashford', 4, 300, 3],
+      ['Old Weir', 4, 300, 1],
+      ['Barrow', 1, 50, 2],
+      ['Cinder', 0, 200, 3],
+    ]);
+    const places = { 'The Lantern': '1st', Ashford: 'joint 2nd', 'Old Weir': 'joint 2nd', Barrow: '4th', Cinder: '5th' };
+
+    for (const sort of ['name', 'disposition', 'heroes', 'upkeep'] as const) {
+      const table = guildsTable(document, sort);
+      expect(table.measure).toBe('fame');
+      for (const row of table.rows) expect(row.place).toBe(places[row.name as keyof typeof places]);
+    }
+    expect(guildsTable(document, 'name').rows.map((row) => row.name)).toEqual(['Ashford', 'Barrow', 'Cinder', 'Old Weir', 'The Lantern']);
+    expect(guildsTable(document, 'heroes').rows.map((row) => [row.name, row.heroes])).toEqual([
+      ['Ashford', 3],
+      ['Cinder', 3],
+      ['Barrow', 2],
+      ['The Lantern', 1],
+      ['Old Weir', 1],
+    ]);
+    const byDisposition = guildsTable(document, 'disposition').rows.map((row) => row.disposition);
+    expect(byDisposition[0]).toBe('Yours');
+    expect(byDisposition.slice(1)).toEqual([...byDisposition.slice(1)].sort());
+    const byUpkeep = guildsTable(document, 'upkeep').rows.map((row) => row.upkeep);
+    expect(byUpkeep).toEqual([...byUpkeep].sort((a, b) => b - a));
+    // Nothing in the world is reordered.
+    expect(Object.values(document.world.guilds).map((guild) => guild.name)).toEqual(['The Lantern', 'Ashford', 'Old Weir', 'Barrow', 'Cinder']);
+  });
+
+  test('lists a folded Guild apart, with the Day it folded and no place, out of the Rankings', () => {
+    const document = structuredClone(newGame());
+    const folded = rival(document);
+    folded.foldedOnTurn = 7;
+
+    const table = guildsTable(document, 'fame');
+
+    expect(table.rows.map((row) => row.guildId)).not.toContain(folded.id);
+    expect(table.rows).toHaveLength(4);
+    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `folded on Day ${dayOf(7)}` })]);
   });
 });
 
@@ -164,6 +201,20 @@ describe('hallView', () => {
 
     expect(hallView(document, other.id)).toMatchObject({ guildId: other.id, guildName: other.name, mine: false });
     expect(hallView(document, 'guild-999999' as GuildId)).toBeNull();
+  });
+
+  test("gives each facility's top grade from the Improvements content defines, for its pips (M9-S6, the review's B9)", () => {
+    const document = structuredClone(newGame());
+    player(document).hall.infirmary = 1;
+
+    const rows = hallView(document)?.facilities ?? [];
+
+    // `improvements.json` defines three grades of each facility.
+    expect(rows.map(({ facility, grade, top }) => [facility, grade, top])).toEqual([
+      ['infirmary', 1, 3],
+      ['trainingYard', 0, 3],
+      ['quarters', 0, 3],
+    ]);
   });
 });
 
@@ -217,6 +268,24 @@ describe('guildmasterView', () => {
     expect(guildmasterView(document, other.id)?.name).toBe(guildmasterOf(other, document.world)?.name);
     expect(guildmasterView(document, other.id)?.guildName).toBe(other.name);
   });
+
+  test("marks each Regard that is neutral, for the page to fold (M9-S6, the review's C8)", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    const guildmaster = guildmasterOf(guild, document.world);
+    const [patron] = Object.values(document.world.patrons);
+    const [hero] = guild.rosterIds;
+    if (guildmaster === undefined || patron === undefined || hero === undefined) throw new Error('no Guildmaster, Patron or Hero');
+    guildmaster.regard[patron.id] = { value: 8, since: 0, reason: 'test' };
+    guildmaster.regard[hero] = { value: -30, since: 0, reason: 'test' };
+
+    const view = guildmasterView(document);
+
+    expect(view?.patrons[0]).toMatchObject({ name: patron.name, regard: 'warm', neutral: false });
+    expect(view?.patrons.slice(1).every((row) => row.regard === 'neutral' && row.neutral)).toBe(true);
+    expect(view?.heroes[0]).toMatchObject({ regard: 'hostile', neutral: false });
+    expect(view?.guilds.every((row) => row.neutral)).toBe(true);
+  });
 });
 
 describe('patronsView', () => {
@@ -224,7 +293,7 @@ describe('patronsView', () => {
     const document = played(9);
     const guild = player(document);
 
-    expect(patronsView(document)).toEqual(
+    expect(patronsView(document).map(({ patronId, name, sphere, regard }) => ({ patronId, name, sphere, regard }))).toEqual(
       Object.values(document.world.patrons).map((patron) => ({
         patronId: patron.id,
         name: patron.name,
@@ -232,6 +301,32 @@ describe('patronsView', () => {
         regard: regardBand(patronRegardFor(patron, guild.id), defaultConfig),
       })),
     );
+  });
+
+  test("gives, beside their Regard for the player's Guild, the player's Guildmaster's Regard for them and their Quests on the Board now, and marks a row neutral when both Regards are (M9-S6, the review's B5)", () => {
+    const document = structuredClone(played(9));
+    const guild = player(document);
+    const guildmaster = guildmasterOf(guild, document.world);
+    const [cold, liked, ...rest] = Object.values(document.world.patrons);
+    if (guildmaster === undefined || cold === undefined || liked === undefined) throw new Error('no Guildmaster or Patrons');
+    cold.regard[guild.id] = { value: -30, since: 0, reason: 'test' };
+    guildmaster.regard[cold.id] = { value: 0, since: 0, reason: 'test' };
+    liked.regard[guild.id] = { value: 0, since: 0, reason: 'test' };
+    guildmaster.regard[liked.id] = { value: 20, since: 0, reason: 'test' };
+    for (const patron of rest) {
+      patron.regard[guild.id] = { value: 0, since: 0, reason: 'test' };
+      guildmaster.regard[patron.id] = { value: 0, since: 0, reason: 'test' };
+    }
+
+    const rows = patronsView(document);
+
+    expect(rows[0]).toMatchObject({ patronId: cold.id, regard: 'hostile', guildmasterRegard: 'neutral', neutral: false });
+    expect(rows[1]).toMatchObject({ patronId: liked.id, regard: 'neutral', guildmasterRegard: 'close', neutral: false });
+    expect(rows.slice(2).every((row) => row.regard === 'neutral' && row.guildmasterRegard === 'neutral' && row.neutral)).toBe(true);
+    const onTheBoard = document.world.board.map((questId) => document.world.quests[questId]?.patronId);
+    expect(onTheBoard.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row.quests).toBe(onTheBoard.filter((patronId) => patronId === row.patronId).length);
+    expect(rows.reduce((sum, row) => sum + row.quests, 0)).toBe(document.world.board.length);
   });
 });
 
@@ -250,6 +345,23 @@ describe('guildPage', () => {
     expect(page?.hall.guildId).toBe(other.id);
     expect(page?.guildmaster?.guildName).toBe(other.name);
     expect(guildPage(document, 'guild-999999' as GuildId)).toBeNull();
+  });
+
+  test("says whose it is, its Background, Fame and Wealth; the player's own has no fees (M9-S6, the review's B10)", () => {
+    const document = newGame();
+    const other = rival(document);
+    const mine = player(document);
+
+    expect(guildPage(document, other.id)).toMatchObject({
+      mine: false,
+      controller: `Rival (${other.controller.kind === 'rival' ? other.controller.disposition : ''})`,
+      background: content.backgrounds[other.backgroundKey]?.name,
+      fame: other.fame,
+      wealth: other.wealth,
+    });
+    const own = guildPage(document, mine.id);
+    expect(own).toMatchObject({ mine: true, controller: 'Yours' });
+    expect(own?.roster.map((row) => row.fee)).toEqual(mine.rosterIds.map(() => null));
   });
 });
 

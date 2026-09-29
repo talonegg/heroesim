@@ -76,19 +76,19 @@ async function dispatchAParty(page: Page): Promise<string> {
 
 /**
  * Signs, from the Unattached pool, the Hero with the lowest signing fee among those who would sign
- * for the Guild at a fee it can pay; their name. The fee is the one the pool shows, and the Hero
- * joins the Roster.
+ * for the Guild at a fee it can pay; their name. The fee is the one the pool's row shows (M9-S6's
+ * rows), and the Hero joins the Roster.
  */
 async function recruitAHero(page: Page): Promise<string> {
   const wealth = Number(await page.getByTestId('wealth').textContent());
   const pool = await part(page, 'Unattached pool');
-  const cards = pool.locator('li.card');
+  const rows = pool.getByTestId('pool-row');
   let chosen: { name: string; fee: number } | null = null;
-  for (let index = 0; index < (await cards.count()); index += 1) {
-    const text = (await cards.nth(index).textContent()) ?? '';
-    const fee = Number(/Signing fee (\d+) Wealth\./.exec(text)?.[1]);
-    if (!(fee <= wealth) || /Signs for your Guild: needs/.test(text)) continue;
-    const name = (await cards.nth(index).locator('button.link').textContent()) ?? '';
+  for (let index = 0; index < (await rows.count()); index += 1) {
+    const fee = Number(await rows.nth(index).getByTestId('fee').textContent());
+    const signs = (await rows.nth(index).getByTestId('signs').textContent()) ?? '';
+    if (!(fee <= wealth) || signs !== 'yes') continue;
+    const name = (await rows.nth(index).locator('button.link').textContent()) ?? '';
     if (chosen === null || fee < chosen.fee) chosen = { name, fee };
   }
   if (chosen === null) throw new Error('No Hero in the pool would sign for the Guild at a fee it can pay');

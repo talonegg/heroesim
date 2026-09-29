@@ -3,12 +3,15 @@
 // on, their Traits and what each does, and their Regard for every Patron, each Hero on their Roster
 // and each other Guild in play, as bands and never as numbers (pre-M0 review B3).
 //
-// A part of the Hall (M9-S3, DL-103); its chips and folds are M9-S6's.
+// A part of the Hall (M9-S3, DL-103). Their sex and age, then the descriptive Attributes written
+// (M9-S2), each only when set; each Trait with its effect's words; and Regard as chips on one ramp
+// from hostile to close, the neutral ones folded under their count (M9-S6, DL-106; the review's C8).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { guildmasterView, type GuildmasterView, type RegardRow } from '../state/world-views';
 import { Heading, Part, Terms } from './section';
+import { Chip, Folded, regardTones } from './ui';
 
 export function Guildmaster({ document }: { document: WorldDocument }) {
   const view = useMemo(() => guildmasterView(document), [document]);
@@ -28,62 +31,74 @@ export function GuildmasterDetails({ view, level }: { view: GuildmasterView; lev
       </Heading>
       <Terms pairs={view.attributes} />
 
-      <Heading level={sub}>Stats</Heading>
-      <div className="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th scope="col">Stat</th>
-              <th scope="col" className="number">
-                Value
-              </th>
-              <th scope="col">Bears on</th>
-            </tr>
-          </thead>
-          <tbody>
-            {view.stats.map((stat) => (
-              <tr key={stat.name}>
-                <th scope="row">{stat.name}</th>
-                <td className="number">{stat.value}</td>
-                <td>{stat.bearsOn}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="guildmaster__grid">
+        <div>
+          <Heading level={sub}>Stats</Heading>
+          <div className="table-wrap">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th scope="col">Stat</th>
+                  <th scope="col" className="number">
+                    Value
+                  </th>
+                  <th scope="col">Bears on</th>
+                </tr>
+              </thead>
+              <tbody>
+                {view.stats.map((stat) => (
+                  <tr key={stat.name}>
+                    <th scope="row">{stat.name}</th>
+                    <td className="number">{stat.value}</td>
+                    <td>{stat.bearsOn}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div>
+          <Heading level={sub}>Traits</Heading>
+          {view.traits.length === 0 ? (
+            <p className="subtle">none</p>
+          ) : (
+            <ul className="traits" aria-label={`${view.name}'s Traits`}>
+              {view.traits.map((trait) => (
+                <li key={trait.name}>
+                  <Chip tone="accent">{trait.name}</Chip> <span>{trait.effect}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          <Heading level={sub}>Regard</Heading>
+          <Regard label="For Patrons" rows={view.patrons} />
+          <Regard label="For Heroes on the Roster" rows={view.heroes} />
+          <Regard label="For the other Guilds, through their Guildmasters" rows={view.guilds} />
+        </div>
       </div>
-
-      <Heading level={sub}>Traits</Heading>
-      {view.traits.length === 0 ? (
-        <p>none</p>
-      ) : (
-        <ul>
-          {view.traits.map((trait) => (
-            <li key={trait.name}>
-              {trait.name}: {trait.effect}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <Heading level={sub}>Regard for Patrons</Heading>
-      <Regard rows={view.patrons} />
-      <Heading level={sub}>Regard for Heroes on the Roster</Heading>
-      <Regard rows={view.heroes} />
-      <Heading level={sub}>Regard for the other Guilds, through their Guildmasters</Heading>
-      <Regard rows={view.guilds} />
     </div>
   );
 }
 
-function Regard({ rows }: { rows: readonly RegardRow[] }) {
-  if (rows.length === 0) return <p>none</p>;
+/** One kind of Regard, each row a name, what they are and the band as a chip; the neutral ones folded. */
+function Regard({ label, rows }: { label: string; rows: readonly RegardRow[] }) {
   return (
-    <ul>
-      {rows.map((row, index) => (
-        <li key={`${row.name}-${index}`}>
-          {row.name}, {row.detail}: {row.regard}
-        </li>
-      ))}
-    </ul>
+    <div className="regard-group">
+      <p className="caption">{label}</p>
+      <Folded
+        rows={rows}
+        label={label}
+        row={(row) => (
+          <>
+            <span className="regards__name">{row.name}</span> <span className="regards__detail">{row.detail}</span>
+            <span className="regards__bands">
+              <Chip tone={regardTones[row.regard]}>{row.regard}</Chip>
+            </span>
+          </>
+        )}
+      />
+    </div>
   );
 }

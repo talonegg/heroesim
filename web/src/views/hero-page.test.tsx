@@ -104,7 +104,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
       expect(within(page).getByRole('heading', { level: 3 }).textContent).toBe(name);
 
       // The hint is there, a word for each Stat; the number is not, anywhere on the page.
-      expect(within(page).getByRole('columnheader', { name: 'Outlook' })).toBeDefined();
+      expect(within(page).getAllByTitle('Outlook').length).toBeGreaterThan(10);
       expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);

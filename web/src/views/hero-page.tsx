@@ -1,19 +1,23 @@
-// A Hero's page (M7-S3; the CLI's `show hero` and `show history <heroId>`): Attributes and State,
-// Stats with their hints, gear, Skills, Relationships on the Roster as bands, then the Hero's
-// Milestones, which a Hero's page always shows first, and their History, newest first, a page at a
-// time. Potential is never shown (M3-S3): the "Outlook" column is the hint word `heroPage` gives,
-// and its rows carry no field that could hold the number.
+// A Hero's page (M7-S3; the CLI's `show hero` and `show history <heroId>`; redesigned by M9-S6,
+// DL-106, the review's B7): who the Hero is in one line and their State as chips, the Stats as four
+// area blocks with what gear lifts and each Stat's Outlook, gear with Equip and Unequip, Skills,
+// Relationships on the Roster as bands with the neutral ones folded, then the Hero's Milestones,
+// which a Hero's page always shows first, and their History, newest first, a page at a time.
+// Potential is never shown (M3-S3): the Outlook is the hint word `heroPage` gives, and its rows
+// carry no field that could hold the number. A Transfer out asks first, stating the fee and what it
+// costs (E4).
 //
 // Given `play`, it offers what can be done with the Hero where they are (M7-S3 part 2, DL-73): on
 // the player's Roster, the CLI's `equip`, `unequip` and `transfer --to`; on another Guild's, its
 // `transfer --in`; in the Unattached pool, its `recruit`. The fees are the engine's, and a play the
 // engine refuses is said as a sentence.
 
-import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
-import { useMemo, useState, type ReactNode } from 'react';
+import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
+import { useMemo, useRef, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
-import { heroPage, type HeroActions, type LogLine, type StatRow } from '../state/selectors';
-import { Icon } from './icons';
+import { heroPage, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
+import { Icon, type IconName } from './icons';
+import { Chip, Confirm, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
 type Levels = 3 | 4;
@@ -21,6 +25,21 @@ type Levels = 3 | 4;
 function Sub({ level, children }: { level: Levels; children: ReactNode }) {
   return level === 3 ? <h4>{children}</h4> : <h5>{children}</h5>;
 }
+
+/** Where a Hero is, as an icon beside its words (M9-S6): injured or away is never colour alone. */
+const whereIcons: Readonly<Record<Unavailability, IconName>> = {
+  injured: 'injury',
+  'in-party': 'travel',
+  dead: 'alert',
+  retired: 'alert',
+};
+
+const whereTones: Readonly<Record<Unavailability, Tone>> = {
+  injured: 'warn',
+  'in-party': 'accent',
+  dead: 'bad',
+  retired: 'plain',
+};
 
 export function HeroPage({
   document,
@@ -65,67 +84,65 @@ export function HeroPage({
   return (
     <article className="hero-page" aria-labelledby="hero-name">
       {back}
-      {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
-      {level === 3 ? (
-        <h3 id="hero-name" tabIndex={-1}>
-          {view.name}
-        </h3>
-      ) : (
-        <h4 id="hero-name" tabIndex={-1}>
-          {view.name}
-        </h4>
+      <header className="hero-page__head">
+        {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
+        {level === 3 ? (
+          <h3 id="hero-name" tabIndex={-1}>
+            {view.name}
+          </h3>
+        ) : (
+          <h4 id="hero-name" tabIndex={-1}>
+            {view.name}
+          </h4>
+        )}
+        <p className="hero-page__line">{view.line.join(' · ')}</p>
+        <State view={view} />
+      </header>
+
+      {/* In the pool or on a Rival's Roster, what can be done comes first: it is why the page was opened. */}
+      {play === undefined || view.actions === null || view.actions.kind === 'own' ? null : (
+        <HeroActionsView actions={view.actions} heroId={heroId} name={view.name} busy={busy} play={play} level={level} />
       )}
-      <dl className="terms">
-        {view.attributes.map(([label, value]) => (
-          <div key={label}>
-            <dt>{label}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
-      </dl>
 
       <Sub level={level}>Stats</Sub>
-      <div className="table-wrap">
-        <table className="stats">
-          <thead>
-            <tr>
-              <th scope="col">Stat</th>
-              <th scope="col" className="number">
-                Base
-              </th>
-              <th scope="col" className="number">
-                Effective
-              </th>
-              <th scope="col">Outlook</th>
-            </tr>
-          </thead>
-          {areas(view.stats).map(([area, rows]) => (
-            <tbody key={area}>
-              <tr>
-                <th scope="colgroup" colSpan={4} className="area">
-                  {area}
-                </th>
-              </tr>
-              {rows.map((row) => (
+      <div className="stat-blocks">
+        {view.areas.map((area) => (
+          <table key={area.name} className="stat-block">
+            <caption>{area.name}</caption>
+            <tbody>
+              {area.stats.map((row) => (
                 <tr key={row.name}>
                   <th scope="row">{row.name}</th>
-                  <td className="number">{row.base}</td>
-                  <td className="number">{row.effective}</td>
-                  <td>{row.outlook}</td>
+                  <td className="number stat-block__value">
+                    {row.value}
+                    {row.lift === null ? null : (
+                      <span className={row.lift.up ? 'lift lift--up' : 'lift lift--down'}>
+                        {row.lift.words}
+                        <VisuallyHidden> on its base of {row.base}</VisuallyHidden>
+                      </span>
+                    )}
+                  </td>
+                  <td className="stat-block__outlook">
+                    <Chip tone={row.outlook === 'exceptional' ? 'brass' : 'plain'} title="Outlook">
+                      <VisuallyHidden>Outlook </VisuallyHidden>
+                      {row.outlook}
+                    </Chip>
+                  </td>
                 </tr>
               ))}
             </tbody>
-          ))}
-        </table>
+          </table>
+        ))}
       </div>
 
       <Sub level={level}>Gear</Sub>
-      <ul className={own ? 'rows' : undefined}>
+      <ul className="rows gear" aria-label={`${view.name}'s gear`}>
         {view.gear.map((gear, index) => (
-          <li key={`${gear.slot}-${index}`}>
-            <span>
-              {capitalised(gear.slot)}: {gear.item}
-              {gear.modifies === '' ? '' : ` (${gear.modifies})`}
+          <li key={`${gear.slot}-${index}`} className={gear.worn ? 'gear__row' : 'gear__row is-empty'}>
+            <span className="gear__slot">{gear.slotName}</span>
+            <span className="gear__item">
+              {gear.item}
+              {gear.modifies === '' ? null : <span className="subtle"> {gear.modifies}</span>}
             </span>
             {own && gear.worn && play !== undefined ? (
               <button type="button" aria-label={`Unequip ${gear.item}`} disabled={busy} onClick={() => play({ kind: 'unequip', heroId, slot: gear.slot })}>
@@ -135,15 +152,20 @@ export function HeroPage({
           </li>
         ))}
       </ul>
+      {own && play !== undefined && view.actions?.kind === 'own' ? (
+        <Equip actions={view.actions} heroId={heroId} busy={busy} play={play} />
+      ) : null}
 
       <Sub level={level}>Skills</Sub>
       {view.skills.length === 0 ? (
-        <p>none</p>
+        <p className="subtle">none</p>
       ) : (
-        <ul>
+        <ul className="chips" aria-label={`${view.name}'s Skills`}>
           {view.skills.map((skill) => (
             <li key={skill.name}>
-              {skill.name} {skill.rating}
+              <Chip>
+                {skill.name} {skill.rating}
+              </Chip>
             </li>
           ))}
         </ul>
@@ -152,21 +174,23 @@ export function HeroPage({
       {view.relationships === null ? null : (
         <>
           <Sub level={level}>Relationships on the Roster</Sub>
-          {view.relationships.length === 0 ? (
-            <p>none</p>
-          ) : (
-            <ul>
-              {view.relationships.map((mate) => (
-                <li key={mate.name}>
-                  {mate.name}, {mate.className}: Regard {mate.regard}, Relationship {mate.relationship}
-                </li>
-              ))}
-            </ul>
-          )}
+          <Folded
+            rows={view.relationships}
+            label={`${view.name}'s Relationships`}
+            row={(mate) => (
+              <>
+                <span className="regards__name">{mate.name}</span> <span className="regards__detail">{mate.className}</span>
+                <span className="regards__bands">
+                  <Chip tone={regardTones[mate.regard]}>Regard {mate.regard}</Chip>
+                  <Chip tone={regardTones[mate.relationship]}>Relationship {mate.relationship}</Chip>
+                </span>
+              </>
+            )}
+          />
         </>
       )}
 
-      {play === undefined || view.actions === null ? null : (
+      {play === undefined || view.actions?.kind !== 'own' ? null : (
         <HeroActionsView actions={view.actions} heroId={heroId} name={view.name} busy={busy} play={play} level={level} />
       )}
 
@@ -195,6 +219,82 @@ export function HeroPage({
   );
 }
 
+/** The Hero's State as chips: Morale and its band, where they are, an Injury, XP, Traits, and the fee to take them in. */
+function State({ view }: { view: HeroPageView }) {
+  const { morale, where } = view;
+  return (
+    <ul className="chips hero-page__state" aria-label={`${view.name}'s State`}>
+      <li>
+        <Chip tone={moraleTones[morale.band]} icon="morale">
+          Morale {morale.value}, {morale.band}
+        </Chip>
+      </li>
+      <li>
+        {where.why === null ? <Chip icon="hall">{where.words}</Chip> : <Chip tone={whereTones[where.why]} icon={whereIcons[where.why]}>{where.words}</Chip>}
+      </li>
+      {view.injury === null ? null : (
+        <li>
+          <Chip tone="warn" icon="injury" title="Injury">
+            {view.injury}
+          </Chip>
+        </li>
+      )}
+      <li>
+        <Chip>XP {view.xp}</Chip>
+      </li>
+      {view.traits.map((trait) => (
+        <li key={trait}>
+          <Chip tone="accent" title="Trait">
+            {trait}
+          </Chip>
+        </li>
+      ))}
+      {view.fee === null ? null : (
+        <li>
+          <Chip tone="brass" icon="wealth">
+            Transfer fee {view.fee}
+            <VisuallyHidden> Wealth</VisuallyHidden>
+          </Chip>
+        </li>
+      )}
+    </ul>
+  );
+}
+
+/** Gear the Guild holds, which `equip` can put on the Hero: under their gear (M9-S6). */
+function Equip({
+  actions,
+  heroId,
+  busy,
+  play,
+}: {
+  actions: Extract<HeroActions, { kind: 'own' }>;
+  heroId: HeroId;
+  busy: boolean;
+  play: (action: GameAction) => void;
+}) {
+  if (actions.equip.length === 0) return <p className="subtle">The Guild holds no gear; the Market sells it.</p>;
+  return (
+    <>
+      <p className="caption">Gear the Guild holds</p>
+      <ul className="rows gear" aria-label="Gear the Guild holds">
+        {actions.equip.map((gear) => (
+          <li key={gear.key} className="gear__row">
+            <span className="gear__slot">{gear.kind}</span>
+            <span className="gear__item">
+              {gear.name}
+              {gear.modifies === '' ? null : <span className="subtle"> {gear.modifies}</span>}
+            </span>
+            <button type="button" aria-label={`Equip ${gear.name}`} disabled={busy} onClick={() => play({ kind: 'equip', heroId, ...gear.gear })}>
+              Equip
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
+
 /** What can be done with the Hero where they are: the player's own, a Rival's, or one in the pool. */
 function HeroActionsView({
   actions,
@@ -214,8 +314,7 @@ function HeroActionsView({
   switch (actions.kind) {
     case 'pool':
       return (
-        <>
-          <Sub level={level}>Recruit</Sub>
+        <div className="hero-page__act">
           <p>
             Signing fee {actions.fee} Wealth. Signs for your Guild: {actions.signs}.
           </p>
@@ -224,12 +323,11 @@ function HeroActionsView({
               Recruit
             </button>
           </div>
-        </>
+        </div>
       );
     case 'rival':
       return (
-        <>
-          <Sub level={level}>Transfer</Sub>
+        <div className="hero-page__act">
           <p>
             Your Guild would pay {actions.guildName} a Transfer fee of {actions.fee} Wealth to take {name} in, if{' '}
             {actions.guildName} is willing to part with them.
@@ -239,15 +337,18 @@ function HeroActionsView({
               Take in
             </button>
           </div>
-        </>
+        </div>
       );
     case 'own':
-      return <OwnHeroActions actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />;
+      return <Transfer actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />;
   }
 }
 
-/** Equip gear the Guild holds, and transfer the Hero out to another Guild in play for the fee it would pay. */
-function OwnHeroActions({
+/**
+ * Transfer the Hero out to another Guild in play for the fee it would pay: behind "Transfer…", which
+ * opens the confirmation that says the fee and what the Transfer costs (M9-S6, the review's E4).
+ */
+function Transfer({
   actions,
   heroId,
   name,
@@ -262,38 +363,28 @@ function OwnHeroActions({
   play: (action: GameAction) => void;
   level: Levels;
 }) {
+  const [asking, setAsking] = useState(false);
   const [to, setTo] = useState<GuildId | ''>('');
+  // "Keep them" puts the keyboard back on "Transfer…" once it is drawn again.
+  const returning = useRef(false);
   const target = actions.transferTo.find((guild) => guild.guildId === to) ?? actions.transferTo[0];
   return (
     <>
-      <Sub level={level}>Equip gear the Guild holds</Sub>
-      {actions.equip.length === 0 ? (
-        <p>The Guild holds no gear; the Market sells it.</p>
-      ) : (
-        <ul className="rows">
-          {actions.equip.map((gear) => (
-            <li key={gear.key}>
-              <span>
-                {gear.name}, {gear.kind}
-                {gear.modifies === '' ? '' : ` (${gear.modifies})`}
-              </span>
-              <button type="button" aria-label={`Equip ${gear.name}`} disabled={busy} onClick={() => play({ kind: 'equip', heroId, ...gear.gear })}>
-                Equip
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
       <Sub level={level}>Transfer</Sub>
       {target === undefined ? (
-        <p>No other Guild is in play to take {name}.</p>
-      ) : (
-        <>
-          <p className="note">
-            The other Guild must be willing to take {name}, and pays the fee. Their gear stays with your Guild, and the
-            Heroes left behind who held them in high Regard lose Morale.
-          </p>
+        <p className="subtle">No other Guild is in play to take {name}.</p>
+      ) : asking ? (
+        <Confirm
+          label={`Transfer ${name}?`}
+          confirm={`Transfer to ${target.name}`}
+          confirmLabel={`Transfer ${name} to ${target.name}`}
+          busy={busy}
+          onConfirm={() => play({ kind: 'transferOut', heroId, toGuildId: target.guildId })}
+          onKeep={() => {
+            returning.current = true;
+            setAsking(false);
+          }}
+        >
           <label className="field">
             <span>Transfer {name} to</span>
             <select value={target.guildId} onChange={(event) => setTo(event.target.value as GuildId)}>
@@ -304,12 +395,25 @@ function OwnHeroActions({
               ))}
             </select>
           </label>
-          <div className="actions">
-            <button type="button" disabled={busy} onClick={() => play({ kind: 'transferOut', heroId, toGuildId: target.guildId })}>
-              Transfer {name} to {target.name}
-            </button>
-          </div>
-        </>
+          <p aria-live="polite">{target.sentence}</p>
+        </Confirm>
+      ) : (
+        <div className="actions">
+          <button
+            type="button"
+            ref={(button) => {
+              if (button !== null && returning.current) {
+                returning.current = false;
+                button.focus();
+              }
+            }}
+            aria-label={`Transfer ${name}…`}
+            disabled={busy}
+            onClick={() => setAsking(true)}
+          >
+            Transfer…
+          </button>
+        </div>
       )}
     </>
   );
@@ -327,19 +431,4 @@ export function Lines({ lines, empty }: { lines: readonly LogLine[]; empty: stri
       ))}
     </ol>
   );
-}
-
-/** The Stats grouped by area, in content's order: each row names its area only on the first of it. */
-function areas(stats: readonly StatRow[]): [string, StatRow[]][] {
-  const groups: [string, StatRow[]][] = [];
-  for (const row of stats) {
-    const last = groups.at(-1);
-    if (row.area !== '' || last === undefined) groups.push([row.area, [row]]);
-    else last[1].push(row);
-  }
-  return groups;
-}
-
-function capitalised(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
 }

@@ -69,6 +69,46 @@ describe('marketView', () => {
   });
 });
 
+describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
+  test('names each kind for sale, the gear slots in their order then consumables, with how many kinds of Item each has', () => {
+    const view = marketView(newGame());
+
+    expect(view.kinds.map((kind) => kind.key)).toEqual(['weapon', 'armour', 'trinket', 'consumable'].filter((key) => view.kinds.some((kind) => kind.key === key)));
+    expect(view.kinds.map((kind) => kind.label)).toEqual(view.kinds.map((kind) => ({ weapon: 'Weapon', armour: 'Armour', trinket: 'Trinket', consumable: 'Consumable' })[kind.key]));
+    expect(view.kinds.reduce((sum, kind) => sum + kind.count, 0)).toBe(view.forSale.length);
+    expect(view.kinds.length).toBeGreaterThan(1);
+  });
+
+  test('lists only the kind chosen, for display; the counts stay those of everything for sale', () => {
+    const document = newGame();
+    const all = marketView(document);
+
+    for (const kind of all.kinds) {
+      const shown = marketView(document, kind.key);
+      expect(shown.forSale).toHaveLength(kind.count);
+      expect(shown.forSale.every((row) => row.kindKey === kind.key)).toBe(true);
+      expect(shown.forSale.every((row) => (kind.key === 'consumable' ? /^consumable/ : new RegExp(`^${kind.key} gear`)).test(row.kind))).toBe(true);
+      expect(shown.kinds).toEqual(all.kinds);
+      expect(shown.totalForSale).toBe(all.totalForSale);
+    }
+    expect(marketView(document, null).forSale).toEqual(all.forSale);
+  });
+
+  test("gives what the Guild holds its kind and what it does, in the Market's words, beside what each sells for", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    addStack(document.world, 'whetstone', 3, { kind: 'guild', id: guild.id });
+    addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
+
+    const held = marketView(document).held.map(({ name, kind, does, held: count }) => ({ name, kind, does, count }));
+
+    expect(held).toEqual([
+      { name: 'Whetstone', kind: 'consumable', does: '+3 on a combat Encounter', count: 3 },
+      { name: 'Arming sword', kind: 'weapon gear', does: 'Weaponry +2, Strength +1', count: 1 },
+    ]);
+  });
+});
+
 describe('poolView', () => {
   test('lists the Unattached pool with the signing fee the player pays, and whether each would sign for its Fame', () => {
     const document = structuredClone(newGame());
@@ -97,6 +137,50 @@ describe('poolView', () => {
   });
 });
 
+describe("the Unattached pool as rows (M9-S6, DL-106; the review's B8)", () => {
+  test('orders the pool by Class, A to Z, or by fee, lowest first, ties as the pool lists them: display only', () => {
+    const document = newGame();
+    const listed = poolView(document).rows;
+    const at = (heroId: string): number => listed.findIndex((row) => row.heroId === heroId);
+
+    const byClass = poolView(document, 'class').rows;
+    const byFee = poolView(document, 'fee').rows;
+
+    expect(listed.length).toBeGreaterThan(3);
+    expect(new Set(listed.map((row) => row.className)).size).toBeGreaterThan(1);
+    expect([...byClass].map((row) => row.heroId).sort()).toEqual([...listed].map((row) => row.heroId).sort());
+    for (let index = 1; index < byClass.length; index += 1) {
+      const [before, after] = [byClass[index - 1], byClass[index]];
+      if (before === undefined || after === undefined) throw new Error('no row');
+      expect(before.className <= after.className).toBe(true);
+      if (before.className === after.className) expect(at(before.heroId)).toBeLessThan(at(after.heroId));
+    }
+    for (let index = 1; index < byFee.length; index += 1) {
+      const [before, after] = [byFee[index - 1], byFee[index]];
+      if (before === undefined || after === undefined) throw new Error('no row');
+      expect(before.fee).toBeLessThanOrEqual(after.fee);
+      if (before.fee === after.fee) expect(at(before.heroId)).toBeLessThan(at(after.heroId));
+    }
+    expect(poolView(document, 'listed').rows).toEqual(listed);
+    // The world's pool is untouched.
+    expect(unattachedHeroes(document.world).map((hero) => hero.id)).toEqual(listed.map((row) => row.heroId));
+  });
+
+  test('says whether each Hero would sign for the Guild now, beside the pool’s own words, for the row to be set back', () => {
+    const document = structuredClone(newGame());
+    player(document).fame = 0;
+    const [first, second] = unattachedHeroes(document.world);
+    if (first === undefined || second === undefined) throw new Error('an empty pool');
+    first.level = 4;
+    second.level = 1;
+
+    const rows = poolView(document).rows;
+
+    expect(rows.find((row) => row.heroId === first.id)).toMatchObject({ willSign: false, signs: expect.stringMatching(/^needs Fame \d+$/) });
+    expect(rows.find((row) => row.heroId === second.id)).toMatchObject({ willSign: true, signs: 'yes' });
+  });
+});
+
 describe('offersView', () => {
   test("lists each Transfer Offer standing for the player's Heroes: who offers what for whom, and until when", () => {
     const document = newGame();
@@ -111,10 +195,18 @@ describe('offersView', () => {
     const [offer] = Object.values(offered.document.world.offers);
     if (offer === undefined) throw new Error('no offer');
 
+    const heroName = document.world.heroes[heroId]?.name;
     expect(offersView(offered.document)?.offers).toEqual([
       {
         offerId: offer.id,
-        sentence: `${rival.name} offers ${offer.fee} Wealth for ${document.world.heroes[heroId]?.name}, until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+        sentence: `${rival.name} offers ${offer.fee} Wealth for ${heroName}, until the night of Day ${dayOf(offer.expiresOnTurn)}.`,
+        guildName: rival.name,
+        heroName,
+        fee: offer.fee,
+        // What Accept asks before it lets the Hero go (M9-S6, the review's E4).
+        confirm:
+          `Accepting sends ${heroName} to ${rival.name} for ${offer.fee} Wealth. Their gear stays with your Guild, and the Heroes ` +
+          'left behind who held them in high Regard lose Morale.',
       },
     ]);
   });

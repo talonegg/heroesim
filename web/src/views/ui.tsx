@@ -2,8 +2,13 @@
 // chips, pills and badges, a banner, a number stepper and a file picker behind a button. Later
 // stories build the Quest cards, the Party builder, the History and the tables from them. Nothing
 // here computes a rule: each takes words and numbers a selector gave.
+//
+// M9-S6 (DL-106) adds the tones of the Morale and Regard bands, a column heading that orders its
+// table, Regard as chips with the neutral ones folded under their count (the review's C8), and the
+// one confirmation an act that lets a Hero go asks for (E4).
 
-import { useEffect, useId, useRef, type ChangeEvent, type ReactNode, type RefObject } from 'react';
+import type { MoraleBand, RegardBand } from '@heroesim/engine';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
 import { Icon, type IconName } from './icons';
 
 /** Words read by assistive technology and not shown. */
@@ -43,6 +48,27 @@ export function Disclosure({ summary, children, open = false }: { summary: React
 
 /** How a chip, a pill or a banner reads: plain, good, bad, a warning, the accent or brass. */
 export type Tone = 'plain' | 'good' | 'bad' | 'warn' | 'accent' | 'brass';
+
+/** How a Morale band reads beside a Hero: a warning when low, never colour alone (the word is there). */
+export const moraleTones: Readonly<Record<MoraleBand, Tone>> = {
+  wretched: 'bad',
+  low: 'warn',
+  steady: 'plain',
+  high: 'good',
+  elated: 'good',
+};
+
+/**
+ * How a Regard band reads (the review's C8): one ramp from hostile through neutral to close, the same
+ * on a Hero's page, the Guildmaster's and the Patrons'. The band's word is always there.
+ */
+export const regardTones: Readonly<Record<RegardBand, Tone>> = {
+  hostile: 'bad',
+  cool: 'warn',
+  neutral: 'plain',
+  warm: 'good',
+  close: 'good',
+};
 
 /** A short fact in a rounded frame, with an icon beside its words when it has one. */
 export function Chip({ tone = 'plain', icon, children, title }: { tone?: Tone; icon?: IconName; children: ReactNode; title?: string }) {
@@ -132,6 +158,7 @@ export function Stepper({
   max,
   onChange,
   disabled = false,
+  hideLabel = false,
 }: {
   label: string;
   value: number;
@@ -139,12 +166,16 @@ export function Stepper({
   max: number;
   onChange: (value: number) => void;
   disabled?: boolean;
+  /** The label is read and not shown: in a table, whose column heading says it (M9-S6). */
+  hideLabel?: boolean;
 }) {
   const id = useId();
   const whole = Number.isFinite(value) ? Math.floor(value) : min;
   return (
     <span className="stepper-field">
-      <label htmlFor={id}>{label}</label>
+      <label htmlFor={id} className={hideLabel ? 'visually-hidden' : undefined}>
+        {label}
+      </label>
       <span className="stepper">
         <button type="button" className="stepper__step" aria-label={`${label}: one fewer`} disabled={disabled || whole <= min} onClick={() => onChange(Math.max(min, whole - 1))}>
           −
@@ -212,4 +243,149 @@ export function useDismiss(open: boolean, close: () => void, within: RefObject<H
       globalThis.document.removeEventListener('keydown', key);
     };
   }, [open, close, within, trigger]);
+}
+
+/** Which way a column orders its table: A to Z, lowest first; or highest first. */
+export type Direction = 'ascending' | 'descending';
+
+/**
+ * A column's heading that orders its table by the column (M9-S6, the review's B4 and B8): marked
+ * `aria-sort` while the table is in its order. What the order is and what it does is the selector's.
+ */
+export function SortHeader({
+  label,
+  direction,
+  active,
+  onSort,
+  className,
+}: {
+  label: string;
+  direction: Direction;
+  active: boolean;
+  onSort: () => void;
+  className?: string;
+}) {
+  return (
+    <th scope="col" className={className} aria-sort={active ? direction : undefined}>
+      <button type="button" className={active ? 'sort is-active' : 'sort'} aria-label={`Order by ${label}`} onClick={onSort}>
+        <span>{label}</span>
+        <Icon name={direction === 'ascending' ? 'up' : 'down'} className="sort__mark" />
+      </button>
+    </th>
+  );
+}
+
+/**
+ * Rows of Regard, or of anything a band describes, with the neutral ones folded under their count
+ * ("3 neutral", the review's C8): what `neutral` marks is the selector's. `row` draws one row's
+ * content; the neutral are listed by name when opened.
+ */
+export function Folded<Row extends { neutral: boolean; name: string }>({
+  rows,
+  label,
+  row,
+  none = 'none',
+}: {
+  rows: readonly Row[];
+  /** What the list is, for assistive technology. */
+  label: string;
+  row: (each: Row) => ReactNode;
+  none?: string;
+}) {
+  if (rows.length === 0) return <p className="subtle">{none}</p>;
+  const shown = rows.filter((each) => !each.neutral);
+  const neutral = rows.filter((each) => each.neutral);
+  return (
+    <div className="folded">
+      {shown.length === 0 ? null : (
+        <ul className="regards" aria-label={label}>
+          {shown.map((each, index) => (
+            <li key={`${each.name}-${index}`}>{row(each)}</li>
+          ))}
+        </ul>
+      )}
+      {neutral.length === 0 ? null : (
+        <Disclosure summary={`${neutral.length} neutral`}>
+          <ul className="regards regards--neutral" aria-label={`${label}, neutral`}>
+            {neutral.map((each, index) => (
+              <li key={`${each.name}-${index}`}>{row(each)}</li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The one confirmation for an act that lets a Hero go, a Transfer out or an offer accepted (M9-S6,
+ * the review's E4), as the saves' delete asks: what it costs said first, then the act and "Keep
+ * them". The keyboard comes to it when it opens, so what it says is read.
+ */
+export function Confirm({
+  label,
+  children,
+  confirm,
+  confirmLabel,
+  keep = 'Keep them',
+  busy = false,
+  onConfirm,
+  onKeep,
+}: {
+  /** What is being confirmed, for assistive technology: `Transfer Finn Grimshaw?`. */
+  label: string;
+  children: ReactNode;
+  /** The act's button, shown. */
+  confirm: ReactNode;
+  /** The act's button, read, where the words shown leave out whom it is for. */
+  confirmLabel?: string;
+  keep?: string;
+  busy?: boolean;
+  onConfirm: () => void;
+  onKeep: () => void;
+}) {
+  const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    box.current?.scrollIntoView?.({ block: 'nearest' });
+    box.current?.focus({ preventScroll: true });
+  }, []);
+  return (
+    <div className="confirm" role="group" aria-label={label} tabIndex={-1} ref={box}>
+      <Icon name="alert" className="confirm__icon" />
+      <div className="confirm__body">
+        {children}
+        <div className="actions">
+          <button type="button" className="button--danger" aria-label={confirmLabel} disabled={busy} onClick={onConfirm}>
+            {confirm}
+          </button>
+          <button type="button" className="button--quiet" onClick={onKeep}>
+            {keep}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Where the keyboard goes when a page opened in place closes (M9-S6): back to what opened it, as the
+ * Party builder's rows do (M9-S4). `opened(id)` notes it; `closed()` returns to it once it is drawn.
+ */
+export function useReturn(): { opened: (id: string) => void; closed: () => void } {
+  const opener = useRef<string | null>(null);
+  const [back, setBack] = useState<{ id: string } | null>(null);
+  useEffect(() => {
+    if (back === null) return;
+    const target = globalThis.document.getElementById(back.id);
+    target?.scrollIntoView?.({ block: 'center' });
+    target?.focus({ preventScroll: true });
+  }, [back]);
+  return {
+    opened: (id) => {
+      opener.current = id;
+    },
+    closed: () => {
+      if (opener.current !== null) setBack({ id: opener.current });
+    },
+  };
 }

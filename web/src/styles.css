@@ -1492,10 +1492,6 @@ details > summary::-webkit-details-marker {
 }
 
 
-.hero-row p {
-  margin: 0;
-}
-
 /* Label and value pairs: small capitals over the value, as many to a row as fit. */
 .terms {
   display: grid;
@@ -2016,6 +2012,443 @@ ul.chips {
   }
 }
 
+/* ── The Roster, the Hall and the Rankings (M9-S6) ───────────────────────────────────────── */
+
+/* A label over what it names, in small capitals: gear held, a kind of Regard. */
+.caption {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* The Roster's Heroes: compact cards, as many to a row as fit. */
+.hero-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+}
+
+.hero-card {
+  padding: 0.5rem 0.9rem 0.7rem;
+}
+
+.hero-card__line {
+  margin: 0 0 0.35rem;
+  color: var(--ink-soft);
+}
+
+.hero-card__state {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin: 0;
+}
+
+.hero-card__state .chip {
+  white-space: normal;
+}
+
+/* A Hero's page: a line and chips for who they are, the Stats in four blocks, two by two when there is room. */
+.hero-page {
+  container: hero-page / inline-size;
+}
+
+.hero-page__head {
+  margin-bottom: 0.5rem;
+}
+
+.hero-page__head h3,
+.hero-page__head h4 {
+  margin-bottom: 0.1rem;
+}
+
+.hero-page__line {
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.hero-page__state .chip {
+  white-space: normal;
+}
+
+.hero-page__act {
+  margin: 0.75rem 0 1rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.hero-page__act .actions {
+  margin-bottom: 0;
+}
+
+.stat-blocks {
+  display: grid;
+  gap: 0.75rem 1.75rem;
+  margin: 0.25rem 0 0.75rem;
+}
+
+@container hero-page (min-width: 34rem) {
+  .stat-blocks {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+.stat-block caption {
+  caption-side: top;
+  text-align: left;
+  padding: 0.2rem 0;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--line-strong);
+}
+
+.stat-block th,
+.stat-block td {
+  padding: 0.2rem 0.5rem 0.2rem 0;
+  vertical-align: middle;
+}
+
+.stat-block__value {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.stat-block__outlook {
+  width: 1%;
+  padding-right: 0;
+  text-align: right;
+}
+
+/* What gear and the Guildmaster's Traits add to a Stat: the accent when it lifts it. */
+.lift {
+  margin-left: 0.35rem;
+  font-size: 0.8125rem;
+}
+
+.lift--up {
+  color: var(--accent);
+}
+
+.lift--down {
+  color: var(--bad);
+}
+
+/* Gear: each slot and what is in it, with its button. */
+.gear__slot {
+  flex: 0 0 5.5rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.rows li > .gear__slot {
+  flex: 0 0 5.5rem;
+}
+
+.gear__row.is-empty .gear__item {
+  color: var(--ink-soft);
+}
+
+/* Regard and Relationships: a name, what they are, and the bands as chips; the neutral folded. */
+.regards {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.regards li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.regards__name {
+  font-weight: 600;
+}
+
+.regards__detail {
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+}
+
+.regards__bands {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-left: auto;
+}
+
+.folded .disclosure {
+  margin: 0.25rem 0 0.5rem;
+}
+
+/* The confirmation an act that lets a Hero go asks for (the review's E4). */
+.confirm {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.9rem;
+  background: var(--surface);
+  border: 1px solid var(--bad);
+  border-left-width: 4px;
+  border-radius: var(--radius);
+}
+
+.confirm__icon {
+  width: 1.4rem;
+  height: 1.4rem;
+  color: var(--bad);
+}
+
+.confirm__body p {
+  margin: 0 0 0.5rem;
+}
+
+.confirm .actions {
+  margin: 0.25rem 0 0;
+}
+
+/* Tables whose headings order them, and rows with their buttons. */
+.table th,
+.table td {
+  vertical-align: middle;
+  padding-block: 0.3rem;
+}
+
+.table .number {
+  white-space: nowrap;
+}
+
+.sort {
+  min-width: var(--tap);
+  padding: 0;
+  gap: 0.25rem;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  justify-content: flex-start;
+}
+
+th.number .sort {
+  justify-content: flex-end;
+}
+
+.sort:hover:not(:disabled) {
+  background: none;
+  color: var(--accent);
+}
+
+.sort__mark {
+  width: 0.9rem;
+  height: 0.9rem;
+  opacity: 0.35;
+}
+
+.sort.is-active {
+  color: var(--accent);
+}
+
+.sort.is-active .sort__mark {
+  opacity: 1;
+}
+
+/* A wide table keeps its first column in view as it scrolls in its box. */
+.table--first-sticky thead th:first-child,
+.table--first-sticky tbody th[scope='row'] {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: var(--paper);
+}
+
+.table--first-sticky tbody th[scope='row'] {
+  min-width: 9rem;
+}
+
+/* A pool Hero who will not sign for the Guild now: set back, the reason in words. */
+.pool-table tr.is-set-back th,
+.pool-table tr.is-set-back td {
+  background: var(--sunk);
+  color: var(--ink-soft);
+}
+
+/* The Hall's facilities: one row each, its grade as pips; four columns when there is room. */
+.facilities {
+  container: facilities / inline-size;
+  margin-bottom: 0.5rem;
+}
+
+.upkeep {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.upkeep strong {
+  color: var(--brass);
+}
+
+.facility-rows {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border-top: 1px solid var(--line);
+}
+
+.facility {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name grade'
+    'does does'
+    'next next';
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+  padding: 0.55rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+@container facilities (min-width: 46rem) {
+  .facility {
+    grid-template-columns: 8.5rem 12rem minmax(0, 1fr) auto;
+    grid-template-areas: 'name grade does next';
+  }
+}
+
+.facility__name {
+  grid-area: name;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.facility__grade {
+  grid-area: grade;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 0.5rem;
+}
+
+.pips {
+  color: var(--brass);
+  font-size: 1.0625rem;
+  letter-spacing: 0.12em;
+}
+
+.facility__does {
+  grid-area: does;
+  color: var(--ink-soft);
+}
+
+.facility__next {
+  grid-area: next;
+}
+
+/* The Market's chips, which show one kind at a time. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.5rem 0 0.75rem;
+}
+
+.filter {
+  border-radius: 999px;
+  padding-inline: 0.9rem;
+  font-size: 0.875rem;
+}
+
+.filter__count {
+  font-weight: 500;
+}
+
+/* The Guildmaster: Stats beside Traits and Regard when there is room. */
+.guildmaster {
+  container: guildmaster / inline-size;
+}
+
+.guildmaster .terms > div:nth-child(n + 3) {
+  grid-column: 1 / -1;
+}
+
+.guildmaster__grid {
+  display: grid;
+  gap: 0 2rem;
+}
+
+@container guildmaster (min-width: 46rem) {
+  .guildmaster__grid {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  }
+}
+
+.traits {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0.75rem;
+}
+
+.traits li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  padding: 0.2rem 0;
+}
+
+/* The Guilds and the Rankings in one table; a folded Guild set back at its foot. */
+.guilds-table th[scope='row'] {
+  min-width: 10rem;
+}
+
+.guilds-table__place {
+  white-space: nowrap;
+}
+
+.guilds-table__folded {
+  border-top: 2px solid var(--line-strong);
+}
+
+tr.is-folded th,
+tr.is-folded td {
+  color: var(--ink-soft);
+}
+
+.guild-page__line {
+  margin: 0 0 0.25rem;
+  color: var(--ink-soft);
+}
+
+.guild-page .disclosure {
+  margin-top: 1rem;
+}
+
+/* The Patrons neutral both ways, folded under their count. */
+.fold-row td {
+  padding-block: 0.15rem;
+}
+
+.fold-button[aria-expanded='true'] .fold-button__mark {
+  transform: rotate(180deg);
+}
+
 /* ── Tables, rows and lines ─────────────────────────────────────────────────────────────── */
 
 /* A table wider than the column scrolls inside this box, never the page. */
@@ -2132,10 +2565,6 @@ tr.mine td {
 .lines .is-new {
   border-left: 3px solid var(--accent);
   padding-left: 0.6rem;
-}
-
-.upkeep {
-  margin-top: var(--gap);
 }
 
 .quest-name {
@@ -2273,18 +2702,9 @@ tr.mine td {
 
 /* ── Trades and saves ───────────────────────────────────────────────────────────────────── */
 
-.trade p {
-  margin-bottom: 0.25rem;
-}
-
 .trade__name {
   font-family: var(--serif);
   font-size: 1.0625rem;
-}
-
-.trade .actions {
-  justify-content: space-between;
-  margin: 0.5rem 0 0;
 }
 
 .saved {

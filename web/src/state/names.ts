@@ -18,11 +18,6 @@ export function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
-/** A list joined with commas, or `none`. */
-export function none(list: readonly string[]): string {
-  return list.length === 0 ? 'none' : list.join(', ');
-}
-
 /** `the night of Day 7`. */
 export function nightOf(turn: number): string {
   return `the night of Day ${dayOf(turn)}`;
@@ -44,6 +39,14 @@ export function placeWords({ place, joint }: { place: number; joint: boolean }):
 export function controllerWords(guild: Pick<Guild, 'controller'>): string {
   return guild.controller.kind === 'player' ? 'Yours' : `Rival (${guild.controller.disposition})`;
 }
+
+/**
+ * What a Transfer out costs the Guild that lets a Hero go, in the words the page has always given
+ * the rule (DL-73): what a confirmation states beside the fee before the player lets one go (M9-S6,
+ * the review's E4). The rule is the engine's (`makeTransfer`): gear returns to the Guild, and each
+ * Hero who stays and holds the Hero in `transferRegardBand` or above loses `transferMoraleCost`.
+ */
+export const transferCostWords = 'Their gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale.';
 
 /** `+2`, `-1`, `0`. */
 export function signed(n: number): string {

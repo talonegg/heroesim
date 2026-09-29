@@ -34,42 +34,56 @@ function render_(state: GameState): void {
   render(<App initial={state} />);
 }
 
+/** A table's row by what its row heading names: an Item, a Hero (M9-S6's tables). */
+function rowOf(scope: HTMLElement, name: string): HTMLElement {
+  const row = within(scope).getByRole('rowheader', { name }).closest('tr');
+  if (row === null) throw new Error(`no row for ${name}`);
+  return row;
+}
+
+/** A row's cells after its heading, their words. */
+function cells(row: HTMLElement): string[] {
+  return within(row)
+    .getAllByRole('cell')
+    .map((cell) => cell.textContent ?? '');
+}
+
 describe('the Market', () => {
   test('buys what it has for sale at its price, and the Guild then holds it', async () => {
     render_(started());
-    const market = section('Market');
-    const jack = within(market).getByRole('form', { name: 'Buy Padded jack' });
-    const price = Number(/at (\d+) Wealth each/.exec(jack.textContent ?? '')?.[1]);
+    const jack = rowOf(section('Market'), 'Padded jack');
+    // Kind, Effect, Price, Stock (M9-S6's table).
+    const price = Number(cells(jack)[2]);
     const before = wealth();
 
-    fireEvent.change(within(jack).getByLabelText('How many'), { target: { value: '2' } });
-    fireEvent.click(within(jack).getByRole('button', { name: 'Buy' }));
+    fireEvent.change(within(jack).getByLabelText('How many Padded jack'), { target: { value: '2' } });
+    fireEvent.click(within(jack).getByRole('button', { name: 'Buy Padded jack' }));
     await idle();
 
     expect(wealth()).toBe(before - 2 * price);
-    expect(within(section('Market')).getByRole('form', { name: 'Sell Padded jack' }).textContent).toMatch(/^Padded jack: 2 held; each sells for \d+ Wealth\./);
+    // Kind, Effect, Held, Sells for.
+    expect(cells(rowOf(section('What the Guild holds'), 'Padded jack')).slice(0, 3)).toEqual(['armour gear', 'Constitution +1', '2']);
     logSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {
     render_(holding(started(), 'whetstone', 3));
-    const sale = within(section('Market')).getByRole('form', { name: 'Sell Whetstone' });
-    const each = Number(/each sells for (\d+) Wealth/.exec(sale.textContent ?? '')?.[1]);
+    const sale = rowOf(section('What the Guild holds'), 'Whetstone');
+    const each = Number(cells(sale)[3]);
     const before = wealth();
 
-    fireEvent.change(within(sale).getByLabelText('How many'), { target: { value: '2' } });
-    fireEvent.click(within(sale).getByRole('button', { name: 'Sell' }));
+    fireEvent.change(within(sale).getByLabelText('How many Whetstone'), { target: { value: '2' } });
+    fireEvent.click(within(sale).getByRole('button', { name: 'Sell Whetstone' }));
     await idle();
 
     expect(wealth()).toBe(before + 2 * each);
-    expect(within(section('Market')).getByRole('form', { name: 'Sell Whetstone' }).textContent).toMatch(/^Whetstone: 1 held;/);
+    expect(cells(rowOf(section('What the Guild holds'), 'Whetstone'))[2]).toBe('1');
   });
 
   test("says why a purchase is refused, in the engine's terms", async () => {
     render_(withWealth(started(), 10));
-    const plate = within(section('Market')).getByRole('form', { name: 'Buy Plate harness' });
 
-    fireEvent.click(within(plate).getByRole('button', { name: 'Buy' }));
+    fireEvent.click(within(rowOf(section('Market'), 'Plate harness')).getByRole('button', { name: 'Buy Plate harness' }));
     await idle();
 
     expect(refusal()).toMatch(/^That costs \d+ Wealth; The Lantern has 10\./);
@@ -80,24 +94,28 @@ describe('the Market', () => {
 describe('the Hall', () => {
   test("builds a facility's next grade for its cost, and then offers the one after", async () => {
     render_(started());
-    const hall = section('Hall');
-    const build = within(hall).getByRole('button', { name: 'Build Sickroom' });
-    expect(within(hall).getByText('Next grade: Sickroom, 200 Wealth.')).toBeDefined();
+    const infirmary = (): HTMLElement =>
+      within(section('Hall'))
+        .getAllByTestId('facility')
+        .find((row) => row.textContent?.startsWith('Infirmary') === true) as HTMLElement;
+    const build = within(infirmary()).getByRole('button', { name: 'Build Sickroom for 200 Wealth' });
+    // The cost on the button (M9-S6, the review's B9).
+    expect(build.textContent).toBe('Build Sickroom · 200');
     const before = wealth();
 
     fireEvent.click(build);
     await idle();
 
     expect(wealth()).toBe(before - 200);
-    expect(within(section('Hall')).getByRole('heading', { name: 'Infirmary: grade 1' })).toBeDefined();
-    expect(within(section('Hall')).getByRole('button', { name: 'Build Infirmary ward' })).toBeDefined();
+    expect(within(infirmary()).getByRole('img', { name: 'Grade 1 of 3' })).toBeDefined();
+    expect(within(infirmary()).getByRole('button', { name: 'Build Infirmary ward for 500 Wealth' })).toBeDefined();
     logSays(/^The Lantern built Sickroom for 200 Wealth: its infirmary is now grade 1\.$/);
   });
 
   test('says why a grade cannot be built', async () => {
     render_(withWealth(started(), 50));
 
-    fireEvent.click(within(section('Hall')).getByRole('button', { name: 'Build Dormitory' }));
+    fireEvent.click(within(section('Hall')).getByRole('button', { name: 'Build Dormitory for 200 Wealth' }));
     await idle();
 
     expect(refusal()).toBe("The next grade of The Lantern's quarters costs 200 Wealth; The Lantern has 50.");
@@ -108,14 +126,14 @@ describe('the Unattached pool', () => {
   test('recruits a Hero for the signing fee shown, onto the Roster', async () => {
     render_(started());
     const pool = section('Unattached pool');
-    const [card] = within(pool).getAllByRole('listitem');
-    if (card === undefined) throw new Error('an empty pool');
-    const name = within(card).getByRole('button', { name: /^(?!Recruit)/ }).textContent ?? '';
-    const fee = Number(/Signing fee (\d+) Wealth/.exec(card.textContent ?? '')?.[1]);
+    const [row] = within(pool).getAllByTestId('pool-row');
+    if (row === undefined) throw new Error('an empty pool');
+    const name = within(row).getByRole('rowheader').textContent ?? '';
+    const fee = Number(within(row).getByTestId('fee').textContent);
     const heroes = within(rosterList()).getAllByRole('button').length;
     const before = wealth();
 
-    fireEvent.click(within(card).getByRole('button', { name: `Recruit ${name}` }));
+    fireEvent.click(within(row).getByRole('button', { name: `Recruit ${name}` }));
     await idle();
 
     expect(wealth()).toBe(before - fee);
@@ -156,12 +174,18 @@ describe("a Hero's page on the player's Roster", () => {
   test('equips gear the Guild holds, and unequips it', async () => {
     render_(holding(started(), 'arming-sword', 1));
     const { name, page } = openFirstHero();
-    expect(within(page()).getByText('Weapon: none')).toBeDefined();
+    /** The Hero's weapon slot, as their gear lists it (M9-S6). */
+    const weapon = (): HTMLElement =>
+      within(within(page()).getByRole('list', { name: `${name}'s gear` }))
+        .getAllByRole('listitem')
+        .find((item) => item.textContent?.startsWith('Weapon') === true) as HTMLElement;
+    expect(within(weapon()).getByText('none')).toBeDefined();
 
     fireEvent.click(within(page()).getByRole('button', { name: 'Equip Arming sword' }));
     await idle();
 
-    expect(within(page()).getByText('Weapon: Arming sword (Weaponry +2, Strength +1)')).toBeDefined();
+    expect(within(weapon()).getByText('Arming sword')).toBeDefined();
+    expect(within(weapon()).getByText('Weaponry +2, Strength +1')).toBeDefined();
     expect(within(page()).getByText('The Guild holds no gear; the Market sells it.')).toBeDefined();
     // Read beside the page, in the History rail, as the page stays open (M9-S3).
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
@@ -170,20 +194,29 @@ describe("a Hero's page on the player's Roster", () => {
     fireEvent.click(within(page()).getByRole('button', { name: 'Unequip Arming sword' }));
     await idle();
 
-    expect(within(page()).getByText('Weapon: none')).toBeDefined();
+    expect(within(weapon()).getByText('none')).toBeDefined();
     expect(within(page()).getByRole('button', { name: 'Equip Arming sword' })).toBeDefined();
     logSays(new RegExp(`^The Lantern took Arming sword from ${name}'s weapon slot\\.$`));
   });
 
-  test('transfers the Hero to the Guild chosen, for the fee it would pay', async () => {
+  test('transfers the Hero to the Guild chosen, for the fee it would pay, once asked and confirmed', async () => {
     render_(withRichRivals(started()));
     const { name, page } = openFirstHero();
-    const select = within(page()).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
+    // "Transfer…" asks first, stating the fee and what it costs (M9-S6, the review's E4).
+    fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
+    const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
+    const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
     const option = select.options[0];
     const [, guildName, fee] = /^(.+), for (\d+) Wealth$/.exec(option?.textContent ?? '') ?? [];
+    expect(
+      within(ask).getByText(
+        `${guildName} would pay ${fee} Wealth for ${name}, if it is willing to take them. Their gear stays with your Guild, and the ` +
+          'Heroes left behind who held them in high Regard lose Morale.',
+      ),
+    ).toBeDefined();
     const before = wealth();
 
-    fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name} to ${guildName}` }));
+    fireEvent.click(within(ask).getByRole('button', { name: `Transfer ${name} to ${guildName}` }));
     await idle();
 
     expect(wealth()).toBe(before + Number(fee));
@@ -196,6 +229,7 @@ describe("a Hero's page on the player's Roster", () => {
     render_(started());
     const { name, page } = openFirstHero();
 
+    fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name}…` }));
     fireEvent.click(within(page()).getByRole('button', { name: `Transfer ${name} to The Ashford Guild` }));
     await idle();
 
@@ -208,13 +242,13 @@ describe("another Guild's Roster", () => {
     render_(started());
     fireEvent.click(within(section('Guilds')).getByRole('button', { name: 'Open The Ashford Guild' }));
     const page = within(section('Guilds')).getByRole('article');
-    const [card] = within(page).getAllByRole('listitem');
-    if (card === undefined) throw new Error('an empty Roster');
-    const name = within(card).getAllByRole('button')[0]?.textContent ?? '';
-    const fee = Number(/Transfer fee (\d+) Wealth/.exec(card.textContent ?? '')?.[1]);
+    const [row] = within(page).getAllByTestId('guild-hero');
+    if (row === undefined) throw new Error('an empty Roster');
+    const name = within(row).getByRole('rowheader').textContent ?? '';
+    const fee = Number(within(row).getByTestId('fee').textContent);
     const before = wealth();
 
-    fireEvent.click(within(card).getByRole('button', { name: `Take ${name} in` }));
+    fireEvent.click(within(row).getByRole('button', { name: `Take ${name} in` }));
     await idle();
 
     expect(wealth()).toBe(before - fee);
@@ -253,14 +287,18 @@ describe('Transfer Offers', () => {
     expect(navButton('Roster').textContent).toBe('Roster, a Transfer Offer waits');
   });
 
-  test('accepts an offer: the Hero goes to the Guild that made it, for its fee', async () => {
+  test('accepts an offer, once asked and confirmed: the Hero goes to the Guild that made it, for its fee', async () => {
     render_(withOffer(started()));
     const offers = section('Transfer Offers');
     const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/).textContent ?? '';
     const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
+    // Accept asks first, stating the fee and what letting the Hero go costs (M9-S6, the review's E4).
+    fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s offer for ${name}…` }));
+    const ask = within(offers).getByRole('group', { name: `Accept ${guildName}'s offer for ${name}?` });
+    expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${fee} Wealth\\. Their gear stays with your Guild`))).toBeDefined();
     const before = wealth();
 
-    fireEvent.click(within(offers).getByRole('button', { name: 'Accept' }));
+    fireEvent.click(within(ask).getByRole('button', { name: `Accept ${guildName}'s offer for ${name}` }));
     await idle();
 
     expect(wealth()).toBe(before + Number(fee));
@@ -274,7 +312,7 @@ describe('Transfer Offers', () => {
     const offers = section('Transfer Offers');
     const [, guildName = '', name = ''] = /^(.+) offers \d+ Wealth for (.+), until/.exec(within(offers).getAllByRole('listitem')[0]?.textContent ?? '') ?? [];
 
-    fireEvent.click(within(offers).getByRole('button', { name: 'Decline' }));
+    fireEvent.click(within(offers).getByRole('button', { name: `Decline ${guildName}'s offer for ${name}` }));
     await idle();
 
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
