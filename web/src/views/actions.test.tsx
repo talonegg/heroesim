@@ -3,7 +3,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { inHistory, navButton, rosterList, section } from './page.test-support';
+import { historyLines, inHistory, navButton, openDebugHistory, rosterList, section, sentenceOf } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (M7-S3 part 2, DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
@@ -29,6 +29,16 @@ function refusal(): string {
 /** The History, opened on the player's Guild, has the play's line, marked new (M9-S5, DL-105). */
 function logSays(pattern: RegExp): void {
   expect(inHistory(pattern).classList.contains('is-new')).toBe(true);
+}
+
+/**
+ * A purchase or a sale is not in the player's Guild's History (M9-F4, DL-111 item 4): its line is
+ * read, new, in the whole History, the game menu's debug view.
+ */
+function debugSays(pattern: RegExp): void {
+  expect(historyLines(section('History')).some((line) => pattern.test(sentenceOf(line)))).toBe(false);
+  openDebugHistory();
+  logSays(pattern);
 }
 
 function render_(state: GameState): void {
@@ -64,7 +74,7 @@ describe('the Market', () => {
     expect(wealth()).toBe(before - 2 * price);
     // Kind, Effect, Held, Sells for.
     expect(cells(rowOf(section('Sell'), 'Padded jack')).slice(0, 3)).toEqual(['armour gear', 'Constitution +1', '2']);
-    logSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
+    debugSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {
@@ -99,7 +109,7 @@ describe('the Market', () => {
     expect(wealth()).toBe(before + each);
     // The Guild holds nothing now: Sell says so, with no table (M9-F2).
     expect(within(section('Sell')).queryByRole('table')).toBeNull();
-    logSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
+    debugSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
   });
 
   test("says why a purchase is refused, in the engine's terms", async () => {

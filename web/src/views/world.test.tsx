@@ -184,8 +184,8 @@ describe('new rules', () => {
     await idle();
 
     expect(screen.queryByRole('region', { name: 'New rules available' })).toBeNull();
-    // The whole History holds it, new: it names no Guild.
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The whole History' }));
+    // The World History holds it, new: it names no Guild (M9-F4).
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
     expect(inHistory(`The rules moved from configVersion ${from} to ${to}.`).classList.contains('is-new')).toBe(true);
   });
 
@@ -292,7 +292,7 @@ describe('the game as a file', () => {
         .find((button) => button.className === 'link') as HTMLElement;
 
     // What the shell keeps from view to view: whose History, and the Quest whose Party is open.
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The whole History' }));
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
     const [quest] = within(section('Board')).getAllByRole('article');
     fireEvent.click(within(quest as HTMLElement).getByRole('button', { name: 'Choose a Party' }));
     // And what a view keeps while it is open: a Rival's page, a pool Hero's page and a Hero's page.
@@ -302,7 +302,7 @@ describe('the game as a file', () => {
     expect(within(section('Unattached pool')).queryByRole('article')).not.toBeNull();
     fireEvent.click(heroOpener('Roster'));
     expect(within(section('Roster')).queryByRole('article')).not.toBeNull();
-    expect(within(section('History')).getByRole('heading', { level: 3, name: 'The whole History' })).toBeDefined();
+    expect(within(section('History')).getByRole('heading', { level: 3, name: 'The World History' })).toBeDefined();
     expect(within(section('Board')).queryByRole('form')).not.toBeNull();
 
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {

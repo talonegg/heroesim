@@ -3,6 +3,11 @@
 // one, and the reference facts that left the header and the footer: the seed the world was made
 // from and the content set's version. A dialog over the page: the keyboard starts on its heading,
 // stays inside it, and Escape or Close put it away and return to the button that opened it.
+//
+// Last, the debug view (M9-F4, DL-117): "Debug: the whole History" opens the History view on every
+// entry, unfiltered and unfolded, with its event type. It is not a choice of the History's own
+// (DL-111 item 4), and it sits at the menu's end, after what concerns the game, since it is for
+// reading how the engine played rather than for playing.
 
 import type { Module, WorldDocument } from '@heroesim/engine';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
@@ -37,6 +42,7 @@ export function GameMenu({
   modules,
   onClose,
   onNewGame,
+  onDebugHistory,
 }: {
   document: WorldDocument;
   state: GameState;
@@ -47,6 +53,8 @@ export function GameMenu({
   modules: readonly Module[];
   onClose: () => void;
   onNewGame: () => void;
+  /** Opens the whole History, the debug view, in the History view. */
+  onDebugHistory: () => void;
 }) {
   const dialog = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -112,6 +120,12 @@ export function GameMenu({
         </dl>
         {notice === null ? null : <RulesNotice notice={notice} busy={busy} play={play} />}
         <GameFile document={document} state={state} saves={saves} busy={busy} play={play} onNewGame={onNewGame} />
+        <div className="actions dialog__debug">
+          <button type="button" className="button--quiet" onClick={onDebugHistory}>
+            <Icon name="history" />
+            <span>Debug: the whole History</span>
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -3,13 +3,12 @@
 // and returns plain rows of words and numbers, as `selectors.ts` does.
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every number is a document field, an
-// engine selector's answer (`offersTo` through `offersView`, `entriesFor`), or read from
+// engine selector's answer (`offersTo` through `offersView`), the History as `history.ts` shows it, or read from
 // the last play's events. "New since the last action" is exactly those events: the engine appends
 // each event of a play to the History as it is, neither copied nor frozen (`append`, ADR-0008), so
 // an entry is new when it is one of `log`'s.
 
 import {
-  entriesFor,
   playerGuild,
   type EngineEventOf,
   type HeroId,
@@ -20,7 +19,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { pageOfEntry } from './history';
+import { historyEntries, historyFilter, pageOfEntry } from './history';
 import { nameIn, nightOf, rowOf } from './names';
 import { listed, narrationFor, questNamer } from './narrate';
 import type { GameState } from './reducer';
@@ -33,14 +32,20 @@ export interface NavCounts {
   quests: number;
   /** The Transfer Offers waiting for an answer: the Roster's dot. */
   offers: number;
-  /** The entries naming the player's Guild that the last play appended: the History's count. */
+  /** The entries of the player's Guild's History that the last play appended: the History's count. */
   fresh: number;
 }
 
-/** The last play's events that name the player's Guild (a Hero's Guild is named with the Hero, `emit`). */
+/**
+ * The last play's events that name the player's Guild (a Hero's Guild is named with the Hero, `emit`)
+ * and that its History shows (M9-F4, `historyFilter`): what the History and the rail mark new.
+ */
 function freshFor(state: Pick<GameState, 'document' | 'log'>): TurnEvent[] {
-  const guild = state.document === null ? undefined : playerGuild(state.document.world);
-  return guild === undefined ? [] : state.log.filter((event) => event.participants.includes(guild.id));
+  const { document } = state;
+  const guild = document === null ? undefined : playerGuild(document.world);
+  if (document === null || guild === undefined) return [];
+  const shows = historyFilter(document, guild.id);
+  return state.log.filter((event) => event.participants.includes(guild.id) && shows(event));
 }
 
 /** The counts on the navigation: none before a game. */
@@ -204,15 +209,16 @@ export interface RailView {
 
 /**
  * The History rail beside a view on a wide screen (M9-S3, DL-103): the player's Guild's latest
- * `limit` entries, newest first, as its History gives them (`entriesFor`), each marked new when the
- * last play appended it. It keeps to the player's Guild, where the History opens (DL-99 item 2).
+ * `limit` entries, newest first, as its History shows them (`historyEntries`, with what M9-F4's
+ * filter leaves out left out), each marked new when the last play appended it. It keeps to the
+ * player's Guild, where the History opens (DL-99 item 2).
  */
 export function railView(state: Pick<GameState, 'document' | 'log'>, limit = railLength): RailView | null {
   const { document } = state;
   const guild = document === null ? undefined : playerGuild(document.world);
   if (document === null || guild === undefined) return null;
   const fresh = new Set<object>(freshFor(state));
-  const entries = entriesFor(document.history, guild.id, { limit });
+  const entries = historyEntries(document, guild.id, limit);
   const lines = linesOf(entries, narrationFor(document, content));
   return {
     guildName: guild.name,

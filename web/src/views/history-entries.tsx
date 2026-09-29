@@ -76,6 +76,8 @@ export function HistoryPage({ view, level, onPage, heading }: { view: HistoryVie
     onPage(page);
   };
   const { page, pages, entries, fresh } = view;
+  // The debug view says each entry's event type (M9-F4).
+  const types = view.scope === 'whole';
   return (
     <>
       <div className="history__top" ref={top} tabIndex={-1}>
@@ -85,7 +87,7 @@ export function HistoryPage({ view, level, onPage, heading }: { view: HistoryVie
           {fresh === 0 ? '' : ` ${fresh} new since your last action.`}
         </p>
       </div>
-      {view.groups.length === 0 ? <p className="subtle">Nothing yet.</p> : view.groups.map((group) => <Group key={group.key} group={group} level={level} />)}
+      {view.groups.length === 0 ? <p className="subtle">Nothing yet.</p> : view.groups.map((group) => <Group key={group.key} group={group} level={level} types={types} />)}
       {pages <= 1 ? null : (
         <div className="actions actions--pages">
           <button type="button" disabled={page === 0} onClick={() => go(0)}>
@@ -115,8 +117,8 @@ export function EntityHistory({ document, whose, level }: { document: WorldDocum
   return <HistoryPage view={view} level={level} onPage={setPage} />;
 }
 
-/** One Turn's entries, under its Day and time of day. */
-function Group({ group, level }: { group: HistoryGroup; level: GroupLevel }) {
+/** One Turn's entries, under its Day and time of day; with `types`, each with its event type. */
+function Group({ group, level, types }: { group: HistoryGroup; level: GroupLevel; types: boolean }) {
   const id = useId();
   return (
     <div className="history-group">
@@ -128,7 +130,7 @@ function Group({ group, level }: { group: HistoryGroup; level: GroupLevel }) {
       </Heading>
       <ol className="entries" aria-labelledby={id}>
         {group.rows.map((row) => (
-          <Row key={row.key} row={row} />
+          <Row key={row.key} row={row} types={types} />
         ))}
       </ol>
     </div>
@@ -139,7 +141,7 @@ function classes(...names: (string | false)[]): string {
   return names.filter((name) => name !== false).join(' ');
 }
 
-function Row({ row }: { row: HistoryRow }) {
+function Row({ row, types }: { row: HistoryRow; types: boolean }) {
   if (row.kind === 'routine') {
     return (
       <li className={classes('entry', 'entry--rival', 'entry--routine', row.fresh && 'is-new')}>
@@ -160,14 +162,14 @@ function Row({ row }: { row: HistoryRow }) {
       tabIndex={line.anchor === null ? undefined : -1}
       className={classes('entry', `entry--${line.side}`, line.fresh && 'is-new', line.milestone && 'is-milestone')}
     >
-      <Line line={line} />
+      <Line line={line} types={types} />
       {steps.length === 0 ? null : <Fold label={stepsWords} lines={steps} />}
     </li>
   );
 }
 
-/** A line's marks, then its words: new, how a Quest went, a Milestone. */
-function Line({ line }: { line: HistoryLine }) {
+/** A line's marks, then its words: new, how a Quest went, a Milestone; with `types`, its event type after them. */
+function Line({ line, types = false }: { line: HistoryLine; types?: boolean }) {
   return (
     <div className="entry__line">
       {line.fresh ? <span className="new-tag">New</span> : null}
@@ -185,6 +187,7 @@ function Line({ line }: { line: HistoryLine }) {
       <span className="entry__text">
         <Names segments={line.segments} />
       </span>
+      {types ? <code className="entry__type">{line.type}</code> : null}
     </div>
   );
 }

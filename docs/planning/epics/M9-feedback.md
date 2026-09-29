@@ -325,19 +325,33 @@ M9-F5.
 
 **Acceptance:**
 
-- [ ] The player's Guild's and a Rival's History leave out exactly the types named. A Hero's, a
-      Patron's, a Quest's and a Guildmaster's leave out nothing.
-- [ ] No page is ever empty, and the count and "New" count what is shown —
-      `state/history.test.ts`.
-- [ ] The rail leaves out the same types — `state/digest.test.ts`, `views/rail.test.tsx`.
-- [ ] "The world" takes exactly its events, for every Guild. A test game includes a fold, a
+- [x] The player's Guild's and a Rival's History leave out exactly the types named. A Hero's, a
+      Patron's, a Quest's and a Guildmaster's leave out nothing — `state/history.test.ts` ("the Guilds'
+      filters", five tests: every Rival's too, over a game with a purchase, a sale and a Party home);
+      `views/history.test.tsx` ("your Guild's History leaves out the Heroes' XP and Morale…"). A Quest's
+      History has no page yet: its filter keeps everything (DL-117 item 2).
+- [x] No page is ever empty, and the count and "New" count what is shown —
+      `state/history.test.ts` ('no page is empty, and every page but the last holds a full page, in the
+      filtered Histories', 'the count of new counts only what the filter leaves…', and the pages' count
+      tests, now over a Rival's History).
+- [x] The rail leaves out the same types — `state/digest.test.ts` ('counts a Party home as its History
+      does…', 'leaves out what the Guild's History leaves out…'), `views/rail.test.tsx` (two tests).
+- [x] "The world" takes exactly its events, for every Guild. A test game includes a fold, a
       Succession made to happen, a Quest taken and resolved by a Rival, and a Patron's band
-      change — `state/history.test.ts`, `views/history.test.tsx`.
-- [ ] "The whole History" is not among the choices.
-- [ ] The game menu's debug view shows every entry with its type, and folds nothing —
-      `views/history.test.tsx`, `views/game-menu.test.tsx`.
-- [ ] The World History's entries in a year of a sweep game are counted and recorded in the DL.
-- [ ] DL-117 records the choices.
+      change — `state/history.test.ts` ("the World History", five tests, over `withWorldNews`, the
+      Retirement age read from the game's rules), `views/history.test.tsx` ('the world: every Guild's
+      news, grouped by Day and time of day, with no folds'); `e2e/layout.spec.ts` (the World History at
+      each width).
+- [x] "The whole History" is not among the choices — `state/history.test.ts` ('is not among the
+      choices; the world is…'), `views/history.test.tsx` ('the choices are your Guild, the world and each
+      Rival…').
+- [x] The game menu's debug view shows every entry with its type, and folds nothing —
+      `views/history.test.tsx` ('the game menu opens the whole History…', 'a choice leaves the debug
+      view…'), `views/game-menu.test.tsx` (two tests), `state/history.test.ts` ('shows every entry,
+      unfolded, each line with its event type'); `e2e/modules.spec.ts`, `e2e/layout.spec.ts`.
+- [x] The World History's entries in a year of a sweep game are counted and recorded in the DL: 2,233
+      to 2,677 a year over ten seeds of the harness's policy, about 20% of the History (DL-117 item 8).
+- [x] DL-117 records the choices.
 
 ### M9-F5 · A Quest's return: one entry, and its report on Guild › Home · 2–2.5 sessions · opus
 

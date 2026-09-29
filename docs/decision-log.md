@@ -11764,6 +11764,118 @@ so every web test that touches an age reads it from the configuration and holds 
 `web/src/app.tsx`, `web/src/styles.css`, `web/src/state/` (`selectors.ts`, `setup.ts`,
 `world-views.ts`), `web/e2e/`; `docs/planning/epics/M9-feedback.md`.
 
+## DL-117 — M9-F4 built: the History's scopes, the player's Guild's and a Rival's History filtered, the rail with them, a World History beside them, and the whole History as the game menu's debug view
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-F4's implementer. What the
+History leaves out and what the World History takes are the owner's (DL-111 item 4, DL-113 item 1), on
+the agent's reading (DL-112 item 7). The choices below that the epic left open are the implementer's,
+and each is marked. The debug view's place in the game menu was left to this entry by the orchestrator.
+
+**Context.** M9-F4 builds DL-112 item 7 as DL-113 item 1 confirms it: the Guilds' filters, the World
+History and the debug view. It was built beside M9-F1 (DL-114), which adds an optional `questId` to some
+events and changes the Guildmasters' ages, and before M9-F5 (DL-118), which reads a return in the
+Guild's History and so builds on `web/src/state/history.ts`. This branch has neither: every test reads
+the retirement age from the game's rules, and no filter reads a `questId`.
+
+**Decision.**
+
+1. **Each History is a scope** (`HistoryScope`: `mine`, `rival`, `world`, `whole`, `entity`), read in
+   `web/src/state/history.ts` through named pieces that M9-F5 can build on (the implementer's shape):
+   - `leftOutOfYourGuild`: `hero.xp-gained`, `hero.morale-changed`, `patron.regard-changed`,
+     `guildmaster.regard-changed`, `hero.regard-changed`, `guild.upkeep-paid`, `item.bought` and
+     `item.sold` (DL-111 item 4).
+   - `leftOutOfARival`: `guild.upkeep-paid`, `item.bought` and `item.sold`.
+   - `inTheWorldHistory`, keyed by every engine event type, so that `tsc -b` refuses a type the engine
+     adds until it is decided, as `routineKinds` is; and `isWorldNews`.
+   - `historyFilter(document, target)`: whether an entry is shown in a History; `historyEntries`: an
+     entity's newest entries as its History shows them, which the rail reads.
+   - `HistoryView.scope` says which History a page is, and `HistoryLine.type` gives each entry's event
+     type.
+2. **Which Guild filter applies** (the implementer's). A Guild's History takes its filter from its
+   controller: the player's Guild's, reached by `null` or by its id, leaves out the owner's eight types;
+   every other Guild's, a folded Rival's included, the three. A Hero's, a Guildmaster's, a Patron's and a
+   Quest's leave out nothing. A Quest's History has no page of its own yet; its filter keeps everything,
+   which a test holds for M9-F5. A module's event is left out of no Guild's History: the lists name the
+   core's types only.
+3. **What reads the filtered History** (as the epic says). Paging, the fold of a Party's steps under its
+   outcome, the fold of a Rival's routine, the count of entries and "New" all read what the scope shows,
+   so no page is empty and the count is what is shown. The rail (`railView`) and the navigation's count
+   (`navCounts`, and so the phone's More dot) use the player's Guild's filter: a purchase alone is not
+   new anywhere.
+4. **The World History** (DL-112 item 7, DL-113 item 1).
+   - It takes `world.created`, `world.rules-adopted`, `guild.founded`, `guild.folded`,
+     `guildmaster.succeeded`, `game.ended`, `quest.taken`, `quest.resolved` and
+     `patron.regard-changed`, for every Guild. It leaves out `guild.below-floor`, and every module's
+     event until M10 decides them.
+   - *Its words* (the implementer's). The choice reads "The world", as the epic names the scope, and the
+     page's title "The World History", the glossary's term.
+   - *Its place.* The choices are the player's Guild, the world, then each Rival in play, in the world's
+     order: the world takes the place the whole History had (the implementer's).
+   - It is grouped by Day and time of day, and folds nothing: no Party's steps are in it, and a Rival's
+     `patron.regard-changed`, routine elsewhere, stands as itself. "New" counts the last play's entries of
+     its types.
+5. **The debug view** (DL-111 item 4, DL-112 item 7).
+   - *Not a choice.* The whole History left the History's choices. `HistoryWhose` keeps `all` for it.
+   - *In the game menu* (the implementer's, as the orchestrator asked this entry to decide). "Debug: the
+     whole History" is the menu's last control, a quiet button after the game file's part. The menu goes
+     from what concerns the game in hand, its facts, the rules and the file, to this, which is for
+     reading how the engine played rather than for playing. It closes the menu and opens the History view
+     there, from any view, with the keyboard on its title.
+   - *What it shows.* Every entry, unfiltered and unfolded: neither a Party's steps nor a Rival's routine
+     fold. Each line gives its event type after its sentence, as `code`, small and set back, free to break
+     so that no page scrolls sideways. A sentence under the choices says so, and that a choice leaves it.
+     No choice is marked pressed while it is open.
+   - *Its title* (the implementer's). The page's heading is "Debug: the whole History", the words of the
+     control that opened it, so the player sees where they are. A Hero's page opened from it goes "Back to
+     Debug: the whole History".
+   - *The search* is unchanged: it reads the History's index by participant, so it finds anyone the whole
+     History names, from any scope.
+6. **An id the History does not name reads as the player's Guild's History** (a deviation, the
+   implementer's). It read as the whole History, which is now a debug view the player did not ask for; the
+   player's Guild's is where the History opens (DL-99 item 2).
+7. **Where the hidden entries are read, meanwhile.** A purchase and a sale are no longer in the Guild's
+   History, so the page's tests read them in the debug view, as the browser specs read a module's
+   events. The Treasury (M9-F3, DL-116) will show them to the player.
+8. **The World History's size** (the epic's §5). Ten seeds (`seed-0001` to `seed-0010`), played three years
+   each by the harness's `playGame` with its automatic policy, under this branch's rules:
+   - *Per year:* 2,233 to 2,677 entries, about 20% of the History's 11,300 to 13,700. About 1,000 to 1,190
+     are `quest.taken`, as many `quest.resolved`, and 214 to 338 `patron.regard-changed`. Year 0 adds the
+     world made and five Guilds founded. No fold or Succession fell in those years.
+   - *Pages:* about 115 to 135 of 20 a year.
+   - *Cost:* over five years of a game (44,517 entries), a page of the World History reads in about 4.5 ms,
+     the whole History's in 2 ms and the player's Guild's in 4 ms; the views read a page again only when
+     the game, the log or the page changes. Twenty years is about four times that.
+   - *M9-F1's ages* add a Succession to some Rivals within twenty years, a few entries at most, and its
+     `questId`s change no type, so neither moves these counts.
+9. **Words.** The History's "About this view" says what each Guild's History leaves out and what the
+   world's takes; the game menu's says what "Debug: the whole History" opens. `CONTEXT.md`'s World History
+   is built and names the world made, its rules adopted and the game's end; its History entry says what the
+   page leaves out of a Guild's.
+10. **Tests.**
+    - `state/history.test.ts`: the Guilds' filters over a game with a purchase, a sale and a Party home,
+      exact for the player's Guild and every Rival; the other Histories unfiltered; exact pages and "New"
+      in the filtered scopes; the World History exact over a game with a fold, a Succession made to happen
+      and a Rival's Quests (`withWorldNews`, which sets the first Rival's Guildmaster to
+      `guildmasterRetirementAge` read from the game's rules, and wipes the second Rival's Roster); the
+      debug view unfolded, with types. The tests that paged folds in the whole History now page a Rival's.
+    - `state/digest.test.ts`: the navigation's count and the rail filtered.
+    - `views/history.test.tsx`: the choices, the Guild's History without the hidden types, the world
+      grouped and unfolded, the debug view from the game menu, and a choice leaving it.
+    - New: `views/game-menu.test.tsx` (the debug view's place and what it opens) and `views/rail.test.tsx`.
+    - Browser specs: `e2e/support.ts` gains `debugHistory`; `modules` reads the probe's events there, and
+      `layout` checks the World History and the whole History's oldest page at each width.
+
+**Consequences.**
+- *Superseded:* DL-105's whole History among the History's choices (as DL-111 item 4 said), and its fold
+  of each Rival's routine in the whole History, which now folds nothing.
+- *For M9-F5:* the Guild's scope is `historyFilter`'s. A return's entry replaces the fold of a Party's steps
+  in the Guild's History (DL-113 item 1); the World History and the debug view need no change for it.
+- *For the merge with M9-F1:* no filter or test reads an age or a `questId`.
+- *Counts:* 3,270 tests before, 3,295 after. All 60 browser runs pass.
+
+**Actioned in:** `web/src/state/` (`history.ts`, `digest.ts`, `game.test-support.ts`), `web/src/views/`
+(`history.tsx`, `history-entries.tsx`, `game-menu.tsx`, `rail.tsx`, `section.tsx`), `web/src/app.tsx`,
+`web/src/styles.css`, `web/e2e/`; `CONTEXT.md`; `docs/planning/epics/M9-feedback.md`.
 
 ---
 

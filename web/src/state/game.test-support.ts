@@ -191,6 +191,26 @@ export function withOffer(state: GameState): GameState {
   return { ...rich, document: offered.document };
 }
 
+/**
+ * `state` with the World History's news to come in its first Days (M9-F4): the first Rival's
+ * Guildmaster at the age a Guildmaster retires, read from the game's rules, so the first night meets
+ * it with Succession; and the second Rival's Roster released to the Unattached pool with no Wealth,
+ * so that night it folds, its Roster wiped, and a new Rival is founded in its place later.
+ */
+export function withWorldNews(state: GameState): GameState {
+  return changed(state, (document) => {
+    const { world } = document;
+    const [succeeding, folding] = Object.values(world.guilds).filter((guild) => guild.controller.kind === 'rival');
+    if (succeeding === undefined || folding === undefined) throw new Error('expected two Rivals');
+    const retiring = world.guildmasters[succeeding.guildmasterId];
+    if (retiring === undefined) throw new Error('no Guildmaster');
+    retiring.ageAtEntry = { ...defaultConfig, ...document.meta.config }.guildmasterRetirementAge;
+    for (const heroId of folding.rosterIds) Object.assign(world.heroes[heroId] as Hero, { guildId: null, unattachedSince: world.turn });
+    folding.rosterIds = [];
+    folding.wealth = 0;
+  });
+}
+
 /** The game's rules `behind` config versions older than this release's, as a save from an earlier release has. */
 export function withOlderRules(state: GameState, behind = 1): GameState {
   const document = documentOf(state);

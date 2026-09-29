@@ -2,12 +2,16 @@
 // read what happened, to any Guild, Hero, Guildmaster or Patron (DL-99 item 2). What the last play
 // appended is its newest, marked new: "Since your last action" is no longer a section of its own.
 //
-// It opens on the player's Guild. The whole History and each Rival's in play are one choice away,
+// It opens on the player's Guild. The World History and each Rival's in play are one choice away,
 // and the choice is the shell's, so it holds while the game is in hand, whichever view is open
 // (DL-74 item 8). Anyone else it names is found by name (DL-74), or opened from their name in a line:
 // a Hero the world still holds opens on their page, the CLI's `show hero`, with their Milestones
 // first and their History after; anyone else's History is shown as a Guild's is. Nothing is dropped
 // (principle 11): a folded Guild's History can still be read.
+//
+// Each History is a scope (M9-F4, DL-111 item 4): the Guild's leave out what `state/history.ts`
+// names, and the World History takes the world's news. The whole History is not a choice: the game
+// menu opens it as a debug view, every entry unfolded with its event type, and a choice leaves it.
 //
 // A page is `HistoryPage`'s (`history-entries.tsx`): groups by Day and time of day, folds, marks and
 // names that open whom they name. Every line and word comes from `state/history.ts`.
@@ -22,10 +26,11 @@ import { Icon } from './icons';
 import { View } from './section';
 import { VisuallyHidden } from './ui';
 
-/** Whether `choice` is the History shown. */
+/** Whether `choice` is the History shown: none is while the whole History, the debug view, is. */
 function isShown(choice: HistoryChoice, view: HistoryView): boolean {
   if (choice.mine) return view.mine;
-  return choice.whose === 'all' ? view.entityId === null : view.entityId === choice.whose;
+  if (choice.whose === 'world') return view.scope === 'world';
+  return view.entityId !== null && view.entityId === choice.whose;
 }
 
 export function History({
@@ -113,6 +118,11 @@ export function History({
           </button>
         ))}
       </div>
+      {view.scope === 'whole' ? (
+        <p className="subtle history__debug">
+          Every entry of the History, unfiltered and unfolded, each with its event type. Choose a History above to leave it.
+        </p>
+      ) : null}
       {view.hero === null ? (
         <HistoryPage
           view={view}
@@ -130,7 +140,7 @@ export function History({
           document={document}
           heroId={view.hero}
           onBack={() => onWhose(back)}
-          backLabel={`Back to ${historyTitle(document, back).replace(/^The/, 'the')}`}
+          backLabel={`Back to ${historyTitle(document, back).replace(/^The /, 'the ')}`}
           play={play}
           busy={busy}
         />

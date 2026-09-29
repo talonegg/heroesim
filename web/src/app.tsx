@@ -338,6 +338,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
             setMenuOpen(false);
             setReplacing(current);
           }}
+          onDebugHistory={() => openHistory('all')}
         />
       ) : null}
     </div>

@@ -7,6 +7,7 @@ import {
   defaultConfig,
   entriesBetween,
   entriesFor,
+  holdings,
   milestoneTypes,
   playerGuild,
   timeOfDay,
@@ -17,8 +18,20 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { played as playedState, started, withPartyOut, withTheGone } from './game.test-support';
-import { findInHistory, historyChoices, historySearchLimit, historyTitle, historyView, pageOfEntry, routineKinds, type HistoryLine, type HistoryRow, type HistoryView } from './history';
+import { cameHome, played as playedState, started, withPartyOut, withTheGone, withWorldNews } from './game.test-support';
+import {
+  findInHistory,
+  historyChoices,
+  historyFilter,
+  historySearchLimit,
+  historyTitle,
+  historyView,
+  pageOfEntry,
+  routineKinds,
+  type HistoryLine,
+  type HistoryRow,
+  type HistoryView,
+} from './history';
 import { listed } from './narrate';
 import { historyPageSize } from './selectors';
 
@@ -67,6 +80,218 @@ function entriesOn(document: WorldDocument, view: HistoryView): Entry[] {
   return view.groups.flatMap((group) => group.rows.flatMap(linesOf)).map((line) => entryOf(document, line));
 }
 
+// ── The History's scopes (M9-F4, DL-111 item 4, DL-112 item 7, DL-113 item 1) ────────────────
+
+/** What the player's Guild's History leaves out: the owner's list (DL-111 item 4). */
+const leftOutOfYours = [
+  'hero.xp-gained',
+  'hero.morale-changed',
+  'patron.regard-changed',
+  'guildmaster.regard-changed',
+  'hero.regard-changed',
+  'guild.upkeep-paid',
+  'item.bought',
+  'item.sold',
+];
+
+/** What a Rival's History leaves out (DL-111 item 4). */
+const leftOutOfARival = ['guild.upkeep-paid', 'item.bought', 'item.sold'];
+
+/** What the World History takes (DL-112 item 7, DL-113 item 1). */
+const worldTypes = [
+  'world.created',
+  'world.rules-adopted',
+  'guild.founded',
+  'guild.folded',
+  'guildmaster.succeeded',
+  'game.ended',
+  'quest.taken',
+  'quest.resolved',
+  'patron.regard-changed',
+];
+
+/** Every page of `whose` History in `document`. */
+function pagesOf(document: WorldDocument, log: readonly TurnEvent[], whose: Parameters<typeof historyView>[2]): HistoryView[] {
+  const { pages } = historyView(document, log, whose, 0);
+  return Array.from({ length: pages }, (_, page) => historyView(document, log, whose, page));
+}
+
+/** Every entry `whose` History shows, folded or not, over all its pages, by its place in the History, newest first. */
+function shownIn(document: WorldDocument, log: readonly TurnEvent[], whose: Parameters<typeof historyView>[2]): Entry[] {
+  return pagesOf(document, log, whose)
+    .flatMap((view) => view.groups.flatMap((group) => group.rows.flatMap(linesOf)))
+    .sort((a, b) => Number(b.key) - Number(a.key))
+    .map((line) => entryOf(document, line));
+}
+
+/** `entityId`'s entries, newest first, less the types `leftOut` names. */
+function entriesLeaving(document: WorldDocument, entityId: Parameters<typeof entriesFor>[1], leftOut: readonly string[]): Entry[] {
+  return entriesFor(document.history, entityId).filter((entry) => !leftOut.includes(entry.type));
+}
+
+describe("the Guilds' filters (M9-F4, DL-111 item 4)", () => {
+  // A purchase and its sale, then a Party sent and fifty Days played: every type the filters name.
+  const bought = playedState(started('app-test'), { kind: 'buy', definitionKey: 'padded-jack', quantity: 1 });
+  const guildId = playerOf(bought.document as WorldDocument).id;
+  const jack = holdings((bought.document as WorldDocument).world, { kind: 'guild', id: guildId }).stacks.find((stack) => stack.definitionKey === 'padded-jack');
+  const sold = playedState(bought, { kind: 'sell', stackId: jack?.id ?? ('stack-000000' as never), quantity: 1 });
+  const state = playedState(withPartyOut(sold), { kind: 'advance', turns: 150 });
+  // Games share their History as it is appended (ADR-0008), so another game for a Party's return.
+  const home = cameHome(started('history-home'));
+  const document = state.document as WorldDocument;
+  const guild = playerOf(document);
+  const rivals = Object.values(document.world.guilds).filter((each) => each.controller.kind === 'rival');
+
+  test('the game holds what the filters leave out, for the player and the Rivals', () => {
+    expect(bought.rejection).toBeNull();
+    expect(sold.rejection).toBeNull();
+    const yours = new Set(entriesFor(document.history, guild.id).map((entry) => entry.type));
+    for (const type of ['hero.xp-gained', 'hero.morale-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold']) expect(yours, type).toContain(type);
+    const theirs = new Set(rivals.flatMap((rival) => entriesFor(document.history, rival.id).map((entry) => entry.type)));
+    for (const type of ['guild.upkeep-paid', 'item.bought']) expect(theirs, type).toContain(type);
+  });
+
+  test("the player's Guild's History leaves out exactly XP, Morale, the three Regards, Upkeep, purchases and sales", () => {
+    expect(shownIn(document, state.log, null)).toEqual(entriesLeaving(document, guild.id, leftOutOfYours));
+    expect(historyView(document, state.log, null, 0).entries).toBe(entriesLeaving(document, guild.id, leftOutOfYours).length);
+  });
+
+  test("a Rival's History leaves out exactly Upkeep, purchases and sales", () => {
+    for (const rival of rivals) {
+      expect(shownIn(document, state.log, rival.id), rival.name).toEqual(entriesLeaving(document, rival.id, leftOutOfARival));
+      expect(historyView(document, state.log, rival.id, 0).entries).toBe(entriesLeaving(document, rival.id, leftOutOfARival).length);
+    }
+  });
+
+  test("a Hero's, a Patron's, a Quest's and a Guildmaster's History leave out nothing", () => {
+    const hero = Object.values(document.world.heroes).find((each) => guild.rosterIds.includes(each.id) && entriesFor(document.history, each.id).some((entry) => entry.type === 'hero.xp-gained'));
+    const patron = Object.values(document.world.patrons).find((each) => entriesFor(document.history, each.id).some((entry) => entry.type === 'patron.regard-changed'));
+    const master = document.world.guildmasters[guild.guildmasterId];
+    const quest = document.history.entries.find((entry) => entry.type === 'quest.resolved' && entry.participants.includes(guild.id));
+    const questId = (quest?.payload as { questId: string } | undefined)?.questId;
+    if (hero === undefined || patron === undefined || master === undefined || questId === undefined) throw new Error('no Hero, Patron, Guildmaster or Quest');
+
+    for (const entityId of [hero.id, patron.id, master.id]) {
+      expect(shownIn(document, state.log, entityId), entityId).toEqual(entriesFor(document.history, entityId));
+    }
+    // A Quest's History has no view of its own yet; its filter keeps all.
+    const keeps = historyFilter(document, questId as never);
+    expect(entriesFor(document.history, questId as never).length).toBeGreaterThan(0);
+    expect(entriesFor(document.history, questId as never).every(keeps)).toBe(true);
+  });
+
+  test('no page is empty, and every page but the last holds a full page, in the filtered Histories', () => {
+    for (const [whose, inScope] of [
+      [null, entriesLeaving(document, guild.id, leftOutOfYours)],
+      ...rivals.map((rival) => [rival.id, entriesLeaving(document, rival.id, leftOutOfARival)] as const),
+    ] as const) {
+      expectExactPages(document, whose, inScope);
+    }
+  });
+
+  test('the count of new counts only what the filter leaves: a sale is not new in your History', () => {
+    // A play that was a sale, or a purchase, names the Guild, and is left out of its History.
+    expect(sold.log.some((event) => event.type === 'item.sold' && event.participants.includes(guild.id))).toBe(true);
+    expect(historyView(sold.document as WorldDocument, sold.log, null, 0).fresh).toBe(0);
+    expect(historyView(bought.document as WorldDocument, bought.log, null, 0).fresh).toBe(0);
+    // A Party home: its return is new, and its XP and Morale are not counted.
+    const homeDocument = home.document as WorldDocument;
+    const expected = home.log.filter((event) => event.participants.includes(guild.id) && !leftOutOfYours.includes(event.type)).length;
+    expect(expected).toBeGreaterThan(0);
+    expect(historyView(homeDocument, home.log, null, 0).fresh).toBe(expected);
+    for (const line of shownIn(homeDocument, home.log, null)) expect(leftOutOfYours).not.toContain(line.type);
+  });
+});
+
+/** A game with the World History's news in its first Days (`withWorldNews`), played `turns` Turns in one play. */
+function worldNews(seed = 'history-world', turns = 120): { document: WorldDocument; log: TurnEvent[] } {
+  const state = playedState(withWorldNews(started(seed)), { kind: 'advance', turns });
+  return { document: state.document as WorldDocument, log: state.log };
+}
+
+describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
+  const { document, log } = worldNews();
+  const world = document.history.entries.filter((entry) => worldTypes.includes(entry.type)).reverse();
+
+  test('the game holds a fold, a Succession, a Quest taken and resolved by a Rival, and a Patron’s band change', () => {
+    const types = new Set(world.map((entry) => entry.type));
+    for (const type of ['guild.folded', 'guildmaster.succeeded', 'patron.regard-changed', 'world.created']) expect(types, type).toContain(type);
+    const rival = (entry: Entry): boolean => {
+      const { guildId } = entry.payload as { guildId?: string };
+      return document.world.guilds[guildId as never]?.controller.kind === 'rival';
+    };
+    expect(world.some((entry) => entry.type === 'quest.taken' && rival(entry))).toBe(true);
+    expect(world.some((entry) => entry.type === 'quest.resolved' && rival(entry))).toBe(true);
+    // A Guild founded after the world was made: the folded Rival's replacement.
+    expect(world.some((entry) => entry.type === 'guild.founded' && entry.turn > 0)).toBe(true);
+  });
+
+  test('takes exactly its events, for every Guild, newest first', () => {
+    expect(shownIn(document, log, 'world')).toEqual(world);
+    const view = historyView(document, log, 'world', 0);
+    expect(view).toMatchObject({ title: 'The World History', name: null, entityId: null, mine: false, scope: 'world', entries: world.length });
+    // Every Guild's Quests: the player's are there too.
+    const guildsOfQuests = new Set(world.filter((entry) => entry.type === 'quest.taken').map((entry) => (entry.payload as { guildId: string }).guildId));
+    expect(guildsOfQuests.size).toBeGreaterThan(2);
+  });
+
+  test('leaves out a Guild below the floor, and every other type', () => {
+    const shown = new Set(shownIn(document, log, 'world').map((entry) => entry.type));
+    expect(shown.has('guild.below-floor')).toBe(false);
+    for (const type of shown) expect(worldTypes).toContain(type);
+  });
+
+  test('is grouped by Day and time of day with no folds, and pages exactly', () => {
+    const views = expectExactPages(document, 'world', world);
+    for (const view of views) {
+      for (const group of view.groups) {
+        for (const row of group.rows) {
+          expect(row.kind).toBe('entry');
+          if (row.kind === 'entry') expect(row.steps).toEqual([]);
+        }
+      }
+    }
+  });
+
+  test('counts as new what the last play appended of its events', () => {
+    expect(historyView(document, log, 'world', 0).fresh).toBe(log.filter((event) => worldTypes.includes(event.type)).length);
+  });
+});
+
+describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
+  const { document, log } = worldNews('history-debug', 60);
+
+  test('shows every entry, unfolded, each line with its event type', () => {
+    const views = expectExactPages(document, 'all', document.history.entries);
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: the whole History', name: null, entityId: null, scope: 'whole', fresh: log.length });
+    expect(log.length).toBeGreaterThan(0);
+    const rows = views.flatMap((view) => view.groups.flatMap((group) => group.rows));
+    expect(rows.every((row) => row.kind === 'entry' && row.steps.length === 0)).toBe(true);
+    for (const row of rows) if (row.kind === 'entry') expect(row.line.type).toBe(entryOf(document, row.line).type);
+    // A Party's steps and a Rival's routine stand as lines of their own.
+    expect(rows.some((row) => row.kind === 'entry' && row.line.type === 'quest.encounter')).toBe(true);
+  });
+
+  test('is not among the choices; the world is, after the player’s Guild', () => {
+    const guild = playerOf(document);
+    const rivals = Object.values(document.world.guilds).filter((each) => each.id !== guild.id && each.foldedOnTurn === null);
+
+    expect(historyChoices(document)).toEqual([
+      { whose: null, label: 'The Lantern', mine: true },
+      { whose: 'world', label: 'The world', mine: false },
+      ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
+    ]);
+  });
+
+  test('the search still finds anyone in the whole History', () => {
+    const [folded] = Object.values(document.world.guilds).filter((guild) => guild.foldedOnTurn !== null);
+    const hero = Object.values(document.world.heroes).find((each) => each.guildId !== playerOf(document).id);
+    if (folded === undefined || hero === undefined) throw new Error('no folded Guild or Rival’s Hero');
+    expect(findInHistory(document, folded.name).names).toContainEqual({ entityId: folded.id, name: folded.name, what: 'Guild, folded' });
+    expect(findInHistory(document, hero.name).names.map((name) => name.entityId)).toContain(hero.id);
+  });
+});
+
 describe('a page grouped by Day and time of day (M9-S5)', () => {
   const { document, log } = played(40);
 
@@ -114,7 +339,7 @@ describe('a page grouped by Day and time of day (M9-S5)', () => {
     const first = historyView(document, log, 'all', 0);
     const pages = expectExactPages(document, 'all', document.history.entries).length;
 
-    expect(first).toMatchObject({ page: 0, pages, entries: total, title: 'The whole History', name: null, entityId: null });
+    expect(first).toMatchObject({ page: 0, pages, entries: total, title: 'Debug: the whole History', name: null, entityId: null });
     expect(entriesOn(document, first).length).toBeGreaterThanOrEqual(historyPageSize);
     // The newest twenty are on the first page.
     for (const entry of document.history.entries.slice(-historyPageSize)) expect(entriesOn(document, first)).toContain(entry);
@@ -141,12 +366,21 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     return Array.from({ length: pages }, (_, page) => historyView(document, log, whose, page));
   }
 
+  // The Rival whose History holds the most outcomes.
+  const busiest = Object.values(document.world.guilds)
+    .filter((each) => each.controller.kind === 'rival')
+    .reduce((most, each) => (outcomesOf(each.id) > outcomesOf(most.id) ? each : most));
+  function outcomesOf(guildId: Guild['id']): number {
+    return entriesFor(document.history, guildId).filter((entry) => entry.type === 'quest.resolved').length;
+  }
+
   test.each([
-    ['the whole History', 'all' as const],
-    ["the player's Guild's", null],
-  ])("in %s, every entry is on one page and one only, and each outcome holds its Party's steps, in the order they happened", (_name, whose) => {
+    ["the player's Guild's", null, leftOutOfYours],
+    ["a Rival's", 'rival', leftOutOfARival],
+  ] as const)("in %s, every entry is on one page and one only, and each outcome holds its Party's steps, in the order they happened", (_name, which, leftOut) => {
+    const whose = which === 'rival' ? busiest.id : null;
     const views = everyPage(whose);
-    const inScope = whose === 'all' ? document.history.entries : entriesFor(document.history, guild.id).reverse();
+    const inScope = entriesLeaving(document, whose ?? guild.id, leftOut).reverse();
     const shown = views.flatMap((view) => entriesOn(document, view));
 
     expect(shown.length).toBe(inScope.length);
@@ -194,12 +428,12 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
   });
 
   test("a page that ends on an outcome takes its Party's steps with it, and the next page starts after them", () => {
-    const views = everyPage('all');
+    const views = everyPage(busiest.id);
     const sizes = views.map((view) => entriesOn(document, view).length);
 
     // The page's edge fell among a Party's steps somewhere in this game, and they stayed together.
     expect(sizes.some((size) => size > historyPageSize)).toBe(true);
-    expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(document.history.entries.length);
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(entriesLeaving(document, busiest.id, leftOutOfARival).length);
   });
 });
 
@@ -229,7 +463,11 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
   // The same game as the folds': its History has Parties' outcomes, each after its steps.
   const state = playedState(withPartyOut(started('history-folds')), { kind: 'advance', turns: 150 });
   const game = state.document as WorldDocument;
-  const all = game.history.entries;
+  // A Rival's History, as it shows, oldest first: its Parties' steps fold under their outcomes.
+  const rival = Object.values(game.world.guilds)
+    .filter((each) => each.controller.kind === 'rival')
+    .reduce((most, each) => (entriesFor(game.history, each.id).length > entriesFor(game.history, most.id).length ? each : most));
+  const all = entriesLeaving(game, rival.id, leftOutOfARival).reverse();
 
   /** The game with a History of `entries` alone, in their order, indexed afresh. */
   function holding(entries: readonly Entry[]): WorldDocument {
@@ -270,26 +508,26 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
     const document = around(0, 19);
     expect(document.history.entries).toHaveLength(20 + steps);
 
-    const views = expectExactPages(document, 'all', document.history.entries);
+    const views = expectExactPages(document, rival.id, document.history.entries);
     expect(views).toHaveLength(1);
     expect(views[0]).toMatchObject({ page: 0, pages: 1, entries: 20 + steps });
   });
 
   test("a page's edge falling among an outcome's steps keeps them together on one page", () => {
     const document = around(0, 18);
-    expect(expectExactPages(document, 'all', document.history.entries)).toHaveLength(1);
+    expect(expectExactPages(document, rival.id, document.history.entries)).toHaveLength(1);
   });
 
   test('an entry older than the steps starts the next page, which holds it alone', () => {
     const document = around(1, 19);
-    const views = expectExactPages(document, 'all', document.history.entries);
+    const views = expectExactPages(document, rival.id, document.history.entries);
     expect(views).toHaveLength(2);
     expect(entriesOn(document, views[1] as HistoryView)).toEqual([document.history.entries[0]]);
   });
 
   test('an outcome just past the edge opens the next page, with its steps', () => {
     const document = around(0, 20);
-    const views = expectExactPages(document, 'all', document.history.entries);
+    const views = expectExactPages(document, rival.id, document.history.entries);
     expect(views).toHaveLength(2);
     expect(entriesOn(document, views[1] as HistoryView)).toHaveLength(1 + steps);
   });
@@ -298,7 +536,7 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
     // Its steps repeated to more than a page's worth, between ten older entries and twenty newer.
     const repeated = Array.from({ length: historyPageSize + 5 }, (_, index) => structuredClone(all[outcomeAt - steps + (index % steps)] as Entry));
     const document = holding([...all.slice(outcomeAt - steps - 10, outcomeAt - steps), ...repeated, ...all.slice(outcomeAt, outcomeAt + 20)]);
-    const views = expectExactPages(document, 'all', document.history.entries);
+    const views = expectExactPages(document, rival.id, document.history.entries);
 
     expect(views).toHaveLength(2);
     expect(entriesOn(document, views[0] as HistoryView)).toHaveLength(20 + historyPageSize + 5);
@@ -306,10 +544,11 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
     expect(outcome?.kind === 'entry' && outcome.steps).toHaveLength(historyPageSize + 5);
   });
 
-  test("the whole game's History, and the player's Guild's, page exactly", () => {
+  test("the whole game's History, the player's Guild's and a Rival's, page exactly", () => {
     const guild = playerOf(game);
-    expectExactPages(game, 'all', all);
-    expectExactPages(game, null, entriesFor(game.history, guild.id));
+    expectExactPages(game, 'all', game.history.entries);
+    expectExactPages(game, null, entriesLeaving(game, guild.id, leftOutOfYours));
+    expectExactPages(game, rival.id, entriesLeaving(game, rival.id, leftOutOfARival));
   });
 });
 
@@ -340,9 +579,13 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
   const state = playedState(withPartyOut(started('history-folds')), { kind: 'advance', turns: 150 });
   const { document, log } = { document: state.document as WorldDocument, log: state.log };
   const guild = playerOf(document);
-  const { pages } = historyView(document, log, 'all', 0);
-  const views = Array.from({ length: pages }, (_, page) => historyView(document, log, 'all', page));
-  const groups = views.flatMap((view) => view.groups);
+  // Each Rival's History folds its routine (M9-F4: the whole History folds nothing).
+  const groups = Object.values(document.world.guilds)
+    .filter((each) => each.controller.kind === 'rival')
+    .flatMap((rival) => pagesOf(document, log, rival.id))
+    .flatMap((view) => view.groups);
+  // The whole History, every line as itself.
+  const wholeGroups = pagesOf(document, log, 'all').flatMap((view) => view.groups);
   const isGuild = (id: string): boolean => id.startsWith('guild-');
 
   test('are exactly these kinds, none of them a Milestone', () => {
@@ -389,7 +632,7 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
   });
 
   test("marks each line the player's, a Rival's or neither, new when the last play appended it, and an outcome by how it went", () => {
-    const lines = groups.flatMap((group) => group.rows.flatMap(linesOf));
+    const lines = wholeGroups.flatMap((group) => group.rows.flatMap(linesOf));
     const bands = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
     let outcomes = 0;
     for (const line of lines) {
@@ -415,7 +658,7 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
 
   test('counts the entries the last play appended, in the History shown', () => {
     expect(historyView(document, log, 'all', 0).fresh).toBe(log.length);
-    expect(historyView(document, log, null, 0).fresh).toBe(log.filter((event) => event.participants.includes(guild.id)).length);
+    expect(historyView(document, log, null, 0).fresh).toBe(log.filter((event) => event.participants.includes(guild.id) && !leftOutOfYours.includes(event.type)).length);
     expect(historyView(document, [], null, 0).fresh).toBe(0);
     // The newest are new, and they lead the first page.
     const [first] = historyView(document, log, 'all', 0).groups;
@@ -452,11 +695,9 @@ describe("a Hero's own History, where a Rival's routine does not fold (DL-109 it
     expect(wouldFold.length).toBeGreaterThan(0);
   });
 
-  test("the Hero's Guild's History, and the whole History, still fold it", () => {
-    for (const whose of [guildId, 'all']) {
-      const rows = viewsOf(whose).flatMap((view) => view.groups.flatMap((group) => group.rows));
-      expect(rows.some((row) => row.kind === 'routine'), whose).toBe(true);
-    }
+  test("the Hero's Guild's History still folds it; the whole History folds nothing (M9-F4)", () => {
+    expect(viewsOf(guildId).flatMap((view) => view.groups.flatMap((group) => group.rows)).some((row) => row.kind === 'routine')).toBe(true);
+    expect(viewsOf('all').flatMap((view) => view.groups.flatMap((group) => group.rows)).some((row) => row.kind === 'routine')).toBe(false);
   });
 });
 
@@ -466,45 +707,47 @@ describe('whose History (M9-S5)', () => {
 
   test("opens on the player's Guild: its entries, newest first, under its name", () => {
     const view = historyView(document, log, null, 0);
-    const own = entriesFor(document.history, guild.id);
+    const own = entriesLeaving(document, guild.id, leftOutOfYours);
 
-    expect(view).toMatchObject({ title: 'The History of The Lantern', name: 'The Lantern', entityId: guild.id, mine: true, hero: null });
+    expect(view).toMatchObject({ title: 'The History of The Lantern', name: 'The Lantern', entityId: guild.id, mine: true, hero: null, scope: 'mine' });
     expect(view.entries).toBe(own.length);
     for (const entry of entriesOn(document, view)) expect(entry.participants).toContain(guild.id);
     expect(historyView(document, log, guild.id, 0)).toEqual(view);
   });
 
-  test("gives the whole History, or any Guild's, Hero's, Guildmaster's or Patron's; an id it does not name reads as the whole", () => {
+  test("gives the whole History, the world's, or any Guild's, Hero's, Guildmaster's or Patron's; an id it does not name reads as the player's Guild's", () => {
     const rival = Object.values(document.world.guilds).find((each) => each.id !== guild.id) as Guild;
     const patron = Object.values(document.world.patrons)[0];
     const hero = Object.values(document.world.heroes).find((each) => guild.rosterIds.includes(each.id));
     const master = Object.values(document.world.guildmasters).find((each) => each.guildId === guild.id);
     if (patron === undefined || hero === undefined || master === undefined) throw new Error('no Patron, Hero or Guildmaster');
 
-    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'The whole History', entityId: null, mine: false });
-    expect(historyView(document, log, rival.id, 0)).toMatchObject({ title: `The History of ${rival.name}`, entityId: rival.id, mine: false });
+    expect(historyView(document, log, 'all', 0)).toMatchObject({ title: 'Debug: the whole History', entityId: null, mine: false, scope: 'whole' });
+    expect(historyView(document, log, 'world', 0)).toMatchObject({ title: 'The World History', entityId: null, mine: false, scope: 'world' });
+    expect(historyView(document, log, rival.id, 0)).toMatchObject({ title: `The History of ${rival.name}`, entityId: rival.id, mine: false, scope: 'rival' });
     expect(historyView(document, log, patron.id, 0)).toMatchObject({ title: `The History of ${patron.name}`, hero: null });
     expect(historyView(document, log, master.id, 0)).toMatchObject({ title: `The History of ${master.name}`, entityId: master.id, hero: null });
     // A Hero the world holds opens on their page (DL-74).
     expect(historyView(document, log, hero.id, 0)).toMatchObject({ title: `The History of ${hero.name}`, hero: hero.id });
     for (const entry of entriesOn(document, historyView(document, log, patron.id, 0))) expect(entry.participants).toContain(patron.id);
-    expect(historyView(document, log, 'hero-999999' as never, 0)).toMatchObject({ title: 'The whole History', entityId: null });
+    expect(historyView(document, log, patron.id, 0).scope).toBe('entity');
+    expect(historyView(document, log, 'hero-999999' as never, 0)).toMatchObject({ title: 'The History of The Lantern', entityId: guild.id, mine: true });
     // Each title alone, for what leads back to it.
-    for (const whose of [null, 'all', rival.id, patron.id, hero.id, master.id, 'hero-999999'] as const) {
+    for (const whose of [null, 'all', 'world', rival.id, patron.id, hero.id, master.id, 'hero-999999'] as const) {
       expect(historyTitle(document, whose as never)).toBe(historyView(document, log, whose as never, 0).title);
     }
   });
 });
 
 describe('the choices one step away (M9-S5)', () => {
-  test("the player's Guild first, where the History opens, then the whole History, then each Rival in play", () => {
+  test("the player's Guild first, where the History opens, then the world, then each Rival in play (M9-F4)", () => {
     const { document } = played(3);
     const guild = playerOf(document);
     const rivals = Object.values(document.world.guilds).filter((each) => each.id !== guild.id);
 
     expect(historyChoices(document)).toEqual([
       { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'all', label: 'The whole History', mine: false },
+      { whose: 'world', label: 'The world', mine: false },
       ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
     ]);
   });
@@ -617,6 +860,6 @@ describe('anyone the History names, found by name (DL-74)', () => {
     const patronView = historyView(document, [], patron.id, 0);
     expect(patronView).toMatchObject({ hero: null, name: patron.name, entries: entriesFor(document.history, patron.id).length });
     expect(entriesOn(document, patronView)).toHaveLength(Math.min(historyPageSize, patronView.entries));
-    expect(historyView(document, [], 'hero-999999' as never, 0)).toMatchObject({ title: 'The whole History', name: null, hero: null });
+    expect(historyView(document, [], 'hero-999999' as never, 0)).toMatchObject({ title: 'The History of The Lantern', name: 'The Lantern', hero: null });
   });
 });
