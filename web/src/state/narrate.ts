@@ -18,6 +18,12 @@
 //
 // It lives in `state/`, beside `rejections.ts`, because it reads engine values (`dayOf`,
 // `regardBandNames`, `parseId`), which only `state/` may import (M7-S2).
+//
+// A line is also given as segments (M9-S5, DL-105): its words, and the names in it of a Guild, a
+// Hero, a Guildmaster or a Patron, each carrying the id the sentence read it from, so the History
+// can make a name open whom it names. A name is marked where the sentence puts it, from the event's
+// own ids (principle 5), never found by reading the sentence back; the plain sentence is the
+// segments' words, so every sentence reads exactly as before.
 
 import {
   compareByCodeUnit,
@@ -77,12 +83,61 @@ const someone: Readonly<Record<TableName, string>> = Object.freeze({
   stacks: 'an Item',
 });
 
-/** A participant by the label the event carries, or what it is when it has none. */
-function called(event: Pick<TurnEvent, 'labels'>, id: EntityId): string {
+// ── Segments ─────────────────────────────────────────────────────────────────────────────────
+
+/** The kinds of entity a line can name for the page to open: those whose rows have names (M9-S5). */
+export type NamedTable = 'guilds' | 'heroes' | 'guildmasters' | 'patrons';
+
+const namedTables: ReadonlySet<TableName> = new Set<TableName>(['guilds', 'heroes', 'guildmasters', 'patrons']);
+
+/**
+ * A piece of a line (M9-S5, DL-105): words, or a name with the id the sentence read it from and
+ * what it is, which the page can make open whom it names.
+ */
+export type Segment = { kind: 'text'; text: string } | { kind: 'name'; text: string; entityId: EntityId; table: NamedTable };
+
+/** A line, or part of one, as segments. */
+type Words = readonly Segment[];
+
+/** The words of a line given as segments: its sentence. */
+export function textOf(segments: readonly Segment[]): string {
+  return segments.map((segment) => segment.text).join('');
+}
+
+/** What goes into a line: words, a number, or segments already made. */
+type Part = string | number | Words;
+
+/**
+ * A line from a template, `say\`${called(event, guildId)} was founded.\``: its text as written, and
+ * each name `called` marked where the template puts it. Neighbouring words join into one segment.
+ */
+function say(strings: TemplateStringsArray, ...parts: readonly Part[]): Words {
+  const out: Segment[] = [];
+  const words = (text: string): void => {
+    if (text === '') return;
+    const last = out.at(-1);
+    if (last?.kind === 'text') out[out.length - 1] = { kind: 'text', text: last.text + text };
+    else out.push({ kind: 'text', text });
+  };
+  strings.forEach((text, index) => {
+    words(text);
+    if (index >= parts.length) return;
+    const part = parts[index] as Part;
+    if (typeof part === 'string' || typeof part === 'number') words(String(part));
+    else for (const segment of part) if (segment.kind === 'text') words(segment.text);
+      else out.push(segment);
+  });
+  return out;
+}
+
+/** A participant by the label the event carries, marked as a name; or what it is, in words, when it has none. */
+function called(event: Pick<TurnEvent, 'labels'>, id: EntityId): Words {
   const label = event.labels[id];
-  if (label !== undefined) return label;
   const parsed = parseId(id);
-  return parsed === null ? 'someone' : someone[parsed.table];
+  if (label !== undefined) {
+    return parsed !== null && namedTables.has(parsed.table) ? [{ kind: 'name', text: label, entityId: id, table: parsed.table as NamedTable }] : say`${label}`;
+  }
+  return say`${parsed === null ? 'someone' : someone[parsed.table]}`;
 }
 
 /** `+120`, `-2`, `0`. */
@@ -97,6 +152,12 @@ function night(turn: number): string {
 /** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
 export function listed(items: readonly string[]): string {
   return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+}
+
+/** `listed` for segments: the names in the list stay names. */
+function listedWords(items: readonly Words[]): Words {
+  if (items.length <= 1) return items[0] ?? [];
+  return say`${items.slice(0, -1).flatMap((item, index) => (index === 0 ? item : say`, ${item}`))} and ${items.at(-1) ?? []}`;
 }
 
 const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success: 'succeeded', strong: 'succeeded strongly' };
@@ -157,53 +218,47 @@ function gear(move: GearMove, content: ContentSet): string {
 
 // ── The map ──────────────────────────────────────────────────────────────────────────────────
 
-type Sentences = { [Type in EngineEventType]: (event: EngineEventOf<Type>, narration: Narration) => string };
+type Sentences = { [Type in EngineEventType]: (event: EngineEventOf<Type>, narration: Narration) => Words };
 
 const sentences: Sentences = {
-  'world.created': (event) => `The world was made from seed ${event.payload.seed}.`,
-  'guild.founded': (event) => `${called(event, event.payload.guildId)} was founded.`,
+  'world.created': (event) => say`The world was made from seed ${event.payload.seed}.`,
+  'guild.founded': (event) => say`${called(event, event.payload.guildId)} was founded.`,
   'guildmaster.generated': (event) =>
-    `${called(event, event.payload.guildmasterId)} leads ${called(event, event.payload.guildId)}.`,
+    say`${called(event, event.payload.guildmasterId)} leads ${called(event, event.payload.guildId)}.`,
   'hero.generated': (event, { content }) => {
     const { heroId, guildId, classKey } = event.payload;
     const where = guildId === null ? 'the Unattached pool' : called(event, guildId);
-    return `${called(event, heroId)}, ${nameIn(content.classes, classKey)}, joined ${where}.`;
+    return say`${called(event, heroId)}, ${nameIn(content.classes, classKey)}, joined ${where}.`;
   },
   'patron.generated': (event, { content }) =>
-    `${called(event, event.payload.patronId)} of the ${nameIn(content.spheres, event.payload.sphereKey)} became a Patron.`,
+    say`${called(event, event.payload.patronId)} of the ${nameIn(content.spheres, event.payload.sphereKey)} became a Patron.`,
   'world.rules-adopted': (event) =>
-    `The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`,
+    say`The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`,
   'guild.upkeep-paid': (event) =>
-    `${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`,
+    say`${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`,
   // M9-S1: the night Bankruptcy falls on, as the countdown gives it (DL-95), from the event alone.
   'guild.below-floor': (event) => {
     const { guildId, wealth, floor, dueDay } = event.payload;
-    return (
-      `${called(event, guildId)}'s Wealth, ${wealth}, fell below the Bankruptcy floor of ${floor}: Bankruptcy on the night of ` +
-      `Day ${dueDay} unless it is back to ${floor} or more on a night by then.`
-    );
+    return say`${called(event, guildId)}'s Wealth, ${wealth}, fell below the Bankruptcy floor of ${floor}: Bankruptcy on the night of Day ${dueDay} unless it is back to ${floor} or more on a night by then.`;
   },
   'guild.floor-recovered': (event) => {
     const { guildId, wealth, floor, belowFloorSince } = event.payload;
-    return (
-      `${called(event, guildId)}'s Wealth, ${wealth}, is back to the Bankruptcy floor of ${floor} or more, after falling below it ` +
-      `on Day ${dayOf(belowFloorSince)}: no Bankruptcy is due.`
-    );
+    return say`${called(event, guildId)}'s Wealth, ${wealth}, is back to the Bankruptcy floor of ${floor} or more, after falling below it on Day ${dayOf(belowFloorSince)}: no Bankruptcy is due.`;
   },
   'hero.recruited': (event) =>
-    `${called(event, event.payload.guildId)} signed ${called(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`,
-  'hero.left-pool': (event) => `${called(event, event.payload.heroId)} left the Unattached pool.`,
+    say`${called(event, event.payload.guildId)} signed ${called(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`,
+  'hero.left-pool': (event) => say`${called(event, event.payload.heroId)} left the Unattached pool.`,
   'quest.offered': (event, { content }) =>
-    `${called(event, event.payload.patronId)} offered ${nameIn(content.questTemplates, event.payload.templateKey)}.`,
+    say`${called(event, event.payload.patronId)} offered ${nameIn(content.questTemplates, event.payload.templateKey)}.`,
   'quest.expired': (event, { content }) =>
-    `${called(event, event.payload.patronId)}'s ${nameIn(content.questTemplates, event.payload.templateKey)} expired untaken.`,
+    say`${called(event, event.payload.patronId)}'s ${nameIn(content.questTemplates, event.payload.templateKey)} expired untaken.`,
   'quest.taken': (event, { content, questName }) => {
     // What the Party carries (M5-S3), when it carries anything; an entry from before M5-S3 has none.
     const { guildId, questId, heroIds, returnsOnTurn, consumables = [] } = event.payload;
     const carrying = consumables.map(({ definitionKey, quantity }) => `${nameIn(content.items, definitionKey)} ×${quantity}`);
     const carried = carrying.length === 0 ? '' : `, carrying ${listed(carrying)}`;
-    const party = listed(heroIds.map((id) => called(event, id)));
-    return `${called(event, guildId)} sent ${party} on ${questName(questId)}, back on ${night(returnsOnTurn)}${carried}.`;
+    const party = listedWords(heroIds.map((id) => called(event, id)));
+    return say`${called(event, guildId)} sent ${party} on ${questName(questId)}, back on ${night(returnsOnTurn)}${carried}.`;
   },
   'quest.encounter': (event, { content }) => {
     // The roll and target are the engine's; the page says only how it went and what it cost, and
@@ -211,56 +266,50 @@ const sentences: Sentences = {
     const { guildId, index, encounterKey, outcome, injured, died } = event.payload;
     const went = outcome === 'success' ? 'came through' : 'failed at';
     const hurt = [
-      ...injured.map((id) => `${called(event, id)} was injured`),
-      ...died.map((id) => `${called(event, id)} was killed`),
+      ...injured.map((id) => say`${called(event, id)} was injured`),
+      ...died.map((id) => say`${called(event, id)} was killed`),
     ];
     const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
-    return `${called(event, guildId)}'s Party ${went} ${which}${hurt.length === 0 ? '' : `: ${listed(hurt)}`}.`;
+    return say`${called(event, guildId)}'s Party ${went} ${which}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.`;
   },
   'quest.resolved': (event, { content }) => {
     const { guildId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
     // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
     const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
-    return (
-      `${called(event, guildId)}'s Party came home from ${nameIn(content.questTemplates, templateKey)} ` +
-      `and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`
-    );
+    return say`${called(event, guildId)}'s Party came home from ${nameIn(content.questTemplates, templateKey)} and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`;
   },
   'quest.loot': (event, { content, questName }) => {
     const { guildId, questId, definitionKey, quantity } = event.payload;
-    return `${called(event, guildId)} found Loot on ${questName(questId)}: ${items(content, definitionKey, quantity)}.`;
+    return say`${called(event, guildId)} found Loot on ${questName(questId)}: ${items(content, definitionKey, quantity)}.`;
   },
   'hero.injured': (event, { content }) => {
     const { heroId, typeKey, healsOnTurn } = event.payload;
-    return `${called(event, heroId)} was injured (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;
+    return say`${called(event, heroId)} was injured (${nameIn(content.injuries, typeKey)}), healing on ${night(healsOnTurn)}.`;
   },
-  'hero.died': (event, { questName }) => `${called(event, event.payload.heroId)} died on ${questName(event.payload.questId)}.`,
-  'hero.xp-gained': (event) => `${called(event, event.payload.heroId)} gained ${event.payload.amount} XP.`,
+  'hero.died': (event, { questName }) => say`${called(event, event.payload.heroId)} died on ${questName(event.payload.questId)}.`,
+  'hero.xp-gained': (event) => say`${called(event, event.payload.heroId)} gained ${event.payload.amount} XP.`,
   'hero.morale-changed': (event) => {
     const { heroId, before, after, bandAfter } = event.payload;
-    return `${called(event, heroId)}'s Morale went from ${before} to ${after}, ${bandAfter}.`;
+    return say`${called(event, heroId)}'s Morale went from ${before} to ${after}, ${bandAfter}.`;
   },
   'hero.healed': (event, { content }) => {
     const { heroId, typeKey, traitKey } = event.payload;
     const left = traitKey === null ? '' : `, left ${nameIn(content.traits, traitKey)}`;
-    return `${called(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
+    return say`${called(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
   },
   'hero.retired': (event) =>
-    `${called(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`,
+    say`${called(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`,
   'hero.declined': (event, { content }) => {
     const { heroId, statKey, delta, age } = event.payload;
-    return `${called(event, heroId)}, at ${age}, lost ${-delta} ${nameIn(content.stats, statKey)} to age.`;
+    return say`${called(event, heroId)}, at ${age}, lost ${-delta} ${nameIn(content.stats, statKey)} to age.`;
   },
-  'game.ended': (event) => `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`,
-  'guild.folded': (event) => `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`,
+  'game.ended': (event) => say`The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`,
+  'guild.folded': (event) => say`${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`,
   'hero.left-guild': (event) =>
-    `${called(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`,
+    say`${called(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`,
   'guild.improved': (event, { content }) => {
     const { guildId, facility, grade, improvementKey, cost } = event.payload;
-    return (
-      `${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: ` +
-      `its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`
-    );
+    return say`${called(event, guildId)} built ${nameIn(content.improvements, improvementKey)} for ${cost} Wealth: its ${facilityNames[facility]} ${facilityIs[facility]} now grade ${grade}.`;
   },
   'hero.levelled': (event, { content }) => {
     // The Stats that rose, never the points Potential took: Potential is shown only as a hint.
@@ -268,75 +317,75 @@ const sentences: Sentences = {
     const rose = Object.entries(statDeltas)
       .sort(([a], [b]) => compareByCodeUnit(a, b))
       .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${signed(delta)}`);
-    return `${called(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
+    return say`${called(event, heroId)} reached Level ${level}${rose.length === 0 ? '' : `: ${rose.join(', ')}`}.`;
   },
   'patron.regard-changed': (event) => {
     const { patronId, guildId, cause, bandBefore, bandAfter } = event.payload;
-    return `${called(event, patronId)}'s Regard for ${called(event, guildId)} ${crossed(bandBefore, bandAfter)} ${patronRegardWords[cause]}.`;
+    return say`${called(event, patronId)}'s Regard for ${called(event, guildId)} ${crossed(bandBefore, bandAfter)} ${patronRegardWords[cause]}.`;
   },
   'guildmaster.regard-changed': (event) => {
     const { guildmasterId, entityId, bandBefore, bandAfter } = event.payload;
-    return `${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
+    return say`${called(event, guildmasterId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)}.`;
   },
   'hero.regard-changed': (event) => {
     const { heroId, entityId, cause, bandBefore, bandAfter } = event.payload;
-    return `${called(event, heroId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)} ${heroRegardWords[cause]}.`;
+    return say`${called(event, heroId)}'s Regard for ${called(event, entityId)} ${crossed(bandBefore, bandAfter)} ${heroRegardWords[cause]}.`;
   },
   'item.equipped': (event, { content }) => {
     const { guildId, heroId, slot } = event.payload;
-    return `${called(event, guildId)} put ${gear(event.payload, content)} in ${called(event, heroId)}'s ${slot} slot.`;
+    return say`${called(event, guildId)} put ${gear(event.payload, content)} in ${called(event, heroId)}'s ${slot} slot.`;
   },
   'item.unequipped': (event, { content }) => {
     const { guildId, heroId, slot } = event.payload;
-    return `${called(event, guildId)} took ${gear(event.payload, content)} from ${called(event, heroId)}'s ${slot} slot.`;
+    return say`${called(event, guildId)} took ${gear(event.payload, content)} from ${called(event, heroId)}'s ${slot} slot.`;
   },
   'item.returned': (event, { content }) => {
     const { guildId, heroId, cause } = event.payload;
-    return `${gear(event.payload, content)} went back to ${called(event, guildId)} from ${called(event, heroId)}${gearReturnWords[cause]}.`;
+    return say`${gear(event.payload, content)} went back to ${called(event, guildId)} from ${called(event, heroId)}${gearReturnWords[cause]}.`;
   },
   'item.bought': (event, { content }) => {
     const { guildId, definitionKey, quantity, cost } = event.payload;
-    return `${called(event, guildId)} bought ${items(content, definitionKey, quantity)} at the Market for ${cost} Wealth.`;
+    return say`${called(event, guildId)} bought ${items(content, definitionKey, quantity)} at the Market for ${cost} Wealth.`;
   },
   'item.sold': (event, { content }) => {
     const { guildId, definitionKey, quantity, proceeds, cause } = event.payload;
     const what = items(content, definitionKey, quantity);
     return cause === 'fold'
-      ? `${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
-      : `${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
+      ? say`${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
+      : say`${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
   },
   'hero.transferred': (event) => {
     // M6-S2: who moved, from whom to whom, for how much, and whether an offer was accepted.
     const { heroId, fromGuildId, toGuildId, fee, offerId } = event.payload;
     const accepted = offerId === null ? '' : ', accepting its Transfer Offer';
-    return `${called(event, toGuildId)} took ${called(event, heroId)} from ${called(event, fromGuildId)} for ${fee} Wealth${accepted}.`;
+    return say`${called(event, toGuildId)} took ${called(event, heroId)} from ${called(event, fromGuildId)} for ${fee} Wealth${accepted}.`;
   },
   'guild.transfer-offered': (event) => {
     const { fromGuildId, toGuildId, heroId, fee, expiresOnTurn } = event.payload;
-    return `${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${fee} Wealth for ${called(event, heroId)}, until ${night(expiresOnTurn)}.`;
+    return say`${called(event, toGuildId)} offered ${called(event, fromGuildId)} ${fee} Wealth for ${called(event, heroId)}, until ${night(expiresOnTurn)}.`;
   },
   'guild.transfer-offer-declined': (event) => {
     const { fromGuildId, toGuildId, heroId } = event.payload;
-    return `${called(event, fromGuildId)} declined ${called(event, toGuildId)}'s offer for ${called(event, heroId)}.`;
+    return say`${called(event, fromGuildId)} declined ${called(event, toGuildId)}'s offer for ${called(event, heroId)}.`;
   },
   'guild.transfer-offer-expired': (event) => {
     const { toGuildId, heroId, cause } = event.payload;
-    return `${called(event, toGuildId)}'s offer for ${called(event, heroId)} ${offerEndWords[cause]}.`;
+    return say`${called(event, toGuildId)}'s offer for ${called(event, heroId)} ${offerEndWords[cause]}.`;
   },
   // M8-S2: a module's `adjustWealth` effect.
   'guild.wealth-changed': (event) =>
-    `${called(event, event.payload.guildId)}'s Wealth went from ${event.payload.before} to ${event.payload.after}.`,
+    say`${called(event, event.payload.guildId)}'s Wealth went from ${event.payload.before} to ${event.payload.after}.`,
   'item.expended': (event, { content }) => {
     // The roll is the engine's; the page says which Encounter, counted from 1, and what it did (M5-S3).
     const { payload } = event;
-    const used = `${called(event, payload.guildId)}'s Party used one ${nameIn(content.items, payload.definitionKey)}`;
+    const used = say`${called(event, payload.guildId)}'s Party used one ${nameIn(content.items, payload.definitionKey)}`;
     switch (payload.effect) {
       case 'bonus':
-        return `${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
+        return say`${used} on Encounter ${payload.encounterIndex + 1}: ${signed(payload.flat)} to its Check.`;
       case 'reroll':
-        return `${used} to try Encounter ${payload.encounterIndex + 1} again.`;
+        return say`${used} to try Encounter ${payload.encounterIndex + 1} again.`;
       case 'heal':
-        return `${used} on ${called(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
+        return say`${used} on ${called(event, payload.heroId)}: their Injury heals ${payload.days} ${payload.days === 1 ? 'Day' : 'Days'} sooner.`;
     }
   },
 };
@@ -350,10 +399,21 @@ export const narratedTypes = Object.freeze(Object.keys(sentences)) as readonly E
  * for any type.
  */
 export function narrate(event: TurnEvent, narration: Narration): string {
-  if (isModuleEvent(event)) return moduleSentence(event);
-  const words = sentences[event.type] as (event: EngineEvent, narration: Narration) => string;
-  const sentence = words(event, narration);
-  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+  return textOf(narrateSegments(event, narration));
+}
+
+/**
+ * `narrate`'s sentence as segments (M9-S5, DL-105): its words, and each name in it of a Guild, a
+ * Hero, a Guildmaster or a Patron marked with the id the sentence read it from. Their words are the
+ * sentence, word for word, capitalised where it opens.
+ */
+export function narrateSegments(event: TurnEvent, narration: Narration): Segment[] {
+  const words = isModuleEvent(event)
+    ? moduleSentence(event)
+    : (sentences[event.type] as (event: EngineEvent, narration: Narration) => Words)(event, narration);
+  const [first, ...rest] = words;
+  if (first === undefined) return [];
+  return [{ ...first, text: first.text.charAt(0).toUpperCase() + first.text.slice(1) }, ...rest];
 }
 
 /**
@@ -363,11 +423,11 @@ export function narrate(event: TurnEvent, narration: Narration): string {
  * Una Greave, Ranulf Tarrant and The Hollin Guild.` A type outside any namespace, which no module's
  * `emit` makes, is still worded, from "A module".
  */
-function moduleSentence(event: ModuleEvent): string {
+function moduleSentence(event: ModuleEvent): Words {
   const dot = event.type.indexOf('.');
   const who = dot > 0 ? `The ${event.type.slice(0, dot)} module` : 'A module';
   const named = event.participants.map((id) => called(event, id));
-  return `${who} recorded ${event.type}${named.length === 0 ? '' : ` for ${listed(named)}`}.`;
+  return say`${who} recorded ${event.type}${named.length === 0 ? '' : say` for ${listedWords(named)}`}.`;
 }
 
 // ── Quests by name ───────────────────────────────────────────────────────────────────────────

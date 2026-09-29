@@ -5,7 +5,6 @@ import {
   createWorld,
   dayOf,
   defaultConfig,
-  entriesFor,
   facilityKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
@@ -24,17 +23,11 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { historyPageSize } from './selectors';
-import { played as playedState, started, withTheGone } from './game.test-support';
 import {
-  findInHistory,
   guildPage,
   guildmasterView,
   guildsView,
   hallView,
-  historyChoices,
-  historySearchLimit,
-  historyView,
   patronsView,
   rankingsView,
 } from './world-views';
@@ -234,112 +227,5 @@ describe('guildPage', () => {
     expect(page?.hall.guildId).toBe(other.id);
     expect(page?.guildmaster?.guildName).toBe(other.name);
     expect(guildPage(document, 'guild-999999' as GuildId)).toBeNull();
-  });
-});
-
-describe('historyView', () => {
-  test('pages the whole History newest first', () => {
-    const document = played(30);
-    const all = document.history.entries;
-
-    const first = historyView(document, null, 0);
-    const last = historyView(document, null, 9_999);
-
-    expect(first.title).toBe('The whole History');
-    expect(first).toMatchObject({ page: 0, entries: all.length, pages: Math.ceil(all.length / historyPageSize) });
-    expect(first.lines).toHaveLength(historyPageSize);
-    expect(first.lines[0]?.when).toBe(`Day ${dayOf(all.at(-1)?.turn ?? 0)}, ${['morning', 'afternoon', 'night'][(all.at(-1)?.turn ?? 0) % 3]}`);
-    expect(last.page).toBe(first.pages - 1);
-    expect(last.lines.at(-1)?.sentence).toBe('The world was made from seed world-views-played.');
-  });
-
-  test("pages a Guild's History newest first, and offers every Guild's", () => {
-    const document = played(30);
-    const guild = player(document);
-    const mine = entriesFor(document.history, guild.id);
-
-    const view = historyView(document, guild.id, 0);
-
-    expect(view.title).toBe('The History of The Lantern');
-    expect(view.entries).toBe(mine.length);
-    expect(view.lines.map((line) => line.key)).toHaveLength(Math.min(historyPageSize, mine.length));
-    expect(historyChoices(document).map((choice) => choice.guildId)).toEqual(Object.keys(document.world.guilds));
-  });
-});
-
-describe('anyone the History names, found by name (DL-74)', () => {
-  /** A game a few Turns in with a Hero dead, one retired and one gone from the world. */
-  function gone() {
-    const { state, ...heroes } = withTheGone(playedState(started('history-search'), { kind: 'advance', turns: 6 }));
-    if (state.document === null) throw new Error('no game in hand');
-    return { document: state.document, ...heroes };
-  }
-
-  test('finds a Hero on no Roster and not in the pool, dead, retired or gone from the world, by any part of their name', () => {
-    const { document, dead, retired, gone: left } = gone();
-
-    for (const [hero, what] of [
-      [dead, 'Hero, dead'],
-      [retired, 'Hero, retired'],
-      [left, 'Hero, no longer in the world'],
-    ] as const) {
-      const part = hero.name.split(' ').at(-1)?.toUpperCase() ?? '';
-      const found = findInHistory(document, `  ${part} `);
-      expect(found.names).toContainEqual({ entityId: hero.id, name: hero.name, what });
-    }
-  });
-
-  test('finds the Guilds, Guildmasters and Patrons too, each said for what it is', () => {
-    const { document } = gone();
-    const lantern = player(document);
-    const patron = Object.values(document.world.patrons)[0];
-    if (patron === undefined) throw new Error('no Patron');
-
-    expect(findInHistory(document, 'lantern').names).toContainEqual({ entityId: lantern.id, name: 'The Lantern', what: 'Guild' });
-    expect(findInHistory(document, 'ada vell').names).toContainEqual({
-      entityId: lantern.guildmasterId,
-      name: 'Ada Vell',
-      what: 'Guildmaster of The Lantern',
-    });
-    expect(findInHistory(document, patron.name).names).toContainEqual({ entityId: patron.id, name: patron.name, what: 'Patron' });
-    const onTheRoster = Object.values(document.world.heroes).find((hero) => lantern.rosterIds.includes(hero.id));
-    if (onTheRoster === undefined) throw new Error('no Hero on the Roster');
-    expect(findInHistory(document, onTheRoster.name).names).toContainEqual({
-      entityId: onTheRoster.id,
-      name: onTheRoster.name,
-      what: 'Hero of The Lantern',
-    });
-  });
-
-  test('names no Quest or Party, shows at most a page of names in order, and nothing for a blank or unknown name', () => {
-    const { document } = gone();
-    const many = findInHistory(document, 'e');
-
-    expect(many.matched).toBeGreaterThan(historySearchLimit);
-    expect(many.names).toHaveLength(historySearchLimit);
-    expect(many.names.map((name) => name.name)).toEqual(many.names.map((name) => name.name).sort());
-    expect(many.names.every((name) => /^(guild|hero|guildmaster|patron)-\d{6}$/.test(name.entityId))).toBe(true);
-    const quest = document.history.entries.find((entry) => entry.type === 'quest.offered');
-    const template = content.questTemplates[(quest?.payload as { templateKey: string } | undefined)?.templateKey ?? '']?.name ?? '';
-    expect(template).not.toBe('');
-    expect(findInHistory(document, template).names.filter((name) => !/^(guild|hero|guildmaster|patron)-/.test(name.entityId))).toEqual([]);
-    expect(findInHistory(document, '   ')).toEqual({ names: [], matched: 0 });
-    expect(findInHistory(document, 'no one is called this')).toEqual({ names: [], matched: 0 });
-  });
-
-  test("opens the page of a Hero the world still holds, dead ones included, and anyone else's entries newest first", () => {
-    const { document, dead, gone: left } = gone();
-    const patron = Object.values(document.world.patrons)[0];
-    if (patron === undefined) throw new Error('no Patron');
-
-    expect(historyView(document, dead.id, 0)).toMatchObject({ hero: dead.id, name: dead.name, title: `The History of ${dead.name}` });
-    const leftView = historyView(document, left.id, 0);
-    expect(leftView).toMatchObject({ hero: null, name: left.name, title: `The History of ${left.name}` });
-    expect(leftView.entries).toBe(entriesFor(document.history, left.id).length);
-    expect(leftView.entries).toBeGreaterThan(0);
-    const patronView = historyView(document, patron.id, 0);
-    expect(patronView).toMatchObject({ hero: null, name: patron.name, entries: entriesFor(document.history, patron.id).length });
-    expect(patronView.lines).toHaveLength(Math.min(historyPageSize, patronView.entries));
-    expect(historyView(document, 'hero-999999' as never, 0)).toMatchObject({ title: 'The whole History', name: null, hero: null });
   });
 });

@@ -22,7 +22,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { narrate, narratedTypes, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
+import { narrate, narratedTypes, narrateSegments, narrateStop, narrationFor, questNamer, textOf, type Narration, type Segment } from './narrate';
 
 // The log's words (M7-S3's first box): every event type in the engine's union has a sentence. The
 // samples table's type is derived from the union, so a type the engine adds fails `npm run
@@ -399,6 +399,79 @@ describe('every sample in so many words', () => {
   ] as const)('%s', (_name, event, sentence) => {
     if (typeof sentence === 'string') expect(narrate(event, narration)).toBe(sentence);
     else expect(narrate(event, narration)).toMatch(sentence);
+  });
+});
+
+/** The names a line marks, in its order: whom each opens, and the words it shows. */
+function namesIn(segments: readonly Segment[]): [string, string][] {
+  return segments.flatMap((segment) => (segment.kind === 'name' ? [[segment.entityId, segment.text] as [string, string]] : []));
+}
+
+describe('a line as segments: its words, and the names in it the page can open (M9-S5)', () => {
+  test.each(union)('%s reads word for word as its sentence, and marks only names of whom the event names', (type) => {
+    const segments = narrateSegments(samples[type], narration);
+
+    expect(textOf(segments)).toBe(exactly[type]);
+    for (const [entityId, text] of namesIn(segments)) {
+      expect(samples[type].participants).toContain(entityId);
+      expect(text).toBe(labels[entityId]);
+    }
+  });
+
+  test('marks each name from the id the sentence reads, in the order the sentence gives them', () => {
+    expect(namesIn(narrateSegments(samples['quest.taken'], narration))).toEqual([
+      [guildId, 'The Kestrel Guild'],
+      [heroId, 'Brenna Ashcombe'],
+      [otherHeroId, 'Aldred Barrowby'],
+    ]);
+    expect(namesIn(narrateSegments(samples['hero.transferred'], narration))).toEqual([
+      [rivalId, 'The Iron Wardens'],
+      [heroId, 'Brenna Ashcombe'],
+      [guildId, 'The Kestrel Guild'],
+    ]);
+    expect(namesIn(narrateSegments(samples['guildmaster.regard-changed'], narration))).toEqual([
+      [guildmasterId, 'Osric Vane'],
+      [heroId, 'Brenna Ashcombe'],
+    ]);
+    expect(namesIn(narrateSegments(samples['patron.regard-changed'], narration))).toEqual([
+      [patronId, 'Lady Maud'],
+      [guildId, 'The Kestrel Guild'],
+    ]);
+    expect(namesIn(narrateSegments(samples['quest.encounter'], narration))).toEqual([
+      [guildId, 'The Kestrel Guild'],
+      [heroId, 'Brenna Ashcombe'],
+    ]);
+    // What each name is, for the page to know where it opens.
+    const [guild, hero] = narrateSegments(samples['hero.recruited'], narration).filter((segment) => segment.kind === 'name');
+    expect(guild).toMatchObject({ table: 'guilds' });
+    expect(hero).toMatchObject({ table: 'heroes' });
+  });
+
+  test('never finds a name by reading its own sentence: two of one name are told apart by their ids', () => {
+    // A Hero who shares the Guild's name: the sentence reads the same twice, the ids do not.
+    const twin = { ...samples['hero.recruited'], labels: { [guildId]: 'Wren', [heroId]: 'Wren' } };
+
+    expect(textOf(narrateSegments(twin, narration))).toBe('Wren signed Wren for 110 Wealth.');
+    expect(namesIn(narrateSegments(twin, narration))).toEqual([
+      [guildId, 'Wren'],
+      [heroId, 'Wren'],
+    ]);
+  });
+
+  test('leaves as words someone the event has no label for, capitalised where the line opens with them', () => {
+    const unlabelled = { ...samples['hero.recruited'], labels: {} };
+
+    expect(narrateSegments(unlabelled, narration)).toEqual([{ kind: 'text', text: 'A Guild signed a Hero for 110 Wealth.' }]);
+  });
+
+  test("marks the names in a module's own event too, from its participants", () => {
+    const fired = { type: 'probe.fired', turn: 9, participants: [heroId, patronId], labels: { [heroId]: labels[heroId], [patronId]: labels[patronId] }, milestone: false, payload: {} } as unknown as ModuleEvent;
+
+    expect(textOf(narrateSegments(fired, narration))).toBe('The probe module recorded probe.fired for Brenna Ashcombe and Lady Maud.');
+    expect(namesIn(narrateSegments(fired, narration))).toEqual([
+      [heroId, 'Brenna Ashcombe'],
+      [patronId, 'Lady Maud'],
+    ]);
   });
 });
 

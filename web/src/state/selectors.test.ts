@@ -38,8 +38,6 @@ import {
   headerView,
   heldView,
   heroPage,
-  historyPageSize,
-  logView,
   partyChoices,
   previewView,
   progressView,
@@ -324,26 +322,19 @@ describe('heroPage', () => {
     }
   });
 
-  test('pages its History newest first, and shows its Milestones first', () => {
+  test('shows its Milestones first, newest first; its History, a page at a time, is the History view\'s (M9-S5)', () => {
     const document = played(240);
     // The busiest Hero of the world: a Rival's, whose Guild sends Parties while the player's rests.
     const hero = Object.values(document.world.heroes).reduce((most, each) =>
       entriesFor(document.history, each.id).length > entriesFor(document.history, most.id).length ? each : most,
     );
     const all = entriesFor(document.history, hero.id);
-    expect(all.length).toBeGreaterThan(historyPageSize);
+    const page = heroPage(document, hero.id);
 
-    const first = heroPage(document, hero.id, 0);
-    const second = heroPage(document, hero.id, 1);
-    const past = heroPage(document, hero.id, 999);
-
-    expect(first?.history).toMatchObject({ page: 0, entries: all.length, pages: Math.ceil(all.length / historyPageSize) });
-    expect(first?.history.lines).toHaveLength(historyPageSize);
-    expect(first?.history.lines.map((line) => line.when)[0]).toBe(`Day ${dayOf(all[0]?.turn ?? 0)}, ${timeOfDay(all[0]?.turn ?? 0)}`);
-    expect(second?.history.lines[0]?.sentence).not.toBe(first?.history.lines[0]?.sentence);
-    expect(past?.history.page).toBe((first?.history.pages ?? 1) - 1);
-    expect(first?.milestones.every((line) => line.milestone)).toBe(true);
-    expect(first?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
+    expect(page?.milestones.every((line) => line.milestone)).toBe(true);
+    expect(page?.milestones).toHaveLength(all.filter((entry) => entry.milestone).length);
+    expect(page?.milestones[0]?.when).toBe(`Day ${dayOf(all.find((entry) => entry.milestone)?.turn ?? 0)}, ${timeOfDay(all.find((entry) => entry.milestone)?.turn ?? 0)}`);
+    expect(page).not.toHaveProperty('history');
   });
 
   test('is null for a Hero the world does not hold', () => {
@@ -439,20 +430,6 @@ describe("a Hero's page offers what can be done with the Hero", () => {
 });
 
 describe('the log and why time stopped', () => {
-  test("narrates the last play's events oldest first, and those naming the player's Guild alone when asked", () => {
-    const start = newGame();
-    const turn = advance(start, deps);
-    const state: GameState = { ...initialGameState, document: turn.document, log: turn.events, stoppedBecause: turn.stoppedBecause };
-    const guild = player(turn.document);
-
-    const all = logView(state);
-    const mine = logView(state, true);
-
-    expect(all).toHaveLength(turn.events.length);
-    expect(mine).toHaveLength(turn.events.filter((event) => event.participants.includes(guild.id)).length);
-    expect(logView(initialGameState)).toEqual([]);
-  });
-
   test('says why a fast forward stopped, and nothing after a play that was not one', () => {
     const document = newGame();
     const state: GameState = { ...initialGameState, document, stoppedBecause: { kind: 'max-turns' } };

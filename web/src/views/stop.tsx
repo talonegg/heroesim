@@ -14,14 +14,14 @@ type Next = { label: string; target: SectionId } | { label: string; again: true 
 const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   ended: null,
   // M9-S1 (DL-101): the new stops; M9-S7 gives them their place on the page.
-  'below-floor': { label: 'Read what happened', target: 'log' },
+  'below-floor': { label: 'Read what happened', target: 'history' },
   'quest-staffable': { label: 'Open the Board', target: 'board' },
-  'party-returned': { label: 'Read what happened', target: 'log' },
+  'party-returned': { label: 'Read what happened', target: 'history' },
   // Shown only when none of the Quests it named is still on the Board.
   'decision-needed': { label: 'Open the Board', target: 'board' },
   'transfer-offer': { label: 'Answer the offer', target: 'offers' },
   // M8-S2: the module's own events say why it asked.
-  module: { label: 'Read what happened', target: 'log' },
+  module: { label: 'Read what happened', target: 'history' },
   'max-turns': { label: 'Fast forward again', again: true },
   'pool-refreshed': { label: 'See who joined the pool', target: 'pool' },
   // v1.0.1-S5: the player's Stop, which goes on with the stops it was asked for.

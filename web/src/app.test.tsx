@@ -6,20 +6,22 @@ import { fastForwardStepTurns, gameReducer, initialGameState, type GameState, ty
 import { download } from './views/download';
 import {
   closeMenu,
-  fastForwardUntilPool,
+  historyLines,
+  inHistory,
   nav,
   navButton,
   openMenu,
   openView,
   rosterList,
   section,
+  sentenceOf,
   time,
   type ViewName,
 } from './views/page.test-support';
 
 // The page (M7-S3; views in a shell since M9-S3, DL-103): a new game, the status bar, the views
 // and the navigation between them, the home view's digest, the Board with dispatch, the Roster with
-// Hero pages and the log, driven through the page's own controls. Every play settles after the
+// Hero pages and the History, driven through the page's own controls. Every play settles after the
 // busy state is painted (M7-S2), so each test waits for the page to be idle again. The file a
 // player saves is kept, not downloaded: "Export this game" hands it to `download`.
 vi.mock('./views/download', () => ({ download: vi.fn() }));
@@ -49,6 +51,18 @@ function started(): GameState {
 
 async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
+}
+
+/** The whole History, chosen in the History view (M9-S5). */
+function wholeHistory(): HTMLElement {
+  fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The whole History' }));
+  return section('History');
+}
+
+/** What the History's summary says: its entries in all, and how many of them are new. */
+function summary(history: HTMLElement): { entries: number; fresh: number } {
+  const text = within(history).getByText(/^Page \d+ of \d+, \d+ (entry|entries) in all, newest first\./).textContent ?? '';
+  return { entries: Number(/, (\d+) entr/.exec(text)?.[1]), fresh: Number(/ (\d+) new since your last action\.$/.exec(text)?.[1] ?? 0) };
 }
 
 const views: readonly ViewName[] = ['Guild', 'Board', 'Roster', 'Hall', 'Rankings', 'History'];
@@ -286,9 +300,9 @@ describe('the home view (M9-S3, DL-103)', () => {
     const wealth = /^Wealth ([+-]?\d+)$/.exec(within(outcome).getByText(/^Wealth /).textContent ?? '')?.[1];
     const fame = /^Fame ([+-]?\d+)$/.exec(within(outcome).getByText(/^Fame /).textContent ?? '')?.[1];
     expect(within(outcome).getByText(/^XP \+\d+ each$/)).toBeDefined();
-    // The same outcome, as the log narrates it, among what concerns the Guild.
-    fireEvent.click(within(section('Since your last action')).getByRole('checkbox'));
-    expect(within(section('Since your last action')).getByText(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`))).toBeDefined();
+    // The same outcome, as the History narrates it, new, where it opens: on the player's Guild (M9-S5).
+    const line = inHistory(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`));
+    expect(line.classList.contains('is-new')).toBe(true);
     // This seed's Party comes home with an Injury: named, with the night it heals.
     openView('Guild');
     expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(/^.+: .+, healing on the night of Day \d+$/)).toBeDefined();
@@ -315,38 +329,37 @@ describe('a game in hand', () => {
     await idle();
 
     expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
-    const log = section('Since your last action');
-    expect(within(log).getByText(/^\d+ events?, oldest first\.$/)).toBeDefined();
-    for (const item of within(log).getAllByRole('listitem')) expect(item.textContent).toMatch(/^Day \d+, (morning|afternoon|night) .+\.$/);
+    // What the Turn added is the History's newest, under its Day and time of day, each line marked new (M9-S5).
+    const history = wholeHistory();
+    const before = started().document?.history.entries.length ?? 0;
+    const { entries, fresh } = summary(history);
+    expect(fresh).toBe(entries - before);
+    expect(fresh).toBeGreaterThan(0);
+    const [newest] = within(history).getAllByRole('heading', { level: 4 });
+    expect(newest?.textContent).toBe('Day 0, afternoon');
+    const lines = historyLines(newest?.parentElement as HTMLElement);
+    expect(lines.length).toBeGreaterThan(0);
+    for (const line of lines) expect(line.classList.contains('is-new')).toBe(true);
   });
 
-  test('keeps the log to the Guild when asked, and shows a long one a hundred lines at a time', async () => {
-    render(<App initial={started()} />);
+  test('after a fast forward, the History has all it added, marked new, twenty entries a page', async () => {
+    // A Party out on a Quest of ten Days: the fast forward plays until it comes home.
+    const state = withPartyOut(startedFrom('reducer-test'));
+    // Counted now: the History is appended to in place, shared by the games that follow (ADR-0008).
+    const before = state.document?.history.entries.length ?? 0;
+    render(<App initial={state} />);
 
-    fastForwardUntilPool();
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
-    const log = section('Since your last action');
-    const count = (): number => within(log).queryAllByRole('listitem').length;
-    const all = Number(/^(\d+) events?/.exec(within(log).getByText(/oldest first/).textContent ?? '')?.[1]);
+    const history = wholeHistory();
+    const { entries, fresh } = summary(history);
 
-    expect(count()).toBe(Math.min(all, 100));
-    fireEvent.click(within(log).getByRole('checkbox'));
-    const mine = Number(/^(\d+) events?/.exec(within(log).queryByText(/oldest first/)?.textContent ?? '0')?.[1] ?? 0);
-    expect(mine).toBeLessThanOrEqual(all);
-  });
-
-  test('keeps to the Guild from play to play once asked, and from view to view, as the History keeps whose it shows (DL-74)', async () => {
-    render(<App initial={started()} />);
-    const box = (): HTMLInputElement => within(section('Since your last action')).getByRole('checkbox') as HTMLInputElement;
-
-    fireEvent.click(box());
-    expect(box().checked).toBe(true);
-    openView('Board');
-    fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
-    await idle();
-
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
-    expect(box().checked).toBe(true);
+    expect(fresh).toBe(entries - before);
+    expect(fresh).toBeGreaterThan(20);
+    // The first page is all new, twenty entries and the steps its outcomes took with them.
+    const lines = historyLines(history);
+    expect(lines.length).toBeGreaterThanOrEqual(20);
+    for (const line of lines) expect(line.classList.contains('is-new')).toBe(true);
   });
 
   test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', async () => {
@@ -402,10 +415,9 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
     expect(screen.getByTestId('time').textContent).toBe('Day 10, night, Year 0');
-    // The log gathers both steps' events, the first step's first.
-    const log = section('Since your last action');
-    expect(within(log).getByText(/^\d+ events, oldest first\.$/)).toBeDefined();
-    expect(within(log).getAllByRole('listitem')[0]?.textContent).toMatch(/^Day 0, /);
+    // The History marks both steps' entries new: all it gained in the fast forward (M9-S5).
+    const { entries, fresh } = summary(wholeHistory());
+    expect(fresh).toBe(entries - (withPartyOut(startedFrom('reducer-test')).document?.history.entries.length ?? 0));
   });
 
   test('Stop leaves the game, the log and the sentence as its step left them, and "Fast forward again" goes on from there', async () => {
@@ -423,9 +435,9 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(first).toBeLessThan(1080);
     expect(screen.queryByTestId('progress')).toBeNull();
     expect(screen.getByTestId('time').textContent).toBe(`Day ${first / 3}, morning, Year 0`);
-    const log = section('Since your last action');
-    expect(within(log).getByText(/^\d+ events, oldest first\.$/)).toBeDefined();
-    expect(within(log).getAllByRole('listitem')[0]?.textContent).toMatch(/^Day 0, /);
+    // The History marks new all the steps played until the Stop (M9-S5).
+    const { entries, fresh } = summary(wholeHistory());
+    expect(fresh).toBe(entries - (withRosterReleased(startedFrom()).document?.history.entries.length ?? 0));
     expect((screen.getByRole('button', { name: 'Advance a Turn' }) as HTMLButtonElement).disabled).toBe(false);
 
     openView('Guild');
@@ -506,7 +518,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
     expect([...regions.keys()].sort()).toEqual(
       [
         'guild', 'board', 'roster', 'offers', 'pool', 'hall', 'guildmaster', 'market', 'rankings', 'guilds', 'patrons',
-        'history', 'log', 'rules', 'game',
+        'history', 'rules', 'game',
       ]
         .map((id) => `${id}-heading`)
         .sort(),
@@ -518,7 +530,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       expect(help.textContent, id).toMatch(/^[A-Z].{40,}\.$/);
     }
     for (const view of views) expect(described(openView(view))).toMatch(/^[A-Z].{40,}\.$/);
-    for (const part of ['Transfer Offers', 'Unattached pool', 'Guildmaster', 'Market', 'Guilds', 'Patrons', 'Since your last action', 'This game', 'New rules available']) {
+    for (const part of ['Transfer Offers', 'Unattached pool', 'Guildmaster', 'Market', 'Guilds', 'Patrons', 'This game', 'New rules available']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
   });
@@ -581,7 +593,7 @@ describe('the Board with dispatch', () => {
     await idle();
 
     expect(within(section('Board')).queryByRole('heading', { level: 3, name: questName })).toBeNull();
-    expect(within(section('Since your last action')).getByText(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`))).toBeDefined();
+    expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`)).classList.contains('is-new')).toBe(true);
     expect(within(rosterList()).getAllByText(/^away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
     expect(within(out).getByText(questName)).toBeDefined();
@@ -610,8 +622,10 @@ describe('the Roster with Hero pages', () => {
     expect(outlooks.length).toBeGreaterThan(10);
     for (const outlook of outlooks) expect(['modest', 'promising', 'exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
-    expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all\.$/)).toBeDefined();
-    expect((within(page).getByRole('button', { name: 'Newer' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
+    // Grouped by Day and time of day, as the History is (M9-S5); a first page has no newer one.
+    expect(within(page).getAllByRole('heading', { level: 5 }).length).toBeGreaterThan(0);
+    expect((within(page).queryByRole('button', { name: 'Newer' }) as HTMLButtonElement | null)?.disabled ?? true).toBe(true);
 
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the Roster' }));
     expect(within(section('Roster')).queryByRole('article')).toBeNull();
@@ -645,17 +659,22 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
 
     expect(screen.getByText('Installed for testing: the probe module.')).toBeDefined();
     expect(within(openMenu()).getByText('the probe module')).toBeDefined();
-    const log = section('Since your last action');
-    const fired = within(log).getByText(/^The probe module recorded probe\.fired for .+\.$/);
-    expect(fired.closest('li')?.querySelector('.when')?.textContent).toBe('Day 3, night');
+    // In the whole History, new, under the night it fired (M9-S5).
+    wholeHistory();
+    const fired = inHistory(/^The probe module recorded probe\.fired for .+\.$/);
+    expect(fired.classList.contains('is-new')).toBe(true);
+    expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Day 3, night');
     // Its effects' events follow it, in the page's words for the core's own.
-    expect(within(log).getByText(/'s Wealth went from \d+ to \d+\.$/)).toBeDefined();
+    expect(inHistory(/'s Wealth went from \d+ to \d+\.$/).classList.contains('is-new')).toBe(true);
   }, 30_000);
 
   test('without it, nothing is installed: no word of a module, and no probe.fired on the same Turns', async () => {
     await elevenTurns('/');
 
     expect(screen.queryByText(/Installed for testing/)).toBeNull();
-    expect(within(section('Since your last action')).queryByText(/probe/)).toBeNull();
+    // Nothing new in the whole History names a probe.
+    const fresh = historyLines(wholeHistory()).filter((line) => line.classList.contains('is-new'));
+    expect(fresh.length).toBeGreaterThan(0);
+    expect(fresh.filter((line) => /probe/.test(sentenceOf(line)))).toEqual([]);
   }, 30_000);
 });

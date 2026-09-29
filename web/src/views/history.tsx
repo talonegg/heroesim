@@ -1,82 +1,75 @@
-// The History (M7-S3 part 2; the CLI's `show history [entityId]`): the whole History of the world,
-// or a Guild's, newest first, a page at a time, each entry a sentence from the front end's own
-// `narrate.ts`. Nothing is dropped (principle 11): a folded Guild's History can still be read.
+// The History (M7-S3 part 2; the CLI's `show history [entityId]`; M9-S5, DL-105): the one place to
+// read what happened, to any Guild, Hero, Guildmaster or Patron (DL-99 item 2). What the last play
+// appended is its newest, marked new: "Since your last action" is no longer a section of its own.
 //
-// Anyone else the History names is found by name (DL-74): a Hero, dead, retired or gone from the
-// world, a Guildmaster or a Patron, as the CLI reaches any of them by id. A Hero the world still
-// holds opens on their page, the CLI's `show hero`, with their Milestones first; anyone else's
-// entries are listed as a Guild's are.
+// It opens on the player's Guild. The whole History and each Rival's in play are one choice away,
+// and the choice is the shell's, so it holds while the game is in hand, whichever view is open
+// (DL-74 item 8). Anyone else it names is found by name (DL-74), or opened from their name in a line:
+// a Hero the world still holds opens on their page, the CLI's `show hero`, with their Milestones
+// first and their History after; anyone else's History is shown as a Guild's is. Nothing is dropped
+// (principle 11): a folded Guild's History can still be read.
 //
-// A view of the shell (M9-S3, DL-103), with "Since your last action" above it as its part, one
-// above the other until M9-S5 folds them into one. Whose History is shown is the shell's, so the
-// choice holds while the game is in hand, whichever view is open (DL-74 item 8).
+// A page is `HistoryPage`'s (`history-entries.tsx`): groups by Day and time of day, folds, marks and
+// names that open whom they name. Every line and word comes from `state/history.ts`.
 
-import type { EntityId, WorldDocument } from '@heroesim/engine';
+import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import type { GameAction, GameState } from '../state/reducer';
-import { findInHistory, historyChoices, historySearchLimit, historyView } from '../state/world-views';
-import { HeroPage, Lines } from './hero-page';
+import { findInHistory, historyChoices, historySearchLimit, historyTitle, historyView, type HistoryChoice, type HistoryView, type HistoryWhose } from '../state/history';
+import type { GameAction } from '../state/reducer';
+import { HeroPage } from './hero-page';
+import { HistoryPage, useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
-import { Log } from './log';
 import { View } from './section';
+import { VisuallyHidden } from './ui';
+
+/** Whether `choice` is the History shown. */
+function isShown(choice: HistoryChoice, view: HistoryView): boolean {
+  if (choice.mine) return view.mine;
+  return choice.whose === 'all' ? view.entityId === null : view.entityId === choice.whose;
+}
 
 export function History({
-  state,
   document,
   busy,
   play,
-  guildName,
   whose,
   onWhose,
-  mine,
-  onMine,
 }: {
-  state: GameState;
   document: WorldDocument;
   busy: boolean;
   play: (action: GameAction) => void;
-  guildName: string;
-  /** Whose History is shown: the whole History when `null`. */
-  whose: EntityId | null;
-  onWhose: (whose: EntityId | null) => void;
-  /** Whether "Since your last action" keeps to the player's Guild. */
-  mine: boolean;
-  onMine: (mine: boolean) => void;
+  /** Whose History is shown: the player's Guild's when `null`, where it opens. */
+  whose: HistoryWhose;
+  onWhose: (whose: HistoryWhose) => void;
 }) {
+  const links = useHistoryLinks();
+  const log = links?.log;
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
-  const choices = useMemo(() => historyChoices(document), [document]);
-  const view = useMemo(() => historyView(document, whose, page), [document, whose, page]);
-  const found = useMemo(() => findInHistory(document, query), [document, query]);
-  const chosen = view.name === null ? '' : (whose ?? '');
-  const choose = (entityId: EntityId | null): void => {
-    onWhose(entityId);
+  // Whose History was shown before this one, which a Hero's page goes back to; a new choice starts at the newest page.
+  const [trail, setTrail] = useState<{ whose: HistoryWhose; before: HistoryWhose }>({ whose, before: null });
+  if (trail.whose !== whose) {
+    setTrail({ whose, before: trail.whose });
     setPage(0);
-  };
+  }
+  const choices = useMemo(() => historyChoices(document), [document]);
+  const view = useMemo(() => historyView(document, log ?? [], whose, page), [document, log, whose, page]);
+  const found = useMemo(() => findInHistory(document, query), [document, query]);
+  const back = trail.before === whose ? null : trail.before;
+
   return (
-    <View id="history">
-      <Log state={state} guildName={guildName} mine={mine} onMine={onMine} />
-      <div className="history__controls">
-      <label className="field">
-        <span>Whose History</span>
-        <select value={chosen} onChange={(event) => choose(event.target.value === '' ? null : (event.target.value as EntityId))}>
-          <option value="">The whole History</option>
-          {choices.map((choice) => (
-            <option key={choice.guildId} value={choice.guildId}>
-              {choice.name}
-            </option>
-          ))}
-          {chosen === '' || choices.some((choice) => choice.guildId === chosen) ? null : <option value={chosen}>{view.name}</option>}
-        </select>
-      </label>
-      <label className="field">
-        <span>Find someone in the History by name</span>
-        <span className="search">
-          <Icon name="search" />
-          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
-        </span>
-      </label>
-      </div>
+    <View
+      id="history"
+      aside={
+        <label className="field history__search">
+          <VisuallyHidden>Find someone in the History by name</VisuallyHidden>
+          <span className="search">
+            <Icon name="search" />
+            <input type="search" placeholder="Find by name" value={query} onChange={(event) => setQuery(event.target.value)} />
+          </span>
+        </label>
+      }
+    >
       {query.trim() === '' ? null : (
         <div className="found">
           <p className="subtle" role="status">
@@ -97,7 +90,7 @@ export function History({
                     type="button"
                     aria-label={`Read ${name.name}`}
                     onClick={() => {
-                      choose(name.entityId);
+                      onWhose(name.entityId);
                       setQuery('');
                     }}
                   >
@@ -109,31 +102,37 @@ export function History({
           )}
         </div>
       )}
+      <div className="history__whose chips" role="group" aria-label="Whose History">
+        {choices.map((choice) => (
+          <button key={String(choice.whose)} type="button" aria-pressed={isShown(choice, view)} onClick={() => onWhose(choice.whose)}>
+            {choice.label}
+            {choice.mine ? <VisuallyHidden>, your Guild</VisuallyHidden> : null}
+          </button>
+        ))}
+      </div>
       {view.hero === null ? (
-        <>
-          <h3>{view.title}</h3>
-          <p className="subtle">
-            Page {view.page + 1} of {view.pages}, {view.entries} {view.entries === 1 ? 'entry' : 'entries'} in all, newest first.
-          </p>
-          <Lines lines={view.lines} empty="Nothing yet." />
-          <div className="actions actions--pages">
-            <button type="button" disabled={view.page === 0} onClick={() => setPage(0)}>
-              Newest
-            </button>
-            <button type="button" disabled={view.page === 0} onClick={() => setPage(view.page - 1)}>
-              Newer
-            </button>
-            <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.page + 1)}>
-              Older
-            </button>
-            <button type="button" disabled={view.page >= view.pages - 1} onClick={() => setPage(view.pages - 1)}>
-              Oldest
-            </button>
-          </div>
-        </>
+        <HistoryPage
+          view={view}
+          level={4}
+          onPage={setPage}
+          heading={
+            <h3 id="history-title" tabIndex={-1}>
+              {view.title}
+            </h3>
+          }
+        />
       ) : (
-        <HeroPage key={view.hero} document={document} heroId={view.hero} onBack={() => choose(null)} backLabel="Back to the whole History" play={play} busy={busy} />
+        <HeroPage
+          key={view.hero}
+          document={document}
+          heroId={view.hero}
+          onBack={() => onWhose(back)}
+          backLabel={`Back to ${historyTitle(document, back).replace(/^The/, 'the')}`}
+          play={play}
+          busy={busy}
+        />
       )}
     </View>
   );
 }
+

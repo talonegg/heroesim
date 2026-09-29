@@ -3,8 +3,9 @@ import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } from './digest';
 import { changed, played, started, withOffer, withPartyOut } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
-import { boardView, logView, rosterView } from './selectors';
-import { historyView } from './world-views';
+import { boardView, rosterView, whenOf } from './selectors';
+import { narrate, narrationFor } from './narrate';
+import { content } from '../content';
 
 // What the shell reads (M9-S3, DL-103): the counts on the navigation, the home view's digest and the
 // History rail. Every number is a document field, an engine selector's answer or the last play's
@@ -13,6 +14,12 @@ import { historyView } from './world-views';
 function documentOf(state: GameState): WorldDocument {
   if (state.document === null) throw new Error('no game in hand');
   return state.document;
+}
+
+/** The last play's events, each as the History narrates it. */
+function sentencesOf(state: GameState): string[] {
+  const narration = narrationFor(documentOf(state), content);
+  return state.log.map((event) => narrate(event, narration));
 }
 
 function playerOf(state: GameState): Guild {
@@ -58,8 +65,8 @@ describe('partiesOutView', () => {
 
     expect(rows).toHaveLength(1);
     const [row] = rows;
-    // The log's own sentence for the dispatch names the same Heroes, Quest and night.
-    const [sent] = logView(state).map((line) => line.sentence);
+    // The History's own sentence for the dispatch names the same Heroes, Quest and night.
+    const [sent] = sentencesOf(state);
     expect(sent).toBe(`The Lantern sent ${row?.heroes} on ${row?.quest}, back on ${row?.returns}.`);
     // And the Roster says each of them is away until that night.
     const away = rosterView(documentOf(state)).filter((hero) => hero.whereabouts === `away with a Party, back on ${row?.returns}`);
@@ -117,7 +124,7 @@ describe('outcomesView', () => {
   test("gives each Party of the player's that came home in the last play: its Quest, band, Wealth, Fame, XP and Injuries, as the log narrates them", () => {
     const state = cameHome();
     const rows = outcomesView(state);
-    const sentences = logView(state).map((line) => line.sentence);
+    const sentences = sentencesOf(state);
     const homecomings = sentences.filter((sentence) => sentence.startsWith("The Lantern's Party came home from "));
     // Rivals' Parties came home in the same Turns; only the player's are its outcomes.
     expect(sentences.filter((sentence) => / Party came home from /.test(sentence)).length).toBeGreaterThan(homecomings.length);
@@ -151,7 +158,8 @@ describe('railView', () => {
     const state = played(started(), { kind: 'advance', turns: 3 });
     const document = documentOf(state);
     const guild = playerOf(state);
-    const history = historyView(document, guild.id, 0).lines;
+    const narration = narrationFor(document, content);
+    const history = entriesFor(document.history, guild.id).map((entry) => ({ when: whenOf(entry.turn), sentence: narrate(entry as never, narration) }));
     const rail = railView(state, 8);
 
     expect(rail?.guildName).toBe('The Lantern');

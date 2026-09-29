@@ -2,6 +2,8 @@
 // player's Guild's latest entries, those the last play appended marked new, so a result is read
 // beside the decision that caused it (DL-99 item 1). By CSS alone, as the navigation is: under
 // 1100px, and while the History view itself is open, it is not drawn. The lines are `railView`'s.
+// "Open the History" opens the History on the player's Guild, at its newest, where what the last play
+// added is marked new (M9-S5, DL-105).
 
 import { useMemo } from 'react';
 import { railView } from '../state/digest';

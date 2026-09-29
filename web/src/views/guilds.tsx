@@ -6,7 +6,8 @@
 // Hero's page opens from there.
 //
 // A part of the Rankings (M9-S3, DL-103). The table it merges into and a Rival's page redesigned are
-// M9-S6's.
+// M9-S6's. A Guild's page opens the Guild's History, and a Guild's name in the History opens its
+// page here, the player's Guild's included (M9-S5, DL-105).
 
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
@@ -15,14 +16,30 @@ import { guildPage, guildsView, type GuildRow } from '../state/world-views';
 import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
+import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
 import { Part, Terms } from './section';
 
 type Play = (action: GameAction) => void;
 
-export function Guilds({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
+export function Guilds({
+  document,
+  busy,
+  play,
+  open: given,
+  onOpen,
+}: {
+  document: WorldDocument;
+  busy: boolean;
+  play: Play;
+  /** The Guild whose page is open, when the shell keeps it; the part keeps its own otherwise. */
+  open?: GuildId | null;
+  onOpen?: (guildId: GuildId | null) => void;
+}) {
   const rows = useMemo(() => guildsView(document), [document]);
-  const [open, setOpen] = useState<GuildId | null>(null);
+  const [own, setOwn] = useState<GuildId | null>(null);
+  const open = given === undefined ? own : given;
+  const setOpen = onOpen ?? setOwn;
   return (
     <Part id="guilds">
       {open === null ? (
@@ -83,6 +100,7 @@ function GuildPage({
 }) {
   const view = useMemo(() => guildPage(document, guildId), [document, guildId]);
   const [hero, setHero] = useState<HeroId | null>(null);
+  const links = useHistoryLinks();
   const back = (
     <div className="actions actions--back">
       <button type="button" className="button--quiet" onClick={onBack}>
@@ -105,11 +123,21 @@ function GuildPage({
   return (
     <article className="guild-page" aria-labelledby="guild-page-name">
       {back}
-      <h4 id="guild-page-name">{view.name}</h4>
+      <h4 id="guild-page-name" tabIndex={-1}>
+        {view.name}
+      </h4>
       <p className="subtle">
         {view.controller}
         {view.folded === null ? '' : `, ${view.folded}`}
       </p>
+      {links === null ? null : (
+        <div className="actions">
+          <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildId)}>
+            <Icon name="history" />
+            <span>Read its History</span>
+          </button>
+        </div>
+      )}
 
       <h5>Roster</h5>
       {view.roster.length === 0 ? (

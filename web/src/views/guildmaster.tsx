@@ -3,11 +3,14 @@
 // on, their Traits and what each does, and their Regard for every Patron, each Hero on their Roster
 // and each other Guild in play, as bands and never as numbers (pre-M0 review B3).
 //
-// A part of the Hall (M9-S3, DL-103); its chips and folds are M9-S6's.
+// A part of the Hall (M9-S3, DL-103); its chips and folds are M9-S6's. A Guildmaster opens their
+// History (M9-S5, DL-105).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { guildmasterView, type GuildmasterView, type RegardRow } from '../state/world-views';
+import { useHistoryLinks } from './history-entries';
+import { Icon } from './icons';
 import { Heading, Part, Terms } from './section';
 
 export function Guildmaster({ document }: { document: WorldDocument }) {
@@ -21,12 +24,21 @@ export function Guildmaster({ document }: { document: WorldDocument }) {
 
 export function GuildmasterDetails({ view, level }: { view: GuildmasterView; level: 4 | 5 }) {
   const sub = level === 4 ? 5 : 6;
+  const links = useHistoryLinks();
   return (
     <div className="guildmaster">
       <Heading level={level}>
         {view.name}, Guildmaster of {view.guildName}
       </Heading>
       <Terms pairs={view.attributes} />
+      {links === null ? null : (
+        <div className="actions">
+          <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildmasterId)}>
+            <Icon name="history" />
+            <span>Read their History</span>
+          </button>
+        </div>
+      )}
 
       <Heading level={sub}>Stats</Heading>
       <div className="table-wrap">

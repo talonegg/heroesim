@@ -1,21 +1,19 @@
 // The views of the wider world (M7-S3 part 2, DL-73): every Guild, the Rankings, another Guild's
 // page (its Roster with the Transfer fee the player's Guild would pay, its Hall, its Guildmaster),
-// a Hall, a Guildmaster, the Patrons, and the whole History or anyone's in it, found by name (DL-74).
-// The CLI's `show guilds`, `show rankings`, `show roster <guildId>`, `show hall`, `show guildmaster`,
-// `show patrons` and `show history`, in its words (`cli/src/render.ts`), less the ids a command line
-// takes.
+// a Hall, a Guildmaster and the Patrons. The History, and anyone in it found by name, are
+// `history.ts`'s (M9-S5).
+// The CLI's `show guilds`, `show rankings`, `show roster <guildId>`, `show hall`, `show guildmaster`
+// and `show patrons`, in its words (`cli/src/render.ts`), less the ids a command line takes.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every number is a document field or an
 // engine selector's answer (`rankingPlaces`, `upkeep`, `nextImprovement`, `transferFee`, `ageOf`,
-// `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`,
-// `entriesFor`). Regard is shown as its band, never its number (M4-S5); Potential not at all.
+// `baseStat`, `regardBand` over `regardValue`, `patronRegardFor` and `guildmasterRegardForGuild`).
+// Regard is shown as its band, never its number (M4-S5); Potential not at all.
 
 import {
   ageOf,
   baseStat,
-  compareByCodeUnit,
   dayOf,
-  entriesFor,
   facilityKeys,
   guildmasterOf,
   guildmasterRegardForGuild,
@@ -27,10 +25,10 @@ import {
   regardValue,
   transferFee,
   upkeep,
-  type EntityId,
   type FacilityKey,
   type Guild,
   type GuildId,
+  type GuildmasterId,
   type HeroId,
   type RankingMeasure,
   type RegardBand,
@@ -39,10 +37,8 @@ import {
 } from '@heroesim/engine';
 import { content } from '../content';
 import { capitalised, controllerWords, nameIn, placeWords, rowOf, signed } from './names';
-import { narrationFor } from './narrate';
 import { playDeps } from './reducer';
 import { facilityNames } from './rejections';
-import { historyPageSize, linesOf, type LogLine } from './selectors';
 
 /** The Guild named, or the player's when none is. */
 function guildOf(document: WorldDocument, guildId: GuildId | undefined): Guild | undefined {
@@ -213,6 +209,8 @@ export interface RegardRow {
 }
 
 export interface GuildmasterView {
+  /** Whose History a Guildmaster's page opens (M9-S5). */
+  guildmasterId: GuildmasterId;
   name: string;
   guildName: string;
   attributes: [label: string, value: string][];
@@ -239,6 +237,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   const band = (value: number): RegardBand => regardBand(value, config);
 
   return {
+    guildmasterId: guildmaster.id,
     name: guildmaster.name,
     guildName: guild.name,
     attributes: [
@@ -355,143 +354,4 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
     hall,
     guildmaster: guildmasterView(document, guildId),
   };
-}
-
-// ── The History ──────────────────────────────────────────────────────────────────────────────
-
-/** The kinds of entity the History can be read for by name: those the world names (DL-74). */
-const namedTables = { guild: 'Guild', hero: 'Hero', guildmaster: 'Guildmaster', patron: 'Patron' } as const;
-
-type NamedPrefix = keyof typeof namedTables;
-
-function namedPrefixOf(entityId: string): NamedPrefix | null {
-  const prefix = entityId.slice(0, entityId.indexOf('-'));
-  return Object.hasOwn(namedTables, prefix) ? (prefix as NamedPrefix) : null;
-}
-
-/**
- * What `entityId` is called: its row's name while the world holds it, else the label its newest
- * History entry gave it (a Hero who left the pool keeps theirs there); `null` for an entity the
- * History does not name.
- */
-function entityName(document: WorldDocument, entityId: EntityId): string | null {
-  const { world, history } = document;
-  const row =
-    rowOf<{ name: string }>(world.guilds, entityId) ??
-    rowOf<{ name: string }>(world.heroes, entityId) ??
-    rowOf<{ name: string }>(world.guildmasters, entityId) ??
-    rowOf<{ name: string }>(world.patrons, entityId);
-  if (row !== undefined) return row.name;
-  const [newest] = entriesFor(history, entityId, { limit: 1 });
-  return newest?.labels[entityId] ?? null;
-}
-
-export interface HistoryView {
-  /** `The whole History`, or `The History of The Lantern`. */
-  title: string;
-  /** Whose History it is, by name; `null` for the whole History. */
-  name: string | null;
-  /** One page, newest first. */
-  lines: LogLine[];
-  page: number;
-  pages: number;
-  entries: number;
-  /**
-   * A Hero the world still holds, dead or retired among them, whose page the History opens in
-   * place of their entries: the CLI's `show hero` for any Hero (DL-74). `null` otherwise.
-   */
-  hero: HeroId | null;
-}
-
-/**
- * `show history [entityId]`: the whole History, or an entity's, newest first, page `page` (from 0)
- * of `historyPageSize` entries; a page past the last reads as the last. `whose` is a Guild, a Hero,
- * a Guildmaster or a Patron, the world holding them or not; an id the History does not name reads
- * as the whole History.
- */
-export function historyView(document: WorldDocument, whose: EntityId | null, page: number): HistoryView {
-  const { history, world } = document;
-  const name = whose === null ? null : entityName(document, whose);
-  const entity = name === null ? null : whose;
-  const total = entity === null ? history.entries.length : entriesFor(history, entity).length;
-  const pages = Math.max(1, Math.ceil(total / historyPageSize));
-  const shown = Math.min(Math.max(0, Math.floor(page)), pages - 1);
-  const from = shown * historyPageSize;
-  const entries =
-    entity === null
-      ? history.entries.slice(Math.max(0, total - from - historyPageSize), total - from).reverse()
-      : entriesFor(history, entity, { from, limit: historyPageSize });
-  return {
-    title: entity === null ? 'The whole History' : `The History of ${name}`,
-    name: entity === null ? null : name,
-    lines: linesOf(entries, narrationFor(document, content)),
-    page: shown,
-    pages,
-    entries: total,
-    hero: entity !== null && rowOf(world.heroes, entity) !== undefined ? (entity as HeroId) : null,
-  };
-}
-
-/** The Guilds whose History can be read, folded ones included: the History keeps them (principle 11). */
-export function historyChoices(document: WorldDocument): { guildId: GuildId; name: string }[] {
-  return Object.values(document.world.guilds).map((guild) => ({ guildId: guild.id, name: guild.name }));
-}
-
-export interface HistoryName {
-  entityId: EntityId;
-  name: string;
-  /** What they are, and for a Hero where: `Hero, dead`, `Hero of The Lantern`, `Guildmaster of The Lantern`. */
-  what: string;
-}
-
-/** What a named entity is, in a few words. */
-function whatIs(document: WorldDocument, entityId: EntityId, prefix: NamedPrefix): string {
-  const { world } = document;
-  switch (prefix) {
-    case 'hero': {
-      const hero = rowOf(world.heroes, entityId);
-      if (hero === undefined) return 'Hero, no longer in the world';
-      if (hero.diedOnTurn !== null) return 'Hero, dead';
-      if (hero.retiredOnTurn !== null) return 'Hero, retired';
-      const guild = hero.guildId === null ? undefined : rowOf(world.guilds, hero.guildId);
-      if (guild !== undefined && guild.rosterIds.includes(hero.id)) return `Hero of ${guild.name}`;
-      return hero.unattachedSince === null ? 'Hero, on no Roster' : 'Hero, in the Unattached pool';
-    }
-    case 'guild': {
-      const guild = rowOf(world.guilds, entityId);
-      return guild?.foldedOnTurn === null || guild === undefined ? 'Guild' : 'Guild, folded';
-    }
-    case 'guildmaster': {
-      const guildmaster = rowOf(world.guildmasters, entityId);
-      const guild = guildmaster === undefined ? undefined : rowOf(world.guilds, guildmaster.guildId);
-      return guild === undefined ? 'Guildmaster' : `Guildmaster of ${guild.name}`;
-    }
-    case 'patron':
-      return 'Patron';
-  }
-}
-
-/** How many names a search shows at most. */
-export const historySearchLimit = 20;
-
-/**
- * Everyone the History names whose name holds `query`, case aside: every Guild, Hero, Guildmaster
- * and Patron it has an entry for, dead, retired, folded or gone from the world included, in the
- * order of their names. At most `historySearchLimit`, with how many matched in all. Quests and
- * Parties are not named here: a Quest is called by its template, which many share, and its entries
- * are in the whole History (DL-73 item 8, DL-74).
- */
-export function findInHistory(document: WorldDocument, query: string): { names: HistoryName[]; matched: number } {
-  const wanted = query.trim().toLocaleLowerCase('en-GB');
-  if (wanted === '') return { names: [], matched: 0 };
-  const found: HistoryName[] = [];
-  for (const entityId of Object.keys(document.history.byEntity) as EntityId[]) {
-    const prefix = namedPrefixOf(entityId);
-    if (prefix === null) continue;
-    const name = entityName(document, entityId);
-    if (name === null || !name.toLocaleLowerCase('en-GB').includes(wanted)) continue;
-    found.push({ entityId, name, what: whatIs(document, entityId, prefix) });
-  }
-  found.sort((a, b) => compareByCodeUnit(a.name, b.name) || compareByCodeUnit(a.entityId, b.entityId));
-  return { names: found.slice(0, historySearchLimit), matched: found.length };
 }
