@@ -102,11 +102,13 @@ describe('a Quest card', () => {
       'Difficulty 54',
       '5 Days away',
       '243 Wealth',
-      '±2 Fame',
+      'Fame ±2',
       '1 to 3 Heroes',
       'Needs a Hero with Herbalism',
       'Leaves today',
     ]);
+    // The Fame chip says when it is won and when lost (DL-109 item 2, Q9).
+    expect(within(terms).getByText('Fame ±2').closest('.chip')?.getAttribute('title')).toBe('Won on a success, lost on a failure');
     // The others leave on a later Day, which they name.
     const [, second] = within(section('Board')).getAllByRole('article');
     expect(within(second as HTMLElement).getByText(/^Until Day \d+$/)).toBeDefined();
@@ -159,7 +161,7 @@ describe('a Quest card', () => {
 });
 
 describe('the Board', () => {
-  test('is ordered by reward, by difficulty or by the Day each leaves, and as posted again, as display only', () => {
+  test('is ordered by reward, by difficulty or by the Day each leaves, and as posted again, as display only, the order kept in this browser', () => {
     const state = changed(started(), (document) => {
       const quests = document.world.board.map((id) => document.world.quests[id] as Quest);
       [96, 188, 207, 216, 92, 378].forEach((reward, index) => ((quests[index] as Quest).reward = reward));
@@ -184,8 +186,41 @@ describe('the Board', () => {
     // Kept from view to view.
     openView('Roster');
     expect(rewards()).toEqual([216, 188, 378, 96, 207, 92]);
+    // Kept for the next time the page opens in this browser (DL-109 item 2, Q11), as the pool's is.
+    expect(localStorage.getItem('heroesim.boardOrder')).toBe('leaves');
+    cleanup();
+    render(<App initial={state} />);
+    openView('Board');
+    expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('leaves');
+    expect(rewards()).toEqual([216, 188, 378, 96, 207, 92]);
+
     fireEvent.change(within(section('Board')).getByRole('combobox', { name: 'Order' }), { target: { value: 'posted' } });
     expect(rewards()).toEqual([96, 188, 207, 216, 92, 378]);
+    expect(localStorage.getItem('heroesim.boardOrder')).toBe('posted');
+  });
+
+  test('a browser that keeps a Board order it does not know, or refuses its storage, shows the Board as posted', () => {
+    localStorage.setItem('heroesim.boardOrder', 'by-moonlight');
+    render(<App initial={started()} />);
+    expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('posted');
+    cleanup();
+
+    const blocked = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      get() {
+        throw new Error('storage blocked');
+      },
+    });
+    try {
+      render(<App initial={started()} />);
+      const order = within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement;
+      expect(order.value).toBe('posted');
+      fireEvent.change(order, { target: { value: 'reward' } });
+      expect((within(section('Board')).getByRole('combobox', { name: 'Order' }) as HTMLSelectElement).value).toBe('reward');
+    } finally {
+      if (blocked !== undefined) Object.defineProperty(globalThis, 'localStorage', blocked);
+    }
   });
 });
 
@@ -383,5 +418,89 @@ describe('the Party builder', () => {
     await idle();
 
     expect(within(section('Board')).queryByTestId('sent')).toBeNull();
+  });
+});
+
+describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
+  /** Ticks the second Hero on the first Quest's builder and carries two healing draughts; the builder's form. */
+  function chooseSome(): HTMLElement {
+    const form = chooseForFirst();
+    fireEvent.click(within(rows(form)[1] as HTMLElement).getByRole('checkbox'));
+    for (let times = 0; times < 2; times += 1) {
+      fireEvent.click(within(form).getByRole('button', { name: /^Healing draught, 3 held: .+: one more$/ }));
+    }
+    return form;
+  }
+
+  function ticked(form: HTMLElement): boolean[] {
+    return rows(form).map((row) => (within(row).getByRole('checkbox') as HTMLInputElement).checked);
+  }
+
+  function draughts(form: HTMLElement): string {
+    return (within(form).getByRole('spinbutton', { name: /^Healing draught, 3 held/ }) as HTMLInputElement).value;
+  }
+
+  test('is kept, with its consumables, when the player leaves the Board and comes back', () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    const before = ticked(chooseSome());
+
+    openView('Roster');
+    openView('Hall');
+    openView('Board');
+
+    const again = within(firstCard()).getByRole('form');
+    expect(ticked(again)).toEqual(before);
+    expect(ticked(again).filter(Boolean)).toHaveLength(1);
+    expect(draughts(again)).toBe('2');
+  });
+
+  test("is kept for each Quest: another Quest's builder starts empty, and the first's is as it was", () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    const before = ticked(chooseSome());
+
+    const second = within(section('Board')).getAllByRole('article')[1] as HTMLElement;
+    fireEvent.click(within(second).getByRole('button', { name: 'Choose a Party' }));
+    const other = within(second).getByRole('form');
+    expect(ticked(other).some(Boolean)).toBe(false);
+    expect(draughts(other)).toBe('0');
+    fireEvent.click(within(rows(other)[0] as HTMLElement).getByRole('checkbox'));
+
+    fireEvent.click(within(firstCard()).getByRole('button', { name: 'Choose a Party' }));
+    const first = within(firstCard()).getByRole('form');
+    expect(ticked(first)).toEqual(before);
+    expect(draughts(first)).toBe('2');
+  });
+
+  test('goes when its Quest leaves the Board', async () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
+    chooseSome();
+
+    // The first Quest's last Day is today: a Day on, it has left the Board, and its choice with it.
+    for (let turn = 0; turn < 3; turn += 1) {
+      fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
+      await idle();
+    }
+    const board = openView('Board');
+    expect(within(board).queryByRole('heading', { level: 3, name: questName })).toBeNull();
+    for (const card of within(board).getAllByRole('article')) expect(within(card).queryByRole('form')).toBeNull();
+  });
+
+  test('goes when another game is started, though its Quest has the same id there', async () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    chooseSome();
+
+    fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
+    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Bran Tull' } });
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'app-test' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    await idle();
+
+    // The same seed: the same Board, its Quests by the same ids, and nothing chosen for them.
+    openView('Board');
+    const form = chooseForFirst();
+    expect(ticked(form).some(Boolean)).toBe(false);
+    expect(within(form).queryByRole('spinbutton')).toBeNull();
   });
 });

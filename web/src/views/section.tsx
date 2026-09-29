@@ -66,17 +66,19 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
     'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
-    'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to the Market and the ' +
-    'Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
+    'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to sell what it holds ' +
+    'and to the Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
     'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',
   board:
     'The Quests on offer, each with its terms: a Quest’s Fame is won on a success and lost on a failure. Its name ' +
     'unfolds what it demands, the Skills that help, its Encounters and how hard it is beside the rest of the Board; ' +
-    'order the Board by reward, difficulty or the Day each leaves. Choose a Party for one: each Hero’s row says ' +
-    'whether they can go, and their Morale, Stats and Skills for this Quest, and opens their page. As you pick Heroes ' +
-    'and consumables, the preview says what the Party would meet and whether it would be sent, and "Send the Party" ' +
-    `sends it within the current Turn. ${rivalsReminder}`,
+    'order the Board by reward, difficulty or the Day each leaves, and this browser keeps the order. Choose a Party ' +
+    'for one: each Hero’s row says whether they can go, and their Morale, Stats and Skills for this Quest, and opens ' +
+    'their page. As you pick Heroes and consumables, the preview says what the Party would meet and whether it would ' +
+    'be sent, and "Send the Party" sends it within the current Turn. A Party chosen and not sent is kept while you ' +
+    'look elsewhere, until it is sent, its Quest leaves the Board or another game is started or loaded. ' +
+    rivalsReminder,
   roster:
     'Your Heroes, each with their Class, Level and age, their Morale and where they are. Open a Hero’s page for ' +
     'their Stats by area, with what gear adds and a hint of how far each may grow, their gear and Skills, their ' +
@@ -89,7 +91,8 @@ export const help: Readonly<Record<SectionId, string>> = {
   history:
     'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the whole History or a ' +
     'Rival’s, one choice away. What your last play added is marked new. A Party’s Encounters fold under how its ' +
-    'Quest went, and each Rival’s routine under one line; open either to read it all. A name opens whom it names: ' +
+    'Quest went, and each Rival’s routine under one line, save in a Hero’s own History; open either to read it all. ' +
+    'A name opens whom it names: ' +
     'a Hero’s page, a Guild’s page, or anyone else’s History. Find anyone the History names by name, a Hero who has ' +
     'died, retired or left the world among them.',
   offers:
@@ -98,8 +101,9 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Regard lose Morale. Accept asks before it lets the Hero go.',
   pool:
     'Heroes on no Roster, whom any Guild may sign for a signing fee. A Hero of a higher Level will not sign for a ' +
-    'Guild whose Fame is below what their Level asks, and their row is set back. Order the pool by Class or by fee ' +
-    'from their headings. Recruit signs one to your Roster for the fee; open a Hero to see their Stats first.',
+    'Guild whose Fame is below what their Level asks: their row is set back, and Recruit is disabled. Order the pool ' +
+    'by Class or by fee from their headings. Recruit signs one to your Roster for the fee; open a Hero to see their ' +
+    'Stats first.',
   guildmaster:
     'Your character in the world. Their Stats bear on running the Guild, never on fighting: each says what it bears ' +
     'on. Their Traits help or hinder the Guild, each with what it does, and their Regard for others is shown as a ' +

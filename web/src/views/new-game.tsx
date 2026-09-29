@@ -12,7 +12,8 @@
 // seed. Each Trait says what it does, what it costs and what it excludes, and how it stands against
 // those chosen; the budget left moves as the player picks. Every number, bound and judgement comes
 // from `state/setup.ts`, the engine's own check (`setupRefusal`) and sum: nothing here computes a
-// rule. A setup the engine would refuse cannot be started, and its sentence stands beside the button.
+// rule. A setup the engine would refuse cannot be started, and its sentence stands beside the button,
+// once a field has been touched; before that, a hint asks for the names (DL-109 item 2, Q22).
 
 import type { DescriptiveAttribute, Sex, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
@@ -20,7 +21,7 @@ import type { Saves } from '../saves';
 import { readableSeed } from '../seed';
 import type { GameAction, NewGame as NewGamePlay } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
-import { setupFormChoices, setupRefusalWords, traitPicksView, type TraitPick } from '../state/setup';
+import { setupFormChoices, setupNotice, traitPicksView, type TraitPick } from '../state/setup';
 import { LoadSave } from './game-file';
 import { Icon } from './icons';
 import { SavedGames } from './saved-games';
@@ -60,7 +61,9 @@ export function NewGame({
   const [traitKeys, setTraitKeys] = useState<readonly TraitKey[] | null>(null);
   const [kept, setKept] = useState<readonly TraitKey[]>([]);
   const [texts, setTexts] = useState<Texts>({ birthplace: '', appearance: '', biography: '' });
-  const refusalId = useId();
+  // Whether any field has been changed: until then, the form gives a hint, not a refusal.
+  const [touched, setTouched] = useState(false);
+  const noticeId = useId();
 
   /** The play the form would make now, less its seed and its clock, which the click supplies. */
   const setup = useMemo(() => {
@@ -77,7 +80,7 @@ export function NewGame({
       ...written,
     };
   }, [guildName, guildmasterName, backgroundKey, sex, age, traitKeys, texts]);
-  const refusal = useMemo(() => setupRefusalWords({ kind: 'newGame', seed: '', createdAt: '', ...setup }), [setup]);
+  const notice = useMemo(() => setupNotice({ kind: 'newGame', seed: '', createdAt: '', ...setup }, touched), [setup, touched]);
   const picks = useMemo(() => (traitKeys === null ? null : traitPicksView(traitKeys)), [traitKeys]);
 
   function start(event: FormEvent<HTMLFormElement>): void {
@@ -100,7 +103,7 @@ export function NewGame({
   return (
     <View id="new-game">
       {onCancel === undefined ? null : <p className="warning">The game in hand is lost unless you export it first.</p>}
-      <form className="form" onSubmit={start}>
+      <form className="form" onSubmit={start} onChange={() => setTouched(true)}>
         <label className="field">
           <span>Guild name</span>
           <input type="text" name="guildName" value={guildName} onChange={(event) => setGuildName(event.target.value)} required />
@@ -225,18 +228,23 @@ export function NewGame({
           <span>Seed</span>
           <input type="text" name="seed" value={seed} onChange={(event) => setSeed(event.target.value)} />
         </label>
-        {refusal === null ? null : (
-          <p className="form__refusal" id={refusalId} data-testid="setup-refusal" aria-live="polite">
-            <Icon name="alert" />
-            <span>{refusal}</span>
+        {notice === null ? null : (
+          <p
+            className={notice.kind === 'hint' ? 'form__hint' : 'form__refusal'}
+            id={noticeId}
+            data-testid={notice.kind === 'hint' ? 'setup-hint' : 'setup-refusal'}
+            aria-live="polite"
+          >
+            <Icon name={notice.kind === 'hint' ? 'about' : 'alert'} />
+            <span>{notice.words}</span>
           </p>
         )}
         <div className="actions">
           <button
             type="submit"
             className="button--primary"
-            disabled={busy || refusal !== null}
-            aria-describedby={refusal === null ? undefined : refusalId}
+            disabled={busy || notice !== null}
+            aria-describedby={notice === null ? undefined : noticeId}
           >
             Start the game
           </button>

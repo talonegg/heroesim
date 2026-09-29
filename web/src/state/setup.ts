@@ -54,6 +54,26 @@ export function setupRefusalWords(play: NewGame): string | null {
   return refusal === null ? null : rejectionSentence(refusal, null, content);
 }
 
+/** What an empty new-game form says in place of a refusal, before anything is typed (DL-109 item 2, Q22). */
+export const setupHint = 'Name your Guild and its Guildmaster to start.';
+
+/** What the form says beside "Start the game": a hint, or the engine's refusal. */
+export interface SetupNotice {
+  kind: 'hint' | 'refusal';
+  words: string;
+}
+
+/**
+ * What the new-game form says beside "Start the game" (DL-109 item 2, Q22): before any field is
+ * touched, the hint that asks for the names; once one is, the engine's refusal (`setupRefusalWords`);
+ * `null` while the engine would start the game. Whether the game can start is the refusal's either way.
+ */
+export function setupNotice(play: NewGame, touched: boolean): SetupNotice | null {
+  const refusal = setupRefusalWords(play);
+  if (refusal === null) return null;
+  return touched ? { kind: 'refusal', words: refusal } : { kind: 'hint', words: setupHint };
+}
+
 /**
  * How a Trait stands against those chosen:
  * - `chosen`: it is one of them;

@@ -31,8 +31,8 @@ export const timeHelp =
 
 /** The stops a fast forward makes only when asked (the CLI's `--until staffable` and `--until pool`). */
 const sooner: readonly { label: string; until: readonly StopCondition[] }[] = [
-  // M9-S7 (#32, DL-85 item 8): even with a Party out.
-  { label: 'Fast forward until a Quest I can staff appears', until: ['quest-staffable'] },
+  // M9-S7 (#32, DL-85 item 8): even with a Party out. "You", as the page says elsewhere (DL-109 item 2, Q7).
+  { label: 'Fast forward until a Quest you can staff appears', until: ['quest-staffable'] },
   { label: 'Fast forward until new Heroes join the pool', until: ['pool-refreshed'] },
 ];
 

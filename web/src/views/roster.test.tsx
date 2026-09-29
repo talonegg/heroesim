@@ -194,7 +194,7 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
       }));
   }
 
-  test('lists Name, Class, Level, Age, Background, Fee, whether they sign and Recruit; one who will not sign is set back with the pool’s reason', () => {
+  test('lists Name, Class, Level, Age, Background, Fee, whether they sign and Recruit; one who will not sign is set back with the pool’s reason, and Recruit disabled', () => {
     const state = changed(started(), (document, player) => {
       player.fame = 0;
       const pooled = Object.values(document.world.heroes).find((hero) => hero.unattachedSince !== null);
@@ -212,9 +212,32 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
       expect([level, age, fee].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
       expect(signs).toMatch(/^(yes|needs Fame \d+)$/);
       expect(row.className).toBe(signs === 'yes' ? '' : 'is-set-back');
-      expect(within(row).getByRole('button', { name: `Recruit ${name}` }).textContent).toBe('Recruit');
+      const recruit = within(row).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement;
+      expect(recruit.textContent).toBe('Recruit');
+      // DL-109 item 2, Q17: the engine's `signingRefusal`, as the row says it, disables Recruit, and
+      // the row's reason describes it.
+      expect(recruit.disabled, name).toBe(signs !== 'yes');
+      const reason = recruit.getAttribute('aria-describedby');
+      expect(reason === null ? null : document.getElementById(reason)?.textContent).toBe(signs === 'yes' ? null : signs);
     }
     expect(all.filter(({ cells }) => cells[5] !== 'yes').length).toBeGreaterThan(0);
+  });
+
+  test("a Hero's page opened from the pool disables Recruit for one who will not sign, and says why", () => {
+    let name = '';
+    const state = changed(started(), (document, player) => {
+      player.fame = 0;
+      const pooled = Object.values(document.world.heroes).find((hero) => hero.unattachedSince !== null);
+      if (pooled === undefined) throw new Error('an empty pool');
+      pooled.level = 4;
+      name = pooled.name;
+    });
+    render_(state);
+
+    fireEvent.click(within(section('Unattached pool')).getByRole('button', { name }));
+    const page = within(section('Unattached pool')).getByRole('article');
+    expect(within(page).getByText(/^Signing fee \d+ Wealth\. Signs for your Guild: needs Fame \d+\.$/)).toBeDefined();
+    expect((within(page).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement).disabled).toBe(true);
   });
 
   test('orders its rows by Class or by fee from their headings, display only, again to the pool’s own order, and keeps the order in this browser', () => {

@@ -3,8 +3,8 @@
 // site data blocked, a sandboxed frame), so every read and write is in try/catch, and the page
 // opens on the home view when nothing is remembered or nothing can be.
 //
-// The order of the Guilds' table and of the Unattached pool are kept the same way (M9-S6, DL-106):
-// display only, and for this browser, whatever game is in hand.
+// The order of the Guilds' table and of the Unattached pool are kept the same way (M9-S6, DL-106),
+// and the Board's (DL-109 item 2, Q11): display only, and for this browser, whatever game is in hand.
 
 import { viewIds, type ViewId } from './section';
 

@@ -63,6 +63,10 @@ function refusal(): string | null {
   return screen.queryByTestId('setup-refusal')?.textContent ?? null;
 }
 
+function hint(): string | null {
+  return screen.queryByTestId('setup-hint')?.textContent ?? null;
+}
+
 describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
   test('sits behind "Your Guildmaster", closed; left as it is, everything of the Guildmaster is drawn from the seed', () => {
     const { play } = form();
@@ -215,7 +219,16 @@ describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
   test("a setup the engine would refuse cannot be started, and the engine's sentence stands beside the form", () => {
     form();
 
-    // Before the names, the first thing the engine asks for.
+    // Before anything is typed, a hint in place of a refusal (DL-109 item 2, Q22); the game cannot start.
+    expect(hint()).toBe('Name your Guild and its Guildmaster to start.');
+    expect(refusal()).toBeNull();
+    expect(start().disabled).toBe(true);
+    expect(start().getAttribute('aria-describedby')).toBe(screen.getByTestId('setup-hint').id);
+    // Once a field is touched, the first thing the engine asks for.
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
+    expect(hint()).toBeNull();
+    expect(refusal()).toBe('The Guildmaster needs a name.');
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: '' } });
     expect(refusal()).toBe('The Guild needs a name.');
     expect(start().disabled).toBe(true);
     named();

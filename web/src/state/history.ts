@@ -1,8 +1,9 @@
 // The History as the one place to read what happened (M9-S5, DL-105; DL-99 item 2): whose it is,
 // and a page of it grouped by Day and time of day, newest first, each group in the order it
 // happened. In a group, a Party's steps on its Quest fold under its outcome, and each Rival's
-// routine under one line for the Guild; every line says whose it is, whether the last play
-// appended it, and on an outcome how the Quest went.
+// routine under one line for the Guild, save in a Hero's own History, where every line is the
+// Hero's (DL-109 item 2, Q14); every line says whose it is, whether the last play appended it, and
+// on an outcome how the Quest went.
 //
 // Nothing here computes a rule (ADR-0007, principle 12): every line is a History entry as the engine
 // appended it, put in words by `narrate.ts`, and read through the History's own index of entries by
@@ -246,19 +247,22 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   const pages = starts.length;
   const shown = Math.min(Math.max(0, Math.floor(page)), pages - 1);
   const positions = pagePositions(scope, history.entries, starts[shown] ?? 0);
+  const hero = entityId !== null && rowOf(world.heroes, entityId) !== undefined ? (entityId as HeroId) : null;
   const reading: Reading = {
     entries: history.entries,
     narration: narrationFor(document, content),
     world,
     player: player?.id ?? null,
     fresh: new Set<object>(log),
+    // A Hero's own History folds no routine: every line there is the Hero's (Q14).
+    foldsRoutine: hero === null,
   };
   return {
     title: titleOf(name),
     name,
     entityId,
     mine: entityId !== null && entityId === player?.id,
-    hero: entityId !== null && rowOf(world.heroes, entityId) !== undefined ? (entityId as HeroId) : null,
+    hero,
     page: shown,
     pages,
     entries: scope.count,
@@ -359,7 +363,7 @@ function pagePositions(scope: Scope, entries: readonly Entry[], start: number): 
   return positions;
 }
 
-/** What reading a page needs: the History, its words, the world, the player's Guild, and what is new. */
+/** What reading a page needs: the History, its words, the world, the player's Guild, what is new, and whether a Rival's routine folds. */
 interface Reading {
   entries: readonly Entry[];
   narration: Narration;
@@ -367,6 +371,8 @@ interface Reading {
   player: GuildId | null;
   /** The last play's events, which are the History's entries themselves. */
   fresh: ReadonlySet<object>;
+  /** Each Rival's routine folds into one line: in a Guild's History and the whole History, not a Hero's own (Q14). */
+  foldsRoutine: boolean;
 }
 
 /** The positions, newest first, as groups by Turn, newest first, each in the order it happened. */
@@ -402,9 +408,9 @@ function ownerOf(entry: Entry): GuildId | null {
   return guilds.length === 1 ? (guilds[0] ?? null) : null;
 }
 
-/** The Rival whose routine `entry` is, or `null`: never the player's Guild, and never a Milestone. */
+/** The Rival whose routine `entry` is, or `null`: never the player's Guild, never a Milestone, and none where routine does not fold. */
 function routineOf(entry: Entry, reading: Reading): GuildId | null {
-  if (entry.milestone || (routineKinds[entry.type as EngineEventType] ?? null) === null) return null;
+  if (!reading.foldsRoutine || entry.milestone || (routineKinds[entry.type as EngineEventType] ?? null) === null) return null;
   const owner = ownerOf(entry);
   if (owner === null || owner === reading.player) return null;
   const guild = rowOf(reading.world.guilds, owner);

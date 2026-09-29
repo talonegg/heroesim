@@ -310,7 +310,14 @@ function HeroActionsView({
             Signing fee {actions.fee} Wealth. Signs for your Guild: {actions.signs}.
           </p>
           <div className="actions">
-            <button type="button" className="button--primary" aria-label={`Recruit ${name}`} disabled={busy} onClick={() => play({ kind: 'recruit', heroId })}>
+            {/* Disabled for one who will not sign, the sentence above saying why (DL-109 item 2, Q17). */}
+            <button
+              type="button"
+              className="button--primary"
+              aria-label={`Recruit ${name}`}
+              disabled={busy || !actions.willSign}
+              onClick={() => play({ kind: 'recruit', heroId })}
+            >
               Recruit
             </button>
           </div>

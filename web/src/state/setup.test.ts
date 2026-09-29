@@ -2,7 +2,7 @@ import { defaultConfig, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import type { NewGame } from './reducer';
-import { setupFormChoices, setupRefusalWords, traitPicksView } from './setup';
+import { setupFormChoices, setupNotice, setupRefusalWords, traitPicksView } from './setup';
 
 // The new-game form's Guildmaster (M9-S7, #30): what each Trait costs and excludes, how it stands
 // against those chosen, and the budget left, every judgement the engine's own. The values are
@@ -186,5 +186,16 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
     ['a Birthplace too long', { guildmasterBirthplace: 'x'.repeat(61) }, 'The Birthplace is 61 characters long; it holds at most 60.'],
   ] as const)("says %s: the engine's refusal in the page's words", (_name, change, sentence) => {
     expect(setupRefusalWords({ ...play, ...change })).toBe(sentence);
+  });
+
+  // DL-109 item 2, Q22: an empty form asks for the names before it refuses anything.
+  test('before any field is touched, the form gives a hint in place of the refusal; after, the refusal, and nothing when the engine would start the game', () => {
+    const empty: NewGame = { ...play, guildName: '', guildmasterName: '' };
+
+    expect(setupNotice(empty, false)).toEqual({ kind: 'hint', words: 'Name your Guild and its Guildmaster to start.' });
+    expect(setupNotice(empty, true)).toEqual({ kind: 'refusal', words: 'The Guild needs a name.' });
+    expect(setupNotice({ ...empty, guildName: 'The Lantern' }, true)).toEqual({ kind: 'refusal', words: 'The Guildmaster needs a name.' });
+    expect(setupNotice(play, true)).toBeNull();
+    expect(setupNotice(play, false)).toBeNull();
   });
 });

@@ -734,7 +734,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     );
   });
 
-  test("for a Rival's Hero, the fee the player's Guild would pay to take them in; for an Unattached one, the signing fee and whether they sign", () => {
+  test("for a Rival's Hero, the fee the player's Guild would pay to take them in; for an Unattached one, the signing fee and whether they sign, in words and as a verdict", () => {
     const document = newGame();
     const guild = player(document);
     const buyer = guildmasterOf(guild, document.world);
@@ -749,7 +749,12 @@ describe("a Hero's page offers what can be done with the Hero", () => {
       kind: 'pool',
       fee: signingFee(pooled, deps, buyer),
       signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+      willSign: refusal === null,
     });
+    // One who needs more Fame than the Guild has will not sign (DL-109 item 2, Q17).
+    guild.fame = 0;
+    pooled.level = 4;
+    expect(heroPage(document, pooled.id)?.actions).toMatchObject({ kind: 'pool', signs: 'needs Fame 30', willSign: false });
   });
 
   test("shows on every Rival Hero's page, among its chips, the Transfer fee the player's Guild would pay: its actions' fee (DL-74)", () => {

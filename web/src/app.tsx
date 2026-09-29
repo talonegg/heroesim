@@ -14,7 +14,8 @@
 // History; a Guild's page, in the Rankings; a Guildmaster's or a Patron's History (`HistoryLinks`).
 //
 // Views switch as React state, with no router (R38): the page stays one page with one classic
-// script that opens from `file://`. Which view is open is remembered in this browser; a new game or
+// script that opens from `file://`. Which view is open is remembered in this browser, and so is the
+// Board's order; a Party chosen on the Board and not sent is kept here, by Quest. A new game or
 // a load opens the home view, and so does the end of a fast forward, whose stop and results it
 // shows. Each view is a labelled region whose heading takes the keyboard when it opens.
 //
@@ -30,9 +31,10 @@ import { navCounts, type OutcomeRow } from './state/digest';
 import type { HistoryWhose } from './state/history';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
+import { noPartyChoices, standingChoices, withChoice, type PartyChoices } from './state/party-choices';
 import { useGame, type GameState } from './state/reducer';
 import { headerView, progressView, stopView, type BoardOrder } from './state/selectors';
-import { Board } from './views/board';
+import { Board, boardOrderKey, boardOrders } from './views/board';
 import { GameMenu, installedWords } from './views/game-menu';
 import { GuildView } from './views/guild';
 import { Hall } from './views/hall';
@@ -43,7 +45,7 @@ import { NewGame } from './views/new-game';
 import { Rail } from './views/rail';
 import { Rankings } from './views/rankings';
 import { Refusal } from './views/refusal';
-import { rememberedView, rememberView } from './views/remembered';
+import { rememberChoice, rememberedChoice, rememberedView, rememberView } from './views/remembered';
 import { Roster } from './views/roster';
 import { headingOf, viewIds, viewOf, type PartId, type SectionId, type ViewId } from './views/section';
 import { StatusBar } from './views/status-bar';
@@ -80,12 +82,15 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [view, setView] = useState<ViewId>(rememberedView);
   const [menuOpen, setMenuOpen] = useState(false);
   // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
-  // one; the Guild whose page is open in the Rankings, so a name can open it; and whose History is
+  // one; the Parties chosen and not sent, by Quest, so leaving the Board loses none (DL-109 item 2,
+  // Q16); the Guild whose page is open in the Rankings, so a name can open it; and whose History is
   // shown, the player's Guild's at first, a choice that holds while the game is in hand (DL-74 item
   // 8, DL-99 item 2).
   const [boardQuest, setBoardQuest] = useState<QuestId | null>(null);
-  // How the Board is ordered: display only, and kept from view to view (M9-S4, DL-104).
-  const [boardOrder, setBoardOrder] = useState<BoardOrder>('posted');
+  const [partyChoices, setPartyChoices] = useState<PartyChoices>(noPartyChoices);
+  // How the Board is ordered: display only, kept from view to view (M9-S4, DL-104) and in this
+  // browser, as the Rankings' and the pool's are (DL-109 item 2, Q11).
+  const [boardOrder, setBoardOrder] = useState<BoardOrder>(() => rememberedChoice(boardOrderKey, boardOrders, 'posted'));
   const [rankingsGuild, setRankingsGuild] = useState<GuildId | null>(null);
   const [whose, setWhose] = useState<HistoryWhose>(null);
   // The page the History opens on: its newest, save when the home view opens an outcome where it stands.
@@ -99,6 +104,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const stop = useMemo(() => stopView(game), [game]);
   const progress = useMemo(() => progressView(game), [game]);
   const counts = useMemo(() => navCounts({ document: current, log: game.log }), [current, game.log]);
+  // A choice holds while its Quest is on the Board: sent, expired or taken, it goes.
+  const choices = useMemo(() => (current === null ? noPartyChoices : standingChoices(partyChoices, current)), [partyChoices, current]);
   const playing = busy && (pending?.kind === 'advance' || pending?.kind === 'fastForward');
   const forwarding = busy && pending?.kind === 'fastForward';
 
@@ -149,6 +156,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setView('guild');
     setMenuOpen(false);
     setBoardQuest(null);
+    setPartyChoices(noPartyChoices);
     setRankingsGuild(null);
     setWhose(null);
     setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
@@ -267,7 +275,12 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                 open={boardQuest}
                 onOpen={setBoardQuest}
                 order={boardOrder}
-                onOrder={setBoardOrder}
+                onOrder={(order) => {
+                  setBoardOrder(order);
+                  rememberChoice(boardOrderKey, order);
+                }}
+                choices={choices}
+                onChoice={(questId, choice) => setPartyChoices(withChoice(choices, questId, choice))}
                 onGuild={() => open('guild')}
               />
             ) : null}

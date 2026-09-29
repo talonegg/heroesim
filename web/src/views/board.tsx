@@ -4,13 +4,17 @@
 // and the Day it leaves the Board, marked when that is today (the review's B2). Its name unfolds it:
 // the Demands as bars of their weights, the Skills that help, the Encounters counted by kind, and
 // its difficulty on a meter placed against the Quests on the Board now, display only (C5, C6). The
-// player may order the Board by reward, difficulty or the Day each leaves, display only too.
+// player may order the Board by reward, difficulty or the Day each leaves, display only too, and the
+// order is kept in this browser, as the pool's is (DL-109 item 2, Q11). The Fame chip reads "Fame
+// ±2", its title saying it is won on a success and lost on a failure (Q9).
 //
 // "Choose a Party" opens the builder (DL-99 item 3, the review's C4): each Hero on the Roster as a
 // row saying whether they can go, and when not why and until when, their Class and Level, their
 // Morale and its band, the effective values of the Stats the Quest demands, and the Skills it names
 // that they have. A row opens the Hero's page in place of the Board; "Back to the Party" returns to
-// the builder with the Party and the consumables as they were chosen. The requirements are a
+// the builder with the Party and the consumables as they were chosen. The choice is the shell's, kept
+// by Quest (`state/party-choices.ts`), so it holds when the player leaves the Board too, until the
+// Party is sent, its Quest leaves the Board, or another game is started or loaded (Q16). The requirements are a
 // checklist, and dispatch's own verdict (`previewDispatch`, DL-66 item 2) a banner at the foot of the
 // form, beside Send, which stays in view while the form scrolls. Once sent, the card becomes a
 // "Party out" card naming who went and the night they return (E1). No fit score and no odds.
@@ -20,6 +24,7 @@
 
 import type { EncounterKind, HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { choiceFor, type PartyChoice, type PartyChoices } from '../state/party-choices';
 import type { GameAction, GameState } from '../state/reducer';
 import {
   boardView,
@@ -45,6 +50,12 @@ const orders: readonly (readonly [BoardOrder, string])[] = [
   ['leaves', 'Leaving soonest'],
 ];
 
+/** The orders, as this browser may keep one (Q11). */
+export const boardOrders: readonly BoardOrder[] = orders.map(([order]) => order);
+
+/** The key this browser keeps the Board's order under. */
+export const boardOrderKey = 'heroesim.boardOrder';
+
 /** Each kind of Encounter's icon (M9-S3's set). */
 const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   combat: 'combat',
@@ -53,15 +64,6 @@ const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   arcane: 'arcane',
   stealth: 'stealth',
 };
-
-/** The Party being chosen for a Quest: who is ticked and how many of each consumable, kept while a Hero's page is open. */
-interface Choice {
-  questId: QuestId | null;
-  heroIds: readonly HeroId[];
-  carry: Readonly<Record<ItemDefinitionKey, number>>;
-}
-
-const noChoice: Choice = { questId: null, heroIds: [], carry: {} };
 
 export function Board({
   state,
@@ -72,6 +74,8 @@ export function Board({
   onOpen,
   order,
   onOrder,
+  choices,
+  onChoice,
   onGuild,
 }: {
   state: GameState;
@@ -83,13 +87,15 @@ export function Board({
   onOpen: (questId: QuestId | null) => void;
   order: BoardOrder;
   onOrder: (order: BoardOrder) => void;
+  /** The Parties chosen and not sent, by Quest: the shell's, so they outlive the Board view (Q16). */
+  choices: PartyChoices;
+  onChoice: (questId: QuestId, choice: PartyChoice) => void;
   /** Opens the home view, where the Parties out are listed. */
   onGuild: () => void;
 }) {
   const cards = useMemo(() => boardView(document, order), [document, order]);
   const sent = useMemo(() => sentView(state), [state]);
   const [unfolded, setUnfolded] = useState<ReadonlySet<QuestId>>(() => new Set());
-  const [choice, setChoice] = useState<Choice>(noChoice);
   // A Hero's page opened from the builder of the Quest open, in place of the Board.
   const [viewing, setViewing] = useState<{ heroId: HeroId; questId: QuestId } | null>(null);
   // Where the Quest sent last stood on the Board as it was shown, so its "Party out" card takes its place.
@@ -98,8 +104,8 @@ export function Board({
   // page, so its "Back to the Party" shows; the middle of the screen for a row, clear of the sticky foot.
   const [focus, setFocus] = useState<{ id: string; show: 'view' | 'it' } | null>(null);
 
-  // A choice is for one Quest: another Quest's builder starts empty.
-  const current = choice.questId === open ? choice : { ...noChoice, questId: open };
+  // Each Quest's builder has its own choice: another Quest's starts empty.
+  const current = open === null ? null : choiceFor(choices, open);
 
   useEffect(() => {
     if (focus === null) return;
@@ -116,7 +122,7 @@ export function Board({
       <View id="board">
         {quest === undefined ? null : (
           <p className="view__lead">
-            Choosing a Party for <strong className="quest-name">{quest.name}</strong>: {current.heroIds.length} chosen.
+            Choosing a Party for <strong className="quest-name">{quest.name}</strong>: {current?.heroIds.length ?? 0} chosen.
           </p>
         )}
         <HeroPage
@@ -184,12 +190,12 @@ export function Board({
                   onOpen(open === item.card.questId ? null : item.card.questId);
                 }}
               >
-                {open === item.card.questId ? (
+                {open === item.card.questId && current !== null ? (
                   <Builder
                     document={document}
                     card={item.card}
                     choice={current}
-                    onChoice={setChoice}
+                    onChoice={(next) => onChoice(item.card.questId, next)}
                     busy={busy}
                     onHero={(heroId) => {
                       setViewing({ heroId, questId: item.card.questId });
@@ -267,9 +273,8 @@ function Quest({
             </Chip>
           </li>
           <li>
-            <Chip tone="brass" icon="fame">
-              ±{card.fame}
-              <VisuallyHidden> Fame</VisuallyHidden>
+            <Chip tone="brass" icon="fame" title="Won on a success, lost on a failure">
+              Fame ±{card.fame}
             </Chip>
           </li>
           <li>
@@ -382,8 +387,8 @@ function Builder({
 }: {
   document: WorldDocument;
   card: QuestCard;
-  choice: Choice;
-  onChoice: (choice: Choice) => void;
+  choice: PartyChoice;
+  onChoice: (choice: PartyChoice) => void;
   busy: boolean;
   onHero: (heroId: HeroId) => void;
   onSend: (heroIds: readonly HeroId[], consumables: { definitionKey: ItemDefinitionKey; quantity: number }[]) => void;
@@ -402,7 +407,7 @@ function Builder({
 
   function toggle(heroId: HeroId, on: boolean): void {
     const others = choice.heroIds.filter((id) => id !== heroId);
-    onChoice({ ...choice, questId, heroIds: on ? [...others, heroId] : others });
+    onChoice({ ...choice, heroIds: on ? [...others, heroId] : others });
   }
 
   return (
@@ -435,7 +440,7 @@ function Builder({
               min={0}
               max={stock.held}
               onChange={(value) =>
-                onChoice({ ...choice, questId, carry: { ...choice.carry, [stock.definitionKey]: Number.isFinite(value) ? value : 0 } })
+                onChoice({ ...choice, carry: { ...choice.carry, [stock.definitionKey]: Number.isFinite(value) ? value : 0 } })
               }
             />
           ))}

@@ -5,7 +5,7 @@
 //
 // The Bankruptcy stop (M9-S7, #32) is a warning card: the stop's sentence with the Day Bankruptcy
 // falls on, what can be done about it in words that name no number and weigh no choice, and the ways
-// to Wealth: the Hall's Market to sell, and the Board.
+// to Wealth: what the Guild holds in the Hall, where Sell is (M9-S6; DL-109 item 2, Q20), and the Board.
 
 import type { QuestId } from '@heroesim/engine';
 import type { GameAction } from '../state/reducer';
@@ -21,9 +21,9 @@ type Next = Step | readonly Step[] | null;
 
 const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   ended: null,
-  // M9-S7: where Wealth comes from, the Market to sell and the Board to send a Party.
+  // M9-S7: where Wealth comes from, what the Guild holds to sell and the Board to send a Party.
   'below-floor': [
-    { label: 'Sell at the Market', target: 'market' },
+    { label: 'Sell what the Guild holds', target: 'held' },
     { label: 'Open the Board', target: 'board' },
   ],
   // M9-S7: shown only when none of the Quests it named is still on the Board, as for a decision.

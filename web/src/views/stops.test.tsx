@@ -1,13 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { changed, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
+import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
 import { navButton, openView, time } from './page.test-support';
 
-// The page's side of #32 (M9-S7): the split button's opt-in stops, "until a Quest I can staff
+// The page's side of #32 (M9-S7): the split button's opt-in stops, "until a Quest you can staff
 // appears" (`quest-staffable`, M9-S1) beside "until new Heroes join the pool"; the words that say
 // which stops are always on; and the Bankruptcy stop (`below-floor`) in the home view, a warning
-// card with the Day it falls on, what can be done, and the ways to the Market and the Board. Driven
+// card with the Day it falls on, what can be done, and the ways to what the Guild holds and the Board. Driven
 // through the page's own controls.
 
 afterEach(cleanup);
@@ -31,12 +31,12 @@ function otherWays(): HTMLElement {
 }
 
 describe('the ways to fast forward (M9-S7, #32)', () => {
-  test('the split button offers "until a Quest I can staff appears" beside "until new Heroes join the pool", and says which stops are always on', () => {
+  test('the split button offers "until a Quest you can staff appears" beside "until new Heroes join the pool", and says which stops are always on', () => {
     render(<App initial={started()} />);
     const ways = otherWays();
 
     expect(within(ways).getAllByRole('button').map((button) => button.textContent)).toEqual([
-      'Fast forward until a Quest I can staff appears',
+      'Fast forward until a Quest you can staff appears',
       'Fast forward until new Heroes join the pool',
     ]);
     expect(ways.textContent).toContain(
@@ -64,10 +64,10 @@ describe('the ways to fast forward (M9-S7, #32)', () => {
     expect(described(openView('Guild'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
   });
 
-  test('with a Party out, "until a Quest I can staff appears" stops before it is home, and each Quest it names opens its Party on the Board', async () => {
+  test('with a Party out, "until a Quest you can staff appears" stops before it is home, and each Quest it names opens its Party on the Board', async () => {
     render(<App initial={withPartyOut(started('reducer-test'))} />);
 
-    fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest I can staff appears' }));
+    fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until a Quest you can staff appears' }));
     await idle();
 
     const stop = screen.getByTestId('stop');
@@ -109,14 +109,15 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     expect(within(home).queryByText(/has been below the Bankruptcy floor since/)).toBeNull();
   });
 
-  test("goes to the Hall's Market to sell and to the Board; after the next play, the countdown stands as before", async () => {
-    render(<App initial={changed(started(), (_, player) => void (player.wealth = -1))} />);
+  test("goes to what the Guild holds, where Sell is, and to the Board; after the next play, the countdown stands as before", async () => {
+    // Something to sell: what the Guild holds is drawn only when it holds something (M9-S3).
+    render(<App initial={changed(holding(started(), 'healing-draught', 2), (_, player) => void (player.wealth = -1))} />);
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
 
-    fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Sell at the Market' }));
+    fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Sell what the Guild holds' }));
     expect(navButton('Hall').getAttribute('aria-current')).toBe('page');
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Market' })));
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'What the Guild holds' })));
 
     openView('Guild');
     fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Open the Board' }));

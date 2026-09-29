@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, playTurns, startGame, statusBar, thisGame } from './support';
+import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, part, playTurns, startGame, statusBar, thisGame } from './support';
 
 // Fast forward in steps (v1.0.1-S5, DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
@@ -161,13 +161,16 @@ async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promi
   return made;
 }
 
-test('falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market and the Board (M9-S7)', async ({
+test('falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to what the Guild holds and the Board (M9-S7)', async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-bankruptcy' });
-  // The Guild's Wealth below the floor, in a save loaded back.
+  // Something to sell, bought at the Market first; then the Guild's Wealth below the floor, in a save loaded back.
+  const market = await part(page, 'Market');
+  await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   const time = statusBar(page).getByRole('group', { name: 'Time' });
   const save = await withWealth(page, testInfo, -50);
   await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
@@ -189,9 +192,9 @@ test('falling below the Bankruptcy floor stops a fast forward unasked; the home 
   await expect(home.getByText(/has been below the Bankruptcy floor since/)).toHaveCount(0);
   await expectNoHorizontalOverflow(page, 'the Bankruptcy stop');
 
-  // Its ways to Wealth: the Hall's Market, and the Board.
-  await stop.getByRole('button', { name: 'Sell at the Market' }).click();
-  await expect(page.getByRole('heading', { level: 3, name: 'Market', exact: true })).toBeFocused();
+  // Its ways to Wealth: what the Guild holds in the Hall, where Sell is (DL-109 item 2, Q20), and the Board.
+  await stop.getByRole('button', { name: 'Sell what the Guild holds' }).click();
+  await expect(page.getByRole('heading', { level: 3, name: 'What the Guild holds', exact: true })).toBeFocused();
   await openView(page, 'Guild');
   await stop.getByRole('button', { name: 'Open the Board' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Board', exact: true })).toBeFocused();

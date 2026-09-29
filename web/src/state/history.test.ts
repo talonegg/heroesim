@@ -423,6 +423,43 @@ describe("each Rival's routine, one line a Guild, and the marks on every line (M
   });
 });
 
+describe("a Hero's own History, where a Rival's routine does not fold (DL-109 item 2, Q14)", () => {
+  const { document, log } = played(240, 'history-hero');
+  const rivals = new Set(Object.values(document.world.guilds).filter((each) => each.controller.kind === 'rival').map((each) => each.id));
+  // The busiest Hero on a Rival's Roster: their Guild's routine is among their History's lines.
+  const hero = Object.values(document.world.heroes)
+    .filter((each) => each.guildId !== null && rivals.has(each.guildId))
+    .reduce((most, each) => (entriesFor(document.history, each.id).length > entriesFor(document.history, most.id).length ? each : most));
+  const guildId = hero.guildId as string;
+
+  function viewsOf(whose: string): HistoryView[] {
+    const { pages } = historyView(document, log, whose as never, 0);
+    return Array.from({ length: pages }, (_, page) => historyView(document, log, whose as never, page));
+  }
+
+  test("every line of a Rival's Hero's History stands as itself, their Guild's routine among them", () => {
+    const views = viewsOf(hero.id);
+    const rows = views.flatMap((view) => view.groups.flatMap((group) => group.rows));
+
+    expect(rows.every((row) => row.kind === 'entry')).toBe(true);
+    // What a Guild's History folds: two or more of the Guild's routine entries in one group.
+    const wouldFold = views
+      .flatMap((view) => view.groups)
+      .filter((group) => {
+        const routine = group.rows.flatMap(linesOf).map((line) => entryOf(document, line));
+        return routine.filter((entry) => !entry.milestone && routineWords[entry.type] !== undefined && entry.participants.includes(guildId as never)).length >= 2;
+      });
+    expect(wouldFold.length).toBeGreaterThan(0);
+  });
+
+  test("the Hero's Guild's History, and the whole History, still fold it", () => {
+    for (const whose of [guildId, 'all']) {
+      const rows = viewsOf(whose).flatMap((view) => view.groups.flatMap((group) => group.rows));
+      expect(rows.some((row) => row.kind === 'routine'), whose).toBe(true);
+    }
+  });
+});
+
 describe('whose History (M9-S5)', () => {
   const { document, log } = played(12);
   const guild = playerOf(document);

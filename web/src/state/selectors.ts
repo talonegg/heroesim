@@ -731,12 +731,14 @@ export interface TransferTarget {
  * transfer out; on another Guild's Roster, take them in for the Transfer fee; in the Unattached
  * pool, recruit them for the signing fee. The fees are the engine's (`transferFee`, `signingFee`,
  * at the paying Guildmaster's Negotiation); whether it is done is the engine's too, which refuses
- * with a sentence.
+ * with a sentence. Whether a Hero in the pool would sign is the engine's `signingRefusal`, as the
+ * pool's row reads it (`poolView`), so Recruit can be disabled for one who will not (DL-109 item 2,
+ * Q17).
  */
 export type HeroActions =
   | { kind: 'own'; equip: GearChoice[]; transferTo: TransferTarget[] }
   | { kind: 'rival'; guildName: string; fee: number }
-  | { kind: 'pool'; fee: number; signs: string };
+  | { kind: 'pool'; fee: number; signs: string; willSign: boolean };
 
 /** Gear's Stat modifiers in words, `Weaponry +2, Strength +1` (M5-S2). */
 export function modifierWords(gear: GearDefinition): string {
@@ -902,7 +904,12 @@ function heroActions(hero: Hero, guild: Guild | undefined, onRoster: boolean, wo
   const buyer = guildmasterOf(player, world);
   if (hero.unattachedSince !== null) {
     const refusal = signingRefusal(player, hero, deps.config);
-    return { kind: 'pool', fee: signingFee(hero, deps, buyer), signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}` };
+    return {
+      kind: 'pool',
+      fee: signingFee(hero, deps, buyer),
+      signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+      willSign: refusal === null,
+    };
   }
   if (guild === undefined || !onRoster) return null;
   if (guild.id !== player.id) return { kind: 'rival', guildName: guild.name, fee: transferFee(hero, buyer, deps) };

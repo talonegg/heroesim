@@ -5,7 +5,8 @@
 // A part of the Roster (M9-S3, DL-103), as rows (M9-S6, DL-106; the review's B8): Name, Class,
 // Level, Age, Background, Fee, whether they sign, and Recruit. The Class and Fee headings order the
 // rows, for display only (`poolView`), and the order is kept in this browser. A Hero who will not
-// sign is set back, with the pool's own reason; Recruit stays, and the engine says why it refuses.
+// sign is set back, with the pool's own reason, and their Recruit is disabled, the reason describing
+// it: the engine's `signingRefusal`, as the row reads it (DL-109 item 2, Q17).
 // A Hero's name opens their page in place, and "Back to the pool" returns to their row.
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
@@ -25,6 +26,11 @@ export const poolOrderKey = 'heroesim.poolOrder';
 /** The id of a row's name, which opens the Hero's page and takes the keyboard back when it closes. */
 function rowId(heroId: HeroId): string {
   return `pool-${heroId}`;
+}
+
+/** The id of a row's "Signs" cell, which says why a disabled Recruit is disabled. */
+function signsId(heroId: HeroId): string {
+  return `pool-${heroId}-signs`;
 }
 
 export function Pool({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
@@ -112,9 +118,17 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
                   <td className="number" data-testid="fee">
                     {row.fee}
                   </td>
-                  <td data-testid="signs">{row.signs}</td>
+                  <td data-testid="signs" id={signsId(row.heroId)}>
+                    {row.signs}
+                  </td>
                   <td>
-                    <button type="button" aria-label={`Recruit ${row.name}`} disabled={busy} onClick={() => play({ kind: 'recruit', heroId: row.heroId })}>
+                    <button
+                      type="button"
+                      aria-label={`Recruit ${row.name}`}
+                      aria-describedby={row.willSign === false ? signsId(row.heroId) : undefined}
+                      disabled={busy || row.willSign === false}
+                      onClick={() => play({ kind: 'recruit', heroId: row.heroId })}
+                    >
                       Recruit
                     </button>
                   </td>

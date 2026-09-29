@@ -987,13 +987,20 @@ input[type='radio'] {
   color: var(--ink-soft);
 }
 
-.form__refusal {
+.form__refusal,
+.form__hint {
   display: flex;
   align-items: flex-start;
   gap: 0.4rem;
   margin: 0.25rem 0 0;
   color: var(--warn);
   font-weight: 600;
+}
+
+/* Before anything is typed, the new-game form asks for the names: a hint, not a warning (Q22). */
+.form__hint {
+  color: var(--ink-soft);
+  font-weight: 400;
 }
 
 .footer {
