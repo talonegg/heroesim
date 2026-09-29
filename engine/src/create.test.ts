@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createWorld, type WorldSetup } from './create.js';
+import { createWorld, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
 import type { Disposition } from './content-types.js';
 import { makeId, tableNames, type Guild, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
@@ -290,5 +290,149 @@ describe('createWorld', () => {
     expect(() => createWorld('bad', { ...setup, guildName: ' ' }, deps)).toThrow(RangeError);
     expect(() => createWorld('bad', { ...setup, guildmasterName: '' }, deps)).toThrow(RangeError);
     expect(() => createWorld('bad', { ...setup, backgroundKey: 'farm-born' }, deps)).toThrow(/farm-born/);
+  });
+});
+
+// ── The Guildmaster's setup (M9-S2, R8, DL-100 item 3, DL-102) ────────────────────────────────
+
+describe('setupRefusal', () => {
+  const deps = testDeps();
+  const chosen: WorldSetup = {
+    ...setup,
+    guildmasterSex: 'female',
+    guildmasterAge: 45,
+    guildmasterTraitKeys: ['thrifty', 'miser'],
+    guildmasterBirthplace: '  Harrowgate  ',
+    guildmasterAppearance: 'Tall, with a soldier’s stoop.',
+    guildmasterBiography: 'x'.repeat(1000),
+  };
+
+  test('accepts the bare setup, and one that sets everything within the rules', () => {
+    expect(setupRefusal(setup, deps)).toBeNull();
+    expect(setupRefusal(chosen, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterTraitKeys: [] }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterAge: 30, guildmasterTraitKeys: ['well-liked', 'spendthrift'] }, deps)).toBeNull();
+  });
+
+  test.each<[string, Partial<WorldSetup>, SetupRefusal]>([
+    ['a blank Guild name', { guildName: '  ' }, { reason: 'guild-name-blank' }],
+    ['a blank Guildmaster name', { guildmasterName: '' }, { reason: 'guildmaster-name-blank' }],
+    ['a Hero Background', { backgroundKey: 'farm-born' }, { reason: 'unknown-background', backgroundKey: 'farm-born' }],
+    ['an age below the range', { guildmasterAge: 29 }, { reason: 'age-out-of-range', age: 29, min: 30, max: 45 }],
+    ['an age above the range', { guildmasterAge: 46 }, { reason: 'age-out-of-range', age: 46, min: 30, max: 45 }],
+    ['an age not whole', { guildmasterAge: 32.5 }, { reason: 'age-out-of-range', age: 32.5, min: 30, max: 45 }],
+    ['a Trait content lacks', { guildmasterTraitKeys: ['miser', 'brave'] }, { reason: 'unknown-trait', traitKey: 'brave' }],
+    ['a Hero Trait', { guildmasterTraitKeys: ['scarred'] }, { reason: 'unknown-trait', traitKey: 'scarred' }],
+    ['a Trait twice', { guildmasterTraitKeys: ['miser', 'miser'] }, { reason: 'repeated-trait', traitKey: 'miser' }],
+    [
+      'more Traits than guildmasterTraitsMax',
+      { guildmasterTraitKeys: ['mistrusts-magic', 'miser', 'old-soldier'] },
+      { reason: 'too-many-traits', count: 3, max: 2 },
+    ],
+    [
+      'an excluded pair',
+      { guildmasterTraitKeys: ['thrifty', 'spendthrift'] },
+      { reason: 'excluded-pair', traitKey: 'thrifty', otherKey: 'spendthrift' },
+    ],
+    ['a buff over the budget alone', { guildmasterTraitKeys: ['well-liked'] }, { reason: 'over-budget', cost: 2, budget: 1 }],
+    ['a buff with too small a penalty', { guildmasterTraitKeys: ['thrifty', 'old-soldier'] }, { reason: 'over-budget', cost: 3, budget: 1 }],
+    [
+      'a Birthplace too long',
+      { guildmasterBirthplace: ` ${'é'.repeat(61)} ` },
+      { reason: 'text-too-long', attribute: 'birthplace', length: 61, max: 60 },
+    ],
+    [
+      'an Appearance too long',
+      { guildmasterAppearance: 'a'.repeat(281) },
+      { reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
+    ],
+    [
+      'a Biography too long',
+      { guildmasterBiography: 'b'.repeat(1001) },
+      { reason: 'text-too-long', attribute: 'biography', length: 1001, max: 1000 },
+    ],
+  ])('refuses %s with a reason of its own', (_, change, refusal) => {
+    expect(setupRefusal({ ...setup, ...change }, deps)).toEqual(refusal);
+  });
+
+  test('counts characters, not UTF-16 units, once trimmed: sixty emblems fit a Birthplace', () => {
+    expect(setupRefusal({ ...setup, guildmasterBirthplace: `  ${'\u{1F3F0}'.repeat(60)}\n` }, deps)).toBeNull();
+  });
+
+  test('reads its bounds from the config it is given', () => {
+    const wider = testDeps({ guildmasterStartingAgeMin: 20, guildmasterTraitsMax: 3, guildmasterTraitBudget: 4 });
+    const setupWider = { ...setup, guildmasterAge: 20, guildmasterTraitKeys: ['well-liked', 'old-soldier', 'mistrusts-magic'] };
+    expect(setupRefusal(setupWider, wider)).toBeNull();
+    expect(setupRefusal(setupWider, deps)).toEqual({ reason: 'age-out-of-range', age: 20, min: 30, max: 45 });
+  });
+});
+
+describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
+  const deps = testDeps();
+  const guildmasterOf = (document: WorldDocument) => {
+    const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
+    const guildmaster = guildmasterId === undefined ? undefined : document.world.guildmasters[guildmasterId];
+    if (guildmaster === undefined) throw new Error("No player's Guildmaster");
+    return guildmaster;
+  };
+
+  test("gives the player's Guildmaster the sex, age, Traits and descriptive Attributes chosen, trimmed; a Rival's are empty", () => {
+    const { document } = createWorld(
+      'chosen',
+      {
+        ...setup,
+        guildmasterSex: 'male',
+        guildmasterAge: 31,
+        guildmasterTraitKeys: ['spendthrift', 'well-liked'],
+        guildmasterBirthplace: '  Harrowgate ',
+        guildmasterAppearance: '\tGrey at the temples.\n',
+        guildmasterBiography: 'Once a quartermaster of the river levies.',
+      },
+      deps,
+    );
+    withValid(document, deps);
+
+    expect(guildmasterOf(document)).toMatchObject({
+      sex: 'male',
+      ageAtEntry: 31,
+      traits: ['spendthrift', 'well-liked'],
+      birthplace: 'Harrowgate',
+      appearance: 'Grey at the temples.',
+      biography: 'Once a quartermaster of the river levies.',
+      retiredOnTurn: null,
+    });
+    for (const rival of rivals(document)) {
+      expect(document.world.guildmasters[rival.guildmasterId]).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+    }
+  });
+
+  test('draws what is left unset as a Rival Guildmaster is drawn; an empty list of Traits is none', () => {
+    const drawn = createWorld('unset', setup, deps).document;
+    const none = createWorld('unset', { ...setup, guildmasterTraitKeys: [] }, deps).document;
+
+    expect(guildmasterOf(none).traits).toEqual([]);
+    expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits }).toEqual(guildmasterOf(drawn));
+    expect(guildmasterOf(drawn)).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+  });
+
+  test("the player's choices move no draw: the world is the one drawn without them, but for their Guildmaster", () => {
+    for (const seed of ['moves-1', 'moves-2', 'moves-3']) {
+      const drawn = createWorld(seed, setup, deps).document;
+      const chosen = createWorld(
+        seed,
+        { ...setup, guildmasterSex: 'female', guildmasterAge: 44, guildmasterTraitKeys: ['old-soldier'], guildmasterBiography: 'A life.' },
+        deps,
+      ).document;
+      const was = guildmasterOf(drawn);
+      Object.assign(guildmasterOf(chosen), { sex: was.sex, ageAtEntry: was.ageAtEntry, traits: was.traits, biography: '' });
+
+      expect(chosen).toEqual(drawn);
+    }
+  });
+
+  test('throws on a setup setupRefusal refuses, naming its reason, and on a sex that is not one', () => {
+    expect(() => createWorld('bad', { ...setup, guildmasterAge: 12 }, deps)).toThrow(/age-out-of-range/);
+    expect(() => createWorld('bad', { ...setup, guildmasterTraitKeys: ['well-liked'] }, deps)).toThrow(/over-budget/);
+    expect(() => createWorld('bad', { ...setup, guildmasterSex: 'other' as never }, deps)).toThrow(RangeError);
   });
 });

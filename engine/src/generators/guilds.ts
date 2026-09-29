@@ -15,6 +15,7 @@ import {
   type Guildmaster,
   type GuildmasterId,
   type Hall,
+  type Sex,
   type StatValues,
   type Turn,
   type World,
@@ -56,6 +57,26 @@ export interface GuildOptions extends DrawsFrom {
   backgroundKey?: BackgroundKey;
   /** Drawn from content's given and family names when omitted. */
   guildmasterName?: string;
+  /**
+   * What the player chose of their Guildmaster at setup (M9-S2, DL-100 item 3); the rest is drawn.
+   * `createWorld` has checked it with `setupRefusal`; this trusts it.
+   */
+  guildmaster?: GuildmasterChoices;
+}
+
+/**
+ * A Guildmaster's setup, each part optional (M9-S2): what is given replaces what is drawn, and the
+ * draws are made either way, so a choice moves no later draw. The descriptive Attributes are
+ * stored as given, trimmed by the caller; a drawn Guildmaster's are empty.
+ */
+export interface GuildmasterChoices {
+  sex?: Sex;
+  age?: number;
+  /** The Traits in the order given; an empty list is none. */
+  traitKeys?: readonly TraitKey[];
+  birthplace?: string;
+  appearance?: string;
+  biography?: string;
 }
 
 export interface GeneratedGuild {
@@ -102,6 +123,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     guildId,
     turn: world.turn,
     name: options.guildmasterName,
+    chosen: options.guildmaster ?? {},
   });
   const guild: Guild = {
     id: guildId,
@@ -253,21 +275,27 @@ interface GuildmasterSetup {
   guildId: GuildId;
   turn: Turn;
   name: string | undefined;
+  chosen: GuildmasterChoices;
 }
 
 /**
  * A Guildmaster: sex, a name unless given, an age, each Guildmaster Stat in key order, and their
- * Traits on the budget (`drawTraits`).
+ * Traits on the budget (`drawTraits`). What `setup.chosen` gives replaces what is drawn, after the
+ * draw, so the draws are the same whatever was chosen (M9-S2); a name is drawn for the sex chosen.
  */
 function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: GuildmasterSetup): Guildmaster {
-  const sex = pick(state, sexes);
+  const { chosen } = setup;
+  const drawnSex = pick(state, sexes);
+  const sex = chosen.sex ?? drawnSex;
   const name = setup.name ?? drawPersonName(state, content.names, sex);
-  const ageAtEntry = int(state, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
+  const drawnAge = int(state, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
+  const ageAtEntry = chosen.age ?? drawnAge;
   const stats: StatValues = {};
   for (const stat of sortedRows(content.stats, (row) => row.owner === 'guildmaster')) {
     stats[stat.key] = clamp(int(state, config.guildmasterStatMin, config.guildmasterStatMax), stat.min, stat.max);
   }
-  const traits = drawTraits(state, config, content);
+  const drawnTraits = drawTraits(state, config, content);
+  const traits = chosen.traitKeys === undefined ? drawnTraits : [...chosen.traitKeys];
   return {
     id: setup.id,
     name,
@@ -277,6 +305,10 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
     ageAtEntry,
     stats,
     traits,
+    birthplace: chosen.birthplace ?? '',
+    appearance: chosen.appearance ?? '',
+    biography: chosen.biography ?? '',
+    retiredOnTurn: null,
     regard: {},
   };
 }

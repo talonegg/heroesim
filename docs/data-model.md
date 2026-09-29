@@ -118,12 +118,20 @@ Upkeep is computed from the Roster and the Hall, not stored.
 
 **guildmasters**
 ```
-id, name, sex, guildId
+id, name, sex, guildId                      a retired Guildmaster keeps their guildId
 enteredTurn, ageAtEntry
 stats:          Record<StatKey, number>
 traits:         TraitKey[]
+birthplace, appearance, biography: string   the descriptive Attributes, which no rule reads: the
+                                            player's at setup, trimmed and at most 60, 280 and
+                                            1,000 characters; "" when none was written, as for
+                                            every drawn Guildmaster (R8, DL-100 item 3, DL-102)
+retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
+                                            Guild in play names them then (DL-100 item 3, DL-102)
 regard:         Record<EntityId, RegardEntry>
 ```
+Schema version 4 added the descriptive Attributes and `retiredOnTurn` (M9-S2, DL-102); a version-3
+save loads with every Guildmaster in office and no descriptive Attribute.
 
 **heroes**
 ```
@@ -354,6 +362,7 @@ runs per Turn in play.
 | A Hero on two Rosters, or in two Parties, or on a Roster of a Guild other than `guildId` | refuse |
 | A Hero with a Guild and `unattachedSince` or `leftPoolOnTurn` set; one with no Guild both in the pool and gone from play, or neither | refuse |
 | A Guildmaster whose `guildId` differs from the Guild that names them | refuse |
+| A Guild in play that names a retired Guildmaster (DL-102) | refuse |
 | A folded Guild with a Hero on its Roster or a Party of its own (DL-28) | refuse |
 | `quest.partyIds` and `party.questId` disagree, or more Parties than the build allows | refuse |
 | Two stacks with the same definition, holder and slot | refuse |

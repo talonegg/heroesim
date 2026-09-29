@@ -769,6 +769,10 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       ageAtEntry: 40 + g,
       stats: Object.fromEntries(Object.keys(guildmasterStats).map((key, i) => [key, 8 + ((g + i) % 8)])),
       traits: g === 0 ? ['old-soldier'] : [],
+      birthplace: '',
+      appearance: '',
+      biography: '',
+      retiredOnTurn: null,
       regard: {},
     };
     log(0, 'guild.founded', [id, guildmasterId], true);

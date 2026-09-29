@@ -59,7 +59,11 @@ export type Migration = (document: SavedDocument) => SavedDocument;
  * The chain: `migrations[n]` turns a version-n document into version n + 1. A milestone that
  * changes the schema adds its step with the new `schemaVersion` (data-model §6).
  */
-export const migrations: Readonly<Record<number, Migration>> = Object.freeze({ 1: unattachedPoolFields, 2: transferredOnTurnField });
+export const migrations: Readonly<Record<number, Migration>> = Object.freeze({
+  1: unattachedPoolFields,
+  2: transferredOnTurnField,
+  3: guildmasterAttributeFields,
+});
 
 /**
  * Version 1 to 2 (M2-S8, DL-27): every Hero gains `unattachedSince` and `leftPoolOnTurn`. In a
@@ -99,6 +103,25 @@ function transferredOnTurnField(document: SavedDocument): SavedDocument {
     Object.entries(world.heroes).map(([id, hero]) => [id, isObject(hero) ? { ...hero, transferredOnTurn: lastTransfer.get(id) ?? null } : hero]),
   );
   return { ...document, world: { ...world, heroes } };
+}
+
+/**
+ * Version 3 to 4 (M9-S2, DL-102): every Guildmaster gains the three descriptive Attributes, empty,
+ * and `retiredOnTurn`, `null`. No Guildmaster retired in a version-3 world without their Guild
+ * folding (DL-28 item 1), and a folded Guild's Guildmaster is a record no rule reads, so every one
+ * is read as in office; their Traits are left as they are (DL-100 item 4). Changes nothing it does
+ * not recognise, leaving a damaged save for the validator to refuse, and never changes its input.
+ */
+function guildmasterAttributeFields(document: SavedDocument): SavedDocument {
+  const { world } = document;
+  if (!isObject(world) || !isObject(world.guildmasters)) return document;
+  const guildmasters = Object.fromEntries(
+    Object.entries(world.guildmasters).map(([id, guildmaster]) => [
+      id,
+      isObject(guildmaster) ? { ...guildmaster, birthplace: '', appearance: '', biography: '', retiredOnTurn: null } : guildmaster,
+    ]),
+  );
+  return { ...document, world: { ...world, guildmasters } };
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

@@ -110,6 +110,10 @@ const guildmaster: Guildmaster = {
   ageAtEntry: 38,
   stats: { inspiration: 12, influence: 9, negotiation: 11, coaching: 8, judgement: 14 },
   traits: ['old-soldier'],
+  birthplace: 'Stannary',
+  appearance: 'Grey at the temples.',
+  biography: '',
+  retiredOnTurn: null,
   regard: { [heroId]: regardEntry },
 };
 
