@@ -30,6 +30,7 @@ M9-S9 runs after M9-F6.
 *The follow-on is built and verified on `v1.1-dev`* — 2026-09-30 (DL-119, M9-F6): §3's rows that
 moved are ticked again against their new places. *Amended 2026-09-30 (DL-120):* M9-F7 follows
 from the owner's answers, and the release, M9-S9 (#37, DL-122), waits for the owner's steps after it.
+*M9-F7 is built on its branch* — 2026-09-30 (DL-121).
 
 ## 0. What lands in M9
 

@@ -39,7 +39,7 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
 **Status:** built and verified on `v1.1-dev` — 2026-09-30 (DL-119). Every box of M9-F1 to M9-F6 is
 ticked and the gate is met. *Amended 2026-09-30 (DL-120):* the owner's answers on the close add
 M9-F7, built before the release. The release, M9-S9 (#37), is DL-122 and follows on the owner's
-steps.
+steps. *M9-F7 is built and its boxes ticked* — 2026-09-30 (DL-121), on its branch.
 *Approved as amended 2026-09-29 (DL-112, DL-113); built on the owner's word the same day (DL-114 to
 DL-118), and closed by M9-F6 (DL-119).*
 
@@ -524,17 +524,51 @@ Added 2026-09-30 by DL-120, from the owner's answers to DL-119's open questions.
 
 **Acceptance:**
 
-- [ ] Each item above is tested at its seam and through the page, and the browser specs pass through
-      the new words.
-- [ ] The field is optional: a document without it validates and loads. With the field set aside, the
-      History of seeded games is unchanged.
-- [ ] The ledger, from its opening row, adds up to Wealth now for the player's Guild, the founding
-      Rivals and a replacement Rival.
-- [ ] A 50 × 20 sweep is run again. Its games play Day for Day as at f22f493, and it is recorded in
-      `harness/reports/`.
-- [ ] A code review at medium, lint, the typecheck, the suite, the bundle gate and every browser spec
-      pass.
-- [ ] DL-121 records the choices.
+- [x] Each item above is tested at its seam and through the page, and the browser specs pass through
+      the new words (DL-121 items 3 to 9).
+      - *Words:* `views/game-menu.test.tsx` 'is the last control of the menu…' and "a Hero's page
+        opened from it goes back to it by its name…"; `state/history.test.ts` and
+        `views/history.test.tsx` (the title); `e2e/support.ts`'s `debugHistory`, read by
+        `modules.spec.ts` and `layout.spec.ts`.
+      - *Retirement:* `state/world-views.test.ts` 'says "in 1 year" a year or more away, and the Days
+        left…', 'says why none came…' and "says why a Rival's Guildmaster never retired…";
+        `views/guildmaster.test.tsx` 'says why no Retirement came…' and 'gives the Days left…'.
+      - *The opening balance:* `state/treasury.test.ts` "a new game's ledger holds its opening row
+        alone…" and 'shows every row, newest first…'; `views/treasury.test.tsx` 'opens with the Wealth
+        the Guild was founded with…'; `e2e/journey.spec.ts` (the ledger's last row).
+      - *A return in the Guild's History:* `state/quest-return.test.ts` "its Encounters, consumables,
+        the dead's gear, and its Heroes' Levels that night…"; `state/digest.test.ts` "gives a Party's
+        return as its one entry, the Loot next after it, then its Injuries and Deaths…" and 'counts a
+        Party home as its History does…'; `state/history.test.ts` "a page of the player's Guild's
+        History that would end on a return's Death runs on to the return…"; `views/history.test.tsx`
+        and `views/rail.test.tsx` 'is one entry … its Injury … after it (M9-F7)…'.
+      - *The report:* `state/quest-return.test.ts` 'what a Death cost the Heroes at home…', 'the Heroes
+        at home: two Deaths cost each twice…' and 'a Hero away with another Party when the Death came
+        is not at home…'; `views/quest-report.test.tsx` "after the Heroes' outcomes, one line says what
+        a Death cost the Heroes at home…" and 'no line for the Heroes at home when no Hero died'.
+      - *Home:* `views/guild.test.tsx` 'Home says the Guild is below the Bankruptcy floor where it
+        would say nothing is waiting…'.
+      - *Tidy-ups:* `state/history.test-support.ts`'s `pageOfEntry`, read by `state/history.test.ts`'s
+        page tests; `state/quest-return.test.ts` 'puts no Encounter or consumable in words, as the report
+        does, and gives the report's Hero lines'.
+- [x] The field is optional: a document without it validates and loads. With the field set aside, the
+      History of seeded games is unchanged. `phases/quests-conclude.test.ts` 'a History written before
+      M9-F1, with none of the three, still validates and loads', 'nothing else moves…' (M9-F1's
+      fingerprints kept, the stripping extended) and "every founding in the games names its Guild's
+      founding Wealth…"; `generators/guilds.test.ts`, `create.test.ts`, `phases/endings.test.ts`;
+      `state/treasury.test.ts` 'a save whose founding names no Wealth…' (DL-121 item 1).
+- [x] The ledger, from its opening row, adds up to Wealth now for the player's Guild, the founding
+      Rivals and a replacement Rival: `state/treasury.test.ts` "%s: every Guild's ledger, from its
+      opening row, adds up to its Wealth now…", over three seeded games of two years, each with a
+      replacement (DL-121 item 5).
+- [x] A 50 × 20 sweep is run again. Its games play Day for Day as at f22f493, and it is recorded in
+      `harness/reports/`: `m9-f7-2026-09-30.md` (fingerprint `b4290f09…c1a7f8`, 138 folds, 37
+      Successions, every counter as at f22f493) and `m9-f7-comparison-2026-09-30.md` (all 50 games equal
+      on every Day with the field set aside; 388 of 388 foundings name a Wealth) (DL-121 item 2).
+- [x] A code review at medium, lint, the typecheck, the suite, the bundle gate and every browser spec
+      pass. The review's two low findings are fixed test first (DL-121 item 10); the checks are in
+      DL-121 item 12.
+- [x] DL-121 records the choices.
 
 ## 2. Configuration, content and events
 

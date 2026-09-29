@@ -215,7 +215,8 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   // (M9-F6, from the close's screenshots, where the hover's face took the pressed one's place).
   const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true });
   await world.hover();
-  expect(await world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
+  // Read once the hover's colour transition has run: read during it, the face is between the two (M9-F7).
+  await expect.poll(() => world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
   await debugHistory(page);
   await history.getByRole('button', { name: 'Oldest' }).click();
   await expectNoHorizontalOverflow(page, 'the oldest page of the whole History');

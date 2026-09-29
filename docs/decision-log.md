@@ -12489,6 +12489,156 @@ left nine questions for the owner. There were also three open items:
 **Actioned in:** this entry; `docs/planning/epics/M9-feedback.md`, `docs/planning/epics/M9-redesign.md`
 (M9-S9's DL); the GitHub issue (item 11).
 
+## DL-121 — M9-F7 built: "Debug: Whole History", the Days before a Retirement under a year and why none came, the founding Wealth on `guild.founded` and the ledger's opening row, a return's Injuries and Deaths beside its entry, the Heroes at home in the report, Home below the floor, the two tidy-ups, and the sweep Day for Day as at `f22f493`
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, M9-F7's implementer. What was
+built is the owner's (DL-120), and where DL-120 gives an example its words are used. The choices below
+that DL-120 and the epic left open, and the two fixes the code review found, are the implementer's,
+each marked, for the owner to change.
+
+**Context.** DL-120 answered DL-119's nine questions and three open items, and added M9-F7 to
+`docs/planning/epics/M9-feedback.md`, built before the release. It is built on branch `m9-f7` from
+`v1.1-dev` at `5a3966c`. The one engine change is an optional field; everything else is in `web/`. The
+suite held 3,416 tests at the start and the browser specs 63 runs. The machine was shared, so no timing
+below is comparable with another run's.
+
+**Decision.**
+
+1. **The engine: `guild.founded` names the founding Wealth** (DL-120 item 4).
+   - *The field* is `wealth`, beside `guildId` and `guildmasterId`, written by `generateGuild`, which
+     every founding goes through: the player's Guild, the founding Rivals and every replacement
+     (`generateRival` from the endings phase). It is optional in the type, as `questId` is, with no
+     schema or `configVersion` change (still 12, content 15, schema 4).
+   - *Validation* needed no change: the validator reads no payload's shape (DL-114 item 1). A History
+     without the field validates and loads; a test rebuilds a played History without it.
+   - *Narration* is unchanged in both front ends: no sentence reads the field.
+   - *Proof that play does not move* (the orchestrator's note 1). M9-F1's pinned fingerprints in
+     `engine/src/phases/quests-conclude.test.ts` keep their values: the stripping is extended to take the
+     founding Wealth out of `guild.founded` as well, not new values recorded. With the field set aside,
+     the three seeded Histories are those of `86c7afa`. A second test holds that every founding in those
+     games names a Wealth.
+   - *Tests:* `generators/guilds.test.ts` (the payload), `create.test.ts` (the player's and every Rival's
+     founding, the player's at `startingWealth`), `phases/endings.test.ts` (a replacement's).
+2. **The 50 × 20 sweep, run again** (the story's box; DL-120's Consequences).
+   `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-f7 npm run harness` at `ba44f6e`, 16 processes, not
+   validated. Its report is `harness/reports/m9-f7-2026-09-30.md`, force-added.
+   - *Against `f22f493`'s* (M9-F6's `m9-follow-on-2026-09-30.md`, run at `4da2ee9`, whose play
+     `f22f493` keeps): every counter, yearly table and ending is equal: 138 Rival folds, 37
+     Successions, no player ending, no refused action, 50 of 50 saves round trip.
+   - *What moves:* the saves' length (`seed-0001` 106,330,913 characters against 106,330,822, 91 more
+     for its 7 foundings) and so the fingerprint, now
+     `b4290f09beea05aeb668bdd5e82709f12fb8f30f8a70a91bb305adb1bfc1a7f8` (was `978ddc75…c47741`). The
+     timings are not comparable: 1,023 s against 449 s, on a shared machine.
+   - *Day by Day* (`harness/reports/m9-f7-comparison-2026-09-30.md`, force-added), as DL-119 item 5 did
+     it: each game's History hashed by Day and chained, with M9-F1's `questId`s and the founding Wealth
+     taken out, against M9-F6's own hashes of the same games at `4da2ee9`, kept in the close's
+     scratchpad and not played again (the implementer's: `4da2ee9` and `f22f493` play alike). **All 50
+     games are equal on every Day**, 360,050 Days in all, with the same 12,864,442 entries, every type's
+     count, fold and Succession. All 388 foundings name a Wealth: 50 players', 200 founding Rivals' and
+     138 replacements'.
+3. **"Debug: Whole History"** (DL-120 item 1): the game menu's button, the view's heading, and so the
+   back button of a page opened from it ("Back to Debug: Whole History"), and the game menu's "About
+   this view". `CONTEXT.md`'s World History names it, and M9-redesign.md's §3 row quotes it. The tests
+   and `e2e/support.ts`'s `debugHistory` read the new words; a new test opens a Hero's page from the
+   debug view and goes back.
+4. **The Retirement line** (DL-120 items 2 and 9), `guildmasterView` in `state/world-views.ts`.
+   - *Less than a year away* is read in Turns: the night of the Retirement less than `turnsPerYear`
+     Turns after the Turn now (the implementer's). A year or more away keeps the calendar's Years, "in 1
+     year"; under a year the line gives the Days, "in 359 Days", "in 1 Day", and "tonight" on its own
+     night (the implementer's word for 0 Days). "Later this Year" is gone, since it was always under a
+     year.
+   - *Why none came* (the implementer's words where DL-120 gives none): a folded Guild's Guildmaster,
+     "Never retired: the Guild folded on Day N.", whatever ended the game after; the player's, "Never
+     retired: the game ended in Bankruptcy on Day N." (DL-120's) or "… ended with the Roster wiped out on
+     Day N."; a Rival's, when the player's game ended first, "Never retired: the game ended on Day N,
+     when The Lantern went bankrupt." (or "lost its Guildmaster to Retirement", "had its Roster wiped
+     out", the History's words for an ending). The view always draws the line now.
+5. **The Treasury's opening row** (DL-120 item 4).
+   - *Where* (the implementer's reading of "opens with"): the ledger reads newest first, so the opening
+     row is its oldest, the last row of its last page. It reads "Day 0, morning · Founded with 500
+     Wealth · Opening balance · 500": the owner's words, "Opening balance" from DL-120's title, the amount
+     unsigned since it is a balance and not a change.
+   - *When it shows* (the implementer's): with every change and no filter chosen. It is neither income
+     nor expense, so the flow and category chips leave it out, and the totals are the changes' alone.
+     The page count holds it; the line reads "N changes in all since the founding, newest first". A new
+     game's ledger holds it alone, with no chips or totals over it, under "No change to the Wealth of …
+     yet."; a save whose founding names no Wealth has no opening row.
+   - *The completeness test* now reads every Guild in the world at the end, and every ledger adds up
+     from its opening row to its Wealth now: the player's, each founding Rival's and a replacement's. To
+     be sure of a replacement in two years, the last Rival is founded with no Wealth, its founding saying
+     so, and its Roster released, so it folds that night (the implementer's fixture). The player's
+     Guild is founded rich through `startingWealth` rather than by editing its Wealth, so its opening row
+     is true.
+6. **A return's Injuries and Deaths stand out** (DL-120 item 6). `partOfAReturn` no longer takes them,
+   so they are entries of their own in the player's Guild's History and the rail, and stay in the
+   return's Hero lines and the report. A return's Encounters, consumables, that night's Levels and a
+   dead Hero's gear stay hidden, as DL-118 built. The count and "New" read the scope, so they count
+   them.
+   - *Beside it* (the implementer's): in the History they follow the return and its Loot in the order
+     the engine wrote them, in its group. In the rail, newest first, each return's Loot, then its
+     Injuries, then its Deaths are moved to straight after it in that order (`besideTheirReturn`). A
+     return's several Loots now read in the order found, where M9-F5's rail read them newest first.
+   - *The History's "About this view"* says so.
+7. **The Heroes at home in the report** (DL-120 item 7). The Heroes section ends with one line after the
+   Party's outcomes, from the `roster-death` Morale changes that name the Quest: "At home: the Guild
+   mourned Aldric. Morale fell for 5 Heroes (−4 each)." (DL-120's words, with its minus sign).
+   - *The implementer's:* several Deaths, "mourned Aldric and Bera", each Hero's fall summed; falls
+     that differ, "(−2 to −8)"; one Hero, "1 Hero (−4)"; only Heroes whose Morale fell are counted. The
+     names are behind a disclosure, "5 Heroes at home", each with "Morale went from 40 to 36, steady",
+     a name opening its page. A Party mate's grief stays in their own line. No line when no Hero died.
+   - *Heroes away* (the code review, below): the engine costs the whole Roster, so a Hero away with
+     another Party when the Death came is left out, read from their own `quest.taken` not yet resolved.
+   - `CONTEXT.md`'s Quest report and Guild › Home's "About this view" name it.
+8. **Home below the floor** (DL-120 item 8): the quiet card says "Your Guild is below the Bankruptcy
+   floor: see the steps above." where "Nothing is waiting on you." would stand, and keeps its way to the
+   Board.
+9. **The tidy-ups** (DL-120 item 10).
+   - *`pageOfEntry`* leaves `state/history.ts` for `state/history.test-support.ts`, with its own index of
+     the scope, and `Scope.indexOf` goes. It reads the pages' edges apart from `historyView`, as an
+     oracle the page-edge tests compare every page with. Two mutations of it each failed the tests.
+   - *The rail's Hero lines:* `returnEntry` reads them through `readOutcomes`, the part of a return both
+     read: the outcome, the Quest's entries and each Hero's outcome. It narrates no Encounter and reads
+     no Patron; the report builds on it. A test counts the narration.
+10. **The code review** (`/code-review` medium, over `v1.1-dev...m9-f7`). Two low findings, both real,
+    both fixed test first:
+    1. *"At home" counted Heroes away on another Quest* (item 7).
+    2. *A page edge could part a return from its Loot, Injury or Death*, newer than it, which DL-120
+       item 6 puts beside it. A page of the player's Guild's History that would end on one runs on to
+       the return (`pageEnd`); the oracle keeps the same edge. The Loot had it since M9-F5.
+    *Left:* the rail holds 24 lines, and a return that is the 25th leaves its Loot, Injuries and Deaths
+    in the rail without it, as its Loot did (M9-F5).
+11. **Browser specs.** `journey.spec.ts` reads the ledger's opening row. The rest pass through the new
+    words by `support.ts`. One run failed once, at the desktop width, in `layout.spec.ts`'s check that a
+    pressed choice stays legible under the pointer (M9-F6): it read the colours while the hover's
+    transition ran, and passed alone, three times over. The check now polls until the transition has
+    run (the implementer's; no page change).
+12. **The final checks,** on the last commit's tree:
+    - `npm run lint`: 0 errors. `npm run typecheck`: clean.
+    - `npx vitest run --testTimeout=60000`: 3,429 tests in 146 files, all passing (3,416 at the start).
+      Under the sweep's load, two tests of `state/use-game.test.tsx` failed twice; alone they pass.
+    - `npm run build -w web`: one script of 649.41 kB (185.06 kB gzipped), ending "check-bundle: 2
+      built files, no network or filesystem reference".
+    - *The browser specs:* 63 runs across the phone, tablet and desktop projects, all passing, on an
+      uncommitted copy of `web/playwright.config.ts` at port 4182, since deleted.
+
+**Consequences.**
+- *The v1.1.0 release's figures:* the 50 × 20 fingerprint `b4290f09…c1a7f8`, 138 Rival folds and 37
+  Successions; `configVersion` 12, content 15, schema 4.
+- *Superseded:* DL-117 item 5's "Debug: the whole History"; DL-118 item 4's Injuries and Deaths among
+  a return's hidden parts; DL-119 item 1.1's `null` Retirement after another ending, and item 2.2's
+  dropped sentence.
+- *Not done here:* the GitHub issue for moving gear between Heroes (DL-120 item 11), which this story
+  was asked not to touch; and the release, M9-S9 (DL-122).
+- *Tests:* 3,416 to 3,429. The browser specs keep 63 runs, all passing.
+
+**Actioned in:** `engine/src/` (`events.ts`, `generators/guilds.ts` and the tests named); `web/src/state/`
+(`world-views.ts`, `treasury.ts`, `quest-return.ts`, `history.ts`, `digest.ts`, `history.test-support.ts`
+new, and their tests), `web/src/views/` (`guildmaster.tsx`, `guild.tsx`, `treasury.tsx`,
+`quest-report.tsx`, `game-menu.tsx`, `section.tsx` and their tests), `web/src/styles.css`, `web/e2e/`
+(`support.ts`, `journey.spec.ts`, `layout.spec.ts`); `harness/reports/` (`m9-f7-2026-09-30.md`,
+`m9-f7-comparison-2026-09-30.md`); `CONTEXT.md`; `docs/planning/epics/M9-feedback.md`,
+`docs/planning/epics/M9-redesign.md`, `docs/planning/epics/README.md`, `docs/plan.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
