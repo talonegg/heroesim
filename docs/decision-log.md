@@ -9834,6 +9834,163 @@ restyled, and builds the shared pieces those stories use.
 `game-menu.tsx`, `ui.tsx`, `icons.tsx`, `remembered.ts`, `section.tsx`), `web/src/styles.css`,
 `web/e2e/`, `web/playwright.config.ts`, `web/vite.config.ts`; the epic's M9-S3 boxes.
 
+## DL-104 — The Board's Quest cards and the Party builder: two-line cards that unfold to bars, counted Encounters and a meter against the Board, an order for display, a row per Hero from the selectors the Roster and a Hero's page read, a Hero's page in place with the choice kept, dispatch's verdict as a banner beside a Send that stays in view, and a "Party out" card where the Quest stood (M9-S4)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S4's implementer.
+- *The owner's.* What the builder shows and that it has no fit score and no odds are DL-99 item 3.
+  The rest of the story is the epic's (DL-100 item 1), from the review's B2, C4 to C6, E1 and E2.
+- *The agent's.* Every choice below that the epic left open, and every departure from it, is the
+  agent's, and stands unless the owner objects to it or to the screenshots.
+- *The number.* The orchestrator gave this story DL-104. The epic's §4 still gives DL-103 to M9-S3 to
+  M9-S7 and DL-104 to the close, so the close needs another number.
+
+**Context.** After M9-S3 the Board was a view of the shell, restyled but not redesigned. Each Quest
+was a card of ten label and value rows. "Choose a Party" opened a form whose Heroes were checkboxes
+reading "Finn Grimshaw, Rogue, Level 1". Choosing well meant leaving the form for the Roster
+(the review's C4). Once a Party was sent, the card vanished and nothing near it said so (E1). The
+selectors were `boardView`, `partyChoices`, `consumableChoices` and `previewView`.
+
+**Decision.**
+
+1. **A Quest card is two lines.**
+   - *The first line* is the Quest's name and its Patron. The name is the card's disclosure, a
+     button inside the `h3`, with a chevron and `aria-expanded`. The heading keeps its id, which the
+     home view's Quest buttons focus.
+   - *The second line* is a list of chips named "The terms of <Quest>", in this order:
+     - "Difficulty 54";
+     - "5 Days away";
+     - the reward, as the Wealth icon and "243", with "Wealth" for screen readers, as the status bar
+       shows Wealth on a phone;
+     - the Fame, as the Fame icon and "±2", with "Fame" for screen readers. A Quest's `fameEffect`
+       is won on a success and lost on a failure (`resolve`), so "+2" would say half of it. The
+       Board's help sentence now says so;
+     - "1 to 3 Heroes";
+     - one "Needs …" chip for each requirement beyond the Party size, "Needs a Mage" and "Needs a
+       Hero with Lockpicking", and none when there is none. The old "Requires: nothing more" goes;
+     - the Day it leaves: "Until Day 7", or "Leaves today" in the warning tone with its icon when its
+       last Day on offer is the Day in hand. "Until" replaces "On offer through" to keep the chips
+       to one line on a desktop.
+   - *"Choose a Party"* sits at the end of the two lines, and under them on a phone.
+   - *Three states.* A card is folded, unfolded, or unfolded with its builder open. "Choose a
+     Party" opens the builder and becomes "Close", which returns to the unfolded card. The name
+     folds the card and closes its builder.
+2. **Unfolded, a card shows four things, from `boardView`'s new fields.**
+   - *The Demands* as bars. Each is named by its Stat, with its weight as a share of the work in
+     hundredths ("40%"), and the bar is that share of its track. The bars are not scaled to the
+     heaviest: a Quest's weights sum to one, so a lone demand fills its bar and two halves fill half
+     each.
+   - *The Skills that help* as chips, `skillsThatHelp` as before (DL-70).
+   - *The Encounters* counted by kind, in the order each kind is first met, as chips with M9-S3's
+     icon for the kind: "stealth ×2", "combat ×2", "travel ×1". An Encounter that content does not
+     define counts under its key, with no icon. "Drawn on the way" is shown when there are none.
+   - *The difficulty on a meter.* The track runs from the easiest Quest on the Board now to the
+     hardest. It has a tick for each other Quest and a mark for this one, and the mark is in the
+     middle when all are of one difficulty. Beside it are words: "3rd hardest of the 6 Quests on
+     the Board", "the hardest", "the easiest", "joint 4th hardest", or "the only Quest on the
+     Board". The meter is an image named by its numbers. It is display only and never called a
+     band, which is how a Quest went (`CONTEXT.md`).
+3. **The Board can be ordered, for display.**
+   - *The choices* are in a select named "Order": "As posted" (the default), "Reward, highest
+     first", "Difficulty, easiest first" and "Leaving soonest". Ties keep the Board's order.
+   - *Where it is computed.* `boardView(document, order)` sorts the cards. The World State's Board
+     is untouched.
+   - *How long it lasts.* The shell keeps the order from view to view while the page is open. It is
+     not stored in the browser, unlike the open view (DL-103 item 2).
+4. **The Party builder's rows** come from `partyRows(document, questId)`, written test first, which
+   replaces `partyChoices`. For each Hero on the Roster, a row gives:
+   - *Whether they can go.* The reason is the engine's `unavailability`, and until when is said in
+     the Roster's own words: "injured, healing on the night of Day 6", "away with a Party, back on
+     the night of Day 5". `whereabouts` and the new `unavailableUntil` share those phrases. A Hero
+     who cannot go has a disabled checkbox and a warning chip with the Injury or travel icon.
+   - *Their Class and Level.*
+   - *Their Morale and its band,* as `rosterView` gives them. The chip's tone is bad when the band
+     is wretched, a warning when low, good when high or elated, and plain when steady. The word is
+     always there.
+   - *The effective values of the Stats the Quest demands,* in the Quest's order. They come from the
+     same `statValues` that `heroPage` now reads, the engine's `effectiveStats` beside the base.
+   - *The Skills the Quest names that the Hero has, with their ratings.* The agent read "the Skills
+     the Quest names" as the Skill it requires, then the Skills that help, without repeats. The
+     ratings come from the same `heldSkills` that `heroPage` reads.
+
+   Nothing on a row judges the Hero against the Quest: there is no fit score and no odds (DL-99
+   item 3).
+5. **A Hero's page from the builder.**
+   - *Opening it.* Each row has "Open", named "Open <Hero>'s page", which opens `HeroPage` in place
+     of the Board view, as the Roster does. Above it, "Choosing a Party for <Quest>: N chosen."
+     reminds the player where they came from, and "Back to the Party" returns.
+   - *The choice is kept.* The Heroes and the consumables chosen were the form's own state. They
+     are now the Board view's, keyed to the Quest, so the page and the builder share them. Leaving
+     the Board view drops them, as before.
+   - *The keyboard.* It goes to the Hero's name, and `HeroPage`'s heading now takes the focus. It
+     comes back to the row's "Open".
+   - *The page's actions stay.* Gear put on the Hero there shows in the row's Stats on the way back.
+6. **The requirements, the verdict and Send.**
+   - *The requirements* are a checklist: a check or a cross, and the words "met" or "missed".
+   - *The verdict* is dispatch's own, `previewView`'s (DL-66 item 2), in a banner with the status
+     role. It is green, the new `.banner--good`, when dispatch would send the Party, and red when
+     not. `styles.test.ts` now also checks ink on the good ground.
+   - *Send stays in view.* The verdict and "Send the Party" share the form's foot, which is sticky:
+     above the phone's navigation bar under 600px, and at the bottom of the screen from 600px. The
+     epic asked for Send alone there. The agent put the verdict beside it, so the player sees
+     whether the Party would be sent while choosing from a long Roster.
+7. **After a send.**
+   - *The wording.* The card becomes a "Party out" card. Its heading is the Quest's name, beside a
+     "Party out" chip. It reads "Sent: Finn Grimshaw and Vigdis Stanegate. Back on the night of Day
+     6.", and has "See the Parties out", which opens the home view.
+   - *The placement.* It stands where the Quest's card stood, in the Board's order as shown. The
+     keyboard moves to its heading and the screen scrolls to it, since the form it replaces is gone.
+   - *Where it comes from.* `sentView(state)` reads the player's `quest.taken` in the last play's
+     events: the names are the event's labels, and the night is its `returnsOnTurn`. These are the
+     words the home view's "Parties out" uses (`partiesOutView`), and a test holds the two alike.
+   - *How long it stays.* It stays until the next play, since the log is the last play's, or until
+     the Board view is left. It is shown only for the Quest the player just sent. So after a refused
+     send, the card and the choice stay as they were, with the refusal docked under the status bar.
+8. **The home view's Quest buttons** open this builder on the right Quest, as M9-S3 wired them
+   (`onOpenQuest`). The card opens unfolded, with the keyboard on its heading.
+9. **Tests.**
+   - *Selectors, test first,* in `state/selectors.test.ts`:
+     - "the Board's Quest cards (M9-S4, DL-104)", six tests;
+     - "the Party builder (M9-S4, DL-104)", four tests;
+     - "after a send (M9-S4, DL-104)", two tests.
+   - *The views,* in the new `views/board.test.tsx`: the card's two lines, the unfolding, the order,
+     each row's values, a Hero away with a Party, the drill-down keeping the choice, the checklist
+     and the verdict, the "Party out" card, and that card lasting until the next play.
+   - *The page.* `app.test.tsx`'s dispatch now ends on the "Party out" card, and the home view's
+     Quest button test finds the builder's rows.
+   - *The browser specs.* `journey.spec.ts` dispatches through the builder: a row's facts, a Hero's
+     page and back with the choice kept, and the "Party out" card. `layout.spec.ts` gains a test of
+     the Board, a card unfolded, the builder and a Hero's page from it, with no sideways scroll,
+     44px targets, and Send in view and not covered once the Heroes are scrolled to the top.
+   - *The widths.* The brief named 390, 820 and 1280. The browser projects are 360, 820 and 1280,
+     so the phone project checks both 360 and 390.
+   - *Waiting for what settles later.* A play settles after a paint, outside the click, so what an
+     effect does after it may come a moment after the page is idle. Three waits now allow for that
+     under the whole suite's load: the "Party out" card's focus, the remembered view in M9-S3's
+     `app.test.tsx` test, and the five steps of `use-game.test.tsx`'s fast forward, given 20 seconds
+     where `waitFor` gives one. The fast forward's failed under load in this story's baseline run,
+     before any change; the remembered view's failed once under load during it.
+
+**Consequences.**
+- *The Board's height.* A new game's Board view (seed `heroesim-e2e-01`) is 1,475px at 390px, where
+  the review measured 3,501px for the Board section. It is 833px at 1440px, where the review
+  measured 2,958px. A folded card is about 200px on a phone and 95px on a desktop. The first card
+  with its builder open is 1,742px and 994px.
+- *Selectors.* `partyChoices` is gone. `QuestCard`'s `requires`, `demands` (a string) and
+  `skillsThatHelp` became `needs`, `demands` (shares) and `skills`, and `leavingTodayView` reads the
+  new `leavesToday`.
+- *No rule in the web.* Every value shown comes from a selector. Nothing in the engine, content,
+  `GameConfig` or the save changes.
+- *Questions for the owner:*
+  - Does "±2" read clearly as Fame won or lost?
+  - Is "Until Day 7" clear, where the Board used to say "On offer through Day 7"?
+  - Should the Board's order be remembered in the browser, as the open view is?
+  - Does the verdict belong beside Send, as built, or apart from it, as the epic worded it?
+
+**Actioned in:** `web/src/state/selectors.ts` (`boardView`, `BoardOrder`, `partyRows`, `sentView`,
+`statValues`, `heldSkills`, `unavailableUntil`), `web/src/state/digest.ts`, `web/src/views/board.tsx`,
+`web/src/views/hero-page.tsx`, `web/src/views/section.tsx`, `web/src/app.tsx`, `web/src/styles.css`,
+`web/e2e/journey.spec.ts`, `web/e2e/layout.spec.ts`; the epic's M9-S4 boxes.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

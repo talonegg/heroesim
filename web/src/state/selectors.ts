@@ -51,6 +51,8 @@ import {
   type ConsumableRequest,
   type ContentSet,
   type DescriptiveAttribute,
+  type EncounterKind,
+  type EngineEventOf,
   type EngineDeps,
   type TurnEvent,
   type Entry,
@@ -62,6 +64,8 @@ import {
   type HeroId,
   type ItemDefinitionKey,
   type ItemId,
+  type MoraleBand,
+  type Party,
   type PotentialHint,
   type Quest,
   type QuestId,
@@ -75,13 +79,14 @@ import {
   type Synergy,
   type TimeOfDay,
   type TraitKey,
+  type Unavailability,
   type UniqueItem,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
 import { attributeLabels, capitalised, nameIn, nightOf, none, placeWords, rowOf, traitEffectWords } from './names';
-import { listed, narrate, narrateStop, narrationFor, type Narration } from './narrate';
+import { listed, narrate, narrateStop, narrationFor, questNamer, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
 
@@ -200,57 +205,145 @@ export interface QuestCard {
   fame: number;
   /** `2 to 4 Heroes`. */
   party: string;
-  /** The Class and Skill it requires beyond its Party size, or `nothing more`. */
-  requires: string;
+  /** The Class and the Skill it requires beyond its Party size, `a Mage`, `a Hero with Lockpicking`: none, often. */
+  needs: string[];
   /** The last Day it stays on offer. */
   lastDay: number;
-  /** `Strength 0.5, Courage 0.5`: the kind of work it is. */
-  demands: string;
-  /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70). */
-  skillsThatHelp: string;
-  /** The kinds of its Encounters in order, or that they are drawn on the way. */
-  encounters: string;
+  /** Whether that Day is the Day in hand: the next morning's refresh takes it off, if no Guild has (M9-S4). */
+  leavesToday: boolean;
+  /**
+   * Its Stat demands in the Quest's order, each named, with its weight as a share of the work in
+   * hundredths: a Quest's weights sum to one, so the shares sum to about 100 (M9-S4, the review's C5).
+   */
+  demands: DemandShare[];
+  /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70), by name. */
+  skills: string[];
+  /**
+   * Its Encounters counted by kind, in the order each kind is first met, `combat ×2` (M9-S4, the
+   * review's B2); none when they are drawn on the way.
+   */
+  encounters: EncounterCount[];
+  /**
+   * Where its difficulty sits among the Quests on the Board now (M9-S4, the review's C6): display
+   * only, and never called a band, which is how a Quest went (`CONTEXT.md`).
+   */
+  meter: DifficultyMeter;
+  /** The same in words: `3rd hardest of the 6 Quests on the Board`, `the only Quest on the Board`. */
+  hardness: string;
 }
 
-/** `show board`: the Quests on offer, in the Board's order. */
-export function boardView(document: WorldDocument): QuestCard[] {
+/** A Stat a Quest demands, and its weight as a share of the work in hundredths. */
+export interface DemandShare {
+  stat: string;
+  percent: number;
+}
+
+/** How many of a Quest's Encounters are of one kind. */
+export interface EncounterCount {
+  /** The kind, or `null` for an Encounter content does not define, which counts under its key. */
+  kind: EncounterKind | null;
+  count: number;
+  /** `combat ×2`. */
+  words: string;
+}
+
+/** A Quest's difficulty placed against the Quests on the Board now, for a meter to draw. */
+export interface DifficultyMeter {
+  /** The difficulty of the easiest and of the hardest Quest on the Board now. */
+  lowest: number;
+  highest: number;
+  /** Where this Quest's falls, from the lowest, 0, to the highest, 1; the middle when they are one. */
+  at: number;
+  /** Where each other Quest on the Board falls, in the Board's order. */
+  others: number[];
+}
+
+/**
+ * How the player may order the Board (M9-S4, the review's B2): as it was posted; by reward, highest
+ * first; by difficulty, easiest first; or by the Day each leaves, soonest first. Display only: the
+ * Board's own order is the World State's, which no play changes.
+ */
+export type BoardOrder = 'posted' | 'reward' | 'difficulty' | 'leaves';
+
+/** Each order's key, smallest first; ties keep the Board's order. */
+const orderKeys: Readonly<Record<Exclude<BoardOrder, 'posted'>, (card: QuestCard) => number>> = {
+  reward: (card) => -card.reward,
+  difficulty: (card) => card.difficulty,
+  leaves: (card) => card.lastDay,
+};
+
+/** `show board`: the Quests on offer, in the Board's order or in `order`. */
+export function boardView(document: WorldDocument, order: BoardOrder = 'posted'): QuestCard[] {
+  const cards = questCards(document);
+  if (order === 'posted') return cards;
+  const key = orderKeys[order];
+  return [...cards].sort((a, b) => key(a) - key(b));
+}
+
+/** The Quests on offer as cards, in the Board's order. */
+function questCards(document: WorldDocument): QuestCard[] {
   const { world } = document;
-  return world.board.flatMap((questId): QuestCard[] => {
-    const quest = rowOf(world.quests, questId);
-    if (quest === undefined) return [];
+  const today = dayOf(world.turn);
+  const quests = world.board.flatMap((questId) => rowOf(world.quests, questId) ?? []);
+  const difficulties = quests.map((quest) => quest.difficulty);
+  const lowest = Math.min(...difficulties);
+  const highest = Math.max(...difficulties);
+  const along = (difficulty: number): number => (highest === lowest ? 0.5 : (difficulty - lowest) / (highest - lowest));
+  return quests.map((quest, index): QuestCard => {
     const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
-    const requires = [
-      ...(classKey === undefined ? [] : [`a ${nameIn(content.classes, classKey)}`]),
-      ...(skillKey === undefined ? [] : [`a Hero with ${nameIn(content.skills, skillKey)}`]),
-    ];
-    return [
-      {
-        questId: quest.id,
-        name: nameIn(content.questTemplates, quest.templateKey),
-        patron: rowOf(world.patrons, quest.patronId)?.name ?? 'a Patron',
-        difficulty: quest.difficulty,
-        days: durationDaysOf(quest),
-        reward: quest.reward,
-        fame: quest.fameEffect,
-        party: `${partySizeMin} to ${partySizeMax} Heroes`,
-        requires: requires.length === 0 ? 'nothing more' : listed(requires),
-        lastDay: dayOf(quest.expiresOnTurn),
-        demands: quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        skillsThatHelp: none(skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key))),
-        encounters: encounterKindsOf(quest),
-      },
-    ];
+    return {
+      questId: quest.id,
+      name: nameIn(content.questTemplates, quest.templateKey),
+      patron: rowOf(world.patrons, quest.patronId)?.name ?? 'a Patron',
+      difficulty: quest.difficulty,
+      days: durationDaysOf(quest),
+      reward: quest.reward,
+      fame: quest.fameEffect,
+      party: `${partySizeMin} to ${partySizeMax} Heroes`,
+      needs: [
+        ...(classKey === undefined ? [] : [`a ${nameIn(content.classes, classKey)}`]),
+        ...(skillKey === undefined ? [] : [`a Hero with ${nameIn(content.skills, skillKey)}`]),
+      ],
+      lastDay: dayOf(quest.expiresOnTurn),
+      leavesToday: dayOf(quest.expiresOnTurn) === today,
+      demands: quest.demands.map(([key, weight]) => ({ stat: nameIn(content.stats, key), percent: Math.round(weight * 100) })),
+      skills: skillsThatHelp(quest, content).map((key) => nameIn(content.skills, key)),
+      encounters: encounterCounts(quest),
+      meter: { lowest, highest, at: along(quest.difficulty), others: difficulties.filter((_, other) => other !== index).map(along) },
+      hardness: hardnessWords(quest.difficulty, difficulties),
+    };
   });
 }
 
-function encounterKindsOf(quest: Quest): string {
-  if (quest.encounterKeys.length === 0) return 'drawn on the way';
-  return quest.encounterKeys.map((key) => rowOf(content.encounters, key)?.kind ?? key).join(', ');
+/** A Quest's Encounters counted by kind, in the order each kind is first met. */
+function encounterCounts(quest: Quest): EncounterCount[] {
+  const counts = new Map<string, EncounterCount>();
+  for (const key of quest.encounterKeys) {
+    const kind = rowOf(content.encounters, key)?.kind ?? null;
+    const label = kind ?? key;
+    const counted = counts.get(label) ?? { kind, count: 0, words: '' };
+    counted.count += 1;
+    counted.words = `${label} ×${counted.count}`;
+    counts.set(label, counted);
+  }
+  return [...counts.values()];
+}
+
+/** Where `difficulty` ranks among `difficulties`, its own among them, hardest first, in words. */
+function hardnessWords(difficulty: number, difficulties: readonly number[]): string {
+  const { length } = difficulties;
+  if (length === 1) return 'the only Quest on the Board';
+  const place = 1 + difficulties.filter((each) => each > difficulty).length;
+  const joint = difficulties.filter((each) => each === difficulty).length > 1;
+  const of = `of the ${length} Quests on the Board`;
+  if (place === 1) return `${joint ? 'joint' : 'the'} hardest ${of}`;
+  if (place === length) return `the easiest ${of}`;
+  return `${placeWords({ place, joint })} hardest ${of}`;
 }
 
 // ── Choosing a Party ─────────────────────────────────────────────────────────────────────────
 
-/** Why a Hero cannot go, after their name (the CLI's `dispatch`). */
+/** Why a Hero cannot go, after their name (the CLI's `dispatch`): the preview's problems. */
 const unavailableWords = {
   injured: 'is injured',
   dead: 'is dead',
@@ -258,30 +351,55 @@ const unavailableWords = {
   'in-party': 'is away with a Party',
 } as const;
 
-export interface PartyChoice {
+/**
+ * A Hero on the Roster as the Party builder shows them for one Quest (M9-S4, DL-99 item 3): whether
+ * they can go, and when not why and until when; their Class and Level; their Morale and its band;
+ * the effective values of the Stats the Quest demands; and the Skills the Quest names that they
+ * have. Every value is one the Roster, a Hero's page and the Board already give: no fit and no odds.
+ */
+export interface PartyRow {
   heroId: HeroId;
   name: string;
-  /** `Rogue, Level 2`. */
-  summary: string;
-  /** Why the Hero cannot go now, or `null` when they can. */
+  className: string;
+  level: number;
+  morale: number;
+  moraleBand: MoraleBand;
+  /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
+  why: Unavailability | null;
+  /** The same with until when, as the Roster words it: `injured, healing on the night of Day 6`. */
   unavailable: string | null;
+  /** Each Stat the Quest demands, in its order, at the value a Check reads (`effectiveStats`). */
+  stats: { name: string; value: number }[];
+  /** The Skill the Quest requires, then those that help (`skillsThatHelp`), that the Hero has. */
+  skills: { name: string; rating: number }[];
 }
 
-/** The player's Roster, as the Heroes a Party may be chosen from. */
-export function partyChoices(document: WorldDocument): PartyChoice[] {
+/** The player's Roster as the Heroes a Party for `questId` may be chosen from; `null` for a Quest not on the Board. */
+export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[] | null {
   const { world } = document;
   const guild = playerGuild(world);
-  if (guild === undefined) return [];
-  return guild.rosterIds.flatMap((heroId): PartyChoice[] => {
+  const quest = rowOf(world.quests, questId);
+  if (guild === undefined || quest === undefined || !world.board.includes(questId)) return null;
+  const { config } = playDeps(document);
+  const { skillKey } = quest.requirements;
+  const named = [...new Set([...(skillKey === undefined ? [] : [skillKey]), ...skillsThatHelp(quest, content)])];
+  return guild.rosterIds.flatMap((heroId): PartyRow[] => {
     const hero = rowOf(world.heroes, heroId);
     if (hero === undefined) return [];
-    const because = unavailability(hero);
+    const values = statValues(hero, world);
+    const held = heldSkills(hero);
     return [
       {
         heroId,
         name: hero.name,
-        summary: `${nameIn(content.classes, hero.classKey)}, Level ${hero.level}`,
-        unavailable: because === null ? null : unavailableWords[because],
+        className: nameIn(content.classes, hero.classKey),
+        level: hero.level,
+        morale: hero.morale,
+        moraleBand: moraleBand(hero.morale, config),
+        why: unavailability(hero),
+        unavailable: unavailableUntil(hero, world),
+        stats: quest.demands.map(([key]) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
+        skills: named.flatMap((key) => held.filter((skill) => skill.key === key).map(({ name, rating }) => ({ name, rating }))),
       },
     ];
   });
@@ -397,6 +515,40 @@ export function previewView(
   };
 }
 
+/** The Party the player sent by the last play, as the Board confirms it (M9-S4, the review's E1). */
+export interface SentView {
+  questId: QuestId;
+  /** The Quest's name, as the Board named it. */
+  quest: string;
+  /** Who went, by name, in the Party's order: `Finn, Vigdis and Arne`. */
+  heroes: string;
+  /** `the night of Day 5`: when the Party comes home, as the home view's Parties out says it. */
+  returns: string;
+}
+
+/**
+ * The Party of the player's that the last play the engine carried out sent (its `quest.taken`),
+ * or `null` when that play sent none: an advance, whose Parties are the Rivals', or before a game.
+ * A dispatch sends one Party, so there is one at most. Names are the event's labels, written when
+ * it was sent.
+ */
+export function sentView(state: Pick<GameState, 'document' | 'log'>): SentView | null {
+  const { document, log } = state;
+  const guild = document === null ? undefined : playerGuild(document.world);
+  if (document === null || guild === undefined) return null;
+  const taken = log.filter((event): event is Taken => event.type === 'quest.taken' && (event as Taken).payload.guildId === guild.id).at(-1);
+  if (taken === undefined) return null;
+  const { payload, labels } = taken;
+  return {
+    questId: payload.questId,
+    quest: questNamer(document, content)(payload.questId),
+    heroes: listed(payload.heroIds.map((heroId) => labels[heroId] ?? rowOf(document.world.heroes, heroId)?.name ?? 'a Hero')),
+    returns: nightOf(payload.returnsOnTurn),
+  };
+}
+
+type Taken = EngineEventOf<'quest.taken'>;
+
 // ── The Roster ───────────────────────────────────────────────────────────────────────────────
 
 export interface RosterRow {
@@ -417,9 +569,39 @@ function whereabouts(hero: Hero, world: World): string {
   if (hero.retiredOnTurn !== null) return `retired on Day ${dayOf(hero.retiredOnTurn)}`;
   if (hero.guildId === null) return hero.unattachedSince === null ? 'on no Roster' : 'in the Unattached pool';
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
-  if (party !== undefined) return `away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
-  if (hero.injury !== null) return `injured, healing on ${nightOf(hero.injury.healsOnTurn)}`;
+  if (party !== undefined) return awayWords(party);
+  if (hero.injury !== null) return healingWords(hero.injury);
   return 'at the Hall';
+}
+
+/** `away with a Party, back on the night of Day 5`. */
+function awayWords(party: Pick<Party, 'returnsOnTurn'>): string {
+  return `away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
+}
+
+/** `injured, healing on the night of Day 6`. */
+function healingWords(injury: { healsOnTurn: number }): string {
+  return `injured, healing on ${nightOf(injury.healsOnTurn)}`;
+}
+
+/**
+ * Why a Hero cannot go on a Quest and until when, in the Roster's words (M9-S4): the reason is the
+ * engine's `unavailability`, what `dispatch` refuses by; `null` when they can go.
+ */
+function unavailableUntil(hero: Hero, world: World): string | null {
+  switch (unavailability(hero)) {
+    case null:
+      return null;
+    case 'injured':
+      return hero.injury === null ? 'injured' : healingWords(hero.injury);
+    case 'in-party': {
+      const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
+      return party === undefined ? 'away with a Party' : awayWords(party);
+    }
+    case 'dead':
+    case 'retired':
+      return whereabouts(hero, world);
+  }
 }
 
 /** `show roster`: the player's Roster in its own order. */
@@ -605,14 +787,14 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
   }
 
   let lastArea = '';
-  const effective = effectiveStats(hero, world, content);
+  const values = statValues(hero, world);
   const stats = Object.values(content.stats)
     .filter((stat) => stat.owner === 'hero')
     .map((stat): StatRow => {
       const area = stat.area === lastArea ? '' : capitalised(stat.area);
       lastArea = stat.area;
-      const base = baseStat(hero.stats, stat);
-      return { area, name: stat.name, base, effective: effective[stat.key] ?? base, outlook: potentialHint(hero, stat.key, bands) };
+      const { base, effective } = values.get(stat.key) ?? { base: 0, effective: 0 };
+      return { area, name: stat.name, base, effective, outlook: potentialHint(hero, stat.key, bands) };
     });
 
   // What the Hero carries, each in the slot it is held in: `carriedGear` gives only the Hero's own rows.
@@ -637,11 +819,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
     ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
   ];
 
-  const skillKeys = Object.keys(hero.skills);
-  const skills = [
-    ...Object.keys(content.skills).filter((key) => skillKeys.includes(key)),
-    ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
-  ].map((key) => ({ name: nameIn(content.skills, key), rating: hero.skills[key] ?? 0 }));
+  const skills = heldSkills(hero).map(({ name, rating }) => ({ name, rating }));
 
   const relationships = onRoster
     ? (guild?.rosterIds ?? []).flatMap((id) => {
@@ -682,6 +860,32 @@ export function heroPage(document: WorldDocument, heroId: HeroId, page = 0): Her
     },
     actions: heroActions(hero, guild, onRoster, world, deps),
   };
+}
+
+/**
+ * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus and the
+ * Hero's gear applied, M5-S2) beside its base, keyed by Stat: what a Hero's page and the Party
+ * builder show alike.
+ */
+function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {
+  const effective = effectiveStats(hero, world, content);
+  return new Map(
+    Object.values(content.stats)
+      .filter((stat) => stat.owner === 'hero')
+      .map((stat) => {
+        const base = baseStat(hero.stats, stat);
+        return [stat.key, { base, effective: effective[stat.key] ?? base }];
+      }),
+  );
+}
+
+/** The Skills a Hero has, in content's order, then any content does not define, each with its rating. */
+function heldSkills(hero: Hero): { key: string; name: string; rating: number }[] {
+  const skillKeys = Object.keys(hero.skills);
+  return [
+    ...Object.keys(content.skills).filter((key) => skillKeys.includes(key)),
+    ...skillKeys.filter((key) => !Object.hasOwn(content.skills, key)),
+  ].map((key) => ({ key, name: nameIn(content.skills, key), rating: hero.skills[key] ?? 0 }));
 }
 
 /** What the player can do with `hero`, who is on `guild`'s Roster when `onRoster`. */

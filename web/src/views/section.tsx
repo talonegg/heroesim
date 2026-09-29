@@ -70,8 +70,12 @@ export const help: Readonly<Record<SectionId, string>> = {
     'the Transfer Offers waiting for an answer, the Parties still out and the night each returns, and the Quests on ' +
     'their last Day on the Board.',
   board:
-    'The Quests on offer. Choose a Party for one: as you pick Heroes and consumables, the preview says what the Party ' +
-    `would meet and whether it would be sent, and "Send the Party" sends it within the current Turn. ${rivalsReminder}`,
+    'The Quests on offer, each with its terms: a Quest’s Fame is won on a success and lost on a failure. Its name ' +
+    'unfolds what it demands, the Skills that help, its Encounters and how hard it is beside the rest of the Board; ' +
+    'order the Board by reward, difficulty or the Day each leaves. Choose a Party for one: each Hero’s row says ' +
+    'whether they can go, and their Morale, Stats and Skills for this Quest, and opens their page. As you pick Heroes ' +
+    'and consumables, the preview says what the Party would meet and whether it would be sent, and "Send the Party" ' +
+    `sends it within the current Turn. ${rivalsReminder}`,
   roster:
     "Your Heroes. Open a Hero's page for their Stats with hints of how far each may grow, their gear and their " +
     'History; from it, put gear the Guild holds on them, take it off, or transfer them to another Guild.',

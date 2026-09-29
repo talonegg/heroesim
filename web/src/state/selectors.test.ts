@@ -23,15 +23,20 @@ import {
   type Guild,
   type Hero,
   type HeroId,
+  type PartyId,
+  type Quest,
   type QuestId,
   type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
+import { partiesOutView } from './digest';
+import { played as playedThrough, started } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import {
   boardView,
+  type BoardOrder,
   consumableChoices,
   countdownView,
   guildBackgrounds,
@@ -42,10 +47,11 @@ import {
   heroPage,
   historyPageSize,
   logView,
-  partyChoices,
+  partyRows,
   previewView,
   progressView,
   rosterView,
+  sentView,
   stopView,
 } from './selectors';
 
@@ -221,29 +227,253 @@ describe('boardView', () => {
         lastDay: dayOf(quest.expiresOnTurn),
         party: `${quest.requirements.partySizeMin} to ${quest.requirements.partySizeMax} Heroes`,
       });
-      const names = skillsThatHelp(quest, content).map((key) => content.skills[key]?.name);
-      expect(card.skillsThatHelp).toBe(names.length === 0 ? 'none' : names.join(', '));
+      expect(card.skills).toEqual(skillsThatHelp(quest, content).map((key) => content.skills[key]?.name));
     }
   });
 });
 
-describe('choosing a Party', () => {
-  test("offers the player's Roster, each Hero who cannot go saying why", () => {
+describe("the Board's Quest cards (M9-S4, DL-104)", () => {
+  /** A new game whose Board's Quests are changed by `change`, in the Board's order. */
+  function board(change: (quests: Quest[], document: WorldDocument) => void): WorldDocument {
     const document = structuredClone(newGame());
-    const [first] = heroes(document);
-    if (first === undefined) throw new Error('no Hero');
-    first.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    change(
+      document.world.board.map((id) => document.world.quests[id] as Quest),
+      document,
+    );
+    return document;
+  }
 
-    const choices = partyChoices(document);
+  test('gives its Demands as bars of their weights with the Stats named, the Skills that help as a list, and its Encounters counted by kind', () => {
+    const document = board(([first]) => {
+      if (first === undefined) throw new Error('an empty Board');
+      first.demands = [
+        ['dexterity', 0.4],
+        ['wits', 0.35],
+        ['adaptability', 0.25],
+      ];
+      // stealth, combat, stealth, combat, travel: counted in the order each kind is first met.
+      first.encounterKeys = ['past-the-watch', 'ambush-on-the-road', 'the-trapped-passage', 'hold-the-line', 'the-long-march'];
+    });
 
-    expect(choices.map((choice) => choice.heroId)).toEqual(player(document).rosterIds);
-    for (const choice of choices) {
-      const hero = document.world.heroes[choice.heroId] as Hero;
-      expect(choice.unavailable === null).toBe(unavailability(hero) === null);
-    }
-    expect(choices[0]?.unavailable).toBe('is injured');
+    const [card] = boardView(document);
+
+    expect(card?.demands).toEqual([
+      { stat: 'Dexterity', percent: 40 },
+      { stat: 'Wits', percent: 35 },
+      { stat: 'Adaptability', percent: 25 },
+    ]);
+    expect(card?.skills).toEqual(['Stealth', 'Lockpicking', 'Swordcraft', 'Tactics', 'Trapcraft', 'Shieldwork', 'Field surgery', 'Herbalism']);
+    expect(card?.encounters).toEqual([
+      { kind: 'stealth', count: 2, words: 'stealth ×2' },
+      { kind: 'combat', count: 2, words: 'combat ×2' },
+      { kind: 'travel', count: 1, words: 'travel ×1' },
+    ]);
   });
 
+  test('a Quest whose Encounters are drawn on the way counts none, and its Skills are its own', () => {
+    const document = board(([first]) => {
+      if (first === undefined) throw new Error('an empty Board');
+      first.encounterKeys = [];
+      first.skillKeys = ['herbalism', 'field-surgery'];
+    });
+
+    const [card] = boardView(document);
+
+    expect(card?.encounters).toEqual([]);
+    expect(card?.skills).toEqual(['Herbalism', 'Field surgery']);
+  });
+
+  test('places its difficulty against the Quests on the Board now, from the easiest to the hardest, as display only', () => {
+    const document = board((quests) => {
+      expect(quests).toHaveLength(6);
+      [54, 19, 89, 40, 40, 70].forEach((difficulty, index) => ((quests[index] as Quest).difficulty = difficulty));
+    });
+
+    const cards = boardView(document);
+    const meters = cards.map((card) => card.meter);
+
+    // From 19 to 89: 54 sits halfway, 40 three tenths along.
+    expect(meters.map(({ lowest, highest }) => [lowest, highest])).toEqual(Array.from({ length: 6 }, () => [19, 89]));
+    expect(meters.map((meter) => meter.at)).toEqual([0.5, 0, 1, 0.3, 0.3, 51 / 70].map((at) => expect.closeTo(at, 9)));
+    // Each card's others are the rest of the Board, in its order.
+    expect(meters[0]?.others).toEqual([0, 1, 0.3, 0.3, 51 / 70].map((at) => expect.closeTo(at, 9)));
+    expect(cards.map((card) => card.hardness)).toEqual([
+      '3rd hardest of the 6 Quests on the Board',
+      'the easiest of the 6 Quests on the Board',
+      'the hardest of the 6 Quests on the Board',
+      'joint 4th hardest of the 6 Quests on the Board',
+      'joint 4th hardest of the 6 Quests on the Board',
+      '2nd hardest of the 6 Quests on the Board',
+    ]);
+  });
+
+  test('a Quest alone on the Board, or of one difficulty with the rest, sits in the middle', () => {
+    const alone = board(([first], document) => {
+      if (first === undefined) throw new Error('an empty Board');
+      first.difficulty = 54;
+      document.world.board = [first.id];
+    });
+    const alike = board((quests) => {
+      for (const quest of quests) quest.difficulty = 40;
+    });
+
+    expect(boardView(alone)[0]?.meter).toEqual({ lowest: 54, highest: 54, at: 0.5, others: [] });
+    expect(boardView(alone)[0]?.hardness).toBe('the only Quest on the Board');
+    expect(boardView(alike)[0]?.meter).toEqual({ lowest: 40, highest: 40, at: 0.5, others: [0.5, 0.5, 0.5, 0.5, 0.5] });
+    expect(boardView(alike)[0]?.hardness).toBe('joint hardest of the 6 Quests on the Board');
+  });
+
+  test('names each requirement beyond the Party size, and marks a Quest whose last Day on the Board is today', () => {
+    const document = board(([first, second]) => {
+      if (first === undefined || second === undefined) throw new Error('expected two Quests');
+      first.requirements = { partySizeMin: 2, partySizeMax: 4, classKey: 'mage', skillKey: 'lockpicking' };
+      second.requirements = { partySizeMin: 1, partySizeMax: 2 };
+      // Day 0, the Day in hand: its night is Turn 2.
+      second.expiresOnTurn = 2;
+      first.expiresOnTurn = 8;
+    });
+
+    const [first, second] = boardView(document);
+
+    expect(first).toMatchObject({ needs: ['a Mage', 'a Hero with Lockpicking'], lastDay: 2, leavesToday: false });
+    expect(second).toMatchObject({ needs: [], lastDay: 0, leavesToday: true });
+  });
+
+  test('orders the Board by reward, highest first; by difficulty, easiest first; or by the Day each leaves, soonest first; ties as the Board has them', () => {
+    const document = board((quests) => {
+      const set = (field: 'reward' | 'difficulty' | 'expiresOnTurn', values: number[]) =>
+        values.forEach((value, index) => ((quests[index] as Quest)[field] = value));
+      set('reward', [96, 188, 207, 216, 207, 378]);
+      set('difficulty', [24, 47, 46, 54, 23, 84]);
+      // Days 2, 1, 2, 0, 3 and 1.
+      set('expiresOnTurn', [8, 5, 8, 2, 11, 5]);
+    });
+    const posted = document.world.board;
+    const nth = (...places: number[]) => places.map((place) => posted[place - 1]);
+    const order = (by: BoardOrder) => boardView(document, by).map((card) => card.questId);
+
+    expect(order('posted')).toEqual(posted);
+    expect(boardView(document).map((card) => card.questId)).toEqual(posted);
+    expect(order('reward')).toEqual(nth(6, 4, 3, 5, 2, 1));
+    expect(order('difficulty')).toEqual(nth(5, 1, 3, 2, 4, 6));
+    expect(order('leaves')).toEqual(nth(4, 2, 6, 1, 3, 5));
+    // The order is display only: each card is the card the Board's order gives.
+    expect(boardView(document, 'reward').find((card) => card.questId === posted[0])).toEqual(boardView(document)[0]);
+  });
+});
+
+describe('the Party builder (M9-S4, DL-104)', () => {
+  /**
+   * A new game whose first Quest demands Strength, Willpower and Courage, requires Herbalism, and
+   * meets the restless dead and a hostile reeve, whose Checks read Benediction and Swordcraft; its
+   * four Heroes are Bram (a Healer with Herbalism 1 and Benediction 2), Liv (a Warrior with
+   * Swordcraft 2 and Tactics 1), Cenric (a Rogue) and Ragnvald (a Mage).
+   */
+  function builder(): { document: WorldDocument; quest: Quest; bram: Hero; liv: Hero; cenric: Hero; ragnvald: Hero } {
+    const document = structuredClone(newGame());
+    const quest = document.world.quests[document.world.board[0] as QuestId] as Quest;
+    quest.demands = [
+      ['strength', 0.4],
+      ['willpower', 0.3],
+      ['courage', 0.3],
+    ];
+    quest.requirements = { partySizeMin: 1, partySizeMax: 3, skillKey: 'herbalism' };
+    quest.encounterKeys = ['the-restless-dead', 'a-hostile-reeve'];
+    const [bram, liv, cenric, ragnvald] = heroes(document);
+    if (bram === undefined || liv === undefined || cenric === undefined || ragnvald === undefined) throw new Error('four Heroes');
+    expect([bram.name, liv.name, cenric.name, ragnvald.name]).toEqual(['Bram Netherby', 'Liv Coldharbour', 'Cenric Yarrow', 'Ragnvald Brackenridge']);
+    return { document, quest, bram, liv, cenric, ragnvald };
+  }
+
+  test("gives each Hero on the Roster a row: Class and Level, Morale and its band, the effective values of the Stats the Quest demands, and its Skills they have", () => {
+    const { document, quest, bram, liv } = builder();
+    liv.morale = 15;
+    // An arming sword lifts Liv's Strength by 1: the value a Check reads, not the base.
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+
+    const rows = partyRows(document, quest.id);
+
+    expect(rows?.map((row) => row.heroId)).toEqual(player(document).rosterIds);
+    expect(rows?.[0]).toEqual({
+      heroId: bram.id,
+      name: 'Bram Netherby',
+      className: 'Healer',
+      level: 1,
+      morale: 60,
+      moraleBand: 'steady',
+      why: null,
+      unavailable: null,
+      stats: [
+        { name: 'Strength', value: bram.stats.strength },
+        { name: 'Willpower', value: bram.stats.willpower },
+        { name: 'Courage', value: bram.stats.courage },
+      ],
+      // The Skill the Quest requires first, then those that help, as the Hero has them.
+      skills: [
+        { name: 'Herbalism', rating: 1 },
+        { name: 'Benediction', rating: 2 },
+      ],
+    });
+    expect(rows?.[1]).toMatchObject({
+      className: 'Warrior',
+      morale: 15,
+      moraleBand: 'wretched',
+      stats: [
+        { name: 'Strength', value: (liv.stats.strength ?? 0) + 1 },
+        { name: 'Willpower', value: liv.stats.willpower },
+        { name: 'Courage', value: liv.stats.courage },
+      ],
+      skills: [{ name: 'Swordcraft', rating: 2 }],
+    });
+    // A Rogue and a Mage have none of this Quest's Skills.
+    expect(rows?.slice(2).map((row) => row.skills)).toEqual([[], []]);
+  });
+
+  test("the values are those the Hero's page shows: its effective Stats and its Skills' ratings", () => {
+    const { document, quest, liv } = builder();
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: liv.id, slot: 'weapon' });
+
+    for (const row of partyRows(document, quest.id) ?? []) {
+      const page = heroPage(document, row.heroId);
+      for (const stat of row.stats) expect(stat.value).toBe(page?.stats.find((each) => each.name === stat.name)?.effective);
+      for (const skill of row.skills) expect(page?.skills).toContainEqual(skill);
+      expect(`${row.morale}, ${row.moraleBand}`).toBe(rosterView(document).find((each) => each.heroId === row.heroId)?.morale);
+    }
+  });
+
+  test('says why a Hero cannot go and until when: the engine’s unavailability, with the night the Injury heals or the Party returns', () => {
+    const { document, quest, cenric, ragnvald } = builder();
+    cenric.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    const partyId = 'party-000099' as PartyId;
+    document.world.parties[partyId] = {
+      id: partyId,
+      questId: document.world.board[1] as QuestId,
+      guildId: player(document).id,
+      heroIds: [ragnvald.id],
+      departedOnTurn: 0,
+      returnsOnTurn: 17,
+    };
+    ragnvald.partyId = partyId;
+
+    const rows = partyRows(document, quest.id);
+
+    expect(rows?.map(({ why, unavailable }) => ({ why, unavailable }))).toEqual([
+      { why: null, unavailable: null },
+      { why: null, unavailable: null },
+      { why: 'injured', unavailable: 'injured, healing on the night of Day 6' },
+      { why: 'in-party', unavailable: 'away with a Party, back on the night of Day 5' },
+    ]);
+    for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
+    // As the Roster words it.
+    expect(rows?.slice(2).map((row) => row.unavailable)).toEqual(rosterView(document).slice(2).map((row) => row.whereabouts));
+  });
+
+  test('is null for a Quest not on the Board', () => {
+    expect(partyRows(newGame(), 'quest-999999' as QuestId)).toBeNull();
+  });
+});
+
+describe('choosing a Party', () => {
   test('offers the consumables the Guild holds, how many and what each does', () => {
     const document = newGame();
     const choices = consumableChoices(document);
@@ -437,6 +667,38 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     hero.diedOnTurn = 3;
 
     expect(heroPage(document, hero.id)?.actions).toBeNull();
+  });
+});
+
+describe('after a send (M9-S4, DL-104)', () => {
+  test("names the Quest the player's Party was sent on by the last play, who went and the night they return, as the home view's Parties out does", () => {
+    const state = started('selectors');
+    const document = state.document as WorldDocument;
+    const [quest] = boardView(document);
+    const [first, second] = heroes(document);
+    if (quest === undefined || first === undefined || second === undefined) throw new Error('a Quest and two Heroes');
+
+    const sent = playedThrough(state, { kind: 'dispatch', questId: quest.questId, heroIds: [first.id, second.id] });
+
+    expect(sent.rejection).toBeNull();
+    const [out] = partiesOutView(sent.document as WorldDocument);
+    expect(sentView(sent)).toEqual({
+      questId: quest.questId,
+      quest: quest.name,
+      heroes: `${first.name} and ${second.name}`,
+      returns: out?.returns,
+    });
+    expect(out?.returns).toMatch(/^the night of Day \d+$/);
+  });
+
+  test('is none after a play that sent no Party of the player’s, a Rival’s among them, and before a game', () => {
+    const state = started('selectors');
+    expect(sentView(state)).toBeNull();
+    // A month of Turns: the Rivals send Parties in the afternoons.
+    const month = playedThrough(state, { kind: 'advance', turns: 90 });
+    expect(month.log.some((event) => event.type === 'quest.taken')).toBe(true);
+    expect(sentView(month)).toBeNull();
+    expect(sentView(initialGameState)).toBeNull();
   });
 });
 

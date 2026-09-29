@@ -24,7 +24,7 @@ import { navCounts } from './state/digest';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
 import { useGame, type GameState } from './state/reducer';
-import { headerView, progressView, stopView } from './state/selectors';
+import { headerView, progressView, stopView, type BoardOrder } from './state/selectors';
 import { Board } from './views/board';
 import { GameMenu, installedWords } from './views/game-menu';
 import { GuildView } from './views/guild';
@@ -74,6 +74,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
   // one; and the History's choices, which hold while the game is in hand (DL-74 item 8).
   const [boardQuest, setBoardQuest] = useState<QuestId | null>(null);
+  // How the Board is ordered: display only, and kept from view to view (M9-S4, DL-104).
+  const [boardOrder, setBoardOrder] = useState<BoardOrder>('posted');
   const [whose, setWhose] = useState<EntityId | null>(null);
   const [mine, setMine] = useState(false);
   const [focus, setFocus] = useState<Focus | null>(null);
@@ -209,7 +211,17 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                 onOpenMenu={() => setMenuOpen(true)}
               />
             ) : null}
-            {view === 'board' ? <Board {...shared} open={boardQuest} onOpen={setBoardQuest} /> : null}
+            {view === 'board' ? (
+              <Board
+                {...shared}
+                state={game}
+                open={boardQuest}
+                onOpen={setBoardQuest}
+                order={boardOrder}
+                onOrder={setBoardOrder}
+                onGuild={() => open('guild')}
+              />
+            ) : null}
             {view === 'roster' ? <Roster {...shared} /> : null}
             {view === 'hall' ? <Hall {...shared} /> : null}
             {view === 'rankings' ? <Rankings {...shared} guildName={guildName} /> : null}

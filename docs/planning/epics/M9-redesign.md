@@ -342,8 +342,43 @@ chosen. The requirements are a checklist of met or missed marks, and the verdict
 stays in view at the foot of the form. After a send, the card becomes a "Party out" card naming
 who went and the night they return. There is no fit score and no odds (DL-99 item 3).
 
-**Acceptance:** each row's values come from a selector written test first, and the drill-down
-keeps the choice (Testing Library). `e2e/journey.spec.ts` dispatches through the builder.
+**Acceptance** (DL-104, the number the orchestrator gave this story; §4's DL-104 for the close is
+out of date):
+- [x] Quest cards of two lines: the name and the Patron, then chips for the difficulty, the Days
+      away, the reward, the Fame, the Party size, each requirement and the Day it leaves, marked
+      "Leaves today" when that is today. A card unfolds to the Demands as bars of their weights, the
+      Skills that help, the Encounters counted with their icons, and the difficulty on a meter
+      against the Board, never called a band. The Board is ordered by reward, difficulty or the Day
+      each leaves, display only — `web/src/state/selectors.test.ts` ("the Board's Quest cards
+      (M9-S4, DL-104)", six tests, written test first); `web/src/views/board.test.tsx` ('is two
+      lines…', 'unfolds from its name…', 'is ordered by reward, by difficulty or by the Day each
+      leaves…') (DL-104 items 1 to 3)
+- [x] Each row's values come from a selector written test first: whether the Hero can go, and why
+      not and until when; Class and Level; Morale and its band; the effective values of the Stats
+      demanded; the Skills the Quest names, with their ratings — `web/src/state/selectors.test.ts`
+      ("the Party builder (M9-S4, DL-104)", four tests, the values held to `heroPage`'s and
+      `rosterView`'s and the reason to the engine's `unavailability`); `web/src/views/board.test.tsx`
+      ("gives each Hero on the Roster a row…", 'says who is away with a Party…') (DL-104 item 4)
+- [x] The drill-down keeps the choice (Testing Library) — `web/src/views/board.test.tsx` ("opens a
+      Hero's page in place, and comes back to the Party and the consumables as chosen"); in the
+      browser, `e2e/journey.spec.ts` and `e2e/layout.spec.ts` (DL-104 item 5)
+- [x] The requirements a checklist of met and missed marks, the verdict a banner, and Send in view
+      at the foot of the form, on a phone too — `web/src/views/board.test.tsx` ('shows the
+      requirements as a checklist of met and missed, and dispatch's verdict as a banner…');
+      `e2e/layout.spec.ts` ('the Board and the Party builder: no sideways scroll, 44px targets, Send
+      in view at the foot of the form…', at 360px and 390px, 820px and 1280px) (DL-104 item 6)
+- [x] After a send, the card becomes a "Party out" card naming who went and the night they return —
+      `web/src/state/selectors.test.ts` ("after a send (M9-S4, DL-104)", two tests);
+      `web/src/views/board.test.tsx` ('once sent, the card becomes a Party out card where it
+      stood…', 'the Party out card stays until the next play'); `web/src/app.test.tsx` ('previews a
+      Party as it is chosen, and sends it when dispatch would') (DL-104 item 7)
+- [x] The home view's Quest buttons open the builder on their Quest — `web/src/app.test.tsx` ('after
+      a fast forward, opens with the stop, and each Quest it names opens that Quest's Party on the
+      Board', now finding the builder's rows) (DL-104 item 8)
+- [x] `e2e/journey.spec.ts` dispatches through the builder, at 360px, 820px and 1280px: a row's
+      facts, a Hero's page and back with the choice kept, and the "Party out" card (DL-104 item 9)
+- [x] No fit score and no odds (DL-99 item 3) — `web/src/views/board.test.tsx` ("gives each Hero on
+      the Roster a row…", which finds no "fit", "odds" or "chance" in the form)
 
 ### M9-S5 · The History · 1–1.5 sessions · opus
 

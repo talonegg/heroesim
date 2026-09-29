@@ -21,7 +21,8 @@ import {
 // page and one of its Heroes' pages, the Rankings by Wealth, an older page of the History, names
 // found in the History and a page opened from them (DL-74), the new-game form over a game, and a
 // save with a long name. The Guild's and the Guildmaster's names are long, and one word runs 61
-// letters unbroken.
+// letters unbroken. The Board's cards, one unfolded, and the Party builder are checked at each width,
+// the phone's at 390px as well, with Send in view at the foot of the form (M9-S4, DL-104).
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
@@ -54,6 +55,61 @@ test('every view and the game menu, with no sideways scroll and every control a 
   await expectNoHorizontalOverflow(page, 'the game menu');
   await expectTargets(page, 'the game menu');
   await closeGameMenu(page);
+});
+
+test('the Board and the Party builder: no sideways scroll, 44px targets, Send in view at the foot of the form, and a Hero’s page from it', async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+  const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
+  // The phone's 360px and a larger phone's 390px (M9-S4), the tablet's 820px, the desktop's 1280px.
+  const widths = projectWidth < 600 ? [360, 390] : [projectWidth];
+
+  for (const width of widths) {
+    await page.setViewportSize({ width, height });
+    const at = `at ${width}px`;
+    const board = await openView(page, 'Board');
+    await expectNoHorizontalOverflow(page, `the Board's cards ${at}`);
+    await expectTargets(page, `the Board's cards ${at}`);
+
+    // A card unfolded: its Demands, Skills, Encounters and its difficulty on its meter.
+    const quest = board.getByRole('article').first();
+    await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
+    await expect(quest.getByRole('img', { name: /^Difficulty \d+: .+ Quests? on the Board/ })).toBeVisible();
+    await expectNoHorizontalOverflow(page, `a card unfolded ${at}`);
+    await expectTargets(page, `a card unfolded ${at}`);
+
+    // Its builder, a Hero chosen.
+    await quest.getByRole('button', { name: 'Choose a Party' }).click();
+    const form = quest.getByRole('form');
+    await form.getByRole('checkbox').first().check();
+    await expectNoHorizontalOverflow(page, `the Party builder ${at}`);
+    await expectTargets(page, `the Party builder ${at}`);
+
+    // Send stays in view at the foot of the form while it scrolls, the phone's bar not over it.
+    await form.getByRole('group', { name: 'Heroes' }).evaluate((element) => element.scrollIntoView({ block: 'start' }));
+    const send = form.getByRole('button', { name: 'Send the Party' });
+    await expect(send).toBeInViewport({ ratio: 1 });
+    await expect(form.getByRole('status')).toBeInViewport();
+    const uncovered = await send.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return hit !== null && button.contains(hit);
+    });
+    expect(uncovered, `Send the Party is covered ${at}`).toBe(true);
+
+    // A Hero's page from the builder, and back.
+    await form.getByTestId('party-row').first().getByRole('button', { name: /^Open .+'s page$/ }).click();
+    await expect(board.getByRole('button', { name: 'Back to the Party' })).toBeVisible();
+    await expectNoHorizontalOverflow(page, `a Hero's page from the Party builder ${at}`);
+    await expectTargets(page, `a Hero's page from the Party builder ${at}`);
+    await board.getByRole('button', { name: 'Back to the Party' }).click();
+    await expect(form.getByRole('checkbox').first()).toBeChecked();
+    await quest.getByRole('button', { name: 'Close' }).click();
+    await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
+  }
 });
 
 test('the page is never wider than the viewport, whatever is open', async ({ page }) => {

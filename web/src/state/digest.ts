@@ -3,13 +3,12 @@
 // and returns plain rows of words and numbers, as `selectors.ts` does.
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every number is a document field, an
-// engine selector's answer (`offersTo` through `offersView`, `entriesFor`, `dayOf`), or read from
+// engine selector's answer (`offersTo` through `offersView`, `entriesFor`), or read from
 // the last play's events. "New since the last action" is exactly those events: the engine appends
 // each event of a play to the History as it is, neither copied nor frozen (`append`, ADR-0008), so
 // an entry is new when it is one of `log`'s.
 
 import {
-  dayOf,
   entriesFor,
   playerGuild,
   type EngineEventOf,
@@ -93,14 +92,13 @@ export interface LeavingRow {
 }
 
 /**
- * The Quests on the Board whose last Day on offer is today, in the Board's order: the Day the Board
- * says each is "on offer through" (`boardView`'s `lastDay`, from its `expiresOnTurn`) is the Day of
+ * The Quests on the Board whose last Day on offer is today, in the Board's order: those `boardView`
+ * marks as leaving today (M9-S4), the Day the Board says each is "on offer through" being the Day of
  * the Turn in hand. The next morning's refresh takes them off (`board-refresh`), if no Guild has.
  */
 export function leavingTodayView(document: WorldDocument): LeavingRow[] {
-  const today = dayOf(document.world.turn);
   return boardView(document)
-    .filter((card) => card.lastDay === today)
+    .filter((card) => card.leavesToday)
     .map(({ questId, name, patron, reward }) => ({ questId, name, patron, reward }));
 }
 
