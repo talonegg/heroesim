@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { defaultPlaySeedCount, defaultSeedCount, seedCount, seedNames } from './seeds.js';
+import { defaultPlaySeedCount, defaultSeedCount, seedCount, seedNames, yearCount } from './seeds.js';
 
 describe('seedCount', () => {
   test('is 1,000 when HEROESIM_SEEDS is unset or blank (INPUTS §9)', () => {
@@ -21,6 +21,22 @@ describe('seedCount', () => {
 
   test.each(['0', '-5', '2.5', 'ten', '1e400'])('refuses %j rather than playing none', (value) => {
     expect(() => seedCount(value)).toThrow(/HEROESIM_SEEDS/);
+  });
+});
+
+describe('yearCount (M9-S2)', () => {
+  test("is the twenty-year slice when HEROESIM_YEARS is unset or blank (DL-83 item 18)", () => {
+    expect(yearCount(undefined)).toBe(20);
+    expect(yearCount(' ')).toBe(20);
+  });
+
+  test('reads a whole number of years from 1, for a run past the slice such as a whole game of 35', () => {
+    expect(yearCount('35')).toBe(35);
+    expect(yearCount(' 1 ')).toBe(1);
+  });
+
+  test.each(['0', '-5', '2.5', 'ten'])('refuses %j rather than playing no year', (value) => {
+    expect(() => yearCount(value)).toThrow(/HEROESIM_YEARS/);
   });
 });
 

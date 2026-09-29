@@ -259,6 +259,8 @@ export interface SweepTotals {
   heroesRecruited: ByController;
   heroesRetired: ByController;
   rivalFolds: Record<string, number>;
+  /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
+  rivalSuccessions: number;
   /** Games by how they ended; `survived` for a game that ran its full length. */
   endings: Record<string, number>;
   /** Years each game lasted: to its ending, or its full length. */
@@ -426,6 +428,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     heroesRecruited: zero(),
     heroesRetired: zero(),
     rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
+    rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
     yearsSurvived: summarise(sweep.games.map((game) => game.counters.lastTurn / turnsPerYear)),
     endedInYear: Array.from({ length: Math.max(1, Math.ceil(sweep.years)) }, () => 0),
@@ -552,6 +555,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     });
     totals.signingRefused += refusals.filter(({ rejection }) => rejection.reason === 'signing-refused').length;
     for (const [reason, n] of Object.entries(counters.rivalFolds)) totals.rivalFolds[reason] = (totals.rivalFolds[reason] ?? 0) + n;
+    totals.rivalSuccessions += counters.rivalSuccessions;
     const ending = counters.ending ?? 'survived';
     totals.endings[ending] = (totals.endings[ending] ?? 0) + 1;
     if (counters.ending !== null) {
@@ -1522,6 +1526,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
             `max ${fixed(totals.yearsSurvived.max)} (a game that ran its full length counts its length)`,
         ],
         ['Rival folds', `${whole(totalFolds)}, ${perGame(totalFolds)} a game`],
+        ['Rival Guildmasters succeeded', `${whole(totals.rivalSuccessions)}, ${perGame(totals.rivalSuccessions)} a game`],
         ['Policy actions the rules refused', whole(totals.refusals)],
         ['Games the validator refused', sweep.validated ? whole(totals.invalidGames) : 'not validated'],
         ['Games a harness assertion stopped', whole(totals.assertionGames)],
@@ -1564,6 +1569,9 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       endingReasons.map((reason) => [reason, whole(totals.endings[reason] ?? 0), whole(totals.rivalFolds[reason] ?? 0)]),
       ['left', 'right', 'right'],
     ),
+    '',
+    `A Rival Guildmaster's Retirement is met by Succession (\`guildmaster.succeeded\`, M9-S2), not a fold: ` +
+      `${whole(totals.rivalSuccessions)} in all.`,
     '',
     `Games ending in each year (year 0 is the first): ${totals.endedInYear.map((n, year) => `${year}: ${n}`).join(', ')}.`,
     '',

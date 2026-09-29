@@ -70,6 +70,8 @@ describe('sweepPlay', () => {
 
   test("totals the games' counters", () => {
     expect(totals.games).toBe(2);
+    // Two short games: no founding Guildmaster reaches 65 (M9-S2).
+    expect(totals.rivalSuccessions).toBe(0);
     expect(totals.endings).toEqual({ retirement: 0, bankruptcy: 0, 'roster-wiped': 0, survived: 2 });
     const taken = sweep.games.reduce((sum, game) => sum + game.counters.questsTaken.player, 0);
     expect(totals.questsTaken.player).toBe(taken);
@@ -194,6 +196,9 @@ describe('sweepPlay', () => {
 
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
       expect(report).toContain('2 seeds, `seed-0001` to `seed-0002`');
+      // M9-S2: the Rival Guildmasters succeeded, beside the folds by cause.
+      expect(report).toContain('| Rival Guildmasters succeeded | 0, 0.00 a game |');
+      expect(report).toContain("A Rival Guildmaster's Retirement is met by Succession (`guildmaster.succeeded`, M9-S2), not a fold: 0 in all.");
       expect(report).toContain('ran the full 0.06 years 2');
       expect(report).toContain('Games ending in each year (year 0 is the first): 0: 0.');
       expect(report).toContain('| Games the validator refused | 0 |');

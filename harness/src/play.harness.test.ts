@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 import { moduleIds } from './modules.js';
 import { validatingEveryTurn } from './play.js';
 import { machine, reportPath, writeReport } from './report.js';
-import { defaultPlaySeedCount, seedCount, seedNames } from './seeds.js';
+import { defaultPlaySeedCount, seedCount, seedNames, yearCount } from './seeds.js';
 import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, sweepTotals } from './sweep.js';
 
 // The milestone's harness run (M2-S12, DL-34; M3's counters, DL-40; M4's, DL-55; M5's, DL-62;
@@ -17,22 +17,26 @@ import { defaultWorkers, playReport, sweepFingerprint, sweepPlayInParallel, swee
 // `hero.transferred` names the player's Guild; replay the first seed and compare the two games byte
 // for byte; and write the counters and measures to harness/reports/m8-<date>.md. Not run when
 // HEROESIM_MODULES names modules: that run is modules.harness.test.ts's (M8-S3, DL-78).
+// HEROESIM_YEARS plays each game that many years in place of twenty, and HEROESIM_MILESTONE names
+// the report in place of the milestone's (M9-S2: a run past the slice to see Succession, DL-102).
 
-const milestone = 'm8';
+const milestone = process.env.HEROESIM_MILESTONE ?? 'm8';
 const seeds = seedNames(seedCount(process.env.HEROESIM_SEEDS, defaultPlaySeedCount));
+const years = yearCount();
 const validate = validatingEveryTurn();
 
-test.skipIf(moduleIds().length > 0)(`${seeds.length} games of 20 years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
+test.skipIf(moduleIds().length > 0)(`${seeds.length} games of ${years} years play to an ending or their last Turn`, { timeout: 24 * 60 * 60_000 }, async () => {
   const startedAt = new Date();
   const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 
-  const sweep = await sweepPlayInParallel(seeds, deps, { validate, workers: defaultWorkers() });
+  const sweep = await sweepPlayInParallel(seeds, deps, { validate, workers: defaultWorkers(), years });
   const path = writeReport(reportPath(milestone, startedAt), playReport(sweep, { deps, machine: machine(), startedAt, milestone }));
   const totals = sweepTotals(sweep, deps.config.turnsPerYear);
 
   // The report is written before anything is asserted, so a failing run leaves it to read.
   console.log(
-    `${seeds.length} games: ${JSON.stringify(totals.endings)}; years survived mean ` +
+    `${seeds.length} games: ${JSON.stringify(totals.endings)}; Rival folds ${JSON.stringify(totals.rivalFolds)}, ` +
+      `Rival Guildmasters succeeded ${totals.rivalSuccessions}; years survived mean ` +
       `${totals.yearsSurvived.mean.toFixed(2)}; advance ${sweep.advance.mean.toFixed(3)} ms mean, ` +
       `${sweep.advance.p99.toFixed(3)} ms p99; validated: ${validate}; ${(sweep.totalMs / 1000).toFixed(1)} s in all\n` +
       `Fingerprint of every seed's last save (DL-76): ${sweepFingerprint(sweep.games)}\nReport: ${path}`,

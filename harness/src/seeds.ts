@@ -1,5 +1,8 @@
 // Which seeds a harness run plays: `HEROESIM_SEEDS` of them (INPUTS §9), named `seed-0001`
-// onward, so run N's worlds are run M's first N and a seed in a report can be replayed by name.
+// onward, so run N's worlds are run M's first N and a seed in a report can be replayed by name; and
+// for how many years a play sweep plays them, `HEROESIM_YEARS` (M9-S2).
+
+import { defaultYears } from './play.js';
 
 /** Seeds in a harness run when `HEROESIM_SEEDS` is unset (INPUTS §9, 4.13). */
 export const defaultSeedCount = 1000;
@@ -24,6 +27,21 @@ export function seedCount(
     throw new RangeError(`HEROESIM_SEEDS must be a whole number from 1, not ${JSON.stringify(value)}`);
   }
   return count;
+}
+
+/**
+ * The years each game of a play sweep lasts at most (M9-S2): `HEROESIM_YEARS`, a whole number from 1,
+ * or DL-83's twenty-year slice when it is unset or blank. A longer run reaches what the slice does
+ * not, such as the founding Rivals' Guildmasters' Retirement at 65 and so their Succession. Throws
+ * on anything else, so a mistyped count fails the run.
+ */
+export function yearCount(value: string | undefined = process.env.HEROESIM_YEARS, fallback: number = defaultYears): number {
+  if (value === undefined || value.trim() === '') return fallback;
+  const years = Number(value.trim());
+  if (!Number.isSafeInteger(years) || years < 1) {
+    throw new RangeError(`HEROESIM_YEARS must be a whole number from 1, not ${JSON.stringify(value)}`);
+  }
+  return years;
 }
 
 /** `seed-0001` to `seed-<count>`, four digits at least. */
