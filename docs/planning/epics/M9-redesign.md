@@ -472,8 +472,60 @@ newest, marked new.
 - *The Patrons.* One table: Patron, Sphere, their Regard for the player's Guild, the player's
   Guildmaster's Regard for them, and their Quests on the Board now.
 
-**Acceptance:** views are tested with Testing Library, and the journey's recruit and the History
-search go through them.
+**Acceptance** (DL-106): views are tested with Testing Library, and the journey's recruit and the
+History search go through them.
+- [x] What the views show comes from `state/` selectors, written test first —
+      `state/selectors.test.ts` ("gives each card its Morale and band apart, and why a Hero is not
+      at the Hall…"; "a Hero's page as a header line and chips (M9-S6, DL-106)", five tests; "asks
+      before a Transfer out, stating the fee and the Morale it costs…"), `state/trade-views.test.ts`
+      ("the Market as tables (M9-S6, DL-106…)", three tests; "the Unattached pool as rows (M9-S6,
+      DL-106…)", two tests) and `state/world-views.test.ts` ("the Guilds as one table, the Rankings
+      in it (M9-S6, DL-106…)", four tests; the facilities' top grade, the neutral Regard, the
+      Patrons' merged row, and whose a Guild's page is) (DL-106 item 1)
+- [x] The Roster's cards and a Hero's page: the line and chips, the Stats in four area blocks with
+      what gear lifts and the Outlook as a chip, the Relationships with the neutral folded —
+      `views/roster.test.tsx`: "the Roster's Hero cards (M9-S6)", "is a line and chips, the Stats in
+      four area blocks each with its Outlook as a chip, and what gear lifts in the accent", "shows
+      the Relationships as bands, a ramp of tones, and folds those neutral both ways under their
+      count"; Equip and Unequip in `views/actions.test.tsx` (DL-106 items 2, 3)
+- [x] Both confirmations — `views/roster.test.tsx`: 'a Transfer out asks first, with the fee and what
+      it costs; "Keep them" leaves the Hero where they are' and 'Accept asks first, with the fee and
+      what letting the Hero go costs; "Keep them" leaves the offer standing'; the plays themselves
+      in `views/actions.test.tsx` (DL-106 item 4)
+- [x] The pool as rows with sort by Class and by fee, a Hero who will not sign set back with the
+      pool's reason — `views/roster.test.tsx`: "lists Name, Class, Level, Age, Background, Fee,
+      whether they sign and Recruit…", "orders its rows by Class or by fee from their headings,
+      display only…", "a Hero's name opens their page in place, and back returns the keyboard to
+      their row" (DL-106 item 5)
+- [x] The Hall: facilities with pips and "Build <name> · <cost>", the Guildmaster, the Market with
+      its filter and what the Guild holds with Sell — `views/hall.test.tsx`, four tests: "are one
+      row each: the grade as pips to the top grade, what it does, and Build with its cost…", "gives
+      the Traits with what each does, the descriptive Attributes written…", "lists what is for sale
+      as Item, Kind, Effect, Price, Stock, how many and Buy, one kind at a time from its chips",
+      "what the Guild holds is not drawn while it holds nothing, and is one table with Sell…"
+      (DL-106 items 6, 7)
+- [x] One table for the Guilds and the Rankings, sorted by its headings, Fame and Wealth keeping
+      their shared places; a Rival's page; the Patrons' table — `views/rankings.test.tsx`: "gives
+      Place, Guild, Disposition, Fame, Wealth, Heroes and Upkeep…", "by Wealth, orders and places
+      the Guilds by Wealth, the level ones sharing a place (DL-95, DL-91)", "by any other column,
+      orders for display only, and Place still reads by Fame", "a new game, every Guild at Fame 0,
+      is joint 1st by Fame…", "lists a folded Guild last…", "opens from its row: its Roster as a
+      table with the Transfer fees and Take in, and its Hall and Guildmaster folded", "the player's
+      own Guild opens too…", and "give each Patron's Sphere, their Regard for the Guild, the
+      Guildmaster's for them, and their Quests on the Board, the neutral folded" (DL-106 items 8
+      to 10)
+- [x] The tables' orders kept per browser (E5) — "keeps its order in this browser; one that refuses
+      its storage opens by Fame" (`views/rankings.test.tsx`) and "…keeps the order in this browser",
+      "a browser that refuses its storage lists the pool in its own order"
+      (`views/roster.test.tsx`) (DL-106 item 11)
+- [x] The journey's recruit goes through the pool's rows (`e2e/journey.spec.ts`), and the History
+      search finds a Hero from the Roster's cards (`e2e/layout.spec.ts`); `e2e/layout.spec.ts`'s "the Roster, the Hall and the Rankings:
+      no sideways scroll, a wide table in its own box, and 44px targets (M9-S6)" checks the three
+      views at 360, 390, 820 and 1280px (DL-106 item 12)
+- [x] Screenshotted and read: the Roster's cards and a Hero's page, the pool, the Hall
+      (facilities, Guildmaster, Market), the Rankings' table, a Rival's page and the Patrons, at
+      390 × 844 and 1440 × 900 in the light scheme, and a Hero's page in the dark at 1440
+- [x] DL-106 records the choices the epic left open, and its departures.
 
 ### M9-S7 · The page's side of #30 and #32 · 1 session · opus
 

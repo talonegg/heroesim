@@ -10160,6 +10160,206 @@ DL-105, as its brief numbers it.
 `guildmaster.tsx`, `hero-page.tsx`, `guild.tsx`, `rail.tsx`, `stop.tsx`, `section.tsx`),
 `web/src/styles.css`, `web/e2e/`; the epic's M9-S5 boxes.
 
+## DL-106 — The Roster, the Hall and the Rankings redesigned: Hero cards, a Hero's page as a line, chips and four Stat blocks with what gear lifts, the pool and the Market as tables, facilities with pips, one table for the Guilds and the Rankings, one for the Patrons, a confirmation before a Transfer goes out, and the tables' orders kept in this browser (M9-S6)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S6's implementer.
+- *The owner's.* What the three views hold is the epic's M9-S6, from the review's B3 to B5, B7 to
+  B10, C8, E4 and E5, under DL-99 and DL-100. The rules the page keeps are the owner's: the page
+  computes no rule (ADR-0007), requests nothing, and never shows a Hero's Potential; every control
+  is a 44px target.
+- *The orchestrator's.* The brief: the Hero page's header line and chips, "+n" in the accent, the
+  Outlook as a chip, the Transfer's confirmation in words the page already has, the pool's and the
+  Market's columns, "Build <name> · <cost>", the Rankings' columns with Fame and Wealth keeping
+  their shared places, the Patrons' columns, the Milestones and History part left as it was, and
+  the two merges of `v1.1-dev` (M9-S5, then M9-S7).
+- *The agent's.* Every choice below that the epic and the brief left open, and every departure from
+  them. Each stands unless the owner objects to it or to the screenshots.
+
+**Context.** This story started from `70732a3` (`v1.1-dev` with M9-S1 to M9-S4). There, the Roster
+was a list of rows, and a Hero's page gave their Attributes as terms and their Stats as one table.
+The pool was a list of lines. The Hall listed its facilities and the Market's Items as lines. The
+Rankings had a table ranked by Fame or by Wealth from two buttons, with a separate list of the
+Guilds below it. The Patrons and the Guildmaster's Regard were lists of words. A Transfer out and
+an accepted Transfer Offer each happened on one click. The suite held 3,063 tests in 122 files.
+
+**Decision.**
+
+1. **The selectors first, in `web/src/state/`, written test first.**
+   - *`selectors.ts`.* A Roster row carries Morale and its band apart, and why a Hero is not at the
+     Hall (`Unavailability`), for the card's chips and icon. `heroPage` gives:
+     - `line`: Class, Level, age, sex, Background and Guild;
+     - Morale with its band, where the Hero is and why, the Injury, XP, Traits and the Transfer fee;
+     - `areas`: the Stats in content's four areas, each with its base, the value a Check reads
+       (`effectiveStats`) and the lift between them;
+     - each gear row's slot name, and each Relationship marked `neutral` when both bands are;
+     - each Transfer target's `sentence`, which states the fee and the cost.
+   - *`trade-views.ts`.* `marketView(document, only)` names each kind for sale with its count, gear
+     slots in their order and then consumables, and lists only the kind chosen; the counts stay
+     those of everything for sale. What the Guild holds gains its kind and what it does.
+     `poolView(document, order)` orders by Class (A to Z, by code unit) or by fee (lowest first),
+     ties as the pool lists them, and says whether each Hero would sign now (`willSign`). Each
+     Transfer Offer gains its confirmation's sentence.
+   - *`world-views.ts`.* `guildsTable(document, sort)` replaces `guildsView` and `rankingsView`
+     (item 8). The Hall's rows gain each facility's top grade from content's Improvements. A Regard
+     row is marked `neutral`. The Patrons' rows gain the player's Guildmaster's Regard for them,
+     their Quests on the Board now, and `neutral` when both Regards are. A Guild's page says
+     whose it is, its Background, Fame and Wealth.
+   - `heldView` is gone: the Hall's holdings table reads `marketView`'s rows.
+2. **The Roster's cards.** Each card has the name as a button, "Class · Level n · age n", a Morale
+   chip in its band's tone, and a whereabouts chip. The whereabouts icon is an injury, travel or
+   alert icon by why the Hero is not at the Hall, or the Hall's icon when they are. Opening a card
+   puts the keyboard on the Hero's name, and back returns it to the card (`useReturn`, `ui.tsx`).
+3. **A Hero's page.**
+   - *The header.* The name, then the line joined by " · ", then the chips: Morale, whereabouts, the
+     Injury, XP, each Trait in the accent, and on a Rival's Hero the Transfer fee in brass.
+   - *The actions first on another's Hero.* On a pool Hero's page, Recruit stands under the chips,
+     before the Stats; on a Rival Hero's, Take in does. On the player's own Hero, the Transfer
+     stands after the Relationships.
+   - *The Stats.* Four tables, one per area, captioned by it, two to a row when the page is at least
+     34rem wide (a container query). Each row has the Stat, its value, and its Outlook as a chip,
+     in brass when the Outlook is exceptional.
+   - *The lift.* Where the value differs from the base, "+n" (or "-n") follows it in the accent,
+     with " on its base of N" for a screen reader. The epic says "when gear lifts it". The value is
+     the engine's `effectiveStats`, so the lift is also what the Guildmaster's Traits add: the page
+     shows the difference, whatever its source, rather than splitting it.
+   - *Gear.* Each slot with its Item and what it does, and Unequip; then the gear the Guild holds,
+     each with Equip, or "The Guild holds no gear; the Market sells it."
+   - *Skills* as chips. *Relationships* as rows with both bands as chips, the neutral ones folded
+     under "n neutral" (`Folded`, `ui.tsx`).
+   - The Milestones and History part is as M9-S5 left it (M9-S5 added `EntityHistory` there).
+4. **Confirmations (the review's E4).** `Confirm` (`ui.tsx`) is a group named by its question, which
+   takes the keyboard when it opens. It holds the sentence, a button that does it in the danger
+   tone, and "Keep them", which puts the keyboard back on the button that asked.
+   - *A Transfer out.* "Transfer…" opens "Transfer <name>?". It holds the Guild to choose and the
+     sentence: "<Guild> would pay <fee> Wealth for <name>, if it is willing to take them. Their gear
+     stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale."
+     The Morale words are those the Transfer Offers' help already gave. Who loses Morale, and
+     how much, would need a selector the engine does not have, so the page does not say it.
+   - *Accepting an offer.* "Accept…" opens "Accept <Guild>'s offer for <name>?", with "Accepting
+     sends <name> to <Guild> for <fee> Wealth." and the same Morale words.
+   - *Not confirmed.* Declining an offer undoes nothing a play cannot, so it stays one click. The
+     saves' delete, which already asked first (DL-103), is left as it is.
+5. **The Unattached pool as a table.**
+   - *Columns.* Name, Class, Level, Age, Background, Fee, "Signs", and Recruit.
+   - *Signs.* "yes", or the pool's own reason words for one who will not sign. That row is set back
+     on the sunk ground.
+   - *Recruit stays enabled on a set-back row.* The engine refuses the play with its own sentence,
+     and a disabled button would hide why. Disabling it is C9's, which the epic leaves out of M9.
+   - *Sorting.* The Class and Fee headings order the rows, display only. A second press on the
+     heading in use returns the pool's own order.
+   - *A Hero's page.* It opens in place in the pool part, as the Board's opens in the Party
+     builder. "Back to the pool" returns the keyboard to the Hero's row.
+6. **The Hall's facilities.**
+   - *A row each.* The name, then the grade as pips to the top grade (●○○, named "Grade g of top"
+     for a screen reader), the built grade's name, what the facility does, and "Build <next> ·
+     <cost>" with the Wealth icon.
+   - *At the top.* "At the top grade" in place of the button. On another Guild's page, "Next: <name>,
+     <cost>" in words, with no button.
+   - *The Upkeep* heads the rows, "Upkeep of <Guild>: <n> Wealth every <n> Days". Four columns from
+     46rem wide (a container query); stacked below it.
+7. **The Guildmaster, the Market and what the Guild holds.**
+   - *The Guildmaster.* Their name heads the part; then their sex and age, and the descriptive
+     Attributes that are set (none drawn empty); then "Read their History" (M9-S5). Then the Stats
+     table with what each bears on, beside the Traits as chips each with its effect's words, and
+     Regard in three groups: for Patrons, for Heroes on the Roster, and for the other Guilds through
+     their Guildmasters. Each is a chip on one ramp from hostile to close, the neutral folded. The
+     Patrons' group stays, though the Patrons' table now shows the player's Guildmaster's Regard
+     too, because a Rival Guildmaster's part needs it.
+   - *The Market.* Filter chips by kind ("All" and each kind with its count, `aria-pressed`) over a
+     table: Item, Kind, Effect, Price, Stock, how many (the stepper) and Buy. The chosen kind is not
+     remembered.
+   - *One holdings table (a departure).* The epic lists "What the Guild holds" in the Hall and a
+     table of it with Sell in the Market. They are one table, "What the Guild holds": Item, Kind,
+     Effect, Held, Sells for, how many and Sell. Two lists of the same Items would say it twice.
+   - *The order of the Hall's parts.* Guildmaster, Market, then what the Guild holds, so the sell
+     table follows the buy table. It is not drawn while the Guild holds nothing (DL-103). M9-S7's
+     "Sell at the Market" still opens the Market part.
+8. **The Guilds and the Rankings as one table.**
+   - *Columns.* Place, Guild, Disposition, Fame, Wealth, Heroes, Upkeep. The player's row is marked
+     and reads "Yours" for its Disposition.
+   - *Sorting.* Every heading but Place orders the table: Guild and Disposition from A, the numbers
+     from the highest. A heading always orders one way; pressing it again does nothing.
+   - *How Place reads.* By Wealth when the table is ordered by Wealth; by Fame otherwise, with the
+     heading "Place by Fame". Both keep the engine's shared places (`rankingPlaces`, "joint 1st",
+     DL-95). Ordering by another column is display only: its ties keep the Rankings' order by Fame,
+     and Place still reads by Fame. Place is not a sort control, because its order is Fame's or
+     Wealth's.
+   - *Disposition.* The player's Guild first, then the Dispositions from A.
+   - *A folded Guild.* In a body of its own at the table's foot, "folded on Day n" in place of a
+     place, and not ranked.
+   - *A row opens its Guild,* the player's own too. The player's own page has no fees and no Take
+     in (M9-S5 opens it from a name in the History).
+9. **A Guild's page.** Its name heads the page, which takes the keyboard. Below it, a line with its
+   controller, Background and whether it folded; chips for its Wealth and Fame; and "Read its
+   History" (M9-S5). Its Roster is a table: Name, Class, Level, Age and, on a Rival's page, the
+   Transfer fee and Take in. The Hall and the Guildmaster are folded under "Hall" and
+   "Guildmaster: <name>". "Back to the Guilds" returns the keyboard to the row.
+10. **The Patrons as one table.** The columns are Patron, Sphere, "Their Regard for <Guild>", "Your
+    Guildmaster's Regard", and Quests on the Board. Each Regard is a chip on the ramp. The rows
+    neutral both ways are folded under "n neutral", a button in the table's own row
+    (`aria-expanded`, `aria-controls`). Each Patron's name opens their History (M9-S5).
+11. **The orders kept per browser (the review's E5).** The Rankings' order and the pool's are kept in
+    `localStorage`, as the open view is (DL-103), under `heroesim.guildsOrder` and
+    `heroesim.poolOrder`. They are a convenience of this browser, for whatever game is in hand.
+    - Every read and write is in try/catch, so a browser that refuses storage opens by Fame and in
+      the pool's own order.
+    - `remembered.ts` gains `rememberedChoice` and `rememberChoice` for them.
+    - The Market's chosen kind is not kept: it is a glance, not a way of reading.
+    - The Board's order (DL-104) is not kept either: that is a question for the owner.
+12. **Styles.** One block, "The Roster, the Hall and the Rankings (M9-S6)", before "Tables, rows and
+    lines". A table whose first column is a name keeps it in view as it scrolls in its box. The
+    Market's tables and the pool's take a least width (46rem, 38rem) and scroll rather than squeeze.
+    A row's button and a sorting heading keep their words on one line.
+    - *`.table-wrap` holds its hidden words.* A column heading hidden for a screen reader
+      ("Recruit", "Take in") is placed absolutely. Its containing block lay outside the table's
+      scrolling box, so at 360px it made the page 525px wide. `.table-wrap` is now
+      `position: relative`, a change to a shared rule.
+13. **The merges.** Before the last commit, `v1.1-dev` at `47c7e51` (M9-S5 and M9-S7) was merged into
+    this branch (`89f9383`). The conflicts were resolved so these views keep M9-S5's links to the
+    History:
+    - `Guilds` takes a controlled `open`/`onOpen`, which `Rankings` passes from `app.tsx`.
+    - A Guild's page has "Read its History", the Guildmaster's part "Read their History", and each
+      Patron's name in the table opens their History.
+    - A Hero's page shows `EntityHistory`.
+    - `world-views.ts` keeps its `compareByCodeUnit` import, which M9-S5 had dropped.
+    - Two of M9-S5's tests in `views/history.test.tsx` take a Rival's row as one that is not the
+      player's, and unfold the neutral Patrons first.
+    M9-S7's journey still checks the chosen Guildmaster's age and Traits in the Hall's Guildmaster
+    part, and its Bankruptcy card's "Sell at the Market" still opens the Market.
+
+**Consequences.**
+- *The epic's M9-S6 boxes* are ticked, each naming its tests.
+- *Tests.* The story's own commit took the suite from 3,063 tests in 122 files to 3,100 in 125. The
+  new files are `views/roster.test.tsx` (9), `views/hall.test.tsx` (4) and `views/rankings.test.tsx`
+  (9); the state tests are in `selectors.test.ts`, `trade-views.test.ts` and `world-views.test.ts`.
+  After the merge, the suite holds 3,202 tests in 129 files.
+- *The browser specs.* 48 tests across the three projects. `layout.spec.ts` gains one test, which
+  checks the three views at 360, 390, 820 and 1280px. The journey recruits through the pool's rows,
+  and the History search is as M9-S5 left it.
+- *Heights.* In a new game at 390px, the page is 1,583px tall with the Roster open (the view
+  1,330), 2,695px with the Hall (2,442), and 1,016px with the Rankings (763).
+- *For the next merges.*
+  - `ui.tsx` gains `SortHeader`, `Folded`, `Confirm`, `useReturn`, `moraleTones` and
+    `regardTones`; `board.tsx` imports `moraleTones` from there.
+  - `section.tsx`'s help for the Roster, the Hall and the Rankings, and their parts, is this
+    story's.
+  - The Hall's parts are reordered.
+- *Questions for the owner.*
+  - Should the Board's order be kept per browser, like the Rankings' and the pool's?
+  - Should Recruit be disabled for a Hero who will not sign (C9), rather than refused with the
+    engine's sentence?
+  - Should the Transfer's confirmation name the Heroes who would lose Morale, and how much? That
+    needs an engine selector.
+  - Should declining an offer ask first too?
+  - M9-S7's "Sell at the Market" opens the Market part. Should it open "What the Guild holds", where
+    Sell now is?
+
+**Actioned in:** `web/src/state/` (`selectors.ts`, `names.ts`, `trade-views.ts`, `world-views.ts`,
+and their tests); `web/src/views/` (`ui.tsx`, `roster.tsx`, `hero-page.tsx`, `pool.tsx`,
+`offers.tsx`, `hall.tsx`, `market.tsx`, `guildmaster.tsx`, `guilds.tsx`, `rankings.tsx`,
+`patrons.tsx`, `remembered.ts`, `section.tsx`, `board.tsx`, and the tests); `web/src/styles.css`;
+`web/e2e/` (`journey.spec.ts`, `layout.spec.ts`); the epic's M9-S6 boxes.
+
 ## DL-107 — The page's side of #30 and #32: the Guildmaster set up under "Your Guildmaster", each Trait judged by the engine's own check against those chosen, "Start the game" held while the engine would refuse, "until a Quest I can staff appears" beside the pool's, and the Bankruptcy stop as a warning card with the ways to the Market and the Board (M9-S7)
 
 **Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S7's implementer.
