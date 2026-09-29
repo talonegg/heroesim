@@ -67,6 +67,8 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
   'guild.upkeep-paid': event('guild.upkeep-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
+  'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -373,6 +375,24 @@ describe('narrate', () => {
   });
 });
 
+describe('the Bankruptcy floor (M9-S1, DL-101)', () => {
+  test('names the Guild, its Wealth, the floor and the night Bankruptcy falls on; and says when it is back', () => {
+    expect(narrate(samples['guild.below-floor'], content)).toBe(
+      "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 34 unless it is back " +
+        'to 0 or more on a night by then.',
+    );
+    expect(narrate(samples['guild.floor-recovered'], content)).toBe(
+      "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 1: no Bankruptcy is due.",
+    );
+    // A floor that is not 0 is named as it is, so a save playing under other rules reads true.
+    const other = { ...samples['guild.below-floor'], payload: { guildId, wealth: 40, floor: 50, dueDay: 13 } };
+    expect(narrate(other, content)).toBe(
+      "The Kestrel Guild's Wealth, 40, fell below the Bankruptcy floor of 50: Bankruptcy on the night of Day 13 unless it is back " +
+        'to 50 or more on a night by then.',
+    );
+  });
+});
+
 describe('Transfers (M6-S2)', () => {
   test('names who moved, between which Guilds, for how much, and what became of each offer', () => {
     expect(narrate(samples['hero.transferred'], content)).toBe(
@@ -479,6 +499,14 @@ describe('narrateStop', () => {
       { kind: 'transfer-offer', guildId, offerIds: [offerId] },
       'Stopped: a Transfer Offer: The Iron Wardens offers 420 Wealth for Brenna Ashcombe (hero-000007) until the night of Day 7 ' +
         '(offer-000001). Answer with accept --offer <id> or decline --offer <id> (show offers).',
+    ],
+    [
+      { kind: 'below-floor', guildId, dueDay: 34 },
+      'Stopped: The Kestrel Guild fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then.',
+    ],
+    [
+      { kind: 'quest-staffable', guildId, questIds: [questId, 'quest-000008' as QuestId] },
+      "Stopped: a Quest to staff: The Kestrel Guild's Heroes at home could go on quest-000003 and quest-000008 (show board).",
     ],
     [{ kind: 'module', moduleId: 'probe' }, 'Stopped: the probe module asked to stop.'],
     [{ kind: 'max-turns' }, 'Stopped: played the most Turns allowed, 1080.'],

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { dispatch } from './actions/dispatch.js';
+import { dispatch, dispatchRefusal } from './actions/dispatch.js';
 import { advance } from './advance.js';
 import { staffableQuests } from './controllers/rival.js';
 import { createWorld } from './create.js';
@@ -8,10 +8,12 @@ import type { EngineEvent } from './events.js';
 import { playerGuild } from './selectors.js';
 import {
   alwaysStops,
+  belowFloorStop,
   decisionNeededStop,
   isStopCondition,
   partyReturnedStop,
   poolRefreshedStop,
+  questStaffableStop,
   stopConditions,
   stopsOfTurn,
 } from './stops.js';
@@ -40,16 +42,27 @@ function requiring(world: World, questId: Quest['id'], requirements: Partial<Que
 }
 
 describe('which stops are always on (approach §2, principle 10, pre-M0 review B7)', () => {
-  test("an ending, a Party home, a decision, a Transfer Offer and a module's stop always stop; the pool refreshing only when asked", () => {
+  test("an ending, the floor, a Party home, a decision, a Transfer Offer and a module's stop always stop; a staffable Quest and the pool only when asked", () => {
     expect(alwaysStops).toEqual({
       ended: true,
+      'below-floor': true,
       'party-returned': true,
       'decision-needed': true,
+      'quest-staffable': false,
       'transfer-offer': true,
       module: true,
       'pool-refreshed': false,
     });
-    expect(stopConditions).toEqual(['ended', 'party-returned', 'decision-needed', 'transfer-offer', 'module', 'pool-refreshed']);
+    expect(stopConditions).toEqual([
+      'ended',
+      'below-floor',
+      'party-returned',
+      'decision-needed',
+      'quest-staffable',
+      'transfer-offer',
+      'module',
+      'pool-refreshed',
+    ]);
     expect(stopConditions.every(isStopCondition)).toBe(true);
     expect(['max-turns', 'returns', 3, undefined].some(isStopCondition)).toBe(false);
   });
@@ -81,7 +94,7 @@ describe('decision-needed', () => {
     const before = structuredClone(world);
     before.board = before.board.filter((id) => id !== questId);
 
-    expect(staffableQuests(world, guild, deps.content).map((quest) => quest.id)).toContain(questId);
+    expect(staffableQuests(world, guild, deps).map((quest) => quest.id)).toContain(questId);
     expect(decisionNeededStop(before, world, guild.id, deps)).toEqual({ kind: 'decision-needed', guildId: guild.id, questIds: [questId] });
   });
 
@@ -106,7 +119,7 @@ describe('decision-needed', () => {
     const before = structuredClone(after);
     before.board = before.board.filter((id) => id !== questId);
 
-    expect(staffableQuests(after, guild, deps.content).map((quest) => quest.id)).not.toContain(questId);
+    expect(staffableQuests(after, guild, deps).map((quest) => quest.id)).not.toContain(questId);
     expect(decisionNeededStop(before, after, guild.id, deps)).toBeNull();
   });
 
@@ -118,7 +131,7 @@ describe('decision-needed', () => {
     const after = structuredClone(world);
     (after.heroes[guild.rosterIds[0] as HeroId] as Hero).partyId = 'party-000001' as Party['id'];
 
-    expect(staffableQuests(after, guild, deps.content).length).toBeGreaterThan(0);
+    expect(staffableQuests(after, guild, deps).length).toBeGreaterThan(0);
     expect(decisionNeededStop(before, after, guild.id, deps)).toBeNull();
   });
 
@@ -138,7 +151,7 @@ describe('decision-needed', () => {
   test('is needed on the night a Party comes home to a Board it can staff, after party-returned', () => {
     const document = created('stops-home');
     const guild = player(document.world);
-    const quest = staffableQuests(document.world, guild, deps.content).find(
+    const quest = staffableQuests(document.world, guild, deps).find(
       (row) => row.requirements.partySizeMax >= guild.rosterIds.length,
     );
     if (quest === undefined) throw new Error('No Quest takes the whole Roster');
@@ -152,8 +165,161 @@ describe('decision-needed', () => {
     const stops = stopsOfTurn({ before: eve.world, after: night.document.world, events: night.events }, guild.id, deps);
 
     withValid(night.document, deps);
-    expect(stops.map((stop) => stop.kind)).toEqual(['party-returned', 'decision-needed']);
+    // The Quests the Heroes home can staff are newly within reach too, so the opt-in stop names
+    // them as well (M9-S1); listening to every condition, all three are reported, in order.
+    expect(stops.map((stop) => stop.kind)).toEqual(['party-returned', 'decision-needed', 'quest-staffable']);
     expect(stops[0]).toEqual({ kind: 'party-returned', guildId: guild.id, partyIds: [party.id] });
+  });
+});
+
+describe('below-floor (M9-S1, DL-85 item 6)', () => {
+  const below = (guildId: string, dueDay: number) =>
+    ({ type: 'guild.below-floor', turn: 5, payload: { guildId, wealth: -3, floor: 0, dueDay } }) as unknown as EngineEvent;
+  const recovered = (guildId: string) =>
+    ({ type: 'guild.floor-recovered', turn: 5, payload: { guildId, wealth: 3, floor: 0, belowFloorSince: 2 } }) as unknown as EngineEvent;
+
+  test("is the watched Guild's guild.below-floor this Turn, and never a Rival's crossing", () => {
+    const watched = 'guild-000001' as GuildId;
+    const rival = 'guild-000002' as GuildId;
+
+    expect(belowFloorStop([below(rival, 31), below(watched, 32)], watched)).toEqual({ kind: 'below-floor', guildId: watched, dueDay: 32 });
+    expect(belowFloorStop([below(rival, 31)], watched)).toBeNull();
+    expect(belowFloorStop([recovered(watched)], watched)).toBeNull();
+    expect(belowFloorStop([], watched)).toBeNull();
+  });
+});
+
+describe('quest-staffable (M9-S1, DL-85 item 8)', () => {
+  /**
+   * `world` with the first Hero of the Roster away in a Party, and a Quest on the Board the rest can
+   * staff; `before` the same world without that Quest on the Board.
+   */
+  function partyOut(seed: string): { before: World; after: World; guild: Guild; questId: Quest['id'] } {
+    const { world } = created(seed);
+    const guild = player(world);
+    const after = structuredClone(world);
+    (after.heroes[guild.rosterIds[0] as HeroId] as Hero).partyId = 'party-000001' as Party['id'];
+    const [quest] = staffableQuests(after, player(after), deps);
+    if (quest === undefined) throw new Error('The Heroes at home can staff nothing');
+    const before = structuredClone(after);
+    before.board = before.board.filter((id) => id !== quest.id);
+    return { before, after, guild, questId: quest.id };
+  }
+
+  test('names a Quest new on the Board that the free Heroes could staff, even with a Party out, where decision-needed does not', () => {
+    const { before, after, guild, questId } = partyOut('stops-out');
+
+    expect(questStaffableStop(before, after, guild.id, deps)).toEqual({ kind: 'quest-staffable', guildId: guild.id, questIds: [questId] });
+    expect(decisionNeededStop(before, after, guild.id, deps)).toBeNull();
+  });
+
+  test('on an idle Roster, names what decision-needed names', () => {
+    const { world } = created();
+    const guild = player(world);
+    const before = structuredClone(world);
+    before.board = before.board.slice(2);
+
+    const decision = decisionNeededStop(before, world, guild.id, deps);
+    expect(decision?.kind).toBe('decision-needed');
+    expect(questStaffableStop(before, world, guild.id, deps)).toEqual({ ...decision, kind: 'quest-staffable' });
+  });
+
+  test('names nothing the free Heroes could staff before the Turn: the caller has seen it', () => {
+    const { after, guild } = partyOut('stops-out');
+    expect(questStaffableStop(after, structuredClone(after), guild.id, deps)).toBeNull();
+  });
+
+  test('names nothing when no free Hero could staff the new Quest: the rest injured, or a Class nobody at home has', () => {
+    const { before, after, guild, questId } = partyOut('stops-out');
+    const hurt = structuredClone(after);
+    for (const heroId of guild.rosterIds.slice(1)) (hurt.heroes[heroId] as Hero).injury = { typeKey: 'bruised-ribs', healsOnTurn: 99 };
+    expect(questStaffableStop(before, hurt, guild.id, deps)).toBeNull();
+
+    const home = guild.rosterIds.slice(1).map((id) => (after.heroes[id] as Hero).classKey);
+    const missing = Object.keys(deps.content.classes).find((key) => !home.includes(key));
+    const beyond = requiring(
+      after,
+      questId,
+      missing === undefined ? { partySizeMin: guild.rosterIds.length, partySizeMax: guild.rosterIds.length } : { classKey: missing },
+    );
+    expect(questStaffableStop(before, beyond, guild.id, deps)).toBeNull();
+  });
+
+  test('names a Quest already on the Board once it comes within reach, as when a Hero heals', () => {
+    const { after, guild } = partyOut('stops-out');
+    const hurt = structuredClone(after);
+    for (const heroId of guild.rosterIds.slice(1)) (hurt.heroes[heroId] as Hero).injury = { typeKey: 'bruised-ribs', healsOnTurn: 99 };
+
+    const stop = questStaffableStop(hurt, after, guild.id, deps);
+    expect(stop?.kind).toBe('quest-staffable');
+    expect(stop?.kind === 'quest-staffable' && stop.questIds).toEqual(staffableQuests(after, player(after), deps).map((quest) => quest.id));
+  });
+
+  test('names nothing for a Guild not in the world', () => {
+    const { before, after } = partyOut('stops-out');
+    expect(questStaffableStop(before, after, 'guild-999999' as GuildId, deps)).toBeNull();
+  });
+});
+
+describe("staffableQuests: a Quest can be staffed exactly when dispatch would send some Party of the Roster (M9-S1)", () => {
+  /** Every non-empty subset of `ids`. */
+  function subsets<Id>(ids: readonly Id[]): Id[][] {
+    const all: Id[][] = [];
+    for (let mask = 1; mask < 1 << ids.length; mask += 1) all.push(ids.filter((_, bit) => (mask & (1 << bit)) !== 0));
+    return all;
+  }
+
+  test('against every Party of the Roster, judged by dispatchRefusal, over Heroes away and injured and every shape of requirement', () => {
+    const six = testDeps({ rivalCount: 0, startingRosterSize: 6 });
+    const shapes: Pick<Quest['requirements'], 'classKey' | 'skillKey'>[] = [
+      {},
+      { classKey: 'healer' },
+      { classKey: 'mage' },
+      { skillKey: 'lockpicking' },
+      { classKey: 'warrior', skillKey: 'tactics' },
+      { classKey: 'rogue', skillKey: 'lockpicking' },
+    ];
+    const sizes = [[1, 1], [1, 3], [2, 2], [2, 4], [3, 5], [5, 6], [7, 8]] as const;
+    let staffable = 0;
+    let unstaffable = 0;
+    for (const seed of ['staff-a', 'staff-b', 'staff-c']) {
+      const base = withValid(createWorld(seed, setup, six).document, six).world;
+      const guild = player(base);
+      const [away, hurt] = guild.rosterIds as [HeroId, HeroId];
+      for (const unavailable of [[], [away], [away, hurt]] as const) {
+        const world = structuredClone(base);
+        if (unavailable.length > 0) (world.heroes[away] as Hero).partyId = 'party-000001' as Party['id'];
+        if (unavailable.length > 1) (world.heroes[hurt] as Hero).injury = { typeKey: 'bruised-ribs', healsOnTurn: 99 };
+        const questId = world.board[0] as Quest['id'];
+        for (const [partySizeMin, partySizeMax] of sizes) {
+          for (const shape of shapes) {
+            const asked = structuredClone(world);
+            (asked.quests[questId] as Quest).requirements = { partySizeMin, partySizeMax, ...shape };
+            const some = subsets(guild.rosterIds).some(
+              (heroIds) => dispatchRefusal(asked, { guildId: guild.id, questId, heroIds }, six) === null,
+            );
+            const named = staffableQuests(asked, player(asked), six).some((quest) => quest.id === questId);
+            expect(named, `${seed} ${unavailable.length} away ${partySizeMin}-${partySizeMax} ${JSON.stringify(shape)}`).toBe(some);
+            if (some) staffable += 1;
+            else unstaffable += 1;
+          }
+        }
+      }
+    }
+    // Both answers are reached often, so neither is true by default.
+    expect(staffable).toBeGreaterThan(40);
+    expect(unstaffable).toBeGreaterThan(40);
+  });
+
+  test("a Quest dispatch would refuse whoever went is not staffable, whatever its requirements: the verdict is dispatch's", () => {
+    const { world } = created();
+    const guild = player(world);
+    const [quest] = staffableQuests(world, guild, deps);
+    if (quest === undefined) throw new Error('Nothing staffable');
+    // A folded Guild sends no Party (`guild-folded`), so it can staff nothing on the Board.
+    const folded = structuredClone(world);
+    (folded.guilds[guild.id] as Guild).foldedOnTurn = 0;
+    expect(staffableQuests(folded, player(folded), deps)).toEqual([]);
   });
 });
 
@@ -188,18 +354,25 @@ describe('stopsOfTurn', () => {
     after.guilds[guild.id]!.rosterIds = guild.rosterIds.slice(1);
     const events = [
       { type: 'quest.resolved', turn: 1, payload: { guildId: guild.id, partyId: 'party-000001' } },
+      { type: 'guild.below-floor', turn: 1, payload: { guildId: guild.id, wealth: -1, floor: 0, dueDay: 30 } },
     ] as unknown as EngineEvent[];
     const turn = { before, after, events };
 
     expect(stopsOfTurn(turn, guild.id, deps).map((stop) => stop.kind)).toEqual([
       'ended',
+      'below-floor',
       'party-returned',
       'decision-needed',
+      'quest-staffable',
       'pool-refreshed',
     ]);
     expect(stopsOfTurn(turn, guild.id, deps, ['pool-refreshed', 'party-returned']).map((stop) => stop.kind)).toEqual([
       'party-returned',
       'pool-refreshed',
+    ]);
+    expect(stopsOfTurn(turn, guild.id, deps, ['quest-staffable', 'below-floor']).map((stop) => stop.kind)).toEqual([
+      'below-floor',
+      'quest-staffable',
     ]);
   });
 });

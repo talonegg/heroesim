@@ -49,14 +49,16 @@ Commands:
       or an installed module asks to stop.
   advance --until <stops> [--max <n>]      or      advance --max <n>
       Fast forward: play Turns until one gives a reason to stop, then print the reason and
-      what happened. These always stop it: a Party of the player's comes home, a decision
-      is needed (no Party is out, and a Quest the Guild could take reaches the Board), a
-      Rival makes a Transfer Offer for one of the player's Heroes, an installed module
-      asks to stop, and the game ends.
-      <stops> names any of party-returns, decision, transfer-offer, ended and
-      pool-refreshed, joined by commas; pool-refreshed (new Heroes in the Unattached pool)
-      stops it only when named. --max caps the Turns played: one year of Turns unless
-      given.
+      what happened. These always stop it: the player's Guild falls below the
+      Bankruptcy floor, a Party of the player's comes home, a decision is needed (no Party
+      is out, and a Quest the Guild could take reaches the Board), a Rival makes a Transfer
+      Offer for one of the player's Heroes, an installed module asks to stop, and the game
+      ends.
+      <stops> names any of party-returns, decision, staffable, transfer-offer,
+      below-floor, ended and pool-refreshed, joined by commas. Two stop it only when named:
+      staffable (a Quest the Heroes at home could take reaches the Board, even with a
+      Party out) and pool-refreshed (new Heroes in the Unattached pool). --max caps the
+      Turns played: one year of Turns unless given.
   recruit --hero <heroId>
       Sign an Unattached Hero to the player's Guild for their signing fee, shown by
       show pool, and print the fee and the new Roster size.
@@ -247,7 +249,10 @@ function wholeFromOne(flag: string, value: string): number {
 const untilWords: Readonly<Record<string, StopCondition>> = Object.freeze({
   'party-returns': 'party-returned',
   decision: 'decision-needed',
+  // M9-S1: a Quest the Heroes at home can staff (opt-in), and the Bankruptcy floor (always on).
+  staffable: 'quest-staffable',
   'transfer-offer': 'transfer-offer',
+  'below-floor': 'below-floor',
   ended: 'ended',
   'pool-refreshed': 'pool-refreshed',
 });

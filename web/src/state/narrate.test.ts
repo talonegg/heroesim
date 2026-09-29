@@ -81,6 +81,8 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'patron.generated': event('patron.generated', [patronId], { patronId: patronId as never, sphereKey: 'crown' }),
   'world.rules-adopted': event('world.rules-adopted', [], { oldConfigVersion: 1, newConfigVersion: 2 }),
   'guild.upkeep-paid': event('guild.upkeep-paid', [guildId], { guildId, amount: 40, wealthAfter: 460 }),
+  'guild.below-floor': event('guild.below-floor', [guildId], { guildId, wealth: -35, floor: 0, dueDay: 34 }),
+  'guild.floor-recovered': event('guild.floor-recovered', [guildId], { guildId, wealth: 12, floor: 0, belowFloorSince: 5 }),
   'hero.recruited': event('hero.recruited', [heroId, guildId], { heroId, guildId, fee: 110 }),
   'hero.left-pool': event('hero.left-pool', [heroId], { heroId }),
   'quest.offered': event('quest.offered', [questId, patronId], { questId, patronId: patronId as never, templateKey: 'clear-the-barrow' }),
@@ -308,6 +310,10 @@ const exactly: { [Type in EngineEventType]: string } = {
   'patron.generated': `Lady Maud of the ${named(content.spheres, 'crown')} became a Patron.`,
   'world.rules-adopted': 'The rules moved from configVersion 1 to 2.',
   'guild.upkeep-paid': 'The Kestrel Guild paid 40 Upkeep, leaving 460 Wealth.',
+  'guild.below-floor':
+    "The Kestrel Guild's Wealth, -35, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 34 unless it is back to 0 or more on a night by then.",
+  'guild.floor-recovered':
+    "The Kestrel Guild's Wealth, 12, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 1: no Bankruptcy is due.",
   'hero.recruited': 'The Kestrel Guild signed Brenna Ashcombe for 110 Wealth.',
   'hero.left-pool': 'Brenna Ashcombe left the Unattached pool.',
   'quest.offered': `Lady Maud offered ${barrow}.`,
@@ -511,6 +517,14 @@ describe('narrateStop', () => {
     'decision-needed': [
       { kind: 'decision-needed', guildId: player.id, questIds: [quest] },
       /^Stopped: a decision is needed: The Lantern has no Party out, and could send one on [A-Z][^.]+\.$/,
+    ],
+    'below-floor': [
+      { kind: 'below-floor', guildId: player.id, dueDay: 34 },
+      /^Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day 34 unless its Wealth recovers by then\.$/,
+    ],
+    'quest-staffable': [
+      { kind: 'quest-staffable', guildId: player.id, questIds: [quest] },
+      /^Stopped: a Quest to staff: The Lantern's Heroes at home could go on [A-Z][^.]+\.$/,
     ],
     'transfer-offer': [{ kind: 'transfer-offer', guildId: player.id, offerIds: [offerId] }, /^Stopped: a Transfer Offer: an offer since withdrawn\.$/],
     module: [{ kind: 'module', moduleId: 'probe' }, /^Stopped: the probe module asked to stop\.$/],

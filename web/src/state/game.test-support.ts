@@ -63,10 +63,15 @@ export function holding(state: GameState, definitionKey: ItemDefinitionKey, quan
   return changed(state, (document, player) => addStack(document.world, definitionKey, quantity, { kind: 'guild', id: player.id }));
 }
 
-/** The player's Guild with `wealth` Wealth. */
-export function withWealth(state: GameState, wealth: number): GameState {
+/**
+ * The player's Guild with `wealth` Wealth; and, given `belowFloorSince`, below the Bankruptcy floor
+ * since that Turn, as a Guild that fell below it before the play to come: its countdown stands, and
+ * no new crossing stops a fast forward (M9-S1, DL-101).
+ */
+export function withWealth(state: GameState, wealth: number, belowFloorSince?: number): GameState {
   return changed(state, (_, player) => {
     player.wealth = wealth;
+    if (belowFloorSince !== undefined) player.belowFloorSince = belowFloorSince;
   });
 }
 

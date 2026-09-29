@@ -710,7 +710,11 @@ describe('advance', () => {
     expect(play(['advance']).out.split('\n')[1]).toBe(countdown(10));
     const cleared = play(['advance']);
     expect(cleared.out).toContain('Now Turn 5 (Day 1, night, Year 0).');
-    expect(cleared.out).not.toContain('Bankruptcy floor');
+    expect(cleared.out).not.toContain('has been below the Bankruptcy floor');
+    // That night's check is heard (M9-S1): the event says so, and the countdown is gone.
+    expect(cleared.out).toContain(
+      "The Test's Wealth, 1000, is back to the Bankruptcy floor of 0 or more, after falling below it on Day 0: no Bankruptcy is due.",
+    );
     expect(play(['show']).out).not.toContain('Bankruptcy floor');
   });
 });
@@ -791,6 +795,47 @@ describe('advance --until: fast forward (M2-S11)', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain('Now Turn 3 (Day 1, morning, Year 0).');
     expect(run.out).toMatch(/Stopped: a decision is needed: The Test has no Party out, and could send one on quest-\d{6}.* \(show board\)\./);
+  });
+
+  test('staffable stops, with a Party out, the morning a Quest the Heroes at home could take reaches the Board (M9-S1)', () => {
+    const { returnsOnTurn } = sendParty();
+    const before = document();
+    const expected = fastForward(
+      before,
+      { guildId: playerId, until: ['quest-staffable'], maxTurns: defaultConfig.turnsPerYear },
+      playDepsOf(before),
+    );
+    expect(expected.stoppedBecause.kind).toBe('quest-staffable');
+
+    const run = play(['advance', '--until', 'staffable']);
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    expect(saved()).toBe(serialise(expected.document));
+    expect(document().world.turn).toBeLessThan(returnsOnTurn);
+    expect(run.out).toMatch(/Stopped: a Quest to staff: The Test's Heroes at home could go on quest-\d{6}.* \(show board\)\./);
+    // Unasked, the Party out keeps the always-on decision quiet until it comes home.
+    expect(play(['advance', '--until', 'decision']).out).toContain("Stopped: The Test's Party came home");
+    expect(document().world.turn).toBe(returnsOnTurn);
+  });
+
+  test("the player's Guild falling below the floor stops it unasked, naming the night, the countdown after (M9-S1)", () => {
+    edit((edited) => {
+      edited.meta.config = { ...edited.meta.config, bankruptcyGraceDays: 10 };
+      (edited.world.guilds[playerId] as Guild).wealth = -1;
+    });
+
+    const run = play(['advance', '--until', 'pool-refreshed']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out.split('\n').slice(0, 3)).toEqual([
+      'Played 2 Turns. Now Turn 2 (Day 0, night, Year 0).',
+      'Stopped: The Test fell below the Bankruptcy floor: Bankruptcy on the night of Day 10 unless its Wealth recovers by then.',
+      'The Test has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day 10 unless Wealth is back to 0 or ' +
+        'more on a night by then, after any Upkeep due.',
+    ]);
+    expect(run.out).toContain(
+      "The Test's Wealth, -1, fell below the Bankruptcy floor of 0: Bankruptcy on the night of Day 10 unless it is back to 0 or more on a night by then.",
+    );
   });
 
   test('--max caps the Turns and says so', () => {

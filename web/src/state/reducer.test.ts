@@ -717,6 +717,46 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     expect(lastOf(states).stoppedBecause).toEqual(one.stoppedBecause);
     expect(one.stoppedBecause.kind).toBe('decision-needed');
   });
+
+  // M9-S1 (DL-101): the new stops, through the reducer's `fastForward` and the page's sentence.
+  test("until a Quest the Heroes at home can staff: with a Party out it stops where one call would, before the Party is home", () => {
+    const text = serialise(documentOf(withPartyOut(startedFrom('reducer-test'))));
+    const start = loaded(text, noModules);
+    const party = Object.values(documentOf(start).world.parties)[0];
+    vi.clearAllMocks();
+
+    const last = lastOf(stepped(start, { kind: 'fastForward', until: ['quest-staffable'] }));
+    const one = oneCall(text, ['quest-staffable'], defaultConfig.turnsPerYear, noModules);
+
+    expect(fastForwardCalls().every(([, options]) => options.until.includes('quest-staffable'))).toBe(true);
+    expect(last.stoppedBecause?.kind).toBe('quest-staffable');
+    expect(last.stoppedBecause).toEqual(one.stoppedBecause);
+    expect(serialise(documentOf(last))).toBe(serialise(one.document));
+    expect(documentOf(last).world.turn).toBeLessThan(party?.returnsOnTurn ?? 0);
+    expect(stopView(last)).toEqual({
+      kind: 'quest-staffable',
+      sentence: expect.stringMatching(/^Stopped: a Quest to staff: The Lantern's Heroes at home could go on [A-Z][^.]+\.$/) as unknown,
+    });
+    // Unasked, the same game plays on to the Party's return: the always-on decision is unchanged.
+    expect(lastOf(stepped(loaded(text, noModules), { kind: 'fastForward', until: [] })).stoppedBecause?.kind).toBe('party-returned');
+  });
+
+  test("the player's Guild falling below the floor stops it unasked, where one call would, with the page's sentence", () => {
+    const text = serialise(documentOf(changed(startedFrom('reducer-test'), (_, player) => void (player.wealth = -1))));
+    const start = loaded(text, noModules);
+
+    const last = lastOf(stepped(start, { kind: 'fastForward', until: [] }));
+    const one = oneCall(text, [], defaultConfig.turnsPerYear, noModules);
+
+    const due = defaultConfig.bankruptcyGraceDays;
+    expect(last.stoppedBecause).toEqual({ kind: 'below-floor', guildId: playerOf(start).id, dueDay: due });
+    expect(last.stoppedBecause).toEqual(one.stoppedBecause);
+    expect(serialise(documentOf(last))).toBe(serialise(one.document));
+    expect(stopView(last)).toEqual({
+      kind: 'below-floor',
+      sentence: `Stopped: The Lantern fell below the Bankruptcy floor: Bankruptcy on the night of Day ${due} unless its Wealth recovers by then.`,
+    });
+  });
 });
 
 describe("the player's Stop (v1.0.1-S5, DL-96)", () => {

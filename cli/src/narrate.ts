@@ -159,6 +159,21 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
       return `The rules moved from configVersion ${event.payload.oldConfigVersion} to ${event.payload.newConfigVersion}.`;
     case 'guild.upkeep-paid':
       return `${called(event, event.payload.guildId)} paid ${event.payload.amount} Upkeep, leaving ${event.payload.wealthAfter} Wealth.`;
+    case 'guild.below-floor': {
+      // M9-S1: the night Bankruptcy falls on, as the countdown gives it (DL-95), from the event alone.
+      const { guildId, wealth, floor, dueDay } = event.payload;
+      return (
+        `${called(event, guildId)}'s Wealth, ${wealth}, fell below the Bankruptcy floor of ${floor}: Bankruptcy on the night of ` +
+        `Day ${dueDay} unless it is back to ${floor} or more on a night by then.`
+      );
+    }
+    case 'guild.floor-recovered': {
+      const { guildId, wealth, floor, belowFloorSince } = event.payload;
+      return (
+        `${called(event, guildId)}'s Wealth, ${wealth}, is back to the Bankruptcy floor of ${floor} or more, after falling below it ` +
+        `on Day ${dayOf(belowFloorSince)}: no Bankruptcy is due.`
+      );
+    }
     case 'hero.recruited':
       return `${called(event, event.payload.guildId)} signed ${hero(event, event.payload.heroId)} for ${event.payload.fee} Wealth.`;
     case 'hero.left-pool':
@@ -355,9 +370,19 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       const parties = stop.partyIds.length === 1 ? 'Party' : 'Parties';
       return `Stopped: ${guild}'s ${parties} came home: ${listed(stop.partyIds)}.`;
     }
+    case 'below-floor': {
+      // M9-S1: the countdown's line follows with the floor and the rest (renderAdvance).
+      const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
+      return `Stopped: ${guild} fell below the Bankruptcy floor: Bankruptcy on the night of Day ${stop.dueDay} unless its Wealth recovers by then.`;
+    }
     case 'decision-needed': {
       const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
       return `Stopped: a decision is needed: ${guild} has no Party out, and could send one on ${listed(stop.questIds)} (show board).`;
+    }
+    case 'quest-staffable': {
+      // M9-S1: `--until staffable`, whether or not a Party is out.
+      const guild = rowIn(world.guilds, stop.guildId)?.name ?? stop.guildId;
+      return `Stopped: a Quest to staff: ${guild}'s Heroes at home could go on ${listed(stop.questIds)} (show board).`;
     }
     case 'transfer-offer': {
       // M6-S2: each offer that arrived, as `show offers` lists it, and the two commands that answer it.

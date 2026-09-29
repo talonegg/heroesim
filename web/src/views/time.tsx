@@ -14,8 +14,11 @@ import { Section, type SectionId } from './section';
 /** What each stop offers the player next: a section to go to, another fast forward, or nothing. */
 const nextFor: Readonly<Record<StopView['kind'], { label: string; section: SectionId } | { label: string; again: true } | null>> = {
   ended: null,
+  // M9-S1: the new stops; M9-S7 gives them their place on the page.
+  'below-floor': { label: 'Read what happened', section: 'log' },
   'party-returned': { label: 'Read what happened', section: 'log' },
   'decision-needed': { label: 'Choose a Party on the Board', section: 'board' },
+  'quest-staffable': { label: 'Choose a Party on the Board', section: 'board' },
   'transfer-offer': { label: 'Answer the offer', section: 'offers' },
   // M8-S2: the module's own events say why it asked.
   module: { label: 'Read what happened', section: 'log' },
