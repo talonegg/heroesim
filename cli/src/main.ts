@@ -24,6 +24,7 @@ import {
   parseId,
   playerGuild,
   rebase,
+  setupRefusal,
   type ContentSet,
   type EngineDeps,
   type EntityId,
@@ -33,6 +34,7 @@ import {
   type StopReason,
   type TurnEvent,
   type WorldDocument,
+  type WorldSetup,
 } from '@heroesim/engine';
 import { ContentError } from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
@@ -44,6 +46,7 @@ import { recruitHero } from './commands/recruit.js';
 import { answerOffer, renderOffers, transferHero } from './commands/transfer.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
+import { setupRefusalWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
 import { narrateStop, renderAdvance } from './narrate.js';
@@ -242,38 +245,37 @@ function look(
 
 // ── new ──────────────────────────────────────────────────────────────────────────────────────
 
+/**
+ * `new`: the setup from the flags, the names trimmed, checked by the engine's `setupRefusal` under
+ * the current defaults (M9-S2) and refused in `new`'s own words as a bad command line, before any
+ * save is touched.
+ */
 function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, path, modules }: Context): Exit {
-  const guildName = command.guild.trim();
-  const guildmasterName = command.master.trim();
-  if (guildName === '') return refuse(io, 'The Guild needs a name: --guild <name>.', exitCodes.usage);
-  if (guildmasterName === '') return refuse(io, 'The Guildmaster needs a name: --master <name>.', exitCodes.usage);
-
-  const { background } = command;
-  if (background !== undefined) {
-    const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild');
-    if (!guildBackgrounds.some((row) => row.key === background)) {
-      const choices = guildBackgrounds.map((row) => `${row.key} (${row.name})`).join(', ');
-      return refuse(io, `No Guild Background "${background}". Choose one of: ${choices}.`, exitCodes.usage);
-    }
-  }
+  const { background, sex, age, traits, birthplace, appearance, biography } = command;
+  const setup: WorldSetup = {
+    guildmasterName: command.master.trim(),
+    guildName: command.guild.trim(),
+    ...(background === undefined ? {} : { backgroundKey: background }),
+    ...(sex === undefined ? {} : { guildmasterSex: sex }),
+    ...(age === undefined ? {} : { guildmasterAge: age }),
+    ...(traits === undefined ? {} : { guildmasterTraitKeys: traits }),
+    ...(birthplace === undefined ? {} : { guildmasterBirthplace: birthplace }),
+    ...(appearance === undefined ? {} : { guildmasterAppearance: appearance }),
+    ...(biography === undefined ? {} : { guildmasterBiography: biography }),
+    createdAt: io.now().toISOString(),
+  };
+  // A new game starts under the current defaults; from then on it plays under its own. Each
+  // module installed makes its slice and stream (M8-S4).
+  const deps = { config: defaultConfig, content, ...withModules(modules) };
+  const refusal = setupRefusal(setup, deps);
+  if (refusal !== null) return refuse(io, setupRefusalWords(refusal, content), exitCodes.usage);
 
   if (existsSync(path) && !command.force) {
     return refuse(io, `A save already exists at ${path}. Replace it with --force, or name another with --save.`);
   }
 
   const seed = command.seed ?? readableSeed(() => io.random());
-  const { document } = createWorld(
-    seed,
-    {
-      guildmasterName,
-      guildName,
-      ...(background === undefined ? {} : { backgroundKey: background }),
-      createdAt: io.now().toISOString(),
-    },
-    // A new game starts under the current defaults; from then on it plays under its own. Each
-    // module installed makes its slice and stream (M8-S4).
-    { config: defaultConfig, content, ...withModules(modules) },
-  );
+  const { document } = createWorld(seed, setup, deps);
   writeSave(path, document);
   return say(io, [
     `Created a world from seed ${seed} and saved it to ${path}.`,

@@ -35,6 +35,8 @@ import {
   consumableChoices,
   countdownView,
   guildBackgrounds,
+  guildmasterSetupChoices,
+  traitBudgetView,
   headerView,
   heldView,
   heroPage,
@@ -525,6 +527,49 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
     });
     // The game in hand, before the first night's check, has none.
     expect(countdownView(document)).toBeNull();
+  });
+});
+
+describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
+  test('offers the sexes, the starting ages, the budget, the most Traits, and the three descriptive Attributes with their bounds', () => {
+    const choices = guildmasterSetupChoices();
+
+    expect(choices).toMatchObject({ sexes: ['female', 'male'], ageMin: 30, ageMax: 45, traitBudget: 1, traitsMax: 2 });
+    expect(choices.attributes).toEqual([
+      { attribute: 'birthplace', label: 'Birthplace', maxLength: 60 },
+      { attribute: 'appearance', label: 'Appearance', maxLength: 280 },
+      { attribute: 'biography', label: 'Biography', maxLength: 1000 },
+    ]);
+  });
+
+  test('offers each Guildmaster Trait by name, with what it does, its cost and the Traits it excludes, and no Hero Trait', () => {
+    const { traits } = guildmasterSetupChoices();
+
+    expect(traits.map(({ key }) => key).sort()).toEqual(['miser', 'mistrusts-magic', 'old-soldier', 'spendthrift', 'thrifty', 'well-liked']);
+    expect(traits.find(({ key }) => key === 'miser')).toEqual({
+      key: 'miser',
+      name: 'Miser',
+      effect: 'Morale baseline -5',
+      cost: -2,
+      excludes: [
+        { key: 'spendthrift', name: 'Spendthrift' },
+        { key: 'well-liked', name: 'Well liked' },
+      ],
+    });
+    expect(traits.find(({ key }) => key === 'old-soldier')).toMatchObject({ effect: '+1 Weaponry to Warriors', cost: 1, excludes: [] });
+    expect(traits.find(({ key }) => key === 'thrifty')).toMatchObject({ effect: 'Upkeep ×0.9', cost: 2 });
+  });
+
+  test('reads the budget and the bounds from the config it is given', () => {
+    const wider = { ...defaultConfig, guildmasterTraitBudget: 3, guildmasterTraitsMax: 3, guildmasterStartingAgeMax: 50 };
+    expect(guildmasterSetupChoices(content, wider)).toMatchObject({ traitBudget: 3, traitsMax: 3, ageMax: 50 });
+  });
+
+  test("says what the Traits chosen cost and how much of the budget is left, by the engine's sum", () => {
+    expect(traitBudgetView([])).toEqual({ spent: 0, left: 1 });
+    expect(traitBudgetView(['miser'])).toEqual({ spent: -2, left: 3 });
+    expect(traitBudgetView(['miser', 'thrifty'])).toEqual({ spent: 0, left: 1 });
+    expect(traitBudgetView(['well-liked'])).toEqual({ spent: 2, left: -1 });
   });
 });
 

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
-import type { StreamName } from '../rng.js';
+import { next, type StreamName } from '../rng.js';
 import { dealtDisposition, generateGuild, generateRival, type GuildOptions } from './guilds.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
@@ -237,6 +237,91 @@ describe('generateGuild', () => {
     expect(() => generateGuild(world, deps, { ...base, rosterSize: 2.5 })).toThrow(RangeError);
     expect(() => generateGuild(world, deps, { ...base, wealth: Number.NaN })).toThrow(RangeError);
     expect(world).toEqual(before);
+  });
+});
+
+describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3)", () => {
+  /** `count` Guildmasters generated under `deps`, eight to a world as the Guild names allow. */
+  function guildmasters(deps: ReturnType<typeof testDeps>, count: number) {
+    const drawn = [];
+    for (let round = 0; drawn.length < count; round += 1) {
+      const world = testWorld(`budget-${round}`, deps);
+      for (let i = 0; i < 8 && drawn.length < count; i += 1) {
+        drawn.push(generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 }).guildmaster);
+      }
+    }
+    return drawn;
+  }
+
+  const costOf = (deps: ReturnType<typeof testDeps>, keys: readonly string[]): number =>
+    keys.reduce((sum, key) => sum + (deps.content.traits[key]?.cost ?? Number.NaN), 0);
+
+  test('the budget is guildmasterTraitBudget, 1 by default, under configVersion 11', () => {
+    expect(testDeps().config).toMatchObject({ guildmasterTraitBudget: 1, guildmasterTraitsMin: 0, guildmasterTraitsMax: 2 });
+    expect(testDeps().config.configVersion).toBe(11);
+  });
+
+  test('every drawn Guildmaster keeps within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', () => {
+    const deps = testDeps();
+    const drawn = guildmasters(deps, 400);
+    const held = new Set<string>();
+
+    for (const { traits } of drawn) {
+      expect(costOf(deps, traits), traits.join(' ')).toBeLessThanOrEqual(1);
+      for (const key of traits) {
+        expect(deps.content.traits[key]?.owner).toBe('guildmaster');
+        for (const other of traits) expect(deps.content.traits[key]?.excludes, `${key} and ${other}`).not.toContain(other);
+      }
+      expect(new Set(traits).size).toBe(traits.length);
+      held.add([...traits].sort().join(' '));
+    }
+
+    expect(new Set(drawn.map(({ traits }) => traits.length))).toEqual(new Set([0, 1, 2]));
+    // The dearer buffs come only beside a penalty drawn before them: a running cost within the budget.
+    expect(held).toContain('miser thrifty');
+    expect(held).toContain('spendthrift well-liked');
+    expect(held).not.toContain('thrifty');
+    expect(held).not.toContain('well-liked');
+    expect(held).not.toContain('miser spendthrift');
+  });
+
+  test('each draw is among the Traits that keep the running cost within the budget, and a draw with none eligible stops short', () => {
+    // At a budget of −2 the first draw can take only Miser or Spendthrift, and the second only
+    // Mistrusts magic: the other penalty is excluded, and every buff would pass −2.
+    const tight = testDeps({ guildmasterTraitBudget: -2, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 });
+    const pairs = new Set(guildmasters(tight, 60).map(({ traits }) => traits.join(' ')));
+    expect(pairs).toEqual(new Set(['miser mistrusts-magic', 'spendthrift mistrusts-magic']));
+
+    // Below every cost, no Trait is ever eligible: the draw stops at none.
+    const none = testDeps({ guildmasterTraitBudget: -3, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 });
+    for (const { traits } of guildmasters(none, 40)) expect(traits).toEqual([]);
+  });
+
+  test("the draw takes the draws DL-19's shuffle took, one for the count and one for each Guildmaster Trait but the last, so nothing after it moves", () => {
+    const deps = testDeps();
+    const world = testWorld('draw-count', deps);
+    const twin = structuredClone(world.rng.generation);
+    generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+
+    // The Guild's name and Background (2), then the Guildmaster's sex (1), name (2), age (1), five
+    // Stats (5), the count (1) and five of the six Guildmaster Traits (5): 17 draws.
+    for (let draw = 0; draw < 17; draw += 1) next(twin);
+    expect(world.rng.generation).toEqual(twin);
+  });
+
+  test('the draw takes a fixed number of draws: the costs and exclusions move no later draw', () => {
+    const deps = testDeps();
+    const free = testDeps({}, {
+      ...deps.content,
+      traits: Object.fromEntries(Object.entries(deps.content.traits).map(([key, trait]) => [key, { ...trait, cost: 0, excludes: [] }])),
+    });
+    const priced = testWorld('fixed', deps);
+    const unpriced = testWorld('fixed', free);
+    for (let i = 0; i < 8; i += 1) {
+      generateGuild(priced, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+      generateGuild(unpriced, free, { controller: rival, rosterSize: 0, wealth: 0 });
+      expect(priced.rng.generation).toEqual(unpriced.rng.generation);
+    }
   });
 });
 

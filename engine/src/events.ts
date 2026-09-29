@@ -53,6 +53,17 @@ export type GuildmasterGenerated = Entry<
 >;
 
 /**
+ * A Rival's Guildmaster retired at `age` and was succeeded (M9-S2, DL-83 item 19, DL-100 item 3):
+ * the Guild carries on under `successorId`, drawn as a founding Rival's Guildmaster is. A Milestone
+ * naming the Guild, the retired Guildmaster and the successor, in that order; the successor's
+ * History begins with it, and no `guildmaster.generated` is made for them.
+ */
+export type GuildmasterSucceeded = Entry<
+  'guildmaster.succeeded',
+  { guildId: GuildId; guildmasterId: GuildmasterId; successorId: GuildmasterId; age: number }
+>;
+
+/**
  * A Hero was generated, onto a Roster or into the Unattached pool (`guildId: null`). Names the
  * Hero and, on a Roster, the Guild.
  */
@@ -610,6 +621,7 @@ export type EngineEvent =
   | HeroDeclined
   | GameEnded
   | GuildFolded
+  | GuildmasterSucceeded
   | HeroLeftGuild
   | GuildImproved
   | HeroLevelled
@@ -668,6 +680,7 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.declined': false,
   'game.ended': true,
   'guild.folded': true,
+  'guildmaster.succeeded': true,
   'hero.left-guild': false,
   'guild.improved': true,
   'hero.levelled': true,

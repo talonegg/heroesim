@@ -7,6 +7,7 @@ import {
   parseId,
   passiveEntryTypes,
   refusalChecks,
+  takeId,
   validate,
   warningChecks,
   type ContentSet,
@@ -325,6 +326,27 @@ describe('§6: a folded Guild with a Hero on its Roster or a Party of its own (D
   });
 });
 
+describe('a retired Guildmaster (M9-S2, DL-102)', () => {
+  test("a Guild in play led by a Guildmaster who has retired is refused, naming the Guildmaster", () => {
+    const rivalGuildmaster = guild(buildDocument().document, ids.rivalGuild).guildmasterId;
+    expect(refusals((d) => (guildmaster(d, rivalGuildmaster).retiredOnTurn = 30))).toEqual([
+      failure('retired-guildmaster-in-office', rivalGuildmaster),
+    ]);
+  });
+
+  test('a retired Guildmaster kept beside their successor, the Guild naming the successor, is accepted', () => {
+    const { document } = buildDocument();
+    const rival = guild(document, ids.rivalGuild);
+    const retired = guildmaster(document, rival.guildmasterId);
+    const successorId = takeId(document.world, 'guildmasters');
+    document.world.guildmasters[successorId] = { ...structuredClone(retired), id: successorId, name: 'Oswin Hale', enteredTurn: 30, regard: {} };
+    retired.retiredOnTurn = 30;
+    rival.guildmasterId = successorId;
+
+    expect(validate(document, deps)).toEqual({ ok: true, warnings: [] });
+  });
+});
+
 describe('§6: quest.partyIds and party.questId disagree, or more Parties than the build allows', () => {
   test("a Party whose questId is another Quest's", () => {
     expect(refusals((d) => (party(d, ids.party).questId = ids.offeredQuest))).toEqual([
@@ -554,6 +576,16 @@ describe('document-shape', () => {
       `${itemPath}.holder.kind`,
     ],
     ['an ending without its reason', (d) => set(d.world, 'ended', { turn: 3 }), '$.world.ended.reason'],
+    [
+      'a Guildmaster without a Biography (M9-S2)',
+      (d) => drop(guildmaster(d, ids.playerGuildmaster), 'biography'),
+      `$.world.guildmasters["${ids.playerGuildmaster}"].biography`,
+    ],
+    [
+      'a Guildmaster whose Retirement is not a Turn (M9-S2)',
+      (d) => set(guildmaster(d, ids.playerGuildmaster), 'retiredOnTurn', 'yesterday'),
+      `$.world.guildmasters["${ids.playerGuildmaster}"].retiredOnTurn`,
+    ],
     [
       'a holder without its slot',
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),

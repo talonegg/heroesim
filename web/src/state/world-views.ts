@@ -15,6 +15,7 @@ import {
   baseStat,
   compareByCodeUnit,
   dayOf,
+  descriptiveAttributes,
   entriesFor,
   facilityKeys,
   guildmasterOf,
@@ -34,11 +35,10 @@ import {
   type HeroId,
   type RankingMeasure,
   type RegardBand,
-  type TraitEffect,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, placeWords, rowOf, signed } from './names';
+import { attributeLabels, capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
 import { narrationFor } from './narrate';
 import { playDeps } from './reducer';
 import { facilityNames } from './rejections';
@@ -192,19 +192,6 @@ const bearsOn: Readonly<Record<string, string>> = Object.freeze({
   judgement: 'how sharp the Potential hints read',
 });
 
-/** A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`, `Upkeep ×0.9`. */
-function traitEffectWords(effect: TraitEffect | null): string {
-  if (effect === null) return 'no effect';
-  switch (effect.kind) {
-    case 'classStatBonus':
-      return `${signed(effect.delta)} ${nameIn(content.stats, effect.statKey)} to ${nameIn(content.classes, effect.classKey)}s`;
-    case 'guildMoraleShift':
-      return `Morale baseline ${signed(effect.delta)}`;
-    case 'upkeepFactor':
-      return `Upkeep ×${effect.factor}`;
-  }
-}
-
 /** One entity a Guildmaster holds a Regard for: its name, a detail (a Sphere, a Class, a Guildmaster) and the band. */
 export interface RegardRow {
   name: string;
@@ -244,13 +231,17 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
     attributes: [
       ['Sex', guildmaster.sex],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
+      // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
+      ...descriptiveAttributes.flatMap((attribute): [string, string][] =>
+        guildmaster[attribute] === '' ? [] : [[attributeLabels[attribute], guildmaster[attribute]]],
+      ),
     ],
     stats: Object.values(content.stats)
       .filter((stat) => stat.owner === 'guildmaster')
       .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: bearsOn[stat.key] ?? '' })),
     traits: guildmaster.traits.map((key) => ({
       name: nameIn(content.traits, key),
-      effect: traitEffectWords(rowOf(content.traits, key)?.effect ?? null),
+      effect: traitEffectWords(rowOf(content.traits, key)?.effect ?? null, content),
     })),
     patrons: Object.values(world.patrons).map((patron) => ({
       name: patron.name,

@@ -257,13 +257,43 @@ export interface Guildmaster {
   id: GuildmasterId;
   name: string;
   sex: Sex;
+  /** Their Guild; a retired Guildmaster keeps it, as a dead or retired Hero keeps theirs. */
   guildId: GuildId;
   enteredTurn: Turn;
   ageAtEntry: number;
   stats: StatValues;
   traits: TraitKey[];
+  /**
+   * The descriptive Attributes (R8, DL-100 item 3, DL-102): texts no rule reads, which the player
+   * may write for their Guildmaster at setup, stored trimmed; `''` when none was written, as for
+   * every drawn Guildmaster. At most `descriptiveAttributeMaxLength` characters each.
+   */
+  birthplace: string;
+  appearance: string;
+  biography: string;
+  /**
+   * The Turn the Guildmaster retired and was succeeded (DL-100 item 3); `null` while in office. A
+   * retired Guildmaster keeps their row and History, and no Guild in play names them (M9-S2).
+   */
+  retiredOnTurn: Turn | null;
   regard: RegardMap;
 }
+
+/** A Guildmaster's descriptive Attributes, in the order a front end shows them (R8, DL-100 item 3). */
+export const descriptiveAttributes = ['birthplace', 'appearance', 'biography'] as const;
+
+export type DescriptiveAttribute = (typeof descriptiveAttributes)[number];
+
+/**
+ * The most characters (Unicode code points) each descriptive Attribute holds once trimmed (M9-S2,
+ * DL-102): a place's name, a few sentences, a short paragraph. A limit of the stored row, not a
+ * balance number, so a constant and not a `GameConfig` field; the setup check refuses a longer text.
+ */
+export const descriptiveAttributeMaxLength: Readonly<Record<DescriptiveAttribute, number>> = Object.freeze({
+  birthplace: 60,
+  appearance: 280,
+  biography: 1000,
+});
 
 /** A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot. */
 export interface Hero {

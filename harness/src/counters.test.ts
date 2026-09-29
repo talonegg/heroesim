@@ -267,6 +267,26 @@ describe("M3's counters, from the History", () => {
   });
 });
 
+describe("M9-S2's counter, from the History", () => {
+  test('Rival folds by cause, and the Successions that met a Rival Guildmaster\'s Retirement (guildmaster.succeeded), which fold nothing', () => {
+    const { document, rivals } = fixture('counters-succession');
+    const [a, b] = rivals;
+    add(document, 20, 'guildmaster.succeeded', [a.id, a.guildmasterId], { guildId: a.id, guildmasterId: a.guildmasterId, successorId: a.guildmasterId, age: 65 });
+    add(document, 30, 'guildmaster.succeeded', [b.id, b.guildmasterId], { guildId: b.id, guildmasterId: b.guildmasterId, successorId: b.guildmasterId, age: 65 });
+    add(document, 40, 'guild.folded', [b.id], { guildId: b.id, reason: 'bankruptcy' });
+    document.world.turn = 50;
+
+    const counters = countGame(document, shortYears);
+
+    expect(counters.rivalSuccessions).toBe(2);
+    expect(counters.rivalFolds).toEqual({ retirement: 0, bankruptcy: 1, 'roster-wiped': 0 });
+  });
+
+  test('a new world has no Succession', () => {
+    expect(countGame(fixture('counters-no-succession').document, shortYears).rivalSuccessions).toBe(0);
+  });
+});
+
 describe("M3's counters, from the World State while a game is played", () => {
   test('the Fame gate: each morning, the pool Heroes who would refuse each Guild in play, by controller', () => {
     const { document, player, rivals } = fixture('counters-fame');

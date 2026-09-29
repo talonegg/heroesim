@@ -26,6 +26,8 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
+/** A Rival Guildmaster's successor (M9-S2). */
+const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
@@ -39,6 +41,7 @@ const labels: Record<string, string> = {
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [successorId]: 'Wenna Tolley',
   [rivalId]: 'The Iron Wardens',
   [otherHeroId]: 'Aldred Barrowby',
 };
@@ -132,6 +135,12 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
+  'guildmaster.succeeded': event('guildmaster.succeeded', [guildId, guildmasterId, successorId], {
+    guildId,
+    guildmasterId: guildmasterId as never,
+    successorId: successorId as never,
+    age: 65,
+  }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], {
     guildId,
@@ -257,6 +266,12 @@ describe('narrate', () => {
     // Someone is called by name when the event names anyone.
     const named = samples[type].participants.flatMap((id) => labels[id] ?? []);
     if (named.length > 0) expect(named.some((label) => line.includes(label)), line).toBe(true);
+  });
+
+  test('names the Guild, the retired Guildmaster and the successor of a Succession (M9-S2)', () => {
+    expect(narrate(samples['guildmaster.succeeded'], content)).toBe(
+      'Osric Vane retired at 65 as Guildmaster of The Kestrel Guild, and Wenna Tolley succeeded them.',
+    );
   });
 
   test('names content keys by content, and Heroes by name and id', () => {

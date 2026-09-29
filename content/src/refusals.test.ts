@@ -768,6 +768,42 @@ describe('a file', () => {
   test.each(traitRefusals)('with %s is refused, naming the Trait (M4-S5)', (_, change, message) => {
     expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
   });
+
+  // M9-S2: a Guildmaster Trait's cost against the Trait budget is a whole number, and its
+  // exclusions name Guildmaster Traits and hold both ways; a Hero Trait costs 0 and excludes
+  // nothing (DL-100 item 3, DL-102).
+  const costAndExclusionRefusals: [string, (json: Files['traits.json']) => void, RegExp][] = [
+    ['a cost missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'cost'), /traits\.json: miser\.cost is missing; expected a whole number/],
+    ['a cost that is not a whole number', (json) => Object.assign(json['miser'] ?? {}, { cost: -1.5 }), /traits\.json: miser\.cost is -1\.5; expected a whole number/],
+    ['exclusions missing', (json) => Reflect.deleteProperty(json['miser'] ?? {}, 'excludes'), /traits\.json: miser\.excludes is missing; expected a list of strings/],
+    [
+      'an exclusion that does not hold both ways',
+      (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'old-soldier'] }),
+      /traits\.thrifty\.excludes: "old-soldier" does not exclude "thrifty" in return/,
+    ],
+    [
+      'an exclusion naming a Trait content lacks',
+      (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'cursed'] }),
+      /traits\.thrifty\.excludes: "cursed" is not a Guildmaster Trait/,
+    ],
+    [
+      'an exclusion naming a Hero Trait',
+      (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'scarred'] }),
+      /traits\.thrifty\.excludes: "scarred" is not a Guildmaster Trait/,
+    ],
+    ['a Trait excluding itself', (json) => Object.assign(json['old-soldier'] ?? {}, { excludes: ['old-soldier'] }), /traits\.old-soldier\.excludes: a Trait cannot exclude itself/],
+    [
+      'an exclusion listed twice',
+      (json) => Object.assign(json['thrifty'] ?? {}, { excludes: ['spendthrift', 'spendthrift'] }),
+      /traits\.thrifty\.excludes: "spendthrift" is listed twice/,
+    ],
+    ['a Hero Trait with a cost', (json) => Object.assign(json['scarred'] ?? {}, { cost: 1 }), /traits\.scarred\.cost is 1; a Hero Trait is never chosen against the budget, and costs 0/],
+    ['a Hero Trait with an exclusion', (json) => Object.assign(json['scarred'] ?? {}, { excludes: ['lame'] }), /traits\.scarred\.excludes: a Hero Trait excludes nothing/],
+  ];
+
+  test.each(costAndExclusionRefusals)('with %s is refused, naming the Trait (M9-S2)', (_, change, message) => {
+    expect(refusalOf(() => parseContent(withJson('traits.json', change))).message).toMatch(message);
+  });
 });
 
 describe('validateContent on a set built in memory', () => {
@@ -799,6 +835,13 @@ describe('validateContent on a set built in memory', () => {
     expect(message).toMatch(/items\.healing-draught\.slot: a consumable has no slot/);
     expect(message).toMatch(/items\.healing-draught\.statModifiers: a consumable modifies no Stat/);
     expect(message).toMatch(/items\.whetstone\.effect\.kinds: "naval" is not a kind of Encounter/);
+  });
+
+  test('refuses a Trait cost that is not a whole number, which the parser cannot see in memory (M9-S2)', () => {
+    const content = loadContent();
+    Object.assign(content.traits['thrifty'] ?? {}, { cost: 1.5 });
+
+    expect(refusalOf(() => validateContent(content)).message).toMatch(/traits\.thrifty\.cost is 1\.5; it is a whole number/);
   });
 
   test('reports every problem at once', () => {

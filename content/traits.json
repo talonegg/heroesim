@@ -2,20 +2,48 @@
   "old-soldier": {
     "name": "Old soldier",
     "owner": "guildmaster",
+    "cost": 1,
+    "excludes": [],
     "effect": { "kind": "classStatBonus", "classKey": "warrior", "statKey": "weaponry", "delta": 1 }
   },
-  "well-liked": { "name": "Well liked", "owner": "guildmaster", "effect": { "kind": "guildMoraleShift", "delta": 5 } },
-  "thrifty": { "name": "Thrifty", "owner": "guildmaster", "effect": { "kind": "upkeepFactor", "factor": 0.9 } },
-  "miser": { "name": "Miser", "owner": "guildmaster", "effect": { "kind": "guildMoraleShift", "delta": -5 } },
-  "spendthrift": { "name": "Spendthrift", "owner": "guildmaster", "effect": { "kind": "upkeepFactor", "factor": 1.1 } },
+  "well-liked": {
+    "name": "Well liked",
+    "owner": "guildmaster",
+    "cost": 2,
+    "excludes": ["miser"],
+    "effect": { "kind": "guildMoraleShift", "delta": 5 }
+  },
+  "thrifty": {
+    "name": "Thrifty",
+    "owner": "guildmaster",
+    "cost": 2,
+    "excludes": ["spendthrift"],
+    "effect": { "kind": "upkeepFactor", "factor": 0.9 }
+  },
+  "miser": {
+    "name": "Miser",
+    "owner": "guildmaster",
+    "cost": -2,
+    "excludes": ["well-liked", "spendthrift"],
+    "effect": { "kind": "guildMoraleShift", "delta": -5 }
+  },
+  "spendthrift": {
+    "name": "Spendthrift",
+    "owner": "guildmaster",
+    "cost": -2,
+    "excludes": ["thrifty", "miser"],
+    "effect": { "kind": "upkeepFactor", "factor": 1.1 }
+  },
   "mistrusts-magic": {
     "name": "Mistrusts magic",
     "owner": "guildmaster",
+    "cost": -1,
+    "excludes": [],
     "effect": { "kind": "classStatBonus", "classKey": "mage", "statKey": "arcana", "delta": -1 }
   },
 
-  "scarred": { "name": "Scarred", "owner": "hero", "effect": null },
-  "lame": { "name": "Lame", "owner": "hero", "effect": null },
-  "one-eyed": { "name": "One-eyed", "owner": "hero", "effect": null },
-  "short-winded": { "name": "Short-winded", "owner": "hero", "effect": null }
+  "scarred": { "name": "Scarred", "owner": "hero", "cost": 0, "excludes": [], "effect": null },
+  "lame": { "name": "Lame", "owner": "hero", "cost": 0, "excludes": [], "effect": null },
+  "one-eyed": { "name": "One-eyed", "owner": "hero", "cost": 0, "excludes": [], "effect": null },
+  "short-winded": { "name": "Short-winded", "owner": "hero", "cost": 0, "excludes": [], "effect": null }
 }

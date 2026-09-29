@@ -32,10 +32,12 @@ import {
   fastForwardStepTurns,
   gameReducer,
   initialGameState,
+  newGameRefusal,
   noModules,
   playDeps,
   type GameAction,
   type GameState,
+  type NewGame,
   type Play,
 } from './reducer';
 import { stopView } from './selectors';
@@ -60,7 +62,7 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-const newGame: Play = {
+const newGame: NewGame = {
   kind: 'newGame',
   seed: 'reducer-test',
   guildName: 'The Lantern',
@@ -132,6 +134,62 @@ describe('a new game', () => {
     expect(state.rejection).toMatchObject(refusal);
     expect(state.document).toBeNull();
     expect(state.busy).toBe(false);
+  });
+
+  test("sets up the Guildmaster from the play's optional fields, as the engine's createWorld does (M9-S2)", () => {
+    const setup = {
+      guildmasterSex: 'female',
+      guildmasterAge: 33,
+      guildmasterTraitKeys: ['miser', 'thrifty'],
+      guildmasterBirthplace: ' Harrowgate ',
+      guildmasterAppearance: 'Tall.',
+      guildmasterBiography: 'A life at sea.',
+    } as const;
+    const state = play(initialGameState, { ...newGame, ...setup });
+    const { guildName, guildmasterName, createdAt } = newGame;
+    const expected = createWorld('reducer-test', { guildName, guildmasterName, createdAt, ...setup }, { config: defaultConfig, content }).document;
+
+    expect(serialise(documentOf(state))).toBe(serialise(expected));
+    expect(documentOf(state).world.guildmasters[playerOf(state).guildmasterId]).toMatchObject({
+      sex: 'female',
+      ageAtEntry: 33,
+      traits: ['miser', 'thrifty'],
+      birthplace: 'Harrowgate',
+    });
+  });
+
+  test.each([
+    ['an age out of range', { guildmasterAge: 50 }, { action: 'newGame', reason: 'age-out-of-range', age: 50, min: 30, max: 45 }],
+    ['a Trait that is no Guildmaster Trait', { guildmasterTraitKeys: ['scarred'] }, { action: 'newGame', reason: 'unknown-trait', traitKey: 'scarred' }],
+    ['a Trait twice', { guildmasterTraitKeys: ['miser', 'miser'] }, { action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' }],
+    [
+      'too many Traits',
+      { guildmasterTraitKeys: ['miser', 'old-soldier', 'mistrusts-magic'] },
+      { action: 'newGame', reason: 'too-many-traits', count: 3, max: 2 },
+    ],
+    [
+      'an excluded pair',
+      { guildmasterTraitKeys: ['miser', 'well-liked'] },
+      { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
+    ],
+    ['Traits over the budget', { guildmasterTraitKeys: ['thrifty'] }, { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 }],
+    [
+      'a text too long',
+      { guildmasterAppearance: 'a'.repeat(281) },
+      { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
+    ],
+  ])("refuses the Guildmaster's setup with %s, the engine's refusal as its own, creating nothing (M9-S2)", (_name, change, refusal) => {
+    const state = play(initialGameState, { ...newGame, ...change });
+
+    expect(state.rejection).toEqual(refusal);
+    expect(newGameRefusal({ ...newGame, ...change })).toEqual(refusal);
+    expect(state.document).toBeNull();
+  });
+
+  test('newGameRefusal lets a form check a setup before the click, and passes one that keeps the rules', () => {
+    expect(newGameRefusal(newGame)).toBeNull();
+    expect(newGameRefusal({ ...newGame, guildmasterTraitKeys: [] })).toBeNull();
+    expect(newGameRefusal({ ...newGame, guildName: ' ' })).toEqual({ action: 'newGame', reason: 'guild-name-blank' });
   });
 
   test("refuses a Hero's Background for a Guild", () => {

@@ -190,8 +190,13 @@ export interface GameCounters {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
-  /** `guild.folded`, by the reason the Rival reached its ending. */
+  /**
+   * `guild.folded`, by the reason the Rival reached its ending. Since M9-S2 a Rival's Guildmaster's
+   * Retirement is met by Succession, so `retirement` stays 0 in a game played under its rules.
+   */
   rivalFolds: Record<EndingReason, number>;
+  /** `guildmaster.succeeded`: the Rival Guildmasters whose Retirement was met by Succession (M9-S2, DL-102). */
+  rivalSuccessions: number;
   /** `game.ended`'s reason, or `null` when the player's game has not ended. */
   ending: EndingReason | null;
   /** The Turn the game ended on, or the world's Turn when it has not. */
@@ -1246,6 +1251,7 @@ export function countGame(
     heroesRecruited: countByController(document, 'hero.recruited'),
     heroesRetired: countByController(document, 'hero.retired'),
     rivalFolds,
+    rivalSuccessions: entriesOf(document, 'guildmaster.succeeded').length,
     ending: reason,
     lastTurn,
     guildYears: padTo(guildYears, years),

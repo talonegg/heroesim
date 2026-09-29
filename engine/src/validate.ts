@@ -61,6 +61,7 @@ export const refusalChecks = [
   'hero-in-two-parties',
   'party-member-mismatch',
   'guildmaster-guild-mismatch',
+  'retired-guildmaster-in-office',
   'folded-guild-in-play',
   'quest-party-mismatch',
   'too-many-parties',
@@ -180,6 +181,7 @@ const checksOfAWellShapedDocument: readonly Check[] = [
   heroInTwoParties,
   partyMemberMismatch,
   guildmasterGuildMismatch,
+  retiredGuildmasterInOffice,
   foldedGuildInPlay,
   questPartyMismatch,
   tooManyParties,
@@ -426,6 +428,10 @@ const guildmasterFields: Shape<Guildmaster> = {
   ageAtEntry: 'number',
   stats: 'map',
   traits: 'list',
+  birthplace: 'string',
+  appearance: 'string',
+  biography: 'string',
+  retiredOnTurn: 'integer-or-null',
   regard: 'map',
 };
 
@@ -912,6 +918,26 @@ function guildmasterGuildMismatch({ world }: WorldDocument): ValidationFailure[]
         check: 'guildmaster-guild-mismatch',
         id: guild.guildmasterId,
         detail: `${guildId} names ${guild.guildmasterId} as Guildmaster, whose guildId is ${q(guildmaster.guildId)}`,
+      });
+    }
+  }
+  return failures;
+}
+
+/**
+ * A Guild in play is led by a Guildmaster in office (M9-S2, DL-102): one who has retired was
+ * succeeded, and keeps their row beside their successor's. A folded Guild's Guildmaster is a record
+ * no rule reads, and the player's Guildmaster stays in office when their Retirement ends the game.
+ */
+function retiredGuildmasterInOffice({ world }: WorldDocument): ValidationFailure[] {
+  const failures: ValidationFailure[] = [];
+  for (const [guildId, guild] of Object.entries(world.guilds)) {
+    const guildmaster = rowOf(world.guildmasters, guild.guildmasterId);
+    if (guild.foldedOnTurn === null && guildmaster !== undefined && guildmaster.retiredOnTurn !== null) {
+      failures.push({
+        check: 'retired-guildmaster-in-office',
+        id: guild.guildmasterId,
+        detail: `${guildId} is in play and names ${guild.guildmasterId} as Guildmaster, who retired on Turn ${guildmaster.retiredOnTurn}`,
       });
     }
   }

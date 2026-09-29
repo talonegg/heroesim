@@ -3,8 +3,8 @@
 // (ADR-0002). A Guildmaster exists only with a Guild, so both rows are made together. The draw
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
-import type { EngineDeps } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey } from '../content-types.js';
+import type { EngineDeps, GameConfig } from '../config.js';
+import type { BackgroundKey, ContentSet, DispositionKey, Trait, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -15,18 +15,21 @@ import {
   type Guildmaster,
   type GuildmasterId,
   type Hall,
+  type Sex,
   type StatValues,
   type Turn,
   type World,
 } from '../document.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
-import { int, pick, shuffle } from '../rng.js';
+import { int, pick } from '../rng.js';
 import {
   checkName,
   clamp,
   dealEvenly,
   drawCount,
   drawPersonName,
+  drawUnusedPersonName,
+  pickOrNone,
   pickUnused,
   sexes,
   sortedKeys,
@@ -55,6 +58,26 @@ export interface GuildOptions extends DrawsFrom {
   backgroundKey?: BackgroundKey;
   /** Drawn from content's given and family names when omitted. */
   guildmasterName?: string;
+  /**
+   * What the player chose of their Guildmaster at setup (M9-S2, DL-100 item 3); the rest is drawn.
+   * `createWorld` has checked it with `setupRefusal`; this trusts it.
+   */
+  guildmaster?: GuildmasterChoices;
+}
+
+/**
+ * A Guildmaster's setup, each part optional (M9-S2): what is given replaces what is drawn, and the
+ * draws are made either way, so a choice moves no later draw. The descriptive Attributes are
+ * stored as given, trimmed by the caller; a drawn Guildmaster's are empty.
+ */
+export interface GuildmasterChoices {
+  sex?: Sex;
+  age?: number;
+  /** The Traits in the order given; an empty list is none. */
+  traitKeys?: readonly TraitKey[];
+  birthplace?: string;
+  appearance?: string;
+  biography?: string;
 }
 
 export interface GeneratedGuild {
@@ -101,6 +124,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
     guildId,
     turn: world.turn,
     name: options.guildmasterName,
+    chosen: options.guildmaster ?? {},
   });
   const guild: Guild = {
     id: guildId,
@@ -192,6 +216,50 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
 }
 
 /**
+ * A successor to `guild`'s Guildmaster (M9-S2, DL-100 item 3): a Guildmaster drawn as a founding
+ * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
+ * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
+ * neutral for everyone, their descriptive Attributes empty, and they enter the world now. The row
+ * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
+ * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
+ *
+ * Throws when every name the content can make for the successor's sex is in use.
+ */
+export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, options: DrawsFrom = {}): Guildmaster {
+  const state = streamOf(world, options.stream);
+  const avoidNames = namesInUse(world);
+  const successor = drawGuildmaster(state, deps, {
+    id: takeId(world, 'guildmasters'),
+    guildId: guild.id,
+    turn: world.turn,
+    name: undefined,
+    avoidNames,
+    chosen: {},
+  });
+  world.guildmasters[successor.id] = successor;
+  return successor;
+}
+
+/**
+ * The names in use (M9-S2): the Guildmasters' of the Guilds in play, and the Heroes' in play, on a
+ * Roster or in the Unattached pool. A dead or retired Hero's, one who has left the pool, and a
+ * retired Guildmaster's or a folded Guild's are free. DL-88 item 2 leaves which names count as in
+ * use open for the other generators; a successor avoids these.
+ */
+function namesInUse(world: World): Set<string> {
+  const names = new Set<string>();
+  for (const guild of Object.values(world.guilds)) {
+    if (guild.foldedOnTurn !== null) continue;
+    const guildmaster = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+    if (guildmaster !== undefined) names.add(guildmaster.name);
+  }
+  for (const hero of Object.values(world.heroes)) {
+    if (hero.diedOnTurn === null && hero.retiredOnTurn === null && hero.leftPoolOnTurn === null) names.add(hero.name);
+  }
+  return names;
+}
+
+/**
  * A Guild's name from `names` (DL-19 item 6, DL-28): one no Guild in `guilds` has ever had, while
  * any is left; once every name has been used, one only folded Guilds have had, so a Rival founded
  * to replace one that folded never finds the list exhausted. Never the name of a Guild in play.
@@ -204,29 +272,81 @@ function drawGuildName(state: Stream, names: readonly string[], guilds: readonly
   return pickUnused(state, names, anyFresh ? everUsed : inPlay, 'Guild');
 }
 
+/**
+ * A drawn Guildmaster's Traits (M9-S2, DL-100 item 3): a count from `guildmasterTraitsMin/Max`, as
+ * before; then, for each of the count, one draw uniform among the Guildmaster Traits in key order
+ * that are not yet held, are not excluded by one held, and keep the running cost within
+ * `guildmasterTraitBudget`. When none is eligible the draw stops short, so a Guildmaster may hold
+ * fewer than the count, and a Trait once ineligible for want of budget can become eligible after a
+ * penalty is drawn.
+ *
+ * It takes the draws DL-19 item 6's shuffle of every Guildmaster Trait took, whatever it draws: one
+ * for the count, then one for each Guildmaster Trait but the last, taken or not; a Guildmaster
+ * holding all the others has at most one left to take, which needs no draw, as the shuffle's last
+ * place needs none. So the costs, the exclusions and the count drawn never move a later draw
+ * (draw.ts's rule), and the rest of every seed's world is what it was: only the Guildmasters'
+ * Traits changed with the budget (DL-102).
+ */
+function drawTraits(state: Stream, config: GameConfig, content: ContentSet): TraitKey[] {
+  const rows = sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+  const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, rows.length);
+  const held: Trait[] = [];
+  let cost = 0;
+  for (let slot = 0; slot < rows.length; slot += 1) {
+    const eligible = slot < count ? rows.filter((row) => eligibleBeside(held, cost, row, config)) : [];
+    const last = slot === rows.length - 1;
+    const trait = last ? eligible[0] : pickOrNone(state, eligible);
+    if (trait === undefined) continue;
+    held.push(trait);
+    cost += trait.cost;
+  }
+  return held.map((row) => row.key);
+}
+
+/**
+ * Whether a Guildmaster holding `held`, which cost `cost` in all, may take `row` as well: it is not
+ * held, neither it nor one held excludes the other, and the running cost stays within the budget.
+ */
+function eligibleBeside(held: readonly Trait[], cost: number, row: Trait, config: Pick<GameConfig, 'guildmasterTraitBudget'>): boolean {
+  return (
+    !held.includes(row) &&
+    !held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key)) &&
+    cost + row.cost <= config.guildmasterTraitBudget
+  );
+}
+
 interface GuildmasterSetup {
   id: GuildmasterId;
   guildId: GuildId;
   turn: Turn;
   name: string | undefined;
+  /** When given, the name is drawn from those not among these (a successor's, M9-S2). */
+  avoidNames?: ReadonlySet<string>;
+  chosen: GuildmasterChoices;
 }
 
 /**
- * A Guildmaster: sex, a name unless given, an age, each Guildmaster Stat in key order, and
- * `guildmasterTraitsMin/Max` distinct Traits from a shuffle of the Guildmaster Traits, whose
- * effects stay `null` until M4-S5 (pre-M0 review B2).
+ * A Guildmaster: sex, a name unless given, an age, each Guildmaster Stat in key order, and their
+ * Traits on the budget (`drawTraits`). What `setup.chosen` gives replaces what is drawn, after the
+ * draw, so the draws are the same whatever was chosen (M9-S2); a name is drawn for the sex chosen.
  */
 function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: GuildmasterSetup): Guildmaster {
-  const sex = pick(state, sexes);
-  const name = setup.name ?? drawPersonName(state, content.names, sex);
-  const ageAtEntry = int(state, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
+  const { chosen } = setup;
+  const drawnSex = pick(state, sexes);
+  const sex = chosen.sex ?? drawnSex;
+  const name =
+    setup.name ??
+    (setup.avoidNames === undefined
+      ? drawPersonName(state, content.names, sex)
+      : drawUnusedPersonName(state, content.names, sex, setup.avoidNames));
+  const drawnAge = int(state, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
+  const ageAtEntry = chosen.age ?? drawnAge;
   const stats: StatValues = {};
   for (const stat of sortedRows(content.stats, (row) => row.owner === 'guildmaster')) {
     stats[stat.key] = clamp(int(state, config.guildmasterStatMin, config.guildmasterStatMax), stat.min, stat.max);
   }
-  const traitKeys = sortedKeys(content.traits, (row) => row.owner === 'guildmaster');
-  const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, traitKeys.length);
-  const traits = shuffle(state, traitKeys).slice(0, count);
+  const drawnTraits = drawTraits(state, config, content);
+  const traits = chosen.traitKeys === undefined ? drawnTraits : [...chosen.traitKeys];
   return {
     id: setup.id,
     name,
@@ -236,6 +356,10 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
     ageAtEntry,
     stats,
     traits,
+    birthplace: chosen.birthplace ?? '',
+    appearance: chosen.appearance ?? '',
+    biography: chosen.biography ?? '',
+    retiredOnTurn: null,
     regard: {},
   };
 }

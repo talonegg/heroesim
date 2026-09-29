@@ -248,6 +248,11 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
       return `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`;
     case 'guild.folded':
       return `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`;
+    case 'guildmaster.succeeded': {
+      // M9-S2: a Rival's Guildmaster's Retirement, met by Succession (DL-100 item 3).
+      const { guildId, guildmasterId, successorId, age } = event.payload;
+      return `${called(event, guildmasterId)} retired at ${age} as Guildmaster of ${called(event, guildId)}, and ${called(event, successorId)} succeeded them.`;
+    }
     case 'hero.left-guild':
       return `${hero(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`;
     case 'guild.improved': {

@@ -80,9 +80,16 @@ _Avoid_: Guild war, Battle (alone), Clash
 
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
-Class (R12); a Guildmaster's are name, sex and age, and descriptive Attributes the player may
-write at setup that no rule reads (R8; DL-88, to be built).
+Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
+(R8; DL-88, DL-100).
 _Avoid_: Property, Field, Detail
+
+**Descriptive Attribute**:
+One of three short texts about a Guildmaster that no rule reads: **Birthplace**, a place and not
+the Guild's Background; **Appearance**; and **Biography**. The player may write them for their
+Guildmaster at setup, each trimmed and held to a length; a drawn Guildmaster's are empty (R8;
+DL-88 item 3, DL-100 item 3, DL-102).
+_Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its
@@ -113,10 +120,18 @@ _Avoid_: Ability, Talent, Trait (on a Hero), Perk
 
 **Trait**:
 A named binary mark: on a Guildmaster, a buff or penalty to the Guild or to a Class; on a Hero,
-a lasting mark such as one left by a healed Injury. Hero Traits have no effect yet: DL-85 gives
-them effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty
-(both to be built).
+a lasting mark such as one left by a healed Injury. A Guildmaster Trait has a cost, a buff
+costing points and a penalty refunding them, and may exclude others, each exclusion holding both
+ways (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no effect yet: DL-85 gives them
+effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for a penalty (both
+to be built).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
+
+**Trait budget**:
+The points a Guildmaster's Traits may cost in all, `guildmasterTraitBudget`, so the dearer buffs
+need a penalty beside them. The player's choice at setup and every drawn Guildmaster, a Rival's
+or a successor's, keep within it and hold no excluded pair (DL-88 item 4, DL-100 item 3).
+_Avoid_: Point buy, Allowance, Points (alone)
 
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
@@ -495,21 +510,28 @@ _Avoid_: League, Leaderboard, Ladder, Score
 **Ending**:
 How a Guild's story closes: Retirement, Bankruptcy or Roster wiped in the first build; Defeated
 by a Rival, Hall lost, capture and indenture, and Ultimate Campaign Victory later (R34). The
-player's Guild's ending ends the game; a Rival's folds it (pre-M0 review A2, DL-28), save that
-by DL-83 a Rival whose Guildmaster retires continues under a successor (to be built).
+player's Guild's ending ends the game; a Rival's folds it (pre-M0 review A2, DL-28). Retirement
+is an ending for the player's Guild alone: a Rival whose Guildmaster retires carries on under a
+successor (Succession; DL-83 item 19, DL-100).
 _Avoid_: Game over (for a Rival), Loss, Defeat (alone)
 
 **Retirement**:
 A Hero or Guildmaster leaving the game at the end of a career. A Hero's is a yearly chance that
 rises with each year of age past a threshold and is higher while injured (R20, DL-29); by DL-83
-it reads the Hero's injury history (to be built). A Guildmaster's comes at a fixed age and is an
-ending (R34, DL-28).
+it reads the Hero's injury history (to be built). A Guildmaster's comes at a fixed age,
+`guildmasterRetirementAge`: the player's Guildmaster's is an ending (R34, DL-28), and a Rival's
+Guildmaster's is met by Succession, the retired Guildmaster keeping their row and History with
+the Turn of their Retirement (DL-83 item 19, DL-100).
 _Avoid_: Ageing out, Quitting
 
 **Succession**:
-A new Guildmaster taking over a Rival Guild whose Guildmaster retires, the Guild, its Roster and
-its Wealth continuing (DL-83, superseding DL-28's fold). To be built; until then such a Rival
-folds.
+A new Guildmaster taking over a Rival Guild whose Guildmaster retires, the Guild carrying on with
+its Roster, Wealth, Fame, Hall and Items (DL-83 item 19, superseding DL-28's fold; DL-100). The
+successor is drawn as a founding Rival's Guildmaster is, within the Trait budget, with a name no
+one in play has; their Regard starts neutral, and the Regard others held for the retired
+Guildmaster stays with the retired Guildmaster. A Milestone names the Guild and both
+Guildmasters, and no replacement Rival is founded. The player's Guildmaster is never succeeded:
+their Retirement ends the game.
 _Avoid_: Replacement (a new Rival after a fold), Handover
 
 **Bankruptcy**:

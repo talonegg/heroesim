@@ -23,6 +23,7 @@ import {
   baseStat,
   carriedGear,
   dayOf,
+  descriptiveAttributes,
   effectiveStats,
   guildmasterOf,
   guildmasterRegardForGuild,
@@ -48,6 +49,7 @@ import {
   upkeep,
   yearOf,
   type ContentSet,
+  type DescriptiveAttribute,
   type EngineDeps,
   type Entry,
   type FacilityKey,
@@ -618,6 +620,13 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
 
 // ── The Guildmaster ──────────────────────────────────────────────────────────────────────────
 
+/** Each descriptive Attribute's label (M9-S2, `CONTEXT.md`). */
+const attributeLabels: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
+  birthplace: 'Birthplace',
+  appearance: 'Appearance',
+  biography: 'Biography',
+});
+
 /** What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key. */
 const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
   negotiation: 'the reward agreed and the fees paid',
@@ -694,6 +703,10 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     ...fields([
       ['Sex', guildmaster.sex],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
+      // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
+      ...descriptiveAttributes.flatMap((attribute): [string, string][] =>
+        guildmaster[attribute] === '' ? [] : [[attributeLabels[attribute], guildmaster[attribute]]],
+      ),
     ]),
     '',
     'Stats',

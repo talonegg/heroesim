@@ -51,6 +51,14 @@ const samples: Samples = {
   'newGame guild-name-blank': { action: 'newGame', reason: 'guild-name-blank' },
   'newGame guildmaster-name-blank': { action: 'newGame', reason: 'guildmaster-name-blank' },
   'newGame unknown-background': { action: 'newGame', reason: 'unknown-background', backgroundKey: 'no-such-background' },
+  // The Guildmaster's setup (M9-S2): the engine's setupRefusal, as the page's own.
+  'newGame age-out-of-range': { action: 'newGame', reason: 'age-out-of-range', age: 50, min: 30, max: 45 },
+  'newGame unknown-trait': { action: 'newGame', reason: 'unknown-trait', traitKey: 'scarred' },
+  'newGame repeated-trait': { action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' },
+  'newGame too-many-traits': { action: 'newGame', reason: 'too-many-traits', count: 3, max: 2 },
+  'newGame excluded-pair': { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
+  'newGame over-budget': { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 },
+  'newGame text-too-long': { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
   'load malformed-json': { action: 'load', reason: 'malformed-json', message: 'The save is not JSON: Unexpected token' },
   'load not-a-document': { action: 'load', reason: 'not-a-document', message: 'The save has no whole-number meta.version' },
   'load unsupported-version': { action: 'load', reason: 'unsupported-version', message: 'The save is schema version 9' },
@@ -199,6 +207,13 @@ const exactly: Record<RejectionKind, string> = {
   'newGame guild-name-blank': 'The Guild needs a name.',
   'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
   'newGame unknown-background': `No Guild Background is called "no-such-background". Choose one of: ${guildBackgrounds}.`,
+  'newGame age-out-of-range': 'A Guildmaster starts aged 30 to 45, in whole years; 50 is not.',
+  'newGame unknown-trait': `${named(content.traits, 'scarred')} is not a Guildmaster Trait.`,
+  'newGame repeated-trait': `${named(content.traits, 'miser')} is chosen twice.`,
+  'newGame too-many-traits': 'A Guildmaster holds at most 2 Traits; 3 are chosen.',
+  'newGame excluded-pair': `${named(content.traits, 'miser')} and ${named(content.traits, 'well-liked')} exclude each other: a Guildmaster holds one or the other.`,
+  'newGame over-budget': 'Those Traits cost 2 points and the budget is 1: a buff costs points and a penalty refunds them.',
+  'newGame text-too-long': 'The Appearance is 281 characters long; it holds at most 280.',
   'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
@@ -332,6 +347,12 @@ describe('what the words name', () => {
     expect(sentence).toContain(rivalHero.name);
     expect(sentence).toContain(player.name);
     expect(sentence).not.toContain(rivalHero.id);
+  });
+
+  test('a Trait content lacks by the key chosen (M9-S2)', () => {
+    expect(rejectionSentence({ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, null, content)).toBe(
+      'No Guildmaster Trait is called "brave".',
+    );
   });
 
   test('a Quest by its template, and Items by their content names', () => {

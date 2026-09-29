@@ -9409,6 +9409,250 @@ v1.0.1 under DL-96).
 `cli/src/args.ts`; `web/src/state/narrate.ts`, `web/src/views/time.tsx` (`nextFor` only);
 `harness/src/counters.ts`, `harness/src/sweep.ts`; `CONTEXT.md`; `docs/planning/epics/M9-redesign.md`.
 
+## DL-102 — M9-S2 built: Traits with a cost and exclusions (content 15), a Trait budget of 1 spent by every drawn Guildmaster (`configVersion` 11), the Guildmaster's setup with typed refusals in both front ends, the descriptive Attributes on the row (schema 4), and Succession for a retiring Rival Guildmaster
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S2's implementer. The
+values are DL-100 item 3's, whose approval is the owner's. Every choice below that DL-100 left
+open, and every bound, word and mechanism, is the implementer's, and stands unless the owner
+objects. Items 17 and 18 are questions for the owner, not decisions.
+
+**Context.** #30, built to DL-100 item 3's values. At `5cb0c46` a Guildmaster drew 0 to 2 of six
+Traits by DL-19 item 6's shuffle, with no cost and nothing excluded; the player chose only the
+names and the Guild's Background; and a Rival Guildmaster's Retirement at 65 folded the Guild
+(DL-28 item 1). The save schema was 3, `configVersion` 10 and the content version 14. The suite
+held 2,836 tests.
+
+Measured over 1,000 created worlds (5,000 Guildmasters) at `5cb0c46`: 1,639 held no Trait, 1,677
+one and 1,684 two; 311 (6.2%) held a pair DL-100 item 3 now excludes; 889 (17.8%) held Traits
+costing more than 1.
+
+**Decision.**
+
+1. **The glossary first** (principle 13; the story's first commit, `a55d724`).
+   - *New entries.* `CONTEXT.md` gains **Descriptive Attribute** (Birthplace, Appearance and
+     Biography; *Avoid* Detail, Origin, Backstory, Bio, Description) and **Trait budget**
+     (`guildmasterTraitBudget`; *Avoid* Point buy, Allowance, and Points alone).
+   - *Amended entries.* **Attribute** names the descriptive ones, which no rule reads. **Trait**
+     gains the cost and the exclusions. **Ending** and **Retirement** say that Retirement ends the
+     player's game only. **Succession** is no longer "to be built".
+   - *Requirements.* R8 is rewritten to DL-88 items 3 and 4 and DL-100 item 3, with a dated note;
+     R34 has a note that a Rival's Retirement is now met by Succession.
+2. **Trait content** (`content/traits.json`, content version 14 to 15).
+   - *Every Trait has both fields.* A `cost` (a whole number) and an `excludes` list are on every
+     Trait row, Hero Traits included, so the file has one shape. A Hero Trait costs 0 and
+     excludes nothing, and the validator refuses one that does: no budget is spent on it.
+   - *The values are DL-100 item 3's.* Old soldier 1, Well liked 2, Thrifty 2; Miser −2,
+     Spendthrift −2, Mistrusts magic −1. Thrifty and Spendthrift, Well liked and Miser, and Miser
+     and Spendthrift exclude each other.
+   - *What the validator refuses.* A cost that is missing or not a safe integer. An exclusion
+     that names the Trait itself, names no Guildmaster Trait, is listed twice, or does not hold
+     both ways.
+3. **Content types.** `Trait` gains `cost: number` and `excludes: TraitKey[]`.
+4. **The budget** is `guildmasterTraitBudget`, 1 (`configVersion` 10 to 11).
+   - *Older saves.* A save made under 10 plays under `{ ...defaultConfig, ...meta.config }`, as
+     every front end plays one (data-model §2), so the budget reaches it as 1, and `rebase` offers
+     10 to 11 as for any raise. Nothing else needed changing.
+   - *The cap.* `guildmasterTraitsMax`, 2, caps the player's choice as well as the draw, as DL-100
+     item 3 says.
+5. **The draw** (`drawTraits` in `engine/src/generators/guilds.ts`). It spends the budget and
+   skips excluded Traits, for founders, successors, replacements, and a player who leaves the
+   Traits unset.
+   - *How it draws.* The count is drawn as before. Then, for each Guildmaster Trait in key order
+     (a *slot*), a slot below the count draws uniformly among the Traits that are not held, are not
+     excluded either way by one held, and keep the running cost within the budget. When none is
+     eligible, that slot takes nothing.
+   - *It takes DL-19's draws.* It takes exactly the draws DL-19's shuffle took: one for the count,
+     then one for each Guildmaster Trait but the last, taken or not (`pickOrNone` draws even when
+     nothing is eligible). The last slot needs no draw, as the shuffle's last place needed none.
+     So costs, exclusions and the count never move a later draw (draw.ts's rule).
+   - *Why.* A first design that drew one more slot moved every later draw of creation and broke
+     eight pinned tests across the engine and the page. It was dropped before any commit.
+   - *What changed, once, for every seed.* The same 1,000 worlds, created again, are byte-identical
+     to `5cb0c46`'s but for the Guildmasters' Traits and `meta`'s versions: names, sexes, ages,
+     Stats, Heroes, Quests and Patrons are unchanged. The Traits changed for 3,065 of the 5,000
+     Guildmasters, in 991 of the 1,000 seeds. The counts are unchanged (1,639, 1,677 and 1,684),
+     since a budget of 1 always leaves some Trait eligible for a second slot. Excluded pairs fell
+     from 311 to 0, and Guildmasters over the budget from 889 to 0.
+   - *The Traits' shares after.* Mistrusts magic 1,259, Old soldier 1,235, Spendthrift 1,080 and
+     Miser 1,046. Well liked falls to 224 (from 830) and Thrifty to 201 (from 852). The mean cost
+     is −0.685, where it was 0. Item 17 asks the owner about this.
+6. **The setup** (`WorldSetup` in `engine/src/create.ts`). Everything below is optional, and what
+   is absent is drawn from the seed.
+   - *The fields.* `guildmasterSex`; `guildmasterAge`; `guildmasterTraitKeys`, where absent means
+     drawn and `[]` means none; `guildmasterBirthplace`, `guildmasterAppearance` and
+     `guildmasterBiography`.
+   - *Choices move no draw.* The Guildmaster is drawn in full, then what was chosen replaces what
+     was drawn. A name is drawn for the chosen sex, so the world is the one made without the
+     choices, but for the player's Guildmaster.
+   - *The texts.* They are trimmed and stored. Empty means none, and a Rival's are empty.
+7. **The bounds** (`descriptiveAttributeMaxLength` in `engine/src/document.ts`): Birthplace 60,
+   Appearance 280 and Biography 1,000 characters.
+   - *How they are counted.* In Unicode code points after trimming, so an emblem counts as one
+     character, as a reader would count it.
+   - *Why these bounds.* A place name, a few sentences and a short paragraph or two.
+   - *Constants, not config.* They are no tunable of play: no rule reads the texts.
+8. **The refusals.** `setupRefusal(setup, deps)` is exported from the engine and returns a typed
+   refusal or `null`. `createWorld` throws a `RangeError` naming it, and on a sex that is none of
+   the sexes.
+   - *The reasons.* `guild-name-blank`, `guildmaster-name-blank`, `unknown-background`,
+     `age-out-of-range` {age, min, max}, `unknown-trait` {traitKey} (a Hero Trait's key
+     included), `repeated-trait`, `too-many-traits` {count, max}, `excluded-pair` {traitKey,
+     otherKey}, `over-budget` {cost, budget} and `text-too-long` {attribute, length, max}. They are
+     checked in that order, and the first breach is given.
+   - *One check for all.* The name and Background checks the page's reducer made itself since
+     M7-S2 moved into it, so each front end asks the engine and copies no rule (ADR-0007).
+     `guildmasterTraitCost` gives a set of Traits' cost.
+9. **The row and the save** (schema 3 to 4). A Guildmaster gains `birthplace`, `appearance` and
+   `biography` (strings, `''` when none) and `retiredOnTurn` (`Turn | null`).
+   - *The migration.* Migration 3 (`guildmasterAttributeFields`) gives every Guildmaster of an
+     older save `''` three times and `retiredOnTurn: null`. Their Traits are kept as drawn, even
+     an excluded pair (DL-100 item 4). A Guildmaster whose Guild folded at Retirement under the
+     old rule is left `null` as well: the Guild's fold records it.
+   - *The validator.* It checks the new fields' shapes and gains one refusal,
+     `retired-guildmaster-in-office`: a Guild in play led by a Guildmaster who has retired. It
+     does not check Traits against the budget, which a schema-3 save may exceed.
+   - *Documents.* `docs/data-model.md` has the row, a schema-4 note and the check.
+10. **The front ends' setup.**
+    - *The CLI's `new`.* It gains `--sex female|male`, `--age <years>`, `--traits <key,key,…>` (or
+      `--traits none`), `--birthplace`, `--appearance` and `--biography`, in its usage.
+    - *Where the CLI checks.* The flags are checked for form only (a sex, digits, keys' shape).
+      The engine's `setupRefusal` is then asked, under the current defaults, and each reason gets a
+      sentence (`cli/src/commands/setup.ts`). An unknown Trait lists the Guildmaster Traits with
+      what each costs or refunds. The refusal exits as a bad command line, before any save is
+      touched.
+    - *Showing the texts in the CLI.* `show guildmaster` prints Birthplace, Appearance and
+      Biography after the age, when written.
+    - *The page's state.* `newGame` takes the six fields, named as `WorldSetup` names them.
+      `NewGameRejection` is the engine's `SetupRefusal` by its reason, and `newGameRefusal(play)`
+      is exported, so M9-S7's form can check before the click. `rejections.ts` has a sentence for
+      each new reason.
+    - *For M9-S7's form.* `selectors.ts` gains `guildmasterSetupChoices(content, config)`: the
+      sexes, the age range, the budget, the most Traits, each Guildmaster Trait (name, effect in
+      words, cost and exclusions), and each descriptive Attribute with its bound. It also gains
+      `traitBudgetView(chosen)`, what the chosen Traits cost and what is left, by the engine's sum.
+    - *Showing the texts on the page.* `guildmasterView` appends the written Attributes to its
+      list, which the Guildmaster's page already renders, so `web/src/views/` is unchanged.
+      `traitEffectWords` and `attributeLabels` moved to `web/src/state/names.ts` to be shared.
+11. **Succession** (`end()` in `engine/src/phases/endings.ts`).
+    - *Whose ending.* The player's ending of any cause ends the game, as before. A Rival's ending
+      other than Retirement folds it, as before.
+    - *A Rival's Retirement.* It calls `succeed`: the retiring Guildmaster's `retiredOnTurn` is
+      set, and their row and History are kept. A successor is made by `generateSuccessor` and
+      becomes the Guild's Guildmaster. The Guild keeps its Roster, Wealth, Fame, Hall and Items. No
+      fold is recorded and no replacement is scheduled.
+    - *ADR-0002.* `end()` still reads `controller.kind` once, so
+      `engine/src/controller-reads.test.ts` is unchanged. Its `why` text still says "a Rival's
+      folds that Guild", which is now true of every Rival ending but Retirement. It is left as
+      the story asked.
+    - *The same night.* After a Succession the Guild's other endings are checked again. A Rival
+      that retires on the night it goes bankrupt, or with its Roster wiped, is succeeded and then
+      folds with its successor.
+    - *The player's Guildmaster.* Their row is not marked retired when their Retirement ends the
+      game: `world.ended` records it.
+12. **The successor** (`generateSuccessor` in `engine/src/generators/guilds.ts`). They are drawn
+    as a founding Rival's Guildmaster is, by the same draws in the same order: sex, name, age from
+    the starting range, Stats, then Traits on the budget.
+    - *The name.* It is one not in use, drawn in one draw from the given-and-family pairs no one
+      uses (`drawUnusedPersonName`). It throws if every pair is taken, which the core content's
+      names make unreachable in play.
+    - *Names in use.* The Guildmasters of the Guilds in play, and the Heroes on a Roster or in the
+      Unattached pool. A dead or retired Hero's name, one who has left the pool, and a retired
+      Guildmaster's are free.
+    - *Founders unchanged.* Founders' and replacements' names are drawn as before: DL-88 item 2
+      (which names count as in use) stays open for them.
+    - *Regard.* The successor's own Regard is empty, neutral for everyone. Regard others held for
+      the retired Guildmaster stays keyed to them, so Regard for the Guild, read through its
+      Guildmaster, starts neutral with the successor.
+    - *The texts.* The successor's descriptive Attributes are empty.
+13. **The successor's stream is `generation`.** It is the stream the Guild Generator draws from
+    for a founder and for a Rival replacement (DL-28 item 6), and ADR-0009 (amended) puts a new
+    draw inside a component on that component's stream. No new stream is named. A Succession is
+    rare, and it moves only `generation`'s later draws.
+14. **The Milestone** is `guildmaster.succeeded`, with participants [the Guild, the retired
+    Guildmaster, the successor] and payload `{ guildId, guildmasterId, successorId, age }`. It is
+    in `milestoneTypes`.
+    - *The sentence, in both front ends.* "Osric Vane retired at 65 as Guildmaster of The Kestrel
+      Guild, and Wenna Tolley succeeded them."
+    - *No second event.* The successor has no event of their own: this one introduces them, as a
+      founding Guildmaster has none beyond the Guild's `guild.founded`.
+15. **Tests that folded a Rival by Retirement** now fold it by Bankruptcy (grace 0, Wealth
+    −1,000,000): in `endings.test.ts` ('%s arranged on a Rival folds it'), `gear.test.ts` and
+    `quests-conclude.test.ts`. The fold is what they test, not its cause.
+16. **The harness and how Succession is exercised.**
+    - *Counters.* `rivalSuccessions` counts `guildmaster.succeeded` beside the folds by cause. The
+      report gains a "Rival Guildmasters succeeded" row and a line under the folds.
+    - *Longer runs.* `HEROESIM_YEARS` plays each game past the twenty-year slice, and
+      `HEROESIM_MILESTONE` names the report.
+    - *By test.* Founders start at 30 to 45 and retire at 65, so a Retirement falls twenty years
+      after the start at the earliest, at or past the slice's end. M8's 1,000 × 20 sweep had no
+      Retirement fold, so the slice cannot show Succession. The endings tests make it happen on
+      the night the age is reached, and the validator's check guards its result.
+    - *The 50 × 20 sweep.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-s2-50x20 npm run harness --
+      harness/src/play.harness.test.ts`, 2026-09-29, 16 processes, not validated. All 50 games ran
+      their 20 years. There were 161 Rival folds, all by Bankruptcy, none by Retirement or a wiped
+      Roster, and no Succession. `seed-0001` replayed identical, 50 of 50 saves round trip, and no
+      policy action was refused. The fingerprint is
+      `8f02d242c3d42b3fbc3d30ce97fa6f1c7259ab97ef29d2ff76fbad903b185420`.
+    - *Against `v1.0.1`* (DL-97: 148 Rival folds, all by Bankruptcy; `seed-0049`'s player
+      bankrupt; fingerprint `11a18457…9e02`). The differences come from the Guildmasters' Traits
+      (item 5). Created worlds are otherwise byte-identical, and no Retirement falls inside the
+      slice. Over seeds 1 to 50, the Rivals' founding Guildmasters hold Spendthrift 40 times (28
+      before), Thrifty 11 (26) and Well liked 10 (38). Dearer Upkeep and lower Morale fit 13 more
+      Bankruptcies. The player's Guildmaster changed too, and `seed-0049` now runs its 20 years.
+    - *By a longer run.* The same command with `HEROESIM_YEARS=35` and
+      `HEROESIM_MILESTONE=m9-s2-50x35`. A game ends when the player's Guildmaster retires. So 47
+      of the 50 games ended by Retirement, between years 20 and 34, 3 ended by Bankruptcy, and none
+      ran 35 years. 20 Rival Guildmasters were succeeded, 0.40 a game. The 219 Rival folds were all
+      by Bankruptcy, none by Retirement. Every last save loaded through the validator, its
+      `retired-guildmaster-in-office` check included (50 of 50 round trip), and `seed-0001`
+      replayed identical. The fingerprint is
+      `39b480a851b6f8ca17c717cb30e1b139624c7aae9e8ce1f0d5c04ae68e8d7084`.
+    - *So Succession is exercised both ways.* The tests pin it, and the longer run shows it in
+      play.
+    - *Its cost.* This story adds no per-Turn work: the ending check is unchanged, and a successor
+      is drawn only on a Retirement night. Four harness games of three years each, run side by
+      side, took 37.6 s at `5cb0c46` and 37.6 s here (`advance` 1.757 and 1.747 ms a Turn).
+    - *The sweep's wall-clock time.* The 50 × 20 took 1,097.9 s where DL-97's took 467.7 s, while
+      other stories' agents were at work on the same machine. A 16-seed run on a quiet machine
+      took 455.9 s. The side-by-side run shows the gap is not this story's, but it is unexplained
+      (item 18).
+    - *The reports* are git-ignored (`harness/reports/*`; only a milestone's is force-added), and
+      none is committed. The numbers above are their record.
+17. **For the owner: drawn Guildmasters lean to penalties.** DL-100 item 3's draw at a budget of 1
+    lets a Guildmaster take Well liked or Thrifty only after drawing a penalty. So those two fall
+    to about a quarter of their old share, and the mean cost of a drawn Guildmaster is −0.685. It
+    is built as DL-100 item 3 says. A budget of 2, or a cheaper Well liked and Thrifty, would even
+    it out; either is a content or config change.
+18. **Still open, for the owner.**
+    - DL-87 item 6's Miser question: Miser costs −2 until it is settled.
+    - DL-88 item 2, which names count as in use for founders and Heroes.
+    - The harness's wall-clock time against DL-97's (item 16), for M9-S8's sweep to time on a
+      quiet machine.
+
+**Consequences.**
+- *Versions.* Save schema 4, `configVersion` 11, content version 15. #15, on v1.2, takes the
+  next schema number after 4 (DL-100 item 4).
+- *Play changes.* Every seed's Guildmasters changed once (item 5), and with them the games that
+  follow: 161 Rival folds in 50 × 20 where `v1.0.1` had 148. A Rival's Retirement no longer folds
+  it, but that falls past the slice. In 50 × 35, 20 Rivals are succeeded and none folds at
+  Retirement.
+- *For M9-S7.* The form uses `guildmasterSetupChoices`, `traitBudgetView` and `newGameRefusal`,
+  and adds no rule of its own.
+- *The suite* grew from 2,836 to 2,968 tests (132 more) in the same 118 files. Lint and the
+  typecheck are clean.
+- *Timeouts under load.* A few long tests (the reducer's "the player's Roster released to the
+  pool…", the probe's year, a fast forward in `use-game`, and the CLI's build and show) passed
+  alone and on a rerun, but timed out at 5 seconds in some whole-suite runs. Those runs shared the
+  machine with another story's sixteen-process harness sweep. The engine's time for a year is
+  unchanged against `5cb0c46`.
+
+**Actioned in:** `CONTEXT.md`; `docs/requirements.md` R8 and R34; `docs/data-model.md`;
+`content/traits.json`, `content/src/`; `engine/src/` (config, content types, document, create,
+serialise, validate, events, `generators/draw.ts`, `generators/guilds.ts`, `phases/endings.ts`);
+`cli/src/` (args, main, render, narrate, `commands/setup.ts`); `web/src/state/` (reducer,
+rejections, names, selectors, world-views, narrate); `harness/src/` (counters, sweep, seeds,
+`play.harness.test.ts`); `docs/planning/epics/M9-redesign.md`.
+
 ## DL-103 — The page as views in a shell: a status bar that stays, six views opened as React state and remembered in this browser, the home view's digest from new selectors, the game in a menu, help on request, empty parts not drawn, and the guild-ledger style in tokens with a dark scheme (M9-S3)
 
 **Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S3's implementer. The

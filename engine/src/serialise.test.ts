@@ -60,6 +60,11 @@ function refusal(result: LoadResult) {
 const withVersion = (document: WorldDocument, version: number): string =>
   serialise({ ...document, meta: { ...document.meta, version } });
 
+/** A Guildmaster row as a save before version 4 wrote it: no descriptive Attribute, no Retirement (DL-102). */
+function withoutVersion4(guildmaster: object): void {
+  for (const field of ['birthplace', 'appearance', 'biography', 'retiredOnTurn']) Reflect.deleteProperty(guildmaster, field);
+}
+
 // ── serialise ────────────────────────────────────────────────────────────────────────────────
 
 describe('serialise', () => {
@@ -212,9 +217,9 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds two steps, from version 1 (M2-S8) and from version 2 (DL-60), with schemaVersion 3', () => {
-    expect(Object.keys(migrations)).toEqual(['1', '2']);
-    expect(defaultConfig.schemaVersion).toBe(3);
+  test('holds three steps, from version 1 (M2-S8), version 2 (DL-60) and version 3 (DL-102), with schemaVersion 4', () => {
+    expect(Object.keys(migrations)).toEqual(['1', '2', '3']);
+    expect(defaultConfig.schemaVersion).toBe(4);
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -254,15 +259,16 @@ describe('the migration chain', () => {
 // ── Version 1 to 2: the pool's Hero fields (M2-S8, DL-27) ─────────────────────────────────────
 
 describe('a version-1 save', () => {
-  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields or version 3's. */
+  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields or version 3's, nor Guildmaster with version 4's. */
   function asVersion1(document: WorldDocument): string {
-    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object>; guildmasters: Record<string, object> } };
     parsed.meta.version = 1;
     for (const hero of Object.values(parsed.world.heroes)) {
       Reflect.deleteProperty(hero, 'unattachedSince');
       Reflect.deleteProperty(hero, 'leftPoolOnTurn');
       Reflect.deleteProperty(hero, 'transferredOnTurn');
     }
+    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
     return JSON.stringify(parsed);
   }
 
@@ -278,7 +284,7 @@ describe('a version-1 save', () => {
 
     // Pool Heroes entered at enteredTurn, every other Hero has neither field, none has left.
     expect(result).toEqual(document);
-    expect(result.meta.version).toBe(3);
+    expect(result.meta.version).toBe(4);
   });
 
   test('the step leaves its input alone, and a save it cannot read to the validator', () => {
@@ -298,11 +304,12 @@ describe('a version-1 save', () => {
 // ── Version 2 to 3: the Transfer lock's Hero field (DL-60) ────────────────────────────────────
 
 describe('a version-2 save', () => {
-  /** `document` as a version-2 save wrote it: `meta.version` 2, and no Hero with `transferredOnTurn`. */
+  /** `document` as a version-2 save wrote it: `meta.version` 2, no Hero with `transferredOnTurn`, and no Guildmaster with version 4's fields. */
   function asVersion2(document: WorldDocument): string {
-    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object>; guildmasters: Record<string, object> } };
     parsed.meta.version = 2;
     for (const hero of Object.values(parsed.world.heroes)) Reflect.deleteProperty(hero, 'transferredOnTurn');
+    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
     return JSON.stringify(parsed);
   }
 
@@ -347,7 +354,7 @@ describe('a version-2 save', () => {
 
     expect(result).toEqual(document);
     expect(Object.values(result.world.heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
-    expect(result.meta.version).toBe(3);
+    expect(result.meta.version).toBe(4);
   });
 
   test("a Hero's transferredOnTurn is the Turn of the last hero.transferred naming them, read from the History", () => {
@@ -381,6 +388,47 @@ describe('a version-2 save', () => {
     const noHistory = { ...saved, history: 'none' };
     const { heroes } = (step(noHistory) as unknown as { world: { heroes: Record<string, Hero> } }).world;
     expect(Object.values(heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
+  });
+});
+
+// ── Version 3 to 4: the Guildmaster's descriptive Attributes and Retirement (M9-S2, DL-102) ────
+
+describe('a version-3 save', () => {
+  /** `document` as a version-3 save wrote it: `meta.version` 3, and no Guildmaster with version 4's fields. */
+  function asVersion3(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { guildmasters: Record<string, object> } };
+    parsed.meta.version = 3;
+    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
+    return JSON.stringify(parsed);
+  }
+
+  test.each([
+    ['a created world', () => createWorld('version-3', setup, testDeps()).document],
+    ['the fixture', built],
+  ])('%s loads with every Guildmaster in office and no descriptive Attribute, their Traits as they were (DL-100 item 4)', (_, make) => {
+    const document = make();
+
+    const result = loaded(deserialise(asVersion3(document), deps));
+
+    expect(result).toEqual(document);
+    expect(result.meta.version).toBe(4);
+    for (const guildmaster of Object.values(result.world.guildmasters)) {
+      expect(guildmaster).toMatchObject({ birthplace: '', appearance: '', biography: '', retiredOnTurn: null });
+      expect(guildmaster.traits).toEqual(document.world.guildmasters[guildmaster.id]?.traits);
+    }
+  });
+
+  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
+    const saved = JSON.parse(asVersion3(createWorld('version-3', setup, testDeps()).document)) as SavedDocument;
+    const before = structuredClone(saved);
+    const step = migrations[3] as Migration;
+
+    step(saved);
+    expect(saved).toEqual(before);
+
+    const damaged = { ...saved, world: { guildmasters: 'none' } };
+    expect(step(damaged)).toBe(damaged);
+    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
   });
 });
 

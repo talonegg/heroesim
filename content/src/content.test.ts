@@ -13,9 +13,31 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 14 since the M6 close's balance pass on the Dispositions (DL-69)", () => {
+  test("is the core content set, version 15 since M9-S2's Trait costs and exclusions (DL-102)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(14);
+    expect(content.version).toBe(15);
+  });
+
+  test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {
+    const costs = Object.fromEntries(
+      Object.values(content.traits)
+        .filter((trait) => trait.owner === 'guildmaster')
+        .map((trait) => [trait.key, trait.cost]),
+    );
+    expect(costs).toEqual({ 'well-liked': 2, thrifty: 2, 'old-soldier': 1, miser: -2, spendthrift: -2, 'mistrusts-magic': -1 });
+
+    const excludes = Object.fromEntries(Object.values(content.traits).map((trait) => [trait.key, [...trait.excludes].sort()]));
+    expect(excludes).toMatchObject({
+      thrifty: ['spendthrift'],
+      spendthrift: ['miser', 'thrifty'],
+      'well-liked': ['miser'],
+      miser: ['spendthrift', 'well-liked'],
+      'old-soldier': [],
+      'mistrusts-magic': [],
+    });
+    for (const trait of Object.values(content.traits)) {
+      if (trait.owner === 'hero') expect([trait.key, trait.cost, trait.excludes]).toEqual([trait.key, 0, []]);
+    }
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
