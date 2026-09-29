@@ -428,8 +428,8 @@ function scopeOf(document: WorldDocument, target: EntityId | 'world' | 'all'): S
 
 /**
  * Which History `whose` is, and whose by name: the player's Guild's for `null`, and for an entity the
- * History does not name (where the History opens); the World History and the whole History, which
- * are no one's.
+ * History does not name (where the History opens), or the World History where there is no player's
+ * Guild; the World History and the whole History, which are no one's.
  */
 function resolved(document: WorldDocument, whose: HistoryWhose): { target: EntityId | 'world' | 'all'; entityId: EntityId | null; name: string | null } {
   if (whose === 'all' || whose === 'world') return { target: whose, entityId: null, name: null };
@@ -438,7 +438,9 @@ function resolved(document: WorldDocument, whose: HistoryWhose): { target: Entit
     const name = wanted === null ? null : entityName(document, wanted);
     if (wanted !== null && name !== null) return { target: wanted, entityId: wanted, name };
   }
-  return { target: 'all', entityId: null, name: null };
+  // No player's Guild, as a hand-made save may have: the world's, not the debug view the player did
+  // not ask for (M9-F6).
+  return { target: 'world', entityId: null, name: null };
 }
 
 function titleOf(target: EntityId | 'world' | 'all', name: string | null): string {

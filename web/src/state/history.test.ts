@@ -798,6 +798,16 @@ describe('whose History (M9-S5)', () => {
       expect(historyTitle(document, whose as never)).toBe(historyView(document, log, whose as never, 0).title);
     }
   });
+
+  test("with no player's Guild, as a hand-made save may have, the History opens on the world's, not the debug view (M9-F6, carried finding 4)", () => {
+    const orphan = structuredClone(document);
+    const own = orphan.world.guilds[guild.id];
+    if (own === undefined) throw new Error('no Guild');
+    own.controller = { kind: 'rival', disposition: 'steady' } as never;
+    expect(historyView(orphan, [], null, 0)).toMatchObject({ title: 'The World History', scope: 'world' });
+    expect(historyView(orphan, [], 'hero-999999' as never, 0)).toMatchObject({ scope: 'world' });
+    expect(historyTitle(orphan, null)).toBe('The World History');
+  });
 });
 
 describe('the choices one step away (M9-S5)', () => {
