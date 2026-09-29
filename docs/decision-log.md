@@ -10811,6 +10811,79 @@ and M9 is M9's. The suite held 3,225 tests in 131 files at `e3c48f2`.
 `new-game.test.tsx`, `board.test.tsx`); `web/src/styles.css` and `web/e2e/layout.spec.ts`;
 `harness/reports/m9-close-2026-09-29.md`.
 
+## DL-109 — The owner's answers to M9's open questions: Guildmaster Traits drawn as a whole legal set, eight page changes before `v1.1.0`, nine kept as built, three left for v1.2 or later, and the v1.0 line never deployed again
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** the owner. On 2026-09-29 the owner
+answered the 21 questions of DL-108 item 12 and the rule for v1.0 deploys that DL-92 left open.
+They were put as 22 questions with options, and each answer took the option recommended.
+
+**Context.** M9 is built and verified on `v1.1-dev` (DL-108), and its release waits for the owner.
+The owner asked to settle every open question before the release. The numbering below is the
+order the questions were put; DL-108 item 12's number follows in brackets.
+
+**Decision.**
+
+1. **Guildmaster Traits are drawn as a whole legal set** (Q1; DL-108 item 12.1; DL-102 item 17).
+   - *How.* The count is drawn as now, from `guildmasterTraitsMin` to `guildmasterTraitsMax`. Then
+     one set of that many Guildmaster Traits is drawn uniformly from every set that is legal: no
+     excluded pair, and a total cost within `guildmasterTraitBudget`. This replaces drawing one
+     Trait at a time, which lets a Well liked or a Thrifty in only after a penalty.
+   - *What stays.* The budget stays 1 and the costs stay as DL-100 item 3 set them, so a player's
+     buffs still need penalties (DL-88 item 4).
+   - *Play.* Every seed's drawn Guildmasters change once more, inside `v1.1.0`. The draws taken
+     stay fixed in number, as DL-102 made them, so nothing else in a seed moves. The close's sweep
+     is run again.
+2. **The page's changes before `v1.1.0`.**
+   - *Q7 (12.19):* the fast-forward option reads "until a Quest you can staff appears".
+   - *Q9 (12.7):* the Quest card's Fame chip reads "Fame ±2", with a title saying it is won on a
+     success and lost on a failure.
+   - *Q11 (12.9):* the Board's order is kept in this browser, as the Rankings' and the pool's are.
+   - *Q14 (12.11):* a Rival's routine entries do not fold in a Hero's own History. They still fold
+     in a Guild's History and in the whole History.
+   - *Q16 (12.21):* the Party builder keeps a Party chosen but not sent, with its consumables,
+     when the player leaves the Board. It holds until it is sent, the Quest leaves the Board, or
+     another game is started or loaded.
+   - *Q17 (12.14):* Recruit is disabled for a Hero whom the engine's `signingRefusal` says will not
+     sign, with the row's reason shown. This is not the whole of C9: only the pool's own existing
+     judgement is used.
+   - *Q20 (12.17):* the Bankruptcy card's Sell step opens "What the Guild holds", where Sell is
+     since M9-S6.
+   - *Q22 (12.18):* before anything is typed, the new-game form says "Name your Guild and its
+     Guildmaster to start." instead of a refusal. The engine's refusal shows once a field has been
+     touched.
+3. **Kept as built.** Each of these stands as DL-103 to DL-107 made it:
+   - Q5 (12.4): the end of a fast forward opens the home view.
+   - Q6 (12.20): the Bankruptcy card stands in the countdown banner's place.
+   - Q8 (12.12): "Read what happened" reopens the player's Guild's History.
+   - Q10 (12.8): the Board's chip says "Until Day 7".
+   - Q12 (12.10): dispatch's verdict sits beside Send.
+   - Q13 (12.5): the History's count and the rail's "New" count the player's Guild only.
+   - Q15 (12.13): folded Guilds are found by name, with no chip.
+   - Q19 (12.16): declining a Transfer Offer is one click.
+   - Q21 (12.6): the open view is remembered.
+4. **For v1.2 or later.**
+   - *Q2 (12.2):* Miser becomes the owner's two-effect Trait, Upkeep ×0.9 and Morale −5, when
+     Traits with several effects land (#29, v1.2). This confirms DL-87 item 6's intent. Its cost,
+     and its exclusions beside Thrifty, are set then. It stays one effect at −2 in v1.1.
+   - *Q3 (12.3):* #36's names in use are DL-102 item 12's: the Guildmasters of the Guilds in play,
+     and the Heroes on a Roster or in the Unattached pool. It applies to founders, replacements
+     and every new Hero.
+   - *Q18 (12.15):* a Transfer's confirmation will name the Heroes who would lose Morale and by
+     how much, with C9's engine functions, after M9.
+5. **The v1.0 line is never deployed again once `v1.1.0` is live** (Q4; DL-92's open point).
+   - *Why.* A Worker has no branches, so a v1.0.x deploy would replace v1.1 at the workers.dev
+     address.
+   - *What follows.* A fix after `v1.1.0` goes out as v1.1.x on the v1.1 branches, merged forward.
+     This amends DL-91 item 4's flow for v1.0 from then on.
+
+**Consequences.**
+- Items 1 and 2 are built on `v1.1-dev` before `v1.1.0`, test first, and the build is recorded
+  in DL-110 with the sweep run again.
+- Issues #29 and #36 carry items 4's answers.
+- Plan §2's releases paragraph gains item 5 with the release.
+
+**Actioned in:** this entry. The build follows in DL-110.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
