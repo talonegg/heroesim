@@ -4,42 +4,23 @@
 // on its page, without one. The engine's `build` decides.
 //
 // A view of the shell (M9-S3, DL-103), with the Guildmaster, the Market and what the Guild holds as
-// its parts. Each facility is one row (M9-S6, DL-106; the review's B9): its name, its grade as pips
-// to the top grade content defines, what it does, and "Build <name> · <cost>"; the Upkeep, which each
-// grade adds to, sits above them. What the Guild holds is one table with Sell, the second table
-// after the Market's (B3), so selling is next to buying.
+// its parts, until M9-F2 (DL-111 items 5 to 7, DL-112 item 5): the Hall is now a part of the Guild,
+// its tab's panel, and the Guildmaster and the Market are views of their own. Each facility is one
+// row (M9-S6, DL-106; the review's B9): its name, its grade as pips to the top grade content
+// defines, what it does, and "Build <name> · <cost>"; the Upkeep, which each grade adds to, sits
+// above them until M9-F3 moves it to the Treasury.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import type { GameAction } from '../state/reducer';
 import { hallView, type HallView } from '../state/world-views';
-import { Guildmaster } from './guildmaster';
 import { Icon } from './icons';
-import { heldCount, Holdings, Market } from './market';
-import { Part, View } from './section';
 import { VisuallyHidden } from './ui';
 
+/** The Guild's Hall part: the player's Hall, with Build. */
 export function Hall({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const view = useMemo(() => hallView(document), [document]);
-  return (
-    <View id="hall">
-      {view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} busy={busy} play={play} />}
-      <Guildmaster document={document} />
-      <Market document={document} busy={busy} play={play} />
-      <Held document={document} busy={busy} play={play} />
-    </View>
-  );
-}
-
-/** What the Guild holds, with Sell: drawn only when it holds something (M9-S3, the review's A5). */
-function Held({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
-  const count = useMemo(() => heldCount(document), [document]);
-  if (count === 0) return null;
-  return (
-    <Part id="held">
-      <Holdings document={document} busy={busy} play={play} />
-    </Part>
-  );
+  return view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} busy={busy} play={play} />;
 }
 
 /** A Hall's facilities and Upkeep; with `play`, and the Hall the player's own, a Build button for each next grade. */

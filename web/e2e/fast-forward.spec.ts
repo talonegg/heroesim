@@ -161,14 +161,14 @@ async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promi
   return made;
 }
 
-test('falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to what the Guild holds and the Board (M9-S7)', async ({
+test("falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market's Sell and the Board (M9-S7, M9-F2)", async ({
   page,
 }, testInfo) => {
   test.setTimeout(120_000);
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-bankruptcy' });
   // Something to sell, bought at the Market first; then the Guild's Wealth below the floor, in a save loaded back.
-  const market = await part(page, 'Market');
+  const market = await part(page, 'Buy');
   await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
   const time = statusBar(page).getByRole('group', { name: 'Time' });
@@ -192,9 +192,11 @@ test('falling below the Bankruptcy floor stops a fast forward unasked; the home 
   await expect(home.getByText(/has been below the Bankruptcy floor since/)).toHaveCount(0);
   await expectNoHorizontalOverflow(page, 'the Bankruptcy stop');
 
-  // Its ways to Wealth: what the Guild holds in the Hall, where Sell is (DL-109 item 2, Q20), and the Board.
+  // Its ways to Wealth: the Market's Sell, where what the Guild holds is sold (DL-109 item 2, Q20, as
+  // M9-F2 moved it), and the Board.
   await stop.getByRole('button', { name: 'Sell what the Guild holds' }).click();
-  await expect(page.getByRole('heading', { level: 3, name: 'What the Guild holds', exact: true })).toBeFocused();
+  await expect(page.getByRole('heading', { level: 3, name: 'Sell', exact: true })).toBeFocused();
+  await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('button', { name: /^Sell / })).toHaveCount(1);
   await openView(page, 'Guild');
   await stop.getByRole('button', { name: 'Open the Board' }).click();
   await expect(page.getByRole('heading', { level: 2, name: 'Board', exact: true })).toBeFocused();

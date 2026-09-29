@@ -75,11 +75,11 @@ describe('the Bankruptcy stop (M9-S7, #32)', () => {
     expect(stop.textContent).toContain('Sell what the Guild holds at the Market, or send a Party on a Quest: its reward comes in when it comes home.');
   });
 
-  test("goes to what the Guild holds in the Hall, where Sell is, and to the Board (DL-109 item 2, Q20)", () => {
+  test("goes to the Market's Sell, and to the Board (DL-109 item 2, Q20, as M9-F2 moves Sell)", () => {
     const { onGo } = card({ kind: 'below-floor', sentence });
 
     fireEvent.click(screen.getByRole('button', { name: 'Sell what the Guild holds' }));
-    expect(onGo).toHaveBeenLastCalledWith('held');
+    expect(onGo).toHaveBeenLastCalledWith('sell');
     fireEvent.click(screen.getByRole('button', { name: 'Open the Board' }));
     expect(onGo).toHaveBeenLastCalledWith('board');
     expect(screen.queryByRole('button', { name: 'Read what happened' })).toBeNull();

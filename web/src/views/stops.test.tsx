@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { changed, holding, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
-import { navButton, openView, time } from './page.test-support';
+import { navButton, openView, section, time } from './page.test-support';
 
 // The page's side of #32 (M9-S7): the split button's opt-in stops, "until a Quest you can staff
 // appears" (`quest-staffable`, M9-S1) beside "until new Heroes join the pool"; the words that say
@@ -61,7 +61,8 @@ describe('the ways to fast forward (M9-S7, #32)', () => {
     ]) {
       expect(words, stop).toContain(stop);
     }
-    expect(described(openView('Guild'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
+    // The Guild's Home says it, a part of the Guild since M9-F2.
+    expect(described(section('Home'))).toContain('the Bankruptcy countdown while your Guild is below the floor');
   });
 
   test('with a Party out, "until a Quest you can staff appears" stops before it is home, and each Quest it names opens its Party on the Board', async () => {
@@ -109,15 +110,16 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     expect(within(home).queryByText(/has been below the Bankruptcy floor since/)).toBeNull();
   });
 
-  test("goes to what the Guild holds, where Sell is, and to the Board; after the next play, the countdown stands as before", async () => {
-    // Something to sell: what the Guild holds is drawn only when it holds something (M9-S3).
+  test("goes to the Market's Sell, and to the Board; after the next play, the countdown stands as before (M9-F2)", async () => {
+    // Something to sell.
     render(<App initial={changed(holding(started(), 'healing-draught', 2), (_, player) => void (player.wealth = -1))} />);
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
 
     fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Sell what the Guild holds' }));
-    expect(navButton('Hall').getAttribute('aria-current')).toBe('page');
-    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'What the Guild holds' })));
+    expect(navButton('Market').getAttribute('aria-current')).toBe('page');
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Sell' })));
+    expect(within(screen.getByRole('region', { name: 'Sell' })).getByRole('button', { name: 'Sell Healing draught' })).toBeDefined();
 
     openView('Guild');
     fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Open the Board' }));

@@ -3,29 +3,41 @@
 // sells for, sold from a stack by the quantity asked or as a unique Item. The Market Engine prices
 // (`marketStock`, `sellPrice`), and the engine's `buy` and `sell` decide.
 //
-// A part of the Hall (M9-S3, DL-103): quantities are steppers, and the Guild's Wealth is the status
-// bar's to say. As tables (M9-S6, DL-106; the review's B3): what is for sale, with Item, Kind,
-// Effect, Price, Stock, how many and Buy, and chips that show one kind at a time, display only; and
-// what the Guild holds, with what each sells for, how many and Sell, drawn in the Hall's "What the
-// Guild holds" (`Holdings`), which is the one list of it.
+// A part of the Hall (M9-S3, DL-103), and a view of its own since M9-F2 (DL-111 item 6, DL-112
+// item 5), with two parts, Buy and Sell: quantities are steppers, and the Guild's Wealth is the
+// status bar's to say. As tables (M9-S6, DL-106; the review's B3): Buy, what is for sale, with Item,
+// Kind, Effect, Price, Stock, how many and Buy, and chips that show one kind at a time, display
+// only; and Sell, what the Guild holds, with what each sells for, how many and Sell (`Holdings`),
+// which is the one list of it, and says so when the Guild holds nothing.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
-import { marketView, type HeldForSale, type ListingRow, type MarketKind } from '../state/trade-views';
-import { Part } from './section';
+import { marketView, type HeldForSale, type ListingRow, type MarketKind, type MarketView } from '../state/trade-views';
+import { Part, View } from './section';
 import { Stepper, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
 
+/** The Market view: Buy, then Sell. */
 export function Market({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
+  return (
+    <View id="market">
+      <Buy document={document} busy={busy} play={play} />
+      <Sell document={document} busy={busy} play={play} />
+    </View>
+  );
+}
+
+/** What the Market has for sale, with Buy. */
+function Buy({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
   const [only, setOnly] = useState<MarketKind | null>(null);
   const view = useMemo(() => marketView(document, only), [document, only]);
   const kinds = `${view.kinds.reduce((sum, kind) => sum + kind.count, 0)} ${view.kinds.length === 1 ? 'kind' : 'kinds'}`;
   // A kind no longer for sale shows everything again.
   const shown = only !== null && !view.kinds.some((kind) => kind.key === only) ? null : only;
   return (
-    <Part id="market">
+    <Part id="buy">
       <p>
         {view.totalForSale === 0
           ? 'The Market has nothing for sale.'
@@ -111,9 +123,24 @@ function Listing({ row, busy, play }: { row: ListingRow; busy: boolean; play: Pl
   );
 }
 
-/** What the Guild holds, with what the Market pays for each, how many to sell and Sell: the Hall's "What the Guild holds". */
-export function Holdings({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
+/** What the Guild holds, with Sell; a sentence while it holds nothing (M9-F2). */
+function Sell({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
   const view = useMemo(() => marketView(document), [document]);
+  return (
+    <Part id="sell">
+      {view.held.length === 0 ? (
+        <p className="subtle">
+          {view.guildName ?? 'The Guild'} holds nothing to sell. Gear a Hero carries can be sold once it is taken off.
+        </p>
+      ) : (
+        <Holdings view={view} busy={busy} play={play} />
+      )}
+    </Part>
+  );
+}
+
+/** What the Guild holds, with what the Market pays for each, how many to sell and Sell: the Market's Sell. */
+function Holdings({ view, busy, play }: { view: MarketView; busy: boolean; play: Play }) {
   return (
     <div className="table-wrap">
       <table className="table table--first-sticky trade-table" aria-label={`What ${view.guildName ?? 'the Guild'} holds`}>
@@ -142,11 +169,6 @@ export function Holdings({ document, busy, play }: { document: WorldDocument; bu
       </table>
     </div>
   );
-}
-
-/** How many Items the Guild holds itself, which "What the Guild holds" is drawn only for. */
-export function heldCount(document: WorldDocument): number {
-  return marketView(document).held.length;
 }
 
 function Held({ row, busy, play }: { row: HeldForSale; busy: boolean; play: Play }) {

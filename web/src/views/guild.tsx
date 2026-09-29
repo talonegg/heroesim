@@ -7,17 +7,22 @@
 // from a selector (`state/digest.ts`, `stopView`, `headerView`, `offersView`): nothing here
 // computes a rule. How a Party fared opens its line in the History, on the page it stands on (M9-S5,
 // DL-105).
+//
+// The Guild in parts since M9-F2 (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
+// the digest above, and Hall, its premises with Build (`hall.tsx`); M9-F3 adds Stores and Treasury.
+// Which part is open is the shell's, which this browser remembers (`remembered.ts`).
 
 import type { QuestId, WorldDocument } from '@heroesim/engine';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { leavingTodayView, outcomesView, partiesOutView, type OutcomeRow } from '../state/digest';
 import type { GameAction, GameState } from '../state/reducer';
 import type { HeaderView, StopView } from '../state/selectors';
 import { offersView } from '../state/trade-views';
+import { Hall } from './hall';
 import { Icon } from './icons';
-import { View, type SectionId } from './section';
+import { guildParts, titles, View, type GuildPartId, type SectionId } from './section';
 import { StopCard } from './stop';
-import { Banner, Chip, VisuallyHidden, type Tone } from './ui';
+import { Banner, Chip, Tabs, VisuallyHidden, type Tone } from './ui';
 
 const bandTone: Readonly<Record<OutcomeRow['band'], Tone>> = { fail: 'bad', success: 'good', strong: 'good' };
 
@@ -26,19 +31,8 @@ function signed(n: number): string {
   return n > 0 ? `+${n}` : String(n);
 }
 
-export function GuildView({
-  state,
-  document,
-  header,
-  notice,
-  stop,
-  busy,
-  play,
-  onGo,
-  onOpenQuest,
-  onOpenMenu,
-  onReadOutcome,
-}: {
+/** What the Guild view and its Home take. */
+interface HomeProps {
   state: GameState;
   document: WorldDocument;
   header: HeaderView;
@@ -51,7 +45,43 @@ export function GuildView({
   onOpenMenu: () => void;
   /** Opens a Party's outcome where it stands in the History (M9-S5). */
   onReadOutcome?: (outcome: OutcomeRow) => void;
+}
+
+/** The Guild's parts as tabs, each by its title. */
+const tabs = guildParts.map((key) => ({ key, label: titles[key] }));
+
+/** The Guild view: its parts as tabs under its heading, the one open under them (M9-F2). */
+export function GuildView({
+  part: given,
+  onPart,
+  ...home
+}: HomeProps & {
+  /** The part open, when the shell keeps it; the view keeps its own, from Home, otherwise. */
+  part?: GuildPartId;
+  onPart?: (part: GuildPartId) => void;
 }) {
+  const [own, setOwn] = useState<GuildPartId>('home');
+  const part = given ?? own;
+  const { document, busy, play } = home;
+  return (
+    <View id="guild">
+      <Tabs
+        label="The Guild’s parts"
+        tabs={tabs}
+        open={part}
+        onOpen={onPart ?? setOwn}
+        idOf={(key) => `guild-${key}`}
+        describedBy={(key) => `${key}-help`}
+      >
+        {part === 'home' ? <Home {...home} /> : null}
+        {part === 'hall' ? <Hall document={document} busy={busy} play={play} /> : null}
+      </Tabs>
+    </View>
+  );
+}
+
+/** The Guild's Home: what needs attention this Turn. */
+function Home({ state, document, header, notice, stop, busy, play, onGo, onOpenQuest, onOpenMenu, onReadOutcome }: HomeProps) {
   const { log } = state;
   const outcomes = useMemo(() => outcomesView({ document, log }), [document, log]);
   const offers = useMemo(() => offersView(document)?.offers ?? [], [document]);
@@ -61,7 +91,7 @@ export function GuildView({
   const quiet = stop === null && outcomes.length === 0 && offers.length === 0 && parties.length === 0 && leaving.length === 0;
 
   return (
-    <View id="guild">
+    <>
       {header.ended === null ? null : (
         <Banner tone="bad" icon="alert" role="status">
           <p>{header.ended}</p>
@@ -225,6 +255,6 @@ export function GuildView({
           </div>
         </div>
       ) : null}
-    </View>
+    </>
   );
 }

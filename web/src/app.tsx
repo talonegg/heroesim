@@ -3,12 +3,17 @@
 // standing, time and the game menu, and a refusal docked under it. The navigation opens one view at
 // a time: Guild, the home view's digest of what needs attention; the Board, with its Quest cards and
 // the Party builder (M9-S4, DL-104); the Roster with the Transfer Offers and the Unattached pool;
-// the Hall with the Guildmaster, the Market and what the Guild holds (M9-S6, DL-106); the Rankings
-// with the Guilds and the Patrons; and the History, the one place to read what happened, the last
-// play's entries its newest (M9-S5, DL-105). Under 600px a bottom bar holds four views and "More"
-// the other two; from 600px a side rail holds all six; from 1100px the History rail sits beside the
-// view. Before there is a game, the new-game form with the Guildmaster's setup (M9-S7, DL-107), and
-// the saves to load one from.
+// the Rankings with the Guilds and the Patrons; and the History, the one place to read what
+// happened, the last play's entries its newest (M9-S5, DL-105).
+//
+// Seven views since M9-F2 (DL-111 items 5 to 8, DL-112 item 5, DL-115), and the Hall view gone. The
+// Guildmaster is a view at the top of the navigation, the Market a view with Buy and Sell, and the
+// Guild has parts as tabs, Home and Hall, the Hall with Build (M9-F3 adds Stores and Treasury). The
+// Guild's part open is the shell's, remembered in this browser as the view is. The navigation has
+// one order at every width: under 600px a bottom bar holds Guild, Roster, Board and Rankings, and
+// "More" the Guildmaster, the Market and the History; from 600px a side rail holds all seven; from
+// 1100px the History rail sits beside the view. Before there is a game, the new-game form with the
+// Guildmaster's setup (M9-S7, DL-107), and the saves to load one from.
 //
 // A name in the History opens whom it names, wherever the History is drawn: a Hero's page, in the
 // History; a Guild's page, in the Rankings; a Guildmaster's or a Patron's History (`HistoryLinks`).
@@ -16,8 +21,8 @@
 // Views switch as React state, with no router (R38): the page stays one page with one classic
 // script that opens from `file://`. Which view is open is remembered in this browser, and so is the
 // Board's order; a Party chosen on the Board and not sent is kept here, by Quest. A new game or
-// a load opens the home view, and so does the end of a fast forward, whose stop and results it
-// shows. Each view is a labelled region whose heading takes the keyboard when it opens.
+// a load opens the home view, the Guild at its Home, and so does the end of a fast forward, whose
+// stop and results it shows. Each view is a labelled region whose heading takes the keyboard when it opens.
 //
 // Every play goes through `useGame`, the one reducer (M7-S2); no component calls the engine, and
 // every number shown comes from a selector under `state/`. The modules it installs are those its
@@ -37,17 +42,25 @@ import { headerView, progressView, stopView, type BoardOrder } from './state/sel
 import { Board, boardOrderKey, boardOrders } from './views/board';
 import { GameMenu, installedWords } from './views/game-menu';
 import { GuildView } from './views/guild';
-import { Hall } from './views/hall';
+import { Guildmaster } from './views/guildmaster';
 import { History } from './views/history';
 import { HistoryLinksContext, type HistoryLinks, type NameSegment } from './views/history-entries';
+import { Market } from './views/market';
 import { Nav } from './views/nav';
 import { NewGame } from './views/new-game';
 import { Rail } from './views/rail';
 import { Rankings } from './views/rankings';
 import { Refusal } from './views/refusal';
-import { rememberChoice, rememberedChoice, rememberedView, rememberView } from './views/remembered';
+import {
+  rememberChoice,
+  rememberedChoice,
+  rememberedGuildPart,
+  rememberedView,
+  rememberGuildPart,
+  rememberView,
+} from './views/remembered';
 import { Roster } from './views/roster';
-import { headingOf, viewIds, viewOf, type PartId, type SectionId, type ViewId } from './views/section';
+import { headingOf, isGuildPart, viewIds, viewOf, type GuildPartId, type PartId, type SectionId, type ViewId } from './views/section';
 import { StatusBar } from './views/status-bar';
 
 /** The saves this browser keeps for the page, opened on first use (`saves.ts`). */
@@ -61,7 +74,7 @@ function addressModules(): Module[] {
 /** The view that holds `target`. */
 function viewFor(target: SectionId): ViewId {
   if ((viewIds as readonly string[]).includes(target)) return target as ViewId;
-  return viewOf[target as PartId] ?? 'guild';
+  return viewOf[target as PartId | GuildPartId] ?? 'guild';
 }
 
 /** Where the keyboard goes next, and a fresh object each time it is asked, so it goes there again. */
@@ -80,6 +93,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   // The game in hand when the player asked for a new one; the form shows while it is still in hand.
   const [replacing, setReplacing] = useState<WorldDocument | null>(null);
   const [view, setView] = useState<ViewId>(rememberedView);
+  // The Guild's part open, a tab under its heading (M9-F2): kept from view to view and in this browser.
+  const [guildPart, setGuildPart] = useState<GuildPartId>(rememberedGuildPart);
   const [menuOpen, setMenuOpen] = useState(false);
   // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
   // one; the Parties chosen and not sent, by Quest, so leaving the Board loses none (DL-109 item 2,
@@ -109,12 +124,17 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const playing = busy && (pending?.kind === 'advance' || pending?.kind === 'fastForward');
   const forwarding = busy && pending?.kind === 'fastForward';
 
-  /** Opens the view that holds `target` and puts the keyboard on `target`'s heading, or on `id` when given. */
+  /**
+   * Opens the view that holds `target` and puts the keyboard on `target`'s heading, or on `id` when
+   * given. A part of the Guild opens its tab, with the keyboard on the Guild's heading; the Guild
+   * itself opens at the part last open (M9-F2).
+   */
   const open = useCallback((target: SectionId, id?: string) => {
     const next = viewFor(target);
+    if (isGuildPart(target)) setGuildPart(target);
     setView(next);
     setMenuOpen(false);
-    setFocus({ id: id ?? headingOf(target), fallback: headingOf(next) });
+    setFocus({ id: id ?? headingOf(isGuildPart(target) ? next : target), fallback: headingOf(next) });
   }, []);
 
   /** Opens `whose` History in the History view, at its newest, with the keyboard on its title. */
@@ -154,6 +174,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   if (games !== game.games) {
     setGames(game.games);
     setView('guild');
+    setGuildPart('home');
     setMenuOpen(false);
     setBoardQuest(null);
     setPartyChoices(noPartyChoices);
@@ -169,12 +190,14 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     setWasForwarding(forwarding);
     if (wasForwarding && game.rejection === null) {
       setView('guild');
+      setGuildPart('home');
       setMenuOpen(false);
       setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
     }
   }
 
   useEffect(() => rememberView(view), [view]);
+  useEffect(() => rememberGuildPart(guildPart), [guildPart]);
 
   // Away from the History, it opens at its newest again.
   if (view !== 'history' && historyStart !== 0) setHistoryStart(0);
@@ -237,7 +260,7 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
         play={play}
         menuOpen={menuOpen}
         onMenu={() => setMenuOpen(!menuOpen)}
-        onGuild={() => open('guild')}
+        onGuild={() => open('home')}
         menuButton={menuButton}
         bar={bar}
       >
@@ -245,13 +268,16 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
       </StatusBar>
       <HistoryLinksContext value={links}>
       <div className="shell">
-        <Nav current={view} counts={counts} onOpen={(next) => open(next)} />
+        <Nav current={view} counts={counts} guildmasterName={header.guildmasterName} onOpen={(next) => open(next)} />
         <main aria-busy={busy} className="main">
           {/* Keyed by the game in hand: what one game had open (a Hero's page, a Guild, whose
               History) is not open in the next one started or loaded (DL-74). */}
           <Fragment key={game.games}>
+            {view === 'guildmaster' ? <Guildmaster document={current} /> : null}
             {view === 'guild' ? (
               <GuildView
+                part={guildPart}
+                onPart={setGuildPart}
                 state={game}
                 document={current}
                 header={header}
@@ -281,12 +307,12 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                 }}
                 choices={choices}
                 onChoice={(questId, choice) => setPartyChoices(withChoice(choices, questId, choice))}
-                onGuild={() => open('guild')}
+                onGuild={() => open('home')}
               />
             ) : null}
             {view === 'roster' ? <Roster {...shared} /> : null}
-            {view === 'hall' ? <Hall {...shared} /> : null}
             {view === 'rankings' ? <Rankings {...shared} guildName={guildName} open={rankingsGuild} onOpen={setRankingsGuild} /> : null}
+            {view === 'market' ? <Market {...shared} /> : null}
             {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} startPage={historyStart} /> : null}
           </Fragment>
         </main>

@@ -116,3 +116,13 @@ describe('faces, headings and motion', () => {
     expect(css).toMatch(/@media \(prefers-reduced-motion: reduce\) \{[^@]*animation: none !important;[^@]*transition: none !important;/);
   });
 });
+
+describe('the navigation (M9-F2, DL-112 item 5)', () => {
+  test("a view's label is cut with an ellipsis where it does not fit: the Guildmaster's name, however long", () => {
+    const block = /\n\.nav__label \{([^}]*)\}/.exec(css)?.[1] ?? '';
+    expect(block).toContain('overflow: hidden;');
+    expect(block).toContain('text-overflow: ellipsis;');
+    expect(block).toContain('white-space: nowrap;');
+    expect(block).toContain('max-width: 100%;');
+  });
+});

@@ -330,7 +330,7 @@ describe('the Party builder', () => {
     expect(sent.classList.contains('is-new')).toBe(true);
     expect(sent.textContent).toContain(` on ${questName}, `);
     // Kind, Effect, Held, Sells for: two of the three went with the Party.
-    const held = within(section('What the Guild holds')).getByRole('rowheader', { name: 'Healing draught' }).closest('tr') as HTMLElement;
+    const held = within(section('Sell')).getByRole('rowheader', { name: 'Healing draught' }).closest('tr') as HTMLElement;
     expect(within(held).getAllByRole('cell')[2]?.textContent).toBe('1');
   });
 
@@ -445,7 +445,7 @@ describe('a Party chosen and not sent (DL-109 item 2, Q16)', () => {
     const before = ticked(chooseSome());
 
     openView('Roster');
-    openView('Hall');
+    openView('Market');
     openView('Board');
 
     const again = within(firstCard()).getByRole('form');

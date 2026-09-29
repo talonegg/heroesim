@@ -65,7 +65,8 @@ function summary(history: HTMLElement): { entries: number; fresh: number } {
   return { entries: Number(/, (\d+) entr/.exec(text)?.[1]), fresh: Number(/ (\d+) new since your last action\.$/.exec(text)?.[1] ?? 0) };
 }
 
-const views: readonly ViewName[] = ['Guild', 'Board', 'Roster', 'Hall', 'Rankings', 'History'];
+// The seven views in the navigation's order (M9-F2, DL-112 item 5).
+const views: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
 describe('before a game', () => {
   test('offers a new game, and names the content set it loaded', () => {
@@ -114,11 +115,14 @@ describe('before a game', () => {
 });
 
 describe('the shell (M9-S3, DL-103)', () => {
-  test('opens on the home view, with the six views in the navigation in order and the open one marked', () => {
+  test('opens on the home view, with the seven views in the navigation in order and the open one marked', () => {
     render(<App initial={started()} />);
 
     const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More$/.test(button.textContent ?? ''));
-    expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(views);
+    // The Guildmaster's is labelled with their name (M9-F2).
+    expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(
+      views.map((view) => (view === 'Guildmaster' ? 'Ada Vell' : view)),
+    );
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toContain('Guild');
     expect(screen.getByRole('region', { name: 'Guild' })).toBeDefined();
@@ -161,13 +165,13 @@ describe('the shell (M9-S3, DL-103)', () => {
 
   test('remembers the open view in this browser, and a new game or a load opens the home view', async () => {
     const { unmount } = render(<App initial={started()} />);
-    openView('Hall');
-    expect(localStorage.getItem('heroesim.view')).toBe('hall');
+    openView('Market');
+    expect(localStorage.getItem('heroesim.view')).toBe('market');
     unmount();
 
     render(<App initial={started()} />);
-    expect(navButton('Hall').getAttribute('aria-current')).toBe('page');
-    expect(screen.getByRole('region', { name: 'Hall' })).toBeDefined();
+    expect(navButton('Market').getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('region', { name: 'Market' })).toBeDefined();
 
     fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
     fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
@@ -502,7 +506,8 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       // Each view's sentence and its parts' are in its "About this view", closed until asked for.
       const about = within(screen.getByRole('region', { name: view })).getByText('About this view').closest('details');
       expect(about?.open).toBe(false);
-      const helpIds = [...screen.getAllByRole('region')].map((region) => region.getAttribute('aria-describedby'));
+      // The Guild's parts are tabs' panels, described as a region is (M9-F2).
+      const helpIds = [...screen.getAllByRole('region'), ...screen.queryAllByRole('tabpanel')].map((region) => region.getAttribute('aria-describedby'));
       for (const id of helpIds) expect(about?.querySelector(`#${id}`), `${view}'s About holds ${id}`).not.toBeNull();
     }
     openMenu();
@@ -523,7 +528,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
     const regions = everyRegion();
     expect([...regions.keys()].sort()).toEqual(
       [
-        'guild', 'board', 'roster', 'offers', 'pool', 'hall', 'guildmaster', 'market', 'rankings', 'guilds', 'patrons',
+        'guildmaster', 'guild', 'roster', 'offers', 'pool', 'board', 'rankings', 'guilds', 'patrons', 'market', 'buy', 'sell',
         'history', 'rules', 'game',
       ]
         .map((id) => `${id}-heading`)
@@ -536,7 +541,11 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       expect(help.textContent, id).toMatch(/^[A-Z].{40,}\.$/);
     }
     for (const view of views) expect(described(openView(view))).toMatch(/^[A-Z].{40,}\.$/);
-    for (const part of ['Transfer Offers', 'Unattached pool', 'Guildmaster', 'Market', 'Guilds', 'Patrons', 'This game', 'New rules available']) {
+    for (const part of ['Transfer Offers', 'Unattached pool', 'Buy', 'Sell', 'Guilds', 'Patrons', 'This game', 'New rules available']) {
+      expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
+    }
+    // Each of the Guild's parts, a tab's panel, says what it is for too, from the Guild's "About this view" (M9-F2).
+    for (const part of ['Home', 'Hall']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
   });

@@ -1361,6 +1361,16 @@ input[type='radio'] {
   height: 1.5rem;
 }
 
+/* A view's label, the Guildmaster's name among them, cut with an ellipsis where it does not fit
+   (M9-F2, DL-112 item 5); the name is whole in the Guildmaster view. */
+.nav__label {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .nav__button:hover:not(:disabled) {
   background: var(--accent-soft);
   color: var(--accent);
@@ -1620,6 +1630,42 @@ input[type='radio'] {
 
 .part--notice {
   border-top: 3px solid var(--accent);
+}
+
+/* The Guild's parts as tabs under its heading (M9-F2, DL-115): a row that scrolls in its own box,
+   never the page, should the tabs outgrow a phone's width. */
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0.25rem 0 1rem;
+  border-bottom: 1px solid var(--line);
+  overflow-x: auto;
+}
+
+.tab {
+  flex: 0 0 auto;
+  min-height: var(--tap);
+  padding: 0.5rem 1rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: var(--radius-small) var(--radius-small) 0 0;
+  background: none;
+  color: var(--ink-soft);
+  font-weight: 600;
+}
+
+.tab:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.tab[aria-selected='true'] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+.tab-panel {
+  min-width: 0;
 }
 
 /* ── The History (M9-S5, DL-105) ─────────────────────────────────────────────────────────── */
@@ -3105,6 +3151,7 @@ tr.mine td {
 }
 
 .guild-page h5,
+.guildmaster h4,
 .guildmaster h5 {
   margin-top: 1.25rem;
 }

@@ -61,7 +61,7 @@ test('a Party chosen and not sent is kept, with its consumables, while the playe
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-party-kept' });
   // A consumable to carry, bought at the Market.
-  const market = await part(page, 'Market');
+  const market = await part(page, 'Buy');
   await market.getByTestId('listing').filter({ hasText: /consumable/i }).first().getByRole('button', { name: /^Buy / }).click();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
 
@@ -76,9 +76,9 @@ test('a Party chosen and not sent is kept, with its consumables, while the playe
   await form.getByRole('button', { name: /: one more$/ }).first().click();
   await expect(carried).toHaveValue('1');
 
-  // Away to the Roster and the Hall, and back.
+  // Away to the Roster and the Market, and back.
   await openView(page, 'Roster');
-  await openView(page, 'Hall');
+  await openView(page, 'Market');
   const again = await openView(page, 'Board');
   const kept = again.getByRole('article').filter({ has: page.getByRole('heading', { level: 3, name, exact: true }) }).getByRole('form');
   await expect(kept.getByTestId('party-row').first().getByRole('checkbox')).toBeChecked();

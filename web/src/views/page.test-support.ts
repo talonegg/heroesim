@@ -1,26 +1,33 @@
 // The page's regions as a test reaches them (M9-S3, DL-103). The page is views in a shell, one at a
 // time, so a region is found by opening the view that holds it first, through the navigation, as a
-// player would; a region of the game menu by opening the menu. Never imported by the page.
+// player would; a region of the game menu by opening the menu. Since M9-F2 (DL-115) the Guild's
+// parts are tabs under its heading, and a part is found by opening its tab: its panel, named by the
+// tab. Never imported by the page.
 
 import { fireEvent, screen, within } from '@testing-library/react';
 
-/** Each view's heading, as the navigation names it. */
-export type ViewName = 'Guild' | 'Board' | 'Roster' | 'Hall' | 'Rankings' | 'History';
+/** Each view's heading. The Guildmaster's button in the navigation is named by the Guildmaster's name (M9-F2). */
+export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
 
-/** The view each region is in, by its heading; `menu` for the game menu's. */
-const home: Readonly<Record<string, ViewName | 'menu'>> = {
+/** The Guild's parts, each a tab under its heading (M9-F2). */
+export type GuildPartName = 'Home' | 'Hall';
+
+/** The view each region is in, by its heading; `menu` for the game menu's; a tab of the Guild's for its parts. */
+const home: Readonly<Record<string, ViewName | 'menu' | { tab: GuildPartName }>> = {
+  Guildmaster: 'Guildmaster',
   Guild: 'Guild',
-  Board: 'Board',
+  Home: { tab: 'Home' },
+  Hall: { tab: 'Hall' },
   Roster: 'Roster',
   'Transfer Offers': 'Roster',
   'Unattached pool': 'Roster',
-  Hall: 'Hall',
-  Guildmaster: 'Hall',
-  'What the Guild holds': 'Hall',
-  Market: 'Hall',
+  Board: 'Board',
   Rankings: 'Rankings',
   Guilds: 'Rankings',
   Patrons: 'Rankings',
+  Market: 'Market',
+  Buy: 'Market',
+  Sell: 'Market',
   History: 'History',
   'This game': 'menu',
   'New rules available': 'menu',
@@ -31,9 +38,15 @@ export function nav(): HTMLElement {
   return screen.getByRole('navigation', { name: 'Views' });
 }
 
-/** The navigation's button for `view`: its name starts with the view's, and goes on with its count. */
+/**
+ * The navigation's button for `view`: its name starts with the view's, and goes on with its count.
+ * The Guildmaster's is named by the Guildmaster's name, and described as "Guildmaster" (M9-F2).
+ */
 export function navButton(view: ViewName): HTMLElement {
-  const [button] = within(nav()).getAllByRole('button', { name: new RegExp(`^${view}(,|$)`) });
+  const [button] =
+    view === 'Guildmaster'
+      ? within(nav()).getAllByRole('button', { description: 'Guildmaster' })
+      : within(nav()).getAllByRole('button', { name: new RegExp(`^${view}(,|$)`) });
   if (button === undefined) throw new Error(`no ${view} in the navigation`);
   return button;
 }
@@ -42,6 +55,13 @@ export function navButton(view: ViewName): HTMLElement {
 export function openView(view: ViewName): HTMLElement {
   fireEvent.click(navButton(view));
   return screen.getByRole('region', { name: view });
+}
+
+/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel (M9-F2). */
+export function openGuildPart(part: GuildPartName): HTMLElement {
+  const guild = screen.queryByRole('region', { name: 'Guild' }) ?? openView('Guild');
+  fireEvent.click(within(guild).getByRole('tab', { name: part }));
+  return within(guild).getByRole('tabpanel', { name: part });
 }
 
 /** The game menu, opened. */
@@ -58,11 +78,20 @@ export function closeMenu(): void {
   if (open !== null) fireEvent.click(within(open).getByRole('button', { name: 'Close' }));
 }
 
-/** A region of the page by its heading, its view opened first when it is not open: a view, a part of one, or the game menu's. */
+/**
+ * A region of the page by its heading, its view opened first when it is not open: a view, a part of
+ * one, or the game menu's; for a part of the Guild, its tab's panel.
+ */
 export function section(name: string): HTMLElement {
+  const where = home[name];
+  if (where !== undefined && typeof where === 'object') {
+    const panel = screen.queryByRole('tabpanel', { name });
+    if (panel !== null) return panel;
+    closeMenu();
+    return openGuildPart(where.tab);
+  }
   const shown = screen.queryByRole('region', { name });
   if (shown !== null) return shown;
-  const where = home[name];
   if (where === undefined) throw new Error(`no region called ${name} on the page`);
   if (where === 'menu') return within(openMenu()).getByRole('region', { name });
   closeMenu();

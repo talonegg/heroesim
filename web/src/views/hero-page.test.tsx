@@ -5,7 +5,7 @@ import { App } from '../app';
 import { withTheGone } from '../state/game.test-support';
 import { gameReducer, initialGameState, type GameState, type Play } from '../state/reducer';
 import { HeroPage } from './hero-page';
-import { closeMenu, openMenu, openView, rosterList, section, type ViewName } from './page.test-support';
+import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, type GuildPartName, type ViewName } from './page.test-support';
 
 // M7-S3's third box: `show hero`'s rule holds in the browser. Potential is never rendered (data-model
 // rule 9, M3-S3): every Hero's Potential is set to numbers found nowhere else, each Hero's page is
@@ -76,9 +76,14 @@ function everyPageFrom(region: () => HTMLElement, back: string, container: HTMLE
 
 /** Every view and the game menu, each opened in turn, searched whole. */
 function everyView(container: HTMLElement, sentinels: readonly string[]): void {
-  for (const view of ['Guild', 'Board', 'Roster', 'Hall', 'Rankings', 'History'] as const satisfies readonly ViewName[]) {
+  for (const view of ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'] as const satisfies readonly ViewName[]) {
     openView(view);
     expect(sentinelsIn(container.innerHTML, sentinels), view).toEqual([]);
+  }
+  // Each of the Guild's parts, its tab opened (M9-F2).
+  for (const part of ['Home', 'Hall'] as const satisfies readonly GuildPartName[]) {
+    openGuildPart(part);
+    expect(sentinelsIn(container.innerHTML, sentinels), `the Guild's ${part}`).toEqual([]);
   }
   openMenu();
   expect(sentinelsIn(globalThis.document.body.innerHTML, sentinels), 'the game menu').toEqual([]);

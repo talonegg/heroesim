@@ -5,13 +5,22 @@
 //
 // The order of the Guilds' table and of the Unattached pool are kept the same way (M9-S6, DL-106),
 // and the Board's (DL-109 item 2, Q11): display only, and for this browser, whatever game is in hand.
+//
+// The Guild's part open is kept too (M9-F2, DL-112 item 5). The Hall was a view until M9-F2: a
+// browser that kept "hall" as its view opens the Guild at its Hall part.
 
-import { viewIds, type ViewId } from './section';
+import { guildParts, viewIds, type GuildPartId, type ViewId } from './section';
 
 /** The key the open view is kept under. */
 export const viewKey = 'heroesim.view';
 
-/** The view this browser last had open, or the home view. */
+/** The key the Guild's open part is kept under (M9-F2). */
+export const guildPartKey = 'heroesim.guildPart';
+
+/** The view kept before M9-F2 that is now a part of the Guild. */
+const hallView = 'hall';
+
+/** The view this browser last had open, or the home view; the Guild for the Hall view kept before M9-F2. */
 export function rememberedView(): ViewId {
   return rememberedChoice(viewKey, viewIds, 'guild');
 }
@@ -21,8 +30,23 @@ export function rememberView(view: ViewId): void {
   rememberChoice(viewKey, view);
 }
 
+/** The Guild's part this browser last had open, or Home; its Hall when the view kept is the Hall view of before M9-F2. */
+export function rememberedGuildPart(): GuildPartId {
+  if (rememberedChoice(viewKey, [hallView], null) === hallView) return 'hall';
+  return rememberedChoice(guildPartKey, guildParts, 'home');
+}
+
+/** Remembers `part` as the Guild's part open, where the browser lets it. */
+export function rememberGuildPart(part: GuildPartId): void {
+  rememberChoice(guildPartKey, part);
+}
+
 /** What this browser keeps under `key`, if it is one of `choices`; `fallback` when not, or when nothing can be read. */
-export function rememberedChoice<Choice extends string>(key: string, choices: readonly Choice[], fallback: Choice): Choice {
+export function rememberedChoice<Choice extends string, Fallback extends Choice | null>(
+  key: string,
+  choices: readonly Choice[],
+  fallback: Fallback,
+): Choice | Fallback {
   try {
     const kept = globalThis.localStorage?.getItem(key);
     return choices.find((choice) => choice === kept) ?? fallback;

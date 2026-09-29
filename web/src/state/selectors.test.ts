@@ -88,6 +88,8 @@ describe('headerView', () => {
 
     expect(headerView(document)).toEqual({
       guildName: 'The Lantern',
+      // The navigation's label for the Guildmaster view (M9-F2, DL-112 item 5).
+      guildmasterName: 'Ada Vell',
       wealth: guild.wealth,
       fame: guild.fame,
       time: `Day ${dayOf(4)}, ${timeOfDay(4)}, Year 0`,

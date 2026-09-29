@@ -4,8 +4,14 @@ import { expect, type FrameLocator, type Locator, type Page } from '@playwright/
 // page's own controls for starting a game and playing Turns.
 //
 // The page is views in a shell (M9-S3, DL-103): a region is on the page only while its view is
-// open, so a spec opens the view first, through the navigation, as a player would. Under 600px
-// the Hall and the Rankings are under "More". A region of the game menu is found by opening it.
+// open, so a spec opens the view first, through the navigation, as a player would. A region of the
+// game menu is found by opening it.
+//
+// Seven views since M9-F2 (DL-112 item 5, DL-115), in one order at every width: the Guildmaster,
+// Guild, Roster, Board, Rankings, Market and History. Under 600px the Guildmaster, the Market and
+// the History are under "More". The Guildmaster's button is named by the Guildmaster's name, and
+// described as "Guildmaster". The Guild's parts, Home and Hall, are tabs under its heading, each
+// part the panel its tab names.
 
 type Scope = Page | FrameLocator;
 
@@ -63,18 +69,46 @@ export function statusBar(scope: Scope): Locator {
   return scope.getByRole('banner');
 }
 
-/** Each view, by the name the navigation and its heading give it. */
-export type ViewName = 'Guild' | 'Board' | 'Roster' | 'Hall' | 'Rankings' | 'History';
+/** Each view, by its heading, which is the name the navigation gives it but the Guildmaster's. */
+export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
+
+/** Every view in the navigation's order (M9-F2). */
+export const viewNames: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
+
+/** The Guild's parts, each a tab under its heading (M9-F2). */
+export type GuildPartName = 'Home' | 'Hall';
+
+/** The Guild's parts in the order of their tabs. */
+export const guildPartNames: readonly GuildPartName[] = ['Home', 'Hall'];
+
+/**
+ * The navigation's button for `view`, where it is shown: in the bar or the rail, or in "More" once
+ * it is open. Its name is the view's, then any count: Chromium puts a space before the count's
+ * comma, as the label is a block of its own. The Guildmaster's is named by the Guildmaster's name,
+ * so it is found as the one button with a description, which is "Guildmaster" (M9-F2).
+ */
+export function navItem(scope: Scope, view: ViewName): Locator {
+  const nav = scope.getByRole('navigation', { name: 'Views' });
+  if (view === 'Guildmaster') return nav.locator('button.nav__button[aria-describedby]:visible');
+  return nav.getByRole('button', { name: new RegExp(`^${view}\\s*(,|$)`) });
+}
 
 /** Opens `view` from the navigation, through "More" where the bar keeps it there, and gives its region. */
 export async function openView(scope: Scope, view: ViewName): Promise<Locator> {
   const nav = scope.getByRole('navigation', { name: 'Views' });
-  // Its name is the view's, then any count: Chromium puts a space before the count's comma, as the
-  // label is a block of its own.
-  const item = nav.getByRole('button', { name: new RegExp(`^${view}\\s*(,|$)`) });
+  const item = navItem(scope, view);
   if ((await item.count()) === 0) await nav.getByRole('button', { name: 'More', exact: true }).click();
   await item.first().click();
   const shown = region(scope, view);
+  await expect(shown).toBeVisible();
+  return shown;
+}
+
+/** Opens the Guild's `part` from its tab, the Guild opened first, and gives the part's panel (M9-F2). */
+export async function guildPart(scope: Scope, part: GuildPartName): Promise<Locator> {
+  const guild = await openView(scope, 'Guild');
+  await guild.getByRole('tab', { name: part, exact: true }).click();
+  const shown = guild.getByRole('tabpanel', { name: part, exact: true });
   await expect(shown).toBeVisible();
   return shown;
 }
@@ -83,11 +117,10 @@ export async function openView(scope: Scope, view: ViewName): Promise<Locator> {
 const viewOf: Readonly<Record<string, ViewName>> = {
   'Transfer Offers': 'Roster',
   'Unattached pool': 'Roster',
-  Guildmaster: 'Hall',
-  'What the Guild holds': 'Hall',
-  Market: 'Hall',
   Guilds: 'Rankings',
   Patrons: 'Rankings',
+  Buy: 'Market',
+  Sell: 'Market',
 };
 
 /** Opens the view a part is in, and gives the part's region. */

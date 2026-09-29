@@ -1,7 +1,12 @@
 // The page's views and their parts (M9-S3, DL-103). The page is views in a shell, one at a time
 // (DL-99 item 1): each view is a labelled region with its heading, which takes the keyboard when the
-// view opens, and a part of a view (the Unattached pool in the Roster, the Market in the Hall) is a
+// view opens, and a part of a view (the Unattached pool in the Roster, Buy in the Market) is a
 // labelled region inside it with a heading of its own.
+//
+// Seven views since M9-F2 (DL-111 items 5 to 7, DL-112 item 5, DL-115): the Guildmaster, Guild,
+// Roster, Board, Rankings, Market and History. The Hall view is gone: the Guildmaster and the Market
+// are views of their own, and the Hall is a part of the Guild. The Guild's parts are tabs under its
+// heading, one open at a time (`guildParts`), each a tab's panel rather than a region with a heading.
 //
 // Each view and each part keeps its sentence saying what it is for and what its controls do, the
 // page's `help` (the CLI's usage text, `cli/src/args.ts`, adapted; DL-73 item 9). The sentence is
@@ -13,45 +18,66 @@ import type { ReactNode } from 'react';
 import { About } from './ui';
 
 /** A view the navigation opens, one at a time. */
-export type ViewId = 'guild' | 'board' | 'roster' | 'hall' | 'rankings' | 'history';
+export type ViewId = 'guildmaster' | 'guild' | 'roster' | 'board' | 'rankings' | 'market' | 'history';
 
 /** A part of a view, a region inside it. */
-export type PartId = 'offers' | 'pool' | 'guildmaster' | 'held' | 'market' | 'guilds' | 'patrons';
+export type PartId = 'offers' | 'pool' | 'guilds' | 'patrons' | 'buy' | 'sell';
+
+/**
+ * A part of the Guild, a tab under its heading (M9-F2): Home, the home view's digest, and Hall, its
+ * premises. M9-F3 adds Stores and Treasury here and to `guildParts`.
+ */
+export type GuildPartId = 'home' | 'hall';
 
 /** Anything the page can take the player to: a view, a part, and the regions outside the views. */
-export type SectionId = ViewId | PartId | 'new-game' | 'game' | 'rules';
+export type SectionId = ViewId | PartId | GuildPartId | 'new-game' | 'game' | 'rules';
 
-/** The views in the navigation's order: Guild, the home view, first. */
-export const viewIds: readonly ViewId[] = ['guild', 'board', 'roster', 'hall', 'rankings', 'history'];
+/**
+ * The views in the navigation's order, one order at every width (DL-112 item 5, DL-113 item 1): the
+ * Guildmaster at the top, then the phone's bar, Guild, Roster, Board and Rankings, then what "More"
+ * holds there, Market and History.
+ */
+export const viewIds: readonly ViewId[] = ['guildmaster', 'guild', 'roster', 'board', 'rankings', 'market', 'history'];
 
-/** Each view's parts, in the order the view shows them. */
-export const partsOf: Readonly<Record<ViewId, readonly PartId[]>> = {
-  guild: [],
-  board: [],
+/** The Guild's parts in the order of their tabs, Home first. */
+export const guildParts: readonly GuildPartId[] = ['home', 'hall'];
+
+/** Each view's parts, in the order the view shows them: the Guild's are its tabs. */
+export const partsOf: Readonly<Record<ViewId, readonly (PartId | GuildPartId)[]>> = {
+  guildmaster: [],
+  guild: guildParts,
   roster: ['offers', 'pool'],
-  hall: ['guildmaster', 'market', 'held'],
+  board: [],
   rankings: ['guilds', 'patrons'],
+  market: ['buy', 'sell'],
   history: [],
 };
 
 /** The view a part is in. */
-export const viewOf: Readonly<Record<PartId, ViewId>> = Object.fromEntries(
+export const viewOf: Readonly<Record<PartId | GuildPartId, ViewId>> = Object.fromEntries(
   viewIds.flatMap((view) => partsOf[view].map((part) => [part, view])),
-) as Record<PartId, ViewId>;
+) as Record<PartId | GuildPartId, ViewId>;
 
-/** Each region's heading. */
+/** Whether `id` is one of the Guild's parts. */
+export function isGuildPart(id: string): id is GuildPartId {
+  return (guildParts as readonly string[]).includes(id);
+}
+
+/** Each region's heading; a Guild part's is its tab's name. */
 export const titles: Readonly<Record<SectionId, string>> = {
+  guildmaster: 'Guildmaster',
   guild: 'Guild',
-  board: 'Board',
   roster: 'Roster',
-  hall: 'Hall',
+  board: 'Board',
   rankings: 'Rankings',
+  market: 'Market',
   history: 'History',
+  home: 'Home',
+  hall: 'Hall',
   offers: 'Transfer Offers',
   pool: 'Unattached pool',
-  guildmaster: 'Guildmaster',
-  held: 'What the Guild holds',
-  market: 'Market',
+  buy: 'Buy',
+  sell: 'Sell',
   guilds: 'Guilds',
   patrons: 'Patrons',
   'new-game': 'A new game',
@@ -65,6 +91,9 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 /** What each region is for and what its controls do: its accessible description. */
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
+    'Your Guild, in parts, one open at a time from the tabs under its heading: Home, what needs you this Turn, and ' +
+    'Hall, its premises. This browser keeps the part open.',
+  home:
     'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
     'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to sell what it holds ' +
     'and to the Board; the Bankruptcy countdown while your Guild is below the floor; how the Parties that came home fared; the ' +
@@ -80,7 +109,7 @@ export const help: Readonly<Record<SectionId, string>> = {
     'look elsewhere, until it is sent, its Quest leaves the Board or another game is started or loaded. ' +
     rivalsReminder,
   roster:
-    'Your Heroes, each with their Class, Level and age, their Morale and where they are. Open a Hero’s page for ' +
+    'Your Heroes, each with their Class, Level and Age, their Morale and where they are. Open a Hero’s page for ' +
     'their Stats by area, with what gear adds and a hint of how far each may grow, their gear and Skills, their ' +
     'Relationships and their History; from it, put gear the Guild holds on them, take it off, or transfer them to ' +
     'another Guild, which asks first.',
@@ -105,16 +134,17 @@ export const help: Readonly<Record<SectionId, string>> = {
     'by Class or by fee from their headings. Recruit signs one to your Roster for the fee; open a Hero to see their ' +
     'Stats first.',
   guildmaster:
-    'Your character in the world. Their Stats bear on running the Guild, never on fighting: each says what it bears ' +
-    'on. Their Traits help or hinder the Guild, each with what it does, and their Regard for others is shown as a ' +
-    'band, the neutral ones folded under their count.',
-  held:
+    'Your character in the world, who runs your Guild: their Sex, Age and what you wrote of them. Their Stats bear on ' +
+    'running the Guild, never on fighting: each says what it bears on. Their Traits help or hinder the Guild, each ' +
+    'with what it does, and their Regard for others is shown as a band, the neutral ones folded under their count.',
+  market: 'The Market, where your Guild buys Items for its Heroes and Parties and sells what it holds: Buy, then Sell.',
+  buy:
+    'Buy Items the Market has for sale at its price each, the number chosen; show one kind at a time with the chips ' +
+    'above the table. The Market’s stock is drawn afresh each morning.',
+  sell:
     'The Items your Guild holds and has not put on a Hero: gear to put on one from their page, consumables a Party ' +
     'can carry, and anything the Market will buy. Sell sells the number chosen for what the Market pays for each, ' +
     'which is less than it costs. Gear a Hero carries is not the Guild’s to sell until it is unequipped.',
-  market:
-    'Buy Items the Market has for sale at its price each, the number chosen; show one kind at a time with the chips ' +
-    'above the table. The Market’s stock is drawn afresh each morning.',
   guilds:
     'Every Guild in one table, yours marked, in the Rankings by Fame at first. A column’s heading orders the table ' +
     'by it: by Fame or by Wealth it is the Rankings, where Guilds level share a place; by any other column the order ' +

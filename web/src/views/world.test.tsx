@@ -147,7 +147,7 @@ describe('the Guildmaster and the Patrons', () => {
     render_(started());
     const guildmaster = section('Guildmaster');
 
-    expect(within(guildmaster).getByRole('heading', { level: 4, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
+    expect(within(guildmaster).getByRole('heading', { level: 3, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
     expect(within(guildmaster).getByText('the reward agreed and the fees paid')).toBeDefined();
     // Regard as bands, never numbers: a new game's are neutral, folded under their counts (M9-S6).

@@ -104,6 +104,21 @@ const paths = {
       <path d="M3 20h18" />
     </>
   ),
+  // M9-F2: the Guildmaster, a figure under a crown, and the Market, a stall under its awning.
+  guildmaster: (
+    <>
+      <path d="M8 7.5L7 3.5l3 2 2-2.5 2 2.5 3-2-1 4z" />
+      <circle cx="12" cy="11" r="3" />
+      <path d="M5 21a7 7 0 0 1 14 0" />
+    </>
+  ),
+  market: (
+    <>
+      <path d="M3.5 9l1.5-5h14l1.5 5z" />
+      <path d="M3.5 9a2.8 2.8 0 0 0 5.7 0 2.8 2.8 0 0 0 5.6 0 2.8 2.8 0 0 0 5.7 0" />
+      <path d="M5 11.5V20h14v-8.5M10 20v-5h4v5" />
+    </>
+  ),
   more: (
     <>
       <circle cx="6" cy="12" r="1.3" />

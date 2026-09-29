@@ -63,13 +63,13 @@ describe('the Market', () => {
 
     expect(wealth()).toBe(before - 2 * price);
     // Kind, Effect, Held, Sells for.
-    expect(cells(rowOf(section('What the Guild holds'), 'Padded jack')).slice(0, 3)).toEqual(['armour gear', 'Constitution +1', '2']);
+    expect(cells(rowOf(section('Sell'), 'Padded jack')).slice(0, 3)).toEqual(['armour gear', 'Constitution +1', '2']);
     logSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
   });
 
   test('sells from a stack the Guild holds for what the Market pays', async () => {
     render_(holding(started(), 'whetstone', 3));
-    const sale = rowOf(section('What the Guild holds'), 'Whetstone');
+    const sale = rowOf(section('Sell'), 'Whetstone');
     const each = Number(cells(sale)[3]);
     const before = wealth();
 
@@ -78,13 +78,13 @@ describe('the Market', () => {
     await idle();
 
     expect(wealth()).toBe(before + 2 * each);
-    expect(cells(rowOf(section('What the Guild holds'), 'Whetstone'))[2]).toBe('1');
+    expect(cells(rowOf(section('Sell'), 'Whetstone'))[2]).toBe('1');
   });
 
   test("sells a unique Item the Guild holds, one of its own with no quantity to choose (the CLI's `sell --item`, M9-S8)", async () => {
     const blade = "The Barrow King's blade";
     render_(holdingUnique(started(), 'barrow-kings-blade'));
-    const sale = rowOf(section('What the Guild holds'), blade);
+    const sale = rowOf(section('Sell'), blade);
     // Kind, Effect, Held, Sells for.
     expect(cells(sale)[0]).toBe('weapon gear, unique');
     expect(cells(sale)[2]).toBe('1');
@@ -97,8 +97,8 @@ describe('the Market', () => {
     await idle();
 
     expect(wealth()).toBe(before + each);
-    // The Guild holds nothing now, so the part is not drawn (M9-S3).
-    expect(screen.queryByRole('region', { name: 'What the Guild holds' })).toBeNull();
+    // The Guild holds nothing now: Sell says so, with no table (M9-F2).
+    expect(within(section('Sell')).queryByRole('table')).toBeNull();
     logSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
   });
 

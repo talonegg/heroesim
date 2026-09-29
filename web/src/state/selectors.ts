@@ -104,6 +104,8 @@ export function whenOf(turn: number): string {
 
 export interface HeaderView {
   guildName: string;
+  /** The player's Guildmaster's name, the navigation's label for the Guildmaster view (M9-F2); `null` with none. */
+  guildmasterName: string | null;
   wealth: number;
   fame: number;
   /** `Day 3, afternoon, Year 0`: the Turn and where it falls, as the CLI's `renderTime` says it. */
@@ -152,6 +154,7 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const measure = place === undefined ? '' : 'by Fame';
   return {
     guildName: guild.name,
+    guildmasterName: guildmasterOf(guild, world)?.name ?? null,
     wealth: guild.wealth,
     fame: guild.fame,
     time: `${when}, ${year}`,

@@ -10,6 +10,7 @@ import {
   expectTargets,
   groupOf,
   guildmasterSetup,
+  guildPart,
   history,
   historyText,
   lineOf,
@@ -34,7 +35,8 @@ import {
 // menu's. The Party is chosen in the Party builder (M9-S4, DL-104), with a Hero's page opened from it.
 // What each play did is read in the History, opened on the player's Guild, new; the Party's return
 // is read there too, how it went marked in a word and its Encounters folded under it (M9-S5,
-// DL-105).
+// DL-105). Since M9-F2 (DL-115), the Guildmaster, the Guild's Hall part and the Market are
+// passed through on the way.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -137,6 +139,8 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // budget of 1, a buff and a penalty; the sex and the rest drawn from the seed.
   const setup = await guildmasterSetup(page);
   await setup.getByLabel('Age', { exact: true }).selectOption('38');
+  // The Age field says when a Guildmaster retires, from the rules (M9-F2, DL-113 item 5).
+  await expect(setup.getByText(/^Years, \d+ to \d+\. Retires at \d+\.$/)).toBeVisible();
   await setup.getByRole('radio', { name: 'Choose them' }).check();
   const budget = setup.getByTestId('trait-budget');
   await expect(budget).toContainText('Budget left: 1');
@@ -153,11 +157,22 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expectNoHorizontalOverflow(page, "the Guildmaster's setup, two Traits chosen");
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-journey' });
   await expectNoHorizontalOverflow(page, 'a new game');
-  // The Guildmaster the game began with: the age and the Traits chosen.
-  const guildmaster = await part(page, 'Guildmaster');
+  // The Guildmaster the game began with, in the Guildmaster view at the top of the navigation
+  // (M9-F2): the Sex capitalised, the Age and the Traits chosen.
+  const guildmaster = await openView(page, 'Guildmaster');
+  await expect(guildmaster.getByRole('heading', { level: 3 })).toHaveText('Ada Vell, Guildmaster of The Lantern');
+  await expect(guildmaster).toContainText(/Sex\s*(Male|Female)/);
   await expect(guildmaster).toContainText(/Age\s*38/);
   await expect(guildmaster).toContainText('Old soldier');
   await expect(guildmaster).toContainText('Mistrusts magic');
+
+  // The Guild's Hall part, its facilities with Build, and the Market's Buy and Sell (M9-F2).
+  const hall = await guildPart(page, 'Hall');
+  await expect(hall.getByTestId('facility')).toHaveCount(3);
+  await expect(hall.getByRole('button', { name: /^Build .+ for \d+ Wealth$/ }).first()).toBeVisible();
+  const market = await openView(page, 'Market');
+  await expect(market.getByRole('heading', { level: 3 })).toHaveText(['Buy', 'Sell']);
+  await expectNoHorizontalOverflow(page, 'the Market');
 
   // A Day: three Turns, morning, afternoon and night.
   const advance = page.getByRole('button', { name: 'Advance a Turn' });
@@ -169,8 +184,9 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(sent).toHaveCount(1);
   await expect(lineOf(sent)).toHaveClass(/\bis-new\b/);
   await expect(groupOf(sent)).toHaveText('Day 1, morning');
-  // The home view names the Party out, and the night it returns.
-  const home = await openView(page, 'Guild');
+  // The home view names the Party out, and the night it returns: the Guild opens at the part last
+  // open, the Hall, and its Home is a tab away (M9-F2).
+  const home = await guildPart(page, 'Home');
   await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Day \\d+$`) })).toHaveCount(1);
 
   // Recruit a Hero from the Unattached pool (the Gate's "recruited", DL-74).

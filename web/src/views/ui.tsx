@@ -5,10 +5,11 @@
 //
 // M9-S6 (DL-106) adds the tones of the Morale and Regard bands, a column heading that orders its
 // table, Regard as chips with the neutral ones folded under their count (the review's C8), and the
-// one confirmation an act that lets a Hero go asks for (E4).
+// one confirmation an act that lets a Hero go asks for (E4). M9-F2 (DL-115) adds tabs, for the
+// Guild's parts.
 
 import type { MoraleBand, RegardBand } from '@heroesim/engine';
-import { useEffect, useId, useRef, useState, type ChangeEvent, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type ChangeEvent, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type RefObject } from 'react';
 import { Icon, type IconName } from './icons';
 
 /** Words read by assistive technology and not shown. */
@@ -388,4 +389,84 @@ export function useReturn(): { opened: (id: string) => void; closed: () => void 
       if (opener.current !== null) setBack({ id: opener.current });
     },
   };
+}
+
+/** A tab: its key, which names its panel, and its words. */
+export interface TabItem<Key extends string> {
+  key: Key;
+  label: string;
+}
+
+/**
+ * Tabs and the one panel open under them, in the ARIA tabs pattern (M9-F2, DL-115): the tabs a
+ * `tablist` named by `label`; only the tab open is in the Tab order, and the arrow keys, Home and
+ * End move between the tabs, each opening its panel as it takes the keyboard. The panel is named by
+ * its tab and described by `describedBy`, as a part's region is by its sentence.
+ */
+export function Tabs<Key extends string>({
+  label,
+  tabs,
+  open,
+  onOpen,
+  idOf,
+  describedBy,
+  children,
+}: {
+  label: string;
+  tabs: readonly TabItem<Key>[];
+  open: Key;
+  onOpen: (key: Key) => void;
+  /** The ids a tab and its panel take, from its key: `${idOf(key)}-tab` and `${idOf(key)}-panel`. */
+  idOf: (key: Key) => string;
+  describedBy?: (key: Key) => string;
+  /** The open panel's content. */
+  children: ReactNode;
+}) {
+  const list = useRef<HTMLDivElement>(null);
+  const move = (event: ReactKeyboardEvent<HTMLButtonElement>, at: number): void => {
+    const last = tabs.length - 1;
+    const to =
+      event.key === 'ArrowRight' ? (at === last ? 0 : at + 1)
+      : event.key === 'ArrowLeft' ? (at === 0 ? last : at - 1)
+      : event.key === 'Home' ? 0
+      : event.key === 'End' ? last
+      : null;
+    const next = to === null ? undefined : tabs[to];
+    if (next === undefined) return;
+    event.preventDefault();
+    onOpen(next.key);
+    list.current?.querySelector<HTMLElement>(`#${idOf(next.key)}-tab`)?.focus();
+  };
+  return (
+    <>
+      <div className="tabs" role="tablist" aria-label={label} ref={list}>
+        {tabs.map((tab, at) => (
+          <button
+            key={tab.key}
+            type="button"
+            role="tab"
+            id={`${idOf(tab.key)}-tab`}
+            className="tab"
+            aria-selected={tab.key === open}
+            aria-controls={`${idOf(tab.key)}-panel`}
+            tabIndex={tab.key === open ? 0 : -1}
+            onClick={() => onOpen(tab.key)}
+            onKeyDown={(event) => move(event, at)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+      <div
+        className="tab-panel"
+        role="tabpanel"
+        id={`${idOf(open)}-panel`}
+        aria-labelledby={`${idOf(open)}-tab`}
+        aria-describedby={describedBy?.(open)}
+        tabIndex={0}
+      >
+        {children}
+      </div>
+    </>
+  );
 }

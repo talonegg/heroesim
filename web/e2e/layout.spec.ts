@@ -4,6 +4,9 @@ import {
   expectNoHorizontalOverflow,
   expectTargets,
   guildmasterSetup,
+  guildPart,
+  guildPartNames,
+  navItem,
   openGameMenu,
   openView,
   part,
@@ -13,6 +16,7 @@ import {
   statusBar,
   thisGame,
   traitBox,
+  viewNames,
   type ViewName,
 } from './support';
 
@@ -29,11 +33,14 @@ import {
 // Send in view at the foot of the form (M9-S4, DL-104). So are the Roster's cards and a Hero's page
 // with its Transfer asked for, the pool's rows, the Hall's facilities, Guildmaster, Market and
 // holdings, and the Rankings' table, a Rival's page unfolded and the Patrons' table: a wide table
-// scrolls in its own box, never the page (M9-S6, DL-106).
+// scrolls in its own box, never the page (M9-S6, DL-106). Since M9-F2 (DL-115) the seven views and
+// each of the Guild's parts, the navigation's one order at each width, and the Guildmaster's long
+// name cut in it.
 
 const longGuild = 'The Most Honourable and Ancient Company of the Lantern-Bearers of Aldmoor';
 const longMaster = 'Ælfwine Grimbeorhtssonofthewestmarchesandthefellsbeyondthebarrowdowns';
-const views: readonly ViewName[] = ['Guild', 'Board', 'Roster', 'Hall', 'Rankings', 'History'];
+// The seven views, in the navigation's order (M9-F2).
+const views: readonly ViewName[] = viewNames;
 
 test('every view and the game menu, with no sideways scroll and every control a 44px target', async ({ page }) => {
   test.setTimeout(120_000);
@@ -46,6 +53,24 @@ test('every view and the game menu, with no sideways scroll and every control a 
   await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
 
+  // One order at every width (M9-F2, DL-112 item 5): under 600px the bar holds Guild, Roster, Board
+  // and Rankings, and More the other three; from 600px all seven show, the Guildmaster first.
+  const nav = page.getByRole('navigation', { name: 'Views' });
+  const shownLabels = nav.locator('.nav__list > .nav__item:visible .nav__label');
+  const phone = (page.viewportSize()?.width ?? 0) < 600;
+  await expect(shownLabels).toHaveText(
+    phone ? ['Guild', 'Roster', 'Board', 'Rankings', 'More'] : [longMaster, 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'],
+  );
+  // The Guildmaster's name, whatever its length, is cut with an ellipsis rather than widen the navigation.
+  if (phone) await nav.getByRole('button', { name: 'More', exact: true }).click();
+  await expect(navItem(page, 'Guildmaster')).toHaveAccessibleName(longMaster);
+  await expect(navItem(page, 'Guildmaster')).toHaveAccessibleDescription('Guildmaster');
+  if (phone) {
+    await expect(page.locator('#nav-more .nav__label')).toHaveText([longMaster, 'Market', 'History']);
+    await expectNoHorizontalOverflow(page, 'More, open');
+    await nav.getByRole('button', { name: 'More', exact: true }).click();
+  }
+
   for (const view of views) {
     const shown = await openView(page, view);
     // The status bar stays in view, whichever view is open.
@@ -56,6 +81,13 @@ test('every view and the game menu, with no sideways scroll and every control a 
     await shown.getByText('About this view').click();
     await expect(page.locator(`#${view.toLowerCase()}-help`)).toBeVisible();
     await expectNoHorizontalOverflow(page, `the ${view} view, its help open`);
+  }
+
+  // Each of the Guild's parts, opened from its tab (M9-F2).
+  for (const name of guildPartNames) {
+    await guildPart(page, name);
+    await expectNoHorizontalOverflow(page, `the Guild's ${name}`);
+    await expectTargets(page, `the Guild's ${name}`);
   }
 
   await openGameMenu(page);
@@ -222,7 +254,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(longGuild);
 });
 
-test('the Roster, the Hall and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets (M9-S6)', async ({ page }) => {
+test('the Roster, the Hall, the Guildmaster, the Market and the Rankings: no sideways scroll, a wide table in its own box, and 44px targets (M9-S6, M9-F2)', async ({ page }) => {
   test.setTimeout(180_000);
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
@@ -259,17 +291,20 @@ test('the Roster, the Hall and the Rankings: no sideways scroll, a wide table in
     await check('the pool by fee');
     await pool.getByRole('button', { name: 'Order by Fee' }).click();
 
-    // The Hall: its facilities, the Guildmaster, the Market filtered, and what the Guild holds.
-    await openView(page, 'Hall');
-    await check("the Hall's facilities, Guildmaster and Market");
-    const market = await part(page, 'Market');
+    // The Guild's Hall part, its facilities; the Guildmaster view; the Market's Buy filtered, and
+    // its Sell (M9-F2).
+    await guildPart(page, 'Hall');
+    await check("the Guild's Hall part");
+    await openView(page, 'Guildmaster');
+    await check('the Guildmaster view');
+    const market = await part(page, 'Buy');
     const kinds = market.getByRole('group', { name: 'Show for sale' });
     await kinds.getByRole('button').nth(1).click();
-    await check('the Market, one kind shown');
+    await check("the Market's Buy, one kind shown");
     await kinds.getByRole('button', { name: 'All', exact: true }).click();
     await market.getByTestId('listing').first().getByRole('button', { name: /^Buy / }).click();
-    await expect(page.getByRole('region', { name: 'What the Guild holds', exact: true })).toBeVisible();
-    await check('what the Guild holds');
+    await expect(page.getByRole('region', { name: 'Sell', exact: true }).getByRole('table')).toBeVisible();
+    await check("the Market's Sell");
 
     // The Rankings' table, ordered by Upkeep; a Rival's page, its Hall and Guildmaster unfolded.
     await openView(page, 'Rankings');
