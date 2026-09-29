@@ -5,7 +5,8 @@
 //
 // Nothing here computes a rule (ADR-0007, principle 12). Every amount is an event's payload, as the
 // engine wrote it when the Wealth moved (DL-112's context: every change to a Guild's Wealth has an
-// event that carries the amount), and Upkeep's figures are the engine's `upkeepParts` and
+// event that carries the amount); the ledger opens with the Wealth the Guild was founded with, which
+// its `guild.founded` carries from M9-F7 (DL-120 item 4); and Upkeep's figures are the engine's `upkeepParts` and
 // `nextUpkeepDay` (M9-F1, DL-114 item 3). The ledger reads the History's own index of entries by
 // participant, never the History view's scopes or filters (M9-F4's), since every Wealth event names
 // its Guild.
@@ -128,21 +129,25 @@ export function wealthChangeOf(entry: Entry | TurnEvent, guildId: GuildId): Weal
 
 // ── The ledger ───────────────────────────────────────────────────────────────────────────────
 
-/** One change to a Guild's Wealth, as the Treasury's ledger shows it. */
+/**
+ * One change to a Guild's Wealth, as the Treasury's ledger shows it; or its opening row, the Wealth it
+ * was founded with (M9-F7, DL-120 item 4), which has no category.
+ */
 export interface LedgerRow {
   /** Its place in the History: unique, and the same on every page. */
   key: string;
   /** `Day 19, night`. */
   when: string;
-  /** What happened, in the History's words, each name opening whom it names. */
+  /** What happened, in the History's words, each name opening whom it names; `Founded with 500 Wealth` for the opening row. */
   segments: Segment[];
   sentence: string;
-  category: LedgerCategory;
-  /** `Quest rewards`. */
+  /** `null` for the opening row. */
+  category: LedgerCategory | null;
+  /** `Quest rewards`; `Opening balance` for the opening row. */
   categoryWords: string;
-  /** Positive for income, negative for an expense. */
+  /** Positive for income, negative for an expense; the founding Wealth for the opening row. */
   amount: number;
-  /** `+300`, `-120`. */
+  /** `+300`, `-120`; `500` for the opening row, a balance and not a change. */
   amountWords: string;
 }
 
@@ -182,10 +187,35 @@ function ledgerRow({ position, entry, category, amount }: LedgerChange, narratio
   };
 }
 
-/** Every change to `guildId`'s Wealth the History holds, newest first. */
+/**
+ * The ledger's opening row: the Wealth `guildId` was founded with, from its `guild.founded`, the first
+ * entry naming it; `null` when that names none, as a founding written before M9-F7 does.
+ */
+function openingOf(document: WorldDocument, guildId: GuildId): LedgerRow | null {
+  const { history } = document;
+  const positions = Object.hasOwn(history.byEntity, guildId) ? (history.byEntity[guildId] ?? []) : [];
+  const position = positions.find((at) => history.entries[at]?.type === 'guild.founded');
+  const founded = position === undefined ? undefined : (history.entries[position] as EngineEventOf<'guild.founded'>);
+  const wealth = founded?.payload.guildId === guildId ? founded.payload.wealth : undefined;
+  if (founded === undefined || wealth === undefined) return null;
+  const sentence = `Founded with ${wealth} Wealth`;
+  return {
+    key: `ledger-${position}`,
+    when: whenOf(founded.turn),
+    segments: [{ kind: 'text', text: sentence }],
+    sentence,
+    category: null,
+    categoryWords: 'Opening balance',
+    amount: wealth,
+    amountWords: String(wealth),
+  };
+}
+
+/** Every change to `guildId`'s Wealth the History holds, newest first, then its opening row when the History has one. */
 export function ledgerOf(document: WorldDocument, guildId: GuildId): LedgerRow[] {
   const narration = narrationFor(document, content);
-  return changesOf(document, guildId).map((change) => ledgerRow(change, narration));
+  const opening = openingOf(document, guildId);
+  return [...changesOf(document, guildId).map((change) => ledgerRow(change, narration)), ...(opening === null ? [] : [opening])];
 }
 
 // ── The Treasury part ────────────────────────────────────────────────────────────────────────
@@ -228,13 +258,15 @@ export interface TreasuryView {
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
   countdown: string | null;
   ledger: {
-    /** The page's rows, newest first. */
+    /** The page's rows, newest first; the opening row last, on the last page, when it is shown. */
     rows: LedgerRow[];
     /** Which page, from 0, of how many; a ledger with nothing to show has one, empty. */
     page: number;
     pages: number;
-    /** How many rows the filter lets through, on every page. */
+    /** How many changes the filter lets through, on every page: the opening row is none. */
     shown: number;
+    /** Whether the opening row is shown: with every change, no filter chosen, when the History names the founding Wealth (M9-F7). */
+    opens: boolean;
     totals: LedgerTotals;
     /** Each category the Guild's ledger holds, in the Treasury's order, with its rows' count, whatever is shown: the filter's chips. */
     categories: { key: LedgerCategory; label: string; count: number }[];
@@ -271,9 +303,14 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
   // Filtered, counted and totalled before words: only the page shown is narrated (M9-F6, code review).
   const all = changesOf(document, guild.id);
   const shown = all.filter((row) => shows(row, filter));
-  const pages = Math.max(1, Math.ceil(shown.length / historyPageSize));
+  // The opening row is a balance, neither income nor expense: it ends the ledger shown whole (M9-F7).
+  const opening = filter.flow === 'both' && filter.category === null ? openingOf(document, guild.id) : null;
+  const rows = shown.length + (opening === null ? 0 : 1);
+  const pages = Math.max(1, Math.ceil(rows / historyPageSize));
   const narration = narrationFor(document, content);
   const at = Math.min(Math.max(0, Math.floor(page)), pages - 1);
+  const onPage = shown.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, narration));
+  if (opening !== null && at === pages - 1) onPage.push(opening);
 
   return {
     guildName: guild.name,
@@ -292,10 +329,11 @@ export function treasuryView(document: WorldDocument, filter: TreasuryFilter, pa
     floor: config.bankruptcyFloor,
     countdown: countdownView(document),
     ledger: {
-      rows: shown.slice(at * historyPageSize, (at + 1) * historyPageSize).map((change) => ledgerRow(change, narration)),
+      rows: onPage,
       page: at,
       pages,
       shown: shown.length,
+      opens: opening !== null,
       totals: totalsOf(shown),
       categories: ledgerCategories.flatMap((key) => {
         const count = all.filter((row) => row.category === key).length;

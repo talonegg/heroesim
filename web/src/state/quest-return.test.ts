@@ -1,7 +1,7 @@
-import { append, dayOf, entriesFor, makeId, playerGuild, type EngineEventOf, type HeroId, type WorldDocument } from '@heroesim/engine';
+import { append, dayOf, entriesFor, makeId, playerGuild, unattachedHeroes, type EngineEventOf, type HeroId, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test, vi } from 'vitest';
 import { content } from '../content';
-import { cameHome, changed, started, withPartyOut, withReturn, type Written } from './game.test-support';
+import { cameHome, changed, played, started, withPartyOut, withReturn, withWealth, type Written } from './game.test-support';
 import { historyFilter } from './history';
 import { narrate, narrateSegments, narrationFor, textOf } from './narrate';
 import { partOfAReturn, questReturn, reportSections, returnEntry, returnsIn, type QuestReturn } from './quest-return';
@@ -150,6 +150,66 @@ describe('questReturn (M9-F5)', () => {
     expect(other?.regard).toEqual([{ heroId: written.party.heroIds[2], name: mate, bandBefore: 'neutral', bandAfter: 'warm' }]);
     expect(other?.words).toEqual(['gained 5 XP', 'Morale went from 50 to 40, low', `Regard for ${mate} rose from neutral to warm`]);
     expect(third?.regard).toEqual([]);
+  });
+
+  test('what a Death cost the Heroes at home: one line, the Guild mourning the dead, and whose Morale fell by how much (M9-F7, DL-120 item 7)', () => {
+    const document = base.document as WorldDocument;
+    const guild = playerGuild(document.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    const home = guild.rosterIds.filter((heroId) => !party.includes(heroId));
+    expect(home.length).toBeGreaterThan(0);
+    const written = withReturn(base, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', died: [0] }],
+      deaths: [0],
+      morale: [
+        // A Party mate's grief is in their own line, not at home's.
+        { hero: 1, cause: 'roster-death', before: 50, after: 46, bandAfter: 'steady' },
+        ...home.map((heroId) => ({ hero: heroId, cause: 'roster-death' as const, before: 40, after: 36, bandAfter: 'steady' as const })),
+      ],
+    });
+    const dead = nameOf(written, written.party.heroIds[0] as string);
+    const report = read(written);
+    const heroes = `${home.length} ${home.length === 1 ? 'Hero' : 'Heroes'}`;
+
+    expect(report.home).toEqual({
+      sentence: `At home: the Guild mourned ${dead}. Morale fell for ${heroes} (${home.length === 1 ? '−4' : '−4 each'}).`,
+      heroesWords: `${heroes} at home`,
+      heroes: home.map((heroId) => ({ heroId, name: nameOf(written, heroId), words: 'Morale went from 40 to 36, steady' })),
+    });
+    expect(report.outcomes[1]?.words).toContain('Morale went from 50 to 46, steady');
+    // The line follows the Heroes' outcomes, in their section.
+    expect(reportSections(report).find((section) => section.kind === 'heroes')).toMatchObject({ home: report.home });
+  });
+
+  test('the Heroes at home: two Deaths cost each twice, a fall that differs is given as a span, and a return with no Death has no line (M9-F7)', () => {
+    // A second Hero at home, signed before the Party comes home.
+    const [signing] = unattachedHeroes((base.document as WorldDocument).world);
+    if (signing === undefined) throw new Error('no one in the pool');
+    const more = played(withWealth(base, 5_000), { kind: 'recruit', heroId: signing.id });
+    const document = more.document as WorldDocument;
+    const guild = playerGuild(document.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    const [one, two] = guild.rosterIds.filter((heroId) => !party.includes(heroId));
+    if (one === undefined || two === undefined) throw new Error('fewer than two Heroes at home');
+    const written = withReturn(more, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', died: [0, 1] }],
+      deaths: [0, 1],
+      morale: [
+        { hero: one, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' },
+        { hero: two, cause: 'roster-death', before: 2, after: 0, bandAfter: 'wretched' },
+        { hero: one, cause: 'roster-death', before: 36, after: 32, bandAfter: 'steady' },
+        { hero: two, cause: 'roster-death', before: 0, after: 0, bandAfter: 'wretched' },
+      ],
+    });
+    const [first, second] = written.party.heroIds.map((heroId) => nameOf(written, heroId));
+
+    expect(read(written).home?.sentence).toBe(`At home: the Guild mourned ${first} and ${second}. Morale fell for 2 Heroes (−2 to −8).`);
+    expect(read(written).home?.heroes.map((hero) => hero.words)).toEqual(['Morale went from 40 to 32, steady', 'Morale went from 2 to 0, wretched']);
+    expect(read(withReturn(base, { band: 'success', wealth: 10, xp: 5 })).home).toBeNull();
   });
 
   test('a Loot: each Item found, by name and quantity, among the rewards', () => {

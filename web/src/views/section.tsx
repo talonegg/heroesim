@@ -99,7 +99,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
     'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to sell what it holds ' +
     'and to the Board; the Bankruptcy countdown while your Guild is below the floor; the Quest report of each Party ' +
-    'that came home in the last play, its Encounters, rewards, each Hero’s outcome and its Patron’s Regard for your ' +
+    'that came home in the last play, its Encounters, rewards, each Hero’s outcome, what a Death cost the Heroes at ' +
+    'home, and its Patron’s Regard for your ' +
     'Guild, or an older report opened from its entry, until you close it; the ' +
     'Transfer Offers waiting for an answer; the Parties still out and the night each returns; and the Quests on ' +
     'their last Day on the Board.',

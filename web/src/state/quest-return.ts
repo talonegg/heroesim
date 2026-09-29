@@ -111,6 +111,22 @@ export interface QuestReturn {
   outcomes: HeroOutcome[];
   /** The Patron's Regard for the Guild; `null` when the History names no Patron. */
   patronRegard: PatronStanding | null;
+  /** What a Death on the Quest cost the Heroes at home; `null` when no Hero died (M9-F7, DL-120 item 7). */
+  home: HomeGrief | null;
+}
+
+/**
+ * What a Death on the Quest cost the Heroes at home (M9-F7, DL-120 item 7), read from the `roster-death`
+ * Morale changes that name the Quest (M9-F1): one line, `At home: the Guild mourned Aldric. Morale fell
+ * for 5 Heroes (−4 each).`, and behind a disclosure each Hero at home whose Morale fell. A Party mate's
+ * grief is in their own line of the Heroes'.
+ */
+export interface HomeGrief {
+  sentence: string;
+  /** What the disclosure says: `5 Heroes at home`. */
+  heroesWords: string;
+  /** Each Hero at home whose Morale fell, in the order the History names them. */
+  heroes: { heroId: HeroId; name: string; words: string }[];
 }
 
 /**
@@ -321,6 +337,35 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     loot,
     outcomes,
     patronRegard: patronId === undefined || patronName === undefined ? null : standing(document, ofQuest, { patronId, name: patronName, guildId: payload.guildId, guildName }),
+    home: griefAtHome(outcome, ofQuest, document),
+  };
+}
+
+/** What `outcome`'s Deaths cost the Heroes at home: their `roster-death` Morale that names the Quest; `null` for no Death. */
+function griefAtHome(outcome: Resolved, ofQuest: readonly Entry[], document: WorldDocument): HomeGrief | null {
+  const { deaths, heroIds } = outcome.payload;
+  if (deaths.length === 0) return null;
+  const labelled = (entry: Entry, id: string): string =>
+    entry.labels[id as keyof typeof entry.labels] ?? (Object.hasOwn(document.world.heroes, id) ? document.world.heroes[id as HeroId]?.name : undefined) ?? 'a Hero';
+  const mourned = listed(deaths.map((heroId) => labelled(outcome, heroId)));
+  const falls = new Map<HeroId, { name: string; before: number; after: number; band: string }>();
+  for (const entry of ofQuest) {
+    if (entry.type !== 'hero.morale-changed') continue;
+    const { heroId, cause, before, after, bandAfter } = (entry as EngineEventOf<'hero.morale-changed'>).payload;
+    if (cause !== 'roster-death' || heroIds.includes(heroId)) continue;
+    const known = falls.get(heroId);
+    falls.set(heroId, { name: known?.name ?? labelled(entry, heroId), before: known?.before ?? before, after, band: bandAfter });
+  }
+  const fell = [...falls].filter(([, fall]) => fall.after < fall.before);
+  const count = `${fell.length} ${fell.length === 1 ? 'Hero' : 'Heroes'}`;
+  const drops = fell.map(([, fall]) => fall.before - fall.after);
+  const least = Math.min(...drops);
+  const most = Math.max(...drops);
+  const how = fell.length === 1 ? `−${most}` : least === most ? `−${most} each` : `−${least} to −${most}`;
+  return {
+    sentence: `At home: the Guild mourned ${mourned}.${fell.length === 0 ? '' : ` Morale fell for ${count} (${how}).`}`,
+    heroesWords: `${count} at home`,
+    heroes: fell.map(([heroId, fall]) => ({ heroId, name: fall.name, words: `Morale went from ${fall.before} to ${fall.after}, ${fall.band}` })),
   };
 }
 
@@ -355,17 +400,17 @@ export type ReportSection =
   | { kind: 'quest'; quest: string; patron: string | null; band: QuestBand; bandWords: string; heroes: string; when: string }
   | { kind: 'encounters'; encounters: ReturnEncounter[]; used: ReturnLine[] }
   | { kind: 'rewards'; wealth: number; fame: number; xp: number; loot: string[] }
-  | { kind: 'heroes'; outcomes: HeroOutcome[] }
+  | { kind: 'heroes'; outcomes: HeroOutcome[]; home: HomeGrief | null }
   | { kind: 'patron'; standing: PatronStanding };
 
 /** The report's sections in DL-112 item 8's order; a section with nothing to say is left out. */
 export function reportSections(report: QuestReturn): ReportSection[] {
-  const { quest, patron, band, bandWords, heroes, turn, encounters, used, reward, loot, outcomes, patronRegard } = report;
+  const { quest, patron, band, bandWords, heroes, turn, encounters, used, reward, loot, outcomes, patronRegard, home } = report;
   return [
     { kind: 'quest', quest, patron: patron?.name ?? null, band, bandWords, heroes: listed(heroes.map((hero) => hero.name)), when: nightOf(turn) },
     ...(encounters.length === 0 && used.length === 0 ? [] : [{ kind: 'encounters' as const, encounters, used }]),
     { kind: 'rewards', ...reward, loot },
-    { kind: 'heroes', outcomes },
+    { kind: 'heroes', outcomes, home },
     ...(patronRegard === null ? [] : [{ kind: 'patron' as const, standing: patronRegard }]),
   ];
 }

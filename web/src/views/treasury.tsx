@@ -1,7 +1,8 @@
 // The Guild's Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): its accounts. The Wealth; the
 // Upkeep, its next payment with its night and its parts (the sentence the Hall gave until now); the
 // Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the
-// Wealth read from the History, newest first, a page at a time, with the totals of what is shown. Chips
+// Wealth read from the History, newest first, a page at a time, with the totals of what is shown, opening
+// with the Wealth the Guild was founded with (M9-F7, DL-120 item 4). Chips
 // show income or expense, and one category, display only. A name in a row opens whom it names, through
 // the shell's links, as in the History. Every word and number is `treasuryView`'s.
 
@@ -59,28 +60,34 @@ export function Treasury({ document }: { document: WorldDocument }) {
       </p>
 
       <h3>Ledger</h3>
-      {ledger.categories.length === 0 ? (
-        <p className="subtle">No change to the Wealth of {view.guildName} yet.</p>
-      ) : (
+      {ledger.categories.length === 0 ? <p className="subtle">No change to the Wealth of {view.guildName} yet.</p> : null}
+      {ledger.categories.length === 0 && !ledger.opens ? null : (
         <>
-          <FilterChips
+          {ledger.categories.length === 0 ? null : (
+            <>
+              <FilterChips
             label="Show income or expense"
             options={flows}
             shown={flow === 'both' ? null : flow}
             onShow={(key) => filtered(() => setFlow(key ?? 'both'))}
-            all="Both"
-          />
-          <FilterChips label="Show of category" options={ledger.categories} shown={category} onShow={(key) => filtered(() => setCategory(key))} />
-          <p className="treasury__totals" data-testid="totals">
-            Income {ledger.totals.incomeWords} · Expense {ledger.totals.expenseWords} · Net {ledger.totals.netWords}
-          </p>
+                all="Both"
+              />
+              <FilterChips label="Show of category" options={ledger.categories} shown={category} onShow={(key) => filtered(() => setCategory(key))} />
+              <p className="treasury__totals" data-testid="totals">
+                Income {ledger.totals.incomeWords} · Expense {ledger.totals.expenseWords} · Net {ledger.totals.netWords}
+              </p>
+            </>
+          )}
           {ledger.rows.length === 0 ? (
             <p className="subtle">No change to the Wealth of {view.guildName} is of that kind.</p>
           ) : (
             <>
-              <p className="subtle">
-                Page {ledger.page + 1} of {ledger.pages}, {ledger.shown} {ledger.shown === 1 ? 'change' : 'changes'} in all, newest first.
-              </p>
+              {ledger.categories.length === 0 ? null : (
+                <p className="subtle">
+                  Page {ledger.page + 1} of {ledger.pages}, {ledger.shown} {ledger.shown === 1 ? 'change' : 'changes'} in all
+                  {ledger.opens ? ' since the founding' : ''}, newest first.
+                </p>
+              )}
               <div className="table-wrap">
                 <table className="table ledger-table" aria-label={`The ledger of ${view.guildName}`}>
                   <thead>
@@ -101,7 +108,9 @@ export function Treasury({ document }: { document: WorldDocument }) {
                           <Names segments={row.segments} />
                         </td>
                         <td>{row.categoryWords}</td>
-                        <td className={`number ledger__amount ${row.amount > 0 ? 'is-income' : 'is-expense'}`}>{row.amountWords}</td>
+                        <td className={`number ledger__amount ${row.category === null ? 'is-opening' : row.amount > 0 ? 'is-income' : 'is-expense'}`}>
+                          {row.amountWords}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

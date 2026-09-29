@@ -70,7 +70,10 @@ describe('the Treasury (M9-F3)', () => {
 
     expect(within(ledger()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Day', 'What happened', 'Category', 'Amount']);
     const shown = rows();
-    expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market']);
+    expect(shown.map((row) => row[2])).toEqual(['Upkeep', 'Heroes', 'Market', 'Opening balance']);
+    // It opens with the Wealth the Guild was founded with (M9-F7, DL-120 item 4).
+    expect(shown[3]).toEqual(['Day 0, morning', 'Founded with 500 Wealth', 'Opening balance', '500']);
+    expect(within(treasury()).getByText('Page 1 of 1, 3 changes in all since the founding, newest first.')).toBeDefined();
     expect(shown[0]?.[0]).toBe('Day 9, night');
     expect(shown[0]?.[1]).toMatch(/^The Lantern paid \d+ Upkeep, leaving \d+ Wealth\.$/);
     expect(shown[0]?.[3]).toMatch(/^-\d+$/);
@@ -101,14 +104,15 @@ describe('the Treasury (M9-F3)', () => {
 
     fireEvent.click(within(flow).getByRole('button', { name: 'Both' }));
     fireEvent.click(within(categories).getByRole('button', { name: 'All' }));
-    expect(rows()).toHaveLength(3);
+    // The opening row again, with every change.
+    expect(rows()).toHaveLength(4);
   });
 
   test('pages the ledger by 20, from the newest', () => {
     render(<App initial={played(withWealth(started(), 100_000), { kind: 'advance', turns: 900 })} />);
 
     expect(rows()).toHaveLength(20);
-    expect(within(treasury()).getByText(/^Page 1 of \d+, \d+ changes in all, newest first\.$/)).toBeDefined();
+    expect(within(treasury()).getByText(/^Page 1 of \d+, \d+ changes in all since the founding, newest first\.$/)).toBeDefined();
     const first = rows()[0];
     fireEvent.click(within(treasury()).getByRole('button', { name: 'Older' }));
     expect(within(treasury()).getByText(/^Page 2 of \d+/)).toBeDefined();
@@ -126,10 +130,13 @@ describe('the Treasury (M9-F3)', () => {
     expect(screen.getByRole('region', { name: 'Rankings' })).toBeDefined();
   });
 
-  test('says so while the Wealth has not changed', () => {
+  test('opens with the Wealth the Guild was founded with, and says so while the Wealth has not changed since (M9-F7, DL-120 item 4)', () => {
     render(<App initial={started()} />);
 
     expect(within(treasury()).getByText('No change to the Wealth of The Lantern yet.')).toBeDefined();
-    expect(within(treasury()).queryByRole('table')).toBeNull();
+    expect(rows()).toEqual([['Day 0, morning', 'Founded with 500 Wealth', 'Opening balance', '500']]);
+    // Nothing to filter or total yet.
+    expect(within(treasury()).queryByRole('group', { name: 'Show income or expense' })).toBeNull();
+    expect(within(treasury()).queryByTestId('totals')).toBeNull();
   });
 });

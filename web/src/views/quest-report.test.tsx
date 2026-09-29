@@ -34,6 +34,41 @@ function sectionHeadings(region: HTMLElement): string[] {
 }
 
 describe('the Quest report (M9-F5)', () => {
+  test('after the Heroes’ outcomes, one line says what a Death cost the Heroes at home, their names behind a disclosure (M9-F7, DL-120 item 7)', () => {
+    const document = base.document;
+    if (document === null) throw new Error('no game in hand');
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
+    const [home] = guild?.rosterIds.filter((heroId) => !party.includes(heroId)) ?? [];
+    if (home === undefined) throw new Error('no Hero at home');
+    const { report, region } = drawn({
+      band: 'fail',
+      encounters: [{ outcome: 'failure', died: [0] }],
+      deaths: [0],
+      morale: [{ hero: home, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' }],
+    });
+    const heroes = within(region).getByRole('heading', { level: 4, name: 'Heroes' }).parentElement as HTMLElement;
+    const [dead] = report.outcomes;
+    const name = document.world.heroes[home]?.name ?? '';
+
+    const line = within(heroes).getByText(`At home: the Guild mourned ${dead?.name}. Morale fell for 1 Hero (−4).`);
+    // After the Heroes' outcomes.
+    const outcomes = heroes.querySelector('.report__heroes') as HTMLElement;
+    expect(outcomes.compareDocumentPosition(line) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // The names behind a disclosure, closed until opened.
+    const disclosure = heroes.querySelector('details') as HTMLDetailsElement;
+    expect(disclosure.open).toBe(false);
+    expect(within(disclosure).getByText('1 Hero at home')).toBeDefined();
+    fireEvent.click(within(disclosure).getByText('1 Hero at home'));
+    expect(within(disclosure).getByRole('listitem').textContent).toBe(`${name}: Morale went from 40 to 36, steady.`);
+  });
+
+  test('no line for the Heroes at home when no Hero died (M9-F7)', () => {
+    const { region } = drawn({ band: 'success', wealth: 10, xp: 5 });
+    expect(within(region).queryByText(/^At home: /)).toBeNull();
+    expect(region.querySelector('.report__section details')).toBeNull();
+  });
+
   test('its sections come in order: the Quest with its Patron and band, the Encounters, the rewards, each Hero, the Patron', () => {
     const { report, region } = drawn({
       band: 'strong',

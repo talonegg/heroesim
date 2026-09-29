@@ -11,10 +11,10 @@
 import { useId, useMemo, useState } from 'react';
 import { capitalised, signed } from '../state/names';
 import type { Segment } from '../state/narrate';
-import { reportSections, type QuestReturn, type ReportSection, type ReturnEntry, type ReturnKey } from '../state/quest-return';
+import { reportSections, type HomeGrief, type QuestReturn, type ReportSection, type ReturnEntry, type ReturnKey } from '../state/quest-return';
 import { Names } from './history-entries';
 import { Icon } from './icons';
-import { Chip } from './ui';
+import { Chip, Disclosure } from './ui';
 
 /** The id of a report's heading, which takes the keyboard when the report opens. */
 export function reportHeadingId(key: ReturnKey): string {
@@ -117,6 +117,7 @@ function Section({ section }: { section: ReportSection }) {
               <HeroLines key={outcome.heroId} outcome={outcome} />
             ))}
           </ul>
+          {section.home === null ? null : <AtHome home={section.home} />}
         </div>
       );
     case 'patron':
@@ -143,6 +144,28 @@ function HeroLines({ outcome }: { outcome: Extract<ReportSection, { kind: 'heroe
         ))}
       </ul>
     </li>
+  );
+}
+
+/** What a Death cost the Heroes at home: one line, and each Hero whose Morale fell behind a disclosure (M9-F7, DL-120 item 7). */
+function AtHome({ home }: { home: HomeGrief }) {
+  return (
+    <div className="report__home">
+      <p>{home.sentence}</p>
+      {home.heroes.length === 0 ? null : (
+        <Disclosure summary={home.heroesWords}>
+          <ul className="rows">
+            {home.heroes.map((hero) => (
+              <li key={hero.heroId}>
+                <span>
+                  <Names segments={[{ kind: 'name', text: hero.name, entityId: hero.heroId, table: 'heroes' }]} />: {hero.words}.
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Disclosure>
+      )}
+    </div>
   );
 }
 

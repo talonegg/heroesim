@@ -241,8 +241,8 @@ _Avoid_: Drops, Rewards (for Items), Treasure
 **Quest report**:
 What a Party's return tells the Guild, read from the History: the Quest, its Patron and its band;
 each Encounter with the consumables used; the reward, Wealth, Fame, XP and the Loot; each Hero's
-outcome; and the Patron's Regard for the Guild, the band the Quest moved it into or its band now
-(DL-111, DL-118). Shown on the Guild's Home when a Party comes home, and again from the return's
+outcome, and what a Death cost the Heroes at home (DL-120); and the Patron's Regard for the Guild,
+the band the Quest moved it into or its band now (DL-111, DL-118). Shown on the Guild's Home when a Party comes home, and again from the return's
 entry.
 _Avoid_: Debrief, Summary, Result
 

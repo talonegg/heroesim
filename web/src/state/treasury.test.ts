@@ -31,12 +31,12 @@ import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { changed, played, started, withWealth } from './game.test-support';
 import { initialGameState, playDeps, type GameState } from './reducer';
-import { countdownView } from './selectors';
+import { countdownView, whenOf } from './selectors';
 import { ledgerOf, treasuryView, wealthChangeOf, type TreasuryFilter } from './treasury';
 
 // The Treasury (M9-F3, DL-111 item 5, DL-112 item 6, DL-116): the ledger is every change to a Guild's
-// Wealth read from the History by six categories. Its heart is that it misses nothing: a Guild's
-// Wealth at the start plus its ledger is its Wealth now.
+// Wealth read from the History by six categories. Its heart is that it misses nothing: from its opening
+// row, the Wealth the Guild was founded with (M9-F7, DL-120 item 4), it adds up to its Wealth now.
 
 const setup = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', createdAt: '2026-09-30T09:00:00.000Z' };
 
@@ -114,9 +114,12 @@ describe('wealthChangeOf: each category takes exactly its events', () => {
 
 // ── The ledger misses nothing ─────────────────────────────────────────────────────────────────
 
-/** The probe fires often, so a module's change of Wealth ("Other") comes up in a few years. */
+/**
+ * The probe fires often, so a module's change of Wealth ("Other") comes up in a few years. The player's
+ * Guild is founded rich enough to play its month for years without Bankruptcy ending the game.
+ */
 const probe = createProbe({ probeFireBelow: 0.1, probeWealthDelta: 40 });
-const deps: EngineDeps = { config: defaultConfig, content, modules: [probe] };
+const deps: EngineDeps = { config: { ...defaultConfig, startingWealth: 100_000 }, content, modules: [probe] };
 
 /** `result`'s document when the engine took the action; the one given when it refused. */
 function tried(document: WorldDocument, result: { ok: true; document: WorldDocument } | { ok: false }): WorldDocument {
@@ -158,12 +161,21 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   return next;
 }
 
-/** A game from `seed` played `years` years, the player's Guild playing its month every 30 Days. */
+/**
+ * A game from `seed` played `years` years, the player's Guild playing its month every 30 Days. The last
+ * Rival is founded with no Wealth and its Roster released to the Unattached pool, its founding saying
+ * so, so it folds that night with its Roster wiped, and a Rival is founded in its place (M9-F7).
+ */
 function playedGame(seed: string, years: number): { start: WorldDocument; now: WorldDocument } {
   const start = createWorld(seed, setup, deps).document;
-  // Rich enough to play its month for years without Bankruptcy ending the game.
-  const player = playerGuild(start.world);
-  if (player !== undefined) player.wealth = 100_000;
+  const folding = Object.values(start.world.guilds).filter((guild) => guild.controller.kind === 'rival').at(-1);
+  if (folding === undefined) throw new Error('no Rival');
+  for (const heroId of folding.rosterIds) Object.assign(start.world.heroes[heroId] ?? {}, { guildId: null, unattachedSince: start.world.turn });
+  folding.rosterIds = [];
+  folding.wealth = 0;
+  for (const entry of start.history.entries) {
+    if (entry.type === 'guild.founded' && (entry.payload as { guildId: string }).guildId === folding.id) Object.assign(entry.payload as object, { wealth: 0 });
+  }
   let now = start;
   const turns = years * defaultConfig.turnsPerYear;
   for (let turn = 0; turn < turns && now.world.ended === null; turn += 1) {
@@ -177,12 +189,21 @@ describe('the ledger misses nothing (M9-F3)', () => {
   const games = ['ledger-1', 'ledger-2', 'ledger-3'].map((seed) => ({ seed, ...playedGame(seed, 2) }));
 
   test.each(games.map((game) => [game.seed, game] as const))(
-    "%s: every founding Guild's Wealth at the start plus its ledger is its Wealth now, the player's and each Rival's",
+    "%s: every Guild's ledger, from its opening row, adds up to its Wealth now: the player's, each founding Rival's and each replacement's (M9-F7)",
     (_, { start, now }) => {
-      for (const founded of Object.values(start.world.guilds)) {
-        const rows = ledgerOf(now, founded.id);
+      const guilds = Object.values(now.world.guilds);
+      // A Rival was founded in the folded one's place.
+      expect(guilds.filter((guild) => !Object.hasOwn(start.world.guilds, guild.id)).length).toBeGreaterThan(0);
+      for (const guild of guilds) {
+        const rows = ledgerOf(now, guild.id);
+        const opening = rows.at(-1);
+        const founding = Object.hasOwn(start.world.guilds, guild.id) ? start.world.guilds[guild.id]?.wealth : undefined;
+        // Its oldest row is the Wealth it was founded with, as the Guild's row had it at the start.
+        expect(opening, guild.name).toMatchObject({ category: null, categoryWords: 'Opening balance', when: whenOf(guild.foundedTurn) });
+        expect(opening?.sentence).toBe(`Founded with ${opening?.amount} Wealth`);
+        if (founding !== undefined) expect(opening?.amount, guild.name).toBe(founding);
         const sum = rows.reduce((total, row) => total + row.amount, 0);
-        expect({ guild: founded.name, wealth: founded.wealth + sum }).toEqual({ guild: founded.name, wealth: now.world.guilds[founded.id]?.wealth });
+        expect({ guild: guild.name, wealth: sum }).toEqual({ guild: guild.name, wealth: guild.wealth });
       }
     },
   );
@@ -194,7 +215,7 @@ describe('the ledger misses nothing (M9-F3)', () => {
         games.flatMap(({ start, now }) =>
           Object.keys(start.world.guilds)
             .filter((id) => (id === player(now)) !== rivals)
-            .flatMap((id) => ledgerOf(now, id as GuildId).map((row) => row.category)),
+            .flatMap((id) => ledgerOf(now, id as GuildId).flatMap((row) => (row.category === null ? [] : [row.category]))),
         ),
       );
     const all = ['upkeep', 'quest', 'market', 'hall', 'heroes', 'other'];
@@ -321,13 +342,19 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     const { fee } = payloadOf<{ fee: number }>(state, 'hero.recruited');
     const { amount: upkeep } = payloadOf<{ amount: number }>(state, 'guild.upkeep-paid');
 
+    const { wealth: founding } = payloadOf<{ wealth: number }>(state, 'guild.founded');
     expect(view?.ledger.rows.map((row) => [row.category, row.amount])).toEqual([
       ['upkeep', -upkeep],
       ['heroes', -fee],
       ['market', proceeds],
       ['market', -cost],
+      // The ledger opens with the Wealth the Guild was founded with (M9-F7, DL-120 item 4).
+      [null, founding],
     ]);
-    const [paid, , , bought] = view?.ledger.rows ?? [];
+    const [paid, , , bought, opening] = view?.ledger.rows ?? [];
+    expect(opening).toMatchObject({ when: 'Day 0, morning', sentence: `Founded with ${founding} Wealth`, categoryWords: 'Opening balance', amountWords: String(founding) });
+    expect(founding).toBe(defaultConfig.startingWealth);
+    expect(view?.ledger).toMatchObject({ shown: 4, opens: true });
     expect(paid?.categoryWords).toBe('Upkeep');
     expect(paid?.when).toBe('Day 9, night');
     expect(paid?.amountWords).toBe(`-${upkeep}`);
@@ -349,7 +376,9 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
   test('filters by income, by expense, and by category, and totals only what is shown', () => {
     const document = documentOf(traded());
     const income = treasuryView(document, { flow: 'income', category: null }, 0)?.ledger;
+    // The opening row is no income: a filter leaves it out, and the totals are the changes' alone.
     expect(income?.rows.map((row) => row.category)).toEqual(['market']);
+    expect(income?.opens).toBe(false);
     expect(income?.totals.expense).toBe(0);
     expect(income?.totals.net).toBe(income?.totals.income);
 
@@ -383,17 +412,33 @@ describe("treasuryView: the ledger's filters, totals and pages (M9-F3)", () => {
     expect(first?.rows.map((row) => row.key)).toEqual(all.slice(0, 20).map((row) => row.key));
     expect(first?.page).toBe(0);
     expect(first?.pages).toBe(Math.ceil(all.length / 20));
-    expect(first?.shown).toBe(all.length);
+    // The changes, less the opening row, which ends the last page.
+    expect(first?.shown).toBe(all.length - 1);
     const last = treasuryView(document, both, 99)?.ledger;
     expect(last?.page).toBe((first?.pages ?? 0) - 1);
     expect(last?.rows.map((row) => row.key)).toEqual(all.slice(20 * (last?.page ?? 0)).map((row) => row.key));
+    expect(last?.rows.at(-1)?.category).toBeNull();
   });
 
-  test('a ledger with nothing to show has one empty page, and totals of nothing', () => {
+  test("a new game's ledger holds its opening row alone, on one page, and totals of nothing (M9-F7)", () => {
     const view = treasuryView(documentOf(started('treasury-empty')), both, 0)?.ledger;
-    expect(view?.rows).toEqual([]);
+    expect(view?.rows.map((row) => row.sentence)).toEqual([`Founded with ${defaultConfig.startingWealth} Wealth`]);
     expect(view?.page).toBe(0);
     expect(view?.pages).toBe(1);
+    expect(view?.shown).toBe(0);
+    expect(view?.categories).toEqual([]);
     expect(view?.totals).toMatchObject({ income: 0, expense: 0, net: 0 });
+  });
+
+  test('a save whose founding names no Wealth, as one made before M9-F7, has no opening row, and a ledger with nothing to show has one empty page', () => {
+    const state = changed(started('treasury-older'), (document) => {
+      for (const entry of document.history.entries) {
+        if (entry.type === 'guild.founded') delete (entry.payload as { wealth?: number }).wealth;
+      }
+    });
+    const view = treasuryView(documentOf(state), both, 0)?.ledger;
+    expect(view?.rows).toEqual([]);
+    expect(view?.opens).toBe(false);
+    expect(view?.pages).toBe(1);
   });
 });

@@ -3260,6 +3260,17 @@ tr.mine td {
   list-style: disc;
 }
 
+/* What a Death cost the Heroes at home, after the Party's outcomes (M9-F7, DL-120 item 7). */
+.report__home {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid var(--line);
+}
+
+.report__home .disclosure {
+  margin-top: 0.25rem;
+}
+
 /* A name in the report opens whom it names, as in the History; so does one in the Treasury's ledger
    and the Stores' "Carried by", which are sentences too (M9-F6). */
 .report button.name,
