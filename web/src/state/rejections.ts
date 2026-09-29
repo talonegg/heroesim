@@ -10,6 +10,7 @@
 import {
   dayOf,
   playerGuild,
+  sexes,
   type ContentSet,
   type EndingReason,
   type FacilityKey,
@@ -193,6 +194,7 @@ const sentences: Sentences = {
     return `No Guild Background is called "${backgroundKey}". Choose one of: ${choices}.`;
   },
   // The Guildmaster's setup (M9-S2): the CLI's `new` words, less its flags.
+  'newGame unknown-sex': ({ sex }) => `A Guildmaster's sex is ${sexes.join(' or ')}; "${sex}" is not.`,
   'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole years; ${age} is not.`,
   'newGame unknown-trait': ({ traitKey }, { content }) =>
     rowOf(content.traits, traitKey) === undefined

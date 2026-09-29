@@ -73,6 +73,8 @@ export type SetupRefusal =
   | { reason: 'guildmaster-name-blank' }
   /** Not a Guild Background of the content. */
   | { reason: 'unknown-background'; backgroundKey: BackgroundKey }
+  /** Not one of the engine's `sexes`: the value given, whatever it is. */
+  | { reason: 'unknown-sex'; sex: string }
   /** Not a whole number from `min` to `max`, the starting ages. */
   | { reason: 'age-out-of-range'; age: number; min: number; max: number }
   /** Not a Guildmaster Trait of the content: unknown, or a Hero's. */
@@ -103,7 +105,7 @@ function lengthOf(text: string): number {
 
 /**
  * Whether `setup` keeps the rules, and if not the first it breaks (M9-S2, R8, DL-100 item 3), in
- * this order: the names, the Background, the age, each Trait in turn (a Guildmaster Trait of the
+ * this order: the names, the Background, the sex (one of `sexes`, since the M9 review), the age, each Trait in turn (a Guildmaster Trait of the
  * content, given once), how many Traits, an excluded pair, their cost, then each descriptive
  * Attribute's length. `null` when it keeps them all. Reads the bounds from `deps.config` and the
  * Traits from `deps.content`, so a front end checks with the rules the game will begin under,
@@ -117,6 +119,8 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
   if (backgroundKey !== undefined && !(Object.hasOwn(content.backgrounds, backgroundKey) && content.backgrounds[backgroundKey]?.owner === 'guild')) {
     return { reason: 'unknown-background', backgroundKey };
   }
+  const sex = setup.guildmasterSex;
+  if (sex !== undefined && !sexes.includes(sex)) return { reason: 'unknown-sex', sex };
 
   const age = setup.guildmasterAge;
   const [min, max] = [config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax];
@@ -168,18 +172,15 @@ export interface CreatedWorld {
  * `world.created` and every generator's events to the new History and returns them. Last, each
  * module in `deps.modules`, none by default, gets its stream and its slice (`ensureModules`).
  *
- * Throws on a programming error: a setup `setupRefusal` refuses, naming its reason; a sex that is
- * not one; or a module list `installedModules` refuses or a module that throws making its slice
- * (`ModuleError`). A front end checks its input with `setupRefusal` before calling.
+ * Throws on a programming error: a setup `setupRefusal` refuses, naming its reason, a sex that is
+ * not one among them; or a module list `installedModules` refuses or a module that throws making
+ * its slice (`ModuleError`). A front end checks its input with `setupRefusal` before calling.
  */
 export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): CreatedWorld {
   const { config, content } = deps;
   const refusal = setupRefusal(setup, deps);
   if (refusal !== null) throw new RangeError(`The setup is refused: ${JSON.stringify(refusal)}`);
   const sex = setup.guildmasterSex;
-  if (sex !== undefined && !sexes.includes(sex)) {
-    throw new RangeError(`A Guildmaster's sex is one of ${sexes.join(', ')}; got ${JSON.stringify(sex)}`);
-  }
   const meta: Meta = {
     version: config.schemaVersion,
     seed,

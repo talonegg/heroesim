@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
 import type { Disposition } from './content-types.js';
-import { makeId, tableNames, type Guild, type WorldDocument } from './document.js';
+import { makeId, tableNames, type Guild, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 import { validate } from './validate.js';
@@ -318,6 +318,9 @@ describe('setupRefusal', () => {
     ['a blank Guild name', { guildName: '  ' }, { reason: 'guild-name-blank' }],
     ['a blank Guildmaster name', { guildmasterName: '' }, { reason: 'guildmaster-name-blank' }],
     ['a Hero Background', { backgroundKey: 'farm-born' }, { reason: 'unknown-background', backgroundKey: 'farm-born' }],
+    // The M9 review: the sex is checked here, as everything else is, not by createWorld alone.
+    ['a sex that is not one', { guildmasterSex: 'other' as Sex }, { reason: 'unknown-sex', sex: 'other' }],
+    ['a sex in capitals', { guildmasterSex: 'Female' as Sex }, { reason: 'unknown-sex', sex: 'Female' }],
     ['an age below the range', { guildmasterAge: 29 }, { reason: 'age-out-of-range', age: 29, min: 30, max: 45 }],
     ['an age above the range', { guildmasterAge: 46 }, { reason: 'age-out-of-range', age: 46, min: 30, max: 45 }],
     ['an age not whole', { guildmasterAge: 32.5 }, { reason: 'age-out-of-range', age: 32.5, min: 30, max: 45 }],
@@ -430,9 +433,9 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     }
   });
 
-  test('throws on a setup setupRefusal refuses, naming its reason, and on a sex that is not one', () => {
+  test('throws on a setup setupRefusal refuses, naming its reason, a sex that is not one among them', () => {
     expect(() => createWorld('bad', { ...setup, guildmasterAge: 12 }, deps)).toThrow(/age-out-of-range/);
     expect(() => createWorld('bad', { ...setup, guildmasterTraitKeys: ['well-liked'] }, deps)).toThrow(/over-budget/);
-    expect(() => createWorld('bad', { ...setup, guildmasterSex: 'other' as never }, deps)).toThrow(RangeError);
+    expect(() => createWorld('bad', { ...setup, guildmasterSex: 'other' as never }, deps)).toThrow(/unknown-sex/);
   });
 });

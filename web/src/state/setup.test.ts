@@ -1,4 +1,4 @@
-import { defaultConfig } from '@heroesim/engine';
+import { defaultConfig, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import type { NewGame } from './reducer';
@@ -171,6 +171,8 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
       guildmasterBirthplace: 'Harrowgate',
     }, null],
     ['the blank Guild name', { guildName: '  ' }, 'The Guild needs a name.'],
+    // The M9 review: a sex the form does not offer, refused in words rather than thrown.
+    ['a sex that is not one', { guildmasterSex: 'other' as Sex }, `A Guildmaster's sex is female or male; "other" is not.`],
     [
       'Traits over the budget',
       { guildmasterTraitKeys: ['thrifty'] },

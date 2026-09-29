@@ -21,6 +21,7 @@ import {
   type FastForwardResult,
   type Guild,
   type Module,
+  type Sex,
   type StopCondition,
   type StopReason,
   type WorldDocument,
@@ -159,6 +160,8 @@ describe('a new game', () => {
   });
 
   test.each([
+    // The M9 review: a sex that is not one was let through here, and createWorld threw inside the reducer.
+    ['a sex that is not one', { guildmasterSex: 'other' as Sex }, { action: 'newGame', reason: 'unknown-sex', sex: 'other' }],
     ['an age out of range', { guildmasterAge: 50 }, { action: 'newGame', reason: 'age-out-of-range', age: 50, min: 30, max: 45 }],
     ['a Trait that is no Guildmaster Trait', { guildmasterTraitKeys: ['scarred'] }, { action: 'newGame', reason: 'unknown-trait', traitKey: 'scarred' }],
     ['a Trait twice', { guildmasterTraitKeys: ['miser', 'miser'] }, { action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' }],

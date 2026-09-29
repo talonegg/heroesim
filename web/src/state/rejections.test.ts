@@ -52,6 +52,7 @@ const samples: Samples = {
   'newGame guildmaster-name-blank': { action: 'newGame', reason: 'guildmaster-name-blank' },
   'newGame unknown-background': { action: 'newGame', reason: 'unknown-background', backgroundKey: 'no-such-background' },
   // The Guildmaster's setup (M9-S2): the engine's setupRefusal, as the page's own.
+  'newGame unknown-sex': { action: 'newGame', reason: 'unknown-sex', sex: 'other' },
   'newGame age-out-of-range': { action: 'newGame', reason: 'age-out-of-range', age: 50, min: 30, max: 45 },
   'newGame unknown-trait': { action: 'newGame', reason: 'unknown-trait', traitKey: 'scarred' },
   'newGame repeated-trait': { action: 'newGame', reason: 'repeated-trait', traitKey: 'miser' },
@@ -207,6 +208,7 @@ const exactly: Record<RejectionKind, string> = {
   'newGame guild-name-blank': 'The Guild needs a name.',
   'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
   'newGame unknown-background': `No Guild Background is called "no-such-background". Choose one of: ${guildBackgrounds}.`,
+  'newGame unknown-sex': `A Guildmaster's sex is female or male; "other" is not.`,
   'newGame age-out-of-range': 'A Guildmaster starts aged 30 to 45, in whole years; 50 is not.',
   'newGame unknown-trait': `${named(content.traits, 'scarred')} is not a Guildmaster Trait.`,
   'newGame repeated-trait': `${named(content.traits, 'miser')} is chosen twice.`,

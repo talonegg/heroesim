@@ -2,7 +2,7 @@
 // typed data; this says it in the CLI's words, naming the flag to change. The names and the
 // Background keep the words `new` gave them before M9-S2.
 
-import type { ContentSet, DescriptiveAttribute, SetupRefusal, Trait } from '@heroesim/engine';
+import { sexes, type ContentSet, type DescriptiveAttribute, type SetupRefusal, type Trait } from '@heroesim/engine';
 
 /** The flag that sets each descriptive Attribute. */
 const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
@@ -45,6 +45,9 @@ export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSe
         .join(', ');
       return `No Guild Background "${refusal.backgroundKey}". Choose one of: ${choices}.`;
     }
+    case 'unknown-sex':
+      // `--sex` refuses a sex that is not one first (`args.ts`), in the command line's words.
+      return `A Guildmaster's sex is ${sexes.join(' or ')}; --sex ${refusal.sex} is not.`;
     case 'age-out-of-range':
       return `A Guildmaster starts aged ${refusal.min} to ${refusal.max}, in whole years; --age ${refusal.age} is not.`;
     case 'unknown-trait':
