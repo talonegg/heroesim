@@ -81,7 +81,7 @@ function everyView(container: HTMLElement, sentinels: readonly string[]): void {
     expect(sentinelsIn(container.innerHTML, sentinels), view).toEqual([]);
   }
   // Each of the Guild's parts, its tab opened (M9-F2).
-  for (const part of ['Home', 'Hall'] as const satisfies readonly GuildPartName[]) {
+  for (const part of ['Home', 'Hall', 'Stores', 'Treasury'] as const satisfies readonly GuildPartName[]) {
     openGuildPart(part);
     expect(sentinelsIn(container.innerHTML, sentinels), `the Guild's ${part}`).toEqual([]);
   }

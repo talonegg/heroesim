@@ -9,8 +9,8 @@ import { fireEvent, screen, within } from '@testing-library/react';
 /** Each view's heading. The Guildmaster's button in the navigation is named by the Guildmaster's name (M9-F2). */
 export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings' | 'Market' | 'History';
 
-/** The Guild's parts, each a tab under its heading (M9-F2). */
-export type GuildPartName = 'Home' | 'Hall';
+/** The Guild's parts, each a tab under its heading (M9-F2; Stores and Treasury from M9-F3). */
+export type GuildPartName = 'Home' | 'Hall' | 'Stores' | 'Treasury';
 
 /** The view each region is in, by its heading; `menu` for the game menu's; a tab of the Guild's for its parts. */
 const home: Readonly<Record<string, ViewName | 'menu' | { tab: GuildPartName }>> = {
@@ -18,6 +18,8 @@ const home: Readonly<Record<string, ViewName | 'menu' | { tab: GuildPartName }>>
   Guild: 'Guild',
   Home: { tab: 'Home' },
   Hall: { tab: 'Hall' },
+  Stores: { tab: 'Stores' },
+  Treasury: { tab: 'Treasury' },
   Roster: 'Roster',
   'Transfer Offers': 'Roster',
   'Unattached pool': 'Roster',

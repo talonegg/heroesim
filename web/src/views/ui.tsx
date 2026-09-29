@@ -470,3 +470,44 @@ export function Tabs<Key extends string>({
     </>
   );
 }
+
+/**
+ * A filter's chips, display only (M9-F3, as the Market's Buy has them): All, then each option with
+ * its count, the one shown pressed; nothing when there is one option or none to choose between.
+ */
+export function FilterChips<Key extends string>({
+  label,
+  options,
+  shown,
+  onShow,
+  all = 'All',
+}: {
+  label: string;
+  options: readonly { key: Key; label: string; count?: number }[];
+  shown: Key | null;
+  onShow: (key: Key | null) => void;
+  /** The first chip's words, which shows every option; `null` for none, when an option is always shown. */
+  all?: string | null;
+}) {
+  if (options.length < 2) return null;
+  return (
+    <div className="filters" role="group" aria-label={label}>
+      {all === null ? null : (
+        <button type="button" className="filter" aria-pressed={shown === null} onClick={() => onShow(null)}>
+          {all}
+        </button>
+      )}
+      {options.map((option) => (
+        <button key={option.key} type="button" className="filter" aria-pressed={shown === option.key} onClick={() => onShow(option.key)}>
+          {option.label}
+          {option.count === undefined ? null : (
+            <>
+              {' '}
+              <span className="filter__count">{option.count}</span>
+            </>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}

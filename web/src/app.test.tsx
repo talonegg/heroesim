@@ -11,6 +11,7 @@ import {
   nav,
   navButton,
   openDebugHistory,
+  openGuildPart,
   openMenu,
   openView,
   rosterList,
@@ -543,7 +544,7 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
     // Each of the Guild's parts, a tab's panel, says what it is for too, from the Guild's "About this view" (M9-F2).
-    for (const part of ['Home', 'Hall']) {
+    for (const part of ['Home', 'Hall', 'Stores', 'Treasury']) {
       expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
   });
@@ -569,6 +570,11 @@ describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-9
     for (const view of views) {
       openView(view);
       check(view);
+    }
+    // Each of the Guild's parts, its tab opened (M9-F3: Stores and Treasury among them).
+    for (const part of ['Home', 'Hall', 'Stores', 'Treasury'] as const) {
+      openGuildPart(part);
+      check(`the Guild's ${part}`);
     }
     openMenu();
     check('the game menu');

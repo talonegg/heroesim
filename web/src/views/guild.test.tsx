@@ -48,8 +48,8 @@ describe('a Party that came home', () => {
   });
 });
 
-// The Guild in parts (M9-F2, DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home and
-// Hall (Stores and Treasury come with M9-F3), following the ARIA tabs pattern: one tab in the Tab
+// The Guild in parts (M9-F2, DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
+// Hall, and from M9-F3 Stores and Treasury (DL-116), following the ARIA tabs pattern: one tab in the Tab
 // order, the arrow keys, Home and End moving between them, and the part open remembered in this
 // browser.
 describe("the Guild's parts (M9-F2)", () => {
@@ -68,8 +68,8 @@ describe("the Guild's parts (M9-F2)", () => {
   test('are tabs under the heading, Home open at first; a tab opens its part by pointer', () => {
     render(<App initial={started()} />);
 
-    expect(tabs().map((tab) => tab.textContent)).toEqual(['Home', 'Hall']);
-    expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false']);
+    expect(tabs().map((tab) => tab.textContent)).toEqual(['Home', 'Hall', 'Stores', 'Treasury']);
+    expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false', 'false']);
     const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
     expect(within(home).getByText(/^Nothing is waiting on you\./)).toBeDefined();
     // The panel is the one its tab controls.
@@ -77,18 +77,23 @@ describe("the Guild's parts (M9-F2)", () => {
 
     fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
 
-    expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true']);
+    expect(tabs().map((tab) => tab.getAttribute('aria-selected'))).toEqual(['false', 'true', 'false', 'false']);
     const hall = within(guild()).getByRole('tabpanel', { name: 'Hall' });
     expect(within(hall).getAllByTestId('facility')).toHaveLength(3);
     expect(within(guild()).queryByRole('tabpanel', { name: 'Home' })).toBeNull();
-    // The Upkeep sentence stays in the Hall until M9-F3 moves it.
-    expect(within(hall).getByText(/^Upkeep of The Lantern:/)).toBeDefined();
+    // The Upkeep sentence left the Hall for the Treasury (M9-F3).
+    expect(within(hall).queryByText(/^Upkeep of The Lantern:/)).toBeNull();
+
+    fireEvent.click(within(guild()).getByRole('tab', { name: 'Stores' }));
+    expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
+    fireEvent.click(within(guild()).getByRole('tab', { name: 'Treasury' }));
+    expect(within(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).getByText(/^Upkeep of The Lantern:/)).toBeDefined();
   });
 
   test('the arrow keys, Home and End move between the tabs and open each; only the open one is in the Tab order', () => {
     render(<App initial={started()} />);
     const [home, hall] = tabs();
-    if (home === undefined || hall === undefined) throw new Error('two tabs wanted');
+    if (home === undefined || hall === undefined) throw new Error('four tabs wanted');
     expect(home.getAttribute('tabindex')).toBe('0');
     expect(hall.getAttribute('tabindex')).toBe('-1');
     home.focus();
@@ -100,15 +105,19 @@ describe("the Guild's parts (M9-F2)", () => {
     expect(tabs()[0]?.getAttribute('tabindex')).toBe('-1');
 
     // Round from the last to the first, and back.
-    fireEvent.keyDown(tabs()[1] as HTMLElement, { key: 'ArrowRight' });
+    fireEvent.keyDown(tabs()[1] as HTMLElement, { key: 'End' });
+    expect(document.activeElement).toBe(tabs()[3]);
+    expect(within(guild()).getByRole('tabpanel', { name: 'Treasury' })).toBeDefined();
+    fireEvent.keyDown(tabs()[3] as HTMLElement, { key: 'ArrowRight' });
     expect(document.activeElement).toBe(tabs()[0]);
     fireEvent.keyDown(tabs()[0] as HTMLElement, { key: 'ArrowLeft' });
-    expect(document.activeElement).toBe(tabs()[1]);
-    fireEvent.keyDown(tabs()[1] as HTMLElement, { key: 'Home' });
+    expect(document.activeElement).toBe(tabs()[3]);
+    fireEvent.keyDown(tabs()[3] as HTMLElement, { key: 'Home' });
     expect(tabs()[0]?.getAttribute('aria-selected')).toBe('true');
-    fireEvent.keyDown(tabs()[0] as HTMLElement, { key: 'End' });
-    expect(tabs()[1]?.getAttribute('aria-selected')).toBe('true');
-    expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
+    fireEvent.keyDown(tabs()[0] as HTMLElement, { key: 'ArrowRight' });
+    fireEvent.keyDown(tabs()[1] as HTMLElement, { key: 'ArrowRight' });
+    expect(tabs()[2]?.getAttribute('aria-selected')).toBe('true');
+    expect(within(guild()).getByRole('tabpanel', { name: 'Stores' })).toBeDefined();
   });
 
   test('the part open is remembered in this browser, and the Guild opens at it again', async () => {
