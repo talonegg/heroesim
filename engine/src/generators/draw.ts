@@ -4,7 +4,7 @@
 
 import type { Names } from '../content-types.js';
 import { compareByCodeUnit, type Sex, type World } from '../document.js';
-import { int, pick, shuffle, type StreamName } from '../rng.js';
+import { int, next, pick, shuffle, type StreamName } from '../rng.js';
 
 /** A stream's state, reached through `world.rng` as the rest of the engine reaches it (M1-S2). */
 export type Stream = World['rng'][StreamName];
@@ -66,6 +66,17 @@ export function pickUnused(state: Stream, names: readonly string[], used: Readon
   const free = names.filter((name) => !used.has(name));
   if (free.length === 0) throw new RangeError(`Every ${what} name in content is already in use`);
   return pick(state, free);
+}
+
+/**
+ * One of `items`, each equally likely, as `pick` draws it; or `undefined` when there are none. One
+ * draw either way, so that how many items there are to choose from never moves a later draw (M9-S2:
+ * the Traits a Guildmaster may still take).
+ */
+export function pickOrNone<T>(state: Stream, items: readonly T[]): T | undefined {
+  if (items.length > 0) return pick(state, items);
+  next(state);
+  return undefined;
 }
 
 /** The sexes a person is generated with, in draw order. */

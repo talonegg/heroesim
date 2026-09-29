@@ -8,7 +8,8 @@
 // M1-S5 and M1-S6 the starting world (DL-19); M2-S3 the Board (DL-25); M2-S5 the stub Quest
 // Engine and M2-S6 the Hero State Engine (DL-29); M4-S5 Regard, Patron Regard and the
 // Guildmaster's Stat rules (DL-43); M4-S4 Regard between Heroes and teamwork (DL-46); M5-S1 the
-// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57). Every
+// gear slots (DL-48); M5-S4 the Market (DL-51); M5-S5 Loot (DL-52); M6-S2 Transfers (DL-57); M9-S2
+// the Trait budget (DL-102). Every
 // "Min/Max" pair is an inclusive range drawn with `int`. A field holding an object or a list is
 // frozen with `defaultConfig`.
 
@@ -33,7 +34,8 @@ export interface GameConfig {
    * M5 close's Loot threshold (DL-62); and, on a parallel branch, 5 from M6-S1, which moved the
    * Rivals' two thresholds into their Dispositions' rows (DL-56); 9 from merging the main line's 8
    * with that 5, so that no save made under either reads as current (DL-63); 10 from the M6 close's
-   * Transfer lock of a season (DL-69).
+   * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
+   * (DL-102).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -96,9 +98,20 @@ export interface GameConfig {
   /** Each Guildmaster Stat is drawn from this range (DL-19). */
   guildmasterStatMin: number;
   guildmasterStatMax: number;
-  /** How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2). */
+  /**
+   * How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2): the count is
+   * drawn from this range, and the draw may stop short of it (`guildmasterTraitBudget`). The
+   * maximum caps the Traits a player chooses at setup too (DL-100 item 3).
+   */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
+  /**
+   * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
+   * in all, each Trait's cost being content's (`Trait.cost`), a buff costing and a penalty
+   * refunding. A drawn Guildmaster's every draw keeps the running cost within it; a player's
+   * choice at setup is refused over it. At 1, the dearer buffs need a penalty beside them.
+   */
+  guildmasterTraitBudget: number;
 
   // ── The Guild State Engine (M2-S7, INPUTS 4.6, 4.9, pre-M0 review D10.3) ─────────────────
   /** Upkeep falls due every this many Days (DL-26 says which Days precisely). */
@@ -457,7 +470,7 @@ export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   schemaVersion: 3,
-  configVersion: 10,
+  configVersion: 11,
   turnsPerYear: 1080,
 
   startingRosterSize: 4,
@@ -490,6 +503,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStatMax: 15,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
+  guildmasterTraitBudget: 1,
 
   upkeepEveryDays: 10,
   wagePerLevel: 20,

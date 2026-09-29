@@ -3,8 +3,8 @@
 // (ADR-0002). A Guildmaster exists only with a Guild, so both rows are made together. The draw
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
-import type { EngineDeps } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey } from '../content-types.js';
+import type { EngineDeps, GameConfig } from '../config.js';
+import type { BackgroundKey, ContentSet, DispositionKey, Trait, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -20,13 +20,14 @@ import {
   type World,
 } from '../document.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
-import { int, pick, shuffle } from '../rng.js';
+import { int, pick } from '../rng.js';
 import {
   checkName,
   clamp,
   dealEvenly,
   drawCount,
   drawPersonName,
+  pickOrNone,
   pickUnused,
   sexes,
   sortedKeys,
@@ -204,6 +205,49 @@ function drawGuildName(state: Stream, names: readonly string[], guilds: readonly
   return pickUnused(state, names, anyFresh ? everUsed : inPlay, 'Guild');
 }
 
+/**
+ * A drawn Guildmaster's Traits (M9-S2, DL-100 item 3): a count from `guildmasterTraitsMin/Max`, as
+ * before; then, for each of the count, one draw uniform among the Guildmaster Traits in key order
+ * that are not yet held, are not excluded by one held, and keep the running cost within
+ * `guildmasterTraitBudget`. When none is eligible the draw stops short, so a Guildmaster may hold
+ * fewer than the count, and a Trait once ineligible for want of budget can become eligible after a
+ * penalty is drawn.
+ *
+ * It takes the draws DL-19 item 6's shuffle of every Guildmaster Trait took, whatever it draws: one
+ * for the count, then one for each Guildmaster Trait but the last, taken or not; a Guildmaster
+ * holding all the others has at most one left to take, which needs no draw, as the shuffle's last
+ * place needs none. So the costs, the exclusions and the count drawn never move a later draw
+ * (draw.ts's rule), and the rest of every seed's world is what it was: only the Guildmasters'
+ * Traits changed with the budget (DL-102).
+ */
+function drawTraits(state: Stream, config: GameConfig, content: ContentSet): TraitKey[] {
+  const rows = sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+  const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, rows.length);
+  const held: Trait[] = [];
+  let cost = 0;
+  for (let slot = 0; slot < rows.length; slot += 1) {
+    const eligible = slot < count ? rows.filter((row) => eligibleBeside(held, cost, row, config)) : [];
+    const last = slot === rows.length - 1;
+    const trait = last ? eligible[0] : pickOrNone(state, eligible);
+    if (trait === undefined) continue;
+    held.push(trait);
+    cost += trait.cost;
+  }
+  return held.map((row) => row.key);
+}
+
+/**
+ * Whether a Guildmaster holding `held`, which cost `cost` in all, may take `row` as well: it is not
+ * held, neither it nor one held excludes the other, and the running cost stays within the budget.
+ */
+function eligibleBeside(held: readonly Trait[], cost: number, row: Trait, config: Pick<GameConfig, 'guildmasterTraitBudget'>): boolean {
+  return (
+    !held.includes(row) &&
+    !held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key)) &&
+    cost + row.cost <= config.guildmasterTraitBudget
+  );
+}
+
 interface GuildmasterSetup {
   id: GuildmasterId;
   guildId: GuildId;
@@ -212,9 +256,8 @@ interface GuildmasterSetup {
 }
 
 /**
- * A Guildmaster: sex, a name unless given, an age, each Guildmaster Stat in key order, and
- * `guildmasterTraitsMin/Max` distinct Traits from a shuffle of the Guildmaster Traits, whose
- * effects stay `null` until M4-S5 (pre-M0 review B2).
+ * A Guildmaster: sex, a name unless given, an age, each Guildmaster Stat in key order, and their
+ * Traits on the budget (`drawTraits`).
  */
 function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: GuildmasterSetup): Guildmaster {
   const sex = pick(state, sexes);
@@ -224,9 +267,7 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
   for (const stat of sortedRows(content.stats, (row) => row.owner === 'guildmaster')) {
     stats[stat.key] = clamp(int(state, config.guildmasterStatMin, config.guildmasterStatMax), stat.min, stat.max);
   }
-  const traitKeys = sortedKeys(content.traits, (row) => row.owner === 'guildmaster');
-  const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, traitKeys.length);
-  const traits = shuffle(state, traitKeys).slice(0, count);
+  const traits = drawTraits(state, config, content);
   return {
     id: setup.id,
     name,
