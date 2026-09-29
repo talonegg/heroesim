@@ -125,6 +125,18 @@ export interface Trait {
   name: string;
   owner: TraitOwner;
   /**
+   * A Guildmaster Trait's cost against the Trait budget, `guildmasterTraitBudget` (DL-88 item 4,
+   * DL-100 item 3): a whole number, positive for a buff and negative for a penalty, which refunds
+   * points. 0 for a Hero Trait, which is never chosen or drawn against the budget.
+   */
+  cost: number;
+  /**
+   * The Guildmaster Traits a Guildmaster holding this one may not also hold (DL-87 item 5, DL-100
+   * item 3). Each exclusion holds both ways: every Trait listed lists this one. Empty for a Hero
+   * Trait. Content validation holds both rules.
+   */
+  excludes: TraitKey[];
+  /**
    * A Guildmaster Trait's one effect (M4-S5); `null` for a Hero Trait, which no rule reads in the
    * first build. Content validation holds each owner to its own.
    */
