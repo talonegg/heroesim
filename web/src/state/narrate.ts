@@ -238,6 +238,10 @@ const sentences: Sentences = {
   },
   'game.ended': (event) => `The game ended: ${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]}.`,
   'guild.folded': (event) => `${called(event, event.payload.guildId)} ${endingWords[event.payload.reason]} and folded.`,
+  // M9-S2: a Rival's Guildmaster's Retirement, met by Succession (DL-100 item 3).
+  'guildmaster.succeeded': (event) =>
+    `${called(event, event.payload.guildmasterId)} retired at ${event.payload.age} as Guildmaster of ` +
+    `${called(event, event.payload.guildId)}, and ${called(event, event.payload.successorId)} succeeded them.`,
   'hero.left-guild': (event) =>
     `${called(event, event.payload.heroId)} left ${called(event, event.payload.guildId)} for the Unattached pool.`,
   'guild.improved': (event, { content }) => {

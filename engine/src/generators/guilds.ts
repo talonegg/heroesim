@@ -28,6 +28,7 @@ import {
   dealEvenly,
   drawCount,
   drawPersonName,
+  drawUnusedPersonName,
   pickOrNone,
   pickUnused,
   sexes,
@@ -215,6 +216,50 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
 }
 
 /**
+ * A successor to `guild`'s Guildmaster (M9-S2, DL-100 item 3): a Guildmaster drawn as a founding
+ * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
+ * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
+ * neutral for everyone, their descriptive Attributes empty, and they enter the world now. The row
+ * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
+ * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
+ *
+ * Throws when every name the content can make for the successor's sex is in use.
+ */
+export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, options: DrawsFrom = {}): Guildmaster {
+  const state = streamOf(world, options.stream);
+  const avoidNames = namesInUse(world);
+  const successor = drawGuildmaster(state, deps, {
+    id: takeId(world, 'guildmasters'),
+    guildId: guild.id,
+    turn: world.turn,
+    name: undefined,
+    avoidNames,
+    chosen: {},
+  });
+  world.guildmasters[successor.id] = successor;
+  return successor;
+}
+
+/**
+ * The names in use (M9-S2): the Guildmasters' of the Guilds in play, and the Heroes' in play, on a
+ * Roster or in the Unattached pool. A dead or retired Hero's, one who has left the pool, and a
+ * retired Guildmaster's or a folded Guild's are free. DL-88 item 2 leaves which names count as in
+ * use open for the other generators; a successor avoids these.
+ */
+function namesInUse(world: World): Set<string> {
+  const names = new Set<string>();
+  for (const guild of Object.values(world.guilds)) {
+    if (guild.foldedOnTurn !== null) continue;
+    const guildmaster = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId] : undefined;
+    if (guildmaster !== undefined) names.add(guildmaster.name);
+  }
+  for (const hero of Object.values(world.heroes)) {
+    if (hero.diedOnTurn === null && hero.retiredOnTurn === null && hero.leftPoolOnTurn === null) names.add(hero.name);
+  }
+  return names;
+}
+
+/**
  * A Guild's name from `names` (DL-19 item 6, DL-28): one no Guild in `guilds` has ever had, while
  * any is left; once every name has been used, one only folded Guilds have had, so a Rival founded
  * to replace one that folded never finds the list exhausted. Never the name of a Guild in play.
@@ -275,6 +320,8 @@ interface GuildmasterSetup {
   guildId: GuildId;
   turn: Turn;
   name: string | undefined;
+  /** When given, the name is drawn from those not among these (a successor's, M9-S2). */
+  avoidNames?: ReadonlySet<string>;
   chosen: GuildmasterChoices;
 }
 
@@ -287,7 +334,11 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
   const { chosen } = setup;
   const drawnSex = pick(state, sexes);
   const sex = chosen.sex ?? drawnSex;
-  const name = setup.name ?? drawPersonName(state, content.names, sex);
+  const name =
+    setup.name ??
+    (setup.avoidNames === undefined
+      ? drawPersonName(state, content.names, sex)
+      : drawUnusedPersonName(state, content.names, sex, setup.avoidNames));
   const drawnAge = int(state, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
   const ageAtEntry = chosen.age ?? drawnAge;
   const stats: StatValues = {};

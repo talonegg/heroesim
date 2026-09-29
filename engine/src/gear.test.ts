@@ -284,13 +284,14 @@ describe('gear goes back to the Guild (DL-49)', () => {
   });
 
   test("a folding Rival's gear goes back to it before it folds, and its Heroes enter the pool carrying nothing", () => {
-    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'] });
+    const withRival = testDeps({ rivalCount: 1, gearSlots: ['weapon', 'armour', 'trinket'], bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const { document } = createWorld('gear-fold', setup, withRival);
     const { world } = document;
     const rival = Object.values(world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
-    // Its Guildmaster retires on the first night (M2-S10's arrangement): the Rival folds.
-    (world.guildmasters[rival.guildmasterId] as { ageAtEntry: number }).ageAtEntry = withRival.config.guildmasterRetirementAge;
+    // It is bankrupt on the first night, under no grace: the Rival folds. (Until M9-S2 its
+    // Guildmaster's Retirement folded it; that is now met by Succession, DL-102.)
+    rival.wealth = -1_000_000;
     const [first, second] = rival.rosterIds as [HeroId, HeroId];
     const mantle = createItem(world, 'mantle-of-the-fells', slotOf(second, 'armour'));
     const sword = addStack(world, 'short-sword', 1, slotOf(first, 'weapon'));

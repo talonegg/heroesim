@@ -666,21 +666,21 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
 describe("a folded Rival's Party", () => {
   /**
    * A Rival's Party sent away as `sentAway` sends it, played to the afternoon `daysEarly` Days
-   * before its return night, the Rival's Guildmaster then made old enough to retire that night.
+   * before its return night, the Rival then made bankrupt that night: Wealth far below the floor,
+   * under no grace. (Until M9-S2 its Guildmaster's Retirement folded it; now that is met by
+   * Succession, DL-102.)
    */
-  function retiringRival(seed: string, daysEarly: number) {
-    const deps = testDeps({ rivalCount: 1 });
+  function foldingRival(seed: string, daysEarly: number) {
+    const deps = testDeps({ rivalCount: 1, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const away = sentAway(seed, deps, { rival: true, daysEarly });
-    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
-    if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    guildOf(away.eve.world, away.guildId).wealth = -1_000_000;
     return { deps, ...away };
   }
 
   test('is disbanded by a fold before its return night and never resolved, nor left behind', () => {
     // The Rival folds the night before its Party is due.
-    const { deps, eve, party, quest, guildId } = retiringRival('fold-away', 1);
+    const { deps, eve, party, quest, guildId } = foldingRival('fold-away', 1);
     expect(eve.world.parties[party.id]).toEqual(party);
 
     const { document, events } = playTo(eve, party.returnsOnTurn + 3, deps);
@@ -696,12 +696,10 @@ describe("a folded Rival's Party", () => {
   // whose stacks the fold then discards (M5-S4, DL-51; the fold's order is DL-54's, endings.test.ts).
   test("is disbanded with its consumables sent back to the Guild's holding: no stack is left held by the removed Party", () => {
     // An empty Market (M5-S4), so that the only whetstones in the world are the ones carried.
-    const deps = testDeps({ rivalCount: 1, marketSize: 0 });
+    const deps = testDeps({ rivalCount: 1, marketSize: 0, bankruptcyGraceDays: 0 });
     stillRivalControllers();
     const away = sentAway('fold-carried', deps, { rival: true, daysEarly: 1, consumables: [['whetstone', 2]] });
-    const guildmaster = away.eve.world.guildmasters[guildOf(away.eve.world, away.guildId).guildmasterId];
-    if (guildmaster === undefined) throw new Error('No Guildmaster');
-    guildmaster.ageAtEntry = deps.config.guildmasterRetirementAge;
+    guildOf(away.eve.world, away.guildId).wealth = -1_000_000;
     const { eve, party, guildId } = away;
     expect(holdings(eve.world, { kind: 'party', id: party.id }).stacks).toHaveLength(1);
 
@@ -718,7 +716,7 @@ describe("a folded Rival's Party", () => {
 
   test('home on the night its Guild folds is resolved first, then the fold finds no Party', () => {
     // The Rival folds on the night its Party comes home.
-    const { deps, eve, party, guildId } = retiringRival('fold-home', 0);
+    const { deps, eve, party, guildId } = foldingRival('fold-home', 0);
 
     const { document, events } = playTo(eve, party.returnsOnTurn, deps);
 

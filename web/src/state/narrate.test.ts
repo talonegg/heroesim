@@ -35,6 +35,8 @@ const questId = 'quest-000003' as QuestId;
 const partyId = 'party-000004' as PartyId;
 const patronId = 'patron-000005';
 const guildmasterId = 'guildmaster-000002';
+/** A Rival Guildmaster's successor (M9-S2). */
+const successorId = 'guildmaster-000007';
 const otherHeroId = 'hero-000009' as HeroId;
 const stackId = 'stack-000004' as StackId;
 const itemId = 'item-000002' as ItemId;
@@ -48,6 +50,7 @@ const labels: Record<string, string> = {
   [heroId]: 'Brenna Ashcombe',
   [patronId]: 'Lady Maud',
   [guildmasterId]: 'Osric Vane',
+  [successorId]: 'Wenna Tolley',
   [rivalId]: 'The Iron Wardens',
   [otherHeroId]: 'Aldred Barrowby',
 };
@@ -144,6 +147,12 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
   'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
   'guild.folded': event('guild.folded', [guildId, guildmasterId], { guildId, reason: 'roster-wiped' }),
+  'guildmaster.succeeded': event('guildmaster.succeeded', [guildId, guildmasterId, successorId], {
+    guildId,
+    guildmasterId: guildmasterId as never,
+    successorId: successorId as never,
+    age: 65,
+  }),
   'hero.left-guild': event('hero.left-guild', [heroId, guildId], { heroId, guildId }),
   'guild.improved': event('guild.improved', [guildId], {
     guildId,
@@ -325,6 +334,7 @@ const exactly: { [Type in EngineEventType]: string } = {
   'hero.declined': `Brenna Ashcombe, at 41, lost 1 ${named(content.stats, 'endurance')} to age.`,
   'game.ended': 'The game ended: The Kestrel Guild went bankrupt.',
   'guild.folded': 'The Kestrel Guild had its Roster wiped out and folded.',
+  'guildmaster.succeeded': 'Osric Vane retired at 65 as Guildmaster of The Kestrel Guild, and Wenna Tolley succeeded them.',
   'hero.left-guild': 'Brenna Ashcombe left The Kestrel Guild for the Unattached pool.',
   'guild.improved': `The Kestrel Guild built ${named(content.improvements, 'training-yard-2')} for 500 Wealth: its training yard is now grade 2.`,
   'hero.levelled': `Brenna Ashcombe reached Level 3: ${named(content.stats, 'courage')} +2, ${named(content.stats, 'strength')} +1.`,

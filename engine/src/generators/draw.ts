@@ -89,6 +89,16 @@ export function drawPersonName(state: Stream, names: Names, sex: Sex): string {
   return `${given} ${family}`;
 }
 
+/**
+ * A person's name that is not in `used`: a given name for their sex and a family name, drawn in one
+ * draw from the pairs no one in `used` has, each pair equally likely (M9-S2, a successor's name).
+ * Throws when every pair is in use.
+ */
+export function drawUnusedPersonName(state: Stream, names: Names, sex: Sex, used: ReadonlySet<string>): string {
+  const pairs = names.given[sex].flatMap((given) => names.family.map((family) => `${given} ${family}`));
+  return pickUnused(state, pairs, used, `${sex} person's`);
+}
+
 /** `value` held inside `[floor, ceiling]`. */
 export function clamp(value: number, floor: number, ceiling: number): number {
   return Math.min(ceiling, Math.max(floor, value));
