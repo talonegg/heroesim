@@ -230,3 +230,25 @@ describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
     expect(screen.queryByRole('alert')).toBeNull();
   });
 });
+
+describe("the rest of the CLI's `new` in the form (M9-S8, the epic's §3)", () => {
+  test("a Background chosen for the Guild and the Guildmaster's Appearance start the game with them, as `--background` and `--appearance` do", () => {
+    const { play } = form();
+    named();
+    const background = document.querySelector<HTMLSelectElement>('select[name="backgroundKey"]');
+    if (background === null) throw new Error('no Background');
+    expect(background.selectedOptions[0]?.textContent).toBe('Drawn from the seed');
+    const chosen = Array.from(background.options).find((option) => option.value !== '');
+    if (chosen === undefined) throw new Error('no Background to choose');
+
+    fireEvent.change(background, { target: { value: chosen.value } });
+    fireEvent.change(within(setup()).getByLabelText('Appearance'), { target: { value: '  Tall, grey at the temples.  ' } });
+    fireEvent.click(start());
+
+    // The engine trims the texts (DL-102 item 6); the form sends them as written.
+    expect(play.mock.calls[0]?.[0]).toMatchObject({
+      backgroundKey: chosen.value,
+      guildmasterAppearance: '  Tall, grey at the temples.  ',
+    });
+  });
+});

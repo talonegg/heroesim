@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { holding, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
+import { holding, holdingUnique, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { inHistory, navButton, rosterList, section } from './page.test-support';
 
@@ -79,6 +79,27 @@ describe('the Market', () => {
 
     expect(wealth()).toBe(before + 2 * each);
     expect(cells(rowOf(section('What the Guild holds'), 'Whetstone'))[2]).toBe('1');
+  });
+
+  test("sells a unique Item the Guild holds, one of its own with no quantity to choose (the CLI's `sell --item`, M9-S8)", async () => {
+    const blade = "The Barrow King's blade";
+    render_(holdingUnique(started(), 'barrow-kings-blade'));
+    const sale = rowOf(section('What the Guild holds'), blade);
+    // Kind, Effect, Held, Sells for.
+    expect(cells(sale)[0]).toBe('weapon gear, unique');
+    expect(cells(sale)[2]).toBe('1');
+    const each = Number(cells(sale)[3]);
+    expect(each).toBeGreaterThan(0);
+    expect(within(sale).queryByLabelText(`How many ${blade}`)).toBeNull();
+    const before = wealth();
+
+    fireEvent.click(within(sale).getByRole('button', { name: `Sell ${blade}` }));
+    await idle();
+
+    expect(wealth()).toBe(before + each);
+    // The Guild holds nothing now, so the part is not drawn (M9-S3).
+    expect(screen.queryByRole('region', { name: 'What the Guild holds' })).toBeNull();
+    logSays(new RegExp(`^The Lantern sold ${blade} at the Market for ${each} Wealth\\.$`));
   });
 
   test("says why a purchase is refused, in the engine's terms", async () => {
@@ -198,6 +219,32 @@ describe("a Hero's page on the player's Roster", () => {
     expect(within(weapon()).getByText('none')).toBeDefined();
     expect(within(page()).getByRole('button', { name: 'Equip Arming sword' })).toBeDefined();
     logSays(new RegExp(`^The Lantern took Arming sword from ${name}'s weapon slot\\.$`));
+  });
+
+  test("equips a unique Item the Guild holds, and unequips it back to the Guild (the CLI's `equip --item`, M9-S8)", async () => {
+    const blade = "The Barrow King's blade";
+    render_(holdingUnique(started(), 'barrow-kings-blade'));
+    const { name, page } = openFirstHero();
+    const weapon = (): HTMLElement =>
+      within(within(page()).getByRole('list', { name: `${name}'s gear` }))
+        .getAllByRole('listitem')
+        .find((item) => item.textContent?.startsWith('Weapon') === true) as HTMLElement;
+    expect(within(weapon()).getByText('none')).toBeDefined();
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Equip ${blade}` }));
+    await idle();
+
+    expect(within(weapon()).getByText(blade)).toBeDefined();
+    expect(within(page()).getByText('The Guild holds no gear; the Market sells it.')).toBeDefined();
+
+    fireEvent.click(within(page()).getByRole('button', { name: `Unequip ${blade}` }));
+    await idle();
+
+    expect(within(weapon()).getByText('none')).toBeDefined();
+    expect(within(page()).getByRole('button', { name: `Equip ${blade}` })).toBeDefined();
+    // Both plays read in the History, new (the last play's line marked so).
+    expect(inHistory(new RegExp(`^The Lantern put ${blade} in ${name}'s weapon slot\\.$`))).toBeDefined();
+    logSays(new RegExp(`^The Lantern took ${blade} from ${name}'s weapon slot\\.$`));
   });
 
   test('transfers the Hero to the Guild chosen, for the fee it would pay, once asked and confirmed', async () => {

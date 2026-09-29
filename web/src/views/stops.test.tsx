@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { changed, started, withPartyOut } from '../state/game.test-support';
+import { changed, started, withPartyOut, withRosterReleased } from '../state/game.test-support';
 import { navButton, openView, time } from './page.test-support';
 
 // The page's side of #32 (M9-S7): the split button's opt-in stops, "until a Quest I can staff
@@ -128,5 +128,41 @@ describe('the Bankruptcy stop in the home view (M9-S7, #32)', () => {
     const home = openView('Guild');
     expect(screen.queryByTestId('stop')).toBeNull();
     expect(within(home).getByText(/^The Lantern has been below the Bankruptcy floor since Day \d+: Bankruptcy on the night of Day \d+ /)).toBeDefined();
+  });
+});
+
+describe("the pool's stop and the end, through a fast forward (M9-S8, the epic's §3)", () => {
+  test('"until new Heroes join the pool" plays until the pool turns over, names who joined, and its step opens the pool', async () => {
+    // No Hero on the Roster: no Party comes home, no decision is needed and no offer made.
+    render(<App initial={withRosterReleased(started())} />);
+
+    fireEvent.click(within(otherWays()).getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
+    await idle();
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    const stop = screen.getByTestId('stop');
+    expect(within(stop).getByText(/^Stopped: new in the Unattached pool: .+\.$/)).toBeDefined();
+    fireEvent.click(within(stop).getByRole('button', { name: 'See who joined the pool' }));
+    expect(navButton('Roster').getAttribute('aria-current')).toBe('page');
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Unattached pool' })));
+  });
+
+  test('a game that ends in a fast forward stops it: the home view says how, and time stands still', async () => {
+    // No Hero on the Roster and no Wealth to sign one: the first night wipes the Roster out.
+    render(<App initial={withRosterReleased(started(), 0)} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(within(screen.getByTestId('stop')).getByText('Stopped: the game is over.')).toBeDefined();
+    const home = screen.getByRole('region', { name: 'Guild' });
+    expect(within(home).getByText(/^The game ended on Day 0: The Lantern had its Roster wiped out\.$/)).toBeDefined();
+    expect(within(screen.getByRole('banner')).getByText('The game has ended')).toBeDefined();
+    for (const name of ['Advance a Turn', 'Fast forward', 'More ways to fast forward']) {
+      expect((within(time()).getByRole('button', { name }) as HTMLButtonElement).disabled, name).toBe(true);
+    }
+    // The end names no next step: there is none.
+    expect(within(screen.getByTestId('stop')).queryAllByRole('button')).toHaveLength(0);
   });
 });

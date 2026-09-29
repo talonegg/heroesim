@@ -7,6 +7,7 @@
 import {
   addStack,
   availableHeroes,
+  createItem,
   defaultConfig,
   durationDaysOf,
   makeId,
@@ -63,6 +64,14 @@ export function changed(state: GameState, change: (document: WorldDocument, play
 /** The player's Guild holding `quantity` of `definitionKey` besides what it held. */
 export function holding(state: GameState, definitionKey: ItemDefinitionKey, quantity: number): GameState {
   return changed(state, (document, player) => addStack(document.world, definitionKey, quantity, { kind: 'guild', id: player.id }));
+}
+
+/**
+ * The player's Guild holding one unique Item of `definitionKey` besides what it held, as Loot leaves
+ * one (M5-S5): an Item of its own, which the CLI names by `--item` (M9-S8).
+ */
+export function holdingUnique(state: GameState, definitionKey: ItemDefinitionKey): GameState {
+  return changed(state, (document, player) => void createItem(document.world, definitionKey, { kind: 'guild', id: player.id }));
 }
 
 /**

@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { changed, holding, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
-import { navButton, openView, section } from './page.test-support';
+import { inHistory, navButton, openView, section } from './page.test-support';
 
 // The Board's Quest cards and the Party builder (M9-S4, DL-104), through the page as a player uses
 // them: a card of two lines that unfolds to its details, the Board ordered, each Hero's row in the
@@ -275,6 +275,28 @@ describe('the Party builder', () => {
     expect(within(again).getByText(/^Healing draught ×2, of 3 the Guild holds: /)).toBeDefined();
     // The keyboard is back where it left.
     expect(document.activeElement).toBe(within(rows(again)[1] as HTMLElement).getByRole('button', { name: `Open ${second}'s page` }));
+  });
+
+  test("sends the Party with the consumables chosen, which leave what the Guild holds (the CLI's `dispatch --consumables`, M9-S8)", async () => {
+    render(<App initial={holding(madeToOrder(), 'healing-draught', 3)} />);
+    const questName = within(firstCard()).getByRole('heading', { level: 3 }).textContent ?? '';
+    const form = chooseForFirst();
+    const healer = rows(form).find((row) => within(row).queryByText(/^Herbalism \d$/) !== null);
+    if (healer === undefined) throw new Error('no Hero with Herbalism');
+    fireEvent.click(within(healer).getByRole('checkbox'));
+    for (let times = 0; times < 2; times += 1) {
+      fireEvent.click(within(form).getByRole('button', { name: /^Healing draught, 3 held: .+: one more$/ }));
+    }
+
+    fireEvent.click(within(form).getByRole('button', { name: 'Send the Party' }));
+    await idle();
+
+    const sent = inHistory(/^The Lantern sent .+ on .+, back on the night of Day \d+, carrying Healing draught ×2\.$/);
+    expect(sent.classList.contains('is-new')).toBe(true);
+    expect(sent.textContent).toContain(` on ${questName}, `);
+    // Kind, Effect, Held, Sells for: two of the three went with the Party.
+    const held = within(section('What the Guild holds')).getByRole('rowheader', { name: 'Healing draught' }).closest('tr') as HTMLElement;
+    expect(within(held).getAllByRole('cell')[2]?.textContent).toBe('1');
   });
 
   test('shows the requirements as a checklist of met and missed, and dispatch’s verdict as a banner, green to send and red to refuse', () => {
