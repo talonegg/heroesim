@@ -2422,6 +2422,7 @@ ul.chips {
 
 .stat-blocks {
   display: grid;
+  align-items: start;
   gap: 0.75rem 1.75rem;
   margin: 0.25rem 0 0.75rem;
 }
@@ -2563,6 +2564,22 @@ ul.chips {
 
 .table .number {
   white-space: nowrap;
+}
+
+/* A row's button and a heading that orders the table keep their words on one line. */
+.table td > button,
+.table .sort {
+  white-space: nowrap;
+}
+
+/* The Market's tables and the pool's are wider than a phone: they scroll in their box, never
+   squeezing an Item's effect or a Hero's Background to a word a line. */
+.trade-table {
+  min-width: 46rem;
+}
+
+.pool-table {
+  min-width: 38rem;
 }
 
 .sort {
