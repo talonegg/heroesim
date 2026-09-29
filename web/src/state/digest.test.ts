@@ -1,4 +1,4 @@
-import { entriesFor, playerGuild, type Guild, type WorldDocument } from '@heroesim/engine';
+import { entriesFor, playerGuild, type EngineEventOf, type Guild, type TurnEvent, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } from './digest';
 import { cameHome as partyHome, changed, namesakes, played, started, withNamesakesHurt, withOffer, withPartyOut } from './game.test-support';
@@ -54,15 +54,22 @@ describe('navCounts', () => {
     expect(navCounts(bought).fresh).toBe(0);
   });
 
-  test('counts a Party home as its History does: not its Heroes’ XP and Morale (M9-F4)', () => {
+  test('counts a Party home as its History does: not its Heroes’ XP and Morale (M9-F4), nor the parts its one entry gathers (M9-F5)', () => {
     const state = partyHome(started('reducer-test'));
     const guild = playerOf(state);
     const naming = state.log.filter((event) => event.participants.includes(guild.id));
     // The owner's list: XP, Morale, the Regards, Upkeep, purchases and sales.
     const leftOut = ['hero.xp-gained', 'hero.morale-changed', 'patron.regard-changed', 'guildmaster.regard-changed', 'hero.regard-changed', 'guild.upkeep-paid', 'item.bought', 'item.sold'];
+    // What a return's entry gathers: its Encounters, consumables, Injuries and Deaths; its Heroes' Levels that night; the dead's gear.
+    const home = naming.filter((event): event is EngineEventOf<'quest.resolved'> => event.type === 'quest.resolved').flatMap((event) => event.payload.heroIds);
+    const gathered = (event: TurnEvent): boolean =>
+      ['quest.encounter', 'item.expended', 'hero.injured', 'hero.died'].includes(event.type) ||
+      (event.type === 'hero.levelled' && home.includes((event as EngineEventOf<'hero.levelled'>).payload.heroId)) ||
+      (event.type === 'item.returned' && (event as EngineEventOf<'item.returned'>).payload.cause === 'died');
     expect(naming.some((event) => event.type === 'hero.xp-gained')).toBe(true);
+    expect(naming.some(gathered)).toBe(true);
 
-    expect(navCounts(state).fresh).toBe(naming.filter((event) => !leftOut.includes(event.type)).length);
+    expect(navCounts(state).fresh).toBe(naming.filter((event) => !leftOut.includes(event.type) && !gathered(event)).length);
     expect(navCounts(state).fresh).toBe(historyView(documentOf(state), state.log, null, 0).fresh);
     expect([...leftOutOfYourGuild].sort()).toEqual([...leftOut].sort());
   });

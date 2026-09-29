@@ -201,13 +201,13 @@ const offerEndWords: Readonly<Record<TransferOfferEndCause, string>> = {
 };
 
 /** `rose from neutral to warm`, `fell from cool to hostile`: a Regard band crossed, never a number (M4-S5). */
-function crossed(before: RegardBand, after: RegardBand): string {
+export function crossed(before: RegardBand, after: RegardBand): string {
   const way = regardBandNames.indexOf(after) > regardBandNames.indexOf(before) ? 'rose' : 'fell';
   return `${way} from ${before} to ${after}`;
 }
 
 /** Items as a sentence names them (M5-S4): `Whetstone`, `3 × Whetstone`. */
-function items(content: ContentSet, definitionKey: string, quantity: number): string {
+export function itemsWords(content: ContentSet, definitionKey: string, quantity: number): string {
   const name = nameIn(content.items, definitionKey);
   return quantity === 1 ? name : `${quantity} × ${name}`;
 }
@@ -272,15 +272,13 @@ const sentences: Sentences = {
     const which = `${nameIn(content.encounters, encounterKey)} (Encounter ${index + 1})`;
     return say`${called(event, guildId)}'s Party ${went} ${which}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.`;
   },
-  'quest.resolved': (event, { content }) => {
-    const { guildId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
-    // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
-    const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
-    return say`${called(event, guildId)}'s Party came home from ${nameIn(content.questTemplates, templateKey)} and ${bandWords[band]}: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`;
+  'quest.resolved': (event, narration) => {
+    const { lead, band, rest } = resolvedWords(event, narration);
+    return say`${lead}${band}${rest}`;
   },
   'quest.loot': (event, { content, questName }) => {
     const { guildId, questId, definitionKey, quantity } = event.payload;
-    return say`${called(event, guildId)} found Loot on ${questName(questId)}: ${items(content, definitionKey, quantity)}.`;
+    return say`${called(event, guildId)} found Loot on ${questName(questId)}: ${itemsWords(content, definitionKey, quantity)}.`;
   },
   'hero.injured': (event, { content }) => {
     const { heroId, typeKey, healsOnTurn } = event.payload;
@@ -350,11 +348,11 @@ const sentences: Sentences = {
   },
   'item.bought': (event, { content }) => {
     const { guildId, definitionKey, quantity, cost } = event.payload;
-    return say`${called(event, guildId)} bought ${items(content, definitionKey, quantity)} at the Market for ${cost} Wealth.`;
+    return say`${called(event, guildId)} bought ${itemsWords(content, definitionKey, quantity)} at the Market for ${cost} Wealth.`;
   },
   'item.sold': (event, { content }) => {
     const { guildId, definitionKey, quantity, proceeds, cause } = event.payload;
-    const what = items(content, definitionKey, quantity);
+    const what = itemsWords(content, definitionKey, quantity);
     return cause === 'fold'
       ? say`${called(event, guildId)}'s ${what} went to the Market for ${proceeds} Wealth as the Guild folded.`
       : say`${called(event, guildId)} sold ${what} at the Market for ${proceeds} Wealth.`;
@@ -394,6 +392,22 @@ const sentences: Sentences = {
     }
   },
 };
+
+/**
+ * A Party's outcome in words, cut at its band (M9-F5): the words before it, the band as the sentence
+ * says it (`succeeded strongly`), and the words after it, the reward. Its sentence is the three read
+ * together, so the return's entry can put the band in bold and still read as the History does.
+ */
+export function resolvedWords(event: EngineEventOf<'quest.resolved'>, { content }: Pick<Narration, 'content'>): { lead: Segment[]; band: string; rest: Segment[] } {
+  const { guildId, templateKey, band, wealthDelta, fameDelta, synergyKeys = [] } = event.payload;
+  // The Synergies that applied (M4-S3), when any did; an entry from before M4-S3 has none.
+  const synergies = synergyKeys.length === 0 ? '' : ` Synergies: ${synergyKeys.map((key) => nameIn(content.synergies, key)).join(', ')}.`;
+  return {
+    lead: [...say`${called(event, guildId)}'s Party came home from ${nameIn(content.questTemplates, templateKey)} and `],
+    band: bandWords[band],
+    rest: [...say`: Wealth ${signed(wealthDelta)}, Fame ${signed(fameDelta)}.${synergies}`],
+  };
+}
 
 /** Every event type the map has words for: the test holds it to the union. */
 export const narratedTypes = Object.freeze(Object.keys(sentences)) as readonly EngineEventType[];

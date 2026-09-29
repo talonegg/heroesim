@@ -138,11 +138,21 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
 });
 
 describe('folds, and the marks on each line (M9-S5)', () => {
-  test("folds a Party's Encounters under how its Quest went, marked with an icon and a word, and opens them", () => {
+  test("folds a Rival's Party's Encounters under how its Quest went, marked with an icon and a word, and opens them (the player's return is one entry, M9-F5)", () => {
     render_(cameHome());
-    const outcome = inHistory(/^The Lantern's Party came home from .+ and (failed|succeeded|succeeded strongly): Wealth [+-]?\d+, Fame [+-]?\d+\./);
+    // A Rival's own History: the last choice.
+    fireEvent.click(within(whose()).getAllByRole('button').at(-1) as HTMLElement);
+    const history = (): HTMLElement => section('History');
+    const outcomes = (): HTMLElement[] => historyLines(history()).filter((line) => /'s Party came home from /.test(sentenceOf(line)) && line.querySelector(':scope > button.fold') !== null);
+    // Older, a page at a time, until a Rival's Party's return is on one.
+    while (outcomes().length === 0 && !(within(history()).getByRole('button', { name: 'Older' }) as HTMLButtonElement).disabled) {
+      fireEvent.click(within(history()).getByRole('button', { name: 'Older' }));
+    }
+    const [outcome] = outcomes();
+    if (outcome === undefined) throw new Error("no Rival's Party came home");
 
-    expect(outcome.classList.contains('is-new')).toBe(true);
+    expect(sentenceOf(outcome)).toMatch(/^.+'s Party came home from .+ and (failed|succeeded|succeeded strongly): Wealth [+-]?\d+, Fame [+-]?\d+\./);
+    expect(outcome.classList.contains('entry--rival')).toBe(true);
     const mark = within(outcome).getByText(/^(Success|Strong success|Failure)$/).closest('.chip') as HTMLElement;
     expect(mark.querySelector('svg')).not.toBeNull();
     const fold = within(outcome).getByRole('button', { name: /^\d+ Encounters?( and \d+ consumables? used)?$/ });
@@ -157,7 +167,7 @@ describe('folds, and the marks on each line (M9-S5)', () => {
     expect(folded.hidden).toBe(false);
     const encounters = historyLines(folded).map(sentenceOf).filter((sentence) => /\(Encounter \d+\)/.test(sentence));
     expect(encounters).toHaveLength(count);
-    for (const sentence of encounters) expect(sentence).toMatch(/^The Lantern's Party (came through|failed at) .+ \(Encounter \d+\)/);
+    for (const sentence of encounters) expect(sentence).toMatch(/^.+'s Party (came through|failed at) .+ \(Encounter \d+\)/);
   });
 
   test("folds each Rival's routine in a group into one line for the Guild, muted, and opens it", () => {

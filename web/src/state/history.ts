@@ -38,6 +38,7 @@ import {
 import { content } from '../content';
 import { rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
+import { partOfAReturn } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
 
 /**
@@ -313,14 +314,17 @@ function leftOutOf(kind: HistoryScope): ReadonlySet<string> | null {
 
 /**
  * Whether an entry is shown in `target`'s History (M9-F4): the World History's filter, a Guild's
- * (`leftOutOfYourGuild`, `leftOutOfARival`), or none. It does not ask whether the entry names
- * `target`: the History's index by participant does that.
+ * (`leftOutOfYourGuild`, `leftOutOfARival`), or none. The player's Guild's also leaves out a return's
+ * parts, which its one entry gathers (M9-F5, `partOfAReturn`). It does not ask whether the entry
+ * names `target`: the History's index by participant does that. `entry` is one of the History's.
  */
-export function historyFilter(document: WorldDocument, target: EntityId | 'world' | 'all'): (entry: Pick<Entry, 'type'>) => boolean {
+export function historyFilter(document: WorldDocument, target: EntityId | 'world' | 'all'): (entry: Entry) => boolean {
   const kind = scopeKind(document, target);
   if (kind === 'world') return isWorldNews;
   const leftOut = leftOutOf(kind);
-  return leftOut === null ? () => true : (entry) => !leftOut.has(entry.type);
+  if (leftOut === null) return () => true;
+  if (kind !== 'mine') return (entry) => !leftOut.has(entry.type);
+  return (entry) => !leftOut.has(entry.type) && !partOfAReturn(document.history, entry);
 }
 
 /**
