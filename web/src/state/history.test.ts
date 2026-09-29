@@ -21,10 +21,11 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { cameHome, played as playedState, started, withPartyOut, withTheGone, withWorldNews } from './game.test-support';
+import { cameHome, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
   findInHistory,
   historyChoices,
+  historyEntries,
   historyFilter,
   historySearchLimit,
   historyTitle,
@@ -497,6 +498,44 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
     // The page's edge fell among a Party's steps somewhere in this game, and they stayed together.
     expect(sizes.some((size) => size > historyPageSize)).toBe(true);
     expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(entriesLeaving(document, busiest.id, leftOutOfARival).length);
+  });
+});
+
+describe("a return's Loot, Injuries and Deaths keep it on their page (M9-F7, code review)", () => {
+  test("a page of the player's Guild's History that would end on a return's Death runs on to the return, and the next page starts after it", () => {
+    const written = withReturn(withPartyOut(started('history-beside')), {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', injured: [1], died: [0] }],
+      injuries: [{ hero: 1, typeKey: 'broken-arm', healsOnTurn: 99_999 }],
+      deaths: [0],
+      loot: [{ definitionKey: 'whetstone', quantity: 1 }],
+    });
+    const document = structuredClone(written.state.document as WorldDocument);
+    const guild = playerGuild(document.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const [healed] = guild.rosterIds;
+    if (healed === undefined) throw new Error('no Hero');
+    // Newer entries, the same night, enough that the Death is the twentieth, the last of the first page as twenty go.
+    const shown = historyEntries(document, guild.id, 10_000).findIndex((entry) => entry.type === 'hero.died');
+    expect(shown).toBeLessThan(historyPageSize);
+    for (let at = 0; at < historyPageSize - 1 - shown; at += 1) {
+      append(document.history, { turn: written.turn, type: 'hero.healed', participants: [healed, guild.id], labels: {}, milestone: false, payload: { heroId: healed, typeKey: 'broken-arm', traitKey: null } });
+    }
+    const order = historyEntries(document, guild.id, 10_000);
+    expect(order.findIndex((entry) => entry.type === 'hero.died')).toBe(historyPageSize - 1);
+    const beside = order.filter((entry) => ['quest.resolved', 'quest.loot', 'hero.injured', 'hero.died'].includes(entry.type) && entry.turn === written.turn);
+    expect(beside).toHaveLength(4);
+
+    // The Death, the Injury, the Loot and the return, all on the first page; none on the second.
+    const first = entriesOn(document, historyView(document, [], null, 0));
+    const second = entriesOn(document, historyView(document, [], null, 1));
+    for (const entry of beside) {
+      expect(first, entry.type).toContain(entry);
+      expect(second, entry.type).not.toContain(entry);
+      expect(pageOfEntry(document, null, entry), entry.type).toBe(0);
+    }
+    expect(first).toHaveLength(historyPageSize + 3);
+    expectExactPages(document, null, inYourGuild(document, guild.id));
   });
 });
 

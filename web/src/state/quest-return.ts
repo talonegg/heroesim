@@ -241,6 +241,8 @@ export function questReturn(document: WorldDocument, key: ReturnKey): QuestRetur
  */
 interface ReturnRead {
   outcome: Resolved;
+  /** The outcome's place in the History. */
+  position: number;
   /** The entries naming the Quest, in the order they happened. */
   ofQuest: Entry[];
   /** The Party's entries of the Quest: its Encounters, consumables and Loot. */
@@ -293,14 +295,14 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
     ];
     return { heroId, name: named(heroId), xp, levels, morale: mood, injury, died, gear, regard: mates, words };
   });
-  return { outcome, ofQuest, ofParty, guildName, outcomes };
+  return { outcome, position, ofQuest, ofParty, guildName, outcomes };
 }
 
 /** `key`'s whole return, the report: what `readOutcomes` reads, with the Encounters in words, the Loot and the Patron. */
 function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null {
   const read = readOutcomes(document, key);
   if (read === null) return null;
-  const { outcome, ofQuest, ofParty, guildName, outcomes } = read;
+  const { outcome, position, ofQuest, ofParty, guildName, outcomes } = read;
   const { world } = document;
   const { payload, labels } = outcome;
   const named = (id: string): string => labels[id as keyof typeof labels] ?? 'a Hero';
@@ -337,12 +339,32 @@ function readReturn(document: WorldDocument, key: ReturnKey): QuestReturn | null
     loot,
     outcomes,
     patronRegard: patronId === undefined || patronName === undefined ? null : standing(document, ofQuest, { patronId, name: patronName, guildId: payload.guildId, guildName }),
-    home: griefAtHome(outcome, ofQuest, document),
+    home: griefAtHome(outcome, position, ofQuest, document),
   };
 }
 
-/** What `outcome`'s Deaths cost the Heroes at home: their `roster-death` Morale that names the Quest; `null` for no Death. */
-function griefAtHome(outcome: Resolved, ofQuest: readonly Entry[], document: WorldDocument): HomeGrief | null {
+/**
+ * Whether the Hero `heroId` was away with a Party when the History reached `position`: sent on a Quest
+ * (`quest.taken`) and not yet home from it (`quest.resolved`), read from their own entries.
+ */
+function awayAt(history: History, heroId: HeroId, position: number): boolean {
+  const positions = Object.hasOwn(history.byEntity, heroId) ? (history.byEntity[heroId] ?? []) : [];
+  let out: unknown = null;
+  for (const at of positions) {
+    if (at >= position) break;
+    const entry = history.entries[at];
+    if (entry?.type === 'quest.taken' && (entry as EngineEventOf<'quest.taken'>).payload.heroIds.includes(heroId)) out = (entry as EngineEventOf<'quest.taken'>).payload.partyId;
+    if (entry?.type === 'quest.resolved' && (entry as Resolved).payload.partyId === out) out = null;
+  }
+  return out !== null;
+}
+
+/**
+ * What `outcome`'s Deaths cost the Heroes at home: their `roster-death` Morale that names the Quest; `null`
+ * for no Death. The engine costs every Hero on the Roster; one away with another Party is not at home, and
+ * is left out (M9-F7, code review).
+ */
+function griefAtHome(outcome: Resolved, position: number, ofQuest: readonly Entry[], document: WorldDocument): HomeGrief | null {
   const { deaths, heroIds } = outcome.payload;
   if (deaths.length === 0) return null;
   const labelled = (entry: Entry, id: string): string =>
@@ -352,7 +374,7 @@ function griefAtHome(outcome: Resolved, ofQuest: readonly Entry[], document: Wor
   for (const entry of ofQuest) {
     if (entry.type !== 'hero.morale-changed') continue;
     const { heroId, cause, before, after, bandAfter } = (entry as EngineEventOf<'hero.morale-changed'>).payload;
-    if (cause !== 'roster-death' || heroIds.includes(heroId)) continue;
+    if (cause !== 'roster-death' || heroIds.includes(heroId) || awayAt(document.history, heroId, position)) continue;
     const known = falls.get(heroId);
     falls.set(heroId, { name: known?.name ?? labelled(entry, heroId), before: known?.before ?? before, after, band: bandAfter });
   }

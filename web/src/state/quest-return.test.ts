@@ -212,6 +212,35 @@ describe('questReturn (M9-F5)', () => {
     expect(read(withReturn(base, { band: 'success', wealth: 10, xp: 5 })).home).toBeNull();
   });
 
+  test('a Hero away with another Party when the Death came is not at home: their grief is left out of the line (M9-F7, code review)', () => {
+    const document = base.document as WorldDocument;
+    const guild = playerGuild(document.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const party = Object.values(document.world.parties).flatMap((each) => each.heroIds);
+    const [away] = guild.rosterIds.filter((heroId) => !party.includes(heroId));
+    if (away === undefined) throw new Error('no Hero at home');
+    // Sent on another Quest before the Party comes home, and not back by then.
+    const sent = changed(base, (changing) =>
+      append(changing.history, {
+        turn: changing.world.turn,
+        type: 'quest.taken',
+        participants: [makeId('quests', 9_001), makeId('parties', 9_001), away, guild.id],
+        labels: {},
+        milestone: false,
+        payload: { questId: makeId('quests', 9_001), partyId: makeId('parties', 9_001), guildId: guild.id, heroIds: [away], returnsOnTurn: 99_999 },
+      }),
+    );
+    const written = withReturn(sent, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', died: [0] }],
+      deaths: [0],
+      morale: [{ hero: away, cause: 'roster-death', before: 40, after: 36, bandAfter: 'steady' }],
+    });
+    const dead = nameOf(written, written.party.heroIds[0] as string);
+
+    expect(read(written).home).toEqual({ sentence: `At home: the Guild mourned ${dead}.`, heroesWords: '0 Heroes at home', heroes: [] });
+  });
+
   test('a Loot: each Item found, by name and quantity, among the rewards', () => {
     const written = withReturn(base, {
       band: 'success',

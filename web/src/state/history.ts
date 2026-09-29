@@ -515,12 +515,29 @@ function outcomeIndex(scope: Scope, entries: readonly Entry[], index: number): n
 }
 
 /**
+ * Whether `next`, the entry older than `last` in the player's Guild's History, is the return `last` stands
+ * beside, or another of its Loot, Injuries and Deaths (M9-F7, DL-120 item 6): they are written after the
+ * return, so newer, and a page that ends on one of them takes its return with it.
+ */
+function besideItsReturn(last: Entry | undefined, next: Entry | undefined): boolean {
+  if (last === undefined || next === undefined || !besideAReturn.has(last.type)) return false;
+  const questId = (last.payload as { questId?: unknown }).questId;
+  if (questId === null || questId === undefined || (next.payload as { questId?: unknown }).questId !== questId) return false;
+  return next.type === 'quest.resolved' || besideAReturn.has(next.type);
+}
+
+/** The entries that stand beside a return in the player's Guild's History, after it: its Loot, Injuries and Deaths. */
+const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died']);
+
+/**
  * Where the page that starts at `start` ends, counted from the newest: `historyPageSize` entries on,
- * or the scope's end, and past that every step whose outcome the page holds, so that a Party's steps
- * stay with its outcome however many there are.
+ * or the scope's end; past that, in the player's Guild's History, the return whose Loot, Injury or Death
+ * ends the page (M9-F7, code review); and every step whose outcome the page holds, so that a Party's
+ * steps stay with its outcome however many there are.
  */
 function pageEnd(scope: Scope, entries: readonly Entry[], start: number): number {
   let end = Math.min(scope.count, start + historyPageSize);
+  while (scope.kind === 'mine' && end < scope.count && besideItsReturn(entries[scope.at(end - 1)], entries[scope.at(end)])) end += 1;
   while (scope.foldsSteps && end < scope.count && isStep(entries[scope.at(end)]) && outcomeIndex(scope, entries, end) >= start) end += 1;
   return end;
 }
