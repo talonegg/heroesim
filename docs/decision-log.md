@@ -9136,6 +9136,115 @@ window uses 44rem of its 90. The review makes 40 recommendations and asks six qu
 
 Next comes the redesign's epic, M9.
 
+## DL-100 — M9 planned: the redesign's epic in nine stories, #30's values under the owner's approval given before they were written, and the style built without a separate prototype round
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** the owner, in one instruction on
+2026-09-29: "approve #30 and /mattpocock-skills:implement UI redesign and 1.1 scope". The
+owner's part is its two halves. Item 3's approval is the owner's and was given before any value
+existed; the values themselves are an agent's. Item 6's going ahead is the owner's instruction,
+read as the go-ahead item 6 describes. The epic (item 1), the parallel build (item 2) and item 5
+are an agent's, the orchestrator's, and stand unless the owner objects.
+
+**Context.** DL-99 made v1.1 the page redesign with #30 and #32, and left M9's epic to be written.
+#30's first acceptance box asks for a comment for the owner to approve before its build: each
+Trait's cost and the budget, how a drawn Guildmaster spends it, how a successor is made, and the
+words for the descriptive facts. No such comment existed when the owner approved #30. DL-99
+item 6 asked that the owner approve a style direction, drawn as a throwaway prototype, before it is
+built. Guildmaster content today is six Traits, one effect each:
+- *buffs:* Old soldier (+1 Weaponry to Warriors), Well liked (Morale baseline +5) and Thrifty
+  (Upkeep ×0.9);
+- *penalties:* Miser (Morale baseline −5), Spendthrift (Upkeep ×1.1) and Mistrusts magic (−1
+  Arcana to Mages).
+
+A Guildmaster draws 0 to 2 of them (`guildmasterTraitsMin/Max`) and is 30 to 45 at the start
+(`guildmasterStartingAgeMin/Max`). A Guildmaster's Retirement at 65 ends the player's game and
+folds a Rival (DL-28 item 1), which DL-83 item 19 replaced with succession for a Rival. The save
+schema is 3 and `configVersion` 10.
+
+**Decision.**
+
+1. **The epic** (`docs/planning/epics/M9-redesign.md`).
+   - *Nine stories.* S1 is #32. S2 is #30's engine, content and CLI. S3 is the shell and the
+     style. S4 is the Board and the Party builder. S5 is the History. S6 is the other views. S7 is
+     the page's side of #30 and #32. S8 is verification and the close. S9 is the release (#37).
+   - *DL numbers.* DL-101 for S1, DL-102 for S2, DL-103 for the page (S3 to S7) and DL-104 for the
+     close.
+   - *Its gate:* the shell at three widths, the journeys through it, the History for any entity,
+     the Guildmaster's setup, Succession, the two stops, and a 50 × 20 sweep with every difference
+     from `v1.0.1`'s explained by #30 and #32.
+2. **The build runs in parallel.** S1 and S2 are built on branches of their own, touching the
+   engine, content, the CLI, the harness and `web/src/state/` but no view. S3 to S6 are built in
+   order on a third branch. S7 follows the merges, and S8 closes on `v1.1-dev`. Each branch stays
+   green at every commit.
+3. **#30's values** (the owner's approval, the values an agent's, each a content or config value a
+   later DL may change; posted on #30 as its first box asks).
+   - *Costs* (a new `cost` on Trait content): Well liked 2, Thrifty 2, Old soldier 1; Miser −2,
+     Spendthrift −2, Mistrusts magic −1. A buff costs and a penalty refunds (DL-88 item 4).
+   - *The budget:* `guildmasterTraitBudget` 1, so the dearer buffs need a penalty beside them.
+     The count stays capped by `guildmasterTraitsMax`, 2, for the player and the draw alike.
+   - *Exclusions* (a new `excludes` on Trait content, symmetric): Thrifty and Spendthrift; Well
+     liked and Miser; Miser and Spendthrift.
+   - *How a drawn Guildmaster spends it.* The count is drawn from `guildmasterTraitsMin` to
+     `guildmasterTraitsMax` as now. Each draw is uniform among the Traits that are not yet held,
+     are not excluded by one held, and keep the running cost within the budget. When none is
+     eligible, the draw stops short. This is for Rivals, successors, and a player who leaves the
+     Traits unset. A player who chooses no Traits has none.
+   - *The player's choice is checked.* The Traits must be distinct Guildmaster Traits, no more
+     than `guildmasterTraitsMax`, with no excluded pair and a total cost within the budget. Each
+     breach is rejected with a type of its own.
+   - *Age and sex.* The age is optional, a whole number from `guildmasterStartingAgeMin` to
+     `guildmasterStartingAgeMax`. The sex is optional. Either is drawn when unset.
+   - *The descriptive Attributes.* The owner's "origin, appearance, short bio" become three
+     optional texts: **Birthplace**, **Appearance** and **Biography**. They are trimmed and bounded
+     in length, with the bounds in M9-S2's DL. They are stored on the Guildmaster, shown on the
+     Guildmaster's page, and read by no rule. A Rival's are empty. The words avoid CONTEXT's
+     "Detail", "Origin" and "Backstory". Birthplace is a place, not the Background's narrative
+     history.
+   - *Succession.* When a Rival's Guildmaster reaches `guildmasterRetirementAge`, the Guild
+     carries on with its Roster, Wealth, Fame, Hall and Items.
+     - The Guildmaster retires: their row stays in the world with the Turn of their Retirement,
+       and their History is kept (principle 11).
+     - A successor is drawn as a founding Rival Guildmaster is. Their name is not one in use, their
+       Stats come from the range, their age from the starting range, and their Traits from the
+       budget.
+     - The successor's Regard for Patrons, Heroes and Guilds starts neutral, as a founder's does.
+       The Regard others held for the retired Guildmaster stays with the retired Guildmaster.
+     - A Milestone names the Guild, the retired Guildmaster and the successor. The Rival
+       replacement path does not run.
+     - The player's Guildmaster's Retirement still ends the game (plan §1).
+   - *The glossary first* (principle 13). CONTEXT gains **Succession**, and its **Retirement** and
+     **Attribute** entries are amended. R8 is updated.
+4. **Versions.** S2 raises `configVersion` to 11 and the content version. It raises the save
+   schema to 4 only if the Guildmaster's row changes, and loads schema-3 saves with the new fields
+   defaulted: no descriptive Attributes, and the Traits as they are. #15, on v1.2, then takes the
+   next schema number rather than 4, and its issue says so.
+5. **Left out of M9.**
+   - Autosave and keyboard shortcuts (DL-99 items 4 and 5).
+   - Refusals before the click (C9), which need engine functions of their own.
+   - The Miser question DL-87 item 6 left open, whether Miser becomes two effects. Its cost
+     stands as above until that is decided.
+6. **The style without a separate prototype round.** DL-99 item 6 had the owner approve a
+   direction from a prototype first. The owner's instruction to implement the redesign is read as
+   the go-ahead to build the direction the review proposes (D1 to D8): serif display headings from
+   the system's fonts, parchment and ink surfaces, one surface level, three button tiers and an
+   inline icon set.
+   - *What the owner sees.* Screenshots go to the owner once S3 lands, and the build goes on
+     unless the owner objects.
+   - *Why this is cheap to change.* The style lives in tokens and one stylesheet, so a change of
+     direction is cheap (principle 14).
+
+**Consequences.**
+- *v1.1 changes play.* #30 changes every seed's Guildmasters once, and succession replaces a
+  Rival's fold at 65. #32 adds events and stops. S8's sweep records the differences against
+  `v1.0.1`.
+- *Before S2 starts.* #30's comment carries item 3's values, so the issue's first box is ticked.
+  #15's body is corrected for item 4.
+- *If the style is rejected.* An objection to S3's screenshots costs the stylesheet, not the
+  shell.
+
+**Actioned in:** `docs/planning/epics/M9-redesign.md`; the epics register; `CONTEXT.md` and R8
+(in S2); issues #30 and #15.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
