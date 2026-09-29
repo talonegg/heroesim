@@ -1,7 +1,7 @@
 import { entriesFor, playerGuild, type Guild, type WorldDocument } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } from './digest';
-import { changed, played, started, withOffer, withPartyOut } from './game.test-support';
+import { cameHome as partyHome, changed, namesakes, played, started, withNamesakesHurt, withOffer, withPartyOut } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterView, whenOf } from './selectors';
 import { historyView } from './history';
@@ -139,18 +139,33 @@ describe('outcomesView', () => {
       expect(homecomings[index]?.startsWith(`The Lantern's Party came home from ${row.quest} and ${went}: Wealth ${signed(row.wealth)}, Fame ${signed(row.fame)}.`)).toBe(true);
       expect(row.when).toMatch(/^Day \d+, night$/);
       // XP: each Hero who came home alive gained the same, which the log says Hero by Hero.
-      for (const name of row.names.filter((each) => !row.deaths.includes(each))) {
+      for (const name of row.names.filter((each) => !row.deaths.some((death) => death.name === each))) {
         if (row.xp > 0) expect(sentences).toContain(`${name} gained ${row.xp} XP.`);
       }
       // Each Injury, as the log says it: the Hero, the Injury and the night it heals.
       for (const injury of row.injuries) {
-        const [, name, rest] = /^(.+): (.+)$/.exec(injury) ?? [];
+        const [, name, rest] = /^(.+): (.+)$/.exec(injury.words) ?? [];
         expect(sentences).toContain(`${name} was injured (${rest?.replace(', healing on ', '), healing on ')}.`);
       }
     });
     const [sent] = partiesOutView(documentOf(withPartyOut(started('reducer-test'))));
     expect(rows[0]?.quest).toBe(sent?.quest);
     expect(rows[0]?.heroes).toBe(sent?.heroes);
+  });
+
+  test('tells two Heroes of one name apart: each death and Injury carries its Hero (the M9 review)', () => {
+    const [row] = outcomesView(withNamesakesHurt(partyHome(started('reducer-test'))));
+    const { died, injured, diedName, injuredName } = namesakes;
+    const injury = content.injuries[Object.keys(content.injuries)[0] ?? '']?.name;
+
+    expect(row?.deaths).toEqual([
+      { heroId: died[0], name: diedName },
+      { heroId: died[1], name: diedName },
+    ]);
+    expect(row?.injuries).toEqual([
+      { heroId: injured[0], words: `${injuredName}: ${injury}, healing in 3 Days` },
+      { heroId: injured[1], words: `${injuredName}: ${injury}, healing in 4 Days` },
+    ]);
   });
 
   test("gives where each is read in the player's History: the page it stands on, and its line's anchor (M9-S5)", () => {

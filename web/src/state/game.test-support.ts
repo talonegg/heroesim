@@ -9,10 +9,12 @@ import {
   availableHeroes,
   defaultConfig,
   durationDaysOf,
+  makeId,
   offerTransfer,
   offeredQuests,
   partyFor,
   playerGuild,
+  type EngineEventOf,
   type Guild,
   type Hero,
   type HeroId,
@@ -108,6 +110,52 @@ export function withPartyOut(state: GameState): GameState {
   const sent = played(state, { kind: 'dispatch', questId: longest.quest.id, heroIds: longest.heroIds });
   if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
   return sent;
+}
+
+/** `state` once a Party of the player's has come home: `withPartyOut`, then fast forward until it stops for it. */
+export function cameHome(state: GameState): GameState {
+  let next = withPartyOut(state);
+  for (let tries = 0; tries < 5 && next.stoppedBecause?.kind !== 'party-returned'; tries += 1) {
+    next = played(next, { kind: 'fastForward', until: [] });
+  }
+  if (next.stoppedBecause?.kind !== 'party-returned') throw new Error('no Party of the player came home');
+  return next;
+}
+
+/** The namesakes `withNamesakesHurt` tells of: two Heroes who died and two injured, each pair of one name. */
+export const namesakes = {
+  died: [makeId('heroes', 901), makeId('heroes', 902)],
+  injured: [makeId('heroes', 903), makeId('heroes', 904)],
+  diedName: 'Finn Grimshaw',
+  injuredName: 'Brenna Ashcombe',
+} as const;
+
+/**
+ * `state`'s last play with the player's first outcome told again of namesakes (the M9 review): two
+ * Heroes called Finn Grimshaw died on the Quest, and two called Brenna Ashcombe were injured, each
+ * their own Hero. A Hero's name is not unique (`drawPersonName` avoids no name in use), so a row
+ * tells them apart by id. The rest of the log is as it was.
+ */
+export function withNamesakesHurt(state: GameState): GameState {
+  const guildId = playerOf(documentOf(state)).id;
+  const index = state.log.findIndex((event) => event.type === 'quest.resolved' && (event as EngineEventOf<'quest.resolved'>).payload.guildId === guildId);
+  const outcome = state.log[index] as EngineEventOf<'quest.resolved'> | undefined;
+  if (outcome === undefined) throw new Error("no Party of the player's came home in the last play");
+  const { died, injured, diedName, injuredName } = namesakes;
+  const [typeKey] = Object.keys(content.injuries);
+  if (typeKey === undefined) throw new Error('the content has no Injury');
+  const told: EngineEventOf<'quest.resolved'> = {
+    ...outcome,
+    participants: [...outcome.participants, ...died, ...injured],
+    labels: { ...outcome.labels, [died[0]]: diedName, [died[1]]: diedName, [injured[0]]: injuredName, [injured[1]]: injuredName },
+    payload: {
+      ...outcome.payload,
+      heroIds: [...died, ...injured],
+      deaths: [...died],
+      injuries: injured.map((heroId, at) => ({ heroId, typeKey, healDays: 3 + at })),
+    },
+  };
+  return { ...state, log: state.log.map((event, at) => (at === index ? told : event)) };
 }
 
 /** Every Rival rich enough to hire: whether one takes a Hero is then its Roster's and its Disposition's to say. */

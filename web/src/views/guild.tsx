@@ -123,14 +123,14 @@ export function GuildView({
                 </div>
                 {outcome.injuries.length === 0 && outcome.deaths.length === 0 ? null : (
                   <ul className="marks">
-                    {outcome.injuries.map((injury) => (
-                      <li key={injury} className="is-hurt">
+                    {outcome.injuries.map(({ heroId, words }) => (
+                      <li key={`injured-${heroId}`} className="is-hurt">
                         <Icon name="injury" />
-                        <span>{injury}</span>
+                        <span>{words}</span>
                       </li>
                     ))}
-                    {outcome.deaths.map((name) => (
-                      <li key={name} className="is-missed">
+                    {outcome.deaths.map(({ heroId, name }) => (
+                      <li key={`died-${heroId}`} className="is-missed">
                         <Icon name="cross" />
                         <span>{name} died on the Quest</span>
                       </li>

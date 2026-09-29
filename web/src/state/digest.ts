@@ -12,6 +12,7 @@ import {
   entriesFor,
   playerGuild,
   type EngineEventOf,
+  type HeroId,
   type PartyId,
   type QuestBand,
   type QuestId,
@@ -127,10 +128,13 @@ export interface OutcomeRow {
   fame: number;
   /** XP to each Hero who came home alive. */
   xp: number;
-  /** `Finn Grimshaw: Broken arm, healing on the night of Day 12`. */
-  injuries: string[];
-  /** Who died on the Quest, by name. */
-  deaths: string[];
+  /**
+   * Each Injury, with its Hero, whose name another Hero may share: `Finn Grimshaw: Broken arm,
+   * healing on the night of Day 12`.
+   */
+  injuries: { heroId: HeroId; words: string }[];
+  /** Who died on the Quest: each Hero, and their name, which another Hero may share. */
+  deaths: { heroId: HeroId; name: string }[];
   /** Its line in the History, `outcome-party-000004`, which the home view opens (M9-S5, DL-105). */
   anchor: string;
   /** The page of the player's Guild's History the line stands on; `null` if it is not there. */
@@ -171,9 +175,9 @@ export function outcomesView(state: Pick<GameState, 'document' | 'log'>): Outcom
         injuries: payload.injuries.map(({ heroId, typeKey, healDays }) => {
           const heals = injured.find((each) => each.payload.heroId === heroId && each.payload.questId === payload.questId);
           const until = heals === undefined ? `healing in ${healDays} ${healDays === 1 ? 'Day' : 'Days'}` : `healing on ${nightOf(heals.payload.healsOnTurn)}`;
-          return `${named(heroId)}: ${nameIn(content.injuries, typeKey)}, ${until}`;
+          return { heroId, words: `${named(heroId)}: ${nameIn(content.injuries, typeKey)}, ${until}` };
         }),
-        deaths: payload.deaths.map(named),
+        deaths: payload.deaths.map((heroId) => ({ heroId, name: named(heroId) })),
         anchor: `outcome-${payload.partyId}`,
         page: document === null ? null : pageOfEntry(document, null, event),
       };
