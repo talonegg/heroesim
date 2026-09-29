@@ -4,7 +4,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 // Harvested from v1 (feature/poc, E8-S5) and trimmed to v2's two widths (M7-S1; the journeys are
-// M7-S4's). Local only: CI runs no browser (INPUTS 7.10). `npm run e2e -w web` builds first, then
+// M7-S4's); a tablet's added for the shell's three layouts (M9-S3, DL-103). Local only: CI runs no
+// browser (INPUTS 7.10). `npm run e2e -w web` builds first, then
 // runs these specs against the built bundle, never the dev server.
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
@@ -31,11 +32,16 @@ export default defineConfig({
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: true,
   },
-  // Chromium at a phone's width and a desktop's (M7-S3, M7-S4).
+  // Chromium at a phone's width, a tablet's and a desktop's (M7-S3, M7-S4; M9-S3): the bottom bar
+  // under 600px, the side rail from 600px, and the History rail beside the view from 1100px.
   projects: [
     {
       name: 'phone',
       use: { ...devices['Desktop Chrome'], viewport: { width: 360, height: 800 } },
+    },
+    {
+      name: 'tablet',
+      use: { ...devices['Desktop Chrome'], viewport: { width: 820, height: 1180 } },
     },
     {
       name: 'desktop',

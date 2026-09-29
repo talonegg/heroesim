@@ -313,7 +313,7 @@ button:disabled,
   background: none;
   padding: 0.35rem 0;
   min-height: var(--tap);
-  min-width: 0;
+  min-width: var(--tap);
   color: var(--accent);
   font-family: var(--serif);
   font-size: 1.125rem;
@@ -1264,7 +1264,8 @@ details > summary::-webkit-details-marker {
     border-top: none;
     border-right: 1px solid var(--line);
     padding: var(--space) 0.5rem var(--space) 0;
-    max-height: calc(100vh - var(--status-h));
+    /* The whole height below the status bar, so its rule runs to the foot of the screen. */
+    height: calc(100vh - var(--status-h));
     overflow-y: auto;
   }
 
@@ -1369,7 +1370,7 @@ details > summary::-webkit-details-marker {
     position: sticky;
     top: var(--status-h);
     align-self: start;
-    max-height: calc(100vh - var(--status-h));
+    height: calc(100vh - var(--status-h));
     overflow-y: auto;
     padding: var(--space) 0 var(--space) 1.25rem;
     border-left: 1px solid var(--line);

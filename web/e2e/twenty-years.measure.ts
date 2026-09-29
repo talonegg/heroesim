@@ -2,7 +2,7 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { region } from './support';
+import { region, thisGame } from './support';
 
 // The measure (M7-S4's first box, DL-67): a twenty-year save from `npm run harness:sample`
 // (harness/samples/twenty-years.json, gitignored, M2-S12) through IndexedDB in a real browser, the
@@ -10,7 +10,8 @@ import { region } from './support';
 // (serialise, gzip, the write committed) and a load after the page is reloaded (the read, gunzip,
 // deserialise, and the game shown). Each is timed in the page, from the button's click to the DOM
 // showing it done, `rounds` times. The storage alone (IndexedDB and gzip, no engine) is timed too,
-// and the compressed size read from IndexedDB. Run with `npm run measure -w web`.
+// and the compressed size read from IndexedDB. Run with `npm run measure -w web`. The saves are the
+// game menu's (M9-S3, DL-103).
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const samplePath = path.join(repoRoot, 'harness', 'samples', 'twenty-years.json');
@@ -110,7 +111,7 @@ test('a twenty-year save round-trips through IndexedDB: the time and the compres
   const saves: number[] = [];
   const loads: number[] = [];
   for (let round = 0; round < rounds; round += 1) {
-    await region(page, 'This game').getByLabel('Save as').fill(saveName);
+    await (await thisGame(page)).getByLabel('Save as').fill(saveName);
     saves.push(await clickAndTime(page, 'form[aria-label="Save in this browser"] button[type="submit"]', 'saves-status', { startsWith: `Saved as “${saveName}”` }));
     await page.reload();
     await expect(page.getByRole('button', { name: `Load ${saveName}` })).toBeVisible();
@@ -121,7 +122,7 @@ test('a twenty-year save round-trips through IndexedDB: the time and the compres
   // The round trip changed nothing: the save kept, exported, is the sample byte for byte.
   const [exported] = await Promise.all([
     page.waitForEvent('download'),
-    region(page, 'This game').getByRole('button', { name: `Export ${saveName}` }).click(),
+    (await thisGame(page)).getByRole('button', { name: `Export ${saveName}` }).click(),
   ]);
   const exportedPath = testInfo.outputPath(`${saveName}.json`);
   await exported.saveAs(exportedPath);

@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalOverflow, playTurns, region, startGame } from './support';
+import { expectNoHorizontalOverflow, playTurns, region, startGame, thisGame } from './support';
 
 // M7-S5's first box against the deployed page (DL-75): a fresh browser creates a game, plays a
 // Day, saves it in IndexedDB, reloads the page and loads the save at the same Turn; and nothing
-// the page asks for leaves its own origin.
+// the page asks for leaves its own origin. The saves are the game menu's (M9-S3, DL-103).
 
 test('the deployed page creates a game, saves it, and loads it after a reload', async ({ page, baseURL }) => {
   test.setTimeout(120_000);
@@ -20,7 +20,7 @@ test('the deployed page creates a game, saves it, and loads it after a reload', 
   await expect(page.getByTestId('time')).toHaveText('Day 1, morning, Year 0');
   const turn = (await page.getByTestId('time').textContent()) ?? '';
 
-  const game = region(page, 'This game');
+  const game = await thisGame(page);
   await game.getByLabel('Save as').fill('deployed');
   await game.getByRole('button', { name: 'Save in this browser' }).click();
   await expect(game.getByTestId('saves-status')).toHaveText(/^Saved as “deployed”, [\d.]+ kB\.$/);

@@ -61,7 +61,9 @@ export type ViewName = 'Guild' | 'Board' | 'Roster' | 'Hall' | 'Rankings' | 'His
 /** Opens `view` from the navigation, through "More" where the bar keeps it there, and gives its region. */
 export async function openView(scope: Scope, view: ViewName): Promise<Locator> {
   const nav = scope.getByRole('navigation', { name: 'Views' });
-  const item = nav.getByRole('button', { name: new RegExp(`^${view}(,|$)`) });
+  // Its name is the view's, then any count: Chromium puts a space before the count's comma, as the
+  // label is a block of its own.
+  const item = nav.getByRole('button', { name: new RegExp(`^${view}\\s*(,|$)`) });
   if ((await item.count()) === 0) await nav.getByRole('button', { name: 'More', exact: true }).click();
   await item.first().click();
   const shown = region(scope, view);

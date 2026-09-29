@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { expectNoHorizontalOverflow, region, startGame } from './support';
+import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, startGame, statusBar, thisGame } from './support';
 
 // Fast forward in steps (v1.0.1-S5, DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
@@ -8,6 +8,9 @@ import { expectNoHorizontalOverflow, region, startGame } from './support';
 // player's stops it before `max-turns`. Opened with "Load a save file", its fast forward shows its
 // progress between steps, the Day moving; a second one, stopped midway, ends within a step, with
 // the page's own sentence and "Fast forward again".
+//
+// Through the shell (M9-S3, DL-103): the game's file is the game menu's, the time controls are the
+// status bar's, and the end of a fast forward opens the home view, where its stop is.
 
 /** The Turns in a step of fast forward: `fastForwardStepTurns` (`web/src/state/reducer.ts`). */
 const stepTurns = 30;
@@ -26,7 +29,7 @@ interface SaveFile {
 async function aYearWithNoStop(page: Page, testInfo: TestInfo): Promise<string> {
   const [download] = await Promise.all([
     page.waitForEvent('download'),
-    region(page, 'This game').getByRole('button', { name: 'Export this game' }).click(),
+    (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click(),
   ]);
   const exported = testInfo.outputPath('new-game.json');
   await download.saveAs(exported);
@@ -73,13 +76,15 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await page.goto('/');
   await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-fast-forward' });
   const save = await aYearWithNoStop(page, testInfo);
-  await region(page, 'This game').getByLabel('Load a save file').setInputFiles(save);
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
   await expect(page.getByTestId('time')).toHaveText('Day 0, morning, Year 0');
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
-  await expect(region(page, 'Roster').locator('li.card')).toHaveCount(0);
+  // No Hero on the Roster: the list of them is not shown at all.
+  const roster = await openView(page, 'Roster');
+  await expect(roster.getByRole('list', { name: 'Heroes on the Roster' })).toHaveCount(0);
 
   // A year, uninterrupted: its progress shows at least two Days before the end.
-  const time = region(page, 'Time');
+  const time = statusBar(page).getByRole('group', { name: 'Time' });
   const stop = page.getByTestId('stop');
   await watchProgress(page);
   const started = Date.now();
@@ -103,6 +108,8 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   // Again, stopped midway: the Turns it played are those the progress showed as Stop was taken, or one step more.
   await stop.getByRole('button', { name: 'Fast forward again' }).click();
   await expect(page.getByTestId('progress')).toBeVisible();
+  // The game menu open, so its "Export this game" is on the page to be read.
+  await openGameMenu(page);
   // Read the page between steps and take Stop in one task of the page's, so no step runs between
   // them. Between steps the year's stop has gone, and "Export this game" waits: the game in hand's
   // History holds the steps' Turns, which its World has not played (v1.0.1-S6, DL-97).
@@ -129,6 +136,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await expect(page.getByTestId('progress')).toHaveCount(0);
   await expect(stop.getByRole('button', { name: 'Fast forward again' })).toBeEnabled();
   await expect(time.getByRole('button', { name: 'Advance a Turn' })).toBeEnabled();
-  await expect(region(page, 'This game').getByRole('button', { name: 'Export this game' })).toBeEnabled();
   await expectNoHorizontalOverflow(page, 'a fast forward stopped');
+  await expect((await thisGame(page)).getByRole('button', { name: 'Export this game' })).toBeEnabled();
+  await closeGameMenu(page);
 });

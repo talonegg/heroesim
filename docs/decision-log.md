@@ -9245,6 +9245,187 @@ schema is 3 and `configVersion` 10.
 **Actioned in:** `docs/planning/epics/M9-redesign.md`; the epics register; `CONTEXT.md` and R8
 (in S2); issues #30 and #15.
 
+## DL-103 — The page as views in a shell: a status bar that stays, six views opened as React state and remembered in this browser, the home view's digest from new selectors, the game in a menu, help on request, empty parts not drawn, and the guild-ledger style in tokens with a dark scheme (M9-S3)
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-S3's implementer. The
+direction of the style is the owner's (DL-100 item 6, the review's D1 to D8). Every choice below
+that the epic left open, and every departure from it, is the agent's, and stands unless the owner
+objects to it or to the screenshots.
+
+**Context.** Until M9-S3 the page was one column of sections, every one drawn at once: 21,937px
+tall at 390px and 17,991px at 1440px for a new game (`docs/web-ui-review-2026-09-29.md`). DL-99
+item 1 made it views in a shell, and the epic's M9-S3 set the shell, the home view's digest, the
+game menu, help on request, hidden empty parts and the style. S4 (the Board's Quest cards and the
+Party builder), S5 (the History's grouping) and S6 (the Roster's, Hall's and Rankings' tables)
+follow on the same branch. So S3 moves today's section components into the views as they are,
+restyled, and builds the shared pieces those stories use.
+
+**Decision.**
+
+1. **Views and their parts.**
+   - *Regions.* Each view is a region named by its `h2`, which takes the keyboard when the view
+     opens. Its parts are regions named by an `h3`:
+     - Roster: Transfer Offers, then the Unattached pool;
+     - Hall: the Guildmaster, What the Guild holds, then the Market;
+     - Rankings: the Guilds, then the Patrons;
+     - History: Since your last action, above the History.
+   - *Heading levels* inside a part move one level down. A Hero's page is `h3` in the Roster and the
+     History, and `h4` in the pool and on a Rival's page.
+   - *A Hero's page on the Roster* takes the whole view while it is open, with "Back to the Roster".
+   - *What the Guild holds* moves from the Roster to the Hall, as the epic lists it.
+   - *The Time section* becomes the status bar's group named "Time". Its help is the group's
+     description, in a hidden paragraph, since a status bar has no room for a disclosure.
+   - *v1's `Shell.tsx`.* The shell is written for v2's game model. Nothing of v1's shell was copied.
+2. **Views as React state, remembered.**
+   - *The key.* The open view is kept under `heroesim.view` in `localStorage`. Every read and write
+     is in try/catch, and a value that names no view is read as the home view.
+   - *What opens the home view.*
+     - A new game or a load (the epic).
+     - The end of a fast forward, by a stop or by the player's Stop. The agent chose this so that
+       the stop and what came of it are seen where they are shown. It happens in the same render as
+       the end.
+     - A refusal does not switch the view.
+   - *What the remembered view does today.* After a reload, a game only arrives by a new game or a
+     load, and both open the home view. So today the remembered view only applies to a game in hand
+     as the page mounts: in tests, and with autosave, which DL-100 item 5 left out.
+3. **By width.**
+   - *The breakpoints* are the epic's, 600px and 1100px, and CSS alone switches the layouts.
+   - *Under 600px.*
+     - Hall and Rankings are in a "More" popover, and "More" is marked while one of them is open.
+     - The status bar keeps the year and the Rankings measure for screen readers only.
+     - Under 420px the icons leave the two time buttons, so the bar is two lines of facts and one of
+       controls.
+   - *From 1100px.*
+     - The History rail shows the player's Guild's latest 24 entries, the new ones marked "New".
+     - It is not drawn while the History view is open, which would repeat it.
+     - The side rail and the History rail run the height of the screen below the status bar.
+4. **Counts on the navigation.**
+   - *Board:* the Quests on offer.
+   - *Roster:* a dot while a Transfer Offer to the player waits.
+   - *History:* the entries new since the last action **that name the player's Guild**. The epic
+     says "the entries new since the last action". Counted over every Guild, a fast forward's
+     count runs to hundreds and says nothing. The rail's "New" marks have the same scope.
+   - Each count has words for screen readers ("6 Quests on offer", "5 new"). A badge shows at most
+     "999+".
+5. **The home view's digest**, every piece from a selector in `web/src/state/digest.ts` or
+   `selectors.ts`, written test first.
+   - *Its order:*
+     - the game's end;
+     - the rules banner;
+     - the Bankruptcy countdown's sentence;
+     - the stop;
+     - "Came home";
+     - "Transfer Offers waiting";
+     - "Parties out";
+     - "Last Day on the Board".
+     When none of these is there, "Nothing is waiting on you" and "Open the Board".
+   - *The stop's Quest buttons.*
+     - They are the Quests a decision-needed stop names that are still on the Board, in its order
+       (`stopView`'s new `quests`).
+     - Each one's `aria-label` names its Patron and reward, so two Quests of one name are told
+       apart.
+     - Each opens that Quest's Party on the Board and puts the keyboard on the Quest.
+   - *Every other stop* gets one next step: "Read what happened", "Open the Board", "Answer the
+     offer", "See who joined the pool" or "Fast forward again".
+   - *"The Quests that leave the Board today"* are those whose last Day on offer is the current
+     Day, titled "Last Day on the Board".
+   - *"Came home"* is the player's Guild's `quest.resolved` events in the last play. Each gives its
+     band, Wealth, Fame, XP each, and the Injuries (`hero.injured` on that night) and deaths.
+   - *`headerView`'s new fields,* each a string or `null`, so the page computes nothing:
+     - `timeOfDay`, `when` and `year`;
+     - `place` and `measure`;
+     - `due`, the countdown's pill.
+6. **The status bar.**
+   - *The countdown pill* is a button that opens the home view, where its full sentence stands.
+   - *Fast forward* is a split button. Its main part plays until any stop. A chevron opens "Fast
+     forward until new Heroes join the pool", the only opt-in stop the page offers today. M9-S7
+     adds #32's.
+   - *The glyphs.* Morning, afternoon and night have one each.
+   - *The labels.* Wealth's and Fame's labels show from 1100px, with the icon and the words for
+     screen readers below that.
+7. **The game menu.**
+   - *Its form.* It is a modal dialog opened by "Game" in the status bar: a sheet from the right,
+     the whole screen under 600px. The keyboard goes to its heading and Tab stays within it. Escape
+     or Close returns the keyboard to "Game".
+   - *What it holds:*
+     - its About;
+     - the seed, and the content set and version;
+     - the modules installed for testing;
+     - the rules notice, while it stands;
+     - "This game": export, load a file, the saves in this browser, and a new game.
+   - *The rules banner.* The home view's banner offers "Adopt the new rules" and "More in the game
+     menu".
+   - *A new game* over one in hand still replaces the page with the form, as before.
+8. **Help on request.**
+   - *The sentences* are in one map in `web/src/views/section.tsx`.
+   - *Each view's "About this view"* holds its own sentence and its parts'. Each region is still
+     `aria-describedby` its own paragraph, which is on the page while the disclosure is closed.
+   - *New sentences,* the agent's words: the home view's, and one for "What the Guild holds" now
+     that it is a part of its own.
+9. **Not drawn when empty.**
+   - *Parts and lists:* the Transfer Offers part, What the Guild holds, the Roster's list, the Party
+     form's Consumables, a Hero's Milestones, and the Market's list of what the Guild can sell.
+   - *Removed:* the Market's "has N Wealth" line, which the status bar already gives.
+   - The navigation's counts still say what is waiting.
+10. **The refusal** is an alert docked under the status bar, inside its sticky block, with an icon
+    and Dismiss. It no longer covers a view.
+11. **The style** (`web/src/styles.css`).
+    - *Tokens* on `:root`, all redefined under `prefers-color-scheme: dark`:
+      - parchment and ink surfaces;
+      - an oxblood accent, `#7c2d24` light and `#e6a896` dark;
+      - a brass highlight for key numbers;
+      - good, bad and warning colours, each with a soft ground.
+    - *Contrast* is checked by `web/src/styles.test.ts`, in both schemes: every text pairing the
+      stylesheet sets at 4.5:1 or more, and every control's edge and the focus ring at 3:1.
+    - *Faces.* The epic's serif stack sets the headings, the Guild's name, Quest names and links.
+      Body text is `system-ui`, and every number is in tabular figures. Labels are small, tracked
+      capitals, `h6` among them. Nothing is fetched: no `@font-face`, `@import` or `url()`.
+    - *Buttons.* Three tiers (primary filled, secondary outlined, quiet text), plus a danger variant
+      for a delete for good. Every control is at least 44px each way.
+    - *Icons.* 38 inline SVGs in one style: 24px, a 1.75 stroke, round caps, `aria-hidden`.
+    - *Controls.* A search field with its icon, a number stepper with − and + buttons, and a file
+      picker behind a styled button.
+    - *Motion.* Keyframes for opening a view, unfolding a disclosure and a changed value, only
+      under `prefers-reduced-motion: no-preference`. Under `reduce`, animation and transition are
+      off.
+12. **Short labels.** Where the row names the object, the button says only what it does: "Recruit",
+    "Open", "Take in", "Read", "Equip" or "Unequip". The full name stays in `aria-label`, where
+    the tests find it.
+13. **The tests.**
+    - *The unit tests go through the navigation,* as a player would. `app.test.tsx` and the view
+      tests open a view before they read its regions. `time.test.tsx` becomes `stop.test.tsx`, and
+      `web/src/test-setup.ts` clears `localStorage` after each test.
+    - *The browser specs.*
+      - `e2e/support.ts`'s helpers open the view, or the game menu, before they find a region.
+      - A tablet project (820 × 1180) joins the phone and the desktop.
+      - `layout.spec.ts` checks every view and the game menu for 44px targets at all three
+        widths.
+      - The journey reads the Party out and how it came home in the home view.
+    - *A timeout raised.* The reducer's "uninterrupted, the steps give what one call gives"
+      describe has a 30s timeout. It ran past 5s under the whole suite's load before this story
+      too. It is bounded, not sped up, as DL-74 item 1 bounded a slow test.
+14. **The bundle's size warning.** The one classic script is 544 kB (157 kB gzipped), over Vite's
+    500 kB warning. The page is one classic script by design (DL-88 item 5), so `chunkSizeWarningLimit` is
+    raised to 800 kB rather than splitting. The bundle gate, which checks that nothing is fetched,
+    is unchanged and passes.
+
+**Consequences.**
+- *The page's height.* A new game's page is one screen at 390px and at 1440px, where it was 21,937px
+  and 17,991px. The longest view of a new game is the History, at 6,549px and 5,531px.
+- *What later stories build on.* S4 to S6 restyle their views' insides with the shared pieces
+  (`Chip`, `StatPill`, `Badge`, `Banner`, `Stepper`, `Disclosure`, `Icon`) and keep the regions'
+  names, which the tests and the specs find them by.
+- *If the style is rejected,* the change is in `styles.css` and its tokens (DL-100 item 6).
+- *Questions for the owner.*
+  - Is the switch to the home view at the end of a fast forward wanted?
+  - Should the History's count stay scoped to the player's Guild?
+  - Is the remembered view worth keeping before autosave makes it matter?
+
+**Actioned in:** `web/src/state/digest.ts`, `web/src/state/selectors.ts`, `web/src/app.tsx`,
+`web/src/views/` (the shell: `status-bar.tsx`, `nav.tsx`, `rail.tsx`, `guild.tsx`, `stop.tsx`,
+`game-menu.tsx`, `ui.tsx`, `icons.tsx`, `remembered.ts`, `section.tsx`), `web/src/styles.css`,
+`web/e2e/`, `web/playwright.config.ts`, `web/vite.config.ts`; the epic's M9-S3 boxes.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

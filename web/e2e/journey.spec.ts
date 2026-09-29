@@ -114,7 +114,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // The home view says how it fared: its Quest, its band, and what it brought.
   const came = page.getByRole('region', { name: 'Guild' }).locator('.outcome');
   await expect(came.first().getByRole('heading', { level: 4 })).toHaveText(quest);
-  await expect(came.first()).toContainText(/(Success|Strong success|Failure)Wealth [+-]?\d+/);
+  await expect(came.first()).toContainText(/^.+(Success|Strong success|Failure).+, Day \d+, \w+Wealth [+-]?\d+Fame [+-]?\d+/);
   await expectNoHorizontalOverflow(page, 'a fast forward stopped, its outcome shown');
 
   // Save in the browser, under a name.
