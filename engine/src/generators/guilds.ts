@@ -156,7 +156,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
       participants: [guildId, guildmasterId],
       labels,
       milestone: true,
-      payload: { guildId, guildmasterId },
+      payload: { guildId, guildmasterId, wealth },
     },
     {
       turn: world.turn,

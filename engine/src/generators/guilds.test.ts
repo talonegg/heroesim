@@ -170,6 +170,15 @@ describe('generateGuild', () => {
     expect(() => generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 })).toThrow(/Guild name/);
   });
 
+  test("guild.founded carries the Guild's founding Wealth (M9-F7, DL-120 item 4)", () => {
+    const deps = testDeps();
+    const world = testWorld('founding-wealth', deps);
+    const { guild, events } = generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 1_234 });
+
+    expect(guild.wealth).toBe(1_234);
+    expect(events[0]?.payload).toEqual({ guildId: guild.id, guildmasterId: guild.guildmasterId, wealth: 1_234 });
+  });
+
   test('emits guild.founded as a Milestone, guildmaster.generated, then hero.generated per Roster Hero', () => {
     const deps = testDeps();
     const world = testWorld('events', deps);
@@ -188,7 +197,7 @@ describe('generateGuild', () => {
       participants: [guild.id, guildmaster.id],
       labels,
       milestone: true,
-      payload: { guildId: guild.id, guildmasterId: guildmaster.id },
+      payload: { guildId: guild.id, guildmasterId: guildmaster.id, wealth: 0 },
     });
     expect(events[1]).toEqual({
       turn: 0,

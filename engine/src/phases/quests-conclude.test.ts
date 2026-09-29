@@ -769,8 +769,16 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     }),
   );
 
-  /** A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out. */
+  /**
+   * A History entry as it was before M9-F1: the new `questId` and the Quest's participation taken out;
+   * and, from M9-F7 (DL-120 item 4, DL-121), a founding's Wealth.
+   */
   function unnamed(entry: WorldDocument['history']['entries'][number]): object {
+    if (entry.type === 'guild.founded') {
+      const payload = { ...(entry.payload as Record<string, unknown>) };
+      delete payload.wealth;
+      return { ...entry, payload };
+    }
     if (!(entry.type in namedCauses)) return entry;
     const payload = { ...(entry.payload as Record<string, unknown>) };
     const questId = payload.questId;
@@ -840,7 +848,16 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     }
   });
 
-  test('a History written before M9-F1, with neither, still validates and loads', () => {
+  test("every founding in the games names its Guild's founding Wealth, the player's, the Rivals' and any replacement's (M9-F7)", () => {
+    for (const seed of seeds) {
+      const document = played.get(seed) as WorldDocument;
+      const founded = document.history.entries.filter((entry) => entry.type === 'guild.founded');
+      expect(founded.length, seed).toBe(Object.keys(document.world.guilds).length);
+      for (const entry of founded) expect(entry.payload, seed).toHaveProperty('wealth', expect.any(Number));
+    }
+  });
+
+  test('a History written before M9-F1, with none of the three, still validates and loads', () => {
     const document = played.get('named-a') as WorldDocument;
     const history = createHistory();
     for (const entry of document.history.entries) append(history, unnamed(entry) as Entry);
@@ -850,13 +867,14 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     expect(loaded.ok && loaded.warnings).toEqual([]);
   });
 
-  test('nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new field and participants', () => {
+  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth)", () => {
     const fingerprints = seeds.map((seed) => {
       const { history } = played.get(seed) as WorldDocument;
       return createHash('sha256').update(JSON.stringify(history.entries.map(unnamed))).digest('hex');
     });
     // SHA-256 of each seed's History, recorded at 86c7afa (v1.1-dev before M9-F1), where the
-    // stripping above took nothing out.
+    // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
+    // values: with it set aside, the History is unchanged (DL-121).
     expect(fingerprints).toEqual([
       'a85e889aec1df8341984e146796c9f761387ce6c7d08946fce9fc688a4494b82',
       'c5afab2df5c747649e2c0d39c977cb36b08dec94829ed3d82d8ced72917d72a9',

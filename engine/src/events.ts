@@ -43,8 +43,13 @@ import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 /** The first entry of every History. It names no participant. */
 export type WorldCreated = Entry<'world.created', { seed: string }>;
 
-/** A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster. */
-export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId }>;
+/**
+ * A Guild came into being, player's or Rival's alike. A Milestone, naming the Guild and its Guildmaster.
+ * `wealth` is the Guild's founding Wealth, for every Guild founded from M9-F7 (DL-120 item 4), the
+ * player's, the founding Rivals' and each replacement's; optional, as `questId` is, since an older save's
+ * foundings have none.
+ */
+export type GuildFounded = Entry<'guild.founded', { guildId: GuildId; guildmasterId: GuildmasterId; wealth?: number }>;
 
 /** A Guildmaster was generated for a Guild; names both. */
 export type GuildmasterGenerated = Entry<

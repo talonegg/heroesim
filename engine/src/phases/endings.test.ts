@@ -474,6 +474,10 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     const newcomerId = founded[0]?.payload.guildId ?? ('' as GuildId);
     const newcomer = guildOf(replaced.document.world, newcomerId);
     expect(founded[0]).toMatchObject({ turn: replacementNight, milestone: true });
+    // Its founding names its founding Wealth, drawn as a founding Rival's is (M9-F7, DL-120 item 4).
+    expect(founded[0]?.payload.wealth).toBe(newcomer.wealth);
+    expect(newcomer.wealth).toBeGreaterThanOrEqual(deps.config.rivalStartingWealthMin);
+    expect(newcomer.wealth).toBeLessThanOrEqual(deps.config.rivalStartingWealthMax);
     // It takes the controller of the Rival it replaces, so the world keeps every Disposition it was
     // dealt (M6-S1, DL-56): here the first Rival's, `ambitious`, dealt first in key order.
     expect(newcomer).toMatchObject({

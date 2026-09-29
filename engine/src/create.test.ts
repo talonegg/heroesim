@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
 import type { Disposition } from './content-types.js';
-import { makeId, tableNames, type Guild, type Sex, type WorldDocument } from './document.js';
+import { makeId, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 import { validate } from './validate.js';
@@ -183,6 +183,13 @@ describe('createWorld', () => {
     expect(history.milestones.map((position) => history.entries[position]?.type)).toEqual(
       Array.from({ length: guildCount }, () => 'guild.founded'),
     );
+
+    // Each founding names the Guild's founding Wealth, the player's and every Rival's (M9-F7, DL-120 item 4).
+    for (const entry of history.entries.filter((it) => it.type === 'guild.founded')) {
+      const { guildId, wealth } = entry.payload as { guildId: GuildId; wealth?: number };
+      expect(wealth, guildId).toBe(document.world.guilds[guildId]?.wealth);
+    }
+    expect(document.world.guilds[playerId]?.wealth).toBe(deps.config.startingWealth);
 
     // A Guild's page holds its founding, its Guildmaster and every Hero generated onto its Roster.
     const player = document.world.guilds[playerId];
