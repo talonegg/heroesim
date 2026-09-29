@@ -83,21 +83,28 @@ Every system in the game must serve at least one of these:
 - R7. Every Guild has a Roster, a Hall, Wealth, Fame, Upkeep and a controller. The player's
   Guild is controlled by the player; a Rival by a disposition (three or four named kinds) that
   weights its draws from the Board and the Unattached pool.
-- R8. The Guildmaster has Attributes (name, sex, age, and descriptive Attributes with no rule
-  effect, in the owner's words "origin, appearance, short bio", their terms to be settled with
-  CONTEXT, DL-88), Stats (Inspiration, Influence,
+- R8. The Guildmaster has Attributes (name, sex, age, and three descriptive Attributes with no
+  rule effect, in the owner's words "origin, appearance, short bio": Birthplace, Appearance and
+  Biography, DL-88, DL-100), Stats (Inspiration, Influence,
   Negotiation, Coaching, Judgement — renamed from Leadership and Perception on 2026-09-26 so
   no Stat key is shared with Heroes, pre-M0 review D4) and Traits that buff or penalise the Guild or a Class.
   Guildmaster Stats resolve Guild-side actions only: negotiation, recruitment, Morale, training.
   The Guildmaster never joins a Party in the first build.
-  At setup the player chooses the Guildmaster's Traits and may set their sex, their age (30 to
-  45) and the descriptive Attributes; whatever is left unset is drawn from the seed. Traits are
-  chosen within a point budget: each Trait has a cost in content, a buff costing points and a
-  penalty refunding them, and the player spends a fixed budget, so buffs need penalties. A drawn
-  Guildmaster, as a Rival's is, follows the same budget. The budget and each Trait's cost are
-  not yet set. (Amended 2026-09-28, DL-88; decided, to be built. Originally "Attributes (name,
-  sex, details)", with "details" undefined and the sex drawn at setup; the owner's decision,
-  where the agents recommended an optional sex at setup and striking "details".)
+  At setup the player may choose the Guildmaster's Traits, their sex, their age (30 to 45) and
+  the descriptive Attributes, each a short text trimmed and held to a length; whatever is left
+  unset is drawn from the seed, and a player who chooses no Traits has none. Traits are chosen
+  within a point budget: each Guildmaster Trait has a whole-number cost in content, a buff costing
+  points and a penalty refunding them, and the player spends a fixed budget
+  (`guildmasterTraitBudget`, 1), so the dearer buffs need penalties. Traits may exclude one
+  another, each exclusion holding both ways, and no Guildmaster holds an excluded pair or more
+  than `guildmasterTraitsMax` Traits. A drawn Guildmaster, a Rival's or a successor's, follows
+  the same budget and exclusions, and their descriptive Attributes are empty. A setup that breaks
+  one of these rules is refused with a reason of its own. A Rival's Guildmaster who retires is
+  succeeded, and the Guild carries on (Succession, DL-83, DL-100). (Amended 2026-09-28, DL-88;
+  originally "Attributes (name, sex, details)", with "details" undefined and the sex drawn at
+  setup; the owner's decision, where the agents recommended an optional sex at setup and striking
+  "details". Amended again 2026-09-29 with the terms, the costs, the budget and the exclusions of
+  DL-100 item 3, the owner's approval of an agent's values; built in M9-S2, DL-102.)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never
@@ -194,6 +201,8 @@ Every system in the game must serve at least one of these:
 - R34. First build: Retirement (the Guildmaster's age), Bankruptcy (Wealth below a floor for
   long enough), Roster wiped (no Heroes and no Wealth to recruit). Deferred: Defeated by a
   Rival, Hall lost, capture and indenture, Ultimate Campaign Victory after a Fame threshold.
+  Retirement ends the player's game; a Rival's Guildmaster who retires is succeeded instead
+  (amended 2026-09-29, DL-83 item 19, DL-100; originally a Rival folded on it, DL-28).
 
 ### 3.9 Saves and History
 
