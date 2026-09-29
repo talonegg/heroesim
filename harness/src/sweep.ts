@@ -321,6 +321,10 @@ export interface SweepTotals {
   moduleEvents: Record<string, number>;
   /** The core's events each module's effects made, by module and type; empty with no module installed. */
   moduleEffects: Record<string, Record<string, number>>;
+  // M9-S1's counters (DL-101).
+  /** `guild.below-floor` and `guild.floor-recovered`, by controller, summed over the games. */
+  belowFloor: ByController;
+  floorRecovered: ByController;
 }
 
 /** Rivals as a year began: each one's Roster size and Wealth. */
@@ -466,6 +470,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     assertionGames: 0,
     moduleEvents: {},
     moduleEffects: {},
+    belowFloor: zero(),
+    floorRecovered: zero(),
   };
   for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
@@ -513,6 +519,8 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.heroesDied[kind] += counters.heroesDied[kind];
       totals.heroesRecruited[kind] += counters.heroesRecruited[kind];
       totals.heroesRetired[kind] += counters.heroesRetired[kind];
+      totals.belowFloor[kind] += counters.belowFloor[kind];
+      totals.floorRecovered[kind] += counters.floorRecovered[kind];
       for (const [band, n] of Object.entries(counters.questsResolved[kind])) {
         totals.questsResolved[kind][band as QuestBand] += n;
       }
@@ -1563,6 +1571,16 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
       ['Ending', '`game.ended` (the player)', '`guild.folded` (Rivals)'],
       endingReasons.map((reason) => [reason, whole(totals.endings[reason] ?? 0), whole(totals.rivalFolds[reason] ?? 0)]),
       ['left', 'right', 'right'],
+    ),
+    '',
+    // M9-S1 (DL-101): the nights the Guild State Engine found a Guild's Wealth crossing the floor.
+    markdownTable(
+      ['Bankruptcy floor', "Player's", 'a game', "Rivals'", 'a game'],
+      [
+        heroRow('Fell below it (`guild.below-floor`)', totals.belowFloor),
+        heroRow('Back to it or more (`guild.floor-recovered`)', totals.floorRecovered),
+      ],
+      ['left', 'right', 'right', 'right', 'right'],
     ),
     '',
     `Games ending in each year (year 0 is the first): ${totals.endedInYear.map((n, year) => `${year}: ${n}`).join(', ')}.`,

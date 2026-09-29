@@ -675,7 +675,9 @@ describe('uninterrupted, the steps give what one call gives: byte-equal document
     return fastForward(document, { guildId: guild.id, until, maxTurns }, playDeps(document, modules));
   }
 
-  test.each(cases)('$name', ({ game, until, maxTurns, modules, stop, turns }) => {
+  // A year's case plays 2,160 Turns, about 4 s alone: past the default 5 s when other suites share
+  // the machine, as M9's parallel builds do (M9-S1, DL-101).
+  test.each(cases)('$name', { timeout: 30_000 }, ({ game, until, maxTurns, modules, stop, turns }) => {
     const text = serialise(documentOf(game()));
     const start = loaded(text, modules);
     vi.clearAllMocks();

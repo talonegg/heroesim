@@ -1161,3 +1161,32 @@ describe("M6's counters, from the World State as each year begins", () => {
     expect(observations.rosters).toHaveLength(2);
   });
 });
+
+describe("M9-S1's counters, from the History (DL-101)", () => {
+  test('a new world has fallen below the Bankruptcy floor, and recovered, never', () => {
+    const { document } = fixture('counters-floor-new');
+    const counted = countGame(document, shortYears);
+
+    expect(counted.belowFloor).toEqual({ player: 0, rival: 0 });
+    expect(counted.floorRecovered).toEqual({ player: 0, rival: 0 });
+  });
+
+  test('guild.below-floor and guild.floor-recovered, by the controller of the Guild each names', () => {
+    const { document, player, rivals } = fixture('counters-floor');
+    const below = (turn: number, guild: Guild): void =>
+      add(document, turn, 'guild.below-floor', [guild.id], { guildId: guild.id, wealth: -5, floor: 0, dueDay: 40 });
+    const recovered = (turn: number, guild: Guild): void =>
+      add(document, turn, 'guild.floor-recovered', [guild.id], { guildId: guild.id, wealth: 5, floor: 0, belowFloorSince: 2 });
+    below(2, player);
+    below(2, rivals[0]);
+    recovered(5, player);
+    below(5, rivals[1]);
+    below(8, player);
+    recovered(8, rivals[1]);
+
+    const counted = countGame(document, shortYears);
+
+    expect(counted.belowFloor).toEqual({ player: 2, rival: 2 });
+    expect(counted.floorRecovered).toEqual({ player: 1, rival: 1 });
+  });
+});

@@ -174,6 +174,22 @@ describe('sweepPlay', () => {
     expect(totals.rankings[0]?.fame.reduce((a, b) => a + b, 0)).toBe(2);
   });
 
+  test("totals and renders M9-S1's counters: each game's nights below the Bankruptcy floor and back, by controller (DL-101)", () => {
+    const games = sweep.games.map((game, index) => ({
+      ...game,
+      counters: { ...game.counters, belowFloor: { player: index + 1, rival: 3 }, floorRecovered: { player: index, rival: 2 } },
+    }));
+    const floored = { ...sweep, games };
+    const summed = sweepTotals(floored, deps.config.turnsPerYear);
+
+    expect(summed.belowFloor).toEqual({ player: 3, rival: 6 });
+    expect(summed.floorRecovered).toEqual({ player: 1, rival: 4 });
+    const report = playReport(floored, { deps, machine: machine(), startedAt: new Date(2026, 8, 29, 12), milestone: 'm9' });
+    expect(report).toContain("| Bankruptcy floor | Player's | a game | Rivals' | a game |");
+    expect(report).toContain('| Fell below it (`guild.below-floor`) | 3 | 1.50 | 6 | 3.00 |');
+    expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
+  });
+
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
     const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
 
