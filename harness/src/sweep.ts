@@ -5,12 +5,8 @@
 // 20-year game takes most of a minute. `playReport` writes the result as Markdown. DL-34 records
 // the method and the numbers.
 
-import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { availableParallelism, tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { availableParallelism } from 'node:os';
 import {
   compareByCodeUnit,
   encounterKinds,
@@ -71,7 +67,8 @@ import { idsOf } from './modules.js';
 import { defaultPolicyConfig, type PolicyConfig } from './policy.js';
 import { defaultYears, playGame, type GameRecord, type PlayOptions } from './play.js';
 import { fixed, localTimestamp, markdownTable, whole, type Machine } from './report.js';
-import { playSeeds, type PlayedSeeds, type ShardJob, type ShardResult } from './shard.js';
+import { dealSeeds, runShardJobs } from './children.js';
+import { playSeeds, type PlayedSeeds, type ShardJob } from './shard.js';
 import { summarise, type Summary } from './stats.js';
 
 export interface PlaySweep {
@@ -169,24 +166,6 @@ export function defaultWorkers(): number {
   return Math.max(1, Math.floor(availableParallelism() / 2));
 }
 
-const shardModule = fileURLToPath(new URL('./shard.ts', import.meta.url));
-const repositoryRoot = fileURLToPath(new URL('../../', import.meta.url));
-
-/** Runs one shard in a child process under tsx; resolves when it has written its result. */
-function runChild(jobPath: string, resultPath: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, ['--import', 'tsx', shardModule, jobPath, resultPath], {
-      cwd: repositoryRoot,
-      stdio: ['ignore', 'inherit', 'inherit'],
-    });
-    child.on('error', reject);
-    child.on('exit', (code, signal) => {
-      if (code === 0) resolve();
-      else reject(new Error(`A play shard exited with ${signal ?? `code ${code}`}: ${jobPath}`));
-    });
-  });
-}
-
 /**
  * `sweepPlay`, with the seeds dealt in turn among `workers` child processes (`shard.ts`), each
  * loading the core content and playing under `deps.config` with `deps.modules`, installed by id
@@ -207,44 +186,34 @@ export async function sweepPlayInParallel(
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
   const modules = idsOf(deps.modules);
   const started = now();
-  const dir = mkdtempSync(join(tmpdir(), 'heroesim-play-'));
-  try {
-    const shards = Array.from({ length: workers }, (_, shard) => seeds.filter((_, index) => index % workers === shard));
-    const paths = shards.map((shardSeeds, shard) => {
-      const job: ShardJob = {
-        seeds: shardSeeds,
-        config: deps.config,
-        years: options.years ?? defaultYears,
-        validate: options.validate ?? false,
-        policy: options.policy ?? defaultPolicyConfig,
-        ...(modules.length === 0 ? {} : { modules }),
-      };
-      const jobPath = join(dir, `job-${shard}.json`);
-      writeFileSync(jobPath, JSON.stringify(job), 'utf8');
-      return { jobPath, resultPath: join(dir, `result-${shard}.json`) };
-    });
-    await Promise.all(paths.map(({ jobPath, resultPath }) => runChild(jobPath, resultPath)));
-    const results = paths.map(({ resultPath }) => JSON.parse(readFileSync(resultPath, 'utf8')) as ShardResult);
-    const gamesMs = now() - started;
+  const jobs = dealSeeds(seeds, workers).map(
+    (shardSeeds): ShardJob => ({
+      seeds: shardSeeds,
+      config: deps.config,
+      years: options.years ?? defaultYears,
+      validate: options.validate ?? false,
+      policy: options.policy ?? defaultPolicyConfig,
+      ...(modules.length === 0 ? {} : { modules }),
+    }),
+  );
+  const results = await runShardJobs(jobs);
+  const gamesMs = now() - started;
 
-    const played: PlayedSeeds = { games: [], advanceMs: [], validateMs: [] };
-    for (const result of results) {
-      if (result.content.id !== deps.content.id || result.content.version !== deps.content.version) {
-        throw new Error(`A play shard loaded content ${result.content.id} ${result.content.version}, not the sweep's`);
-      }
-      for (const ms of result.advanceMs) played.advanceMs.push(ms);
-      for (const ms of result.validateMs) played.validateMs.push(ms);
+  const played: PlayedSeeds = { games: [], advanceMs: [], validateMs: [] };
+  for (const result of results) {
+    if (result.content.id !== deps.content.id || result.content.version !== deps.content.version) {
+      throw new Error(`A play shard loaded content ${result.content.id} ${result.content.version}, not the sweep's`);
     }
-    // Seed i went to shard i mod workers, as its (i div workers)th game.
-    played.games = seeds.map((seed, index) => {
-      const game = results[index % workers]?.games[Math.floor(index / workers)];
-      if (game?.seed !== seed) throw new Error(`A play shard returned no record for ${seed}`);
-      return game;
-    });
-    return sweepOf(seeds, played, deps, options, { workers, started, gamesMs, now });
-  } finally {
-    rmSync(dir, { recursive: true, force: true });
+    for (const ms of result.advanceMs) played.advanceMs.push(ms);
+    for (const ms of result.validateMs) played.validateMs.push(ms);
   }
+  // Seed i went to shard i mod workers, as its (i div workers)th game.
+  played.games = seeds.map((seed, index) => {
+    const game = results[index % workers]?.games[Math.floor(index / workers)];
+    if (game?.seed !== seed) throw new Error(`A play shard returned no record for ${seed}`);
+    return game;
+  });
+  return sweepOf(seeds, played, deps, options, { workers, started, gamesMs, now });
 }
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────

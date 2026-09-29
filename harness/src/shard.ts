@@ -4,7 +4,9 @@
 // records and timings, as JSON, to the result file. Games are independent and each is seeded, so
 // where a game is played does not change it: the parallel sweep's records equal the serial one's.
 // A job names the modules to install by id (M8-S3, DL-78), since a module is code and cannot travel
-// in JSON; the child installs the harness's own of each id (`modulesFor`).
+// in JSON; the child installs the harness's own of each id (`modulesFor`). A job for the Succession
+// probe (M9-F1, DL-113 item 7) plays its seeds as the probe does and returns their `ProbeGame`s.
+// The child processes are run by `children.ts`.
 
 import { readFileSync, writeFileSync } from 'node:fs';
 import { loadContent } from '@heroesim/content/node';
@@ -12,6 +14,7 @@ import type { EngineDeps, GameConfig } from '@heroesim/engine';
 import { modulesFor } from './modules.js';
 import { recordGame, type GameRecord, type PlayOptions } from './play.js';
 import type { PolicyConfig } from './policy.js';
+import { probeSeeds, type ProbeGame } from './succession.js';
 
 /** Some seeds played: each game's record, and every Turn's timings in seed order. */
 export interface PlayedSeeds {
@@ -41,18 +44,26 @@ export interface ShardJob {
   policy: PolicyConfig;
   /** The ids of the modules to install, in the order their hooks run (`harnessModules`); none when absent. */
   modules?: string[];
+  /** Play the seeds as the Succession probe, the first Rival's Guildmaster at `age` (M9-F1). */
+  probe?: { age: number };
 }
 
 /** What it plays, and the content it played with, which the parent checks is its own. */
 export interface ShardResult extends PlayedSeeds {
   content: { id: string; version: number };
+  /** A probe job's games, in its seeds' order; its `games` and timings are then empty. */
+  probes?: ProbeGame[];
 }
 
 /** Plays a job with the core content and the job's modules, as the child process does. */
 export function runShard(job: ShardJob): ShardResult {
   const content = loadContent();
-  const { seeds, config, years, validate, policy, modules = [] } = job;
+  const { seeds, config, years, validate, policy, modules = [], probe } = job;
   const deps: EngineDeps = modules.length === 0 ? { config, content } : { config, content, modules: modulesFor(modules) };
+  if (probe !== undefined) {
+    const probes = probeSeeds(seeds, deps, { years, validate, policy, age: probe.age });
+    return { games: [], advanceMs: [], validateMs: [], probes, content: { id: content.id, version: content.version } };
+  }
   const played = playSeeds(seeds, deps, { years, validate, policy });
   return { ...played, content: { id: content.id, version: content.version } };
 }
