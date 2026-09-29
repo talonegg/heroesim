@@ -34,8 +34,8 @@ import { playDeps } from './reducer';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
-/** An Item's kind as the CLI's Market shows it: its gear slot or `consumable`, and whether it is unique. */
-function kindOf(definition: ItemDefinition): string {
+/** An Item's kind as the CLI's Market shows it: its gear slot or `consumable`, and whether it is unique. The Stores says it too (M9-F3). */
+export function kindOf(definition: ItemDefinition): string {
   const kind = definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable';
   return definition.unique ? `${kind}, unique` : kind;
 }
@@ -61,8 +61,8 @@ function doesOf(definition: ItemDefinition): string {
 /** A kind of Item the Market's table can be filtered by: a gear slot, or `consumable` (M9-S6). */
 export type MarketKind = SlotKey | 'consumable';
 
-/** An Item's kind for the Market's filter: its gear slot, or `consumable`. */
-function kindKeyOf(definition: ItemDefinition): MarketKind {
+/** An Item's kind for the Market's filter, and the Stores' (M9-F3): its gear slot, or `consumable`. */
+export function kindKeyOf(definition: ItemDefinition): MarketKind {
   return definition.kind === 'gear' ? definition.slot : 'consumable';
 }
 

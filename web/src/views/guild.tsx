@@ -9,7 +9,8 @@
 // DL-105).
 //
 // The Guild in parts since M9-F2 (DL-111 item 5, DL-112 item 5): tabs under the view's heading, Home,
-// the digest above, and Hall, its premises with Build (`hall.tsx`); M9-F3 adds Stores and Treasury.
+// the digest above; Hall, its premises with Build (`hall.tsx`); and from M9-F3 (DL-116) Stores,
+// everything it owns (`stores.tsx`), and Treasury, its accounts (`treasury.tsx`).
 // Which part is open is the shell's, which this browser remembers (`remembered.ts`).
 
 import type { QuestId, WorldDocument } from '@heroesim/engine';
@@ -22,6 +23,8 @@ import { Hall } from './hall';
 import { Icon } from './icons';
 import { guildParts, titles, View, type GuildPartId, type SectionId } from './section';
 import { StopCard } from './stop';
+import { Stores } from './stores';
+import { Treasury } from './treasury';
 import { Banner, Chip, Tabs, VisuallyHidden, type Tone } from './ui';
 
 const bandTone: Readonly<Record<OutcomeRow['band'], Tone>> = { fail: 'bad', success: 'good', strong: 'good' };
@@ -62,7 +65,7 @@ export function GuildView({
 }) {
   const [own, setOwn] = useState<GuildPartId>('home');
   const part = given ?? own;
-  const { document, busy, play } = home;
+  const { document, busy, play, onGo } = home;
   return (
     <View id="guild">
       <Tabs
@@ -75,6 +78,8 @@ export function GuildView({
       >
         {part === 'home' ? <Home {...home} /> : null}
         {part === 'hall' ? <Hall document={document} busy={busy} play={play} /> : null}
+        {part === 'stores' ? <Stores document={document} onGo={onGo} /> : null}
+        {part === 'treasury' ? <Treasury document={document} /> : null}
       </Tabs>
     </View>
   );

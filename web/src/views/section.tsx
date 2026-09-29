@@ -24,10 +24,10 @@ export type ViewId = 'guildmaster' | 'guild' | 'roster' | 'board' | 'rankings' |
 export type PartId = 'offers' | 'pool' | 'guilds' | 'patrons' | 'buy' | 'sell';
 
 /**
- * A part of the Guild, a tab under its heading (M9-F2): Home, the home view's digest, and Hall, its
- * premises. M9-F3 adds Stores and Treasury here and to `guildParts`.
+ * A part of the Guild, a tab under its heading (M9-F2): Home, the home view's digest; Hall, its
+ * premises; and from M9-F3 (DL-116) Stores, everything it owns, and Treasury, its accounts.
  */
-export type GuildPartId = 'home' | 'hall';
+export type GuildPartId = 'home' | 'hall' | 'stores' | 'treasury';
 
 /** Anything the page can take the player to: a view, a part, and the regions outside the views. */
 export type SectionId = ViewId | PartId | GuildPartId | 'new-game' | 'game' | 'rules';
@@ -40,7 +40,7 @@ export type SectionId = ViewId | PartId | GuildPartId | 'new-game' | 'game' | 'r
 export const viewIds: readonly ViewId[] = ['guildmaster', 'guild', 'roster', 'board', 'rankings', 'market', 'history'];
 
 /** The Guild's parts in the order of their tabs, Home first. */
-export const guildParts: readonly GuildPartId[] = ['home', 'hall'];
+export const guildParts: readonly GuildPartId[] = ['home', 'hall', 'stores', 'treasury'];
 
 /** Each view's parts, in the order the view shows them: the Guild's are its tabs. */
 export const partsOf: Readonly<Record<ViewId, readonly (PartId | GuildPartId)[]>> = {
@@ -74,6 +74,8 @@ export const titles: Readonly<Record<SectionId, string>> = {
   history: 'History',
   home: 'Home',
   hall: 'Hall',
+  stores: 'Stores',
+  treasury: 'Treasury',
   offers: 'Transfer Offers',
   pool: 'Unattached pool',
   buy: 'Buy',
@@ -91,8 +93,8 @@ export const rivalsReminder = 'Rivals take Quests from the Board each afternoon:
 /** What each region is for and what its controls do: its accessible description. */
 export const help: Readonly<Record<SectionId, string>> = {
   guild:
-    'Your Guild, in parts, one open at a time from the tabs under its heading: Home, what needs you this Turn, and ' +
-    'Hall, its premises. This browser keeps the part open.',
+    'Your Guild, in parts, one open at a time from the tabs under its heading: Home, what needs you this Turn; ' +
+    'Hall, its premises; Stores, everything it owns; and Treasury, its accounts. This browser keeps the part open.',
   home:
     'What needs you this Turn: why time last stopped, each Quest a decision needed or a Quest to staff names, and, ' +
     'when your Guild fell below the Bankruptcy floor, the Day Bankruptcy falls on and the ways to sell what it holds ' +
@@ -115,7 +117,17 @@ export const help: Readonly<Record<SectionId, string>> = {
     'another Guild, which asks first.',
   hall:
     'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
-    'on the button. Each grade does more than the one below it, and each adds to the Upkeep.',
+    'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',
+  stores:
+    'Everything your Guild owns, wherever it is: what it holds, the gear each Hero on the Roster carries, at home or ' +
+    'away, and what its Parties took. Show one kind, or one place, at a time with the chips above the table; a ' +
+    'Hero’s name opens their page. What it holds sells at the Market for the price given; sell it there, and put ' +
+    'gear on a Hero or take it off from their page.',
+  treasury:
+    'Your Guild’s accounts: its Wealth; its Upkeep, with the night of its next payment and what it is made of; the ' +
+    'Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the Wealth ' +
+    'read from the History, newest first, a page at a time. Show income or expense, and one category, with the ' +
+    'chips; the totals are of what is shown. A name opens whom it names.',
   rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
     'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the world’s or a ' +

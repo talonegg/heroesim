@@ -1,8 +1,8 @@
 import { cleanup, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { changed, started } from '../state/game.test-support';
-import type { GameState } from '../state/reducer';
+import { changed, played, started } from '../state/game.test-support';
+import { initialGameState, type GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
 // The Guildmaster view (M9-F2, DL-111 item 7, DL-112 item 5): the Guildmaster part the Hall view
@@ -32,6 +32,14 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(within(view).getByRole('button', { name: 'Read the History of Ada Vell' })).toBeDefined();
     // The Hall is not here: it is the Guild's part.
     expect(screen.queryByRole('region', { name: 'Hall' })).toBeNull();
+  });
+
+  test("gives the Guildmaster's Retirement: its Day and the years left, read from the engine (M9-F3, DL-113 item 5)", () => {
+    render_(
+      played(initialGameState, { kind: 'newGame', seed: 'app-test', guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterAge: 30, createdAt: '2026-09-30T09:00:00.000Z' }),
+    );
+
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
   });
 
   test('gives the Traits with what each does, the descriptive Attributes written and none left empty, and Regard as chips with the neutral folded', () => {

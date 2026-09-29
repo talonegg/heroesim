@@ -75,11 +75,11 @@ export type ViewName = 'Guildmaster' | 'Guild' | 'Roster' | 'Board' | 'Rankings'
 /** Every view in the navigation's order (M9-F2). */
 export const viewNames: readonly ViewName[] = ['Guildmaster', 'Guild', 'Roster', 'Board', 'Rankings', 'Market', 'History'];
 
-/** The Guild's parts, each a tab under its heading (M9-F2). */
-export type GuildPartName = 'Home' | 'Hall';
+/** The Guild's parts, each a tab under its heading (M9-F2; Stores and Treasury from M9-F3). */
+export type GuildPartName = 'Home' | 'Hall' | 'Stores' | 'Treasury';
 
 /** The Guild's parts in the order of their tabs. */
-export const guildPartNames: readonly GuildPartName[] = ['Home', 'Hall'];
+export const guildPartNames: readonly GuildPartName[] = ['Home', 'Hall', 'Stores', 'Treasury'];
 
 /**
  * The navigation's button for `view`, where it is shown: in the bar or the rail, or in "More" once

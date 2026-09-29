@@ -36,7 +36,8 @@ import {
 // What each play did is read in the History, opened on the player's Guild, new; the Party's return
 // is read there too, how it went marked in a word and its Encounters folded under it (M9-S5,
 // DL-105). Since M9-F2 (DL-115), the Guildmaster, the Guild's Hall part and the Market are
-// passed through on the way.
+// passed through on the way, and since M9-F3 (DL-116) the Stores and the Treasury, with the signing
+// fee in its ledger.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
@@ -192,6 +193,20 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // Recruit a Hero from the Unattached pool (the Gate's "recruited", DL-74).
   const recruited = await recruitAHero(page);
   await expectNoHorizontalOverflow(page, 'a Hero recruited');
+
+  // The Guild's Stores and Treasury (M9-F3, DL-116): what the Guild owns, and its accounts, the
+  // signing fee just paid in the ledger, which shows expense alone from its chips.
+  const stores = await guildPart(page, 'Stores');
+  await expect(stores.getByText(/^The Lantern owns /)).toBeVisible();
+  await expectNoHorizontalOverflow(page, "the Guild's Stores");
+  const treasury = await guildPart(page, 'Treasury');
+  await expect(treasury.getByText(/^Upkeep of The Lantern: \d+ Wealth every 10 Days$/)).toBeVisible();
+  await expect(treasury.getByTestId('upkeep-next')).toHaveText(/^Next paid on the night of Day \d+: \d+ Wealth\.$/);
+  const ledger = treasury.getByRole('table', { name: 'The ledger of The Lantern' });
+  await expect(ledger.getByRole('row').filter({ hasText: new RegExp(`^Day \\d+, \\w+The Lantern signed ${escaped(recruited)} for \\d+ Wealth\\.Heroes-\\d+$`) })).toHaveCount(1);
+  await treasury.getByRole('group', { name: 'Show income or expense' }).getByRole('button', { name: 'Expense' }).click();
+  await expect(treasury.getByTestId('totals')).toHaveText(/^Income 0 · Expense -\d+ · Net -\d+$/);
+  await expectNoHorizontalOverflow(page, "the Guild's Treasury");
 
   // Fast forward until the Party returns; another stop (a Transfer Offer, say) is played past.
   const fastForward = page.getByRole('button', { name: 'Fast forward', exact: true });

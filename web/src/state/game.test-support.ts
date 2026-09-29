@@ -92,6 +92,15 @@ export function holdingUnique(state: GameState, definitionKey: ItemDefinitionKey
   return changed(state, (document, player) => void createItem(document.world, definitionKey, { kind: 'guild', id: player.id }));
 }
 
+/** The player's first Hero carrying one `definitionKey` in `slot`, as gear equipped leaves it (M9-F3's Stores). */
+export function carrying(state: GameState, definitionKey: ItemDefinitionKey, slot: SlotKey): GameState {
+  return changed(state, (document, player) => {
+    const [first] = player.rosterIds;
+    if (first === undefined) throw new Error('no Hero on the Roster');
+    addStack(document.world, definitionKey, 1, { kind: 'hero', id: first, slot });
+  });
+}
+
 /**
  * The player's Guild with `wealth` Wealth; and, given `belowFloorSince`, below the Bankruptcy floor
  * since that Turn, as a Guild that fell below it before the play to come: its countdown stands, and
