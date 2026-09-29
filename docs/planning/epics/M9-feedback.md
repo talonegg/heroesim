@@ -179,29 +179,55 @@ accessibility; tests before code at the seams; green at each boundary.
 
 **Acceptance:**
 
-- [ ] The seven views, in the order above, each open from the navigation with its heading focused
-      and `aria-current` set. There is no Hall view — `app.test.tsx`, `views/nav.test.tsx`.
-- [ ] The Guildmaster's label is their name, with "Guildmaster" before a game.
-- [ ] The phone bar holds Guild, Roster, Board, Rankings and More, with More holding the other
-      three. From 600px all seven show.
-- [ ] The Guild's tabs work by pointer and by the arrow keys, and the open part is remembered. A
-      remembered "hall" opens the Hall part — `views/guild.test.tsx`, `views/remembered.test.ts`.
-- [ ] Buy and Sell work from the Market view.
-- [ ] Build works from the Hall part.
-- [ ] The Guildmaster view shows what the Hall's part did — `views/actions.test.tsx`,
-      `views/market.test.tsx`, `views/guildmaster.test.tsx`.
-- [ ] Every stop target and name link reaches its new place.
-- [ ] The Bankruptcy card's Sell opens the Market's Sell — `views/stop.test.tsx`,
-      `views/stops.test.tsx`.
-- [ ] "Age" and the Sex values are capitalised where item 9 says, and the sentences keep "age" —
-      `state/selectors.test.ts`, `state/world-views.test.ts`, `views/hero-page.test.tsx`,
-      `views/roster.test.tsx`.
+- [x] The seven views, in the order above, each open from the navigation with its heading focused
+      and `aria-current` set. There is no Hall view — `app.test.tsx` ('opens on the home view, with
+      the seven views in the navigation in order…', 'opens every view from the navigation…');
+      `views/nav.test.tsx` ('holds the seven views in one order…', 'each of the seven opens from the
+      navigation with its heading focused and aria-current set').
+- [x] The Guildmaster's label is their name, with "Guildmaster" before a game —
+      `views/nav.test.tsx` ("the Guildmaster's label is the player's Guildmaster's name…", 'before a
+      game, the label reads "Guildmaster"'); `styles.test.ts` (the ellipsis);
+      `state/selectors.test.ts` (`headerView`'s `guildmasterName`); `e2e/layout.spec.ts` (a long
+      name, its accessible name and description).
+- [x] The phone bar holds Guild, Roster, Board, Rankings and More, with More holding the other
+      three. From 600px all seven show — `views/nav.test.tsx` ('on a phone the bar holds…');
+      `e2e/layout.spec.ts` ('every view and the game menu…', the labels shown at each width). More
+      carries a dot while the History has new entries (DL-115 item 8) — `views/nav.test.tsx` ('what
+      More holds that is new').
+- [x] The Guild's tabs work by pointer and by the arrow keys, and the open part is remembered. A
+      remembered "hall" opens the Hall part — `views/guild.test.tsx` ("the Guild's parts (M9-F2)",
+      six tests); `views/remembered.test.ts` (four tests).
+- [x] Buy and Sell work from the Market view — `views/actions.test.tsx` ('the Market', four tests);
+      `views/market.test.tsx` (Buy and Sell as tables, Sell's sentence when nothing is held).
+- [x] Build works from the Hall part — `views/actions.test.tsx` ('the Hall', two tests, through
+      Guild › Hall); `views/hall.test.tsx`.
+- [x] The Guildmaster view shows what the Hall's part did — `views/guildmaster.test.tsx` (two
+      tests); `views/world.test.tsx` ('the Guildmaster and the Patrons').
+- [x] Every stop target and name link reaches its new place — `views/stops.test.tsx` (the
+      Bankruptcy card's Sell); `views/guild.test.tsx` (the status bar's countdown and the end of a
+      fast forward open Guild › Home); `views/history.test.tsx` (the Guildmaster's "Read their
+      History", from the Guildmaster view).
+- [x] The Bankruptcy card's Sell opens the Market's Sell — `views/stop.test.tsx` ("goes to the
+      Market's Sell, and to the Board…"), `views/stops.test.tsx` ("goes to the Market's Sell…");
+      `e2e/fast-forward.spec.ts`.
+- [x] "Age" and the Sex values are capitalised where item 9 says, and the sentences keep "age" —
+      `state/selectors.test.ts` ('says who the Hero is in one line…'), `state/world-views.test.ts`
+      ('gives the Sex capitalised, and the Age as a label'), `views/roster.test.tsx` (the Roster's
+      cards, and the Hero's page line in 'a Hero's page'; the page's own tests,
+      `views/hero-page.test.tsx`, hold Potential and did not need the words).
 - [ ] The setup form says "Retires at 61". The Guildmaster view gives the Retirement's Day and the
       years left, read from the engine — `state/selectors.test.ts`, `views/new-game.test.tsx`,
       `views/guildmaster.test.tsx`.
-- [ ] `e2e/support.ts` is changed first. `journey`, `layout` (no sideways scroll at 360, 820 and
-      1280), `fast-forward` and `party-and-pool` pass through the new views.
-- [ ] DL-115 records the choices.
+  - *The setup form's half is built:* "Retires at N", N `guildmasterRetirementAge` (65 on this
+    branch, 61 once M9-F1 merges) — `state/selectors.test.ts` ("gives the age a Guildmaster retires
+    at…"), `state/setup.test.ts`, `views/new-game.test.tsx` ('when the Guildmaster retires');
+    `e2e/journey.spec.ts`.
+  - *The Guildmaster view's half* was moved to M9-F3 by the orchestrator (it needs M9-F1's
+    Retirement Turn). DL-115 item 11 records it.
+- [x] `e2e/support.ts` is changed first. `journey`, `layout` (no sideways scroll at 360, 820 and
+      1280), `fast-forward` and `party-and-pool` pass through the new views — all 60 runs pass at the
+      three widths.
+- [x] DL-115 records the choices.
 
 ### M9-F3 · Stores and Treasury · 1.5–2 sessions · opus
 

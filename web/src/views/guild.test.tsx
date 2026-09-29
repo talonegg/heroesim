@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { cameHome, namesakes, started, withNamesakesHurt, withPartyOut } from '../state/game.test-support';
+import { cameHome, namesakes, started, withNamesakesHurt, withPartyOut, withWealth } from '../state/game.test-support';
 import { headerView } from '../state/selectors';
 import { GuildView } from './guild';
 import { navButton, openView } from './page.test-support';
@@ -131,6 +131,19 @@ describe("the Guild's parts (M9-F2)", () => {
 
     expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
     expect(within(guild()).getByRole('tabpanel', { name: 'Hall' })).toBeDefined();
+  });
+
+  test("the status bar's Bankruptcy countdown opens the Guild at its Home, where the countdown is said in full, from any part and view", () => {
+    render(<App initial={withWealth(started(), -100, 0)} />);
+    fireEvent.click(within(guild()).getByRole('tab', { name: 'Hall' }));
+    openView('Market');
+
+    fireEvent.click(screen.getByTestId('countdown'));
+
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    const home = within(guild()).getByRole('tabpanel', { name: 'Home' });
+    expect(within(home).getByText(/has been below the Bankruptcy floor since Day 0/)).toBeDefined();
+    expect(document.activeElement).toBe(within(guild()).getByRole('heading', { level: 2, name: 'Guild' }));
   });
 
   test('the end of a fast forward, and a way to the home view, open the Guild at its Home', async () => {

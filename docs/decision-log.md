@@ -11506,6 +11506,118 @@ With that shown, the owner changed the ages and the probe.
 **Actioned in:** `docs/planning/epics/M9-feedback.md`; `docs/planning/epics/M9-redesign.md` (M9-S9's
 DL), `docs/planning/epics/README.md`, `docs/plan.md` §2.
 
+## DL-115 — M9-F2 built: seven views in one order at every width, the Guildmaster and the Market as views, the Guild in parts as tabs with the Hall among them, the Hall view gone, "Age" and the Sex capitalised, and the setup form saying when a Guildmaster retires
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-F2's implementer. What the
+page does is the owner's (DL-111 items 5 to 9, DL-113 items 1 and 5). The choices below that the epic
+left open are the implementer's, and each is marked. One split is the orchestrator's (item 11).
+
+**Context.** M9-F2 builds DL-112 item 5 as DL-113 amends it: the navigation of seven views, the Guild's
+parts, the moved parts and their links, and the page's words. It was built beside M9-F1 (DL-114), which
+changes the Guildmasters' ages and Retirement in the engine. This branch does not have those changes,
+so every web test that touches an age reads it from the configuration and holds either way.
+
+**Decision.**
+
+1. **Seven views, in one order at every width** (as the epic says).
+   - `ViewId` is guildmaster, guild, roster, board, rankings, market and history, and `viewIds` gives
+     them in the side navigation's order.
+   - On a phone the bar holds Guild, Roster, Board and Rankings, and More holds the Guildmaster, the
+     Market and the History, in the same order. From 600px all seven show.
+   - Each view is a labelled region with its title and its "About this view". Its heading takes the
+     keyboard when it opens, and the navigation marks it with `aria-current`.
+2. **The Guildmaster's label** (as the epic says; how, the implementer's).
+   - It is the player's Guildmaster's name, from a new `HeaderView.guildmasterName`, and "Guildmaster"
+     when there is none. The name is a word for a label, so this stays within "the words" of
+     `web/src/state/`.
+   - It is cut with an ellipsis by the stylesheet (`.nav__label`), and a test holds the rule.
+   - "Guildmaster" is its accessible description, through a hidden element beside the button and
+     `aria-describedby`. The element sits beside the button, not in it, so the button's text is the
+     name alone.
+3. **The Guild's parts are tabs** (the implementer's, for the details).
+   - The ARIA tabs pattern, with automatic activation. Only the open tab is in the Tab order, and the
+     arrow keys, Home and End move between the tabs and open each. Its panel is named by its tab and
+     described by the part's sentence, which the Guild's "About this view" holds.
+   - A panel is not a region with a heading of its own: the tab names it. So a way to a part, such as
+     Guild › Hall, puts the keyboard on the Guild's heading.
+   - The parts are one list, `guildParts` with `GuildPartId`. M9-F3 adds Stores and Treasury by
+     extending that list, their titles and sentences, and a line in `GuildView`.
+4. **Which part opens** (the implementer's).
+   - The navigation's Guild opens the part last open. The shell keeps it, and this browser remembers it
+     under `heroesim.guildPart`.
+   - A new game, a load, the end of a fast forward, the status bar's countdown and the Board's Party-out
+     card open Guild › Home. Each is a way to "the home view", and Home is that view's digest.
+   - A view remembered as "hall", from before M9-F2, opens the Guild at its Hall part. The view is then
+     remembered as the Guild.
+5. **The moved parts** (as the epic says, with two titles the implementer's).
+   - The Hall part takes the facility rows and Build. The Upkeep sentence stays in it until M9-F3
+     moves it to the Treasury.
+   - The Guildmaster view takes the Guildmaster part. Its heading is "Guildmaster", and the
+     Guildmaster's own, "Ada Vell, Guildmaster of The Lantern", is one level below it.
+   - The Market view takes Buy and Sell. They are titled **Buy** and **Sell**, and "What the Guild
+     holds" is retired as a title. The table keeps its name, "What The Lantern holds".
+6. **Sell is always drawn in the Market** (the implementer's; a deviation from M9-S3's review A5 for
+   this one part).
+   - When the Guild holds nothing, it says so: "The Lantern holds nothing to sell. Gear a Hero carries
+     can be sold once it is taken off."
+   - *Why.* Sell now has a view of its own, and the Bankruptcy card's Sell step lands on it. In the
+     Hall it was one part among three.
+7. **Links.** The Bankruptcy card's Sell step opens the Market's Sell (`target: 'sell'`). No other stop
+   or name link pointed to a moved part. The Guildmaster's "Read their History" and a Guild's page are
+   unchanged.
+8. **What is new, on a phone** (the implementer's, from the code review).
+   - With the History under More, nothing on the bar would say that the last play added entries.
+   - More therefore carries a dot while the History has any new entries, and says "N new in the
+     History" to assistive technology. The History's own count shows beside it inside More.
+9. **The page's words** (DL-111 item 9, DL-112 item 4's reading).
+   - "Age" as a label: the Roster card reads "Rogue · Level 1 · Age 18", and the Hero's page line
+     "Age 18 · Female".
+   - The Sex values are capitalised on the Hero's page and the Guildmaster view, by the existing
+     `capitalised`.
+   - Ages inside sentences stay lowercase, and the Roster's sentence says "Class, Level and Age".
+10. **When the Guildmaster retires, on the setup form** (DL-113 item 5).
+    - `guildmasterSetupChoices` gives `retirementAge`, from `guildmasterRetirementAge`, and
+      `setupFormChoices` gives `retiresWords`, "Retires at N".
+    - The Age field's hint reads "Years, 30 to 45. Retires at 65." on this branch. Both figures come
+      from the configuration, so once M9-F1 merges it reads "Years, 21 to 50. Retires at 61." with no
+      change here.
+11. **The Guildmaster view's Retirement line moves to M9-F3** (the orchestrator's).
+    - It needs M9-F1's Retirement Turn, which this branch does not have.
+    - The acceptance box's Guildmaster-view half is left unticked, with that note.
+12. **Icons** (the implementer's). The set gains `guildmaster`, a figure under a crown, and `market`,
+    a stall under its awning. The `hall` icon stays for the "at the Hall" chips.
+13. **Tests.**
+    - *New files:* `views/nav.test.tsx`, `views/remembered.test.ts`, `views/guildmaster.test.tsx`
+      and `views/market.test.tsx`. The Guildmaster's and the Market's tests left `views/hall.test.tsx`
+      for the last two.
+    - *Page support:* `views/page.test-support.ts` opens a Guild part by its tab.
+    - *Browser specs:* `e2e/support.ts` was changed first. It finds the Guildmaster's button as the
+      one with a description, and More by a name that may go on with its count. `journey` passes
+      through the Guildmaster view, Guild › Hall, the Market and Guild › Home. `layout` checks the
+      navigation's order at each width, the Guildmaster's long name, every view and every Guild part.
+      `fast-forward` checks the Bankruptcy card's Sell, and `party-and-pool` buys from Buy.
+
+**Consequences.**
+- *Superseded:*
+  - DL-103's six views and its phone bar;
+  - DL-109 item 2's Q20, where Sell opened "What the Guild holds" in the Hall (now the Market's Sell).
+- *For M9-F3:* two tabs to add, the Upkeep sentence to move, and the Guildmaster view's Retirement
+  line, its Day and years left.
+- *For the merge with M9-F1:*
+  - Both entries sit before this section's end, so the merge places DL-114 before DL-115.
+  - No web test here asserts an age or a Retirement age literally.
+- *Found in review and left alone:* the first review pass read M9's own range by mistake. It found two
+  low-severity points in code this story did not change, left for the close (M9-F6) to weigh:
+  - the Board's consumable stepper shows a number above what the Guild holds, where the send takes
+    what is held;
+  - Home can say "Nothing is waiting on you" beside the countdown banner.
+- *Counts:* 3,247 tests before, 3,270 after. All 60 browser runs pass, each spec at a phone's, a tablet's and a desktop's width.
+
+**Actioned in:** `web/src/views/` (`section.tsx`, `nav.tsx`, `guild.tsx`, `hall.tsx`, `market.tsx`,
+`guildmaster.tsx`, `remembered.ts`, `stop.tsx`, `ui.tsx`, `icons.tsx`, `roster.tsx`, `new-game.tsx`),
+`web/src/app.tsx`, `web/src/styles.css`, `web/src/state/` (`selectors.ts`, `setup.ts`,
+`world-views.ts`), `web/e2e/`; `docs/planning/epics/M9-feedback.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
