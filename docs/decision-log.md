@@ -11506,6 +11506,152 @@ With that shown, the owner changed the ages and the probe.
 **Actioned in:** `docs/planning/epics/M9-feedback.md`; `docs/planning/epics/M9-redesign.md` (M9-S9's
 DL), `docs/planning/epics/README.md`, `docs/plan.md` §2.
 
+## DL-114 — M9-F1 built: the Quest named on what its return causes, Upkeep's parts and Day exported, every Guildmaster 21 to 50 and retiring at 61 under `configVersion` 12 with the Retirement Turn exported, the harness's player at 30 and the Succession probe's option, and the CLI's words
+
+**Status:** Accepted · **Date:** 2026-09-29 · **Decided by:** an agent, M9-F1's implementer. What
+is built is the owner's (DL-111, DL-113) and the plan's (DL-112). The choices below, which the epic
+left open, are the agent's, for the owner to change.
+
+**Context.** DL-113 approved the follow-on's plan as amended and said the build starts on the
+owner's word. The owner gave it on 2026-09-29, setting the goal to implement the plan, and M9-F1
+was built on its own branch from `v1.1-dev` at `86c7afa`, beside M9-F2. The suite went from 3,247
+tests to 3,285.
+
+**Decision.**
+
+1. **The Quest named** (DL-112 item 2).
+   - `hero.morale-changed` (causes `encounters`, `strong-success` and `roster-death`),
+     `patron.regard-changed` and `guildmaster.regard-changed` (`quest-success`, `quest-failure`)
+     and `hero.regard-changed` (`shared-quest`) carry an optional `questId`. The key is written
+     only for those causes; every other cause's payload is as it was.
+   - The Quest is a participant of those and of `hero.xp-gained`. It follows the participants the
+     writer names, so a Hero's Guild, which `emit` appends, comes after it.
+   - *Where it is required.* `ResolvedForRegard` and `regardOnSharedQuest`'s options take the
+     `questId` as required, since they are only ever a Quest's. The lower writers (`changeMorale`,
+     `moraleChanged`, `patronRegardChanged`, `guildmasterRegard`, `heroRegardChanged`) take it as an
+     optional last argument, since other causes use them too.
+   - *Old saves.* The field is optional and the validator reads no payload's shape, so nothing
+     changes there. A test rebuilds a played History without the field or the participants and
+     loads it with no warning.
+   - `phases/patron-offers.test.ts` now writes the Regard before it deletes the Quest's row, since
+     `emit` needs the row of every participant.
+2. **"Nothing else moves"** is a test over three seeds of 120 Days with every Rival sending
+   Parties. It pins SHA-256 fingerprints of each History, with the new field and participants
+   taken out, recorded at `86c7afa`.
+   - The games run under the old ages (30 to 45, retiring at 65), so the age change does not move
+     them.
+   - The player's Guild is idle and rich, so no Bankruptcy ends a game early.
+   - A failed Encounter may kill and costs Morale, so every cause named comes up, as a second test
+     checks.
+
+   A later rule change that moves the History updates the fingerprints under its own DL.
+3. **Upkeep's parts and Day** (DL-112 item 3).
+   - `upkeepParts` gives `{ wages, hallMaintenance, traitFactor, total }`, and `upkeep()` returns
+     its `total`. Without the content, the factor is 1 and the total unrounded, as `upkeep()` was
+     (DL-43).
+   - `nextUpkeepDay(turn, config)` is the Day whose night next charges Upkeep once `turn` has been
+     played, by DL-26's rule (Days 9, 19, 29 by default). On an Upkeep night itself it is the next.
+   - The Guild-state phase charges when `nextUpkeepDay(turn - 1)` is tonight's Day, which is the
+     rule it had.
+4. **Every Guildmaster 21 to 50, retiring at 61, `configVersion` 12** (DL-113 item 4).
+   - *The draws are unchanged.* `int` takes one draw whatever the range, and a chosen age replaces
+     the drawn one after the draw (M9-S2), so neither the new range nor a chosen age moves a later
+     draw. A test over 1,000 worlds shows each world is the one drawn under 30 to 45 but for the
+     Guildmasters' ages, and that the ages drawn span 21 to 50.
+   - *The tests that moved:*
+     - the three pinned to `configVersion` 11 (`generators/guilds.test.ts`,
+       `phases/level-ups.test.ts`, `quest-engine/resolve.test.ts`);
+     - `endings.test.ts`'s Retirement at 65;
+     - the web's literal "30 to 45"s, and the refusals of an age of 50, now legal.
+
+     The Guild generator's test held no literal range; it read the config. A new test there covers
+     replacements and successors.
+   - *The web's tests* read the config's values rather than a new literal, as the orchestrator
+     asked. `web/src/state/setup.ts` keeps a comment reading `30 to 45`: it is a state source,
+     M9-F2's to change, and this story changed only the web's tests.
+   - R8 is amended, INPUTS 3.13 and 4.10 carry notes naming DL-113, and `CONTEXT.md`'s Retirement
+     says when it falls.
+5. **A Guildmaster's Retirement Turn** (DL-113 item 5).
+   - `retirementTurn(person, config)`, beside `ageOf` in `time.ts` and exported from the index, is
+     the night of the Day they reach `guildmasterRetirementAge`. One founded at 50 on Turn 0 turns 61
+     on the morning of Turn 11,880 and retires on Turn 11,882.
+   - One already at the age when they entered, as in a save that adopts the new rules (DL-113
+     item 3), retires on the first night from their entry.
+   - `endingOf` asks `turn >= retirementTurn(...)`, which at every night is what
+     `ageOf(...) >= guildmasterRetirementAge` was, so the two cannot drift.
+6. **The harness's player at 30** (DL-113 item 6). `harnessSetup.guildmasterAge` is 30. By item 4
+   it moves no draw: a harness world is the one drawn with the age left to the seed but for the
+   Guildmaster's age, as a test shows over five seeds.
+7. **The Succession probe's option** (DL-113 item 7).
+   - *How it is run.* `HEROESIM_PROBE=succession npm run harness`, an environment variable as M8's
+     module run takes `HEROESIM_MODULES`.
+     - `HEROESIM_SEEDS` defaults to 50, `HEROESIM_YEARS` to 12, and `HEROESIM_VALIDATE` works as
+       elsewhere.
+     - The milestone's creation, play and module runs skip while a probe is named.
+     - An unknown probe's name fails the run.
+   - *What it does.*
+     - After `createWorld` and before the first Turn, it sets the first Rival's Guildmaster, in id
+       order, to 50. It refuses an age outside the starting range.
+     - It plays the games shared among child processes.
+     - It writes `harness/reports/m9-succession-<date>.md`.
+   - *The report gives:*
+     - the Successions and their Turns, the first Rival's and every other Guild's;
+     - the Rival's Roster, Wealth, Fame and Hall on the eve (the afternoon before), the night after
+       and at the game's last Turn. "The year after" is read as the rest of the game, 1,078 Turns
+       under the defaults;
+     - the Regard held for the Guild through its Guildmaster: the other Guildmasters in play, how
+       many hold one other than neutral, and their mean. The Guildmaster's own Regard, and the
+       Patrons' Regard for the Guild, which it keeps, are shown beside it;
+     - the Rival's folds from the night of its Succession to the last Turn, beside those of the other
+       Rivals in play on its eve. A Rival founded later in the place of a fold is not among them, so
+       like is compared with like (found by the code review, below).
+   - *In the code.*
+     - `playGame` takes a `prepare` hook and an `afterAdvance` observer.
+     - The child processes are run by `children.ts`, which the play sweep now shares, and a shard job
+       may name the probe.
+     - The play sweep's records are unchanged.
+   - *Tested* over three seeds with a 30-Turn year, in which a Guildmaster at 50 retires on Turn
+     332. The parallel run equals the serial one. The probe proper is M9-F6's to run.
+8. **The CLI's words.**
+   - `renderHero` and `renderGuildmaster` capitalise the Sex values.
+   - The usage reads the ages from the config and says when a Guildmaster retires: "their age, 21
+     to 50 (a Guildmaster retires at 61)". That note is the agent's, the CLI's counterpart of the
+     page's "Retires at 61" (DL-113 item 5).
+9. **A sanity run**, not the sweep. Four seeds × 20 years (`seed-0001` to `seed-0004`) under
+   `configVersion` 12, the player's Guildmaster at 30, gave these results:
+   - every game ran its twenty years;
+   - 2 Rival Guildmasters were succeeded and 7 Rivals folded (1.75 a game, against `d476deb`'s 2.68
+     over 50 seeds, too few seeds to read);
+   - no policy action was refused, every save round-tripped, and `seed-0001` replayed byte for byte.
+
+   The report was not kept; M9-F6 runs the sweep.
+
+10. **The code review** (`/code-review` medium, over `86c7afa..m9-f1`) found one issue, fixed test
+    first. The probe counted the other Rivals' folds among every Guild but the probed one, and
+    replacements founded after the Succession were among them. It also counted a fold on the
+    Succession's own night for the probed Rival but not for the others. `foldedAmong` now counts
+    only the Rivals in play on the eve, from the Succession's night on, for both.
+
+**Consequences.**
+- The engine exports `upkeepParts`, `nextUpkeepDay` and `retirementTurn` for M9-F2, M9-F3 and
+  M9-F5. The Quest's own History now holds its whole return (M9-F5).
+- `configVersion` is 12, content 15, schema 4. A save under 11 is offered the new rules; one that
+  adopts them sees any Guildmaster already 61 to 64 retire that night (DL-113 item 3).
+- The 50 × 20 sweep against `d476deb`, and the probe proper, are M9-F6's.
+- A test over seeded games pins the History's fingerprints, so a later change to what the History
+  holds updates them.
+
+**Actioned in:**
+- `engine/src/`: `events.ts`, `morale.ts`, `regard.ts`, `hero-regard.ts`,
+  `phases/quests-conclude.ts`, `selectors.ts`, `phases/guild-state.ts`, `config.ts`, `time.ts` and
+  `phases/endings.ts`, with their tests; `morale.test.ts` is new.
+- `cli/src/render.ts` and `args.ts`.
+- `harness/src/`: `creation.ts`, `play.ts`, `shard.ts`, `sweep.ts`, the new `children.ts`,
+  `succession.ts` and `succession.harness.test.ts`, and the other harness runs' skips.
+- The web's tests named in item 4.
+- `docs/requirements.md` (R8), `docs/planning/epics/INPUTS-REQUIRED.md` (3.13, 4.10), `CONTEXT.md`
+  (Retirement) and `docs/planning/epics/M9-feedback.md` (M9-F1's boxes).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

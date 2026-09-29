@@ -1,10 +1,11 @@
 import { loadContent } from '@heroesim/content/node';
-import { compareByCodeUnit, createWorld, defaultConfig, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
+import { append, compareByCodeUnit, createWorld, defaultConfig, makeId, retirementTurn, type EngineDeps, type Guild } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { harnessSetup } from './creation.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
 import {
+  foldedAmong,
   probeInParallel,
   probeName,
   probeSeeds,
@@ -58,6 +59,23 @@ describe('setFirstRivalGuildmasterAge', () => {
     const { document } = createWorld('probe-set', harnessSetup, shortYears);
     expect(() => setFirstRivalGuildmasterAge(document, 51, shortYears)).toThrow(RangeError);
     expect(() => setFirstRivalGuildmasterAge(document, 20, shortYears)).toThrow(RangeError);
+  });
+});
+
+describe('foldedAmong', () => {
+  test('counts the folds of the Guilds named from the Turn given, the same night included, and no other Guild', () => {
+    const { document } = createWorld('probe-folds', harnessSetup, shortYears);
+    const [a, b] = rivalsOf(document.world) as [Guild, Guild];
+    const replacement = makeId('guilds', 9);
+    const fold = (turn: number, guildId: string) =>
+      append(document.history, { turn, type: 'guild.folded', participants: [], labels: {}, milestone: true, payload: { guildId, reason: 'bankruptcy' } });
+    fold(100, a.id); // before the Turn: not counted
+    fold(200, b.id); // on it: counted
+    fold(260, replacement); // a Rival founded after: not among those named
+
+    expect(foldedAmong(document, [a.id, b.id], 200)).toBe(1);
+    expect(foldedAmong(document, [a.id, b.id], 100)).toBe(2);
+    expect(foldedAmong(document, [a.id, b.id, replacement], 201)).toBe(1);
   });
 });
 

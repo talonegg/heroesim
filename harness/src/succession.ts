@@ -134,9 +134,9 @@ export interface ProbeGame {
   eve: GuildSnapshot | null;
   after: GuildSnapshot | null;
   atEnd: GuildSnapshot | null;
-  /** The other Rivals in play the night of the first Rival's Succession. */
+  /** The other Rivals in play on the eve of the first Rival's Succession. */
   otherRivalsInPlay: number;
-  /** The other Rivals' folds after that night, to the game's last Turn. */
+  /** How many of those Rivals folded from the night of the Succession to the game's last Turn. */
   otherRivalFoldsAfter: number;
   /** Policy actions the rules refused, and whether the validator refused the game. */
   refusals: number;
@@ -192,6 +192,16 @@ function entriesOf<Payload>(document: WorldDocument, type: EventType): { turn: n
   });
 }
 
+/**
+ * How many of the Guilds `guildIds` folded on or after Turn `fromTurn`, read from `document`'s
+ * History: the Rivals in play on the eve of a Succession, and not those founded later in the place
+ * of a fold, so the probe compares like with like.
+ */
+export function foldedAmong(document: WorldDocument, guildIds: readonly string[], fromTurn: number): number {
+  const named = new Set(guildIds);
+  return entriesOf<{ guildId: string }>(document, 'guild.folded').filter(({ turn, payload }) => turn >= fromTurn && named.has(payload.guildId)).length;
+}
+
 /** Plays `seed` as the probe does and reduces it to its `ProbeGame`. */
 export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions = {}): ProbeGame {
   const { years = defaultProbeYears, age = successionProbeAge, validate = false, policy = defaultPolicyConfig } = options;
@@ -199,7 +209,7 @@ export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions 
   let founder: Guildmaster | null = null;
   let eve: GuildSnapshot | null = null;
   let after: GuildSnapshot | null = null;
-  let otherRivalsInPlay = 0;
+  let otherRivalIds: GuildId[] = [];
 
   const game = playGame(seed, deps, {
     years,
@@ -218,7 +228,9 @@ export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions 
       if (was === undefined || is === undefined || was.guildmasterId === is.guildmasterId) return;
       eve = snapshot(before.world, rivalId);
       after = snapshot(now.world, rivalId);
-      otherRivalsInPlay = rivalsById(now.world).filter((guild) => guild.id !== rivalId && guild.foldedOnTurn === null).length;
+      otherRivalIds = rivalsById(before.world)
+        .filter((guild) => guild.id !== rivalId && guild.foldedOnTurn === null)
+        .map((guild) => guild.id);
     },
   });
 
@@ -235,12 +247,6 @@ export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions 
     age: payload.age,
   }));
   const settled = after as GuildSnapshot | null;
-  const otherRivalFoldsAfter =
-    settled === null
-      ? 0
-      : entriesOf<{ guildId: string }>(document, 'guild.folded').filter(
-          ({ turn, payload }) => turn > settled.turn && payload.guildId !== probed,
-        ).length;
 
   return {
     seed,
@@ -254,8 +260,8 @@ export function probeGame(seed: string, deps: EngineDeps, options: ProbeOptions 
     eve,
     after,
     atEnd: settled === null ? null : snapshot(document.world, probed),
-    otherRivalsInPlay,
-    otherRivalFoldsAfter,
+    otherRivalsInPlay: otherRivalIds.length,
+    otherRivalFoldsAfter: settled === null ? 0 : foldedAmong(document, otherRivalIds, settled.turn),
     refusals: game.refusals.length,
     invalid: game.invalid !== null,
   };
@@ -431,7 +437,8 @@ export function successionReport(games: readonly ProbeGame[], context: Successio
     '',
     '## Folds after the Succession',
     '',
-    "From the night after the first Rival's Succession to the game's last Turn, beside the other Rivals in play that night.",
+    "From the night of the first Rival's Succession to the game's last Turn, beside the other Rivals in play on its eve; " +
+      'a Rival founded later in the place of a fold is not among them.',
     '',
     markdownTable(
       ['Rivals', 'In play', 'Folded after', 'Share'],
