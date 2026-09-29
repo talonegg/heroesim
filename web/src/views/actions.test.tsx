@@ -3,20 +3,18 @@ import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { holding, started, withOffer, withRichRivals, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
+import { navButton, rosterList, section } from './page.test-support';
 
 // The plays part 2 adds, driven through the page's own controls (M7-S3 part 2, DL-73): the CLI's
 // `buy`, `sell`, `build`, `recruit`, `equip`, `unequip`, `transfer --to`, `transfer --in`, `accept`
 // and `decline`. Each play is the engine's; the page shows what changed, the log narrates it, and a
-// refusal is the engine's rejection as a sentence.
+// refusal is the engine's rejection as a sentence. Each region is found by opening its view first
+// (M9-S3, DL-103).
 
 afterEach(cleanup);
 
 async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function section(name: string): HTMLElement {
-  return screen.getByRole('region', { name });
 }
 
 function wealth(): number {
@@ -114,15 +112,15 @@ describe('the Unattached pool', () => {
     if (card === undefined) throw new Error('an empty pool');
     const name = within(card).getByRole('button', { name: /^(?!Recruit)/ }).textContent ?? '';
     const fee = Number(/Signing fee (\d+) Wealth/.exec(card.textContent ?? '')?.[1]);
-    const heroes = within(section('Roster')).getAllByRole('button').length;
+    const heroes = within(rosterList()).getAllByRole('button').length;
     const before = wealth();
 
     fireEvent.click(within(card).getByRole('button', { name: `Recruit ${name}` }));
     await idle();
 
     expect(wealth()).toBe(before - fee);
-    expect(within(section('Roster')).getAllByRole('button')).toHaveLength(heroes + 1);
-    expect(within(section('Roster')).getByRole('button', { name })).toBeDefined();
+    expect(within(rosterList()).getAllByRole('button')).toHaveLength(heroes + 1);
+    expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     expect(within(section('Unattached pool')).queryByRole('button', { name })).toBeNull();
     logSays(new RegExp(`^The Lantern signed ${name} for ${fee} Wealth\\.$`));
   });
@@ -148,8 +146,7 @@ describe('the Unattached pool', () => {
 
 describe("a Hero's page on the player's Roster", () => {
   function openFirstHero(): { name: string; page: () => HTMLElement } {
-    const roster = section('Roster');
-    const [first] = within(roster).getAllByRole('button');
+    const [first] = within(rosterList()).getAllByRole('button');
     const name = first?.textContent ?? '';
     if (first === undefined) throw new Error('an empty Roster');
     fireEvent.click(first);
@@ -166,13 +163,16 @@ describe("a Hero's page on the player's Roster", () => {
 
     expect(within(page()).getByText('Weapon: Arming sword (Weaponry +2, Strength +1)')).toBeDefined();
     expect(within(page()).getByText('The Guild holds no gear; the Market sells it.')).toBeDefined();
-    logSays(new RegExp(`^The Lantern put Arming sword in ${name}'s weapon slot\\.$`));
+    // Read beside the page, in the History rail, as the page stays open (M9-S3).
+    const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
+    expect(within(rail).getByText(new RegExp(`^The Lantern put Arming sword in ${name}'s weapon slot\\.$`))).toBeDefined();
 
     fireEvent.click(within(page()).getByRole('button', { name: 'Unequip Arming sword' }));
     await idle();
 
     expect(within(page()).getByText('Weapon: none')).toBeDefined();
     expect(within(page()).getByRole('button', { name: 'Equip Arming sword' })).toBeDefined();
+    logSays(new RegExp(`^The Lantern took Arming sword from ${name}'s weapon slot\\.$`));
   });
 
   test('transfers the Hero to the Guild chosen, for the fee it would pay', async () => {
@@ -187,9 +187,9 @@ describe("a Hero's page on the player's Roster", () => {
     await idle();
 
     expect(wealth()).toBe(before + Number(fee));
-    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${fee} Wealth\\.$`));
     fireEvent.click(within(page()).getByRole('button', { name: 'Back to the Roster' }));
-    expect(within(section('Roster')).queryByRole('button', { name })).toBeNull();
+    expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
+    logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${fee} Wealth\\.$`));
   });
 
   test('says why a Guild will not take the Hero', async () => {
@@ -218,7 +218,7 @@ describe("another Guild's Roster", () => {
     await idle();
 
     expect(wealth()).toBe(before - fee);
-    expect(within(section('Roster')).getByRole('button', { name })).toBeDefined();
+    expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     logSays(new RegExp(`^The Lantern took ${name} from The Ashford Guild for ${fee} Wealth\\.$`));
   });
 
@@ -241,10 +241,16 @@ describe("another Guild's Roster", () => {
 });
 
 describe('Transfer Offers', () => {
-  test('says there are none, until a Rival makes one', () => {
-    render_(started());
+  test('are not drawn while none stands, and the Roster in the navigation carries no dot, until a Rival makes one (M9-S3)', () => {
+    const { unmount } = render(<App initial={started()} />);
+    section('Roster');
+    expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
+    expect(navButton('Roster').textContent).toBe('Roster');
+    unmount();
 
-    expect(within(section('Transfer Offers')).getByText("No Transfer Offer stands for The Lantern’s Heroes.")).toBeDefined();
+    render_(withOffer(started()));
+    expect(within(section('Transfer Offers')).getAllByRole('listitem')).toHaveLength(1);
+    expect(navButton('Roster').textContent).toBe('Roster, a Transfer Offer waits');
   });
 
   test('accepts an offer: the Hero goes to the Guild that made it, for its fee', async () => {
@@ -258,8 +264,8 @@ describe('Transfer Offers', () => {
     await idle();
 
     expect(wealth()).toBe(before + Number(fee));
-    expect(within(section('Roster')).queryByRole('button', { name })).toBeNull();
-    expect(within(section('Transfer Offers')).queryByRole('button', { name: 'Accept' })).toBeNull();
+    expect(within(rosterList()).queryByRole('button', { name })).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
     logSays(new RegExp(`^${guildName} took ${name} from The Lantern for ${fee} Wealth, accepting its Transfer Offer\\.$`));
   });
 
@@ -271,8 +277,8 @@ describe('Transfer Offers', () => {
     fireEvent.click(within(offers).getByRole('button', { name: 'Decline' }));
     await idle();
 
-    expect(within(section('Roster')).getByRole('button', { name })).toBeDefined();
-    expect(within(section('Transfer Offers')).getByText("No Transfer Offer stands for The Lantern’s Heroes.")).toBeDefined();
+    expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
+    expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
     logSays(new RegExp(`^The Lantern declined ${guildName}'s offer for ${name}\\.$`));
   });
 });

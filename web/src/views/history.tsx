@@ -6,16 +6,43 @@
 // world, a Guildmaster or a Patron, as the CLI reaches any of them by id. A Hero the world still
 // holds opens on their page, the CLI's `show hero`, with their Milestones first; anyone else's
 // entries are listed as a Guild's are.
+//
+// A view of the shell (M9-S3, DL-103), with "Since your last action" above it as its part, one
+// above the other until M9-S5 folds them into one. Whose History is shown is the shell's, so the
+// choice holds while the game is in hand, whichever view is open (DL-74 item 8).
 
 import type { EntityId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
-import type { GameAction } from '../state/reducer';
+import type { GameAction, GameState } from '../state/reducer';
 import { findInHistory, historyChoices, historySearchLimit, historyView } from '../state/world-views';
 import { HeroPage, Lines } from './hero-page';
-import { Section } from './section';
+import { Icon } from './icons';
+import { Log } from './log';
+import { View } from './section';
 
-export function History({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
-  const [whose, setWhose] = useState<EntityId | null>(null);
+export function History({
+  state,
+  document,
+  busy,
+  play,
+  guildName,
+  whose,
+  onWhose,
+  mine,
+  onMine,
+}: {
+  state: GameState;
+  document: WorldDocument;
+  busy: boolean;
+  play: (action: GameAction) => void;
+  guildName: string;
+  /** Whose History is shown: the whole History when `null`. */
+  whose: EntityId | null;
+  onWhose: (whose: EntityId | null) => void;
+  /** Whether "Since your last action" keeps to the player's Guild. */
+  mine: boolean;
+  onMine: (mine: boolean) => void;
+}) {
   const [page, setPage] = useState(0);
   const [query, setQuery] = useState('');
   const choices = useMemo(() => historyChoices(document), [document]);
@@ -23,19 +50,13 @@ export function History({ document, busy, play }: { document: WorldDocument; bus
   const found = useMemo(() => findInHistory(document, query), [document, query]);
   const chosen = view.name === null ? '' : (whose ?? '');
   const choose = (entityId: EntityId | null): void => {
-    setWhose(entityId);
+    onWhose(entityId);
     setPage(0);
   };
   return (
-    <Section
-      id="history"
-      title="History"
-      help={
-        'Everything the world has recorded, or one Guild’s part of it, newest first, a page at a time. Find anyone else ' +
-        'it names by name, a Hero who has died, retired or left the world, a Guildmaster or a Patron, to read theirs; ' +
-        'a Hero the world still holds opens on their page.'
-      }
-    >
+    <View id="history">
+      <Log state={state} guildName={guildName} mine={mine} onMine={onMine} />
+      <div className="history__controls">
       <label className="field">
         <span>Whose History</span>
         <select value={chosen} onChange={(event) => choose(event.target.value === '' ? null : (event.target.value as EntityId))}>
@@ -50,8 +71,12 @@ export function History({ document, busy, play }: { document: WorldDocument; bus
       </label>
       <label className="field">
         <span>Find someone in the History by name</span>
-        <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
+        <span className="search">
+          <Icon name="search" />
+          <input type="search" value={query} onChange={(event) => setQuery(event.target.value)} />
+        </span>
       </label>
+      </div>
       {query.trim() === '' ? null : (
         <div className="found">
           <p className="subtle" role="status">
@@ -70,12 +95,13 @@ export function History({ document, busy, play }: { document: WorldDocument; bus
                   </span>
                   <button
                     type="button"
+                    aria-label={`Read ${name.name}`}
                     onClick={() => {
                       choose(name.entityId);
                       setQuery('');
                     }}
                   >
-                    Read {name.name}
+                    Read
                   </button>
                 </li>
               ))}
@@ -90,7 +116,7 @@ export function History({ document, busy, play }: { document: WorldDocument; bus
             Page {view.page + 1} of {view.pages}, {view.entries} {view.entries === 1 ? 'entry' : 'entries'} in all, newest first.
           </p>
           <Lines lines={view.lines} empty="Nothing yet." />
-          <div className="actions">
+          <div className="actions actions--pages">
             <button type="button" disabled={view.page === 0} onClick={() => setPage(0)}>
               Newest
             </button>
@@ -108,6 +134,6 @@ export function History({ document, busy, play }: { document: WorldDocument; bus
       ) : (
         <HeroPage key={view.hero} document={document} heroId={view.hero} onBack={() => choose(null)} backLabel="Back to the whole History" play={play} busy={busy} />
       )}
-    </Section>
+    </View>
   );
 }

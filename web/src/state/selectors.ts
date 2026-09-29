@@ -93,11 +93,20 @@ export interface HeaderView {
   time: string;
   /** The time of day alone, for the status bar's sun or moon (M9-S3, DL-103). */
   timeOfDay: TimeOfDay;
+  /** `time` in two parts, `Day 3, afternoon` and `Year 0`: a phone's status bar shows the first. */
+  when: string;
+  year: string;
   /**
    * `3rd of 5 by Fame`, `joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
    * DL-95), or that the Guild has folded and is not ranked.
    */
   rankings: string;
+  /**
+   * `rankings` in two parts, `joint 1st of 5` and `by Fame`, the second empty for a folded Guild: a
+   * phone's status bar shows the first (M9-S3, DL-103).
+   */
+  place: string;
+  measure: string;
   /** The seed the world was made from: a game is reproducible from it (N1). */
   seed: string;
   /** The Bankruptcy countdown while the Guild is below the floor (`countdownView`); `null` otherwise. */
@@ -120,14 +129,22 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const byFame = rankingPlaces(world, 'fame');
   const place = byFame.find((ranking) => ranking.guildId === guild.id);
   const { ended } = world;
+  const when = `Day ${dayOf(world.turn)}, ${timeOfDay(world.turn)}`;
+  const year = `Year ${yearOf(world.turn, config)}`;
+  const standing = place === undefined ? 'not ranked: the Guild has folded' : `${placeWords(place)} of ${byFame.length}`;
+  const measure = place === undefined ? '' : 'by Fame';
   return {
     guildName: guild.name,
     wealth: guild.wealth,
     fame: guild.fame,
-    time: `Day ${dayOf(world.turn)}, ${timeOfDay(world.turn)}, Year ${yearOf(world.turn, config)}`,
+    time: `${when}, ${year}`,
     timeOfDay: timeOfDay(world.turn),
+    when,
+    year,
     seed: document.meta.seed,
-    rankings: place === undefined ? 'not ranked: the Guild has folded' : `${placeWords(place)} of ${byFame.length} by Fame`,
+    rankings: measure === '' ? standing : `${standing} ${measure}`,
+    place: standing,
+    measure,
     countdown: countdownView(document),
     due: dueView(document),
     ended: ended === null ? null : `The game ended on Day ${dayOf(ended.turn)}: ${guild.name} ${endingWords[ended.reason]}.`,
@@ -707,11 +724,12 @@ export interface StopView {
   quests?: readonly StopQuest[];
 }
 
-/** A Quest a stop names. */
+/** A Quest a stop names, as the Board names it, with its reward to tell two of a name apart. */
 export interface StopQuest {
   questId: QuestId;
   name: string;
   patron: string;
+  reward: number;
 }
 
 /**
@@ -730,7 +748,7 @@ export function stopView(state: GameState): StopView | null {
   const board = boardView(document);
   const quests = stoppedBecause.questIds.flatMap((questId): StopQuest[] => {
     const card = board.find((each) => each.questId === questId);
-    return card === undefined ? [] : [{ questId, name: card.name, patron: card.patron }];
+    return card === undefined ? [] : [{ questId, name: card.name, patron: card.patron, reward: card.reward }];
   });
   return { kind: stoppedBecause.kind, sentence, quests };
 }

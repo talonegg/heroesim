@@ -628,7 +628,10 @@ describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
   });
 });
 
-describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', () => {
+// A year of Turns played twice, in steps and in one call: 3 to 6 s on a loaded machine, past
+// Vitest's 5 s default in full runs beside other work (M9-S3, DL-103). The timeout bounds a hang,
+// not the speed, as DL-74 item 1 bounded a slow test.
+describe('uninterrupted, the steps give what one call gives: byte-equal documents, the same events and stop (v1.0.1-S5, DL-96)', { timeout: 30_000 }, () => {
   /** A Party of the player's out on the longest Quest it can staff, back on the night of Day 10, the 32nd Turn: partway through the second step. */
   const partyOut = (): GameState => withPartyOut(startedFrom('reducer-test'));
   /** A new game with the probe installed and the Roster released: the probe's stop comes on the afternoon of Day 30, the 91st Turn, in the fourth step. */

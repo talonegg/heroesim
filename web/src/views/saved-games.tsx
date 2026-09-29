@@ -35,12 +35,15 @@ export function SavedGames({
   document,
   busy,
   play,
+  level,
 }: {
   saves: Saves;
   /** The game in hand, which can be saved; `null` before a game, when saves can only be loaded. */
   document: WorldDocument | null;
   busy: boolean;
   play: (action: GameAction) => void;
+  /** Its heading's level: 3 in the new-game view, 4 in the game menu's part (M9-S3). */
+  level: 3 | 4;
 }) {
   const [kept, setKept] = useState<readonly SaveSummary[] | null>(null);
   const [unavailable, setUnavailable] = useState<SavesFailure | null>(saves.unavailable);
@@ -123,7 +126,7 @@ export function SavedGames({
   const idle = !busy && working === null;
   return (
     <div className="saved">
-      <h3>Saved in this browser</h3>
+      {level === 3 ? <h3>Saved in this browser</h3> : <h4>Saved in this browser</h4>}
       {unavailable !== null ? (
         <p className="warning" role="status" data-testid="saves-unavailable">
           {savesFailureSentence(unavailable)}
@@ -159,10 +162,10 @@ export function SavedGames({
                     </p>
                     {deleting === save.name ? (
                       <div className="actions">
-                        <button type="button" disabled={!idle} onClick={() => remove(save.name)}>
+                        <button type="button" className="button--danger" disabled={!idle} onClick={() => remove(save.name)}>
                           Delete “{save.name}” for good
                         </button>
-                        <button type="button" onClick={() => setDeleting(null)}>
+                        <button type="button" className="button--quiet" onClick={() => setDeleting(null)}>
                           Keep it
                         </button>
                       </div>

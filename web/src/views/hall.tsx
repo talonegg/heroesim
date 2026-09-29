@@ -2,26 +2,50 @@
 // grade and the Improvement built at it, what it does, and the next grade's Improvement and cost
 // (`nextImprovement`); in the player's own Hall, a button to build it. Another Guild's Hall is shown
 // on its page, without one. The engine's `build` decides.
+//
+// A view of the shell (M9-S3, DL-103), with the Guildmaster, what the Guild holds and the Market as
+// its parts. The facilities' rows with grade pips are M9-S6's.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import type { GameAction } from '../state/reducer';
+import { heldView } from '../state/selectors';
 import { hallView, type HallView } from '../state/world-views';
-import { Heading, Section } from './section';
+import { Guildmaster } from './guildmaster';
+import { Icon } from './icons';
+import { Market } from './market';
+import { Heading, Part, View } from './section';
 
 export function Hall({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
   const view = useMemo(() => hallView(document), [document]);
   return (
-    <Section
-      id="hall"
-      title="Hall"
-      help={
-        'Your Guild’s premises. Build raises a facility one grade for the next grade’s cost. Each grade does more than ' +
-        'the one below it, and each adds to the Upkeep.'
-      }
-    >
+    <View id="hall">
       {view === null ? <p>The save has no player’s Guild.</p> : <HallDetails view={view} level={3} busy={busy} play={play} />}
-    </Section>
+      <Guildmaster document={document} />
+      <Held document={document} />
+      <Market document={document} busy={busy} play={play} />
+    </View>
+  );
+}
+
+/** What the Guild holds: drawn only when it holds something (M9-S3, the review's A5). */
+function Held({ document }: { document: WorldDocument }) {
+  const held = useMemo(() => heldView(document), [document]);
+  if (held.length === 0) return null;
+  return (
+    <Part id="held">
+      <ul className="rows rows--plain">
+        {held.map((row) => (
+          <li key={row.key}>
+            <span>
+              <strong>{row.quantity === 1 ? row.name : `${row.quantity} × ${row.name}`}</strong>
+              {row.kind === '' ? '' : `, ${row.kind}`}
+              {row.modifies === '' ? '' : ` (${row.modifies})`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </Part>
   );
 }
 
@@ -33,13 +57,13 @@ export function HallDetails({
   play,
 }: {
   view: HallView;
-  level: 3 | 5;
+  level: 3 | 6;
   busy?: boolean;
   play?: (action: GameAction) => void;
 }) {
   return (
     <>
-      <ul className="cards">
+      <ul className="cards cards--grid">
         {view.facilities.map((row) => (
           <li key={row.facility} className="card">
             <Heading level={level}>
@@ -51,15 +75,16 @@ export function HallDetails({
             {view.mine && row.next !== null && play !== undefined ? (
               <div className="actions">
                 <button type="button" disabled={busy} onClick={() => play({ kind: 'build', facility: row.facility })}>
-                  Build {row.next.name}
+                  <Icon name="build" />
+                  <span>Build {row.next.name}</span>
                 </button>
               </div>
             ) : null}
           </li>
         ))}
       </ul>
-      <p>
-        Upkeep of {view.guildName}: {view.upkeep}.
+      <p className="upkeep">
+        Upkeep of {view.guildName}: <strong>{view.upkeep}</strong>.
       </p>
     </>
   );

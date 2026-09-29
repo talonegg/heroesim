@@ -3,12 +3,14 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
 import { saveText } from '../state/game-file';
-import { changed, played, started, withOlderRules, withTheGone, withWealth } from '../state/game.test-support';
+import { changed, played, started, withOffer, withOlderRules, withTheGone, withWealth } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
+import { openView, section, seedShown } from './page.test-support';
 
 // The views of the wider world and the game as a file (M7-S3 part 2, DL-73): the CLI's `show
 // rankings`, `show guilds`, `show roster|hall|guildmaster <guildId>`, `show guildmaster`, `show
 // patrons`, `show history`, `rebase`, `save --as` and `load`, driven through the page's controls.
+// Each region is found by opening its view, or the game menu, first (M9-S3, DL-103).
 
 afterEach(() => {
   cleanup();
@@ -17,10 +19,6 @@ afterEach(() => {
 
 async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function section(name: string): HTMLElement {
-  return screen.getByRole('region', { name });
 }
 
 function render_(state: GameState): void {
@@ -71,24 +69,34 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
     `The Lantern has been below the Bankruptcy floor since Day 0: Bankruptcy on the night of Day ${dueDay} ` +
     'unless Wealth is back to 0 or more on a night by then, after any Upkeep due.';
 
-  test("the header shows the countdown only while the player's Guild is below the floor, from the game's own grace", () => {
+  /** The countdown as the status bar's pill says it, and in full in the home view (M9-S3, DL-103). */
+  function shown(dueDay: number): void {
+    expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(`Bankruptcy on the night of Day ${dueDay}`);
+    expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(countdown(dueDay))).toBeDefined();
+  }
+
+  test("the status bar shows the countdown only while the player's Guild is below the floor, from the game's own grace, and the home view says it in full", () => {
     render_(played(started(), { kind: 'advance', turns: 2 }));
     expect(screen.queryByTestId('countdown')).toBeNull();
     cleanup();
 
     render_(belowTheFloor());
     expect(screen.getByTestId('time').textContent).toBe('Day 0, night, Year 0');
-    expect(within(screen.getByRole('banner')).getByTestId('countdown').textContent).toBe(countdown(30));
+    shown(30);
     cleanup();
 
     render_(belowTheFloor(10));
-    expect(screen.getByTestId('countdown').textContent).toBe(countdown(10));
+    shown(10);
+    // The pill opens the home view, from any other.
+    openView('Board');
+    fireEvent.click(screen.getByTestId('countdown'));
+    shown(10);
   });
 
   test("stays after Wealth rises during a Day, and goes at that night's check", () => {
     const risen = withWealth(belowTheFloor(10), 1_000);
     render_(risen);
-    expect(screen.getByTestId('countdown').textContent).toBe(countdown(10));
+    shown(10);
     cleanup();
 
     render_(played(risen, { kind: 'advance', turns: 3 }));
@@ -108,11 +116,12 @@ describe('the Guilds', () => {
     fireEvent.click(within(guilds).getByRole('button', { name: 'Open The Ashford Guild' }));
 
     const page = within(section('Guilds')).getByRole('article');
-    expect(within(page).getByRole('heading', { level: 3, name: 'The Ashford Guild' })).toBeDefined();
+    // Under the Guilds' heading, a part of the Rankings view (M9-S3): its levels one below.
+    expect(within(page).getByRole('heading', { level: 4, name: 'The Ashford Guild' })).toBeDefined();
     expect(within(page).getAllByText(/^Transfer fee \d+ Wealth\.$/).length).toBeGreaterThan(0);
-    expect(within(page).getByRole('heading', { level: 5, name: 'Infirmary: grade 0' })).toBeDefined();
+    expect(within(page).getByRole('heading', { level: 6, name: 'Infirmary: grade 0' })).toBeDefined();
     expect(within(page).queryByRole('button', { name: /^Build / })).toBeNull();
-    expect(within(page).getByRole('heading', { level: 4, name: /, Guildmaster of The Ashford Guild$/ })).toBeDefined();
+    expect(within(page).getByRole('heading', { level: 5, name: /, Guildmaster of The Ashford Guild$/ })).toBeDefined();
 
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the Guilds' }));
     expect(within(section('Guilds')).queryByRole('article')).toBeNull();
@@ -124,7 +133,7 @@ describe('the Guildmaster and the Patrons', () => {
     render_(started());
     const guildmaster = section('Guildmaster');
 
-    expect(within(guildmaster).getByRole('heading', { level: 3, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
+    expect(within(guildmaster).getByRole('heading', { level: 4, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
     expect(within(guildmaster).getByText('the reward agreed and the fees paid')).toBeDefined();
     for (const item of within(guildmaster).getAllByRole('listitem').filter((each) => /: \w+$/.test(each.textContent ?? ''))) {
@@ -169,7 +178,9 @@ describe('the History', () => {
     const page = within(history()).getByRole('article');
     expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
     expect(within(page).getByText(/^died on Day \d+$/)).toBeDefined();
-    expect(within(page).getByRole('heading', { level: 4, name: 'Milestones' })).toBeDefined();
+    // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (M9-S3, the review's A5).
+    expect(within(page).queryByRole('heading', { name: 'Milestones' })).toBeNull();
+    expect(within(page).getByRole('heading', { level: 4, name: 'History, newest first' })).toBeDefined();
     expect((within(history()).getByLabelText('Whose History') as HTMLSelectElement).value).toBe(dead.id);
     expect(within(history()).queryByRole('list', { name: 'Found in the History' })).toBeNull();
     fireEvent.click(within(page).getByRole('button', { name: 'Back to the whole History' }));
@@ -241,12 +252,12 @@ describe('the game as a file', () => {
     const input = within(section('This game')).getByLabelText('Load a save file');
 
     fireEvent.change(input, { target: { files: [new File([saveText(later.document as NonNullable<GameState['document']>)], 'save.json')] } });
-    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('loaded-game'));
+    await waitFor(() => expect(seedShown()).toBe('loaded-game'));
     expect(screen.getByTestId('time').textContent).toBe('Day 1, afternoon, Year 0');
 
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), { target: { files: [new File(['{"not":'], 'broken.json')] } });
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/^Cannot load the save: /));
-    expect(screen.getByTestId('seed').textContent).toBe('loaded-game');
+    expect(seedShown()).toBe('loaded-game');
   });
 
   test('starts a new game in place of the game in hand, or goes back to it', async () => {
@@ -281,7 +292,7 @@ describe('the game as a file', () => {
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
       target: { files: [new File([JSON.stringify(saved)], 'warned.json')] },
     });
-    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('warned'));
+    await waitFor(() => expect(seedShown()).toBe('warned'));
     expect(warned()).not.toBeNull();
     expect(within(section('This game')).getByText(/sea-born/)).toBeDefined();
 
@@ -292,7 +303,7 @@ describe('the game as a file', () => {
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
       target: { files: [new File([saveText(started('clean').document as NonNullable<GameState['document']>)], 'clean.json')] },
     });
-    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('clean'));
+    await waitFor(() => expect(seedShown()).toBe('clean'));
     expect(warned()).toBeNull();
   });
 
@@ -304,21 +315,31 @@ describe('the game as a file', () => {
         .getAllByRole('button')
         .find((button) => button.className === 'link') as HTMLElement;
 
-    fireEvent.click(heroOpener('Roster'));
-    fireEvent.click(heroOpener('Unattached pool'));
-    fireEvent.click(within(section('Guilds')).getAllByRole('button', { name: /^Open / })[0] as HTMLElement);
+    // What the shell keeps from view to view: whose History, and the Quest whose Party is open.
     fireEvent.change(within(section('History')).getByLabelText('Whose History'), { target: { value: 'guild-000001' } });
-    for (const name of ['Roster', 'Unattached pool', 'Guilds']) expect(within(section(name)).queryByRole('article')).not.toBeNull();
+    const [quest] = within(section('Board')).getAllByRole('article');
+    fireEvent.click(within(quest as HTMLElement).getByRole('button', { name: 'Choose a Party' }));
+    // And what a view keeps while it is open: a Rival's page, a pool Hero's page and a Hero's page.
+    fireEvent.click(within(section('Guilds')).getAllByRole('button', { name: /^Open / })[0] as HTMLElement);
+    expect(within(section('Guilds')).queryByRole('article')).not.toBeNull();
+    fireEvent.click(heroOpener('Unattached pool'));
+    expect(within(section('Unattached pool')).queryByRole('article')).not.toBeNull();
+    fireEvent.click(heroOpener('Roster'));
+    expect(within(section('Roster')).queryByRole('article')).not.toBeNull();
     expect(within(section('History')).getByRole('heading', { level: 3, name: 'The History of The Lantern' })).toBeDefined();
+    expect(within(section('Board')).queryByRole('form')).not.toBeNull();
 
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
       target: { files: [new File([saveText(other.document as NonNullable<GameState['document']>)], 'other.json')] },
     });
-    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('the-other-game'));
+    await waitFor(() => expect(seedShown()).toBe('the-other-game'));
 
+    // A load opens the home view, and nothing the last game had open is open.
+    expect(screen.getByRole('region', { name: 'Guild' })).toBeDefined();
     for (const name of ['Roster', 'Unattached pool', 'Guilds']) expect(within(section(name)).queryByRole('article')).toBeNull();
     expect(within(section('Roster')).getByText(/^\d+ Heroes? on the Roster\.$/)).toBeDefined();
     expect(within(section('History')).getByRole('heading', { level: 3, name: 'The whole History' })).toBeDefined();
+    expect(within(section('Board')).queryByRole('form')).toBeNull();
   });
 
   test('loads a save before any game is in hand', async () => {
@@ -329,22 +350,26 @@ describe('the game as a file', () => {
     });
 
     await waitFor(() => expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined());
-    expect(screen.getByTestId('seed').textContent).toBe('from-file');
+    expect(seedShown()).toBe('from-file');
   });
 });
 
 describe('why time stopped, with a button to what it names', () => {
   test('a Transfer Offer goes to the offers, new Heroes in the pool go to the pool', () => {
-    const state = started();
+    const state = withOffer(started());
     const guildId = 'guild-000001' as GuildId;
+    const offerId = Object.keys(state.document?.world.offers ?? {})[0] as OfferId;
     const stops: [StopReason, string, string][] = [
-      [{ kind: 'transfer-offer', guildId, offerIds: ['offer-000001' as OfferId] }, 'Answer the offer', 'Transfer Offers'],
+      [{ kind: 'transfer-offer', guildId, offerIds: [offerId] }, 'Answer the offer', 'Transfer Offers'],
       [{ kind: 'pool-refreshed', heroIds: ['hero-000001' as HeroId] }, 'See who joined the pool', 'Unattached pool'],
     ];
     for (const [stoppedBecause, label, heading] of stops) {
       const { unmount } = render(<App initial={{ ...state, stoppedBecause }} />);
+      // The last iteration's view is remembered: why time stopped is the home view's to say.
+      openView('Guild');
       fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: label }));
-      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: heading }));
+      // Parts of the Roster view (M9-S3): their headings are one below the view's.
+      expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: heading }));
       unmount();
     }
   });
@@ -357,7 +382,7 @@ describe('why time stopped, with a button to what it names', () => {
     const stop = screen.getByTestId('stop');
     expect(within(stop).getByText('Stopped: the probe module asked to stop.')).toBeDefined();
     fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
-    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Since your last action' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Since your last action' }));
     expect(within(section('Since your last action')).getByText('The probe module recorded probe.fired.')).toBeDefined();
   });
 });

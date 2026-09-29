@@ -1,0 +1,96 @@
+// The page's regions as a test reaches them (M9-S3, DL-103). The page is views in a shell, one at a
+// time, so a region is found by opening the view that holds it first, through the navigation, as a
+// player would; a region of the game menu by opening the menu. Never imported by the page.
+
+import { fireEvent, screen, within } from '@testing-library/react';
+
+/** Each view's heading, as the navigation names it. */
+export type ViewName = 'Guild' | 'Board' | 'Roster' | 'Hall' | 'Rankings' | 'History';
+
+/** The view each region is in, by its heading; `menu` for the game menu's. */
+const home: Readonly<Record<string, ViewName | 'menu'>> = {
+  Guild: 'Guild',
+  Board: 'Board',
+  Roster: 'Roster',
+  'Transfer Offers': 'Roster',
+  'Unattached pool': 'Roster',
+  Hall: 'Hall',
+  Guildmaster: 'Hall',
+  'What the Guild holds': 'Hall',
+  Market: 'Hall',
+  Rankings: 'Rankings',
+  Guilds: 'Rankings',
+  Patrons: 'Rankings',
+  History: 'History',
+  'Since your last action': 'History',
+  'This game': 'menu',
+  'New rules available': 'menu',
+};
+
+/** The navigation. */
+export function nav(): HTMLElement {
+  return screen.getByRole('navigation', { name: 'Views' });
+}
+
+/** The navigation's button for `view`: its name starts with the view's, and goes on with its count. */
+export function navButton(view: ViewName): HTMLElement {
+  const [button] = within(nav()).getAllByRole('button', { name: new RegExp(`^${view}(,|$)`) });
+  if (button === undefined) throw new Error(`no ${view} in the navigation`);
+  return button;
+}
+
+/** Opens `view` from the navigation, and gives its region. */
+export function openView(view: ViewName): HTMLElement {
+  fireEvent.click(navButton(view));
+  return screen.getByRole('region', { name: view });
+}
+
+/** The game menu, opened. */
+export function openMenu(): HTMLElement {
+  const open = screen.queryByRole('dialog', { name: 'Game' });
+  if (open !== null) return open;
+  fireEvent.click(screen.getByRole('button', { name: 'Game' }));
+  return screen.getByRole('dialog', { name: 'Game' });
+}
+
+/** Closes the game menu, if it is open. */
+export function closeMenu(): void {
+  const open = screen.queryByRole('dialog', { name: 'Game' });
+  if (open !== null) fireEvent.click(within(open).getByRole('button', { name: 'Close' }));
+}
+
+/** A region of the page by its heading, its view opened first when it is not open: a view, a part of one, or the game menu's. */
+export function section(name: string): HTMLElement {
+  const shown = screen.queryByRole('region', { name });
+  if (shown !== null) return shown;
+  const where = home[name];
+  if (where === undefined) throw new Error(`no region called ${name} on the page`);
+  if (where === 'menu') return within(openMenu()).getByRole('region', { name });
+  closeMenu();
+  openView(where);
+  return screen.getByRole('region', { name });
+}
+
+/** The time controls in the status bar. */
+export function time(): HTMLElement {
+  return screen.getByRole('group', { name: 'Time' });
+}
+
+/** Fast forward until new Heroes join the pool, from the status bar's other ways to fast forward. */
+export function fastForwardUntilPool(): void {
+  fireEvent.click(within(time()).getByRole('button', { name: 'More ways to fast forward' }));
+  fireEvent.click(within(time()).getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
+}
+
+/** The seed of the game in hand, as the game menu says it; the menu is left as it was found. */
+export function seedShown(): string {
+  const wasOpen = screen.queryByRole('dialog', { name: 'Game' }) !== null;
+  const seed = within(openMenu()).getByTestId('seed').textContent ?? '';
+  if (!wasOpen) closeMenu();
+  return seed;
+}
+
+/** The Heroes on the player's Roster, as the Roster view lists them. */
+export function rosterList(): HTMLElement {
+  return within(section('Roster')).getByRole('list', { name: 'Heroes on the Roster' });
+}

@@ -85,9 +85,14 @@ describe('headerView', () => {
       wealth: guild.wealth,
       fame: guild.fame,
       time: `Day ${dayOf(4)}, ${timeOfDay(4)}, Year 0`,
-      // The status bar's glyph: Turn 4 is an afternoon (M9-S3, DL-103).
+      // The status bar's glyph: Turn 4 is an afternoon; and the time and the place in two parts,
+      // the second of each left unshown on a phone (M9-S3, DL-103).
       timeOfDay: 'afternoon',
+      when: `Day ${dayOf(4)}, ${timeOfDay(4)}`,
+      year: 'Year 0',
       rankings: 'joint 1st of 5 by Fame',
+      place: 'joint 1st of 5',
+      measure: 'by Fame',
       seed: 'selectors-played',
       countdown: null,
       due: null,
@@ -108,6 +113,7 @@ describe('headerView', () => {
     };
 
     expect(fames(9, 4, 4, 1, 0)).toBe('1st of 5 by Fame');
+    expect(headerView(document)?.place).toBe('1st of 5');
     expect(fames(4, 9, 4, 1, 0)).toBe('joint 2nd of 5 by Fame');
     expect(fames(1, 9, 4, 4, 0)).toBe('4th of 5 by Fame');
     expect(fames(0, 9, 4, 4, 1)).toBe('5th of 5 by Fame');
@@ -129,6 +135,13 @@ describe('headerView', () => {
     rival.foldedOnTurn = 0;
 
     expect(headerView(document)?.rankings).toBe('joint 1st of 4 by Fame');
+  });
+
+  test("says the player's Guild is not ranked once it has folded, with no measure to follow (M9-S3, DL-103)", () => {
+    const document = structuredClone(newGame());
+    player(document).foldedOnTurn = 0;
+
+    expect(headerView(document)).toMatchObject({ rankings: 'not ranked: the Guild has folded', place: 'not ranked: the Guild has folded', measure: '' });
   });
 });
 
@@ -457,8 +470,8 @@ describe('the log and why time stopped', () => {
     const state: GameState = { ...initialGameState, document, stoppedBecause };
 
     expect(stopView(state)?.quests).toEqual([
-      { questId: second.questId, name: second.name, patron: second.patron },
-      { questId: first.questId, name: first.name, patron: first.patron },
+      { questId: second.questId, name: second.name, patron: second.patron, reward: second.reward },
+      { questId: first.questId, name: first.name, patron: first.patron, reward: first.reward },
     ]);
     // Any other stop names none.
     expect(stopView({ ...state, stoppedBecause: { kind: 'max-turns' } })?.quests).toBeUndefined();

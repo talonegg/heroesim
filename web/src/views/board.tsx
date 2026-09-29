@@ -3,36 +3,43 @@
 // the Party would meet is the engine's preview (`previewDispatch`, through `previewView`), shown as
 // the choice changes: each requirement met or missed, who cannot go, the Synergies it would have,
 // what it would carry, the reward agreed, and dispatch's own verdict. Sending it is a play.
+//
+// A view of the shell (M9-S3, DL-103). Which Quest's Party is open is the shell's, so the home
+// view's Quest buttons open one; the cards' redesign and the Party builder are M9-S4's.
 
 import type { HeroId, ItemDefinitionKey, QuestId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { boardView, consumableChoices, partyChoices, previewView, type QuestCard } from '../state/selectors';
-import { Section } from './section';
+import { Icon } from './icons';
+import { View } from './section';
+import { Stepper } from './ui';
 
-/** Said with the Board, as the CLI says it after every dispatch (pre-M0 review D2). */
-const rivalsReminder = 'Rivals take Quests from the Board each afternoon: a Quest left on it may be gone by then.';
-
-export function Board({ document, busy, play }: { document: WorldDocument; busy: boolean; play: (action: GameAction) => void }) {
+export function Board({
+  document,
+  busy,
+  play,
+  open,
+  onOpen,
+}: {
+  document: WorldDocument;
+  busy: boolean;
+  play: (action: GameAction) => void;
+  /** The Quest whose Party is being chosen, or none. */
+  open: QuestId | null;
+  onOpen: (questId: QuestId | null) => void;
+}) {
   const cards = useMemo(() => boardView(document), [document]);
-  const [open, setOpen] = useState<QuestId | null>(null);
   return (
-    <Section
-      id="board"
-      title="Board"
-      help={
-        'The Quests on offer. Choose a Party for one: as you pick Heroes and consumables, the preview says what the Party ' +
-        `would meet and whether it would be sent, and "Send the Party" sends it within the current Turn. ${rivalsReminder}`
-      }
-    >
-      <p>{cards.length === 0 ? 'The Board is empty.' : `${cards.length} ${cards.length === 1 ? 'Quest' : 'Quests'} on offer.`}</p>
+    <View id="board">
+      <p className="view__lead">{cards.length === 0 ? 'The Board is empty.' : `${cards.length} ${cards.length === 1 ? 'Quest' : 'Quests'} on offer.`}</p>
       <ul className="cards">
         {cards.map((card) => (
           <li key={card.questId}>
             <Quest
               card={card}
               open={open === card.questId}
-              onToggle={() => setOpen(open === card.questId ? null : card.questId)}
+              onToggle={() => onOpen(open === card.questId ? null : card.questId)}
               document={document}
               busy={busy}
               play={play}
@@ -40,7 +47,7 @@ export function Board({ document, busy, play }: { document: WorldDocument; busy:
           </li>
         ))}
       </ul>
-    </Section>
+    </View>
   );
 }
 
@@ -61,9 +68,13 @@ function Quest({
 }) {
   const headingId = `quest-${card.questId}`;
   return (
-    <article className="card" aria-labelledby={headingId}>
-      <h3 id={headingId}>{card.name}</h3>
-      <p className="subtle">Offered by {card.patron}</p>
+    <article className={open ? 'card quest is-open' : 'card quest'} aria-labelledby={headingId}>
+      <div className="card__head">
+        <h3 id={headingId} tabIndex={-1}>
+          {card.name}
+        </h3>
+        <p className="subtle">Offered by {card.patron}</p>
+      </div>
       <dl className="terms">
         <Term label="Difficulty" value={card.difficulty} />
         <Term label="Days away" value={card.days} />
@@ -72,13 +83,14 @@ function Quest({
         <Term label="Party" value={card.party} />
         <Term label="Requires" value={card.requires} />
         <Term label="On offer through" value={`Day ${card.lastDay}`} />
-        <Term label="Demands" value={card.demands} />
-        <Term label="Skills that help" value={card.skillsThatHelp} />
-        <Term label="Encounters" value={card.encounters} />
+        <Term label="Demands" value={card.demands} wide />
+        <Term label="Skills that help" value={card.skillsThatHelp} wide />
+        <Term label="Encounters" value={card.encounters} wide />
       </dl>
       <div className="actions">
-        <button type="button" aria-expanded={open} onClick={onToggle}>
-          {open ? 'Close' : 'Choose a Party'}
+        <button type="button" className={open ? 'button--quiet' : undefined} aria-expanded={open} onClick={onToggle}>
+          {open ? <Icon name="close" /> : <Icon name="roster" />}
+          <span>{open ? 'Close' : 'Choose a Party'}</span>
         </button>
       </div>
       {open ? <Dispatch document={document} questId={card.questId} questName={card.name} busy={busy} play={play} /> : null}
@@ -86,9 +98,9 @@ function Quest({
   );
 }
 
-function Term({ label, value }: { label: string; value: string | number }) {
+function Term({ label, value, wide = false }: { label: string; value: string | number; wide?: boolean }) {
   return (
-    <div>
+    <div className={wide ? 'is-wide' : undefined}>
       <dt>{label}</dt>
       <dd>{value}</dd>
     </div>
@@ -152,35 +164,34 @@ function Dispatch({
           </label>
         ))}
       </fieldset>
-      <fieldset>
-        <legend>Consumables</legend>
-        {stocks.length === 0 ? <p>The Guild holds no consumables.</p> : null}
-        {stocks.map((stock) => (
-          <label key={stock.definitionKey} className="field">
-            <span>
-              {stock.name}, {stock.held} held: {stock.does}
-            </span>
-            <input
-              type="number"
+      {/* No consumables held, no fieldset: an empty list is not drawn (M9-S3, the review's A5). */}
+      {stocks.length === 0 ? null : (
+        <fieldset>
+          <legend>Consumables</legend>
+          {stocks.map((stock) => (
+            <Stepper
+              key={stock.definitionKey}
+              label={`${stock.name}, ${stock.held} held: ${stock.does}`}
+              value={carry[stock.definitionKey] ?? 0}
               min={0}
               max={stock.held}
-              step={1}
-              inputMode="numeric"
-              value={carry[stock.definitionKey] ?? 0}
-              onChange={(event) => setCarry({ ...carry, [stock.definitionKey]: Number(event.target.value) || 0 })}
+              onChange={(value) => setCarry({ ...carry, [stock.definitionKey]: Number.isFinite(value) ? value : 0 })}
             />
-          </label>
-        ))}
-      </fieldset>
+          ))}
+        </fieldset>
+      )}
       {preview === null ? (
         <p>This Quest is no longer on the Board.</p>
       ) : (
         <div className="preview" aria-label="Preview">
           <h4>Requirements</h4>
-          <ul>
+          <ul className="marks">
             {preview.requirements.map((requirement) => (
-              <li key={requirement.words}>
-                {requirement.words}: {requirement.met ? 'met' : 'missed'}
+              <li key={requirement.words} className={requirement.met ? 'is-met' : 'is-missed'}>
+                <Icon name={requirement.met ? 'check' : 'cross'} />
+                <span>
+                  {requirement.words}: {requirement.met ? 'met' : 'missed'}
+                </span>
               </li>
             ))}
           </ul>
@@ -212,7 +223,7 @@ function Dispatch({
           </p>
         </div>
       )}
-      <div className="actions">
+      <div className="actions actions--send">
         <button type="submit" className="button--primary" disabled={busy || preview === null || !preview.verdict.sends}>
           Send the Party
         </button>

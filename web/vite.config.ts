@@ -60,6 +60,10 @@ export default defineConfig({
     // scripts/check-bundle.mjs refuses (principle 12). Off, so it cannot return with a change of
     // format.
     modulePreload: { polyfill: false },
+    // The page is one script by design (R38, DL-88 item 5), so Vite's advice to split a chunk over
+    // 500 kB cannot be taken; the warning is raised to a size the page has not reached (M9-S3,
+    // DL-103: 544 kB with the shell's stylesheet and icons, 157 kB gzipped).
+    chunkSizeWarningLimit: 800,
   },
   server: {
     fs: {

@@ -2,6 +2,9 @@
 // saves kept in the browser. Export the game in hand as the save the CLI writes, byte for byte; save
 // it in this browser, in IndexedDB, and load, export or delete a save kept there; load a save file,
 // the CLI's or one exported here, through the reducer's `load` play; or start a new game in its place.
+//
+// A part of the game menu (M9-S3, DL-103). The file picker is the browser's own control behind a
+// button.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useState, type ChangeEvent } from 'react';
@@ -9,8 +12,10 @@ import { savesFailureSentence, type Saves } from '../saves';
 import type { GameAction, GameState } from '../state/reducer';
 import { saveFileName, saveText } from '../state/game-file';
 import { download } from './download';
+import { Icon } from './icons';
 import { SavedGames } from './saved-games';
-import { Section } from './section';
+import { Part } from './section';
+import { FileButton } from './ui';
 
 /** A file picker that loads the save chosen: its text (`saves.import`) goes to the reducer, which reads it (DL-20, DL-65). */
 export function LoadSave({ saves, busy, play }: { saves: Saves; busy: boolean; play: (action: GameAction) => void }) {
@@ -25,13 +30,14 @@ export function LoadSave({ saves, busy, play }: { saves: Saves; busy: boolean; p
     if (imported.ok) play({ kind: 'load', text: imported.value });
   }
   return (
-    <>
-      <label className="field">
-        <span>Load a save file</span>
-        <input type="file" accept=".json,application/json" disabled={busy} onChange={(event) => void chosen(event)} />
-      </label>
-      {failure === null ? null : <p role="alert">{failure}</p>}
-    </>
+    <div className="load-save">
+      <FileButton label="Load a save file" accept=".json,application/json" disabled={busy} onFile={(event) => void chosen(event)} />
+      {failure === null ? null : (
+        <p role="alert" className="warning">
+          {failure}
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -51,15 +57,7 @@ export function GameFile({
   onNewGame: () => void;
 }) {
   return (
-    <Section
-      id="game"
-      title="This game"
-      help={
-        'Save the game in this browser under a name, to load it here later, even after the page is closed; export the ' +
-        'game, or a save kept here, as the file the CLI writes, which the CLI or this page can load. Loading a save, or ' +
-        'starting a new game, puts it in place of the game in hand, which is lost unless saved or exported first.'
-      }
-    >
+    <Part id="game">
       <div className="actions">
         {/* Not while busy, as saving here is not: between the steps of a fast forward the game in hand
             shares its History with the steps' games (ADR-0008), so the History holds Turns its World
@@ -69,11 +67,12 @@ export function GameFile({
           disabled={busy}
           onClick={() => download(new File([saveText(document)], saveFileName(document), { type: 'application/json' }))}
         >
-          Export this game
+          <Icon name="save" />
+          <span>Export this game</span>
         </button>
+        <LoadSave saves={saves} busy={busy} play={play} />
       </div>
-      <SavedGames saves={saves} document={document} busy={busy} play={play} />
-      <LoadSave saves={saves} busy={busy} play={play} />
+      <SavedGames saves={saves} document={document} busy={busy} play={play} level={4} />
       {state.warnings.length === 0 ? null : (
         <>
           <p>The save names things this release’s content does not define; they are shown as they are:</p>
@@ -84,11 +83,12 @@ export function GameFile({
           </ul>
         </>
       )}
-      <div className="actions">
+      <div className="actions actions--new">
         <button type="button" onClick={onNewGame}>
-          Start a new game
+          <Icon name="new" />
+          <span>Start a new game</span>
         </button>
       </div>
-    </Section>
+    </Part>
   );
 }

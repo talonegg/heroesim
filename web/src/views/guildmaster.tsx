@@ -2,30 +2,25 @@
 // Guildmaster in their own section, another Guild's on its page. Their Stats and what each bears
 // on, their Traits and what each does, and their Regard for every Patron, each Hero on their Roster
 // and each other Guild in play, as bands and never as numbers (pre-M0 review B3).
+//
+// A part of the Hall (M9-S3, DL-103); its chips and folds are M9-S6's.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { guildmasterView, type GuildmasterView, type RegardRow } from '../state/world-views';
-import { Heading, Section, Terms } from './section';
+import { Heading, Part, Terms } from './section';
 
 export function Guildmaster({ document }: { document: WorldDocument }) {
   const view = useMemo(() => guildmasterView(document), [document]);
   return (
-    <Section
-      id="guildmaster"
-      title="Guildmaster"
-      help={
-        'Your character in the world. Their Stats bear on running the Guild, never on fighting: each says what it bears ' +
-        'on. Their Traits help or hinder the Guild, and their Regard for others is shown as a band.'
-      }
-    >
-      {view === null ? <p>The Guild has no Guildmaster.</p> : <GuildmasterDetails view={view} level={3} />}
-    </Section>
+    <Part id="guildmaster">
+      {view === null ? <p>The Guild has no Guildmaster.</p> : <GuildmasterDetails view={view} level={4} />}
+    </Part>
   );
 }
 
-export function GuildmasterDetails({ view, level }: { view: GuildmasterView; level: 3 | 4 }) {
-  const sub = level === 3 ? 4 : 5;
+export function GuildmasterDetails({ view, level }: { view: GuildmasterView; level: 4 | 5 }) {
+  const sub = level === 4 ? 5 : 6;
   return (
     <div className="guildmaster">
       <Heading level={level}>
