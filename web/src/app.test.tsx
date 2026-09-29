@@ -201,7 +201,7 @@ describe('the shell (M9-S3, DL-103)', () => {
   test('docks a refusal under the status bar, whichever view the play came from', async () => {
     render(<App initial={withWealth(started(), 50)} />);
 
-    fireEvent.click(within(section('Hall')).getByRole('button', { name: 'Build Dormitory' }));
+    fireEvent.click(within(section('Hall')).getByRole('button', { name: /^Build Dormitory for \d+ Wealth$/ }));
     await idle();
 
     const alert = within(screen.getByRole('banner')).getByRole('alert');
@@ -371,7 +371,7 @@ describe('a game in hand', () => {
   test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', async () => {
     render(<App initial={started()} />);
 
-    fireEvent.click(within(within(section('Market')).getByRole('form', { name: 'Buy Padded jack' })).getByRole('button', { name: 'Buy' }));
+    fireEvent.click(within(section('Market')).getByRole('button', { name: 'Buy Padded jack' }));
     await idle();
 
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
@@ -629,8 +629,9 @@ describe('the Roster with Hero pages', () => {
     const outlooks = within(page)
       .getAllByRole('row')
       .flatMap((row) => {
+        // A Stat's row in its area's block (M9-S6): its value, then its Outlook as a chip.
         const cells = within(row).queryAllByRole('cell');
-        return cells.length === 3 ? [cells[2]?.textContent] : [];
+        return cells.length === 2 ? [cells[1]?.textContent?.replace(/^Outlook /, '')] : [];
       });
     expect(outlooks.length).toBeGreaterThan(10);
     for (const outlook of outlooks) expect(['modest', 'promising', 'exceptional']).toContain(outlook);

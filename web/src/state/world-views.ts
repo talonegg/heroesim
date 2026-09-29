@@ -13,6 +13,7 @@
 import {
   ageOf,
   baseStat,
+  compareByCodeUnit,
   dayOf,
   descriptiveAttributes,
   facilityKeys,
@@ -27,6 +28,7 @@ import {
   transferFee,
   upkeep,
   type FacilityKey,
+  type GameConfig,
   type Guild,
   type GuildId,
   type GuildmasterId,
@@ -45,76 +47,90 @@ function guildOf(document: WorldDocument, guildId: GuildId | undefined): Guild |
   return guildId === undefined ? playerGuild(document.world) : rowOf(document.world.guilds, guildId);
 }
 
-// ── Every Guild ──────────────────────────────────────────────────────────────────────────────
+// ── Every Guild, and the Rankings ───────────────────────────────────────────────────────────
 
+/**
+ * A column the Guilds' table can be sorted by (M9-S6, the review's B4). By Fame or by Wealth, it is
+ * the Rankings (R10) in the engine's order, each Guild at its place; by any other, an order for
+ * display only, ties in the Rankings' order by Fame.
+ */
+export type GuildSort = RankingMeasure | 'name' | 'disposition' | 'heroes' | 'upkeep';
+
+/** One Guild as a row of the Guilds' table. */
 export interface GuildRow {
   guildId: GuildId;
   name: string;
   /** The player's own Guild. */
   mine: boolean;
-  /** `Yours`, or `Rival (steady)`: who makes its choices. */
-  controller: string;
-  guildmaster: string;
-  background: string;
-  /** How many Heroes are on its Roster. */
-  roster: number;
-  wealth: number;
+  /**
+   * `1st`, or `joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95),
+   * by the table's measure; `null` for a folded Guild, which is out of the Rankings (DL-28).
+   */
+  place: string | null;
+  /** `Yours`, or the name of the Disposition that makes a Rival's choices. */
+  disposition: string;
   fame: number;
+  wealth: number;
+  /** How many Heroes are on its Roster. */
+  heroes: number;
   /** Its Upkeep, the engine's `upkeep`. */
   upkeep: number;
   /** `folded on Day 12`, or `null` for a Guild in play (DL-28, DL-33). */
   folded: string | null;
 }
 
-/** `show guilds`: every Guild in the world's order, a folded one marked with the Day it folded. */
-export function guildsView(document: WorldDocument): GuildRow[] {
+export interface GuildsTable {
+  /** What Place reads by: Wealth when the table is sorted by Wealth, and Fame otherwise. */
+  measure: RankingMeasure;
+  /** The Guilds in play, in the order asked for. */
+  rows: GuildRow[];
+  /** The Guilds that have folded, in the world's order, each with its Day. */
+  folded: GuildRow[];
+}
+
+/** How each column other than Fame and Wealth orders the Guilds: highest first for a number, A to Z for words. */
+const guildOrders: Readonly<Record<Exclude<GuildSort, RankingMeasure>, (a: GuildRow, b: GuildRow) => number>> = {
+  name: (a, b) => compareByCodeUnit(a.name, b.name),
+  // The player's own first, then the Rivals by their Disposition's name.
+  disposition: (a, b) => Number(b.mine) - Number(a.mine) || compareByCodeUnit(a.disposition, b.disposition),
+  heroes: (a, b) => b.heroes - a.heroes,
+  upkeep: (a, b) => b.upkeep - a.upkeep,
+};
+
+/**
+ * `show guilds` and `show rankings` as one table (M9-S6, the review's B4): every Guild in play with
+ * its place, Disposition, Fame, Wealth, Heroes and Upkeep, sorted by `sort`; then the folded ones.
+ * Place is the engine's `rankingPlaces` (DL-95) by Wealth when sorted by Wealth, and by Fame
+ * otherwise, so Guilds level on the measure share a place (DL-91). Sorting changes nothing in the
+ * world.
+ */
+export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTable {
   const { world } = document;
   const { config } = playDeps(document);
-  return Object.values(world.guilds).map((guild) => ({
+  const measure: RankingMeasure = sort === 'wealth' ? 'wealth' : 'fame';
+  const places = new Map(rankingPlaces(world, measure).map((ranking) => [ranking.guildId, placeWords(ranking)]));
+  const rowFor = (guild: Guild): GuildRow => ({
     guildId: guild.id,
     name: guild.name,
     mine: guild.controller.kind === 'player',
-    controller: controllerWords(guild),
-    guildmaster: guildmasterOf(guild, world)?.name ?? 'none',
-    background: nameIn(content.backgrounds, guild.backgroundKey),
-    roster: guild.rosterIds.length,
-    wealth: guild.wealth,
+    place: places.get(guild.id) ?? null,
+    disposition: guild.controller.kind === 'player' ? 'Yours' : nameIn(content.dispositions, guild.controller.disposition),
     fame: guild.fame,
+    wealth: guild.wealth,
+    heroes: guild.rosterIds.length,
     upkeep: upkeep(guild, world, config, content),
     folded: guild.foldedOnTurn === null ? null : `folded on Day ${dayOf(guild.foldedOnTurn)}`,
-  }));
-}
-
-// ── The Rankings ─────────────────────────────────────────────────────────────────────────────
-
-export interface RankingRow {
-  /** `1st`, or `joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95). */
-  place: string;
-  guildId: GuildId;
-  name: string;
-  controller: string;
-  /** The Guild's Fame or Wealth, whichever it is ranked by. */
-  value: number;
-  mine: boolean;
-}
-
-/**
- * `show rankings --by <fame|wealth>`: the Guilds in play in the engine's order (R10), each at its
- * place, Guilds level on the measure sharing one (`rankingPlaces`, DL-95); a folded one is not ranked.
- */
-export function rankingsView(document: WorldDocument, by: RankingMeasure): RankingRow[] {
-  const { world } = document;
-  return rankingPlaces(world, by).map((ranking) => {
-    const guild = rowOf(world.guilds, ranking.guildId);
-    return {
-      place: placeWords(ranking),
-      guildId: ranking.guildId,
-      name: guild?.name ?? 'a Guild',
-      controller: guild === undefined ? '' : controllerWords(guild),
-      value: ranking.value,
-      mine: guild?.controller.kind === 'player',
-    };
   });
+  // The Rankings' order by the measure; by another column, a stable sort keeps it for ties.
+  const rows = rankingPlaces(world, sort === 'wealth' ? 'wealth' : 'fame').flatMap((ranking) => {
+    const guild = rowOf(world.guilds, ranking.guildId);
+    return guild === undefined ? [] : [rowFor(guild)];
+  });
+  if (sort !== 'fame' && sort !== 'wealth') rows.sort(guildOrders[sort]);
+  const folded = Object.values(world.guilds)
+    .filter((guild) => guild.foldedOnTurn !== null)
+    .map(rowFor);
+  return { measure, rows, folded };
 }
 
 // ── A Hall ───────────────────────────────────────────────────────────────────────────────────
@@ -131,6 +147,8 @@ export interface HallRow {
   /** `Training yard`. */
   name: string;
   grade: number;
+  /** The top grade, the highest content defines (`improvements.json`): the pips' count (M9-S6, the review's B9). */
+  top: number;
   /** The Improvement built at its grade, or `none`. */
   built: string;
   /** `The training yard gives …`. */
@@ -157,6 +175,8 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
   const { config } = playDeps(document);
   const builtAt = (facility: FacilityKey, grade: number): string =>
     Object.values(content.improvements).find((row) => row.facility === facility && row.grade === grade)?.name ?? 'none';
+  const topOf = (facility: FacilityKey): number =>
+    Math.max(0, ...Object.values(content.improvements).flatMap((row) => (row.facility === facility ? [row.grade] : [])));
   return {
     guildId: guild.id,
     guildName: guild.name,
@@ -168,6 +188,7 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
         facility,
         name: capitalised(facilityNames[facility]),
         grade,
+        top: topOf(facility),
         built: grade === 0 ? 'none' : builtAt(facility, grade),
         does: `The ${facilityNames[facility]} ${facilityDoes[facility]}.`,
         next: next === null ? null : { name: next.name, cost: next.cost },
@@ -193,6 +214,14 @@ export interface RegardRow {
   name: string;
   detail: string;
   regard: RegardBand;
+  /** The band is neutral: the page folds such rows under a count (M9-S6, the review's C8). */
+  neutral: boolean;
+}
+
+/** A Regard row for `name`, its `detail` and the Regard `value` in `config`'s bands. */
+function regardRow(name: string, detail: string, value: number, config: Pick<GameConfig, 'regardBands'>): RegardRow {
+  const regard = regardBand(value, config);
+  return { name, detail, regard, neutral: regard === 'neutral' };
 }
 
 export interface GuildmasterView {
@@ -221,7 +250,6 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   const { config } = playDeps(document);
   const guildmaster = guildmasterOf(guild, world);
   if (guildmaster === undefined) return null;
-  const band = (value: number): RegardBand => regardBand(value, config);
 
   return {
     guildmasterId: guildmaster.id,
@@ -242,23 +270,19 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
       name: nameIn(content.traits, key),
       effect: traitEffectWords(rowOf(content.traits, key)?.effect ?? null, content),
     })),
-    patrons: Object.values(world.patrons).map((patron) => ({
-      name: patron.name,
-      detail: nameIn(content.spheres, patron.sphereKey),
-      regard: band(regardValue(guildmaster.regard, patron.id)),
-    })),
+    patrons: Object.values(world.patrons).map((patron) =>
+      regardRow(patron.name, nameIn(content.spheres, patron.sphereKey), regardValue(guildmaster.regard, patron.id), config),
+    ),
     heroes: guild.rosterIds.flatMap((heroId) => {
       const hero = rowOf(world.heroes, heroId);
       if (hero === undefined) return [];
-      return [{ name: hero.name, detail: nameIn(content.classes, hero.classKey), regard: band(regardValue(guildmaster.regard, hero.id)) }];
+      return [regardRow(hero.name, nameIn(content.classes, hero.classKey), regardValue(guildmaster.regard, hero.id), config)];
     }),
     guilds: Object.values(world.guilds)
       .filter((other) => other.id !== guild.id && other.foldedOnTurn === null)
-      .map((other) => ({
-        name: other.name,
-        detail: guildmasterOf(other, world)?.name ?? 'no Guildmaster',
-        regard: band(guildmasterRegardForGuild(guildmaster, other.id, world)),
-      })),
+      .map((other) =>
+        regardRow(other.name, guildmasterOf(other, world)?.name ?? 'no Guildmaster', guildmasterRegardForGuild(guildmaster, other.id, world), config),
+      ),
   };
 }
 
@@ -270,19 +294,38 @@ export interface PatronRow {
   sphere: string;
   /** Their Regard for the player's Guild, as a band; `null` in a save with no player's Guild. */
   regard: RegardBand | null;
+  /** The player's Guildmaster's Regard for them, as a band (M9-S6); `null` with no player's Guildmaster. */
+  guildmasterRegard: RegardBand | null;
+  /** How many of their Quests are on the Board now. */
+  quests: number;
+  /** Both Regards are neutral, or unknown: the page folds such rows under a count (M9-S6, the review's B5). */
+  neutral: boolean;
 }
 
-/** `show patrons`: each Patron, their Sphere and their Regard for the player's Guild (M4-S5). */
+/**
+ * `show patrons` with the Guildmaster's side (M4-S5; M9-S6, the review's B5): each Patron, their
+ * Sphere, their Regard for the player's Guild, the player's Guildmaster's Regard for them, and how
+ * many of their Quests are on the Board now.
+ */
 export function patronsView(document: WorldDocument): PatronRow[] {
   const { world } = document;
   const { config } = playDeps(document);
   const guild = playerGuild(world);
-  return Object.values(world.patrons).map((patron) => ({
-    patronId: patron.id,
-    name: patron.name,
-    sphere: nameIn(content.spheres, patron.sphereKey),
-    regard: guild === undefined ? null : regardBand(patronRegardFor(patron, guild.id), config),
-  }));
+  const guildmaster = guild === undefined ? undefined : guildmasterOf(guild, world);
+  const posters = world.board.map((questId) => rowOf(world.quests, questId)?.patronId);
+  return Object.values(world.patrons).map((patron) => {
+    const regard = guild === undefined ? null : regardBand(patronRegardFor(patron, guild.id), config);
+    const guildmasterRegard = guildmaster === undefined ? null : regardBand(regardValue(guildmaster.regard, patron.id), config);
+    return {
+      patronId: patron.id,
+      name: patron.name,
+      sphere: nameIn(content.spheres, patron.sphereKey),
+      regard,
+      guildmasterRegard,
+      quests: posters.filter((patronId) => patronId === patron.id).length,
+      neutral: (regard ?? 'neutral') === 'neutral' && (guildmasterRegard ?? 'neutral') === 'neutral',
+    };
+  });
 }
 
 // ── Another Guild ────────────────────────────────────────────────────────────────────────────
@@ -302,7 +345,12 @@ export interface OtherRosterRow {
 export interface GuildPageView {
   guildId: GuildId;
   name: string;
+  /** The player's own Guild, which its name in the History or the Guilds' table also opens (M9-S6). */
+  mine: boolean;
   controller: string;
+  background: string;
+  fame: number;
+  wealth: number;
   folded: string | null;
   roster: OtherRosterRow[];
   hall: HallView;
@@ -324,7 +372,11 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
   return {
     guildId: guild.id,
     name: guild.name,
+    mine: guild.controller.kind === 'player',
     controller: controllerWords(guild),
+    background: nameIn(content.backgrounds, guild.backgroundKey),
+    fame: guild.fame,
+    wealth: guild.wealth,
     folded: guild.foldedOnTurn === null ? null : `folded on Day ${dayOf(guild.foldedOnTurn)}`,
     roster: guild.rosterIds.flatMap((heroId) => {
       const hero = rowOf(world.heroes, heroId);

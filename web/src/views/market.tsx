@@ -4,46 +4,72 @@
 // (`marketStock`, `sellPrice`), and the engine's `buy` and `sell` decide.
 //
 // A part of the Hall (M9-S3, DL-103): quantities are steppers, and the Guild's Wealth is the status
-// bar's to say. The tables and the filter chips are M9-S6's.
+// bar's to say. As tables (M9-S6, DL-106; the review's B3): what is for sale, with Item, Kind,
+// Effect, Price, Stock, how many and Buy, and chips that show one kind at a time, display only; and
+// what the Guild holds, with what each sells for, how many and Sell, drawn in the Hall's "What the
+// Guild holds" (`Holdings`), which is the one list of it.
 
 import type { WorldDocument } from '@heroesim/engine';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
-import { marketView, type HeldForSale, type ListingRow } from '../state/trade-views';
+import { marketView, type HeldForSale, type ListingRow, type MarketKind } from '../state/trade-views';
 import { Part } from './section';
-import { Stepper } from './ui';
+import { Stepper, VisuallyHidden } from './ui';
 
 type Play = (action: GameAction) => void;
 
 export function Market({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
-  const view = useMemo(() => marketView(document), [document]);
-  const kinds = `${view.forSale.length} ${view.forSale.length === 1 ? 'kind' : 'kinds'}`;
+  const [only, setOnly] = useState<MarketKind | null>(null);
+  const view = useMemo(() => marketView(document, only), [document, only]);
+  const kinds = `${view.kinds.reduce((sum, kind) => sum + kind.count, 0)} ${view.kinds.length === 1 ? 'kind' : 'kinds'}`;
+  // A kind no longer for sale shows everything again.
+  const shown = only !== null && !view.kinds.some((kind) => kind.key === only) ? null : only;
   return (
     <Part id="market">
       <p>
-        {view.forSale.length === 0
+        {view.totalForSale === 0
           ? 'The Market has nothing for sale.'
           : `${view.totalForSale} ${view.totalForSale === 1 ? 'Item' : 'Items'} for sale, of ${kinds}.`}
       </p>
-      <ul className="cards cards--grid">
-        {view.forSale.map((row) => (
-          <li key={row.definitionKey} className="card">
-            <Listing row={row} busy={busy} play={play} />
-          </li>
-        ))}
-      </ul>
-      {/* Nothing held, nothing to sell: the list is not drawn (the review's A5). */}
-      {view.guildName === null || view.held.length === 0 ? null : (
-        <>
-          <h4>Sell what {view.guildName} holds</h4>
-          <ul className="cards cards--grid">
-            {view.held.map((row) => (
-              <li key={row.key} className="card">
-                <Held row={row} busy={busy} play={play} />
-              </li>
-            ))}
-          </ul>
-        </>
+      {view.kinds.length < 2 ? null : (
+        <div className="filters" role="group" aria-label="Show for sale">
+          <button type="button" className="filter" aria-pressed={shown === null} onClick={() => setOnly(null)}>
+            All
+          </button>
+          {view.kinds.map((kind) => (
+            <button key={kind.key} type="button" className="filter" aria-pressed={shown === kind.key} onClick={() => setOnly(kind.key)}>
+              {kind.label} <span className="filter__count">{kind.count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {view.forSale.length === 0 ? null : (
+        <div className="table-wrap">
+          <table className="table table--first-sticky trade-table" aria-label="For sale at the Market">
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Kind</th>
+                <th scope="col">Effect</th>
+                <th scope="col" className="number">
+                  Price
+                </th>
+                <th scope="col" className="number">
+                  Stock
+                </th>
+                <th scope="col">How many</th>
+                <th scope="col">
+                  <VisuallyHidden>Buy</VisuallyHidden>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {view.forSale.map((row) => (
+                <Listing key={row.definitionKey} row={row} busy={busy} play={play} />
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </Part>
   );
@@ -59,47 +85,97 @@ function howMany(typed: number): number {
 
 function Listing({ row, busy, play }: { row: ListingRow; busy: boolean; play: Play }) {
   const [quantity, setQuantity] = useState(1);
-  function buy(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    play({ kind: 'buy', definitionKey: row.definitionKey, quantity: howMany(quantity) });
-  }
   return (
-    <form className="trade" onSubmit={buy} aria-label={`Buy ${row.name}`}>
-      <p>
-        <strong className="trade__name">{row.name}</strong>, {row.kind}: {row.does}.
-      </p>
-      <p>
-        {row.quantity} for sale at {row.price} Wealth each.
-      </p>
-      <div className="actions">
-        <Stepper label="How many" value={quantity} min={1} max={row.quantity} onChange={setQuantity} />
-        <button type="submit" disabled={busy}>
+    <tr data-testid="listing">
+      <th scope="row" className="trade__name">
+        {row.name}
+      </th>
+      <td>{row.kind}</td>
+      <td>{row.does}</td>
+      <td className="number">{row.price}</td>
+      <td className="number">{row.quantity}</td>
+      <td>
+        <Stepper label={`How many ${row.name}`} hideLabel value={quantity} min={1} max={row.quantity} onChange={setQuantity} />
+      </td>
+      <td>
+        <button
+          type="button"
+          aria-label={`Buy ${row.name}`}
+          disabled={busy}
+          onClick={() => play({ kind: 'buy', definitionKey: row.definitionKey, quantity: howMany(quantity) })}
+        >
           Buy
         </button>
-      </div>
-    </form>
+      </td>
+    </tr>
   );
+}
+
+/** What the Guild holds, with what the Market pays for each, how many to sell and Sell: the Hall's "What the Guild holds". */
+export function Holdings({ document, busy, play }: { document: WorldDocument; busy: boolean; play: Play }) {
+  const view = useMemo(() => marketView(document), [document]);
+  return (
+    <div className="table-wrap">
+      <table className="table table--first-sticky trade-table" aria-label={`What ${view.guildName ?? 'the Guild'} holds`}>
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Kind</th>
+            <th scope="col">Effect</th>
+            <th scope="col" className="number">
+              Held
+            </th>
+            <th scope="col" className="number">
+              Sells for
+            </th>
+            <th scope="col">How many</th>
+            <th scope="col">
+              <VisuallyHidden>Sell</VisuallyHidden>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {view.held.map((row) => (
+            <Held key={row.key} row={row} busy={busy} play={play} />
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** How many Items the Guild holds itself, which "What the Guild holds" is drawn only for. */
+export function heldCount(document: WorldDocument): number {
+  return marketView(document).held.length;
 }
 
 function Held({ row, busy, play }: { row: HeldForSale; busy: boolean; play: Play }) {
   const [quantity, setQuantity] = useState(1);
   const { sale } = row;
-  function sell(event: FormEvent<HTMLFormElement>): void {
-    event.preventDefault();
-    play('stackId' in sale ? { kind: 'sell', stackId: sale.stackId, quantity: howMany(quantity) } : { kind: 'sell', itemId: sale.itemId });
-  }
   return (
-    <form className="trade" onSubmit={sell} aria-label={`Sell ${row.name}`}>
-      <p>
-        <strong className="trade__name">{row.name}</strong>: {row.held} held;{' '}
-        {row.sellsFor === null ? 'the Market cannot price it.' : `each sells for ${row.sellsFor} Wealth.`}
-      </p>
-      <div className="actions">
-        {'stackId' in sale ? <Stepper label="How many" value={quantity} min={1} max={row.held} onChange={setQuantity} /> : null}
-        <button type="submit" disabled={busy}>
+    <tr data-testid="held">
+      <th scope="row" className="trade__name">
+        {row.name}
+      </th>
+      <td>{row.kind}</td>
+      <td>{row.does}</td>
+      <td className="number">{row.held}</td>
+      <td className="number">{row.sellsFor === null ? <span className="subtle">cannot be priced</span> : row.sellsFor}</td>
+      <td>
+        {'stackId' in sale ? <Stepper label={`How many ${row.name}`} hideLabel value={quantity} min={1} max={row.held} onChange={setQuantity} /> : null}
+      </td>
+      <td>
+        <button
+          type="button"
+          aria-label={`Sell ${row.name}`}
+          disabled={busy}
+          onClick={() =>
+            play('stackId' in sale ? { kind: 'sell', stackId: sale.stackId, quantity: howMany(quantity) } : { kind: 'sell', itemId: sale.itemId })
+          }
+        >
           Sell
         </button>
-      </div>
-    </form>
+      </td>
+    </tr>
   );
 }

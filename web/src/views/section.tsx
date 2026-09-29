@@ -29,7 +29,7 @@ export const partsOf: Readonly<Record<ViewId, readonly PartId[]>> = {
   guild: [],
   board: [],
   roster: ['offers', 'pool'],
-  hall: ['guildmaster', 'held', 'market'],
+  hall: ['guildmaster', 'market', 'held'],
   rankings: ['guilds', 'patrons'],
   history: [],
 };
@@ -78,12 +78,14 @@ export const help: Readonly<Record<SectionId, string>> = {
     'and consumables, the preview says what the Party would meet and whether it would be sent, and "Send the Party" ' +
     `sends it within the current Turn. ${rivalsReminder}`,
   roster:
-    "Your Heroes. Open a Hero's page for their Stats with hints of how far each may grow, their gear and their " +
-    'History; from it, put gear the Guild holds on them, take it off, or transfer them to another Guild.',
+    'Your Heroes, each with their Class, Level and age, their Morale and where they are. Open a Hero’s page for ' +
+    'their Stats by area, with what gear adds and a hint of how far each may grow, their gear and Skills, their ' +
+    'Relationships and their History; from it, put gear the Guild holds on them, take it off, or transfer them to ' +
+    'another Guild, which asks first.',
   hall:
-    'Your Guild’s premises. Build raises a facility one grade for the next grade’s cost. Each grade does more than ' +
-    'the one below it, and each adds to the Upkeep.',
-  rankings: 'Every Guild in play, ordered by its Fame or by its Wealth: choose which.',
+    'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
+    'on the button. Each grade does more than the one below it, and each adds to the Upkeep.',
+  rankings: 'Where every Guild stands, and the Patrons who offer the Quests.',
   history:
     'What happened, newest first, a page at a time, by Day and time of day: your Guild’s, the whole History or a ' +
     'Rival’s, one choice away. What your last play added is marked new. A Party’s Encounters fold under how its ' +
@@ -93,27 +95,33 @@ export const help: Readonly<Record<SectionId, string>> = {
   offers:
     'A Rival’s bid for one of your Heroes waits here until you accept it, decline it or it expires. Accepting sends ' +
     'the Hero to that Guild for the fee; their gear stays with you, and the Heroes left behind who held them in high ' +
-    'Regard lose Morale.',
+    'Regard lose Morale. Accept asks before it lets the Hero go.',
   pool:
     'Heroes on no Roster, whom any Guild may sign for a signing fee. A Hero of a higher Level will not sign for a ' +
-    'Guild whose Fame is below what their Level asks. Recruit signs one to your Roster for the fee; open a Hero to ' +
-    'see their Stats first.',
+    'Guild whose Fame is below what their Level asks, and their row is set back. Order the pool by Class or by fee ' +
+    'from their headings. Recruit signs one to your Roster for the fee; open a Hero to see their Stats first.',
   guildmaster:
     'Your character in the world. Their Stats bear on running the Guild, never on fighting: each says what it bears ' +
-    'on. Their Traits help or hinder the Guild, and their Regard for others is shown as a band.',
+    'on. Their Traits help or hinder the Guild, each with what it does, and their Regard for others is shown as a ' +
+    'band, the neutral ones folded under their count.',
   held:
     'The Items your Guild holds and has not put on a Hero: gear to put on one from their page, consumables a Party ' +
-    'can carry, and anything the Market will buy.',
+    'can carry, and anything the Market will buy. Sell sells the number chosen for what the Market pays for each, ' +
+    'which is less than it costs. Gear a Hero carries is not the Guild’s to sell until it is unequipped.',
   market:
-    'Buy Items the Market has for sale at its price each, and sell what your Guild holds for what the Market pays, ' +
-    'which is less. Gear a Hero carries is not the Guild’s to sell until it is unequipped. The Market’s stock is ' +
-    'drawn afresh each morning.',
+    'Buy Items the Market has for sale at its price each, the number chosen; show one kind at a time with the chips ' +
+    'above the table. The Market’s stock is drawn afresh each morning.',
   guilds:
-    'Every Guild, yours and the Rivals’, a folded one marked with the Day it folded. Open a Rival to see its Roster, ' +
-    'with the Transfer fee your Guild would pay to take each Hero in, its Hall and its Guildmaster.',
+    'Every Guild in one table, yours marked, in the Rankings by Fame at first. A column’s heading orders the table ' +
+    'by it: by Fame or by Wealth it is the Rankings, where Guilds level share a place; by any other column the order ' +
+    'is for display, and Place still reads by Fame. A folded Guild is listed last, with the Day it folded. Open a ' +
+    'Guild for its Roster, with the Transfer fee your Guild would pay to take each Hero in, and its Hall and ' +
+    'Guildmaster.',
   patrons:
-    'Those who offer Quests, each of a walk of life. A Patron’s Regard for your Guild rises and falls with how their ' +
-    'Quests go, weighs on how often they post to the Board, and recovers toward neutral with time.',
+    'Those who offer Quests, each of a walk of life: their Regard for your Guild, your Guildmaster’s Regard for them, ' +
+    'and their Quests on the Board now. A Patron’s Regard for your Guild rises and falls with how their Quests go, ' +
+    'weighs on how often they post to the Board, and recovers toward neutral with time. Those neutral both ways are ' +
+    'folded under their count.',
   'new-game':
     'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their sex and ' +
     'age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +

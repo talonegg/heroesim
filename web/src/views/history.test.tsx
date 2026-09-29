@@ -255,12 +255,16 @@ describe("each one's page opens their History (M9-S5)", () => {
   test("a Rival's page in the Rankings, a Patron and a Guildmaster", () => {
     render_(played(started(), { kind: 'advance', turns: 3 }));
     const guilds = section('Guilds');
-    fireEvent.click(within(guilds).getAllByRole('button', { name: /^Open / })[0] as HTMLElement);
+    // The player's Guild is a row of the table too (M9-S6): a Rival's is one of the others.
+    fireEvent.click(within(guilds).getAllByRole('button', { name: /^Open / }).find((each) => each.getAttribute('aria-label') !== 'Open The Lantern') as HTMLElement);
     const rival = within(guilds).getByRole('heading', { level: 4 }).textContent ?? '';
     fireEvent.click(within(guilds).getByRole('button', { name: `Read the History of ${rival}` }));
     expect(title()).toBe(`The History of ${rival}`);
     expect(within(whose()).getByRole('button', { name: rival }).getAttribute('aria-pressed')).toBe('true');
 
+    // A Patron neutral both ways is folded under the count of them (M9-S6).
+    const fold = within(section('Patrons')).queryByRole('button', { name: /^\d+ neutral$/ });
+    if (fold !== null) fireEvent.click(fold);
     const [patron] = within(section('Patrons')).getAllByRole('button', { name: /^Read the History of / });
     const patronName = /^Read the History of (.+)$/.exec(patron?.getAttribute('aria-label') ?? '')?.[1];
     fireEvent.click(patron as HTMLElement);

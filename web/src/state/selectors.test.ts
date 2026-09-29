@@ -43,7 +43,6 @@ import {
   guildmasterSetupChoices,
   traitBudgetView,
   headerView,
-  heldView,
   heroPage,
   partyRows,
   previewView,
@@ -433,9 +432,11 @@ describe('the Party builder (M9-S4, DL-104)', () => {
 
     for (const row of partyRows(document, quest.id) ?? []) {
       const page = heroPage(document, row.heroId);
-      for (const stat of row.stats) expect(stat.value).toBe(page?.stats.find((each) => each.name === stat.name)?.effective);
+      for (const stat of row.stats) expect(stat.value).toBe(page?.areas.flatMap((area) => area.stats).find((each) => each.name === stat.name)?.value);
       for (const skill of row.skills) expect(page?.skills).toContainEqual(skill);
-      expect(`${row.morale}, ${row.moraleBand}`).toBe(rosterView(document).find((each) => each.heroId === row.heroId)?.morale);
+      const card = rosterView(document).find((each) => each.heroId === row.heroId);
+      expect([row.morale, row.moraleBand]).toEqual([card?.morale, card?.moraleBand]);
+      expect([row.morale, row.moraleBand]).toEqual([page?.morale.value, page?.morale.band]);
     }
   });
 
@@ -516,25 +517,31 @@ describe('rosterView', () => {
     expect(rows.map((row) => row.heroId)).toEqual(player(document).rosterIds);
     expect(rows[0]?.whereabouts).toBe('injured, healing on the night of Day 6');
     expect(rows[1]?.whereabouts).toBe('at the Hall');
-    expect(rows[0]?.morale).toMatch(/^\d+, (wretched|low|steady|high|elated)$/);
   });
-});
 
-describe('heldView', () => {
-  test('lists what the Guild holds: each Item by name, its kind, how many, and what gear modifies', () => {
+  test("gives each card its Morale and band apart, and why a Hero is not at the Hall, for the icon beside its words (M9-S6, DL-106)", () => {
     const document = structuredClone(newGame());
-    const guild = player(document);
-    addStack(document.world, 'healing-draught', 3, { kind: 'guild', id: guild.id });
-    addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
+    const [injured, away, home] = heroes(document);
+    if (injured === undefined || away === undefined || home === undefined) throw new Error('three Heroes wanted');
+    injured.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    injured.morale = 12;
+    away.partyId = 'party-000009' as PartyId;
+    document.world.parties['party-000009' as PartyId] = {
+      id: 'party-000009' as PartyId,
+      questId: 'quest-000001' as QuestId,
+      guildId: player(document).id,
+      heroIds: [away.id],
+      departedOnTurn: 0,
+      returnsOnTurn: 14,
+    };
+    away.morale = 80;
+    home.morale = 50;
 
-    const rows = heldView(document).map(({ name, kind, quantity, modifies }) => ({ name, kind, quantity, modifies }));
+    const [first, second, third] = rosterView(document);
 
-    expect(rows).toEqual(
-      expect.arrayContaining([
-        { name: content.items['healing-draught']?.name, kind: 'consumable', quantity: 3, modifies: '' },
-        { name: content.items['arming-sword']?.name, kind: 'weapon gear', quantity: 1, modifies: 'Weaponry +2, Strength +1' },
-      ]),
-    );
+    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'injured, healing on the night of Day 6' });
+    expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'away with a Party, back on the night of Day 4' });
+    expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'at the Hall' });
   });
 });
 
@@ -548,8 +555,9 @@ describe('heroPage', () => {
       const page = heroPage(document, hero.id);
       const stats = Object.values(content.stats).filter((stat) => stat.owner === 'hero');
 
-      expect(page?.stats.map((row) => row.outlook)).toEqual(stats.map((stat) => potentialHint(hero, stat.key, bands)));
-      expect(page?.stats.map((row) => row.base)).toEqual(stats.map((stat) => hero.stats[stat.key]));
+      const rows = page?.areas.flatMap((area) => area.stats) ?? [];
+      expect(rows.map((row) => row.outlook)).toEqual(stats.map((stat) => potentialHint(hero, stat.key, bands)));
+      expect(rows.map((row) => row.base)).toEqual(stats.map((stat) => hero.stats[stat.key]));
       expect(JSON.stringify(page)).not.toMatch(/potential/i);
     }
   });
@@ -578,7 +586,96 @@ describe('heroPage', () => {
     const [pooled] = unattachedHeroes(document.world);
     if (pooled === undefined) throw new Error('an empty pool');
 
-    expect(heroPage(document, pooled.id)?.attributes).toContainEqual(['Where', 'in the Unattached pool']);
+    expect(heroPage(document, pooled.id)?.where).toEqual({ why: null, words: 'in the Unattached pool' });
+  });
+});
+
+describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
+  test('says who the Hero is in one line: Class, Level, age, sex, Background and Guild', () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    hero.classKey = 'rogue';
+    hero.level = 3;
+    hero.sex = 'female';
+    hero.backgroundKey = 'poachers-child';
+    hero.ageAtEntry = 18;
+    hero.enteredTurn = 0;
+
+    expect(heroPage(document, hero.id)?.line).toEqual(['Rogue', 'Level 3', 'age 18', 'female', content.backgrounds['poachers-child']?.name, 'of The Lantern']);
+  });
+
+  test('gives Morale with its band, where the Hero is and why they cannot go, the Injury, XP and Traits as chips', () => {
+    const document = structuredClone(newGame());
+    const [hero, other] = heroes(document);
+    if (hero === undefined || other === undefined) throw new Error('two Heroes wanted');
+    hero.morale = 30;
+    hero.xp = 45;
+    hero.injury = { typeKey: 'deep-cut', healsOnTurn: 20 };
+    hero.traits = ['scarred' as never];
+
+    const page = heroPage(document, hero.id);
+
+    expect(page).toMatchObject({
+      morale: { value: 30, band: 'low' },
+      where: { why: 'injured', words: 'injured, healing on the night of Day 6' },
+      injury: content.injuries['deep-cut']?.name,
+      xp: 45,
+      traits: [content.traits.scarred?.name ?? 'scarred'],
+      fee: null,
+    });
+    expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'at the Hall' }, injury: null, traits: [] });
+  });
+
+  test('gives the Stats in four area blocks, in content’s order, each with the value a Check reads and what gear and the Guildmaster’s Traits add', () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    hero.classKey = 'mage';
+    const guildmaster = guildmasterOf(player(document), document.world);
+    if (guildmaster === undefined) throw new Error('no Guildmaster');
+    guildmaster.traits = ['mistrusts-magic' as never];
+    addStack(document.world, 'arming-sword', 1, { kind: 'hero', id: hero.id, slot: 'weapon' });
+
+    const areas = heroPage(document, hero.id)?.areas ?? [];
+
+    expect(areas.map((area) => [area.name, area.stats.length])).toEqual([
+      ['Physical', 5],
+      ['Mental', 6],
+      ['Magical', 5],
+      ['Social', 4],
+    ]);
+    const stat = (name: string) => areas.flatMap((area) => area.stats).find((row) => row.name === name);
+    const base = (key: string): number => hero.stats[key] ?? 0;
+    // The arming sword: Weaponry +2 and Strength +1; Mistrusts magic: −1 Arcana to Mages.
+    expect(stat('Weaponry')).toMatchObject({ value: base('weaponry') + 2, lift: { words: '+2', up: true } });
+    expect(stat('Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
+    expect(stat('Arcana')).toMatchObject({ value: base('arcana') - 1, lift: { words: '-1', up: false } });
+    expect(stat('Wits')).toMatchObject({ value: base('wits'), lift: null });
+    expect(JSON.stringify(areas)).not.toMatch(/potential/i);
+  });
+
+  test('gives each other Hero on the Roster as a Relationship, marked neutral when both bands are, for the page to fold', () => {
+    const document = structuredClone(newGame());
+    const [hero, liked, disliked, stranger] = heroes(document);
+    if (hero === undefined || liked === undefined || disliked === undefined || stranger === undefined) throw new Error('four Heroes wanted');
+    hero.regard[liked.id] = { value: 8, since: 0, reason: 'test' };
+    disliked.regard[hero.id] = { value: -30, since: 0, reason: 'test' };
+
+    const rows = heroPage(document, hero.id)?.relationships ?? [];
+
+    expect(rows.find((row) => row.name === liked.name)).toMatchObject({ regard: 'warm', neutral: false });
+    expect(rows.find((row) => row.name === disliked.name)).toMatchObject({ regard: 'neutral', neutral: false });
+    expect(rows.find((row) => row.name === stranger.name)).toMatchObject({ regard: 'neutral', relationship: 'neutral', neutral: true });
+  });
+
+  test("a dead Hero's whereabouts say when they died, and why they cannot go", () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    hero.diedOnTurn = 9;
+
+    expect(heroPage(document, hero.id)?.where).toEqual({ why: 'dead', words: 'died on Day 3' });
   });
 });
 
@@ -603,12 +700,36 @@ describe("a Hero's page offers what can be done with the Hero", () => {
       { name: content.items['arming-sword']?.name, kind: 'weapon gear', stack: true },
     ]);
     expect(page.gear.filter((row) => row.worn).map((row) => row.slot)).toEqual(['armour']);
+    expect(page.gear.map(({ slotName, item, worn }) => [slotName, item, worn])).toEqual([
+      ['Weapon', 'none', false],
+      ['Armour', 'Padded jack', true],
+      ['Trinket', 'none', false],
+    ]);
     expect(page.actions.transferTo).toEqual(
-      others.map((other) => ({
-        guildId: other.id,
-        name: other.name,
-        fee: transferFee(hero, guildmasterOf(other, document.world), deps),
-      })),
+      others.map((other) => {
+        const fee = transferFee(hero, guildmasterOf(other, document.world), deps);
+        return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${fee} Wealth for ${hero.name}`) };
+      }),
+    );
+  });
+
+  test("asks before a Transfer out, stating the fee and the Morale it costs in the words the page gives them (M9-S6, the review's E4)", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    hero.name = 'Finn Grimshaw';
+    const other = Object.values(document.world.guilds).find((each) => each.id !== guild.id);
+    if (other === undefined) throw new Error('no Rival');
+    other.name = 'The Ashford Guild';
+
+    const page = heroPage(document, hero.id);
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    const target = page.actions.transferTo.find((each) => each.guildId === other.id);
+
+    expect(target?.sentence).toBe(
+      `The Ashford Guild would pay ${target?.fee} Wealth for Finn Grimshaw, if it is willing to take them. Their gear stays with your ` +
+        'Guild, and the Heroes left behind who held them in high Regard lose Morale.',
     );
   });
 
@@ -630,7 +751,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     });
   });
 
-  test("shows on every Rival Hero's page, among the Attributes, the Transfer fee the player's Guild would pay: its actions' fee (DL-74)", () => {
+  test("shows on every Rival Hero's page, among its chips, the Transfer fee the player's Guild would pay: its actions' fee (DL-74)", () => {
     const document = newGame();
     const buyer = guildmasterOf(player(document), document.world);
     const rivals = Object.values(document.world.guilds).filter((each) => each.id !== player(document).id);
@@ -641,7 +762,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
         const page = heroPage(document, heroId);
         const fee = transferFee(hero, buyer, deps);
 
-        expect(page?.attributes).toContainEqual(['Transfer fee', `${fee} Wealth`]);
+        expect(page?.fee).toBe(fee);
         expect(page?.actions).toMatchObject({ kind: 'rival', fee });
         // The fee at the selling Guild's own Guildmaster's Negotiation is another number for most.
         if (transferFee(hero, guildmasterOf(rival, document.world), deps) !== fee) seller += 1;
