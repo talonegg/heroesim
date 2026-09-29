@@ -137,17 +137,18 @@ export function NewGame({
         >
           <div className="setup">
             <div className="setup__pair">
-              <label className="field">
-                <span>Sex</span>
-                <select name="guildmasterSex" value={sex} onChange={(event) => setSex(event.target.value as Sex | '')}>
-                  <option value="">Drawn from the seed</option>
-                  {choices.sexes.map(({ value, label }) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <Field label="Sex">
+                {(id) => (
+                  <select id={id} name="guildmasterSex" value={sex} onChange={(event) => setSex(event.target.value as Sex | '')}>
+                    <option value="">Drawn from the seed</option>
+                    {choices.sexes.map(({ value, label }) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </Field>
               <Field label="Age" hint={`Years, ${choices.agesWords}`}>
                 {(id, described) => (
                   <select id={id} name="guildmasterAge" value={age} aria-describedby={described} onChange={(event) => setAge(event.target.value)}>
@@ -252,16 +253,21 @@ export function NewGame({
   );
 }
 
-/** A field with its label and a hint under it, the hint its control's description. */
-function Field({ label, hint, children }: { label: string; hint: string; children: (id: string, described: string) => ReactNode }) {
+/**
+ * A field whose label names its control alone, as a label around a list would not (its options are
+ * read into its name), with a hint under it that describes the control.
+ */
+function Field({ label, hint, children }: { label: string; hint?: string; children: (id: string, described?: string) => ReactNode }) {
   const id = useId();
   return (
     <div className="field">
       <label htmlFor={`${id}-control`}>{label}</label>
-      {children(`${id}-control`, `${id}-hint`)}
-      <span className="field__hint" id={`${id}-hint`}>
-        {hint}
-      </span>
+      {children(`${id}-control`, hint === undefined ? undefined : `${id}-hint`)}
+      {hint === undefined ? null : (
+        <span className="field__hint" id={`${id}-hint`}>
+          {hint}
+        </span>
+      )}
     </div>
   );
 }

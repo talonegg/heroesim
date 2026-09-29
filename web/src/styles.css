@@ -1210,6 +1210,11 @@ input[type='radio'] {
   text-align: left;
 }
 
+/* The status bar keeps its own buttons to a line; a longer way to fast forward wraps (M9-S7). */
+.status__time .popover--time button {
+  white-space: normal;
+}
+
 .dialog-backdrop {
   position: fixed;
   inset: 0;

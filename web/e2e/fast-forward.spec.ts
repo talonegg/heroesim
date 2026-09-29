@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { expect, test, type Page, type TestInfo } from '@playwright/test';
-import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, startGame, statusBar, thisGame } from './support';
+import { closeGameMenu, expectNoHorizontalOverflow, openGameMenu, openView, playTurns, startGame, statusBar, thisGame } from './support';
 
 // Fast forward in steps (v1.0.1-S5, DL-96), in the built page at a phone's width and a desktop's.
 // The spec makes a save that runs a year: a new game exported, the player's Roster released to
@@ -139,4 +139,60 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
   await expectNoHorizontalOverflow(page, 'a fast forward stopped');
   await expect((await thisGame(page)).getByRole('button', { name: 'Export this game' })).toBeEnabled();
   await closeGameMenu(page);
+});
+
+/**
+ * Exports the game in hand and writes it back with the player's Guild's Wealth at `wealth`: below the
+ * Bankruptcy floor, the next night's check finds it there (M9-S7).
+ */
+async function withWealth(page: Page, testInfo: TestInfo, wealth: number): Promise<string> {
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click(),
+  ]);
+  const exported = testInfo.outputPath('a-new-game.json');
+  await download.saveAs(exported);
+  const save = JSON.parse(readFileSync(exported, 'utf8')) as SaveFile;
+  const player = Object.values(save.world.guilds).find((guild) => guild.controller.kind === 'player');
+  if (player === undefined) throw new Error("the save has no player's Guild");
+  player.wealth = wealth;
+  const made = testInfo.outputPath('below-the-floor.json');
+  writeFileSync(made, JSON.stringify(save));
+  return made;
+}
+
+test('falling below the Bankruptcy floor stops a fast forward unasked; the home view warns, with the ways to the Market and the Board (M9-S7)', async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: 'The Lantern', master: 'Ada Vell', seed: 'e2e-bankruptcy' });
+  // The Guild's Wealth below the floor, in a save loaded back.
+  const time = statusBar(page).getByRole('group', { name: 'Time' });
+  const save = await withWealth(page, testInfo, -50);
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(save);
+  await expect(page.getByTestId('wealth')).toHaveText('-50');
+  await closeGameMenu(page);
+
+  // The first night's check finds it below the floor: the fast forward stops that night, unasked,
+  // before the morning's Quests could ask for a decision.
+  await playTurns(page, time.getByRole('button', { name: 'Fast forward', exact: true }));
+  await expect(page.getByTestId('time')).toHaveText('Day 0, night, Year 0');
+  const due = (await page.getByTestId('countdown').textContent()) ?? '';
+  expect(due).toMatch(/^Bankruptcy on the night of Day \d+$/);
+  const home = page.getByRole('region', { name: 'Guild', exact: true });
+  await expect(home).toBeVisible();
+  const stop = page.getByTestId('stop');
+  await expect(stop).toHaveClass(/stop--warning/);
+  await expect(stop.locator('p').first()).toHaveText(new RegExp(`^Stopped: The Lantern fell below the Bankruptcy floor: ${due} unless its Wealth recovers by then\\.$`));
+  await expect(stop).toContainText('Sell what the Guild holds at the Market, or send a Party on a Quest');
+  await expect(home.getByText(/has been below the Bankruptcy floor since/)).toHaveCount(0);
+  await expectNoHorizontalOverflow(page, 'the Bankruptcy stop');
+
+  // Its ways to Wealth: the Hall's Market, and the Board.
+  await stop.getByRole('button', { name: 'Sell at the Market' }).click();
+  await expect(page.getByRole('heading', { level: 3, name: 'Market', exact: true })).toBeFocused();
+  await openView(page, 'Guild');
+  await stop.getByRole('button', { name: 'Open the Board' }).click();
+  await expect(page.getByRole('heading', { level: 2, name: 'Board', exact: true })).toBeFocused();
 });
