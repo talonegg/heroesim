@@ -69,14 +69,21 @@ export function pickUnused(state: Stream, names: readonly string[], used: Readon
 }
 
 /**
- * One of `items`, each equally likely, as `pick` draws it; or `undefined` when there are none. One
- * draw either way, so that how many items there are to choose from never moves a later draw (M9-S2:
- * the Traits a Guildmaster may still take).
+ * One of `items`, each equally likely, taking exactly `draws` draws: the first picks, as `pick`
+ * draws, and the rest are spent, so that how many items there are to choose from never moves a
+ * later draw (DL-109 item 1: a Guildmaster's legal sets of Traits). With no draw to take, the one
+ * item is taken. Throws on an empty list, a count of draws that is not a whole number from 0, or
+ * several items and no draw to choose between them.
  */
-export function pickOrNone<T>(state: Stream, items: readonly T[]): T | undefined {
-  if (items.length > 0) return pick(state, items);
-  next(state);
-  return undefined;
+export function pickInDraws<T>(state: Stream, items: readonly T[], draws: number): T {
+  if (!Number.isSafeInteger(draws) || draws < 0) throw new RangeError(`A count of draws is a whole number from 0; got ${draws}`);
+  if (draws === 0) {
+    if (items.length !== 1) throw new RangeError(`With no draw to take there must be one item; got ${items.length}`);
+    return items[0] as T;
+  }
+  const item = pick(state, items);
+  for (let spent = 1; spent < draws; spent += 1) next(state);
+  return item;
 }
 
 /**

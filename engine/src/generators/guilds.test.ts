@@ -240,7 +240,7 @@ describe('generateGuild', () => {
   });
 });
 
-describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3)", () => {
+describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3; DL-109 item 1)", () => {
   /** `count` Guildmasters generated under `deps`, eight to a world as the Guild names allow. */
   function guildmasters(deps: ReturnType<typeof testDeps>, count: number) {
     const drawn = [];
@@ -277,7 +277,7 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3)", ()
     }
 
     expect(new Set(drawn.map(({ traits }) => traits.length))).toEqual(new Set([0, 1, 2]));
-    // The dearer buffs come only beside a penalty drawn before them: a running cost within the budget.
+    // The dearer buffs come only beside a penalty: a set's cost within the budget.
     expect(held).toContain('miser thrifty');
     expect(held).toContain('spendthrift well-liked');
     expect(held).not.toContain('thrifty');
@@ -285,27 +285,82 @@ describe("a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3)", ()
     expect(held).not.toContain('miser spendthrift');
   });
 
-  test('each draw is among the Traits that keep the running cost within the budget, and a draw with none eligible stops short', () => {
-    // At a budget of −2 the first draw can take only Miser or Spendthrift, and the second only
-    // Mistrusts magic: the other penalty is excluded, and every buff would pass −2.
-    const tight = testDeps({ guildmasterTraitBudget: -2, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 });
-    const pairs = new Set(guildmasters(tight, 60).map(({ traits }) => traits.join(' ')));
-    expect(pairs).toEqual(new Set(['miser mistrusts-magic', 'spendthrift mistrusts-magic']));
+  test('the Traits are one set drawn uniformly from every legal set of the count drawn (DL-109 item 1)', () => {
+    // At the core's costs and a budget of 1, nine pairs are legal: no excluded pair, costing at most 1.
+    const legalPairs = [
+      'miser mistrusts-magic',
+      'miser old-soldier',
+      'miser thrifty',
+      'mistrusts-magic old-soldier',
+      'mistrusts-magic spendthrift',
+      'mistrusts-magic thrifty',
+      'mistrusts-magic well-liked',
+      'old-soldier spendthrift',
+      'spendthrift well-liked',
+    ];
+    const pairs = guildmasters(testDeps({ guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 }), 1800).map(({ traits }) => traits.join(' '));
+    const counts = tally(pairs);
 
-    // Below every cost, no Trait is ever eligible: the draw stops at none.
-    const none = testDeps({ guildmasterTraitBudget: -3, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 });
+    expect(Object.keys(counts).sort()).toEqual(legalPairs);
+    // Each is drawn about one time in nine: 200 of 1,800, which a Trait at a time never gave
+    // (Mistrusts magic beside Thrifty came one time in twenty).
+    for (const pair of legalPairs) {
+      expect(counts[pair], pair).toBeGreaterThan(140);
+      expect(counts[pair], pair).toBeLessThan(260);
+    }
+  });
+
+  test("a set's Traits are held in the content's Trait order, whichever were drawn", () => {
+    const deps = testDeps();
+    const order = Object.keys(deps.content.traits).sort();
+    for (const { traits } of guildmasters(deps, 200)) {
+      expect(traits).toEqual([...traits].sort((a, b) => order.indexOf(a) - order.indexOf(b)));
+    }
+  });
+
+  test('a count no legal set has falls to the largest smaller size that has one, and the empty set is always legal', () => {
+    // No five of the six are free of an excluded pair, so a count of six draws one of the two legal fours.
+    const six = guildmasters(testDeps({ guildmasterTraitsMin: 6, guildmasterTraitsMax: 6 }), 60).map(({ traits }) => traits.join(' '));
+    expect(new Set(six)).toEqual(new Set(['miser mistrusts-magic old-soldier thrifty', 'mistrusts-magic old-soldier spendthrift well-liked']));
+
+    // At a budget of −3 no three are cheap enough, and no one Trait alone: two penalties together are.
+    const tight = testDeps({ guildmasterTraitBudget: -3, guildmasterTraitsMin: 3, guildmasterTraitsMax: 3 });
+    const pairs = new Set(guildmasters(tight, 60).map(({ traits }) => traits.join(' ')));
+    expect(pairs).toEqual(new Set(['miser mistrusts-magic', 'mistrusts-magic spendthrift']));
+
+    // Below every set's cost, only the empty set is left, whatever the count.
+    const none = testDeps({ guildmasterTraitBudget: -4, guildmasterTraitsMin: 2, guildmasterTraitsMax: 2 });
     for (const { traits } of guildmasters(none, 40)) expect(traits).toEqual([]);
   });
 
   test("the draw takes the draws DL-19's shuffle took, one for the count and one for each Guildmaster Trait but the last, so nothing after it moves", () => {
-    const deps = testDeps();
+    // At the defaults; a count that falls to four; and a budget that leaves only the empty set.
+    for (const overrides of [{}, { guildmasterTraitsMin: 6, guildmasterTraitsMax: 6 }, { guildmasterTraitBudget: -4 }]) {
+      const deps = testDeps(overrides);
+      const world = testWorld('draw-count', deps);
+      const twin = structuredClone(world.rng.generation);
+      generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+
+      // The Guild's name and Background (2), then the Guildmaster's sex (1), name (2), age (1), five
+      // Stats (5), the count (1) and five of the six Guildmaster Traits (5): 17 draws.
+      for (let draw = 0; draw < 17; draw += 1) next(twin);
+      expect(world.rng.generation, JSON.stringify(overrides)).toEqual(twin);
+    }
+  });
+
+  test('content with one Guildmaster Trait takes no draw past the count, as the shuffle of one took none', () => {
+    const base = testDeps();
+    const deps = testDeps({ guildmasterTraitsMin: 1, guildmasterTraitsMax: 1 }, {
+      ...base.content,
+      traits: Object.fromEntries(Object.entries(base.content.traits).filter(([key, trait]) => trait.owner === 'hero' || key === 'old-soldier')),
+    });
     const world = testWorld('draw-count', deps);
     const twin = structuredClone(world.rng.generation);
-    generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
+    const { guildmaster } = generateGuild(world, deps, { controller: rival, rosterSize: 0, wealth: 0 });
 
-    // The Guild's name and Background (2), then the Guildmaster's sex (1), name (2), age (1), five
-    // Stats (5), the count (1) and five of the six Guildmaster Traits (5): 17 draws.
-    for (let draw = 0; draw < 17; draw += 1) next(twin);
+    expect(guildmaster.traits).toEqual(['old-soldier']);
+    // The Guild's 2, the Guildmaster's sex, name, age and Stats (9), and the count (1): 12 draws.
+    for (let draw = 0; draw < 12; draw += 1) next(twin);
     expect(world.rng.generation).toEqual(twin);
   });
 

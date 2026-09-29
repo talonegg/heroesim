@@ -101,16 +101,18 @@ export interface GameConfig {
   guildmasterStatMax: number;
   /**
    * How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2): the count is
-   * drawn from this range, and the draw may stop short of it (`guildmasterTraitBudget`). The
-   * maximum caps the Traits a player chooses at setup too (DL-100 item 3).
+   * drawn from this range, and a smaller set is drawn when no legal set has that many
+   * (`guildmasterTraitBudget`, DL-109 item 1). The maximum caps the Traits a player chooses at setup
+   * too (DL-100 item 3).
    */
   guildmasterTraitsMin: number;
   guildmasterTraitsMax: number;
   /**
    * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
    * in all, each Trait's cost being content's (`Trait.cost`), a buff costing and a penalty
-   * refunding. A drawn Guildmaster's every draw keeps the running cost within it; a player's
-   * choice at setup is refused over it. At 1, the dearer buffs need a penalty beside them.
+   * refunding. A drawn Guildmaster's Traits are one set drawn from every set within it (DL-109
+   * item 1); a player's choice at setup is refused over it. At 1, the dearer buffs need a penalty
+   * beside them.
    */
   guildmasterTraitBudget: number;
 

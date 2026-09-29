@@ -104,7 +104,9 @@ Every system in the game must serve at least one of these:
   originally "Attributes (name, sex, details)", with "details" undefined and the sex drawn at
   setup; the owner's decision, where the agents recommended an optional sex at setup and striking
   "details". Amended again 2026-09-29 with the terms, the costs, the budget and the exclusions of
-  DL-100 item 3, the owner's approval of an agent's values; built in M9-S2, DL-102.)
+  DL-100 item 3, the owner's approval of an agent's values; built in M9-S2, DL-102. A drawn
+  Guildmaster's Traits are then drawn as one whole legal set, uniformly among the sets of the count
+  drawn, by the owner's DL-109 item 1; built in DL-110.)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never

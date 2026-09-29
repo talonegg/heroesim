@@ -30,7 +30,7 @@ import {
   drawCount,
   drawPersonName,
   drawUnusedPersonName,
-  pickOrNone,
+  pickInDraws,
   pickUnused,
   sexes,
   sortedKeys,
@@ -274,46 +274,52 @@ function drawGuildName(state: Stream, names: readonly string[], guilds: readonly
 }
 
 /**
- * A drawn Guildmaster's Traits (M9-S2, DL-100 item 3): a count from `guildmasterTraitsMin/Max`, as
- * before; then, for each of the count, one draw uniform among the Guildmaster Traits in key order
- * that are not yet held, are not excluded by one held, and keep the running cost within
- * `guildmasterTraitBudget`. When none is eligible the draw stops short, so a Guildmaster may hold
- * fewer than the count, and a Trait once ineligible for want of budget can become eligible after a
- * penalty is drawn.
+ * A drawn Guildmaster's Traits (M9-S2, DL-100 item 3; DL-109 item 1): a count from
+ * `guildmasterTraitsMin/Max`, as before; then one set of that many, drawn uniformly from every
+ * legal set (`legalTraitSets`): distinct Guildmaster Traits, no excluded pair, and a total cost
+ * within `guildmasterTraitBudget`. When no legal set has that many, the largest smaller size that
+ * has one is drawn from; the empty set is always legal. The set's Traits are held in key order.
  *
  * It takes the draws DL-19 item 6's shuffle of every Guildmaster Trait took, whatever it draws: one
- * for the count, then one for each Guildmaster Trait but the last, taken or not; a Guildmaster
- * holding all the others has at most one left to take, which needs no draw, as the shuffle's last
- * place needs none. So the costs, the exclusions and the count drawn never move a later draw
- * (draw.ts's rule), and the rest of every seed's world is what it was: only the Guildmasters'
- * Traits changed with the budget (DL-102).
+ * for the count, then one for each Guildmaster Trait but the last, the first of which picks the set
+ * and the rest of which are spent (`pickInDraws`). So the costs, the exclusions and the count drawn
+ * never move a later draw (draw.ts's rule), and the rest of every seed's world is what it was: only
+ * the Guildmasters' Traits changed with the budget (DL-102) and with the whole-set draw (DL-110).
  */
 function drawTraits(state: Stream, config: GameConfig, content: ContentSet): TraitKey[] {
   const rows = guildmasterTraitsOf(content);
   const count = drawCount(state, config.guildmasterTraitsMin, config.guildmasterTraitsMax, rows.length);
-  const held: Trait[] = [];
-  let cost = 0;
-  for (let slot = 0; slot < rows.length; slot += 1) {
-    const eligible = slot < count ? rows.filter((row) => eligibleBeside(held, cost, row, config)) : [];
-    const last = slot === rows.length - 1;
-    const trait = last ? eligible[0] : pickOrNone(state, eligible);
-    if (trait === undefined) continue;
-    held.push(trait);
-    cost += trait.cost;
-  }
-  return held.map((row) => row.key);
+  const sets = legalTraitSets(rows, count, config.guildmasterTraitBudget);
+  return pickInDraws(state, sets, Math.max(0, rows.length - 1)).map((row) => row.key);
 }
 
 /**
- * Whether a Guildmaster holding `held`, which cost `cost` in all, may take `row` as well: it is not
- * held, neither it nor one held excludes the other, and the running cost stays within the budget.
+ * Every legal set of `size` of `rows` (DL-109 item 1): no two of it excluding each other either way,
+ * and its costs summing to no more than `budget`; each set in `rows`' order, and the sets in the
+ * order of their first difference, so the list is the same for the same content. When none has
+ * `size`, those of the largest smaller size that has one, down to the empty set, which is always
+ * legal, whatever the budget. `rows` are distinct, and a Guildmaster holds each at most once.
  */
-function eligibleBeside(held: readonly Trait[], cost: number, row: Trait, config: Pick<GameConfig, 'guildmasterTraitBudget'>): boolean {
-  return (
-    !held.includes(row) &&
-    !held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key)) &&
-    cost + row.cost <= config.guildmasterTraitBudget
-  );
+function legalTraitSets(rows: readonly Trait[], size: number, budget: number): Trait[][] {
+  for (let wanted = size; wanted > 0; wanted -= 1) {
+    const sets: Trait[][] = [];
+    const extend = (from: number, held: Trait[], cost: number): void => {
+      if (held.length === wanted) {
+        if (cost <= budget) sets.push([...held]);
+        return;
+      }
+      for (let index = from; index <= rows.length - (wanted - held.length); index += 1) {
+        const row = rows[index] as Trait;
+        if (held.some((mine) => mine.excludes.includes(row.key) || row.excludes.includes(mine.key))) continue;
+        held.push(row);
+        extend(index + 1, held, cost + row.cost);
+        held.pop();
+      }
+    };
+    extend(0, [], 0);
+    if (sets.length > 0) return sets;
+  }
+  return [[]];
 }
 
 interface GuildmasterSetup {
