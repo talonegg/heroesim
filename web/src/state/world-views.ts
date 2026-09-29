@@ -257,7 +257,8 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
     name: guildmaster.name,
     guildName: guild.name,
     attributes: [
-      ['Sex', guildmaster.sex],
+      // The Sex as a word, capitalised, as "Age" is (DL-111 item 9).
+      ['Sex', capitalised(guildmaster.sex)],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
       // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
       ...descriptiveAttributes.flatMap((attribute): [string, string][] =>

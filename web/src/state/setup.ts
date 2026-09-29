@@ -20,6 +20,8 @@ export interface SetupFormChoices {
   ages: number[];
   /** `30 to 45`. */
   agesWords: string;
+  /** `Retires at 65`: the age a Guildmaster retires at, `guildmasterRetirementAge` (DL-113 item 5). */
+  retiresWords: string;
   /** How many Traits, and the budget they keep to, in words. */
   traitsWords: string;
   /** The descriptive Attributes, each with its bound in characters and in words. */
@@ -33,11 +35,12 @@ export interface SetupFormChoices {
  */
 export function setupFormChoices(set: ContentSet = content, config: GameConfig = defaultConfig): SetupFormChoices {
   const choices = guildmasterSetupChoices(set, config);
-  const { ageMin, ageMax, traitsMax, traitBudget } = choices;
+  const { ageMin, ageMax, retirementAge, traitsMax, traitBudget } = choices;
   return {
     sexes: choices.sexes.map((sex) => ({ value: sex, label: capitalised(sex) })),
     ages: Array.from({ length: Math.max(0, ageMax - ageMin + 1) }, (_, index) => ageMin + index),
     agesWords: `${ageMin} to ${ageMax}`,
+    retiresWords: `Retires at ${retirementAge}`,
     traitsWords:
       `Up to ${traitsMax} ${traitsMax === 1 ? 'Trait' : 'Traits'}, costing no more than the budget of ${traitBudget} in all: ` +
       'a buff costs, and a penalty refunds.',

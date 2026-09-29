@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
+import { setupFormChoices } from '../state/setup';
 import { NewGame } from './new-game';
 
 // The new-game form's Guildmaster (M9-S7, #30): an optional sex and age, the Traits drawn from the
@@ -263,5 +264,19 @@ describe("the rest of the CLI's `new` in the form (M9-S8, the epic's §3)", () =
       backgroundKey: chosen.value,
       guildmasterAppearance: '  Tall, grey at the temples.  ',
     });
+  });
+});
+
+describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
+  test('the Age field says the age a Guildmaster retires at, from the configuration', () => {
+    form();
+    const age = within(setup()).getByLabelText('Age');
+    const said = (age.getAttribute('aria-describedby') ?? '')
+      .split(' ')
+      .map((id) => document.getElementById(id)?.textContent ?? '')
+      .join(' ');
+
+    expect(said).toContain(setupFormChoices().retiresWords);
+    expect(setupFormChoices().retiresWords).toMatch(/^Retires at \d+$/);
   });
 });

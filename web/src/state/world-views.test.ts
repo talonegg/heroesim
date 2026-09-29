@@ -254,6 +254,19 @@ describe('guildmasterView', () => {
     expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age']);
   });
 
+  test('gives the Sex capitalised, and the Age as a label (DL-111 item 9)', () => {
+    const document = structuredClone(newGame());
+    for (const sex of ['male', 'female'] as const) {
+      const player = Object.values(document.world.guilds).find((guild) => guild.controller.kind === 'player');
+      const guildmaster = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      guildmaster.sex = sex;
+      const [sexRow, ageRow] = guildmasterView(document)?.attributes ?? [];
+      expect(sexRow).toEqual(['Sex', sex === 'male' ? 'Male' : 'Female']);
+      expect(ageRow?.[0]).toBe('Age');
+    }
+  });
+
   test("is another Guild's Guildmaster when named", () => {
     const document = newGame();
     const other = rival(document);

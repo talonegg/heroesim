@@ -152,7 +152,7 @@ export function NewGame({
                   </select>
                 )}
               </Field>
-              <Field label="Age" hint={`Years, ${choices.agesWords}`}>
+              <Field label="Age" hint={`Years, ${choices.agesWords}. ${choices.retiresWords}.`}>
                 {(id, described) => (
                   <select id={id} name="guildmasterAge" value={age} aria-describedby={described} onChange={(event) => setAge(event.target.value)}>
                     <option value="">Drawn from the seed</option>

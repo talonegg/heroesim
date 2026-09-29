@@ -673,7 +673,7 @@ export interface HeroPageView {
   heroId: HeroId;
   name: string;
   /**
-   * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `age 18`, sex,
+   * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `Age 18`, `Female`,
    * Background, and `of The Lantern` while their Guild is known.
    */
   line: string[];
@@ -779,8 +779,9 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const who = [
     nameIn(content.classes, hero.classKey),
     `Level ${hero.level}`,
-    `age ${ageOf(hero, world.turn, config)}`,
-    hero.sex,
+    // "Age" as a label and the Sex as a word, capitalised (DL-111 item 9); an age in a sentence stays lowercase.
+    `Age ${ageOf(hero, world.turn, config)}`,
+    capitalised(hero.sex),
     nameIn(content.backgrounds, hero.backgroundKey),
     ...(guild === undefined ? [] : [`of ${guild.name}`]),
   ];
@@ -1036,6 +1037,8 @@ export interface GuildmasterSetupChoices {
   /** The starting ages, whole years, both included. */
   ageMin: number;
   ageMax: number;
+  /** `guildmasterRetirementAge`: the age a Guildmaster retires at, which the form says (DL-113 item 5). */
+  retirementAge: number;
   /** `guildmasterTraitBudget`: the most the Traits chosen may cost in all. */
   traitBudget: number;
   /** `guildmasterTraitsMax`: the most Traits chosen. */
@@ -1059,6 +1062,7 @@ export function guildmasterSetupChoices(set: ContentSet = content, config: GameC
     sexes,
     ageMin: config.guildmasterStartingAgeMin,
     ageMax: config.guildmasterStartingAgeMax,
+    retirementAge: config.guildmasterRetirementAge,
     traitBudget: config.guildmasterTraitBudget,
     traitsMax: config.guildmasterTraitsMax,
     traits: traits.map((trait) => ({

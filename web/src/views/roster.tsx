@@ -71,7 +71,7 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
   );
 }
 
-/** A Hero on the Roster: who, their Class, Level and age, their Morale, and where they are. */
+/** A Hero on the Roster: who, their Class, Level and Age, their Morale, and where they are. */
 function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
   return (
     <>
@@ -79,7 +79,7 @@ function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
         {row.name}
       </button>
       <p className="hero-card__line">
-        {row.className} · Level {row.level} · age {row.age}
+        {row.className} · Level {row.level} · Age {row.age}
       </p>
       <p className="hero-card__state">
         <Chip tone={moraleTones[row.moraleBand]} icon="morale">

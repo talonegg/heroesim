@@ -46,7 +46,7 @@ function openFirstHero(): { name: string; page: () => HTMLElement } {
 }
 
 describe("the Roster's Hero cards (M9-S6)", () => {
-  test('give each Hero their name, Class, Level and age, a Morale chip, and where they are, injured or away by an icon and its words', () => {
+  test('give each Hero their name, Class, Level and Age, a Morale chip, and where they are, injured or away by an icon and its words', () => {
     const state = changed(withPartyOut(started()), (document, player) => {
       const hero = Object.values(document.world.heroes).find((each) => player.rosterIds.includes(each.id) && each.partyId === null);
       if (hero === undefined) throw new Error('no Hero at the Hall');
@@ -59,7 +59,8 @@ describe("the Roster's Hero cards (M9-S6)", () => {
     expect(all.length).toBeGreaterThan(2);
     for (const card of all) {
       expect(within(card).getByRole('button').className).toBe('link');
-      expect(card.textContent).toMatch(/(Warrior|Rogue|Mage|Healer) · Level \d+ · age \d+/);
+      // "Age" as a label, capitalised (DL-111 item 9).
+      expect(card.textContent).toMatch(/(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+/);
       expect(chip(card, /^Morale \d+, (wretched|low|steady|high|elated)$/).querySelector('svg')).not.toBeNull();
     }
     const injured = all.find((card) => card.textContent?.includes('injured, healing on the night of Day 6') === true) as HTMLElement;
@@ -78,7 +79,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     const { name, page } = openFirstHero();
     // The keyboard is on their name.
     expect(document.activeElement).toBe(within(page()).getByRole('heading', { level: 3, name }));
-    expect(within(page()).getByText(/^(Warrior|Rogue|Mage|Healer) · Level \d+ · age \d+ · (female|male) · .+ · of The Lantern$/)).toBeDefined();
+    expect(within(page()).getByText(/^(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+ · (Female|Male) · .+ · of The Lantern$/)).toBeDefined();
     const state = within(page()).getByRole('list', { name: `${name}'s State` });
     expect(within(state).getByText(/^Morale \d+, (wretched|low|steady|high|elated)$/)).toBeDefined();
     expect(within(state).getByText('at the Hall')).toBeDefined();

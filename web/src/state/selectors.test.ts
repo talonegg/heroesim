@@ -592,7 +592,7 @@ describe('heroPage', () => {
 });
 
 describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
-  test('says who the Hero is in one line: Class, Level, age, sex, Background and Guild', () => {
+  test('says who the Hero is in one line: Class, Level, Age, Sex, Background and Guild, "Age" and the Sex capitalised (DL-111 item 9)', () => {
     const document = structuredClone(newGame());
     const [hero] = heroes(document);
     if (hero === undefined) throw new Error('no Hero');
@@ -603,7 +603,7 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
     hero.ageAtEntry = 18;
     hero.enteredTurn = 0;
 
-    expect(heroPage(document, hero.id)?.line).toEqual(['Rogue', 'Level 3', 'age 18', 'female', content.backgrounds['poachers-child']?.name, 'of The Lantern']);
+    expect(heroPage(document, hero.id)?.line).toEqual(['Rogue', 'Level 3', 'Age 18', 'Female', content.backgrounds['poachers-child']?.name, 'of The Lantern']);
   });
 
   test('gives Morale with its band, where the Hero is and why they cannot go, the Injury, XP and Traits as chips', () => {
@@ -897,6 +897,11 @@ describe('the progress of a fast forward between its steps (v1.0.1-S5, DL-96)', 
 });
 
 describe("the Guildmaster's setup, for the new-game form (M9-S2)", () => {
+  test("gives the age a Guildmaster retires at, the configuration's (DL-113 item 5)", () => {
+    expect(guildmasterSetupChoices().retirementAge).toBe(defaultConfig.guildmasterRetirementAge);
+    expect(guildmasterSetupChoices(content, { ...defaultConfig, guildmasterRetirementAge: 70 }).retirementAge).toBe(70);
+  });
+
   test('offers the sexes, the starting ages, the budget, the most Traits, and the three descriptive Attributes with their bounds', () => {
     const choices = guildmasterSetupChoices();
 

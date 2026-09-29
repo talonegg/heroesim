@@ -199,3 +199,10 @@ describe("what else the form offers for the Guildmaster, and the engine's refusa
     expect(setupNotice(play, false)).toBeNull();
   });
 });
+
+describe('when the Guildmaster retires, on the form (M9-F2, DL-113 item 5)', () => {
+  test("says the age a Guildmaster retires at, the configuration's", () => {
+    expect(setupFormChoices().retiresWords).toBe(`Retires at ${defaultConfig.guildmasterRetirementAge}`);
+    expect(setupFormChoices(content, { ...defaultConfig, guildmasterRetirementAge: 70 }).retiresWords).toBe('Retires at 70');
+  });
+});
