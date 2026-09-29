@@ -5,7 +5,8 @@
 // Parties still out and the night each returns; and the Quests on their last Day on the Board.
 // Each is drawn only when there is something to say (the review's A5). Every word and number comes
 // from a selector (`state/digest.ts`, `stopView`, `headerView`, `offersView`): nothing here
-// computes a rule.
+// computes a rule. How a Party fared opens its line in the History, on the page it stands on (M9-S5,
+// DL-105).
 
 import type { QuestId, WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
@@ -16,7 +17,7 @@ import { offersView } from '../state/trade-views';
 import { Icon } from './icons';
 import { View, type SectionId } from './section';
 import { StopCard } from './stop';
-import { Banner, Chip, type Tone } from './ui';
+import { Banner, Chip, VisuallyHidden, type Tone } from './ui';
 
 const bandTone: Readonly<Record<OutcomeRow['band'], Tone>> = { fail: 'bad', success: 'good', strong: 'good' };
 
@@ -36,6 +37,7 @@ export function GuildView({
   onGo,
   onOpenQuest,
   onOpenMenu,
+  onReadOutcome,
 }: {
   state: GameState;
   document: WorldDocument;
@@ -47,6 +49,8 @@ export function GuildView({
   onGo: (target: SectionId) => void;
   onOpenQuest: (questId: QuestId) => void;
   onOpenMenu: () => void;
+  /** Opens a Party's outcome where it stands in the History (M9-S5). */
+  onReadOutcome?: (outcome: OutcomeRow) => void;
 }) {
   const { log } = state;
   const outcomes = useMemo(() => outcomesView({ document, log }), [document, log]);
@@ -131,6 +135,15 @@ export function GuildView({
                       </li>
                     ))}
                   </ul>
+                )}
+                {onReadOutcome === undefined || outcome.page === null ? null : (
+                  <div className="actions">
+                    <button type="button" className="button--quiet" onClick={() => onReadOutcome(outcome)}>
+                      <Icon name="history" />
+                      <span>Read it in the History</span>
+                      <VisuallyHidden>: {outcome.quest}</VisuallyHidden>
+                    </button>
+                  </div>
                 )}
               </li>
             ))}

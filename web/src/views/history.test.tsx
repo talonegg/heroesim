@@ -288,6 +288,34 @@ describe("each one's page opens their History (M9-S5)", () => {
   });
 });
 
+describe("the home view's outcomes open their line in the History (M9-S5)", () => {
+  test('on the page it stands on, with the keyboard on it', () => {
+    render_(cameHome());
+    const home = screen.getByRole('region', { name: 'Guild' });
+    const [outcome] = within(home).getAllByRole('listitem').filter((item) => item.classList.contains('outcome'));
+    const quest = within(outcome as HTMLElement).getByRole('heading', { level: 4 }).textContent ?? '';
+
+    fireEvent.click(within(outcome as HTMLElement).getByRole('button', { name: `Read it in the History: ${quest}` }));
+
+    expect(title()).toBe('The History of The Lantern');
+    const line = document.activeElement as HTMLElement;
+    expect(line.classList.contains('entry')).toBe(true);
+    expect(sentenceOf(line)).toMatch(new RegExp(`^The Lantern's Party came home from ${quest} and `));
+    expect(line.classList.contains('is-new')).toBe(true);
+  });
+
+  test('the History opens on the page it is given', () => {
+    const state = played(started(), { kind: 'advance', turns: 12 });
+    render(
+      <HistoryLinksContext value={{ log: state.log, onName: () => undefined, onHistory: () => undefined }}>
+        <History document={state.document as NonNullable<GameState['document']>} busy={false} play={() => undefined} whose="all" onWhose={() => undefined} startPage={2} />
+      </HistoryLinksContext>,
+    );
+
+    expect(screen.getByText(/^Page 3 of \d+, /)).toBeDefined();
+  });
+});
+
 describe('anyone the History names, found by name (DL-74)', () => {
   test("a dead Hero's page opens from it, and a Hero gone from the world has their History", () => {
     const { state, dead, gone } = withTheGone(played(started(), { kind: 'advance', turns: 6 }));

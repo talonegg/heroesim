@@ -4,6 +4,7 @@ import { leavingTodayView, navCounts, outcomesView, partiesOutView, railView } f
 import { changed, played, started, withOffer, withPartyOut } from './game.test-support';
 import { initialGameState, type GameState } from './reducer';
 import { boardView, rosterView, whenOf } from './selectors';
+import { historyView } from './history';
 import { narrate, narrationFor } from './narrate';
 import { content } from '../content';
 
@@ -150,6 +151,21 @@ describe('outcomesView', () => {
     const [sent] = partiesOutView(documentOf(withPartyOut(started('reducer-test'))));
     expect(rows[0]?.quest).toBe(sent?.quest);
     expect(rows[0]?.heroes).toBe(sent?.heroes);
+  });
+
+  test("gives where each is read in the player's History: the page it stands on, and its line's anchor (M9-S5)", () => {
+    const state = cameHome();
+    const rows = outcomesView(state);
+
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row.page).not.toBeNull();
+      const view = historyView(documentOf(state), state.log, null, row.page ?? 0);
+      const lines = view.groups.flatMap((group) => group.rows.flatMap((each) => (each.kind === 'entry' ? [each.line] : [])));
+      const line = lines.find((each) => each.anchor === row.anchor);
+      expect(line?.sentence).toMatch(new RegExp(`^The Lantern's Party came home from ${row.quest} and `));
+      expect(line?.fresh).toBe(true);
+    }
   });
 });
 

@@ -1425,12 +1425,33 @@ details > summary::-webkit-details-marker {
   margin: 0;
 }
 
-/* Whose History: the player's Guild, the whole History and each Rival, one choice away. */
+/* Whose History: the player's Guild, the whole History and each Rival, one choice away, as chips. */
 .history__whose {
   margin: 0.25rem 0 0.75rem;
 }
 
-.history__top {
+.history__whose > button {
+  border-radius: 999px;
+  padding-inline: 0.95rem;
+}
+
+/* On a phone the chips are one row that scrolls in its own box, never the page, rather than a
+   column of six rows above the History. */
+@media (max-width: 599px) {
+  .history__whose {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 0.3rem;
+    scrollbar-width: thin;
+  }
+
+  .history__whose > button {
+    flex: none;
+    white-space: nowrap;
+  }
+}
+
+.view--history .history__top {
   padding-top: 0.75rem;
   border-top: 1px solid var(--line);
 }

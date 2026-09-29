@@ -23,7 +23,7 @@ import type { GuildId, Module, QuestId, WorldDocument } from '@heroesim/engine';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
-import { navCounts } from './state/digest';
+import { navCounts, type OutcomeRow } from './state/digest';
 import type { HistoryWhose } from './state/history';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
@@ -83,6 +83,8 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const [boardQuest, setBoardQuest] = useState<QuestId | null>(null);
   const [rankingsGuild, setRankingsGuild] = useState<GuildId | null>(null);
   const [whose, setWhose] = useState<HistoryWhose>(null);
+  // The page the History opens on: its newest, save when the home view opens an outcome where it stands.
+  const [historyStart, setHistoryStart] = useState(0);
   const [focus, setFocus] = useState<Focus | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
   const bar = useRef<HTMLElement>(null);
@@ -123,6 +125,16 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
     [open, openHistory],
   );
 
+  /** How a Party fared, from the home view: its line in the player's Guild's History, on its page, with the keyboard on it. */
+  const openOutcome = useCallback(
+    (outcome: OutcomeRow) => {
+      setWhose(null);
+      setHistoryStart(outcome.page ?? 0);
+      open('history', outcome.anchor);
+    },
+    [open],
+  );
+
   const links = useMemo<HistoryLinks>(() => ({ log: game.log, onName: openName, onHistory: openHistory }), [game.log, openName, openHistory]);
 
   // A new game or a load: the home view, and nothing the last game had open (DL-74 item 7).
@@ -150,6 +162,9 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   }
 
   useEffect(() => rememberView(view), [view]);
+
+  // Away from the History, it opens at its newest again.
+  if (view !== 'history' && historyStart !== 0) setHistoryStart(0);
 
   useEffect(() => {
     if (focus === null) return;
@@ -237,13 +252,14 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
                   open('board', `quest-${questId}`);
                 }}
                 onOpenMenu={() => setMenuOpen(true)}
+                onReadOutcome={openOutcome}
               />
             ) : null}
             {view === 'board' ? <Board {...shared} open={boardQuest} onOpen={setBoardQuest} /> : null}
             {view === 'roster' ? <Roster {...shared} /> : null}
             {view === 'hall' ? <Hall {...shared} /> : null}
             {view === 'rankings' ? <Rankings {...shared} guildName={guildName} open={rankingsGuild} onOpen={setRankingsGuild} /> : null}
-            {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} /> : null}
+            {view === 'history' ? <History {...shared} whose={whose} onWhose={setWhose} startPage={historyStart} /> : null}
           </Fragment>
         </main>
         <Rail state={game} onOpenHistory={() => openHistory(null)} />

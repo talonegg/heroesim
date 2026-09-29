@@ -16,7 +16,7 @@ import {
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { played as playedState, started, withPartyOut, withTheGone } from './game.test-support';
-import { findInHistory, historyChoices, historySearchLimit, historyTitle, historyView, routineKinds, type HistoryLine, type HistoryRow, type HistoryView } from './history';
+import { findInHistory, historyChoices, historySearchLimit, historyTitle, historyView, pageOfEntry, routineKinds, type HistoryLine, type HistoryRow, type HistoryView } from './history';
 import { listed } from './narrate';
 import { historyPageSize } from './selectors';
 
@@ -175,6 +175,20 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
       );
     }
     expect(outcomes).toBeGreaterThan(0);
+  });
+
+  test('says on which page an entry stands, that the home view can open it there, and null where it is not', () => {
+    for (const whose of ['all' as const, null]) {
+      everyPage(whose).forEach((view, page) => {
+        for (const line of view.groups.flatMap((group) => group.rows.flatMap((row) => (row.kind === 'entry' ? [row.line] : [])))) {
+          expect(pageOfEntry(document, whose, entryOf(document, line))).toBe(page);
+        }
+      });
+    }
+    const rivalsOnly = document.history.entries.find((entry) => entry.type === 'quest.resolved' && !entry.participants.includes(guild.id));
+    expect(rivalsOnly).toBeDefined();
+    expect(pageOfEntry(document, null, rivalsOnly as Entry)).toBeNull();
+    expect(pageOfEntry(document, null, { ...(rivalsOnly as Entry) })).toBeNull();
   });
 
   test("a page that ends on an outcome takes its Party's steps with it, and the next page starts after them", () => {

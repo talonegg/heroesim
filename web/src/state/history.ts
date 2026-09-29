@@ -263,6 +263,32 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   };
 }
 
+/**
+ * On which page of `whose` History `entry` stands, from 0, so that the home view can open a Party's
+ * outcome where it is; `null` when the History shown does not hold it. `entry` is the History's own,
+ * as the last play's events are. A page keeps a Party's steps with its outcome, and moves nothing
+ * else: an entry that is not a step stands on the page its place counts to.
+ */
+export function pageOfEntry(document: WorldDocument, whose: HistoryWhose, entry: Entry): number | null {
+  const { history } = document;
+  const position = history.entries.lastIndexOf(entry);
+  if (position < 0) return null;
+  const { entityId } = resolved(document, whose);
+  if (entityId === null) return Math.floor((history.entries.length - 1 - position) / historyPageSize);
+  const positions = Object.hasOwn(history.byEntity, entityId) ? (history.byEntity[entityId] ?? []) : [];
+  // The index's positions ascend (`append`): a binary search finds the entry's.
+  let low = 0;
+  let high = positions.length - 1;
+  while (low <= high) {
+    const middle = (low + high) >>> 1;
+    const at = positions[middle] ?? -1;
+    if (at === position) return Math.floor((positions.length - 1 - middle) / historyPageSize);
+    if (at < position) low = middle + 1;
+    else high = middle - 1;
+  }
+  return null;
+}
+
 // ── A page ───────────────────────────────────────────────────────────────────────────────────
 
 /** A Party's steps on a Quest, which fold under its outcome: its Encounters and the consumables it used. */
