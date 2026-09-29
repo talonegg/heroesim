@@ -199,16 +199,40 @@ and #37; DL-83 item 19, DL-85 items 6 and 8, DL-87 item 5, DL-88 items 3 and 4.
 - *Motion.* Short transitions for expanding, changing view and changing a value, all off under
   `prefers-reduced-motion`.
 
-**Acceptance:**
-- The shell at the three widths, with no sideways scroll of the page, and 44px targets — tested
-  in `e2e/layout.spec.ts`.
-- Every view is reachable by keyboard, and the focus moves to its heading — tested in
-  `app.test.tsx`.
-- The help sentence is held to every view, as before — tested in `app.test.tsx`.
-- The home view shows the stop and its Quest buttons, the Parties out, and the outcomes — tested
-  in `app.test.tsx` and `state/` selectors test first.
-- Nothing is fetched — the bundle gate passes.
-- Both schemes are screenshotted and read.
+**Acceptance** (DL-103):
+- [x] The shell at the three widths, with no sideways scroll of the page, and 44px targets — tested
+  in `e2e/layout.spec.ts`: 'every view and the game menu, with no sideways scroll and every
+  control a 44px target' and 'the page is never wider than the viewport, whatever is open', in
+  the phone (360px), tablet (820px, added) and desktop (1280px) projects; the other specs open
+  each view through the navigation, the phone's Hall and Rankings through "More" (DL-103 items 1
+  to 3, 13)
+- [x] Every view is reachable by keyboard, and the focus moves to its heading — tested in
+  `app.test.tsx`: 'opens every view from the navigation, a button the keyboard reaches, and puts
+  the keyboard on its heading', 'opens on the home view, with the six views in the navigation in
+  order and the open one marked', and 'remembers the open view in this browser, and a new game
+  or a load opens the home view' (DL-103 item 2)
+- [x] The help sentence is held to every view, as before — tested in `app.test.tsx`: 'every view
+  and every part of one says what it is for and what its controls do, before a game and with
+  one', each through its "About this view"; 'the time controls say what time is…' (DL-103
+  item 8)
+- [x] The home view shows the stop and its Quest buttons, the Parties out, and the outcomes — tested
+  in `app.test.tsx` ('after a fast forward, opens with the stop, and each Quest it names opens
+  that Quest's Party on the Board'; 'shows the Parties out, with who went and the night they
+  return'; 'shows how the Party that came home fared: its Quest band, Wealth, Fame, XP and
+  Injuries…'; 'says when nothing waits, and names the Transfer Offers waiting…') and
+  `views/stop.test.tsx`, with the data from `state/digest.test.ts` (`partiesOutView`,
+  `leavingTodayView`, `outcomesView`, `navCounts`, `railView`) and `state/selectors.test.ts`
+  ('names each Quest a decision-needed stop names that is still on the Board…'), each written
+  test first; in the browser, `e2e/journey.spec.ts` reads the Party out and how it came home in
+  the home view (DL-103 items 4, 5)
+- [x] Nothing is fetched — the bundle gate passes: `npm run build -w web` ends "check-bundle: 2
+  built files, no network or filesystem reference"; `styles.test.ts` holds the stylesheet to no
+  `@font-face`, `@import` or `url()` (DL-103 items 11, 14)
+- [x] Both schemes are screenshotted and read: the home view after a stop, the Board, a Hero's
+  page on the Roster, the History and the game menu at 390 × 844, 820 × 1180 and 1440 × 900 in
+  the light scheme, and the home view in the dark scheme at 390 and 1440; the contrast of every
+  pairing in both schemes is `styles.test.ts`'s 'in the light scheme…' and 'in the dark
+  scheme…' (DL-103 item 11)
 
 ### M9-S4 · The Board and the Party builder · 1.5–2 sessions · opus
 

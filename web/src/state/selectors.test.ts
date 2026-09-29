@@ -24,6 +24,7 @@ import {
   type Hero,
   type HeroId,
   type QuestId,
+  type StopReason,
   type WorldDocument,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
@@ -84,9 +85,17 @@ describe('headerView', () => {
       wealth: guild.wealth,
       fame: guild.fame,
       time: `Day ${dayOf(4)}, ${timeOfDay(4)}, Year 0`,
+      // The status bar's glyph: Turn 4 is an afternoon; and the time and the place in two parts,
+      // the second of each left unshown on a phone (M9-S3, DL-103).
+      timeOfDay: 'afternoon',
+      when: `Day ${dayOf(4)}, ${timeOfDay(4)}`,
+      year: 'Year 0',
       rankings: 'joint 1st of 5 by Fame',
+      place: 'joint 1st of 5',
+      measure: 'by Fame',
       seed: 'selectors-played',
       countdown: null,
+      due: null,
       ended: null,
     });
   });
@@ -104,6 +113,7 @@ describe('headerView', () => {
     };
 
     expect(fames(9, 4, 4, 1, 0)).toBe('1st of 5 by Fame');
+    expect(headerView(document)?.place).toBe('1st of 5');
     expect(fames(4, 9, 4, 1, 0)).toBe('joint 2nd of 5 by Fame');
     expect(fames(1, 9, 4, 4, 0)).toBe('4th of 5 by Fame');
     expect(fames(0, 9, 4, 4, 1)).toBe('5th of 5 by Fame');
@@ -125,6 +135,13 @@ describe('headerView', () => {
     rival.foldedOnTurn = 0;
 
     expect(headerView(document)?.rankings).toBe('joint 1st of 4 by Fame');
+  });
+
+  test("says the player's Guild is not ranked once it has folded, with no measure to follow (M9-S3, DL-103)", () => {
+    const document = structuredClone(newGame());
+    player(document).foldedOnTurn = 0;
+
+    expect(headerView(document)).toMatchObject({ rankings: 'not ranked: the Guild has folded', place: 'not ranked: the Guild has folded', measure: '' });
   });
 });
 
@@ -150,6 +167,7 @@ describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-
 
     expect(countdownView(document)).toBeNull();
     expect(headerView(document)?.countdown).toBeNull();
+    expect(headerView(document)?.due).toBeNull();
   });
 
   test("while it is set, says since which Day and on which Day's night Bankruptcy falls, under the game's own grace", () => {
@@ -160,6 +178,9 @@ describe('the Bankruptcy countdown: countdownView, in the header (v1.0.1-S4, DL-
 
     expect(countdownView(document)).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
     expect(headerView(document)?.countdown).toBe(sentence(0, defaultConfig.bankruptcyGraceDays));
+    // The status bar's pill says when, in a few words (M9-S3, DL-103).
+    expect(headerView(document)?.due).toBe(`Bankruptcy on the night of Day ${defaultConfig.bankruptcyGraceDays}`);
+    expect(headerView(belowTheFloor({ bankruptcyGraceDays: 10 }))?.due).toBe('Bankruptcy on the night of Day 10');
     // The game's own rules, not this release's defaults: a save playing under a grace of 10 Days.
     expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10 }))).toBe(sentence(0, 10));
     expect(countdownView(belowTheFloor({ bankruptcyGraceDays: 10, bankruptcyFloor: 50 }))).toBe(sentence(0, 10, 50));
@@ -438,6 +459,22 @@ describe('the log and why time stopped', () => {
 
     expect(stopView(state)).toEqual({ kind: 'max-turns', sentence: `Stopped: played the most Turns allowed, ${defaultConfig.turnsPerYear}.` });
     expect(stopView({ ...state, stoppedBecause: null })).toBeNull();
+  });
+
+  test('names each Quest a decision-needed stop names that is still on the Board, as the Board names it (M9-S3, DL-103)', () => {
+    const document = newGame();
+    const [first, second] = boardView(document);
+    if (first === undefined || second === undefined) throw new Error('expected two Quests on the Board');
+    const gone = 'quest-999999' as QuestId;
+    const stoppedBecause: StopReason = { kind: 'decision-needed', guildId: player(document).id, questIds: [second.questId, gone, first.questId] };
+    const state: GameState = { ...initialGameState, document, stoppedBecause };
+
+    expect(stopView(state)?.quests).toEqual([
+      { questId: second.questId, name: second.name, patron: second.patron, reward: second.reward },
+      { questId: first.questId, name: first.name, patron: first.patron, reward: first.reward },
+    ]);
+    // Any other stop names none.
+    expect(stopView({ ...state, stoppedBecause: { kind: 'max-turns' } })?.quests).toBeUndefined();
   });
 
   test("says the player's Stop in the page's own words, with the stops it was asked for (v1.0.1-S5, DL-96)", () => {

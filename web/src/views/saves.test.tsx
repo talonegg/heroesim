@@ -7,11 +7,13 @@ import { memoryStore } from '../saves.test-support';
 import { saveText } from '../state/game-file';
 import { played, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
+import { section, seedShown } from './page.test-support';
 
 // Saved in this browser (M7-S4, DL-67), driven through the page's controls: save the game in hand
 // under a name, list it, load it back in place of a later game or before any game, export it as the
 // file the CLI reads, delete it; and where the browser keeps nothing, say so and play on. The saves
 // are kept here in a map standing in for IndexedDB, which jsdom lacks; Playwright drives IndexedDB.
+// With a game in hand they are in the game menu (M9-S3, DL-103).
 
 afterEach(() => {
   cleanup();
@@ -20,10 +22,6 @@ afterEach(() => {
 
 async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
-}
-
-function section(name: string): HTMLElement {
-  return screen.getByRole('region', { name });
 }
 
 function documentOf(state: GameState): WorldDocument {
@@ -82,7 +80,7 @@ describe('saved in this browser', () => {
 
     fireEvent.click(await within(newGame).findByRole('button', { name: 'Load earlier' }));
 
-    await waitFor(() => expect(screen.getByTestId('seed').textContent).toBe('saved-earlier'));
+    await waitFor(() => expect(seedShown()).toBe('saved-earlier'));
     await idle();
     expect(screen.getByTestId('time').textContent).toBe('Day 2, afternoon, Year 0');
   });

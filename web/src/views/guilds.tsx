@@ -4,6 +4,9 @@
 // router, M7 §0) on its page: its Roster with the Transfer fee your Guild would pay for each Hero
 // and a button to take them in (the CLI's `transfer --in`), its Hall and its Guildmaster; and a
 // Hero's page opens from there.
+//
+// A part of the Rankings (M9-S3, DL-103). The table it merges into and a Rival's page redesigned are
+// M9-S6's.
 
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
@@ -12,7 +15,8 @@ import { guildPage, guildsView, type GuildRow } from '../state/world-views';
 import { GuildmasterDetails } from './guildmaster';
 import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
-import { Section, Terms } from './section';
+import { Icon } from './icons';
+import { Part, Terms } from './section';
 
 type Play = (action: GameAction) => void;
 
@@ -20,14 +24,7 @@ export function Guilds({ document, busy, play }: { document: WorldDocument; busy
   const rows = useMemo(() => guildsView(document), [document]);
   const [open, setOpen] = useState<GuildId | null>(null);
   return (
-    <Section
-      id="guilds"
-      title="Guilds"
-      help={
-        'Every Guild, yours and the Rivals’, a folded one marked with the Day it folded. Open a Rival to see its Roster, ' +
-        'with the Transfer fee your Guild would pay to take each Hero in, its Hall and its Guildmaster.'
-      }
-    >
+    <Part id="guilds">
       {open === null ? (
         <ul className="cards">
           {rows.map((row) => (
@@ -39,7 +36,7 @@ export function Guilds({ document, busy, play }: { document: WorldDocument; busy
       ) : (
         <GuildPage key={open} document={document} guildId={open} busy={busy} play={play} onBack={() => setOpen(null)} />
       )}
-    </Section>
+    </Part>
   );
 }
 
@@ -62,8 +59,8 @@ function GuildCard({ row, onOpen }: { row: GuildRow; onOpen: () => void }) {
       />
       {row.mine ? null : (
         <div className="actions">
-          <button type="button" onClick={onOpen}>
-            Open {row.name}
+          <button type="button" aria-label={`Open ${row.name}`} onClick={onOpen}>
+            Open
           </button>
         </div>
       )}
@@ -87,9 +84,10 @@ function GuildPage({
   const view = useMemo(() => guildPage(document, guildId), [document, guildId]);
   const [hero, setHero] = useState<HeroId | null>(null);
   const back = (
-    <div className="actions">
-      <button type="button" onClick={onBack}>
-        Back to the Guilds
+    <div className="actions actions--back">
+      <button type="button" className="button--quiet" onClick={onBack}>
+        <Icon name="back" />
+        <span>Back to the Guilds</span>
       </button>
     </div>
   );
@@ -102,18 +100,18 @@ function GuildPage({
     );
   }
   if (hero !== null) {
-    return <HeroPage key={hero} document={document} heroId={hero} onBack={() => setHero(null)} backLabel={`Back to ${view.name}`} play={play} busy={busy} />;
+    return <HeroPage key={hero} document={document} heroId={hero} onBack={() => setHero(null)} backLabel={`Back to ${view.name}`} play={play} busy={busy} level={4} />;
   }
   return (
     <article className="guild-page" aria-labelledby="guild-page-name">
       {back}
-      <h3 id="guild-page-name">{view.name}</h3>
+      <h4 id="guild-page-name">{view.name}</h4>
       <p className="subtle">
         {view.controller}
         {view.folded === null ? '' : `, ${view.folded}`}
       </p>
 
-      <h4>Roster</h4>
+      <h5>Roster</h5>
       {view.roster.length === 0 ? (
         <p>The Roster is empty.</p>
       ) : (
@@ -130,8 +128,8 @@ function GuildPage({
                 <>
                   <p>Transfer fee {row.fee} Wealth.</p>
                   <div className="actions">
-                    <button type="button" disabled={busy} onClick={() => play({ kind: 'transferIn', heroId: row.heroId })}>
-                      Take {row.name} in
+                    <button type="button" aria-label={`Take ${row.name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId: row.heroId })}>
+                      Take in
                     </button>
                   </div>
                 </>
@@ -141,10 +139,10 @@ function GuildPage({
         </ul>
       )}
 
-      <h4>Hall</h4>
-      <HallDetails view={view.hall} level={5} />
+      <h5>Hall</h5>
+      <HallDetails view={view.hall} level={6} />
 
-      {view.guildmaster === null ? <p>The Guild has no Guildmaster.</p> : <GuildmasterDetails view={view.guildmaster} level={4} />}
+      {view.guildmaster === null ? <p>The Guild has no Guildmaster.</p> : <GuildmasterDetails view={view.guildmaster} level={5} />}
     </article>
   );
 }

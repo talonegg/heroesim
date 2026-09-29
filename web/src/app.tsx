@@ -1,73 +1,44 @@
-// The app shell (M7-S3): one column that stacks, its sections in the order a Turn reads. First the
-// header (the Guild, its Wealth and Fame, the Day and time of day, its place in the Rankings), the
-// notice of new rules when there are any, and time; then the Board with dispatch, the Roster with
-// Hero pages, the Transfer Offers and the Unattached pool; the Market, the Hall, the Guildmaster
-// and the Patrons; the Rankings and every Guild; the log of what happened since the last action,
-// the whole History, and the game as a file (part 2, DL-73) with the saves kept in this browser
-// (M7-S4, DL-67). Before there is a game, a new one, and the saves to load one from.
+// The page (M7-S3; M9-S3, DL-103): views in a shell, in place of one column of sections (DL-99
+// item 1). The status bar stays in view on every view, with the Guild, its standing, time and the
+// game menu, and a refusal docked under it. The navigation opens one view at a time: Guild, the
+// home view's digest of what needs attention; the Board; the Roster with the Transfer Offers and the
+// Unattached pool; the Hall with the Guildmaster, what the Guild holds and the Market; the Rankings
+// with the Guilds and the Patrons; and the History with what happened since the last action. From
+// 1100px the History rail sits beside the view. Before there is a game, a new one, and the saves to
+// load one from.
+//
+// Views switch as React state, with no router (R38): the page stays one page with one classic
+// script that opens from `file://`. Which view is open is remembered in this browser; a new game or
+// a load opens the home view, and so does the end of a fast forward, whose stop and results it
+// shows. Each view is a labelled region whose heading takes the keyboard when it opens.
+//
 // Every play goes through `useGame`, the one reducer (M7-S2); no component calls the engine, and
-// every number shown comes from a selector under `state/`.
-// The modules it installs are those its address names, `?modules=probe`, a test switch, none without
-// it; the footer says when one is installed (M8-S4, DL-79).
+// every number shown comes from a selector under `state/`. The modules it installs are those its
+// address names, `?modules=probe`, a test switch, none without it (M8-S4, DL-79).
 
-import type { Module, WorldDocument } from '@heroesim/engine';
-import { Fragment, useCallback, useMemo, useState } from 'react';
+import type { EntityId, Module, QuestId, WorldDocument } from '@heroesim/engine';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { content } from './content';
 import { browserSaves, type Saves } from './saves';
+import { navCounts } from './state/digest';
 import { rulesNotice } from './state/game-file';
 import { modulesFromQuery } from './state/modules';
-import { listed } from './state/narrate';
 import { useGame, type GameState } from './state/reducer';
 import { headerView, progressView, stopView } from './state/selectors';
 import { Board } from './views/board';
-import { GameFile } from './views/game-file';
-import { Guildmaster } from './views/guildmaster';
-import { Guilds } from './views/guilds';
+import { GameMenu, installedWords } from './views/game-menu';
+import { GuildView } from './views/guild';
 import { Hall } from './views/hall';
-import { Header } from './views/header';
 import { History } from './views/history';
-import { Log } from './views/log';
-import { Market } from './views/market';
+import { Nav } from './views/nav';
 import { NewGame } from './views/new-game';
-import { Offers } from './views/offers';
-import { Patrons } from './views/patrons';
-import { Pool } from './views/pool';
+import { Rail } from './views/rail';
 import { Rankings } from './views/rankings';
 import { Refusal } from './views/refusal';
+import { rememberedView, rememberView } from './views/remembered';
 import { Roster } from './views/roster';
-import { RulesNotice } from './views/rules-notice';
-import type { SectionId } from './views/section';
-import { Time } from './views/time';
-
-/** Takes the player to a section of the page and puts the keyboard there: its heading. */
-function goTo(section: SectionId): void {
-  const heading = document.getElementById(`${section}-heading`);
-  heading?.scrollIntoView?.({ block: 'start' });
-  heading?.focus({ preventScroll: true });
-}
-
-/** The sections a game in hand shows, in order, as the index at the top names them. */
-const index: readonly { id: SectionId; label: string }[] = [
-  { id: 'time', label: 'Time' },
-  { id: 'board', label: 'Board' },
-  { id: 'roster', label: 'Roster' },
-  { id: 'offers', label: 'Offers' },
-  { id: 'pool', label: 'Pool' },
-  { id: 'market', label: 'Market' },
-  { id: 'hall', label: 'Hall' },
-  { id: 'guildmaster', label: 'Guildmaster' },
-  { id: 'patrons', label: 'Patrons' },
-  { id: 'rankings', label: 'Rankings' },
-  { id: 'guilds', label: 'Guilds' },
-  { id: 'log', label: 'Since your last action' },
-  { id: 'history', label: 'History' },
-  { id: 'game', label: 'This game' },
-];
-
-/** `the probe module`, `the probe and weather modules`: what the footer says is installed. */
-function installedWords(modules: readonly Module[]): string {
-  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'module' : 'modules'}`;
-}
+import { headingOf, viewIds, viewOf, type PartId, type SectionId, type ViewId } from './views/section';
+import { StatusBar } from './views/status-bar';
 
 /** The saves this browser keeps for the page, opened on first use (`saves.ts`). */
 const kept = browserSaves();
@@ -75,6 +46,19 @@ const kept = browserSaves();
 /** The modules the page's address names, read once, when the page opens: none without the switch. */
 function addressModules(): Module[] {
   return typeof window === 'undefined' ? [] : modulesFromQuery(window.location.search);
+}
+
+/** The view that holds `target`. */
+function viewFor(target: SectionId): ViewId {
+  if ((viewIds as readonly string[]).includes(target)) return target as ViewId;
+  return viewOf[target as PartId] ?? 'guild';
+}
+
+/** Where the keyboard goes next, and a fresh object each time it is asked, so it goes there again. */
+interface Focus {
+  id: string;
+  /** Where it goes when `id` is not on the page: the open view's heading. */
+  fallback: string;
 }
 
 /** The page. `initial` and `saves` are a test's way in: a game already in hand, saves kept elsewhere. */
@@ -85,71 +69,178 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
   const { document: current, busy, pending } = game;
   // The game in hand when the player asked for a new one; the form shows while it is still in hand.
   const [replacing, setReplacing] = useState<WorldDocument | null>(null);
+  const [view, setView] = useState<ViewId>(rememberedView);
+  const [menuOpen, setMenuOpen] = useState(false);
+  // What the shell keeps for the views: the Quest whose Party is open, so the home view can open
+  // one; and the History's choices, which hold while the game is in hand (DL-74 item 8).
+  const [boardQuest, setBoardQuest] = useState<QuestId | null>(null);
+  const [whose, setWhose] = useState<EntityId | null>(null);
+  const [mine, setMine] = useState(false);
+  const [focus, setFocus] = useState<Focus | null>(null);
+  const menuButton = useRef<HTMLButtonElement>(null);
+  const bar = useRef<HTMLElement>(null);
+
   const header = useMemo(() => (current === null ? null : headerView(current)), [current]);
   const notice = useMemo(() => (current === null ? null : rulesNotice(current)), [current]);
   const stop = useMemo(() => stopView(game), [game]);
   const progress = useMemo(() => progressView(game), [game]);
-  const onGoTo = useCallback((section: SectionId) => goTo(section), []);
+  const counts = useMemo(() => navCounts({ document: current, log: game.log }), [current, game.log]);
   const playing = busy && (pending?.kind === 'advance' || pending?.kind === 'fastForward');
+  const forwarding = busy && pending?.kind === 'fastForward';
 
+  /** Opens the view that holds `target` and puts the keyboard on `target`'s heading, or on `id` when given. */
+  const open = useCallback((target: SectionId, id?: string) => {
+    const next = viewFor(target);
+    setView(next);
+    setMenuOpen(false);
+    setFocus({ id: id ?? headingOf(target), fallback: headingOf(next) });
+  }, []);
+
+  // A new game or a load: the home view, and nothing the last game had open (DL-74 item 7).
+  const [games, setGames] = useState(game.games);
+  if (games !== game.games) {
+    setGames(game.games);
+    setView('guild');
+    setMenuOpen(false);
+    setBoardQuest(null);
+    setWhose(null);
+    setMine(false);
+    setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
+  }
+
+  // The end of a fast forward, by its stop or the player's: the home view, which says why and what
+  // came of it. In the same render as the end, so the page is never idle on the view it left.
+  const [wasForwarding, setWasForwarding] = useState(forwarding);
+  if (wasForwarding !== forwarding) {
+    setWasForwarding(forwarding);
+    if (wasForwarding && game.rejection === null) {
+      setView('guild');
+      setMenuOpen(false);
+      setFocus({ id: headingOf('guild'), fallback: headingOf('guild') });
+    }
+  }
+
+  useEffect(() => rememberView(view), [view]);
+
+  useEffect(() => {
+    if (focus === null) return;
+    const target = document.getElementById(focus.id) ?? document.getElementById(focus.fallback);
+    target?.scrollIntoView?.({ block: 'start' });
+    target?.focus({ preventScroll: true });
+  }, [focus]);
+
+  // What sticks below the status bar starts where it ends, however tall a long name or a refusal
+  // makes it: its height, as a length the stylesheet reads. Where nothing measures (jsdom), none.
+  useLayoutEffect(() => {
+    const element = bar.current;
+    if (element === null || typeof ResizeObserver === 'undefined') return undefined;
+    const measured = new ResizeObserver(() => {
+      document.documentElement.style.setProperty('--status-h', `${Math.round(element.getBoundingClientRect().height)}px`);
+    });
+    measured.observe(element);
+    return () => measured.disconnect();
+  }, [current, replacing]);
+
+  const closeMenu = useCallback(() => {
+    setMenuOpen(false);
+    menuButton.current?.focus();
+  }, []);
+
+  if (current === null || replacing === current || header === null) {
+    return (
+      <div className="app app--start">
+        <main aria-busy={busy} className="start">
+          <Refusal state={game} play={play} />
+          <p className="brand" aria-hidden="true">
+            A Guild-management simulation
+          </p>
+          <h1>Heroesim</h1>
+          <NewGame saves={saves} busy={busy} play={play} {...(current === null ? {} : { onCancel: () => setReplacing(null) })} />
+        </main>
+        <footer className="footer">
+          <p>
+            Content set {content.id}, version {content.version}, loaded.
+          </p>
+          {modules.length === 0 ? null : <p>Installed for testing: {installedWords(modules)}.</p>}
+        </footer>
+      </div>
+    );
+  }
+
+  const shared = { document: current, busy, play };
+  const guildName = header.guildName;
   return (
-    <div className="app">
-      {current === null ? null : <p className="brand">Heroesim</p>}
-      <main aria-busy={busy}>
+    <div className="app" data-view={view}>
+      <StatusBar
+        view={header}
+        busy={busy}
+        playing={playing}
+        ended={current.world.ended !== null}
+        progress={progress}
+        play={play}
+        menuOpen={menuOpen}
+        onMenu={() => setMenuOpen(!menuOpen)}
+        onGuild={() => open('guild')}
+        menuButton={menuButton}
+        bar={bar}
+      >
         <Refusal state={game} play={play} />
-        {current === null || replacing === current ? (
-          <>
-            <h1>Heroesim</h1>
-            <NewGame saves={saves} busy={busy} play={play} {...(current === null ? {} : { onCancel: () => setReplacing(null) })} />
-          </>
-        ) : (
-          <>
-            {header === null ? <h1>Heroesim</h1> : <Header view={header} />}
-            <nav className="index" aria-label="Sections">
-              <ul>
-                {index.map(({ id, label }) => (
-                  <li key={id}>
-                    <a
-                      href={`#${id}`}
-                      onClick={(event) => {
-                        event.preventDefault();
-                        goTo(id);
-                      }}
-                    >
-                      {label}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </nav>
-            {notice === null ? null : <RulesNotice notice={notice} busy={busy} play={play} />}
-            <Time busy={busy} playing={playing} ended={current.world.ended !== null} progress={progress} stop={stop} play={play} goTo={onGoTo} />
-            {/* Keyed by the game in hand: what one game had open (a Hero's page, a Guild, a Quest's
-                Party, whose History) is not open in the next one started or loaded (DL-74). */}
-            <Fragment key={game.games}>
-              <Board document={current} busy={busy} play={play} />
-              <Roster document={current} busy={busy} play={play} />
-              <Offers document={current} busy={busy} play={play} />
-              <Pool document={current} busy={busy} play={play} />
-              <Market document={current} busy={busy} play={play} />
-              <Hall document={current} busy={busy} play={play} />
-              <Guildmaster document={current} />
-              <Patrons document={current} guildName={header?.guildName ?? 'your Guild'} />
-              <Rankings document={current} />
-              <Guilds document={current} busy={busy} play={play} />
-              <Log state={game} guildName={header?.guildName ?? 'your Guild'} />
-              <History document={current} busy={busy} play={play} />
-            </Fragment>
-            <GameFile document={current} state={game} saves={saves} busy={busy} play={play} onNewGame={() => setReplacing(current)} />
-          </>
-        )}
-      </main>
-      <footer className="footer">
-        <p>
-          Content set {content.id}, version {content.version}, loaded.
-        </p>
-        {modules.length === 0 ? null : <p>Installed for testing: {installedWords(modules)}.</p>}
-      </footer>
+      </StatusBar>
+      <div className="shell">
+        <Nav current={view} counts={counts} onOpen={(next) => open(next)} />
+        <main aria-busy={busy} className="main">
+          {/* Keyed by the game in hand: what one game had open (a Hero's page, a Guild, whose
+              History) is not open in the next one started or loaded (DL-74). */}
+          <Fragment key={game.games}>
+            {view === 'guild' ? (
+              <GuildView
+                state={game}
+                document={current}
+                header={header}
+                notice={notice}
+                stop={stop}
+                busy={busy}
+                play={play}
+                onGo={(target) => open(target)}
+                onOpenQuest={(questId) => {
+                  setBoardQuest(questId);
+                  open('board', `quest-${questId}`);
+                }}
+                onOpenMenu={() => setMenuOpen(true)}
+              />
+            ) : null}
+            {view === 'board' ? <Board {...shared} open={boardQuest} onOpen={setBoardQuest} /> : null}
+            {view === 'roster' ? <Roster {...shared} /> : null}
+            {view === 'hall' ? <Hall {...shared} /> : null}
+            {view === 'rankings' ? <Rankings {...shared} guildName={guildName} /> : null}
+            {view === 'history' ? (
+              <History {...shared} state={game} guildName={guildName} whose={whose} onWhose={setWhose} mine={mine} onMine={setMine} />
+            ) : null}
+          </Fragment>
+        </main>
+        <Rail state={game} onOpenHistory={() => open('history')} />
+      </div>
+      {modules.length === 0 ? null : (
+        <footer className="footer footer--shell">
+          <p>Installed for testing: {installedWords(modules)}.</p>
+        </footer>
+      )}
+      {menuOpen ? (
+        <GameMenu
+          document={current}
+          state={game}
+          saves={saves}
+          busy={busy}
+          play={play}
+          notice={notice}
+          modules={modules}
+          onClose={closeMenu}
+          onNewGame={() => {
+            setMenuOpen(false);
+            setReplacing(current);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

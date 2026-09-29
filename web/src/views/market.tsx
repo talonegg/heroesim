@@ -2,12 +2,16 @@
 // and at what price, bought by the quantity asked; and what the player's Guild holds, with what each
 // sells for, sold from a stack by the quantity asked or as a unique Item. The Market Engine prices
 // (`marketStock`, `sellPrice`), and the engine's `buy` and `sell` decide.
+//
+// A part of the Hall (M9-S3, DL-103): quantities are steppers, and the Guild's Wealth is the status
+// bar's to say. The tables and the filter chips are M9-S6's.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState, type FormEvent } from 'react';
 import type { GameAction } from '../state/reducer';
 import { marketView, type HeldForSale, type ListingRow } from '../state/trade-views';
-import { Section } from './section';
+import { Part } from './section';
+import { Stepper } from './ui';
 
 type Play = (action: GameAction) => void;
 
@@ -15,47 +19,33 @@ export function Market({ document, busy, play }: { document: WorldDocument; busy
   const view = useMemo(() => marketView(document), [document]);
   const kinds = `${view.forSale.length} ${view.forSale.length === 1 ? 'kind' : 'kinds'}`;
   return (
-    <Section
-      id="market"
-      title="Market"
-      help={
-        'Buy Items the Market has for sale at its price each, and sell what your Guild holds for what the Market pays, ' +
-        'which is less. Gear a Hero carries is not the Guild’s to sell until it is unequipped. The Market’s stock is ' +
-        'drawn afresh each morning.'
-      }
-    >
+    <Part id="market">
       <p>
         {view.forSale.length === 0
           ? 'The Market has nothing for sale.'
           : `${view.totalForSale} ${view.totalForSale === 1 ? 'Item' : 'Items'} for sale, of ${kinds}.`}
       </p>
-      <ul className="cards">
+      <ul className="cards cards--grid">
         {view.forSale.map((row) => (
           <li key={row.definitionKey} className="card">
             <Listing row={row} busy={busy} play={play} />
           </li>
         ))}
       </ul>
-      {view.guildName === null ? null : (
+      {/* Nothing held, nothing to sell: the list is not drawn (the review's A5). */}
+      {view.guildName === null || view.held.length === 0 ? null : (
         <>
-          <h3>What {view.guildName} holds</h3>
-          <p>
-            {view.guildName} has {view.wealth} Wealth.
-          </p>
-          {view.held.length === 0 ? (
-            <p>Nothing to sell.</p>
-          ) : (
-            <ul className="cards">
-              {view.held.map((row) => (
-                <li key={row.key} className="card">
-                  <Held row={row} busy={busy} play={play} />
-                </li>
-              ))}
-            </ul>
-          )}
+          <h4>Sell what {view.guildName} holds</h4>
+          <ul className="cards cards--grid">
+            {view.held.map((row) => (
+              <li key={row.key} className="card">
+                <Held row={row} busy={busy} play={play} />
+              </li>
+            ))}
+          </ul>
         </>
       )}
-    </Section>
+    </Part>
   );
 }
 
@@ -76,24 +66,13 @@ function Listing({ row, busy, play }: { row: ListingRow; busy: boolean; play: Pl
   return (
     <form className="trade" onSubmit={buy} aria-label={`Buy ${row.name}`}>
       <p>
-        <strong>{row.name}</strong>, {row.kind}: {row.does}.
+        <strong className="trade__name">{row.name}</strong>, {row.kind}: {row.does}.
       </p>
       <p>
         {row.quantity} for sale at {row.price} Wealth each.
       </p>
       <div className="actions">
-        <label className="inline-field">
-          <span>How many</span>
-          <input
-            type="number"
-            min={1}
-            max={row.quantity}
-            step={1}
-            inputMode="numeric"
-            value={quantity}
-            onChange={(event) => setQuantity(Number(event.target.value))}
-          />
-        </label>
+        <Stepper label="How many" value={quantity} min={1} max={row.quantity} onChange={setQuantity} />
         <button type="submit" disabled={busy}>
           Buy
         </button>
@@ -112,24 +91,11 @@ function Held({ row, busy, play }: { row: HeldForSale; busy: boolean; play: Play
   return (
     <form className="trade" onSubmit={sell} aria-label={`Sell ${row.name}`}>
       <p>
-        <strong>{row.name}</strong>: {row.held} held;{' '}
+        <strong className="trade__name">{row.name}</strong>: {row.held} held;{' '}
         {row.sellsFor === null ? 'the Market cannot price it.' : `each sells for ${row.sellsFor} Wealth.`}
       </p>
       <div className="actions">
-        {'stackId' in sale ? (
-          <label className="inline-field">
-            <span>How many</span>
-            <input
-              type="number"
-              min={1}
-              max={row.held}
-              step={1}
-              inputMode="numeric"
-              value={quantity}
-              onChange={(event) => setQuantity(Number(event.target.value))}
-            />
-          </label>
-        ) : null}
+        {'stackId' in sale ? <Stepper label="How many" value={quantity} min={1} max={row.held} onChange={setQuantity} /> : null}
         <button type="submit" disabled={busy}>
           Sell
         </button>

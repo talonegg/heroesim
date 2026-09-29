@@ -13,7 +13,7 @@ import type { GameAction } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import { LoadSave } from './game-file';
 import { SavedGames } from './saved-games';
-import { Section } from './section';
+import { View } from './section';
 
 const backgrounds = guildBackgrounds();
 
@@ -46,15 +46,7 @@ export function NewGame({
   }
 
   return (
-    <Section
-      id="new-game"
-      title="A new game"
-      help={
-        'Found a Guild, name its Guildmaster, and take Quests from the Board. The seed makes the world: the same seed and ' +
-        'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
-        'exported here.'
-      }
-    >
+    <View id="new-game">
       {onCancel === undefined ? null : <p className="warning">The game in hand is lost unless you export it first.</p>}
       <form className="form" onSubmit={start}>
         <label className="field">
@@ -91,14 +83,14 @@ export function NewGame({
             Start the game
           </button>
           {onCancel === undefined ? null : (
-            <button type="button" onClick={onCancel}>
+            <button type="button" className="button--quiet" onClick={onCancel}>
               Back to the game in hand
             </button>
           )}
         </div>
       </form>
-      <SavedGames saves={saves} document={null} busy={busy} play={play} />
+      <SavedGames saves={saves} document={null} busy={busy} play={play} level={3} />
       <LoadSave saves={saves} busy={busy} play={play} />
-    </Section>
+    </View>
   );
 }

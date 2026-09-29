@@ -10,9 +10,17 @@
 // engine refuses is said as a sentence.
 
 import type { GuildId, HeroId, WorldDocument } from '@heroesim/engine';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import type { GameAction } from '../state/reducer';
 import { heroPage, type HeroActions, type LogLine, type StatRow } from '../state/selectors';
+import { Icon } from './icons';
+
+/** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
+type Levels = 3 | 4;
+
+function Sub({ level, children }: { level: Levels; children: ReactNode }) {
+  return level === 3 ? <h4>{children}</h4> : <h5>{children}</h5>;
+}
 
 export function HeroPage({
   document,
@@ -21,6 +29,7 @@ export function HeroPage({
   backLabel = 'Back to the Roster',
   play,
   busy = false,
+  level = 3,
 }: {
   document: WorldDocument;
   heroId: HeroId;
@@ -29,14 +38,17 @@ export function HeroPage({
   /** Offers the Hero's actions when given. */
   play?: (action: GameAction) => void;
   busy?: boolean;
+  /** The level of the Hero's name: 3 in a view, 4 in a part of one (M9-S3). */
+  level?: Levels;
 }) {
   const [page, setPage] = useState(0);
   const view = useMemo(() => heroPage(document, heroId, page), [document, heroId, page]);
   const back =
     onBack === undefined ? null : (
-      <div className="actions">
-        <button type="button" onClick={onBack}>
-          {backLabel}
+      <div className="actions actions--back">
+        <button type="button" className="button--quiet" onClick={onBack}>
+          <Icon name="back" />
+          <span>{backLabel}</span>
         </button>
       </div>
     );
@@ -53,7 +65,7 @@ export function HeroPage({
   return (
     <article className="hero-page" aria-labelledby="hero-name">
       {back}
-      <h3 id="hero-name">{view.name}</h3>
+      {level === 3 ? <h3 id="hero-name">{view.name}</h3> : <h4 id="hero-name">{view.name}</h4>}
       <dl className="terms">
         {view.attributes.map(([label, value]) => (
           <div key={label}>
@@ -63,7 +75,7 @@ export function HeroPage({
         ))}
       </dl>
 
-      <h4>Stats</h4>
+      <Sub level={level}>Stats</Sub>
       <div className="table-wrap">
         <table className="stats">
           <thead>
@@ -98,7 +110,7 @@ export function HeroPage({
         </table>
       </div>
 
-      <h4>Gear</h4>
+      <Sub level={level}>Gear</Sub>
       <ul className={own ? 'rows' : undefined}>
         {view.gear.map((gear, index) => (
           <li key={`${gear.slot}-${index}`}>
@@ -107,15 +119,15 @@ export function HeroPage({
               {gear.modifies === '' ? '' : ` (${gear.modifies})`}
             </span>
             {own && gear.worn && play !== undefined ? (
-              <button type="button" disabled={busy} onClick={() => play({ kind: 'unequip', heroId, slot: gear.slot })}>
-                Unequip {gear.item}
+              <button type="button" aria-label={`Unequip ${gear.item}`} disabled={busy} onClick={() => play({ kind: 'unequip', heroId, slot: gear.slot })}>
+                Unequip
               </button>
             ) : null}
           </li>
         ))}
       </ul>
 
-      <h4>Skills</h4>
+      <Sub level={level}>Skills</Sub>
       {view.skills.length === 0 ? (
         <p>none</p>
       ) : (
@@ -130,7 +142,7 @@ export function HeroPage({
 
       {view.relationships === null ? null : (
         <>
-          <h4>Relationships on the Roster</h4>
+          <Sub level={level}>Relationships on the Roster</Sub>
           {view.relationships.length === 0 ? (
             <p>none</p>
           ) : (
@@ -146,18 +158,23 @@ export function HeroPage({
       )}
 
       {play === undefined || view.actions === null ? null : (
-        <HeroActionsView actions={view.actions} heroId={heroId} name={view.name} busy={busy} play={play} />
+        <HeroActionsView actions={view.actions} heroId={heroId} name={view.name} busy={busy} play={play} level={level} />
       )}
 
-      <h4>Milestones</h4>
-      <Lines lines={view.milestones} empty="None yet." />
+      {/* No Milestone yet, no heading: an empty list is not drawn (M9-S3, the review's A5). */}
+      {view.milestones.length === 0 ? null : (
+        <>
+          <Sub level={level}>Milestones</Sub>
+          <Lines lines={view.milestones} empty="" />
+        </>
+      )}
 
-      <h4>History, newest first</h4>
+      <Sub level={level}>History, newest first</Sub>
       <p className="subtle">
         Page {history.page + 1} of {history.pages}, {history.entries} {history.entries === 1 ? 'entry' : 'entries'} in all.
       </p>
       <Lines lines={history.lines} empty="Nothing yet." />
-      <div className="actions">
+      <div className="actions actions--pages">
         <button type="button" disabled={history.page === 0} onClick={() => setPage(history.page - 1)}>
           Newer
         </button>
@@ -176,24 +193,26 @@ function HeroActionsView({
   name,
   busy,
   play,
+  level,
 }: {
   actions: HeroActions;
   heroId: HeroId;
   name: string;
   busy: boolean;
   play: (action: GameAction) => void;
+  level: Levels;
 }) {
   switch (actions.kind) {
     case 'pool':
       return (
         <>
-          <h4>Recruit</h4>
+          <Sub level={level}>Recruit</Sub>
           <p>
             Signing fee {actions.fee} Wealth. Signs for your Guild: {actions.signs}.
           </p>
           <div className="actions">
-            <button type="button" className="button--primary" disabled={busy} onClick={() => play({ kind: 'recruit', heroId })}>
-              Recruit {name}
+            <button type="button" className="button--primary" aria-label={`Recruit ${name}`} disabled={busy} onClick={() => play({ kind: 'recruit', heroId })}>
+              Recruit
             </button>
           </div>
         </>
@@ -201,20 +220,20 @@ function HeroActionsView({
     case 'rival':
       return (
         <>
-          <h4>Transfer</h4>
+          <Sub level={level}>Transfer</Sub>
           <p>
             Your Guild would pay {actions.guildName} a Transfer fee of {actions.fee} Wealth to take {name} in, if{' '}
             {actions.guildName} is willing to part with them.
           </p>
           <div className="actions">
-            <button type="button" disabled={busy} onClick={() => play({ kind: 'transferIn', heroId })}>
-              Take {name} in
+            <button type="button" aria-label={`Take ${name} in`} disabled={busy} onClick={() => play({ kind: 'transferIn', heroId })}>
+              Take in
             </button>
           </div>
         </>
       );
     case 'own':
-      return <OwnHeroActions actions={actions} heroId={heroId} name={name} busy={busy} play={play} />;
+      return <OwnHeroActions actions={actions} heroId={heroId} name={name} busy={busy} play={play} level={level} />;
   }
 }
 
@@ -225,18 +244,20 @@ function OwnHeroActions({
   name,
   busy,
   play,
+  level,
 }: {
   actions: Extract<HeroActions, { kind: 'own' }>;
   heroId: HeroId;
   name: string;
   busy: boolean;
   play: (action: GameAction) => void;
+  level: Levels;
 }) {
   const [to, setTo] = useState<GuildId | ''>('');
   const target = actions.transferTo.find((guild) => guild.guildId === to) ?? actions.transferTo[0];
   return (
     <>
-      <h4>Equip gear the Guild holds</h4>
+      <Sub level={level}>Equip gear the Guild holds</Sub>
       {actions.equip.length === 0 ? (
         <p>The Guild holds no gear; the Market sells it.</p>
       ) : (
@@ -247,15 +268,15 @@ function OwnHeroActions({
                 {gear.name}, {gear.kind}
                 {gear.modifies === '' ? '' : ` (${gear.modifies})`}
               </span>
-              <button type="button" disabled={busy} onClick={() => play({ kind: 'equip', heroId, ...gear.gear })}>
-                Equip {gear.name}
+              <button type="button" aria-label={`Equip ${gear.name}`} disabled={busy} onClick={() => play({ kind: 'equip', heroId, ...gear.gear })}>
+                Equip
               </button>
             </li>
           ))}
         </ul>
       )}
 
-      <h4>Transfer</h4>
+      <Sub level={level}>Transfer</Sub>
       {target === undefined ? (
         <p>No other Guild is in play to take {name}.</p>
       ) : (
@@ -287,7 +308,7 @@ function OwnHeroActions({
 
 /** Lines of the History, each with when it fell. */
 export function Lines({ lines, empty }: { lines: readonly LogLine[]; empty: string }) {
-  if (lines.length === 0) return <p>{empty}</p>;
+  if (lines.length === 0) return empty === '' ? null : <p className="subtle">{empty}</p>;
   return (
     <ol className="lines">
       {lines.map((line) => (

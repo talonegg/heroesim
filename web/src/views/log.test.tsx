@@ -22,14 +22,14 @@ test('reads its lines again when the game or the log changes, not at each step o
   expect(second.document).toBe(first.document);
   expect(second.log).toBe(first.log);
 
-  const { rerender } = render(<Log state={first} guildName="The Lantern" />);
+  const { rerender } = render(<Log state={first} guildName="The Lantern" mine={false} onMine={() => undefined} />);
   const reads = vi.mocked(logView).mock.calls.length;
-  rerender(<Log state={second} guildName="The Lantern" />);
+  rerender(<Log state={second} guildName="The Lantern" mine={false} onMine={() => undefined} />);
 
   expect(vi.mocked(logView).mock.calls.length).toBe(reads);
 
   // Stopped, the game and the log are the steps': read again.
-  rerender(<Log state={gameReducer(second, { kind: 'stop' })} guildName="The Lantern" />);
+  rerender(<Log state={gameReducer(second, { kind: 'stop' })} guildName="The Lantern" mine={false} onMine={() => undefined} />);
 
   expect(vi.mocked(logView).mock.calls.length).toBe(reads + 1);
 });

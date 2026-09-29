@@ -1,43 +1,96 @@
 /*
- * The page's styling (M7-S3, DL-66): one column that stacks, at any width, from a phone's 360px
- * up, with no horizontal scroll of the page (M7 §0 defers every other layout). A wide table
- * scrolls inside its own box instead. System fonts, no icon set, no stylesheet from anywhere
- * else: the page requests nothing (principle 12). Adapted from v1's (feature/poc, E8-S3), whose
- * three layouts by width are left out.
+ * The page's style (M9-S3, DL-103; the review's D1 to D8, the direction DL-100 item 6 goes ahead
+ * with): a guild ledger. Parchment and ink surfaces, an oxblood accent, brass for the numbers that
+ * matter, headings in the system's own serif, one surface level per view with space and hairlines
+ * between things rather than frames around them, three tiers of button, and a small inline icon set.
+ *
+ * The shell by width, by CSS alone (DL-99 item 1; the mechanism harvested from v1's feature/poc
+ * E8-S3, not its model): under 600px one view at a time over a bottom bar; from 600px a side rail;
+ * from 1100px a History rail beside the view as well. No horizontal scroll of the page at any width;
+ * a wide table scrolls inside its own box. Controls are at least 44px.
+ *
+ * Nothing is fetched (principle 12, the bundle gate): system font stacks, and icons as inline SVG
+ * in the bundle. Text contrast is at least WCAG AA in both schemes, which `styles.test.ts` checks
+ * token by token. Motion is short, and off under `prefers-reduced-motion`.
  */
 
+/* ── Tokens ─────────────────────────────────────────────────────────────────────────────── */
+
 :root {
-  --bg: #f6f3ee;
-  --bg-raised: #fffdfa;
-  --bg-sunken: #ebe5db;
-  --ink: #241f1a;
-  --ink-soft: #5d554b;
-  --line: #d6cdbf;
-  --accent: #7a4e2d;
-  --accent-ink: #fffdfa;
-  --good: #2f6b3f;
-  --bad: #8c2f2f;
+  /* Surfaces: the page, a card on it, a well sunk into it. */
+  --paper: #f5f0e6;
+  --surface: #fcf9f3;
+  --sunk: #ece4d6;
+  /* Ink, and ink for what is said beside the point. */
+  --ink: #2a221b;
+  --ink-soft: #5f5244;
+  /* Hairlines, and the edge of a field. */
+  --line: #dcd2c2;
+  --line-strong: #857560;
+  /* The accent, oxblood, and what is written on it. */
+  --accent: #7c2d24;
+  --accent-strong: #63221b;
+  --on-accent: #fcf9f3;
+  --accent-soft: #f3e3dd;
+  /* Brass, for the numbers that matter. */
+  --brass: #7f5b12;
+  --brass-soft: #f2e6c9;
+  /* How a thing went, and a warning: never colour alone, always with a word or an icon. */
+  --good: #2b6a3c;
+  --good-soft: #e1eedf;
+  --bad: #a12a22;
+  --bad-soft: #f7e1dc;
+  --warn: #875200;
+  --warn-soft: #f8e8c9;
+  --focus: #7c2d24;
+  --shadow: 0 1px 2px rgb(42 34 27 / 8%), 0 8px 24px rgb(42 34 27 / 10%);
+  --backdrop: rgb(42 34 27 / 40%);
+
+  /* Faces: the display serif ships with the systems themselves (the review's D2). */
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
   --tap: 44px;
   --gap: 0.75rem;
+  --space: 1.25rem;
   --gutter: 16px;
   --radius: 10px;
+  --radius-small: 6px;
+  --frame: 92rem;
+  --nav-h: 64px;
+  --status-h: 0px;
+  --quick: 160ms;
   color-scheme: light dark;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #171513;
-    --bg-raised: #221f1c;
-    --bg-sunken: #100e0d;
-    --ink: #ece5dc;
-    --ink-soft: #a89e92;
-    --line: #3b3630;
-    --accent: #d09b6a;
-    --accent-ink: #1a1613;
-    --good: #85c59a;
-    --bad: #e29a9a;
+    --paper: #181410;
+    --surface: #221d17;
+    --sunk: #110e0b;
+    --ink: #f0e8db;
+    --ink-soft: #b9ab97;
+    --line: #3a3228;
+    --line-strong: #7a6d5c;
+    --accent: #e6a896;
+    --accent-strong: #f0bfb0;
+    --on-accent: #1c1410;
+    --accent-soft: #3d2520;
+    --brass: #e3bf6f;
+    --brass-soft: #3a2e14;
+    --good: #94d1a3;
+    --good-soft: #1c3323;
+    --bad: #f2a399;
+    --bad-soft: #40201c;
+    --warn: #f1c374;
+    --warn-soft: #3b2c11;
+    --focus: #e6a896;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 10px 30px rgb(0 0 0 / 45%);
+    --backdrop: rgb(0 0 0 / 60%);
   }
 }
+
+/* ── Base ───────────────────────────────────────────────────────────────────────────────── */
 
 *,
 *::before,
@@ -51,13 +104,20 @@ body {
   padding: 0;
 }
 
+html {
+  scroll-padding-top: calc(var(--status-h) + 0.75rem);
+}
+
 body {
-  background: var(--bg);
+  background: var(--paper);
   color: var(--ink);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-family: var(--sans);
   font-size: 16px;
   line-height: 1.5;
+  /* Every number in tabular figures, so columns and changing values do not jitter. */
+  font-variant-numeric: tabular-nums;
   -webkit-text-size-adjust: 100%;
+  text-rendering: optimizeLegibility;
 }
 
 /* Names and sentences wrap, however long a word; nothing is cut off. */
@@ -65,6 +125,8 @@ h1,
 h2,
 h3,
 h4,
+h5,
+h6,
 p,
 li,
 dt,
@@ -72,37 +134,59 @@ dd,
 span,
 label,
 legend,
-button {
+button,
+summary {
   overflow-wrap: anywhere;
 }
 
 h1,
 h2,
 h3,
-h4 {
-  line-height: 1.25;
+h4,
+h5,
+h6 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.2;
   margin: 0 0 0.5rem;
+  letter-spacing: 0.005em;
+  scroll-margin-top: calc(var(--status-h) + 0.75rem);
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 1.75rem;
 }
 
 h2 {
-  font-size: 1.25rem;
+  font-size: 1.625rem;
 }
 
 h3 {
-  font-size: 1.1rem;
+  font-size: 1.25rem;
 }
 
 h4 {
+  font-size: 1.075rem;
+  margin-top: 1.1rem;
+}
+
+h5 {
   font-size: 1rem;
   margin-top: 1rem;
 }
 
+h6 {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-top: 0.75rem;
+}
+
 p {
   margin: 0 0 0.5rem;
+  max-width: 68ch;
 }
 
 ul,
@@ -111,145 +195,31 @@ ol {
   padding-left: 1.25rem;
 }
 
+strong {
+  font-weight: 650;
+}
+
 [tabindex='-1']:focus {
   outline: none;
 }
 
-/* ── Controls ───────────────────────────────────────────────────────────────────────────── */
-
-button {
-  font: inherit;
-  color: inherit;
-  min-height: var(--tap);
-  padding: 0.5rem 0.85rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--bg-raised);
-  cursor: pointer;
-  text-align: left;
-  max-width: 100%;
-}
-
-button:disabled {
-  opacity: 0.55;
-  cursor: default;
-}
-
-button:focus-visible,
-input:focus-visible,
-select:focus-visible {
-  outline: 3px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.button--primary {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-/* A button that reads as a name: a Hero on the Roster. */
-.link {
-  border: none;
-  background: none;
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  min-height: var(--tap);
-  color: var(--accent);
-  font-weight: 600;
-  text-decoration: underline;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
 
-input[type='text'],
-input[type='number'],
-select {
-  font: inherit;
-  color: inherit;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  min-height: var(--tap);
-  padding: 0.4rem 0.6rem;
-  width: 100%;
-  max-width: 22rem;
-}
-
-input[type='number'] {
-  max-width: 7rem;
-}
-
-input[type='checkbox'] {
-  width: 1.25rem;
-  height: 1.25rem;
-  margin: 0.15rem 0 0;
+.icon {
+  width: 1.25em;
+  height: 1.25em;
   flex: none;
-}
-
-fieldset {
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  margin: 0 0 var(--gap);
-  padding: 0.5rem var(--gap) var(--gap);
-  min-width: 0;
-}
-
-legend {
-  font-weight: 600;
-  padding: 0 0.25rem;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin-bottom: var(--gap);
-}
-
-.choice {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.6rem;
-  min-height: var(--tap);
-  padding: 0.35rem 0;
-}
-
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: var(--gap) 0;
-}
-
-/* ── The one column ─────────────────────────────────────────────────────────────────────── */
-
-.app {
-  max-width: 44rem;
-  margin: 0 auto;
-  padding: var(--gutter);
-}
-
-main {
-  display: flex;
-  flex-direction: column;
-  gap: var(--gap);
-  min-width: 0;
-}
-
-.brand {
-  color: var(--ink-soft);
-  font-size: 0.875rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  margin: 0 0 0.25rem;
-}
-
-.panel,
-.guild {
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: var(--gap);
-  min-width: 0;
+  vertical-align: -0.25em;
 }
 
 .subtle,
@@ -261,53 +231,1207 @@ main {
   font-size: 0.875rem;
 }
 
-.busy:empty {
+.warning {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+/* ── Buttons: three tiers ───────────────────────────────────────────────────────────────── */
+
+/* Secondary, the default: outlined. */
+button,
+.button {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent);
+  min-height: var(--tap);
+  min-width: var(--tap);
+  padding: 0.45rem 1rem;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  text-align: center;
+  max-width: 100%;
+  line-height: 1.25;
+}
+
+button:hover:not(:disabled),
+.button:hover:not(.is-disabled) {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+
+button:disabled,
+.button.is-disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Primary: filled. Advance, Send the Party, Accept, Start the game. */
+.button--primary {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+.button--primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  color: var(--on-accent);
+}
+
+/* Tertiary: quiet text. Close, Back, Dismiss, Keep it. */
+.button--quiet {
+  border-color: transparent;
+  background: transparent;
+  padding-inline: 0.6rem;
+}
+
+.button--quiet:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-soft);
+}
+
+.button--danger {
+  color: var(--bad);
+  border-color: var(--bad);
+}
+
+.button--danger:hover:not(:disabled) {
+  background: var(--bad-soft);
+  border-color: var(--bad);
+}
+
+/* A button that reads as a name: a Hero on a Roster. The card around it is the space it needs. */
+.link {
+  border: none;
+  background: none;
+  padding: 0.35rem 0;
+  min-height: var(--tap);
+  min-width: var(--tap);
+  color: var(--accent);
+  font-family: var(--serif);
+  font-size: 1.125rem;
+  font-weight: 600;
+  justify-content: flex-start;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.link:hover:not(:disabled) {
+  background: none;
+  text-decoration-thickness: 2px;
+}
+
+/* A toggle that is on: the Rankings' measure. */
+button[aria-pressed='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* The file picker's own input is hidden: the button it sits in shows the keyboard is there. */
+.file-button:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin: var(--gap) 0;
+}
+
+.actions--back {
+  margin: 0 0 0.5rem -0.6rem;
+}
+
+/* ── Fields ─────────────────────────────────────────────────────────────────────────────── */
+
+input[type='text'],
+input[type='number'],
+input[type='search'],
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  min-height: var(--tap);
+  padding: 0.4rem 0.65rem;
+  width: 100%;
+  max-width: 24rem;
+}
+
+input::placeholder {
+  color: var(--ink-soft);
+  opacity: 1;
+}
+
+input[type='checkbox'] {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.15rem 0 0;
+  flex: none;
+  accent-color: var(--accent);
+}
+
+fieldset {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 0 0 var(--gap);
+  padding: 0.5rem 0 0;
+  min-width: 0;
+}
+
+legend {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 0 0.5rem 0 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: var(--gap);
+}
+
+.field > span:first-child,
+.stepper-field > label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  min-height: var(--tap);
+  padding: 0.55rem 0;
+  cursor: pointer;
+}
+
+.choice + .choice {
+  border-top: 1px solid var(--line);
+}
+
+/* A search field with its glass. */
+.search {
+  position: relative;
+  display: block;
+  max-width: 24rem;
+}
+
+.search .icon {
+  position: absolute;
+  left: 0.65rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--ink-soft);
+  pointer-events: none;
+}
+
+.search input[type='search'] {
+  padding-left: 2.25rem;
+  border-radius: 999px;
+}
+
+/* A number with − and + beside it. */
+.stepper-field {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-small);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.stepper__step {
+  border: none;
+  border-radius: 0;
+  min-width: var(--tap);
+  padding: 0;
+  font-size: 1.25rem;
+  font-weight: 500;
+}
+
+.stepper input[type='number'] {
+  border: none;
+  border-inline: 1px solid var(--line);
+  border-radius: 0;
+  width: 3.5rem;
+  min-width: 0;
+  padding: 0.25rem;
+  text-align: center;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.stepper input[type='number']::-webkit-inner-spin-button,
+.stepper input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* The browser's file picker, hidden behind a button of the page's own. */
+.file-button {
+  position: relative;
+  cursor: pointer;
+}
+
+.file-button input {
+  cursor: pointer;
+}
+
+/* ── Disclosures: help on request, and anything else that folds ─────────────────────────── */
+
+details > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+details > summary::-webkit-details-marker {
   display: none;
 }
 
-/* The header's facts: as many to a row as fit, each a label over its value. */
-.facts {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin: 0;
+.about {
+  flex: 1 1 100%;
+  order: 3;
 }
 
-.facts dt {
+.about > summary,
+.disclosure > summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-height: var(--tap);
+  padding: 0.25rem 0.6rem 0.25rem 0;
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9375rem;
+  border-radius: var(--radius-small);
+}
+
+.about > summary:hover,
+.disclosure > summary:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.about__body {
+  border-left: 3px solid var(--brass-soft);
+  padding: 0.25rem 0 0.25rem 0.9rem;
+  margin: 0.25rem 0 0.5rem;
   color: var(--ink-soft);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
 }
 
-.facts dd {
+.about__body p,
+.about__body dd {
+  max-width: 68ch;
+}
+
+.about__parts {
+  margin: 0.5rem 0 0;
+}
+
+.about__parts dt {
+  font-weight: 700;
+  color: var(--ink);
+  margin-top: 0.5rem;
+}
+
+.about__parts dd {
   margin: 0;
-  font-weight: 600;
 }
 
-/* The game's end, and the countdown to Bankruptcy while the Guild is below the floor (DL-95). */
-.ended,
-.countdown {
-  margin-top: var(--gap);
+.disclosure__mark {
+  transition: transform var(--quick) ease;
+}
+
+.disclosure[open] .disclosure__mark {
+  transform: rotate(180deg);
+}
+
+/* ── Chips, stats, badges, banners ──────────────────────────────────────────────────────── */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--sunk);
+  color: var(--ink);
+  font-size: 0.8125rem;
   font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.chip .icon {
+  width: 1.05em;
+  height: 1.05em;
+}
+
+.chip--good {
+  background: var(--good-soft);
+  border-color: transparent;
+  color: var(--good);
+}
+
+.chip--bad {
+  background: var(--bad-soft);
+  border-color: transparent;
   color: var(--bad);
 }
 
-/* A refusal stays in view at the top while the player scrolls, whichever section they acted from. */
-.refusal {
+.chip--warn {
+  background: var(--warn-soft);
+  border-color: transparent;
+  color: var(--warn);
+}
+
+.chip--accent {
+  background: var(--accent-soft);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.chip--brass {
+  background: var(--brass-soft);
+  border-color: transparent;
+  color: var(--brass);
+}
+
+/* A chip that does something: the countdown, which opens the home view. */
+.chip--button {
+  min-height: var(--tap);
+  padding-inline: 0.75rem;
+  white-space: normal;
+  text-align: left;
+}
+
+.chip--button:hover:not(:disabled) {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+/* A number that matters, with its icon: Wealth and Fame in brass. */
+.stat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2rem;
+  white-space: nowrap;
+}
+
+.stat .icon {
+  color: var(--ink-soft);
+}
+
+.stat--brass .icon,
+.stat--brass .stat__value {
+  color: var(--brass);
+}
+
+.stat__value {
+  font-weight: 700;
+}
+
+.stat--brass .stat__value {
+  font-size: 1.0625rem;
+}
+
+.stat--plain {
+  white-space: normal;
+}
+
+.stat__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.35rem;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.dot {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.banner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.35rem 0.75rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  background: var(--surface);
+  margin: 0 0 var(--space);
+}
+
+.banner__icon {
+  margin-top: 0.1rem;
+}
+
+.banner__body p:last-child {
+  margin-bottom: 0;
+}
+
+.banner__actions {
+  grid-column: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.banner--accent {
+  border-left-color: var(--accent);
+}
+
+.banner--accent .banner__icon {
+  color: var(--accent);
+}
+
+.banner--warn {
+  border-left-color: var(--warn);
+  background: var(--warn-soft);
+}
+
+.banner--warn .banner__icon {
+  color: var(--warn);
+}
+
+.banner--bad {
+  border-left-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.banner--bad .banner__icon {
+  color: var(--bad);
+}
+
+/* ── The page before a game ─────────────────────────────────────────────────────────────── */
+
+.app--start {
+  max-width: 44rem;
+  margin: 0 auto;
+  padding: 2rem var(--gutter) 1rem;
+}
+
+.start > h1 {
+  font-size: 2.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.brand {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin: 0 0 0.25rem;
+}
+
+/* An ornamental rule under a name (the review's D8). */
+.start > h1::after {
+  content: '';
+  display: block;
+  width: 4.5rem;
+  height: 3px;
+  margin-top: 0.6rem;
+  background: linear-gradient(90deg, var(--accent), var(--brass));
+  border-radius: 2px;
+}
+
+.start .view {
+  margin-top: var(--space);
+}
+
+.form {
+  margin-bottom: var(--space);
+}
+
+.footer {
+  color: var(--ink-soft);
+  font-size: 0.8125rem;
+  margin-top: var(--space);
+}
+
+.footer--shell {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0 var(--gutter) calc(var(--nav-h) + 1rem);
+}
+
+/* ── The status bar ─────────────────────────────────────────────────────────────────────── */
+
+.status {
   position: sticky;
   top: 0;
-  z-index: 2;
-  border: 2px solid var(--bad);
+  z-index: 20;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+  box-shadow: 0 1px 0 var(--line), 0 6px 18px rgb(0 0 0 / 5%);
+}
+
+.status__bar {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.5rem var(--gutter);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'guild menu'
+    'facts facts'
+    'time time';
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.status__guild {
+  grid-area: guild;
+  min-width: 0;
+}
+
+.status__guild h1 {
+  font-size: 1.3rem;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.status__facts {
+  grid-area: facts;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.1rem 1rem;
+  font-size: 0.9375rem;
+  min-width: 0;
+}
+
+.status__time {
+  grid-area: time;
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  padding-top: 0.25rem;
+}
+
+.status__time > .button--primary,
+.split,
+.split__main {
+  flex: 1 1 auto;
+}
+
+.status__time button {
+  white-space: nowrap;
+  padding-inline: 0.75rem;
+}
+
+.status__time .split__more {
+  flex: none;
+  padding-inline: 0.5rem;
+}
+
+/* On a phone the bar keeps to the point: the Year and "by Fame" are read, not shown. */
+@media (max-width: 599px) {
+  .wide-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .status__facts {
+    font-size: 0.875rem;
+    gap: 0 0.75rem;
+  }
+
+  .status__guild h1 {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 419px) {
+  .status__time > button .icon,
+  .split__main .icon {
+    display: none;
+  }
+}
+
+.status__menu {
+  grid-area: menu;
+  justify-self: end;
+}
+
+/* Fast forward, and its other ways behind a chevron. */
+.split {
+  position: relative;
+  display: inline-flex;
+  flex: 1 1 auto;
+}
+
+.split__main {
+  flex: 1 1 auto;
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+}
+
+.split__more {
+  border-start-start-radius: 0;
+  border-end-start-radius: 0;
+  border-left-width: 0;
+  padding-inline: 0.5rem;
+}
+
+.dialog .part:first-of-type {
+  border-top: none;
+  padding-top: 0;
+}
+
+.status__progress {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.5rem var(--gutter);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  border-top: 1px solid var(--line);
+  background: var(--brass-soft);
+}
+
+.status__progress p {
+  margin: 0;
+  font-weight: 600;
+}
+
+.status__progress .countdown {
+  color: var(--bad);
+  font-weight: 500;
+  font-size: 0.875rem;
+}
+
+/* A refusal, docked under the bar: it covers nothing of the view. */
+.refusal {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0.4rem var(--gutter);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  background: var(--bad-soft);
+  color: var(--ink);
+  border-top: 2px solid var(--bad);
+}
+
+.refusal p {
+  margin: 0;
+  max-width: none;
+}
+
+.refusal__icon {
+  color: var(--bad);
+}
+
+.app--start .refusal {
   border-radius: var(--radius);
-  background: var(--bg-raised);
-  padding: var(--gap);
+  border: 1px solid var(--bad);
+  border-left-width: 4px;
+  margin-bottom: var(--space);
 }
 
-.stop {
-  border-left: 4px solid var(--accent);
-  padding-left: var(--gap);
+/* ── Popovers and the game menu ─────────────────────────────────────────────────────────── */
+
+.popover {
+  position: absolute;
+  z-index: 30;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-/* ── Cards: Quests on the Board, Heroes on the Roster ───────────────────────────────────── */
+.popover--time {
+  top: calc(100% + 0.4rem);
+  right: 0;
+  width: min(22rem, calc(100vw - 2 * var(--gutter)));
+}
+
+.popover--time .note {
+  margin: 0;
+}
+
+.popover--time button {
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: var(--backdrop);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.dialog {
+  background: var(--paper);
+  width: min(32rem, 100%);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem var(--gutter) 2rem;
+  box-shadow: var(--shadow);
+}
+
+.dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  position: sticky;
+  top: -1rem;
+  margin: -1rem calc(-1 * var(--gutter)) 0.5rem;
+  padding: 0.75rem var(--gutter);
+  background: var(--paper);
+  border-bottom: 1px solid var(--line);
+  z-index: 1;
+}
+
+.dialog__head h2 {
+  margin: 0;
+}
+
+.facts-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.5rem 1rem;
+  margin: 0.5rem 0 var(--space);
+  padding: 0.75rem 0;
+  border-block: 1px solid var(--line);
+}
+
+.facts-list dt,
+.terms dt {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.facts-list dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.dialog .part {
+  margin-top: var(--space);
+}
+
+.load-save {
+  display: contents;
+}
+
+/* ── The shell ──────────────────────────────────────────────────────────────────────────── */
+
+.shell {
+  max-width: var(--frame);
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+.main {
+  min-width: 0;
+  padding: var(--space) 0 calc(var(--nav-h) + var(--space));
+}
+
+/* Under 600px: the navigation is a bar at the foot of the screen. */
+.nav {
+  position: fixed;
+  inset: auto 0 0;
+  z-index: 25;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.nav__list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0.25rem;
+  display: flex;
+  justify-content: space-around;
+}
+
+.nav__item {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+}
+
+.nav__item--wide {
+  display: none;
+}
+
+.nav__button {
+  width: 100%;
+  min-height: var(--nav-h);
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.35rem 0.25rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 600;
+  position: relative;
+}
+
+.nav__button .icon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.nav__button:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.nav__button[aria-current='page'],
+.nav__button.is-current {
+  color: var(--accent);
+}
+
+.nav__button[aria-current='page']::before,
+.nav__button.is-current::before {
+  content: '';
+  position: absolute;
+  inset: 0 25% auto;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: var(--accent);
+}
+
+.nav__button .badge,
+.nav__button .dot {
+  position: absolute;
+  top: 0.35rem;
+  left: calc(50% + 0.4rem);
+}
+
+.popover--nav {
+  bottom: calc(100% + 0.5rem);
+  right: 0.25rem;
+  min-width: 11rem;
+  padding: 0.35rem;
+}
+
+.popover--nav .nav__button {
+  flex-direction: row;
+  justify-content: flex-start;
+  gap: 0.6rem;
+  min-height: var(--tap);
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--radius-small);
+  font-size: 0.9375rem;
+}
+
+.popover--nav .nav__button[aria-current='page']::before {
+  inset: 20% auto 20% 0;
+  width: 3px;
+  height: auto;
+  border-radius: 0 3px 3px 0;
+}
+
+.popover--nav .nav__button .badge {
+  position: static;
+}
+
+.rail {
+  display: none;
+}
+
+/* From 600px: the navigation is a rail at the side; the status bar takes two rows. */
+@media (min-width: 600px) {
+  .status__bar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'guild menu'
+      'facts time';
+  }
+
+  .status__time {
+    padding-top: 0;
+  }
+
+  .status__time > .button--primary,
+  .split,
+  .split__main {
+    flex: 0 0 auto;
+  }
+
+  .shell {
+    display: grid;
+    grid-template-columns: 5.75rem minmax(0, 1fr);
+    gap: 0 var(--space);
+  }
+
+  .main {
+    padding-bottom: 3rem;
+  }
+
+  .footer--shell {
+    padding-bottom: 1.5rem;
+  }
+
+  .nav {
+    position: sticky;
+    top: var(--status-h);
+    inset: var(--status-h) auto auto;
+    align-self: start;
+    background: none;
+    border-top: none;
+    border-right: 1px solid var(--line);
+    padding: var(--space) 0.5rem var(--space) 0;
+    /* The whole height below the status bar, so its rule runs to the foot of the screen. */
+    height: calc(100vh - var(--status-h));
+    overflow-y: auto;
+  }
+
+  .nav__list {
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0;
+  }
+
+  .nav__item--wide {
+    display: block;
+  }
+
+  .nav__item--more {
+    display: none;
+  }
+
+  .nav__button {
+    border-radius: var(--radius);
+    min-height: 3.75rem;
+  }
+
+  .nav__button[aria-current='page'] {
+    background: var(--accent-soft);
+  }
+
+  .nav__button[aria-current='page']::before {
+    inset: 20% auto 20% -0.5rem;
+    width: 3px;
+    height: auto;
+    border-radius: 0 3px 3px 0;
+  }
+
+  .nav__button .badge,
+  .nav__button .dot {
+    left: calc(50% + 0.5rem);
+  }
+}
+
+/* From 1100px: the rail names its views beside their icons, and the History rail sits at the right. */
+@media (min-width: 1100px) {
+  .status__bar {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: 'guild facts time menu';
+    gap: 0.25rem 1.5rem;
+    padding-block: 0.6rem;
+  }
+
+  .status__guild h1 {
+    font-size: 1.5rem;
+    max-width: 22rem;
+  }
+
+  .stat__label {
+    position: static;
+    width: auto;
+    height: auto;
+    overflow: visible;
+    clip-path: none;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+
+  .stat--plain .stat__label {
+    display: none;
+  }
+
+  .shell {
+    grid-template-columns: 12rem minmax(0, 1fr) 21rem;
+    gap: 0 1.75rem;
+  }
+
+  .app[data-view='history'] .shell {
+    grid-template-columns: 12rem minmax(0, 1fr);
+  }
+
+  .nav__button {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.7rem;
+    min-height: var(--tap);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .nav__button .icon {
+    width: 1.35rem;
+    height: 1.35rem;
+  }
+
+  .nav__button .badge,
+  .nav__button .dot {
+    position: static;
+    margin-left: auto;
+  }
+
+  .rail {
+    display: block;
+    position: sticky;
+    top: var(--status-h);
+    align-self: start;
+    height: calc(100vh - var(--status-h));
+    overflow-y: auto;
+    padding: var(--space) 0 var(--space) 1.25rem;
+    border-left: 1px solid var(--line);
+  }
+
+  .app[data-view='history'] .rail {
+    display: none;
+  }
+}
+
+/* ── Views and their parts ──────────────────────────────────────────────────────────────── */
+
+.view__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.view__head h2 {
+  margin: 0;
+  font-size: 1.875rem;
+}
+
+.view__lead {
+  color: var(--ink-soft);
+}
+
+.part {
+  margin-top: 2rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+  min-width: 0;
+}
+
+.part > h3 {
+  font-size: 1.375rem;
+}
+
+.part--notice {
+  border-top: 3px solid var(--accent);
+}
+
+.view--history .part {
+  margin-top: 0.5rem;
+  margin-bottom: 2rem;
+  border-top: none;
+  padding-top: 0;
+}
+
+.history__controls {
+  display: grid;
+  gap: 0 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+/* ── Cards: one surface on the page ─────────────────────────────────────────────────────── */
 
 .cards {
   list-style: none;
@@ -318,39 +1442,75 @@ main {
   gap: var(--gap);
 }
 
+.cards--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
 .card {
+  background: var(--surface);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: var(--gap);
-  background: var(--bg);
+  padding: 0.9rem 1rem;
   min-width: 0;
+}
+
+.card > :last-child {
+  margin-bottom: 0;
+}
+
+.card .actions:last-child {
+  margin-bottom: 0;
+}
+
+.card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.card__head h3,
+.card__head h4 {
+  margin: 0;
+}
+
+.card__head .subtle {
+  margin: 0;
+}
+
+.quest.is-open {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
 }
 
 .hero-row p {
   margin: 0;
 }
 
-/* Label and value pairs: the label above on a phone, beside it where there is room. */
+/* Label and value pairs: small capitals over the value, as many to a row as fit. */
 .terms {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.25rem 1rem;
-  margin: 0 0 0.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 8.5rem), 1fr));
+  gap: 0.6rem 1.25rem;
+  margin: 0.5rem 0;
 }
 
 .terms > div {
-  display: grid;
-  grid-template-columns: minmax(7rem, 38%) minmax(0, 1fr);
-  gap: 0.75rem;
+  min-width: 0;
 }
 
-.terms dt {
-  color: var(--ink-soft);
+.terms > .is-wide {
+  grid-column: 1 / -1;
 }
 
 .terms dd {
-  margin: 0;
+  margin: 0.1rem 0 0;
 }
+
+/* ── Dispatch ───────────────────────────────────────────────────────────────────────────── */
 
 .dispatch {
   margin-top: var(--gap);
@@ -358,26 +1518,91 @@ main {
   padding-top: var(--gap);
 }
 
+.dispatch .stepper-field {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.35rem 0;
+}
+
+.dispatch .stepper-field > label {
+  flex: 1 1 12rem;
+  font-weight: 500;
+  color: var(--ink);
+}
+
 .preview {
-  background: var(--bg-sunken);
+  background: var(--sunk);
   border-radius: var(--radius);
-  padding: var(--gap);
+  padding: 0.85rem 1rem;
+}
+
+.preview h4 {
+  font-family: var(--sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0.9rem 0 0.35rem;
 }
 
 .preview h4:first-child {
   margin-top: 0;
 }
 
-.verdict {
-  font-weight: 600;
+.marks {
+  list-style: none;
+  padding: 0;
+}
+
+.marks li {
+  display: flex;
+  gap: 0.5rem;
+  align-items: flex-start;
+  padding: 0.15rem 0;
+}
+
+.marks .icon {
+  margin-top: 0.15rem;
+}
+
+.marks .is-met .icon {
   color: var(--good);
+}
+
+.marks .is-missed .icon {
+  color: var(--bad);
+}
+
+.marks .is-hurt .icon {
+  color: var(--warn);
+}
+
+.verdict {
+  font-weight: 700;
+  color: var(--good);
+  margin: 0.5rem 0 0;
 }
 
 .verdict--refused {
   color: var(--bad);
 }
 
-/* ── Tables and lines ───────────────────────────────────────────────────────────────────── */
+/* Send stays in view at the foot of the form while it scrolls. */
+.actions--send {
+  position: sticky;
+  bottom: calc(var(--nav-h) + env(safe-area-inset-bottom, 0px));
+  background: linear-gradient(to top, var(--surface) 70%, transparent);
+  padding: 0.75rem 0 0.25rem;
+  margin-bottom: 0;
+}
+
+@media (min-width: 600px) {
+  .actions--send {
+    bottom: 0;
+  }
+}
+
+/* ── Tables, rows and lines ─────────────────────────────────────────────────────────────── */
 
 /* A table wider than the column scrolls inside this box, never the page. */
 .table-wrap {
@@ -393,15 +1618,18 @@ table {
 th,
 td {
   text-align: left;
-  padding: 0.3rem 0.5rem 0.3rem 0;
+  padding: 0.45rem 0.75rem 0.45rem 0;
   border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
 thead th {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   color: var(--ink-soft);
-  font-weight: 600;
-  font-size: 0.875rem;
+  border-bottom-color: var(--line-strong);
 }
 
 tbody th {
@@ -409,65 +1637,26 @@ tbody th {
 }
 
 th.area {
+  font-family: var(--serif);
   font-weight: 600;
-  padding-top: 0.6rem;
+  padding-top: 0.9rem;
 }
 
 .number {
   text-align: right;
-  font-variant-numeric: tabular-nums;
 }
 
-.lines {
-  list-style: none;
-  padding: 0;
-}
-
-.lines li {
-  padding: 0.3rem 0;
-  border-bottom: 1px solid var(--line);
-}
-
-.lines .when {
-  display: block;
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-}
-
-.lines .milestone {
-  font-weight: 600;
-}
-
-.footer {
-  color: var(--ink-soft);
-  font-size: 0.8125rem;
-  margin-top: var(--gap);
-}
-
-/* ── Part 2 (DL-73): the index, rows with a button, trades, notices ─────────────────────── */
-
-/* The sections a game shows, as links that wrap onto as many lines as a phone needs. */
-.index ul {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem 0.75rem;
-}
-
-.index a {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--tap);
-  color: var(--accent);
-  overflow-wrap: anywhere;
+tr.mine th,
+tr.mine td {
+  font-weight: 700;
+  background: var(--accent-soft);
 }
 
 /* A line with its button: side by side where they fit, the button below where they do not. */
 .rows {
   list-style: none;
   padding: 0;
+  margin: 0 0 0.5rem;
 }
 
 .rows li {
@@ -476,8 +1665,9 @@ th.area {
   align-items: center;
   justify-content: space-between;
   gap: 0.25rem 0.75rem;
-  padding: 0.25rem 0;
+  padding: 0.4rem 0;
   border-bottom: 1px solid var(--line);
+  min-height: var(--tap);
 }
 
 .rows li > span {
@@ -485,59 +1675,291 @@ th.area {
   flex: 1 1 12rem;
 }
 
+.rows--plain li {
+  min-height: 0;
+}
+
+.lines {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 0.5rem;
+}
+
+.lines li {
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.lines .when {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.lines .milestone {
+  font-weight: 650;
+}
+
+.new-tag {
+  display: inline-block;
+  padding: 0 0.4rem;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+}
+
+.lines .is-new {
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+}
+
+.upkeep {
+  margin-top: var(--gap);
+}
+
+.quest-name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+}
+
+/* ── The home view ──────────────────────────────────────────────────────────────────────── */
+
+.stop {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 1rem 1.1rem;
+  margin: 0 0 var(--space);
+}
+
+.stop__icon {
+  color: var(--accent);
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.1rem;
+}
+
+.stop p {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.stop .actions {
+  margin-bottom: 0;
+}
+
+.stop__caption {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.quest-buttons {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 15rem), 1fr));
+  gap: 0.5rem;
+}
+
+.quest-button {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'name go'
+    'patron go';
+  justify-items: start;
+  text-align: left;
+  gap: 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.quest-button__name {
+  grid-area: name;
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  color: var(--accent);
+}
+
+.quest-button__patron {
+  grid-area: patron;
+  font-weight: 500;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+}
+
+.quest-button__go {
+  grid-area: go;
+  align-self: center;
+  color: var(--accent);
+}
+
+.digest {
+  margin: 0 0 var(--space);
+}
+
+.digest > h3 {
+  font-size: 1.25rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.digest--quiet {
+  padding: 1.25rem;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-soft);
+}
+
+.outcome h4 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+/* ── The History rail ───────────────────────────────────────────────────────────────────── */
+
+.rail__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.rail__head h2 {
+  font-size: 1.125rem;
+  margin: 0;
+}
+
+.lines--rail {
+  font-size: 0.875rem;
+}
+
+.lines--rail li {
+  padding: 0.4rem 0;
+}
+
+/* ── Trades and saves ───────────────────────────────────────────────────────────────────── */
+
 .trade p {
   margin-bottom: 0.25rem;
 }
 
+.trade__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+}
+
 .trade .actions {
-  align-items: center;
-  margin: 0.25rem 0 0;
+  justify-content: space-between;
+  margin: 0.5rem 0 0;
 }
-
-.inline-field {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.inline-field input[type='number'] {
-  width: 5.5rem;
-}
-
-.notice {
-  border: 2px solid var(--accent);
-}
-
-.warning {
-  color: var(--bad);
-  font-weight: 600;
-}
-
-tr.mine th,
-tr.mine td {
-  font-weight: 600;
-}
-
-.guild-page h4,
-.guildmaster h4 {
-  margin-top: 1rem;
-}
-
-/* A toggle that is on: the Rankings' measure. */
-button[aria-pressed='true'] {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: var(--accent);
-  font-weight: 600;
-}
-
-/* ── Saved in this browser (M7-S4, DL-67) ────────────────────────────────────────────────── */
 
 .saved {
-  margin-top: 1rem;
+  margin-top: var(--space);
 }
 
 .save-name {
   margin: 0;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+.busy:empty {
+  display: none;
+}
+
+.guild-page h5,
+.guildmaster h5 {
+  margin-top: 1.25rem;
+}
+
+/* ── Motion: short, and off when the player asks for less ───────────────────────────────── */
+
+@media (prefers-reduced-motion: no-preference) {
+  button,
+  .button,
+  .chip,
+  .nav__button {
+    transition:
+      background-color var(--quick) ease,
+      color var(--quick) ease,
+      border-color var(--quick) ease;
+  }
+
+  .view {
+    animation: view-in 200ms ease-out;
+  }
+
+  details[open] > .about__body,
+  details[open] > .disclosure__body,
+  .dispatch,
+  .popover {
+    animation: unfold var(--quick) ease-out;
+  }
+
+  .stat__value {
+    animation: value-in 700ms ease-out;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes unfold {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes value-in {
+  from {
+    background: var(--brass-soft);
+  }
+
+  to {
+    background: transparent;
+  }
 }

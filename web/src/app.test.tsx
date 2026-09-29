@@ -1,19 +1,33 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
-import { started as startedFrom, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
+import { started as startedFrom, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
 import { fastForwardStepTurns, gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
 import { download } from './views/download';
+import {
+  closeMenu,
+  fastForwardUntilPool,
+  nav,
+  navButton,
+  openMenu,
+  openView,
+  rosterList,
+  section,
+  time,
+  type ViewName,
+} from './views/page.test-support';
 
-// The page (M7-S3): a new game, the header, time, the Board with dispatch, the Roster with Hero
-// pages and the log, driven through the page's own controls. Every play settles after the busy
-// state is painted (M7-S2), so each test waits for the page to be idle again. The file a player
-// saves is kept, not downloaded: "Export this game" hands it to `download`.
+// The page (M7-S3; views in a shell since M9-S3, DL-103): a new game, the status bar, the views
+// and the navigation between them, the home view's digest, the Board with dispatch, the Roster with
+// Hero pages and the log, driven through the page's own controls. Every play settles after the
+// busy state is painted (M7-S2), so each test waits for the page to be idle again. The file a
+// player saves is kept, not downloaded: "Export this game" hands it to `download`.
 vi.mock('./views/download', () => ({ download: vi.fn() }));
 
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 const newGame: Play = {
@@ -37,9 +51,7 @@ async function idle(): Promise<void> {
   await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
 }
 
-function section(name: RegExp | string): HTMLElement {
-  return screen.getByRole('region', { name });
-}
+const views: readonly ViewName[] = ['Guild', 'Board', 'Roster', 'Hall', 'Rankings', 'History'];
 
 describe('before a game', () => {
   test('offers a new game, and names the content set it loaded', () => {
@@ -51,7 +63,7 @@ describe('before a game', () => {
     expect((screen.getByLabelText('Seed') as HTMLInputElement).value).toMatch(/^[a-z]+-[a-z]+-\d{4}$/);
   });
 
-  test('starts one from the names given, and shows its header', async () => {
+  test('starts one from the names given, and shows its status bar and the home view', async () => {
     render(<App />);
 
     fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Lantern' } });
@@ -60,12 +72,17 @@ describe('before a game', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
     await idle();
 
-    expect(screen.getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
-    expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
+    const bar = screen.getByRole('banner');
+    expect(within(bar).getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
+    expect(within(bar).getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
     // Every Guild starts at Fame 0, so all five share the first place (DL-95).
-    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(within(bar).getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
     expect(screen.queryByTestId('countdown')).toBeNull();
-    expect(screen.getByTestId('wealth').textContent).toMatch(/^\d+$/);
+    expect(within(bar).getByTestId('wealth').textContent).toMatch(/^\d+$/);
+    // A new game opens the home view, and puts the keyboard on its heading.
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Guild' }));
+    // The seed is the game menu's to say, no longer the status bar's (the review's B12).
+    expect(within(bar).queryByText('app-test')).toBeNull();
   });
 
   test('says why a new game is refused, and puts the refusal away', async () => {
@@ -82,42 +99,215 @@ describe('before a game', () => {
   });
 });
 
+describe('the shell (M9-S3, DL-103)', () => {
+  test('opens on the home view, with the six views in the navigation in order and the open one marked', () => {
+    render(<App initial={started()} />);
+
+    const buttons = within(nav()).getAllByRole('button').filter((button) => !/^More$/.test(button.textContent ?? ''));
+    expect(buttons.map((button) => button.querySelector('.nav__label')?.textContent)).toEqual(views);
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)).toContain('Guild');
+    expect(screen.getByRole('region', { name: 'Guild' })).toBeDefined();
+    // One view at a time: the Board is not on the page until it is opened.
+    expect(screen.queryByRole('region', { name: 'Board' })).toBeNull();
+  });
+
+  test('opens every view from the navigation, a button the keyboard reaches, and puts the keyboard on its heading', () => {
+    render(<App initial={started()} />);
+
+    for (const view of views) {
+      const button = navButton(view);
+      // A native button: reached by Tab and pressed with Enter or Space, no tabindex to take it out.
+      expect(button.tagName).toBe('BUTTON');
+      expect(button.getAttribute('tabindex')).toBeNull();
+      const region = openView(view);
+
+      expect(document.activeElement).toBe(within(region).getByRole('heading', { level: 2, name: view }));
+      expect(navButton(view).getAttribute('aria-current')).toBe('page');
+      for (const other of views.filter((each) => each !== view)) expect(navButton(other).getAttribute('aria-current')).toBeNull();
+      // One view at a time.
+      expect(views.filter((each) => screen.queryByRole('region', { name: each }) !== null)).toEqual([view]);
+    }
+  });
+
+  test('counts on the navigation: the Quests on offer, a dot while a Transfer Offer waits, and the entries new since the last action', () => {
+    const state = started();
+    const quests = state.document?.world.board.length ?? 0;
+    const { unmount } = render(<App initial={state} />);
+
+    expect(navButton('Board').textContent).toBe(`Board${quests}, ${quests} Quests on offer`);
+    expect(navButton('Roster').textContent).toBe('Roster');
+    expect(navButton('History').textContent).toMatch(/^History\d+, \d+ new$/);
+    unmount();
+
+    render(<App initial={withOffer(state)} />);
+    expect(navButton('Roster').textContent).toBe('Roster, a Transfer Offer waits');
+    expect(navButton('Roster').querySelector('.dot')).not.toBeNull();
+  });
+
+  test('remembers the open view in this browser, and a new game or a load opens the home view', async () => {
+    const { unmount } = render(<App initial={started()} />);
+    openView('Hall');
+    expect(localStorage.getItem('heroesim.view')).toBe('hall');
+    unmount();
+
+    render(<App initial={started()} />);
+    expect(navButton('Hall').getAttribute('aria-current')).toBe('page');
+    expect(screen.getByRole('region', { name: 'Hall' })).toBeDefined();
+
+    fireEvent.click(within(section('This game')).getByRole('button', { name: 'Start a new game' }));
+    fireEvent.change(screen.getByLabelText('Guild name'), { target: { value: 'The Second Lamp' } });
+    fireEvent.change(screen.getByLabelText(/Guildmaster/), { target: { value: 'Bran Tull' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start the game' }));
+    await idle();
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    expect(localStorage.getItem('heroesim.view')).toBe('guild');
+  });
+
+  test('opens on the home view where the browser keeps nothing, or keeps a view it does not know', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new DOMException('The operation is insecure.', 'SecurityError');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new DOMException('The quota has been exceeded.', 'QuotaExceededError');
+    });
+    const { unmount } = render(<App initial={started()} />);
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    openView('Board');
+    expect(navButton('Board').getAttribute('aria-current')).toBe('page');
+    unmount();
+    vi.restoreAllMocks();
+
+    localStorage.setItem('heroesim.view', 'the-cellar');
+    render(<App initial={started()} />);
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+  });
+
+  test('docks a refusal under the status bar, whichever view the play came from', async () => {
+    render(<App initial={withWealth(started(), 50)} />);
+
+    fireEvent.click(within(section('Hall')).getByRole('button', { name: 'Build Dormitory' }));
+    await idle();
+
+    const alert = within(screen.getByRole('banner')).getByRole('alert');
+    expect(alert.textContent).toContain("The next grade of The Lantern's quarters costs 200 Wealth; The Lantern has 50.");
+    expect(within(screen.getByRole('main')).queryByRole('alert')).toBeNull();
+    fireEvent.click(within(alert).getByRole('button', { name: 'Dismiss' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  test('the game menu holds the seed, the content version and the game as a file; Escape closes it and returns to its button', () => {
+    render(<App initial={started()} />);
+    const button = screen.getByRole('button', { name: 'Game' });
+    fireEvent.click(button);
+
+    const menu = screen.getByRole('dialog', { name: 'Game' });
+    expect(document.activeElement).toBe(within(menu).getByRole('heading', { level: 2, name: 'Game' }));
+    expect(within(menu).getByTestId('seed').textContent).toBe('app-test');
+    expect(within(menu).getByText(/^core, version \d+$/)).toBeDefined();
+    expect(within(menu).getByRole('region', { name: 'This game' })).toBeDefined();
+    expect(within(menu).queryByRole('region', { name: 'New rules available' })).toBeNull();
+
+    fireEvent.keyDown(menu, { key: 'Escape' });
+    expect(screen.queryByRole('dialog', { name: 'Game' })).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  test('the rules notice is in the game menu with its versions, and a banner in the home view while it stands', async () => {
+    render(<App initial={withOlderRules(started(), 2)} />);
+
+    const home = screen.getByRole('region', { name: 'Guild' });
+    expect(within(home).getByText('New rules are available.')).toBeDefined();
+    expect(within(section('New rules available')).getByText(/configVersion \d+; this release’s rules are configVersion \d+/)).toBeDefined();
+    closeMenu();
+
+    fireEvent.click(within(home).getByRole('button', { name: 'Adopt the new rules' }));
+    await idle();
+
+    expect(within(screen.getByRole('region', { name: 'Guild' })).queryByText('New rules are available.')).toBeNull();
+    expect(within(openMenu()).queryByRole('region', { name: 'New rules available' })).toBeNull();
+  });
+});
+
+describe('the home view (M9-S3, DL-103)', () => {
+  test('after a fast forward, opens with the stop, and each Quest it names opens that Quest’s Party on the Board', async () => {
+    render(<App initial={started()} />);
+    openView('Roster');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+
+    // The fast forward ended: the home view, with why it stopped.
+    expect(navButton('Guild').getAttribute('aria-current')).toBe('page');
+    const stop = screen.getByTestId('stop');
+    // A new game's idle Roster and a fresh Board: the next morning's Quests need a decision.
+    const sentence = within(stop).getByText(/^Stopped: a decision is needed: The Lantern has no Party out, and could send one on .+.$/).textContent ?? '';
+    const buttons = within(stop).getAllByRole('button', { name: /^Choose a Party for .+, offered by .+, for \d+ Wealth$/ });
+    expect(buttons.length).toBeGreaterThan(1);
+    const [first] = buttons;
+    const questName = first?.querySelector('.quest-button__name')?.textContent ?? '';
+    expect(sentence).toContain(questName);
+
+    fireEvent.click(first as HTMLElement);
+
+    expect(navButton('Board').getAttribute('aria-current')).toBe('page');
+    // The keyboard is on that Quest's heading: two Quests may share a name, so it is found by the focus.
+    const heading = document.activeElement as HTMLElement;
+    expect(heading.tagName).toBe('H3');
+    expect(heading.textContent).toBe(questName);
+    const card = heading.closest('article') as HTMLElement;
+    expect(within(card).getByRole('form', { name: `A Party for ${questName}` })).toBeDefined();
+    expect(within(card).getByRole('button', { name: 'Close' }).getAttribute('aria-expanded')).toBe('true');
+  });
+
+  test('shows the Parties out, with who went and the night they return', () => {
+    render(<App initial={withPartyOut(started())} />);
+
+    const home = screen.getByRole('region', { name: 'Guild' });
+    const out = within(home).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
+    expect(within(out).getAllByRole('listitem')).toHaveLength(1);
+    expect(within(out).getByRole('listitem').textContent).toMatch(/^.+ · .+ · back on the night of Day \d+$/);
+  });
+
+  test("shows how the Party that came home fared: its Quest band, Wealth, Fame, XP and Injuries, and the stop's words", async () => {
+    // A Party out on a Quest of ten Days, home on the night of Day 10.
+    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
+    await idle();
+
+    const home = screen.getByRole('region', { name: 'Guild' });
+    expect(within(screen.getByTestId('stop')).getByText("Stopped: The Lantern's Party came home.")).toBeDefined();
+    const came = within(home).getByRole('heading', { level: 3, name: 'Came home' }).parentElement as HTMLElement;
+    const [outcome] = within(came).getAllByRole('listitem').filter((item) => item.classList.contains('outcome'));
+    if (outcome === undefined) throw new Error('no outcome shown');
+    const quest = within(outcome).getByRole('heading', { level: 4 }).textContent ?? '';
+    expect(within(outcome).getByText(/^(Success|Strong success|Failure)$/)).toBeDefined();
+    const wealth = /^Wealth ([+-]?\d+)$/.exec(within(outcome).getByText(/^Wealth /).textContent ?? '')?.[1];
+    const fame = /^Fame ([+-]?\d+)$/.exec(within(outcome).getByText(/^Fame /).textContent ?? '')?.[1];
+    expect(within(outcome).getByText(/^XP \+\d+ each$/)).toBeDefined();
+    // The same outcome, as the log narrates it, among what concerns the Guild.
+    fireEvent.click(within(section('Since your last action')).getByRole('checkbox'));
+    expect(within(section('Since your last action')).getByText(new RegExp(`^The Lantern's Party came home from ${quest} and \\w+.*: Wealth ${wealth?.replace('+', '\\+')}, Fame ${fame?.replace('+', '\\+')}\\.`))).toBeDefined();
+    // This seed's Party comes home with an Injury: named, with the night it heals.
+    openView('Guild');
+    expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(/^.+: .+, healing on the night of Day \d+$/)).toBeDefined();
+  });
+
+  test('says when nothing waits, and names the Transfer Offers waiting with the way to answer them', () => {
+    const { unmount } = render(<App initial={started()} />);
+    expect(within(screen.getByRole('region', { name: 'Guild' })).getByText(/^Nothing is waiting on you\./)).toBeDefined();
+    unmount();
+
+    render(<App initial={withOffer(started())} />);
+    const home = screen.getByRole('region', { name: 'Guild' });
+    expect(within(home).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/)).toBeDefined();
+    fireEvent.click(within(home).getByRole('button', { name: 'Answer on the Roster' }));
+    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'Transfer Offers' }));
+  });
+});
+
 describe('a game in hand', () => {
-  test('lays its sections out in the order a Turn reads', () => {
-    render(<App initial={started()} />);
-
-    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent);
-    expect(headings).toEqual([
-      'Time',
-      'Board',
-      'Roster',
-      'Transfer Offers',
-      'Unattached pool',
-      'Market',
-      'Hall',
-      'Guildmaster',
-      'Patrons',
-      'Rankings',
-      'Guilds',
-      'Since your last action',
-      'History',
-      'This game',
-    ]);
-    expect(screen.getByRole('heading', { level: 1 }).textContent).toBe('The Lantern');
-  });
-
-  test('indexes its sections, and each link takes the player to its heading', () => {
-    render(<App initial={started()} />);
-    const index = screen.getByRole('navigation', { name: 'Sections' });
-    const links = within(index).getAllByRole('link');
-
-    expect(links.map((link) => link.textContent)).toEqual(
-      screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent === 'Transfer Offers' ? 'Offers' : heading.textContent === 'Unattached pool' ? 'Pool' : heading.textContent),
-    );
-    fireEvent.click(within(index).getByRole('link', { name: 'Market' }));
-    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Market' }));
-  });
-
   test('advances a Turn, and narrates what happened in it', async () => {
     render(<App initial={started()} />);
 
@@ -130,23 +320,10 @@ describe('a game in hand', () => {
     for (const item of within(log).getAllByRole('listitem')) expect(item.textContent).toMatch(/^Day \d+, (morning|afternoon|night) .+\.$/);
   });
 
-  test("fast forwards to a stop, says why, and the stop's button takes the player on", async () => {
-    render(<App initial={started()} />);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
-    await idle();
-
-    const stop = screen.getByTestId('stop');
-    // A new game's idle Roster and a fresh Board: the next morning's Quests need a decision.
-    expect(within(stop).getByText(/^Stopped: a decision is needed: The Lantern has no Party out, and could send one on .+.$/)).toBeDefined();
-    fireEvent.click(within(stop).getByRole('button', { name: 'Choose a Party on the Board' }));
-    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Board' }));
-  });
-
   test('keeps the log to the Guild when asked, and shows a long one a hundred lines at a time', async () => {
     render(<App initial={started()} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
+    fastForwardUntilPool();
     await idle();
     const log = section('Since your last action');
     const count = (): number => within(log).queryAllByRole('listitem').length;
@@ -158,17 +335,33 @@ describe('a game in hand', () => {
     expect(mine).toBeLessThanOrEqual(all);
   });
 
-  test('keeps to the Guild from play to play once asked, as the History keeps whose it shows (DL-74)', async () => {
+  test('keeps to the Guild from play to play once asked, and from view to view, as the History keeps whose it shows (DL-74)', async () => {
     render(<App initial={started()} />);
     const box = (): HTMLInputElement => within(section('Since your last action')).getByRole('checkbox') as HTMLInputElement;
 
     fireEvent.click(box());
     expect(box().checked).toBe(true);
+    openView('Board');
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
     await idle();
 
     expect(screen.getByTestId('time').textContent).toBe('Day 0, afternoon, Year 0');
     expect(box().checked).toBe(true);
+  });
+
+  test('beside the view, the History rail gives the Guild’s latest entries, the new ones marked', async () => {
+    render(<App initial={started()} />);
+
+    fireEvent.click(within(within(section('Market')).getByRole('form', { name: 'Buy Padded jack' })).getByRole('button', { name: 'Buy' }));
+    await idle();
+
+    const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
+    const [newest, next] = within(rail).getAllByRole('listitem');
+    expect(newest?.textContent).toMatch(/^Day 0, morningNew The Lantern bought .+ at the Market for \d+ Wealth\.$/);
+    expect(newest?.classList.contains('is-new')).toBe(true);
+    expect(next?.classList.contains('is-new')).toBe(false);
+    expect(within(rail).getByText('1 new')).toBeDefined();
+    expect(navButton('History').textContent).toBe('History1, 1 new');
   });
 });
 
@@ -179,17 +372,16 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     return Number(/after (\d+) Turns/.exec(sentence)?.[1]);
   }
 
-  test('between steps it shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
+  test('between steps the status bar shows the Turns played, the Day reached and the countdown below the floor; plays wait, and the game in hand stands', async () => {
     // A Party out on a Quest of ten Days, home on the 32nd Turn, in the second step; Wealth below
     // the floor since Day 0, before the fast forward, so its countdown stands and no new crossing
     // stops it (M9-S1, DL-101).
     render(<App initial={withWealth(withPartyOut(startedFrom('reducer-test')), -100, 0)} />);
-    const time = section('Time');
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
 
     await waitFor(() => {
-      const progress = screen.getByTestId('progress');
+      const progress = within(screen.getByRole('banner')).getByTestId('progress');
       expect(within(progress).getByText('Played 30 Turns so far. Now Day 10, morning, Year 0.')).toBeDefined();
       expect(
         within(progress).getByText(
@@ -197,12 +389,12 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
             'to 0 or more on a night by then, after any Upkeep due.',
         ),
       ).toBeDefined();
-      expect(within(time).getByRole('status').textContent).toBe('Playing the Turns…');
-      for (const name of ['Advance a Turn', 'Fast forward', 'Fast forward until new Heroes join the pool']) {
-        expect((within(time).getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
+      expect(within(time()).getByRole('status').textContent).toBe('Playing the Turns…');
+      for (const name of ['Advance a Turn', 'Fast forward', 'More ways to fast forward']) {
+        expect((within(time()).getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
       }
-      expect(within(time).getByRole('button', { name: 'Stop the fast forward' })).toBeDefined();
-      // The game in hand, and so the header, stand until the fast forward ends (DL-96).
+      expect(within(progress).getByRole('button', { name: 'Stop the fast forward' })).toBeDefined();
+      // The game in hand, and so the status bar, stand until the fast forward ends (DL-96).
       expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
     });
     await idle();
@@ -236,6 +428,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     expect(within(log).getAllByRole('listitem')[0]?.textContent).toMatch(/^Day 0, /);
     expect((screen.getByRole('button', { name: 'Advance a Turn' }) as HTMLButtonElement).disabled).toBe(false);
 
+    openView('Guild');
     fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Fast forward again' }));
     await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
     fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
@@ -267,50 +460,98 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     if (file === undefined) throw new Error('expected a file');
     const loaded = played(initialGameState, { kind: 'load', text: await file.text() });
     expect(loaded.rejection).toBeNull();
+    closeMenu();
     expect(loaded.document?.world.turn).toBe(stoppedAfter());
   });
 });
 
-describe("the page's own words, the CLI's help", () => {
-  /** The sentence that says what a section is for: its accessible description. */
+describe("the page's own words, the CLI's help, on request (DL-73 item 9 as DL-99 item 1 amends it)", () => {
+  /** The sentence that says what a region is for: its accessible description. */
   function described(region: HTMLElement): string {
     const ids = region.getAttribute('aria-describedby')?.split(' ') ?? [];
     return ids.map((id) => document.getElementById(id)?.textContent ?? '').join(' ').trim();
   }
 
-  test('every section says what it is for and what its controls do, before a game and with one', () => {
-    for (const initial of [undefined, started()]) {
-      const { container, unmount } = render(<App {...(initial === undefined ? {} : { initial })} />);
-      const regions = within(container).getAllByRole('region');
-      expect(regions.length).toBeGreaterThan(initial === undefined ? 0 : 13);
-      for (const region of regions) expect(described(region), region.getAttribute('aria-labelledby') ?? '').toMatch(/^[A-Z].{40,}\.$/);
-      unmount();
+  /** Every region on the page, from every view and the game menu, by its heading. */
+  function everyRegion(): Map<string, HTMLElement> {
+    const regions = new Map<string, HTMLElement>();
+    const note = (): void => {
+      for (const region of screen.getAllByRole('region')) regions.set(region.getAttribute('aria-labelledby') ?? '', region.cloneNode(true) as HTMLElement);
+    };
+    for (const view of views) {
+      openView(view);
+      note();
+      // Each view's sentence and its parts' are in its "About this view", closed until asked for.
+      const about = within(screen.getByRole('region', { name: view })).getByText('About this view').closest('details');
+      expect(about?.open).toBe(false);
+      const helpIds = [...screen.getAllByRole('region')].map((region) => region.getAttribute('aria-describedby'));
+      for (const id of helpIds) expect(about?.querySelector(`#${id}`), `${view}'s About holds ${id}`).not.toBeNull();
+    }
+    openMenu();
+    note();
+    closeMenu();
+    return regions;
+  }
+
+  test('every view and every part of one says what it is for and what its controls do, before a game and with one', () => {
+    const { unmount } = render(<App />);
+    const before = screen.getAllByRole('region');
+    expect(before).toHaveLength(1);
+    for (const region of before) expect(described(region)).toMatch(/^[A-Z].{40,}\.$/);
+    unmount();
+
+    // A Transfer Offer standing and older rules: every part the page has is drawn.
+    render(<App initial={withOlderRules(withOffer(started()))} />);
+    const regions = everyRegion();
+    expect([...regions.keys()].sort()).toEqual(
+      [
+        'guild', 'board', 'roster', 'offers', 'pool', 'hall', 'guildmaster', 'market', 'rankings', 'guilds', 'patrons',
+        'history', 'log', 'rules', 'game',
+      ]
+        .map((id) => `${id}-heading`)
+        .sort(),
+    );
+    for (const [id] of regions) {
+      const help = document.getElementById(id.replace(/-heading$/, '-help'));
+      // The menu's are gone with the menu; a view's are there while it is open.
+      if (help === null) continue;
+      expect(help.textContent, id).toMatch(/^[A-Z].{40,}\.$/);
+    }
+    for (const view of views) expect(described(openView(view))).toMatch(/^[A-Z].{40,}\.$/);
+    for (const part of ['Transfer Offers', 'Unattached pool', 'Guildmaster', 'Market', 'Guilds', 'Patrons', 'Since your last action', 'This game', 'New rules available']) {
+      expect(described(section(part)), part).toMatch(/^[A-Z].{40,}\.$/);
     }
   });
 
-  test('Time says how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
+  test('the time controls say what time is and how many Turns a step of fast forward plays: the constant the steps play (v1.0.1-S6, DL-97)', () => {
     render(<App initial={started()} />);
 
-    expect(described(section('Time'))).toContain(`It plays them ${fastForwardStepTurns} Turns, ten Days, at a time`);
+    expect(described(time())).toMatch(/^Time moves only here; .+\.$/);
+    expect(described(time())).toContain(`It plays them ${fastForwardStepTurns} Turns, ten Days, at a time`);
   });
 
-  test('every control has a name that says what it does', () => {
-    const { container } = render(<App initial={started()} />);
+  test('every control has a name that says what it does, in every view and the game menu', () => {
+    const { container } = render(<App initial={withOffer(started())} />);
 
-    for (const control of within(container).getAllByRole('button')) expect(control.textContent?.trim()).not.toBe('');
-    for (const control of [
-      ...within(container).queryAllByRole('textbox'),
-      ...within(container).queryAllByRole('searchbox'),
-      ...within(container).queryAllByRole('combobox'),
-      ...within(container).queryAllByRole('spinbutton'),
-    ]) {
-      expect(control.closest('label')?.textContent?.trim() ?? control.getAttribute('aria-label')).toBeTruthy();
+    const check = (where: string): void => {
+      const buttons = within(container).getAllByRole('button');
+      expect(within(container).getAllByRole('button', { name: /\S/ }), where).toHaveLength(buttons.length);
+      for (const role of ['textbox', 'searchbox', 'combobox', 'spinbutton', 'checkbox'] as const) {
+        const controls = within(container).queryAllByRole(role);
+        expect(within(container).queryAllByRole(role, { name: /\S/ }), `${where}: ${role}`).toHaveLength(controls.length);
+      }
+    };
+    for (const view of views) {
+      openView(view);
+      check(view);
     }
+    openMenu();
+    check('the game menu');
   });
 });
 
 describe('the Board with dispatch', () => {
-  test("previews a Party as it is chosen, and sends it when dispatch would", async () => {
+  test('previews a Party as it is chosen, and sends it when dispatch would', async () => {
     render(<App initial={started()} />);
     const board = section('Board');
     const [first] = within(board).getAllByRole('article');
@@ -320,6 +561,8 @@ describe('the Board with dispatch', () => {
     fireEvent.click(within(first).getByRole('button', { name: 'Choose a Party' }));
     const form = within(first).getByRole('form');
     expect(within(form).getByRole('status').textContent).toMatch(/^Dispatch would refuse it: /);
+    // A new Guild holds no consumables: their fieldset is not drawn (the review's A5).
+    expect(within(form).queryByRole('group', { name: 'Consumables' })).toBeNull();
 
     // Choose Heroes one at a time until dispatch would send them, or none are left.
     for (const box of within(form).getAllByRole('checkbox')) {
@@ -339,17 +582,18 @@ describe('the Board with dispatch', () => {
 
     expect(within(section('Board')).queryByRole('heading', { level: 3, name: questName })).toBeNull();
     expect(within(section('Since your last action')).getByText(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`))).toBeDefined();
-    expect(within(section('Roster')).getAllByText(/^away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
+    expect(within(rosterList()).getAllByText(/^away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
+    const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
+    expect(within(out).getByText(questName)).toBeDefined();
   });
 });
 
 describe('the Roster with Hero pages', () => {
-  test('opens a Hero\'s page with Stats and hints, pages their History, and goes back', async () => {
+  test("opens a Hero's page with Stats and hints, pages their History, and goes back", () => {
     let state = started();
     state = played(state, { kind: 'advance', turns: 30 });
     render(<App initial={state} />);
-    const roster = section('Roster');
-    const [first] = within(roster).getAllByRole('button');
+    const [first] = within(rosterList()).getAllByRole('button');
     if (first === undefined) throw new Error('an empty Roster');
     const name = first.textContent ?? '';
 
@@ -400,6 +644,7 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
     await elevenTurns('/?modules=probe');
 
     expect(screen.getByText('Installed for testing: the probe module.')).toBeDefined();
+    expect(within(openMenu()).getByText('the probe module')).toBeDefined();
     const log = section('Since your last action');
     const fired = within(log).getByText(/^The probe module recorded probe\.fired for .+\.$/);
     expect(fired.closest('li')?.querySelector('.when')?.textContent).toBe('Day 3, night');

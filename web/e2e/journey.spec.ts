@@ -4,20 +4,24 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { escaped, expectNoHorizontalOverflow, playTurns, region, startGame } from './support';
+import { escaped, expectNoHorizontalOverflow, openView, part, playTurns, rosterList, startGame, thisGame } from './support';
 
-// The journey (M7-S4, DL-67), at a phone's width and a desktop's: a new game, a Day advanced, a
-// Party dispatched, a Hero recruited from the Unattached pool (the milestone's Gate, DL-74), fast
-// forward until the Party returns, the game saved in IndexedDB, the page reloaded, the save loaded,
-// the same Turn and the same Roster read; then the save exported, and the CLI's own loader, run on
-// Node, loads the exported file as the same Turn and writes it back byte for byte. The page is never
-// wider than the viewport on the way.
+// The journey (M7-S4, DL-67), at a phone's width, a tablet's and a desktop's: a new game, a Day
+// advanced, a Party dispatched, a Hero recruited from the Unattached pool (the milestone's Gate,
+// DL-74), fast forward until the Party returns, the game saved in IndexedDB, the page reloaded, the
+// save loaded, the same Turn and the same Roster read; then the save exported, and the CLI's own
+// loader, run on Node, loads the exported file as the same Turn and writes it back byte for byte.
+// The page is never wider than the viewport on the way.
+//
+// Through the shell (M9-S3, DL-103): each view is opened from the navigation before its regions are
+// read, the home view shows the Party out and then how it fared, and the game's file is the game
+// menu's.
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 /** Sends a Party on the first Quest on the Board that dispatch would send one to; its name. */
 async function dispatchAParty(page: Page): Promise<string> {
-  const quests = region(page, 'Board').getByRole('article');
+  const quests = (await openView(page, 'Board')).getByRole('article');
   const count = await quests.count();
   for (let index = 0; index < count; index += 1) {
     const quest = quests.nth(index);
@@ -50,7 +54,7 @@ async function dispatchAParty(page: Page): Promise<string> {
  */
 async function recruitAHero(page: Page): Promise<string> {
   const wealth = Number(await page.getByTestId('wealth').textContent());
-  const pool = region(page, 'Unattached pool');
+  const pool = await part(page, 'Unattached pool');
   const cards = pool.locator('li.card');
   let chosen: { name: string; fee: number } | null = null;
   for (let index = 0; index < (await cards.count()); index += 1) {
@@ -64,17 +68,18 @@ async function recruitAHero(page: Page): Promise<string> {
 
   await pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true }).click();
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
-  const signed = new RegExp(`^Day \\d+, \\w+ The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`);
-  await expect(region(page, 'Since your last action').getByRole('listitem').filter({ hasText: signed })).toHaveCount(1);
+  // Signed: the Roster has them, and the pool does not.
   await expect(page.getByTestId('wealth')).toHaveText(String(wealth - chosen.fee));
-  await expect(region(page, 'Roster').getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
   await expect(pool.getByRole('button', { name: `Recruit ${chosen.name}`, exact: true })).toHaveCount(0);
+  await expect((await rosterList(page)).getByRole('button', { name: chosen.name, exact: true })).toBeVisible();
+  const signed = new RegExp(`^Day \\d+, \\w+ The Lantern signed ${escaped(chosen.name)} for ${chosen.fee} Wealth\\.$`);
+  await expect((await part(page, 'Since your last action')).getByRole('listitem').filter({ hasText: signed })).toHaveCount(1);
   return chosen.name;
 }
 
 /** The names on the player's Roster, in its order. */
 async function rosterNames(page: Page): Promise<string[]> {
-  return region(page, 'Roster').locator('li.card button.link').allTextContents();
+  return (await rosterList(page)).locator('button.link').allTextContents();
 }
 
 test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at the same Turn, and exported for the CLI', async ({ page }, testInfo) => {
@@ -90,9 +95,11 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(page.getByTestId('time')).toHaveText('Day 1, morning, Year 0');
 
   const quest = await dispatchAParty(page);
-  const log = region(page, 'Since your last action');
   const sent = new RegExp(`^Day 1, morning The Lantern sent .+ on ${escaped(quest)}, back on the night of Day \\d+\\.$`);
-  await expect(log.getByRole('listitem').filter({ hasText: sent })).toHaveCount(1);
+  await expect((await part(page, 'Since your last action')).getByRole('listitem').filter({ hasText: sent })).toHaveCount(1);
+  // The home view names the Party out, and the night it returns.
+  const home = await openView(page, 'Guild');
+  await expect(home.getByRole('listitem').filter({ hasText: new RegExp(`^${escaped(quest)} · .+ · back on the night of Day \\d+$`) })).toHaveCount(1);
 
   // Recruit a Hero from the Unattached pool (the Gate's "recruited", DL-74).
   const recruited = await recruitAHero(page);
@@ -104,14 +111,18 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   const stopped = async (): Promise<string> => ((await stop.count()) === 0 ? '' : ((await stop.textContent()) ?? ''));
   for (let tries = 0; tries < 10 && !/came home/.test(await stopped()); tries += 1) await playTurns(page, fastForward);
   await expect(stop).toContainText("Stopped: The Lantern's Party came home.");
-  await expectNoHorizontalOverflow(page, 'a fast forward stopped, its log narrated');
+  // The home view says how it fared: its Quest, its band, and what it brought.
+  const came = page.getByRole('region', { name: 'Guild' }).locator('.outcome');
+  await expect(came.first().getByRole('heading', { level: 4 })).toHaveText(quest);
+  await expect(came.first()).toContainText(/^.+(Success|Strong success|Failure).+, Day \d+, \w+Wealth [+-]?\d+Fame [+-]?\d+/);
+  await expectNoHorizontalOverflow(page, 'a fast forward stopped, its outcome shown');
 
   // Save in the browser, under a name.
   const turn = (await page.getByTestId('time').textContent()) ?? '';
   const wealth = (await page.getByTestId('wealth').textContent()) ?? '';
   const roster = await rosterNames(page);
   expect(roster).toContain(recruited);
-  const game = region(page, 'This game');
+  const game = await thisGame(page);
   await game.getByLabel('Save as').fill('journey');
   await game.getByRole('button', { name: 'Save in this browser' }).click();
   await expect(game.getByTestId('saves-status')).toHaveText(/^Saved as “journey”, [\d.]+ kB\.$/);
@@ -124,7 +135,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
 
   // Reload: no game in hand, the save still kept.
   await page.reload();
-  const newGame = region(page, 'A new game');
+  const newGame = page.getByRole('region', { name: 'A new game', exact: true });
   await expect(newGame.getByRole('article', { name: 'journey' })).toBeVisible();
   await expectNoHorizontalOverflow(page, 'the saves listed before a game');
   await newGame.getByRole('button', { name: 'Load journey' }).click();
@@ -132,14 +143,13 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   await expect(page.getByTestId('time')).toHaveText(turn);
   await expect(page.getByTestId('wealth')).toHaveText(wealth);
   await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+  // A load opens the home view.
+  await expect(page.getByRole('region', { name: 'Guild', exact: true })).toBeVisible();
   expect(await rosterNames(page)).toEqual(roster);
   await expectNoHorizontalOverflow(page, 'a save loaded');
 
   // Export the save kept in IndexedDB: the uncompressed save, the bytes serialise gave.
-  const [exported] = await Promise.all([
-    page.waitForEvent('download'),
-    region(page, 'This game').getByRole('button', { name: 'Export journey' }).click(),
-  ]);
+  const [exported] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export journey' }).click()]);
   expect(exported.suggestedFilename()).toBe('journey.json');
   const exportedPath = testInfo.outputPath('journey.json');
   await exported.saveAs(exportedPath);

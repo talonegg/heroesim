@@ -32,6 +32,8 @@ export default defineConfig({
           root: './web',
           environment: 'jsdom',
           include: ['src/**/*.test.{ts,tsx}'],
+          // The open view the page remembers in localStorage is forgotten after each test (M9-S3).
+          setupFiles: ['./src/test-setup.ts'],
         },
       },
       ...(process.env.HEROESIM_HARNESS
