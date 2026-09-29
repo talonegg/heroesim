@@ -4,7 +4,7 @@
 // Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
 import type { EngineDeps } from './config.js';
-import type { BackgroundKey, TraitKey } from './content-types.js';
+import type { BackgroundKey, ContentSet, TraitKey } from './content-types.js';
 import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
@@ -87,6 +87,15 @@ export type SetupRefusal =
   /** A descriptive Attribute longer, once trimmed, than its bound, counted in characters. */
   | { reason: 'text-too-long'; attribute: DescriptiveAttribute; length: number; max: number };
 
+/**
+ * What `traitKeys` cost against the Trait budget (M9-S2, DL-100 item 3): the sum of each Trait's
+ * content cost, a penalty's refund taken off; a key content does not define costs nothing. The sum
+ * `setupRefusal` holds to `guildmasterTraitBudget`, for a front end to show beside the budget.
+ */
+export function guildmasterTraitCost(traitKeys: readonly TraitKey[], content: Pick<ContentSet, 'traits'>): number {
+  return traitKeys.reduce((sum, key) => sum + (Object.hasOwn(content.traits, key) ? (content.traits[key]?.cost ?? 0) : 0), 0);
+}
+
 /** The characters of `text`, trimmed: Unicode code points, so an accented letter or an emblem counts once. */
 function lengthOf(text: string): number {
   return [...text.trim()].length;
@@ -130,7 +139,7 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
       }
     }
   }
-  const cost = rows.reduce((sum, row) => sum + row.cost, 0);
+  const cost = guildmasterTraitCost(keys, content);
   if (cost > config.guildmasterTraitBudget) return { reason: 'over-budget', cost, budget: config.guildmasterTraitBudget };
 
   for (const attribute of descriptiveAttributes) {

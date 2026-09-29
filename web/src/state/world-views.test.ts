@@ -194,6 +194,22 @@ describe('guildmasterView', () => {
     );
   });
 
+  test('gives the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
+    const document = createWorld(
+      'world-views',
+      { ...setup, guildmasterBirthplace: 'Harrowgate', guildmasterBiography: 'Once a quartermaster of the river levies.' },
+      deps,
+    ).document;
+
+    expect(guildmasterView(document)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Biography']);
+    expect(guildmasterView(document)?.attributes.slice(2)).toEqual([
+      ['Birthplace', 'Harrowgate'],
+      ['Biography', 'Once a quartermaster of the river levies.'],
+    ]);
+    // A Rival's are empty, so it shows none.
+    expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age']);
+  });
+
   test("is another Guild's Guildmaster when named", () => {
     const document = newGame();
     const other = rival(document);

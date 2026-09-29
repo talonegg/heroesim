@@ -42,6 +42,7 @@ import {
   fastForward,
   playerGuild,
   rebase,
+  setupRefusal,
   type ActionRejection,
   type BackgroundKey,
   type EngineDeps,
@@ -53,10 +54,14 @@ import {
   type Module,
   type RebaseAction,
   type Rejection,
+  type SetupRefusal,
+  type Sex,
   type StopCondition,
   type StopReason,
+  type TraitKey,
   type ValidationWarning,
   type WorldDocument,
+  type WorldSetup,
 } from '@heroesim/engine';
 import { content } from '../content';
 
@@ -69,7 +74,11 @@ export type PlayerAction = GuildAction extends infer Action
     : never
   : never;
 
-/** Starts a game from a seed and the player's choices. The seed and the clock are the caller's. */
+/**
+ * Starts a game from a seed and the player's choices. The seed and the clock are the caller's.
+ * The Guildmaster's setup is the engine's `WorldSetup`'s (M9-S2, the CLI's `new` flags): whatever is
+ * left out is drawn from the seed.
+ */
 export interface NewGame {
   kind: 'newGame';
   seed: string;
@@ -77,6 +86,15 @@ export interface NewGame {
   guildmasterName: string;
   /** A Guild Background; drawn as a Rival's is when omitted. */
   backgroundKey?: BackgroundKey;
+  guildmasterSex?: Sex;
+  /** A whole number of years from `guildmasterStartingAgeMin` to `Max`. */
+  guildmasterAge?: number;
+  /** The Traits chosen, within the budget; drawn when omitted, none when empty. */
+  guildmasterTraitKeys?: readonly TraitKey[];
+  /** The descriptive Attributes, trimmed by the engine and held to their bounds. */
+  guildmasterBirthplace?: string;
+  guildmasterAppearance?: string;
+  guildmasterBiography?: string;
   /** Stored in `meta` and never read by a rule: the browser's clock (D10.1). */
   createdAt: string;
 }
@@ -138,16 +156,19 @@ export const fastForwardStepTurns = 30;
 
 // ── Rejections ───────────────────────────────────────────────────────────────────────────────
 
-/** A new game's names and Background, checked before `createWorld`, which throws on them. */
-export type NewGameRejection =
-  | Rejection<'newGame', 'guild-name-blank'>
-  | Rejection<'newGame', 'guildmaster-name-blank'>
-  | UnknownBackground;
+/**
+ * A new game's setup that breaks a rule, checked before `createWorld`, which throws on it: the
+ * engine's `SetupRefusal`, by its reason, with what it names (M9-S2; the names and the Background
+ * since M7-S2).
+ */
+export type NewGameRejection = SetupRefusal extends infer Refusal
+  ? Refusal extends SetupRefusal
+    ? Rejection<'newGame', Refusal['reason']> & Omit<Refusal, 'reason'>
+    : never
+  : never;
 
 /** The Background asked for is not a Guild Background of the content. */
-export interface UnknownBackground extends Rejection<'newGame', 'unknown-background'> {
-  backgroundKey: BackgroundKey;
-}
+export type UnknownBackground = Extract<NewGameRejection, { reason: 'unknown-background' }>;
 
 /** A save that does not load: the engine's `LoadRefusal`, by its kind, with its message. */
 export type LoadRejection = LoadRefusal extends infer Refusal
@@ -385,23 +406,33 @@ function forGuild(play: PlayerAction, guildId: GuildId): GuildAction {
   return { ...play, guildId } as GuildAction;
 }
 
-/** Whether `key` names a Guild Background: the check `createWorld` would throw on (the CLI's `new`). */
-function isGuildBackground(key: BackgroundKey): boolean {
-  return Object.hasOwn(content.backgrounds, key) && content.backgrounds[key]?.owner === 'guild';
+/** The engine's setup for `play`: the names trimmed, and whatever of the Guildmaster it chose. */
+function setupOf(play: NewGame): WorldSetup {
+  const setup: WorldSetup & Partial<Pick<NewGame, 'kind' | 'seed'>> = {
+    ...play,
+    guildName: play.guildName.trim(),
+    guildmasterName: play.guildmasterName.trim(),
+  };
+  delete setup.kind;
+  delete setup.seed;
+  return setup;
 }
 
-/** A new world under the current defaults, with `modules` installed, from the names trimmed; blank names are refused. */
+/**
+ * Why `play` would be refused, or `null` when it keeps the rules: the engine's `setupRefusal` under
+ * the current defaults, the rules a new game begins under (M9-S2), as the page's rejection. The
+ * reducer's own check before `createWorld`, and a form's before the click, so the form copies no rule.
+ */
+export function newGameRefusal(play: NewGame): NewGameRejection | null {
+  const refusal = setupRefusal(setupOf(play), { config: defaultConfig, content });
+  return refusal === null ? null : ({ action: 'newGame', ...refusal } as NewGameRejection);
+}
+
+/** A new world under the current defaults, with `modules` installed, from the names trimmed; a setup that breaks a rule is refused. */
 function newGame(play: NewGame, modules: readonly Module[]): Outcome {
-  const guildName = play.guildName.trim();
-  const guildmasterName = play.guildmasterName.trim();
-  if (guildName === '') return { ok: false, rejection: { action: 'newGame', reason: 'guild-name-blank' } };
-  if (guildmasterName === '') return { ok: false, rejection: { action: 'newGame', reason: 'guildmaster-name-blank' } };
-  const { backgroundKey } = play;
-  if (backgroundKey !== undefined && !isGuildBackground(backgroundKey)) {
-    return { ok: false, rejection: { action: 'newGame', reason: 'unknown-background', backgroundKey } };
-  }
-  const setup = { guildName, guildmasterName, createdAt: play.createdAt, ...(backgroundKey === undefined ? {} : { backgroundKey }) };
-  const { document, events } = createWorld(play.seed, setup, engineDeps(modules));
+  const rejection = newGameRefusal(play);
+  if (rejection !== null) return { ok: false, rejection };
+  const { document, events } = createWorld(play.seed, setupOf(play), engineDeps(modules));
   return { ok: true, document, events, stoppedBecause: null, warnings: [] };
 }
 

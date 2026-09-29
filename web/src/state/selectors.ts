@@ -19,11 +19,16 @@ import {
   bankruptcyCountdown,
   baseStat,
   carriedGear,
+  compareByCodeUnit,
   dayOf,
+  defaultConfig,
+  descriptiveAttributeMaxLength,
+  descriptiveAttributes,
   durationDaysOf,
   effectiveStats,
   entriesFor,
   guildmasterOf,
+  guildmasterTraitCost,
   holdings,
   itemDefinition,
   judgedHintBands,
@@ -45,9 +50,11 @@ import {
   type ConsumableEffect,
   type ConsumableRequest,
   type ContentSet,
+  type DescriptiveAttribute,
   type EngineDeps,
   type TurnEvent,
   type Entry,
+  type GameConfig,
   type GearDefinition,
   type Guild,
   type GuildId,
@@ -59,18 +66,20 @@ import {
   type Quest,
   type QuestId,
   type RegardBand,
+  type Sex,
   type SlotKey,
   type Stack,
   type StackId,
   type StopCondition,
   type StopReason,
   type Synergy,
+  type TraitKey,
   type UniqueItem,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, nameIn, nightOf, none, placeWords, rowOf } from './names';
+import { attributeLabels, capitalised, nameIn, nightOf, none, placeWords, rowOf, traitEffectWords } from './names';
 import { listed, narrate, narrateStop, narrationFor, type Narration } from './narrate';
 import { playDeps, type GameState } from './reducer';
 import { endingWords, rejectionSentence } from './rejections';
@@ -745,4 +754,77 @@ export function guildBackgrounds(set: ContentSet = content): { key: string; name
   return Object.values(set.backgrounds)
     .filter((row) => row.owner === 'guild')
     .map((row) => ({ key: row.key, name: row.name }));
+}
+
+/** A Guildmaster Trait the new-game form offers (M9-S2): what it does, its cost, and what it excludes. */
+export interface TraitChoice {
+  key: TraitKey;
+  name: string;
+  /** What it does, in the Guildmaster's page's words: `Upkeep ×0.9`. */
+  effect: string;
+  /** Its cost against the budget: a buff's positive, a penalty's negative, a refund. */
+  cost: number;
+  /** The Guildmaster Traits it cannot be held with, in key order. */
+  excludes: { key: TraitKey; name: string }[];
+}
+
+/** The rules the new-game form sets the Guildmaster up within (M9-S2, R8, DL-100 item 3). */
+export interface GuildmasterSetupChoices {
+  sexes: readonly Sex[];
+  /** The starting ages, whole years, both included. */
+  ageMin: number;
+  ageMax: number;
+  /** `guildmasterTraitBudget`: the most the Traits chosen may cost in all. */
+  traitBudget: number;
+  /** `guildmasterTraitsMax`: the most Traits chosen. */
+  traitsMax: number;
+  /** Every Guildmaster Trait, in key order. */
+  traits: TraitChoice[];
+  /** The descriptive Attributes, in the order they are shown, each with its bound in characters. */
+  attributes: { attribute: DescriptiveAttribute; label: string; maxLength: number }[];
+}
+
+/**
+ * What the new-game form offers for the Guildmaster (M9-S2, the CLI's `new` flags): the sexes, the
+ * starting ages, the Trait budget and the most Traits under `config` (the current defaults, the
+ * rules a new game begins under), each Guildmaster Trait of `set` with its effect, cost and
+ * exclusions, and the descriptive Attributes with their bounds. The form's check is the engine's,
+ * through `newGameRefusal`; this only says what there is to choose.
+ */
+export function guildmasterSetupChoices(set: ContentSet = content, config: GameConfig = defaultConfig): GuildmasterSetupChoices {
+  const traits = Object.values(set.traits)
+    .filter((trait) => trait.owner === 'guildmaster')
+    .sort((a, b) => compareByCodeUnit(a.key, b.key));
+  return {
+    sexes: ['female', 'male'],
+    ageMin: config.guildmasterStartingAgeMin,
+    ageMax: config.guildmasterStartingAgeMax,
+    traitBudget: config.guildmasterTraitBudget,
+    traitsMax: config.guildmasterTraitsMax,
+    traits: traits.map((trait) => ({
+      key: trait.key,
+      name: trait.name,
+      effect: traitEffectWords(trait.effect, set),
+      cost: trait.cost,
+      excludes: [...trait.excludes].sort(compareByCodeUnit).map((key) => ({ key, name: nameIn(set.traits, key) })),
+    })),
+    attributes: descriptiveAttributes.map((attribute) => ({
+      attribute,
+      label: attributeLabels[attribute],
+      maxLength: descriptiveAttributeMaxLength[attribute],
+    })),
+  };
+}
+
+/**
+ * What the Traits `chosen` cost (`guildmasterTraitCost`, the engine's sum) and how much of the
+ * budget is left, negative when they pass it (M9-S2): the form's running total.
+ */
+export function traitBudgetView(
+  chosen: readonly TraitKey[],
+  set: ContentSet = content,
+  config: GameConfig = defaultConfig,
+): { spent: number; left: number } {
+  const spent = guildmasterTraitCost(chosen, set);
+  return { spent, left: config.guildmasterTraitBudget - spent };
 }

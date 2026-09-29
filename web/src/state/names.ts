@@ -2,7 +2,7 @@
 // ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
 // `trade-views.ts` (DL-73).
 
-import { dayOf, type Guild } from '@heroesim/engine';
+import { dayOf, type ContentSet, type DescriptiveAttribute, type Guild, type TraitEffect } from '@heroesim/engine';
 
 /** The row of `rows` keyed by `id`, never one `Object.prototype` lends (`constructor`). */
 export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row | undefined {
@@ -48,4 +48,27 @@ export function controllerWords(guild: Pick<Guild, 'controller'>): string {
 /** `+2`, `-1`, `0`. */
 export function signed(n: number): string {
   return n > 0 ? `+${n}` : String(n);
+}
+
+/** Each descriptive Attribute's label (M9-S2, `CONTEXT.md`): the CLI's `show guildmaster` words. */
+export const attributeLabels: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
+  birthplace: 'Birthplace',
+  appearance: 'Appearance',
+  biography: 'Biography',
+});
+
+/**
+ * A Guildmaster Trait's effect in words (the CLI's `traitEffectWords`): `+1 Weaponry to Warriors`,
+ * `Morale baseline -5`, `Upkeep ×0.9`; the Guildmaster's page's and the new-game form's (M9-S2).
+ */
+export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSet, 'stats' | 'classes'>): string {
+  if (effect === null) return 'no effect';
+  switch (effect.kind) {
+    case 'classStatBonus':
+      return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;
+    case 'guildMoraleShift':
+      return `Morale baseline ${signed(effect.delta)}`;
+    case 'upkeepFactor':
+      return `Upkeep ×${effect.factor}`;
+  }
 }
