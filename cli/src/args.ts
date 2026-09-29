@@ -16,6 +16,7 @@ import {
   type OfferId,
   type QuestId,
   type RankingMeasure,
+  type Sex,
   type SlotKey,
   type StackId,
   type StopCondition,
@@ -27,9 +28,16 @@ export const usage = `Usage: heroesim <command> [flags]
 
 Commands:
   new --guild <name> --master <name> [--seed <seed>] [--background <key>] [--force]
+      [--sex female|male] [--age <years>] [--traits <key,key,...> | --traits none]
+      [--birthplace <text>] [--appearance <text>] [--biography <text>]
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
+      The rest sets up the Guildmaster, and whatever is left out is drawn from the seed:
+      their sex; their age, 30 to 45; their Traits, by key, within the Trait budget (a
+      buff costs points and a penalty refunds them, and two Traits that exclude each
+      other cannot be held together), or none; and their Birthplace, Appearance and
+      Biography, short texts no rule reads (at most 60, 280 and 1,000 characters).
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
@@ -146,6 +154,14 @@ export type Command =
       background?: string;
       force: boolean;
       modules?: string[];
+      /** The Guildmaster's setup (M9-S2): whatever is absent is drawn. */
+      sex?: Sex;
+      age?: number;
+      /** Trait keys as given, `[]` for `--traits none`; whether they keep the rules is the engine's to say. */
+      traits?: string[];
+      birthplace?: string;
+      appearance?: string;
+      biography?: string;
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number; modules?: string[] }
@@ -172,7 +188,21 @@ export type Parsed = { ok: true; command: Command } | { ok: false; problem: stri
 /** The flags each command takes, and whether each takes a value. */
 const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
   help: {},
-  new: { save: 'value', seed: 'value', guild: 'value', master: 'value', background: 'value', force: 'switch', modules: 'value' },
+  new: {
+    save: 'value',
+    seed: 'value',
+    guild: 'value',
+    master: 'value',
+    background: 'value',
+    force: 'switch',
+    modules: 'value',
+    sex: 'value',
+    age: 'value',
+    traits: 'value',
+    birthplace: 'value',
+    appearance: 'value',
+    biography: 'value',
+  },
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value', modules: 'value' },
   recruit: { save: 'value', hero: 'value' },
@@ -283,6 +313,51 @@ function moduleList(value: string): string[] {
 function modulesFlag(flags: Map<string, string>): { modules?: string[] } {
   const modules = flags.get('modules');
   return modules === undefined ? {} : { modules: moduleList(modules) };
+}
+
+/** `--sex` (M9-S2): one of the sexes a person is generated with. */
+function sexFlag(value: string): Sex {
+  const sexes: readonly string[] = ['female', 'male'] satisfies readonly Sex[];
+  return sexes.includes(value) ? (value as Sex) : refuse(`--sex takes female or male; got "${value}"`);
+}
+
+/** `--age` (M9-S2): a whole number of years, in digits; whether it is in range is the engine's to say. */
+function ageFlag(value: string): number {
+  const n = Number(value);
+  return /^\d+$/.test(value) && Number.isSafeInteger(n) ? n : refuse(`--age needs a whole number of years; got "${value}"`);
+}
+
+/**
+ * `--traits` (M9-S2): Trait keys joined by commas, in the order given, or `none` for no Trait. Each
+ * word has a key's form; which keys the content has, a repeat, and the budget are the engine's to
+ * say (`setupRefusal`), in its own words.
+ */
+function traitList(value: string): string[] {
+  if (value.trim() === 'none') return [];
+  const keys = value.split(',').map((word) => word.trim());
+  for (const key of keys) {
+    if (!/^[a-z][a-z0-9]*(-[a-z0-9]+)*$/.test(key) || key === 'none') {
+      refuse(`--traits needs Trait keys such as old-soldier, joined by commas, or none; got "${key}"`);
+    }
+  }
+  return keys;
+}
+
+/** The Guildmaster's setup flags `new` was given (M9-S2), as the command's fields. */
+function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, { name: 'new' }>> {
+  const sex = flags.get('sex');
+  const age = flags.get('age');
+  const traits = flags.get('traits');
+  const texts = (['birthplace', 'appearance', 'biography'] as const).flatMap((flag) => {
+    const text = flags.get(flag);
+    return text === undefined ? [] : [[flag, text]];
+  });
+  return {
+    ...(sex === undefined ? {} : { sex: sexFlag(sex) }),
+    ...(age === undefined ? {} : { age: ageFlag(age) }),
+    ...(traits === undefined ? {} : { traits: traitList(traits) }),
+    ...Object.fromEntries(texts),
+  };
 }
 
 /** The words `--facility` takes, and the Hall facility each names (M3-S6). */
@@ -457,6 +532,7 @@ function parse(argv: readonly string[]): Command {
         ...(background === undefined ? {} : { background }),
         force: flags.has('force'),
         ...modulesFlag(flags),
+        ...guildmasterFlags(flags),
       };
     }
     case 'show':

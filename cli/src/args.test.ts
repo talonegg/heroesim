@@ -33,6 +33,32 @@ describe('parseArgs', () => {
     });
   });
 
+  test("reads new's Guildmaster flags: the sex, the age, the Traits by key, and the three descriptive Attributes (M9-S2)", () => {
+    expect(
+      command(
+        'new', '--guild', 'G', '--master', 'M', '--sex', 'female', '--age', '40', '--traits', 'thrifty, miser',
+        '--birthplace', 'Harrowgate', '--appearance', 'Grey at the temples.', '--biography=A life at sea.',
+      ),
+    ).toEqual({
+      name: 'new',
+      save: 'current',
+      guild: 'G',
+      master: 'M',
+      force: false,
+      sex: 'female',
+      age: 40,
+      traits: ['thrifty', 'miser'],
+      birthplace: 'Harrowgate',
+      appearance: 'Grey at the temples.',
+      biography: 'A life at sea.',
+    });
+    // `none` is no Trait at all; left out, the Traits are drawn.
+    expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'none')).toMatchObject({ traits: [] });
+    expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('traits');
+    // A repeated key or one content lacks is the engine's to refuse, with the setup's own words.
+    expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'miser,miser,brave')).toMatchObject({ traits: ['miser', 'miser', 'brave'] });
+  });
+
   test('reads every view of show', () => {
     expect(command('show')).toMatchObject({ view: { kind: 'summary' } });
     expect(command('show', 'guilds')).toMatchObject({ view: { kind: 'guilds' } });
@@ -206,6 +232,11 @@ describe('parseArgs', () => {
     [['new', '--guild', '--master', 'Ada'], '--guild needs a value'],
     [['new', '--guild', 'G', '--guild', 'H', '--master', 'M'], '--guild is given twice'],
     [['new', '--guild', 'G', '--master', 'M', '--force=yes'], '--force takes no value'],
+    [['new', '--guild', 'G', '--master', 'M', '--sex', 'other'], '--sex takes female or male; got "other"'],
+    [['new', '--guild', 'G', '--master', 'M', '--age', 'forty'], '--age needs a whole number of years; got "forty"'],
+    [['new', '--guild', 'G', '--master', 'M', '--age', '40.5'], '--age needs a whole number of years; got "40.5"'],
+    [['new', '--guild', 'G', '--master', 'M', '--traits', 'thrifty,,miser'], '--traits needs Trait keys such as old-soldier, joined by commas, or none; got ""'],
+    [['new', '--guild', 'G', '--master', 'M', '--traits', 'none,miser'], 'got "none"'],
     [['save'], 'save needs --as'],
     [['save', '--as='], '--as needs a value'],
     [['load'], 'load needs a file'],

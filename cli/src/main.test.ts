@@ -163,6 +163,62 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
+  test("sets the Guildmaster's sex, age, Traits and descriptive Attributes from its flags, as the engine makes them (M9-S2)", () => {
+    const run = newDemo(
+      '--sex', 'male', '--age', '44', '--traits', 'spendthrift,well-liked',
+      '--birthplace', ' Harrowgate ', '--appearance', 'Grey at the temples.', '--biography', 'Once a quartermaster.',
+    );
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const expected = createWorld(
+      'demo',
+      {
+        guildName: 'The Test',
+        guildmasterName: 'Ada',
+        guildmasterSex: 'male',
+        guildmasterAge: 44,
+        guildmasterTraitKeys: ['spendthrift', 'well-liked'],
+        guildmasterBirthplace: 'Harrowgate',
+        guildmasterAppearance: 'Grey at the temples.',
+        guildmasterBiography: 'Once a quartermaster.',
+        createdAt: clock.toISOString(),
+      },
+      { config: defaultConfig, content },
+    ).document;
+    expect(saved()).toBe(serialise(expected));
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)).toMatchObject({
+      sex: 'male',
+      ageAtEntry: 44,
+      traits: ['spendthrift', 'well-liked'],
+      birthplace: 'Harrowgate',
+    });
+
+    expect(newDemo('--traits', 'none', '--force').code).toBe(exitCodes.ok);
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.traits).toEqual([]);
+  });
+
+  test.each<[string, string[], string]>([
+    ['an age out of range', ['--age', '29'], 'A Guildmaster starts aged 30 to 45, in whole years; --age 29 is not.'],
+    ['a Trait content lacks', ['--traits', 'brave'], 'No Guildmaster Trait is keyed "brave". Choose from: miser (Miser, refunds 2),'],
+    ['a Hero Trait', ['--traits', 'scarred'], 'No Guildmaster Trait is keyed "scarred".'],
+    ['a Trait twice', ['--traits', 'miser,miser'], '--traits names miser twice.'],
+    ['too many Traits', ['--traits', 'miser,old-soldier,mistrusts-magic'], 'A Guildmaster holds at most 2 Traits; --traits names 3.'],
+    ['an excluded pair', ['--traits', 'thrifty,spendthrift'], 'Thrifty and Spendthrift exclude each other: a Guildmaster holds one or the other.'],
+    [
+      'Traits over the budget',
+      ['--traits', 'thrifty,old-soldier'],
+      'Those Traits cost 3 points and the budget is 1: a buff costs points and a penalty refunds them.',
+    ],
+    ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
+    ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
+  ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
+    const run = newDemo(...flags);
+
+    expect(run.code).toBe(exitCodes.usage);
+    expect(run.err).toContain(sentence);
+    expect(existsSync(current())).toBe(false);
+  });
+
   test('writes to the save --save names, in HEROESIM_SAVE_DIR when it is set', () => {
     expect(newDemo('--save', 'demo').code).toBe(exitCodes.ok);
     expect(existsSync(join(dir, '.saves', 'demo.json'))).toBe(true);
@@ -1332,6 +1388,22 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
       expect(row.replace(/^\S+/, ''), row).not.toMatch(/\d/);
     }
     for (const number of ['13.25', '13', '7.5', '-7.5']) expect(run.out).not.toContain(` ${number}\n`);
+  });
+
+  test('show guildmaster prints the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
+    const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
+    edit((edited) => {
+      Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { birthplace: 'Harrowgate', biography: 'Once a quartermaster of the river levies.' });
+    });
+
+    const mine = play(['show', 'guildmaster']).out.split('\n');
+    const theirs = play(['show', 'guildmaster', makeId('guilds', 2)]).out;
+
+    const age = mine.findIndex((line) => line.startsWith('Age'));
+    expect(mine[age + 1]).toMatch(/^Birthplace\s+Harrowgate$/);
+    expect(mine[age + 2]).toMatch(/^Biography\s+Once a quartermaster of the river levies\.$/);
+    expect(mine.some((line) => line.startsWith('Appearance'))).toBe(false);
+    for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).not.toContain(label);
   });
 
   test("show guildmaster <guildId> prints another Guild's Guildmaster, and refuses a Guild the save lacks", () => {
