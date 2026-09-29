@@ -95,6 +95,84 @@ and #37; DL-83 item 19, DL-85 items 6 and 8, DL-87 item 5, DL-88 items 3 and 4.
 
 **Acceptance:** #30's boxes 2 to 7 (box 1 is DL-100 item 3), and its DL (DL-102).
 
+- [x] Box 2: Trait content has a `cost` and an `excludes` list, DL-100 item 3's values; the
+      validator refuses a cost that is not a whole number, an exclusion that does not hold both
+      ways, names itself, names no Guildmaster Trait or is listed twice, and a Hero Trait with a
+      cost or an exclusion; content version 15 — `content/src/content.test.ts` ('is the core
+      content set, version 15 since M9-S2's Trait costs and exclusions (DL-102)', 'gives each
+      Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three
+      exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)');
+      `content/src/refusals.test.ts` ('with %s is refused, naming the Trait (M9-S2)', ten cases;
+      'refuses a Trait cost that is not a whole number, which the parser cannot see in memory
+      (M9-S2)') (DL-102 items 2 and 3)
+- [x] Box 3: the draw spends `guildmasterTraitBudget` (1, `configVersion` 11) and skips excluded
+      Traits, for Rivals, successors and whatever the player leaves unset; every seed's
+      Guildmasters change once, measured over 1,000 worlds — `engine/src/generators/guilds.test.ts`
+      ('a drawn Guildmaster's Traits on the budget (M9-S2, DL-100 item 3)': 'the budget is
+      guildmasterTraitBudget, 1 by default, under configVersion 11', 'every drawn Guildmaster keeps
+      within the budget and holds no excluded pair, and 0, 1 and 2 Traits are all drawn', 'each
+      draw is among the Traits that keep the running cost within the budget, and a draw with none
+      eligible stops short', 'the draw takes the draws DL-19's shuffle took, one for the count and
+      one for each Guildmaster Trait but the last, so nothing after it moves', 'the draw takes a
+      fixed number of draws: the costs and exclusions move no later draw');
+      `engine/src/create.test.ts` ('draws what is left unset as a Rival Guildmaster is drawn; an
+      empty list of Traits is none') (DL-102 items 4 and 5)
+- [x] Box 4: `WorldSetup` takes an optional sex, an optional age (30 to 45), chosen Traits and the
+      Birthplace, Appearance and Biography (trimmed; at most 60, 280 and 1,000 characters);
+      `setupRefusal` gives each breach a reason of its own; the Guildmaster's row stores the texts,
+      read by no rule, and both front ends show them; the CLI's `new` takes them as flags; the
+      page's state takes them in `newGame`, refuses with the engine's reasons, and offers the Trait
+      choices, the form being M9-S7's — `engine/src/create.test.ts` ('setupRefusal': 'accepts the
+      bare setup, and one that sets everything within the rules', 'refuses %s with a reason of its
+      own', 'counts characters, not UTF-16 units, once trimmed: sixty emblems fit a Birthplace',
+      'reads its bounds from the config it is given'; 'createWorld with the Guildmaster's setup
+      (M9-S2)': 'gives the player's Guildmaster the sex, age, Traits and descriptive Attributes
+      chosen, trimmed; a Rival's are empty', 'the player's choices move no draw: the world is the
+      one drawn without them, but for their Guildmaster', 'throws on a setup setupRefusal refuses,
+      naming its reason, and on a sex that is not one'); `engine/src/serialise.test.ts` ('holds
+      three steps, from version 1 (M2-S8), version 2 (DL-60) and version 3 (DL-102), with
+      schemaVersion 4'; 'a version-3 save': '%s loads with every Guildmaster in office and no
+      descriptive Attribute, their Traits as they were (DL-100 item 4)');
+      `cli/src/args.test.ts` ('reads new's Guildmaster flags…'); `cli/src/main.test.ts` ('sets the
+      Guildmaster's sex, age, Traits and descriptive Attributes from its flags, as the engine makes
+      them (M9-S2)', 'refuses %s with its own sentence as a bad command line, writing nothing
+      (M9-S2)', 'show guildmaster prints the descriptive Attributes written, after the sex and age,
+      and none left empty (M9-S2)'); `web/src/state/reducer.test.ts` ('sets up the Guildmaster from
+      the play's optional fields, as the engine's createWorld does (M9-S2)', 'refuses the
+      Guildmaster's setup with %s, the engine's refusal as its own, creating nothing (M9-S2)',
+      'newGameRefusal lets a form check a setup before the click…'); `rejections.test.ts` (a
+      sentence for each new reason); `selectors.test.ts` ('the Guildmaster's setup, for the
+      new-game form (M9-S2)', four tests); `world-views.test.ts` ('gives the descriptive Attributes
+      written, after the sex and age, and none left empty (M9-S2)') (DL-102 items 6 to 10)
+- [x] Box 5: a Rival Guildmaster's Retirement is met by Succession: the Guild, Roster, Wealth,
+      Fame, Hall and Items carry on under a successor, `guildmaster.succeeded` (a Milestone)
+      records it and is narrated in both front ends, the replacement path does not run, and the
+      player's Guildmaster's Retirement still ends the game; `engine/src/controller-reads.test.ts`
+      unchanged (`git diff 5cb0c46 -- engine/src/controller-reads.test.ts` is empty) —
+      `engine/src/phases/endings.test.ts` ('a Rival's Guildmaster's Retirement is met by
+      Succession': 'on the first night the Guildmaster is guildmasterRetirementAge, a successor
+      takes over and the Guild carries on with its Roster, Wealth, Fame, Hall and Items', 'the
+      replacement path does not run…', 'Regard others held for the retired Guildmaster stays with
+      them, and the successor holds none', 'the successor is drawn from generation alone', 'the
+      successor's name is none in use…', 'a Rival whose Guildmaster retires on the night it goes
+      bankrupt is succeeded, then folds that night with its successor', 'the player's Guildmaster
+      is never succeeded: their Retirement ends the game'); `engine/src/validate.test.ts` ('a
+      retired Guildmaster (M9-S2, DL-102)', two tests); `cli/src/narrate.test.ts` ('names the
+      Guild, the retired Guildmaster and the successor of a Succession (M9-S2)');
+      `web/src/state/narrate.test.ts` (every event type's sentence, `guildmaster.succeeded`'s among
+      them) (DL-102 items 11 to 15)
+- [x] Box 6: R8 matches DL-88 and DL-100; `CONTEXT.md` gains Descriptive Attribute and Trait
+      budget and amends Attribute, Trait, Ending, Retirement and Succession — commit `a55d724`, the
+      first of the story (DL-102 item 1)
+- [x] Box 7: a harness sweep gives Rival folds by cause, beside the Successions —
+      `harness/src/counters.test.ts` ('Rival folds by cause, and the Successions that met a Rival
+      Guildmaster's Retirement (guildmaster.succeeded), which fold nothing'), `sweep.test.ts`,
+      `seeds.test.ts` ('yearCount (M9-S2)'). 50 × 20: 161 Rival folds, all by Bankruptcy
+      (`v1.0.1`: 148), and no Succession, since no founder reaches 65 inside the slice. 50 × 35
+      (`HEROESIM_YEARS=35`): 219 Rival folds, all by Bankruptcy, and 20 Successions. Succession is
+      exercised by the endings tests and by the longer run (DL-102 item 16)
+- [x] DL-102 records the story.
+
 ### M9-S3 · The shell and the style · 2–3 sessions · opus
 
 **The shell.**
@@ -304,7 +382,7 @@ This story runs only with the owner's go-ahead.
 - Trait content: `cost` and `excludes`; the content version raised (M9-S2).
 - Events:
   - `guild.below-floor` and `guild.floor-recovered` (M9-S1);
-  - the Succession Milestone, named in M9-S2's DL;
+  - the Succession Milestone, named in M9-S2's DL: `guildmaster.succeeded` (DL-102 item 14);
   - the stop reasons (M9-S1).
 - The save schema is raised only if the Guildmaster's row or a new field needs it. #15, now on
   v1.2, then takes the next number.
