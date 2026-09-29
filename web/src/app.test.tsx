@@ -95,8 +95,9 @@ describe('before a game', () => {
     expect(within(bar).getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
     expect(screen.queryByTestId('countdown')).toBeNull();
     expect(within(bar).getByTestId('wealth').textContent).toMatch(/^\d+$/);
-    // A new game opens the home view, and puts the keyboard on its heading.
-    expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Guild' }));
+    // A new game opens the home view, and puts the keyboard on its heading. The keyboard moves in
+    // an effect after the play's render, which a busy machine may paint first.
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { level: 2, name: 'Guild' })));
     // The seed is the game menu's to say, no longer the status bar's (the review's B12).
     expect(within(bar).queryByText('app-test')).toBeNull();
   });
