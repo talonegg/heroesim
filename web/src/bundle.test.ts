@@ -71,7 +71,8 @@ describe('the production build', { timeout: 120_000 }, () => {
     const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
 
     expect(silhouettes.length).toBeGreaterThan(0);
-    expect(text.match(/data:image\/svg\+xml,/g)).toHaveLength(silhouettes.length);
+    // Each Silhouette, and the neutral one `media.ts` draws for a sex no folder knows (v1.1.2-S6).
+    expect(text.match(/data:image\/svg\+xml,/g)).toHaveLength(silhouettes.length + 1);
     expect(assets.filter((file) => file !== script).filter((file) => !/-[\w-]{8}\.webp$/.test(file))).toEqual([]);
   });
 

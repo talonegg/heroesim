@@ -15,7 +15,7 @@
 // role, sex and Portrait's key, a Guild Banner by its Guild, a Unique Item's picture by its content
 // key (`views/pictures.tsx`).
 
-import { sexes, type GuildId, type ItemDefinitionKey, type PortraitRole, type Sex } from '@heroesim/engine';
+import type { GuildId, ItemDefinitionKey, PortraitRole, Sex } from '@heroesim/engine';
 
 /**
  * Whose pictures a Portrait is drawn from: each role has its folder, with a folder per sex (DL-125
@@ -65,7 +65,8 @@ export const neutralSilhouette =
 export interface MediaCatalogue {
   /**
    * A person's Portrait: the Silhouette of their sex, and the picture their key names, if it exists;
-   * the neutral Silhouette and no picture for a sex none of the engine's `sexes`.
+   * the neutral Silhouette and no picture for a sex with no folder of its role's, which no sex of the
+   * engine's is (`media.test.ts`).
    */
   portrait(role: PortraitRole, sex: Sex, portraitKey: string | null): Pictured;
   /** A Guild's Banner: every Guild shows the Silhouette for now (DL-125 item 7). */
@@ -84,8 +85,8 @@ export function mediaCatalogue(files: Readonly<Record<string, string>>): MediaCa
   };
   return {
     portrait: (role, sex, portraitKey) => {
-      if (!sexes.includes(sex)) return { silhouette: neutralSilhouette, picture: null };
       const folder = `portraits/${roleFolders[role]}/${sex}`;
+      if (file(`${folder}/silhouette.svg`) === null) return { silhouette: neutralSilhouette, picture: null };
       return { silhouette: silhouette(folder), picture: portraitKey === null ? null : file(`${folder}/${portraitKey}.webp`) };
     },
     banner: () => ({ silhouette: silhouette('banners'), picture: null }),
