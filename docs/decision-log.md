@@ -14511,6 +14511,608 @@ named, `bundle.test.ts`); `web/e2e/` (`file.spec.ts`, `layout.spec.ts`); `docs/d
 
 ---
 
+## DL-134 — Portraits that follow the person: each picture's apparent age, station, callings, temper, features and hooks in content, a Portrait for every Guildmaster and Hero, Guildmasters' drawn on `gm-portraits` and Heroes' on `hero-portraits`, and the limits that keep the page as quick as it is
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the owner, for the two streams and
+for recording these recommendations as the design of the next Portraits epic. The structure, the
+matching, the readings of the six pictures and the limits are the agent's recommendations, for
+the owner to approve with that epic before anything is built.
+
+**Context.**
+- *More pictures.* The owner has 38 more Guildmaster pictures, 19 of each sex, of different ages,
+  from which a personality and a past can be read. On 2026-10-01 they gave four of them (item 8)
+  and asked how best to add them. They asked:
+  - whether pictures should be banded by age, or carry other attributes, so that Rivals' ages,
+    Appearances and Biographies agree with their pictures;
+  - that the player can still have the game write their Guildmaster's Appearance and Biography;
+  - that Heroes' characteristics, such as Class, be considered in the same structure.
+- *What v1.1.2 holds* (DL-127, DL-130 to DL-133).
+  - `content/portraits.json` lists the pictures by role and sex.
+  - `content/portrait-appearances.json` holds each picture's `keywords`, which no rule reads, and
+    its `narrative`, which is a mapped picture's Appearance, word for word.
+  - Only the player's Guildmaster has a Portrait, drawn on the stream `portraits`. A Rival's
+    Guildmaster, a successor and every Hero show a Silhouette.
+  - The Biography is drawn by age band, Background and Traits alone, so it cannot follow what a
+    picture shows.
+- *What the six pictures show* (the agent's reading, for the owner to correct). A picture tells
+  more of a person's past through what DL-127 keeps out of the Appearance, their clothing and the
+  room behind them, than through the face:
+
+  | Key | Looks | Band | Station | Callings | Temper | What only this picture has |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `gm-male-01` | 45–55 | older | common | soldier, adventurer | stern | Scars; a worn coat; a tavern hearth |
+  | `gm-female-01` | 22–30 | young | gentry | soldier | composed | Tooled armour; a castle hall |
+  | `gm-male-02` | 34–44 | middle | common | scholar, explorer | intense | Maps and scrolls, one marked "Arcadia" |
+  | `gm-male-03` | 30–38 | middle | gentry | merchant, lawyer | calculating | Sealed documents; a fine coat |
+  | `gm-female-02` | 42–52 | older | gentry | scholar, mage | wry | A book of sigils; spectacles |
+  | `gm-female-03` | 36–46 | middle | common | soldier, adventurer | steady | Scars; a medal; a portrait of a younger woman |
+
+  Four things follow:
+  - a single band is too coarse, since some faces pass for two;
+  - a person's birth (station) and what they did (calling) vary apart, and suit different
+    sentences of the Biography;
+  - some pictures hold a detail worth one sentence of their own;
+  - no young man is drawn yet.
+- *Performance.* The design was assessed for its non-functional outcomes on `v1.1.2-dev` at
+  `78f2688`:
+  - the script is 703.04 kB (201.02 kB gzipped);
+  - `dist/` is 893 kB;
+  - each converted picture is about 95 kB, and each original JPG about 370 kB;
+  - the repository is 51 MB;
+  - the longest Appearance content can write is 278 of 280 characters, and the longest Biography
+    725 of 1,000;
+  - no `<img>` sets `loading`, `decoding`, `width` or `height`.
+
+**Decision.**
+
+1. **The picture follows the person** (the agent's). A Portrait is chosen to fit a person already
+   drawn, and never changes them.
+   - Sex, age, Stats, Traits and Class are drawn exactly as now, then the Portrait, then the texts.
+   - No rule reads a Portrait or any tag of it, so a seed plays as it did, and only the pictures and
+     the words change.
+   - The rejected alternative, a picture setting its person's age or Traits, would change who
+     retires, who succeeds and what the Traits do, so that no seed would play as it did.
+2. **Two streams, one per role** (the owner's).
+   - *Guildmasters.* Every Guildmaster's Portrait, the player's, a founding or replacing Rival's and a
+     successor's, is drawn on `gm-portraits`.
+   - *Heroes.* Every Hero's Portrait is drawn on `hero-portraits`.
+   - *Why two* (the agent's). A shared stream would interleave the two roles' draws. Hero pictures
+     added in a later release would then move every Guildmaster's draw after the first Hero, and a
+     seed's Guildmasters would change their faces.
+   - *The rename.* `gm-portraits` replaces v1.1.2's `portraits`. The agent recommends renaming it
+     on `v1.1.2-dev` before `v1.1.2` is released. Then no released save ever holds `portraits`, and
+     nothing a player sees changes, since v1.1.2 has one picture of each sex and a draw from one is
+     that one. Done later instead, a schema-6 migration moves a save's `portraits` state to
+     `gm-portraits`. Which of the two is the owner's (item 12).
+   - *ADR-0009.* Its amendment of 2026-09-30 is amended again for the two names. Both streams are
+     appended last, as that amendment's exceptions are.
+3. **Portrait fields by role** (the agent's). `content/portraits.json` keeps its shape. It still
+   says which pictures exist, by role and sex, and a picture's role is the list it is in.
+   `content/portrait-appearances.json` keeps its name (DL-126). Its `keywords` give way to
+   `features`, which no rule has read (DL-127 item 3), and each picture's row gains the fields of
+   its role:
+
+   | Field | Guildmaster | Hero | What it is for |
+   | --- | --- | --- | --- |
+   | `apparentAge` | required | required | `[from, to]`, the whole years the face could be. The bands it touches come from `descriptions.json`'s `ageBands`, so the bands are defined once. |
+   | `station` | required | — | Born `common`, to `trade` or among the `gentry`. It chooses the Biography's origin sentence. |
+   | `callings` | required, 1–2 | — | What they did before the chair. It chooses the career sentence, and how the picture sits with the Traits (item 4). |
+   | `temper` | required | — | The manner the face shows. It chooses the closing sentence. |
+   | `classes` | — | required, 1+ | The Classes the picture could be. |
+   | `backgrounds` | — | optional | The Hero Backgrounds the picture suits, such as `fallen-gentry` for fine clothes. |
+   | `features` | optional | optional | What can be seen of the body, such as `beard`, `scar` or `eyepatch`: for matching, and for the checks. |
+   | `narrative` | required | optional | The Appearance, word for word: face, hair, marks and bearing, never clothing (DL-127), at most 260 characters. A Hero's is read by its key, never copied into the save. |
+   | `hooks` | optional, 0–2 | — | Sentences written for this picture alone, at most 160 characters each. They join the career sentences it can draw. |
+
+   - *Readings, not rules.* The tags are what a picture suggests. They are chosen from the picture
+     and not from any rule, so a later picture may widen a list.
+   - *DL-127's "no age".* It no longer binds a narrative: the picture now matches an age, so a
+     narrative may say "fading towards grey". It still names no age in years.
+   - *No ethnicity.* No field records it, and a narrative describes features, not ethnicity. Names
+     are never matched to faces, so a picture limits no one.
+4. **The vocabulary, defined once, in `content/descriptions.json`** (the agent's).
+   - `stations` lists the three stations.
+   - `tempers` lists the tempers, about six.
+   - `callings` holds each calling, about six, with the Guildmaster Traits it `suits` and `clashes`
+     with. The pairings are set once per calling, not on each picture.
+   - `features` is defined in `portrait-appearances.json` beside the pictures. Each feature may say
+     it is `maleOnly`, and which Hero Traits it `shows`, such as `scar` for `scarred` and `eyepatch`
+     for `one-eyed`.
+   - The Biography gains three sentence lists:
+     - `stationOrigins`, by station;
+     - `callingCareers`, by calling and then by age band, since a young career cannot be a long one;
+     - `temperClosings`, by temper.
+   - The band-keyed `origins`, `careers` and `closings` stay, for a Guildmaster with no picture.
+5. **How a Portrait is chosen** (the agent's).
+   - *The candidates.* The pictures of the role and sex that no living Guildmaster, or no Hero on
+     a Roster or in the Pool, already has. Each narrowing below is kept only while it leaves one or
+     more, so a narrowing never empties the list.
+   - *A Guildmaster's narrowings.* In order:
+     1. the age is within `apparentAge`, else a band `apparentAge` touches holds it;
+     2. no calling clashes with a Trait;
+     3. a calling suits a Trait.
+   - *A Hero's narrowings.* The Class is required: a Hero with no picture of their Class and sex
+     shows the Silhouette. Then, in order:
+     1. the age;
+     2. a feature shows a visible Trait the Hero holds (`scarred`, `one-eyed`);
+     3. the Hero's Background is among the picture's `backgrounds`.
+   - *Every candidate taken.* A picture in use may repeat. With no picture of the role and sex, the
+     Portrait is `null`, and the page shows the Silhouette.
+   - *The draw.* One draw from the role's stream picks among what is left, whatever is left, so
+     the list never moves a later draw.
+   - *Roles never share a picture.* A Rival's Guildmaster never has a Hero's face.
+   - *Keys are permanent.* A key is never renamed or removed once released, since saves hold it.
+6. **The Biography with a picture** (the agent's).
+   - It is still fifteen draws, in the order of DL-132.
+   - The origin sentence is drawn from the picture's station, the career sentence from its callings
+     at the Guildmaster's band together with its `hooks`, and the closing sentence from its temper.
+   - Each falls back to the band's list when its own is empty.
+   - The Background's or successor's sentence and the Trait sentences are unchanged.
+   - A text the player gives is kept, as now.
+7. **The player's Guildmaster** (the agent's).
+   - *A picture with the age left blank.* The age drawn is moved into the picture's `apparentAge`
+     and the Guildmaster's bounds, arithmetically, with no further draw.
+   - *A typed age or Traits that do not fit.* A note is shown, never a refusal. For example, "This
+     Portrait looks older than 25", or "A mage's Portrait for a Guildmaster who mistrusts magic".
+   - *The picture grid.* The Portrait choice becomes a grid of each sex's pictures, which may be
+     narrowed to the age's band. "Drawn from the seed" draws as a Rival's does.
+   - *"Write them for me" and "Again".* They work as in DL-132, and the Biography follows the
+     picture.
+   - *Several narratives.* Keeping two or three per picture, so that "Again" varies a pictured
+     Appearance, is left for later. It adds a draw to every description, and needs an amendment of
+     its own.
+8. **The rows for the six pictures** (the agent's reading, for the owner to change). The four
+   given on 2026-10-01 are keyed in the order given:
+   - `gm-male-02`, the bearded man in profile before maps and scrolls;
+   - `gm-male-03`, the man in the embroidered coat;
+   - `gm-female-02`, the fair-haired woman in the study;
+   - `gm-female-03`, the woman with two braids, a scar and a medal.
+
+   Each narrative is at most 243 characters, and each hook at most 105. The recommended files are:
+
+   `content/portraits.json`:
+   ```json
+   {
+     "guildmaster": {
+       "female": ["gm-female-01", "gm-female-02", "gm-female-03"],
+       "male": ["gm-male-01", "gm-male-02", "gm-male-03"]
+     },
+     "hero": { "female": [], "male": [] },
+     "patron": { "female": [], "male": [] }
+   }
+   ```
+
+   `content/portrait-appearances.json`:
+   ```json
+   {
+     "features": {
+       "beard":      { "maleOnly": true },
+       "scar":       { "shows": ["scarred"] },
+       "eyepatch":   { "shows": ["one-eyed"] },
+       "braids":     {},
+       "long-hair":  {},
+       "curly-hair": {},
+       "grey-hair":  {}
+     },
+     "portraits": {
+       "gm-male-01": {
+         "apparentAge": [45, 55],
+         "station": "common",
+         "callings": ["soldier", "adventurer"],
+         "temper": "stern",
+         "features": ["beard", "scar", "curly-hair"],
+         "narrative": "A weathered, deeply lined face, scored across the brow and cheek by old scars. Thick dark hair falls unruly about it, and a full beard hides the set of the jaw. The eyes are hard and steady, used to weighing a stranger before a word is spoken."
+       },
+       "gm-male-02": {
+         "apparentAge": [34, 44],
+         "station": "common",
+         "callings": ["scholar", "explorer"],
+         "temper": "intense",
+         "features": ["beard", "curly-hair", "long-hair"],
+         "narrative": "A lean, hawkish face with a long straight nose and a brow knotted in thought. Dark curls fall loose about the ears and are caught up carelessly behind. A full dark beard, and deep-set eyes fixed on something only he can see.",
+         "hooks": ["{He} has spent years on a map of a land called Arcadia, and will not say whether {he} ever found it."]
+       },
+       "gm-male-03": {
+         "apparentAge": [30, 38],
+         "station": "gentry",
+         "callings": ["merchant", "lawyer"],
+         "temper": "calculating",
+         "features": ["beard"],
+         "narrative": "A handsome, composed face with a strong jaw and a level, measuring gaze. Thick dark hair is swept back from the brow, and a close-trimmed beard frames a mouth that gives nothing away.",
+         "hooks": ["{He} can read a contract upside down across a table, and usually does."]
+       },
+       "gm-female-01": {
+         "apparentAge": [22, 30],
+         "station": "gentry",
+         "callings": ["soldier"],
+         "temper": "composed",
+         "features": ["braids", "long-hair"],
+         "narrative": "A strong-boned face with high cheekbones and a composed, knowing look. Long dark hair, worked into braids at the crown and temples, falls loose past the shoulders. The eyes are dark and shadowed, and give away little of what she is thinking."
+       },
+       "gm-female-02": {
+         "apparentAge": [42, 52],
+         "station": "gentry",
+         "callings": ["scholar", "mage"],
+         "temper": "wry",
+         "features": ["grey-hair"],
+         "narrative": "A fine-boned face, lined at the eyes and mouth, with a small, knowing smile. Fair hair, fading towards grey, is pinned up loosely, a few strands escaping at the temples. Her pale eyes are amused, as if she has heard the question before.",
+         "hooks": ["{He} keeps {his} old spellbooks where any visitor can see them, and {his} spectacles where none can."]
+       },
+       "gm-female-03": {
+         "apparentAge": [36, 46],
+         "station": "common",
+         "callings": ["soldier", "adventurer"],
+         "temper": "steady",
+         "features": ["scar", "braids", "long-hair"],
+         "narrative": "A broad, calm face marked by a long scar through the brow and a smaller one across the cheek. Black hair is worked into two long braids over the shoulders. Her dark eyes are steady, and her mouth turns up at one corner.",
+         "hooks": [
+           "{He} was decorated for holding a bridge that everyone else had given up, and keeps the medal in a drawer.",
+           "A portrait of {him} as a girl hangs in {his} study; {he} says it reminds {him} how little {he} knew."
+         ]
+       }
+     }
+   }
+   ```
+
+   A Hero's row, for when Hero pictures come:
+   ```json
+   "hero-male-01": {
+     "apparentAge": [24, 32],
+     "classes": ["warrior"],
+     "backgrounds": ["levy-soldier", "farm-born"],
+     "features": ["beard", "scar"],
+     "narrative": "…"
+   }
+   ```
+
+   The additions to `content/descriptions.json`. The existing keys stand, and the sentences are to
+   be written; one of each is shown:
+   ```json
+   {
+     "stations": ["common", "trade", "gentry"],
+     "tempers": ["stern", "composed", "intense", "calculating", "wry", "steady"],
+     "callings": {
+       "soldier":    { "suits": ["old-soldier"], "clashes": [] },
+       "adventurer": { "suits": ["old-soldier"], "clashes": [] },
+       "scholar":    { "suits": [], "clashes": ["mistrusts-magic"] },
+       "mage":       { "suits": [], "clashes": ["mistrusts-magic"] },
+       "explorer":   { "suits": [], "clashes": [] },
+       "merchant":   { "suits": ["thrifty", "miser"], "clashes": ["spendthrift"] },
+       "lawyer":     { "suits": ["thrifty"], "clashes": [] }
+     },
+     "biography": {
+       "stationOrigins": {
+         "common": ["{He} was born in {birthplace}, the youngest of a carter's seven children."],
+         "trade":  ["…"],
+         "gentry": ["…"]
+       },
+       "callingCareers": {
+         "soldier": {
+           "young":  ["{He} carried a pike in two short wars before {he} was twenty-five."],
+           "middle": ["…"],
+           "older":  ["…"]
+         }
+       },
+       "temperClosings": {
+         "stern": ["{He} forgives a mistake once, and says so."]
+       }
+     }
+   }
+   ```
+   There are seven callings here, one more than item 4's "about six". Merging `lawyer` into
+   `merchant` would keep to six, and is the owner's call.
+9. **Performance limits** (the agent's), each to be held by a check:
+   - *Many pictures at once.* The setup grid and the History list show thumbnails, not full
+     pictures. Each is 160×213 WebP, about 10 kB, made by `convert-picture.mjs` beside the full
+     one. Every picture's `<img>` sets `loading="lazy"`, `decoding="async"`, `width` and `height`.
+     That takes a grid of 20 from about 2 MB read and 24 MB decoded down to about 200 kB and 3 MB.
+   - *The script.* `check-bundle.mjs` fails a script over 800 kB. The design adds about 30–45 kB,
+     to about 745 kB.
+   - *A picture.* The conversion script refuses a full picture over 120 kB. About 64 pictures add
+     about 6 MB to `dist/`, and only the pictures shown are ever read.
+   - *The repository.* Only the converted WebP pictures are committed. The originals are kept out
+     of it, or in Git LFS, since 38 originals would add about 14 MB.
+   - *Text lengths.* The content validator holds each narrative to 260 characters and each hook to
+     160. It proves the longest Biography, hooks included, within 1,000.
+   - *Saves.* A Hero's save row holds only their Portrait's key, about 30 bytes. The harness reports
+     the save's size.
+   - *Fit.* The harness counts:
+     - the Guildmasters whose picture fits their age band;
+     - the Guildmasters whose calling clashes with a Trait;
+     - the Heroes whose picture matches their Class, and those shown a Silhouette;
+     - the repeats.
+     Gaps in the pictures show there, band by band.
+   - *Play.* A 50 × 20 sweep's play counters equal `v1.1.2`'s for the same seeds.
+   - *Speed.* Choosing a picture takes a narrowing of at most a few dozen pictures and one draw,
+     microseconds against a turn's milliseconds. The Trait sets are unchanged.
+10. **Content checks** (the agent's).
+    - Every picture has a row, and every row a picture (as now).
+    - A row has its role's fields and no other's. Every `station`, `temper`, `calling`, `class`,
+      `background` and `feature` it names is defined.
+    - A `maleOnly` feature is on male pictures only, and `apparentAge` is two whole numbers in order.
+    - A warning when a sex and band of Guildmaster pictures, or a Class and sex of Hero pictures, has
+      fewer than three.
+11. **The glossary** (principle 13). Calling, Station, Temper and Feature enter `CONTEXT.md` in
+    the first story that builds them, not before.
+12. **Open for the owner.**
+    - When to rename the stream: before `v1.1.2` is released, as the agent recommends, or in the
+      next epic with a schema-6 migration.
+    - The six readings of item 8, and the "Arcadia" on the second man's scroll. The agent has
+      taken it as a land he mapped in his hook; it could instead be retouched out.
+    - The callings, stations and tempers named, and whether `lawyer` stays a calling or merges into
+      `merchant` (item 8).
+    - Where the originals are kept.
+    - How the 38 are spread. About six or seven of each sex in each band gives every band a choice;
+      a young man is needed first.
+
+**Consequences.**
+- Nothing is built by this entry. The next Portraits epic (v1.1.3 by the agent's reckoning) is
+  drafted from it for the owner's approval. Its stories:
+  - the stream rename, if it is not taken into `v1.1.2`;
+  - the content structure and its checks;
+  - the Biography's new lists and the choice of picture;
+  - a Portrait for every Rival's Guildmaster and successor;
+  - the setup grid, its thumbnails and its notes;
+  - Hero pictures;
+  - the limits' checks;
+  - the harness sweep that proves play unchanged.
+- Rivals' Guildmasters and successors lose the Silhouette where a picture fits. CONTEXT.md's
+  Portrait entry changes with it.
+- The owner's four pictures are not yet in the repository. They are converted and placed when
+  their story begins.
+
+**Actioned in:** this entry.
+
+---
+
+## DL-135 — DL-134's open items answered, and the plan finished: the stream renamed in v1.1.2, a Hero's row like a Guildmaster's, the Silhouette where no picture fits, Heroes described, schema 6 refusing v1.1.2's saves, and a portrait tool with its skills, as v1.1.3
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the owner, answering DL-134's open
+items and seventeen questions put one at a time; each answer is marked (the owner's). Where the
+owner left a detail to the agent, it is marked (the agent's).
+
+**Context.** DL-134 recorded the design of Portraits that follow the person, and left five items
+open for the owner (its item 12). The owner answered them and changed two parts:
+- *A Hero's row.* It has the fields of a Guildmaster's: an age range, Classes, a station, a temper,
+  a narrative and optional hooks. DL-134 item 3 gave it `backgrounds` and no station, temper or
+  hooks.
+- *No picture fits.* A Guildmaster or Hero whose attributes match no picture's criteria shows the
+  Silhouette of their sex.
+
+The owner also asked for a tool to manage the pictures and their JSON:
+- *Uploads.* The owner will upload pictures for Heroes or Guildmasters from time to time.
+- *Conversion.* The tool converts each upload to the WebP the page needs.
+- *An agent and AI skills.* They judge whether each upload is already in the game. If it is not,
+  they name the converted files and add rows to the JSON that agree with the picture.
+- *Analysis and refresh.* A run over the whole corpus of pictures and JSON writes a Markdown report
+  of recommended actions, named by the run's date, and a recommended set of JSON to replace the
+  current files.
+
+The owner then asked to be questioned on anything else the plan needed (the grilling of
+2026-10-01), one question at a time.
+
+**Decision.** This supersedes DL-134 items 3, 5, 9 (the originals) and 12 where it differs; the
+rest of DL-134 stands.
+
+1. **DL-134's open items** (the owner's).
+   - *The stream.* `portraits` is renamed `gm-portraits` in v1.1.2, before its release, as v1.1.2-S7.
+   - *"Arcadia".* It stays in `gm-male-02`'s picture and hook. It is a reminder for that
+     picture's intake, where the owner confirms the hook.
+   - *`lawyer`.* It stays a calling apart from `merchant`, so seven callings.
+   - *The originals.* The JPGs are not kept, in the repository or elsewhere by the tool. Only the
+     converted WebP pictures and their thumbnails are committed.
+   - *The pictures.* The owner supplies the Guildmaster pictures, the four of 2026-10-01 among
+     them, before the build begins.
+2. **A Hero's row** (the owner's). It has the Guildmaster's fields, with `classes` in the place of
+   `callings`:
+
+   | Field | Guildmaster | Hero |
+   | --- | --- | --- |
+   | `apparentAge` | required | required |
+   | `station` | required | required |
+   | `temper` | required | required |
+   | `callings` | required, 1–2 | — |
+   | `classes` | — | required, 1+ |
+   | `features` | optional | optional |
+   | `narrative` | required, one | required, one |
+   | `hooks` | optional, 0–2 | optional, 0–2 |
+
+   - *No `backgrounds`.* A Hero's station comes from their Background instead (item 5).
+   - *One narrative* (Q5, the owner's). A picture has one `narrative`, as now, and no description
+     takes a draw for it. DL-134 item 7's several narratives are not planned.
+3. **What must match, and the Silhouette** (Q1, the owner's).
+   - *Must match.* The sex; the age band, when `apparentAge` reaches the band the person's age
+     falls in; and a Hero's Class.
+   - *Preferred.* These narrow the candidates in order, each kept only while it leaves one or more:
+     1. the age within `apparentAge`;
+     2. no calling that clashes with a Trait (a Guildmaster's);
+     3. a calling that suits a Trait (a Guildmaster's);
+     4. the Hero's station (item 5);
+     5. a feature showing a visible Trait the person holds.
+   - *No picture.* With no picture meeting the criteria that must match, the Portrait is `null`,
+     and the page shows the Silhouette of the sex. The Appearance and the Biography are then drawn
+     from the lists by band, as for a Guildmaster without a picture today.
+4. **When every fitting picture is in use** (Q2, the owner's).
+   - *Guildmasters.* No two living Guildmasters share a picture. With every fitting picture in use,
+     a Guildmaster shows the Silhouette.
+   - *Heroes.* A Hero first takes a fitting picture no Hero on a Roster or in the Pool has. With all
+     in use, a picture may repeat.
+   - *The player's Guildmaster.* They are founded first, so their picture is never a Rival's. A
+     picture the player chooses at setup is theirs whatever the criteria, and a note says where it
+     does not fit (DL-134 item 7).
+5. **A Hero's station and their Background** (Q4, the owner's).
+   - `content/backgrounds.json` maps each Hero Background to a station:
+     - `fallen-gentry` is gentry;
+     - `town-apprentice` is trade;
+     - the other six are common.
+   - A picture of that station is preferred, not required (item 3).
+   - The Background, not the picture, is the station the Biography writes.
+6. **Heroes described** (Q3, the owner's).
+   - *What.* Every Hero gains an Appearance and a Biography, written as a Guildmaster's are. A Hero
+     has no Birthplace, since their Background says where they are from.
+   - *The Appearance.* A Hero with a picture is given its narrative, as written. A Hero without one
+     has an Appearance drawn from `descriptions.json`'s phrases by sex and band.
+   - *The Biography.* It is written from the Hero's Background (and its station), Class, Traits and
+     picture: the picture's temper and hooks where it has one, and the lists by band where it has
+     none.
+   - *The stream.* It is written on `hero-descriptions`, a stream of its own, in a fixed number of
+     draws, so no Guildmaster's text moves.
+   - *Where it shows.* The Hero's page shows both texts. The player cannot edit them, since the
+     player sets up no Hero.
+   - *The save.* Each Hero holds their `portraitKey`, `appearance` and `biography`. The harness
+     reports the save's size (DL-134 item 9).
+   - *The glossary.* The Descriptive Attribute entry in `CONTEXT.md` gains a Hero's two.
+7. **Saves** (Q6, the owner's). v1.1.3 writes schema 6 and refuses schema 5 with the words of
+   DL-130. No v1.1.2 save exists in players' hands yet, so nothing is migrated.
+8. **Hero pictures** (Q13, the owner's). v1.1.3 ships the Hero side with no Hero pictures.
+   - Every Hero shows a Silhouette, with an Appearance and a Biography.
+   - Hero pictures come later through the tool's intake, each as a content change only.
+   - The analysis report lists the Classes, sexes and bands still wanting pictures.
+9. **Where pictures show** (Q14, the owner's).
+   - *Full pictures.* The detail pages:
+     - the player's Guildmaster;
+     - each Guild's page, whose Guildmaster a Rival's is;
+     - a Hero's page;
+     - the History.
+   - *Thumbnails.* About 48px high, lazy, beside names in:
+     - the Roster;
+     - the Unattached pool;
+     - the Rivals list (the Guilds table).
+   - *A missing picture.* A Hero or Guildmaster without a picture shows a small Silhouette.
+   - *Nowhere else.* No Party, Market or Report shows a picture.
+10. **Patrons** (Q15, the owner's). Patron pictures and a `patron-portraits` stream go on the backlog
+    for a later release (`docs/plan.md` §4). v1.1.3's tool takes Guildmaster and Hero uploads only,
+    and is built so that a third role adds no new structure.
+11. **The portrait tool** (Q7 to Q12, Q16 and Q17, the owner's; its details the agent's).
+    - *Its form* (Q7).
+      - *The mechanical steps* are a command-line tool. `tools/portraits` is a workspace package in
+        TypeScript with tests (the agent's), run as `npm run portraits -- <command>`.
+      - *The judgement* is Claude Code's, through project skills in `.claude/skills/` and agents in
+        `.claude/agents/`. They call the tool for every mechanical step.
+      - *No API key or network code* is in the repository, and principle 12 is untouched.
+    - *Conversion.* It moves into the tool from `web/scripts/convert-picture.mjs`, through the
+      Chromium the specs install, so no image package joins.
+      - Each picture is written twice: 480 × 640 at most 120 kB, and a thumbnail at 160 × 213 of
+        about 10 kB (the agent's).
+      - An upload that cannot meet the 120 kB is refused with its size.
+    - *The register.* `media/portraits/registry.json` (the agent's) holds every key ever issued,
+      with its role, sex, fingerprint and whether it is live or retired.
+      - A key is never reused, even for a picture that is removed.
+      - The next key is the next number of the role and sex, such as `gm-female-04` or
+        `hero-male-01`.
+    - *Uploads* (Q9). The owner drops pictures into `media/inbox/guildmaster/` or
+      `media/inbox/hero/`, which git ignores.
+      - The folder says the role.
+      - The agent reads the rest from the picture: sex, apparent age, station, temper, callings or
+        Classes, features, narrative and hooks.
+    - *Already in the game?* (Q8). This is checked against the register's fingerprints, each a
+      perceptual hash computed in Chromium from the WebP.
+      - An upload identical to a picture in the game is skipped.
+      - One whose hash is near an existing picture's is compared with it by the agent, which reports
+        it as one of three:
+        - *a duplicate*, which is skipped;
+        - *a variant*, the same person drawn again, which is flagged for the owner and never added
+          or swapped by itself;
+        - *different*, which is added.
+    - *Intake* (Q10). `intake` works on the current branch:
+      1. converts each upload, and makes its thumbnail;
+      2. names it by the next key;
+      3. adds its rows to `content/portraits.json` and `content/portrait-appearances.json`;
+      4. raises the content version;
+      5. runs the content checks, and undoes the whole intake if they fail;
+      6. writes a report, `docs/portraits/intake/<date>.md`, of what it read from each picture and
+         why;
+      7. deletes each upload it took in.
+
+      A skipped duplicate or a flagged variant stays in the inbox. Nothing is committed or pushed;
+      the owner reviews the diff.
+    - *A second reading* (Q17). An Opus agent drafts each row, and a second Opus agent looks at the
+      picture beside the draft and confirms or disputes each field before it is written. Their
+      disagreements go in the report for the owner.
+    - *Analysis and refresh* (Q11). `analyse` changes nothing in play. It writes
+      `docs/portraits/analysis/<date>.md`, and beside it a folder of the same name holding the
+      recommended `portraits.json`, `portrait-appearances.json` and `descriptions.json`. A second
+      run on a day is `<date>-2`. The report covers:
+      - the pictures by role, sex, band and Class, and the gaps that show Silhouettes;
+      - every picture read again against its row, and each row that disagrees;
+      - text over its bound;
+      - callings, tempers and features no picture uses;
+      - duplicates and variants;
+      - the pictures to commission next, in order.
+
+      `apply <date>` puts a run's JSON in place, raises the content version and runs the checks.
+      Reports and their JSON are committed, as a record.
+    - *The sentences* (Q16). `analyse` also drafts the sentence lists that are missing or short:
+      stations, callings by band, tempers, and a Hero's Background and Class. The drafts go into
+      its recommended `descriptions.json`, for the owner to review before `apply`. Every sentence
+      remains the agent's wording, for the owner to change.
+    - *`check`* runs the tool's checks alone:
+      - every picture has a row, and every row a picture;
+      - the register agrees with `media/`;
+      - the sizes.
+12. **Where it is built** (Q12, the owner's).
+    - *v1.1.2-S7.* The rename, on `v1.1.2-dev`, before `v1.1.2` is released.
+    - *v1.1.3.* The rest, in the order of its epic, `docs/planning/epics/v1.1.3-release.md`:
+      1. the content structure;
+      2. the tool;
+      3. the owner's pictures through intake;
+      4. the Guildmasters' Portraits and Biographies;
+      5. Heroes and schema 6;
+      6. the page;
+      7. the close.
+
+**Consequences.**
+- The epic `docs/planning/epics/v1.1.3-release.md` is drafted from DL-134 and this entry for the
+  owner's approval, and the register gains its row.
+- The v1.1.2 epic gains S7. `v1.1.2` is not released until it is built.
+- `docs/plan.md` §4 names v1.1.3, and puts Patron pictures on the backlog.
+- Nothing is built by this entry. S7 and v1.1.3 each wait for the owner's approval.
+
+**Actioned in:** `docs/planning/epics/v1.1.3-release.md` (new);
+`docs/planning/epics/v1.1.2-release.md` (S7, status); `docs/planning/epics/README.md` (the
+register); `docs/plan.md` (§4).
+
+---
+
+## DL-136 — The owner's 40 Guildmaster pictures are v1.1.3's source, and the two already in the game are the duplicate-detection tests' own
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the owner. How the tests and the
+inbox use the set is the agent's.
+
+**Context.** DL-135 item 1 had the owner supply the Guildmaster pictures before the build. On
+2026-10-01 the owner gave a zip of 20 male and 20 female pictures. It was unzipped outside the
+repository, at `C:\JHH\source\heroesim-inbox\guildmaster\`, in `male\` and `female\`, replacing
+the pictures given one by one earlier that day. Two of the 40 are byte-identical to the originals
+of the pictures v1.1.2 ships:
+- `male\1790740777932.jpg` is `gm-male-01`'s;
+- `female\1790741002208.jpg` is `gm-female-01`'s.
+
+The other 38, 19 of each sex, are new. The four of DL-134 item 8 are among them.
+
+**Decision.**
+1. **The source** (the owner's). That folder is the source of v1.1.3's Guildmaster pictures. Nothing
+   more is owed before the build, since the 38 meet DL-135's 19 of each sex.
+2. **The two duplicates are tests** (the owner's). The two originals test the tool's duplicate
+   detection (the agent's, v1.1.3-S2 to S4):
+   - *S2.* The fingerprint's distance is tuned on the 40: the two must be found similar to their
+     WebP, and none of the 38 to either.
+   - *S3.* A trial intake of the two adds nothing.
+   - *S4.* The real intake of all 40 skips them, and adds 38.
+3. **Sex subfolders** (the agent's). The inbox may hold `male/` and `female/`, as the source does. A
+   subfolder is the owner's word for its pictures' sex, and the checker flags a reading that
+   differs.
+4. **Keys** (the agent's). The pictures are named by the keys intake gives, in the order taken, so
+   DL-134 item 8's keys for the four are provisional. Their readings are still where their rows
+   start.
+
+**Consequences.** `docs/planning/epics/v1.1.3-release.md` names the source in §0 and uses it in S2,
+S3 and S4. v1.1.2-S7's entry is now DL-137, and v1.1.3's stories begin at DL-138.
+
+**Actioned in:** `docs/planning/epics/v1.1.3-release.md` (§0, S2, S3, S4, §3, §4);
+`docs/planning/epics/v1.1.2-release.md` (§3).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
