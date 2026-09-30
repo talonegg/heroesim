@@ -14291,7 +14291,7 @@ Guildmaster's row); `CONTEXT.md` (Descriptive Attribute); `docs/planning/epics/v
 
 ---
 
-## DL-133 — v1.1.2-S6: the code review's findings fixed test first, the S5 verification's words, and a sex none of the engine's refused
+## DL-133 — v1.1.2 built, reviewed and verified: the code review's findings and the verifications' fixed test first, the 50 × 20 sweep equal to v1.1.1's, every check passing, the release awaiting the owner
 
 **Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S6's implementer of the
 review's findings. The findings are the review's (A to N) and the S5 verification's (O to T). How each is
@@ -14299,9 +14299,9 @@ fixed, the behaviour of the form's texts, the words of the notes and of every se
 changed, and the older band kept from 41 are the implementer's, each marked, for the owner to change.
 
 **Context.** v1.1.2-S6 begins with a code review of the whole patch, whose findings are fixed test first
-(the epic's S6). It is built on `v1.1.2-dev` from `6e3295e`. This entry records the review's fixes and the
-S5 verification's; the close's own checks, the sweep, the screenshots and the release follow in a later
-pass. No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and games.
+(the epic's S6). It is built on `v1.1.2-dev` from `6e3295e`. This entry records the review's fixes, the
+S5 verification's and the fix verification's (items 1 to 13), and the close's own checks, the sweep, the
+sizes and the screenshots (items 14 to 17). The release remains (item 18). No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and games.
 
 **Decision.**
 
@@ -14351,7 +14351,7 @@ pass. No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and
    - *A field still as written follows the Guildmaster.* When the sex, the age, the Portrait, the Traits,
      the Background or the seed changes, it is written for the new facts with the same `n`, so "Start
      the game" never sends texts for another Guildmaster. The Appearance so keeps to the Portrait
-     (DL-127 item 4).
+     (DL-127 item 4). *This held only once the Birthplace typed was passed into the writing* (item 13).
    - *A field the player changed is kept*, and the note says so once the facts have changed since the
      writing it was changed from: "Written for a male Guildmaster of 48. The Biography was written for
      another Guildmaster, and is kept as you changed it." A text typed where nothing was written is the
@@ -14448,11 +14448,56 @@ pass. No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and
       and 200.06 kB), "check-bundle: 2 built files, no network or filesystem reference"; 80 runs, all
       passing, S5's 77 and the new layout test at three widths.
 
+13. **The fix verification's five findings** (`910a09f`), each test first.
+    - *(a) The Birthplace typed is the Biography's.* `describeGuildmaster` takes `given`, the form writes
+      the Biography with the Birthplace typed, and a Biography still as written follows it, since the
+      facts it was written for include the Birthplace.
+    - *(b) No hair in the middle band's Biography.* Its closing "…before {his} hair turns grey." now
+      reads "…while {he} is still in {his} prime.", and a content check refuses a Biography sentence
+      naming hair, grey or baldness.
+    - *(c) An edited text's note follows the last edit.* `over` is reset at each edit, so a field changed
+      after the facts changed is the player's until they change again.
+    - *(d) The preview's `aria-live` region is an always-present wrapper,* so its first words are heard.
+    - *(e) The miser's two sentences no longer speak of money,* and a content check keeps thrifty's and
+      miser's apart.
+    - *7 new tests.* The draws are unchanged: `write` takes its fifteen draws whatever is given.
+      Verified by reading the diff (the verifier's run was blocked by the tool's safety check being
+      unavailable) and by the five changed test files passing (142 tests) and typecheck.
+14. **The 50 × 20 sweep at `c629b31`:** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v112-close npm run
+    harness`, report `harness/reports/m9-v112-close-2026-09-30.md` (force-added, `6c5872f`).
+    - *Equal to v1.1.1's.* Lines 27 to 592 (Counters through Rivals, 566 lines) are identical to
+      `m9-f7-2026-09-30.md` (v1.1.1) and `m9-v112-s5-2026-09-30.md`: 138 Rival folds, 37 Successions, no
+      player ending, no refused action, 50 of 50 saves round trip.
+    - *What moved:* `seed-0001` is 106,336,409 characters (17 fewer than S5's, item 9's rewording) and its
+      fingerprint is `5459e78657e9724308e870b379e78e78da8492f6f1983eede0ee66805dc5e276`. The run took
+      514.2 s; timings are not comparable.
+    - *Not run again after item 13:* its content changes are words only, and the harness never calls
+      `describeGuildmaster`, so no counter can move.
+15. **The checks.**
+    - At `c629b31`: lint and typecheck clean; `npm test` 3,683 tests in 155 files passing at the first
+      run; `npm run e2e -w web` 80 runs (26 each at phone, tablet and desktop, 2 `file://`), and
+      check-bundle passing.
+    - With item 13: lint and typecheck clean; `npm test` 3,690 tests in 155 files passing at the first
+      run; e2e 80 passing with the `file://` project.
+16. **Sizes.**
+    - The script is 703.04 kB (201.02 kB gzipped) against v1.1.1's 649.58 kB (185.14 kB): 53.46 kB
+      (15.88 kB gzipped) more, most of it `content/descriptions.json` (19,061 bytes in the repository).
+    - The pictures, hashed beside the script: `gm-male-01` 95,072 bytes, `gm-female-01` 98,430 bytes.
+    - The Silhouettes, inlined: Portrait 386 (female) and 306 (male), Banner 231, Item 229 bytes.
+17. **The screenshots.** 132: 22 views and parts at 360, 820 and 1280, light and dark, from
+    `dist/index.html` over `file://`, kept outside git in the close's scratchpad (`v112-close-shots`).
+    - None scrolls the page sideways, no picture is broken, and there is no page or console error.
+    - Seen and left, all older than v1.1.2: at 820 the Market's Buy table scrolls in its own box; at 360
+      the Stores' and Market's tables do (DL-119); full-page captures show the fixed bar mid-page.
+18. **What remains: the release** (DL-124), the owner's: `v1.1-release` fast-forwarded to `v1.1.2-dev`
+    and pushed, the pull request CI raises merged, `v1.1.2` tagged and deployed, and `e2e:live` passing
+    on both addresses with a picture loaded from the page's own origin.
+
 **Consequences.**
 - *Play is unchanged.* No draw, `configVersion`, schema or content version moves. A save of a sex none
   of the engine's, which no build writes, is refused at the load.
 - *The texts change:* a successor's Biography, and the phrases and sentences of item 9, wherever drawn.
-- *For the close:* this entry takes the close's checks and the S5 verification's further fixes, if any.
+- *For the release:* the owner's, as item 18 lists. Nothing in the patch remains to build or fix.
 
 **Actioned in:** `engine/src/` (`create.ts`, `descriptions.ts`, `content-types.ts`, `validate.ts`,
 `generators/guilds.ts`, `world.test-support.ts`, and the tests named); `content/` (`descriptions.json`,
@@ -14460,7 +14505,9 @@ pass. No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and
 `render.ts`, and their tests, `main.test.ts`); `web/src/` (`media.ts`, `state/setup.ts`, `state/names.ts`,
 `state/history.ts`, `state/world-views.ts`, `state/rejections.ts`, `views/new-game.tsx`, and the tests
 named, `bundle.test.ts`); `web/e2e/` (`file.spec.ts`, `layout.spec.ts`); `docs/data-model.md`;
-`CONTEXT.md` (Descriptive Attribute); DL-131's Context.
+`CONTEXT.md` (Descriptive Attribute); DL-131's Context; `harness/reports/m9-v112-close-2026-09-30.md`;
+`docs/planning/epics/v1.1.2-release.md` (status and S6's first box); `docs/planning/epics/README.md`
+(the register's row); `docs/plan.md` (§4).
 
 ---
 
