@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey, Trait, TraitKey } from '../content-types.js';
+import type { BackgroundKey, ContentSet, DispositionKey, PortraitKey, Trait, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -23,6 +23,7 @@ import {
 import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
+import { guildmasterPortrait } from '../portraits.js';
 import { int, pick } from '../rng.js';
 import {
   checkName,
@@ -66,11 +67,13 @@ export interface GuildOptions extends DrawsFrom {
    */
   guildmaster?: GuildmasterChoices;
   /**
-   * Whether the Guildmaster's blank descriptive Attributes are written as they enter play, from the
-   * stream `descriptions` (v1.1.2-S5, DL-125 item 6): by default, as every Rival's are. `false` leaves
-   * them to the caller, as `createWorld` writes the player's once their Portrait is drawn.
+   * The Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): when given, the picture `chosen`, else one
+   * drawn from the Guildmaster pictures of their sex, one draw from the stream `portraits` either way
+   * (`guildmasterPortrait`), made before their texts are written, since a mapped picture's narrative
+   * is the Appearance (DL-127 item 4). Only the player's Guildmaster has one; omitted, as for every
+   * Rival's, the Portrait is `null`, the Silhouette, and nothing is drawn from `portraits`.
    */
-  describe?: boolean;
+  portrait?: { chosen: PortraitKey | undefined };
 }
 
 /**
@@ -81,11 +84,6 @@ export interface GuildOptions extends DrawsFrom {
  */
 export interface GuildmasterChoices {
   sex?: Sex;
-  /**
-   * The Portrait, a Guildmaster picture of `sex` (v1.1.2-S3); `null`, the Silhouette, when omitted,
-   * as every Rival's. `createWorld` gives the player's, chosen or drawn.
-   */
-  portraitKey?: string | null;
   age?: number;
   /** The Traits in the order given; an empty list is none. */
   traitKeys?: readonly TraitKey[];
@@ -158,8 +156,12 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   };
   world.guilds[guildId] = guild;
   world.guildmasters[guildmasterId] = guildmaster;
-  // From its own stream (ADR-0009), so no draw of `options.stream` moves (v1.1.2-S5).
-  if (options.describe !== false) describeBlanks(world, deps, guildmaster, backgroundKey);
+  // The Portrait, then the texts, each from a stream of its own (ADR-0009), so no draw of
+  // `options.stream` moves (v1.1.2-S3, v1.1.2-S5).
+  if (options.portrait !== undefined) {
+    guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, guildmaster.sex, options.portrait.chosen);
+  }
+  describeBlanks(world, deps, guildmaster, backgroundKey);
 
   const labels: Record<EntityId, string> = {};
   labels[guildId] = guild.name;
@@ -384,7 +386,7 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
     birthplace: chosen.birthplace ?? '',
     appearance: chosen.appearance ?? '',
     biography: chosen.biography ?? '',
-    portraitKey: chosen.portraitKey ?? null,
+    portraitKey: null,
     retiredOnTurn: null,
     regard: {},
   };

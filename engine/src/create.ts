@@ -14,7 +14,7 @@ import {
   type Sex,
   type WorldDocument,
 } from './document.js';
-import { describeBlanks } from './descriptions.js';
+import type { GuildmasterDescription } from './descriptions.js';
 import type { EngineEvent, WorldCreated } from './events.js';
 import { dealEvenly, sexes, sortedKeys, streamOf } from './generators/draw.js';
 import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } from './generators/guilds.js';
@@ -25,7 +25,7 @@ import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
-import { guildmasterPortrait, portraitSexOf } from './portraits.js';
+import { portraitSexOf } from './portraits.js';
 import { createStreams, streamNames } from './rng.js';
 
 /**
@@ -177,15 +177,37 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
 }
 
 /**
+ * What the seed draws of the player's Guildmaster, rather than the setup choosing it (v1.1.2-S6): the
+ * sex when neither it nor a Portrait is chosen, since a Portrait chooses its sex (v1.1.2-S3); the age,
+ * the Traits and the Portrait when each is left out.
+ */
+export interface GuildmasterDrawn {
+  sex: boolean;
+  age: boolean;
+  traits: boolean;
+  portrait: boolean;
+}
+
+/** How much of the world `founded` makes: all of the player's Guild, or its Guildmaster alone, for the preview. */
+type Founding = 'guild' | 'guildmaster';
+
+/**
  * A new world's document with the player's Guild in it, the first thing `createWorld` makes
  * (DL-19 item 9): `meta`, one stream per core stream name, then the player's Guild and Guildmaster
  * with what the setup chose of them and the rest drawn from `generation`, their Portrait, chosen
  * or drawn from `portraits`, a stream of its own (v1.1.2-S3), and each descriptive Attribute left
- * blank written on `descriptions`, another (v1.1.2-S5). `createWorld` goes on from here, and
- * `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree (v1.1.2-S4, DL-125
- * item 6). The setup has been checked by `setupRefusal`.
+ * blank written on `descriptions`, another (v1.1.2-S5), all in `generateGuild`. `createWorld` goes on
+ * from here, and `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree
+ * (v1.1.2-S4, DL-125 item 6). With `founding` `'guildmaster'`, the preview's, the Guild is made with
+ * no Roster: its Heroes are drawn after the Guildmaster, their Portrait and their texts, so leaving
+ * them out changes nothing the preview reads (v1.1.2-S6). The setup has been checked by `setupRefusal`.
  */
-function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document: WorldDocument; player: GeneratedGuild } {
+function founded(
+  seed: string,
+  setup: WorldSetup,
+  deps: EngineDeps,
+  founding: Founding = 'guild',
+): { document: WorldDocument; player: GeneratedGuild; drawn: GuildmasterDrawn } {
   const { config, content } = deps;
   // With a Portrait and no sex, the Guildmaster is of the Portrait's (v1.1.2-S3).
   const portraitKey = setup.guildmasterPortraitKey;
@@ -203,13 +225,11 @@ function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document:
 
   const player = generateGuild(world, deps, {
     controller: { kind: 'player' },
-    rosterSize: config.startingRosterSize,
+    rosterSize: founding === 'guild' ? config.startingRosterSize : 0,
     wealth: config.startingWealth,
     name: setup.guildName,
     guildmasterName: setup.guildmasterName,
     ...(setup.backgroundKey === undefined ? {} : { backgroundKey: setup.backgroundKey }),
-    // Written below, once the Portrait is drawn, since a mapped picture's narrative is the Appearance.
-    describe: false,
     guildmaster: {
       ...(sex === undefined ? {} : { sex }),
       ...(setup.guildmasterAge === undefined ? {} : { age: setup.guildmasterAge }),
@@ -218,14 +238,18 @@ function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document:
       appearance: (setup.guildmasterAppearance ?? '').trim(),
       biography: (setup.guildmasterBiography ?? '').trim(),
     },
+    // The player's alone (DL-125 item 4), chosen or drawn before the texts are written, since a mapped
+    // picture's narrative is the Appearance; the texts are the first `descriptions` writes, so
+    // `describeGuildmaster` with `n` 0 writes the same.
+    portrait: { chosen: portraitKey },
   });
-  // The player's Portrait, from its own stream (ADR-0009), so no draw of `generation` moves; a Rival's
-  // Guildmaster has none (DL-125 item 4).
-  player.guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, player.guildmaster.sex, portraitKey);
-  // Each descriptive Attribute left blank, from `descriptions`, a stream of its own (v1.1.2-S5): the
-  // first Guildmaster it describes, so `describeGuildmaster` with `n` 0 writes the same.
-  describeBlanks(world, deps, player.guildmaster, player.guild.backgroundKey);
-  return { document, player };
+  const drawn: GuildmasterDrawn = {
+    sex: sex === undefined,
+    age: setup.guildmasterAge === undefined,
+    traits: setup.guildmasterTraitKeys === undefined,
+    portrait: portraitKey === undefined,
+  };
+  return { document, player, drawn };
 }
 
 /** The player's Guildmaster as a new game would make them: what the setup chose, and what the seed draws. */
@@ -239,6 +263,13 @@ export interface GuildmasterPreview {
   portraitKey: PortraitKey | null;
   /** The player's Guild's Background, chosen or drawn: a Biography has a sentence for it (v1.1.2-S5). */
   backgroundKey: BackgroundKey;
+  /**
+   * The Birthplace, Appearance and Biography they enter play with: each given, trimmed, or written
+   * for them as `describeGuildmaster` writes with `n` 0 (v1.1.2-S6).
+   */
+  description: GuildmasterDescription;
+  /** Which of the sex, the age, the Traits and the Portrait the seed draws (v1.1.2-S6). */
+  drawn: GuildmasterDrawn;
 }
 
 /** Stand-ins for names a front end may not have yet: a name given is never drawn, so it moves nothing. */
@@ -246,10 +277,11 @@ const previewNames = { guildName: 'Guild', guildmasterName: 'Guildmaster' } as c
 
 /**
  * The player's Guildmaster that `createWorld(seed, setup, deps)` would make: the sex, age, Traits
- * and Portrait, chosen or drawn (v1.1.2-S4, DL-125 item 6), and their Guild's Background, which
- * `describeGuildmaster` writes for (v1.1.2-S5), for a front end to show before "Start the
- * game". It makes the world's beginning by the function `createWorld` makes it with (`founded`) and
- * reads the Guildmaster off it, so the two cannot disagree. Neither name is read: the player names
+ * and Portrait, chosen or drawn (v1.1.2-S4, DL-125 item 6), their Guild's Background, which
+ * `describeGuildmaster` writes for (v1.1.2-S5), their three texts, and which parts the seed draws
+ * (v1.1.2-S6), for a front end to show before "Start the game". It makes the world's beginning by
+ * the function `createWorld` makes it with (`founded`), up to the Guildmaster, and reads them off it,
+ * so the two cannot disagree. Neither name is read: the player names
  * their Guild and Guildmaster, so neither is drawn, and the preview shows before they are typed.
  * `null` when `setupRefusal` refuses the setup for anything but a blank name, since "Start the game"
  * would then make nothing. The same for the same inputs, and it changes nothing.
@@ -257,13 +289,16 @@ const previewNames = { guildName: 'Guild', guildmasterName: 'Guildmaster' } as c
 export function previewGuildmaster(setup: WorldSetup, seed: string, deps: Pick<EngineDeps, 'config' | 'content'>): GuildmasterPreview | null {
   const named = { ...setup, ...previewNames };
   if (setupRefusal(named, deps) !== null) return null;
-  const { guild, guildmaster } = founded(seed, named, { config: deps.config, content: deps.content }).player;
+  const { player, drawn } = founded(seed, named, { config: deps.config, content: deps.content }, 'guildmaster');
+  const { guild, guildmaster } = player;
   return {
     sex: guildmaster.sex,
     age: guildmaster.ageAtEntry,
     traitKeys: [...guildmaster.traits],
     portraitKey: guildmaster.portraitKey,
     backgroundKey: guild.backgroundKey,
+    description: { birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography },
+    drawn,
   };
 }
 

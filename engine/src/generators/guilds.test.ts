@@ -482,3 +482,33 @@ describe("the drawn Guildmasters' Portraits (v1.1.2-S3)", () => {
     expect(world.rng.portraits).toEqual(portraits);
   });
 });
+
+describe("a Guildmaster's Portrait given to the Guild Generator (v1.1.2-S6, the review's E)", () => {
+  test("with `portrait`, draws it from `portraits` before the texts are written, so a mapped picture's narrative is the Appearance", () => {
+    const deps = testDeps();
+    const world = testWorld('portrait-given', deps);
+    const { guildmaster } = generateGuild(world, deps, {
+      controller: player,
+      name: 'The Test Guild',
+      rosterSize: 0,
+      wealth: 0,
+      guildmaster: { sex: 'female' },
+      portrait: { chosen: 'gm-female-01' },
+    });
+    expect(guildmaster.portraitKey).toBe('gm-female-01');
+    expect(guildmaster.appearance).toBe(deps.content.portraitAppearances.portraits['gm-female-01']?.narrative.trim());
+  });
+
+  test('with `portrait` and none chosen, takes one draw from `portraits` and one of the sex, whatever is drawn', () => {
+    const deps = testDeps();
+    for (let n = 0; n < 20; n += 1) {
+      const world = testWorld(`portrait-drawn-${n}`, deps);
+      const before = structuredClone(world.rng.portraits);
+      const { guildmaster } = generateGuild(world, deps, { controller: player, name: 'The Test Guild', rosterSize: 0, wealth: 0, portrait: { chosen: undefined } });
+      expect(deps.content.portraits.guildmaster[guildmaster.sex]).toContain(guildmaster.portraitKey);
+      const once = structuredClone(before);
+      next(once);
+      expect(world.rng.portraits).toEqual(once);
+    }
+  });
+});
