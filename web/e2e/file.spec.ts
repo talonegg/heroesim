@@ -29,10 +29,12 @@ async function opened(page: Page, errors: string[]): Promise<void> {
 
 test("holds the owner's two pictures as hashed files beside the one script, and passes the bundle gate", () => {
   const assets = readdirSync(path.join(dist, 'assets')).sort();
-  expect(assets).toHaveLength(3);
-  expect(assets.filter((file) => /^index-[\w-]+\.js$/.test(file))).toHaveLength(1);
+  const scripts = assets.filter((file) => /^index-[\w-]+\.js$/.test(file));
+  expect(scripts).toHaveLength(1);
   expect(assets.filter((file) => /^gm-female-01-[\w-]{8}\.webp$/.test(file))).toHaveLength(1);
   expect(assets.filter((file) => /^gm-male-01-[\w-]{8}\.webp$/.test(file))).toHaveLength(1);
+  // Whatever pictures come later, everything beside the script is a hashed picture (v1.1.2-S6).
+  expect(assets.filter((file) => !scripts.includes(file) && !/-[\w-]{8}\.webp$/.test(file))).toEqual([]);
   const gated = spawnSync(process.execPath, [gate, dist], { encoding: 'utf8' });
   expect(gated.stdout).toContain('no network or filesystem reference');
   expect(gated.status).toBe(0);

@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   closeGameMenu,
   debugHistory,
@@ -354,6 +355,78 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     if ((await fold.count()) > 0) await fold.click();
     await check("the Patrons' table, the neutral unfolded");
     if ((await fold.count()) > 0) await fold.click();
+  }
+});
+
+/** What a save holds that the Unique Items below are added to. */
+interface SaveFile {
+  world: {
+    counters: { items: number };
+    guilds: Record<string, { controller: { kind: string }; rosterIds: string[] }>;
+    items: Record<string, { id: string; definitionKey: string; holder: Record<string, string> }>;
+  };
+}
+
+/**
+ * The game in hand exported and loaded back with two Unique Items (v1.1.2-S6, S2's verification): the
+ * Barrow King's blade in the Guild's Stores, and the Lantern of Stannary carried by its first Hero, as
+ * the screenshots of v1.1.2-S2 held them.
+ */
+async function holdingUniques(page: Page, testInfo: TestInfo): Promise<void> {
+  const [download] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click()]);
+  const file = testInfo.outputPath('uniques.json');
+  await download.saveAs(file);
+  const save = JSON.parse(readFileSync(file, 'utf8')) as SaveFile;
+  const player = Object.entries(save.world.guilds).find(([, guild]) => guild.controller.kind === 'player');
+  if (player === undefined) throw new Error("the save has no player's Guild");
+  const [guildId, guild] = player;
+  const add = (definitionKey: string, holder: Record<string, string>): void => {
+    const id = `item-${String(save.world.counters.items).padStart(6, '0')}`;
+    save.world.items[id] = { id, definitionKey, holder };
+    save.world.counters.items += 1;
+  };
+  add('barrow-kings-blade', { kind: 'guild', id: guildId });
+  add('lantern-of-stannary', { kind: 'hero', id: guild.rosterIds[0] ?? '', slot: 'trinket' });
+  writeFileSync(file, JSON.stringify(save));
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(file);
+  // A save loaded closes the game menu, the game in hand now the one loaded.
+  await expect(page.getByRole('dialog', { name: 'Game' })).toHaveCount(0);
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+}
+
+// v1.1.2-S6 (S2's verification): the Stores and the Market's Sell with a Unique Item's picture beside
+// its name, at every width, and at 360px in the dark scheme too.
+test("the Stores and the Market's Sell with a Unique Item's picture: no sideways scroll and 44px targets, and at 360px in the dark scheme (v1.1.2-S6)", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-uniques' });
+  await holdingUniques(page, testInfo);
+  const phone = (page.viewportSize()?.width ?? 0) < 600;
+
+  for (const scheme of phone ? (['light', 'dark'] as const) : (['light'] as const)) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const at = `in the ${scheme} scheme at ${page.viewportSize()?.width ?? 0}px`;
+
+    const stores = await guildPart(page, 'Stores');
+    const blade = stores.getByRole('row').filter({ hasText: "Barrow King's blade" });
+    await expect(blade.getByTestId('item-picture')).toBeVisible();
+    const lantern = stores.getByRole('row').filter({ hasText: 'Lantern of Stannary' });
+    await expect(lantern.getByTestId('item-picture')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Stores ${at}`);
+    await expectTargets(page, `the Stores ${at}`);
+
+    const sell = await part(page, 'Sell');
+    await expect(sell.getByRole('row').filter({ hasText: "Barrow King's blade" }).getByTestId('item-picture')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Market's Sell ${at}`);
+    await expectTargets(page, `the Market's Sell ${at}`);
+  }
+  if (phone) {
+    // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    await page.emulateMedia({ colorScheme: 'light' });
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(background);
   }
 });
 
