@@ -15197,6 +15197,93 @@ register); `docs/plan.md` (§4); `harness/reports/m9-v112-s7-2026-10-01.md` (for
 
 ---
 
+## DL-138 — v1.1.3-S1 built: each picture's row, the vocabulary and the sentence lists in content, with their checks, and nothing seen changing
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-134 and DL-135
+as the epic's S1 describes. Opus built it and a second Opus agent verified it, as the owner prefers.
+
+**Context.** v1.1.3-S1 puts in content the structure that S4's pictures fill and that S5 and S6
+read (DL-134 items 3, 4 and 10; DL-135 items 2 and 5). The owner started v1.1.3 on 2026-10-01, on
+`v1.1.3-dev`, cut from `main` after `v1.1.2`'s release.
+
+**Decision.**
+1. **The glossary.** `CONTEXT.md` gains **Calling**, **Station**, **Temper** and **Feature**. Its
+   Portrait entry says every Guildmaster and Hero has one where a picture fits, and that a
+   picture's hooks are Biography sentences for that picture alone, not a module's Hook.
+2. **A picture's row** (`content/portrait-appearances.json`).
+   - `features` replaces `keywords`. A feature may be `maleOnly`, and may name the Hero Traits it
+     `shows`.
+   - A row has `apparentAge`, `station`, `temper` and `narrative`, with optional `features` and
+     `hooks`. A Guildmaster's row adds `callings` (1 or 2), and a Hero's `classes` (1 or more).
+   - The role is the list that names the key in `content/portraits.json` (DL-134 item 3). A
+     Patron's picture has no row, and a row for one is refused until DL-135 item 10 is taken up.
+   - `gm-male-01`'s and `gm-female-01`'s rows carry DL-134 item 8's readings, with their
+     narratives as they were.
+3. **The vocabulary and the lists** (`content/descriptions.json`).
+   - At the top: `stations`, `tempers`, and seven `callings`, each with the Guildmaster Traits it
+     `suits` and `clashes` with.
+   - A Guildmaster's Biography gains `stationOrigins`, `callingCareers` by calling and band, and
+     `temperClosings`.
+   - A Hero's, `heroBiography`, holds sentences by Background, by Class and band, and by Hero
+     Trait, and `closings` by band for a Hero with no picture.
+   - Each key has one first sentence, and S4's analysis fills the rest. The lists v1.1.2 reads are
+     untouched.
+   - A temper's closing is shared by both roles, so it may not name a Birthplace. A Hero's
+     sentences and a hook use the pronoun slots only.
+4. **A Hero Background's station** (`content/backgrounds.json`): `fallen-gentry` gentry,
+   `town-apprentice` trade, the other six common.
+5. **A Hero's Biography, as S1 bounds it.** A Background sentence, a Class-at-band sentence (the
+   picture's hooks joining its candidates), two Hero Trait sentences, and a closing: the picture's
+   temper's, or the band's without one. `longestDescriptions` proves this within 1,000 characters,
+   and S6 writes it this way.
+6. **The checks** (`content/src/validate.ts`). Every one of S1's is a refusal, with its name in its
+   words:
+   - every picture has a row, and every row a picture;
+   - a row has exactly its role's fields;
+   - every station, temper, calling, Class, feature and Trait named is defined;
+   - a `maleOnly` feature is on male pictures only;
+   - `apparentAge` is two whole numbers in order;
+   - a narrative is within 260 characters, a hook within 160, and there are at most two hooks;
+   - the longest Biographies of both roles are within 1,000.
+
+   The narrative's limit falls from 280 to 260, so that the Appearance a picture gives stays within
+   a typed Appearance's 280. `contentWarnings(set)` is new: it lists, without refusing, each sex and
+   band of Guildmaster pictures, and each Class and sex of Hero pictures, with fewer than three.
+7. **The content version** goes from 16 to 17.
+
+**The checks run.**
+- *Refusals.* `content/src/refusals.test.ts` holds a hand-made bad row for each check, and each is
+  refused by name. They were written first and failed before the build.
+- *The shipped content* passes, with 14 warnings:
+  - six sexes and bands of Guildmaster pictures: female young 1, and none for female middle,
+    female older, male young or male middle; male older 1;
+  - eight Classes and sexes of Hero pictures, each with none.
+
+  The longest Appearance is 278 characters, a Guildmaster's Biography 725 and a Hero's 492.
+- *Creation.* The builder and the verifier each compared 1,000 seeds' created worlds with HEAD's
+  (`1174651`), from a `git archive` of it. The verifier used two setups, an age of 30 and an age
+  drawn. All are identical but for the content version.
+- *The suite.* `npm run lint` and `typecheck` pass, and `npx vitest run content` passes 282 of 282.
+  `npm test` failed only timeouts under load, a different few each run (`create.test.ts`,
+  `modules/probe.test.ts`, `harness/succession.test.ts`, `treasury.test.tsx` among them), and each
+  file passes alone.
+- *The verifier's fix.* The Portrait entry's word "hooks" was made distinct from the glossary's
+  Hook.
+
+**Consequences.**
+- S2's tool writes rows of this shape, and S4's pictures fill the lists.
+- *Left open, for S5 and S6.*
+  - A narrative holding a slot such as `{He}` is accepted and would show as written, as in v1.1.2.
+  - The engine's test content lists pictures with no row (`gm-female-02`, `gm-male-02`,
+    `gm-male-03`, `hero-female-01`). S5 gives them rows before `choosePortrait` reads them.
+
+**Actioned in:** `CONTEXT.md`; `content/portrait-appearances.json`, `descriptions.json`,
+`backgrounds.json`; `content/src/` (`parse.ts`, `validate.ts`, `index.ts`, `refusals.test.ts`,
+`content.test.ts`); `engine/src/content-types.ts`, `world.test-support.ts`;
+`docs/planning/epics/v1.1.3-release.md` (S1).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

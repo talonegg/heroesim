@@ -15,11 +15,16 @@ export {
 export {
   biographyTraitSentences,
   ContentError,
+  contentWarnings,
   demandSumTolerance,
   descriptionBounds,
   growthSumTolerance,
-  keywordWordMaxLength,
+  heroBiographyTraitSentences,
+  hookMaxLength,
+  hooksMax,
   longestDescriptions,
+  narrativeMaxLength,
+  picturesWanted,
   validateContent,
   type LongestDescriptions,
 } from './validate.js';

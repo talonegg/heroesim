@@ -45,6 +45,17 @@
     "Hollin Green",
     "Ingleby Moor"
   ],
+  "stations": ["common", "trade", "gentry"],
+  "tempers": ["stern", "composed", "intense", "calculating", "wry", "steady"],
+  "callings": {
+    "soldier": { "suits": ["old-soldier"], "clashes": [] },
+    "adventurer": { "suits": ["old-soldier"], "clashes": [] },
+    "scholar": { "suits": [], "clashes": ["mistrusts-magic"] },
+    "mage": { "suits": [], "clashes": ["mistrusts-magic"] },
+    "explorer": { "suits": [], "clashes": [] },
+    "merchant": { "suits": ["thrifty", "miser"], "clashes": ["spendthrift"] },
+    "lawyer": { "suits": ["thrifty"], "clashes": [] }
+  },
   "appearance": {
     "female": {
       "young": {
@@ -416,6 +427,215 @@
       "{He} was chosen to lead the Guild when its chair fell empty, and took on its debts and quarrels along with its Hall.",
       "{He} served the Guild before its members voted {him} into the chair, and knows where every ledger is kept.",
       "{He} took up the Guild's leadership from another's hands, and is still learning which of its old habits to keep."
-    ]
+    ],
+    "stationOrigins": {
+      "common": [
+        "{He} was born in {birthplace}, the youngest of a carter's seven children."
+      ],
+      "trade": [
+        "{He} was born above a chandler's shop in {birthplace}, and could weigh and tally before {he} could read."
+      ],
+      "gentry": [
+        "{He} was born to a landed family in {birthplace}, with a name that opened doors and a purse that no longer did."
+      ]
+    },
+    "callingCareers": {
+      "soldier": {
+        "young": [
+          "{He} carried a pike in two short wars before {he} was twenty-five."
+        ],
+        "middle": [
+          "{He} served ten years in a lord's company of foot, and left it a sergeant with a sergeant's opinions."
+        ],
+        "older": [
+          "{He} soldiered for twenty years on three borders, and knows the price of a battle better than its glory."
+        ]
+      },
+      "adventurer": {
+        "young": [
+          "{He} joined a band of adventurers at seventeen, and learned on the first venture how quickly a plan comes apart."
+        ],
+        "middle": [
+          "For a dozen years {he} led Parties into the barrows and the fells, and brought most of them home."
+        ],
+        "older": [
+          "{He} spent twenty years on the roads with one Party or another, and has buried more friends than {he} will name."
+        ]
+      },
+      "scholar": {
+        "young": [
+          "{He} spent {his} youth copying in an abbey library, and left it with a fair hand and a head full of questions."
+        ],
+        "middle": [
+          "{He} taught letters and reckoning for ten years, and wrote a history of the northern roads that no one copied."
+        ],
+        "older": [
+          "{He} spent twenty years among the archives of three cities, and still writes to scholars who have never met {him}."
+        ]
+      },
+      "mage": {
+        "young": [
+          "{He} was apprenticed to a hedge-wizard at twelve, and left when {he} could do more than {his} master."
+        ],
+        "middle": [
+          "{He} spent ten years in the service of a college of Mages, and left it with a licence and few regrets."
+        ],
+        "older": [
+          "For twenty years {he} cast spells for any lord who would pay, and learned how little gratitude a spell buys."
+        ]
+      },
+      "explorer": {
+        "young": [
+          "{He} signed on with a surveyor's crew at sixteen, and has been drawing maps of places no one asked about since."
+        ],
+        "middle": [
+          "{He} spent ten years charting the fells and the far coast, and sold the maps to anyone who would buy them."
+        ],
+        "older": [
+          "{He} has walked every road on the old maps, and drawn a good many that were never on them."
+        ]
+      },
+      "merchant": {
+        "young": [
+          "{He} kept a market stall at fifteen, and had two by the next spring."
+        ],
+        "middle": [
+          "{He} ran wool and salt along the river roads for a decade, and knows what every town will pay for either."
+        ],
+        "older": [
+          "{He} traded in three kingdoms for twenty years, and left each richer than {he} came, if not always welcome."
+        ]
+      },
+      "lawyer": {
+        "young": [
+          "{He} clerked for a magistrate's advocate, and learned early how to find the clause that undoes a contract."
+        ],
+        "middle": [
+          "For ten years {he} argued cases before the assize courts, and won more than {his} clients deserved."
+        ],
+        "older": [
+          "{He} spent twenty years drafting charters and settling disputes, and still reads every contract twice."
+        ]
+      }
+    },
+    "temperClosings": {
+      "stern": [
+        "{He} forgives a mistake once, and says so."
+      ],
+      "composed": [
+        "Little shows on {his} face that {he} has not decided to show."
+      ],
+      "intense": [
+        "Once {he} has fixed on a thing, no argument, weather or sense will turn {him} from it."
+      ],
+      "calculating": [
+        "{He} weighs every offer twice, and the one who made it three times."
+      ],
+      "wry": [
+        "{He} finds most things a little funny, {his} own misfortunes most of all."
+      ],
+      "steady": [
+        "{He} is the same in a crisis as at breakfast, which is a comfort to everyone but {his} enemies."
+      ]
+    }
+  },
+  "heroBiography": {
+    "backgrounds": {
+      "farm-born": [
+        "{He} grew up behind a plough, and left the farm the first spring {he} was strong enough to walk away from it."
+      ],
+      "levy-soldier": [
+        "{He} was called up with the levy at sixteen, and found {he} was better at the fighting than the farming."
+      ],
+      "temple-ward": [
+        "{He} was raised by the temple after {his} parents died, and learned {his} letters and {his} prayers in the same cold room."
+      ],
+      "river-folk": [
+        "{He} grew up on the river barges, and still sleeps best with water moving underneath."
+      ],
+      "pit-village": [
+        "{He} comes from a pit village, went down the mine at ten, and swore {he} would not die in it."
+      ],
+      "town-apprentice": [
+        "{He} was apprenticed to a town craftsman, and broke the indenture a year short of its end."
+      ],
+      "poachers-child": [
+        "{His} mother poached the lord's woods to feed them, and taught {him} to move without a sound."
+      ],
+      "fallen-gentry": [
+        "{His} family had land and a name once, and lost the land; {he} has kept the name and little else."
+      ]
+    },
+    "classes": {
+      "warrior": {
+        "young": [
+          "{He} learned to fight in tavern yards and village brawls, and has been learning properly ever since."
+        ],
+        "middle": [
+          "{He} has fought in more skirmishes than {he} can name, and knows which of them were worth it."
+        ],
+        "older": [
+          "{He} has carried a blade for twenty years, and still expects to carry it for twenty more."
+        ]
+      },
+      "rogue": {
+        "young": [
+          "{He} picked {his} first lock at nine, and has met few since that {he} could not open with patience."
+        ],
+        "middle": [
+          "{He} has been a thief, a spy and a smuggler, and prefers not to say which paid best."
+        ],
+        "older": [
+          "{He} has slipped through more locked doors than most people have walked through open ones."
+        ]
+      },
+      "mage": {
+        "young": [
+          "{He} showed the gift young, and learned to hide it before {he} learned to use it."
+        ],
+        "middle": [
+          "{He} has studied under three masters and quarrelled with each, and learned most from the last quarrel."
+        ],
+        "older": [
+          "{He} has practised the craft for twenty years, and treats every new spell as a debt to be paid."
+        ]
+      },
+      "healer": {
+        "young": [
+          "{He} learned herb-lore from a village wise-woman, and set {his} first bone at twelve."
+        ],
+        "middle": [
+          "{He} has patched up soldiers, miners and fools for ten years, and lost fewer of them than anyone expected."
+        ],
+        "older": [
+          "{He} has sat at more sickbeds than {he} can count, and still believes every patient can be saved."
+        ]
+      }
+    },
+    "traits": {
+      "scarred": [
+        "{He} carries the scars of a Quest {he} will not talk about."
+      ],
+      "lame": [
+        "An old Injury left {him} lame, and {he} hates to be helped on the stairs."
+      ],
+      "one-eyed": [
+        "{He} lost an eye on a Quest, and watches twice as hard with the one that is left."
+      ],
+      "short-winded": [
+        "{He} has been short of breath since a bad Injury, and resents every hill between {him} and a Quest."
+      ]
+    },
+    "closings": {
+      "young": [
+        "{He} is young, and means to make a name before anyone thinks to ask {his} age."
+      ],
+      "middle": [
+        "{He} has seen enough Quests to be careful, and enough to know that care is not always enough."
+      ],
+      "older": [
+        "{He} has outlasted most of the Heroes {he} started with, and means to outlast the rest."
+      ]
+    }
   }
 }

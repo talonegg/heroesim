@@ -377,7 +377,7 @@ export const testContent: ContentSet = deepFreeze({
     ...keyed({ owner: 'hero' as const, cost: 0, excludes: [] as string[], effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   },
   backgrounds: {
-    ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
+    ...keyed({ owner: 'hero' as const, station: 'common' }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
     ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
   },
   spheres: keyed({}, 'crown', 'church', 'merchants', 'villages', 'scholars', 'underworld'),
@@ -533,16 +533,32 @@ export const testContent: ContentSet = deepFreeze({
     hero: { female: ['hero-female-01'], male: [] },
     patron: { female: [], male: [] },
   },
-  // What a picture shows (v1.1.2-S4): one picture of each sex mapped, so a Guildmaster with it takes its
-  // narrative for their Appearance (v1.1.2-S5); the others are drawn whole.
+  // What a picture shows (v1.1.2-S4, its fields v1.1.3-S1's): one picture of each sex mapped, so a
+  // Guildmaster with it takes its narrative for their Appearance (v1.1.2-S5); the others are drawn whole.
   portraitAppearances: {
-    keywords: {
-      bearded: { slot: 'facialHair', word: 'bearded' },
-      braided: { slot: 'hair', word: 'braided' },
+    features: {
+      beard: { maleOnly: true, shows: [] },
+      braids: { maleOnly: false, shows: [] },
     },
     portraits: {
-      'gm-male-01': { keywords: ['bearded'], narrative: 'A bearded face in a picture.' },
-      'gm-female-01': { keywords: ['braided'], narrative: 'A braided head in a picture.' },
+      'gm-male-01': {
+        apparentAge: [40, 50],
+        station: 'common',
+        callings: ['soldier'],
+        temper: 'stern',
+        features: ['beard'],
+        narrative: 'A bearded face in a picture.',
+        hooks: [],
+      },
+      'gm-female-01': {
+        apparentAge: [22, 30],
+        station: 'gentry',
+        callings: ['soldier'],
+        temper: 'composed',
+        features: ['braids'],
+        narrative: 'A braided head in a picture.',
+        hooks: [],
+      },
     },
   },
   // What the descriptive Attributes are written from (v1.1.2-S5): two age bands, a phrase or two a
@@ -557,6 +573,10 @@ export const testContent: ContentSet = deepFreeze({
       male: { he: 'he', him: 'him', his: 'his', He: 'He', His: 'His' },
     },
     birthplaces: ['Saltcote', 'Hob\'s Ferry', 'Crane Marsh'],
+    // The vocabulary a picture is read in (v1.1.3-S1): no rule reads it yet.
+    stations: ['common', 'gentry'],
+    tempers: ['stern', 'composed'],
+    callings: { soldier: { suits: ['old-soldier'], clashes: [] } },
     appearance: {
       female: {
         young: descriptionPhrases('young', 'female'),
@@ -574,6 +594,17 @@ export const testContent: ContentSet = deepFreeze({
       traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
       closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
       successors: ['{He} took the chair.'],
+      // By a picture's Station, Calling and Temper (v1.1.3-S1): no rule reads them yet.
+      stationOrigins: { common: ['{He} was born common in {birthplace}.'] },
+      callingCareers: { soldier: { young: ['{He} carried a pike.'] } },
+      temperClosings: { stern: ['{He} is stern.'] },
+    },
+    // A Hero's (v1.1.3-S1): no rule reads them yet.
+    heroBiography: {
+      backgrounds: { 'farm-born': ['{He} grew up on a farm.'] },
+      classes: { warrior: { young: ['{He} fought young.'], older: ['{He} fought long.'] } },
+      traits: { scarred: ['{He} is scarred.'] },
+      closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
     },
   },
 });
