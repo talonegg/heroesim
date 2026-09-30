@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig, devices } from '@playwright/test';
 
 // Harvested from v1 (feature/poc, E8-S5) and trimmed to v2's two widths (M7-S1; the journeys are
-// M7-S4's); a tablet's added for the shell's three layouts (M9-S3, DL-103). Local only: CI runs no
-// browser (INPUTS 7.10). `npm run e2e -w web` builds first, then
-// runs these specs against the built bundle, never the dev server.
+// M7-S4's); a tablet's added for the shell's three layouts (M9-S3, DL-103). CI runs them too, in
+// check.yml's `e2e` job and before every deploy (DL-124, superseding INPUTS 7.10's "local only").
+// `npm run e2e -w web` builds first, then runs these specs against the built bundle, never the dev
+// server.
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 // npm's `-w` resolves only from the workspace root, so the preview server starts there.

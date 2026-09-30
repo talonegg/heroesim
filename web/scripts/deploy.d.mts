@@ -4,8 +4,8 @@
 
 import type { SpawnSyncOptions } from 'node:child_process';
 
-/** The branch Pages publishes as production. */
-export declare const releaseBranch: string;
+/** The branch Pages publishes as production: `main` (DL-124). */
+export declare const productionBranch: string;
 
 /** The page's two addresses: the Worker's and the Pages project's. */
 export declare const addresses: { readonly worker: string; readonly pages: string };
