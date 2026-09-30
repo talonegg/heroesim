@@ -13863,7 +13863,7 @@ shape and words, how the form offers a picture with the sex drawn, the radio but
 version and the S2 findings' fixes are the implementer's, each marked, for the owner to change.
 
 **Context.** v1.1.2-S4 brings the owner's two drawings into the game and lets the player choose one for their
-Guildmaster, seeing beside the form what the seed would draw. It is built on `v1.1.2-dev` from `6e03a43`. It
+Guildmaster, seeing beside the form what the seed would draw. It is built on `v1.1.2-dev` from `abe4948`. It
 carries four findings of v1.1.2-S2's verification now that real pictures exist. No draw moves: the preview
 calls what `createWorld` calls, and the Portrait's stream is S3's.
 
@@ -14288,6 +14288,179 @@ their tests); `engine/src/` (`descriptions.ts` and its test new, `content-types.
 `views/new-game.tsx`, `styles.css`, and the tests named); `web/e2e/described.spec.ts` (new);
 `harness/reports/m9-v112-s5-2026-09-30.md` (force-added); `docs/data-model.md` (the streams, the
 Guildmaster's row); `CONTEXT.md` (Descriptive Attribute); `docs/planning/epics/v1.1.2-release.md`.
+
+---
+
+## DL-133 — v1.1.2-S6: the code review's findings fixed test first, the S5 verification's words, and a sex none of the engine's refused
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S6's implementer of the
+review's findings. The findings are the review's (A to N) and the S5 verification's (O to T). How each is
+fixed, the behaviour of the form's texts, the words of the notes and of every sentence and phrase
+changed, and the older band kept from 41 are the implementer's, each marked, for the owner to change.
+
+**Context.** v1.1.2-S6 begins with a code review of the whole patch, whose findings are fixed test first
+(the epic's S6). It is built on `v1.1.2-dev` from `6e3295e`. This entry records the review's fixes and the
+S5 verification's; the close's own checks, the sweep, the screenshots and the release follow in a later
+pass. No existing draw moves (ADR-0009): item 11 proves it over 1,808 worlds and games.
+
+**Decision.**
+
+1. **A sex none of the engine's** (the review's A).
+   - *The engine refuses it* as a shape error, `document-shape`, as it refuses a holder of no kind the
+     tables know (data-model rule 5's refusals are for shape; its warnings are for content keys, and a
+     sex is no content key). A Guildmaster's and a Hero's `sex` is `female` or `male`, a Patron's the
+     same or `null`. The validator's field kinds gain `sex` and `sex-or-null`. `docs/data-model.md`'s
+     table gains the row.
+   - *The page never throws on one* (the implementer's). `media.portrait` gives a person of a sex with no
+     folder of its role's the neutral Silhouette, the frame's cream with no figure (a `data:` SVG in
+     `media.ts`), and no picture. It is found by the folder, not by the engine's `sexes`, so `media.ts`
+     imports no engine value, as `imports.test.ts` holds. The build's count of inlined `data:` SVGs is
+     the Silhouettes and this one.
+   - *No error boundary* (the implementer's): the page breaks nowhere else on a save the engine accepts,
+     and one would add a component and its words for a case now refused at the load.
+2. **The Guild Generator draws the player's Portrait** (the review's E).
+   - *`generateGuild` takes `portrait: { chosen }`*, the player's alone: the Portrait chosen, or one drawn
+     from the stream `portraits`, after the Guildmaster's draws from `generation` and before their texts
+     are written, since a mapped picture's narrative is the Appearance. Omitted, as for every Rival, the
+     Portrait is `null` and nothing is drawn from `portraits`.
+   - *Gone:* `describe: false`, `founded`'s setting of the Portrait after the fact, and the dead
+     `GuildmasterChoices.portraitKey`.
+   - *No draw moves*, since each stream is drawn alone and in the same order (item 11).
+3. **The preview founds the Guildmaster alone** (the review's F and I).
+   - *`founded(seed, setup, deps, 'guildmaster')`*, the preview's, makes the player's Guild with no
+     Roster. Its Heroes are drawn from `generation` after the Guildmaster, their Portrait and their texts,
+     so leaving them out changes nothing the preview reads. It is the same function `createWorld` calls,
+     so the preview-equals-world tests stand. A preview took 0.035 ms and now takes 0.011 ms (5,000
+     previews on the core).
+   - *The texts are kept in it* (the implementer's): `GuildmasterPreview.description` is the three texts
+     the Guildmaster enters play with, each given or written as `describeGuildmaster` writes with `n` 0.
+     "Write them for me" reads them, and asks the engine again only for "Again".
+   - *`GuildmasterPreview.drawn`* says which of the sex, the age, the Traits and the Portrait the seed
+     draws, a Portrait chosen choosing the sex with it (v1.1.2-S3). `state/setup.ts` reads it, and no
+     longer repeats the rule (ADR-0007). The Sex field showing a chosen picture's sex reads the picture's
+     sex from content, which is no rule, and is kept.
+   - *The form asks once:* the engine's preview is computed from the facts alone (the sex, the age, the
+     Portrait, the Traits, the Background and the seed), not the names or the texts, and both the
+     preview's words and the texts are read from it. `guildmasterPreview` is new; `guildmasterPreviewView`
+     and `writtenDescription` take the engine's preview; `descriptionWritable` is gone, the preview's
+     being `null` saying the same.
+4. **The form's texts** (the review's B and C; the behaviour and the words the implementer's).
+   - *"Write them for me" and "Again" write only the fields left blank or still as written.* A field
+     holding the player's words is kept, as `createWorld` keeps a text given and writes a blank one
+     (`describeBlanks`). A field typed back to the text written is as written again.
+   - *A field still as written follows the Guildmaster.* When the sex, the age, the Portrait, the Traits,
+     the Background or the seed changes, it is written for the new facts with the same `n`, so "Start
+     the game" never sends texts for another Guildmaster. The Appearance so keeps to the Portrait
+     (DL-127 item 4).
+   - *A field the player changed is kept*, and the note says so once the facts have changed since the
+     writing it was changed from: "Written for a male Guildmaster of 48. The Biography was written for
+     another Guildmaster, and is kept as you changed it." A text typed where nothing was written is the
+     player's own and is not named.
+   - *The notes:* "Written for a female Guildmaster of 34. Change them as you like." as before; "All
+     three are your own words, so none was written. Clear one to have it written."; and, with no
+     Guildmaster to write for (the setup refused, or the seed made blank), the written fields blank and
+     "Nothing can be written for this Guildmaster yet. Any left blank are written when the game starts."
+   - *In `state/setup.ts`:* `TextsHeld` (how many times written, and the texts typed, each with the facts
+     of the writing it changed), `textsWritten`, `textTyped` and `textsView`. The form holds `TextsHeld`
+     and computes nothing.
+5. **The preview's words are a live region** (the review's J): `aria-live="polite"` on the box's words,
+   so a screen reader hears them follow the fields.
+6. **The CLI and the page's small findings.**
+   - *D:* the CLI's `show guilds` and `show rankings` name a Rival's Disposition by its content name, as
+     the page does (`Rival (Steady)`), and a key content lacks as it is.
+   - *G:* `--portrait` takes any value, and the engine's `unknown-portrait` answers it: "No Guildmaster
+     Portrait is keyed "GM Female 1". Choose from: …".
+   - *H:* `portraitKeyOf` is gone; the views read `portraitKey`.
+   - *M* (the implementer's). The spacing in `saves.test.tsx` is fixed. The Portrait's sentence keeps
+     each front end's word: the CLI says "keyed", as it does for every key its flags take (its Trait
+     sentence too), and the page says "called", as its Background, Trait and Item sentences do. The
+     page's comment, which said the CLI's words less its flags, now says this.
+   - *N:* DL-131's Context named its parent `6e03a43`; it was `abe4948`, and is corrected.
+7. **The browser specs** (the review's K and L).
+   - *`file.spec.ts`* holds the owner's two pictures by name and every other asset beside the script to
+     be a hashed picture, in place of exactly three files, so a later picture does not break it.
+   - *`layout.spec.ts`* adds the Stores and the Market's Sell with a Unique Item's picture beside its
+     name, the Barrow King's blade held and the Lantern of Stannary carried, loaded from a save as S2's
+     screenshots were: no sideways scroll and 44px targets at 360, 820 and 1280, and at 360 in the dark
+     scheme too, which S2's verification found unchecked.
+8. **A successor's Biography** (the S5 verification; the words the implementer's).
+   - *`descriptions.json` gains `biography.successors`*, three sentences of coming to the Guild's chair.
+     A successor's Biography takes one in the Background's place, whose `breakaway` and `newly-founded`
+     sentences said they founded the Guild. The same draw is spent, so nothing after moves.
+   - *In the engine,* `DescriptionFacts.successor` and `describeBlanks`'s `{ successor }`, which
+     `generateSuccessor` passes. A replacing Rival founds a Guild, and keeps the Background's.
+   - *The checks:* at least one successor's sentence, each a sentence; the longest Biography measures the
+     longer of a Background's and a successor's.
+9. **The words** (the S5 verification; the words the implementer's).
+   - *A Birthplace closed (P).* A Birthplace may hold a comma ("Scarrow, a fishing village"), so
+     `{birthplace}` is followed by a comma or a full stop, which the validator now refuses otherwise.
+     Three sentences were reworded: "{He} grew up in {birthplace}, left it young, …", "As a youth {he}
+     left {birthplace}, and has spent the better part of {his} life on the roads since." and "For five
+     generations before {him}, {his} people farmed poor ground in {birthplace}."
+   - *The clashing pairs (Q).* The freckles marks are gone, since each band's face has a freckled phrase:
+     "A small scar nicks her upper lip." and "A thin scar runs along his jaw.". The clouded eye is "An old
+     wound has left a pale scar through one brow.". The inherited Background's is "…along with the old
+     master's debts and enemies." Reworded, not excluded, so no draw count changes.
+   - *The older band (R).* It still begins at 41, so the three bands are ten years each over 21 to 50. Its
+     words now suit 41 as well as 50: greying for white hair, moustache and beard, heavy for white brows,
+     "fine-boned and weathered" for "as fine as old paper", "scarred from old fights" for "swollen with
+     age", "and has not been back in twenty years" for "longer ago than {he} cares to say", and "{He} has
+     good years left in {him}, and means to spend every one of them on the Guild." for "will not hear
+     talk of stepping down".
+   - *The Traits for any age (T).* Old soldier's: "{He} keeps a soldier's hours still, rising before dawn
+     …" and "{He} speaks little of soldiering, but …", where "the years in the ranks" and "{his} old
+     company" disagreed with a young career.
+   - *The clothing list (S)* adds breeches, trousers, mantle, cowl, veil, shawl, bonnet, tabard, gauntlets,
+     spectacles and eyepatch. No phrase or narrative names one.
+   - *The size:* `descriptions.json` is 19,466 bytes, 816 more. The longest are Birthplace 40, Appearance
+     278 and Biography 725, within 60, 280 and 1,000.
+10. **The tests.**
+    - *Engine:* the Guild Generator's Portrait, chosen and drawn in one draw from `portraits`; the
+      preview's `drawn` for five setups and its texts against the world's; a sex none of the engine's
+      refused for a Guildmaster, a Hero and a Patron; a successor's sentence in the same draw, and in
+      `generateSuccessor`'s Biographies.
+    - *Content:* the successors, the Birthplace closed, no pronoun but a slot, no mark of the eyes or of
+      freckles beside a freckled face, the older band's words, the Traits' words, the clothing words; the
+      refusals of a successor's sentences missing or empty and of an open Birthplace.
+    - *CLI:* the Disposition by its content name in both tables; `--portrait` of any form reaching the
+      engine's sentence.
+    - *Web:* the neutral Silhouette, in the catalogue and the Portrait; the preview's words read from
+      `drawn`; the texts' state over writing, typing, clearing and the facts changing; the form keeping
+      typed texts through "Write them for me" and "Again", rewriting those still as written when the sex,
+      the age and the seed change, and keeping a changed one with its note; the live region.
+11. **No draw moved** (the implementer's proof, as S5's). A scratchpad script, not kept, made 1,800
+    worlds, `seed-0001` to `seed-0300` with six setups each: bare; female and 45; male; a Portrait chosen;
+    a Background, a Trait and 41; three texts given. It also played 8 games of 1,404 Turns (seeds `s1`,
+    `alpha`, `probe-7` and `x42`, the harness's setup and female 45), two Rival Guildmasters set to 60 and
+    two Rivals to -10,000,000 Wealth, each with 2 Successions and 2 replacing Rivals. Each was hashed whole,
+    and with every Guildmaster's three texts taken out, the streams, `descriptions` among them, kept. The
+    hashes at `6e3295e` were taken first.
+    - *After items 2 and 3* (`b815063`): all 1,808 identical whole.
+    - *After items 8 and 9* (`1a0203e`): all 1,808 identical but for the texts, the `descriptions` stream's
+      state included, and 47 identical whole, where no changed phrase was drawn. The Turns, the
+      Successions and the Guilds founded are the same in all 8 games.
+12. **The checks.**
+    - `npm run lint`: clean. Its first run found an unused variable in a new test, fixed in `920b1b1`.
+      `npm run typecheck`: clean.
+    - `npm test`: 3,683 tests in 155 files, every one passing at the first run, with none of the known
+      timeouts: 35 more than S5's 3,648.
+    - `npm run e2e -w web`: the build, one script of 702.59 kB (200.87 kB gzipped, against S5's 699.43 kB
+      and 200.06 kB), "check-bundle: 2 built files, no network or filesystem reference"; 80 runs, all
+      passing, S5's 77 and the new layout test at three widths.
+
+**Consequences.**
+- *Play is unchanged.* No draw, `configVersion`, schema or content version moves. A save of a sex none
+  of the engine's, which no build writes, is refused at the load.
+- *The texts change:* a successor's Biography, and the phrases and sentences of item 9, wherever drawn.
+- *For the close:* this entry takes the close's checks and the S5 verification's further fixes, if any.
+
+**Actioned in:** `engine/src/` (`create.ts`, `descriptions.ts`, `content-types.ts`, `validate.ts`,
+`generators/guilds.ts`, `world.test-support.ts`, and the tests named); `content/` (`descriptions.json`,
+`src/parse.ts`, `src/validate.ts`, `src/content.test.ts`, `src/refusals.test.ts`); `cli/src/` (`args.ts`,
+`render.ts`, and their tests, `main.test.ts`); `web/src/` (`media.ts`, `state/setup.ts`, `state/names.ts`,
+`state/history.ts`, `state/world-views.ts`, `state/rejections.ts`, `views/new-game.tsx`, and the tests
+named, `bundle.test.ts`); `web/e2e/` (`file.spec.ts`, `layout.spec.ts`); `docs/data-model.md`;
+`CONTEXT.md` (Descriptive Attribute); DL-131's Context.
 
 ---
 
