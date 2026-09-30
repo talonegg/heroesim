@@ -82,7 +82,7 @@ _Avoid_: Guild war, Battle (alone), Clash
 The picture that stands for a Guild beside its name wherever a title names it. For now every
 Guild shows the banner's Silhouette; later a Guild's Banner is heraldry drawn at its founding,
 which the player designs for theirs at setup, with a picture in its place for a Guild a module or
-Campaign brings (DL-125, to be built).
+Campaign brings (DL-125; the Silhouette by DL-129, heraldry to be built).
 _Avoid_: Flag, Crest, Logo, Emblem (kept for a Patron that is a body)
 
 ### What a Hero is made of
@@ -115,8 +115,7 @@ _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 **Silhouette**:
 The stand-in picture shown where no picture exists yet: a head and shoulders of the person's sex
 for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. It is never
-drawn or chosen for the player's Guildmaster while a picture of their sex exists (DL-125, to be
-built).
+drawn or chosen for the player's Guildmaster while a picture of their sex exists (DL-125, DL-129).
 _Avoid_: Template (a Quest template is another thing), Placeholder, Default image
 
 **Class**:
