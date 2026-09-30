@@ -26,9 +26,13 @@ import type {
   LootEntry,
   LootTable,
   Names,
+  PatronName,
+  PortraitRole,
+  Portraits,
   QuestTemplate,
   QuestTemplateRequires,
   Skill,
+  Sex,
   SlotKey,
   Sphere,
   Stat,
@@ -61,9 +65,11 @@ export const contentSetId = 'core';
  * M6-S1, which added the four named Dispositions and their weights (DL-56), and M6-S4, which gave
  * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63);
  * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69); 15 from M9-S2, which
- * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102).
+ * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102); 16
+ * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
+ * (DL-125 items 3 and 5, DL-130).
  */
-export const contentVersion = 15;
+export const contentVersion = 16;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -82,6 +88,7 @@ export const contentFiles = [
   'synergies.json',
   'items.json',
   'loot-tables.json',
+  'portraits.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -109,6 +116,8 @@ const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
 const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
+const sexChoices: Record<Sex, true> = { female: true, male: true };
+const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -233,6 +242,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     lootTables: table<LootTable>('loot-tables.json', json('loot-tables.json'), problems, 'a Loot table', (row) => ({
       entries: row.children('entries').map(lootEntry),
     })),
+    portraits: portraits(json('portraits.json'), problems),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -306,10 +316,42 @@ function names(json: unknown, problems: string[]): Names {
     given: { female: given.strings('female'), male: given.strings('male') },
     family: top.strings('family'),
     guild: top.strings('guild'),
-    patron: top.strings('patron'),
+    patron: top.children('patron').map(patronName),
   };
   top.refuseUnknown('the name lists');
   given.refuseUnknown('the given-name lists');
+  return result;
+}
+
+/** A Patron's name and its sex (v1.1.2-S3, DL-125 item 5). */
+function patronName(row: RowReader): PatronName {
+  const name = { name: row.string('name'), sex: row.oneOf('sex', sexChoices) };
+  row.refuseUnknown("a Patron's name");
+  return name;
+}
+
+/**
+ * The Portraits (v1.1.2-S3, DL-125 item 3): each role, then each sex, a list of the pictures' keys.
+ * Which keys are allowed is `validateContent`'s rule.
+ */
+function portraits(json: unknown, problems: string[]): Portraits {
+  const none = (): Record<Sex, string[]> => ({ female: [], male: [] });
+  const empty: Portraits = { guildmaster: none(), hero: none(), patron: none() };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push('portraits.json: must be an object of the pictures by role and sex');
+    return empty;
+  }
+  const top = new RowReader('portraits.json', [], json, problems);
+  const result = Object.fromEntries(
+    (Object.keys(portraitRoles) as PortraitRole[]).map((role) => {
+      const bySex = top.child(role);
+      const lists = Object.fromEntries((Object.keys(sexChoices) as Sex[]).map((sex) => [sex, bySex.strings(sex)]));
+      bySex.refuseUnknown(`the ${role}'s pictures by sex`);
+      return [role, lists];
+    }),
+  ) as Portraits;
+  top.refuseUnknown('the Portraits');
   return result;
 }
 

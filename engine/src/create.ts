@@ -4,7 +4,7 @@
 // Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
 import type { EngineDeps } from './config.js';
-import type { BackgroundKey, ContentSet, TraitKey } from './content-types.js';
+import type { BackgroundKey, ContentSet, PortraitKey, TraitKey } from './content-types.js';
 import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
@@ -24,6 +24,7 @@ import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
+import { guildmasterPortrait, portraitSexOf } from './portraits.js';
 import { createStreams, streamNames } from './rng.js';
 
 /**
@@ -36,8 +37,14 @@ export interface WorldSetup {
   guildName: string;
   /** A Background with `owner: "guild"`; drawn as a Rival's is when omitted. */
   backgroundKey?: BackgroundKey;
-  /** The Guildmaster's sex; drawn when omitted (M9-S2). */
+  /** The Guildmaster's sex; drawn when omitted (M9-S2), or the Portrait's when one is given. */
   guildmasterSex?: Sex;
+  /**
+   * The Guildmaster's Portrait, a Guildmaster picture in content of the sex chosen (v1.1.2-S3,
+   * DL-125 item 3). Drawn from the pictures of the sex, chosen or drawn, when omitted, and `null`,
+   * the Silhouette, when there are none. With no sex given, the Guildmaster is of the Portrait's.
+   */
+  guildmasterPortraitKey?: PortraitKey;
   /** The Guildmaster's age, a whole number from `guildmasterStartingAgeMin` to `Max`; drawn when omitted. */
   guildmasterAge?: number;
   /**
@@ -75,6 +82,10 @@ export type SetupRefusal =
   | { reason: 'unknown-background'; backgroundKey: BackgroundKey }
   /** Not one of the engine's `sexes`: the value given, whatever it is. */
   | { reason: 'unknown-sex'; sex: string }
+  /** Not a Guildmaster picture of the content: unknown, or another role's (v1.1.2-S3). */
+  | { reason: 'unknown-portrait'; portraitKey: PortraitKey }
+  /** A Guildmaster picture of `portraitSex`, where the sex chosen is `sex` (v1.1.2-S3). */
+  | { reason: 'portrait-of-another-sex'; portraitKey: PortraitKey; sex: Sex; portraitSex: Sex }
   /** Not a whole number from `min` to `max`, the starting ages. */
   | { reason: 'age-out-of-range'; age: number; min: number; max: number }
   /** Not a Guildmaster Trait of the content: unknown, or a Hero's. */
@@ -105,7 +116,9 @@ function lengthOf(text: string): number {
 
 /**
  * Whether `setup` keeps the rules, and if not the first it breaks (M9-S2, R8, DL-100 item 3), in
- * this order: the names, the Background, the sex (one of `sexes`, since the M9 review), the age, each Trait in turn (a Guildmaster Trait of the
+ * this order: the names, the Background, the sex (one of `sexes`, since the M9 review), the
+ * Portrait (a Guildmaster picture of the content, of the sex when one is chosen; v1.1.2-S3), the
+ * age, each Trait in turn (a Guildmaster Trait of the
  * content, given once), how many Traits, an excluded pair, their cost, then each descriptive
  * Attribute's length. `null` when it keeps them all. Reads the bounds from `deps.config` and the
  * Traits from `deps.content`, so a front end checks with the rules the game will begin under,
@@ -121,6 +134,12 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
   }
   const sex = setup.guildmasterSex;
   if (sex !== undefined && !sexes.includes(sex)) return { reason: 'unknown-sex', sex };
+  const portraitKey = setup.guildmasterPortraitKey;
+  if (portraitKey !== undefined) {
+    const portraitSex = portraitSexOf(content, 'guildmaster', portraitKey);
+    if (portraitSex === null) return { reason: 'unknown-portrait', portraitKey };
+    if (sex !== undefined && sex !== portraitSex) return { reason: 'portrait-of-another-sex', portraitKey, sex, portraitSex };
+  }
 
   const age = setup.guildmasterAge;
   const [min, max] = [config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax];
@@ -164,7 +183,8 @@ export interface CreatedWorld {
  * Creates a world from `seed` and the player's `setup`, under `deps.config` and `deps.content`
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), its Guildmaster with what the setup chose of them and the rest drawn, every
- * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102); then
+ * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102), and their
+ * Portrait, chosen or drawn from `portraits`, a stream of its own (v1.1.2-S3); then
  * `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
@@ -180,7 +200,10 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   const { config, content } = deps;
   const refusal = setupRefusal(setup, deps);
   if (refusal !== null) throw new RangeError(`The setup is refused: ${JSON.stringify(refusal)}`);
-  const sex = setup.guildmasterSex;
+  // With a Portrait and no sex, the Guildmaster is of the Portrait's (v1.1.2-S3).
+  const portraitKey = setup.guildmasterPortraitKey;
+  const portraitSex = portraitKey === undefined ? null : portraitSexOf(content, 'guildmaster', portraitKey);
+  const sex = setup.guildmasterSex ?? portraitSex ?? undefined;
   const meta: Meta = {
     version: config.schemaVersion,
     seed,
@@ -210,6 +233,9 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
     },
   });
   generated.push(...player.events);
+  // The player's Portrait, from its own stream (ADR-0009), so no draw of `generation` moves; a Rival's
+  // Guildmaster has none (DL-125 item 4).
+  player.guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, player.guildmaster.sex, portraitKey);
 
   // Each Rival draws its Roster size and Wealth before it is generated (DL-19 item 9), and is dealt
   // its Disposition round-robin, which draws nothing (M6-S1, DL-56).

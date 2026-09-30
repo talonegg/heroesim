@@ -19,11 +19,11 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
 
 /**
  * A Guildmaster's Portrait's key, the picture their Portrait shows, or `null` for the Silhouette of
- * their sex (DL-125 items 2 to 4). A save holds it from schema 5 (v1.1.2-S3): until then no
- * Guildmaster has one, and every Portrait is a Silhouette. The views read it from here alone.
+ * their sex (DL-125 items 2 to 4): as the save holds it since schema 5 (v1.1.2-S3), chosen or drawn
+ * for the player's Guildmaster and `null` for every Rival's. The views read it from here alone.
  */
 export function portraitKeyOf(guildmaster: Guildmaster): string | null {
-  return 'portraitKey' in guildmaster && typeof guildmaster.portraitKey === 'string' ? guildmaster.portraitKey : null;
+  return guildmaster.portraitKey;
 }
 
 export function capitalised(word: string): string {

@@ -126,12 +126,17 @@ birthplace, appearance, biography: string   the descriptive Attributes, which no
                                             player's at setup, trimmed and at most 60, 280 and
                                             1,000 characters; "" when none was written, as for
                                             every drawn Guildmaster (R8, DL-100 item 3, DL-102)
+portraitKey:    string | null               the Guildmaster picture their Portrait shows, of their
+                                            sex, chosen at setup or drawn from `portraits`; null for
+                                            the Silhouette, as every Rival's (DL-125 items 3, 4)
 retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
                                             Guild in play names them then (DL-100 item 3, DL-102)
 regard:         Record<EntityId, RegardEntry>
 ```
 Schema version 4 added the descriptive Attributes and `retiredOnTurn` (M9-S2, DL-102); a version-3
-save loads with every Guildmaster in office and no descriptive Attribute.
+save loaded with every Guildmaster in office and no descriptive Attribute. Schema version 5 added
+`portraitKey` (v1.1.2-S3, DL-130), and a save of version 4 or before is refused, not migrated (DL-125
+item 10.2).
 
 **heroes**
 ```
@@ -164,6 +169,8 @@ A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, who
 **patrons**
 ```
 id, name, sphereKey
+sex:            "female" | "male" | null    the sex that came with the Patron's name (v1.1.2-S3,
+                                            DL-125 item 5); null kept for a Patron that is a body
 regard:         Record<EntityId, RegardEntry>
 ```
 A Patron's Quest templates are looked up by `sphereKey` in content at draw time, never
@@ -352,6 +359,8 @@ paging is a slice with an offset. The harness's counters are the lengths of `byT
 document's version to the current one, it runs, forward only, one step per version. If none
 exists, the load is refused with the versions named. Modules migrate their own slices, after
 the chain and before the validator, each reading its own version from inside its slice (DL-76).
+Since schema 5 the chain is empty: a save of schema 4 or before is refused, and a front end says it
+was saved by an older Heroesim (DL-125 item 10.2, DL-130).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -373,6 +382,7 @@ runs per Turn in play.
 | A module slice its installed module refuses, or cannot migrate or read (DL-76) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
+| A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130) | warn |
 | A module slice no installed module owns (DL-76) | warn |
 
 A refused document names the failed check. Nothing is repaired silently.

@@ -21,7 +21,9 @@ export interface GameConfig {
    * The World State schema this engine writes as `meta.version`; a load compares the two and
    * migrates an older save (M1-S8). 2 from M2-S8, whose Heroes gained the pool's two fields (DL-27);
    * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
-   * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102).
+   * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102); 5 from v1.1.2-S3,
+   * whose Guildmasters gained `portraitKey` and Patrons `sex`, and which refuses every older save
+   * rather than migrating it (DL-125 item 10.2, DL-130).
    */
   schemaVersion: number;
   /**
@@ -478,7 +480,7 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 4,
+  schemaVersion: 5,
   configVersion: 12,
   turnsPerYear: 1080,
 

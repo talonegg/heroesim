@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { GuildId } from '@heroesim/engine';
+import { sexes, type GuildId, type PortraitRole } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from './content';
 import { media, mediaCatalogue, mediaFiles, mediaPathOf } from './media';
@@ -28,6 +28,10 @@ const folders = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })
   .map((entry) => entry.replace(/\\/g, '/'))
   .filter((entry) => statSync(path.join(mediaDir, entry)).isDirectory())
   .sort();
+
+/** The roles a Portrait is drawn for, and each one's folder (DL-125 item 2). */
+const roleFolders: Readonly<Record<PortraitRole, string>> = { guildmaster: 'guildmasters', hero: 'heroes', patron: 'patrons' };
+const portraitRoles = Object.keys(roleFolders) as PortraitRole[];
 
 /** The folders a picture may be in (DL-125 item 1). */
 const pictureFolders = [
@@ -100,6 +104,18 @@ describe('media/', () => {
     expect(viewBox('items/silhouette.svg')).toBe('0 0 20 20');
   });
 
+  // `content/portraits.json` and `media/portraits/` hold the same pictures (v1.1.2-S3, DL-125 item 3):
+  // content lists each by its key, and the file is `<key>.webp` in its role's folder of its sex, so a
+  // key a save holds always finds its picture. Content reads no files, so the page's test holds both.
+  test("holds each Portrait content lists as <key>.webp in its role's folder of its sex, and no picture content does not list", () => {
+    const listed = portraitRoles.flatMap((role) =>
+      sexes.flatMap((sex) => content.portraits[role][sex].map((key) => `portraits/${roleFolders[role]}/${sex}/${key}.webp`)),
+    );
+    const onDisk = files.filter((file) => file.startsWith('portraits/') && file.endsWith('.webp'));
+    expect(listed.filter((file) => !files.includes(file))).toEqual([]);
+    expect(onDisk.filter((file) => !listed.includes(file))).toEqual([]);
+  });
+
   test("names each Item's picture by an Item's content key", () => {
     const unknown = files
       .filter((file) => file.startsWith('items/') && file !== 'items/silhouette.svg')
@@ -120,6 +136,13 @@ describe("the page's catalogue of media/", () => {
     expect(female.silhouette).toBe(mediaFiles['portraits/heroes/female/silhouette.svg']);
     expect(media.portrait('guildmaster', 'male', null).silhouette).toBe(mediaFiles['portraits/guildmasters/male/silhouette.svg']);
     expect(media.portrait('patron', 'female', null).silhouette).toBe(mediaFiles['portraits/patrons/female/silhouette.svg']);
+  });
+
+  test('finds the picture of every Portrait content lists, by its role, sex and key (v1.1.2-S3; none until v1.1.2-S4)', () => {
+    const missing = portraitRoles.flatMap((role) =>
+      sexes.flatMap((sex) => content.portraits[role][sex].filter((key) => media.portrait(role, sex, key).picture === null)),
+    );
+    expect(missing).toEqual([]);
   });
 
   test('finds a picture by its key, and none for a key that names no file', () => {

@@ -587,6 +587,18 @@ describe('document-shape', () => {
       `$.world.guildmasters["${ids.playerGuildmaster}"].retiredOnTurn`,
     ],
     [
+      "a Guildmaster without a Portrait's key, as schema 4 wrote them (v1.1.2-S3)",
+      (d) => drop(guildmaster(d, ids.playerGuildmaster), 'portraitKey'),
+      `$.world.guildmasters["${ids.playerGuildmaster}"].portraitKey`,
+    ],
+    [
+      "a Guildmaster whose Portrait's key is not a string or null (v1.1.2-S3)",
+      (d) => set(guildmaster(d, ids.playerGuildmaster), 'portraitKey', 7),
+      `$.world.guildmasters["${ids.playerGuildmaster}"].portraitKey`,
+    ],
+    ['a Patron without a sex, as schema 4 wrote them (v1.1.2-S3)', (d) => drop(patron(d, ids.patron), 'sex'), `${patronPath}.sex`],
+    ['a Patron whose sex is not a string or null (v1.1.2-S3)', (d) => set(patron(d, ids.patron), 'sex', false), `${patronPath}.sex`],
+    [
       'a holder without its slot',
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),
       `${itemPath}.holder.slot`,
@@ -773,6 +785,27 @@ describe('a key the content does not define warns and never refuses', () => {
       'the-lost-hoard',
     ],
     [
+      "a Guildmaster's Portrait the content has no picture for (v1.1.2-S3)",
+      (d) => (guildmaster(d, gm).portraitKey = 'gm-male-99'),
+      'unknown-portrait',
+      gm,
+      'gm-male-99',
+    ],
+    [
+      "a Hero's picture as a Guildmaster's Portrait (v1.1.2-S3)",
+      (d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'hero-female-01' }),
+      'unknown-portrait',
+      gm,
+      'hero-female-01',
+    ],
+    [
+      "a Guildmaster's Portrait of the other sex (v1.1.2-S3)",
+      (d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'gm-male-01' }),
+      'portrait-of-another-sex',
+      gm,
+      'gm-male-01',
+    ],
+    [
       "an Encounter in a Quest's sequence (M4-S1)",
       (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
@@ -781,6 +814,12 @@ describe('a key the content does not define warns and never refuses', () => {
     ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
+  });
+
+  test("a Guildmaster's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.2-S3)", () => {
+    expect(warnings((d) => Object.assign(guildmaster(d, gm), { sex: 'female', portraitKey: 'gm-female-02' }))).toEqual([]);
+    expect(warnings((d) => Object.assign(guildmaster(d, gm), { sex: 'male', portraitKey: 'gm-male-03' }))).toEqual([]);
+    expect(warnings((d) => (guildmaster(d, gm).portraitKey = null))).toEqual([]);
   });
 
   test('an Item a Hero holds in a slot the config does not list warns, naming the slot (M5-S1)', () => {

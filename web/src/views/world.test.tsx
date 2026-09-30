@@ -236,6 +236,24 @@ describe('the game as a file', () => {
     expect(seedShown()).toBe('loaded-game');
   });
 
+  test('says in place of loading a file that an older Heroesim saved it, and the game in hand stays (v1.1.2-S3, DL-125 item 10.2)', async () => {
+    const older = JSON.parse(saveText(started('saved-by-v1.1.1').document as NonNullable<GameState['document']>)) as {
+      meta: { version: number };
+      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
+    };
+    older.meta.version = 4;
+    for (const guildmaster of Object.values(older.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
+    for (const patron of Object.values(older.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+    render_(started());
+
+    fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
+      target: { files: [new File([JSON.stringify(older)], 'older.json')] },
+    });
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/^This game was saved by an older Heroesim and cannot be loaded\./));
+    expect(seedShown()).toBe('app-test');
+  });
+
   test('starts a new game in place of the game in hand, or goes back to it', async () => {
     render_(started());
 

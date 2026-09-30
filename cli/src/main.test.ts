@@ -212,6 +212,8 @@ describe('new', () => {
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
+    // v1.1.2-S3: the core lists no picture until v1.1.2-S4 (`portrait.test.ts` holds the rest).
+    ['a Portrait content lacks', ['--portrait', 'gm-male-01'], 'No Guildmaster Portrait is keyed "gm-male-01". There are none yet: leave out --portrait.'],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);
 
@@ -334,17 +336,18 @@ describe('show', () => {
     for (const hero of heroes.filter((one) => one.guildId !== null)) expect(run.out).not.toContain(hero.id);
   });
 
-  test('patrons prints each Patron with the name of their Sphere', () => {
+  test('patrons prints each Patron with their Sex and the name of their Sphere (v1.1.2-S3)', () => {
     const patrons = Object.values(document().world.patrons);
 
     const run = play(['show', 'patrons']);
 
     expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).toMatch(/^Id\s+Patron\s+Sex\s+Sphere\s/m);
     expect(patrons).toHaveLength(defaultConfig.patronCount);
+    expect(new Set(patrons.map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));
     for (const patron of patrons) {
       const row = rowOf(run.out, patron.id);
-      expect(row).toContain(patron.name);
-      expect(row).toContain(content.spheres[patron.sphereKey]?.name);
+      expect(row).toMatch(new RegExp(`${patron.name}\\s+${patron.sex === 'female' ? 'Female' : 'Male'}\\s+${content.spheres[patron.sphereKey]?.name}`));
     }
   });
 
@@ -1228,6 +1231,31 @@ describe('save and load', () => {
     expect(saved()).toBe(original);
   });
 
+  test("a save of schema 4, as v1.1.1 wrote it, is refused in words, by load and by any command that opens it (v1.1.2-S3, DL-125 item 10.2)", () => {
+    newDemo();
+    const original = saved();
+    const parsed = JSON.parse(original) as {
+      meta: { version: number };
+      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
+    };
+    parsed.meta.version = 4;
+    for (const guildmaster of Object.values(parsed.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
+    for (const patron of Object.values(parsed.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+    const older = join(dir, 'older.json');
+    writeFileSync(older, JSON.stringify(parsed));
+
+    const run = play(['load', older]);
+
+    expect(run.code).toBe(exitCodes.refused);
+    expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${older}.\n`);
+    expect(run.out).toBe('');
+    expect(saved()).toBe(original);
+
+    const shown = play(['show', '--save', older]);
+    expect(shown.code).toBe(exitCodes.refused);
+    expect(shown.err).toContain('This game was saved by an older Heroesim and cannot be loaded');
+  });
+
   test('the newer-schema refusal names both versions', () => {
     newDemo();
     const bad = join(dir, 'future.json');
@@ -1450,6 +1478,20 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(mine[age + 2]).toMatch(/^Biography\s+Once a quartermaster of the river levies\.$/);
     expect(mine.some((line) => line.startsWith('Appearance'))).toBe(false);
     for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).not.toContain(label);
+  });
+
+  test("show guildmaster names the Portrait's key after the sex, or the Silhouette where there is none (v1.1.2-S3)", () => {
+    const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
+    const lines = (run: Run) => run.out.split('\n');
+
+    const bare = lines(play(['show', 'guildmaster']));
+    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(/^Portrait\s+None: the Silhouette$/);
+
+    // A key the core lacks still shows, with the load's warning (data-model rule 5).
+    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-01' }));
+    const run = play(['show', 'guildmaster']);
+    expect(run.out).toMatch(/^Portrait\s+gm-male-01$/m);
+    expect(run.err).toContain('Warning:');
   });
 
   test("show guildmaster <guildId> prints another Guild's Guildmaster, and refuses a Guild the save lacks", () => {

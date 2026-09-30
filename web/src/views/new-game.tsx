@@ -19,7 +19,7 @@ import type { DescriptiveAttribute, Sex, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import type { Saves } from '../saves';
 import { readableSeed } from '../seed';
-import type { GameAction, NewGame as NewGamePlay } from '../state/reducer';
+import type { GameAction, NewGame as NewGamePlay, PlayRejection } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import { setupFormChoices, setupNotice, traitPicksView, type TraitPick } from '../state/setup';
 import { LoadSave } from './game-file';
@@ -45,11 +45,14 @@ export function NewGame({
   busy,
   play,
   onCancel,
+  rejection = null,
 }: {
   saves: Saves;
   busy: boolean;
   play: (action: GameAction) => void;
   onCancel?: () => void;
+  /** The last play refused, for the saves listed to say why one did not load beside it (v1.1.2-S3). */
+  rejection?: PlayRejection | null;
 }) {
   const [guildName, setGuildName] = useState('');
   const [guildmasterName, setGuildmasterName] = useState('');
@@ -255,7 +258,7 @@ export function NewGame({
           )}
         </div>
       </form>
-      <SavedGames saves={saves} document={null} busy={busy} play={play} level={3} />
+      <SavedGames saves={saves} document={null} busy={busy} play={play} rejection={rejection} level={3} />
       <LoadSave saves={saves} busy={busy} play={play} />
     </View>
   );

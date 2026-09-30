@@ -98,6 +98,8 @@ export const warningChecks = [
   'unknown-slot',
   'misplaced-item',
   'unknown-loot-table',
+  'unknown-portrait',
+  'portrait-of-another-sex',
   'unknown-module',
 ] as const;
 
@@ -211,6 +213,8 @@ const contentChecks: readonly ContentCheck[] = [
   unknownSlot,
   misplacedItem,
   unknownLootTable,
+  unknownPortrait,
+  portraitOfAnotherSex,
 ];
 
 /**
@@ -431,6 +435,7 @@ const guildmasterFields: Shape<Guildmaster> = {
   birthplace: 'string',
   appearance: 'string',
   biography: 'string',
+  portraitKey: 'string-or-null',
   retiredOnTurn: 'integer-or-null',
   regard: 'map',
 };
@@ -461,7 +466,7 @@ const heroFields: Shape<Hero> = {
   regard: 'map',
 };
 
-const patronFields: Shape<Patron> = { id: 'string', name: 'string', sphereKey: 'string', regard: 'map' };
+const patronFields: Shape<Patron> = { id: 'string', name: 'string', sex: 'string-or-null', sphereKey: 'string', regard: 'map' };
 
 const questFields: Shape<Quest> = {
   id: 'string',
@@ -1467,6 +1472,49 @@ function unknownLootTable({ world }: WorldDocument, content: ContentSet): Valida
   const lootTables = isMap(table) ? table : {};
   for (const [id, quest] of Object.entries(world.quests)) {
     if (quest.lootTableKey !== null) known(id, 'lootTableKey', lootTables, quest.lootTableKey);
+  }
+  return warnings;
+}
+
+/**
+ * The sexes of the Guildmaster pictures content lists under `key` (v1.1.2-S3): none when it lists no
+ * such picture, as content before v1.1.2-S3 lists none at all.
+ */
+function guildmasterPictureSexes(content: ContentSet, key: string): string[] {
+  const portraits: unknown = Reflect.get(content, 'portraits');
+  const bySex: unknown = isMap(portraits) ? portraits.guildmaster : undefined;
+  if (!isMap(bySex)) return [];
+  return Object.entries(bySex).flatMap(([sex, keys]) => (Array.isArray(keys) && keys.includes(key) ? [sex] : []));
+}
+
+/**
+ * A Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): a Guildmaster picture content lists. The key
+ * is the Portrait's. A warning, as any content key is (rule 5): the key is kept, and the page shows
+ * the Silhouette of the Guildmaster's sex where it finds no picture.
+ */
+function unknownPortrait({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+  for (const [id, { portraitKey }] of Object.entries(world.guildmasters)) {
+    if (portraitKey === null || guildmasterPictureSexes(content, portraitKey).length > 0) continue;
+    const detail = `${id}'s portraitKey names ${q(portraitKey)}, which the content does not define as a Guildmaster's picture`;
+    warnings.push({ check: 'unknown-portrait', id, key: portraitKey, detail });
+  }
+  return warnings;
+}
+
+/**
+ * A Guildmaster's Portrait is a picture of their sex (v1.1.2-S3, DL-125 item 3). The key is the
+ * Portrait's. A picture content lacks is `unknown-portrait`'s. A warning, since content may move a
+ * picture under a live save (rule 5).
+ */
+function portraitOfAnotherSex({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+  const warnings: ValidationWarning[] = [];
+  for (const [id, { portraitKey, sex }] of Object.entries(world.guildmasters)) {
+    if (portraitKey === null) continue;
+    const sexes = guildmasterPictureSexes(content, portraitKey);
+    if (sexes.length === 0 || sexes.includes(sex)) continue;
+    const detail = `${id} is ${q(sex)}, but their portraitKey ${q(portraitKey)} is a ${sexes.join(' and ')} Guildmaster's picture`;
+    warnings.push({ check: 'portrait-of-another-sex', id, key: portraitKey, detail });
   }
   return warnings;
 }

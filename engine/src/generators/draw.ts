@@ -63,9 +63,37 @@ export function dealEvenly<T>(state: Stream, items: readonly T[], count: number)
  * `what` the names are for.
  */
 export function pickUnused(state: Stream, names: readonly string[], used: ReadonlySet<string>, what: string): string {
-  const free = names.filter((name) => !used.has(name));
+  return pickUnusedBy(state, names, (name) => name, used, what);
+}
+
+/**
+ * One of `rows` whose `nameOf` is not in `used`, in one draw: what `pickUnused` draws from the rows'
+ * names, the same rows in the same order, so the row drawn is the one whose name `pickUnused` would
+ * draw (a Patron's name with its sex, v1.1.2-S3). Throws when every name is used.
+ */
+export function pickUnusedBy<Row>(
+  state: Stream,
+  rows: readonly Row[],
+  nameOf: (row: Row) => string,
+  used: ReadonlySet<string>,
+  what: string,
+): Row {
+  const free = rows.filter((row) => !used.has(nameOf(row)));
   if (free.length === 0) throw new RangeError(`Every ${what} name in content is already in use`);
   return pick(state, free);
+}
+
+/**
+ * One of `items`, each equally likely, or `null` when there are none, from exactly one draw either
+ * way (v1.1.2-S3): how many there are to choose from, none included, never moves a later draw. What
+ * it picks from a list is what `pick` picks from the same state.
+ */
+export function pickOrNone<T>(state: Stream, items: readonly T[]): T | null {
+  if (items.length === 0) {
+    next(state);
+    return null;
+  }
+  return pick(state, items);
 }
 
 /**

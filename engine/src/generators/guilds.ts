@@ -73,6 +73,11 @@ export interface GuildOptions extends DrawsFrom {
  */
 export interface GuildmasterChoices {
   sex?: Sex;
+  /**
+   * The Portrait, a Guildmaster picture of `sex` (v1.1.2-S3); `null`, the Silhouette, when omitted,
+   * as every Rival's. `createWorld` gives the player's, chosen or drawn.
+   */
+  portraitKey?: string | null;
   age?: number;
   /** The Traits in the order given; an empty list is none. */
   traitKeys?: readonly TraitKey[];
@@ -366,6 +371,7 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
     birthplace: chosen.birthplace ?? '',
     appearance: chosen.appearance ?? '',
     biography: chosen.biography ?? '',
+    portraitKey: chosen.portraitKey ?? null,
     retiredOnTurn: null,
     regard: {},
   };

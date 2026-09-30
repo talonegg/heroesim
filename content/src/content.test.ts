@@ -13,9 +13,35 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 15 since M9-S2's Trait costs and exclusions (DL-102)", () => {
+  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(15);
+    expect(content.version).toBe(16);
+  });
+
+  test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
+    const patrons = content.names.patron;
+    expect(patrons.map((patron) => patron.name)).toEqual([
+      'Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow', 'Florian Keld',
+      'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike', 'Lambert Sowerby', 'Mabel Thorne',
+      'Nicolas Aske', 'Orabel Quint', 'Piers Latimer', 'Rohesia Dunmore', 'Simeon Garrow', 'Petronel Swift',
+      'Walter Moorby', 'Agnes Wolstan', 'Baldwin Cressy', 'Emmeline Stake', 'Geoffrey Brand', 'Juliana Cray',
+      'Hamo Redvers', 'Letice Gorham', 'Ranulf Tarrant', 'Sybil Hawtrey', 'Tobias Wendle', 'Ysmay Carew',
+    ]);
+    const female = patrons.filter((patron) => patron.sex === 'female').map((patron) => patron.name.split(' ')[0]);
+    const male = patrons.filter((patron) => patron.sex === 'male').map((patron) => patron.name.split(' ')[0]);
+    expect(female).toEqual([
+      'Cecily', 'Edith', 'Hawise', 'Isolde', 'Jocelyn', 'Mabel', 'Orabel', 'Rohesia', 'Agnes', 'Emmeline', 'Juliana',
+      'Letice', 'Sybil', 'Ysmay',
+    ]);
+    expect(male).toHaveLength(16);
+  });
+
+  test('lists the pictures by role and sex, none until v1.1.2-S4 adds the owner\'s two (DL-125 item 3)', () => {
+    expect(content.portraits).toEqual({
+      guildmaster: { female: [], male: [] },
+      hero: { female: [], male: [] },
+      patron: { female: [], male: [] },
+    });
   });
 
   test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {

@@ -465,3 +465,20 @@ describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
     }
   });
 });
+
+// v1.1.2-S3 (DL-125 item 4): a Rival's Guildmaster, founding, a replacement or a successor, shows the
+// Silhouette, whatever pictures content has; only `createWorld` gives the player's a Portrait.
+describe("the drawn Guildmasters' Portraits (v1.1.2-S3)", () => {
+  test('a Rival, a replacement and a successor have none, and draw nothing from the portraits stream', () => {
+    const deps = testDeps();
+    const world = testWorld('no-portraits', deps);
+    const portraits = structuredClone(world.rng.portraits);
+    for (let i = 0; i < 6; i += 1) {
+      const { guild, guildmaster } = generateRival(world, deps, { controller: rival });
+      expect(guildmaster.portraitKey).toBeNull();
+      expect(generateSuccessor(world, deps, guild).portraitKey).toBeNull();
+    }
+    expect(generateGuild(world, deps, { controller: { kind: 'player' }, name: 'The Test Guild', rosterSize: 0, wealth: 0 }).guildmaster.portraitKey).toBeNull();
+    expect(world.rng.portraits).toEqual(portraits);
+  });
+});

@@ -66,10 +66,31 @@ const samples: Samples = {
   'newGame excluded-pair': { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
   'newGame over-budget': { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 },
   'newGame text-too-long': { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
+  // The Portrait (v1.1.2-S3).
+  'newGame unknown-portrait': { action: 'newGame', reason: 'unknown-portrait', portraitKey: 'gm-male-09' },
+  'newGame portrait-of-another-sex': {
+    action: 'newGame',
+    reason: 'portrait-of-another-sex',
+    portraitKey: 'gm-male-01',
+    sex: 'female',
+    portraitSex: 'male',
+  },
   'load malformed-json': { action: 'load', reason: 'malformed-json', message: 'The save is not JSON: Unexpected token' },
   'load not-a-document': { action: 'load', reason: 'not-a-document', message: 'The save has no whole-number meta.version' },
-  'load unsupported-version': { action: 'load', reason: 'unsupported-version', message: 'The save is schema version 9' },
-  'load invalid': { action: 'load', reason: 'invalid', message: 'The save fails the validator (shape): meta.seed' },
+  // A newer save; an older one has its own sentence (v1.1.2-S3), below.
+  'load unsupported-version': {
+    action: 'load',
+    reason: 'unsupported-version',
+    documentVersion: 9,
+    schemaVersion: defaultConfig.schemaVersion,
+    message: 'The save is schema version 9',
+  },
+  'load invalid': {
+    action: 'load',
+    reason: 'invalid',
+    failures: [{ check: 'document-shape', id: '$.meta.seed', detail: '$.meta has no seed' }],
+    message: 'The save fails the validator (shape): meta.seed',
+  },
 
   'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion: defaultConfig.configVersion },
 
@@ -222,6 +243,8 @@ const exactly: Record<RejectionKind, string> = {
   'newGame excluded-pair': `${named(content.traits, 'miser')} and ${named(content.traits, 'well-liked')} exclude each other: a Guildmaster holds one or the other.`,
   'newGame over-budget': 'Those Traits cost 2 points and the budget is 1: a buff costs points and a penalty refunds them.',
   'newGame text-too-long': 'The Appearance is 281 characters long; it holds at most 280.',
+  'newGame unknown-portrait': 'No Guildmaster Portrait is called "gm-male-09".',
+  'newGame portrait-of-another-sex': "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female.",
   'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
@@ -361,6 +384,12 @@ describe('what the words name', () => {
     expect(rejectionSentence({ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, null, content)).toBe(
       'No Guildmaster Trait is called "brave".',
     );
+  });
+
+  test('a save of an older schema, as v1.1.1 wrote it, in the owner\'s words, and none of the engine\'s (v1.1.2-S3, DL-125 item 10.2)', () => {
+    const older = { action: 'load', reason: 'unsupported-version', documentVersion: 4, schemaVersion: 5, message: 'The save is schema version 4' } as const;
+
+    expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
   });
 
   test('a Quest by its template, and Items by their content names', () => {

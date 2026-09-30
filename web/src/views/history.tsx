@@ -17,8 +17,9 @@
 // names that open whom they name. Every line and word comes from `state/history.ts`.
 //
 // A Guild's History has its Banner beside its title, and a Guildmaster's their Portrait (v1.1.2-S2,
-// DL-125 items 2 and 7); a Hero's page has its own. A Patron's History has no Portrait until a Patron
-// has a sex (v1.1.2-S3), nor has a Hero's gone from the world, whose sex is no longer known.
+// DL-125 items 2 and 7); a Hero's page has its own. A Patron's History has their Portrait by the sex
+// their name came with (v1.1.2-S3); a Hero's gone from the world, whose sex is no longer known, has
+// none.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';

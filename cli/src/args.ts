@@ -31,7 +31,7 @@ export const usage = `Usage: heroesim <command> [flags]
 Commands:
   new --guild <name> --master <name> [--seed <seed>] [--background <key>] [--force]
       [--sex ${sexes.join('|')}] [--age <years>] [--traits <key,key,...> | --traits none]
-      [--birthplace <text>] [--appearance <text>] [--biography <text>]
+      [--birthplace <text>] [--appearance <text>] [--biography <text>] [--portrait <key>]
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
@@ -40,7 +40,9 @@ Commands:
       key, within the Trait budget (a buff costs points and a penalty refunds them, and
       two Traits that exclude each other cannot be held together), or none; and their
       Birthplace, Appearance and Biography, short texts no rule reads (at most 60, 280
-      and 1,000 characters).
+      and 1,000 characters). --portrait names a Guildmaster picture by its key, of the
+      sex given, or making the Guildmaster of its sex; left out, one of the sex's is
+      drawn, and where the sex has none the Guildmaster shows its Silhouette.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
@@ -167,6 +169,8 @@ export type Command =
       birthplace?: string;
       appearance?: string;
       biography?: string;
+      /** The Portrait's key (v1.1.2-S3); whether content has it, and of which sex, is the engine's to say. */
+      portrait?: string;
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number; modules?: string[] }
@@ -207,6 +211,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
     birthplace: 'value',
     appearance: 'value',
     biography: 'value',
+    portrait: 'value',
   },
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value', modules: 'value' },
@@ -355,6 +360,7 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
   const sex = flags.get('sex');
   const age = flags.get('age');
   const traits = flags.get('traits');
+  const portrait = flags.get('portrait');
   const texts = (['birthplace', 'appearance', 'biography'] as const).flatMap((flag) => {
     const text = flags.get(flag);
     return text === undefined ? [] : [[flag, text]];
@@ -363,8 +369,17 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
     ...(sex === undefined ? {} : { sex: sexFlag(sex) }),
     ...(age === undefined ? {} : { age: ageFlag(age) }),
     ...(traits === undefined ? {} : { traits: traitList(traits) }),
+    ...(portrait === undefined ? {} : { portrait: portraitFlag(portrait) }),
     ...Object.fromEntries(texts),
   };
+}
+
+/**
+ * `--portrait` (v1.1.2-S3): a picture's key, lower case and hyphens as every picture's name is
+ * (DL-125 item 11); whether content lists it, and of which sex, is the engine's to say.
+ */
+function portraitFlag(value: string): string {
+  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value) ? value : refuse(`--portrait needs a picture's key such as gm-female-01; got "${value}"`);
 }
 
 /** The words `--facility` takes, and the Hall facility each names (M3-S6). */

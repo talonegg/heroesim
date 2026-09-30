@@ -602,7 +602,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
 // ── Patrons ──────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `show patrons`: each Patron, their Sphere and, when there is a player's Guild, their Regard for
+ * `show patrons`: each Patron, their Sex (v1.1.2-S3), their Sphere and, when there is a player's Guild, their Regard for
  * it as a band (M4-S5), which weighs on how often they post to the Board and recovers toward
  * neutral with time.
  */
@@ -611,14 +611,21 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
   const guild = playerGuild(document.world);
   const regard = (patron: Patron): string[] =>
     guild === undefined ? [] : [regardBand(patronRegardFor(patron, guild.id), deps.config)];
-  const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }];
+  const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sex' }, { heading: 'Sphere' }];
   if (guild !== undefined) columns.push({ heading: 'Regard for us' });
   return [
     'Patrons',
     '',
     ...table(
       columns,
-      patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey), ...regard(patron)]),
+      patrons.map((patron) => [
+        patron.id,
+        patron.name,
+        // The sex that came with the name (v1.1.2-S3); a body has none.
+        patron.sex === null ? 'None' : capitalised(patron.sex),
+        nameIn(deps.content.spheres, patron.sphereKey),
+        ...regard(patron),
+      ]),
     ),
   ];
 }
@@ -700,6 +707,8 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     '',
     ...fields([
       ['Sex', capitalised(guildmaster.sex)],
+      // The picture by its key (v1.1.2-S3), which the page finds in `media/`; none shows the Silhouette.
+      ['Portrait', guildmaster.portraitKey ?? 'None: the Silhouette'],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
       // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
       ...descriptiveAttributes.flatMap((attribute): [string, string][] =>

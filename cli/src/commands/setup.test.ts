@@ -14,4 +14,25 @@ describe("new's words for a setup the engine refuses", () => {
       "A Guildmaster's sex is female or male; --sex other is not.",
     );
   });
+
+  // v1.1.2-S3: the core has no picture until v1.1.2-S4, so the choices are held over content with some.
+  const pictured = {
+    ...content,
+    portraits: { ...content.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] } },
+  };
+
+  test('a Portrait content lacks, naming the pictures by sex, or saying there are none', () => {
+    expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, pictured)).toBe(
+      'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
+    );
+    expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, content)).toBe(
+      'No Guildmaster Portrait is keyed "gm-male-09". There are none yet: leave out --portrait.',
+    );
+  });
+
+  test('a Portrait of the other sex, naming both flags', () => {
+    expect(
+      setupRefusalWords({ reason: 'portrait-of-another-sex', portraitKey: 'gm-male-01', sex: 'female', portraitSex: 'male' }, pictured),
+    ).toBe("--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female: choose a Portrait of that sex, or leave out --sex.");
+  });
 });

@@ -265,7 +265,13 @@ export function App({ initial, saves = kept }: { initial?: GameState; saves?: Sa
             A Guild-management simulation
           </p>
           <h1>Heroesim</h1>
-          <NewGame saves={saves} busy={busy} play={play} {...(current === null ? {} : { onCancel: () => setReplacing(null) })} />
+          <NewGame
+            saves={saves}
+            busy={busy}
+            play={play}
+            rejection={game.rejection}
+            {...(current === null ? {} : { onCancel: () => setReplacing(null) })}
+          />
         </main>
         <footer className="footer">
           <p>

@@ -208,9 +208,15 @@ const sentences: Sentences = {
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>
     `The ${descriptiveAttributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
+  // The Portrait (v1.1.2-S3): the CLI's words, less its flags and the pictures it lists.
+  'newGame unknown-portrait': ({ portraitKey }) => `No Guildmaster Portrait is called "${portraitKey}".`,
+  'newGame portrait-of-another-sex': ({ sex, portraitSex }) =>
+    `That Portrait is of a ${portraitSex} Guildmaster, and your Guildmaster's Sex is ${sex}.`,
   'load malformed-json': ({ message }) => `Cannot load the save: ${message}.`,
   'load not-a-document': ({ message }) => `Cannot load the save: ${message}.`,
-  'load unsupported-version': ({ message }) => `Cannot load the save: ${message}.`,
+  // A save of an older schema, as v1.1.1 wrote it, in the owner's words (v1.1.2-S3, DL-125 item 10.2).
+  'load unsupported-version': ({ documentVersion, schemaVersion, message }) =>
+    documentVersion < schemaVersion ? 'This game was saved by an older Heroesim and cannot be loaded.' : `Cannot load the save: ${message}.`,
   'load invalid': ({ message }) => `Cannot load the save: ${message}.`,
 
   // rebase (the CLI's `rebase`).
@@ -354,4 +360,13 @@ export function rejectionSentence(rejection: PlayRejection, world: World | null,
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
   const sentence = words(rejection, { world, content, player: world === null ? undefined : playerGuild(world) });
   return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+/**
+ * The save of this browser whose load `rejection` refused, by its name (v1.1.2-S3): the page says why
+ * beside that save, in the list the player chose it from. `null` for any other refusal, and for a
+ * file loaded from the player's disk.
+ */
+export function refusedSave(rejection: PlayRejection | null): string | null {
+  return rejection !== null && rejection.action === 'load' && 'from' in rejection ? (rejection.from ?? null) : null;
 }

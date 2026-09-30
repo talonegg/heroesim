@@ -281,7 +281,7 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
     }
   });
 
-  test("a Guildmaster's has their Portrait by their sex, a Silhouette until v1.1.2-S3, and no Banner", () => {
+  test("a Guildmaster's has their Portrait by their sex and key, the Silhouette's while the core has no picture, and no Banner", () => {
     const { document, log } = played(3);
     for (const guildmaster of Object.values(document.world.guildmasters)) {
       expect(historyView(document, log, guildmaster.id, 0)).toMatchObject({
@@ -289,9 +289,14 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
         portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: null },
       });
     }
+    // A save of schema 5 holds a key (v1.1.2-S3), which the History reads as it is.
+    const [first] = Object.values(document.world.guildmasters);
+    if (first === undefined) throw new Error('no Guildmaster');
+    first.portraitKey = `gm-${first.sex}-01`;
+    expect(historyView(document, log, first.id, 0).portrait).toEqual({ role: 'guildmaster', sex: first.sex, portraitKey: `gm-${first.sex}-01` });
   });
 
-  test("a Hero's the world holds has theirs; one gone from the world, whose sex is not known, and a Patron have none", () => {
+  test("a Hero's the world holds has theirs, and a Patron theirs by the sex their name came with (v1.1.2-S3); a Hero gone from the world, whose sex is not known, and a body have none", () => {
     const { state, gone } = withTheGone(started());
     const { document } = state;
     if (document === null) throw new Error('no game in hand');
@@ -299,9 +304,19 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
     if (hero === undefined) throw new Error('no Hero');
     expect(historyView(document, [], hero.id, 0).portrait).toEqual({ role: 'hero', sex: hero.sex, portraitKey: null });
     expect(historyView(document, [], gone.id, 0)).toMatchObject({ entityId: gone.id, hero: null, banner: null, portrait: null });
-    const [patron] = Object.values(document.world.patrons);
-    if (patron === undefined) throw new Error('no Patron');
-    expect(historyView(document, [], patron.id, 0)).toMatchObject({ entityId: patron.id, banner: null, portrait: null });
+    const patrons = Object.values(document.world.patrons);
+    expect(new Set(patrons.map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));
+    for (const patron of patrons) {
+      expect(historyView(document, [], patron.id, 0)).toMatchObject({
+        entityId: patron.id,
+        banner: null,
+        portrait: { role: 'patron', sex: patron.sex, portraitKey: null },
+      });
+    }
+    const [body] = patrons;
+    if (body === undefined) throw new Error('no Patron');
+    body.sex = null;
+    expect(historyView(document, [], body.id, 0).portrait).toBeNull();
   });
 
   test('the World History and the whole History have neither', () => {

@@ -140,9 +140,9 @@ export interface HistoryView {
   /** The Guild whose History it is, whose Banner stands beside its title (DL-125 item 7); `null` for anyone else's. */
   banner: GuildId | null;
   /**
-   * The Portrait of the person whose History it is (DL-125 item 2): a Guildmaster's, or a Hero's the
-   * world holds. `null` for a Guild's, the World's, a Hero gone from the world, whose sex is no longer
-   * known, and a Patron's, who has no sex until v1.1.2-S3.
+   * The Portrait of the person whose History it is (DL-125 item 2): a Guildmaster's, a Hero's the
+   * world holds, or a Patron's (v1.1.2-S3). `null` for a Guild's, the World's, a Hero gone from the
+   * world, whose sex is no longer known, and a Patron that is a body, which has none.
    */
   portrait: { role: PortraitRole; sex: Sex; portraitKey: string | null } | null;
   /** Which page, from 0, of how many, and how many entries in all. */
@@ -499,13 +499,19 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
   };
 }
 
-/** Whose Portrait `entityId`'s History shows: a Guildmaster's or a Hero's the world holds (DL-125 item 2). */
+/**
+ * Whose Portrait `entityId`'s History shows (DL-125 item 2): a Guildmaster's or a Hero's the world
+ * holds, or a Patron's by the sex their name came with (v1.1.2-S3). No Hero or Patron has a picture in
+ * v1.1.2 (DL-125 item 4), so theirs is the Silhouette of their sex; a Patron that is a body has none.
+ */
 function portraitOf(world: World, entityId: EntityId | null): HistoryView['portrait'] {
   if (entityId === null) return null;
   const guildmaster = rowOf(world.guildmasters, entityId);
   if (guildmaster !== undefined) return { role: 'guildmaster', sex: guildmaster.sex, portraitKey: portraitKeyOf(guildmaster) };
   const hero = rowOf(world.heroes, entityId);
-  return hero === undefined ? null : { role: 'hero', sex: hero.sex, portraitKey: null };
+  if (hero !== undefined) return { role: 'hero', sex: hero.sex, portraitKey: null };
+  const patron = rowOf(world.patrons, entityId);
+  return patron === undefined || patron.sex === null ? null : { role: 'patron', sex: patron.sex, portraitKey: null };
 }
 
 // ── A page ───────────────────────────────────────────────────────────────────────────────────

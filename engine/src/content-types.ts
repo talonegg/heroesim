@@ -502,8 +502,31 @@ export interface Names {
   given: Record<Sex, string[]>;
   family: string[];
   guild: string[];
-  patron: string[];
+  /** A Patron's whole name, each with the sex it reads as (v1.1.2-S3, DL-125 item 5). */
+  patron: PatronName[];
 }
+
+/** A Patron's name and the sex that comes with it when it is drawn (v1.1.2-S3, DL-125 item 5). */
+export interface PatronName {
+  name: string;
+  sex: Sex;
+}
+
+/**
+ * Whose pictures a Portrait is drawn from (v1.1.2-S3, DL-125 items 2 and 3): each role has its
+ * pictures by sex, as `media/portraits/` has a folder per role and sex.
+ */
+export type PortraitRole = 'guildmaster' | 'hero' | 'patron';
+
+/**
+ * A Portrait's key: a picture's name without its extension, lower case and hyphens, never renamed
+ * once a save may hold it, and unique across the roles by their prefixes, `gm-`, `hero-` and
+ * `patron-` (DL-125 item 11, DL-126 item 2). The page finds the picture by it in `media/`.
+ */
+export type PortraitKey = string;
+
+/** The pictures of each role and sex, by key, in the order listed (`portraits.json`, v1.1.2-S3). */
+export type Portraits = Record<PortraitRole, Record<Sex, PortraitKey[]>>;
 
 /** A loaded, validated set of content. Each table is keyed by its rows' kebab-case keys. */
 export interface ContentSet {
@@ -518,6 +541,11 @@ export interface ContentSet {
   backgrounds: Record<BackgroundKey, Background>;
   spheres: Record<SphereKey, Sphere>;
   names: Names;
+  /**
+   * The pictures a Portrait may show, by role and sex (v1.1.2-S3, DL-125 item 3): a player's
+   * Guildmaster's Portrait is chosen or drawn from them. Empty lists where a role and sex has none.
+   */
+  portraits: Portraits;
   /** The kinds of Quest the Patrons offer, found by Sphere at draw time (M2-S3, DL-20). */
   questTemplates: Record<QuestTemplateKey, QuestTemplate>;
   /** The types of Injury a Quest can leave; at least one (M2-S5). */

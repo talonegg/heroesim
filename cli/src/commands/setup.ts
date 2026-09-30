@@ -2,7 +2,15 @@
 // typed data; this says it in the CLI's words, naming the flag to change. The names and the
 // Background keep the words `new` gave them before M9-S2.
 
-import { guildmasterTraitsOf, sexes, type ContentSet, type DescriptiveAttribute, type SetupRefusal, type Trait } from '@heroesim/engine';
+import {
+  guildmasterTraitsOf,
+  portraitsOf,
+  sexes,
+  type ContentSet,
+  type DescriptiveAttribute,
+  type SetupRefusal,
+  type Trait,
+} from '@heroesim/engine';
 
 /** The flag that sets each descriptive Attribute. */
 const attributeFlags: Readonly<Record<DescriptiveAttribute, string>> = Object.freeze({
@@ -30,7 +38,7 @@ function traitName(content: Pick<ContentSet, 'traits'>, key: string): string {
 }
 
 /** Why `new` refuses a setup, in one sentence naming what to change. */
-export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'traits' | 'backgrounds'>): string {
+export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'traits' | 'backgrounds' | 'portraits'>): string {
   switch (refusal.reason) {
     case 'guild-name-blank':
       return 'The Guild needs a name: --guild <name>.';
@@ -66,5 +74,18 @@ export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSe
       );
     case 'text-too-long':
       return `${attributeFlags[refusal.attribute]} is ${refusal.length} characters once trimmed; it holds at most ${refusal.max}.`;
+    case 'unknown-portrait':
+      return `No Guildmaster Portrait is keyed "${refusal.portraitKey}". ${guildmasterPortraitChoices(content)}`;
+    case 'portrait-of-another-sex':
+      return (
+        `--portrait ${refusal.portraitKey} is a ${refusal.portraitSex} Guildmaster's Portrait, and --sex is ${refusal.sex}: ` +
+        'choose a Portrait of that sex, or leave out --sex.'
+      );
   }
+}
+
+/** The Guildmaster pictures by key with their sex, `gm-female-01 (female)`, or that there are none (v1.1.2-S3). */
+function guildmasterPortraitChoices(content: Pick<ContentSet, 'portraits'>): string {
+  const choices = sexes.flatMap((sex) => portraitsOf(content, 'guildmaster', sex).map((key) => `${key} (${sex})`));
+  return choices.length === 0 ? 'There are none yet: leave out --portrait.' : `Choose from: ${choices.join(', ')}.`;
 }

@@ -19,6 +19,7 @@ import type {
   InjuryTypeKey,
   ItemDefinitionKey,
   LootTableKey,
+  PortraitKey,
   QuestTagKey,
   QuestTemplateKey,
   SkillKey,
@@ -272,6 +273,12 @@ export interface Guildmaster {
   appearance: string;
   biography: string;
   /**
+   * The picture the Guildmaster's Portrait shows (v1.1.2-S3, DL-125 items 3 and 4): a Guildmaster
+   * picture of their sex in content, chosen at setup or drawn from the `portraits` stream; `null` for
+   * the Silhouette of their sex, as every Rival's Guildmaster, founding or a successor, has.
+   */
+  portraitKey: PortraitKey | null;
+  /**
    * The Turn the Guildmaster retired and was succeeded (DL-100 item 3); `null` while in office. A
    * retired Guildmaster keeps their row and History, and no Guild in play names them (M9-S2).
    */
@@ -355,6 +362,11 @@ export interface Hero {
 export interface Patron {
   id: PatronId;
   name: string;
+  /**
+   * The sex that came with the Patron's name (v1.1.2-S3, DL-125 item 5); `null` is kept for a Patron
+   * that is a body, which shows an emblem of its Sphere, and none is drawn yet.
+   */
+  sex: Sex | null;
   sphereKey: SphereKey;
   regard: RegardMap;
 }

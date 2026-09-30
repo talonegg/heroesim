@@ -7,6 +7,7 @@ import type {
   Encounter,
   InjuryType,
   Names,
+  Portraits,
   QuestTemplate,
   Skill,
   Sphere,
@@ -41,6 +42,7 @@ interface Files {
   /** Written loosely: a row is gear or a consumable, and the tests give one the other's fields. */
   'items.json': Record<string, Record<string, unknown>>;
   'loot-tables.json': Rows<LootTable>;
+  'portraits.json': Portraits;
 }
 
 function realFiles(): Record<string, string> {
@@ -188,6 +190,90 @@ describe('a name list', () => {
     const files = withJson('names.json', (json) => json.family.push('Wray'));
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(/names\.family.*"Wray"/);
+  });
+});
+
+describe("a Patron's name (v1.1.2-S3, DL-125 item 5)", () => {
+  test('without its sex is refused, naming where it is', () => {
+    const files = withJson('names.json', (json) => {
+      json.patron[3] = { name: 'Denholm Crane' } as Names['patron'][number];
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('names.json: patron.3.sex is missing');
+  });
+
+  test('written as a bare name, as before, is refused', () => {
+    const files = withJson('names.json', (json) => {
+      (json.patron as unknown[])[0] = 'Aldous Fairweather';
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('names.json: patron.0 is "Aldous Fairweather"; expected an object');
+  });
+
+  test('with a sex that is not female or male is refused', () => {
+    const files = withJson('names.json', (json) => {
+      json.patron[0] = { name: 'Aldous Fairweather', sex: 'body' as Names['patron'][number]['sex'] };
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/names\.json: patron\.0\.sex is "body"; expected one of female, male/);
+  });
+
+  test('listed twice is refused, naming the name', () => {
+    const files = withJson('names.json', (json) => json.patron.push({ name: 'Jocelyn Pike', sex: 'female' }));
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(/names\.patron: "Jocelyn Pike" is listed twice/);
+  });
+});
+
+describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
+  test('are required as a file, which may list none', () => {
+    const files = realFiles();
+    delete files['portraits.json'];
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('portraits.json: missing');
+  });
+
+  test('are accepted with a picture of each role and sex', () => {
+    const files = withJson('portraits.json', (json) => {
+      json.guildmaster.female.push('gm-female-01');
+      json.guildmaster.male.push('gm-male-01');
+      json.hero.female.push('hero-female-01');
+      json.patron.male.push('patron-male-01');
+    });
+
+    expect(parseContent(files).portraits.guildmaster).toEqual({ female: ['gm-female-01'], male: ['gm-male-01'] });
+  });
+
+  test.each([
+    ['a key not in lower case and hyphens', (json: Portraits) => json.guildmaster.male.push('gm-Male-01'), /portraits\.guildmaster\.male: "gm-Male-01" is not lower case and hyphens/],
+    ["a key without its role's prefix", (json: Portraits) => json.guildmaster.male.push('hero-male-01'), /portraits\.guildmaster\.male: "hero-male-01" does not begin "gm-"/],
+    ['a key listed twice', (json: Portraits) => {
+      json.guildmaster.male.push('gm-01');
+      json.guildmaster.female.push('gm-01');
+    }, /portraits: "gm-01" is listed twice/],
+  ])('are refused with %s', (_, change, message) => {
+    const files = withJson('portraits.json', change);
+
+    expect(refusalOf(() => parseContent(files)).message).toMatch(message);
+  });
+
+  test('are refused with a role or a sex not laid out', () => {
+    const files = withJson('portraits.json', (json) => {
+      (json as unknown as Record<string, unknown>)['rival'] = { female: [], male: [] };
+      (json.hero as unknown as Record<string, unknown>)['other'] = [];
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('portraits.json: rival is not a field of the Portraits');
+    expect(message).toContain('portraits.json: hero.other is not a field of');
+  });
+
+  test('are refused with a picture given as its file, as the epic first wrote it', () => {
+    const files = withJson('portraits.json', (json) => {
+      (json.guildmaster.male as unknown[]).push({ key: 'gm-male-01', file: 'gm-male-01.webp' });
+    });
+
+    expect(refusalOf(() => parseContent(files)).message).toContain('portraits.json: guildmaster.male');
   });
 });
 

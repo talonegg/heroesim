@@ -15,10 +15,13 @@
 // role, sex and Portrait's key, a Guild Banner by its Guild, a Unique Item's picture by its content
 // key (`views/pictures.tsx`).
 
-import type { GuildId, ItemDefinitionKey, Sex } from '@heroesim/engine';
+import type { GuildId, ItemDefinitionKey, PortraitRole, Sex } from '@heroesim/engine';
 
-/** Whose pictures a Portrait is drawn from: each role has its folder, with a folder per sex (DL-125 item 2). */
-export type PortraitRole = 'guildmaster' | 'hero' | 'patron';
+/**
+ * Whose pictures a Portrait is drawn from: each role has its folder, with a folder per sex (DL-125
+ * item 2), as `content/portraits.json` lists them by role and sex (v1.1.2-S3).
+ */
+export type { PortraitRole };
 
 const roleFolders: Readonly<Record<PortraitRole, string>> = Object.freeze({
   guildmaster: 'guildmasters',

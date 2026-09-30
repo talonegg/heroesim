@@ -29,7 +29,16 @@ function documentOf(state: GameState): WorldDocument {
   return state.document;
 }
 
-function keptInMemory(): { saves: Saves; store: ReturnType<typeof memoryStore> } {
+/** `document` as `v1.1.1` saved it, schema 4: no Guildmaster's Portrait and no Patron's sex. */
+function olderSave(document: WorldDocument): WorldDocument {
+  const older = structuredClone(document);
+  older.meta.version = 4;
+  for (const guildmaster of Object.values(older.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
+  for (const patron of Object.values(older.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+  return older;
+}
+
+function keptInMemory():{ saves: Saves; store: ReturnType<typeof memoryStore> } {
   const store = memoryStore();
   return { store, saves: createSaves(async () => store, { now: () => new Date('2026-09-27T10:00:00.000Z') }) };
 }
@@ -130,6 +139,39 @@ describe('saved in this browser', () => {
     expect(await within(game).findByText('Deleted “journey”.')).toBeDefined();
     expect(within(game).getByText('No game is saved in this browser yet.')).toBeDefined();
     expect(store.records.size).toBe(0);
+  });
+
+  test('a save of an older Heroesim is refused in words beside it, before a game and with one in hand, and can still be deleted (v1.1.2-S3, DL-125 item 10.2)', async () => {
+    const { store, saves } = keptInMemory();
+    await saves.save('older', olderSave(documentOf(started('saved-by-v1.1.1'))));
+    await saves.save('newer', documentOf(started('saved-by-v1.1.2')));
+    const sentence = 'This game was saved by an older Heroesim and cannot be loaded.';
+
+    // Before a game: the sentence beside the save, and once only, no game begun.
+    const { unmount } = render(<App saves={saves} />);
+    const newGame = section('A new game');
+    fireEvent.click(await within(newGame).findByRole('button', { name: 'Load older' }));
+    const older = within(newGame).getByRole('article', { name: 'older' });
+    expect((await within(older).findByRole('alert')).textContent).toBe(sentence);
+    expect(screen.getAllByText(sentence)).toHaveLength(1);
+    expect(within(newGame).getByRole('article', { name: 'newer' }).textContent).not.toContain(sentence);
+    expect(screen.queryByRole('heading', { level: 1, name: 'The Lantern' })).toBeNull();
+    unmount();
+
+    // With a game in hand: the same, and the game in hand stays.
+    render(<App initial={started()} saves={saves} />);
+    const game = section('This game');
+    fireEvent.click(await within(game).findByRole('button', { name: 'Load older' }));
+    const beside = within(game).getByRole('article', { name: 'older' });
+    expect((await within(beside).findByRole('alert')).textContent).toBe(sentence);
+    await idle();
+    expect(seedShown()).toBe('app-test');
+
+    fireEvent.click(within(beside).getByRole('button', { name: 'Delete older' }));
+    fireEvent.click(within(game).getByRole('button', { name: 'Delete “older” for good' }));
+    expect(await within(game).findByText('Deleted “older”.')).toBeDefined();
+    expect(within(game).queryByRole('article', { name: 'older' })).toBeNull();
+    expect([...store.records.keys()]).toEqual(['newer']);
   });
 
   test('says why a save was not kept, in the browser’s words', async () => {

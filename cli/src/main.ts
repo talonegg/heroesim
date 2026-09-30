@@ -64,7 +64,7 @@ import {
   renderSummary,
   rowIn,
 } from './render.js';
-import { playDeps, readSave, savePath, withModules, writeSave } from './saves.js';
+import { playDeps, readSave, savePath, withModules, writeSave, type ReadSave } from './saves.js';
 import { readableSeed } from './seed.js';
 
 /** Everything the CLI takes from outside itself. */
@@ -184,6 +184,19 @@ export function refuse(io: CliIo, problem: string, code: Exit = exitCodes.refuse
 }
 
 /**
+ * Why the save at `path` does not load, in a sentence. A save of an older schema than this engine
+ * reads, as a `v1.1.1` save is since schema 5, is refused in the owner's words, the page's too
+ * (v1.1.2-S3, DL-125 item 10.2); the rest name the engine's reason.
+ */
+function loadRefusalWords(reason: Exclude<ReadSave, { ok: true }>['reason'], path: string): string {
+  if (reason.kind === 'missing') return `${reason.message}. Create a world with \`new\`, or name a save with --save.`;
+  if (reason.kind === 'unsupported-version' && reason.documentVersion < reason.schemaVersion) {
+    return `This game was saved by an older Heroesim and cannot be loaded: ${path}.`;
+  }
+  return `Cannot load ${path}: ${reason.message}.`;
+}
+
+/**
  * The save at `path`, loaded and checked, with the deps to play it under, `modules` installed (none
  * unless given); `undefined` after printing why it does not load. Content keys the content does not
  * define, and a module's slice no module in `modules` owns, are warned about and the save still loads
@@ -197,13 +210,7 @@ export function open(
 ): { document: WorldDocument; deps: EngineDeps } | undefined {
   const read = readSave(path, content, modules);
   if (!read.ok) {
-    const { reason } = read;
-    refuse(
-      io,
-      reason.kind === 'missing'
-        ? `${reason.message}. Create a world with \`new\`, or name a save with --save.`
-        : `Cannot load ${path}: ${reason.message}.`,
-    );
+    refuse(io, loadRefusalWords(read.reason, path));
     return undefined;
   }
   for (const warning of read.warnings) io.stderr(`Warning: ${warning.detail}\n`);
@@ -251,7 +258,7 @@ function look(
  * save is touched.
  */
 function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, path, modules }: Context): Exit {
-  const { background, sex, age, traits, birthplace, appearance, biography } = command;
+  const { background, sex, age, traits, birthplace, appearance, biography, portrait } = command;
   const setup: WorldSetup = {
     guildmasterName: command.master.trim(),
     guildName: command.guild.trim(),
@@ -262,6 +269,7 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
     ...(birthplace === undefined ? {} : { guildmasterBirthplace: birthplace }),
     ...(appearance === undefined ? {} : { guildmasterAppearance: appearance }),
     ...(biography === undefined ? {} : { guildmasterBiography: biography }),
+    ...(portrait === undefined ? {} : { guildmasterPortraitKey: portrait }),
     createdAt: io.now().toISOString(),
   };
   // A new game starts under the current defaults; from then on it plays under its own. Each

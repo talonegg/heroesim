@@ -167,15 +167,48 @@ export function validateContent(set: ContentSet): ContentSet {
     ...Object.entries(set.names.given).map(([sex, list]): [string, string[]] => [`given.${sex}`, list]),
     ['family', set.names.family],
     ['guild', set.names.guild],
-    ['patron', set.names.patron],
+    ['patron', set.names.patron.map((patron) => patron.name)],
   ];
   for (const [list, names] of lists) {
     if (names.length === 0) problems.push(`names.${list} is empty`);
     for (const name of repeated(names)) problems.push(`names.${list}: "${name}" is listed twice`);
   }
 
+  checkPortraits(set.portraits, problems);
+
   if (problems.length > 0) throw new ContentError(problems);
   return set;
+}
+
+/** The prefix each role's Portrait keys begin with, so a key is unique across the roles (DL-126 item 2). */
+const portraitPrefixes: Readonly<Record<keyof ContentSet['portraits'], string>> = Object.freeze({
+  guildmaster: 'gm-',
+  hero: 'hero-',
+  patron: 'patron-',
+});
+
+/** A picture's name: lower-case letters and digits in words joined by hyphens (DL-125 item 11). */
+const lowerAndHyphens = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+/**
+ * The Portraits (v1.1.2-S3, DL-125 items 3 and 11, DL-126 item 2): any role and sex may have none;
+ * each key is lower case and hyphens, begins with its role's prefix, and is listed once in the whole
+ * file, so a key names one picture of one role and sex. That each names a file in `media/` is the
+ * page's test to hold (`web/src/media.test.ts`), since content reads no files.
+ */
+function checkPortraits(portraits: ContentSet['portraits'], problems: string[]): void {
+  const keys: string[] = [];
+  for (const [role, bySex] of Object.entries(portraits) as [keyof ContentSet['portraits'], ContentSet['portraits']['hero']][]) {
+    for (const [sex, list] of Object.entries(bySex)) {
+      const where = `portraits.${role}.${sex}`;
+      for (const key of list) {
+        if (!lowerAndHyphens.test(key)) problems.push(`${where}: "${key}" is not lower case and hyphens`);
+        else if (!key.startsWith(portraitPrefixes[role])) problems.push(`${where}: "${key}" does not begin "${portraitPrefixes[role]}"`);
+        keys.push(key);
+      }
+    }
+  }
+  for (const key of repeated(keys)) problems.push(`portraits: "${key}" is listed twice`);
 }
 
 /**

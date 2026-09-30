@@ -125,7 +125,7 @@ function documentOf(state: GameState): WorldDocument {
   return state.document;
 }
 
-/** The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 will hold it (v1.1.2-S3). */
+/** The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it (v1.1.2-S3). */
 function withGuildmaster(state: GameState, sex: Sex, portraitKey?: string): GameState {
   return changed(state, (document, player) => {
     const guildmaster = document.world.guildmasters[player.guildmasterId];
@@ -166,7 +166,7 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     }
   });
 
-  test("the Guildmaster view with a Portrait's key, as v1.1.2-S3 stores it: the picture, named for them", () => {
+  test("the Guildmaster view with a Portrait's key, as a save of schema 5 holds it: the picture, named for them", () => {
     render(<App initial={withGuildmaster(started(), 'female', 'gm-female-01')} />);
     const picture = within(section('Guildmaster')).getByRole('img', { name: 'Portrait of Ada Vell' });
     expect(picture.getAttribute('src')).toBe('assets/gm-female-01-test.webp');
@@ -225,8 +225,9 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     expect(layers(chest[0] as HTMLElement)).toEqual([silhouette('items/silhouette.svg')]);
   });
 
-  test("the History: the Banner beside a Guild's title, a Guildmaster's Portrait, and neither for a Patron or the World", () => {
-    render(<App initial={withGuildmaster(started(), 'male')} />);
+  test("the History: the Banner beside a Guild's title, a Guildmaster's Portrait, a Patron's Portrait by their sex, and neither for the World", () => {
+    const state = withGuildmaster(started(), 'male');
+    render(<App initial={state} />);
     const history = openView('History');
     const title = (): HTMLElement => within(section('History')).getByRole('heading', { level: 3 });
     expect(title().textContent).toBe('The History of The Lantern');
@@ -238,13 +239,18 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     expect(within(title()).queryByTestId('guild-banner')).toBeNull();
     expect(layers(within(section('History')).getByTestId('portrait'))).toEqual([silhouette('portraits/guildmasters/male/silhouette.svg')]);
 
-    // A Patron has no sex until v1.1.2-S3, so no Portrait yet.
+    // A Patron's, by the sex their name came with (v1.1.2-S3): the Silhouette, since no Patron has a picture.
     const fold = within(section('Patrons')).queryByRole('button', { name: /^\d+ neutral$/ });
     if (fold !== null) fireEvent.click(fold);
     const [patron] = within(section('Patrons')).getAllByRole('button', { name: /^Read the History of / });
     fireEvent.click(patron as HTMLElement);
-    expect(title().textContent).toMatch(/^The History of /);
-    expect(within(section('History')).queryByTestId('portrait')).toBeNull();
+    const patronName = (patron?.getAttribute('aria-label') ?? patron?.textContent ?? '').replace(/^Read the History of /, '');
+    const read = Object.values(documentOf(state).world.patrons).find((each) => each.name === patronName);
+    if (read?.sex === undefined || read.sex === null) throw new Error(`no Patron ${patronName} with a sex`);
+    expect(title().textContent).toBe(`The History of ${patronName}`);
+    const portrait = within(section('History')).getByTestId('portrait');
+    expect(portrait.getAttribute('aria-hidden')).toBe('true');
+    expect(layers(portrait)).toEqual([silhouette(`portraits/patrons/${read.sex}/silhouette.svg`)]);
     expect(within(title()).queryByTestId('guild-banner')).toBeNull();
 
     fireEvent.click(within(section('History')).getByRole('button', { name: 'The World History' }));

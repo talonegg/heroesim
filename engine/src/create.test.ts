@@ -5,7 +5,7 @@ import { makeId, tableNames, type Guild, type GuildId, type Sex, type WorldDocum
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 import { validate } from './validate.js';
-import { testDeps, withValid } from './world.test-support.js';
+import { testDeps, withoutPortraits, withValid } from './world.test-support.js';
 
 const playerId = makeId('guilds', 1);
 
@@ -441,7 +441,13 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
         deps,
       ).document;
       const was = guildmasterOf(drawn);
-      Object.assign(guildmasterOf(chosen), { sex: was.sex, ageAtEntry: was.ageAtEntry, traits: was.traits, biography: '' });
+      Object.assign(guildmasterOf(chosen), {
+        sex: was.sex,
+        ageAtEntry: was.ageAtEntry,
+        traits: was.traits,
+        biography: '',
+        portraitKey: was.portraitKey,
+      });
 
       expect(chosen).toEqual(drawn);
     }
@@ -512,5 +518,105 @@ describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
     expect(Math.min(...ages)).toBe(21);
     expect(Math.max(...ages)).toBe(50);
     expect(ages.size).toBe(30);
+  });
+});
+
+describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)", () => {
+  const deps = testDeps();
+  const guildmasterOf = (document: WorldDocument) => {
+    const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
+    const guildmaster = guildmasterId === undefined ? undefined : document.world.guildmasters[guildmasterId];
+    if (guildmaster === undefined) throw new Error("No player's Guildmaster");
+    return guildmaster;
+  };
+  const seeds = Array.from({ length: 60 }, (_, n) => `portrait-${n}`);
+
+  test.each<[string, Partial<WorldSetup>, SetupRefusal | null]>([
+    ['a Portrait of the sex chosen', { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-02' }, null],
+    ['a Portrait with no sex chosen', { guildmasterPortraitKey: 'gm-male-03' }, null],
+    ['a key content has no picture for', { guildmasterPortraitKey: 'gm-male-99' }, { reason: 'unknown-portrait', portraitKey: 'gm-male-99' }],
+    ["a Hero's picture", { guildmasterSex: 'female', guildmasterPortraitKey: 'hero-female-01' }, { reason: 'unknown-portrait', portraitKey: 'hero-female-01' }],
+    [
+      'a Portrait of the other sex',
+      { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-male-01' },
+      { reason: 'portrait-of-another-sex', portraitKey: 'gm-male-01', sex: 'female', portraitSex: 'male' },
+    ],
+  ])('setupRefusal: %s', (_, change, refusal) => {
+    expect(setupRefusal({ ...setup, ...change }, deps)).toEqual(refusal);
+  });
+
+  test('setupRefusal checks the Portrait after the sex and before the age', () => {
+    expect(setupRefusal({ ...setup, guildmasterSex: 'other' as Sex, guildmasterPortraitKey: 'nope' }, deps)).toMatchObject({ reason: 'unknown-sex' });
+    expect(setupRefusal({ ...setup, guildmasterPortraitKey: 'nope', guildmasterAge: 12 }, deps)).toMatchObject({ reason: 'unknown-portrait' });
+  });
+
+  test('a Guildmaster set up with a Portrait keeps it', () => {
+    const { document } = createWorld('kept', { ...setup, guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-01' }, deps);
+    withValid(document, deps);
+
+    expect(guildmasterOf(document)).toMatchObject({ sex: 'female', portraitKey: 'gm-female-01' });
+  });
+
+  test("with a Portrait and no sex, the Guildmaster is of the Portrait's sex", () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const { document } = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-female-02' }, deps);
+      expect(guildmasterOf(document)).toMatchObject({ sex: 'female', portraitKey: 'gm-female-02' });
+    }
+  });
+
+  test("without one, the Portrait is drawn from the pictures of the Guildmaster's sex, chosen or drawn, and each of them is drawn", () => {
+    const drawn = new Map<Sex, Set<string | null>>([['female', new Set()], ['male', new Set()]]);
+    for (const seed of seeds) {
+      for (const change of [{}, { guildmasterSex: 'female' as const }, { guildmasterSex: 'male' as const }]) {
+        const guildmaster = guildmasterOf(createWorld(seed, { ...setup, ...change }, deps).document);
+        drawn.get(guildmaster.sex)?.add(guildmaster.portraitKey);
+      }
+    }
+
+    expect([...(drawn.get('female') ?? [])].sort()).toEqual(deps.content.portraits.guildmaster.female);
+    expect([...(drawn.get('male') ?? [])].sort()).toEqual(deps.content.portraits.guildmaster.male);
+  });
+
+  test('the same seed draws the same Portrait', () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const first = guildmasterOf(createWorld(seed, setup, deps).document).portraitKey;
+      expect(guildmasterOf(createWorld(seed, setup, deps).document).portraitKey).toBe(first);
+    }
+  });
+
+  test('it is null, the Silhouette, when the sex has no picture, as in the core until v1.1.2-S4', () => {
+    const bare = testDeps({}, withoutPortraits());
+    const { document } = createWorld('none', setup, bare);
+    withValid(document, bare);
+
+    expect(guildmasterOf(document).portraitKey).toBeNull();
+  });
+
+  test("every Rival's Guildmaster has none", () => {
+    const { document } = createWorld('rivals', { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps);
+
+    for (const rival of rivals(document)) expect(document.world.guildmasters[rival.guildmasterId]?.portraitKey).toBeNull();
+  });
+
+  test("the Portrait is drawn on its own stream, portraits, one draw whatever is chosen or listed, so it moves no other draw", () => {
+    for (const seed of seeds.slice(0, 5)) {
+      const drawn = createWorld(seed, setup, deps).document;
+      const chosen = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps).document;
+      const bare = createWorld(seed, setup, testDeps({}, withoutPortraits())).document;
+      const was = guildmasterOf(drawn);
+
+      expect(Object.keys(drawn.world.rng)).toContain('portraits');
+      for (const other of [chosen, bare]) {
+        Object.assign(guildmasterOf(other), { sex: was.sex, portraitKey: was.portraitKey });
+        expect({ ...other, meta: drawn.meta }).toEqual(drawn);
+      }
+    }
+  });
+
+  test('throws on a Portrait setupRefusal refuses', () => {
+    expect(() => createWorld('bad', { ...setup, guildmasterPortraitKey: 'gm-male-99' }, deps)).toThrow(/unknown-portrait/);
+    expect(() => createWorld('bad', { ...setup, guildmasterSex: 'male', guildmasterPortraitKey: 'gm-female-01' }, deps)).toThrow(
+      /portrait-of-another-sex/,
+    );
   });
 });

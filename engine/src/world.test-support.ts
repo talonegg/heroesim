@@ -24,6 +24,7 @@ import type {
   ItemDefinition,
   LootEntry,
   LootTable,
+  PatronName,
   QuestTemplate,
   QuestTemplateRequires,
   SlotKey,
@@ -57,6 +58,7 @@ import {
   type PatronId,
   type QuestId,
   type RegardEntry,
+  type Sex,
   type SkillRating,
   type StackId,
   type TableName,
@@ -106,6 +108,11 @@ function heroClass(key: string, leading: string, gated: string): [string, Class]
     heroStatKeys.map((statKey) => [statKey, leadingStats.includes(statKey) ? leadingWeight : otherWeight]),
   );
   return [key, { key, name: title(key), leadingStats, gatedSkills: gated.split(' '), growth }];
+}
+
+/** Patrons' names, each of `sex` (v1.1.2-S3). */
+function patronNames(sex: Sex, ...names: string[]): PatronName[] {
+  return names.map((name) => ({ name, sex }));
 }
 
 /** Rows keyed by `keys`, each named after its key and carrying `fields`. */
@@ -383,10 +390,18 @@ export const testContent: ContentSet = deepFreeze({
       ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
       ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
     ],
+    // The core's first fourteen, each with its sex (v1.1.2-S3, DL-125 item 5).
     patron: [
-      ...['Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow'],
-      ...['Florian Keld', 'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'],
-      ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
+      ...patronNames('male', 'Aldous Fairweather', 'Berengar Holt'),
+      ...patronNames('female', 'Cecily Ashdown'),
+      ...patronNames('male', 'Denholm Crane'),
+      ...patronNames('female', 'Edith Marlow'),
+      ...patronNames('male', 'Florian Keld', 'Godwin Harrow'),
+      ...patronNames('female', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'),
+      ...patronNames('male', 'Lambert Sowerby'),
+      ...patronNames('female', 'Mabel Thorne'),
+      ...patronNames('male', 'Nicolas Aske'),
+      ...patronNames('female', 'Orabel Quint'),
     ],
   },
   // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
@@ -510,7 +525,20 @@ export const testContent: ContentSet = deepFreeze({
         'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
     ),
   ]),
+  // Pictures the core has none of yet (v1.1.2-S3): three and two for the Guildmaster, so a Portrait
+  // is drawn from each sex's, and one Hero's, which is no Guildmaster's.
+  portraits: {
+    guildmaster: { female: ['gm-female-01', 'gm-female-02'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
+    hero: { female: ['hero-female-01'], male: [] },
+    patron: { female: [], male: [] },
+  },
 });
+
+/** `content` (the test content by default) with no pictures of any role or sex, as the core's until v1.1.2-S4. */
+export function withoutPortraits(content: ContentSet = testContent): ContentSet {
+  const none = () => ({ female: [], male: [] });
+  return deepFreeze({ ...content, portraits: { guildmaster: none(), hero: none(), patron: none() } });
+}
 
 const classKeys = Object.keys(testContent.classes);
 const ratings: readonly SkillRating[] = [1, 2, 3];
@@ -532,6 +560,7 @@ export const plannedStreams = [
   'progression',
   'rivals',
   'market',
+  'portraits',
 ] as const;
 
 /** The test content, or `content`, with the default config, or with `overrides` on it. */
@@ -772,6 +801,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       birthplace: '',
       appearance: '',
       biography: '',
+      // The player's a picture of his sex (v1.1.2-S3), the Rivals' the Silhouette.
+      portraitKey: g === 0 ? 'gm-male-01' : null,
       retiredOnTurn: null,
       regard: {},
     };
@@ -792,8 +823,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   // Patrons, and a Quest resolved and removed before the fixture's Turn.
   const patron = next('patrons');
   const secondPatron = next('patrons');
-  world.patrons[patron] = { id: patron, name: 'Lady Maud of Stannary', sphereKey: 'crown', regard: {} };
-  world.patrons[secondPatron] = { id: secondPatron, name: 'Abbot Cenric', sphereKey: 'church', regard: {} };
+  world.patrons[patron] = { id: patron, name: 'Lady Maud of Stannary', sex: 'female', sphereKey: 'crown', regard: {} };
+  world.patrons[secondPatron] = { id: secondPatron, name: 'Abbot Cenric', sex: 'male', sphereKey: 'church', regard: {} };
   log(0, 'patron.generated', [patron]);
   log(0, 'patron.generated', [secondPatron]);
 
