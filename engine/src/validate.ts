@@ -469,6 +469,9 @@ const heroFields: Shape<Hero> = {
   diedOnTurn: 'integer-or-null',
   retiredOnTurn: 'integer-or-null',
   transferredOnTurn: 'integer-or-null',
+  portraitKey: 'string-or-null',
+  appearance: 'string',
+  biography: 'string',
   regard: 'map',
 };
 
@@ -1485,43 +1488,60 @@ function unknownLootTable({ world }: WorldDocument, content: ContentSet): Valida
 }
 
 /**
- * The sexes of the Guildmaster pictures content lists under `key` (v1.1.2-S3): none when it lists no
- * such picture, as content before v1.1.2-S3 lists none at all.
+ * The sexes of the pictures of `role` content lists under `key` (v1.1.2-S3, v1.1.3-S6): none when it
+ * lists no such picture, as content before v1.1.2-S3 lists none at all.
  */
-function guildmasterPictureSexes(content: ContentSet, key: string): string[] {
+function pictureSexes(content: ContentSet, role: PortraitHolder['role'], key: string): string[] {
   const portraits: unknown = Reflect.get(content, 'portraits');
-  const bySex: unknown = isMap(portraits) ? portraits.guildmaster : undefined;
+  const bySex: unknown = isMap(portraits) ? portraits[role] : undefined;
   if (!isMap(bySex)) return [];
   return Object.entries(bySex).flatMap(([sex, keys]) => (Array.isArray(keys) && keys.includes(key) ? [sex] : []));
 }
 
+/** A person with a Portrait, and their role's word for the warnings (v1.1.3-S6). */
+interface PortraitHolder {
+  id: string;
+  sex: string;
+  portraitKey: string | null;
+  role: 'guildmaster' | 'hero';
+  word: string;
+}
+
+/** Every Guildmaster and every Hero, each with their Portrait (v1.1.3-S6: a Hero's too). */
+function portraitHolders({ world }: WorldDocument): PortraitHolder[] {
+  const guildmasters = Object.entries(world.guildmasters).map(([id, { sex, portraitKey }]): PortraitHolder => ({ id, sex, portraitKey, role: 'guildmaster', word: 'Guildmaster' }));
+  const heroes = Object.entries(world.heroes).map(([id, { sex, portraitKey }]): PortraitHolder => ({ id, sex, portraitKey, role: 'hero', word: 'Hero' }));
+  return [...guildmasters, ...heroes];
+}
+
 /**
- * A Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): a Guildmaster picture content lists. The key
- * is the Portrait's. A warning, as any content key is (rule 5): the key is kept, and the page shows
- * the Silhouette of the Guildmaster's sex where it finds no picture.
+ * A Guildmaster's Portrait is a Guildmaster picture content lists (v1.1.2-S3, DL-125 item 3), and a
+ * Hero's a Hero picture (v1.1.3-S6). The key is the Portrait's. A warning, as any content key is
+ * (rule 5): the key is kept, and the page shows the Silhouette of the person's sex where it finds no
+ * picture.
  */
-function unknownPortrait({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+function unknownPortrait(document: WorldDocument, content: ContentSet): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
-  for (const [id, { portraitKey }] of Object.entries(world.guildmasters)) {
-    if (portraitKey === null || guildmasterPictureSexes(content, portraitKey).length > 0) continue;
-    const detail = `${id}'s portraitKey names ${q(portraitKey)}, which the content does not define as a Guildmaster's picture`;
+  for (const { id, portraitKey, role, word } of portraitHolders(document)) {
+    if (portraitKey === null || pictureSexes(content, role, portraitKey).length > 0) continue;
+    const detail = `${id}'s portraitKey names ${q(portraitKey)}, which the content does not define as a ${word}'s picture`;
     warnings.push({ check: 'unknown-portrait', id, key: portraitKey, detail });
   }
   return warnings;
 }
 
 /**
- * A Guildmaster's Portrait is a picture of their sex (v1.1.2-S3, DL-125 item 3). The key is the
- * Portrait's. A picture content lacks is `unknown-portrait`'s. A warning, since content may move a
- * picture under a live save (rule 5).
+ * A Guildmaster's or a Hero's Portrait is a picture of their sex (v1.1.2-S3, DL-125 item 3; v1.1.3-S6).
+ * The key is the Portrait's. A picture content lacks is `unknown-portrait`'s. A warning, since content
+ * may move a picture under a live save (rule 5).
  */
-function portraitOfAnotherSex({ world }: WorldDocument, content: ContentSet): ValidationWarning[] {
+function portraitOfAnotherSex(document: WorldDocument, content: ContentSet): ValidationWarning[] {
   const warnings: ValidationWarning[] = [];
-  for (const [id, { portraitKey, sex }] of Object.entries(world.guildmasters)) {
+  for (const { id, portraitKey, sex, role, word } of portraitHolders(document)) {
     if (portraitKey === null) continue;
-    const sexes = guildmasterPictureSexes(content, portraitKey);
+    const sexes = pictureSexes(content, role, portraitKey);
     if (sexes.length === 0 || sexes.includes(sex)) continue;
-    const detail = `${id} is ${q(sex)}, but their portraitKey ${q(portraitKey)} is a ${sexes.join(' and ')} Guildmaster's picture`;
+    const detail = `${id} is ${q(sex)}, but their portraitKey ${q(portraitKey)} is a ${sexes.join(' and ')} ${word}'s picture`;
     warnings.push({ check: 'portrait-of-another-sex', id, key: portraitKey, detail });
   }
   return warnings;

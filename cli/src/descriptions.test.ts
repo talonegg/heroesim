@@ -1,4 +1,9 @@
-import { biographyTraitSentences as contentTraitSentences, descriptionBounds, longestDescriptions } from '@heroesim/content';
+import {
+  biographyTraitSentences as contentTraitSentences,
+  descriptionBounds,
+  heroBiographyTraitSentences as contentHeroTraitSentences,
+  longestDescriptions,
+} from '@heroesim/content';
 import { loadContent } from '@heroesim/content/node';
 import {
   biographyTraitSentences,
@@ -7,6 +12,8 @@ import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
   describeGuildmaster,
+  describeHero,
+  heroBiographyTraitSentences,
   sexes,
   type DescriptiveAttribute,
 } from '@heroesim/engine';
@@ -26,6 +33,8 @@ describe("the content validator's bounds are the engine's", () => {
   test('60, 280 and 1,000 characters, and two Trait sentences', () => {
     expect({ ...descriptionBounds }).toEqual({ ...descriptiveAttributeMaxLength });
     expect(contentTraitSentences).toBe(biographyTraitSentences);
+    // A Hero's too (v1.1.3-S6): `describeHero` writes the shape `longestDescriptions` bounds.
+    expect(contentHeroTraitSentences).toBe(heroBiographyTraitSentences);
   });
 });
 
@@ -91,5 +100,54 @@ describe('describeGuildmaster over the core', () => {
       }
     }
     expect(pictured).toBeGreaterThan(100);
+  });
+});
+
+// A Hero described over the core (v1.1.3-S6, DL-135 item 6): the validator proves a Hero's longest
+// Biography in the shape `describeHero` writes, and a Hero's Appearance is drawn as a Guildmaster's.
+describe('describeHero over the core', () => {
+  const longest = longestDescriptions(content);
+  const heroBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'hero').map((row) => row.key);
+  const heroTraits = Object.values(content.traits).filter((row) => row.owner === 'hero').map((row) => row.key);
+
+  test("writes nothing past the longest the validator proves, over every sex, age, Background and Class, with and without Traits", () => {
+    let index = 0;
+    const seen = { appearance: 0, biography: 0 };
+    // One world's stream, drawn on from request to request, as the pool's Heroes are described.
+    const state = createWorld('hero-bounds', { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps).document.world.rng['hero-descriptions'];
+    for (const sex of sexes) {
+      for (let age = 16; age <= 60; age += 4) {
+        for (const backgroundKey of heroBackgrounds) {
+          for (const classKey of Object.keys(content.classes)) {
+            index += 1;
+            const traitKeys = [heroTraits[index % heroTraits.length], heroTraits[(index + 1) % heroTraits.length]].filter((key) => key !== undefined).slice(0, index % 3);
+            const { appearance, biography } = describeHero(state, content, { sex, age, backgroundKey, classKey, traitKeys, portraitKey: null });
+            expect(appearance).not.toBe('');
+            expect(biography).not.toBe('');
+            expect(biography).not.toMatch(/[{}]/);
+            expect([...appearance].length).toBeLessThanOrEqual(longest.appearance);
+            expect([...biography].length).toBeLessThanOrEqual(longest.heroBiography);
+            seen.appearance = Math.max(seen.appearance, [...appearance].length);
+            seen.biography = Math.max(seen.biography, [...biography].length);
+          }
+        }
+      }
+    }
+    expect(index).toBe(sexes.length * 12 * heroBackgrounds.length * Object.keys(content.classes).length);
+    expect(longest.heroBiography).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+    expect(seen.biography).toBeGreaterThan(0);
+  });
+
+  test('every Hero of 100 new games over the core has the Silhouette, an Appearance and a Biography within their bounds (DL-135 item 8)', () => {
+    for (let index = 0; index < 100; index += 1) {
+      const { document } = createWorld(`heroes-${index}`, { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps);
+      for (const hero of Object.values(document.world.heroes)) {
+        expect(hero.portraitKey).toBeNull();
+        expect(hero.appearance).not.toBe('');
+        expect(hero.biography).not.toBe('');
+        expect([...hero.appearance].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+        expect([...hero.biography].length).toBeLessThanOrEqual(longest.heroBiography);
+      }
+    }
   });
 });

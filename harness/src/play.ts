@@ -2,7 +2,8 @@
 // (`policy.ts`) until the game ends or the years run out, applying the policy's actions between
 // Turns through the real actions and timing every `advance`. Counters come from the History
 // (`counters.ts`), and what it cannot give from the World State before the policy acts on each
-// Turn (`observe`, M3, DL-40) and, for each Quest the policy sends a Party on, from the Quest's row
+// Turn (`observe`, M3, DL-40), after each `advance` the Heroes it generated and, as each year ends, the
+// save's size (v1.1.3-S6), and, for each Quest the policy sends a Party on, from the Quest's row
 // as it dispatches (its difficulty, M5, DL-62); and, for the Rivals' afternoons, from the world as
 // each `advance` found it: the difficulty of each Quest a Rival took, and whether the seller of each
 // Transfer was in debt (M6, DL-69). Measures from the harness's clock. DL-34 records the method.
@@ -16,6 +17,7 @@
 // engine only).
 
 import { createHash } from 'node:crypto';
+import { gzipSync } from 'node:zlib';
 import {
   advance,
   applyAction,
@@ -36,7 +38,16 @@ import {
   type WorldSetup,
 } from '@heroesim/engine';
 import { harnessSetup } from './creation.js';
-import { countGame, emptyObservations, observe, takeCensus, type GameCounters, type GameObservations } from './counters.js';
+import {
+  countGame,
+  emptyObservations,
+  observe,
+  observeHeroes,
+  observeSave,
+  takeCensus,
+  type GameCounters,
+  type GameObservations,
+} from './counters.js';
 import { automaticPolicy, defaultPolicyConfig, type PolicyConfig } from './policy.js';
 
 /** Years a harness game is played for when it does not end first (INPUTS 4.13). */
@@ -265,6 +276,15 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
     return invalid === null;
   };
 
+  // Every Hero generated with the world, and the save as each year ends (v1.1.3-S6).
+  observeHeroes(observations, document);
+  const yearEnded = (): void => {
+    const { turn } = document.world;
+    if (turn === 0 || turn % deps.config.turnsPerYear !== 0) return;
+    const text = serialise(document);
+    observeSave(observations, document.world, text, turn === lastTurn ? gzipSync(text).length : null);
+  };
+
   const created: number[] = [];
   if (!validating || check(0, created)) {
     while (document.world.ended === null && document.world.turn < lastTurn) {
@@ -286,6 +306,8 @@ export function playGame(seed: string, deps: EngineDeps, options: PlayOptions = 
       document = advance(document, deps).document;
       advanceMs.push(now() - started);
       readAdvance(unadvanced, mark, document, rivalQuestDifficulty, sellerInDebt);
+      observeHeroes(observations, document);
+      yearEnded();
       afterAdvance?.(unadvanced, document);
 
       if (validating && !check(validated, validateMs)) break;

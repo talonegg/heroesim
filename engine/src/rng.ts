@@ -37,7 +37,9 @@
  * Market's stacks (DL-51). `gm-portraits` (v1.1.2-S3, renamed v1.1.2-S7) the player's Guildmaster's Portrait when the
  * setup chooses none, one draw at creation (DL-125 item 3, DL-130). `descriptions` (v1.1.2-S5) the
  * descriptive Attributes of each Guildmaster entering play, fifteen draws each, whatever is written
- * (DL-125 item 6, DL-132). The tuple keeps ADR-0009's
+ * (DL-125 item 6, DL-132). `hero-portraits` (v1.1.3-S6) each Hero's Portrait as they are generated, one
+ * draw each (DL-134 item 2, DL-135 items 3 and 4); `hero-descriptions` (v1.1.3-S6) each Hero's Appearance
+ * and Biography, thirteen draws each, whatever is written (DL-135 item 6). The tuple keeps ADR-0009's
  * order, which is also the order of a new world's `rng` keys; an old save gains a missing stream
  * wherever `ensureStreams` puts it.
  */
@@ -53,6 +55,8 @@ export const streamNames = [
   'market',
   'gm-portraits',
   'descriptions',
+  'hero-portraits',
+  'hero-descriptions',
 ] as const;
 
 export type StreamName = (typeof streamNames)[number];

@@ -613,8 +613,9 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       const rng = world.rng as Record<string, unknown>;
       for (const name of plannedStreams) {
         // A Guildmaster entering play is given a Portrait and described, each on a stream of its own
-        // (v1.1.2-S5, v1.1.3-S5).
-        const moved = (name === 'generation' || name === 'gm-portraits' || name === 'descriptions') && rivalReplacementDays === 0;
+        // (v1.1.2-S5, v1.1.3-S5), and so is each Hero of the new Rival's Roster (v1.1.3-S6).
+        const own = ['generation', 'gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions'];
+        const moved = own.includes(name) && rivalReplacementDays === 0;
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
         else expect(rng[name], name).toEqual(before[name]);
       }

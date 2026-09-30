@@ -10,6 +10,7 @@ import {
   makeId,
   milestoneTypes,
   playerGuild,
+  serialise,
   unattachedHeroes,
   type EngineDeps,
   type EngineEventType,
@@ -29,6 +30,7 @@ import { harnessSetup } from './creation.js';
 import {
   countGame,
   emptyObservations,
+  heroFieldsLength,
   noConsumables,
   noDisposition,
   noGear,
@@ -36,6 +38,8 @@ import {
   noTransfers,
   noWealth,
   observe,
+  observeHeroes,
+  observeSave,
   playerRanking,
   portraitCounters,
   questsTakenByController,
@@ -1242,5 +1246,54 @@ describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", 
     });
     expect(portraitCounters(document, clashing).rival.callingClashes).toBe(1);
     expect(countGame(document, shortYears).portraits).toEqual(portraitCounters(document, shortYears));
+  });
+});
+
+describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 item 6)", () => {
+  test('reads each hero.generated entry once: a picture or the Silhouette, a repeat, the longest texts, and none gone', () => {
+    const { document, player, rivals } = fixture('counters-heroes');
+    const observations = emptyObservations();
+    observeHeroes(observations, document);
+    const generated = document.history.byType['hero.generated']?.length ?? 0;
+    // The core has no Hero picture: every Hero the Silhouette, each with both texts.
+    expect(observations.heroes).toMatchObject({ generated, pictured: 0, silhouettes: generated, repeats: 0, blank: 0 });
+    const heroes = Object.values(document.world.heroes);
+    expect(observations.heroes.longestAppearance).toBe(Math.max(...heroes.map((hero) => [...hero.appearance].length)));
+    expect(observations.heroes.longestBiography).toBe(Math.max(...heroes.map((hero) => [...hero.biography].length)));
+    expect(observations.heroEntriesRead).toBe(generated);
+
+    // Read again, nothing new is counted.
+    observeHeroes(observations, document);
+    expect(observations.heroes.generated).toBe(generated);
+
+    // Three Heroes generated later, by hand: two holding one picture, the second a repeat, and one whose row is gone.
+    const [first, second] = [player, rivals[0]].map((guild) => document.world.heroes[firstHero(guild)] as Hero);
+    if (first === undefined || second === undefined) throw new Error('No Heroes');
+    Object.assign(first, { portraitKey: 'hero-female-01' });
+    Object.assign(second, { portraitKey: 'hero-female-01', biography: '' });
+    for (const hero of [first, second]) add(document, 5, 'hero.generated', [hero.id], { heroId: hero.id, guildId: hero.guildId, classKey: hero.classKey });
+    add(document, 5, 'hero.generated', [makeId('heroes', 999)], { heroId: makeId('heroes', 999), guildId: null, classKey: 'warrior' });
+    observeHeroes(observations, document);
+
+    expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 2, blank: 1 });
+    expect(observations.heroEntriesRead).toBe(generated + 3);
+  });
+
+  test("the save's size as a year ends, and the part the Heroes' three fields take in it", () => {
+    const { document } = fixture('counters-save');
+    const text = serialise(document);
+    const without = structuredClone(document);
+    for (const hero of Object.values(without.world.heroes)) {
+      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+    }
+    expect(heroFieldsLength(document.world)).toBe(text.length - serialise(without).length);
+
+    const observations = emptyObservations();
+    observeSave(observations, document.world, text);
+    observeSave(observations, document.world, text, 1234);
+    expect(observations.saves).toEqual([
+      { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: null },
+      { length: text.length, heroFields: heroFieldsLength(document.world), gzipped: 1234 },
+    ]);
   });
 });

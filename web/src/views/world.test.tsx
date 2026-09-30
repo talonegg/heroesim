@@ -236,14 +236,15 @@ describe('the game as a file', () => {
     expect(seedShown()).toBe('loaded-game');
   });
 
-  test('says in place of loading a file that an older Heroesim saved it, and the game in hand stays (v1.1.2-S3, DL-125 item 10.2)', async () => {
-    const older = JSON.parse(saveText(started('saved-by-v1.1.1').document as NonNullable<GameState['document']>)) as {
+  test('says in place of loading a file that an older Heroesim saved it, schema 5 as v1.1.2 wrote it, and the game in hand stays (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6)', async () => {
+    const older = JSON.parse(saveText(started('saved-by-v1.1.2').document as NonNullable<GameState['document']>)) as {
       meta: { version: number };
-      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
+      world: { heroes: Record<string, object> };
     };
-    older.meta.version = 4;
-    for (const guildmaster of Object.values(older.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
-    for (const patron of Object.values(older.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+    older.meta.version = 5;
+    for (const hero of Object.values(older.world.heroes)) {
+      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+    }
     render_(started());
 
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {

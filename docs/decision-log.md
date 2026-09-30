@@ -15584,6 +15584,139 @@ Guildmasters. It was built against S1's content, before S4's pictures, so its co
 
 ---
 
+## DL-142 — v1.1.3-S6 built: every Hero's Portrait chosen to fit them on `hero-portraits`, their Appearance and Biography written on `hero-descriptions`, schema 6 refusing v1.1.2's saves, and play unchanged
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-134 items 2, 5
+and 9 and DL-135 items 3 to 8 as the epic's S6 describes. How many draws, which stream a Hero's texts
+come from, what "a repeat" counts and the save's measure are the agent's, for the owner to confirm.
+Built by Opus in a worktree from `4a1ff38`, beside S4, which changes content only.
+
+**Context.** S5 (DL-141) chose every Guildmaster's Portrait. S6 does the same for Heroes, gives every
+Hero an Appearance and a Biography, and raises the save to schema 6. The core ships no Hero picture
+(DL-135 item 8), so every Hero shows the Silhouette.
+
+**Decision.**
+1. **Two streams** (`engine/src/rng.ts`), appended last: `hero-portraits`, then `hero-descriptions`.
+   ADR-0009 is amended again for them (2026-10-01). A save lacking them would gain them through
+   `ensureStreams`, but a schema 5 save is refused before play.
+2. **Where a Hero is made.** `generateHero` is the one path: the world's pool at creation, the
+   pool's nightly refill, and every Rival's Roster, founding or replacing. After the Hero's own draws
+   on `generation` or `pool`, which are unchanged, it calls:
+   - `giveHeroPortrait` (`portraits.ts`): one draw of `hero-portraits` through `choosePortrait`, with
+     the Hero's sex, age, Traits, Class and their Background's Station;
+   - `describeNewHero` (`descriptions.ts`): thirteen draws of `hero-descriptions` through
+     `describeHero`.
+   Both streams are found before the Hero's id is taken, so a world lacking one changes nothing.
+3. **In use** (`heroPortraitsInUse`) is every Hero's picture on a Roster or in the pool. A dead or
+   retired Hero, or one who left the pool, frees theirs. The set is read only when content has a
+   picture of the Hero's sex and Class, so a world with no Hero picture never reads it.
+4. **`describeHero(state, content, facts)`**, pure but for the stream, thirteen draws whatever is
+   written (`heroDescriptionDraws`).
+   - *The Appearance* takes eight draws, as a Guildmaster's does (`drawAppearance`, now shared). It
+     is the picture's narrative, as written, or drawn from the phrases by sex and band.
+   - *The Biography* takes five draws, in the shape S1's `longestDescriptions` bounds (DL-138 item 5):
+     1. a Background sentence;
+     2. a Class-at-band sentence, the picture's hooks among the candidates;
+     3. and 4. a sentence each for the first two Traits (`heroBiographyTraitSentences`, held equal to
+        content's);
+     5. a closing: the picture's Temper's, or the band's where there is no picture or the Temper has
+        none.
+   - *The Station* is the Background's. It chooses the picture, and the Background's sentence speaks
+     for it. No station sentence is drawn: S1 bounds none, and `stationOrigins` may name a Birthplace,
+     which a Hero lacks.
+   - *One stream in sequence.* A Hero's texts are drawn from the world's `hero-descriptions` in
+     order. They are never asked for "again", since the player cannot edit them, so they need no
+     `descriptions-<n>` stream of their own.
+   - *Traits at generation.* A Hero is generated with none; Traits come later, from Injuries. So the
+     two Trait draws are spent and no Trait sentence is written. The texts are not rewritten when a
+     Trait is gained.
+   - *The narrative is copied into the save,* as a Guildmaster's is (DL-135 item 6), rather than read
+     by key as DL-134 item 3 had it.
+5. **Schema 5 to 6** (`document.ts`, `config.ts`, `validate.ts`, `docs/data-model.md`).
+   - `Hero` gains `portraitKey`, `appearance` and `biography`, each shape-checked.
+   - A Hero's key that names no Hero picture warns `unknown-portrait`, and one of the other sex
+     `portrait-of-another-sex`, as a Guildmaster's does.
+   - The chain stays empty, so a schema 5 save is `unsupported-version`. The page says "This game was
+     saved by an older Heroesim and cannot be loaded." The CLI says "This game was saved by an older
+     Heroesim and cannot be loaded: <path>." These are DL-130's words, unchanged.
+   - The page's saved game can still be deleted when asked twice. The CLI's `new --force` replaces
+     the save.
+6. **The glossary.** The Descriptive Attribute entry gains a Hero's two, and Portrait and Silhouette
+   gain a Hero's rule.
+7. **The CLI.** `show hero` gives a `Portrait` line ("None: the Silhouette") after the Sex, and the
+   Appearance and Biography after the Traits.
+8. **The harness.**
+   - *Every Hero generated*, read from each new `hero.generated` entry after each `advance`
+     (`observeHeroes`): with a picture or the Silhouette, repeats (a picture another Hero on a Roster
+     or in the pool also holds), the longest texts, and empty ones.
+   - *The save as each year ends* (`observeSave`): its length, the Heroes' three fields' share, and at
+     the last year its gzipped length.
+
+**The checks run.**
+- *TDD at the seams.*
+  - `describeHero`: the Appearance's slots, the Biography's parts, the fallbacks, a picture's
+    narrative, hooks and Temper, 13 draws over six kinds of facts, and the bounds.
+  - Hero Portraits (`generators/heroes.test.ts`): Class, sex and band; another Class, sex or band
+    getting none; in use and repeats; freeing; exactly 1 and 13 draws whatever content lists, the
+    Heroes otherwise equal.
+  - Schema: 5 refused by the engine, the CLI, the reducer, a file and a browser save, which is then
+    deleted; the new fields' shape refusals and warnings.
+- *Creation, 1,000 seeds, two setups* (the harness's age 30, and a bare one), against a `git archive`
+  of `4a1ff38`. Only these paths differed, in every seed:
+  - `meta.version` and `meta.config.schemaVersion`;
+  - each Hero's `portraitKey`, `appearance` and `biography`;
+  - `rng.hero-portraits` and `rng.hero-descriptions`.
+
+  With those set aside, all 2,000 documents are equal, with the same hashes (`10efb541…` and
+  `7525d404…`). There were 35,874 Heroes a setup, none with a picture, the longest Appearance 275 and
+  the longest Biography 314.
+- *Five seeds played 20 years* at both trees (`seed-0001` to `seed-0005`). The Histories are
+  identical, 236,375 to 270,009 entries. The World State and `meta` are identical but for the fields
+  above. The saves are 78 to 93 kB longer.
+- *The sweep.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v113-s6 npm run harness`, core only, not
+  validated; `harness/reports/m9-v113-s6-2026-10-01.md`, force-added.
+  - *Unchanged.* From the Counters through the Rivals, 566 lines, it is byte-identical to
+    `m9-v113-s5-2026-10-01.md`'s and `m9-v112-s7-2026-10-01.md`'s. The Guildmasters' Portraits
+    section is also unchanged.
+  - *The Heroes.* 292,607 were generated, all with the Silhouette. None had an empty text. The
+    longest Appearance was 278 and the longest Biography 314.
+  - *The saves.* The fingerprint is `f346e706…`, and 50 of 50 round trip. At year 20 the mean is
+    100.05 MiB and the largest 118.71 MiB; gzipped, the mean is 11.12 MiB and the largest 13.24 MiB.
+    The Heroes' fields are 0.08 MiB of the mean, 0.1%.
+- *The 2.5 MB bound is not met.* The epic's S6 acceptance holds the year-20 save under 2.5 MB, "half
+  of localStorage's usual 5 MB". It cannot hold:
+  - the save has been about 100 MB uncompressed since M2 (data-model §7);
+  - the page keeps it gzipped in IndexedDB, not in localStorage (DL-67);
+  - S6 adds about 85 kB to it.
+
+  The box is left open for the owner, who may restate it as the Hero texts' share.
+- *The suite.* `npm run lint` and `typecheck` pass. `npm test`, run beside ten 20-year games, failed
+  only load timeouts: `create`, `selectors`, `probe`, `succession`, `reducer`, `treasury` and the
+  Class-bias test of `generators/heroes`. Each file passes alone. The Class-bias test now uses content
+  with no picture, since ten thousand Heroes in one pool each read the pictures in use.
+
+**Consequences.**
+- *For S7.*
+  - A Hero's page shows `appearance` and `biography` under the Portrait.
+  - A thumbnail finds `hero.portraitKey` under `media/portraits/heroes/<sex>/`, the Silhouette for
+    `null`.
+  - A Hero has no Birthplace.
+- *For S4's content.*
+  - Each Hero picture it adds needs `classes`, and the Class must match.
+  - Sentences in `heroBiography` change only the words; no draw moves.
+  - `longestDescriptions` must still hold a Hero's Biography within 1,000.
+  - The content version S4 raises does not touch schema 6.
+- *Play is unchanged*, and the saves are about 0.1% longer.
+
+**Actioned in:** `engine/src/` (`rng.ts`, `document.ts`, `config.ts`, `validate.ts`, `portraits.ts`,
+`descriptions.ts`, `generators/heroes.ts`, `index.ts`, `world.test-support.ts` and tests);
+`cli/src/` (`render.ts`, `main.ts` and tests); `harness/src/` (`counters.ts`, `play.ts`, `sweep.ts`
+and tests); `web/src/` (`state/rejections.ts` and tests); `docs/adr/0009-…`; `docs/data-model.md`;
+`CONTEXT.md`; `harness/reports/m9-v113-s6-2026-10-01.md` (force-added);
+`docs/planning/epics/v1.1.3-release.md` (S6).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

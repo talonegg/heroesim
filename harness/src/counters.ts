@@ -36,6 +36,13 @@
 // M9-S1's (DL-101), from the History: the nights each kind of Guild fell below the Bankruptcy floor
 // (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
 //
+// v1.1.3-S6's (DL-134 item 9, DL-135 item 6), from the World State as each Hero is generated, which the
+// play loop reads after each `advance` from the new `hero.generated` entries (`observeHeroes`): every
+// Hero generated, with a picture or the Silhouette, those whose picture another Hero on a Roster or in
+// the pool already held (a repeat), and the longest Appearance and Biography written; and the save's
+// length as each year ends, with the part of it the Heroes' three new fields take (`observeSave`).
+// No rule reads a Portrait or a text, so none of these moves a play counter.
+//
 // v1.1.3-S5's (DL-134 item 9), from the World State: every Guildmaster who entered play, by their
 // Guild's controller, with a picture or the Silhouette; of those with a picture, those whose picture's
 // `apparentAge` holds the age they entered play at, and those one of whose picture's Callings clashes
@@ -72,6 +79,7 @@ import {
   type Guild,
   type GuildId,
   type Hero,
+  type HeroId,
   type ItemSaleCause,
   type QuestBand,
   type RankingMeasure,
@@ -1395,13 +1403,118 @@ export interface GameObservations {
   rivals: RivalAtYearStart[][];
   /** The player's Guild's place in the Rankings, taken with the census; `null` for a world without it. */
   rankings: (PlayerRanking | null)[];
+  /** Every Hero generated, and their Portraits and texts (v1.1.3-S6): `observeHeroes`. */
+  heroes: HeroTally;
+  /** How many `hero.generated` entries `observeHeroes` has read. */
+  heroEntriesRead: number;
+  /** The save as each year ended (`observeSave`, v1.1.3-S6): index k is after k + 1 years. */
+  saves: SaveSize[];
+}
+
+/** Every Hero generated in a game, and their Portraits and texts (v1.1.3-S6; DL-134 item 9, DL-135 item 6). */
+export interface HeroTally {
+  generated: number;
+  /** With a picture, and with none, the Silhouette. */
+  pictured: number;
+  silhouettes: number;
+  /** Of those with a picture, those whose picture another Hero on a Roster or in the pool held as they were given it. */
+  repeats: number;
+  /** The longest Appearance and Biography written, in characters (code points), and how many Heroes had either empty. */
+  longestAppearance: number;
+  longestBiography: number;
+  blank: number;
+}
+
+export const noHeroes = (): HeroTally => ({ generated: 0, pictured: 0, silhouettes: 0, repeats: 0, longestAppearance: 0, longestBiography: 0, blank: 0 });
+
+/** The save's size as a year ended (v1.1.3-S6). */
+export interface SaveSize {
+  /** `serialise(document).length`, in UTF-16 code units: its bytes while it is ASCII. */
+  length: number;
+  /** The part of it the Heroes' `portraitKey`, `appearance` and `biography` take, keys and quotes included. */
+  heroFields: number;
+  /** Its length gzipped, as the page keeps it (DL-67): measured for the last year only, else `null`. */
+  gzipped: number | null;
 }
 
 const noFameGate = (): FameGate => ({ heroDays: 0, guildDays: 0, guildDaysWithAny: 0 });
 const noCensus = (): RosterCensus => ({ guilds: 0, wealth: 0, heroes: 0, levels: 0, atPotential: 0 });
 
 export function emptyObservations(): GameObservations {
-  return { fameGate: { player: noFameGate(), rival: noFameGate() }, rosters: [], regardAtCountedYear: null, rivals: [], rankings: [] };
+  return {
+    fameGate: { player: noFameGate(), rival: noFameGate() },
+    rosters: [],
+    regardAtCountedYear: null,
+    rivals: [],
+    rankings: [],
+    heroes: noHeroes(),
+    heroEntriesRead: 0,
+    saves: [],
+  };
+}
+
+/**
+ * Reads each `hero.generated` entry of `document`'s History not yet read (v1.1.3-S6), with the Hero's
+ * row as the World State holds it just after the Turn that generated them: whether they have a picture
+ * or the Silhouette, whether another Hero on a Roster or in the pool holds the same picture (a repeat),
+ * and their texts' lengths. A pool Hero leaves before the refill of the same night, so no Hero is gone
+ * the Turn they are generated; one whose row is gone is not counted. Called once the world is created
+ * and after each `advance`.
+ */
+export function observeHeroes(observations: GameObservations, document: WorldDocument): void {
+  const { world, history } = document;
+  const positions = history.byType['hero.generated'] ?? [];
+  const tally = observations.heroes;
+  let heldBy: Map<string, number> | null = null;
+  for (const position of positions.slice(observations.heroEntriesRead)) {
+    const payload = history.entries[position]?.payload;
+    const heroId = typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined;
+    const hero = typeof heroId === 'string' && Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId as HeroId] : undefined;
+    if (hero === undefined) continue;
+    tally.generated += 1;
+    const appearance = [...hero.appearance].length;
+    const biography = [...hero.biography].length;
+    tally.longestAppearance = Math.max(tally.longestAppearance, appearance);
+    tally.longestBiography = Math.max(tally.longestBiography, biography);
+    if (appearance === 0 || biography === 0) tally.blank += 1;
+    if (hero.portraitKey === null) {
+      tally.silhouettes += 1;
+      continue;
+    }
+    tally.pictured += 1;
+    heldBy ??= portraitHolders(world);
+    if ((heldBy.get(hero.portraitKey) ?? 0) > 1) tally.repeats += 1;
+  }
+  observations.heroEntriesRead = positions.length;
+}
+
+/** How many Heroes on a Roster or in the pool hold each picture. */
+function portraitHolders(world: World): Map<string, number> {
+  const held = new Map<string, number>();
+  const count = (hero: Hero | undefined): void => {
+    if (hero?.portraitKey !== null && hero?.portraitKey !== undefined) held.set(hero.portraitKey, (held.get(hero.portraitKey) ?? 0) + 1);
+  };
+  for (const guild of Object.values(world.guilds)) for (const heroId of guild.rosterIds) count(Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined);
+  for (const hero of Object.values(world.heroes)) if (hero.unattachedSince !== null) count(hero);
+  return held;
+}
+
+/** The characters the Heroes' three v1.1.3-S6 fields take in `world`'s save: each `"key":value` and its comma. */
+export function heroFieldsLength(world: World): number {
+  let length = 0;
+  for (const { portraitKey, appearance, biography } of Object.values(world.heroes)) {
+    // The three members and their two commas, less the braces, and the comma joining them to the rest.
+    length += JSON.stringify({ portraitKey, appearance, biography }).length - 2 + 1;
+  }
+  return length;
+}
+
+/**
+ * Adds the save's size as a year ends (v1.1.3-S6): its text's length, `text` being `serialise(document)`,
+ * the Heroes' new fields' share, and, when `gzipped` is given, its gzipped length.
+ */
+export function observeSave(observations: GameObservations, world: World, text: string, gzipped: number | null = null): void {
+  observations.saves.push({ length: text.length, heroFields: heroFieldsLength(world), gzipped });
 }
 
 /** The player's Guild's place in `world`'s Rankings by Fame and by Wealth (`rankings`); `null` when it is in neither. */

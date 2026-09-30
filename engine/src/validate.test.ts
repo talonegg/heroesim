@@ -597,6 +597,11 @@ describe('document-shape', () => {
       `$.world.guildmasters["${ids.playerGuildmaster}"].portraitKey`,
     ],
     ['a Patron without a sex, as schema 4 wrote them (v1.1.2-S3)', (d) => drop(patron(d, ids.patron), 'sex'), `${patronPath}.sex`],
+    // v1.1.3-S6 (DL-135 items 6 and 7): a Hero's Portrait and two texts, which schema 5 lacked.
+    ["a Hero without a Portrait's key, as schema 5 wrote them (v1.1.3-S6)", (d) => drop(hero(d, ids.partyHero), 'portraitKey'), `${heroPath}.portraitKey`],
+    ["a Hero whose Portrait's key is not a string or null (v1.1.3-S6)", (d) => set(hero(d, ids.partyHero), 'portraitKey', 7), `${heroPath}.portraitKey`],
+    ['a Hero without an Appearance, as schema 5 wrote them (v1.1.3-S6)', (d) => drop(hero(d, ids.partyHero), 'appearance'), `${heroPath}.appearance`],
+    ['a Hero whose Biography is not a string (v1.1.3-S6)', (d) => set(hero(d, ids.partyHero), 'biography', null), `${heroPath}.biography`],
     ['a Patron whose sex is not a string or null (v1.1.2-S3)', (d) => set(patron(d, ids.patron), 'sex', false), `${patronPath}.sex`],
     // v1.1.2-S6 (the review's A): a sex is one of the engine's `sexes`, as a holder's kind is one it knows,
     // since the page finds a Portrait's folder by it.
@@ -815,6 +820,20 @@ describe('a key the content does not define warns and never refuses', () => {
       'gm-male-01',
     ],
     [
+      "a Guildmaster's picture as a Hero's Portrait (v1.1.3-S6)",
+      (d) => Object.assign(hero(d, ids.partyHero), { sex: 'male', portraitKey: 'gm-male-01' }),
+      'unknown-portrait',
+      ids.partyHero,
+      'gm-male-01',
+    ],
+    [
+      "a Hero's Portrait of the other sex (v1.1.3-S6)",
+      (d) => Object.assign(hero(d, ids.partyHero), { sex: 'male', portraitKey: 'hero-female-01' }),
+      'portrait-of-another-sex',
+      ids.partyHero,
+      'hero-female-01',
+    ],
+    [
       "an Encounter in a Quest's sequence (M4-S1)",
       (d) => (quest(d, ids.offeredQuest).encounterKeys = ['hold-the-line', 'the-dragon-wakes']),
       'unknown-encounter',
@@ -823,6 +842,11 @@ describe('a key the content does not define warns and never refuses', () => {
     ],
   ])('%s', (_, mutate, check, id, key) => {
     expect(warnings(mutate)).toEqual([{ check, id, key }]);
+  });
+
+  test("a Hero's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.3-S6)", () => {
+    expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { sex: 'female', portraitKey: 'hero-female-01' }))).toEqual([]);
+    expect(warnings((d) => Object.assign(hero(d, ids.partyHero), { portraitKey: null }))).toEqual([]);
   });
 
   test("a Guildmaster's Portrait of their sex warns of nothing, nor does none, the Silhouette (v1.1.2-S3)", () => {

@@ -222,6 +222,42 @@ describe('sweepPlay', () => {
     expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Measures'));
   });
 
+  test("totals and renders v1.1.3-S6's Hero counters and the saves as each year ended (DL-134 item 9, DL-135 item 6)", () => {
+    const mib = 1024 * 1024;
+    const games = sweep.games.map((game, index) => ({
+      ...game,
+      observations: {
+        ...game.observations,
+        heroes: { generated: 10, pictured: 4, silhouettes: 6, repeats: 1, longestAppearance: 200 + index, longestBiography: 300 - index, blank: 0 },
+        saves: [
+          { length: (index + 1) * mib, heroFields: 0.25 * mib, gzipped: null },
+          { length: (index + 3) * mib, heroFields: 0.5 * mib, gzipped: (index + 1) * 0.25 * mib },
+        ],
+      },
+    }));
+    const described = { ...sweep, games };
+    const summed = sweepTotals(described, deps.config.turnsPerYear);
+
+    expect(summed.heroes).toEqual({ generated: 20, pictured: 8, silhouettes: 12, repeats: 2, longestAppearance: 201, longestBiography: 300, blank: 0 });
+    expect(summed.saves).toEqual([
+      { lengths: [mib, 2 * mib], heroFields: [0.25 * mib, 0.25 * mib], gzipped: [] },
+      { lengths: [3 * mib, 4 * mib], heroFields: [0.5 * mib, 0.5 * mib], gzipped: [0.25 * mib, 0.5 * mib] },
+    ]);
+    const report = playReport(described, { deps, machine: machine(), startedAt: new Date(2026, 9, 1, 12), milestone: 'm9-v113-s6' });
+    expect(report).toContain('## Heroes described (v1.1.3-S6)');
+    expect(report).toContain('| Generated | 20 |');
+    expect(report).toContain('| With a picture | 8 (40.0%) |');
+    expect(report).toContain('| With the Silhouette | 12 (60.0%) |');
+    expect(report).toContain('| Given a picture another Hero on a Roster or in the pool held (a repeat) | 2 (25.0%) |');
+    expect(report).toContain('| The longest Biography written, in characters (at most 1,000) | 300 |');
+    expect(report).toContain('| 1 | 2 | 1.50 | 2.00 | 0.25 | 0.25 | 16.7% |');
+    expect(report).toContain('| 2 | 2 | 3.50 | 4.00 | 0.50 | 0.50 | 14.3% |');
+    expect(report).toContain('The largest save at year 2: 4,194,304 characters, 4.00 MiB; gzipped, as the page keeps it in IndexedDB (DL-67): mean 0.38 MiB, max 0.50 MiB.');
+    // After the Portraits and before the Measures, so the play counters' lines stand as they were.
+    expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Heroes described'));
+    expect(report.indexOf('## Heroes described')).toBeLessThan(report.indexOf('## Measures'));
+  });
+
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
     const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
 
