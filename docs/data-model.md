@@ -79,7 +79,8 @@ configuration default and not a decision.
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
 Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
-subsystem (ADR-0009 as amended 2026-09-26). A stream is seeded from the master seed and its
+subsystem (ADR-0009 as amended 2026-09-26), then `portraits` (v1.1.2-S3), drawn apart from
+`generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
 random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
 component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
@@ -135,7 +136,7 @@ regard:         Record<EntityId, RegardEntry>
 ```
 Schema version 4 added the descriptive Attributes and `retiredOnTurn` (M9-S2, DL-102); a version-3
 save loaded with every Guildmaster in office and no descriptive Attribute. Schema version 5 added
-`portraitKey` (v1.1.2-S3, DL-130), and a save of version 4 or before is refused, not migrated (DL-125
+`portraitKey` and a Patron's `sex` (v1.1.2-S3, DL-130), and a save of version 4 or before is refused, not migrated (DL-125
 item 10.2).
 
 **heroes**
