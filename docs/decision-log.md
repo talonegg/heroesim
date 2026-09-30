@@ -13464,6 +13464,191 @@ selector or a view gives, and the CLI is unchanged.
 tests named), `web/src/app.test.tsx`, `web/e2e/`; `docs/agents/ui-text.md`;
 `docs/planning/epics/v1.1.2-release.md`.
 
+## DL-129 — v1.1.2-S2 built: the `media/` folder and its Silhouettes drawn to the owner's pictures, the build inlining the Silhouettes and hashing every picture, a Portrait, a Guild Banner and a Unique Item's picture in each place DL-125 names, and a `file://` spec that sees a Silhouette and a hashed picture load
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S2's implementer. The folder,
+the places and the alt text are the owner's and DL-125's (items 1, 2, 7, 8, 11 and 12), and the style
+DL-126 item 1's. The drawings, the catalogue's shape, the test picture's way into a build, the sizes and
+the readings below are the implementer's, each marked, for the owner to change.
+
+**Context.** v1.1.2-S2 gives the page its pictures' folder and every place a picture goes, before any
+picture exists: until v1.1.2-S3 no save holds a Portrait's key, so every Portrait is the Silhouette of the
+person's sex, and a Patron, who has no sex yet, has none. It is built on `v1.1.2-dev` from `7ce413b`. It
+changes no save, no rule and no content: every change is in `media/` and `web/`, and the CLI is unchanged.
+
+**Decision.**
+
+1. **The folder** (DL-125 item 1), at the repository's root beside `content/`:
+   ```
+   media/portraits/{guildmasters,heroes,patrons}/{female,male}/silhouette.svg
+   media/banners/silhouette.svg
+   media/items/silhouette.svg
+   ```
+   - *Eight files, four drawings* (the implementer's reading). The epic's box says "the seven
+     Silhouettes"; its listing makes eight, three roles by two sexes, a Banner and a chest. The three
+     roles' Silhouettes of a sex are the same drawing, each in its own folder, so a role's pictures can
+     come without touching another's.
+2. **The Silhouettes** (DL-125 item 12, DL-126 item 1; the drawings the implementer's).
+   - *The colours*, sampled from the owner's two pictures in Chromium: the paper at its corners is
+     241–245, 234–238, 213–222, so the cream is `#f3ecdb`; the drawing's middle tone is 84, 81, 76 and
+     104, 105, 100, so the graphite is `#5a5752`. Each Silhouette is a rectangle of the cream and one
+     path of the graphite: one form, no interior, no text.
+   - *The shapes.* A Portrait's is 30 × 40, a head and shoulders, the eyes' line a third of the way
+     down as in the pictures; the female's has shoulder-length hair and a neck, the male's a head and
+     broad shoulders. The Banner's is 20 × 30, hanging from a rod by a cord, with a swallowtail. The
+     Item's is 20 × 20, a chest with a domed lid and a hasp.
+   - *Their sizes:* 386 bytes the female Portrait's, 306 the male's, 231 the Banner's and 229 the
+     chest's, each with its closing newline; 2,536 bytes on disk for the eight.
+   - *Redrawn once.* The first female Silhouette's hair fell to the shoulders' width, and at 80px it
+     read as a headstone. Its hair now ends above the shoulders, which show beneath it.
+3. **The build** (`web/vite.config.ts`).
+   - *`assetsInlineLimit`* is a function: a file named `silhouette.svg` of at most 1,024 bytes is inlined
+     into the one script as a `data:` URL, and nothing else is, however small. So every picture is a
+     hashed file beside the script in `dist/assets/`, and a Silhouette over 1 kB would be a file rather
+     than slip into the script; `src/media.test.ts` refuses it first.
+   - *How a picture is addressed* (measured). The IIFE resolves a picture against its own script's
+     address, `new URL('<name>-<hash>.webp', document.currentScript.src)`, so it is the page's own folder
+     over `file://` and its own origin when served: principle 12 as DL-125 item 1 reads it.
+   - *The comment* about "no asset type" now says what the build does with `content/` and `media/`.
+   - *`scripts/check-bundle.mjs`* is unchanged in what it checks. Its comment names the pictures as the
+     page's own files: a `data:` URL whose SVG names only its namespace, which the allow-list already
+     holds, and a relative file, neither a URL literal. A picture's bytes are not read.
+   - *The deploy* is unchanged: it uploads `dist/` whole, pictures included.
+4. **The catalogue** (`web/src/media.ts`; its shape the implementer's).
+   - `import.meta.glob('../../media/**/*.{svg,webp}')`, eager, as URLs, keyed by the path under
+     `media/`.
+   - `mediaCatalogue(files)` answers what each place shows, `{ silhouette, picture }`, the picture `null`
+     where none exists: `portrait(role, sex, portraitKey)` looks for `<portraitKey>.webp` in the role's
+     folder of that sex, so a key of the other sex or another role finds nothing; `banner(guild)` is the
+     Silhouette for every Guild (DL-125 item 7); `item(definitionKey)` looks for `<definitionKey>.webp`.
+     The page's `media` is the catalogue of `media/` as built.
+   - A view names what a picture stands for, never a file.
+5. **The components** (`web/src/views/pictures.tsx`).
+   - Each draws its Silhouette, with the picture over it once it loads, hidden until then. When the
+     picture has loaded the Silhouette is dropped; when it fails the picture is, and the Silhouette
+     stays. A new picture starts again.
+   - `<Portrait role sex portraitKey name>`: a `<figure>` 3 × 4. Its picture's alt text is "Portrait of
+     {name}", and a Silhouette's is empty (DL-125 item 2). While only the Silhouette stands in it, the
+     figure is hidden from screen readers too, so it is not announced as an empty figure (the
+     implementer's).
+   - `<GuildBanner guild large?>` and `<ItemPicture definitionKey>`: hidden from screen readers, their
+     alt text empty.
+   - *Sizes* (the implementer's, to DL-125 item 2's): a Portrait 5rem wide under 600px and 7.5rem from
+     600px; a Banner 0.8em × 1.2em, a line of its title tall, and 2rem × 3rem on a Guild's own page; an
+     Item's picture 1.75rem square. Each is set off the page by a hairline, and carries the cream in
+     both schemes, as the pictures will.
+   - *Beside a title* (`.titled`): the Banner stands beside the title's first line, however many lines
+     the name takes; the large one beside the whole of it. The first screenshots had a Banner centred
+     on a three-line title, midway down it.
+   - *Beside who they are* (`.person`): the Portrait at the left of the name and what follows it.
+6. **What the selectors give** (the fields the implementer's; the epic's `sex`, `portraitKey` and
+   `definitionKey`).
+   - *A Guildmaster* (`GuildmasterView`): `guildId`, `sex` and `portraitKey`. The key is read by
+     `portraitKeyOf` (`state/names.ts`), the one place that reads it: a string held as `portraitKey`
+     on the Guildmaster, else `null`. No save holds one before schema 5, so all are `null`; v1.1.2-S3's
+     field fills it with no change here. A test puts a key on a Guildmaster and reads it back.
+   - *A Hero* (`HeroPageView`): `sex`, and `portraitKey` always `null`, since no Hero has a picture in
+     v1.1.2 (DL-125 item 4).
+   - *Items*: `definitionKey` and `unique` on `HeldForSale`, on a Hero's Gear rows (`null` and `false`
+     in an empty slot) and on `GearChoice`, the Equip rows; `unique` on `StoresRow`, which had the key.
+     Only a Unique Item shows a picture, the chest's Silhouette while it has none; a common Item shows
+     none (DL-125 item 8; `unique` is the implementer's addition, so a view need not read content).
+   - *The Banners*: `guildId` on `HeaderView` and `RailView`.
+   - *The History* (`HistoryView`): `banner`, the Guild's id when the History is a Guild's; and
+     `portrait`, `{ role, sex, portraitKey }` for a Guildmaster's or a Hero's the world holds, else
+     `null`.
+7. **Where** (DL-125 items 2, 7 and 8).
+   - *Portraits:* `GuildmasterDetails` (`guildmaster.tsx`), so the Guildmaster view and each Guild's
+     page; a Hero's page (`hero-page.tsx`); a Guildmaster's History (`history.tsx`).
+   - *A History's Portrait* (the implementer's reading). A Hero the world holds opens their page in
+     the History, which has its own. A Hero gone from the world has no row, and no History entry gives
+     a sex, so their History has none. A Patron's has none until v1.1.2-S3, as the epic says.
+   - *Banners:* the status bar's `h1`, the rail's heading, a Guild's page (the large one),
+     "{Name}, Guildmaster of {Guild}", and "The History of {Guild}" for any Guild. Each title keeps its
+     words: the name is in a `span` beside the Banner, so a heading's accessible name is unchanged.
+   - *Items:* before a Unique Item's name in the Stores, the Market's Sell, a Hero's Gear and the Gear
+     the Guild holds.
+   - `Heading` (`section.tsx`) takes a class, for `titled`.
+8. **The test picture, and the `file://` spec** (the mechanism the implementer's).
+   - *The picture:* `web/e2e/fixtures/media/items/barrow-kings-blade.webp`, 64 × 64, a graphite stroke
+     on the cream, drawn to a canvas in Chromium and written as WebP at 80: 850 bytes. An Item's picture
+     is the one a game can show before a Guildmaster has a key.
+   - *Kept out of `media/`.* `vite build --mode file-spec` adds a plugin that reads
+     `e2e/fixtures/media.ts` wherever the page imports `src/media.ts`: the page's catalogue with the test
+     pictures added, laid out as `media/` is. No other build has the plugin, so `dist/` and the deploy
+     never hold the picture, and the unit tests read `media/` alone.
+   - *The spec* (`web/e2e/file.spec.ts`, the Playwright project `file`, once, at 1280px; the three
+     width projects ignore it).
+     - `dist/index.html` over `file://`: a game started, the status bar's Banner and the Guildmaster's
+       Portrait each a `data:` URL, loaded. Beside the script, `dist/assets/` holds only hashed
+       pictures; before v1.1.2-S4, none.
+     - The page built again in `file-spec` mode into a temporary folder: its `assets/` holds the script
+       and `barrow-kings-blade-<hash>.webp`, and the bundle gate passes on it. Over `file://`, a game is
+       exported, given the blade in its Holding and loaded back through the page's own controls; the
+       Stores' row draws the picture from `file:///…/assets/barrow-kings-blade-<hash>.webp`, it loads,
+       and the Silhouette under it is gone.
+   - *The box* "`dist/` holds the pictures as hashed files beside the one script" is ticked on this
+     proof: `media/` holds no picture until v1.1.2-S4, and the same build puts the test's there.
+9. **The tests.**
+   - `src/media.test.ts`: the folder read from disk; names in lower case and hyphens; only the eight
+     folders, each with its Silhouette; SVG Silhouettes and WebP pictures only; each Silhouette one
+     graphite form on the cream, its aspect, and at most 1,024 bytes; an Item's picture named by an
+     Item's content key (any Item's, as the epic says, since Common Items' pictures are DL-125 item 8's
+     later); the catalogue holding every file, and its lookups. With a misnamed file, a PNG and a key no
+     Item has put in, it failed and named each.
+   - `src/views/pictures.test.tsx`: each component's layers, alt text and loading, failing and hidden
+     states, over a catalogue with two made-up pictures; then each place in the page, through its own
+     controls, with its picture and alt text: "Portrait of Ada Vell" once a key is put on her.
+   - The selectors' tests for each field (`selectors`, `world-views`, `trade-views`, `stores`,
+     `digest`, `history`); `bundle.test.ts`: the build inlines exactly as many `data:` SVGs as `media/`
+     has Silhouettes, and holds nothing else beside the script but hashed pictures.
+   - `e2e/layout.spec.ts`: at 360, 820 and 1280, the Guildmaster's header, a Hero's page's and a Rival's
+     Guildmaster's, each Portrait 80 × 107 or 120 × 160 and before the name, its top level with it; the
+     Banners 2 × 3 before their titles; no sideways scroll and every control 44px.
+   - `state/game.test-support.ts` gains `carryingUnique`.
+10. **The script's size**, against `v1.1.1`'s as S1 left it (649.58 kB, 185.14 kB gzipped): 658.35 kB,
+    187.42 kB gzipped, 8.77 kB more and 2.28 kB gzipped. Of that, the eight Silhouettes are 3,320 bytes
+    as `data:` URLs and the stylesheet's part 982 bytes; the rest, some 4.5 kB, is the components, the
+    catalogue with its eight paths, the selectors' fields and the views. The test build's script is a
+    few hundred bytes larger, with its picture's address and the plugin's catalogue.
+11. **The screenshots.** Every place a picture goes, at 360 × 800, 820 × 1180 and 1280 × 800, in the
+    light and the dark scheme, full page, from `dist/index.html` over `file://` on seed `e2e-shots`,
+    with the Barrow King's blade held and the Lantern of Stannary on the first Hero: Guild › Home, the
+    Guildmaster, a Hero's page, a Rival's page unfolded, the Guild's History, the Guildmaster's History,
+    the Stores and the Market. 48 files, kept out of git in the scratchpad's `v112-s2-shots\`, with the
+    script that took them, `shots.mjs`. None scrolls sideways, and no page error was logged.
+    - *Fixed from them:* the female Silhouette (item 2) and a Banner on a long title (item 5). They were
+      taken again after.
+    - *Seen and left:* the Sell's table scrolls in its box at 1280px as before, and a long Unique Item's
+      name wraps under its picture there; the Silhouettes stand as cream boxes on the dark page, as the
+      pictures will.
+12. **The final checks**, on the last commit's tree:
+    - `npm run lint`: clean. `npm run typecheck`: clean.
+    - `npm test`: 3,508 tests in 151 files. Three timed out under the suite's load, and all three pass
+      alone (117 tests): `harness/src/succession.test.ts`, `engine/src/create.test.ts` and
+      `web/src/state/reducer.test.ts`'s fast forward in steps, the known ones.
+    - `npm run e2e -w web`: the build, one script of 658.35 kB (187.42 kB gzipped), "check-bundle: 2 built
+      files, no network or filesystem reference"; 69 runs, all passing: the 63 before, the new layout
+      test at three widths, and the `file` project's three.
+
+**Consequences.**
+- *Play and saves are unchanged:* no rule, draw, schema, content or `configVersion` moves.
+- *For v1.1.2-S3:* `Guildmaster.portraitKey` is read by `portraitKeyOf` as it stands, and a Patron's
+  sex gives `HistoryView.portrait` its Patron and `<Portrait role="patron">`.
+- *For v1.1.2-S4:* the owner's pictures go in `media/portraits/guildmasters/{female,male}/`, found by
+  their keys with no change to a view, and `media.test.ts` holds their names. The `file://` spec can then
+  see one in `dist/` itself, and the test picture may go.
+- *Tests:* 3,471 to 3,508, in 149 files to 151. The browser specs, 63 runs to 69.
+
+**Actioned in:** `media/` (new); `web/vite.config.ts`, `web/playwright.config.ts`,
+`web/scripts/check-bundle.mjs` (comment); `web/src/media.ts` and `media.test.ts` (new),
+`web/src/bundle.test.ts`, `web/src/styles.css`; `web/src/state/` (`names.ts`, `selectors.ts`,
+`world-views.ts`, `trade-views.ts`, `stores.ts`, `digest.ts`, `history.ts`, `game.test-support.ts` and
+the tests named); `web/src/views/` (`pictures.tsx` and `pictures.test.tsx` new, `guildmaster.tsx`,
+`hero-page.tsx`, `history.tsx`, `guilds.tsx`, `rail.tsx`, `status-bar.tsx`, `stores.tsx`, `market.tsx`,
+`section.tsx`); `web/e2e/` (`file.spec.ts`, `fixtures/` new, `layout.spec.ts`);
+`docs/planning/epics/v1.1.2-release.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
