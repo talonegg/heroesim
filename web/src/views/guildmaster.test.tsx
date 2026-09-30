@@ -69,6 +69,8 @@ describe('the Guildmaster view (M9-F2)', () => {
       if (guildmaster === undefined || patron === undefined) throw new Error('no Guildmaster or Patron');
       guildmaster.traits = ['thrifty', 'mistrusts-magic'] as never;
       guildmaster.birthplace = 'Harrowgate';
+      // Written as they enter play since v1.1.2-S5: an older save may hold one empty, which shows none.
+      guildmaster.appearance = '';
       guildmaster.biography = 'Once a quartermaster of the river levies.';
       guildmaster.regard[patron.id] = { value: 8, since: 0, reason: 'test' };
     });

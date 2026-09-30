@@ -4,6 +4,7 @@ import { content } from '../content';
 import { capitalised } from './names';
 import type { NewGame } from './reducer';
 import {
+  descriptionWritable,
   guildmasterPreviewView,
   portraitChoices,
   portraitPick,
@@ -12,6 +13,7 @@ import {
   setupRefusalWords,
   traitPicksView,
   unseededWords,
+  writtenDescription,
   type SetupFields,
 } from './setup';
 
@@ -298,5 +300,49 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
     expect(setupRefusalWords(play)).toBeNull();
     expect(made('s', { ...fields, guildmasterPortraitKey: 'gm-male-01' })).toMatchObject({ sex: 'male', portraitKey: 'gm-male-01' });
     expect(setupRefusalWords({ ...play, guildmasterSex: 'female' })).toBe("That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female.");
+  });
+});
+
+// v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again", the engine's `describeGuildmaster` for
+// the Guildmaster the form makes, whose facts are `previewGuildmaster`'s.
+describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", () => {
+  const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+
+  function made(seed: string, setup: SetupFields) {
+    const { world } = createWorld(seed, { ...setup, createdAt: '' }, { config: defaultConfig, content }).document;
+    const guild = Object.values(world.guilds).find((each) => each.controller.kind === 'player');
+    return guild === undefined ? undefined : { guild, guildmaster: world.guildmasters[guild.guildmasterId] };
+  }
+
+  test('writes, with n 0, what "Start the game" writes for the three left blank, for the Guildmaster the seed draws, over many seeds', () => {
+    for (let n = 0; n < 40; n += 1) {
+      const seed = `form-written-${n}`;
+      for (const setup of [fields, { ...fields, guildmasterSex: 'male' as const, guildmasterAge: 44 }, { ...fields, backgroundKey: 'breakaway' }]) {
+        const written = writtenDescription(setup, seed, 0);
+        const guildmaster = made(seed, setup)?.guildmaster;
+        if (written === null || guildmaster === undefined) throw new Error(`${seed}: nothing written`);
+        expect(written.texts).toEqual({ birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography });
+        expect(written.words).toBe(`Written for a ${guildmaster.sex} Guildmaster of ${guildmaster.ageAtEntry}. Change them as you like.`);
+      }
+    }
+  });
+
+  test("with the owner's pictures mapped, the Appearance is the Portrait's narrative; \"Again\" writes the rest anew", () => {
+    const first = writtenDescription(fields, 'again-seed', 0);
+    const again = [1, 2, 3, 4].map((n) => writtenDescription(fields, 'again-seed', n));
+    const sex = made('again-seed', fields)?.guildmaster?.sex ?? 'female';
+    const narrative = content.portraitAppearances.portraits[`gm-${sex}-01`]?.narrative;
+    for (const each of [first, ...again]) expect(each?.texts.appearance).toBe(narrative);
+    expect(new Set([first, ...again].map((each) => each?.texts.biography)).size).toBeGreaterThan(3);
+    expect(writtenDescription(fields, 'again-seed', 3)).toEqual(again[2]);
+  });
+
+  test('reads neither name nor any text typed, trims the seed, and writes nothing for a blank seed or a setup the engine refuses', () => {
+    const typed = { ...fields, guildmasterName: '', guildmasterBirthplace: 'x'.repeat(99), guildmasterBiography: 'Mine.' };
+    expect(writtenDescription(typed, ' seed-a ', 1)).toEqual(writtenDescription(fields, 'seed-a', 1));
+    expect(writtenDescription(fields, '  ', 0)).toBeNull();
+    expect(writtenDescription({ ...fields, guildmasterTraitKeys: ['well-liked'] }, 'seed-a', 0)).toBeNull();
+    expect(descriptionWritable({ ...fields, guildmasterTraitKeys: ['well-liked'] })).toBe(false);
+    expect(descriptionWritable(typed)).toBe(true);
   });
 });

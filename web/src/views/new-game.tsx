@@ -10,17 +10,24 @@
 // Guildmaster", closed: an optional sex and age, a Portrait (v1.1.2-S4), the Traits chosen within the
 // Trait budget, and the Birthplace, Appearance and Biography. The sex, the age, the Portrait and the
 // Traits are each drawn from the seed when left unset, and the form shows what the seed draws, as it
-// follows the Seed field; a descriptive Attribute left blank stays empty. Each Trait says what it
-// does, what it costs and what it excludes, and how it stands against those chosen; the budget left
-// moves as the player picks. Every number, bound, judgement and draw comes from `state/setup.ts`, the
-// engine's own check (`setupRefusal`), sum and preview (`previewGuildmaster`): nothing here computes
-// a rule. A setup the engine would refuse cannot be started, and its sentence stands beside the
+// follows the Seed field. Each Trait says what it does, what it costs and what it excludes, and how it
+// stands against those chosen; the budget left moves as the player picks. Every number, bound,
+// judgement, draw and text written comes from `state/setup.ts`, the engine's own check
+// (`setupRefusal`), sum, preview (`previewGuildmaster`) and writing (`describeGuildmaster`): nothing
+// here computes a rule. A setup the engine would refuse cannot be started, and its sentence stands beside the
 // button, once a field has been touched; before that, a hint asks for the names (DL-109 item 2, Q22).
 //
 // The Portrait (DL-125 item 3): "Drawn from the seed", then a thumbnail of each Guildmaster picture of
 // the sex, each a radio button with its picture as its label. With the sex drawn, every sex's pictures
 // are offered, and choosing one chooses its sex, which the Sex field shows, until the Portrait is drawn
 // again; changing the sex clears a Portrait of another.
+//
+// The Birthplace, Appearance and Biography (v1.1.2-S5, DL-125 item 6): "Write them for me" fills the
+// three fields for the Guildmaster the form makes, their sex and age chosen or drawn, the Background
+// and the Traits, and "Again" writes them anew; the fields stay the player's to edit, and what they
+// hold at "Start the game" is what is kept. With the seed blank, the button makes one up first, as the
+// click would, and puts it in the Seed field. A field left blank is written by the engine when the
+// game starts, as every Guildmaster's is.
 
 import type { DescriptiveAttribute, PortraitKey, Sex, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
@@ -29,12 +36,14 @@ import { readableSeed } from '../seed';
 import type { GameAction, NewGame as NewGamePlay, PlayRejection } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import {
+  descriptionWritable,
   guildmasterPreviewView,
   portraitChoices,
   portraitPick,
   setupFormChoices,
   setupNotice,
   traitPicksView,
+  writtenDescription,
   type PortraitPick,
   type TraitPick,
 } from '../state/setup';
@@ -85,6 +94,9 @@ export function NewGame({
   const [traitKeys, setTraitKeys] = useState<readonly TraitKey[] | null>(null);
   const [kept, setKept] = useState<readonly TraitKey[]>([]);
   const [texts, setTexts] = useState<Texts>({ birthplace: '', appearance: '', biography: '' });
+  // How many times the texts have been written again since "Write them for me", and for whom, in words.
+  const [again, setAgain] = useState<number | null>(null);
+  const [writtenFor, setWrittenFor] = useState<string | null>(null);
   // Whether any field has been changed: until then, the form gives a hint, not a refusal.
   const [touched, setTouched] = useState(false);
   const noticeId = useId();
@@ -106,6 +118,8 @@ export function NewGame({
     };
   }, [guildName, guildmasterName, backgroundKey, sex, portraitKey, age, traitKeys, texts]);
   const notice = useMemo(() => setupNotice({ kind: 'newGame', seed: '', createdAt: '', ...setup }, touched), [setup, touched]);
+  // Whether the engine keeps the setup but for its names and texts, so there is a Guildmaster to write for.
+  const writable = useMemo(() => descriptionWritable(setup), [setup]);
   const picks = useMemo(() => (traitKeys === null ? null : traitPicksView(traitKeys)), [traitKeys]);
   // The pictures of the sex chosen; every sex's while it is drawn, or is only the Portrait's.
   const offered = sex === '' || sexOfPortrait ? null : sex;
@@ -164,6 +178,20 @@ export function NewGame({
       setSex('');
       setSexOfPortrait(false);
     }
+  }
+
+  /**
+   * The three fields written for the Guildmaster the form makes (v1.1.2-S5): `n` 0 for "Write them for
+   * me", one more for each "Again". With the seed blank, one is made up first and shown in its field.
+   */
+  function write(n: number): void {
+    const writeSeed = seed.trim() === '' ? readableSeed(Math.random) : seed;
+    if (writeSeed !== seed) setSeed(writeSeed);
+    const written = writtenDescription(setup, writeSeed, n);
+    if (written === null) return;
+    setTexts(written.texts);
+    setAgain(n);
+    setWrittenFor(written.words);
   }
 
   function toggle(key: TraitKey): void {
@@ -313,6 +341,23 @@ export function NewGame({
               )}
             </fieldset>
 
+            <div className="setup__write">
+              <p className="note">A few words about your Guildmaster. Any left blank are written when the game starts.</p>
+              <div className="actions">
+                <button type="button" disabled={!writable} onClick={() => write(0)}>
+                  Write them for me
+                </button>
+                {again === null ? null : (
+                  <button type="button" className="button--quiet" disabled={!writable} onClick={() => write(again + 1)}>
+                    Again
+                  </button>
+                )}
+              </div>
+              <p className="note" data-testid="written-for" aria-live="polite">
+                {writtenFor}
+              </p>
+            </div>
+
             {choices.attributes.map(({ attribute, label, boundWords }) => (
               <Field key={attribute} label={label} hint={boundWords}>
                 {(id, described) =>
@@ -330,7 +375,7 @@ export function NewGame({
                       id={id}
                       name={textFields[attribute]}
                       value={texts[attribute]}
-                      rows={attribute === 'biography' ? 4 : 2}
+                      rows={attribute === 'biography' ? 7 : 4}
                       aria-describedby={described}
                       onChange={(event) => setTexts({ ...texts, [attribute]: event.target.value })}
                     />

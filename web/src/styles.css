@@ -936,6 +936,20 @@ p.setup-preview {
   margin: 0.15rem 0;
 }
 
+/* "Write them for me" and "Again", above the three texts they fill (v1.1.2-S5). */
+.setup__write {
+  max-width: 36rem;
+  margin-top: 0.5rem;
+}
+
+.setup__write .note {
+  margin: 0.25rem 0;
+}
+
+.setup__write .actions {
+  margin: 0.35rem 0;
+}
+
 /* The Portrait: "Drawn from the seed", then a thumbnail of each picture, each with its radio button (v1.1.2-S4). */
 .setup__portraits {
   margin-top: 0.25rem;

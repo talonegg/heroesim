@@ -250,14 +250,18 @@ describe('guildmasterView', () => {
       { ...setup, guildmasterBirthplace: 'Harrowgate', guildmasterBiography: 'Once a quartermaster of the river levies.' },
       deps,
     ).document;
+    // Every Guildmaster's blanks are written as they enter play since v1.1.2-S5: an older save may hold one empty.
+    const player = playerGuild(document.world);
+    const mine = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
+    if (mine !== undefined) mine.appearance = '';
 
     expect(guildmasterView(document)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Biography']);
     expect(guildmasterView(document)?.attributes.slice(2)).toEqual([
       ['Birthplace', 'Harrowgate'],
       ['Biography', 'Once a quartermaster of the river levies.'],
     ]);
-    // A Rival's are empty, so it shows none.
-    expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age']);
+    // A Rival's are written as they enter play (v1.1.2-S5), so it shows all three.
+    expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Appearance', 'Biography']);
   });
 
   test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: the player's drawn from the owner's pictures of their sex, and every Rival's the Silhouette", () => {

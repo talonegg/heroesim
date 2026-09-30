@@ -102,7 +102,9 @@ DL-102). By DL-125 the setup form writes all three from content on request, for 
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
 Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
 their Portrait shows: a mapped picture's narrative is taken as it is, and no Appearance describes
-clothing (DL-126, DL-127) (to be built; until then a drawn Guildmaster's are empty).
+clothing (DL-126, DL-127). Built in v1.1.2-S5 (DL-132): the Birthplace, Appearance and Biography
+are written from `content/descriptions.json`, by sex and age band, the Biography with the Guild's
+Background and the Traits, and the setup form's "Write them for me" and "Again" fill the fields.
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:

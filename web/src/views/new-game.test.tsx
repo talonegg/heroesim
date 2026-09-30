@@ -5,7 +5,7 @@ import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
-import { setupFormChoices } from '../state/setup';
+import { setupFormChoices, writtenDescription } from '../state/setup';
 import { NewGame } from './new-game';
 import { openView } from './page.test-support';
 
@@ -424,6 +424,100 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
   });
 });
 
+// v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again" fill the three texts, which stay the player's.
+describe("the Guildmaster's Birthplace, Appearance and Biography written in the new-game form (v1.1.2-S5)", () => {
+  function field(label: 'Birthplace' | 'Appearance' | 'Biography'): HTMLInputElement | HTMLTextAreaElement {
+    return within(setup()).getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
+  }
+
+  function texts(): { birthplace: string; appearance: string; biography: string } {
+    return { birthplace: field('Birthplace').value, appearance: field('Appearance').value, biography: field('Biography').value };
+  }
+
+  function writeButton(name: 'Write them for me' | 'Again'): HTMLButtonElement {
+    return within(setup()).getByRole('button', { name }) as HTMLButtonElement;
+  }
+
+  function writtenFor(): string {
+    return within(setup()).getByTestId('written-for').textContent ?? '';
+  }
+
+  test('"Write them for me" fills the three fields for the Guildmaster the seed draws, as the engine writes them, and says for whom', () => {
+    form();
+    named();
+    expect(texts()).toEqual({ birthplace: '', appearance: '', biography: '' });
+    expect(within(setup()).queryByRole('button', { name: 'Again' })).toBeNull();
+
+    fireEvent.click(writeButton('Write them for me'));
+
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 0)?.texts);
+    const [drawn = ''] = [...within(setup()).getByTestId('guildmaster-preview').querySelectorAll('p')].map((line) => line.textContent ?? '');
+    const [, sex = '', age = ''] = /^Drawn: (Female|Male), (\d+)$/.exec(drawn) ?? [];
+    expect(writtenFor()).toBe(`Written for a ${sex.toLowerCase()} Guildmaster of ${age}. Change them as you like.`);
+  });
+
+  test('"Again" writes them anew, each time another, and "Write them for me" writes the first again', () => {
+    form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    fireEvent.click(writeButton('Write them for me'));
+    const first = texts();
+
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 1)?.texts);
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 2)?.texts);
+    expect(texts().biography).not.toBe(first.biography);
+
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual(first);
+  });
+
+  test('writes for the sex and age chosen, and the fields stay editable: what they hold at the start is kept', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '47' } });
+    fireEvent.click(writeButton('Write them for me'));
+
+    expect(writtenFor()).toBe('Written for a male Guildmaster of 47. Change them as you like.');
+    // The core maps the male picture the seed draws for a male: its narrative is the Appearance.
+    expect(field('Appearance').value).toMatch(/^A weathered, deeply lined face/);
+    fireEvent.change(field('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    fireEvent.click(start());
+
+    expect(play.mock.calls[0]?.[0]).toMatchObject({
+      guildmasterSex: 'male',
+      guildmasterAge: 47,
+      guildmasterBirthplace: texts().birthplace,
+      guildmasterAppearance: texts().appearance,
+      guildmasterBiography: 'Kept the toll bridge for twenty years.',
+    });
+  });
+
+  test('with the seed blank, makes one up as the click would, shows it, and writes for it', () => {
+    form();
+    named();
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: '  ' } });
+    fireEvent.click(writeButton('Write them for me'));
+
+    const seed = (screen.getByLabelText('Seed') as HTMLInputElement).value;
+    expect(seed.trim()).not.toBe('');
+    expect(texts()).toEqual(writtenDescription({ guildName: 'The Lantern', guildmasterName: 'Ada Vell' }, seed, 0)?.texts);
+  });
+
+  test('cannot write while the engine would refuse the rest of the setup, whose sentence stands', () => {
+    form();
+    named();
+    chooseTraits();
+    fireEvent.click(trait('Well liked'));
+
+    expect(writeButton('Write them for me').disabled).toBe(true);
+    expect(refusal()).toMatch(/budget/);
+  });
+});
+
 // The journey (v1.1.2-S4): from the form's Portrait, or its preview, to the Guildmaster view.
 describe('from the new-game form to the Guildmaster view (v1.1.2-S4)', () => {
   async function begin(): Promise<void> {
@@ -466,5 +560,21 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4)', () => {
     expect(traits).toBe(`Drawn Traits: ${names.length === 0 ? 'None' : names.join(' and ')}`);
     expect(portrait).toBe(`Drawn Portrait: ${sexWord} Portrait 1`);
     expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-01`).picture);
+  });
+
+  test('the texts written, and one then changed, are the ones the Guildmaster view shows (v1.1.2-S5)', async () => {
+    render(<App />);
+    named();
+    fireEvent.click(within(setup()).getByRole('button', { name: 'Write them for me' }));
+    fireEvent.click(within(setup()).getByRole('button', { name: 'Again' }));
+    const birthplace = (within(setup()).getByLabelText('Birthplace') as HTMLInputElement).value;
+    const appearance = (within(setup()).getByLabelText('Appearance') as HTMLTextAreaElement).value;
+    fireEvent.change(within(setup()).getByLabelText('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    await begin();
+
+    const terms = [...openView('Guildmaster').querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(terms).toContainEqual(['Birthplace', birthplace]);
+    expect(terms).toContainEqual(['Appearance', appearance]);
+    expect(terms).toContainEqual(['Biography', 'Kept the toll bridge for twenty years.']);
   });
 });

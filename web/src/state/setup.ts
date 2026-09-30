@@ -7,10 +7,13 @@
 //
 // Since v1.1.2-S4 (DL-125 items 3 and 6): the Guildmaster pictures offered for the Portrait, and the
 // preview of what the seed draws, which is the engine's `previewGuildmaster`, the function
-// `createWorld` makes the Guildmaster by, so the form names what "Start the game" makes.
+// `createWorld` makes the Guildmaster by, so the form names what "Start the game" makes. Since
+// v1.1.2-S5: the Birthplace, Appearance and Biography written for that Guildmaster by the engine's
+// `describeGuildmaster`, for "Write them for me" and "Again".
 
 import {
   defaultConfig,
+  describeGuildmaster,
   portraitsOf,
   previewGuildmaster,
   setupRefusal,
@@ -18,6 +21,7 @@ import {
   type ContentSet,
   type DescriptiveAttribute,
   type GameConfig,
+  type GuildmasterDescription,
   type PortraitKey,
   type Sex,
   type TraitKey,
@@ -302,4 +306,52 @@ export function guildmasterPreviewView(
     traitsWords: drawn.traits ? `Drawn Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.traits, key)))}` : null,
     portrait: drawn.portrait ? { sex, portraitKey, words: `Drawn Portrait: ${pictured}` } : null,
   };
+}
+
+/** The three texts written for the Guildmaster, and for whom, in words. */
+export interface WrittenDescription {
+  texts: GuildmasterDescription;
+  /** `Written for a female Guildmaster of 34. Change them as you like.` */
+  words: string;
+}
+
+/** `setup` with neither name nor any text: what the Guildmaster's facts are drawn from. */
+function factsOf(setup: SetupFields): SetupFields {
+  const facts: SetupFields = { ...setup, guildName: 'Guild', guildmasterName: 'Guildmaster' };
+  delete facts.guildmasterBirthplace;
+  delete facts.guildmasterAppearance;
+  delete facts.guildmasterBiography;
+  return facts;
+}
+
+/**
+ * The Birthplace, Appearance and Biography "Write them for me" (`n` 0) and "Again" (each `n` after)
+ * put in the form (v1.1.2-S5, DL-125 item 6): the engine's `describeGuildmaster` for the Guildmaster
+ * `setup` makes from `seed`, its sex, age, Traits and Portrait chosen or drawn, and its Guild's
+ * Background, as the engine's `previewGuildmaster` gives them, so the form computes no rule
+ * (ADR-0007). The texts the form holds, and the names, are not read: the writing is the same
+ * whatever is typed there. `null` when the engine would refuse the rest of the setup, or the seed is
+ * blank, since then there is no Guildmaster to write for.
+ */
+export function writtenDescription(
+  setup: SetupFields,
+  seed: string,
+  n: number,
+  set: ContentSet = content,
+  config: GameConfig = defaultConfig,
+): WrittenDescription | null {
+  const trimmed = seed.trim();
+  if (trimmed === '') return null;
+  const preview = previewGuildmaster({ ...factsOf(setup), createdAt: '' }, trimmed, { config, content: set });
+  if (preview === null) return null;
+  const texts = describeGuildmaster({ seed: trimmed, n, ...preview }, { content: set });
+  return { texts, words: `Written for a ${preview.sex} Guildmaster of ${preview.age}. Change them as you like.` };
+}
+
+/**
+ * Whether "Write them for me" can write for `setup`: the engine keeps the setup but for its names and
+ * texts, which the writing does not read (v1.1.2-S5). Otherwise the refusal's sentence stands.
+ */
+export function descriptionWritable(setup: SetupFields, set: ContentSet = content, config: GameConfig = defaultConfig): boolean {
+  return setupRefusal({ ...factsOf(setup), createdAt: '' }, { config, content: set }) === null;
 }
