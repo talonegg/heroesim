@@ -11,6 +11,7 @@ import { check } from './check.js';
 import { contentChecks, contentTexts, textChecks } from './content-checks.js';
 import { DraftError, Undone } from './errors.js';
 import { raiseContentVersion } from './content-version.js';
+import { editJson } from './json-edit.js';
 import { formatJson } from './json-format.js';
 import { analysisDir, datePattern, nextRun, runPattern, today } from './records.js';
 import { transaction } from './transaction.js';
@@ -67,7 +68,9 @@ export async function writeRun(root: string, json: unknown, options: { date?: st
     const written = [shown(root, report)];
     for (const field of Object.keys(runFiles) as RunField[]) {
       const file = path.join(analysisDir(root), run, runFiles[field]);
-      files.write(file, formatJson(json[field]));
+      // In the live file's layout where there is one, so the run differs from it only where it changes.
+      const live = path.join(root, 'content', runFiles[field]);
+      files.write(file, existsSync(live) ? editJson(readFileSync(live, 'utf8'), json[field]) : formatJson(json[field]));
       written.push(shown(root, file));
     }
     return { run, report: shown(root, report), files: written };
@@ -115,7 +118,9 @@ export async function apply(root: string, run: string): Promise<Applied> {
         const text = texts[field] ?? '';
         const current = existsSync(target) ? readFileSync(target, 'utf8') : null;
         if (current !== null && JSON.stringify(JSON.parse(current)) === JSON.stringify(JSON.parse(text))) continue;
-        files.write(target, text);
+        // The run's value written into the live file's own layout, whatever the run's (v1.1.3-S3), so
+        // `git diff` shows only what the run changes.
+        files.write(target, current === null ? text : editJson(current, JSON.parse(text)));
         changed.push(shown(root, target));
       }
       if (changed.length === 0) return { run, changed, contentVersion: null };

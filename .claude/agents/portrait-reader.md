@@ -26,7 +26,9 @@ the face.
 ## Task A: draft a row
 
 You are given the picture's path, its role (`guildmaster` or `hero`) and the sex its inbox folder
-says, where it has one.
+says, where it has one. You may be given an earlier reading of it, from a decision record: start
+from that row, keep each field the picture bears out and the rules allow, and where you depart
+from it, say so in that field's reason, naming the earlier value.
 
 Read each field from what the picture shows, and give the reason you see for it. Clothing, gear and
 the room behind the person may inform the Station, the Callings or Classes, and a hook; the

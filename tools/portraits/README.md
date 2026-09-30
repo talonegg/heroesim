@@ -135,7 +135,7 @@ any failure every file is put back as it was, and every file and folder it made 
 1. it converts each upload;
 2. it names each by `nextKey`, and registers it with the fingerprint of its WebP;
 3. it lists the key in `content/portraits.json`, and adds the row to
-   `content/portrait-appearances.json`;
+   `content/portrait-appearances.json`, each file keeping its layout (see **The content's layout**);
 4. it raises the content version in `content/src/parse.ts`, with a line in its comment, and the
    number `content/src/content.test.ts` pins;
 5. it runs the content's own checks (`@heroesim/content`) and `check`;
@@ -186,7 +186,8 @@ Writes an analysis run from the agents' draft. Nothing live changes.
 - **The draft:** `{ "date"?, "report", "portraits", "portraitAppearances", "descriptions" }`.
   - `report` is Markdown, and its heading `# Portrait analysis <run>` is added where it has none.
   - The other three are the recommended `portraits.json`, `portrait-appearances.json` and
-    `descriptions.json`, whole.
+    `descriptions.json`, whole. Each is written in the live file's layout, so it differs from it
+    only where it changes.
 - **A refusal.** A draft whose three files fail the content's own checks is refused before anything
   is written (exit 1), each problem named: a run that could not be applied is never written
   (v1.1.3-S3).
@@ -245,13 +246,29 @@ The text marks each change `+`, `-`, `~` or `↕`.
 
 Puts an analysis run's three files in place of the content's, as one transaction:
 
-1. it copies each file that differs, as written;
+1. it writes the run's value of each file that differs into the live file, keeping its layout;
 2. it raises the content version;
 3. it runs the content's checks and `check`.
 
 It is undone as a whole on any failure. A run that is the content already changes nothing.
 
 **JSON:** `{ "ok": true, "run", "changed": [...], "contentVersion": { "from", "to" } | null }`.
+
+## The content's layout
+
+The content's JSON is laid out by hand: the Features' values aligned, a sentence list opened out
+even where it would fit on a line, a role's picture lists on one line. `write-rows`, `write-run` and
+`apply` write a changed value into the file's own text (`src/json-edit.ts`), so `git diff` shows
+only what changed:
+
+- a value that is unchanged keeps its text, byte for byte, and the file its LF or CRLF line ends;
+- a member or item added to an object or list laid over several lines is laid out as the sibling
+  beside it: a new row as the rows, a new Feature aligned with the Features, a new sentence on its
+  own line. The line before it gains a comma, and nothing else changes;
+- any other value that changes is laid out as the tool lays out a new file: on one line where it
+  fits within 100 columns, and opened out two spaces deep where it does not.
+
+A run's files may be laid out any way: `apply` takes their value, not their text.
 
 ## Tests
 
@@ -260,6 +277,9 @@ It is undone as a whole on any failure. A run that is the content already change
 - **`chromium.test.ts`** converts and fingerprints the committed pictures, re-encoded and cropped.
 - **`write-rows.test.ts`** takes uploads into a scratch copy of the repository, made a git
   repository, and reads `git status` to prove a failure leaves it as it was.
+- **`json-edit.test.ts`** writes each content file unchanged, and adds a sentence, a Feature, a row
+  and a key, each changing only its own lines; `write-rows.test.ts` proves the same of `git diff`
+  after an intake and an apply.
 - **`corpus.test.ts`** counts the corpus as shipped and in a scratch copy, with a run's files in
   place of the content's, and diffs a run written through the command line.
 - **`owner.test.ts`** reads the owner's 40, from `HEROESIM_OWNER_PICTURES` or

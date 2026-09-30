@@ -63,6 +63,12 @@ For each upload going on, send `portrait-reader` Task A: the upload's path under
 its folder's sex, and the root. Fan out as `docs/agents/portraits.md` says: waves of 8, one picture
 to a call.
 
+**Earlier readings.** A decision record may already read some uploads, by what each shows rather
+than by its file: DL-134 item 8 reads four of the owner's 40. Find each one's upload by looking at
+the pictures with the Read tool, and send its reader that row too, as where the row starts. The
+report gives the earlier value beside each field that departs from it. The keys are those intake
+gives: a record's are provisional (DL-136 item 4).
+
 Done when: every upload going on has a draft, its `lengths` within the bounds.
 
 ## 5. Checks
@@ -124,7 +130,8 @@ npm run portraits -- write-rows <draft> --json
 
 - **Exit 0.** Note the keys given, the content version's change and the report's path.
 - **Exit 1** (`refused` or `undone`): nothing changed. Fix what each problem names in the draft,
-  and run it again.
+  and run it again. An upload the tool refuses as too large to fit takes no fix: take it out of the
+  draft, and list it in the report as left in the inbox, with the tool's words.
 
 Then `npm run portraits -- check`.
 

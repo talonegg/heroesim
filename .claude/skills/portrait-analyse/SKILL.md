@@ -43,7 +43,9 @@ folder, the owner's word), the root and its current row. Fan out in waves of 8.
 - A dispute on **sight** goes to `portrait-reader` Task A for a fresh reading of that field. Where
   both agree the row is wrong, the change is recommended; where they do not, it is listed for the
   owner and the row kept.
-- Each `anachronism` flag, and each `proposals` term, is collected.
+- Each `anachronism` flag, and each `proposals` term, is collected, together with the pictures the
+  intake reports under `docs/portraits/intake/` list as possibly anachronistic: every one of them
+  is listed in this report, whether or not the checker flags it again.
 
 Done when: every listed picture has the checker's verdict on every field, and every dispute is a
 recommended change or an item for the owner.

@@ -9,7 +9,7 @@ import { readContentVersion } from './content-version.js';
 import { DraftError, Undone } from './errors.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
-import { noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
+import { git, noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
 import { writeRows } from './write-rows.js';
 
 // `write-rows` and `apply` (v1.1.3-S2): each one transaction on a scratch copy of the repository,
@@ -38,6 +38,19 @@ function goodRow(dir: string, key = 'gm-male-01'): Record<string, unknown> {
 /** A row that breaks a content check: a narrative far past any bound. */
 function badRow(dir: string): Record<string, unknown> {
   return { ...goodRow(dir), narrative: 'A face. '.repeat(250) };
+}
+
+/** Lines added and removed in each changed file of a scratch repository, by `git diff --numstat`. */
+function numstat(dir: string): Record<string, [number, number]> {
+  return Object.fromEntries(
+    git(dir, 'diff', '--numstat')
+      .split('\n')
+      .filter(Boolean)
+      .map((line) => {
+        const [added, removed, file] = line.split('\t');
+        return [file ?? '', [Number(added), Number(removed)] as [number, number]];
+      }),
+  );
 }
 
 describe.skipIf(!chromiumInstalled())('write-rows', () => {
@@ -133,6 +146,15 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
         '?? media/portraits/guildmasters/male/gm-male-02.webp',
       ].sort(),
     );
+    // Each content file keeps its layout: the key joins its role's line, and the row is added below
+    // the last, whose closing brace alone gains a comma (a row copied from the one above may show as
+    // its lines added whole, the comma sliding with them).
+    const rowLines = Object.keys(row).length + 2;
+    const changed = numstat(dir);
+    expect(changed['content/portraits.json']).toEqual([1, 1]);
+    const [added, removed] = changed['content/portrait-appearances.json'] ?? [0, 0];
+    expect(added - removed).toBe(rowLines);
+    expect(removed).toBeLessThanOrEqual(1);
 
     // A second intake that day is its -2, and takes the next key.
     const second = upload(dir, committedFemale, 'media/inbox/guildmaster/b.webp');
@@ -251,6 +273,43 @@ describe('write-run and apply', () => {
     );
     // The same run again changes nothing.
     expect(await apply(dir, written.run)).toEqual({ run: '2026-10-02', changed: [], contentVersion: null });
+  });
+
+  test("apply keeps each file's layout: a run equal to the content in another layout changes nothing, and one sentence more changes only the lines about it", async () => {
+    const dir = scratch();
+    const same = await writeRun(dir, runDraft(dir, () => undefined), { date: '2026-10-02' });
+    for (const name of ['portraits.json', 'portrait-appearances.json', 'descriptions.json']) {
+      const file = path.join(dir, 'docs/portraits/analysis', same.run, name);
+      writeFileSync(file, JSON.stringify(JSON.parse(readFileSync(file, 'utf8')), null, 4));
+    }
+    expect(await apply(dir, same.run)).toMatchObject({ changed: [], contentVersion: null });
+    expect(git(dir, 'diff')).toBe('');
+
+    const more = await writeRun(
+      dir,
+      runDraft(dir, (files) => {
+        const closings = (files.descriptions as { biography: { temperClosings: Record<string, string[]> } }).biography.temperClosings;
+        closings.stern = [...(closings.stern ?? []), '{He} keeps {his} word, and expects the same of everyone.'];
+      }),
+      { date: '2026-10-02' },
+    );
+    // Through the command line, as the portrait-apply skill calls it.
+    let out = '';
+    expect(await run(['apply', more.run, '--root', dir, '--json'], { out: (text) => (out += text), err: () => undefined })).toBe(0);
+    expect(JSON.parse(out)).toMatchObject({ ok: true, run: more.run, changed: ['content/descriptions.json'] });
+    expect(numstat(dir)).toEqual({
+      'content/descriptions.json': [2, 1],
+      'content/src/content.test.ts': [1, 1],
+      'content/src/parse.ts': [2, 1],
+    });
+  });
+
+  test("write-run writes a run's files in the content's own layout, so each differs from it only where it changes", async () => {
+    const dir = scratch();
+    const written = await writeRun(dir, runDraft(dir, () => undefined), { date: '2026-10-02' });
+    for (const name of ['portraits.json', 'portrait-appearances.json', 'descriptions.json']) {
+      expect(readFileSync(path.join(dir, 'docs/portraits/analysis', written.run, name), 'utf8')).toBe(readFileSync(path.join(dir, 'content', name), 'utf8'));
+    }
   });
 
   test('apply of a run that breaks a check is undone, leaving the tree as it was', async () => {

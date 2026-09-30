@@ -17,7 +17,7 @@ import { contentChecks } from './content-checks.js';
 import { raiseContentVersion } from './content-version.js';
 import { convert } from './convert.js';
 import { fingerprint } from './fingerprint.js';
-import { formatJson } from './json-format.js';
+import { editJson } from './json-edit.js';
 import { datePattern, intakeDir, nextRun, today } from './records.js';
 import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, type Role, type Sex } from './registry.js';
 import { DraftError, Undone } from './errors.js';
@@ -161,8 +161,10 @@ export async function writeRows(root: string, json: unknown, chromium: Chromium,
         let registry = readRegistry(root);
         const portraitsFile = path.join(root, 'content', 'portraits.json');
         const appearancesFile = path.join(root, 'content', 'portrait-appearances.json');
-        const portraits = JSON.parse(readFileSync(portraitsFile, 'utf8')) as Record<string, Record<string, string[]>>;
-        const appearances = JSON.parse(readFileSync(appearancesFile, 'utf8')) as { portraits: Record<string, unknown> };
+        const portraitsText = readFileSync(portraitsFile, 'utf8');
+        const appearancesText = readFileSync(appearancesFile, 'utf8');
+        const portraits = JSON.parse(portraitsText) as Record<string, Record<string, string[]>>;
+        const appearances = JSON.parse(appearancesText) as { portraits: Record<string, unknown> };
         for (const picture of draft.pictures) {
           const source = path.resolve(root, picture.source);
           const converted = await convert(chromium, dataUrlOf(source), shown(root, source));
@@ -187,8 +189,9 @@ export async function writeRows(root: string, json: unknown, chromium: Chromium,
           });
         }
         files.write(registryPath(root), formatRegistry(registry));
-        files.write(portraitsFile, formatJson(portraits));
-        files.write(appearancesFile, formatJson(appearances));
+        // Each file keeps its own layout, so its diff is the key and the row added (v1.1.3-S3).
+        files.write(portraitsFile, editJson(portraitsText, portraits));
+        files.write(appearancesFile, editJson(appearancesText, appearances));
         version = raiseContentVersion(root, files, `the portrait tool's intake ${run} (\`docs/portraits/intake/${run}.md\`)`);
 
         const content = contentChecks(root);

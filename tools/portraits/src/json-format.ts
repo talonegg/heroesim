@@ -16,7 +16,11 @@ function compact(value: unknown): string {
   return JSON.stringify(value);
 }
 
-function format(value: unknown, indent: string, prefix: number): string {
+/**
+ * A value as the tool writes it, starting `prefix` columns into a line indented by `indent`: on that
+ * line where it fits within the width, and opened out two spaces deeper where it does not.
+ */
+export function format(value: unknown, indent: string, prefix: number): string {
   const flat = compact(value);
   if (indent.length + prefix + flat.length <= width || typeof value !== 'object' || value === null) return flat;
   const inner = `${indent}  `;
