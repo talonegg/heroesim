@@ -13164,6 +13164,90 @@ Unique Item); `docs/planning/epics/v1.1.2-release.md`; `docs/planning/epics/READ
 `docs/plan.md` §4; `docs/agents/ui-text.md`; `AGENTS.md`; `docs/images/portraits/`. The build
 waits for the owner's word.
 
+## DL-126 — DL-125's two open items answered: the owner's pictures set the style, and each picture's Appearance is mapped in a separate content file, `content/portrait-appearances.json`
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner. The file's format and
+shape are the agent's, as the owner asked for its recommendation.
+
+**Context.** DL-125 left two items open for the owner:
+- DL-125 item 12's reading, that the owner's two pictures set the style;
+- whether a Portrait could carry appearance words, so that a written Appearance does not
+  contradict the face shown.
+
+**Decision.**
+
+1. **The style** (the owner's: yes). DL-125 item 12's reading stands.
+   - *The pictures.* Every picture is a graphite drawing on cream paper, head and shoulders, with a
+     drawn interior behind. Later pictures follow the owner's two.
+   - *The Silhouettes.* Each is one graphite form on the same cream, with no interior. DL-125 item
+     11's plain backdrop is theirs alone.
+2. **Appearances mapped to pictures in a separate document** (the owner's).
+   - *The file* (the agent's). It is `content/portrait-appearances.json`, apart from
+     `content/portraits.json`, and it is JSON because:
+     - the engine writes the Appearance, and the engine reads content only. A file beside the
+       picture in `media/` would be out of the CLI's and the preview's reach;
+     - every content file is JSON, parsed and validated by the content package with no dependency.
+       YAML or Markdown would add a parser or give up the checks.
+   - *Its shape* (the agent's). A picture's key maps to the parts of the Appearance the picture
+     shows, each part to a phrase. The parts are the slots of `content/descriptions.json`'s
+     Appearance:
+     - `build`
+     - `face`
+     - `hair`
+     - `facialHair`
+     - `eyes`
+     - `mark`
+     - `dress`
+
+     For example, for the owner's two pictures (the words are the agent's reading, for the owner to
+     change):
+     ```json
+     {
+       "gm-male-01": {
+         "face": "a weathered, lined face scored by old scars",
+         "hair": "thick, unruly dark hair",
+         "facialHair": "a full beard",
+         "eyes": "hard, steady eyes",
+         "dress": "a worn leather coat with a satchel slung across it"
+       },
+       "gm-female-01": {
+         "face": "a strong-boned face with a composed, knowing look",
+         "hair": "long dark hair, worked into braids",
+         "eyes": "dark, shadowed eyes",
+         "mark": "an ornate clasp in her hair",
+         "dress": "mail under tooled leather, a buckled strap across it"
+       }
+     }
+     ```
+   - *How it is used* (the agent's).
+     - `describeGuildmaster` takes the Portrait's key.
+     - Each part the picture maps is written as mapped, and only the parts it leaves out, such as
+       `build`, which a head and shoulders cannot show, are drawn from `descriptions.json`.
+     - A part that would contradict a mapped one is never drawn. For example, no age band's greying
+       hair replaces the picture's hair.
+     - Without a Portrait, or with a Silhouette, every part is drawn.
+   - *Checks* (the agent's).
+     - Every key names a picture in `content/portraits.json`.
+     - Every part is a slot of `descriptions.json`, with `facialHair` only on a male picture's.
+     - Each phrase is within the slot's bound, and the longest Appearance a picture can make is
+       within 280 characters.
+     - A picture with no row is allowed; its Appearance is drawn whole.
+   - *Monochrome pictures.* A drawing shows no colours but dark and light, so its phrases name none.
+     A colour the drawing cannot show, such as the eyes', may be drawn.
+   - *Later.* The file serves Heroes' and Patrons' pictures when they come. Their keys are unique
+     across roles by the naming rule's prefixes (`gm-`, `hero-`, `patron-`).
+
+**Consequences.**
+- v1.1.2-S2 draws the Silhouettes to item 1.
+- v1.1.2-S4 adds the two rows beside the pictures.
+- v1.1.2-S5 builds item 2's use and checks, and changes `describeGuildmaster`'s inputs by the
+  Portrait's key.
+- The risk that a written Appearance contradicts the face is closed.
+- The stories' entries now begin at DL-127.
+
+**Actioned in:** `CONTEXT.md` (Descriptive Attribute; Portrait);
+`docs/planning/epics/v1.1.2-release.md` (§0, S2, S4, S5, §2, §3, §4).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

@@ -99,15 +99,17 @@ the Guild's Background; **Appearance**; and **Biography**. The player may write 
 Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
 DL-102). By DL-125 the setup form writes all three from content on request, for the sex and age
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
-Guildmaster: the player's, a Rival's and a successor's (to be built; until then a drawn
-Guildmaster's are empty).
+Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
+their Portrait shows, as each picture's Appearance is mapped in content (DL-126) (to be built;
+until then a drawn Guildmaster's are empty).
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:
 The picture of a person, three wide by four high, shown on their details and on their History:
 a Guildmaster's, a Hero's and a Patron's. The player's Guildmaster has one of the Guildmaster
 pictures of their sex, chosen at setup or drawn; everyone else shows the Silhouette of their sex
-for now, a Rival's Guildmaster included (DL-125, to be built).
+for now, a Rival's Guildmaster included. Every picture is drawn in graphite on cream paper
+(DL-125, DL-126, to be built).
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:
