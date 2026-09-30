@@ -375,6 +375,6 @@ describe('Transfer Offers', () => {
 
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();
     expect(screen.queryByRole('region', { name: 'Transfer Offers' })).toBeNull();
-    logSays(new RegExp(`^The Lantern declined ${guildName}'s offer for ${name}\\.$`));
+    logSays(new RegExp(`^The Lantern declined ${guildName}'s Offer for ${name}\\.$`));
   });
 });

@@ -24,7 +24,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import type { Command } from '../args.js';
-import { nameIn, renderTime, rowIn, table } from '../render.js';
+import { kindWords, nameIn, renderTime, rowIn, table } from '../render.js';
 import type { CommandOutcome } from './outcome.js';
 
 /** `3 × Whetstone`, or the name alone for one. */
@@ -32,10 +32,10 @@ function counted(quantity: number, name: string): string {
   return quantity === 1 ? name : `${quantity} × ${name}`;
 }
 
-/** An Item's kind as a column shows it: its gear slot or `consumable`, and whether it is unique. */
+/** An Item's kind as a column shows it: its Gear slot or `Consumable`, and whether it is a Unique Item. */
 function kindOf(definition: ItemDefinition): string {
-  const kind = definition.kind === 'gear' ? definition.slot : 'consumable';
-  return definition.unique ? `${kind}, unique` : kind;
+  const kind = kindWords(definition);
+  return definition.unique ? `${kind}, Unique Item` : kind;
 }
 
 /** What an Item does, in words: gear's Stat modifiers, a consumable's effect. */
@@ -50,9 +50,9 @@ function effectOf(definition: ItemDefinition, content: ContentSet): string {
     case 'bonus':
       return `+${effect.flat} on a ${effect.kinds.join(' or ')} Encounter`;
     case 'reroll':
-      return `rolls a failed ${effect.kinds.join(' or ')} Encounter again`;
+      return `Rolls a failed ${effect.kinds.join(' or ')} Encounter again`;
     case 'heal':
-      return `an Injury on the Quest heals ${effect.days} Days sooner`;
+      return `An Injury on the Quest heals ${effect.days} Days sooner`;
   }
 }
 

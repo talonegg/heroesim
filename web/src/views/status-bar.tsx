@@ -25,7 +25,7 @@ import { StatPill, useDismiss, VisuallyHidden } from './ui';
 export const timeHelp =
   'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
   'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives, your ' +
-  'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a year; from its other ways, it ' +
+  'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a Year; from its other ways, it ' +
   'can also stop when a Quest the Heroes at home can staff appears, even with a Party out, or when new Heroes join ' +
   'the Unattached pool. ' +
   'It plays them 30 Turns, ten Days, at a time, showing how far it has come, and Stop ends it there.';

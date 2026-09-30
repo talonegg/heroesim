@@ -770,11 +770,11 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
   test('with it, the page says the probe is installed, and its probe.fired event is in the log on a seed known to fire one', async () => {
     await elevenTurns('/?modules=probe');
 
-    expect(screen.getByText('Installed for testing: the probe module.')).toBeDefined();
-    expect(within(openMenu()).getByText('The probe module')).toBeDefined();
+    expect(screen.getByText('Installed for testing: the probe Module.')).toBeDefined();
+    expect(within(openMenu()).getByText('The probe Module')).toBeDefined();
     // In the whole History, new, under the night it fired (M9-S5).
     wholeHistory();
-    const fired = inHistory(/^The probe module recorded probe\.fired for .+\.$/);
+    const fired = inHistory(/^The probe Module recorded probe\.fired for .+\.$/);
     expect(fired.classList.contains('is-new')).toBe(true);
     expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Day 3, night');
     // Its effects' events follow it, in the page's words for the core's own.

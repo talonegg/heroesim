@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
-import { holding, started } from '../state/game.test-support';
+import type { ItemDefinitionKey } from '@heroesim/engine';
+import { holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { section } from './page.test-support';
 
@@ -73,5 +74,12 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
     expect(within(held).getByRole('button', { name: 'Sell Whetstone' })).toBeDefined();
     // Buy does not list them a second time.
     expect(within(section('Buy')).queryByRole('button', { name: 'Sell Whetstone' })).toBeNull();
+  });
+
+  test('says "Cannot be priced" for an Item the content does not define', () => {
+    render_(holdingUnique(started(), 'not-in-the-content' as ItemDefinitionKey));
+    const held = within(section('Sell')).getByRole('table', { name: 'What The Lantern holds' });
+
+    expect(within(within(held).getByTestId('held')).getByText('Cannot be priced')).toBeDefined();
   });
 });

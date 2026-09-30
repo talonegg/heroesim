@@ -343,7 +343,7 @@ function retirementWords(
 function timeLeft(night: number, turn: number, config: Pick<GameConfig, 'turnsPerYear'>): string {
   if (night - turn >= config.turnsPerYear) {
     const years = yearOf(night, config) - yearOf(turn, config);
-    return `in ${years} ${years === 1 ? 'year' : 'years'}`;
+    return `in ${years} ${years === 1 ? 'Year' : 'Years'}`;
   }
   const days = dayOf(night) - dayOf(turn);
   return days === 0 ? 'tonight' : `in ${days} ${days === 1 ? 'Day' : 'Days'}`;

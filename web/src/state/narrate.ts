@@ -78,7 +78,7 @@ const someone: Readonly<Record<TableName, string>> = Object.freeze({
   patrons: 'a Patron',
   quests: 'a Quest',
   parties: 'a Party',
-  offers: 'an offer',
+  offers: 'an Offer',
   items: 'an Item',
   stacks: 'an Item',
 });
@@ -173,16 +173,16 @@ const endingWords: Readonly<Record<EndingReason, string>> = {
 const patronRegardWords: Readonly<Record<PatronRegardCause, string>> = {
   'quest-success': 'after a Quest of theirs succeeded',
   'quest-failure': 'after a Quest of theirs failed',
-  'offer-expired': 'when an offer of theirs went untaken',
+  'offer-expired': 'when an Offer of theirs went untaken',
   recovery: 'as time passed',
-  module: 'through a module',
+  module: 'through a Module',
 };
 
 /** What moved a Hero's Regard for another Hero, after the band it reached (M4-S4). */
 const heroRegardWords: Readonly<Record<HeroRegardCause, string>> = {
   'shared-quest': 'after a Quest together',
   decay: 'as time passed apart',
-  module: 'through a module',
+  module: 'through a Module',
 };
 
 /** Why gear went back to a Guild (M5-S2), after the Hero it came from. */
@@ -369,11 +369,11 @@ const sentences: Sentences = {
   },
   'guild.transfer-offer-declined': (event) => {
     const { fromGuildId, toGuildId, heroId } = event.payload;
-    return say`${called(event, fromGuildId)} declined ${called(event, toGuildId)}'s offer for ${called(event, heroId)}.`;
+    return say`${called(event, fromGuildId)} declined ${called(event, toGuildId)}'s Offer for ${called(event, heroId)}.`;
   },
   'guild.transfer-offer-expired': (event) => {
     const { toGuildId, heroId, cause } = event.payload;
-    return say`${called(event, toGuildId)}'s offer for ${called(event, heroId)} ${offerEndWords[cause]}.`;
+    return say`${called(event, toGuildId)}'s Offer for ${called(event, heroId)} ${offerEndWords[cause]}.`;
   },
   // M8-S2: a module's `adjustWealth` effect.
   'guild.wealth-changed': (event) =>
@@ -438,13 +438,13 @@ export function narrateSegments(event: TurnEvent, narration: Narration): Segment
 /**
  * A module's own event, of a type the page has no words for and a payload it never reads (M8-S4,
  * DL-79), as the CLI words it: the module, named by its type's namespace (`probe.fired` is the
- * probe's, DL-77), the type, and whom it concerns by name. `The probe module recorded probe.fired for
+ * probe's, DL-77), the type, and whom it concerns by name. `The probe Module recorded probe.fired for
  * Una Greave, Ranulf Tarrant and The Hollin Guild.` A type outside any namespace, which no module's
  * `emit` makes, is still worded, from "A module".
  */
 function moduleSentence(event: ModuleEvent): Words {
   const dot = event.type.indexOf('.');
-  const who = dot > 0 ? `The ${event.type.slice(0, dot)} module` : 'A module';
+  const who = dot > 0 ? `The ${event.type.slice(0, dot)} Module` : 'A Module';
   const named = event.participants.map((id) => called(event, id));
   return say`${who} recorded ${event.type}${named.length === 0 ? '' : say` for ${listedWords(named)}`}.`;
 }
@@ -514,14 +514,14 @@ export function narrateStop(stop: StopReason, document: WorldDocument, maxTurns:
       // M6-S2: each offer that arrived, and who made it.
       const offers = stop.offerIds.map((offerId) => {
         const offer = Object.hasOwn(world.offers, offerId) ? world.offers[offerId] : undefined;
-        if (offer === undefined) return 'an offer since withdrawn';
+        if (offer === undefined) return 'an Offer since withdrawn';
         return `${guildName(offer.toGuildId)} offers ${offer.fee} Wealth for ${heroName(offer.heroId)} until ${night(offer.expiresOnTurn)}`;
       });
       return `Stopped: a Transfer Offer: ${listed(offers)}.`;
     }
     case 'module':
       // M8-S2: an installed module's hook asked for the stop.
-      return `Stopped: the ${stop.moduleId} module asked to stop.`;
+      return `Stopped: the ${stop.moduleId} Module asked to stop.`;
     case 'max-turns':
       return `Stopped: played the most Turns allowed, ${maxTurns}.`;
     case 'pool-refreshed':

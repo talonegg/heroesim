@@ -31,6 +31,21 @@ const standalone = [
 /** The controls whose `aria-label` names them, which begin with a capital too. */
 const named = 'button[aria-label], a[aria-label], input[aria-label], select[aria-label], summary[aria-label], [role="tab"][aria-label]';
 
+/** The inline parts that can stand on their own inside a capitalised element: a slot's word, a value, a label. */
+const inlineParts = 'span, strong, em';
+
+/**
+ * Whether the words before `element` in its parent run into it: a text node just before, which
+ * ends in a letter, a digit, a comma or a colon, so that the part continues a sentence, or is the value of
+ * a label (`Fame 12: met`), and takes no capital. A part after a `·` or a bracket stands alone.
+ */
+function continuesASentence(element: HTMLElement): boolean {
+  const before = element.previousSibling;
+  if (before === null || before.nodeType !== Node.TEXT_NODE) return false;
+  const words = (before.textContent ?? '').replace(/\s+/g, ' ').trim();
+  return words !== '' && /[\p{L}\p{N},:]$/u.test(words);
+}
+
 /** A text's opening, past any punctuation or sign before it: `(none)` opens with `none`, `+2` with `2`. */
 function opening(text: string): string {
   return text.replace(/^[^\p{L}\p{N}]+/u, '');
@@ -71,6 +86,11 @@ class Reader {
       const what = `<${element.tagName.toLowerCase()}${element.classList.length === 0 ? '' : `.${[...element.classList].join('.')}`}>`;
       this.#check(where, what, element.textContent ?? '');
       this.#check(where, `${what} as shown`, shown(element));
+    }
+    for (const element of Array.from(document.body.querySelectorAll<HTMLElement>(inlineParts))) {
+      if (element.children.length > 0 || element.classList.contains('visually-hidden') || continuesASentence(element)) continue;
+      const what = `<${element.tagName.toLowerCase()}${element.classList.length === 0 ? '' : `.${[...element.classList].join('.')}`}> inside <${element.parentElement?.tagName.toLowerCase() ?? ''}>`;
+      this.#check(where, what, shown(element));
     }
     for (const element of Array.from(document.body.querySelectorAll<HTMLElement>(named))) {
       this.#check(where, `<${element.tagName.toLowerCase()}> aria-label`, element.getAttribute('aria-label') ?? '');
@@ -210,6 +230,7 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     reader.read('A Quest report');
 
     expect(within(section('Home')).getByRole('region', { name: /^Quest report: / })).toBeDefined();
+    expect(reader.checked).toBeGreaterThan(50);
     expect(reader.failures).toEqual([]);
   });
 
@@ -220,6 +241,54 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     reader.read('The new-game form');
 
     expect(reader.checked).toBeGreaterThan(20);
+    expect(reader.failures).toEqual([]);
+  });
+});
+
+describe('the guard itself fails what begins in lower case, and names it', () => {
+  test('a paragraph, a nested span and a control’s aria-label', () => {
+    render(
+      <div>
+        <p>lower</p>
+        <ul>
+          <li>
+            Weapon · <span className="slot">none</span>
+          </li>
+          <li>
+            Gear of <span className="slot">Una</span>, and <strong>more</strong>
+          </li>
+        </ul>
+        <button type="button" aria-label="open it">
+          Open
+        </button>
+      </div>,
+    );
+    const reader = new Reader([]);
+    reader.read('a snippet');
+
+    expect(reader.checked).toBeGreaterThan(0);
+    expect(reader.failures).toEqual([
+      '<p> "lower" (a snippet)',
+      '<span.slot> inside <li> "none" (a snippet)',
+      '<button> aria-label "open it" (a snippet)',
+    ]);
+  });
+
+  test('passes a capitalised text, a number, a name and a sentence’s own parts', () => {
+    render(
+      <ul>
+        <li>3 new</li>
+        <li>
+          Fame 12: <strong>met</strong>
+        </li>
+        <li>
+          Una Greave, <em>known</em> as a healer
+        </li>
+      </ul>,
+    );
+    const reader = new Reader(['Una Greave']);
+    reader.read('a snippet');
+
     expect(reader.failures).toEqual([]);
   });
 });

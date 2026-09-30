@@ -118,12 +118,12 @@ export interface HeaderView {
   when: string;
   year: string;
   /**
-   * `3rd of 5 by Fame`, `joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
+   * `3rd of 5 by Fame`, `Joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
    * DL-95), or that the Guild has folded and is not ranked.
    */
   rankings: string;
   /**
-   * `rankings` in two parts, `joint 1st of 5` and `by Fame`, the second empty for a folded Guild: a
+   * `rankings` in two parts, `Joint 1st of 5` and `by Fame`, the second empty for a folded Guild: a
    * phone's status bar shows the first (M9-S3, DL-103).
    */
   place: string;
@@ -514,7 +514,7 @@ export function previewView(
       preview.consumables.length === 0
         ? ['None carried.']
         : preview.consumables.map(({ definitionKey, quantity, consumable, held, encounters }) => {
-            if (consumable === undefined) return `${nameIn(content.items, definitionKey)} ×${quantity}: not a consumable.`;
+            if (consumable === undefined) return `${nameIn(content.items, definitionKey)} ×${quantity}: not a Consumable.`;
             const where = consumable.effect.kind === 'heal' ? '' : `; ${reach(encounters)}`;
             return `${consumable.name} ×${quantity}, of ${held} the Guild holds: ${effectWords(consumable.effect)}${where}.`;
           }),

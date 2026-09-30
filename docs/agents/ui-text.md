@@ -38,3 +38,7 @@ words are terms; this decides how they, and the words around them, are written.
 - **A guard test** renders every view and fails any standalone text that begins with a lower-case
   letter (`web/src/views/capitals.test.tsx`, v1.1.2-S1, DL-128). A new view, or a new part of one,
   is opened there too.
+  It reads each element whole, and each leaf `span`, `strong` and `em` inside one, except a part that
+  continues a sentence (the words before it end in a letter, a digit, a comma or a colon) and the words
+  only assistive technology reads. It reads no sentence's inside, so a term written lower case mid-sentence
+  is found by eye and by `grep`, not by the guard.

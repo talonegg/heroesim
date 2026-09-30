@@ -301,16 +301,16 @@ describe('guildmasterView', () => {
 
     test('gives when it will come, in the calendar’s words, and the years left', () => {
       // At 30 on Turn 0, 61 in 31 years of 1,080 Turns: the night of Day 11160, in Year 31.
-      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
+      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
       // Two Years on, in Year 2, the Day holds and 29 years are left.
-      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 years.');
+      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 Years.');
       // At 50: 11 years.
-      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 years.');
+      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 Years.');
     });
 
     test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (M9-F7, DL-120 item 2)', () => {
       // A year to the Day before: the night of Day 3600, 360 Days, is a year away.
-      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 year.');
+      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Year.');
       // A Day later it is less than a year away, though still the Year before.
       expect(guildmasterView(aged(50, 10 * 1080 + 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 359 Days.');
       expect(guildmasterView(aged(50, 3959 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Day.');
@@ -369,7 +369,7 @@ describe('guildmasterView', () => {
 
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
       const document = newGame();
-      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ years\.$/);
+      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ Years\.$/);
     });
   });
 

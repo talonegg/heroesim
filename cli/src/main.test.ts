@@ -396,7 +396,7 @@ describe('show', () => {
       const quest = world.quests[id];
       if (quest === undefined) throw new Error(`No Quest ${id}`);
       const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.skillKeys ?? []))];
-      const skills = keys.length === 0 ? 'none' : keys.map((key) => content.skills[key]?.name).join(', ');
+      const skills = keys.length === 0 ? 'None' : keys.map((key) => content.skills[key]?.name).join(', ');
       const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
       const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));
       expect(line?.split(/\s{2,}/).at(-2), id).toBe(skills);
@@ -643,7 +643,7 @@ describe('show', () => {
     const guild = play(['show', 'history', playerId]);
     expect(guild.code).toBe(exitCodes.ok);
     expect(guild.out).toContain(`History of The Test (${playerId})`);
-    expect(guild.out).toMatch(/guild\.founded\s+yes\s+The Test, Ada/);
+    expect(guild.out).toMatch(/guild\.founded\s+Yes\s+The Test, Ada/);
     const guildLines = guild.out.split('\n');
     expect(guildLines.findIndex((line) => line.includes('hero.generated'))).toBeLessThan(
       guildLines.findIndex((line) => line.includes('guild.founded')),
@@ -1164,7 +1164,7 @@ describe('rebase', () => {
     expect(document().meta.config).toEqual(defaultConfig);
     expect(adopted()).toBe(1);
     expect(play(['show']).out).toContain('Turn 3 (Day 1, morning, Year 0)');
-    expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+yes/m);
+    expect(play(['show', 'history']).out).toMatch(/^\s*3\s+world\.rules-adopted\s+Yes/m);
 
     expect(play(['rebase']).code).toBe(exitCodes.refused);
     expect(adopted()).toBe(1);

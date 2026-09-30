@@ -214,8 +214,8 @@ const exactly: Record<RejectionKind, string> = {
   'newGame guild-name-blank': 'The Guild needs a name.',
   'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
   'newGame unknown-background': `No Guild Background is called "no-such-background". Choose one of: ${guildBackgrounds}.`,
-  'newGame unknown-sex': `A Guildmaster's sex is female or male; "other" is not.`,
-  'newGame age-out-of-range': `A Guildmaster starts aged ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax}, in whole years; ${defaultConfig.guildmasterStartingAgeMax + 1} is not.`,
+  'newGame unknown-sex': `A Guildmaster's Sex is female or male; "other" is not.`,
+  'newGame age-out-of-range': `A Guildmaster starts aged ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax}, in whole Years; ${defaultConfig.guildmasterStartingAgeMax + 1} is not.`,
   'newGame unknown-trait': `${named(content.traits, 'scarred')} is not a Guildmaster Trait.`,
   'newGame repeated-trait': `${named(content.traits, 'miser')} is chosen twice.`,
   'newGame too-many-traits': 'A Guildmaster holds at most 2 Traits; 3 are chosen.',
@@ -236,7 +236,7 @@ const exactly: Record<RejectionKind, string> = {
   'dispatch requirement-unmet':
     `${questName} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
     `and a Hero with ${named(content.skills, 'lockpicking')} in the Party.`,
-  'dispatch not-consumable': `${sword} is gear, not a consumable: a Party carries consumables only.`,
+  'dispatch not-consumable': `${sword} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': `The Lantern holds no ${whetstone} to carry.`,
   'dispatch insufficient-quantity': `The Lantern holds 1 of ${whetstone}, not the 3 asked.`,
 
@@ -251,9 +251,9 @@ const exactly: Record<RejectionKind, string> = {
 
   'equip guild-folded': 'The Lantern has folded and equips no one.',
   'equip hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
-  'equip hero-unavailable': `${hero.name} is away on a Quest, and their gear is with them.`,
+  'equip hero-unavailable': `${hero.name} is away on a Quest, and their Gear is with them.`,
   'equip not-held-by-guild': `The Lantern does not hold ${stackName}.`,
-  'equip not-gear': `${whetstone} is not gear, and is carried in no slot.`,
+  'equip not-gear': `${whetstone} is not Gear, and is carried in no slot.`,
   'equip wrong-slot': `${sword} goes in the weapon slot, not the armour slot.`,
   'equip slot-occupied': `${hero.name}'s weapon slot holds ${stackName}: unequip it first.`,
   'unequip guild-folded': 'The Lantern has folded and unequips no one.',
@@ -290,8 +290,8 @@ const exactly: Record<RejectionKind, string> = {
   'offerTransfer same-guild': "That Hero is already on The Lantern's Roster.",
   'offerTransfer hero-in-party': inParty,
   'offerTransfer recently-transferred': locked,
-  'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no offer is needed: ask to take the Hero in.`,
-  'offerTransfer offer-pending': "The Lantern's offer for that Hero already waits for an answer.",
+  'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
+  'offerTransfer offer-pending': "The Lantern's Offer for that Hero already waits for an answer.",
   'offerTransfer insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
   'acceptTransfer guild-folded': `${rival.name} has folded and deals no more.`,
   'acceptTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",

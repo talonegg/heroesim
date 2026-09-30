@@ -92,8 +92,8 @@ describe('the Market', () => {
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     // Four Padded jacks and the blade: five Items, of two kinds.
     expect(run.out).toContain('Market: 5 Items for sale, of 2 kinds, Turn 0 (Day 0, morning, Year 0)');
-    expect(run.out).toMatch(/barrow-kings-blade +The Barrow King's blade +weapon, unique +Weaponry \+4, Strength \+2, Courage \+1 +1 +600/);
-    expect(run.out).toMatch(/padded-jack +Padded jack +armour +Constitution \+1 +4 +40/);
+    expect(run.out).toMatch(/barrow-kings-blade +The Barrow King's blade +Weapon Gear, Unique Item +Weaponry \+4, Strength \+2, Courage \+1 +1 +600/);
+    expect(run.out).toMatch(/padded-jack +Padded jack +Armour Gear +Constitution \+1 +4 +40/);
     expect(run.out).toContain('The Test has 1000 Wealth and holds:');
     expect(run.out).toMatch(new RegExp(`${draughts} +Healing draught +3 +15`));
   });

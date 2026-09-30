@@ -21,9 +21,9 @@ import { Icon } from './icons';
 import { RulesNotice } from './rules-notice';
 import { HelpFor } from './section';
 
-/** `the probe module`, `the probe and weather modules`: what is installed for testing; the menu's value begins with a capital (DL-125 item 9). */
+/** `the probe Module`, `the probe and weather Modules`: what is installed for testing; the menu's value begins with a capital (DL-125 item 9). */
 export function installedWords(modules: readonly Module[]): string {
-  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'module' : 'modules'}`;
+  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'Module' : 'Modules'}`;
 }
 
 /** The controls the keyboard can reach inside `root`, in order. */

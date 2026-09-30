@@ -361,10 +361,10 @@ describe('why time stopped, with a button to what it names', () => {
     render(<App initial={{ ...state, document: { ...game, history }, log: [fired], stoppedBecause: { kind: 'module', moduleId: 'probe' } }} />);
 
     const stop = screen.getByTestId('stop');
-    expect(within(stop).getByText('Stopped: the probe module asked to stop.')).toBeDefined();
+    expect(within(stop).getByText('Stopped: the probe Module asked to stop.')).toBeDefined();
     fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
     // The History, on the player's Guild, with the keyboard on its title (M9-S5).
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'The History of The Lantern' }));
-    expect(inHistory('The probe module recorded probe.fired for The Lantern.').classList.contains('is-new')).toBe(true);
+    expect(inHistory('The probe Module recorded probe.fired for The Lantern.').classList.contains('is-new')).toBe(true);
   });
 });

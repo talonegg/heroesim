@@ -39,7 +39,7 @@ describe('the Guildmaster view (M9-F2)', () => {
       played(initialGameState, { kind: 'newGame', seed: 'app-test', guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterAge: 30, createdAt: '2026-09-30T09:00:00.000Z' }),
     );
 
-    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
   });
 
   test('says why no Retirement came once the game has ended by another ending (M9-F7, DL-120 item 9)', () => {

@@ -355,8 +355,8 @@ const exactly: { [Type in EngineEventType]: string } = {
   'item.sold': `The Kestrel Guild's ${named(content.items, 'barrow-kings-blade')} went to the Market for 300 Wealth as the Guild folded.`,
   'hero.transferred': 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth, accepting its Transfer Offer.',
   'guild.transfer-offered': 'The Iron Wardens offered The Kestrel Guild 420 Wealth for Brenna Ashcombe, until the night of Day 7.',
-  'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's offer for Brenna Ashcombe.",
-  'guild.transfer-offer-expired': "The Iron Wardens's offer for Brenna Ashcombe expired unanswered.",
+  'guild.transfer-offer-declined': "The Kestrel Guild declined The Iron Wardens's Offer for Brenna Ashcombe.",
+  'guild.transfer-offer-expired': "The Iron Wardens's Offer for Brenna Ashcombe expired unanswered.",
   'guild.wealth-changed': "The Kestrel Guild's Wealth went from 500 to 750.",
 };
 
@@ -390,8 +390,8 @@ describe('every sample in so many words', () => {
     ],
     ["the player's own sale", varied('item.sold', { cause: 'sale', quantity: 2, proceeds: 600 }), `The Kestrel Guild sold 2 × ${named(content.items, 'barrow-kings-blade')} at the Market for 600 Wealth.`],
     ['a Transfer with no offer', varied('hero.transferred', { offerId: null }), 'The Iron Wardens took Brenna Ashcombe from The Kestrel Guild for 420 Wealth.'],
-    ['an offer lapsed as its Hero left', varied('guild.transfer-offer-expired', { cause: 'hero-left' }), "The Iron Wardens's offer for Brenna Ashcombe lapsed: the Hero left that Roster."],
-    ['an offer lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), "The Iron Wardens's offer for Brenna Ashcombe lapsed as a Guild folded."],
+    ['an offer lapsed as its Hero left', varied('guild.transfer-offer-expired', { cause: 'hero-left' }), "The Iron Wardens's Offer for Brenna Ashcombe lapsed: the Hero left that Roster."],
+    ['an offer lapsed as a Guild folded', varied('guild.transfer-offer-expired', { cause: 'guild-folded' }), "The Iron Wardens's Offer for Brenna Ashcombe lapsed as a Guild folded."],
     ['a Guild folded by Retirement', varied('guild.folded', { reason: 'retirement' }), 'The Kestrel Guild lost its Guildmaster to Retirement and folded.'],
     ['a Guild folded bankrupt', varied('guild.folded', { reason: 'bankruptcy' }), 'The Kestrel Guild went bankrupt and folded.'],
     ['the game ended by Retirement', varied('game.ended', { reason: 'retirement' }), 'The game ended: The Kestrel Guild lost its Guildmaster to Retirement.'],
@@ -403,9 +403,9 @@ describe('every sample in so many words', () => {
     [
       "a Patron's Regard a module moved",
       varied('patron.regard-changed', { cause: 'module', moduleId: 'probe' }),
-      "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool through a module.",
+      "Lady Maud's Regard for The Kestrel Guild fell from neutral to cool through a Module.",
     ],
-    ["a Hero's Regard a module moved", varied('hero.regard-changed', { cause: 'module', moduleId: 'probe' }), /^Brenna Ashcombe's Regard for .+ through a module\.$/],
+    ["a Hero's Regard a module moved", varied('hero.regard-changed', { cause: 'module', moduleId: 'probe' }), /^Brenna Ashcombe's Regard for .+ through a Module\.$/],
   ] as const)('%s', (_name, event, sentence) => {
     if (typeof sentence === 'string') expect(narrate(event, narration)).toBe(sentence);
     else expect(narrate(event, narration)).toMatch(sentence);
@@ -483,7 +483,7 @@ describe('a line as segments: its words, and the names in it the page can open (
   test("marks the names in a module's own event too, from its participants", () => {
     const fired = { type: 'probe.fired', turn: 9, participants: [heroId, patronId], labels: { [heroId]: labels[heroId], [patronId]: labels[patronId] }, milestone: false, payload: {} } as unknown as ModuleEvent;
 
-    expect(textOf(narrateSegments(fired, narration))).toBe('The probe module recorded probe.fired for Brenna Ashcombe and Lady Maud.');
+    expect(textOf(narrateSegments(fired, narration))).toBe('The probe Module recorded probe.fired for Brenna Ashcombe and Lady Maud.');
     expect(namesIn(narrateSegments(fired, narration))).toEqual([
       [heroId, 'Brenna Ashcombe'],
       [patronId, 'Lady Maud'],
@@ -501,14 +501,14 @@ describe("a module's own event: one generic sentence for any type, never a crash
   test("names the module, from its type's namespace, the type, and who it concerns, by name alone", () => {
     const fired = moduleEvent('probe.fired', [heroId, patronId, guildId], { roll: 0.01, effects: [] });
 
-    expect(narrate(fired, narration)).toBe('The probe module recorded probe.fired for Brenna Ashcombe, Lady Maud and The Kestrel Guild.');
+    expect(narrate(fired, narration)).toBe('The probe Module recorded probe.fired for Brenna Ashcombe, Lady Maud and The Kestrel Guild.');
   });
 
   test.each([
-    ['a module the page has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather module recorded weather.storm-broke.'],
-    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger module recorded ledger.balanced for The Kestrel Guild.'],
-    ['a participant with no label, by what it is', moduleEvent('probe.fired', ['hero-000099', 'not-an-id'], undefined), 'The probe module recorded probe.fired for a Hero and someone.'],
-    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A module recorded mystery for Brenna Ashcombe.'],
+    ['a module the page has never heard of, concerning no one', moduleEvent('weather.storm-broke', [], null), 'The weather Module recorded weather.storm-broke.'],
+    ['a payload of any shape', moduleEvent('ledger.balanced', [guildId], [1, 'two', { three: null }]), 'The ledger Module recorded ledger.balanced for The Kestrel Guild.'],
+    ['a participant with no label, by what it is', moduleEvent('probe.fired', ['hero-000099', 'not-an-id'], undefined), 'The probe Module recorded probe.fired for a Hero and someone.'],
+    ['a type outside any namespace', moduleEvent('mystery', [heroId], {}), 'A Module recorded mystery for Brenna Ashcombe.'],
   ])('%s', (_name, event, sentence) => {
     expect(narrate(event, narration)).toBe(sentence);
   });
@@ -615,8 +615,8 @@ describe('narrateStop', () => {
       { kind: 'quest-staffable', guildId: player.id, questIds: [quest] },
       /^Stopped: a Quest to staff: The Lantern's Heroes at home could go on [A-Z][^.]+\.$/,
     ],
-    'transfer-offer': [{ kind: 'transfer-offer', guildId: player.id, offerIds: [offerId] }, /^Stopped: a Transfer Offer: an offer since withdrawn\.$/],
-    module: [{ kind: 'module', moduleId: 'probe' }, /^Stopped: the probe module asked to stop\.$/],
+    'transfer-offer': [{ kind: 'transfer-offer', guildId: player.id, offerIds: [offerId] }, /^Stopped: a Transfer Offer: an Offer since withdrawn\.$/],
+    module: [{ kind: 'module', moduleId: 'probe' }, /^Stopped: the probe Module asked to stop\.$/],
     'max-turns': [{ kind: 'max-turns' }, /^Stopped: played the most Turns allowed, 1080\.$/],
     'pool-refreshed': [{ kind: 'pool-refreshed', heroIds: poolHero === undefined ? [] : [poolHero.id] }, /^Stopped: new in the Unattached pool: [A-Z].*\.$/],
   };

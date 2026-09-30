@@ -13452,6 +13452,27 @@ selector or a view gives, and the CLI is unchanged.
       built files, no network or filesystem reference"; 63 runs across the phone, tablet and desktop
       projects, all passing.
 
+13. **The verification's follow-ups** (the implementer's, after a verifier's read of item 10's leftovers).
+    - *Two tests the guard and the Market lacked:* "Cannot be priced" (`market.test.tsx`, an Item the
+      content does not define), and the guard's own failure, proved by a test that renders lower-case
+      text and expects it named (`capitals.test.tsx`), with a `checked` count in its Quest-report test.
+    - *The guard's blind spot:* it also reads each leaf `span`, `strong` and `em`, so a lower-case span
+      inside a capitalised `li` fails; it skips a part that continues a sentence (a letter, digit, comma
+      or colon before it: "Fame 12: met") and the visually hidden words. It found no real text to fix.
+      What it still does not read is a sentence's inside, noted in `docs/agents/ui-text.md`.
+    - *Terms inside sentences, item 10's leftovers, capitalised:* Gear and Consumables in the History's
+      routine line and the refusals; Offer in the narration and the refusals; Module in the narration,
+      the game menu and the Module stop; "their Gear went back"; Sex and Years in the setup refusals; Year in
+      "in 1 Year" and the fast-forward help.
+    - *The CLI follows the rule:* "Rival (Steady)", the Kind cells "Weapon Gear", "Consumable" and
+      "Weapon Gear, Unique Item" (shared by `show market` and `show roster`), the Market's effects as a
+      cell begins them, and "None", "Yes", "Needs Fame 40" and the Guildmaster's rules in its tables.
+      Item 10's "the CLI is unchanged" no longer holds for these words; no save or rule moves.
+    - *Comments:* `selectors.ts` shows "Joint 1st of 5" as the page words it.
+    - *Checks:* `npm test` 3,511 tests in 151 files; four timed out under load and pass alone (the
+      known ones), and one CLI expectation was stale and is fixed; lint and typecheck clean;
+      `npm run e2e -w web`: 69 passed.
+
 **Consequences.**
 - *Play and saves are unchanged:* no rule, draw, schema or `configVersion` moves.
 - *A new view or part* is opened in the guard, as `docs/agents/ui-text.md` now says.

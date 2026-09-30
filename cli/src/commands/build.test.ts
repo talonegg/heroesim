@@ -111,7 +111,7 @@ describe('build', () => {
     const unbuilt = play(['show', 'hall']);
     expect(unbuilt).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(unbuilt.out).toContain(`Hall of The Test (${player().id})`);
-    expect(rowOf(unbuilt.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+0\\s+none\\s+${name('infirmary-1')}\\s+200$`));
+    expect(rowOf(unbuilt.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+0\\s+None\\s+${name('infirmary-1')}\\s+200$`));
     expect(player().wealth).toBe(10_000);
 
     play(['build', '--facility', 'infirmary']);
@@ -120,8 +120,8 @@ describe('build', () => {
     const summary = play(['show']);
 
     expect(rowOf(built.out, 'Infirmary')).toMatch(new RegExp(`^Infirmary\\s+1\\s+${name('infirmary-1')}\\s+${name('infirmary-2')}\\s+500$`));
-    expect(rowOf(built.out, 'Training yard')).toMatch(new RegExp(`^Training yard\\s+0\\s+none\\s+${name('training-yard-1')}\\s+200$`));
-    expect(rowOf(built.out, 'Quarters')).toMatch(new RegExp(`^Quarters\\s+3\\s+${name('quarters-3')}\\s+none: the top grade$`));
+    expect(rowOf(built.out, 'Training yard')).toMatch(new RegExp(`^Training yard\\s+0\\s+None\\s+${name('training-yard-1')}\\s+200$`));
+    expect(rowOf(built.out, 'Quarters')).toMatch(new RegExp(`^Quarters\\s+3\\s+${name('quarters-3')}\\s+None: the top grade$`));
     expect(built.out).toContain('The infirmary shortens the Days an Injury takes to heal');
     expect(summary.out).toContain("The Test's Hall: infirmary grade 1, training yard grade 0, quarters grade 3 (show hall");
 
