@@ -14,6 +14,8 @@
 import {
   defaultConfig,
   describeGuildmaster,
+  descriptiveAttributeLabels,
+  descriptiveAttributes,
   portraitsOf,
   previewGuildmaster,
   setupRefusal,
@@ -22,6 +24,7 @@ import {
   type DescriptiveAttribute,
   type GameConfig,
   type GuildmasterDescription,
+  type GuildmasterPreview,
   type PortraitKey,
   type Sex,
   type TraitKey,
@@ -258,6 +261,33 @@ export type SetupFields = Omit<NewGame, 'kind' | 'seed' | 'createdAt'>;
 /** What the form says of the seed's draws with the seed blank: one is made up at the click. */
 export const unseededWords = 'The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.';
 
+/** `setup` with neither name nor any text: what the Guildmaster's facts are drawn from. */
+function factsOf(setup: SetupFields): SetupFields {
+  const facts: SetupFields = { ...setup, guildName: 'Guild', guildmasterName: 'Guildmaster' };
+  delete facts.guildmasterBirthplace;
+  delete facts.guildmasterAppearance;
+  delete facts.guildmasterBiography;
+  return facts;
+}
+
+/**
+ * The Guildmaster `setup` makes from `seed`, trimmed as the click sends it, under `config` and `set`
+ * (the current defaults and the core, a new game's rules): the engine's `previewGuildmaster`, asked
+ * once for the form's preview and its texts (v1.1.2-S6), so the form computes no rule (ADR-0007).
+ * Neither name nor any text is read, so typing them asks nothing again, and the texts in the preview
+ * are those "Start the game" writes for all three left blank. `null` when the engine would refuse
+ * the setup, whose sentence the form already says. A blank seed is previewed as it stands: what is
+ * drawn, and whether the setup is refused, do not follow the seed.
+ */
+export function guildmasterPreview(
+  setup: SetupFields,
+  seed: string,
+  set: ContentSet = content,
+  config: GameConfig = defaultConfig,
+): GuildmasterPreview | null {
+  return previewGuildmaster({ ...factsOf(setup), createdAt: '' }, seed.trim(), { config, content: set });
+}
+
 /**
  * What the new-game form shows of the Guildmaster the seed draws (v1.1.2-S4, DL-125 item 6), each line
  * only for what is left to the seed:
@@ -275,29 +305,16 @@ export type GuildmasterPreviewView =
   | { kind: 'unseeded'; words: string };
 
 /**
- * The preview of the Guildmaster `setup` makes from `seed`, under `config` and `set` (the current
- * defaults and the core, a new game's rules): the engine's `previewGuildmaster`, so the form computes
- * no rule (ADR-0007). `null` when nothing is left to the seed, or when the engine would refuse the
- * setup, whose sentence the form already says; the `unseeded` words when the seed is blank. A
- * Portrait chosen chooses the sex with it, so the sex is drawn only when neither is chosen.
+ * The preview's words for `preview`, the engine's for `seed` (`guildmasterPreview`): what is left to
+ * the seed is the engine's `drawn` (v1.1.2-S6), a Portrait chosen choosing the sex with it, so the
+ * form repeats no rule (ADR-0007). `null` when the engine would refuse the setup, whose sentence the
+ * form already says, or when nothing is left to the seed; the `unseeded` words when the seed is blank.
  */
-export function guildmasterPreviewView(
-  setup: SetupFields,
-  seed: string,
-  set: ContentSet = content,
-  config: GameConfig = defaultConfig,
-): GuildmasterPreviewView | null {
-  const drawn = {
-    sex: setup.guildmasterSex === undefined && setup.guildmasterPortraitKey === undefined,
-    age: setup.guildmasterAge === undefined,
-    traits: setup.guildmasterTraitKeys === undefined,
-    portrait: setup.guildmasterPortraitKey === undefined,
-  };
+export function guildmasterPreviewView(preview: GuildmasterPreview | null, seed: string, set: ContentSet = content): GuildmasterPreviewView | null {
+  if (preview === null) return null;
+  const { sex, age, traitKeys, portraitKey, drawn } = preview;
   if (!(drawn.sex || drawn.age || drawn.traits || drawn.portrait)) return null;
   if (seed.trim() === '') return { kind: 'unseeded', words: unseededWords };
-  const preview = previewGuildmaster({ ...setup, createdAt: '' }, seed.trim(), { config, content: set });
-  if (preview === null) return null;
-  const { sex, age, traitKeys, portraitKey } = preview;
   const parts = [drawn.sex ? capitalised(sex) : null, drawn.age ? (drawn.sex ? String(age) : `Age ${age}`) : null].filter((part) => part !== null);
   const pictured = portraitKey === null ? 'None: the Silhouette' : (portraitPick(portraitKey, set)?.label ?? portraitKey);
   return {
@@ -308,50 +325,122 @@ export function guildmasterPreviewView(
   };
 }
 
-/** The three texts written for the Guildmaster, and for whom, in words. */
+/** The three texts written for the Guildmaster, and for whom, in words and as the facts written for. */
 export interface WrittenDescription {
   texts: GuildmasterDescription;
-  /** `Written for a female Guildmaster of 34. Change them as you like.` */
+  /** `Written for a female Guildmaster of 34.` */
   words: string;
-}
-
-/** `setup` with neither name nor any text: what the Guildmaster's facts are drawn from. */
-function factsOf(setup: SetupFields): SetupFields {
-  const facts: SetupFields = { ...setup, guildName: 'Guild', guildmasterName: 'Guildmaster' };
-  delete facts.guildmasterBirthplace;
-  delete facts.guildmasterAppearance;
-  delete facts.guildmasterBiography;
-  return facts;
+  /**
+   * The facts they were written for, as one string: the seed, the sex, the age, the Traits, the
+   * Portrait and the Background. Two writings for the same facts have the same (v1.1.2-S6).
+   */
+  facts: string;
 }
 
 /**
  * The Birthplace, Appearance and Biography "Write them for me" (`n` 0) and "Again" (each `n` after)
- * put in the form (v1.1.2-S5, DL-125 item 6): the engine's `describeGuildmaster` for the Guildmaster
- * `setup` makes from `seed`, its sex, age, Traits and Portrait chosen or drawn, and its Guild's
- * Background, as the engine's `previewGuildmaster` gives them, so the form computes no rule
- * (ADR-0007). The texts the form holds, and the names, are not read: the writing is the same
- * whatever is typed there. `null` when the engine would refuse the rest of the setup, or the seed is
- * blank, since then there is no Guildmaster to write for.
+ * put in the form (v1.1.2-S5, DL-125 item 6), for `preview`, the engine's Guildmaster for `seed`
+ * (`guildmasterPreview`): at `n` 0 the texts in the preview, which are the engine's
+ * `describeGuildmaster` at 0 and what "Start the game" writes; after, `describeGuildmaster` for the
+ * preview's sex, age, Traits, Portrait and Background, so the form computes no rule (ADR-0007).
+ * `null` when there is no preview, the engine refusing the setup, or the seed is blank, since then
+ * there is no Guildmaster to write for.
  */
-export function writtenDescription(
-  setup: SetupFields,
-  seed: string,
-  n: number,
-  set: ContentSet = content,
-  config: GameConfig = defaultConfig,
-): WrittenDescription | null {
+export function writtenDescription(preview: GuildmasterPreview | null, seed: string, n: number, set: ContentSet = content): WrittenDescription | null {
   const trimmed = seed.trim();
-  if (trimmed === '') return null;
-  const preview = previewGuildmaster({ ...factsOf(setup), createdAt: '' }, trimmed, { config, content: set });
-  if (preview === null) return null;
-  const texts = describeGuildmaster({ seed: trimmed, n, ...preview }, { content: set });
-  return { texts, words: `Written for a ${preview.sex} Guildmaster of ${preview.age}. Change them as you like.` };
+  if (preview === null || trimmed === '') return null;
+  const { sex, age, traitKeys, portraitKey, backgroundKey } = preview;
+  const texts = n === 0 ? preview.description : describeGuildmaster({ seed: trimmed, n, sex, age, traitKeys, portraitKey, backgroundKey }, { content: set });
+  return {
+    texts,
+    words: `Written for a ${sex} Guildmaster of ${age}.`,
+    facts: JSON.stringify([trimmed, sex, age, traitKeys, portraitKey, backgroundKey]),
+  };
 }
 
 /**
- * Whether "Write them for me" can write for `setup`: the engine keeps the setup but for its names and
- * texts, which the writing does not read (v1.1.2-S5). Otherwise the refusal's sentence stands.
+ * What the form holds of the three texts (v1.1.2-S6): how many times they have been written, and those
+ * the player has typed. A field the player has not typed in shows the writing, so it follows the
+ * Guildmaster as the facts change; one they have typed in keeps their words.
  */
-export function descriptionWritable(setup: SetupFields, set: ContentSet = content, config: GameConfig = defaultConfig): boolean {
-  return setupRefusal({ ...factsOf(setup), createdAt: '' }, { config, content: set }) === null;
+export interface TextsHeld {
+  /** `null` before "Write them for me"; then 0, and one more for each "Again". */
+  n: number | null;
+  /**
+   * The texts the player typed, each with `over`, the facts of the writing shown in the field when
+   * they first changed it (`WrittenDescription.facts`), or `null` when none was shown there.
+   */
+  typed: Readonly<Partial<Record<DescriptiveAttribute, { text: string; over: string | null }>>>;
+}
+
+/** Nothing written and nothing typed: the form as it opens. */
+export const noTexts: TextsHeld = { n: null, typed: {} };
+
+/**
+ * "Write them for me" (`n` 0) or "Again" (`n` one more) (v1.1.2-S6): the fields left blank, or still
+ * as written, are written; those holding the player's words are kept, as `createWorld` keeps a text
+ * given and writes a blank one (`describeBlanks`).
+ */
+export function textsWritten(held: TextsHeld, n: number): TextsHeld {
+  const typed = Object.fromEntries(Object.entries(held.typed).filter(([, each]) => each.text.trim() !== ''));
+  return { n, typed };
+}
+
+/**
+ * `text` typed in `attribute`'s field while `written` is the writing for the Guildmaster the form
+ * makes (v1.1.2-S6). Typed back to the text written, the field is as written again, and follows the
+ * writing; otherwise it holds the player's words, marked with the facts of the writing it changed.
+ */
+export function textTyped(held: TextsHeld, attribute: DescriptiveAttribute, text: string, written: WrittenDescription | null): TextsHeld {
+  const shown = held.n === null ? null : written;
+  const rest = Object.fromEntries(Object.entries(held.typed).filter(([key]) => key !== attribute));
+  if (shown !== null && text === shown.texts[attribute]) return { ...held, typed: rest };
+  const over = held.typed[attribute]?.over ?? (shown === null ? null : shown.facts);
+  return { ...held, typed: { ...rest, [attribute]: { text, over } } };
+}
+
+/** What the three fields show and "Start the game" sends, and what the form says of them. */
+export interface TextsView {
+  values: Record<DescriptiveAttribute, string>;
+  /** `Written for a female Guildmaster of 34. Change them as you like.`, and more; `null` before any writing. */
+  words: string | null;
+}
+
+/** What the form says with nothing written because there is no Guildmaster to write for. */
+const unwritableWords = 'Nothing can be written for this Guildmaster yet. Any left blank are written when the game starts.';
+
+/**
+ * The three fields as `held` and `written` make them (v1.1.2-S6): the player's words where they typed,
+ * else the writing, else blank; and the note. The note says for whom they were written. It names the
+ * fields the player changed from a writing for other facts, which are kept as they are, and says so
+ * when all three are the player's own, or when there is no Guildmaster to write for (`written`
+ * `null`: the setup refused, or the seed blank).
+ */
+export function textsView(held: TextsHeld, written: WrittenDescription | null): TextsView {
+  const shown = held.n === null ? null : written;
+  const values = Object.fromEntries(
+    descriptiveAttributes.map((attribute) => [attribute, held.typed[attribute]?.text ?? shown?.texts[attribute] ?? '']),
+  ) as Record<DescriptiveAttribute, string>;
+  if (held.n === null) return { values, words: null };
+  if (written === null) return { values, words: unwritableWords };
+  const own = descriptiveAttributes.filter((attribute) => (held.typed[attribute]?.text.trim() ?? '') !== '');
+  const stale = own.filter((attribute) => {
+    const over = held.typed[attribute]?.over ?? null;
+    return over !== null && over !== written.facts;
+  });
+  if (stale.length === 0) {
+    const words =
+      own.length === descriptiveAttributes.length
+        ? 'All three are your own words, so none was written. Clear one to have it written.'
+        : `${written.words} Change them as you like.`;
+    return { values, words };
+  }
+  const named = listed(stale.map((attribute) => `the ${descriptiveAttributeLabels[attribute]}`));
+  const one = stale.length === 1;
+  return {
+    values,
+    words:
+      `${written.words} ${capitalised(named)} ${one ? 'was' : 'were'} written for another Guildmaster, ` +
+      `and ${one ? 'is' : 'are'} kept as you changed ${one ? 'it' : 'them'}.`,
+  };
 }

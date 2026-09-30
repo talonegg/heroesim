@@ -5,7 +5,7 @@ import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
-import { setupFormChoices, writtenDescription } from '../state/setup';
+import { guildmasterPreview, setupFormChoices, writtenDescription, type SetupFields } from '../state/setup';
 import { NewGame } from './new-game';
 import { openView } from './page.test-support';
 
@@ -16,6 +16,11 @@ import { openView } from './page.test-support';
 // stands beside "Start the game". The values are DL-100 item 3's: a budget of 1, at most 2 Traits.
 
 afterEach(cleanup);
+
+/** The texts the form writes for `setup` and `seed`, from the engine's preview. */
+function writtenOf(setup: SetupFields, seed: string, n: number) {
+  return writtenDescription(guildmasterPreview(setup, seed), seed, n);
+}
 
 /** The form, before a game, and the plays it makes. */
 function form(): { play: ReturnType<typeof vi.fn<(action: GameAction) => void>> } {
@@ -406,6 +411,13 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     expect(preview().textContent).toBe('The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.');
   });
 
+  test('says what the seed draws in a polite live region, so a screen reader hears it follow the fields (v1.1.2-S6)', () => {
+    form();
+    named();
+    const words = within(setup()).getByTestId('guildmaster-preview').querySelector('.setup-preview__words');
+    expect(words?.getAttribute('aria-live')).toBe('polite');
+  });
+
   test('says only what is left to the seed, and nothing once everything is chosen', () => {
     form();
     named();
@@ -451,7 +463,7 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
     fireEvent.click(writeButton('Write them for me'));
 
     const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
-    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 0)?.texts);
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 0)?.texts);
     const [drawn = ''] = [...within(setup()).getByTestId('guildmaster-preview').querySelectorAll('p')].map((line) => line.textContent ?? '');
     const [, sex = '', age = ''] = /^Drawn: (Female|Male), (\d+)$/.exec(drawn) ?? [];
     expect(writtenFor()).toBe(`Written for a ${sex.toLowerCase()} Guildmaster of ${age}. Change them as you like.`);
@@ -465,9 +477,9 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
     const first = texts();
 
     fireEvent.click(writeButton('Again'));
-    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 1)?.texts);
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 1)?.texts);
     fireEvent.click(writeButton('Again'));
-    expect(texts()).toEqual(writtenDescription(fields, 'new-game-test', 2)?.texts);
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 2)?.texts);
     expect(texts().biography).not.toBe(first.biography);
 
     fireEvent.click(writeButton('Write them for me'));
@@ -504,7 +516,67 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
 
     const seed = (screen.getByLabelText('Seed') as HTMLInputElement).value;
     expect(seed.trim()).not.toBe('');
-    expect(texts()).toEqual(writtenDescription({ guildName: 'The Lantern', guildmasterName: 'Ada Vell' }, seed, 0)?.texts);
+    expect(texts()).toEqual(writtenOf({ guildName: 'The Lantern', guildmasterName: 'Ada Vell' }, seed, 0)?.texts);
+  });
+
+  // v1.1.2-S6 (the review's C): the buttons write only what is blank or still as written.
+  test('"Write them for me" and "Again" keep what the player typed, and write the rest', () => {
+    form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    fireEvent.change(field('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual({ ...writtenOf(fields, 'new-game-test', 0)?.texts, biography: 'Kept the toll bridge for twenty years.' });
+
+    fireEvent.change(field('Birthplace'), { target: { value: 'Kingsbridge' } });
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual({
+      ...writtenOf(fields, 'new-game-test', 1)?.texts,
+      birthplace: 'Kingsbridge',
+      biography: 'Kept the toll bridge for twenty years.',
+    });
+  });
+
+  // v1.1.2-S6 (the review's B): the texts follow the Guildmaster the form makes, unless the player changed them.
+  test('changing the sex, the age, the Traits or the seed writes the texts still as written for the new Guildmaster, and says so', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '34' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(writtenFor()).toBe('Written for a female Guildmaster of 34. Change them as you like.');
+
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '48' } });
+    const male = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterSex: 'male' as const, guildmasterAge: 48 };
+    expect(texts()).toEqual(writtenOf(male, 'new-game-test', 0)?.texts);
+    expect(writtenFor()).toBe('Written for a male Guildmaster of 48. Change them as you like.');
+
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'another-seed' } });
+    expect(texts()).toEqual(writtenOf(male, 'another-seed', 0)?.texts);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({
+      seed: 'another-seed',
+      guildmasterSex: 'male',
+      guildmasterAge: 48,
+      guildmasterBirthplace: writtenOf(male, 'another-seed', 0)?.texts.birthplace,
+      guildmasterBiography: writtenOf(male, 'another-seed', 0)?.texts.biography,
+    });
+  });
+
+  test('a text the player changed is kept when the Guildmaster changes, and the note says it was written for another', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.click(writeButton('Write them for me'));
+    fireEvent.change(field('Biography'), { target: { value: `${field('Biography').value} She rows.` } });
+    const changed = field('Biography').value;
+
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    expect(field('Biography').value).toBe(changed);
+    expect(writtenFor()).toMatch(/^Written for a male Guildmaster of \d+\. The Biography was written for another Guildmaster, and is kept as you changed it\.$/);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'male', guildmasterBiography: changed });
   });
 
   test('cannot write while the engine would refuse the rest of the setup, whose sentence stands', () => {
