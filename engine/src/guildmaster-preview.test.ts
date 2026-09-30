@@ -37,8 +37,8 @@ function made(seed: string, setup: WorldSetup, withDeps = deps) {
 function previewed(setup: WorldSetup, seed: string, withDeps = deps) {
   const preview = previewGuildmaster(setup, seed, withDeps);
   if (preview === null) return null;
-  const { drawn: _drawn, ...rest } = preview;
-  return rest;
+  const { sex, age, traitKeys, portraitKey, backgroundKey, description } = preview;
+  return { sex, age, traitKeys, portraitKey, backgroundKey, description };
 }
 
 const seeds = Array.from({ length: 120 }, (_, n) => `preview-${n}`);
