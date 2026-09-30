@@ -15589,7 +15589,8 @@ Guildmasters. It was built against S1's content, before S4's pictures, so its co
 **Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-134 items 2, 5
 and 9 and DL-135 items 3 to 8 as the epic's S6 describes. How many draws, which stream a Hero's texts
 come from, what "a repeat" counts and the save's measure are the agent's, for the owner to confirm.
-Built by Opus in a worktree from `4a1ff38`, beside S4, which changes content only.
+Built by Opus in a worktree from `4a1ff38`, beside S4, which changes content only, and verified by a
+second Opus agent (below).
 
 **Context.** S5 (DL-141) chose every Guildmaster's Portrait. S6 does the same for Heroes, gives every
 Hero an Appearance and a Biography, and raises the save to schema 6. The core ships no Hero picture
@@ -15685,15 +15686,67 @@ Hero an Appearance and a Biography, and raises the save to schema 6. The core sh
     The Heroes' fields are 0.08 MiB of the mean, 0.1%.
 - *The 2.5 MB bound is not met.* The epic's S6 acceptance holds the year-20 save under 2.5 MB, "half
   of localStorage's usual 5 MB". It cannot hold:
-  - the save has been about 100 MB uncompressed since M2 (data-model §7);
-  - the page keeps it gzipped in IndexedDB, not in localStorage (DL-67);
+  - the save has been tens of MiB uncompressed since M2 (75 MiB at 20 years, DL-34), about 100 MiB
+    since M8 (mean 99.21 MiB, data-model §7, DL-84), and `v1.1.2`'s own sweep measured a mean of
+    99.97 MiB and a largest of 118.60 MiB (`m9-v112-s7-2026-10-01.md`);
+  - the page keeps it gzipped in IndexedDB, not in localStorage (DL-67), and data-model §7 has said
+    so since M7;
   - S6 adds about 85 kB to it.
 
-  The box is left open for the owner, who may restate it as the Hero texts' share.
+  The bound is not in DL-134 or DL-135. DL-134 item 9 says only: "*Saves.* A Hero's save row holds
+  only their Portrait's key, about 30 bytes. The harness reports the save's size." DL-135 item 6 then
+  put the texts in the save and kept "The harness reports the save's size". The 2.5 MB and its
+  localStorage reason were added in the epic's drafting, read against a store the page does not use.
+  The box is left open for the owner.
 - *The suite.* `npm run lint` and `typecheck` pass. `npm test`, run beside ten 20-year games, failed
   only load timeouts: `create`, `selectors`, `probe`, `succession`, `reducer`, `treasury` and the
   Class-bias test of `generators/heroes`. Each file passes alone. The Class-bias test now uses content
   with no picture, since ten thousand Heroes in one pool each read the pictures in use.
+
+**The verification** (a second Opus agent, in the same worktree).
+- *Every path.* A Hero row is built in one place in the engine, CLI, page and harness:
+  `generateHero`. Its three callers are the world's creation, the pool's nightly refill and a Rival's
+  Roster, founding or replacing (`generators/guilds.ts`). The only other Hero rows are the tests'
+  `buildDocument`, which never plays.
+- *Creation, 1,000 seeds, two setups* (age 30, and blank), against a `git archive` of `4a1ff38` with
+  its own workspace links, so that neither tree loaded the other's engine. Only `meta.version`,
+  `meta.config.schemaVersion`, each Hero's three fields and the two new streams' states differ, in every
+  world: 35,892 Heroes a setup. For every world, the two streams' states equal a fresh stream advanced
+  once and thirteen times a Hero. None had a picture, and the longest texts were 278 and 314.
+- *Three seeds played 20 years* (`seed-0001` to `seed-0003`). The Histories are identical, 260,738 to
+  270,009 entries, and the World State differs only in the fields above. Of the 146 to 175 Heroes each
+  final save holds, 115 to 135 have a Trait, and the saves are 78 to 93 kB (0.07% to 0.09%) longer:
+  about 535 characters a Hero.
+- *The words.* The page's and the CLI's refusals are DL-130's, character for character, and the page's
+  saves test deletes the refused schema 5 save. The CLI's `Portrait` line is a Guildmaster's
+  ("None: the Silhouette"), and its labels are `descriptiveAttributeLabels`'.
+- *The suite.* `npm run lint` and `typecheck` pass. `npm test` failed only two load timeouts, `create`
+  and `probe`, each passing alone (3,850 tests).
+- *The two departures from DL-135 item 6*, which says the Biography is written "from the Hero's
+  Background (and its station), Class, Traits and picture", are judged sound and left as built:
+  - *The Station.* Each Hero Background has one Station (DL-135 item 5), so its sentence already speaks
+    for it, and the Station is the Background's, never the picture's, as item 5 asks. S1 bounded the
+    Biography with no Station sentence (DL-138 item 5), and all three `stationOrigins` name
+    `{birthplace}`, which a Hero lacks. A Station sentence would need a new list, with its draw, and a
+    change to S1's bound.
+  - *The Traits.* A Hero is generated with none (`traits: []` in `generateHero`), and gains the four
+    Hero Traits (`scarred`, `lame`, `one-eyed`, `short-winded`) only from Injuries
+    (`phases/hero-state.ts`). Content's Trait sentences speak of that Injury in the past ("An old Injury
+    left {him} lame"). So no Trait sentence can be written as a Hero is generated, and the two draws are
+    spent, so that a later change writes them without moving a draw. Writing one as the Trait is gained
+    would draw on `hero-descriptions` in play, change a text the player has read, and break the fixed
+    thirteen draws a Hero that ADR-0009's amendment records. That is the owner's to choose, not a fix.
+
+**For the owner.**
+1. *The save's bound.* Restate the S6 box as: "The Heroes' `portraitKey`, `appearance` and
+   `biography` add under 1% to the year-20 save (measured 0.08%, about 535 characters a Hero held),
+   and the page keeps its saves gzipped in IndexedDB, unchanged (DL-67)." Or keep a size bound, as
+   data-model §7's gzipped figure (12.08 MiB for `seed-0001`; this sweep's mean 11.12 MiB, largest
+   13.24 MiB). S8 records whichever the owner takes.
+2. *A Trait gained.* At year 20 most Heroes held hold a Trait their Biography never mentions (115 to 135
+   of 146 to 175 in the three games). Should a Trait gained from an Injury add its sentence to the
+   Biography, one draw of `hero-descriptions` as it is gained (no play moves, but later Heroes' texts
+   do), or should the Biography stay as written at generation?
 
 **Consequences.**
 - *For S7.*
