@@ -154,6 +154,11 @@ function strayConfigurations(webDir) {
   }
 }
 
+/** `env` without the Cloudflare credentials wrangler reads: `CLOUDFLARE_*` and `CF_*`. */
+function withoutCredentials(env) {
+  return Object.fromEntries(Object.entries(env).filter(([key]) => !/^(?:CLOUDFLARE|CF)_/i.test(key)));
+}
+
 /** The entries of a file wrangler wrote, one JSON object a line; none when it wrote nothing. */
 function readRecord(file) {
   if (!existsSync(file)) return [];
@@ -247,12 +252,14 @@ export function deploy({
   const commands = wranglerCommands(tag, commit);
   say(`${tag} at commit ${commit}, from a clean checkout${dryRun ? ' (dry run)' : ''}.`);
 
-  const node = (args, extraEnv = {}) =>
-    spawn(execPath, args, { cwd: webDir, env: { ...env, ...extraEnv }, stdio: 'inherit' });
+  const node = (args, extraEnv = {}, base = env) =>
+    spawn(execPath, args, { cwd: webDir, env: { ...base, ...extraEnv }, stdio: 'inherit' });
   const failed = (child) => child.error !== undefined || child.status !== 0;
   const statusOf = (child) => (typeof child.status === 'number' && child.status !== 0 ? child.status : 1);
 
-  const build = node([clis.npm, 'run', 'build']);
+  // The build runs Vite, its plugins and whatever `npm ci` installed: it is handed no Cloudflare
+  // credential, which only wrangler needs (DL-124).
+  const build = node([clis.npm, 'run', 'build'], {}, withoutCredentials(env));
   if (failed(build)) {
     complain(`the build failed; nothing was uploaded.${build.error ? ` ${build.error.message}` : ''}`);
     return statusOf(build);

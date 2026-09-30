@@ -62,6 +62,11 @@ branch's pull request moves it, and each merge releases.
 
    Leaving the pull request open holds the next release while commits gather.
 
+If `main` ever takes a commit that no release branch holds (a direct push, or a pull request
+from elsewhere), every later release is refused, because `main` differs from the pull request's
+head. Merge `main` back into the current release branch and push it; the next pull request
+releases both.
+
 A new line needs only its two branches, and Dependabot's `target-branch` (`.github/dependabot.yml`)
 moved to its dev branch. Every day `watch.yml` does three things, and opens an issue when any of
 them fails, or when the token expires within 30 days:

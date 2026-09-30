@@ -540,14 +540,19 @@ describe('the deploy', () => {
     ]);
   });
 
-  test("hands npm and wrangler the deploy's own environment: the login's profile, PATH and an account id (v1.0.1-S6, DL-97)", () => {
+  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (v1.0.1-S6, DL-97; DL-124)", () => {
     // Assembled, so that the credential scan below stays quiet.
     const account = ['CLOUDFLARE', 'ACCOUNT', 'ID'].join('_');
-    const env = { PATH: '/usr/bin', HOME: '/home/someone', USERPROFILE: 'C:\\Users\\someone', [account]: 'the-account' };
+    const token = ['CLOUDFLARE', 'API', 'TOKEN'].join('_');
+    const plain = { PATH: '/usr/bin', HOME: '/home/someone', USERPROFILE: 'C:\\Users\\someone' };
+    const env = { ...plain, [account]: 'the-account', [token]: 'the-token' };
     const { builds, wrangler } = run({}, { env });
 
     expect(wrangler).toHaveLength(2);
-    for (const call of [...builds, ...wrangler]) expect(call.options.env).toMatchObject(env);
+    for (const call of wrangler) expect(call.options.env).toMatchObject(env);
+    // The build runs third-party code, and is handed no Cloudflare credential (DL-124).
+    expect(builds).toHaveLength(1);
+    expect(builds[0]?.options.env).toEqual(plain);
   });
 
   test('runs npm and npx from npm_execpath when npm runs it, and from beside Node when node does', () => {

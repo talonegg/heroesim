@@ -14,6 +14,8 @@ on:
 permissions:
   contents: read
 
+# One release at a time. A merge whose run is still waiting when a newer one queues is skipped,
+# and gets no tag of its own: harmless, since the newer merge's tree holds it.
 concurrency:
   group: release
   cancel-in-progress: false

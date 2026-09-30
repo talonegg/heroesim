@@ -13,6 +13,10 @@ name: deploy
 # the run's summary and to the tag's GitHub Release, made by a job of its own that holds no
 # Cloudflare secret. The two credentials are secrets of the `production` environment, never a
 # file in the repository (INPUTS 7.9).
+#
+# Two settings would break this: a deployment branch policy on `production` allowing only `v*`
+# tags (a call from release.yml runs with the ref `main`), and required reviewers on it (the daily
+# watch reads its secrets, and would wait for approval every day).
 on:
   push:
     tags:
@@ -116,8 +120,12 @@ jobs:
       - name: The live check's result
         run: echo 'The live check passed on both addresses, at both widths.' >> "$GITHUB_STEP_SUMMARY"
 
+  # The tag's GitHub Release, whenever an upload was made: a pre-release saying so when a step
+  # after the upload failed, the live check among them, replaced by the full release when a re-run
+  # passes. It holds no Cloudflare secret.
   publish:
     needs: deploy
+    if: always() && needs.deploy.outputs.record != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -127,12 +135,29 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ needs.deploy.outputs.tag }}
           RECORD: ${{ needs.deploy.outputs.record }}
-          LATEST: ${{ inputs.allow_older != true }}
+          RESULT: ${{ needs.deploy.result }}
+          ALLOW_OLDER: ${{ inputs.allow_older == true }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
-          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            echo "$TAG already has a GitHub Release: this was a redeploy, and it is left as it was."
-            exit 0
+          if [ "$RESULT" = "success" ]; then
+            said='Deployed to https://heroesims.pages.dev and https://heroesim.magical-potato.workers.dev; the live check passed on both.'
+            pre=false
+            latest="$([ "$ALLOW_OLDER" = "true" ] && echo false || echo true)"
+          else
+            said="Uploaded, but the deploy did not finish: a step after the upload failed, the live check or another ($RUN). A pre-release until a re-run passes."
+            pre=true
+            latest=false
           fi
-          notes="$(printf 'Deployed to https://heroesims.pages.dev and https://heroesim.magical-potato.workers.dev; the live check passed on both.\n\n```\n%s\n```\n' "$RECORD")"
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            was="$(gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
+            if [ "$was" = "true" ] && [ "$pre" = "false" ]; then
+              gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes
+              echo "$TAG's pre-release is replaced: this run passed."
+            else
+              echo "$TAG already has a GitHub Release: it is left as it was."
+              exit 0
+            fi
+          fi
+          notes="$(printf '%s\n\n```\n%s\n```\n' "$said" "$RECORD")"
           gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
-            --notes "$notes" --generate-notes --latest="$LATEST"
+            --notes "$notes" --generate-notes --prerelease="$pre" --latest="$latest"
