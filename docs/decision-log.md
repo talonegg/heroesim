@@ -14076,6 +14076,219 @@ calls what `createWorld` calls, and the Portrait's stream is S3's.
 `web/playwright.config.ts` (comments), `web/e2e/` (`file.spec.ts`, `portrait.spec.ts` new, `fixtures/`
 removed); `CONTEXT.md` (Portrait); `docs/planning/epics/v1.1.2-release.md`.
 
+## DL-132 — v1.1.2-S5 built: the Guildmaster described from `content/descriptions.json`, every blank written as a Guildmaster enters play on the stream `descriptions`, the portraits' Appearances checked in full, and "Write them for me" and "Again" on the new-game form
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S5's implementer. What is
+written, for whom and when, the new stream, the slots and the bounds are the owner's and DL-125 item 6's,
+DL-126 item 2's and DL-127's. The file's shape, the words of every phrase and sentence, how an Appearance and
+a Biography are put together, what `seed` and `n` mean, the draws, the blank seed on the form and the form's
+words are the implementer's, each marked, for the owner to change.
+
+**Context.** v1.1.2-S5 writes a Guildmaster's Birthplace, Appearance and Biography from content: on request
+at setup, and for each left blank as any Guildmaster enters play. It supersedes DL-100 item 3's "a drawn
+Guildmaster's are empty". It is built on `v1.1.2-dev` from `d51a6f2`. No existing draw moves: the texts are
+drawn on a new stream, `descriptions`, appended last (ADR-0009 as amended 2026-09-30).
+
+**Decision.**
+
+1. **`content/descriptions.json`** (DL-125 item 6; the shape and the words the implementer's). 18,650 bytes:
+   - *`ageBands`*: `young` from 0, `middle` from 31, `older` from 41, a list in order, the first from 0 so
+     every age has one. A Guildmaster's band is that of `ageAtEntry`.
+   - *`pronouns`*: each sex's word for the slots `{he}`, `{him}`, `{his}`, `{He}` and `{His}` (she, her,
+     her, She, Her). They are content, so the validator measures them as the engine fills them.
+   - *`birthplaces`*: 35 places, a name or a name with a few words ("Kettlewick, a mill town on the
+     Swale"), in the manner of the core's Guild and family names. None is a Guild's Background, and each
+     begins with a capital, since it stands alone as the Birthplace's value.
+   - *`appearance`*: by sex, then band, then slot (`build`, `face`, `hair`, `facialHair` for a male's only,
+     `eyes`, `mark`, `bearing`), four phrases each, 156 in all. Each is a whole sentence. None names
+     clothing, armour, gear or ornaments (DL-127 item 2), and none has a slot, since each list is one
+     sex's.
+   - *`biography`*: `origins`, `careers` and `closings` by band (5, 5 and 4 a band); `backgrounds` by Guild
+     Background (three each for the core's four); `traits` by Guildmaster Trait (two each for the six).
+     The last two are the optional keys: a key with no sentence adds none.
+2. **How a text is put together** (the implementer's; `engine/src/descriptions.ts`).
+   - *The Appearance, drawn:* one phrase of `build`, `face`, `hair`, `facialHair` (a male's), `eyes`, then
+     one of `mark` or `bearing`, joined by spaces.
+   - *With a mapped picture:* its `narrative`, as written (DL-127 item 4). The core maps both of the
+     owner's pictures, so the player's Guildmaster's Appearance is always the narrative of the Portrait
+     they have, and a Rival's, with the Silhouette, is drawn whole.
+   - *The Biography:* an origin, a career, the Guild Background's sentence, one for each of the first
+     `biographyTraitSentences` (2) Traits in the Guildmaster's order, and a closing, those there are
+     joined by spaces. Each pronoun slot is the sex's word, and `{birthplace}` is the Birthplace kept, given
+     or written, with a closing full stop dropped, so a player's "Kingsbridge." reads well.
+   - *A text given* is kept, trimmed as before. A blank one, or one of white space, is written.
+3. **The draws** (the implementer's).
+   - *Fifteen a Guildmaster, whatever is written:* one for the Birthplace; one for each of the seven
+     slots, `pickOrNone` spending a draw on an empty list, so a woman's `facialHair` draws too; one for
+     `mark` or `bearing`; and one for each of the Biography's six parts. So a text given, a picture mapped,
+     a Background or a Trait with no sentence, the sex or the age move no later draw, and the Guildmasters
+     after are described as they would have been.
+   - *The stream `descriptions`*, appended last to `streamNames` (ADR-0009 as amended 2026-09-30). An
+     unreleased v1.1.2 save that lacks it gains it on its next play, as any missing stream does.
+4. **Every Guildmaster entering play is described** (`describeBlanks`).
+   - *The player's*, in `founded`, once the Portrait is drawn, since a mapped picture's narrative is the
+     Appearance. `generateGuild` takes `describe: false` for it.
+   - *A founding Rival's and a replacing Rival's*, in `generateGuild`, with its Guild's Background.
+   - *A successor's*, in `generateSuccessor`, with the Guild's Background.
+   - *The order* is the order they enter play, so the player's is always the first `descriptions` writes.
+5. **`describeGuildmaster({ seed, n, sex, age, backgroundKey, traitKeys, portraitKey }, deps)`** (the
+   implementer's reading of `seed` and `n`).
+   - *Pure:* the same for the same inputs. It takes `deps` beside the epic's object, as every engine
+     function does, to read content.
+   - *`seed`* is a world's seed, the Seed field's on the form.
+   - *`n`* is how many times "Again" has been asked (DL-125 item 6). At 0 it draws from the stream a world
+     from `seed` begins with as `descriptions`. That stream's first fifteen draws describe the player's
+     Guildmaster, so "Write them for me" writes exactly what "Start the game" writes for the three left
+     blank. At each `n` after, it draws from a stream seeded by `seed` and the name `descriptions-<n>`, which
+     no world draws from. An `n` that is not a whole number from 0 throws.
+   - *`previewGuildmaster`* now gives the player's Guild's Background too, chosen or drawn, since the
+     Biography writes for it.
+6. **The checks** (`content/src/validate.ts`).
+   - *`descriptions.json`:* the age bands (at least one, the first from 0, rising, keys lower case and
+     hyphens, each once); the pronouns (the same slots for every sex, words of letters, none called
+     `birthplace`); each Birthplace written, trimmed, beginning with a capital, at most 60, and listed
+     once; every sex with every band and slot, `facialHair` a male's only; each phrase a sentence (a
+     capital first, a full stop last) with no slot; each Biography sentence a sentence whose slots are
+     known; the backgrounds' keys Guild Backgrounds and the traits' keys Guildmaster Traits.
+   - *The longest, not samples* (`longestDescriptions`, exported): for each sex and band, each slot's
+     longest phrase, the longer of `mark` and `bearing`, and the spaces; each part's longest sentence
+     with the longer sex's pronouns and `{birthplace}` as long as its bound (60, since a player may give
+     one), the longest Background sentence and the two longest Trait sentences. Over the core: Birthplace
+     40, Appearance 278 and Biography 738, within 60, 280 and 1,000.
+   - *`portrait-appearances.json`, in full* (DL-126 item 2, DL-127 items 3 and 4): each keyword's key
+     lower case and hyphens, its word written and at most 24; each row's key a picture; its keywords
+     defined, each once, and `facialHair` on a male picture's only; its narrative written and at most 280.
+   - *The bounds repeated* (the implementer's). Content imports only the engine's types, so
+     `descriptionBounds` (60, 280, 1,000) and `biographyTraitSentences` (2) are repeated there.
+     `cli/src/descriptions.test.ts`, where both packages meet, holds them equal to the engine's
+     `descriptiveAttributeMaxLength` and `biographyTraitSentences`. Over 2,400 requests of every sex, age,
+     Background and Traits, it holds the engine's writing within the validator's longest.
+   - *The content version stays 16*, as DL-131 kept it: no release has held 16 without the file.
+7. **The form** (`web/src/views/new-game.tsx`, `web/src/state/setup.ts`; the words the implementer's).
+   - *Before the three fields:* "A few words about your Guildmaster. Any left blank are written when the
+     game starts." Then "Write them for me", and "Again" once it has been pressed.
+   - *"Write them for me"* fills the three fields with `writtenDescription(setup, seed, 0)`. That is the
+     engine's `describeGuildmaster` for the facts `previewGuildmaster` gives: the sex and age chosen or
+     drawn, the Background, the Traits and the Portrait. The names and the texts typed are not read. It
+     says for whom: "Written for a female Guildmaster of 39. Change them as you like.", in a polite live
+     region.
+   - *"Again"* writes with `n` one more each time. "Write them for me" writes the first again.
+   - *The fields stay editable*, and what they hold at "Start the game" is sent and kept.
+   - *With the seed blank* (the implementer's), the button makes one up as the click would and puts it in
+     the Seed field, so the texts are written for the game that starts.
+   - *Disabled* while the engine would refuse the setup but for its names and texts
+     (`descriptionWritable`), whose sentence already stands. A text too long never disables it, since
+     writing replaces it.
+   - *The header comment* now says a blank is written when the game starts. The Appearance's box is 4 rows
+     and the Biography's 7.
+8. **The CLI.** `new` writes each blank as the engine does, with no flag, and keeps one given. `show
+   guildmaster` then shows all three for every Guildmaster; a Rival's now has them. The usage's words
+   already said the texts left out come from the seed.
+9. **No draw moved.**
+   - *Creation, 2,000 worlds.* `seed-0001` to `seed-1000`, each with the bare setup and with a chosen sex,
+     age and Appearance. They were made by the engine and content at `d51a6f2` (extracted by `git
+     archive`) and at this story's first commit, `48d585a`. With every Guildmaster's three texts blanked
+     and the `descriptions` stream taken out, all 2,000 documents hash the same. The script was the
+     scratchpad's, not kept.
+   - *The sweep.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v112-s5 npm run harness` at `48d585a`, 16
+     processes, not validated. Its report is `harness/reports/m9-v112-s5-2026-09-30.md`, force-added.
+     - *Against `v1.1.1`'s* (M9-F7's `m9-f7-2026-09-30.md`) and v1.1.2-S3's (`m9-v112-s3-2026-09-30.md`):
+       every line from the Counters to the Rivals section, 566 lines, is identical to both. That is every
+       counter, yearly table and ending: 138 Rival folds, 37 Successions, no player ending, no refused
+       action, 50 of 50 saves round trip.
+     - *What moves:* the saves' length (`seed-0001` 106,336,426 characters against 106,331,268, 5,158 more
+       for the texts of its Guildmasters and the stream) and so the fingerprint, now
+       `b01ed9c878409368688ecef7935a6e36fc4b1ff03108268ed67ef991161217ce`. The timings are not comparable:
+       460 s against 689 s, on a shared machine.
+10. **The prose, read** (the implementer's judgement, for the owner). About twenty Guildmasters of four
+    seeds were read whole. The register is plain and a little old, as the owner's narratives are. Three
+    weak joins were seen and left for the owner's word, since the sweep was run on these words:
+    - "freckled by the sun" as a face and "Freckles scatter across her nose" as a mark can come together;
+    - "One eye is clouded" can follow "The eyes are pale and piercing";
+    - "along with his debts and his enemies" reads as the male Guildmaster's own, where it means the old
+      master's.
+
+    A career and a Trait can pull apart ("a magistrate's officer" beside Old soldier's "the years in the
+    ranks"), which reads as a life of two parts. Samples:
+    - *A mapped picture* (`seed-0021`'s player, female, 31, Breakaway): the Appearance is `gm-female-01`'s
+      narrative. The Biography: "She was born in Northmoor, beyond the peat cuttings, where her father drove
+      a carrier's cart for thirty years. For a decade she kept the books of a wool merchant, and can still
+      price a bale at a glance. She and a handful of others broke away from a Guild grown fat and careless,
+      and have not been forgiven for it. She keeps her own counsel, and the Guild runs better for it than
+      anyone expected."
+    - *Drawn* (`seed-0007`'s Godric Blackwater, male, 48, Old charter, Mistrusts magic and Well liked):
+      "Tall and spare, a little stooped now. A long face, hollow at the cheeks. Grey hair worn long and tied
+      back. A white moustache, yellowed at the ends. Hooded grey eyes that seem half asleep. He moves slowly,
+      and wastes no motion."
+    - *Drawn* (`seed-0021`'s Kelda Stanegate, female, 21, Old charter, Miser): "Long-limbed and graceful,
+      restless when still. A heart-shaped face, freckled by the sun. Brown hair twisted up, escaping in
+      wisps. Blue eyes that crinkle when she smiles. A burn scar marks the inside of one forearm."
+11. **The tests.**
+    - *Content:* the core's bands, Birthplaces, phrases and sentences by count and key; the longest within
+      the bounds; no Appearance, drawn or mapped, naming clothing, by a list of words; every text beginning
+      with a capital. Refusals, each named: the file missing; a field missing, unknown or of the wrong
+      type; a band that leaves an age without one, goes back, or is missing or unknown in a part;
+      `facialHair` on a female's or missing from a male's; an empty slot; a phrase that is no sentence or
+      has a slot; a key that is no Guild Background or Guildmaster Trait; an unknown slot; pronouns that
+      differ; a Birthplace too long, blank, in lower case or twice; and combinations past 280 and 1,000
+      whose every piece is short. The keywords' checks both ways, 280 and 24 accepted exactly, and the
+      longest measured with the longer sex, the bound for `{birthplace}` and two Traits only.
+    - *Engine* (`descriptions.test.ts` new): purity; `n` 0 equal to the world's writing for the player over
+      60 seeds and three setups; "Again" varying and repeating; the refusal of a bad `n`; a mapped
+      picture's narrative over 60 seeds and three `n`; the Appearance's slots in order by sex and band,
+      `mark` and `bearing` both drawn; the Biography's parts, pronouns and Birthplace; the bounds; blanks
+      written and texts kept from `descriptions` alone; the same draws whatever is given, mapped or keyed;
+      every Guildmaster of a world described; the player's texts moving no draw; the stream last. The
+      tests that proved a choice moves no draw now carry the texts across, as they carry the sex and age.
+      A successor and a replacing Rival are described, and draw from `descriptions` beside `generation`.
+    - *CLI:* `new` writing blanks as the engine does and keeping a Birthplace given; `show guildmaster`
+      with a Rival's three; the cross-package test (item 6).
+    - *Web:* `writtenDescription` equal to the world's writing over 40 seeds and three setups, the
+      narrative with "Again", names and texts not read, a blank seed and a refusal. The form: writing for
+      the drawn and for a chosen sex and age, "Again" and back, the fields edited and sent, a blank seed
+      made up, and the button disabled on a refusal. The journey through `App`, from "Again" and an edit
+      to the Guildmaster view. The view's tests hold an empty Appearance by blanking it, as an unreleased
+      save might.
+    - *Browser* (`e2e/described.spec.ts` new, at 360, 820 and 1280): the button by the keyboard; the three
+      filled and the narrative; "Again"; a chosen sex and age; an edit kept on the Guildmaster view; no
+      sideways scroll and 44px targets.
+12. **The script's size**, against S4's (670.33 kB, 190.61 kB gzipped): 699.43 kB, 200.06 kB gzipped,
+    29.10 kB and 9.45 kB gzipped more. Nearly all is `descriptions.json`, inlined as text (18.7 kB) and
+    parsed with its checks.
+13. **The screenshots.** From `dist/index.html` over `file://` at 360 × 800, 820 × 1180 and 1280 × 800, in
+    the light and the dark scheme. There are 36 files in the scratchpad's `v112-s5-shots\`, with
+    `shots-s5.mjs`, kept out of git.
+    - *What they show:* the setup before writing; written by the keyboard, the button's focus showing;
+      "Again"; male, 47, written; the Guildmaster view with the texts; a Rival's Guildmaster, opened on
+      their Guild's page, with the Silhouette and a drawn Appearance.
+    - *Seen:* none scrolls sideways, and no page error was logged. At 360px the full-page capture of the
+      Rival's page shows the sticky status bar and navigation mid-page, which is the capture's, not the
+      page's.
+14. **The final checks.**
+    - `npm run lint`: clean. `npm run typecheck`: clean.
+    - `npm test`: 3,648 tests in 155 files, every one passing at the first run, with none of the known
+      timeouts.
+    - `npm run e2e -w web`: the build, one script of 699.43 kB (200.06 kB gzipped), "check-bundle: 2 built
+      files, no network or filesystem reference"; 77 runs, all passing.
+
+**Consequences.**
+- *Play is unchanged.* No existing draw, `configVersion`, schema or content version moves. Every
+  Guildmaster's texts are now written, and the saves are longer by them and the stream.
+- *Superseded:* DL-100 item 3's empty descriptive Attributes of a drawn Guildmaster, as DL-125 said.
+- *A later rule* that reads the keywords reads the Guildmaster's `portraitKey`'s (DL-127 item 4).
+  `descriptions.json`'s phrases carry none yet.
+- *For v1.1.2-S6:* the three weak joins of item 10, if the owner wants them changed; a change of words
+  moves no counter.
+- *Tests:* 3,605 to 3,648, in 153 files to 155. The browser specs, 74 runs to 77.
+
+**Actioned in:** `content/` (`descriptions.json` new, `src/parse.ts`, `src/validate.ts`, `src/index.ts` and
+their tests); `engine/src/` (`descriptions.ts` and its test new, `content-types.ts`, `create.ts`, `rng.ts`,
+`generators/guilds.ts`, `index.ts`, `world.test-support.ts`, and the tests named); `cli/src/`
+(`descriptions.test.ts` new, `main.test.ts`); `harness/src/creation.test.ts`; `web/src/` (`state/setup.ts`,
+`views/new-game.tsx`, `styles.css`, and the tests named); `web/e2e/described.spec.ts` (new);
+`harness/reports/m9-v112-s5-2026-09-30.md` (force-added); `docs/data-model.md` (the streams, the
+Guildmaster's row); `CONTEXT.md` (Descriptive Attribute); `docs/planning/epics/v1.1.2-release.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
