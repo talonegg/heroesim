@@ -10,6 +10,8 @@ import { configDefaults, defineConfig } from 'vitest/config';
 // The browser front end's tests render React into jsdom, so its project has the React plugin and
 // a DOM, and takes .tsx as well (M7-S1). Its Playwright specs, web/e2e/*.spec.ts, are not
 // Vitest's: `npm run e2e` runs them, here and in CI (DL-124).
+//
+// The portrait tool, tools/portraits, is a workspace package outside the five (v1.1.3-S2).
 const nodePackages = ['engine', 'content', 'harness', 'cli'];
 const harnessRuns = '**/*.harness.test.ts';
 
@@ -25,6 +27,18 @@ export default defineConfig({
           exclude: [...configDefaults.exclude, harnessRuns],
         },
       })),
+      // The portrait tool (v1.1.3-S2) runs on Node and drives Chromium, through the Playwright the
+      // page's specs install, to draw its pictures; its tests launch it, so each is given long.
+      {
+        test: {
+          name: 'portraits',
+          root: './tools/portraits',
+          environment: 'node',
+          include: ['src/**/*.test.ts'],
+          testTimeout: 120_000,
+          hookTimeout: 120_000,
+        },
+      },
       {
         plugins: [react()],
         test: {

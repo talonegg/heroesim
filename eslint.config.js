@@ -288,4 +288,20 @@ export default defineConfig(
     files: ['web/src/**/*.test.{ts,tsx}'],
     rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
   },
+
+  // The portrait tool (v1.1.3-S2): a Node package outside the game, which takes content's checks by
+  // name, content's Node entry among them, and imports neither front end nor the harness.
+  {
+    files: ['tools/**/*.ts'],
+    rules: restrictImports({
+      patterns: [
+        noSubpath({ node: true }),
+        {
+          group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],
+          message: 'The portrait tool takes the engine and content only; the front ends and the harness are not its.',
+        },
+        { regex: `^(\\.\\./){3,}(${packages.join('|')})(/|$)`, message: byNameOnly },
+      ],
+    }),
+  },
 );

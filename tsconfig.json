@@ -5,6 +5,7 @@
     { "path": "content" },
     { "path": "harness" },
     { "path": "cli" },
-    { "path": "web" }
+    { "path": "web" },
+    { "path": "tools/portraits" }
   ]
 }
