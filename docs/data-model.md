@@ -384,6 +384,7 @@ runs per Turn in play.
 | An id not of the form `<table>-<six digits>`, or a counter past 999,999 | refuse |
 | A History position outside `entries` | refuse |
 | A module slice its installed module refuses, or cannot migrate or read (DL-76) | refuse |
+| A Guildmaster's, Hero's or Patron's `sex` that is not `"female"` or `"male"` (a Patron's may be `null`): a shape error, since a front end finds a Portrait's folder by it (v1.1.2-S6, DL-133) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
 | A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130) | warn |

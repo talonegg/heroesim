@@ -2,7 +2,7 @@ import type { GuildId, Sex, WorldDocument } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
-import { mediaFiles } from '../media';
+import { mediaFiles, neutralSilhouette } from '../media';
 import { carryingUnique, changed, holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { openView, rosterList, section } from './page.test-support';
@@ -127,6 +127,15 @@ test('a picture that fails leaves the Silhouette, hidden from screen readers', (
 test("a key that names no picture of the person's role and sex is the Silhouette", () => {
   render(<Portrait role="guildmaster" sex="male" portraitKey="gm-female-01" name="Wat Cole" />);
   expect(layers(screen.getByTestId('portrait'))).toEqual([{ is: 'silhouette', src: mediaFiles['portraits/guildmasters/male/silhouette.svg'], alt: '' }]);
+});
+
+// v1.1.2-S6 (the review's A): the engine refuses a sex that is none of its own, but a place is never
+// what breaks the page: a person of no sex the folders know shows the frame with no figure.
+test("a person of a sex the folders do not know shows the neutral Silhouette, and the page does not break", () => {
+  render(<Portrait role="guildmaster" sex={'other' as Sex} portraitKey="gm-female-01" name="Ada Vell" />);
+  const figure = screen.getByTestId('portrait');
+  expect(figure.getAttribute('aria-hidden')).toBe('true');
+  expect(layers(figure)).toEqual([{ is: 'silhouette', src: neutralSilhouette, alt: '' }]);
 });
 
 test('a Guild Banner is the Silhouette for every Guild, hidden from screen readers', () => {

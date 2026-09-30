@@ -598,6 +598,15 @@ describe('document-shape', () => {
     ],
     ['a Patron without a sex, as schema 4 wrote them (v1.1.2-S3)', (d) => drop(patron(d, ids.patron), 'sex'), `${patronPath}.sex`],
     ['a Patron whose sex is not a string or null (v1.1.2-S3)', (d) => set(patron(d, ids.patron), 'sex', false), `${patronPath}.sex`],
+    // v1.1.2-S6 (the review's A): a sex is one of the engine's `sexes`, as a holder's kind is one it knows,
+    // since the page finds a Portrait's folder by it.
+    [
+      "a Guildmaster whose sex is none of the engine's (v1.1.2-S6)",
+      (d) => set(guildmaster(d, ids.playerGuildmaster), 'sex', 'other'),
+      `$.world.guildmasters["${ids.playerGuildmaster}"].sex`,
+    ],
+    ["a Hero whose sex is none of the engine's (v1.1.2-S6)", (d) => set(hero(d, ids.partyHero), 'sex', 'Female'), `${heroPath}.sex`],
+    ["a Patron whose sex is none of the engine's (v1.1.2-S6)", (d) => set(patron(d, ids.patron), 'sex', ''), `${patronPath}.sex`],
     [
       'a holder without its slot',
       (d) => set(item(d, ids.item), 'holder', { kind: 'hero', id: ids.partyHero }),

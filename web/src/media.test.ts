@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import type { GuildId, PortraitRole, Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from './content';
-import { media, mediaCatalogue, mediaFiles, mediaPathOf } from './media';
+import { media, mediaCatalogue, mediaFiles, mediaPathOf, neutralSilhouette } from './media';
 
 // The `media/` folder's rules (v1.1.2-S2; DL-125 items 1, 8, 11 and 12, DL-126 item 1), read from the
 // disk rather than from the build's catalogue, so a file the catalogue would not pick up is seen too:
@@ -192,6 +192,13 @@ describe("the page's catalogue of media/", () => {
     expect(catalogue.item('mantle-of-the-fells')).toEqual({ silhouette: mediaFiles['items/silhouette.svg'], picture: null });
     // Every Guild shows the Banner's Silhouette for now (DL-125 item 7).
     expect(catalogue.banner('guild-000001' as GuildId)).toEqual({ silhouette: mediaFiles['banners/silhouette.svg'], picture: null });
+  });
+
+  test("gives a person of a sex the folders do not know the neutral Silhouette and no picture, rather than throwing (v1.1.2-S6)", () => {
+    for (const sex of ['other', '', 'Female', 'constructor'] as unknown as Sex[]) {
+      expect(media.portrait('guildmaster', sex, 'gm-female-01')).toEqual({ silhouette: neutralSilhouette, picture: null });
+    }
+    expect(neutralSilhouette).toMatch(/^data:image\/svg\+xml,/);
   });
 
   test('refuses a place with no Silhouette, which the rules above never let pass', () => {

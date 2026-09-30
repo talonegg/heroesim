@@ -15,7 +15,7 @@
 // role, sex and Portrait's key, a Guild Banner by its Guild, a Unique Item's picture by its content
 // key (`views/pictures.tsx`).
 
-import type { GuildId, ItemDefinitionKey, PortraitRole, Sex } from '@heroesim/engine';
+import { sexes, type GuildId, type ItemDefinitionKey, type PortraitRole, type Sex } from '@heroesim/engine';
 
 /**
  * Whose pictures a Portrait is drawn from: each role has its folder, with a folder per sex (DL-125
@@ -53,9 +53,20 @@ export const mediaFiles: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(shipped).map(([key, url]) => [mediaPathOf(key), url]),
 );
 
+/**
+ * The frame of a Portrait's Silhouette with no figure in it, in the Silhouettes' cream (v1.1.2-S6):
+ * what a person of a sex the folders do not know shows. The engine refuses such a save
+ * (`document-shape`); this is so that a place is still never what breaks the page.
+ */
+export const neutralSilhouette =
+  'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 40"><rect width="30" height="40" fill="#f3ecdb"/></svg>');
+
 /** What each place shows, found in a catalogue of files. */
 export interface MediaCatalogue {
-  /** A person's Portrait: the Silhouette of their sex, and the picture their key names, if it exists. */
+  /**
+   * A person's Portrait: the Silhouette of their sex, and the picture their key names, if it exists;
+   * the neutral Silhouette and no picture for a sex none of the engine's `sexes`.
+   */
   portrait(role: PortraitRole, sex: Sex, portraitKey: string | null): Pictured;
   /** A Guild's Banner: every Guild shows the Silhouette for now (DL-125 item 7). */
   banner(guild: GuildId): Pictured;
@@ -73,6 +84,7 @@ export function mediaCatalogue(files: Readonly<Record<string, string>>): MediaCa
   };
   return {
     portrait: (role, sex, portraitKey) => {
+      if (!sexes.includes(sex)) return { silhouette: neutralSilhouette, picture: null };
       const folder = `portraits/${roleFolders[role]}/${sex}`;
       return { silhouette: silhouette(folder), picture: portraitKey === null ? null : file(`${folder}/${portraitKey}.webp`) };
     },
