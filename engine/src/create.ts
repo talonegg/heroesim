@@ -195,7 +195,7 @@ type Founding = 'guild' | 'guildmaster';
  * A new world's document with the player's Guild in it, the first thing `createWorld` makes
  * (DL-19 item 9): `meta`, one stream per core stream name, then the player's Guild and Guildmaster
  * with what the setup chose of them and the rest drawn from `generation`, their Portrait, chosen
- * or drawn from `portraits`, a stream of its own (v1.1.2-S3), and each descriptive Attribute left
+ * or drawn from `gm-portraits`, a stream of its own (v1.1.2-S3), and each descriptive Attribute left
  * blank written on `descriptions`, another (v1.1.2-S5), all in `generateGuild`. `createWorld` goes on
  * from here, and `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree
  * (v1.1.2-S4, DL-125 item 6). With `founding` `'guildmaster'`, the preview's, the Guild is made with
@@ -313,7 +313,7 @@ export interface CreatedWorld {
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), its Guildmaster with what the setup chose of them and the rest drawn, every
  * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102), their
- * Portrait, chosen or drawn from `portraits`, a stream of its own (v1.1.2-S3), and their descriptive
+ * Portrait, chosen or drawn from `gm-portraits`, a stream of its own (v1.1.2-S3), and their descriptive
  * Attributes left blank written from `descriptions`, another (v1.1.2-S5), as every Rival's are; then
  * `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the

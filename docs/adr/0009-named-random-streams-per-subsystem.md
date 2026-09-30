@@ -38,3 +38,8 @@ of generating a Guildmaster. Drawn from `generation`, they would shift every lat
 and v1.1.2 moves no existing draw, so that a seed plays as it did in v1.1.1. This is an accepted
 exception, like the Transfer Generator's, and each is appended last to the streams. Decided by
 the owner (DL-125; built in DL-130).
+
+*Amended 2026-10-01.* The Guildmaster's Portrait stream is named `gm-portraits`, not `portraits`,
+from v1.1.2-S7, before `v1.1.2` was released, so that Heroes' Portraits can be drawn on a stream
+of their own, `hero-portraits`, later. No released save held `portraits`. Decided by the owner
+(DL-134, DL-135; built in DL-137).

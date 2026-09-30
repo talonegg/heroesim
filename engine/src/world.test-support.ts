@@ -617,7 +617,7 @@ export const plannedStreams = [
   'progression',
   'rivals',
   'market',
-  'portraits',
+  'gm-portraits',
   'descriptions',
 ] as const;
 

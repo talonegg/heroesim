@@ -20,7 +20,7 @@ export function portraitSexOf(content: Pick<ContentSet, 'portraits'>, role: Port
 /**
  * The player's Guildmaster's Portrait (DL-125 item 3): the one `chosen`, else one drawn from the
  * Guildmaster pictures of `sex`, each equally likely, `null` when there are none. One draw from
- * `state` (the `portraits` stream) either way, so a choice, or how many pictures there are, moves no
+ * `state` (the `gm-portraits` stream) either way, so a choice, or how many pictures there are, moves no
  * later draw (M9-S2's rule for the setup, DL-102). `chosen` has been checked by `setupRefusal`.
  */
 export function guildmasterPortrait(

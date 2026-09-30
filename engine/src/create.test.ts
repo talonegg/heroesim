@@ -606,14 +606,14 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
     for (const rival of rivals(document)) expect(document.world.guildmasters[rival.guildmasterId]?.portraitKey).toBeNull();
   });
 
-  test("the Portrait is drawn on its own stream, portraits, one draw whatever is chosen or listed, so it moves no other draw", () => {
+  test("the Portrait is drawn on its own stream, gm-portraits, one draw whatever is chosen or listed, so it moves no other draw", () => {
     for (const seed of seeds.slice(0, 5)) {
       const drawn = createWorld(seed, setup, deps).document;
       const chosen = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps).document;
       const bare = createWorld(seed, setup, testDeps({}, withoutPortraits())).document;
       const was = guildmasterOf(drawn);
 
-      expect(Object.keys(drawn.world.rng)).toContain('portraits');
+      expect(Object.keys(drawn.world.rng)).toContain('gm-portraits');
       for (const other of [chosen, bare]) {
         // A mapped picture's narrative is the Appearance, and the sex chooses the words (v1.1.2-S5).
         Object.assign(guildmasterOf(other), { sex: was.sex, portraitKey: was.portraitKey, appearance: was.appearance, biography: was.biography });

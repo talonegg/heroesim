@@ -79,8 +79,8 @@ configuration default and not a decision.
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
 Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
-subsystem (ADR-0009 as amended 2026-09-26), then `portraits` (v1.1.2-S3) and `descriptions`
-(v1.1.2-S5, fifteen draws for each Guildmaster entering play, whatever is written), drawn apart
+subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7)
+and `descriptions` (v1.1.2-S5, fifteen draws for each Guildmaster entering play, whatever is written), drawn apart
 from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
 random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
@@ -131,7 +131,7 @@ birthplace, appearance, biography: string   the descriptive Attributes, which no
                                             the Guildmaster enters play, every Guildmaster's
                                             (R8, DL-102; DL-125 item 6, DL-132)
 portraitKey:    string | null               the Guildmaster picture their Portrait shows, of their
-                                            sex, chosen at setup or drawn from `portraits`; null for
+                                            sex, chosen at setup or drawn from `gm-portraits`; null for
                                             the Silhouette, as every Rival's (DL-125 items 3, 4)
 retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
                                             Guild in play names them then (DL-100 item 3, DL-102)

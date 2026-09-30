@@ -15113,6 +15113,90 @@ S3 and S4. v1.1.2-S7's entry is now DL-137, and v1.1.3's stories begin at DL-138
 
 ---
 
+## DL-137 — v1.1.2-S7 built: the Guildmaster's Portrait stream named `gm-portraits`, nothing seen changing, every check passing; and the owner's last answers before v1.1.3's build
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the owner, for items 1 to 4. The
+build and its checks are an agent's: Sonnet built the rename and Opus verified it, as the owner
+prefers.
+
+**Context.** DL-135 item 1 put the rename in v1.1.2, before its release, as v1.1.2-S7. Before the
+plan was pushed, the owner was asked four questions, one at a time.
+
+**Decision.**
+1. **S7 is built now** (the owner's), before the documents are pushed. So v1.1.2 is ready to
+   release.
+2. **The originals in `docs/images/portraits/`** (the owner's). They stay in v1.1.2 as DL-131
+   documents them, and are removed in v1.1.3-S2.
+3. **Pictures whose clothing may look modern** (the owner's). All are taken in. Their rows read the
+   setting as a background, and the analysis report lists them as possibly anachronistic, for the
+   owner to replace later if they wish. They are never held back. The four the owner was asked
+   about are:
+   - the woman in a zipped leather jacket;
+   - the young man in a turtleneck;
+   - the woman in a ballroom;
+   - the woman in a riding coat.
+4. **Petronel stays male** (the owner's), keeping DL-125's 16 male and 14 female Patron names. The
+   question left open since v1.1.2-S3 is closed.
+5. **S7 as built** (the agent's).
+   - *The rename.* `streamNames` names `gm-portraits` in `portraits`' place, after `market` and
+     before `descriptions`, and `generateGuild` draws from `world.rng['gm-portraits']`.
+   - *What else names it.* The comments in `rng.ts`, `create.ts`, `document.ts`, `portraits.ts` and
+     `generators/guilds.ts`, and the tests in `document.test.ts`, `create.test.ts`,
+     `generators/guilds.test.ts` and `world.test-support.ts`.
+   - *The verifier's one fix.* A test's local variable holding the stream's state was still named
+     `portraits`. It is now `before`.
+   - *The records.* ADR-0009 gains an amendment of 2026-10-01, and `docs/data-model.md` §3.1 and
+     the Guildmaster's row name the stream.
+   - *Historical records* keep the old name: the decision log, the harness reports, ADR-0009's
+     2026-09-30 amendment and the epic's account of S3.
+
+**The checks.**
+- *The search.* No stream-sense `portraits` remains in the engine, the web, the CLI or the harness.
+  Every hit left is the content file, `media/portraits`, or a name of the content's.
+- *Streams.* A new world's `rng` keys are ADR-0009's order with `gm-portraits`, and the Portrait is
+  one draw from it whatever is chosen. The tests of `document.test.ts`, `create.test.ts` and
+  `generators/guilds.test.ts` pass.
+- *Creation.* 1,000 seeds' created worlds were compared field by field with HEAD's (`78f2688`).
+  - With the stream's key removed, none differs.
+  - Every seed's `portraitKey` is the same.
+  - The stream's own state differs in all 1,000, since a stream is seeded from the seed and its
+    name; nothing reads it after creation.
+  - The verifier regenerated both sides from HEAD's `engine/src` and the working tree, and they
+    were byte-identical to the builder's.
+- *A dev save.* A save holding `portraits` loads with no warning, through the CLI's `openSave` and
+  the page's `deserialise`. It gains a freshly seeded `gm-portraits` when it first advances, and
+  after five Turns it equals a new save but for the two stream keys.
+- *The sweep.* `harness/reports/m9-v112-s7-2026-10-01.md`, a core-only 50 × 20 sweep, has every
+  counter, yearly table and ending equal to `m9-v112-close-2026-09-30.md`'s. The only lines that
+  differ are the timings, the saves' total length and the fingerprint of the last saves.
+- *A correction to DL-133.* The close's sweep ran before `910a09f`, whose text fixes changed the
+  saves' words and not play. So its fingerprint and lengths were never HEAD's.
+  - `seed-0001` played at HEAD is 106,336,424 characters, against the close report's 106,336,409.
+  - S7 adds 6 characters for that seed and 4 for `seed-0017`.
+  - This entry's sweep is v1.1.2's reference from now on.
+- *The suite.*
+  - `npm run typecheck` and `npm run lint` pass.
+  - `npm test` passes 3,688 of 3,690. The two failures are known load flakes, each passing alone:
+    - `engine/src/create.test.ts` timed out;
+    - `web/src/state/use-game.test.tsx` failed a `waitFor`.
+  - `npm run e2e -w web` passes 80 of 80, both `file://` specs among them.
+  - The script is 703.05 kB (201.03 kB gzipped). `check-bundle` finds 2 built files and no network
+    or filesystem reference.
+
+**Consequences.**
+- v1.1.2 is built and verified with S7. The release is the owner's (DL-124):
+  1. fast-forward `v1.1-release` to `v1.1.2-dev`, and push;
+  2. merge the pull request CI raises.
+- v1.1.3 begins from `main` once `v1.1.2` is released, and its stories' entries begin at DL-138.
+
+**Actioned in:** `engine/src/` (`rng.ts`, `create.ts`, `document.ts`, `portraits.ts`,
+`generators/guilds.ts`, and the tests named); `docs/adr/0009-named-random-streams-per-subsystem.md`;
+`docs/data-model.md` (§3.1, the Guildmaster's row); `docs/planning/epics/v1.1.2-release.md` (S7,
+status); `docs/planning/epics/v1.1.3-release.md` (S3, S4); `docs/planning/epics/README.md` (the
+register); `docs/plan.md` (§4); `harness/reports/m9-v112-s7-2026-10-01.md` (force-added).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

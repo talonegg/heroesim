@@ -274,7 +274,7 @@ export interface Guildmaster {
   biography: string;
   /**
    * The picture the Guildmaster's Portrait shows (v1.1.2-S3, DL-125 items 3 and 4): a Guildmaster
-   * picture of their sex in content, chosen at setup or drawn from the `portraits` stream; `null` for
+   * picture of their sex in content, chosen at setup or drawn from the `gm-portraits` stream; `null` for
    * the Silhouette of their sex, as every Rival's Guildmaster, founding or a successor, has.
    */
   portraitKey: PortraitKey | null;

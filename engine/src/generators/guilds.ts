@@ -68,10 +68,10 @@ export interface GuildOptions extends DrawsFrom {
   guildmaster?: GuildmasterChoices;
   /**
    * The Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): when given, the picture `chosen`, else one
-   * drawn from the Guildmaster pictures of their sex, one draw from the stream `portraits` either way
+   * drawn from the Guildmaster pictures of their sex, one draw from the stream `gm-portraits` either way
    * (`guildmasterPortrait`), made before their texts are written, since a mapped picture's narrative
    * is the Appearance (DL-127 item 4). Only the player's Guildmaster has one; omitted, as for every
-   * Rival's, the Portrait is `null`, the Silhouette, and nothing is drawn from `portraits`.
+   * Rival's, the Portrait is `null`, the Silhouette, and nothing is drawn from `gm-portraits`.
    */
   portrait?: { chosen: PortraitKey | undefined };
 }
@@ -159,7 +159,7 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   // The Portrait, then the texts, each from a stream of its own (ADR-0009), so no draw of
   // `options.stream` moves (v1.1.2-S3, v1.1.2-S5).
   if (options.portrait !== undefined) {
-    guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, guildmaster.sex, options.portrait.chosen);
+    guildmaster.portraitKey = guildmasterPortrait(world.rng['gm-portraits'], content, guildmaster.sex, options.portrait.chosen);
   }
   describeBlanks(world, deps, guildmaster, backgroundKey);
 
