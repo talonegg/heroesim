@@ -157,8 +157,12 @@ export function renderTime(turn: number, config: EngineDeps['config']): string {
 
 // ── Guilds and the summary ───────────────────────────────────────────────────────────────────
 
-function controllerOf(guild: Guild): string {
-  return guild.controller.kind === 'player' ? 'Player' : `Rival (${capitalised(guild.controller.disposition)})`;
+/**
+ * Who makes a Guild's choices: `Player`, or a Rival with its Disposition by its name in content,
+ * `Rival (Steady)`, as the page's Guilds' table names it (v1.1.2-S6); a key content lacks as it is.
+ */
+function controllerOf(guild: Guild, content: EngineDeps['content']): string {
+  return guild.controller.kind === 'player' ? 'Player' : `Rival (${nameIn(content.dispositions, guild.controller.disposition)})`;
 }
 
 /**
@@ -185,7 +189,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
     guilds.map((guild) => [
       guild.id,
       guild.name,
-      controllerOf(guild),
+      controllerOf(guild, content),
       rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
@@ -579,7 +583,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
       ranking.joint ? `joint ${ranking.place}` : String(ranking.place),
       ranking.guildId,
       guild?.name ?? ranking.guildId,
-      guild === undefined ? '' : controllerOf(guild),
+      guild === undefined ? '' : controllerOf(guild, deps.content),
       String(ranking.value),
     ];
   });

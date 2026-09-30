@@ -2,7 +2,7 @@
 // ordinal, a night. Words only; no rule. Shared by `selectors.ts`, `world-views.ts` and
 // `trade-views.ts` (DL-73).
 
-import { dayOf, type ContentSet, type Guild, type Guildmaster, type QuestBand, type TraitEffect } from '@heroesim/engine';
+import { dayOf, type ContentSet, type Guild, type QuestBand, type TraitEffect } from '@heroesim/engine';
 
 /** A Quest band in words, as the History and the Quest report say it: one list for both (M9-F6). */
 export const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'Failure', success: 'Success', strong: 'Strong success' };
@@ -15,15 +15,6 @@ export function rowOf<Row>(rows: Readonly<Record<string, Row>>, id: string): Row
 /** A content row's name; a key the content does not define is shown as it is (data-model rule 5). */
 export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: string): string {
   return rowOf(rows, key)?.name ?? key;
-}
-
-/**
- * A Guildmaster's Portrait's key, the picture their Portrait shows, or `null` for the Silhouette of
- * their sex (DL-125 items 2 to 4): as the save holds it since schema 5 (v1.1.2-S3), chosen or drawn
- * for the player's Guildmaster and `null` for every Rival's. The views read it from here alone.
- */
-export function portraitKeyOf(guildmaster: Guildmaster): string | null {
-  return guildmaster.portraitKey;
 }
 
 export function capitalised(word: string): string {

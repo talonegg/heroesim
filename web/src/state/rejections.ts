@@ -208,7 +208,8 @@ const sentences: Sentences = {
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>
     `The ${descriptiveAttributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
-  // The Portrait (v1.1.2-S3): the CLI's words, less its flags and the pictures it lists.
+  // The Portrait (v1.1.2-S3): the CLI's words, less its flags and the pictures it lists, and "called" where
+  // the CLI, whose flags take keys, says "keyed", as the page's Background and Trait sentences say (v1.1.2-S6).
   'newGame unknown-portrait': ({ portraitKey }) => `No Guildmaster Portrait is called "${portraitKey}".`,
   'newGame portrait-of-another-sex': ({ sex, portraitSex }) =>
     `That Portrait is of a ${portraitSex} Guildmaster, and your Guildmaster's Sex is ${sex}.`,

@@ -45,7 +45,7 @@ import {
 } from '@heroesim/engine';
 import { content } from '../content';
 import type { PortraitRole } from '../media';
-import { bandWords, portraitKeyOf, rowOf } from './names';
+import { bandWords, rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
@@ -509,7 +509,7 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
 function portraitOf(world: World, entityId: EntityId | null): HistoryView['portrait'] {
   if (entityId === null) return null;
   const guildmaster = rowOf(world.guildmasters, entityId);
-  if (guildmaster !== undefined) return { role: 'guildmaster', sex: guildmaster.sex, portraitKey: portraitKeyOf(guildmaster) };
+  if (guildmaster !== undefined) return { role: 'guildmaster', sex: guildmaster.sex, portraitKey: guildmaster.portraitKey };
   const patron = rowOf(world.patrons, entityId);
   return patron === undefined || patron.sex === null ? null : { role: 'patron', sex: patron.sex, portraitKey: null };
 }

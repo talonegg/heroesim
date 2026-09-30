@@ -1,7 +1,7 @@
 import { advance, createWorld, defaultConfig, playerGuild, rankings, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { renderCountdown, renderGuildmaster, renderHero, renderRankings, renderSummary, table } from './render.js';
+import { renderCountdown, renderGuildmaster, renderGuilds, renderHero, renderRankings, renderSummary, table } from './render.js';
 
 test('a table aligns its columns, numbers to the right, and leaves no trailing space', () => {
   const lines = table(
@@ -73,6 +73,25 @@ describe('renderRankings: shared places (v1.0.1-S4, DL-95)', () => {
     expect(lines.some((line) => line.includes(g5 ?? 'none'))).toBe(false);
     // The engine's own ranks stay one to a Guild, ties by Guild id.
     expect(rankings(document.world, 'fame').map(({ rank }) => rank)).toEqual([1, 2, 3, 4]);
+  });
+});
+
+// v1.1.2-S6 (the review's D): a Rival's Disposition by its name in content, as the page's Guilds' table
+// has it (DL-125 item 9), so the two read the same.
+describe("a Rival's Disposition by its content name in show guilds and show rankings (v1.1.2-S6)", () => {
+  test("names the Disposition as content does, not its key capitalised, and a key content lacks as it is (rule 5)", () => {
+    const document = structuredClone(newGame());
+    const rivals = Object.values(document.world.guilds).filter((guild) => guild.controller.kind === 'rival');
+    const [named, unknown] = rivals;
+    if (named?.controller.kind !== 'rival' || unknown === undefined) throw new Error('no Rivals');
+    const renamed = { ...content, dispositions: { ...content.dispositions, [named.controller.disposition]: { ...content.dispositions[named.controller.disposition], name: 'Even-handed' } } };
+    unknown.controller = { kind: 'rival', disposition: 'cautious-ish' };
+    const deps = { config: { ...defaultConfig, ...document.meta.config }, content: renamed as typeof content };
+
+    for (const lines of [renderGuilds(document, deps), renderRankings(document, deps, 'fame')]) {
+      expect(rowFor(lines, named.id)).toContain('Rival (Even-handed)');
+      expect(rowFor(lines, unknown.id)).toContain('Rival (cautious-ish)');
+    }
   });
 });
 

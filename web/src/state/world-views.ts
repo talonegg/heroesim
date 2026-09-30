@@ -43,7 +43,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, placeWords, portraitKeyOf, rowOf, traitEffectWords } from './names';
+import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
 import { playDeps } from './reducer';
 import { endingWords, facilityNames } from './rejections';
 
@@ -280,7 +280,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
     guildId: guild.id,
     guildName: guild.name,
     sex: guildmaster.sex,
-    portraitKey: portraitKeyOf(guildmaster),
+    portraitKey: guildmaster.portraitKey,
     attributes: [
       // The Sex as a word, capitalised, as "Age" is (DL-111 item 9).
       ['Sex', capitalised(guildmaster.sex)],

@@ -231,6 +231,7 @@ describe('new', () => {
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
     // v1.1.2-S4: the core lists the owner's two pictures (`portrait.test.ts` holds the rest).
     ['a Portrait content lacks', ['--portrait', 'gm-male-09'], 'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male).'],
+    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-male-01 (male).'],
     ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female"],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);

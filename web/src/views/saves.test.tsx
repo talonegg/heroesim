@@ -38,7 +38,7 @@ function olderSave(document: WorldDocument): WorldDocument {
   return older;
 }
 
-function keptInMemory():{ saves: Saves; store: ReturnType<typeof memoryStore> } {
+function keptInMemory(): { saves: Saves; store: ReturnType<typeof memoryStore> } {
   const store = memoryStore();
   return { store, saves: createSaves(async () => store, { now: () => new Date('2026-09-27T10:00:00.000Z') }) };
 }

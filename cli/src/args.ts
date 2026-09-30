@@ -369,17 +369,10 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
     ...(sex === undefined ? {} : { sex: sexFlag(sex) }),
     ...(age === undefined ? {} : { age: ageFlag(age) }),
     ...(traits === undefined ? {} : { traits: traitList(traits) }),
-    ...(portrait === undefined ? {} : { portrait: portraitFlag(portrait) }),
+    // Any value: whether content lists it, and of which sex, is the engine's to say (`setupRefusal`, v1.1.2-S6).
+    ...(portrait === undefined ? {} : { portrait }),
     ...Object.fromEntries(texts),
   };
-}
-
-/**
- * `--portrait` (v1.1.2-S3): a picture's key, lower case and hyphens as every picture's name is
- * (DL-125 item 11); whether content lists it, and of which sex, is the engine's to say.
- */
-function portraitFlag(value: string): string {
-  return /^[a-z0-9]+(-[a-z0-9]+)*$/.test(value) ? value : refuse(`--portrait needs a picture's key such as gm-female-01; got "${value}"`);
 }
 
 /** The words `--facility` takes, and the Hall facility each names (M3-S6). */

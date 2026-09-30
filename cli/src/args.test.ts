@@ -55,6 +55,8 @@ describe('parseArgs', () => {
     // The Portrait by its key (v1.1.2-S3); whether content has it is the engine's to say.
     expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'gm-female-01')).toMatchObject({ portrait: 'gm-female-01' });
     expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('portrait');
+    // Whether content lists it is the engine's to say (`unknown-portrait`), whatever its form (v1.1.2-S6).
+    expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'GM Female 1')).toMatchObject({ portrait: 'GM Female 1' });
     // `none` is no Trait at all; left out, the Traits are drawn.
     expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'none')).toMatchObject({ traits: [] });
     expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('traits');
@@ -259,7 +261,6 @@ describe('parseArgs', () => {
     [['new', '--guild', 'G', '--master', 'M', '--age', '40.5'], '--age needs a whole number of years; got "40.5"'],
     [['new', '--guild', 'G', '--master', 'M', '--traits', 'thrifty,,miser'], '--traits needs Trait keys such as old-soldier, joined by commas, or none; got ""'],
     [['new', '--guild', 'G', '--master', 'M', '--traits', 'none,miser'], 'got "none"'],
-    [['new', '--guild', 'G', '--master', 'M', '--portrait', 'GM Female 1'], "--portrait needs a picture's key such as gm-female-01; got \"GM Female 1\""],
     [['save'], 'save needs --as'],
     [['save', '--as='], '--as needs a value'],
     [['load'], 'load needs a file'],
