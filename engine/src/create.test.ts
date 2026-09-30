@@ -540,7 +540,8 @@ describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
     expect(Math.min(...ages)).toBe(21);
     expect(Math.max(...ages)).toBe(50);
     expect(ages.size).toBe(30);
-  });
+    // 2,000 worlds, each now choosing Portraits and writing every Hero's texts (v1.1.3-S5, S6).
+  }, 30_000);
 });
 
 describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)", () => {

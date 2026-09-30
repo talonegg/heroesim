@@ -15770,6 +15770,119 @@ and tests); `web/src/` (`state/rejections.ts` and tests); `docs/adr/0009-…`; `
 
 ---
 
+## DL-143 — v1.1.3-S4: the owner's 40 pictures through the tool, 38 taken in and the two originals skipped, and the first analysis run applied, with its review left open for the owner
+
+**Status:** Accepted, with its review open · **Date:** 2026-10-01 · **Decided by:** the agent,
+running the skills of DL-140 over the pictures of DL-136. The owner's review of the reports
+(DL-135 item 11) was not available. So an Opus agent reviewed the run as an editor and applied
+it, and a second Opus agent verified it. Every row and sentence stays the agents', for the owner
+to change.
+
+**Context.** The epic's S4 takes the owner's pictures in through `portrait-intake`, analyses the
+corpus with `portrait-analyse`, and applies the reviewed run with `portrait-apply`.
+
+**Decision.**
+1. **Intake.** The 40 were copied, never moved, from the source into `media/inbox/guildmaster/`.
+   Each picture had its own reader and its own checker.
+   - *Skipped.* The two originals of `gm-male-01` and `gm-female-01` were found duplicates, 8 and 5
+     bits from their pictures. Their inbox copies were removed at the end, since the originals stay
+     at the source (DL-136).
+   - *Taken in.* 38 were taken in, 19 of each sex: `gm-female-02` to `gm-female-20` and
+     `gm-male-02` to `gm-male-20`.
+   - *DL-134 item 8's four* are `gm-female-19` (the medal), `gm-female-20` (the study),
+     `gm-male-19` (the embroidered coat) and `gm-male-20` (Arcadia). Their rows started from its
+     readings.
+   - *Disagreements.* The checker disputed eight fields. One was on the rules, and the checker's
+     wording was taken. Seven were on sight: each went back to the reader once, who took the
+     checker's value.
+   - *The record* is `docs/portraits/intake/2026-10-01.md`. The content version went from 17 to 18.
+2. **Analysis.** The checker read all 40 live pictures again against their rows. Each dispute on
+   sight went to a fresh reader, and the value both agreed was recommended. A disagreement left
+   open:
+   - `gm-male-03`'s temper: the checker reads wry, the reader composed. The row keeps composed.
+3. **Terms adopted** on the agents' proposal:
+   - the temper `genial`, with three closings, on `gm-female-08`, `gm-female-17`, `gm-male-10` and
+     `gm-male-16`;
+   - the feature `bald`, on `gm-male-14` and `gm-male-16`.
+4. **Sentences.** 123 were drafted, each marked the agent's.
+   - Every list S5 and S6 draw from has three or more a key: `corpus` finds none of 78 keys short.
+   - The review changed three: the one-eyed sentence no longer names which eye; a young Mage's no
+     longer repeats another's barn fire; and the miser's no longer speaks of money, which a content
+     check refused.
+5. **Anachronism** (DL-137). All are taken in, and all are listed for the owner to replace if they
+   wish:
+   - `gm-female-03`, `gm-female-09`, `gm-female-10` and `gm-female-15`, the four the owner was
+     asked about, with `gm-female-09`'s map, whose coast resembles North America's;
+   - `gm-male-07`'s blazer;
+   - `gm-male-16`'s saloon.
+
+   `gm-male-19`'s frock coat was judged not modern.
+6. **Applied.** The run `docs/portraits/analysis/2026-10-01/` was put in place by `apply`, and the
+   content version went from 18 to 19. The report orders the pictures to commission next: the 24
+   empty Hero cells of Class, sex and band, the young first.
+7. **Tests.** Tests that named the owner's two pictures alone now cut the content back to them
+   (`ownersTwo`), and those that pinned a drawn key pin its new one. The verifier checked that every
+   new key fits its person's sex and age, and that no assertion was loosened.
+
+**The checks run.**
+- *Every picture accounted for.* The verifier fingerprinted each of the 40 JPGs. Each maps to a
+  distinct key of its folder's sex, 0 to 8 bits away, with the next nearest 133 or more away.
+- *Coverage.* Every sex and band of Guildmaster pictures has eight or more:
+
+  | Sex | Young | Middle | Older |
+  | --- | --- | --- | --- |
+  | Female | 10 | 13 | 10 |
+  | Male | 8 | 14 | 12 |
+
+  All eight Hero Classes and sexes are empty, and are named as gaps.
+- *Reading.* The verifier looked at 13 pictures beside their rows: DL-134's four, the six
+  flagged, and four more. It read every narrative, hook and new sentence.
+  - Every row fits its picture.
+  - No narrative names clothing or an ethnicity.
+  - The capitals and pronouns are right.
+- *The tool and the suite.*
+  - `npm run portraits -- check` passes with 40 live pictures.
+  - The content checks pass, with 8 warnings, all for Hero pictures.
+  - `npm run lint` and `typecheck` pass. `npm test` failed only timeouts under load, and those files
+    pass alone.
+- *Size.* The script is 782.16 kB, up 62 kB:
+  - about 43.5 kB is the content's JSON, bundled as written;
+  - about 18 kB is the new pictures' URLs and their paths.
+
+  The pictures and thumbnails are 80 files of 4.04 MiB, outside the script.
+
+**For the owner's review** (DL-135 item 11):
+- the "Arcadia" hook of `gm-male-20` (DL-135 item 1);
+- `gm-male-03`'s temper, wry or composed;
+- the six pictures of item 5;
+- the adopted `genial` and `bald`;
+- about 15 hooks that rest on clothing or armour, ten of them starting "{He} still wears…";
+- `gm-female-15`'s hook, which rests on the flagged ballroom;
+- "rivals" in a `genial` closing and in `gm-male-19`'s hook, which may read as the Rival Guilds;
+- `gm-female-08`'s and `gm-male-10`'s hooks and the `genial` closing, which may speak of laughing
+  twice.
+
+A change is a new analysis run applied, or an edit to content that `npm run portraits -- check`
+and the content checks pass.
+
+**Consequences.**
+- *The script's room.* It has about 18 kB left under S7's 800 kB limit.
+  - Each new picture costs about 1.2 kB of script, so the 72 Hero pictures the report recommends
+    would not fit.
+  - Bundling the content's JSON without its spaces would save about 18 kB, and sharing one URL base
+    about 10 kB.
+  - S7 decides.
+- *The setup grid's reading.* Both sexes' thumbnails together are 435 kB, over the 250 kB of
+  DL-134 item 9, and one sex's are about 217 kB. S7's grid shows one sex's, lazily.
+
+**Actioned in:** `content/portraits.json`, `portrait-appearances.json`, `descriptions.json`;
+`content/src/parse.ts` (19); `media/portraits/` (38 pictures, 38 thumbnails, the register);
+`docs/portraits/intake/2026-10-01.md`; `docs/portraits/analysis/2026-10-01.md` and its folder;
+`tools/portraits/src/json-edit.ts`, `README.md`; the tests named; `docs/planning/epics/v1.1.3-release.md`
+(S4).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
