@@ -15284,6 +15284,198 @@ read (DL-134 items 3, 4 and 10; DL-135 items 2 and 5). The owner started v1.1.3 
 
 ---
 
+## DL-139 — v1.1.3-S2 built: the portrait tool converts, registers, fingerprints and checks, and writes rows and runs as one transaction
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-135 item 11 as
+the epic's S2 describes. Opus built it and a second Opus agent verified it.
+
+**Context.** DL-135 item 11 gave the portrait tool its mechanical steps as a command-line tool, and
+DL-136 made the owner's 40 pictures the fingerprint's tuning set.
+
+**Decision.**
+1. **The package.** `tools/portraits` is a TypeScript workspace package, run as
+   `npm run portraits -- <command>`. Its tests run in `npm test` as the vitest project `portraits`.
+   It draws in the Chromium that `@playwright/test` installs, the same version as `web`'s, and
+   brings in no image package and no network code.
+2. **The commands.** Each takes `--root <dir>` and `--json`. Each exits 0 when done, 1 when it
+   failed or refused with nothing changed, and 2 on a usage error.
+   - `convert <source>... [--out]` writes a trial picture and its thumbnail.
+   - `fingerprint <file|folder>... [--nearest n]` gives the hash and the nearest pictures, and
+     says which are similar.
+   - `check` confirms the register, `media/`, `content/portraits.json` and the rows agree, and that
+     every size is within its limit. It names each failure with its code.
+   - `write-rows <draft>` is intake's transaction.
+   - `write-run <draft>` writes an analysis run's report and JSON. It is added so that the tool, not
+     an agent, writes every file.
+   - `apply <run>` puts a run's JSON in place.
+3. **The draft** is `{date?, report, pictures: [{source, sex?, role?, row}]}`.
+   - The upload's folder under `media/inbox/` gives the role.
+   - A `male/` or `female/` subfolder gives the sex, unless the draft names it.
+   - The row is written as drafted, under the next key, and the content checks judge it.
+   - `{{key:n}}` in the report becomes the key given to the draft's n-th picture.
+   - `tools/portraits/README.md` documents it.
+4. **Conversion.** `web/scripts/convert-picture.mjs` is removed and its 3 × 4 crop kept. A picture
+   is 480 × 640 within 120 kB, its quality stepped down from 0.8 until it fits, and an upload that
+   cannot fit is refused with its size. Its thumbnail is 160 × 213. The Silhouettes have none.
+5. **The register.** `media/portraits/registry.json` holds, for every key ever issued:
+   - its role and sex;
+   - `live` or `retired`;
+   - its hash, and the hashes of nine 5% trims (all round, each edge, each corner).
+
+   `nextKey` never gives a key issued before. `gm-male-01` and `gm-female-01` are registered from
+   their WebP, and their originals in `docs/images/portraits/` are removed (DL-137 item 2).
+6. **The fingerprint.** A 64-bit dHash could not tell the pictures apart: a 5% crop moved one by 14
+   bits, and two different pictures came within 11. The tool instead uses a blurred 16 × 16 dHash
+   taken across and down, of 512 bits, together with the nine trims. On the owner's 40:
+   - the two originals are 8 and 5 bits from their WebP;
+   - a 5% crop is at most 74 from its picture;
+   - the other 38 are at least 133 from either picture in the game, and any two of the 40 at least
+     132 apart.
+
+   Pictures within 104 are similar, midway between 74 and 133. The register records this with the
+   tuning.
+7. **The inbox.** `media/inbox/guildmaster/` and `media/inbox/hero/` are ignored by git, each with a
+   tracked `.gitkeep`. The page's build leaves the inbox out.
+8. **One transaction.** A failed `write-rows` or `apply` puts back every file it wrote: the
+   pictures, the register, the content, the version and the report. It leaves the uploads in the
+   inbox. A done one raises the content version in `parse.ts`, with a line in its comment, and in
+   `content/src/content.test.ts`'s pin.
+9. **CI.** `check.yml` installs Chromium before `npm test`, and `deploy.yml` runs `npm test` after
+   its install, so the tool's tests run in CI. Where Chromium is absent, those tests skip.
+10. **The page's media test** holds each picture to 120 kB, not 150 kB. It accepts thumbnails, and
+    leaves out the register and the inbox.
+
+**The checks run.**
+- *The owner's 40.* All convert to 480 × 640 within 120 kB, with 160 × 213 thumbnails. The pictures
+  the page uses in `media/` are byte-unchanged; the only additions are the two thumbnails, the
+  register and the `.gitkeep` files.
+- *Keys.* `nextKey` skips a retired key, in `registry.test.ts` and through `write-rows`.
+- *Duplicates.* Both originals are found similar to their pictures, and none of the other 38 to
+  either. Every picture is found similar to a 5% crop of itself.
+- *Undoing.* A draft with a row that breaks a content check, and one whose second upload cannot fit,
+  each leave a scratch repository's `git status` empty.
+  - The second test was added by the verifier.
+  - It fails with the undo turned off, so it proves the undo.
+- *`check`* passes on the tree, and fails on a missing thumbnail, an unlisted key and an oversized
+  picture, naming each.
+- *A trial against S1's content.* The verifier merged S1 into the tool's branch with no conflict. A
+  real `write-rows` of two of the owner's pictures, in a scratch copy, gave `gm-male-02` and
+  `gm-female-02`, raised the version from 17 to 18, and wrote its report. `check` then passed.
+- *The suite.* `npm run lint` and `typecheck` pass. `npm test` failed only timeouts under load, and
+  those files pass alone. The tool has 50 tests, and 20 skip without Chromium. `check-bundle`
+  passes.
+
+**Consequences.**
+- S3's skills call only these commands to change files.
+- A trial `convert` inside the inbox leaves its WebP beside the upload, and `fingerprint` then
+  reports it as similar. The skills convert with `--out`, or clean up after a trial.
+- The two thumbnails are in the page's build, about 22 kB, until S7 shows them.
+
+**Actioned in:** `tools/portraits/` (new); `package.json`, `tsconfig.json`, `vitest.config.ts`,
+`eslint.config.js`; `media/portraits/` (the register, two thumbnails); `media/inbox/` (new);
+`.gitignore`; `web/src/media.ts`, `media.test.ts`; `web/scripts/convert-picture.mjs` (removed);
+`docs/images/portraits/` (the originals removed); `.github/workflows/check.yml`, `deploy.yml`;
+`README.md`.
+
+---
+
+## DL-140 — v1.1.3-S3 built: the portrait skills and agents, which read and check each picture and change files only through the tool
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-135 item 11 as
+the epic's S3 describes. Opus built it and a second Opus agent verified it.
+
+**Context.** DL-135 item 11 gave the portrait tool's judgement to Claude Code: project skills and
+agents that call the tool (DL-139) for every change to a file. The owner asked for a second reading
+of every picture by another Opus agent (Q17).
+
+**Decision.**
+1. **The agents** (`.claude/agents/`). Both run on Opus, may only read (Read, Glob, Grep), and
+   answer in JSON.
+   - `portrait-reader` looks at one picture and drafts its row in S1's shape (DL-138). It keeps to
+     DL-127: no clothing in a narrative and no ethnicity.
+     - It keeps to the bounds, and takes a tag only from the vocabulary, or proposes a new one
+       marked as a proposal.
+     - Where clothing looks modern, it reads the setting as a background and flags the picture
+       (DL-137).
+     - Given two pictures, it judges a duplicate, a variant or different, with its reasons.
+     - An earlier reading in a decision record, such as DL-134 item 8's, is where its row starts.
+   - `portrait-checker` looks at the picture beside the draft, and confirms or disputes each
+     field with its reason. It flags a sex that differs from the owner's subfolder.
+2. **The skills** (`.claude/skills/`).
+   - *`portrait-intake`*, for each upload:
+     1. `fingerprint` the inbox;
+     2. the reader compares each near match, and a duplicate or variant stays in the inbox;
+     3. the reader drafts and the checker checks, one picture per agent, in waves of eight;
+     4. their disagreements are settled, or recorded;
+     5. the draft is written outside the repository;
+     6. `write-rows`, then `check`.
+
+     An upload too large to convert is taken out of the draft and reported as left in the inbox.
+   - *`portrait-analyse`*:
+     1. `corpus` and `check`;
+     2. the checker reads every live picture again against its row;
+     3. the reader compares each similar pair;
+     4. proposed terms are gathered;
+     5. the missing sentences are drafted by family, and `corpus --draft` is repeated until no key
+        is short;
+     6. `write-run`, then `corpus --run` and `diff`.
+
+     It lists every picture an intake report flagged as possibly anachronistic.
+   - *`portrait-apply`* shows a run's counts and `diff`, waits for the owner, then runs `apply`
+     and `check`.
+   - *Guardrails.*
+     - No skill commits or pushes.
+     - A variant is never added or swapped without the owner.
+     - Every row and sentence an agent wrote is marked the agent's in its report.
+     - The only file a skill writes itself is its draft, in the scratchpad.
+3. **The tool's additions**, each tested through the command line:
+   - `corpus [--run <run> | --draft <draft>]` counts what analysis needs:
+     - the pictures and the gaps;
+     - text over its bound, and unused terms;
+     - sentence keys with fewer than three;
+     - similar pairs, and the content checks.
+   - `diff <run>` compares a run with the content, path by path.
+   - `write-run` refuses a draft that fails the content checks.
+   - `editJson` (`json-edit.ts`) writes new values into each content file's own text, so the
+     hand-laid layout and its line endings are kept, and a diff shows only what changed. This was
+     the verifier's fix, since the tool had rewritten the files in its own layout.
+4. **`docs/agents/portraits.md`** says how to run each skill, and gives the guardrails and the rules
+   for a row and a sentence. `AGENTS.md` points to it. Where the agent types have not loaded in a
+   session, a general-purpose Opus agent is given the agent file's body as its prompt.
+
+**The checks run** (in scratch copies, never the repository's inbox):
+- *The two originals.* They were taken in as a trial, twice, the second time by the verifier from a
+  fresh clone.
+  - They were 8 and 5 bits from `gm-male-01` and `gm-female-01`, and every other picture was 152 or
+    more away.
+  - The reader judged both duplicates, and only the report was written.
+  - The content version was unchanged, and both uploads stayed in the inbox.
+- *A new picture.* `male\1790764569290.jpg` became `gm-male-02` (102,036 bytes, with a thumbnail of
+  11,294) and raised the version from 17 to 18, and `check` passed.
+  - The checker confirmed every field. Its one note, the clasp's place in a hook, is left to the
+    owner.
+  - The report gives both agents' view of each field.
+- *Analysis over the two pictures in the game* added only its run's files. It drafted one family of
+  sentences, and the checker's dispute of `gm-female-01`'s missing hook was settled with a hook.
+- *Only the tool changes files*, and a test runs each command the skills call, `apply` among them.
+- *Sentence keys.* `corpus` finds 63 of 77 keys short of three, which the verifier also counted by
+  hand.
+- *Layout.* A run equal to the content leaves no diff, and one sentence more changes two lines.
+- *The suite.* `npm run lint`, `typecheck` and `portraits -- check` pass. `npm test` failed only
+  timeouts under load, and those files pass alone.
+
+**Consequences.**
+- S4 runs `portrait-intake` over the owner's 40 and `portrait-analyse` over the corpus.
+- The owner confirms `gm-male-02`'s "Arcadia" hook at its intake (DL-135 item 1). The key it names
+  is provisional (DL-136 item 4).
+
+**Actioned in:** `.claude/agents/portrait-reader.md`, `portrait-checker.md` (new);
+`.claude/skills/portrait-intake/`, `portrait-analyse/`, `portrait-apply/` (new);
+`docs/agents/portraits.md` (new); `AGENTS.md`; `tools/portraits/src/` (`corpus.ts`, `diff.ts`,
+`json-edit.ts`, `runs.ts`, `write-rows.ts` and their tests); `tools/portraits/README.md`.
+
+---
+
 ## DL-141 — v1.1.3-S5 built: every Guildmaster's Portrait chosen to fit them on `gm-portraits`, and their Biography written from the picture, with play unchanged
 
 **Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-134 items 1,
