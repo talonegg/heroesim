@@ -5,6 +5,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import { crc32, deflateSync } from 'node:zlib';
 import { repositoryRoot } from './cli.js';
 import { formatJson } from './json-format.js';
 
@@ -69,4 +70,32 @@ export function upload(dir: string, from: string, to: string): string {
   mkdirSync(path.dirname(target), { recursive: true });
   cpSync(from, target);
   return to;
+}
+
+/** A PNG of random colour, which no quality of WebP can make small: CRC and deflate from Node. */
+export function noisePng(width: number, height: number): Buffer {
+  const chunk = (type: string, data: Buffer): Buffer => {
+    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
+    const length = Buffer.alloc(4);
+    length.writeUInt32BE(data.length);
+    const crc = Buffer.alloc(4);
+    crc.writeUInt32BE(crc32(body));
+    return Buffer.concat([length, body, crc]);
+  };
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0);
+  header.writeUInt32BE(height, 4);
+  header.set([8, 2, 0, 0, 0], 8);
+  const rows = Buffer.alloc((width * 3 + 1) * height);
+  let seed = 1;
+  for (let index = 0; index < rows.length; index += 1) {
+    seed = (seed * 1103515245 + 12345) >>> 0;
+    rows[index] = index % (width * 3 + 1) === 0 ? 0 : seed >>> 24;
+  }
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    chunk('IHDR', header),
+    chunk('IDAT', deflateSync(rows)),
+    chunk('IEND', Buffer.alloc(0)),
+  ]);
 }

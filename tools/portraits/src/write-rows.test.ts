@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, launchChromium, type Chromium } from './chromium.js';
@@ -9,7 +9,7 @@ import { readContentVersion } from './content-version.js';
 import { DraftError, Undone } from './errors.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
-import { readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
+import { noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
 import { writeRows } from './write-rows.js';
 
 // `write-rows` and `apply` (v1.1.3-S2): each one transaction on a scratch copy of the repository,
@@ -62,6 +62,26 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
     expect(existsSync(path.join(dir, source))).toBe(true);
     expect(existsSync(path.join(dir, 'docs'))).toBe(false);
     expect(existsSync(picturePaths(dir, 'guildmaster', 'male', 'gm-male-02').picture)).toBe(false);
+  });
+
+  test('with an upload that cannot fit second in the list, leaves the tree as it was, the first taken in and put back, and both uploads kept', async () => {
+    const dir = scratch();
+    const first = upload(dir, committedMale, 'media/inbox/guildmaster/male/g.webp');
+    const second = 'media/inbox/guildmaster/male/noise.png';
+    mkdirSync(path.dirname(path.join(dir, second)), { recursive: true });
+    writeFileSync(path.join(dir, second), noisePng(480, 640));
+    const draft = { date: '2026-10-02', report: 'Two pictures.', pictures: [{ source: first, row: goodRow(dir) }, { source: second, row: goodRow(dir) }] };
+
+    const failure = await writeRows(dir, draft, chromium).catch((error: unknown) => error);
+
+    expect(failure).toBeInstanceOf(Undone);
+    expect((failure as Undone).problems).toEqual([expect.stringMatching(/^media\/inbox\/guildmaster\/male\/noise\.png: its picture is \d+ bytes at quality 0\.5, over the 120000 allowed; it is refused$/)]);
+    expect(status(dir)).toBe('');
+    expect(existsSync(path.join(dir, first))).toBe(true);
+    expect(existsSync(path.join(dir, second))).toBe(true);
+    expect(existsSync(picturePaths(dir, 'guildmaster', 'male', 'gm-male-02').picture)).toBe(false);
+    expect(existsSync(picturePaths(dir, 'guildmaster', 'male', 'gm-male-02').thumbnail)).toBe(false);
+    expect(existsSync(path.join(dir, 'docs'))).toBe(false);
   });
 
   test('through the command line, says it was undone, in JSON, with exit code 1', async () => {

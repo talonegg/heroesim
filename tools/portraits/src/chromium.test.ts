@@ -1,14 +1,13 @@
 import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { crc32, deflateSync } from 'node:zlib';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, dataUrlOf, dataUrlOfBytes, launchChromium, type Chromium, type Trim } from './chromium.js';
 import { run } from './cli.js';
 import { convert, picture, Refusal, thumbnail } from './convert.js';
 import { distance, fingerprint, hashDistance } from './fingerprint.js';
 import { picturePaths, readRegistry } from './registry.js';
-import { root } from './test-support.js';
+import { noisePng, root } from './test-support.js';
 import { webpSize } from './webp.js';
 
 // Conversion and the fingerprint in Chromium, on the pictures committed (v1.1.3-S2), so CI proves
@@ -21,34 +20,6 @@ const pictures = (['male', 'female'] as const).map((sex) => {
   const key = `gm-${sex}-01`;
   return { key, file: picturePaths(root, 'guildmaster', sex, key).picture, entry: registry.portraits[key] };
 });
-
-/** A PNG of random colour, which no quality of WebP can make small: CRC and deflate from Node. */
-function noisePng(width: number, height: number): Buffer {
-  const chunk = (type: string, data: Buffer): Buffer => {
-    const body = Buffer.concat([Buffer.from(type, 'ascii'), data]);
-    const length = Buffer.alloc(4);
-    length.writeUInt32BE(data.length);
-    const crc = Buffer.alloc(4);
-    crc.writeUInt32BE(crc32(body));
-    return Buffer.concat([length, body, crc]);
-  };
-  const header = Buffer.alloc(13);
-  header.writeUInt32BE(width, 0);
-  header.writeUInt32BE(height, 4);
-  header.set([8, 2, 0, 0, 0], 8);
-  const rows = Buffer.alloc((width * 3 + 1) * height);
-  let seed = 1;
-  for (let index = 0; index < rows.length; index += 1) {
-    seed = (seed * 1103515245 + 12345) >>> 0;
-    rows[index] = index % (width * 3 + 1) === 0 ? 0 : seed >>> 24;
-  }
-  return Buffer.concat([
-    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk('IHDR', header),
-    chunk('IDAT', deflateSync(rows)),
-    chunk('IEND', Buffer.alloc(0)),
-  ]);
-}
 
 describe.skipIf(!chromiumInstalled())('in Chromium', () => {
   let chromium: Chromium;
