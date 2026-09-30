@@ -30,8 +30,9 @@
 // game starts, as every Guildmaster's is. Since v1.1.2-S6 the buttons write only the fields left blank
 // or still as written, keeping the player's words; and a field still as written follows the Guildmaster
 // when the sex, the age, the Portrait, the Traits, the Background or the seed changes, so "Start the
-// game" never sends texts for another. A field the player changed is kept, and the note says when it
-// was written for another Guildmaster (`state/setup.ts`'s `textsView`).
+// game" never sends texts for another. The Birthplace typed is the Biography's, so a Biography still as
+// written follows it too. A field the player changed is kept, and the note says when it was written for
+// another Guildmaster (`state/setup.ts`'s `textsView`).
 
 import type { DescriptiveAttribute, PortraitKey, Sex, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
@@ -40,6 +41,7 @@ import { readableSeed } from '../seed';
 import type { GameAction, NewGame as NewGamePlay, PlayRejection } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
 import {
+  givenTexts,
   guildmasterPreview,
   guildmasterPreviewView,
   noTexts,
@@ -128,7 +130,12 @@ export function NewGame({
   const preview = useMemo(() => guildmasterPreviewView(previewed, seed), [previewed, seed]);
   const writable = previewed !== null;
   // The texts written for that Guildmaster, and what the three fields show and send.
-  const written = useMemo(() => (held.n === null ? null : writtenDescription(previewed, seed, held.n)), [previewed, seed, held.n]);
+  // The Birthplace typed is the Biography's too (v1.1.2-S6), so a Biography still as written follows it.
+  const place = givenTexts(held).birthplace;
+  const written = useMemo(
+    () => (held.n === null ? null : writtenDescription(previewed, seed, held.n, place === undefined ? {} : { birthplace: place })),
+    [previewed, seed, held.n, place],
+  );
   const texts = useMemo(() => textsView(held, written), [held, written]);
 
   /** The play the form would make now, less its seed and its clock, which the click supplies. */
@@ -279,27 +286,31 @@ export function NewGame({
               </Field>
             </div>
 
-            {preview === null ? null : preview.kind === 'unseeded' ? (
-              <p className="note setup-preview" data-testid="guildmaster-preview">
-                {preview.words}
-              </p>
-            ) : (
-              <div className="setup-preview" data-testid="guildmaster-preview">
-                {preview.portrait === null ? null : (
-                  <Portrait
-                    role="guildmaster"
-                    sex={preview.portrait.sex}
-                    portraitKey={preview.portrait.portraitKey}
-                    name={guildmasterName.trim() === '' ? 'your Guildmaster' : guildmasterName.trim()}
-                  />
-                )}
-                <div className="setup-preview__words" aria-live="polite">
-                  {preview.drawnWords === null ? null : <p>{preview.drawnWords}</p>}
-                  {preview.traitsWords === null ? null : <p>{preview.traitsWords}</p>}
-                  {preview.portrait === null ? null : <p>{preview.portrait.words}</p>}
+            {/* A polite live region that is always there, so the preview is heard when it first comes
+                as well as when it changes (v1.1.2-S6). */}
+            <div aria-live="polite" data-testid="guildmaster-preview-live">
+              {preview === null ? null : preview.kind === 'unseeded' ? (
+                <p className="note setup-preview" data-testid="guildmaster-preview">
+                  {preview.words}
+                </p>
+              ) : (
+                <div className="setup-preview" data-testid="guildmaster-preview">
+                  {preview.portrait === null ? null : (
+                    <Portrait
+                      role="guildmaster"
+                      sex={preview.portrait.sex}
+                      portraitKey={preview.portrait.portraitKey}
+                      name={guildmasterName.trim() === '' ? 'your Guildmaster' : guildmasterName.trim()}
+                    />
+                  )}
+                  <div className="setup-preview__words">
+                    {preview.drawnWords === null ? null : <p>{preview.drawnWords}</p>}
+                    {preview.traitsWords === null ? null : <p>{preview.traitsWords}</p>}
+                    {preview.portrait === null ? null : <p>{preview.portrait.words}</p>}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
             <fieldset className="setup__portraits">
               <legend>Portrait</legend>

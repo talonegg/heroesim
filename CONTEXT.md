@@ -538,7 +538,8 @@ _Avoid_: Stackable, Generic item, Commodity
 **Unique Item**:
 An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
 holder at a time. By DL-125 it shows its picture beside its name, or a chest's Silhouette until it
-has one (to be built).
+has one, in the Stores, the Market's Sell and a Hero's Gear (built in v1.1.2-S2, DL-129). No Unique
+Item has a picture yet, so each shows the Silhouette.
 _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:

@@ -1,9 +1,10 @@
-import { createWorld, defaultConfig, type Sex } from '@heroesim/engine';
+import { createWorld, defaultConfig, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { capitalised } from './names';
 import type { NewGame } from './reducer';
 import {
+  givenTexts,
   guildmasterPreview,
   guildmasterPreviewView,
   noTexts,
@@ -44,8 +45,8 @@ function previewOf(setup: SetupFields, seed: string) {
 }
 
 /** The texts written for `setup` and `seed`, from the engine's preview, as the form writes them. */
-function writtenOf(setup: SetupFields, seed: string, n: number) {
-  return writtenDescription(guildmasterPreview(setup, seed), seed, n);
+function writtenOf(setup: SetupFields, seed: string, n: number, given: Partial<Record<DescriptiveAttribute, string>> = {}) {
+  return writtenDescription(guildmasterPreview(setup, seed), seed, n, given);
 }
 
 describe("the Traits the new-game form offers, as they stand against those chosen (M9-S7)", () => {
@@ -397,9 +398,11 @@ describe("the new-game form's preview, read from the engine's (v1.1.2-S6)", () =
 // player's own words are kept, and the note says when they were written for another Guildmaster.
 describe("the Guildmaster's texts held by the new-game form (v1.1.2-S6)", () => {
   const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
-  const written = (setup: SetupFields, n: number, seed = 'held-seed') => writtenOf(setup, seed, n);
+  const written = (setup: SetupFields, n: number, seed = 'held-seed', given: Partial<Record<DescriptiveAttribute, string>> = {}) =>
+    writtenOf(setup, seed, n, given);
+  // As the form does: the writing for the texts the player gave.
   const valuesOf = (held: TextsHeld, setup: SetupFields = fields, seed = 'held-seed') =>
-    textsView(held, held.n === null ? null : written(setup, held.n, seed)).values;
+    textsView(held, held.n === null ? null : written(setup, held.n, seed, givenTexts(held))).values;
 
   test('before anything is written, the fields hold what the player types, and nothing is said', () => {
     const typed = textTyped(noTexts, 'biography', 'Mine.', null);
@@ -460,6 +463,51 @@ describe("the Guildmaster's texts held by the new-game form (v1.1.2-S6)", () => 
     // Typed where nothing was written, a text is the player's own, for whomever the Guildmaster is.
     const own = textTyped(noTexts, 'birthplace', 'Kingsbridge', null);
     expect(textsView(textsWritten(own, 0), written(male, 0)).words).toBe('Written for a male Guildmaster of 48. Change them as you like.');
+  });
+
+  // The verification of the review's fixes: a Birthplace typed and a Biography written from another.
+  test("a Birthplace the player typed is the Biography's too, and a Biography still as written follows it", () => {
+    const drawn = written(fields, 0);
+    if (drawn === null) throw new Error('nothing written');
+    // Typed before "Write them for me".
+    const before = textsWritten(textTyped(noTexts, 'birthplace', 'Kingsbridge', null), 0);
+    expect(valuesOf(before)).toEqual({
+      ...drawn.texts,
+      birthplace: 'Kingsbridge',
+      biography: drawn.texts.biography.replace(drawn.texts.birthplace, 'Kingsbridge'),
+    });
+    expect(valuesOf(before).biography).not.toContain(drawn.texts.birthplace);
+
+    // Typed after it: the Biography still as written follows, and "Again" writes with it too.
+    const after = textTyped(textsWritten(noTexts, 0), 'birthplace', 'Aldermoor', drawn);
+    expect(valuesOf(after).biography).toBe(drawn.texts.biography.replace(drawn.texts.birthplace, 'Aldermoor'));
+    expect(valuesOf(textsWritten(after, 1)).biography).toContain('Aldermoor');
+    // The Birthplace is the player's, not written for another Guildmaster.
+    expect(textsView(after, written(fields, 0, 'held-seed', givenTexts(after))).words).toBe(`${drawn.words} Change them as you like.`);
+
+    // A Biography the player changed is kept, and once the Birthplace changes it was written for another.
+    const mine = textTyped(after, 'biography', 'She kept the toll bridge.', written(fields, 0, 'held-seed', givenTexts(after)));
+    const moved = textTyped(mine, 'birthplace', 'Elsewhere', written(fields, 0, 'held-seed', givenTexts(mine)));
+    const view = textsView(moved, written(fields, 0, 'held-seed', givenTexts(moved)));
+    expect(view.values.biography).toBe('She kept the toll bridge.');
+    expect(view.words).toBe(`${drawn.words} The Biography was written for another Guildmaster, and is kept as you changed it.`);
+    expect(givenTexts(textTyped(noTexts, 'birthplace', '  ', null))).toEqual({});
+  });
+
+  test('a field the player changes again once the facts have changed is theirs, and the note no longer names it', () => {
+    const female = { ...fields, guildmasterSex: 'female' as const, guildmasterAge: 34 };
+    const male = { ...fields, guildmasterSex: 'male' as const, guildmasterAge: 48 };
+    const held = textTyped(textsWritten(noTexts, 0), 'biography', 'She kept the toll bridge.', written(female, 0));
+    expect(textsView(held, written(male, 0)).words).toMatch(/The Biography was written for another Guildmaster/);
+
+    const again = textTyped(held, 'biography', 'He kept the toll bridge.', written(male, 0));
+    expect(textsView(again, written(male, 0)).words).toBe('Written for a male Guildmaster of 48. Change them as you like.');
+    // And named again only if the facts change after that.
+    expect(textsView(again, written(female, 0)).words).toMatch(/The Biography was written for another Guildmaster/);
+
+    // Typed where nothing was written, a text stays the player's own however often it is changed.
+    const own = textTyped(textsWritten(textTyped(noTexts, 'appearance', 'Tall.', null), 0), 'appearance', 'Very tall.', written(male, 0));
+    expect(textsView(own, written(female, 0)).words).toBe('Written for a female Guildmaster of 34. Change them as you like.');
   });
 
   test("with all three the player's own, says none was written; with no Guildmaster to write for, says when they will be", () => {

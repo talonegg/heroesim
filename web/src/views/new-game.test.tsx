@@ -414,8 +414,18 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
   test('says what the seed draws in a polite live region, so a screen reader hears it follow the fields (v1.1.2-S6)', () => {
     form();
     named();
-    const words = within(setup()).getByTestId('guildmaster-preview').querySelector('.setup-preview__words');
-    expect(words?.getAttribute('aria-live')).toBe('polite');
+    const live = within(setup()).getByTestId('guildmaster-preview-live');
+    expect(live.getAttribute('aria-live')).toBe('polite');
+    expect(within(live).getByTestId('guildmaster-preview').textContent).toMatch(/^Drawn: /);
+    // With nothing left to the seed there are no words, and the region stays, so words that come
+    // later are announced as they arrive (the verification of the review's J).
+    fireEvent.click(within(part('Portrait')).getByRole('radio', { name: 'Female Portrait 1' }));
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
+    chooseTraits();
+    expect(within(setup()).queryByTestId('guildmaster-preview')).toBeNull();
+    expect(within(setup()).getByTestId('guildmaster-preview-live')).toBe(live);
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '' } });
+    expect(within(live).getByTestId('guildmaster-preview').textContent).toMatch(/^Drawn: Age \d+$/);
   });
 
   test('says only what is left to the seed, and nothing once everything is chosen', () => {
@@ -535,6 +545,43 @@ describe("the Guildmaster's Birthplace, Appearance and Biography written in the 
       birthplace: 'Kingsbridge',
       biography: 'Kept the toll bridge for twenty years.',
     });
+  });
+
+  // v1.1.2-S6 (the verification of the review's fixes): the Birthplace typed is the one the Biography names.
+  test('a Birthplace typed is the Biography\'s: "Write them for me", "Again" and a Biography still as written name it, and the game starts with both', () => {
+    const { play } = form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    const drawn = writtenOf(fields, 'new-game-test', 0)?.texts;
+    if (drawn === undefined) throw new Error('nothing written');
+    fireEvent.change(field('Birthplace'), { target: { value: 'Kingsbridge' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual({ ...drawn, birthplace: 'Kingsbridge', biography: drawn.biography.replace(drawn.birthplace, 'Kingsbridge') });
+
+    fireEvent.click(writeButton('Again'));
+    expect(field('Biography').value).toContain('Kingsbridge');
+    fireEvent.change(field('Birthplace'), { target: { value: 'Aldermoor, by the ford' } });
+    expect(field('Biography').value).toContain('Aldermoor, by the ford');
+    expect(field('Biography').value).not.toContain('Kingsbridge');
+    expect(writtenFor()).toMatch(/Change them as you like\.$/);
+
+    fireEvent.click(start());
+    const sent = play.mock.calls[0]?.[0];
+    expect(sent).toMatchObject({ guildmasterBirthplace: 'Aldermoor, by the ford' });
+    expect(sent !== undefined && 'guildmasterBiography' in sent ? sent.guildmasterBiography : '').toContain('Aldermoor, by the ford');
+  });
+
+  test('a text changed again after the Guildmaster changed is the player\'s, and the note no longer names it', () => {
+    form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.click(writeButton('Write them for me'));
+    fireEvent.change(field('Biography'), { target: { value: 'She rows.' } });
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    expect(writtenFor()).toMatch(/The Biography was written for another Guildmaster/);
+
+    fireEvent.change(field('Biography'), { target: { value: 'He rows.' } });
+    expect(writtenFor()).toMatch(/^Written for a male Guildmaster of \d+\. Change them as you like\.$/);
   });
 
   // v1.1.2-S6 (the review's B): the texts follow the Guildmaster the form makes, unless the player changed them.

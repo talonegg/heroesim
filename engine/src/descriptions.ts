@@ -132,6 +132,12 @@ export interface DescribeRequest extends DescriptionFacts {
    * game from `seed` writes for its player's Guildmaster left blank; each `n` after is another.
    */
   n: number;
+  /**
+   * The texts the player has given, each kept as `createWorld` keeps it (v1.1.2-S6): a Birthplace given
+   * is the Birthplace, and the Biography's. A blank one is written. The draws are the same whatever is
+   * given.
+   */
+  given?: Partial<GuildmasterDescription>;
 }
 
 /**
@@ -147,11 +153,11 @@ export interface DescribeRequest extends DescriptionFacts {
  * Throws on a programming error: an `n` that is not a whole number from 0.
  */
 export function describeGuildmaster(request: DescribeRequest, deps: Pick<EngineDeps, 'content'>): GuildmasterDescription {
-  const { seed, n, ...facts } = request;
+  const { seed, n, given, ...facts } = request;
   if (!Number.isSafeInteger(n) || n < 0) throw new RangeError(`"Again" is asked a whole number of times from 0; got ${n}`);
   const name = n === 0 ? descriptionsStream : `${descriptionsStream}-${n}`;
   const state = createStreams(seed, [name])[name] as Stream;
-  return write(state, deps.content, facts);
+  return write(state, deps.content, facts, given);
 }
 
 /**

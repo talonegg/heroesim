@@ -101,6 +101,21 @@ describe('describeGuildmaster', () => {
     expect(hers.biography).not.toMatch(/[{}]/);
   });
 
+  test('keeps a Birthplace given, and writes it into the Biography, in the same draws (v1.1.2-S6)', () => {
+    for (const seed of seeds) {
+      for (const n of [0, 3]) {
+        const drawn = describeGuildmaster({ ...request, seed, n }, deps);
+        const given = describeGuildmaster({ ...request, seed, n, given: { birthplace: '  Kingsbridge ' } }, deps);
+        expect(given.birthplace).toBe('Kingsbridge');
+        expect(given.appearance).toBe(drawn.appearance);
+        expect(given.biography).toBe(drawn.biography.replace(drawn.birthplace, 'Kingsbridge'));
+        expect(given.biography).toContain('Kingsbridge');
+        // A blank one is written, as it would be with none given.
+        expect(describeGuildmaster({ ...request, seed, n, given: { birthplace: ' ' } }, deps)).toEqual(drawn);
+      }
+    }
+  });
+
   test('each text is within its bound, written, and none empty, over many requests', () => {
     for (const seed of seeds) {
       for (const sex of ['female', 'male'] as const) {

@@ -327,14 +327,16 @@ export function guildmasterPreviewView(preview: GuildmasterPreview | null, seed:
 
 /** The three texts written for the Guildmaster, and for whom, in words and as the facts written for. */
 export interface WrittenDescription {
+  /** What each field shows where the player has not typed. */
   texts: GuildmasterDescription;
   /** `Written for a female Guildmaster of 34.` */
   words: string;
   /**
-   * The facts they were written for, as one string: the seed, the sex, the age, the Traits, the
-   * Portrait and the Background. Two writings for the same facts have the same (v1.1.2-S6).
+   * The facts each text was written for, as one string: the seed, the sex, the age, the Traits, the
+   * Portrait and the Background, and for the Biography the Birthplace given too. Two writings for the
+   * same facts have the same (v1.1.2-S6).
    */
-  facts: string;
+  facts: Record<DescriptiveAttribute, string>;
 }
 
 /**
@@ -342,20 +344,43 @@ export interface WrittenDescription {
  * put in the form (v1.1.2-S5, DL-125 item 6), for `preview`, the engine's Guildmaster for `seed`
  * (`guildmasterPreview`): at `n` 0 the texts in the preview, which are the engine's
  * `describeGuildmaster` at 0 and what "Start the game" writes; after, `describeGuildmaster` for the
- * preview's sex, age, Traits, Portrait and Background, so the form computes no rule (ADR-0007).
+ * preview's sex, age, Traits, Portrait and Background, so the form computes no rule (ADR-0007). A
+ * Birthplace `given`, the one the player typed (`givenTexts`), is the Biography's (v1.1.2-S6).
  * `null` when there is no preview, the engine refusing the setup, or the seed is blank, since then
  * there is no Guildmaster to write for.
  */
-export function writtenDescription(preview: GuildmasterPreview | null, seed: string, n: number, set: ContentSet = content): WrittenDescription | null {
+export function writtenDescription(
+  preview: GuildmasterPreview | null,
+  seed: string,
+  n: number,
+  given: Partial<GuildmasterDescription> = {},
+  set: ContentSet = content,
+): WrittenDescription | null {
   const trimmed = seed.trim();
   if (preview === null || trimmed === '') return null;
   const { sex, age, traitKeys, portraitKey, backgroundKey } = preview;
-  const texts = n === 0 ? preview.description : describeGuildmaster({ seed: trimmed, n, sex, age, traitKeys, portraitKey, backgroundKey }, { content: set });
+  const request = { seed: trimmed, n, sex, age, traitKeys, portraitKey, backgroundKey };
+  const drawn = n === 0 ? preview.description : describeGuildmaster(request, { content: set });
+  const place = (given.birthplace ?? '').trim();
+  // The Birthplace typed is the Biography's too, as "Start the game" would write it (v1.1.2-S6); the
+  // draws are the same, so only the Biography moves. The Birthplace field, where not typed, shows the
+  // Birthplace drawn.
+  const texts = place === '' ? drawn : { ...describeGuildmaster({ ...request, given: { birthplace: place } }, { content: set }), birthplace: drawn.birthplace };
+  const facts = JSON.stringify([trimmed, sex, age, traitKeys, portraitKey, backgroundKey]);
   return {
     texts,
     words: `Written for a ${sex} Guildmaster of ${age}.`,
-    facts: JSON.stringify([trimmed, sex, age, traitKeys, portraitKey, backgroundKey]),
+    facts: { birthplace: facts, appearance: facts, biography: JSON.stringify([facts, place]) },
   };
+}
+
+/**
+ * The texts the player has given that a writing reads (v1.1.2-S6): the Birthplace typed, which the
+ * Biography names. A blank one is none.
+ */
+export function givenTexts(held: TextsHeld): Partial<GuildmasterDescription> {
+  const place = held.typed.birthplace?.text.trim() ?? '';
+  return place === '' ? {} : { birthplace: place };
 }
 
 /**
@@ -367,8 +392,8 @@ export interface TextsHeld {
   /** `null` before "Write them for me"; then 0, and one more for each "Again". */
   n: number | null;
   /**
-   * The texts the player typed, each with `over`, the facts of the writing shown in the field when
-   * they first changed it (`WrittenDescription.facts`), or `null` when none was shown there.
+   * The texts the player typed, each with `over`, the facts of the writing shown when they last changed
+   * it (`WrittenDescription.facts`), or `null` when none was shown there when they first typed in it.
    */
   typed: Readonly<Partial<Record<DescriptiveAttribute, { text: string; over: string | null }>>>;
 }
@@ -389,13 +414,17 @@ export function textsWritten(held: TextsHeld, n: number): TextsHeld {
 /**
  * `text` typed in `attribute`'s field while `written` is the writing for the Guildmaster the form
  * makes (v1.1.2-S6). Typed back to the text written, the field is as written again, and follows the
- * writing; otherwise it holds the player's words, marked with the facts of the writing it changed.
+ * writing; otherwise it holds the player's words, marked with the facts of the writing shown as they
+ * change it. So a field changed after the facts changed is the player's, and is not said to be written
+ * for another Guildmaster until the facts change again. One first typed where nothing was written is
+ * the player's own, however often it is changed.
  */
 export function textTyped(held: TextsHeld, attribute: DescriptiveAttribute, text: string, written: WrittenDescription | null): TextsHeld {
   const shown = held.n === null ? null : written;
   const rest = Object.fromEntries(Object.entries(held.typed).filter(([key]) => key !== attribute));
   if (shown !== null && text === shown.texts[attribute]) return { ...held, typed: rest };
-  const over = held.typed[attribute]?.over ?? (shown === null ? null : shown.facts);
+  const before = held.typed[attribute];
+  const over = (before !== undefined && before.over === null) || shown === null ? null : shown.facts[attribute];
   return { ...held, typed: { ...rest, [attribute]: { text, over } } };
 }
 
@@ -426,7 +455,7 @@ export function textsView(held: TextsHeld, written: WrittenDescription | null): 
   const own = descriptiveAttributes.filter((attribute) => (held.typed[attribute]?.text.trim() ?? '') !== '');
   const stale = own.filter((attribute) => {
     const over = held.typed[attribute]?.over ?? null;
-    return over !== null && over !== written.facts;
+    return over !== null && over !== written.facts[attribute];
   });
   if (stale.length === 0) {
     const words =

@@ -380,8 +380,8 @@
         "{He} haggles over candles and mends what others would throw away, and the Guild is the richer for it."
       ],
       "miser": [
-        "{He} is careful with money to a fault, and the Heroes grumble that the stew grows thinner every winter.",
-        "{He} hoards coin as others hoard grudges, and the Guild's Hall is the colder for it."
+        "The Heroes grumble that the stew grows thinner every winter, and that {he} has never once stood them a round.",
+        "{He} hoards firewood as others hoard grudges, and the Guild's Hall is the colder for it."
       ],
       "spendthrift": [
         "Money runs through {his} fingers like water, and the Guild's Wealth feels every generous impulse.",
@@ -400,7 +400,7 @@
         "{He} has more ambition than experience, but is gaining the second quickly."
       ],
       "middle": [
-        "{He} means to see the Guild at the head of the Rankings before {his} hair turns grey.",
+        "{He} means to see the Guild at the head of the Rankings while {he} is still in {his} prime.",
         "{He} has seen enough of the world to be wary of it, and enough of people to like them anyway.",
         "Those who have crossed {him} say {he} is patient, fair and very hard to forget.",
         "{He} keeps {his} own counsel, and the Guild runs better for it than anyone expected."

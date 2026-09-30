@@ -156,6 +156,24 @@ describe('loadContent()', () => {
       expect(older.filter((text) => /\bwhite\b|lifetime|longer ago|stepping down|with age|old paper/i.test(text))).toEqual([]);
     });
 
+    // The verification of the review's fixes: what the prose, read again, showed.
+    test("leaves the hair to the Appearance, so no Biography says it will turn grey beside an Appearance that says it has", () => {
+      const hair = biographySentences().filter((sentence) => /\bhair\b|\bgr[ae]y(ing|s|ed)?\b|\bbald/i.test(sentence));
+      expect(hair).toEqual([]);
+      // The middle band's Appearance can grey, which is why.
+      const middle = Object.values(descriptions.appearance).flatMap((byBand) => [...(byBand.middle?.hair ?? []), ...(byBand.middle?.facialHair ?? [])]);
+      expect(middle.some((phrase) => /\bgrey\b/i.test(phrase))).toBe(true);
+    });
+
+    test('gives a thrifty Guildmaster and a miser, who may be one Guildmaster, sentences that never both speak of money', () => {
+      const money = /\b(money|coins?|coppers?|pennies|penny|silver|gold)\b/i;
+      const { thrifty = [], miser = [] } = descriptions.biography.traits;
+      const pairs = thrifty.flatMap((one) => miser.map((other) => [one, other])).filter(([one = '', other = '']) => money.test(one) && money.test(other));
+      expect(pairs).toEqual([]);
+      expect(content.traits.thrifty?.excludes).not.toContain('miser');
+      expect(content.traits.miser?.excludes).not.toContain('thrifty');
+    });
+
     test("writes each Guildmaster Trait's sentences for any age, so a young career and a Trait never disagree", () => {
       const traits = Object.values(descriptions.biography.traits).flat();
       expect(traits.filter((sentence) => /\byears\b|\bold (company|days)\b|long ago/i.test(sentence))).toEqual([]);
