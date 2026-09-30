@@ -6,9 +6,9 @@
 import type {
   AgeBand,
   AppearancePhrases,
-  AppearanceSlot,
   Background,
   BackgroundOwner,
+  Calling,
   Class,
   ConsumableDefinition,
   ConsumableEffect,
@@ -22,7 +22,9 @@ import type {
   EncounterAggregate,
   EncounterKind,
   FacilityKey,
+  Feature,
   GearDefinition,
+  HeroBiographySentences,
   Improvement,
   InjuryType,
   ItemDefinition,
@@ -75,9 +77,12 @@ export const contentSetId = 'core';
  * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
  * (DL-125 items 3 and 5, DL-130). v1.1.2-S4's two pictures in `portraits.json` and their rows in
  * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131); so does
- * v1.1.2-S5's `descriptions.json`, for the same reason (DL-132).
+ * v1.1.2-S5's `descriptions.json`, for the same reason (DL-132). 17 from v1.1.3-S1, which gave each
+ * picture's row its role's fields and `features` in the place of `keywords`, `descriptions.json` the
+ * Stations, Tempers and Callings and their sentences and a Hero's Biography's, and each Hero Background
+ * its Station (DL-134, DL-135); no rule reads them yet.
  */
-export const contentVersion = 16;
+export const contentVersion = 17;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -128,7 +133,6 @@ const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: 
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
 const sexChoices: Record<Sex, true> = { female: true, male: true };
 const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
-const appearanceSlots: Record<AppearanceSlot, true> = { face: true, hair: true, facialHair: true, eyes: true, mark: true, bearing: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -173,7 +177,12 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       json('backgrounds.json'),
       problems,
       'a Background',
-      (row) => ({ name: row.string('name'), owner: row.oneOf('owner', backgroundOwners) }),
+      (row) => {
+        const shape = { name: row.string('name'), owner: row.oneOf('owner', backgroundOwners) };
+        // A Hero Background's Station (v1.1.3-S1, DL-135 item 5): which owner has one is `validateContent`'s rule.
+        const station = row.optional('station', (field) => row.string(field));
+        return station === undefined ? shape : { ...shape, station };
+      },
     ),
     spheres: table<Sphere>('spheres.json', json('spheres.json'), problems, 'a Sphere', (row) => ({
       name: row.string('name'),
@@ -369,16 +378,18 @@ function portraits(json: unknown, problems: string[]): Portraits {
 }
 
 /**
- * The Appearances mapped to pictures (v1.1.2-S4; DL-126 item 2, DL-127): `keywords`, each with its
- * slot and its word, and `portraits`, each mapped picture's keywords and narrative by its key.
- * Which keys are allowed is `validateContent`'s rule.
+ * The rows of the pictures (v1.1.2-S4, v1.1.3-S1; DL-126 item 2, DL-127, DL-134 item 3): `features`,
+ * each `maleOnly` or not and with the Hero Traits it `shows`, both optional; and `portraits`, each
+ * picture's row by its key: its `apparentAge`, `station`, `temper` and `narrative`, and optionally its
+ * `features`, `hooks`, and either role's `callings` or `classes`. Which role's fields a row may have,
+ * which keys are allowed and what the values may be are `validateContent`'s rules.
  */
 function portraitAppearances(json: unknown, problems: string[]): PortraitAppearances {
   const file = 'portrait-appearances.json';
-  const empty: PortraitAppearances = { keywords: {}, portraits: {} };
+  const empty: PortraitAppearances = { features: {}, portraits: {} };
   if (json === undefined) return empty;
   if (!isObject(json)) {
-    problems.push(`${file}: must be an object of the keywords and the pictures`);
+    problems.push(`${file}: must be an object of the features and the pictures`);
     return empty;
   }
   const top = new RowReader(file, [], json, problems);
@@ -397,11 +408,23 @@ function portraitAppearances(json: unknown, problems: string[]): PortraitAppeara
       }),
     );
   const result: PortraitAppearances = {
-    keywords: rows('keywords', 'a keyword', (row) => ({ slot: row.oneOf('slot', appearanceSlots), word: row.string('word') })),
-    portraits: rows('portraits', "a picture's Appearance", (row): PortraitAppearance => ({
-      keywords: row.strings('keywords'),
-      narrative: row.string('narrative'),
+    features: rows('features', 'a feature', (row): Feature => ({
+      maleOnly: row.optional('maleOnly', (field) => row.boolean(field)) ?? false,
+      shows: row.optional('shows', (field) => row.strings(field)) ?? [],
     })),
+    portraits: rows('portraits', "a picture's row", (row): PortraitAppearance => {
+      const shape: PortraitAppearance = {
+        apparentAge: row.numberList('apparentAge') as PortraitAppearance['apparentAge'],
+        station: row.string('station'),
+        temper: row.string('temper'),
+        features: row.optional('features', (field) => row.strings(field)) ?? [],
+        narrative: row.string('narrative'),
+        hooks: row.optional('hooks', (field) => row.strings(field)) ?? [],
+      };
+      const callings = row.optional('callings', (field) => row.strings(field));
+      const classes = row.optional('classes', (field) => row.strings(field));
+      return { ...shape, ...(callings === undefined ? {} : { callings }), ...(classes === undefined ? {} : { classes }) };
+    }),
   };
   top.refuseUnknown('the Appearances mapped to pictures');
   return result;
@@ -410,8 +433,11 @@ function portraitAppearances(json: unknown, problems: string[]): PortraitAppeara
 /**
  * What a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6): the age
  * bands, the pronouns by sex, the Birthplaces, the Appearance's phrases by sex, age band and slot, and
- * the Biography's sentences by part. A field missing, unknown or of the wrong type is refused; which
- * keys, bands and texts are allowed, and how long they may make a text, is `validateContent`'s rule.
+ * the Biography's sentences by part; and since v1.1.3-S1 (DL-134 item 4, DL-135 item 6) the Stations,
+ * the Tempers, the Callings with the Traits each suits and clashes with, the Biography's sentences by
+ * a picture's Station, Callings and band, and Temper, and a Hero's Biography's sentences. A field
+ * missing, unknown or of the wrong type is refused; which keys, bands and texts are allowed, and how
+ * long they may make a text, is `validateContent`'s rule.
  */
 function descriptions(json: unknown, problems: string[]): Descriptions {
   const file = 'descriptions.json';
@@ -420,8 +446,22 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
     ageBands: [],
     pronouns: none(),
     birthplaces: [],
+    stations: [],
+    tempers: [],
+    callings: {},
     appearance: none(),
-    biography: { origins: {}, careers: {}, backgrounds: {}, traits: {}, closings: {}, successors: [] },
+    biography: {
+      origins: {},
+      careers: {},
+      backgrounds: {},
+      traits: {},
+      closings: {},
+      successors: [],
+      stationOrigins: {},
+      callingCareers: {},
+      temperClosings: {},
+    },
+    heroBiography: { backgrounds: {}, classes: {}, traits: {}, closings: {} },
   };
   if (json === undefined) return empty;
   if (!isObject(json)) {
@@ -442,6 +482,9 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
   };
   /** An object of lists of strings by key, such as the Biography's sentences by age band. */
   const lists = (reader: RowReader, field: string): Record<string, string[]> => byKey(reader, field, (child, key) => child.strings(key));
+  /** An object of such objects by key, such as the Biography's sentences by Calling and then by age band. */
+  const listsByKey = (reader: RowReader, field: string): Record<string, Record<string, string[]>> =>
+    byKey(reader, field, (child, key) => lists(child, key));
 
   const pronouns = top.child('pronouns');
   const appearance = top.child('appearance');
@@ -454,6 +497,14 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
       }),
     ) as Descriptions['pronouns'],
     birthplaces: top.strings('birthplaces'),
+    stations: top.strings('stations'),
+    tempers: top.strings('tempers'),
+    callings: byKey(top, 'callings', (child, key): Calling => {
+      const row = child.child(key);
+      const calling = { suits: row.strings('suits'), clashes: row.strings('clashes') };
+      row.refuseUnknown('a calling');
+      return calling;
+    }),
     appearance: Object.fromEntries(
       (Object.keys(sexChoices) as Sex[]).map((sex) => [
         sex,
@@ -482,8 +533,22 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
         traits: lists(biography, 'traits'),
         closings: lists(biography, 'closings'),
         successors: biography.strings('successors'),
+        stationOrigins: lists(biography, 'stationOrigins'),
+        callingCareers: listsByKey(biography, 'callingCareers'),
+        temperClosings: lists(biography, 'temperClosings'),
       };
       biography.refuseUnknown("the Biography's sentences");
+      return sentences;
+    })(),
+    heroBiography: ((): HeroBiographySentences => {
+      const biography = top.child('heroBiography');
+      const sentences = {
+        backgrounds: lists(biography, 'backgrounds'),
+        classes: listsByKey(biography, 'classes'),
+        traits: lists(biography, 'traits'),
+        closings: lists(biography, 'closings'),
+      };
+      biography.refuseUnknown("a Hero's Biography sentences");
       return sentences;
     })(),
   };
@@ -737,6 +802,14 @@ class RowReader {
     const isChoice = (item: unknown): item is Choice => typeof item === 'string' && Object.hasOwn(choices, item);
     if (Array.isArray(value) && value.every(isChoice)) return [...value];
     this.wrong(field, value, `a list, each one of ${Object.keys(choices).join(', ')}`);
+    return [];
+  }
+
+  /** A list of finite numbers, such as a picture's `apparentAge`; how many, and which, is the validator's. */
+  numberList(field: string): number[] {
+    const value = this.field(field);
+    if (Array.isArray(value) && value.every((item) => typeof item === 'number' && Number.isFinite(item))) return [...value];
+    this.wrong(field, value, 'a list of numbers');
     return [];
   }
 
