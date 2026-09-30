@@ -29,6 +29,12 @@ one releases (DL-124; see [Deploy](#deploy)).
   by "Export this game" at one and "Load a save file" at the other.
 - **In a terminal:** `npm ci` once, then `npm run play -- help` for the commands.
 
+## Portraits
+
+The Portraits' pictures in `media/portraits/` are converted, registered and checked by the
+portrait tool, `npm run portraits -- <command>`, described in
+[`tools/portraits/README.md`](tools/portraits/README.md) (DL-135 item 11).
+
 ## Deploy
 
 One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, DL-92, DL-94):

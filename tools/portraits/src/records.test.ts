@@ -1,0 +1,94 @@
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { afterEach, describe, expect, test } from 'vitest';
+import { formatJson } from './json-format.js';
+import { nextRun, today } from './records.js';
+import { Transaction, transaction } from './transaction.js';
+
+// The files the tool writes (v1.1.3-S2): runs named by date, JSON written as the content keeps it,
+// and every change of a command undone together.
+
+const made: string[] = [];
+afterEach(() => {
+  for (const dir of made.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+function scratch(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-records-'));
+  made.push(dir);
+  return dir;
+}
+
+describe('nextRun()', () => {
+  test('names a run by its date, and a second run on a day <date>-2, a third -3', () => {
+    const dir = scratch();
+    expect(nextRun(dir, '2026-10-02')).toBe('2026-10-02');
+    writeFileSync(path.join(dir, '2026-10-02.md'), '');
+    expect(nextRun(dir, '2026-10-02')).toBe('2026-10-02-2');
+    mkdirSync(path.join(dir, '2026-10-02-2'));
+    expect(nextRun(dir, '2026-10-02')).toBe('2026-10-02-3');
+    expect(nextRun(dir, '2026-10-03')).toBe('2026-10-03');
+    expect(() => nextRun(dir, '2 Oct')).toThrow(/YYYY-MM-DD/);
+  });
+
+  test("dates a run by the day where the tool runs", () => {
+    expect(today(new Date(2026, 9, 2, 23, 59))).toBe('2026-10-02');
+  });
+});
+
+describe('formatJson()', () => {
+  test('writes content/portraits.json as v1.1.2 wrote it by hand, one role to a line', () => {
+    const text = [
+      '{',
+      '  "guildmaster": { "female": ["gm-female-01"], "male": ["gm-male-01"] },',
+      '  "hero": { "female": [], "male": [] },',
+      '  "patron": { "female": [], "male": [] }',
+      '}',
+      '',
+    ].join('\n');
+    expect(formatJson(JSON.parse(text))).toBe(text);
+  });
+
+  test('keeps a short value on one line and opens a long one out, two spaces deep', () => {
+    expect(formatJson({ a: [1, 2], b: { c: 'd' }, e: [] })).toBe('{ "a": [1, 2], "b": { "c": "d" }, "e": [] }\n');
+    const long = { narrative: 'x'.repeat(90), list: ['y'.repeat(60), 'z'.repeat(60)] };
+    expect(formatJson(long)).toBe(`{\n  "narrative": "${'x'.repeat(90)}",\n  "list": [\n    "${'y'.repeat(60)}",\n    "${'z'.repeat(60)}"\n  ]\n}\n`);
+  });
+});
+
+describe('a transaction', () => {
+  test('keeps what it changed when it succeeds', async () => {
+    const dir = scratch();
+    await transaction(async (files) => {
+      files.write(path.join(dir, 'new', 'a.txt'), 'a');
+    });
+    expect(readFileSync(path.join(dir, 'new', 'a.txt'), 'utf8')).toBe('a');
+  });
+
+  test('puts back every file it wrote or removed, and removes every file and folder it made, when it fails', async () => {
+    const dir = scratch();
+    writeFileSync(path.join(dir, 'kept.txt'), 'before');
+    writeFileSync(path.join(dir, 'removed.txt'), 'there');
+    await expect(
+      transaction(async (files) => {
+        files.write(path.join(dir, 'kept.txt'), 'after');
+        files.write(path.join(dir, 'kept.txt'), 'after again');
+        files.remove(path.join(dir, 'removed.txt'));
+        files.write(path.join(dir, 'deep', 'er', 'made.txt'), 'new');
+        throw new Error('a check failed');
+      }),
+    ).rejects.toThrow('a check failed');
+    expect(readFileSync(path.join(dir, 'kept.txt'), 'utf8')).toBe('before');
+    expect(readFileSync(path.join(dir, 'removed.txt'), 'utf8')).toBe('there');
+    expect(existsSync(path.join(dir, 'deep'))).toBe(false);
+  });
+
+  test('names the files it touched', () => {
+    const dir = scratch();
+    const files = new Transaction();
+    files.write(path.join(dir, 'a.txt'), 'a');
+    expect(files.touched).toEqual([path.resolve(dir, 'a.txt')]);
+    files.rollback();
+    expect(existsSync(path.join(dir, 'a.txt'))).toBe(false);
+  });
+});

@@ -1,0 +1,44 @@
+{
+  "fingerprint": {
+    "method": "dHash, drawn in Chromium: the picture cropped to 3 × 4 and drawn at 192 × 256, grey, box-blurred (radius 3, twice), and averaged to 17 × 16 and 16 × 17 cells, each bit whether a cell is brighter than the next across (256 bits) or down (256 bits); `trimmed` holds the hashes of the picture with 5% trimmed all round, from each edge and from each corner. Two pictures' distance is the fewest bits between one's whole hash and the other's whole or trimmed hashes.",
+    "bits": 512,
+    "similarWithin": 104,
+    "tuning": "The owner's 40 (DL-136), 2026-10-01: the two originals are 8 and 5 bits from gm-male-01 and gm-female-01; a 5% crop of each of the 40, eleven ways, is at most 74 from its picture; the other 38 are at least 133 from either, and any two of the 40 at least 132 apart. 104 lies midway between 74 and 133."
+  },
+  "portraits": {
+    "gm-female-01": {
+      "role": "guildmaster",
+      "sex": "female",
+      "status": "live",
+      "hash": "cd34d630bd4c9ce4d8e098e4f966bce6b4c2f460cc60ecf0a65ca55ce6587c21ffff87ef4e373c1909df981bb7e75bf0ff38611f64c2dbdfe085fc600ff80000",
+      "trimmed": [
+        "8934ef08bd449ce498e4b8e4b966bce6b4c0f468dc68ecf2a65ca66ce658fc28ffff87e74c353c1809cf181bb7e7dbf8ff18611f64c2dbdff185fc60bff80000",
+        "8a20ad18394cb8ccb8e8b0ecb16679c670c2e8c29860d8e0e6dc4edc66d8fca0ffff0fe6dc3378190bdf183767e7b7d0fb38613f4586badfe10dfca03ff80000",
+        "aa34ed0cbce498e498e4b966f966bcc6f4e2f468cd6aa6f4a65ca55ce6587c2187ef0c376c1129df081f75a793e0fbd8f03f619e46d3d947e087fdf00fb00000",
+        "c510d68c9ca6dc64dc749876d8b7bce7bc61f461cc78ecf0f27ca76ea348fc10ffff86f36e193c1c01cf9c1bb3e75be8fd1c709f20c35f6ff087fe409ffc0000",
+        "cd34aa30bd4cbce498e498e4b966f966b4c2f4e2d468cd6aa674a65ca55cf4a8ffff87ef0c376c1109df181b77e793e0ffd8f03f618656d3f947e482fdf80f80",
+        "aa202d0c38ccb8e8b0ecb164b96e78c2f0c2fcc09860ecf44e5c42dcecb0f9219fff0c6778313b9f101f7d67b7c2ffd0e23b419c85f2bb5fe00dfdf00fa00000",
+        "d510d68c9c66dc74d876d8b2fca7bc63f861fe68cc30f670a62ea14ef6587c9087ff0e337c181dcf888f36b7dbe17fe8f11d208e46d3d96fe006fef80fd00000",
+        "cd10d5109ca69c66dc74d876d8b2fca7bc61f861ee68cc72f27ca62ea14ef658ffff87ff0e333c180dcf880f36b7db60ffe8f01f20c656fbd927e006def807d0",
+        "8a24aa202d4c38ccb8e8b0ecb164f96e78c2f0c2dce09860e4f44e5c429cecb0ffff8fef0c6778311bdf101f6defb6d0ffd8e03f418e85f2f34fe40cbdf00ea0"
+      ]
+    },
+    "gm-male-01": {
+      "role": "guildmaster",
+      "sex": "male",
+      "status": "live",
+      "hash": "ec68cf48dd42d9e6f0f0f2f4a9a4e9aad8e2d8e0ddc4ec6ce648c734f6307c21fffffff71c3f181d13cfc082f4a2efe1ee3d01eefc07133f61c03d9407008000",
+      "trimmed": [
+        "ec68cf40d924d1e2f0f0f2f4a9a6a9a298e398e0db82ecece648cea4e634fc20ffffdff3383f101c17cfc083f5e0efe1fe3f01ef70c71b1f61c07d921f1c0000",
+        "e8c88f48bb82f1e4f1e4f4e473ecfb4ab1e2b9e0ab84edecc4c8ceb4ee74fc10ffffbff3783f101d0fcfe087cde0efe1fc7d03ce74872e3f61c07d94173c0000",
+        "eb609d44dbe6f0f0f0f0f2b4a9a6a9e298e39be0e9c6ee6ceecce734fe34fc20ffff3ff3181f100f07e0e407f7e0ee79b23e01c7be07032d60c03d9e07008000",
+        "e464c7a4ddc1d8f2f8f2faf2b9b6fda5d8f1dcf1d5c2ecd6e265eb1bf738fe2cffffdff9bc1f180e07efd003e6f0fff0fe3e01ef38471f1f21e07eca0b9c8000",
+        "ec68cf609d44d9e6f0f0f2f4f2b6a9a2b9e3d8e29bc0e9c6ee6ccecce734fe34fffffff33ffb181f134f07e0e407f7e0ee79a1be61c7be07012d64c03d9e0700",
+        "de48afc2b3e6f1e4f0e4f7e4736abbc2b1e2bbc0e984cce8c68a8634fe70fc21fff73ff3101f000f0fc4c00effe0fe71257e43cfbc0f232dc1807d340e000000",
+        "ef24dfe1d9f3f8f2f872faf2b9b5fde1d8f1dde0f5c2ee74e24dc11afe3c7e10fffb1ffb081f100f07e0e007fff0ff78b2bf21e7de07111d60c03e9a07008000",
+        "f464ef24dde5d9f3f8f0fa72b8b6b9a5d8e1d8f1dde0f4c6e264ea4dc532fe2cfffffffb1ffb080f01c707e0e407f7e0ff3891bf21e7de07113d64c13e9a0700",
+        "ecc8de48bbc2b3e6f1e0f0e473e4f36ab9c2b1e2bbc0e98ccce8ce8aa234fc38fffffff73ff7101f038f0fc0c00effe0fe71237e41cfbe0f2329c9807d340e00"
+      ]
+    }
+  }
+}
