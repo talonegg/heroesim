@@ -134,7 +134,7 @@ export function NewGame({
           summary={
             <>
               <span className="disclosure__title">Your Guildmaster</span>{' '}
-              <span className="disclosure__hint">Sex, age, Traits and a few words about them, or all drawn from the seed</span>
+              <span className="disclosure__hint">Sex, Age, Traits and a few words about them, or all drawn from the seed</span>
             </>
           }
         >

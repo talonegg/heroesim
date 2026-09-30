@@ -52,7 +52,7 @@ test('every view and the game menu, with no sideways scroll and every control a 
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
 
   // A fast forward first, so the home view has a stop, the log has lines and the pool has Heroes.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
 
   // One order at every width (M9-F2, DL-112 item 5): under 600px the bar holds Guild, Roster, Board
@@ -170,7 +170,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await quest.getByRole('button', { name: 'Close' }).click();
 
   // Some Turns in: a log, a History with pages, new Heroes in the pool.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
   await expectNoHorizontalOverflow(page, 'a fast forward stopped, its stop in the home view');
 
@@ -208,12 +208,12 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   const history = await openView(page, 'History');
   await expect(history.getByRole('heading', { level: 3 })).toHaveText(`The History of ${longGuild}`);
   // The World History, then the whole History's oldest page, each line with its event type (M9-F4).
-  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true }).click();
+  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true }).click();
   await expect(history.getByRole('heading', { level: 3 })).toHaveText('The World History');
   await expectNoHorizontalOverflow(page, 'the World History');
   // A choice that is on stays legible under the pointer: its words and its face at 4.5:1 or more
   // (M9-F6, from the close's screenshots, where the hover's face took the pressed one's place).
-  const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true });
+  const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true });
   await world.hover();
   // Read once the hover's colour transition has run: read during it, the face is between the two (M9-F7).
   await expect.poll(() => world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
@@ -271,7 +271,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
   // New Heroes in the pool, and a Day or so of the world's own doings.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
   const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
   // The phone's 360px and a larger phone's 390px, the tablet's 820px, the desktop's 1280px.

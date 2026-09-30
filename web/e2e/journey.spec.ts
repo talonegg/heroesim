@@ -55,7 +55,7 @@ async function recruitAHero(page: Page): Promise<string> {
   for (let index = 0; index < (await rows.count()); index += 1) {
     const fee = Number(await rows.nth(index).getByTestId('fee').textContent());
     const signs = (await rows.nth(index).getByTestId('signs').textContent()) ?? '';
-    if (!(fee <= wealth) || signs !== 'yes') continue;
+    if (!(fee <= wealth) || signs !== 'Yes') continue;
     const name = (await rows.nth(index).locator('button.link').textContent()) ?? '';
     if (chosen === null || fee < chosen.fee) chosen = { name, fee };
   }

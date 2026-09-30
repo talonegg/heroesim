@@ -91,12 +91,12 @@ function Patron({ row }: { row: PatronRow }) {
         )}
       </th>
       <td>{row.sphere}</td>
-      <td>{row.regard === null ? <span className="subtle">none</span> : <Chip tone={regardTones[row.regard]}>{row.regard}</Chip>}</td>
+      <td>{row.regard === null ? <span className="subtle">{row.regardWords}</span> : <Chip tone={regardTones[row.regard]}>{row.regardWords}</Chip>}</td>
       <td>
         {row.guildmasterRegard === null ? (
-          <span className="subtle">none</span>
+          <span className="subtle">{row.guildmasterRegardWords}</span>
         ) : (
-          <Chip tone={regardTones[row.guildmasterRegard]}>{row.guildmasterRegard}</Chip>
+          <Chip tone={regardTones[row.guildmasterRegard]}>{row.guildmasterRegardWords}</Chip>
         )}
       </td>
       <td className="number">{row.quests}</td>

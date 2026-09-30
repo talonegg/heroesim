@@ -34,14 +34,22 @@ import { playDeps } from './reducer';
 
 // ── The Market ───────────────────────────────────────────────────────────────────────────────
 
-/** An Item's kind as the CLI's Market shows it: its gear slot or `consumable`, and whether it is unique. The Stores says it too (M9-F3). */
+/**
+ * An Item's kind as a cell says it: its Gear slot or Consumable, and whether it is a Unique Item,
+ * `Weapon Gear, Unique Item`, its first word the Kind filter's chip (DL-125 item 9). The Stores says
+ * it too (M9-F3).
+ */
 export function kindOf(definition: ItemDefinition): string {
-  const kind = definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable';
-  return definition.unique ? `${kind}, unique` : kind;
+  const kind = definition.kind === 'gear' ? `${capitalised(definition.slot)} Gear` : 'Consumable';
+  return definition.unique ? `${kind}, Unique Item` : kind;
 }
 
-/** What an Item does, in the CLI's Market's words: gear's Stat modifiers, a consumable's effect. */
+/** What an Item does, in the CLI's Market's words as a cell begins them: Gear's Stat modifiers, a Consumable's effect. */
 function doesOf(definition: ItemDefinition): string {
+  return capitalised(effectOf(definition));
+}
+
+function effectOf(definition: ItemDefinition): string {
   if (definition.kind === 'gear') {
     return Object.entries(definition.statModifiers)
       .map(([statKey, delta]) => `${nameIn(content.stats, statKey)} ${delta > 0 ? `+${delta}` : String(delta)}`)
@@ -70,7 +78,7 @@ export interface ListingRow {
   /** What `buy` takes. */
   definitionKey: ItemDefinitionKey;
   name: string;
-  /** `weapon gear`, `consumable`, `trinket gear, unique`. */
+  /** `Weapon Gear`, `Consumable`, `Trinket Gear, Unique Item`. */
   kind: string;
   /** The kind the Market's filter chips name (M9-S6). */
   kindKey: MarketKind;
@@ -85,7 +93,7 @@ export interface HeldForSale {
   /** Unique within the list. */
   key: string;
   name: string;
-  /** `weapon gear`, `consumable`, as the Market says it; empty for an Item content does not define. */
+  /** `Weapon Gear`, `Consumable`, as the Market says it; empty for an Item content does not define. */
   kind: string;
   /** What it does, as the Market says it; empty for an Item content does not define. */
   does: string;
@@ -179,7 +187,7 @@ export interface PoolRow {
   background: string;
   /** The signing fee the player's Guild would pay (`signingFee`, its Guildmaster's Negotiation), or the list price without one. */
   fee: number;
-  /** `yes`, or `needs Fame 40` (`signingRefusal`); `null` in a save with no player's Guild. */
+  /** `Yes`, or `Needs Fame 40` (`signingRefusal`), as its cell says it; `null` in a save with no player's Guild. */
   signs: string | null;
   /** Whether they would sign for the player's Guild now (`signingRefusal`), for the row to be set back when not; `null` as `signs`. */
   willSign: boolean | null;
@@ -215,7 +223,7 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
       morale: hero.morale,
       background: nameIn(content.backgrounds, hero.backgroundKey),
       fee: signingFee(hero, deps, buyer),
-      signs: guild === undefined ? null : refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+      signs: guild === undefined ? null : refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`,
       willSign: guild === undefined ? null : refusal === null,
     };
   });

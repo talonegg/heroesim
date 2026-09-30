@@ -75,8 +75,8 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     expect(within(table()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBe('descending');
     expect(rows().map(({ name, cells: [place] }) => [place, name])).toEqual([
       ['1st', 'The Lantern'],
-      ['joint 2nd', 'Ashford'],
-      ['joint 2nd', 'Old Weir'],
+      ['Joint 2nd', 'Ashford'],
+      ['Joint 2nd', 'Old Weir'],
       ['4th', 'Barrow'],
       ['5th', 'Cinder'],
     ]);
@@ -107,8 +107,8 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     expect(within(table()).getByRole('columnheader', { name: 'Fame' }).getAttribute('aria-sort')).toBeNull();
     expect(within(table()).getByRole('columnheader', { name: 'Place by Wealth' })).toBeDefined();
     expect(rows().map(({ name, cells: [place] }) => [place, name])).toEqual([
-      ['joint 1st', 'Ashford'],
-      ['joint 1st', 'Old Weir'],
+      ['Joint 1st', 'Ashford'],
+      ['Joint 1st', 'Old Weir'],
       ['3rd', 'Cinder'],
       ['4th', 'The Lantern'],
       ['5th', 'Barrow'],
@@ -123,11 +123,11 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     expect(within(table()).getByRole('columnheader', { name: 'Heroes' }).getAttribute('aria-sort')).toBe('descending');
     expect(within(table()).getByRole('columnheader', { name: 'Place by Fame' })).toBeDefined();
     expect(rows().map(({ name, cells: [place, , , , heroes] }) => [name, heroes, place])).toEqual([
-      ['Ashford', '3', 'joint 2nd'],
+      ['Ashford', '3', 'Joint 2nd'],
       ['Cinder', '3', '5th'],
       ['Barrow', '2', '4th'],
       ['The Lantern', '1', '1st'],
-      ['Old Weir', '1', 'joint 2nd'],
+      ['Old Weir', '1', 'Joint 2nd'],
     ]);
 
     orderBy('Guild');
@@ -138,7 +138,7 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
   test('a new game, every Guild at Fame 0, is joint 1st by Fame; by Wealth, each Guild has its place by Wealth', () => {
     render_(started());
 
-    expect(rows().map(({ cells: [place] }) => place)).toEqual(Array(5).fill('joint 1st'));
+    expect(rows().map(({ cells: [place] }) => place)).toEqual(Array(5).fill('Joint 1st'));
     orderBy('Wealth');
     const places = rows().map(({ cells: [place] }) => place);
     expect(places.every((place) => /^(joint )?\d(st|nd|rd|th)$/.test(place ?? ''))).toBe(true);
@@ -157,9 +157,9 @@ describe("the Guilds and the Rankings as one table (M9-S6, the review's B4)", ()
     const all = rows();
     expect(all).toHaveLength(5);
     const last = all.at(-1);
-    expect(last?.cells[0]).toBe('folded on Day 2');
+    expect(last?.cells[0]).toBe('Folded on Day 2');
     expect(last?.row.className).toBe('is-folded');
-    expect(all.slice(0, 4).every(({ cells: [place] }) => place === 'joint 1st')).toBe(true);
+    expect(all.slice(0, 4).every(({ cells: [place] }) => place === 'Joint 1st')).toBe(true);
   });
 
   test('keeps its order in this browser; one that refuses its storage opens by Fame', () => {
@@ -255,10 +255,10 @@ describe("the Patrons as one table (M9-S6, the review's B5)", () => {
     ]);
     // Two Patrons with a Regard that is not neutral; the rest folded under their count.
     expect(shown().map((row) => within(row).getAllByRole('cell').slice(1, 3).map((cell) => cell.textContent))).toEqual([
-      ['hostile', 'neutral'],
-      ['neutral', 'close'],
+      ['Hostile', 'Neutral'],
+      ['Neutral', 'Close'],
     ]);
-    expect(within(shown()[0] as HTMLElement).getByText('hostile').closest('.chip')?.className).toBe('chip chip--bad');
+    expect(within(shown()[0] as HTMLElement).getByText('Hostile').closest('.chip')?.className).toBe('chip chip--bad');
     const fold = within(patrons).getByRole('button', { name: `${all().length - 2} neutral` });
     expect(fold.getAttribute('aria-expanded')).toBe('false');
 

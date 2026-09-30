@@ -127,7 +127,7 @@ export function HeroPage({
                   <td className="stat-block__outlook">
                     <Chip tone={row.outlook === 'exceptional' ? 'brass' : 'plain'} title="Outlook">
                       <VisuallyHidden>Outlook </VisuallyHidden>
-                      {row.outlook}
+                      {row.outlookWords}
                     </Chip>
                   </td>
                 </tr>
@@ -138,7 +138,7 @@ export function HeroPage({
       </div>
 
       <Sub level={level}>Gear</Sub>
-      <ul className="rows gear" aria-label={`${view.name}'s gear`}>
+      <ul className="rows gear" aria-label={`${view.name}'s Gear`}>
         {view.gear.map((gear, index) => (
           <li key={`${gear.slot}-${index}`} className={gear.worn ? 'gear__row' : 'gear__row is-empty'}>
             <span className="gear__slot">{gear.slotName}</span>
@@ -160,7 +160,7 @@ export function HeroPage({
 
       <Sub level={level}>Skills</Sub>
       {view.skills.length === 0 ? (
-        <p className="subtle">none</p>
+        <p className="subtle">None</p>
       ) : (
         <ul className="chips" aria-label={`${view.name}'s Skills`}>
           {view.skills.map((skill) => (
@@ -264,7 +264,7 @@ function Equip({
   busy: boolean;
   play: (action: GameAction) => void;
 }) {
-  if (actions.equip.length === 0) return <p className="subtle">The Guild holds no gear; the Market sells it.</p>;
+  if (actions.equip.length === 0) return <p className="subtle">The Guild holds no Gear; the Market sells it.</p>;
   return (
     <>
       <p className="caption">Gear the Guild holds</p>

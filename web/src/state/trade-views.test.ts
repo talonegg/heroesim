@@ -1,6 +1,7 @@
 import {
   addStack,
   ageOf,
+  createItem,
   createWorld,
   dayOf,
   defaultConfig,
@@ -87,7 +88,7 @@ describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
       const shown = marketView(document, kind.key);
       expect(shown.forSale).toHaveLength(kind.count);
       expect(shown.forSale.every((row) => row.kindKey === kind.key)).toBe(true);
-      expect(shown.forSale.every((row) => (kind.key === 'consumable' ? /^consumable/ : new RegExp(`^${kind.key} gear`)).test(row.kind))).toBe(true);
+      expect(shown.forSale.every((row) => (kind.key === 'consumable' ? /^Consumable$/ : new RegExp(`^${kind.label} Gear$`)).test(row.kind))).toBe(true);
       expect(shown.kinds).toEqual(all.kinds);
       expect(shown.totalForSale).toBe(all.totalForSale);
     }
@@ -103,8 +104,22 @@ describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
     const held = marketView(document).held.map(({ name, kind, does, held: count }) => ({ name, kind, does, count }));
 
     expect(held).toEqual([
-      { name: 'Whetstone', kind: 'consumable', does: '+3 on a combat Encounter', count: 3 },
-      { name: 'Arming sword', kind: 'weapon gear', does: 'Weaponry +2, Strength +1', count: 1 },
+      { name: 'Whetstone', kind: 'Consumable', does: '+3 on a combat Encounter', count: 3 },
+      { name: 'Arming sword', kind: 'Weapon Gear', does: 'Weaponry +2, Strength +1', count: 1 },
+    ]);
+  });
+
+  test('says a kind and an effect as a cell does, beginning with a capital: a Unique Item is named so (DL-125 item 9)', () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    addStack(document.world, 'healing-draught', 1, { kind: 'guild', id: guild.id });
+    createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+
+    const held = marketView(document).held.map(({ name, kind, does }) => ({ name, kind, does }));
+
+    expect(held).toEqual([
+      { name: 'Healing draught', kind: 'Consumable', does: 'An Injury on the Quest heals 5 Days sooner' },
+      { name: "The Barrow King's blade", kind: 'Weapon Gear, Unique Item', does: 'Weaponry +4, Strength +2, Courage +1' },
     ]);
   });
 });
@@ -129,10 +144,10 @@ describe('poolView', () => {
       expect(row).toMatchObject({
         fee: signingFee(hero, deps, buyer),
         age: ageOf(hero, document.world.turn, defaultConfig),
-        signs: refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`,
+        signs: refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`,
       });
     }
-    expect(view.rows[0]?.signs).toMatch(/^needs Fame \d+$/);
+    expect(view.rows[0]?.signs).toMatch(/^Needs Fame \d+$/);
     expect(view.note).toBe('The Lantern has 0 Fame. A Hero who needs more will not sign for it until it has that much.');
   });
 });
@@ -176,8 +191,8 @@ describe("the Unattached pool as rows (M9-S6, DL-106; the review's B8)", () => {
 
     const rows = poolView(document).rows;
 
-    expect(rows.find((row) => row.heroId === first.id)).toMatchObject({ willSign: false, signs: expect.stringMatching(/^needs Fame \d+$/) });
-    expect(rows.find((row) => row.heroId === second.id)).toMatchObject({ willSign: true, signs: 'yes' });
+    expect(rows.find((row) => row.heroId === first.id)).toMatchObject({ willSign: false, signs: expect.stringMatching(/^Needs Fame \d+$/) });
+    expect(rows.find((row) => row.heroId === second.id)).toMatchObject({ willSign: true, signs: 'Yes' });
   });
 });
 
@@ -205,7 +220,7 @@ describe('offersView', () => {
         fee: offer.fee,
         // What Accept asks before it lets the Hero go (M9-S6, the review's E4).
         confirm:
-          `Accepting sends ${heroName} to ${rival.name} for ${offer.fee} Wealth. Their gear stays with your Guild, and the Heroes ` +
+          `Accepting sends ${heroName} to ${rival.name} for ${offer.fee} Wealth. Their Gear stays with your Guild, and the Heroes ` +
           'left behind who held them in high Regard lose Morale.',
       },
     ]);

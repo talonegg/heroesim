@@ -46,14 +46,14 @@ function Offer({
 }) {
   // "Keep them" puts the keyboard back on "Accept…" once it is drawn again.
   const returning = useRef(false);
-  const whose = `${offer.guildName}'s offer for ${offer.heroName}`;
+  const whose = `${offer.guildName}'s Offer for ${offer.heroName}`;
   return (
     <>
       <p>{offer.sentence}</p>
       {asking ? (
         <Confirm
           label={`Accept ${whose}?`}
-          confirm="Accept the offer"
+          confirm="Accept the Offer"
           confirmLabel={`Accept ${whose}`}
           busy={busy}
           onConfirm={() => play({ kind: 'acceptTransfer', offerId: offer.offerId })}

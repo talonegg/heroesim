@@ -92,7 +92,7 @@ export interface HistoryLine {
  * A line, or several folded under one.
  * - An entry, and for a Party's outcome its steps on the Quest folded under it: its Encounters and
  *   the consumables it used, in the order they happened, with how many of each (`3 Encounters and
- *   1 consumable used`; empty when it has none).
+ *   1 Consumable used`; empty when it has none).
  * - A Rival's routine in the group, in one line for the Guild, with its entries in the order they
  *   happened.
  */
@@ -659,13 +659,13 @@ function rowsOf(positions: readonly number[], reading: Reading): HistoryRow[] {
   return rows;
 }
 
-/** `3 Encounters and 1 consumable used`: what is folded under an outcome; empty for nothing. */
+/** `3 Encounters and 1 Consumable used`: what is folded under an outcome; empty for nothing. */
 function stepsWords(positions: readonly number[], entries: readonly Entry[]): string {
   const encounters = positions.filter((position) => entries[position]?.type === 'quest.encounter').length;
   const used = positions.length - encounters;
   return listed([
     ...(encounters === 0 ? [] : [`${encounters} ${encounters === 1 ? 'Encounter' : 'Encounters'}`]),
-    ...(used === 0 ? [] : [`${used} ${used === 1 ? 'consumable' : 'consumables'} used`]),
+    ...(used === 0 ? [] : [`${used} ${used === 1 ? 'Consumable' : 'Consumables'} used`]),
   ]);
 }
 
@@ -736,7 +736,7 @@ export function historyChoices(document: WorldDocument): HistoryChoice[] {
   const player = playerGuild(document.world);
   return [
     ...(player === undefined ? [] : [{ whose: null, label: player.name, mine: true }]),
-    { whose: 'world', label: 'The world', mine: false },
+    { whose: 'world', label: 'The World History', mine: false },
     ...guilds.filter((guild) => guild.id !== player?.id && guild.foldedOnTurn === null).map((guild) => ({ whose: guild.id, label: guild.name, mine: false })),
   ];
 }

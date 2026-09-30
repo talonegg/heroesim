@@ -73,7 +73,7 @@ describe('the Market', () => {
 
     expect(wealth()).toBe(before - 2 * price);
     // Kind, Effect, Held, Sells for.
-    expect(cells(rowOf(section('Sell'), 'Padded jack')).slice(0, 3)).toEqual(['armour gear', 'Constitution +1', '2']);
+    expect(cells(rowOf(section('Sell'), 'Padded jack')).slice(0, 3)).toEqual(['Armour Gear', 'Constitution +1', '2']);
     debugSays(new RegExp(`^The Lantern bought 2 × Padded jack at the Market for ${2 * price} Wealth\\.$`));
   });
 
@@ -96,7 +96,7 @@ describe('the Market', () => {
     render_(holdingUnique(started(), 'barrow-kings-blade'));
     const sale = rowOf(section('Sell'), blade);
     // Kind, Effect, Held, Sells for.
-    expect(cells(sale)[0]).toBe('weapon gear, unique');
+    expect(cells(sale)[0]).toBe('Weapon Gear, Unique Item');
     expect(cells(sale)[2]).toBe('1');
     const each = Number(cells(sale)[3]);
     expect(each).toBeGreaterThan(0);
@@ -208,17 +208,17 @@ describe("a Hero's page on the player's Roster", () => {
     const { name, page } = openFirstHero();
     /** The Hero's weapon slot, as their gear lists it (M9-S6). */
     const weapon = (): HTMLElement =>
-      within(within(page()).getByRole('list', { name: `${name}'s gear` }))
+      within(within(page()).getByRole('list', { name: `${name}'s Gear` }))
         .getAllByRole('listitem')
         .find((item) => item.textContent?.startsWith('Weapon') === true) as HTMLElement;
-    expect(within(weapon()).getByText('none')).toBeDefined();
+    expect(within(weapon()).getByText('None')).toBeDefined();
 
     fireEvent.click(within(page()).getByRole('button', { name: 'Equip Arming sword' }));
     await idle();
 
     expect(within(weapon()).getByText('Arming sword')).toBeDefined();
     expect(within(weapon()).getByText('Weaponry +2, Strength +1')).toBeDefined();
-    expect(within(page()).getByText('The Guild holds no gear; the Market sells it.')).toBeDefined();
+    expect(within(page()).getByText('The Guild holds no Gear; the Market sells it.')).toBeDefined();
     // Read beside the page, in the History rail, as the page stays open (M9-S3).
     const rail = screen.getByRole('complementary', { name: 'Latest for The Lantern' });
     expect(within(rail).getByText(new RegExp(`^The Lantern put Arming sword in ${name}'s weapon slot\\.$`))).toBeDefined();
@@ -226,7 +226,7 @@ describe("a Hero's page on the player's Roster", () => {
     fireEvent.click(within(page()).getByRole('button', { name: 'Unequip Arming sword' }));
     await idle();
 
-    expect(within(weapon()).getByText('none')).toBeDefined();
+    expect(within(weapon()).getByText('None')).toBeDefined();
     expect(within(page()).getByRole('button', { name: 'Equip Arming sword' })).toBeDefined();
     logSays(new RegExp(`^The Lantern took Arming sword from ${name}'s weapon slot\\.$`));
   });
@@ -236,21 +236,21 @@ describe("a Hero's page on the player's Roster", () => {
     render_(holdingUnique(started(), 'barrow-kings-blade'));
     const { name, page } = openFirstHero();
     const weapon = (): HTMLElement =>
-      within(within(page()).getByRole('list', { name: `${name}'s gear` }))
+      within(within(page()).getByRole('list', { name: `${name}'s Gear` }))
         .getAllByRole('listitem')
         .find((item) => item.textContent?.startsWith('Weapon') === true) as HTMLElement;
-    expect(within(weapon()).getByText('none')).toBeDefined();
+    expect(within(weapon()).getByText('None')).toBeDefined();
 
     fireEvent.click(within(page()).getByRole('button', { name: `Equip ${blade}` }));
     await idle();
 
     expect(within(weapon()).getByText(blade)).toBeDefined();
-    expect(within(page()).getByText('The Guild holds no gear; the Market sells it.')).toBeDefined();
+    expect(within(page()).getByText('The Guild holds no Gear; the Market sells it.')).toBeDefined();
 
     fireEvent.click(within(page()).getByRole('button', { name: `Unequip ${blade}` }));
     await idle();
 
-    expect(within(weapon()).getByText('none')).toBeDefined();
+    expect(within(weapon()).getByText('None')).toBeDefined();
     expect(within(page()).getByRole('button', { name: `Equip ${blade}` })).toBeDefined();
     // Both plays read in the History, new (the last play's line marked so).
     expect(inHistory(new RegExp(`^The Lantern put ${blade} in ${name}'s weapon slot\\.$`))).toBeDefined();
@@ -268,7 +268,7 @@ describe("a Hero's page on the player's Roster", () => {
     const [, guildName, fee] = /^(.+), for (\d+) Wealth$/.exec(option?.textContent ?? '') ?? [];
     expect(
       within(ask).getByText(
-        `${guildName} would pay ${fee} Wealth for ${name}, if it is willing to take them. Their gear stays with your Guild, and the ` +
+        `${guildName} would pay ${fee} Wealth for ${name}, if it is willing to take them. Their Gear stays with your Guild, and the ` +
           'Heroes left behind who held them in high Regard lose Morale.',
       ),
     ).toBeDefined();
@@ -351,12 +351,12 @@ describe('Transfer Offers', () => {
     const sentence = within(offers).getByText(/ offers \d+ Wealth for .+, until the night of Day \d+\.$/).textContent ?? '';
     const [, guildName = '', fee = '', name = ''] = /^(.+) offers (\d+) Wealth for (.+), until/.exec(sentence) ?? [];
     // Accept asks first, stating the fee and what letting the Hero go costs (M9-S6, the review's E4).
-    fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s offer for ${name}…` }));
-    const ask = within(offers).getByRole('group', { name: `Accept ${guildName}'s offer for ${name}?` });
-    expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${fee} Wealth\\. Their gear stays with your Guild`))).toBeDefined();
+    fireEvent.click(within(offers).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}…` }));
+    const ask = within(offers).getByRole('group', { name: `Accept ${guildName}'s Offer for ${name}?` });
+    expect(within(ask).getByText(new RegExp(`^Accepting sends ${name} to ${guildName} for ${fee} Wealth\\. Their Gear stays with your Guild`))).toBeDefined();
     const before = wealth();
 
-    fireEvent.click(within(ask).getByRole('button', { name: `Accept ${guildName}'s offer for ${name}` }));
+    fireEvent.click(within(ask).getByRole('button', { name: `Accept ${guildName}'s Offer for ${name}` }));
     await idle();
 
     expect(wealth()).toBe(before + Number(fee));
@@ -370,7 +370,7 @@ describe('Transfer Offers', () => {
     const offers = section('Transfer Offers');
     const [, guildName = '', name = ''] = /^(.+) offers \d+ Wealth for (.+), until/.exec(within(offers).getAllByRole('listitem')[0]?.textContent ?? '') ?? [];
 
-    fireEvent.click(within(offers).getByRole('button', { name: `Decline ${guildName}'s offer for ${name}` }));
+    fireEvent.click(within(offers).getByRole('button', { name: `Decline ${guildName}'s Offer for ${name}` }));
     await idle();
 
     expect(within(rosterList()).getByRole('button', { name })).toBeDefined();

@@ -81,7 +81,7 @@ export function GuildmasterDetails({ view, level }: { view: GuildmasterView; lev
         <div>
           <Heading level={sub}>Traits</Heading>
           {view.traits.length === 0 ? (
-            <p className="subtle">none</p>
+            <p className="subtle">None</p>
           ) : (
             <ul className="traits" aria-label={`${view.name}'s Traits`}>
               {view.traits.map((trait) => (
@@ -114,7 +114,7 @@ function Regard({ label, rows }: { label: string; rows: readonly RegardRow[] }) 
           <>
             <span className="regards__name">{row.name}</span> <span className="regards__detail">{row.detail}</span>
             <span className="regards__bands">
-              <Chip tone={regardTones[row.regard]}>{row.regard}</Chip>
+              <Chip tone={regardTones[row.regard]}>{row.regardWords}</Chip>
             </span>
           </>
         )}

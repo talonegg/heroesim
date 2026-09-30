@@ -62,8 +62,8 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
   test('a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', () => {
     render_(started());
 
-    expect(guildRows().map(([place]) => place)).toEqual(Array(5).fill('joint 1st'));
-    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(guildRows().map(([place]) => place)).toEqual(Array(5).fill('Joint 1st'));
+    expect(screen.getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
   });
 
   /** The Lantern below the floor from the start, played through the night of Day 0, under `grace` Days. */
@@ -149,10 +149,10 @@ describe('the Guildmaster and the Patrons', () => {
 
     expect(within(guildmaster).getByRole('heading', { level: 3, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
-    expect(within(guildmaster).getByText('the reward agreed and the fees paid')).toBeDefined();
+    expect(within(guildmaster).getByText('The reward agreed and the fees paid')).toBeDefined();
     // Regard as bands, never numbers: a new game's are neutral, folded under their counts (M9-S6).
     for (const list of within(guildmaster).getAllByRole('list').filter((each) => each.className.startsWith('regards'))) {
-      for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(hostile|cool|neutral|warm|close)$/);
+      for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(Hostile|Cool|Neutral|Warm|Close)$/);
     }
     expect(within(guildmaster).getAllByText(/^\d+ neutral$/)).toHaveLength(3);
     // A new game's Patrons are neutral both ways: folded under their count, until opened.
@@ -165,7 +165,7 @@ describe('the Guildmaster and the Patrons', () => {
       const [, theirs, yours] = within(patron)
         .getAllByRole('cell')
         .map((cell) => cell.textContent ?? '');
-      expect([theirs, yours]).toEqual(['neutral', 'neutral']);
+      expect([theirs, yours]).toEqual(['Neutral', 'Neutral']);
     }
     // Each opens their History (M9-S5).
     for (const patron of patrons) expect(within(patron).getByRole('button', { name: /^Read the History of .+$/ })).toBeDefined();
@@ -185,7 +185,7 @@ describe('new rules', () => {
 
     expect(screen.queryByRole('region', { name: 'New rules available' })).toBeNull();
     // The World History holds it, new: it names no Guild (M9-F4).
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The World History' }));
     expect(inHistory(`The rules moved from configVersion ${from} to ${to}.`).classList.contains('is-new')).toBe(true);
   });
 
@@ -292,7 +292,7 @@ describe('the game as a file', () => {
         .find((button) => button.className === 'link') as HTMLElement;
 
     // What the shell keeps from view to view: whose History, and the Quest whose Party is open.
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The World History' }));
     const [quest] = within(section('Board')).getAllByRole('article');
     fireEvent.click(within(quest as HTMLElement).getByRole('button', { name: 'Choose a Party' }));
     // And what a view keeps while it is open: a Rival's page, a pool Hero's page and a Hero's page.
@@ -337,7 +337,7 @@ describe('why time stopped, with a button to what it names', () => {
     const guildId = 'guild-000001' as GuildId;
     const offerId = Object.keys(state.document?.world.offers ?? {})[0] as OfferId;
     const stops: [StopReason, string, string][] = [
-      [{ kind: 'transfer-offer', guildId, offerIds: [offerId] }, 'Answer the offer', 'Transfer Offers'],
+      [{ kind: 'transfer-offer', guildId, offerIds: [offerId] }, 'Answer the Offer', 'Transfer Offers'],
       [{ kind: 'pool-refreshed', heroIds: ['hero-000001' as HeroId] }, 'See who joined the pool', 'Unattached pool'],
     ];
     for (const [stoppedBecause, label, heading] of stops) {

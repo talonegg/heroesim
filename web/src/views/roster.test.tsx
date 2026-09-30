@@ -63,13 +63,13 @@ describe("the Roster's Hero cards (M9-S6)", () => {
       expect(card.textContent).toMatch(/(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+/);
       expect(chip(card, /^Morale \d+, (wretched|low|steady|high|elated)$/).querySelector('svg')).not.toBeNull();
     }
-    const injured = all.find((card) => card.textContent?.includes('injured, healing on the night of Day 6') === true) as HTMLElement;
-    expect(chip(injured, 'injured, healing on the night of Day 6').className).toBe('chip chip--warn');
+    const injured = all.find((card) => card.textContent?.includes('Injured, healing on the night of Day 6') === true) as HTMLElement;
+    expect(chip(injured, 'Injured, healing on the night of Day 6').className).toBe('chip chip--warn');
     expect(chip(injured, 'Morale 12, wretched').className).toBe('chip chip--bad');
-    const away = all.filter((card) => /away with a Party, back on the night of Day \d+/.test(card.textContent ?? ''));
+    const away = all.filter((card) => /Away with a Party, back on the night of Day \d+/.test(card.textContent ?? ''));
     expect(away.length).toBeGreaterThan(0);
-    for (const card of away) expect(chip(card, /^away with a Party/).querySelector('svg')).not.toBeNull();
-    expect(all.some((card) => within(card).queryByText('at the Hall') !== null)).toBe(true);
+    for (const card of away) expect(chip(card, /^Away with a Party/).querySelector('svg')).not.toBeNull();
+    expect(all.some((card) => within(card).queryByText('At the Hall') !== null)).toBe(true);
   });
 });
 
@@ -82,7 +82,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(within(page()).getByText(/^(Warrior|Rogue|Mage|Healer) · Level \d+ · Age \d+ · (Female|Male) · .+ · of The Lantern$/)).toBeDefined();
     const state = within(page()).getByRole('list', { name: `${name}'s State` });
     expect(within(state).getByText(/^Morale \d+, (wretched|low|steady|high|elated)$/)).toBeDefined();
-    expect(within(state).getByText('at the Hall')).toBeDefined();
+    expect(within(state).getByText('At the Hall')).toBeDefined();
     expect(within(state).getByText(/^XP \d+$/)).toBeDefined();
     // No longer eleven label and value rows.
     expect(within(page()).queryByRole('term')).toBeNull();
@@ -137,7 +137,7 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
 
     const ask = within(page()).getByRole('group', { name: `Transfer ${name}?` });
     expect(document.activeElement).toBe(ask);
-    expect(within(ask).getByText(/ would pay \d+ Wealth for .+, if it is willing to take them\. Their gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
+    expect(within(ask).getByText(/ would pay \d+ Wealth for .+, if it is willing to take them\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
     // Another Guild chosen: the sentence says its fee.
     const select = within(ask).getByLabelText(`Transfer ${name} to`) as HTMLSelectElement;
     const second = select.options[1];
@@ -162,7 +162,7 @@ describe('Transfer Offers (M9-S6, the review’s E4)', () => {
   test('Accept asks first, with the fee and what letting the Hero go costs; "Keep them" leaves the offer standing', () => {
     render_(withOffer(started()));
     const offers = section('Transfer Offers');
-    const accept = within(offers).getByRole('button', { name: /^Accept .+'s offer for .+…$/ });
+    const accept = within(offers).getByRole('button', { name: /^Accept .+'s Offer for .+…$/ });
     const [, whose = ''] = /^Accept (.+)…$/.exec(accept.getAttribute('aria-label') ?? '') ?? [];
     const before = wealth();
 
@@ -170,8 +170,8 @@ describe('Transfer Offers (M9-S6, the review’s E4)', () => {
 
     const ask = within(offers).getByRole('group', { name: `Accept ${whose}?` });
     expect(document.activeElement).toBe(ask);
-    expect(within(ask).getByText(/^Accepting sends .+ to .+ for \d+ Wealth\. Their gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
-    expect(within(ask).getByRole('button', { name: `Accept ${whose}` }).textContent).toBe('Accept the offer');
+    expect(within(ask).getByText(/^Accepting sends .+ to .+ for \d+ Wealth\. Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale\.$/)).toBeDefined();
+    expect(within(ask).getByRole('button', { name: `Accept ${whose}` }).textContent).toBe('Accept the Offer');
 
     fireEvent.click(within(ask).getByRole('button', { name: 'Keep them' }));
 
@@ -211,17 +211,17 @@ describe("the Unattached pool as rows (M9-S6, the review's B8)", () => {
     for (const { name, cells: [kind, level, age, , fee, signs], row } of all) {
       expect(kind).toMatch(/^(Warrior|Rogue|Mage|Healer)$/);
       expect([level, age, fee].every((number) => /^\d+$/.test(number ?? ''))).toBe(true);
-      expect(signs).toMatch(/^(yes|needs Fame \d+)$/);
-      expect(row.className).toBe(signs === 'yes' ? '' : 'is-set-back');
+      expect(signs).toMatch(/^(Yes|Needs Fame \d+)$/);
+      expect(row.className).toBe(signs === 'Yes' ? '' : 'is-set-back');
       const recruit = within(row).getByRole('button', { name: `Recruit ${name}` }) as HTMLButtonElement;
       expect(recruit.textContent).toBe('Recruit');
       // DL-109 item 2, Q17: the engine's `signingRefusal`, as the row says it, disables Recruit, and
       // the row's reason describes it.
-      expect(recruit.disabled, name).toBe(signs !== 'yes');
+      expect(recruit.disabled, name).toBe(signs !== 'Yes');
       const reason = recruit.getAttribute('aria-describedby');
-      expect(reason === null ? null : document.getElementById(reason)?.textContent).toBe(signs === 'yes' ? null : signs);
+      expect(reason === null ? null : document.getElementById(reason)?.textContent).toBe(signs === 'Yes' ? null : signs);
     }
-    expect(all.filter(({ cells }) => cells[5] !== 'yes').length).toBeGreaterThan(0);
+    expect(all.filter(({ cells }) => cells[5] !== 'Yes').length).toBeGreaterThan(0);
   });
 
   test("a Hero's page opened from the pool disables Recruit for one who will not sign, and says why", () => {

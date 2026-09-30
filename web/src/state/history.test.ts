@@ -21,7 +21,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { cameHome, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
+import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
   findInHistory,
   historyChoices,
@@ -342,7 +342,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
 
     expect(historyChoices(document)).toEqual([
       { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'world', label: 'The world', mine: false },
+      { whose: 'world', label: 'The World History', mine: false },
       ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
     ]);
   });
@@ -470,11 +470,33 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
       expect(row.stepsWords).toBe(
         [
           ...(encounters === 0 ? [] : [`${encounters} ${encounters === 1 ? 'Encounter' : 'Encounters'}`]),
-          ...(used === 0 ? [] : [`${used} ${used === 1 ? 'consumable' : 'consumables'} used`]),
+          ...(used === 0 ? [] : [`${used} ${used === 1 ? 'Consumable' : 'Consumables'} used`]),
         ].join(' and '),
       );
     }
     expect(outcomes).toBeGreaterThan(0);
+  });
+
+  test('counts under an outcome its Encounters and the Consumables used, each a term with its capital (DL-125 item 9)', () => {
+    const written = withReturn(withPartyOut(started('history-used')), {
+      band: 'success',
+      encounters: [{ outcome: 'success' }, { outcome: 'success' }],
+      used: [{ definitionKey: 'whetstone', encounterIndex: 0 }],
+    });
+    // The Guild handed to a Rival's Disposition, whose History folds a Party's steps under its outcome.
+    const { document } = changed(written.state, (next, player) => {
+      const other = Object.values(next.world.guilds).find((each) => each.id !== player.id);
+      if (other === undefined) throw new Error('no Rival');
+      other.controller = player.controller;
+      player.controller = { kind: 'rival', disposition: 'steady' };
+    });
+    const guildId = written.state.document === null ? undefined : playerOf(written.state.document).id;
+    if (document === null || guildId === undefined) throw new Error('no game in hand');
+
+    const rows = historyView(document, [], guildId, 0).groups.flatMap((group) => group.rows);
+    const outcome = rows.find((row) => row.kind === 'entry' && row.steps.length > 0);
+
+    expect(outcome?.kind === 'entry' ? outcome.stepsWords : null).toBe('2 Encounters and 1 Consumable used');
   });
 
   test('says on which page an entry stands, that the home view can open it there, and null where it is not', () => {
@@ -858,7 +880,7 @@ describe('the choices one step away (M9-S5)', () => {
 
     expect(historyChoices(document)).toEqual([
       { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'world', label: 'The world', mine: false },
+      { whose: 'world', label: 'The World History', mine: false },
       ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
     ]);
   });

@@ -45,7 +45,7 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
 
     expect(weapon.getAttribute('aria-pressed')).toBe('true');
     expect(kinds().length).toBe(Number(/(\d+)$/.exec(weapon.textContent ?? '')?.[1]));
-    for (const kind of kinds()) expect(kind).toMatch(/^weapon gear/);
+    for (const kind of kinds()) expect(kind).toMatch(/^Weapon Gear/);
     // The count of what is for sale stays the whole Market's.
     expect(within(section('Market')).getByText(/^\d+ Items for sale, of \d+ kinds\.$/)).toBeDefined();
 
@@ -67,8 +67,8 @@ describe("the Market view's Buy and Sell, as tables (M9-S6, the review's B3; M9-
       .getAllByTestId('held')
       .map((row) => [within(row).getByRole('rowheader').textContent, ...within(row).getAllByRole('cell').slice(0, 3).map((cell) => cell.textContent)]);
     expect(rows).toEqual([
-      ['Whetstone', 'consumable', '+3 on a combat Encounter', '3'],
-      ['Arming sword', 'weapon gear', 'Weaponry +2, Strength +1', '1'],
+      ['Whetstone', 'Consumable', '+3 on a combat Encounter', '3'],
+      ['Arming sword', 'Weapon Gear', 'Weaponry +2, Strength +1', '1'],
     ]);
     expect(within(held).getByRole('button', { name: 'Sell Whetstone' })).toBeDefined();
     // Buy does not list them a second time.

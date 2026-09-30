@@ -119,7 +119,7 @@ test('a year of fast forward shows its progress Day by Day, and a Stop ends it w
     const stopShown = document.querySelector('[data-testid="stop"]') !== null;
     const buttons = [...document.querySelectorAll('button')];
     const exportDisabled = buttons.find((each) => each.textContent === 'Export this game')?.disabled ?? null;
-    buttons.find((each) => each.textContent === 'Stop the fast forward')?.click();
+    buttons.find((each) => each.textContent === 'Stop the Fast forward')?.click();
     return { text, stopShown, exportDisabled };
   });
   expect(shown).toMatchObject({ stopShown: false, exportDisabled: true });

@@ -285,7 +285,7 @@ export function Folded<Row extends { neutral: boolean; name: string }>({
   rows,
   label,
   row,
-  none = 'none',
+  none = 'None',
 }: {
   rows: readonly Row[];
   /** What the list is, for assistive technology. */

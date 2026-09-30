@@ -85,7 +85,7 @@ describe('the Guildmaster view (M9-F2)', () => {
     const patrons = within(guildmaster).getByRole('list', { name: 'For Patrons' });
     const [warm] = within(patrons).getAllByRole('listitem');
     expect(within(patrons).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(warm as HTMLElement).getByText('warm').closest('.chip')?.className).toBe('chip chip--good');
+    expect(within(warm as HTMLElement).getByText('Warm').closest('.chip')?.className).toBe('chip chip--good');
     const counts = within(guildmaster)
       .getAllByText(/^\d+ neutral$/)
       .map((each) => each.textContent);
@@ -93,7 +93,7 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(within(guildmaster).getByRole('list', { name: 'For Patrons, neutral' }).children.length).toBe(Number(/^(\d+)/.exec(counts[0] ?? '')?.[1]));
     // Never a number beside a band.
     for (const item of within(guildmaster).getAllByRole('listitem').filter((each) => each.closest('.regards') !== null)) {
-      expect(item.textContent).toMatch(/(hostile|cool|neutral|warm|close)$/);
+      expect(item.textContent).toMatch(/(Hostile|Cool|Neutral|Warm|Close)$/);
     }
   });
 });

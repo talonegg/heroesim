@@ -124,7 +124,7 @@ export function StatusBar({
           </div>
           <button type="button" onClick={() => play({ kind: 'stop' })}>
             <Icon name="stop" />
-            <span>Stop the fast forward</span>
+            <span>Stop the Fast forward</span>
           </button>
         </div>
       )}
@@ -166,7 +166,7 @@ function TimeControls({ busy, playing, ended, play }: { busy: boolean; playing: 
           onClick={() => setOpen(!open)}
         >
           <Icon name="chevron" />
-          <VisuallyHidden>More ways to fast forward</VisuallyHidden>
+          <VisuallyHidden>More ways to Fast forward</VisuallyHidden>
         </button>
         {open && !idle ? (
           <div className="popover popover--time" id="fast-forward-ways">

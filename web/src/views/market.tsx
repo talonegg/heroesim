@@ -182,7 +182,7 @@ function Held({ row, busy, play }: { row: HeldForSale; busy: boolean; play: Play
       <td>{row.kind}</td>
       <td>{row.does}</td>
       <td className="number">{row.held}</td>
-      <td className="number">{row.sellsFor === null ? <span className="subtle">cannot be priced</span> : row.sellsFor}</td>
+      <td className="number">{row.sellsFor === null ? <span className="subtle">Cannot be priced</span> : row.sellsFor}</td>
       <td>
         {'stackId' in sale ? <Stepper label={`How many ${row.name}`} hideLabel value={quantity} min={1} max={row.held} onChange={setQuantity} /> : null}
       </td>

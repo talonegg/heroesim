@@ -94,13 +94,13 @@ test('Recruit is disabled for a Hero in the pool who will not sign, the row sayi
 
   const pool = await part(page, 'Unattached pool');
   const row = pool.getByTestId('pool-row').filter({ has: page.getByRole('rowheader', { name, exact: true }) });
-  await expect(row.getByTestId('signs')).toHaveText('needs Fame 30');
+  await expect(row.getByTestId('signs')).toHaveText('Needs Fame 30');
   const recruit = row.getByRole('button', { name: `Recruit ${name}`, exact: true });
   await expect(recruit).toBeDisabled();
-  await expect(recruit).toHaveAccessibleDescription('needs Fame 30');
+  await expect(recruit).toHaveAccessibleDescription('Needs Fame 30');
   // The others sign, and their Recruit is there to press.
   const others = pool.getByTestId('pool-row').filter({ hasNot: page.getByRole('rowheader', { name, exact: true }) });
-  await expect(others.first().getByTestId('signs')).toHaveText('yes');
+  await expect(others.first().getByTestId('signs')).toHaveText('Yes');
   await expect(others.first().getByRole('button', { name: /^Recruit / })).toBeEnabled();
 
   // The Hero's page, opened from the pool, says the same and disables Recruit too.

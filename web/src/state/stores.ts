@@ -46,7 +46,7 @@ export interface StoresRow {
   key: string;
   definitionKey: ItemDefinitionKey;
   name: string;
-  /** `armour gear`, `consumable`, `weapon gear, unique`, as the Market says it. */
+  /** `Armour Gear`, `Consumable`, `Weapon Gear, Unique Item`, as the Market says it. */
   kind: string;
   /** The kind the filter names. */
   kindKey: MarketKind | null;

@@ -109,23 +109,23 @@ export const help: Readonly<Record<SectionId, string>> = {
     'unfolds what it demands, the Skills that help, its Encounters and how hard it is beside the rest of the Board; ' +
     'order the Board by reward, difficulty or the Day each leaves, and this browser keeps the order. Choose a Party ' +
     'for one: each Hero’s row says whether they can go, and their Morale, Stats and Skills for this Quest, and opens ' +
-    'their page. As you pick Heroes and consumables, the preview says what the Party would meet and whether it would ' +
+    'their page. As you pick Heroes and Consumables, the preview says what the Party would meet and whether it would ' +
     'be sent, and "Send the Party" sends it within the current Turn. A Party chosen and not sent is kept while you ' +
     'look elsewhere, until it is sent, its Quest leaves the Board or another game is started or loaded. ' +
     rivalsReminder,
   roster:
     'Your Heroes, each with their Class, Level and Age, their Morale and where they are. Open a Hero’s page for ' +
-    'their Stats by area, with what gear adds and a hint of how far each may grow, their gear and Skills, their ' +
-    'Relationships and their History; from it, put gear the Guild holds on them, take it off, or transfer them to ' +
+    'their Stats by area, with what Gear adds and a hint of how far each may grow, their Gear and Skills, their ' +
+    'Relationships and their History; from it, put Gear the Guild holds on them, take it off, or transfer them to ' +
     'another Guild, which asks first.',
   hall:
     'Your Guild’s premises: each facility’s grade, what it does, and Build, which raises it one grade for the cost ' +
     'on the button. Each grade does more than the one below it, and each adds to the Upkeep, which the Treasury gives.',
   stores:
-    'Everything your Guild owns, wherever it is: what it holds, the gear each Hero on the Roster carries, at home or ' +
+    'Everything your Guild owns, wherever it is: what it holds, the Gear each Hero on the Roster carries, at home or ' +
     'away, and what its Parties took. Show one kind, or one place, at a time with the chips above the table; a ' +
     'Hero’s name opens their page. What it holds sells at the Market for the price given; sell it there, and put ' +
-    'gear on a Hero or take it off from their page.',
+    'Gear on a Hero or take it off from their page.',
   treasury:
     'Your Guild’s accounts: its Wealth; its Upkeep, with the night of its next payment and what it is made of; the ' +
     'Bankruptcy floor, and the countdown while the Wealth is below it; and the ledger, every change to the Wealth ' +
@@ -148,7 +148,7 @@ export const help: Readonly<Record<SectionId, string>> = {
     'died, retired or left the world among them.',
   offers:
     'A Rival’s bid for one of your Heroes waits here until you accept it, decline it or it expires. Accepting sends ' +
-    'the Hero to that Guild for the fee; their gear stays with you, and the Heroes left behind who held them in high ' +
+    'the Hero to that Guild for the fee; their Gear stays with you, and the Heroes left behind who held them in high ' +
     'Regard lose Morale. Accept asks before it lets the Hero go.',
   pool:
     'Heroes on no Roster, whom any Guild may sign for a signing fee. A Hero of a higher Level will not sign for a ' +
@@ -164,7 +164,7 @@ export const help: Readonly<Record<SectionId, string>> = {
     'Buy Items the Market has for sale at its price each, the number chosen; show one kind at a time with the chips ' +
     'above the table. The Market’s stock is drawn afresh each morning.',
   sell:
-    'The Items your Guild holds and has not put on a Hero: gear to put on one from their page, consumables a Party ' +
+    'The Items your Guild holds and has not put on a Hero: Gear to put on one from their page, Consumables a Party ' +
     'can carry, and anything the Market will buy. Sell sells the number chosen for what the Market pays for each, ' +
     'which is less than it costs. Gear a Hero carries is not the Guild’s to sell until it is unequipped.',
   guilds:
@@ -179,8 +179,8 @@ export const help: Readonly<Record<SectionId, string>> = {
     'weighs on how often they post to the Board, and recovers toward neutral with time. Those neutral both ways are ' +
     'folded under their count.',
   'new-game':
-    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their sex and ' +
-    'age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
+    'Found a Guild, name its Guildmaster, and take Quests from the Board. Under “Your Guildmaster”, set their Sex and ' +
+    'Age, choose their Traits within the Trait budget, and write their Birthplace, Appearance and Biography; whatever ' +
     'you leave is drawn from the seed. The seed makes the world: the same seed and ' +
     'the same choices make the same game. Or load a game saved in this browser, or a save file, the CLI’s or one ' +
     'exported here.',

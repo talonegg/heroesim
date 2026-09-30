@@ -144,7 +144,7 @@ describe('a Quest card', () => {
 
     const encounters = within(card).getByRole('heading', { level: 4, name: 'Encounters' }).parentElement as HTMLElement;
     const chips = within(encounters).getAllByRole('listitem');
-    expect(chips.map((item) => item.textContent)).toEqual(['stealth ×2', 'combat ×2', 'travel ×1']);
+    expect(chips.map((item) => item.textContent)).toEqual(['Stealth ×2', 'Combat ×2', 'Travel ×1']);
     // Each with its kind's icon: an icon is decoration, beside the word.
     for (const chip of chips) expect(chip.querySelector('svg.icon[aria-hidden="true"]')).not.toBeNull();
 

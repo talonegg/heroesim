@@ -82,7 +82,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
-        place: expect.stringMatching(/^(joint )?\d+(st|nd|rd|th)$/),
+        place: expect.stringMatching(/^(Joint )?\d+(st|nd|rd|th)$/),
         disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
         fame: guild.fame,
         wealth: guild.wealth,
@@ -106,16 +106,16 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
 
     expect(guildsTable(document, 'fame').rows.map(({ name, place }) => [name, place])).toEqual([
       ['The Lantern', '1st'],
-      ['Ashford', 'joint 2nd'],
-      ['Old Weir', 'joint 2nd'],
+      ['Ashford', 'Joint 2nd'],
+      ['Old Weir', 'Joint 2nd'],
       ['Barrow', '4th'],
       ['Cinder', '5th'],
     ]);
     const byWealth = guildsTable(document, 'wealth');
     expect(byWealth.measure).toBe('wealth');
     expect(byWealth.rows.map(({ name, place }) => [name, place])).toEqual([
-      ['Ashford', 'joint 1st'],
-      ['Old Weir', 'joint 1st'],
+      ['Ashford', 'Joint 1st'],
+      ['Old Weir', 'Joint 1st'],
       ['Cinder', '3rd'],
       ['The Lantern', '4th'],
       ['Barrow', '5th'],
@@ -130,7 +130,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
       ['Barrow', 1, 50, 2],
       ['Cinder', 0, 200, 3],
     ]);
-    const places = { 'The Lantern': '1st', Ashford: 'joint 2nd', 'Old Weir': 'joint 2nd', Barrow: '4th', Cinder: '5th' };
+    const places = { 'The Lantern': '1st', Ashford: 'Joint 2nd', 'Old Weir': 'Joint 2nd', Barrow: '4th', Cinder: '5th' };
 
     for (const sort of ['name', 'disposition', 'heroes', 'upkeep'] as const) {
       const table = guildsTable(document, sort);
@@ -163,7 +163,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
 
     expect(table.rows.map((row) => row.guildId)).not.toContain(folded.id);
     expect(table.rows).toHaveLength(4);
-    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `folded on Day ${dayOf(7)}` })]);
+    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `Folded on Day ${dayOf(7)}` })]);
   });
 });
 
@@ -227,7 +227,8 @@ describe('guildmasterView', () => {
     expect(view?.stats.map(({ name, value }) => ({ name, value }))).toEqual(
       stats.map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat) })),
     );
-    for (const row of view?.stats ?? []) expect(row.bearsOn).not.toBe('');
+    // Each a cell of its own, beginning with a capital (DL-125 item 9).
+    for (const row of view?.stats ?? []) expect(row.bearsOn).toMatch(/^[A-Z]/);
     expect(view?.traits.map((row) => row.name)).toEqual(guildmaster.traits.map((key) => content.traits[key]?.name));
     expect(view?.patrons.map((row) => row.regard)).toEqual(
       Object.values(document.world.patrons).map((patron) => regardBand(regardValue(guildmaster.regard, patron.id), defaultConfig)),
@@ -237,6 +238,10 @@ describe('guildmasterView', () => {
     expect(view?.guilds.map((row) => row.regard)).toEqual(
       others.map((other) => regardBand(guildmasterRegardForGuild(guildmaster, other.id, document.world), defaultConfig)),
     );
+    // Each band as its chip says it (DL-125 item 9).
+    for (const row of [...(view?.patrons ?? []), ...(view?.heroes ?? []), ...(view?.guilds ?? [])]) {
+      expect(row.regardWords).toBe(row.regard.charAt(0).toUpperCase() + row.regard.slice(1));
+    }
   });
 
   test('gives the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
@@ -409,8 +414,15 @@ describe('patronsView', () => {
 
     const rows = patronsView(document);
 
-    expect(rows[0]).toMatchObject({ patronId: cold.id, regard: 'hostile', guildmasterRegard: 'neutral', neutral: false });
-    expect(rows[1]).toMatchObject({ patronId: liked.id, regard: 'neutral', guildmasterRegard: 'close', neutral: false });
+    expect(rows[0]).toMatchObject({
+      patronId: cold.id,
+      regard: 'hostile',
+      guildmasterRegard: 'neutral',
+      regardWords: 'Hostile',
+      guildmasterRegardWords: 'Neutral',
+      neutral: false,
+    });
+    expect(rows[1]).toMatchObject({ patronId: liked.id, regard: 'neutral', guildmasterRegard: 'close', regardWords: 'Neutral', guildmasterRegardWords: 'Close', neutral: false });
     expect(rows.slice(2).every((row) => row.regard === 'neutral' && row.guildmasterRegard === 'neutral' && row.neutral)).toBe(true);
     const onTheBoard = document.world.board.map((questId) => document.world.quests[questId]?.patronId);
     expect(onTheBoard.length).toBeGreaterThan(0);
@@ -443,7 +455,7 @@ describe('guildPage', () => {
 
     expect(guildPage(document, other.id)).toMatchObject({
       mine: false,
-      controller: `Rival (${other.controller.kind === 'rival' ? other.controller.disposition : ''})`,
+      controller: `Rival (${other.controller.kind === 'rival' ? content.dispositions[other.controller.disposition]?.name : ''})`,
       background: content.backgrounds[other.backgroundKey]?.name,
       fame: other.fame,
       wealth: other.wealth,

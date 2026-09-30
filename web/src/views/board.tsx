@@ -526,7 +526,7 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
       <div className="party-row__facts">
         {row.unavailable === null ? null : (
           <Chip tone="warn" icon={row.why === 'injured' ? 'injury' : row.why === 'in-party' ? 'travel' : 'alert'}>
-            {capitalised(row.unavailable)}
+            {row.unavailable}
           </Chip>
         )}
         <Chip tone={moraleTones[row.moraleBand]} icon="morale">
@@ -581,8 +581,4 @@ function SentCard({ sent, onGuild }: { sent: SentView; onGuild: () => void }) {
       </div>
     </article>
   );
-}
-
-function capitalised(words: string): string {
-  return words.charAt(0).toUpperCase() + words.slice(1);
 }
