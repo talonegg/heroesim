@@ -1,6 +1,8 @@
 // The Heroes Generator (M1-S5, approach §1): a Hero from content and config, drawn from one
 // named stream — `generation` at world creation, `pool` when M2-S8 refills the Unattached pool
 // (pre-M0 review D7). The draw order is DL-19 item 4; changing it changes every seed's Heroes.
+// Their Portrait and their texts are drawn after, on `hero-portraits` and `hero-descriptions`, one
+// draw and thirteen whatever is written, so no draw of the named stream moves (v1.1.3-S6).
 
 import type { EngineDeps } from '../config.js';
 import type { Class, ClassKey, SkillKey } from '../content-types.js';
@@ -15,6 +17,8 @@ import {
   type World,
 } from '../document.js';
 import type { HeroGenerated } from '../events.js';
+import { describeNewHero, heroDescriptionsStream } from '../descriptions.js';
+import { giveHeroPortrait, heroPortraitsStream } from '../portraits.js';
 import { xpForLevel } from '../progression.js';
 import { int, pick, shuffle } from '../rng.js';
 import {
@@ -57,7 +61,9 @@ export interface GeneratedHero {
  * Generates a Hero into `world` (DL-19 item 4): adds the row, takes its id from the counters,
  * puts the Hero on the named Guild's Roster if any, and returns the Hero and its
  * `hero.generated` event for the caller to append. Draws from `options.stream`, `generation` by
- * default, and from no other stream.
+ * default; then the Hero's Portrait from `hero-portraits` (`giveHeroPortrait`) and their Appearance
+ * and Biography from `hero-descriptions` (`describeNewHero`), a fixed number of draws of each
+ * (v1.1.3-S6, DL-135 items 3 and 6).
  *
  * Throws, changing nothing, on a programming error: an unknown Class, a Guild not in the world,
  * a Level that is not a whole number from 1, a `startingSkillRatingMax` off the Skill scale, or
@@ -79,6 +85,9 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     );
   }
   const state = streamOf(world, options.stream);
+  // The Hero's own two streams, found before anything changes.
+  streamOf(world, heroPortraitsStream);
+  streamOf(world, heroDescriptionsStream);
 
   const sex = pick(state, sexes);
   const name = drawPersonName(state, content.names, sex);
@@ -113,8 +122,15 @@ export function generateHero(world: World, deps: EngineDeps, options: HeroOption
     diedOnTurn: null,
     retiredOnTurn: null,
     transferredOnTurn: null,
+    portraitKey: null,
+    appearance: '',
+    biography: '',
     regard: {},
   };
+  // The Portrait, then the texts, each from a stream of its own (ADR-0009 as amended 2026-10-01), so no
+  // draw of `options.stream` moves (v1.1.3-S6, DL-135 items 3 and 6). The texts follow the picture.
+  giveHeroPortrait(world, content, hero);
+  describeNewHero(world, deps, hero);
   world.heroes[id] = hero;
   guild?.rosterIds.push(id);
 

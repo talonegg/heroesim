@@ -34,6 +34,8 @@ function rivals(document: WorldDocument): Guild[] {
 function picturesAside(document: WorldDocument): WorldDocument {
   const copy = structuredClone(document);
   for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
+  // A Hero's too (v1.1.3-S6): the test content's one Hero picture fits a female Warrior.
+  for (const hero of Object.values(copy.world.heroes)) Object.assign(hero, { portraitKey: null, appearance: '', biography: '' });
   return copy;
 }
 

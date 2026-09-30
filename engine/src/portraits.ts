@@ -16,8 +16,8 @@ import type {
   StationKey,
   TraitKey,
 } from './content-types.js';
-import type { Sex, World } from './document.js';
-import { pickOrNone, sexes, type Stream } from './generators/draw.js';
+import type { Hero, Sex, World } from './document.js';
+import { pickOrNone, sexes, streamOf, type Stream } from './generators/draw.js';
 
 /** The pictures of `role` and `sex` content lists, in its order; none where it lists none. */
 export function portraitsOf(content: Pick<ContentSet, 'portraits'>, role: PortraitRole, sex: Sex): readonly PortraitKey[] {
@@ -219,4 +219,49 @@ export function portraitNotes(
   if (age < from || age > to) notes.push({ kind: 'age', portraitKey, age, apparentAge: [from, to], looks: age < from ? 'older' : 'younger' });
   for (const clash of callingClashes(content, portraitKey, traitKeys)) notes.push({ kind: 'calling-clash', portraitKey, ...clash });
   return notes;
+}
+
+/** The stream every Hero's Portrait is drawn from (ADR-0009 as amended 2026-10-01; v1.1.3-S6). */
+export const heroPortraitsStream = 'hero-portraits';
+
+/**
+ * The pictures in use by Heroes (v1.1.3-S6, DL-135 item 4): every Hero's on a Roster or in the
+ * Unattached pool. A dead or retired Hero's, and one who has left the pool, are free again.
+ */
+export function heroPortraitsInUse(world: Pick<World, 'guilds' | 'heroes'>): Set<PortraitKey> {
+  const inUse = new Set<PortraitKey>();
+  const add = (hero: Hero | undefined): void => {
+    if (hero?.portraitKey !== null && hero?.portraitKey !== undefined) inUse.add(hero.portraitKey);
+  };
+  for (const guild of Object.values(world.guilds)) {
+    for (const heroId of guild.rosterIds) add(Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined);
+  }
+  for (const hero of Object.values(world.heroes)) if (hero.unattachedSince !== null) add(hero);
+  return inUse;
+}
+
+/**
+ * Gives `hero`, as they are generated, their Portrait (v1.1.3-S6; DL-134 item 5, DL-135 items 3 to 5),
+ * in exactly one draw from `hero-portraits`, whatever content lists: one chosen to fit them
+ * (`choosePortrait`), whose Classes hold theirs, preferring one of their Background's Station and
+ * one no Hero on a Roster or in the pool has (`heroPortraitsInUse`), a picture repeating once every
+ * one that fits is in use; or `null`, the Silhouette, where none fits, as for every Hero while content
+ * lists no Hero picture. Changes `hero` in place, before their texts are written, since the texts
+ * follow the picture. `hero` is in the world or not; their own Portrait is `null` until now, so they
+ * never count as in use.
+ */
+export function giveHeroPortrait(world: World, content: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'backgrounds'>, hero: Hero): void {
+  const background = Object.hasOwn(content.backgrounds, hero.backgroundKey) ? content.backgrounds[hero.backgroundKey] : undefined;
+  const person: PortraitPerson = {
+    sex: hero.sex,
+    age: hero.ageAtEntry,
+    traitKeys: hero.traits,
+    classKey: hero.classKey,
+    ...(background?.station === undefined ? {} : { station: background.station }),
+  };
+  // Only a Hero with a picture of their sex and Class needs the set, which reads every Hero: with none,
+  // the one draw is spent whatever is in use.
+  const ofClass = portraitsOf(content, 'hero', hero.sex).some((key) => (portraitRowOf(content, key)?.classes ?? []).includes(hero.classKey));
+  const inUse = ofClass ? heroPortraitsInUse(world) : new Set<PortraitKey>();
+  hero.portraitKey = choosePortrait(streamOf(world, heroPortraitsStream), content, 'hero', person, inUse);
 }

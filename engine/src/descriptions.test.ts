@@ -1,8 +1,18 @@
 import { describe, expect, test } from 'vitest';
 import { createWorld, previewGuildmaster, type WorldSetup } from './create.js';
-import { biographyTraitSentences, describeBlanks, describeGuildmaster, type DescribeRequest } from './descriptions.js';
+import type { ContentSet } from './content-types.js';
+import {
+  biographyTraitSentences,
+  describeBlanks,
+  describeGuildmaster,
+  describeHero,
+  heroBiographyTraitSentences,
+  heroDescriptionDraws,
+  type DescribeRequest,
+  type HeroFacts,
+} from './descriptions.js';
 import { descriptiveAttributeMaxLength, descriptiveAttributes, makeId, type Guild, type Guildmaster, type WorldDocument } from './document.js';
-import { streamNames } from './rng.js';
+import { createStreams, next, streamNames } from './rng.js';
 import { deepFreeze, testDeps, testWorld } from './world.test-support.js';
 
 // A Guildmaster described (v1.1.2-S5; DL-125 item 6, DL-127 item 4): `describeGuildmaster` for a front
@@ -298,9 +308,141 @@ describe('every Guildmaster of a new game is described (v1.1.2-S5, DL-125 item 6
     }
   });
 
-  test('a new world has the stream descriptions, last of the core streams', () => {
+  test("a new world has the stream descriptions, after gm-portraits and before the Heroes' two (v1.1.3-S6)", () => {
     const { document } = createWorld('streams', setup, deps);
-    expect(Object.keys(document.world.rng).at(-1)).toBe('descriptions');
-    expect(streamNames.at(-1)).toBe('descriptions');
+    expect(Object.keys(document.world.rng).slice(-4)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
+    expect(streamNames.slice(-4)).toEqual(['gm-portraits', 'descriptions', 'hero-portraits', 'hero-descriptions']);
+  });
+});
+
+// ── A Hero described (v1.1.3-S6, DL-135 item 6) ──────────────────────────────────────────────
+
+describe('describeHero', () => {
+  const facts: HeroFacts = {
+    sex: 'female',
+    age: 20,
+    backgroundKey: 'farm-born',
+    classKey: 'warrior',
+    traitKeys: ['scarred'],
+    portraitKey: null,
+  };
+  const stream = (seed = 'hero-described') => createStreams(seed, ['hero-descriptions'])['hero-descriptions'];
+  const described = (overrides: Partial<HeroFacts> = {}, content: ContentSet = deps.content, seed?: string) =>
+    describeHero(stream(seed), content, { ...facts, ...overrides });
+  /** The test content with a second Hero picture: a Mage's, composed, whose Temper has no closing, with a hook. */
+  const withHook: ContentSet = {
+    ...deps.content,
+    portraits: { ...deps.content.portraits, hero: { female: ['hero-female-01', 'hero-female-02'], male: [] } },
+    portraitAppearances: {
+      ...deps.content.portraitAppearances,
+      portraits: {
+        ...deps.content.portraitAppearances.portraits,
+        'hero-female-02': {
+          apparentAge: [30, 45],
+          station: 'common',
+          classes: ['mage'],
+          temper: 'composed',
+          features: [],
+          narrative: 'A calm face in a picture.',
+          hooks: ['{He} once held a bridge alone.'],
+        },
+      },
+    },
+  };
+
+  test('is pure but for the stream: the same for the same stream and facts', () => {
+    const frozen = deepFreeze({ ...facts, traitKeys: [...facts.traitKeys] });
+    expect(describeHero(stream(), deps.content, frozen)).toEqual(describeHero(stream(), deps.content, frozen));
+  });
+
+  test("with no picture, draws the Appearance whole from the sex's age band, each slot in order, as a Guildmaster's", () => {
+    for (const seed of seeds.slice(0, 20)) {
+      expect(described({}, deps.content, seed).appearance).toMatch(
+        /^Build (one|two) \(young female\)\. Face (one|two) \(young female\)\. Hair (one|two) \(young female\)\. Eyes (one|two) \(young female\)\. (Mark|Bearing) (one|two) \(young female\)\.$/,
+      );
+      expect(described({ sex: 'male', age: 40 }, deps.content, seed).appearance).toMatch(
+        /^Build (one|two) \(older male\)\. Face .* Hair .* An older beard\. Eyes .* (Mark|Bearing) (one|two) \(older male\)\.$/,
+      );
+    }
+  });
+
+  test('writes the Biography from the Background, the Class at the band, the Traits and the band\'s closing, with the sex\'s pronouns', () => {
+    expect(described().biography).toBe('She grew up on a farm. She fought young. She is scarred. She is young.');
+    expect(described({ sex: 'male', age: 40, traitKeys: [] }).biography).toBe('He grew up on a farm. He fought long. He is old.');
+  });
+
+  test('leaves out a part with no sentence: a Background, a Class or a Trait content writes none for', () => {
+    expect(described({ backgroundKey: 'levy-soldier', classKey: 'mage', traitKeys: ['lame', 'scarred'] }).biography).toBe('She is scarred. She is young.');
+  });
+
+  test(`gives a sentence to the first ${heroBiographyTraitSentences} Traits only, in their order`, () => {
+    const only = { ...deps.content, descriptions: { ...deps.content.descriptions, heroBiography: { ...deps.content.descriptions.heroBiography, traits: { scarred: ['{He} is scarred.'], lame: ['{He} limps.'], 'one-eyed': ['{He} has one eye.'] } } } };
+    expect(described({ traitKeys: ['lame', 'scarred', 'one-eyed'] }, only).biography).toBe('She grew up on a farm. She fought young. She limps. She is scarred. She is young.');
+  });
+
+  test("with a picture, the Appearance is its narrative as written, and the closing its Temper's", () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const { appearance, biography } = described({ portraitKey: 'hero-female-01' }, deps.content, seed);
+      expect(appearance).toBe('A scarred young face in a picture.');
+      expect(biography).toBe('She grew up on a farm. She fought young. She is scarred. She is stern.');
+    }
+  });
+
+  test("a picture's hooks join the Class's sentences, stand alone where it has none, and a Temper with no closing falls back to the band's", () => {
+    // A Mage has no sentence in the test content: the hook is the Class's sentence every time.
+    for (const seed of seeds.slice(0, 10)) {
+      expect(described({ classKey: 'mage', age: 32, portraitKey: 'hero-female-02' }, withHook, seed)).toEqual({
+        appearance: 'A calm face in a picture.',
+        biography: 'She grew up on a farm. She once held a bridge alone. She is scarred. She is young.',
+      });
+    }
+    // A Warrior's sentence at the band and the hook are both drawn, over many seeds.
+    const classSentences = new Set(seeds.map((seed) => described({ age: 32, portraitKey: 'hero-female-02' }, withHook, seed).biography.split('. ')[1]));
+    expect(classSentences).toEqual(new Set(['She fought young', 'She once held a bridge alone']));
+  });
+
+  test('a key with no row is the Silhouette\'s: drawn from the phrases, closed by the band', () => {
+    const { appearance, biography } = described({ portraitKey: 'hero-male-99' });
+    expect(appearance).toMatch(/^Build .*\(young female\)\.$/);
+    expect(biography).toBe('She grew up on a farm. She fought young. She is scarred. She is young.');
+  });
+
+  test(`takes exactly ${heroDescriptionDraws} draws whatever it writes: a picture, a sex, a band, a Class, a Background or Traits with no sentence`, () => {
+    expect(heroDescriptionDraws).toBe(13);
+    const spent = stream();
+    for (let draw = 0; draw < heroDescriptionDraws; draw += 1) next(spent);
+    const variants: Partial<HeroFacts>[] = [
+      {},
+      { portraitKey: 'hero-female-01' },
+      { portraitKey: 'hero-female-02', classKey: 'mage' },
+      { sex: 'male', age: 44 },
+      { classKey: 'rogue', backgroundKey: 'river-folk', traitKeys: [] },
+      { traitKeys: ['scarred', 'lame', 'one-eyed', 'short-winded'] },
+    ];
+    for (const variant of variants) {
+      const state = stream();
+      describeHero(state, withHook, { ...facts, ...variant });
+      expect(state, JSON.stringify(variant)).toEqual(spent);
+    }
+  });
+
+  test('each text is written, and within its bound, over many Heroes', () => {
+    for (const seed of seeds) {
+      for (const sex of ['female', 'male'] as const) {
+        for (const age of [18, 30, 36, 50]) {
+          for (const classKey of Object.keys(deps.content.classes)) {
+            const { appearance, biography } = described({ sex, age, classKey, traitKeys: ['scarred', 'lame'] }, withHook, seed);
+            expect(appearance).not.toBe('');
+            expect(biography).not.toBe('');
+            expect([...appearance].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+            expect([...biography].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+          }
+        }
+      }
+    }
+  });
+
+  test("as many Trait sentences as a Guildmaster's", () => {
+    expect(heroBiographyTraitSentences).toBe(biographyTraitSentences);
   });
 });

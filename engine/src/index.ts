@@ -144,9 +144,15 @@ export * from './create.js';
 export {
   biographyTraitSentences,
   describeGuildmaster,
+  describeHero,
+  heroBiographyTraitSentences,
+  heroDescriptionDraws,
+  heroDescriptionsStream,
   type DescribeRequest,
   type DescriptionFacts,
   type GuildmasterDescription,
+  type HeroDescription,
+  type HeroFacts,
 } from './descriptions.js';
 export * from './document.js';
 export {
@@ -182,6 +188,8 @@ export {
   callingClashes,
   choosePortrait,
   guildmasterPortraitsInUse,
+  heroPortraitsInUse,
+  heroPortraitsStream,
   portraitNotes,
   portraitRowOf,
   portraitSexOf,

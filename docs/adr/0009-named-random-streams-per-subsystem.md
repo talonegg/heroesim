@@ -43,3 +43,13 @@ the owner (DL-125; built in DL-130).
 from v1.1.2-S7, before `v1.1.2` was released, so that Heroes' Portraits can be drawn on a stream
 of their own, `hero-portraits`, later. No released save held `portraits`. Decided by the owner
 (DL-134, DL-135; built in DL-137).
+
+*Amended 2026-10-01, again.* A Hero's Portrait (`hero-portraits`) and a Hero's Appearance and
+Biography (`hero-descriptions`, v1.1.3-S6) are drawn on streams of their own, though both are part
+of generating a Hero. Drawn from `generation` or `pool`, which the Heroes Generator draws from, they
+would shift every later draw of those streams, and v1.1.3 moves no existing draw. They are two, not
+one, so that Hero pictures added later move no Hero's text, and apart from the Guildmasters' two, so
+that neither role's draws move the other's. They are accepted exceptions, as the 2026-09-30 ones are,
+each appended last to the streams, `hero-portraits` before `hero-descriptions`. Each Hero takes a
+fixed number of draws of each, whatever is written. Decided by the owner (DL-134 item 2, DL-135
+item 6; built in DL-142).

@@ -1,8 +1,11 @@
 import { describe, expect, test } from 'vitest';
-import { facilityKeys, makeId, type Guild, type Hall, type Hero, type World } from '../document.js';
-import type { StreamName } from '../rng.js';
+import type { ContentSet } from '../content-types.js';
+import { heroDescriptionDraws } from '../descriptions.js';
+import { descriptiveAttributeMaxLength, facilityKeys, makeId, type Guild, type Hall, type Hero, type World } from '../document.js';
+import { heroPortraitsInUse } from '../portraits.js';
+import { createStreams, next, type StreamName } from '../rng.js';
 import { generateHero } from './heroes.js';
-import { plannedStreams, testDeps, testWorld } from '../world.test-support.js';
+import { plannedStreams, testDeps, testWorld, withoutPortraits } from '../world.test-support.js';
 
 function heroes(world: World, deps = testDeps(), count: number, classKey?: string): Hero[] {
   const made: Hero[] = [];
@@ -98,7 +101,9 @@ describe('generateHero', () => {
   });
 
   test("a Warrior's mean Strength exceeds a Mage's by at least the minimum bias", () => {
-    const deps = testDeps();
+    // No Hero picture (v1.1.3-S6): ten thousand Heroes in one pool would each read every other for the
+    // pictures in use, which no Stat reads.
+    const deps = testDeps({}, withoutPortraits());
     const world = testWorld('bias', deps);
     const warriors = heroes(world, deps, 5000, 'warrior');
     const mages = heroes(world, deps, 5000, 'mage');
@@ -129,13 +134,15 @@ describe('generateHero', () => {
     expect([...ratings].sort()).toEqual([1, deps.config.startingSkillRatingMax]);
   });
 
-  test('draws only from generation: every other planned stream is unchanged', () => {
+  test("draws only from generation, and the Hero's own two streams (v1.1.3-S6): every other planned stream is unchanged", () => {
     const deps = testDeps();
     const world = testWorld('streams', deps, plannedStreams);
     const before = structuredClone(world.rng);
     heroes(world, deps, 1000);
 
-    const others = plannedStreams.filter((name) => name !== 'generation');
+    const own = ['generation', 'hero-portraits', 'hero-descriptions'];
+    for (const name of own) expect((world.rng as Record<string, unknown>)[name], name).not.toEqual((before as Record<string, unknown>)[name]);
+    const others = plannedStreams.filter((name) => !own.includes(name));
     expect(others).toHaveLength(10);
     for (const name of others) {
       expect((world.rng as Record<string, unknown>)[name], name).toEqual(
@@ -276,5 +283,121 @@ describe('generateHero', () => {
     expect(() => generateHero(world, testDeps({ startingSkillRatingMax: 6 }))).toThrow(/startingSkillRatingMax/);
     expect(() => generateHero(world, testDeps({ startingSkillRatingMax: 0 }))).toThrow(/startingSkillRatingMax/);
     expect(world).toEqual(before);
+  });
+});
+
+// ── A Hero's Portrait and texts (v1.1.3-S6; DL-135 items 3 to 6) ─────────────────────────────
+
+describe("generateHero gives each Hero a Portrait and their texts (v1.1.3-S6)", () => {
+  /** The test content with Hero pictures of `female`: each a Warrior's from 18 to 30, as `hero-female-01` is. */
+  const withHeroPictures = (female: string[]): ContentSet => {
+    const row = testDeps().content.portraitAppearances.portraits['hero-female-01'];
+    if (row === undefined) throw new Error('No hero-female-01');
+    const content = testDeps().content;
+    return {
+      ...content,
+      portraits: { ...content.portraits, hero: { female, male: [] } },
+      portraitAppearances: {
+        ...content.portraitAppearances,
+        portraits: { ...content.portraitAppearances.portraits, ...Object.fromEntries(female.map((key) => [key, row])) },
+      },
+    };
+  };
+  const fields = ['portraitKey', 'appearance', 'biography'] as const;
+  const aside = (hero: Hero) => ({ ...hero, portraitKey: null, appearance: '', biography: '' });
+
+  test("a Hero of the picture's Class, sex and band gets it, and a Hero of another Class, sex or band does not", () => {
+    // hero-female-01 is a Warrior's, looking 18 to 30: the test content's young band, to 35.
+    const deps = testDeps();
+    const world = testWorld('hero-picture', deps);
+    const made = heroes(world, deps, 400);
+    const femaleWarriors = made.filter((hero) => hero.sex === 'female' && hero.classKey === 'warrior');
+    expect(femaleWarriors.length).toBeGreaterThan(20);
+    for (const hero of femaleWarriors) expect(hero.portraitKey, `${hero.id} at ${hero.ageAtEntry}`).toBe(hero.ageAtEntry <= 35 ? 'hero-female-01' : null);
+    expect(femaleWarriors.some((hero) => hero.ageAtEntry > 35)).toBe(true);
+    for (const hero of made.filter((it) => it.sex === 'male' || it.classKey !== 'warrior')) expect(hero.portraitKey, hero.id).toBeNull();
+
+    // An older band's female Warrior: the picture reaches no age of it.
+    const older = testDeps({ heroStartingAgeMin: 40, heroStartingAgeMax: 45 });
+    for (const hero of heroes(testWorld('older', older), older, 40, 'warrior')) expect(hero.portraitKey).toBeNull();
+  });
+
+  test('with no Hero picture in content, as this release ships, every Hero has the Silhouette, an Appearance and a Biography', () => {
+    const deps = testDeps({}, withoutPortraits());
+    for (const hero of heroes(testWorld('silhouettes', deps), deps, 200)) {
+      expect(hero.portraitKey).toBeNull();
+      expect(hero.appearance).toMatch(/^Build .*\.$/);
+      expect(hero.biography).not.toBe('');
+      expect([...hero.appearance].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.appearance);
+      expect([...hero.biography].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength.biography);
+    }
+  });
+
+  test("a Hero with a picture has its narrative for their Appearance, and their Biography closes with its Temper's", () => {
+    const deps = testDeps({ heroStartingAgeMin: 20, heroStartingAgeMax: 30 });
+    const pictured = heroes(testWorld('narrative', deps), deps, 60, 'warrior').filter((hero) => hero.portraitKey !== null);
+    expect(pictured.length).toBeGreaterThan(10);
+    for (const hero of pictured) {
+      expect(hero.appearance).toBe('A scarred young face in a picture.');
+      expect(hero.biography).toMatch(/ She is stern\.$/);
+    }
+  });
+
+  test('prefers a picture no Hero on a Roster or in the pool has, and repeats one once every one that fits is in use', () => {
+    const deps = testDeps({ heroStartingAgeMin: 20, heroStartingAgeMax: 30 }, withHeroPictures(['hero-female-01', 'hero-female-02', 'hero-female-03']));
+    const world = testWorld('in-use', deps);
+    const pictured: string[] = [];
+    for (const hero of heroes(world, deps, 80, 'warrior')) if (hero.portraitKey !== null) pictured.push(hero.portraitKey);
+    expect(pictured.length).toBeGreaterThan(6);
+    // The first three are the three pictures, each once; after them, each repeats.
+    expect(new Set(pictured.slice(0, 3)).size).toBe(3);
+    expect(new Set(pictured).size).toBe(3);
+  });
+
+  test("a Hero who has left the pool, died or retired frees their picture; one on a Roster or in the pool holds it", () => {
+    const deps = testDeps({ heroStartingAgeMin: 20, heroStartingAgeMax: 30 });
+    const world = testWorld('freed', deps);
+    const guild = bareGuild(world);
+    const [pooled, rostered] = [0, 1].map(() => heroes(world, deps, 1, 'warrior')[0] as Hero);
+    if (pooled === undefined || rostered === undefined) throw new Error('No Heroes');
+    Object.assign(pooled, { portraitKey: 'hero-female-01' });
+    Object.assign(rostered, { portraitKey: 'hero-female-02', guildId: guild.id, unattachedSince: null });
+    guild.rosterIds.push(rostered.id);
+    expect(heroPortraitsInUse(world)).toEqual(new Set(['hero-female-01', 'hero-female-02']));
+
+    Object.assign(pooled, { unattachedSince: null, leftPoolOnTurn: 3 });
+    guild.rosterIds = [];
+    Object.assign(rostered, { diedOnTurn: 3 });
+    expect(heroPortraitsInUse(world)).toEqual(new Set());
+  });
+
+  test(`takes exactly one draw of hero-portraits and ${heroDescriptionDraws} of hero-descriptions a Hero, whatever content lists, and nothing else moves with them`, () => {
+    const seed = 'draws-a-hero';
+    const count = 120;
+    const contents = [testDeps().content, withoutPortraits(), withHeroPictures(['hero-female-01', 'hero-female-02'])];
+    const made = contents.map((content) => {
+      const deps = testDeps({}, content);
+      const world = testWorld(seed, deps, plannedStreams);
+      return { world, heroes: heroes(world, deps, count) };
+    });
+    const expected = createStreams(seed, ['hero-portraits', 'hero-descriptions']);
+    for (let hero = 0; hero < count; hero += 1) {
+      next(expected['hero-portraits']);
+      for (let draw = 0; draw < heroDescriptionDraws; draw += 1) next(expected['hero-descriptions']);
+    }
+    const [first] = made;
+    if (first === undefined) throw new Error('No worlds');
+    for (const { world, heroes: row } of made) {
+      expect(world.rng['hero-portraits']).toEqual(expected['hero-portraits']);
+      expect(world.rng['hero-descriptions']).toEqual(expected['hero-descriptions']);
+      expect(world.rng).toEqual(first.world.rng);
+      // The Heroes are the same Heroes, but for their Portraits and texts.
+      expect(row.map(aside)).toEqual(first.heroes.map(aside));
+    }
+    // And the pictures did change them.
+    const pictured = (index: number) => made[index]?.heroes.filter((hero) => hero.portraitKey !== null).length;
+    expect(pictured(0)).toBeGreaterThan(0);
+    expect(pictured(1)).toBe(0);
+    for (const field of fields) expect(made[0]?.heroes.map((hero) => hero[field])).not.toEqual(made[1]?.heroes.map((hero) => hero[field]));
   });
 });

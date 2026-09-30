@@ -693,6 +693,8 @@ export const plannedStreams = [
   'market',
   'gm-portraits',
   'descriptions',
+  'hero-portraits',
+  'hero-descriptions',
 ] as const;
 
 /** The test content, or `content`, with the default config, or with `overrides` on it. */
@@ -894,6 +896,9 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       diedOnTurn: null,
       retiredOnTurn: null,
       transferredOnTurn: null,
+      portraitKey: null,
+      appearance: `An Appearance of ${id}.`,
+      biography: `A Biography of ${id}.`,
       regard: {},
     };
     world.heroes[id] = row;

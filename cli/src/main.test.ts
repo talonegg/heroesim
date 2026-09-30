@@ -482,6 +482,13 @@ describe('show', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain(`${hero.name} (${hero.id})`);
+    // The Portrait, and the two texts written as the Hero was generated (v1.1.3-S6): the core has no Hero picture.
+    expect(run.out).toMatch(/^Portrait\s+None: the Silhouette$/m);
+    expect(hero.appearance).not.toBe('');
+    expect(hero.biography).not.toBe('');
+    const lineOf = (label: string) => run.out.split('\n').find((line) => line.startsWith(`${label} `));
+    expect(lineOf('Appearance')?.replace(/^Appearance +/, '')).toBe(hero.appearance);
+    expect(lineOf('Biography')?.replace(/^Biography +/, '')).toBe(hero.biography);
     expect(run.out).toMatch(new RegExp(`^Age\\s+${ageOf(hero, world.turn, defaultConfig)}$`, 'm'));
     expect(run.out).toMatch(new RegExp(`^Class\\s+${content.classes[hero.classKey]?.name}$`, 'm'));
     expect(run.out).toMatch(/^Guild\s+The Test \(guild-000001\)$/m);
@@ -1293,6 +1300,30 @@ describe('save and load', () => {
     const shown = play(['show', '--save', older]);
     expect(shown.code).toBe(exitCodes.refused);
     expect(shown.err).toContain('This game was saved by an older Heroesim and cannot be loaded');
+  });
+
+  test("a save of schema 5, as v1.1.2 wrote it, is refused in the owner's words, and replacing it with a new game works (v1.1.3-S6, DL-135 item 7)", () => {
+    newDemo();
+    const parsed = JSON.parse(saved()) as { meta: { version: number }; world: { heroes: Record<string, object> } };
+    parsed.meta.version = 5;
+    for (const hero of Object.values(parsed.world.heroes)) {
+      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+    }
+    const older = JSON.stringify(parsed);
+    writeFileSync(join(dir, '.saves', 'current.json'), older);
+
+    for (const argv of [['show'], ['show', 'guildmaster'], ['advance']]) {
+      const run = play(argv);
+      expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${join(dir, '.saves', 'current.json')}.\n`);
+    }
+    expect(saved()).toBe(older);
+
+    // The save is kept until the player replaces it: a new game over it, which then loads.
+    expect(newDemo().code).toBe(exitCodes.refused);
+    expect(newDemo('--force').code).toBe(exitCodes.ok);
+    expect(JSON.parse(saved())).toMatchObject({ meta: { version: 6 } });
+    expect(play(['show']).code).toBe(exitCodes.ok);
   });
 
   test('the newer-schema refusal names both versions', () => {
