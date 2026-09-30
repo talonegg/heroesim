@@ -12724,6 +12724,88 @@ Until now:
 `docs/planning/epics/M9-feedback.md`, `docs/planning/epics/M9-redesign.md`,
 `docs/planning/epics/README.md`, `docs/plan.md` (the release as DL-123).
 
+## DL-123 — v1.1.0 released: `v1.1-release` created and tagged `m9-redesign` and `v1.1.0`, deployed from CI to the Worker and to Pages as production, the live check passing on both addresses at both widths after one re-run
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, the orchestrator, releasing
+M9-S9 (#37) on the owner's word: "begin release", then "complete release", then "try again". A
+record of what was run.
+
+**Context.** The follow-on and the owner's answers are built and verified:
+- DL-119 and DL-121, at b3cfa18 on `v1.1-dev`, CI green;
+- the deploy moved to `v1.1-release` (b70a296);
+- a release deploys from CI (DL-122, 2972f28, CI green).
+
+Before the release, the owner:
+- created the Cloudflare API token;
+- set `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` on the `production` environment, which
+  the orchestrator had created empty.
+
+**Decision.** The record, in order.
+
+1. **The release branch.** `v1.1-release` was created from `v1.0-release` (10df3bf), and
+   `v1.1-dev` at 2972f28 was merged into it as `4ec857f` ("Merge v1.1-dev into v1.1-release:
+   v1.1.0 complete"). Its tree is `v1.1-dev`'s (`git diff --quiet`). It was pushed first, on its
+   own, and `check` run 36647078751 passed.
+2. **The Pages production branch.** The owner had to set it after the branch existed. The first
+   attempt, in the dashboard, did not change it. The first deploy found that (item 4), and the
+   owner then set it to `v1.1-release`.
+3. **The tags.** The annotated tags `m9-redesign` and `v1.1.0` were made on `4ec857f` and pushed.
+   That started `deploy` run 36647936642.
+4. **The first attempt.**
+   - *Passed.* The tag was on `origin/v1.1-release`. Lint, typecheck and 3,434 tests passed.
+   - *The Worker.* It took the build: version `62af0bd6-cacb-4a2a-a00d-33c0647db207`.
+   - *Pages.* It took the build as a **preview** (`https://c3ea5a3f.heroesims.pages.dev`,
+     alias `v1-1-release.heroesims.pages.dev`), because its production branch was still
+     `v1.0-release`.
+   - *The live check.* It passed on the Worker at both widths and failed on Pages at both: the
+     address still served `v1.0.1`.
+   - *What it meant.* For about fourteen minutes the Worker served `v1.1.0` and pages.dev served
+     `v1.0.1`.
+   - *Why the step passed.* `deploy.mjs` reports a Pages deploy that is not production as a
+     warning, not a failure (DL-97), so the deploy step passed and the live check caught it.
+5. **The re-run.** Once the owner had set the branch, the same run was re-run for the same tag
+   (attempt 2): the checks, then both uploads, then the live check. Finished 00:18:31 UTC on
+   2026-09-30.
+   - *The Worker.* Wrangler 4.144.0, version `9685da99-3e08-475a-83d4-5eb85fa08eb1`, at
+     `https://heroesim.magical-potato.workers.dev`.
+   - *Pages.* Wrangler 4.144.0, `https://91c13e95.heroesims.pages.dev`, environment
+     **production**, commit `4ec857f`.
+   - *The live check.* `npm run e2e:live -w web` passed, 4 of 4: `worker-phone`,
+     `worker-desktop`, `pages-phone` and `pages-desktop`. On each, a game was created, saved in
+     IndexedDB, reloaded and loaded, with no request to another origin.
+6. **What the two addresses serve** (read with `curl` after the re-run). The same files:
+   `index.html`, and `assets/index-oIq3L-Od.js`, whose SHA-256 begins `c33787267a8f3a12` on both.
+7. **An earlier preview.** Pages also lists a `v1.1-release` preview from `12f288e` about an hour
+   before. That was the release commit first made locally and deleted unpushed (DL-122).
+   - *Who ran it.* Not the orchestrator: its `npm run deploy` was refused by the permission
+     system. It was presumably the owner's manual deploy from the clean clone the orchestrator
+     had prepared.
+   - *Its effect.* Any Worker version it made is superseded by item 5's.
+8. **Not recorded:** the account id and the token, which appear in no log read here; GitHub masks
+   the secrets.
+
+**Consequences.**
+- *What serves v1.1.0.* From 00:18 UTC on 2026-09-30, both addresses serve `v1.1.0`:
+  `https://heroesim.magical-potato.workers.dev` and `https://heroesims.pages.dev`. Saves stay with
+  the address they were made at.
+- *Rules adopted.* A `v1.0.x` save opened in `v1.1.0` is offered the rules of `configVersion` 12
+  by the rules notice. Adopting them retires any Guildmaster already aged 61 or more (DL-113
+  item 3).
+- *Closed.* #30 (the Guildmaster's setup) and #32 (the Bankruptcy and staffable-Quest stops) are
+  closed with this entry. #37 is closed except its last box, the owner's.
+- *Still the owner's.* Set GitHub's default branch to `v1.1-release` (DL-88). Until then the
+  Actions tab offers no manual "Run workflow" for `deploy`.
+- *Next.* v1.2: `v1.2-dev` is created from `v1.1-release` at `v1.1.0` (DL-99 item 10), for Random
+  Events (M10, #12) and the v1.2 issues, #41 among them.
+- *A follow-up, open.* In CI, a Pages deploy that is not production could fail the deploy step
+  itself rather than warn. The live check catches it today, but only after the Worker has taken
+  the build.
+
+**Actioned in:** this entry; `docs/planning/epics/INPUTS-REQUIRED.md` (7.8);
+`docs/planning/epics/M9-redesign.md` (M9-S9) and `docs/planning/epics/M9-feedback.md` (status);
+the tags `m9-redesign` and `v1.1.0`; the branch `v1.1-release`; the GitHub issues #30, #32 and
+#37.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

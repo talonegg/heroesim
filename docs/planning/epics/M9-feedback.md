@@ -38,7 +38,7 @@ M9-S9 (#37) releases the whole as `v1.1.0` afterwards.
 
 **Status:** built and verified on `v1.1-dev` — 2026-09-30 (DL-119). Every box of M9-F1 to M9-F6 is
 ticked and the gate is met. *Amended 2026-09-30 (DL-120):* the owner's answers on the close add
-M9-F7, built before the release. The release, M9-S9 (#37), is DL-123, deployed from CI (DL-122), and follows on the owner's
+M9-F7, built before the release. *Released 2026-09-30 as `v1.1.0` (DL-123).* The release, M9-S9 (#37), is DL-123, deployed from CI (DL-122), and follows on the owner's
 steps. *M9-F7 is built and its boxes ticked* — 2026-09-30 (DL-121), on its branch.
 *Approved as amended 2026-09-29 (DL-112, DL-113); built on the owner's word the same day (DL-114 to
 DL-118), and closed by M9-F6 (DL-119).*

@@ -30,6 +30,7 @@ M9-S9 runs after M9-F6.
 *The follow-on is built and verified on `v1.1-dev`* — 2026-09-30 (DL-119, M9-F6): §3's rows that
 moved are ticked again against their new places. *Amended 2026-09-30 (DL-120):* M9-F7 follows
 from the owner's answers, and the release, M9-S9 (#37, DL-123), deploys from CI (DL-122) on the owner's steps after it.
+*Released 2026-09-30 as `v1.1.0` (DL-123).*
 *M9-F7 is built on its branch* — 2026-09-30 (DL-121).
 
 ## 0. What lands in M9
@@ -632,6 +633,11 @@ After M9-S1 and M9-S2 are merged:
 
 This story runs only with the owner's go-ahead, and after the follow-on's close, M9-F6
 (DL-112), and after M9-F7 (DL-120). Its DL is DL-123, and it deploys from CI (DL-122).
+
+*Done 2026-09-30 (DL-123):* `v1.1-release` created at `4ec857f` and tagged `m9-redesign` and
+`v1.1.0`; deployed from CI to the Worker and to Pages as production, with `e2e:live` passing on both
+addresses at both widths (`deploy` run 36647936642, attempt 2). GitHub's default branch is the
+owner's to set.
 - `v1.1-dev` is merged into `v1.1-release`, tagged `m9-redesign` and `v1.1.0`.
 - The deploy script's `--branch` and `deploy.test.ts` move to `v1.1-release`.
 - The owner sets the Pages production branch and GitHub's default branch.
