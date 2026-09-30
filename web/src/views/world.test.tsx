@@ -62,8 +62,8 @@ describe('shared places and the Bankruptcy countdown (v1.0.1-S4, DL-95)', () => 
   test('a new game, every Guild at Fame 0, is joint 1st on each row of the Rankings and in the header', () => {
     render_(started());
 
-    expect(guildRows().map(([place]) => place)).toEqual(Array(5).fill('joint 1st'));
-    expect(screen.getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(guildRows().map(([place]) => place)).toEqual(Array(5).fill('Joint 1st'));
+    expect(screen.getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
   });
 
   /** The Lantern below the floor from the start, played through the night of Day 0, under `grace` Days. */
@@ -149,10 +149,10 @@ describe('the Guildmaster and the Patrons', () => {
 
     expect(within(guildmaster).getByRole('heading', { level: 3, name: 'Ada Vell, Guildmaster of The Lantern' })).toBeDefined();
     expect(within(guildmaster).getByRole('rowheader', { name: 'Negotiation' })).toBeDefined();
-    expect(within(guildmaster).getByText('the reward agreed and the fees paid')).toBeDefined();
+    expect(within(guildmaster).getByText('The reward agreed and the fees paid')).toBeDefined();
     // Regard as bands, never numbers: a new game's are neutral, folded under their counts (M9-S6).
     for (const list of within(guildmaster).getAllByRole('list').filter((each) => each.className.startsWith('regards'))) {
-      for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(hostile|cool|neutral|warm|close)$/);
+      for (const item of within(list).getAllByRole('listitem')) expect(item.textContent).toMatch(/(Hostile|Cool|Neutral|Warm|Close)$/);
     }
     expect(within(guildmaster).getAllByText(/^\d+ neutral$/)).toHaveLength(3);
     // A new game's Patrons are neutral both ways: folded under their count, until opened.
@@ -165,7 +165,7 @@ describe('the Guildmaster and the Patrons', () => {
       const [, theirs, yours] = within(patron)
         .getAllByRole('cell')
         .map((cell) => cell.textContent ?? '');
-      expect([theirs, yours]).toEqual(['neutral', 'neutral']);
+      expect([theirs, yours]).toEqual(['Neutral', 'Neutral']);
     }
     // Each opens their History (M9-S5).
     for (const patron of patrons) expect(within(patron).getByRole('button', { name: /^Read the History of .+$/ })).toBeDefined();
@@ -185,7 +185,7 @@ describe('new rules', () => {
 
     expect(screen.queryByRole('region', { name: 'New rules available' })).toBeNull();
     // The World History holds it, new: it names no Guild (M9-F4).
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The World History' }));
     expect(inHistory(`The rules moved from configVersion ${from} to ${to}.`).classList.contains('is-new')).toBe(true);
   });
 
@@ -234,6 +234,24 @@ describe('the game as a file', () => {
     fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), { target: { files: [new File(['{"not":'], 'broken.json')] } });
     await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/^Cannot load the save: /));
     expect(seedShown()).toBe('loaded-game');
+  });
+
+  test('says in place of loading a file that an older Heroesim saved it, and the game in hand stays (v1.1.2-S3, DL-125 item 10.2)', async () => {
+    const older = JSON.parse(saveText(started('saved-by-v1.1.1').document as NonNullable<GameState['document']>)) as {
+      meta: { version: number };
+      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
+    };
+    older.meta.version = 4;
+    for (const guildmaster of Object.values(older.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
+    for (const patron of Object.values(older.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+    render_(started());
+
+    fireEvent.change(within(section('This game')).getByLabelText('Load a save file'), {
+      target: { files: [new File([JSON.stringify(older)], 'older.json')] },
+    });
+
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toMatch(/^This game was saved by an older Heroesim and cannot be loaded\./));
+    expect(seedShown()).toBe('app-test');
   });
 
   test('starts a new game in place of the game in hand, or goes back to it', async () => {
@@ -292,7 +310,7 @@ describe('the game as a file', () => {
         .find((button) => button.className === 'link') as HTMLElement;
 
     // What the shell keeps from view to view: whose History, and the Quest whose Party is open.
-    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(within(section('History')).getByRole('group', { name: 'Whose History' })).getByRole('button', { name: 'The World History' }));
     const [quest] = within(section('Board')).getAllByRole('article');
     fireEvent.click(within(quest as HTMLElement).getByRole('button', { name: 'Choose a Party' }));
     // And what a view keeps while it is open: a Rival's page, a pool Hero's page and a Hero's page.
@@ -337,7 +355,7 @@ describe('why time stopped, with a button to what it names', () => {
     const guildId = 'guild-000001' as GuildId;
     const offerId = Object.keys(state.document?.world.offers ?? {})[0] as OfferId;
     const stops: [StopReason, string, string][] = [
-      [{ kind: 'transfer-offer', guildId, offerIds: [offerId] }, 'Answer the offer', 'Transfer Offers'],
+      [{ kind: 'transfer-offer', guildId, offerIds: [offerId] }, 'Answer the Offer', 'Transfer Offers'],
       [{ kind: 'pool-refreshed', heroIds: ['hero-000001' as HeroId] }, 'See who joined the pool', 'Unattached pool'],
     ];
     for (const [stoppedBecause, label, heading] of stops) {
@@ -361,10 +379,10 @@ describe('why time stopped, with a button to what it names', () => {
     render(<App initial={{ ...state, document: { ...game, history }, log: [fired], stoppedBecause: { kind: 'module', moduleId: 'probe' } }} />);
 
     const stop = screen.getByTestId('stop');
-    expect(within(stop).getByText('Stopped: the probe module asked to stop.')).toBeDefined();
+    expect(within(stop).getByText('Stopped: the probe Module asked to stop.')).toBeDefined();
     fireEvent.click(within(stop).getByRole('button', { name: 'Read what happened' }));
     // The History, on the player's Guild, with the keyboard on its title (M9-S5).
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 3, name: 'The History of The Lantern' }));
-    expect(inHistory('The probe module recorded probe.fired for The Lantern.').classList.contains('is-new')).toBe(true);
+    expect(inHistory('The probe Module recorded probe.fired for The Lantern.').classList.contains('is-new')).toBe(true);
   });
 });

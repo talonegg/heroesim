@@ -11,6 +11,7 @@
 
 import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
+  AppearancePhrases,
   Class,
   Consequence,
   ConsumableEffect,
@@ -24,6 +25,7 @@ import type {
   ItemDefinition,
   LootEntry,
   LootTable,
+  PatronName,
   QuestTemplate,
   QuestTemplateRequires,
   SlotKey,
@@ -57,6 +59,7 @@ import {
   type PatronId,
   type QuestId,
   type RegardEntry,
+  type Sex,
   type SkillRating,
   type StackId,
   type TableName,
@@ -106,6 +109,11 @@ function heroClass(key: string, leading: string, gated: string): [string, Class]
     heroStatKeys.map((statKey) => [statKey, leadingStats.includes(statKey) ? leadingWeight : otherWeight]),
   );
   return [key, { key, name: title(key), leadingStats, gatedSkills: gated.split(' '), growth }];
+}
+
+/** Patrons' names, each of `sex` (v1.1.2-S3). */
+function patronNames(sex: Sex, ...names: string[]): PatronName[] {
+  return names.map((name) => ({ name, sex }));
 }
 
 /** Rows keyed by `keys`, each named after its key and carrying `fields`. */
@@ -383,10 +391,18 @@ export const testContent: ContentSet = deepFreeze({
       ...['The Ashford Guild', 'The Coldbeck Guild', 'The Greywater Guild', 'The Lantern Guild'],
       ...['The Kestrel Guild', 'The Hollin Guild', 'The Blackfen Guild', 'The Northmoor Guild'],
     ],
+    // The core's first fourteen, each with its sex (v1.1.2-S3, DL-125 item 5).
     patron: [
-      ...['Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow'],
-      ...['Florian Keld', 'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'],
-      ...['Lambert Sowerby', 'Mabel Thorne', 'Nicolas Aske', 'Orabel Quint'],
+      ...patronNames('male', 'Aldous Fairweather', 'Berengar Holt'),
+      ...patronNames('female', 'Cecily Ashdown'),
+      ...patronNames('male', 'Denholm Crane'),
+      ...patronNames('female', 'Edith Marlow'),
+      ...patronNames('male', 'Florian Keld', 'Godwin Harrow'),
+      ...patronNames('female', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike'),
+      ...patronNames('male', 'Lambert Sowerby'),
+      ...patronNames('female', 'Mabel Thorne'),
+      ...patronNames('male', 'Nicolas Aske'),
+      ...patronNames('female', 'Orabel Quint'),
     ],
   },
   // key, Sphere, difficulty, Days and Party size ranges; then demands, Skills, requirements.
@@ -510,7 +526,76 @@ export const testContent: ContentSet = deepFreeze({
         'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
     ),
   ]),
+  // Pictures the core has none of yet (v1.1.2-S3): three and two for the Guildmaster, so a Portrait
+  // is drawn from each sex's, and one Hero's, which is no Guildmaster's.
+  portraits: {
+    guildmaster: { female: ['gm-female-01', 'gm-female-02'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
+    hero: { female: ['hero-female-01'], male: [] },
+    patron: { female: [], male: [] },
+  },
+  // What a picture shows (v1.1.2-S4): one picture of each sex mapped, so a Guildmaster with it takes its
+  // narrative for their Appearance (v1.1.2-S5); the others are drawn whole.
+  portraitAppearances: {
+    keywords: {
+      bearded: { slot: 'facialHair', word: 'bearded' },
+      braided: { slot: 'hair', word: 'braided' },
+    },
+    portraits: {
+      'gm-male-01': { keywords: ['bearded'], narrative: 'A bearded face in a picture.' },
+      'gm-female-01': { keywords: ['braided'], narrative: 'A braided head in a picture.' },
+    },
+  },
+  // What the descriptive Attributes are written from (v1.1.2-S5): two age bands, a phrase or two a
+  // slot, and Biography sentences for two of the three Guild Backgrounds and two of the six Traits.
+  descriptions: {
+    ageBands: [
+      { key: 'young', from: 0 },
+      { key: 'older', from: 36 },
+    ],
+    pronouns: {
+      female: { he: 'she', him: 'her', his: 'her', He: 'She', His: 'Her' },
+      male: { he: 'he', him: 'him', his: 'his', He: 'He', His: 'His' },
+    },
+    birthplaces: ['Saltcote', 'Hob\'s Ferry', 'Crane Marsh'],
+    appearance: {
+      female: {
+        young: descriptionPhrases('young', 'female'),
+        older: descriptionPhrases('older', 'female'),
+      },
+      male: {
+        young: { ...descriptionPhrases('young', 'male'), facialHair: ['A young beard.', 'A young moustache.'] },
+        older: { ...descriptionPhrases('older', 'male'), facialHair: ['An older beard.'] },
+      },
+    },
+    biography: {
+      origins: { young: ['{He} was born in {birthplace}.'], older: ['{He} left {birthplace} long ago.', '{His} people came from {birthplace}.'] },
+      careers: { young: ['{He} carried loads.'], older: ['{He} kept an inn for {his} life.'] },
+      backgrounds: { 'old-charter': ['{He} took the old charter.'], breakaway: ['{He} broke away.'] },
+      traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
+      closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
+      successors: ['{He} took the chair.'],
+    },
+  },
 });
+
+/** A test age band's Appearance phrases but `facialHair`: `Build (young female).`, two of each slot. */
+function descriptionPhrases(band: string, sex: Sex): Omit<AppearancePhrases, 'facialHair'> {
+  const slot = (name: string): string[] => [`${name} one (${band} ${sex}).`, `${name} two (${band} ${sex}).`];
+  return {
+    build: slot('Build'),
+    face: slot('Face'),
+    hair: slot('Hair'),
+    eyes: slot('Eyes'),
+    mark: slot('Mark'),
+    bearing: slot('Bearing'),
+  };
+}
+
+/** `content` (the test content by default) with no pictures of any role or sex, as the core's until v1.1.2-S4. */
+export function withoutPortraits(content: ContentSet = testContent): ContentSet {
+  const none = () => ({ female: [], male: [] });
+  return deepFreeze({ ...content, portraits: { guildmaster: none(), hero: none(), patron: none() } });
+}
 
 const classKeys = Object.keys(testContent.classes);
 const ratings: readonly SkillRating[] = [1, 2, 3];
@@ -532,6 +617,8 @@ export const plannedStreams = [
   'progression',
   'rivals',
   'market',
+  'gm-portraits',
+  'descriptions',
 ] as const;
 
 /** The test content, or `content`, with the default config, or with `overrides` on it. */
@@ -772,6 +859,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       birthplace: '',
       appearance: '',
       biography: '',
+      // The player's a picture of his sex (v1.1.2-S3), the Rivals' the Silhouette.
+      portraitKey: g === 0 ? 'gm-male-01' : null,
       retiredOnTurn: null,
       regard: {},
     };
@@ -792,8 +881,8 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
   // Patrons, and a Quest resolved and removed before the fixture's Turn.
   const patron = next('patrons');
   const secondPatron = next('patrons');
-  world.patrons[patron] = { id: patron, name: 'Lady Maud of Stannary', sphereKey: 'crown', regard: {} };
-  world.patrons[secondPatron] = { id: secondPatron, name: 'Abbot Cenric', sphereKey: 'church', regard: {} };
+  world.patrons[patron] = { id: patron, name: 'Lady Maud of Stannary', sex: 'female', sphereKey: 'crown', regard: {} };
+  world.patrons[secondPatron] = { id: secondPatron, name: 'Abbot Cenric', sex: 'male', sphereKey: 'church', regard: {} };
   log(0, 'patron.generated', [patron]);
   log(0, 'patron.generated', [secondPatron]);
 

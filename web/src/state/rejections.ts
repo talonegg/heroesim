@@ -118,7 +118,7 @@ const unavailableWords: Readonly<Record<Unavailability, string>> = Object.freeze
 const gearUnavailableWords: Readonly<Record<GearUnavailability, string>> = Object.freeze({
   dead: 'is dead',
   retired: 'has retired',
-  'in-party': 'is away on a Quest, and their gear is with them',
+  'in-party': 'is away on a Quest, and their Gear is with them',
 });
 
 /** What befell a Guild at its ending, after its name (the CLI's `game.ended`). */
@@ -194,8 +194,8 @@ const sentences: Sentences = {
     return `No Guild Background is called "${backgroundKey}". Choose one of: ${choices}.`;
   },
   // The Guildmaster's setup (M9-S2): the CLI's `new` words, less its flags.
-  'newGame unknown-sex': ({ sex }) => `A Guildmaster's sex is ${sexes.join(' or ')}; "${sex}" is not.`,
-  'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole years; ${age} is not.`,
+  'newGame unknown-sex': ({ sex }) => `A Guildmaster's Sex is ${sexes.join(' or ')}; "${sex}" is not.`,
+  'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole Years; ${age} is not.`,
   'newGame unknown-trait': ({ traitKey }, { content }) =>
     rowOf(content.traits, traitKey) === undefined
       ? `No Guildmaster Trait is called "${traitKey}".`
@@ -208,9 +208,16 @@ const sentences: Sentences = {
     `Those Traits cost ${cost} points and the budget is ${budget}: a buff costs points and a penalty refunds them.`,
   'newGame text-too-long': ({ attribute, length, max }) =>
     `The ${descriptiveAttributeLabels[attribute]} is ${length} characters long; it holds at most ${max}.`,
+  // The Portrait (v1.1.2-S3): the CLI's words, less its flags and the pictures it lists, and "called" where
+  // the CLI, whose flags take keys, says "keyed", as the page's Background and Trait sentences say (v1.1.2-S6).
+  'newGame unknown-portrait': ({ portraitKey }) => `No Guildmaster Portrait is called "${portraitKey}".`,
+  'newGame portrait-of-another-sex': ({ sex, portraitSex }) =>
+    `That Portrait is of a ${portraitSex} Guildmaster, and your Guildmaster's Sex is ${sex}.`,
   'load malformed-json': ({ message }) => `Cannot load the save: ${message}.`,
   'load not-a-document': ({ message }) => `Cannot load the save: ${message}.`,
-  'load unsupported-version': ({ message }) => `Cannot load the save: ${message}.`,
+  // A save of an older schema, as v1.1.1 wrote it, in the owner's words (v1.1.2-S3, DL-125 item 10.2).
+  'load unsupported-version': ({ documentVersion, schemaVersion, message }) =>
+    documentVersion < schemaVersion ? 'This game was saved by an older Heroesim and cannot be loaded.' : `Cannot load the save: ${message}.`,
   'load invalid': ({ message }) => `Cannot load the save: ${message}.`,
 
   // rebase (the CLI's `rebase`).
@@ -230,7 +237,7 @@ const sentences: Sentences = {
   'dispatch not-consumable': ({ definitionKey }, setting) =>
     rowOf(setting.content.items, definitionKey) === undefined
       ? `No Item is called "${definitionKey}".`
-      : `${itemCalled(setting, definitionKey)} is gear, not a consumable: a Party carries consumables only.`,
+      : `${itemCalled(setting, definitionKey)} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': ({ guildId, definitionKey }, setting) =>
     `${guildCalled(setting, guildId)} holds no ${itemCalled(setting, definitionKey)} to carry.`,
   'dispatch insufficient-quantity': ({ guildId, definitionKey, held, requested }, setting) =>
@@ -262,10 +269,10 @@ const sentences: Sentences = {
   'equip not-held-by-guild': ({ itemId, stackId }, setting) =>
     `${playerCalled(setting)} does not hold ${heldCalled(setting, itemId ?? stackId ?? '')}.`,
   'equip not-gear': ({ definitionKey }, setting) =>
-    `${itemCalled(setting, definitionKey)} is not gear, and is carried in no slot.`,
+    `${itemCalled(setting, definitionKey)} is not Gear, and is carried in no slot.`,
   'equip wrong-slot': ({ definitionKey, slot, gearSlot }, setting) =>
     slot === gearSlot
-      ? `${itemCalled(setting, definitionKey)} is ${gearSlot} gear, and Heroes have no ${gearSlot} slot in this game.`
+      ? `${itemCalled(setting, definitionKey)} is ${gearSlot} Gear, and Heroes have no ${gearSlot} slot in this game.`
       : `${itemCalled(setting, definitionKey)} goes in the ${gearSlot} slot, not the ${slot} slot.`,
   'equip slot-occupied': ({ heroId, slot, occupant }, setting) =>
     `${heroCalled(setting, heroId)}'s ${slot} slot holds ${heldCalled(setting, occupant)}: unequip it first.`,
@@ -323,11 +330,11 @@ const sentences: Sentences = {
   'offerTransfer recently-transferred': ({ heroId, transferredOnTurn, untilTurn }, setting) =>
     `${heroCalled(setting, heroId)} was transferred on Day ${dayOf(transferredOnTurn)} and cannot be transferred again before Day ${dayOf(untilTurn)}.`,
   'offerTransfer no-offer-needed': ({ guildId }, setting) =>
-    `${guildCalled(setting, guildId)} answers a Transfer at once, so no offer is needed: ask to take the Hero in.`,
+    `${guildCalled(setting, guildId)} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
   'offerTransfer offer-pending': ({ offerId }, setting) => {
     const offer = rowOf(setting.world?.offers, offerId);
     const hero = offer === undefined ? 'that Hero' : heroCalled(setting, offer.heroId);
-    return `${playerCalled(setting)}'s offer for ${hero} already waits for an answer.`;
+    return `${playerCalled(setting)}'s Offer for ${hero} already waits for an answer.`;
   },
   'offerTransfer insufficient-wealth': ({ guildId, fee, wealth }, setting) =>
     `The fee is ${fee} Wealth; ${guildCalled(setting, guildId)} has ${wealth}.`,
@@ -354,4 +361,13 @@ export function rejectionSentence(rejection: PlayRejection, world: World | null,
   const words = sentences[rejectionKind(rejection)] as (rejection: PlayRejection, setting: Setting) => string;
   const sentence = words(rejection, { world, content, player: world === null ? undefined : playerGuild(world) });
   return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+/**
+ * The save of this browser whose load `rejection` refused, by its name (v1.1.2-S3): the page says why
+ * beside that save, in the list the player chose it from. `null` for any other refusal, and for a
+ * file loaded from the player's disk.
+ */
+export function refusedSave(rejection: PlayRejection | null): string | null {
+  return rejection !== null && rejection.action === 'load' && 'from' in rejection ? (rejection.from ?? null) : null;
 }

@@ -82,7 +82,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
-        place: expect.stringMatching(/^(joint )?\d+(st|nd|rd|th)$/),
+        place: expect.stringMatching(/^(Joint )?\d+(st|nd|rd|th)$/),
         disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
         fame: guild.fame,
         wealth: guild.wealth,
@@ -106,16 +106,16 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
 
     expect(guildsTable(document, 'fame').rows.map(({ name, place }) => [name, place])).toEqual([
       ['The Lantern', '1st'],
-      ['Ashford', 'joint 2nd'],
-      ['Old Weir', 'joint 2nd'],
+      ['Ashford', 'Joint 2nd'],
+      ['Old Weir', 'Joint 2nd'],
       ['Barrow', '4th'],
       ['Cinder', '5th'],
     ]);
     const byWealth = guildsTable(document, 'wealth');
     expect(byWealth.measure).toBe('wealth');
     expect(byWealth.rows.map(({ name, place }) => [name, place])).toEqual([
-      ['Ashford', 'joint 1st'],
-      ['Old Weir', 'joint 1st'],
+      ['Ashford', 'Joint 1st'],
+      ['Old Weir', 'Joint 1st'],
       ['Cinder', '3rd'],
       ['The Lantern', '4th'],
       ['Barrow', '5th'],
@@ -130,7 +130,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
       ['Barrow', 1, 50, 2],
       ['Cinder', 0, 200, 3],
     ]);
-    const places = { 'The Lantern': '1st', Ashford: 'joint 2nd', 'Old Weir': 'joint 2nd', Barrow: '4th', Cinder: '5th' };
+    const places = { 'The Lantern': '1st', Ashford: 'Joint 2nd', 'Old Weir': 'Joint 2nd', Barrow: '4th', Cinder: '5th' };
 
     for (const sort of ['name', 'disposition', 'heroes', 'upkeep'] as const) {
       const table = guildsTable(document, sort);
@@ -163,7 +163,7 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
 
     expect(table.rows.map((row) => row.guildId)).not.toContain(folded.id);
     expect(table.rows).toHaveLength(4);
-    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `folded on Day ${dayOf(7)}` })]);
+    expect(table.folded).toEqual([expect.objectContaining({ guildId: folded.id, name: folded.name, place: null, folded: `Folded on Day ${dayOf(7)}` })]);
   });
 });
 
@@ -227,7 +227,8 @@ describe('guildmasterView', () => {
     expect(view?.stats.map(({ name, value }) => ({ name, value }))).toEqual(
       stats.map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat) })),
     );
-    for (const row of view?.stats ?? []) expect(row.bearsOn).not.toBe('');
+    // Each a cell of its own, beginning with a capital (DL-125 item 9).
+    for (const row of view?.stats ?? []) expect(row.bearsOn).toMatch(/^[A-Z]/);
     expect(view?.traits.map((row) => row.name)).toEqual(guildmaster.traits.map((key) => content.traits[key]?.name));
     expect(view?.patrons.map((row) => row.regard)).toEqual(
       Object.values(document.world.patrons).map((patron) => regardBand(regardValue(guildmaster.regard, patron.id), defaultConfig)),
@@ -237,6 +238,10 @@ describe('guildmasterView', () => {
     expect(view?.guilds.map((row) => row.regard)).toEqual(
       others.map((other) => regardBand(guildmasterRegardForGuild(guildmaster, other.id, document.world), defaultConfig)),
     );
+    // Each band as its chip says it (DL-125 item 9).
+    for (const row of [...(view?.patrons ?? []), ...(view?.heroes ?? []), ...(view?.guilds ?? [])]) {
+      expect(row.regardWords).toBe(row.regard.charAt(0).toUpperCase() + row.regard.slice(1));
+    }
   });
 
   test('gives the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
@@ -245,14 +250,36 @@ describe('guildmasterView', () => {
       { ...setup, guildmasterBirthplace: 'Harrowgate', guildmasterBiography: 'Once a quartermaster of the river levies.' },
       deps,
     ).document;
+    // Every Guildmaster's blanks are written as they enter play since v1.1.2-S5: an older save may hold one empty.
+    const player = playerGuild(document.world);
+    const mine = player === undefined ? undefined : document.world.guildmasters[player.guildmasterId];
+    if (mine !== undefined) mine.appearance = '';
 
     expect(guildmasterView(document)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Biography']);
     expect(guildmasterView(document)?.attributes.slice(2)).toEqual([
       ['Birthplace', 'Harrowgate'],
       ['Biography', 'Once a quartermaster of the river levies.'],
     ]);
-    // A Rival's are empty, so it shows none.
-    expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age']);
+    // A Rival's are written as they enter play (v1.1.2-S5), so it shows all three.
+    expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Appearance', 'Biography']);
+  });
+
+  test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: the player's drawn from the owner's pictures of their sex, and every Rival's the Silhouette", () => {
+    const document = newGame();
+    for (const guild of Object.values(document.world.guilds)) {
+      const guildmaster = guildmasterOf(guild, document.world);
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      const view = guildmasterView(document, guild.id);
+      expect(view?.guildId).toBe(guild.id);
+      expect(view?.sex).toBe(guildmaster.sex);
+      expect(view?.portraitKey).toBe(guild.controller.kind === 'player' ? `gm-${guildmaster.sex}-01` : null);
+    }
+    // The key a save of schema 5 holds (v1.1.2-S3) is read as it is.
+    const later = structuredClone(document);
+    const guildmaster = guildmasterOf(player(later), later.world);
+    if (guildmaster === undefined) throw new Error('no Guildmaster');
+    Object.assign(guildmaster, { portraitKey: 'gm-male-09' });
+    expect(guildmasterView(later)?.portraitKey).toBe('gm-male-09');
   });
 
   test('gives the Sex capitalised, and the Age as a label (DL-111 item 9)', () => {
@@ -278,16 +305,16 @@ describe('guildmasterView', () => {
 
     test('gives when it will come, in the calendar’s words, and the years left', () => {
       // At 30 on Turn 0, 61 in 31 years of 1,080 Turns: the night of Day 11160, in Year 31.
-      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
+      expect(guildmasterView(aged(30))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
       // Two Years on, in Year 2, the Day holds and 29 years are left.
-      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 years.');
+      expect(guildmasterView(aged(30, 2 * 1080 + 5))?.retirement).toBe('Retires at 61 on the night of Day 11160, Year 31: in 29 Years.');
       // At 50: 11 years.
-      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 years.');
+      expect(guildmasterView(aged(50))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 11 Years.');
     });
 
     test('says "in 1 year" a year or more away, and the Days left once it is less than a year away (M9-F7, DL-120 item 2)', () => {
       // A year to the Day before: the night of Day 3600, 360 Days, is a year away.
-      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 year.');
+      expect(guildmasterView(aged(50, 10 * 1080))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Year.');
       // A Day later it is less than a year away, though still the Year before.
       expect(guildmasterView(aged(50, 10 * 1080 + 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 359 Days.');
       expect(guildmasterView(aged(50, 3959 * 3))?.retirement).toBe('Retires at 61 on the night of Day 3960, Year 11: in 1 Day.');
@@ -346,7 +373,7 @@ describe('guildmasterView', () => {
 
     test("gives a Rival's Guildmaster's too, on its Guild's page", () => {
       const document = newGame();
-      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ years\.$/);
+      expect(guildmasterView(document, rival(document).id)?.retirement).toMatch(/^Retires at 61 on the night of Day \d+, Year \d+: in \d+ Years\.$/);
     });
   });
 
@@ -409,8 +436,15 @@ describe('patronsView', () => {
 
     const rows = patronsView(document);
 
-    expect(rows[0]).toMatchObject({ patronId: cold.id, regard: 'hostile', guildmasterRegard: 'neutral', neutral: false });
-    expect(rows[1]).toMatchObject({ patronId: liked.id, regard: 'neutral', guildmasterRegard: 'close', neutral: false });
+    expect(rows[0]).toMatchObject({
+      patronId: cold.id,
+      regard: 'hostile',
+      guildmasterRegard: 'neutral',
+      regardWords: 'Hostile',
+      guildmasterRegardWords: 'Neutral',
+      neutral: false,
+    });
+    expect(rows[1]).toMatchObject({ patronId: liked.id, regard: 'neutral', guildmasterRegard: 'close', regardWords: 'Neutral', guildmasterRegardWords: 'Close', neutral: false });
     expect(rows.slice(2).every((row) => row.regard === 'neutral' && row.guildmasterRegard === 'neutral' && row.neutral)).toBe(true);
     const onTheBoard = document.world.board.map((questId) => document.world.quests[questId]?.patronId);
     expect(onTheBoard.length).toBeGreaterThan(0);
@@ -443,7 +477,7 @@ describe('guildPage', () => {
 
     expect(guildPage(document, other.id)).toMatchObject({
       mine: false,
-      controller: `Rival (${other.controller.kind === 'rival' ? other.controller.disposition : ''})`,
+      controller: `Rival (${other.controller.kind === 'rival' ? content.dispositions[other.controller.disposition]?.name : ''})`,
       background: content.backgrounds[other.backgroundKey]?.name,
       fame: other.fame,
       wealth: other.wealth,

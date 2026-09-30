@@ -94,7 +94,7 @@ describe('partiesOutView', () => {
     const [sent] = sentencesOf(state);
     expect(sent).toBe(`The Lantern sent ${row?.heroes} on ${row?.quest}, back on ${row?.returns}.`);
     // And the Roster says each of them is away until that night.
-    const away = rosterView(documentOf(state)).filter((hero) => hero.whereabouts === `away with a Party, back on ${row?.returns}`);
+    const away = rosterView(documentOf(state)).filter((hero) => hero.whereabouts === `Away with a Party, back on ${row?.returns}`);
     expect(away.map((hero) => hero.name).sort()).toEqual([...(row?.names ?? [])].sort());
   });
 
@@ -141,6 +141,8 @@ describe('railView', () => {
     const rail = railView(state, 8);
 
     expect(rail?.guildName).toBe('The Lantern');
+    // Whose Banner stands beside "Latest for {Guild}" (DL-125 item 7).
+    expect(rail?.guildId).toBe(guild.id);
     expect(rail?.lines.map(({ when, sentence }) => ({ when, sentence }))).toEqual(history.slice(0, 8).map(({ when, sentence }) => ({ when, sentence })));
     // The last play was one Turn, the night of Day 0: its entries naming the Guild are the new ones.
     expect(rail?.fresh).toBe(navCounts(state).fresh);

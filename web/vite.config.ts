@@ -4,12 +4,28 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig, type Plugin } from 'vite';
 
-// Harvested from v1 (feature/poc, E8-S1) and adapted (M7-S1, DL-64): v2's content is JSON, so
-// no asset type is added, and the build is one classic script so that it opens from the
-// filesystem.
+// Harvested from v1 (feature/poc, E8-S1) and adapted (M7-S1, DL-64): the build is one classic
+// script so that it opens from the filesystem. v2's content is JSON, bundled as text. Its pictures
+// are `media/`'s (v1.1.2-S2, DL-125 item 1): the Silhouettes inlined into the script, and every
+// picture a hashed file beside it in `dist/assets/`, loaded by a relative `<img>`.
+//
+// The one script finds its pictures from its own address: the IIFE resolves each against
+// `document.currentScript.src` as it first runs, so `./assets/gm-female-01-<hash>.webp` is beside the
+// script over `file://` and on the page's own origin alike. That holds only while the script stays a
+// classic, non-async `<script>` (`classicScript`, below): a module script has no `currentScript`, and
+// the IIFE's fallback, `document.baseURI`, is the page's own folder, where no picture is
+// (v1.1.2-S2's verification, DL-131).
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(webDir, '..');
+
+/**
+ * The size under which a Silhouette is inlined into the script, as a `data:` URL. It is set, so
+ * that a large SVG cannot slip into the script unnoticed (DL-125 item 1): each is a few hundred
+ * bytes, and `src/media.test.ts` holds it to this. Nothing else is inlined, however small, so a
+ * picture is always a file of its own.
+ */
+const silhouetteInlineLimit = 1024;
 
 /**
  * Chromium refuses a module script from a `file://` page ("blocked by CORS policy"; v1 measured
@@ -54,6 +70,9 @@ export default defineConfig({
   base: './',
   plugins: [noNodeBuiltins, react(), classicScript],
   build: {
+    // Each Silhouette inlined into the one script, and nothing else: a picture is a hashed file in
+    // dist/assets/ (DL-125 item 1).
+    assetsInlineLimit: (file: string, content: Buffer) => path.basename(file) === 'silhouette.svg' && content.length <= silhouetteInlineLimit,
     // One chunk, as an IIFE, for the classic script above. There is no dynamic import to split.
     rolldownOptions: { output: { format: 'iife' } },
     // Vite's modulepreload polyfill injects a `fetch()` of every preloaded chunk, which
@@ -67,7 +86,8 @@ export default defineConfig({
   },
   server: {
     fs: {
-      // The content files sit in a sibling workspace, ../content/*.json (src/content.ts).
+      // The content files and the pictures sit beside web/: ../content/*.json (src/content.ts) and
+      // ../media/ (src/media.ts).
       allow: [repoRoot],
     },
   },

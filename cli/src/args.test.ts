@@ -52,6 +52,11 @@ describe('parseArgs', () => {
       appearance: 'Grey at the temples.',
       biography: 'A life at sea.',
     });
+    // The Portrait by its key (v1.1.2-S3); whether content has it is the engine's to say.
+    expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'gm-female-01')).toMatchObject({ portrait: 'gm-female-01' });
+    expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('portrait');
+    // Whether content lists it is the engine's to say (`unknown-portrait`), whatever its form (v1.1.2-S6).
+    expect(command('new', '--guild', 'G', '--master', 'M', '--portrait', 'GM Female 1')).toMatchObject({ portrait: 'GM Female 1' });
     // `none` is no Trait at all; left out, the Traits are drawn.
     expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'none')).toMatchObject({ traits: [] });
     expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('traits');

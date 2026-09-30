@@ -110,7 +110,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
 
       // The hint is there, a word for each Stat; the number is not, anywhere on the page.
       expect(within(page).getAllByTitle('Outlook').length).toBeGreaterThan(10);
-      expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
+      expect(within(page).getAllByText(/^(Modest|Promising|Exceptional)$/).length).toBeGreaterThan(10);
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
 
@@ -173,7 +173,7 @@ describe('Potential is never rendered', { timeout: 30_000 }, () => {
       fireEvent.click(within(history()).getByRole('button', { name: `Read ${hero.name}` }));
       const page = within(history()).getByRole('article');
       expect(within(page).getByRole('heading', { level: 3 }).textContent).toBe(hero.name);
-      expect(within(page).getAllByText(/^(modest|promising|exceptional)$/).length).toBeGreaterThan(10);
+      expect(within(page).getAllByText(/^(Modest|Promising|Exceptional)$/).length).toBeGreaterThan(10);
       expect(potentialIn(page.outerHTML, sentinels)).toEqual([]);
       expect(sentinelsIn(container.innerHTML, sentinels)).toEqual([]);
       fireEvent.click(within(page).getByRole('button', { name: 'Back to the History of The Lantern' }));

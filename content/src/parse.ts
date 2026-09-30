@@ -4,6 +4,9 @@
 // type, and no field the schema does not know — then the whole set is validated.
 
 import type {
+  AgeBand,
+  AppearancePhrases,
+  AppearanceSlot,
   Background,
   BackgroundOwner,
   Class,
@@ -13,6 +16,7 @@ import type {
   ContentSet,
   Consequence,
   ConsequenceKind,
+  Descriptions,
   Disposition,
   Encounter,
   EncounterAggregate,
@@ -26,9 +30,15 @@ import type {
   LootEntry,
   LootTable,
   Names,
+  PatronName,
+  PortraitAppearance,
+  PortraitAppearances,
+  PortraitRole,
+  Portraits,
   QuestTemplate,
   QuestTemplateRequires,
   Skill,
+  Sex,
   SlotKey,
   Sphere,
   Stat,
@@ -61,9 +71,13 @@ export const contentSetId = 'core';
  * M6-S1, which added the four named Dispositions and their weights (DL-56), and M6-S4, which gave
  * `reckless` a `gearThreshold` of 3 for 1.5 (DL-58); 13 from their merge, which holds both (DL-63);
  * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69); 15 from M9-S2, which
- * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102).
+ * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102); 16
+ * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
+ * (DL-125 items 3 and 5, DL-130). v1.1.2-S4's two pictures in `portraits.json` and their rows in
+ * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131); so does
+ * v1.1.2-S5's `descriptions.json`, for the same reason (DL-132).
  */
-export const contentVersion = 15;
+export const contentVersion = 16;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -82,6 +96,9 @@ export const contentFiles = [
   'synergies.json',
   'items.json',
   'loot-tables.json',
+  'portraits.json',
+  'portrait-appearances.json',
+  'descriptions.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -109,6 +126,9 @@ const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
 const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: true };
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
+const sexChoices: Record<Sex, true> = { female: true, male: true };
+const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
+const appearanceSlots: Record<AppearanceSlot, true> = { face: true, hair: true, facialHair: true, eyes: true, mark: true, bearing: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -233,6 +253,9 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     lootTables: table<LootTable>('loot-tables.json', json('loot-tables.json'), problems, 'a Loot table', (row) => ({
       entries: row.children('entries').map(lootEntry),
     })),
+    portraits: portraits(json('portraits.json'), problems),
+    portraitAppearances: portraitAppearances(json('portrait-appearances.json'), problems),
+    descriptions: descriptions(json('descriptions.json'), problems),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -306,10 +329,167 @@ function names(json: unknown, problems: string[]): Names {
     given: { female: given.strings('female'), male: given.strings('male') },
     family: top.strings('family'),
     guild: top.strings('guild'),
-    patron: top.strings('patron'),
+    patron: top.children('patron').map(patronName),
   };
   top.refuseUnknown('the name lists');
   given.refuseUnknown('the given-name lists');
+  return result;
+}
+
+/** A Patron's name and its sex (v1.1.2-S3, DL-125 item 5). */
+function patronName(row: RowReader): PatronName {
+  const name = { name: row.string('name'), sex: row.oneOf('sex', sexChoices) };
+  row.refuseUnknown("a Patron's name");
+  return name;
+}
+
+/**
+ * The Portraits (v1.1.2-S3, DL-125 item 3): each role, then each sex, a list of the pictures' keys.
+ * Which keys are allowed is `validateContent`'s rule.
+ */
+function portraits(json: unknown, problems: string[]): Portraits {
+  const none = (): Record<Sex, string[]> => ({ female: [], male: [] });
+  const empty: Portraits = { guildmaster: none(), hero: none(), patron: none() };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push('portraits.json: must be an object of the pictures by role and sex');
+    return empty;
+  }
+  const top = new RowReader('portraits.json', [], json, problems);
+  const result = Object.fromEntries(
+    (Object.keys(portraitRoles) as PortraitRole[]).map((role) => {
+      const bySex = top.child(role);
+      const lists = Object.fromEntries((Object.keys(sexChoices) as Sex[]).map((sex) => [sex, bySex.strings(sex)]));
+      bySex.refuseUnknown(`the ${role}'s pictures by sex`);
+      return [role, lists];
+    }),
+  ) as Portraits;
+  top.refuseUnknown('the Portraits');
+  return result;
+}
+
+/**
+ * The Appearances mapped to pictures (v1.1.2-S4; DL-126 item 2, DL-127): `keywords`, each with its
+ * slot and its word, and `portraits`, each mapped picture's keywords and narrative by its key.
+ * Which keys are allowed is `validateContent`'s rule.
+ */
+function portraitAppearances(json: unknown, problems: string[]): PortraitAppearances {
+  const file = 'portrait-appearances.json';
+  const empty: PortraitAppearances = { keywords: {}, portraits: {} };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push(`${file}: must be an object of the keywords and the pictures`);
+    return empty;
+  }
+  const top = new RowReader(file, [], json, problems);
+  /** Each row of the object in `field`, by its key, read by `shape`. */
+  const rows = <Row>(field: string, what: string, shape: (row: RowReader) => Row): Record<string, Row> =>
+    Object.fromEntries(
+      Object.entries(top.object(field)).flatMap(([key, raw]): [string, Row][] => {
+        if (!isObject(raw)) {
+          problems.push(`${file}: ${field}.${key} must be an object`);
+          return [];
+        }
+        const row = new RowReader(file, [field, key], raw, problems);
+        const read = shape(row);
+        row.refuseUnknown(what);
+        return [[key, read]];
+      }),
+    );
+  const result: PortraitAppearances = {
+    keywords: rows('keywords', 'a keyword', (row) => ({ slot: row.oneOf('slot', appearanceSlots), word: row.string('word') })),
+    portraits: rows('portraits', "a picture's Appearance", (row): PortraitAppearance => ({
+      keywords: row.strings('keywords'),
+      narrative: row.string('narrative'),
+    })),
+  };
+  top.refuseUnknown('the Appearances mapped to pictures');
+  return result;
+}
+
+/**
+ * What a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6): the age
+ * bands, the pronouns by sex, the Birthplaces, the Appearance's phrases by sex, age band and slot, and
+ * the Biography's sentences by part. A field missing, unknown or of the wrong type is refused; which
+ * keys, bands and texts are allowed, and how long they may make a text, is `validateContent`'s rule.
+ */
+function descriptions(json: unknown, problems: string[]): Descriptions {
+  const file = 'descriptions.json';
+  const none = (): Record<Sex, Record<string, never>> => ({ female: {}, male: {} });
+  const empty: Descriptions = {
+    ageBands: [],
+    pronouns: none(),
+    birthplaces: [],
+    appearance: none(),
+    biography: { origins: {}, careers: {}, backgrounds: {}, traits: {}, closings: {}, successors: [] },
+  };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push(`${file}: must be an object of the age bands, pronouns, Birthplaces, Appearances and Biographies`);
+    return empty;
+  }
+  const top = new RowReader(file, [], json, problems);
+  const ageBands = top.children('ageBands').map((row): AgeBand => {
+    const band = { key: row.string('key'), from: row.integer('from') };
+    row.refuseUnknown('an age band');
+    return band;
+  });
+  /** Each key of the object at `reader`'s `field`, with `read`'s value of it. */
+  const byKey = <Value>(reader: RowReader, field: string, read: (child: RowReader, key: string) => Value): Record<string, Value> => {
+    const child = reader.child(field);
+    const result = Object.fromEntries(child.keys().map((key) => [key, read(child, key)]));
+    return result;
+  };
+  /** An object of lists of strings by key, such as the Biography's sentences by age band. */
+  const lists = (reader: RowReader, field: string): Record<string, string[]> => byKey(reader, field, (child, key) => child.strings(key));
+
+  const pronouns = top.child('pronouns');
+  const appearance = top.child('appearance');
+  const result: Descriptions = {
+    ageBands,
+    pronouns: Object.fromEntries(
+      (Object.keys(sexChoices) as Sex[]).map((sex) => {
+        const words = pronouns.child(sex);
+        return [sex, Object.fromEntries(words.keys().map((slot) => [slot, words.string(slot)]))];
+      }),
+    ) as Descriptions['pronouns'],
+    birthplaces: top.strings('birthplaces'),
+    appearance: Object.fromEntries(
+      (Object.keys(sexChoices) as Sex[]).map((sex) => [
+        sex,
+        byKey(appearance, sex, (bands, band): AppearancePhrases => {
+          const row = bands.child(band);
+          const phrases: AppearancePhrases = {
+            build: row.strings('build'),
+            face: row.strings('face'),
+            hair: row.strings('hair'),
+            eyes: row.strings('eyes'),
+            mark: row.strings('mark'),
+            bearing: row.strings('bearing'),
+          };
+          const facialHair = row.optional('facialHair', (field) => row.strings(field));
+          row.refuseUnknown("an age band's Appearance phrases");
+          return facialHair === undefined ? phrases : { ...phrases, facialHair };
+        }),
+      ]),
+    ) as Descriptions['appearance'],
+    biography: (() => {
+      const biography = top.child('biography');
+      const sentences = {
+        origins: lists(biography, 'origins'),
+        careers: lists(biography, 'careers'),
+        backgrounds: lists(biography, 'backgrounds'),
+        traits: lists(biography, 'traits'),
+        closings: lists(biography, 'closings'),
+        successors: biography.strings('successors'),
+      };
+      biography.refuseUnknown("the Biography's sentences");
+      return sentences;
+    })(),
+  };
+  pronouns.refuseUnknown('the pronouns by sex');
+  appearance.refuseUnknown('the Appearances by sex');
+  top.refuseUnknown('the descriptions');
   return result;
 }
 
@@ -617,6 +797,13 @@ class RowReader {
       else this.problems.push(`${this.file}: ${where.join('.')} is ${JSON.stringify(item)}; expected an object`);
     });
     return readers;
+  }
+
+  /** Every field of the row, each then counted as read: for an object keyed by content, such as age bands. */
+  keys(): string[] {
+    const keys = Object.keys(this.raw);
+    for (const key of keys) this.read.add(key);
+    return keys;
   }
 
   /** Record a problem for every field of the row that nothing read. */

@@ -8,12 +8,14 @@
 // status bar's to say. As tables (M9-S6, DL-106; the review's B3): Buy, what is for sale, with Item,
 // Kind, Effect, Price, Stock, how many and Buy, and chips that show one kind at a time, display
 // only; and Sell, what the Guild holds, with what each sells for, how many and Sell (`Holdings`),
-// which is the one list of it, and says so when the Guild holds nothing.
+// which is the one list of it, and says so when the Guild holds nothing. A Unique Item held shows its
+// picture before its name in Sell (v1.1.2-S2, DL-125 item 8); the Buy never offers one (DL-48).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { marketView, type HeldForSale, type ListingRow, type MarketKind, type MarketView } from '../state/trade-views';
+import { ItemPicture } from './pictures';
 import { Part, View } from './section';
 import { Stepper, VisuallyHidden } from './ui';
 
@@ -177,12 +179,13 @@ function Held({ row, busy, play }: { row: HeldForSale; busy: boolean; play: Play
   return (
     <tr data-testid="held">
       <th scope="row" className="trade__name">
+        {row.unique ? <ItemPicture definitionKey={row.definitionKey} /> : null}
         {row.name}
       </th>
       <td>{row.kind}</td>
       <td>{row.does}</td>
       <td className="number">{row.held}</td>
-      <td className="number">{row.sellsFor === null ? <span className="subtle">cannot be priced</span> : row.sellsFor}</td>
+      <td className="number">{row.sellsFor === null ? <span className="subtle">Cannot be priced</span> : row.sellsFor}</td>
       <td>
         {'stackId' in sale ? <Stepper label={`How many ${row.name}`} hideLabel value={quantity} min={1} max={row.held} onChange={setQuantity} /> : null}
       </td>

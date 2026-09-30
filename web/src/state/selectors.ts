@@ -103,6 +103,8 @@ export function whenOf(turn: number): string {
 // ── The header ───────────────────────────────────────────────────────────────────────────────
 
 export interface HeaderView {
+  /** The player's Guild, whose Banner stands beside its name (DL-125 item 7). */
+  guildId: GuildId;
   guildName: string;
   /** The player's Guildmaster's name, the navigation's label for the Guildmaster view (M9-F2); `null` with none. */
   guildmasterName: string | null;
@@ -116,12 +118,12 @@ export interface HeaderView {
   when: string;
   year: string;
   /**
-   * `3rd of 5 by Fame`, `joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
+   * `3rd of 5 by Fame`, `Joint 1st of 5 by Fame` for a place Guilds share (`rankingPlaces`,
    * DL-95), or that the Guild has folded and is not ranked.
    */
   rankings: string;
   /**
-   * `rankings` in two parts, `joint 1st of 5` and `by Fame`, the second empty for a folded Guild: a
+   * `rankings` in two parts, `Joint 1st of 5` and `by Fame`, the second empty for a folded Guild: a
    * phone's status bar shows the first (M9-S3, DL-103).
    */
   place: string;
@@ -150,9 +152,10 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const { ended } = world;
   const when = `Day ${dayOf(world.turn)}, ${timeOfDay(world.turn)}`;
   const year = `Year ${yearOf(world.turn, config)}`;
-  const standing = place === undefined ? 'not ranked: the Guild has folded' : `${placeWords(place)} of ${byFame.length}`;
+  const standing = place === undefined ? 'Not ranked: the Guild has folded' : `${capitalised(placeWords(place))} of ${byFame.length}`;
   const measure = place === undefined ? '' : 'by Fame';
   return {
+    guildId: guild.id,
     guildName: guild.name,
     guildmasterName: guildmasterOf(guild, world)?.name ?? null,
     wealth: guild.wealth,
@@ -226,7 +229,7 @@ export interface QuestCard {
   /** The Skills its Encounters' Checks read (`skillsThatHelp`, DL-70), by name. */
   skills: string[];
   /**
-   * Its Encounters counted by kind, in the order each kind is first met, `combat ×2` (M9-S4, the
+   * Its Encounters counted by kind, in the order each kind is first met, `Combat ×2` (M9-S4, the
    * review's B2); none when they are drawn on the way.
    */
   encounters: EncounterCount[];
@@ -250,7 +253,7 @@ export interface EncounterCount {
   /** The kind, or `null` for an Encounter content does not define, which counts under its key. */
   kind: EncounterKind | null;
   count: number;
-  /** `combat ×2`. */
+  /** `Combat ×2`, a chip's words (DL-125 item 9). */
   words: string;
 }
 
@@ -330,7 +333,7 @@ function encounterCounts(quest: Quest): EncounterCount[] {
     const label = kind ?? key;
     const counted = counts.get(label) ?? { kind, count: 0, words: '' };
     counted.count += 1;
-    counted.words = `${label} ×${counted.count}`;
+    counted.words = `${capitalised(label)} ×${counted.count}`;
     counts.set(label, counted);
   }
   return [...counts.values()];
@@ -374,7 +377,7 @@ export interface PartyRow {
   moraleBand: MoraleBand;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
-  /** The same with until when, as the Roster words it: `injured, healing on the night of Day 6`. */
+  /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. */
   unavailable: string | null;
   /** Each Stat the Quest demands, in its order, at the value a Check reads (`effectiveStats`). */
   stats: { name: string; value: number }[];
@@ -511,7 +514,7 @@ export function previewView(
       preview.consumables.length === 0
         ? ['None carried.']
         : preview.consumables.map(({ definitionKey, quantity, consumable, held, encounters }) => {
-            if (consumable === undefined) return `${nameIn(content.items, definitionKey)} ×${quantity}: not a consumable.`;
+            if (consumable === undefined) return `${nameIn(content.items, definitionKey)} ×${quantity}: not a Consumable.`;
             const where = consumable.effect.kind === 'heal' ? '' : `; ${reach(encounters)}`;
             return `${consumable.name} ×${quantity}, of ${held} the Guild holds: ${effectWords(consumable.effect)}${where}.`;
           }),
@@ -569,29 +572,32 @@ export interface RosterRow {
   moraleBand: MoraleBand;
   /** The engine's `unavailability`: why the Hero is not at the Hall to be sent, or `null` (M9-S6). */
   why: Unavailability | null;
-  /** Where the Hero is: at the Hall, injured, or away with a Party, and until when. */
+  /** Where the Hero is: at the Hall, injured, or away with a Party, and until when: `At the Hall`. */
   whereabouts: string;
 }
 
-/** Where a Hero is and until when, in words: a Hero on no Roster is not at any Hall. */
+/**
+ * Where a Hero is and until when, in words that stand on their own, as a chip (DL-125 item 9): a
+ * Hero on no Roster is not at any Hall. The Roster, a Hero's page and the Party builder read it here.
+ */
 function whereabouts(hero: Hero, world: World): string {
-  if (hero.diedOnTurn !== null) return `died on Day ${dayOf(hero.diedOnTurn)}`;
-  if (hero.retiredOnTurn !== null) return `retired on Day ${dayOf(hero.retiredOnTurn)}`;
-  if (hero.guildId === null) return hero.unattachedSince === null ? 'on no Roster' : 'in the Unattached pool';
+  if (hero.diedOnTurn !== null) return `Died on Day ${dayOf(hero.diedOnTurn)}`;
+  if (hero.retiredOnTurn !== null) return `Retired on Day ${dayOf(hero.retiredOnTurn)}`;
+  if (hero.guildId === null) return hero.unattachedSince === null ? 'On no Roster' : 'In the Unattached pool';
   const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
   if (party !== undefined) return awayWords(party);
   if (hero.injury !== null) return healingWords(hero.injury);
-  return 'at the Hall';
+  return 'At the Hall';
 }
 
-/** `away with a Party, back on the night of Day 5`. */
+/** `Away with a Party, back on the night of Day 5`. */
 function awayWords(party: Pick<Party, 'returnsOnTurn'>): string {
-  return `away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
+  return `Away with a Party, back on ${nightOf(party.returnsOnTurn)}`;
 }
 
-/** `injured, healing on the night of Day 6`. */
+/** `Injured, healing on the night of Day 6`. */
 function healingWords(injury: { healsOnTurn: number }): string {
-  return `injured, healing on ${nightOf(injury.healsOnTurn)}`;
+  return `Injured, healing on ${nightOf(injury.healsOnTurn)}`;
 }
 
 /**
@@ -603,10 +609,10 @@ function unavailableUntil(hero: Hero, world: World): string | null {
     case null:
       return null;
     case 'injured':
-      return hero.injury === null ? 'injured' : healingWords(hero.injury);
+      return hero.injury === null ? 'Injured' : healingWords(hero.injury);
     case 'in-party': {
       const party = hero.partyId === null ? undefined : rowOf(world.parties, hero.partyId);
-      return party === undefined ? 'away with a Party' : awayWords(party);
+      return party === undefined ? 'Away with a Party' : awayWords(party);
     }
     case 'dead':
     case 'retired':
@@ -656,6 +662,8 @@ export interface StatRow {
   lift: { words: string; up: boolean } | null;
   /** The Potential hint: a word, never the number (M3-S3). */
   outlook: PotentialHint;
+  /** The same as its chip says it, `Promising` (DL-125 item 9). */
+  outlookWords: string;
 }
 
 /** One of the four areas of a Hero's Stats, `Physical`, and its Stats in content's order (M9-S6). */
@@ -677,6 +685,12 @@ export interface HeroPageView {
   heroId: HeroId;
   name: string;
   /**
+   * The Hero's sex and Portrait's key, for their Portrait (DL-125 item 2). No Hero has a picture in
+   * v1.1.2 (DL-125 item 4), so the key is `null`, the Silhouette of their sex.
+   */
+  sex: Sex;
+  portraitKey: string | null;
+  /**
    * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `Age 18`, `Female`,
    * Background, and `of The Lantern` while their Guild is known.
    */
@@ -692,8 +706,20 @@ export interface HeroPageView {
   fee: number | null;
   /** The Stats by area, each area a block on the page (M9-S6, the review's B7). */
   areas: StatArea[];
-  /** Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. */
-  gear: { slot: SlotKey; slotName: string; item: string; modifies: string; worn: boolean }[];
+  /**
+   * Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. What is in
+   * it by its content key, `null` in an empty slot, and whether it is a Unique Item, which shows its
+   * picture (DL-125 item 8).
+   */
+  gear: {
+    slot: SlotKey;
+    slotName: string;
+    item: string;
+    modifies: string;
+    worn: boolean;
+    definitionKey: ItemDefinitionKey | null;
+    unique: boolean;
+  }[];
   skills: { name: string; rating: number }[];
   /**
    * Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null`
@@ -711,9 +737,12 @@ export interface GearChoice {
   /** Unique within the list. */
   key: string;
   name: string;
-  /** `weapon gear`. */
+  /** `Weapon Gear`, as the slot's cell says it (DL-125 item 9). */
   kind: string;
   modifies: string;
+  /** The Item's content key, and whether it is a Unique Item, which shows its picture (DL-125 item 8). */
+  definitionKey: ItemDefinitionKey;
+  unique: boolean;
   /** What `equip` takes: the unique Item's id, or the stack's. */
   gear: { itemId: ItemId } | { stackId: StackId };
 }
@@ -796,12 +825,14 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const areas: StatArea[] = [];
   for (const stat of Object.values(content.stats).filter((each) => each.owner === 'hero')) {
     const { base, effective } = values.get(stat.key) ?? { base: 0, effective: 0 };
+    const outlook = potentialHint(hero, stat.key, bands);
     const row: StatRow = {
       name: stat.name,
       base,
       value: effective,
       lift: effective === base ? null : { words: signed(effective - base), up: effective > base },
-      outlook: potentialHint(hero, stat.key, bands),
+      outlook,
+      outlookWords: capitalised(outlook),
     };
     const name = capitalised(stat.area);
     const area = areas.at(-1);
@@ -813,7 +844,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const carried = carriedGear(world, hero.id).flatMap((row: UniqueItem | Stack) =>
     row.holder.kind === 'hero' ? [{ row, slot: row.holder.slot }] : [],
   );
-  const line = (slot: SlotKey, row: UniqueItem | Stack) => {
+  const line = (slot: SlotKey, row: UniqueItem | Stack): HeroPageView['gear'][number] => {
     const definition = itemDefinition(content, row.definitionKey);
     return {
       slot,
@@ -821,13 +852,17 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       item: nameIn(content.items, row.definitionKey),
       modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
       worn: true,
+      definitionKey: row.definitionKey,
+      unique: definition?.unique === true,
     };
   };
   const listedSlots: readonly SlotKey[] = config.gearSlots;
   const gear = [
     ...listedSlots.flatMap((slot) => {
       const inSlot = carried.filter((each) => each.slot === slot);
-      return inSlot.length === 0 ? [{ slot, slotName: capitalised(slot), item: 'none', modifies: '', worn: false }] : inSlot.map((each) => line(slot, each.row));
+      return inSlot.length === 0
+        ? [{ slot, slotName: capitalised(slot), item: 'None', modifies: '', worn: false, definitionKey: null, unique: false }]
+        : inSlot.map((each) => line(slot, each.row));
     }),
     ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
   ];
@@ -857,6 +892,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   return {
     heroId: hero.id,
     name: hero.name,
+    sex: hero.sex,
+    portraitKey: null,
     line: who,
     morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
@@ -941,7 +978,17 @@ function gearChoices(world: World, guild: Guild): GearChoice[] {
   return rows.flatMap(({ id, definitionKey, gear }): GearChoice[] => {
     const definition = itemDefinition(content, definitionKey);
     if (definition?.kind !== 'gear') return [];
-    return [{ key: id, name: definition.name, kind: `${definition.slot} gear`, modifies: modifierWords(definition), gear }];
+    return [
+      {
+        key: id,
+        name: definition.name,
+        kind: `${capitalised(definition.slot)} Gear`,
+        modifies: modifierWords(definition),
+        definitionKey,
+        unique: definition.unique,
+        gear,
+      },
+    ];
   });
 }
 

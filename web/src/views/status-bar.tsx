@@ -18,13 +18,14 @@ import { useCallback, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GameAction } from '../state/reducer';
 import type { HeaderView, ProgressView } from '../state/selectors';
 import { Icon, type IconName } from './icons';
+import { GuildBanner } from './pictures';
 import { StatPill, useDismiss, VisuallyHidden } from './ui';
 
 /** What time is, and what its controls do: the time controls' accessible description (DL-73 item 9). */
 export const timeHelp =
   'Time moves only here; everything else on the page acts within the current Turn. Advance a Turn plays one. ' +
   'Fast forward plays Turns until a Party of yours comes home, a decision is needed, a Transfer Offer arrives, your ' +
-  'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a year; from its other ways, it ' +
+  'Guild falls below the Bankruptcy floor or the game ends, and at the latest after a Year; from its other ways, it ' +
   'can also stop when a Quest the Heroes at home can staff appears, even with a Party out, or when new Heroes join ' +
   'the Unattached pool. ' +
   'It plays them 30 Turns, ten Days, at a time, showing how far it has come, and Stop ends it there.';
@@ -74,7 +75,11 @@ export function StatusBar({
     <header className="status" ref={bar}>
       <div className="status__bar">
         <div className="status__guild">
-          <h1 id="guild-name">{view.guildName}</h1>
+          {/* The Guild's Banner beside its name (v1.1.2-S2, DL-125 item 7). */}
+          <h1 id="guild-name" className="titled">
+            <GuildBanner guild={view.guildId} />
+            <span>{view.guildName}</span>
+          </h1>
         </div>
         <div className="status__facts">
           <StatPill icon="wealth" label="Wealth" value={view.wealth} testId="wealth" />
@@ -124,7 +129,7 @@ export function StatusBar({
           </div>
           <button type="button" onClick={() => play({ kind: 'stop' })}>
             <Icon name="stop" />
-            <span>Stop the fast forward</span>
+            <span>Stop the Fast forward</span>
           </button>
         </div>
       )}
@@ -166,7 +171,7 @@ function TimeControls({ busy, playing, ended, play }: { busy: boolean; playing: 
           onClick={() => setOpen(!open)}
         >
           <Icon name="chevron" />
-          <VisuallyHidden>More ways to fast forward</VisuallyHidden>
+          <VisuallyHidden>More ways to Fast forward</VisuallyHidden>
         </button>
         {open && !idle ? (
           <div className="popover popover--time" id="fast-forward-ways">

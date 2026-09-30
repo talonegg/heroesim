@@ -37,7 +37,7 @@ const nextFor: Readonly<Record<StopView['kind'], Next>> = {
   'party-returned': null,
   // Shown only when none of the Quests it named is still on the Board.
   'decision-needed': { label: 'Open the Board', target: 'board' },
-  'transfer-offer': { label: 'Answer the offer', target: 'offers' },
+  'transfer-offer': { label: 'Answer the Offer', target: 'offers' },
   // M8-S2: the module's own events say why it asked.
   module: { label: 'Read what happened', target: 'history' },
   'max-turns': { label: 'Fast forward again', again: true },

@@ -21,7 +21,7 @@ import {
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { cameHome, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
+import { cameHome, changed, played as playedState, started, withPartyOut, withReturn, withTheGone, withWorldNews } from './game.test-support';
 import {
   findInHistory,
   historyChoices,
@@ -273,6 +273,63 @@ function worldNews(seed = 'history-world', turns = 120): { document: WorldDocume
   return { document: state.document as WorldDocument, log: state.log };
 }
 
+describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", () => {
+  test("a Guild's History has its Banner and no Portrait", () => {
+    const { document, log } = played(3);
+    for (const guild of Object.values(document.world.guilds)) {
+      expect(historyView(document, log, guild.id, 0)).toMatchObject({ banner: guild.id, portrait: null });
+    }
+  });
+
+  test("a Guildmaster's has their Portrait by their sex and key, the player's drawn from the owner's pictures and a Rival's the Silhouette's, and no Banner", () => {
+    const { document, log } = played(3);
+    const keys = Object.values(document.world.guildmasters).map((guildmaster) => guildmaster.portraitKey);
+    expect(keys.filter((key) => key !== null)).toHaveLength(1);
+    for (const guildmaster of Object.values(document.world.guildmasters)) {
+      expect(historyView(document, log, guildmaster.id, 0)).toMatchObject({
+        banner: null,
+        portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: guildmaster.portraitKey },
+      });
+    }
+    // A save of schema 5 holds a key (v1.1.2-S3), which the History reads as it is.
+    const [first] = Object.values(document.world.guildmasters);
+    if (first === undefined) throw new Error('no Guildmaster');
+    first.portraitKey = `gm-${first.sex}-01`;
+    expect(historyView(document, log, first.id, 0).portrait).toEqual({ role: 'guildmaster', sex: first.sex, portraitKey: `gm-${first.sex}-01` });
+  });
+
+  test("a Patron's has theirs by the sex their name came with (v1.1.2-S3); a Hero's has none, their page showing it, and a body none", () => {
+    const { state, gone } = withTheGone(started());
+    const { document } = state;
+    if (document === null) throw new Error('no game in hand');
+    const [hero] = Object.values(document.world.heroes);
+    if (hero === undefined) throw new Error('no Hero');
+    // A Hero the world holds opens their Hero page, which has their Portrait (DL-131).
+    expect(historyView(document, [], hero.id, 0)).toMatchObject({ hero: hero.id, portrait: null });
+    expect(historyView(document, [], gone.id, 0)).toMatchObject({ entityId: gone.id, hero: null, banner: null, portrait: null });
+    const patrons = Object.values(document.world.patrons);
+    expect(new Set(patrons.map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));
+    for (const patron of patrons) {
+      expect(historyView(document, [], patron.id, 0)).toMatchObject({
+        entityId: patron.id,
+        banner: null,
+        portrait: { role: 'patron', sex: patron.sex, portraitKey: null },
+      });
+    }
+    const [body] = patrons;
+    if (body === undefined) throw new Error('no Patron');
+    body.sex = null;
+    expect(historyView(document, [], body.id, 0).portrait).toBeNull();
+  });
+
+  test('the World History and the whole History have neither', () => {
+    const { document, log } = played(3);
+    for (const whose of ['world', 'all'] as const) {
+      expect(historyView(document, log, whose, 0)).toMatchObject({ banner: null, portrait: null });
+    }
+  });
+});
+
 describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
   const { document, log } = worldNews();
   const world = document.history.entries.filter((entry) => worldTypes.includes(entry.type)).reverse();
@@ -342,7 +399,7 @@ describe('the whole History, the debug view (M9-F4, DL-112 item 7)', () => {
 
     expect(historyChoices(document)).toEqual([
       { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'world', label: 'The world', mine: false },
+      { whose: 'world', label: 'The World History', mine: false },
       ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
     ]);
   });
@@ -470,11 +527,33 @@ describe("a Party's Encounters, folded under its outcome (M9-S5)", () => {
       expect(row.stepsWords).toBe(
         [
           ...(encounters === 0 ? [] : [`${encounters} ${encounters === 1 ? 'Encounter' : 'Encounters'}`]),
-          ...(used === 0 ? [] : [`${used} ${used === 1 ? 'consumable' : 'consumables'} used`]),
+          ...(used === 0 ? [] : [`${used} ${used === 1 ? 'Consumable' : 'Consumables'} used`]),
         ].join(' and '),
       );
     }
     expect(outcomes).toBeGreaterThan(0);
+  });
+
+  test('counts under an outcome its Encounters and the Consumables used, each a term with its capital (DL-125 item 9)', () => {
+    const written = withReturn(withPartyOut(started('history-used')), {
+      band: 'success',
+      encounters: [{ outcome: 'success' }, { outcome: 'success' }],
+      used: [{ definitionKey: 'whetstone', encounterIndex: 0 }],
+    });
+    // The Guild handed to a Rival's Disposition, whose History folds a Party's steps under its outcome.
+    const { document } = changed(written.state, (next, player) => {
+      const other = Object.values(next.world.guilds).find((each) => each.id !== player.id);
+      if (other === undefined) throw new Error('no Rival');
+      other.controller = player.controller;
+      player.controller = { kind: 'rival', disposition: 'steady' };
+    });
+    const guildId = written.state.document === null ? undefined : playerOf(written.state.document).id;
+    if (document === null || guildId === undefined) throw new Error('no game in hand');
+
+    const rows = historyView(document, [], guildId, 0).groups.flatMap((group) => group.rows);
+    const outcome = rows.find((row) => row.kind === 'entry' && row.steps.length > 0);
+
+    expect(outcome?.kind === 'entry' ? outcome.stepsWords : null).toBe('2 Encounters and 1 Consumable used');
   });
 
   test('says on which page an entry stands, that the home view can open it there, and null where it is not', () => {
@@ -669,10 +748,10 @@ const routineWords: Readonly<Record<string, string>> = {
   'patron.regard-changed': 'Regard',
   'guildmaster.regard-changed': 'Regard',
   'hero.regard-changed': 'Regard',
-  'item.expended': 'consumables',
-  'item.equipped': 'gear',
-  'item.unequipped': 'gear',
-  'item.returned': 'gear',
+  'item.expended': 'Consumables',
+  'item.equipped': 'Gear',
+  'item.unequipped': 'Gear',
+  'item.returned': 'Gear',
   'item.bought': 'purchases',
   'item.sold': 'sales',
 };
@@ -858,7 +937,7 @@ describe('the choices one step away (M9-S5)', () => {
 
     expect(historyChoices(document)).toEqual([
       { whose: null, label: 'The Lantern', mine: true },
-      { whose: 'world', label: 'The world', mine: false },
+      { whose: 'world', label: 'The World History', mine: false },
       ...rivals.map((rival) => ({ whose: rival.id, label: rival.name, mine: false })),
     ]);
   });

@@ -182,7 +182,7 @@ describe('the views', () => {
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toMatch(/\sFee\s+Signs\n/);
     for (const hero of unattachedHeroes(created.world)) {
-      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps, buyer)}\\s+yes$`));
+      expect(rowOf(run.out, hero.id)).toMatch(new RegExp(`\\s${signingFee(hero, deps, buyer)}\\s+Yes$`));
     }
   });
 
@@ -197,10 +197,10 @@ describe('the views', () => {
     const run = play(['show', 'pool']);
 
     expect(run.code).toBe(exitCodes.ok);
-    expect(rowOf(run.out, hero.id)).toMatch(/\sneeds Fame 40$/);
+    expect(rowOf(run.out, hero.id)).toMatch(/\sNeeds Fame 40$/);
     const others = unattachedHeroes(document().world).filter((each) => each.id !== hero.id);
     expect(others.length).toBeGreaterThan(0);
-    for (const other of others) expect(rowOf(run.out, other.id)).toMatch(/\syes$/);
+    for (const other of others) expect(rowOf(run.out, other.id)).toMatch(/\sYes$/);
     expect(run.out).toContain(`${guild.name} has 0 Fame.`);
   });
 

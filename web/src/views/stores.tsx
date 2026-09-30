@@ -3,6 +3,7 @@
 // kind and one place at a time, display only, as the Market's Buy does. A Hero's name opens their page,
 // through the shell's links, as a name in the History does. Read only for now (DL-113 item 2): Sell is
 // the Market's, a way away, and gear moves on a Hero's page. Every word and number is `storesView`'s.
+// A Unique Item shows its picture before its name (v1.1.2-S2, DL-125 item 8).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
@@ -10,6 +11,7 @@ import { storesRowsShown, storesView, type StoresWhere } from '../state/stores';
 import type { MarketKind } from '../state/trade-views';
 import { Names } from './history-entries';
 import { Icon } from './icons';
+import { ItemPicture } from './pictures';
 import type { SectionId } from './section';
 import { FilterChips } from './ui';
 
@@ -62,6 +64,7 @@ export function Stores({ document, onGo }: { document: WorldDocument; onGo: (tar
               {rows.map((row) => (
                 <tr key={row.key} data-testid="owned">
                   <th scope="row" className="trade__name">
+                    {row.unique ? <ItemPicture definitionKey={row.definitionKey} /> : null}
                     {row.name}
                   </th>
                   <td>{row.kind}</td>

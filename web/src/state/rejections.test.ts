@@ -66,10 +66,31 @@ const samples: Samples = {
   'newGame excluded-pair': { action: 'newGame', reason: 'excluded-pair', traitKey: 'miser', otherKey: 'well-liked' },
   'newGame over-budget': { action: 'newGame', reason: 'over-budget', cost: 2, budget: 1 },
   'newGame text-too-long': { action: 'newGame', reason: 'text-too-long', attribute: 'appearance', length: 281, max: 280 },
+  // The Portrait (v1.1.2-S3).
+  'newGame unknown-portrait': { action: 'newGame', reason: 'unknown-portrait', portraitKey: 'gm-male-09' },
+  'newGame portrait-of-another-sex': {
+    action: 'newGame',
+    reason: 'portrait-of-another-sex',
+    portraitKey: 'gm-male-01',
+    sex: 'female',
+    portraitSex: 'male',
+  },
   'load malformed-json': { action: 'load', reason: 'malformed-json', message: 'The save is not JSON: Unexpected token' },
   'load not-a-document': { action: 'load', reason: 'not-a-document', message: 'The save has no whole-number meta.version' },
-  'load unsupported-version': { action: 'load', reason: 'unsupported-version', message: 'The save is schema version 9' },
-  'load invalid': { action: 'load', reason: 'invalid', message: 'The save fails the validator (shape): meta.seed' },
+  // A newer save; an older one has its own sentence (v1.1.2-S3), below.
+  'load unsupported-version': {
+    action: 'load',
+    reason: 'unsupported-version',
+    documentVersion: 9,
+    schemaVersion: defaultConfig.schemaVersion,
+    message: 'The save is schema version 9',
+  },
+  'load invalid': {
+    action: 'load',
+    reason: 'invalid',
+    failures: [{ check: 'document-shape', id: '$.meta.seed', detail: '$.meta has no seed' }],
+    message: 'The save fails the validator (shape): meta.seed',
+  },
 
   'rebase already-current': { action: 'rebase', reason: 'already-current', configVersion: defaultConfig.configVersion },
 
@@ -214,14 +235,16 @@ const exactly: Record<RejectionKind, string> = {
   'newGame guild-name-blank': 'The Guild needs a name.',
   'newGame guildmaster-name-blank': 'The Guildmaster needs a name.',
   'newGame unknown-background': `No Guild Background is called "no-such-background". Choose one of: ${guildBackgrounds}.`,
-  'newGame unknown-sex': `A Guildmaster's sex is female or male; "other" is not.`,
-  'newGame age-out-of-range': `A Guildmaster starts aged ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax}, in whole years; ${defaultConfig.guildmasterStartingAgeMax + 1} is not.`,
+  'newGame unknown-sex': `A Guildmaster's Sex is female or male; "other" is not.`,
+  'newGame age-out-of-range': `A Guildmaster starts aged ${defaultConfig.guildmasterStartingAgeMin} to ${defaultConfig.guildmasterStartingAgeMax}, in whole Years; ${defaultConfig.guildmasterStartingAgeMax + 1} is not.`,
   'newGame unknown-trait': `${named(content.traits, 'scarred')} is not a Guildmaster Trait.`,
   'newGame repeated-trait': `${named(content.traits, 'miser')} is chosen twice.`,
   'newGame too-many-traits': 'A Guildmaster holds at most 2 Traits; 3 are chosen.',
   'newGame excluded-pair': `${named(content.traits, 'miser')} and ${named(content.traits, 'well-liked')} exclude each other: a Guildmaster holds one or the other.`,
   'newGame over-budget': 'Those Traits cost 2 points and the budget is 1: a buff costs points and a penalty refunds them.',
   'newGame text-too-long': 'The Appearance is 281 characters long; it holds at most 280.',
+  'newGame unknown-portrait': 'No Guildmaster Portrait is called "gm-male-09".',
+  'newGame portrait-of-another-sex': "That Portrait is of a male Guildmaster, and your Guildmaster's Sex is female.",
   'load malformed-json': 'Cannot load the save: The save is not JSON: Unexpected token.',
   'load not-a-document': 'Cannot load the save: The save has no whole-number meta.version.',
   'load unsupported-version': 'Cannot load the save: The save is schema version 9.',
@@ -236,7 +259,7 @@ const exactly: Record<RejectionKind, string> = {
   'dispatch requirement-unmet':
     `${questName} needs a Party of 2 to 4 Heroes (1 named) and a ${named(content.classes, 'healer')} in the Party ` +
     `and a Hero with ${named(content.skills, 'lockpicking')} in the Party.`,
-  'dispatch not-consumable': `${sword} is gear, not a consumable: a Party carries consumables only.`,
+  'dispatch not-consumable': `${sword} is Gear, not a Consumable: a Party carries Consumables only.`,
   'dispatch not-held-by-guild': `The Lantern holds no ${whetstone} to carry.`,
   'dispatch insufficient-quantity': `The Lantern holds 1 of ${whetstone}, not the 3 asked.`,
 
@@ -251,9 +274,9 @@ const exactly: Record<RejectionKind, string> = {
 
   'equip guild-folded': 'The Lantern has folded and equips no one.',
   'equip hero-not-on-roster': `${rivalHero.name} is not on The Lantern's Roster.`,
-  'equip hero-unavailable': `${hero.name} is away on a Quest, and their gear is with them.`,
+  'equip hero-unavailable': `${hero.name} is away on a Quest, and their Gear is with them.`,
   'equip not-held-by-guild': `The Lantern does not hold ${stackName}.`,
-  'equip not-gear': `${whetstone} is not gear, and is carried in no slot.`,
+  'equip not-gear': `${whetstone} is not Gear, and is carried in no slot.`,
   'equip wrong-slot': `${sword} goes in the weapon slot, not the armour slot.`,
   'equip slot-occupied': `${hero.name}'s weapon slot holds ${stackName}: unequip it first.`,
   'unequip guild-folded': 'The Lantern has folded and unequips no one.',
@@ -290,8 +313,8 @@ const exactly: Record<RejectionKind, string> = {
   'offerTransfer same-guild': "That Hero is already on The Lantern's Roster.",
   'offerTransfer hero-in-party': inParty,
   'offerTransfer recently-transferred': locked,
-  'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no offer is needed: ask to take the Hero in.`,
-  'offerTransfer offer-pending': "The Lantern's offer for that Hero already waits for an answer.",
+  'offerTransfer no-offer-needed': `${rival.name} answers a Transfer at once, so no Offer is needed: ask to take the Hero in.`,
+  'offerTransfer offer-pending': "The Lantern's Offer for that Hero already waits for an answer.",
   'offerTransfer insufficient-wealth': 'The fee is 180 Wealth; The Lantern has 40.',
   'acceptTransfer guild-folded': `${rival.name} has folded and deals no more.`,
   'acceptTransfer offer-not-found': "No such Transfer Offer stands for The Lantern's Heroes.",
@@ -361,6 +384,12 @@ describe('what the words name', () => {
     expect(rejectionSentence({ action: 'newGame', reason: 'unknown-trait', traitKey: 'brave' }, null, content)).toBe(
       'No Guildmaster Trait is called "brave".',
     );
+  });
+
+  test('a save of an older schema, as v1.1.1 wrote it, in the owner\'s words, and none of the engine\'s (v1.1.2-S3, DL-125 item 10.2)', () => {
+    const older = { action: 'load', reason: 'unsupported-version', documentVersion: 4, schemaVersion: 5, message: 'The save is schema version 4' } as const;
+
+    expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
   });
 
   test('a Quest by its template, and Items by their content names', () => {

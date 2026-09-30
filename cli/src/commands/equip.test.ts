@@ -147,9 +147,9 @@ describe('equip and unequip', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain('Held by The Test');
-    expect(run.out).toMatch(new RegExp(`^${relic}\\s+The Barrow King's blade\\s+weapon gear\\s+1\\s+Weaponry \\+4, Strength \\+2, Courage \\+1$`, 'm'));
-    expect(run.out).toMatch(new RegExp(`^${blades}\\s+Masterwork blade\\s+weapon gear\\s+2\\s+Weaponry \\+3, Strength \\+2$`, 'm'));
-    expect(run.out).toMatch(new RegExp(`^${whetstones}\\s+Whetstone\\s+consumable\\s+2$`, 'm'));
+    expect(run.out).toMatch(new RegExp(`^${relic}\\s+The Barrow King's blade\\s+Weapon Gear\\s+1\\s+Weaponry \\+4, Strength \\+2, Courage \\+1$`, 'm'));
+    expect(run.out).toMatch(new RegExp(`^${blades}\\s+Masterwork blade\\s+Weapon Gear\\s+2\\s+Weaponry \\+3, Strength \\+2$`, 'm'));
+    expect(run.out).toMatch(new RegExp(`^${whetstones}\\s+Whetstone\\s+Consumable\\s+2$`, 'm'));
   });
 
   test('refuses what the engine refuses, in words, and writes nothing', () => {

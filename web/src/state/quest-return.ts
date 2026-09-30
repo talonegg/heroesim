@@ -286,7 +286,7 @@ function readOutcomes(document: WorldDocument, key: ReturnKey): ReturnRead | nul
       .map(({ payload: { entityId, bandBefore, bandAfter } }) => ({ heroId: entityId as HeroId, name: named(entityId), bandBefore, bandAfter }));
     const words = [
       ...(died ? ['died on the Quest'] : []),
-      ...(gear.length === 0 ? [] : [`their gear went back to ${guildName}: ${listed(gear)}`]),
+      ...(gear.length === 0 ? [] : [`their Gear went back to ${guildName}: ${listed(gear)}`]),
       ...(xp === null ? [] : [`gained ${xp} XP`]),
       ...levels.map((level) => `reached Level ${level}`),
       ...(mood === null ? [] : [`Morale went from ${mood.before} to ${mood.after}, ${mood.band}`]),

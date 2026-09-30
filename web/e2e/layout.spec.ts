@@ -1,4 +1,5 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { expect, test, type Locator, type Page, type TestInfo } from '@playwright/test';
 import {
   closeGameMenu,
   debugHistory,
@@ -52,7 +53,7 @@ test('every view and the game menu, with no sideways scroll and every control a 
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
 
   // A fast forward first, so the home view has a stop, the log has lines and the pool has Heroes.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
 
   // One order at every width (M9-F2, DL-112 item 5): under 600px the bar holds Guild, Roster, Board
@@ -170,7 +171,7 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   await quest.getByRole('button', { name: 'Close' }).click();
 
   // Some Turns in: a log, a History with pages, new Heroes in the pool.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
   await expectNoHorizontalOverflow(page, 'a fast forward stopped, its stop in the home view');
 
@@ -208,12 +209,12 @@ test('the page is never wider than the viewport, whatever is open', async ({ pag
   const history = await openView(page, 'History');
   await expect(history.getByRole('heading', { level: 3 })).toHaveText(`The History of ${longGuild}`);
   // The World History, then the whole History's oldest page, each line with its event type (M9-F4).
-  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true }).click();
+  await history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true }).click();
   await expect(history.getByRole('heading', { level: 3 })).toHaveText('The World History');
   await expectNoHorizontalOverflow(page, 'the World History');
   // A choice that is on stays legible under the pointer: its words and its face at 4.5:1 or more
   // (M9-F6, from the close's screenshots, where the hover's face took the pressed one's place).
-  const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The world', exact: true });
+  const world = history.getByRole('group', { name: 'Whose History' }).getByRole('button', { name: 'The World History', exact: true });
   await world.hover();
   // Read once the hover's colour transition has run: read during it, the face is between the two (M9-F7).
   await expect.poll(() => world.evaluate(pressedContrast)).toBeGreaterThanOrEqual(4.5);
@@ -271,7 +272,7 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
   await page.goto('/');
   await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
   // New Heroes in the pool, and a Day or so of the world's own doings.
-  await statusBar(page).getByRole('button', { name: 'More ways to fast forward' }).click();
+  await statusBar(page).getByRole('button', { name: 'More ways to Fast forward' }).click();
   await playTurns(page, page.getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
   const { width: projectWidth, height } = page.viewportSize() ?? { width: 0, height: 0 };
   // The phone's 360px and a larger phone's 390px, the tablet's 820px, the desktop's 1280px.
@@ -355,6 +356,133 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
     await check("the Patrons' table, the neutral unfolded");
     if ((await fold.count()) > 0) await fold.click();
   }
+});
+
+/** What a save holds that the Unique Items below are added to. */
+interface SaveFile {
+  world: {
+    counters: { items: number };
+    guilds: Record<string, { controller: { kind: string }; rosterIds: string[] }>;
+    items: Record<string, { id: string; definitionKey: string; holder: Record<string, string> }>;
+  };
+}
+
+/**
+ * The game in hand exported and loaded back with two Unique Items (v1.1.2-S6, S2's verification): the
+ * Barrow King's blade in the Guild's Stores, and the Lantern of Stannary carried by its first Hero, as
+ * the screenshots of v1.1.2-S2 held them.
+ */
+async function holdingUniques(page: Page, testInfo: TestInfo): Promise<void> {
+  const [download] = await Promise.all([page.waitForEvent('download'), (await thisGame(page)).getByRole('button', { name: 'Export this game' }).click()]);
+  const file = testInfo.outputPath('uniques.json');
+  await download.saveAs(file);
+  const save = JSON.parse(readFileSync(file, 'utf8')) as SaveFile;
+  const player = Object.entries(save.world.guilds).find(([, guild]) => guild.controller.kind === 'player');
+  if (player === undefined) throw new Error("the save has no player's Guild");
+  const [guildId, guild] = player;
+  const add = (definitionKey: string, holder: Record<string, string>): void => {
+    const id = `item-${String(save.world.counters.items).padStart(6, '0')}`;
+    save.world.items[id] = { id, definitionKey, holder };
+    save.world.counters.items += 1;
+  };
+  add('barrow-kings-blade', { kind: 'guild', id: guildId });
+  add('lantern-of-stannary', { kind: 'hero', id: guild.rosterIds[0] ?? '', slot: 'trinket' });
+  writeFileSync(file, JSON.stringify(save));
+  await (await thisGame(page)).getByLabel('Load a save file').setInputFiles(file);
+  // A save loaded closes the game menu, the game in hand now the one loaded.
+  await expect(page.getByRole('dialog', { name: 'Game' })).toHaveCount(0);
+  await expect(page.locator('main')).toHaveAttribute('aria-busy', 'false');
+}
+
+// v1.1.2-S6 (S2's verification): the Stores and the Market's Sell with a Unique Item's picture beside
+// its name, at every width, and at 360px in the dark scheme too.
+test("the Stores and the Market's Sell with a Unique Item's picture: no sideways scroll and 44px targets, and at 360px in the dark scheme (v1.1.2-S6)", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-uniques' });
+  await holdingUniques(page, testInfo);
+  const phone = (page.viewportSize()?.width ?? 0) < 600;
+
+  for (const scheme of phone ? (['light', 'dark'] as const) : (['light'] as const)) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const at = `in the ${scheme} scheme at ${page.viewportSize()?.width ?? 0}px`;
+
+    const stores = await guildPart(page, 'Stores');
+    const blade = stores.getByRole('row').filter({ hasText: "Barrow King's blade" });
+    await expect(blade.getByTestId('item-picture')).toBeVisible();
+    const lantern = stores.getByRole('row').filter({ hasText: 'Lantern of Stannary' });
+    await expect(lantern.getByTestId('item-picture')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Stores ${at}`);
+    await expectTargets(page, `the Stores ${at}`);
+
+    const sell = await part(page, 'Sell');
+    await expect(sell.getByRole('row').filter({ hasText: "Barrow King's blade" }).getByTestId('item-picture')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Market's Sell ${at}`);
+    await expectTargets(page, `the Market's Sell ${at}`);
+  }
+  if (phone) {
+    // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+    const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+    await page.emulateMedia({ colorScheme: 'light' });
+    expect(await page.evaluate(() => getComputedStyle(document.body).backgroundColor)).not.toBe(background);
+  }
+});
+
+test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside the name, and the Guild's Banner beside its titles, with no sideways scroll (v1.1.2-S2)", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+  // About 7.5rem wide on a wide screen and 5rem on a phone (DL-125 item 2).
+  const wide = (page.viewportSize()?.width ?? 0) >= 600 ? 120 : 80;
+
+  /** The Portrait in `scope`: its size, and beside `heading`, the name, its top level with the name's. */
+  const portraitBeside = async (scope: Locator, heading: Locator, what: string): Promise<void> => {
+    const portrait = scope.getByTestId('portrait');
+    await expect(portrait).toBeVisible();
+    const box = await portrait.boundingBox();
+    const name = await heading.boundingBox();
+    if (box === null || name === null) throw new Error(`${what}: no Portrait or name drawn`);
+    expect(box.width, `${what}: the Portrait's width`).toBeCloseTo(wide, 0);
+    expect(box.height, `${what}: the Portrait's height`).toBeCloseTo((wide * 4) / 3, 0);
+    expect(box.x + box.width, `${what}: the Portrait before the name`).toBeLessThanOrEqual(name.x);
+    expect(Math.abs(name.y - box.y), `${what}: the name level with the Portrait's top`).toBeLessThanOrEqual(12);
+    // The Silhouette, which the script holds, is drawn.
+    expect(await portrait.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expectNoHorizontalOverflow(page, what);
+    await expectTargets(page, what);
+  };
+
+  /** The Banner in `heading`: two wide by three high, before the name. */
+  const bannerIn = async (heading: Locator, what: string): Promise<void> => {
+    const banner = heading.getByTestId('guild-banner');
+    const box = await banner.boundingBox();
+    const words = await heading.locator('span').last().boundingBox();
+    if (box === null || words === null) throw new Error(`${what}: no Banner drawn`);
+    expect(box.height / box.width, `${what}: the Banner 2 × 3`).toBeCloseTo(1.5, 1);
+    expect(box.x + box.width, `${what}: the Banner before the name`).toBeLessThanOrEqual(words.x);
+  };
+
+  await bannerIn(statusBar(page).getByRole('heading', { level: 1 }), 'the status bar');
+  const guildmaster = await openView(page, 'Guildmaster');
+  const title = guildmaster.getByRole('heading', { level: 3 });
+  await portraitBeside(guildmaster, title, "the Guildmaster's header");
+  await bannerIn(title, "the Guildmaster's title");
+
+  await (await rosterList(page)).locator('button.link').first().click();
+  const hero = page.getByRole('region', { name: 'Roster', exact: true }).getByRole('article');
+  await portraitBeside(hero, hero.getByRole('heading', { level: 3 }), "a Hero's page's header");
+
+  // A Guild's page, its Banner the largest, and its Guildmaster's header unfolded under it.
+  const guilds = await part(page, 'Guilds');
+  await rivalRows(guilds).first().locator('button.link').click();
+  const rival = guilds.getByRole('article');
+  await bannerIn(rival.getByRole('heading', { level: 4 }), "a Guild's page");
+  for (const summary of await rival.locator('details > summary').all()) await summary.click();
+  await portraitBeside(rival, rival.getByRole('heading', { level: 5, name: /, Guildmaster of / }), "a Rival's Guildmaster on its page");
 });
 
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */

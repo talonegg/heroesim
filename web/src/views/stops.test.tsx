@@ -24,7 +24,7 @@ function described(element: HTMLElement): string {
 
 /** The status bar's other ways to fast forward, opened. */
 function otherWays(): HTMLElement {
-  fireEvent.click(within(time()).getByRole('button', { name: 'More ways to fast forward' }));
+  fireEvent.click(within(time()).getByRole('button', { name: 'More ways to Fast forward' }));
   const ways = document.getElementById('fast-forward-ways');
   if (ways === null) throw new Error('the other ways to fast forward did not open');
   return ways;
@@ -162,7 +162,7 @@ describe("the pool's stop and the end, through a fast forward (M9-S8, the epic's
     const home = screen.getByRole('region', { name: 'Guild' });
     expect(within(home).getByText(/^The game ended on Day 0: The Lantern had its Roster wiped out\.$/)).toBeDefined();
     expect(within(screen.getByRole('banner')).getByText('The game has ended')).toBeDefined();
-    for (const name of ['Advance a Turn', 'Fast forward', 'More ways to fast forward']) {
+    for (const name of ['Advance a Turn', 'Fast forward', 'More ways to Fast forward']) {
       expect((within(time()).getByRole('button', { name }) as HTMLButtonElement).disabled, name).toBe(true);
     }
     // The end names no next step: there is none.

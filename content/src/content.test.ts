@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, parseContent, validateContent } from './index.js';
+import { contentFiles, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory (M1-S4).
@@ -13,9 +13,179 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 15 since M9-S2's Trait costs and exclusions (DL-102)", () => {
+  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130), which v1.1.2-S4's pictures and v1.1.2-S5's descriptions keep (DL-131, DL-132)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(15);
+    expect(content.version).toBe(16);
+  });
+
+  test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
+    const patrons = content.names.patron;
+    expect(patrons.map((patron) => patron.name)).toEqual([
+      'Aldous Fairweather', 'Berengar Holt', 'Cecily Ashdown', 'Denholm Crane', 'Edith Marlow', 'Florian Keld',
+      'Godwin Harrow', 'Hawise Brennard', 'Isolde Varney', 'Jocelyn Pike', 'Lambert Sowerby', 'Mabel Thorne',
+      'Nicolas Aske', 'Orabel Quint', 'Piers Latimer', 'Rohesia Dunmore', 'Simeon Garrow', 'Petronel Swift',
+      'Walter Moorby', 'Agnes Wolstan', 'Baldwin Cressy', 'Emmeline Stake', 'Geoffrey Brand', 'Juliana Cray',
+      'Hamo Redvers', 'Letice Gorham', 'Ranulf Tarrant', 'Sybil Hawtrey', 'Tobias Wendle', 'Ysmay Carew',
+    ]);
+    const female = patrons.filter((patron) => patron.sex === 'female').map((patron) => patron.name.split(' ')[0]);
+    const male = patrons.filter((patron) => patron.sex === 'male').map((patron) => patron.name.split(' ')[0]);
+    expect(female).toEqual([
+      'Cecily', 'Edith', 'Hawise', 'Isolde', 'Jocelyn', 'Mabel', 'Orabel', 'Rohesia', 'Agnes', 'Emmeline', 'Juliana',
+      'Letice', 'Sybil', 'Ysmay',
+    ]);
+    expect(male).toHaveLength(16);
+  });
+
+  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+    expect(content.portraits).toEqual({
+      guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] },
+      hero: { female: [], male: [] },
+      patron: { female: [], male: [] },
+    });
+  });
+
+  test("maps each of the owner's two pictures to DL-127 item 5's keywords and narrative, as written (v1.1.2-S4)", () => {
+    const { keywords, portraits } = content.portraitAppearances;
+    expect(Object.keys(keywords)).toEqual([
+      'weathered', 'scarred', 'strong-boned', 'dark-haired', 'unruly-hair', 'long-hair', 'braided', 'bearded', 'hard-eyed',
+      'shadowed-eyes', 'stern', 'composed',
+    ]);
+    expect(keywords['bearded']).toEqual({ slot: 'facialHair', word: 'bearded' });
+    expect(keywords['shadowed-eyes']).toEqual({ slot: 'eyes', word: 'shadowed eyes' });
+    expect(Object.keys(portraits)).toEqual(['gm-male-01', 'gm-female-01']);
+    expect(portraits['gm-male-01']?.keywords).toEqual(['weathered', 'scarred', 'dark-haired', 'unruly-hair', 'bearded', 'hard-eyed', 'stern']);
+    expect(portraits['gm-female-01']?.keywords).toEqual(['strong-boned', 'dark-haired', 'long-hair', 'braided', 'shadowed-eyes', 'composed']);
+    expect(portraits['gm-male-01']?.narrative).toMatch(/^A weathered, deeply lined face, .* before a word is spoken\.$/);
+    expect(portraits['gm-female-01']?.narrative).toMatch(/^A strong-boned face with high cheekbones .* what she is thinking\.$/);
+    // DL-127 item 5 counts them: 243 and 241 characters.
+    expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
+    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(241);
+  });
+
+  describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+    const { descriptions } = content;
+    const bands = descriptions.ageBands.map((band) => band.key);
+    const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
+    const guildmasterTraits = Object.values(content.traits).filter((row) => row.owner === 'guildmaster').map((row) => row.key);
+
+    test('has three age bands for the Guildmasters of 21 to 50, and at least thirty Birthplaces', () => {
+      expect(descriptions.ageBands).toEqual([
+        { key: 'young', from: 0 },
+        { key: 'middle', from: 31 },
+        { key: 'older', from: 41 },
+      ]);
+      expect(descriptions.birthplaces.length).toBeGreaterThanOrEqual(30);
+    });
+
+    test('has several phrases for every slot of every sex and band, and several sentences for every part, Background and Trait', () => {
+      for (const sex of ['female', 'male'] as const) {
+        for (const band of bands) {
+          const phrases = descriptions.appearance[sex][band];
+          const slots = sex === 'male' ? ['build', 'face', 'hair', 'facialHair', 'eyes', 'mark', 'bearing'] : ['build', 'face', 'hair', 'eyes', 'mark', 'bearing'];
+          expect(Object.keys(phrases ?? {}).sort()).toEqual([...slots].sort());
+          for (const slot of slots) expect((phrases as Record<string, string[]>)[slot]?.length, `${sex} ${band} ${slot}`).toBeGreaterThanOrEqual(4);
+        }
+      }
+      for (const part of ['origins', 'careers', 'closings'] as const) {
+        for (const band of bands) expect(descriptions.biography[part][band]?.length, `${part} ${band}`).toBeGreaterThanOrEqual(4);
+      }
+      expect(Object.keys(descriptions.biography.backgrounds).sort()).toEqual([...guildBackgrounds].sort());
+      expect(Object.keys(descriptions.biography.traits).sort()).toEqual([...guildmasterTraits].sort());
+      expect(descriptions.biography.successors.length).toBeGreaterThanOrEqual(3);
+      for (const texts of [...Object.values(descriptions.biography.backgrounds), ...Object.values(descriptions.biography.traits)]) {
+        expect(texts.length).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    test('proves the longest Birthplace, Appearance and Biography within 60, 280 and 1,000 characters', () => {
+      const longest = longestDescriptions(content);
+      expect(longest.birthplace).toBeLessThanOrEqual(descriptionBounds.birthplace);
+      expect(longest.appearance).toBeLessThanOrEqual(descriptionBounds.appearance);
+      expect(longest.biography).toBeLessThanOrEqual(descriptionBounds.biography);
+      expect(descriptionBounds).toEqual({ birthplace: 60, appearance: 280, biography: 1000 });
+    });
+
+    test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
+      const worn =
+        /\b(coats?|cloaks?|capes?|mail|armou?r|leathers?|tunics?|shirts?|dress(es)?|gowns?|robes?|hoods?|hats?|caps?|helms?|helmets?|boots?|belts?|buckles?|straps?|rings?|earrings?|necklaces?|brooch(es)?|clasps?|pins?|chains?|jewels?|satchels?|sashe?s?|gloves?|scarf|scarves|collars?|sleeves?|aprons?|jerkins?|doublets?|bracelets?|ribbons?|circlets?|beads?|torcs?|gear|swords?|blades?|staffs?|sticks?|breeches|trousers|mantles?|cowls?|veils?|shawls?|bonnets?|tabards?|gauntlets?|spectacles|eyepatch(es)?)\b/i;
+      const phrases = Object.values(descriptions.appearance).flatMap((byBand) =>
+        Object.values(byBand).flatMap((slots) => Object.values(slots).flat()),
+      );
+      const narratives = Object.values(content.portraitAppearances.portraits).map((row) => row.narrative);
+      const naming = [...phrases, ...narratives].filter((text) => worn.test(text));
+      expect(naming).toEqual([]);
+      expect(phrases.length).toBeGreaterThan(150);
+    });
+
+    // v1.1.2-S6, the S5 verification's findings: the prose read whole, and what it showed held here.
+    const biographySentences = (): string[] => {
+      const { origins, careers, backgrounds, traits, closings, successors } = descriptions.biography;
+      return [origins, careers, backgrounds, traits, closings].flatMap((lists) => Object.values(lists).flat()).concat(successors);
+    };
+
+    test("gives a successor sentences of coming to the Guild's chair, none of founding it", () => {
+      for (const sentence of descriptions.biography.successors) expect(sentence, sentence).not.toMatch(/\bfound(ed|ing|er)?\b|own making/i);
+    });
+
+    test('closes every Birthplace in a sentence with a comma or a full stop, since a Birthplace may hold a comma of its own', () => {
+      const open = biographySentences().filter((sentence) => /\{birthplace\}(?![,.])/.test(sentence));
+      expect(open).toEqual([]);
+      expect(descriptions.birthplaces.some((place) => place.includes(','))).toBe(true);
+    });
+
+    test("names the Guildmaster only by a slot, so no he, his or her is anyone else's", () => {
+      const bare = biographySentences().filter((sentence) => /\b(he|she|him|his|her|hers)\b/i.test(sentence.replace(/\{[^{}]*\}/g, '')));
+      expect(bare).toEqual([]);
+    });
+
+    test("leaves the eyes to their own slot and freckles to the face, so a mark never says them again", () => {
+      for (const byBand of Object.values(descriptions.appearance)) {
+        for (const [band, phrases] of Object.entries(byBand)) {
+          // A bearing may meet another's eye; a mark is of the body, drawn beside the eyes' own phrase.
+          expect(phrases.mark.filter((phrase) => /\beyes?\b/i.test(phrase)), band).toEqual([]);
+          if (phrases.face.some((phrase) => /freckl/i.test(phrase))) expect(phrases.mark.filter((phrase) => /freckl/i.test(phrase)), band).toEqual([]);
+        }
+      }
+    });
+
+    test('writes the older band for a Guildmaster of 41 as for one of 50: no white hair, no lifetime behind them, no talk of stepping down', () => {
+      const older = [
+        ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand.older ?? {}).flat()),
+        ...(['origins', 'careers', 'closings'] as const).flatMap((part) => descriptions.biography[part].older ?? []),
+      ];
+      expect(older.filter((text) => /\bwhite\b|lifetime|longer ago|stepping down|with age|old paper/i.test(text))).toEqual([]);
+    });
+
+    // The verification of the review's fixes: what the prose, read again, showed.
+    test("leaves the hair to the Appearance, so no Biography says it will turn grey beside an Appearance that says it has", () => {
+      const hair = biographySentences().filter((sentence) => /\bhair\b|\bgr[ae]y(ing|s|ed)?\b|\bbald/i.test(sentence));
+      expect(hair).toEqual([]);
+      // The middle band's Appearance can grey, which is why.
+      const middle = Object.values(descriptions.appearance).flatMap((byBand) => [...(byBand.middle?.hair ?? []), ...(byBand.middle?.facialHair ?? [])]);
+      expect(middle.some((phrase) => /\bgrey\b/i.test(phrase))).toBe(true);
+    });
+
+    test('gives a thrifty Guildmaster and a miser, who may be one Guildmaster, sentences that never both speak of money', () => {
+      const money = /\b(money|coins?|coppers?|pennies|penny|silver|gold)\b/i;
+      const { thrifty = [], miser = [] } = descriptions.biography.traits;
+      const pairs = thrifty.flatMap((one) => miser.map((other) => [one, other])).filter(([one = '', other = '']) => money.test(one) && money.test(other));
+      expect(pairs).toEqual([]);
+      expect(content.traits.thrifty?.excludes).not.toContain('miser');
+      expect(content.traits.miser?.excludes).not.toContain('thrifty');
+    });
+
+    test("writes each Guildmaster Trait's sentences for any age, so a young career and a Trait never disagree", () => {
+      const traits = Object.values(descriptions.biography.traits).flat();
+      expect(traits.filter((sentence) => /\byears\b|\bold (company|days)\b|long ago/i.test(sentence))).toEqual([]);
+    });
+
+    test('writes each standalone text with a capital: every Birthplace, phrase and sentence begins with one', () => {
+      const texts = [
+        ...descriptions.birthplaces,
+        ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand).flatMap((slots) => Object.values(slots).flat())),
+      ];
+      for (const text of texts) expect(text, text).toMatch(/^\p{Lu}/u);
+    });
   });
 
   test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {

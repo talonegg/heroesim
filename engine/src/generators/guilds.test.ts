@@ -465,3 +465,65 @@ describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
     }
   });
 });
+
+// v1.1.2-S3 (DL-125 item 4): a Rival's Guildmaster, founding, a replacement or a successor, shows the
+// Silhouette, whatever pictures content has; only `createWorld` gives the player's a Portrait.
+describe("the drawn Guildmasters' Portraits (v1.1.2-S3)", () => {
+  test('a Rival, a replacement and a successor have none, and draw nothing from the gm-portraits stream', () => {
+    const deps = testDeps();
+    const world = testWorld('no-portraits', deps);
+    const before = structuredClone(world.rng['gm-portraits']);
+    for (let i = 0; i < 6; i += 1) {
+      const { guild, guildmaster } = generateRival(world, deps, { controller: rival });
+      expect(guildmaster.portraitKey).toBeNull();
+      expect(generateSuccessor(world, deps, guild).portraitKey).toBeNull();
+    }
+    expect(generateGuild(world, deps, { controller: { kind: 'player' }, name: 'The Test Guild', rosterSize: 0, wealth: 0 }).guildmaster.portraitKey).toBeNull();
+    expect(world.rng['gm-portraits']).toEqual(before);
+  });
+});
+
+describe("a Guildmaster's Portrait given to the Guild Generator (v1.1.2-S6, the review's E)", () => {
+  test("with `portrait`, draws it from `gm-portraits` before the texts are written, so a mapped picture's narrative is the Appearance", () => {
+    const deps = testDeps();
+    const world = testWorld('portrait-given', deps);
+    const { guildmaster } = generateGuild(world, deps, {
+      controller: player,
+      name: 'The Test Guild',
+      rosterSize: 0,
+      wealth: 0,
+      guildmaster: { sex: 'female' },
+      portrait: { chosen: 'gm-female-01' },
+    });
+    expect(guildmaster.portraitKey).toBe('gm-female-01');
+    expect(guildmaster.appearance).toBe(deps.content.portraitAppearances.portraits['gm-female-01']?.narrative.trim());
+  });
+
+  test('with `portrait` and none chosen, takes one draw from `gm-portraits` and one of the sex, whatever is drawn', () => {
+    const deps = testDeps();
+    for (let n = 0; n < 20; n += 1) {
+      const world = testWorld(`portrait-drawn-${n}`, deps);
+      const before = structuredClone(world.rng['gm-portraits']);
+      const { guildmaster } = generateGuild(world, deps, { controller: player, name: 'The Test Guild', rosterSize: 0, wealth: 0, portrait: { chosen: undefined } });
+      expect(deps.content.portraits.guildmaster[guildmaster.sex]).toContain(guildmaster.portraitKey);
+      const once = structuredClone(before);
+      next(once);
+      expect(world.rng['gm-portraits']).toEqual(once);
+    }
+  });
+});
+
+// v1.1.2-S6 (the S5 verification): a successor's Biography says they came to the chair, not that they
+// founded the Guild, whatever its Background.
+describe("a successor's Biography (v1.1.2-S6)", () => {
+  test("has a successor's sentence where a founder's has the Background's", () => {
+    const deps = testDeps();
+    const world = testWorld('successor-biography', deps);
+    for (let i = 0; i < 6; i += 1) {
+      const { guild } = generateRival(world, deps, { controller: rival });
+      const successor = generateSuccessor(world, deps, guild);
+      expect(successor.biography).toMatch(/(He|She) took the chair\./);
+      expect(successor.biography).not.toMatch(/took the old charter|broke away/);
+    }
+  });
+});

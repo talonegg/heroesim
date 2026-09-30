@@ -18,12 +18,12 @@ async function elevenTurns(page: Page): Promise<void> {
 
 test('?modules=probe installs the probe, and its probe.fired is in the log on a seed known to fire one', async ({ page }) => {
   await page.goto('/?modules=probe');
-  await expect(page.getByText('Installed for testing: the probe module.')).toBeVisible();
+  await expect(page.getByText('Installed for testing: the probe Module.')).toBeVisible();
 
   await elevenTurns(page);
 
   const whole = await debugHistory(page);
-  const fired = historyText(whole, /^The probe module recorded probe\.fired for .+\.$/);
+  const fired = historyText(whole, /^The probe Module recorded probe\.fired for .+\.$/);
   await expect(fired).toHaveCount(1);
   await expect(groupOf(fired)).toHaveText('Day 3, night');
   const wealth = historyText(whole, /^.+'s Wealth went from \d+ to \d+\.$/);

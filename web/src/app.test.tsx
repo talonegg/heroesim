@@ -92,7 +92,7 @@ describe('before a game', () => {
     expect(within(bar).getByRole('heading', { level: 1, name: 'The Lantern' })).toBeDefined();
     expect(within(bar).getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
     // Every Guild starts at Fame 0, so all five share the first place (DL-95).
-    expect(within(bar).getByTestId('rankings').textContent).toBe('joint 1st of 5 by Fame');
+    expect(within(bar).getByTestId('rankings').textContent).toBe('Joint 1st of 5 by Fame');
     expect(screen.queryByTestId('countdown')).toBeNull();
     expect(within(bar).getByTestId('wealth').textContent).toMatch(/^\d+$/);
     // A new game opens the home view, and puts the keyboard on its heading. The keyboard moves in
@@ -498,10 +498,10 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
         ),
       ).toBeDefined();
       expect(within(time()).getByRole('status').textContent).toBe('Playing the Turns…');
-      for (const name of ['Advance a Turn', 'Fast forward', 'More ways to fast forward']) {
+      for (const name of ['Advance a Turn', 'Fast forward', 'More ways to Fast forward']) {
         expect((within(time()).getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
       }
-      expect(within(progress).getByRole('button', { name: 'Stop the fast forward' })).toBeDefined();
+      expect(within(progress).getByRole('button', { name: 'Stop the Fast forward' })).toBeDefined();
       // The game in hand, and so the status bar, stand until the fast forward ends (DL-96).
       expect(screen.getByTestId('time').textContent).toBe('Day 0, morning, Year 0');
     });
@@ -521,7 +521,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the Fast forward' }));
     await idle();
 
     const first = stoppedAfter();
@@ -538,7 +538,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     openView('Guild');
     fireEvent.click(within(screen.getByTestId('stop')).getByRole('button', { name: 'Fast forward again' }));
     await waitFor(() => expect(screen.getByTestId('progress')).toBeDefined());
-    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the Fast forward' }));
     await idle();
 
     const second = stoppedAfter();
@@ -557,7 +557,7 @@ describe('fast forward in steps, with progress and a Stop (v1.0.1-S5, DL-96)', (
     fireEvent.click(exporting());
     expect(download).not.toHaveBeenCalled();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Stop the fast forward' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop the Fast forward' }));
     await idle();
     expect(exporting().disabled).toBe(false);
     fireEvent.click(exporting());
@@ -706,7 +706,7 @@ describe('the Board with dispatch', () => {
     expect(others.filter((card) => card.dataset.testid !== 'sent')).toHaveLength(before - 1);
     // The play's line is the History's newest, marked new (M9-S5, DL-105).
     expect(inHistory(new RegExp(`^The Lantern sent .+ on ${questName}, back on the night of Day \\d+`)).classList.contains('is-new')).toBe(true);
-    expect(within(rosterList()).getAllByText(/^away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
+    expect(within(rosterList()).getAllByText(/^Away with a Party, back on the night of Day \d+$/).length).toBeGreaterThan(0);
     const out = within(openView('Guild')).getByRole('heading', { level: 3, name: 'Parties out' }).parentElement as HTMLElement;
     expect(within(out).getByText(questName)).toBeDefined();
   });
@@ -733,7 +733,7 @@ describe('the Roster with Hero pages', () => {
         return cells.length === 2 ? [cells[1]?.textContent?.replace(/^Outlook /, '')] : [];
       });
     expect(outlooks.length).toBeGreaterThan(10);
-    for (const outlook of outlooks) expect(['modest', 'promising', 'exceptional']).toContain(outlook);
+    for (const outlook of outlooks) expect(['Modest', 'Promising', 'Exceptional']).toContain(outlook);
     expect(within(page).getByRole('heading', { name: 'History, newest first' })).toBeDefined();
     expect(within(page).getByText(/^Page 1 of \d+, \d+ (entry|entries) in all, newest first\./)).toBeDefined();
     // Grouped by Day and time of day, as the History is (M9-S5); a first page has no newer one.
@@ -770,11 +770,11 @@ describe('the test-only switch for modules, the query parameter ?modules=probe (
   test('with it, the page says the probe is installed, and its probe.fired event is in the log on a seed known to fire one', async () => {
     await elevenTurns('/?modules=probe');
 
-    expect(screen.getByText('Installed for testing: the probe module.')).toBeDefined();
-    expect(within(openMenu()).getByText('the probe module')).toBeDefined();
+    expect(screen.getByText('Installed for testing: the probe Module.')).toBeDefined();
+    expect(within(openMenu()).getByText('The probe Module')).toBeDefined();
     // In the whole History, new, under the night it fired (M9-S5).
     wholeHistory();
-    const fired = inHistory(/^The probe module recorded probe\.fired for .+\.$/);
+    const fired = inHistory(/^The probe Module recorded probe\.fired for .+\.$/);
     expect(fired.classList.contains('is-new')).toBe(true);
     expect(fired.closest('.history-group')?.querySelector('h4')?.textContent).toBe('Day 3, night');
     // Its effects' events follow it, in the page's words for the core's own.

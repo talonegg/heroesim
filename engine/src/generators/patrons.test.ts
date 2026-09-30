@@ -1,28 +1,57 @@
 import { describe, expect, test } from 'vitest';
+import { pickUnused, streamOf } from './draw.js';
 import { generatePatron } from './patrons.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
 describe('generatePatron', () => {
-  test('makes a Patron of a name, a Sphere and empty Regard, storing no Quest templates (D3)', () => {
+  test('makes a Patron of a name, its sex, a Sphere and empty Regard, storing no Quest templates (D3)', () => {
     const deps = testDeps();
     const world = testWorld('patron', deps);
     const { patron } = generatePatron(world, deps);
 
-    expect(Object.keys(patron).sort()).toEqual(['id', 'name', 'regard', 'sphereKey']);
+    expect(Object.keys(patron).sort()).toEqual(['id', 'name', 'regard', 'sex', 'sphereKey']);
     expect(patron.id).toBe('patron-000001');
     expect(world.counters.patrons).toBe(2);
     expect(world.patrons[patron.id]).toBe(patron);
-    expect(deps.content.names.patron).toContain(patron.name);
+    expect(deps.content.names.patron).toContainEqual({ name: patron.name, sex: patron.sex });
     expect(Object.keys(deps.content.spheres)).toContain(patron.sphereKey);
     expect(patron.regard).toEqual({});
   });
 
-  test('takes the Sphere and name it is given', () => {
+  test('takes the Sphere, and the name and the sex it is given together (v1.1.2-S3)', () => {
     const deps = testDeps();
     const world = testWorld('given', deps);
-    const { patron } = generatePatron(world, deps, { sphereKey: 'church', name: 'Mother Aldith' });
+    const { patron } = generatePatron(world, deps, { sphereKey: 'church', name: 'Mother Aldith', sex: 'female' });
 
-    expect(patron).toMatchObject({ sphereKey: 'church', name: 'Mother Aldith' });
+    expect(patron).toMatchObject({ sphereKey: 'church', name: 'Mother Aldith', sex: 'female' });
+    // A body, which has no sex, is given `null` (DL-125 item 5); none is drawn yet.
+    expect(generatePatron(world, deps, { name: 'The Salt Guild', sex: null }).patron.sex).toBeNull();
+  });
+
+  test('draws the name v1.1.1 drew, from the same names in the same order, and the sex that comes with it (v1.1.2-S3)', () => {
+    const deps = testDeps();
+    const names = deps.content.names.patron.map(({ name }) => name);
+    for (let round = 0; round < 10; round += 1) {
+      const world = testWorld(`as-before-${round}`, deps);
+      for (let i = 0; i < names.length; i += 1) {
+        // v1.1.1's draw, from a copy of the stream: the bare names no Patron has, in one draw.
+        const used = new Set(Object.values(world.patrons).map(({ name }) => name));
+        const expected = pickUnused(structuredClone(streamOf(world)), names, used, 'Patron');
+
+        const { patron } = generatePatron(world, deps);
+
+        expect(patron.name).toBe(expected);
+        expect(patron.sex).toBe(deps.content.names.patron.find(({ name }) => name === expected)?.sex);
+      }
+    }
+  });
+
+  test('draws Patrons of both sexes', () => {
+    const deps = testDeps();
+    const world = testWorld('sexes', deps);
+    for (let i = 0; i < deps.content.names.patron.length; i += 1) generatePatron(world, deps);
+
+    expect(new Set(Object.values(world.patrons).map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));
   });
 
   test('draws every Sphere when none is given', () => {
@@ -42,7 +71,7 @@ describe('generatePatron', () => {
     for (let i = 0; i < deps.content.names.patron.length; i += 1) generatePatron(world, deps);
 
     expect(Object.values(world.patrons).map((patron) => patron.name).sort()).toEqual(
-      [...deps.content.names.patron].sort(),
+      deps.content.names.patron.map(({ name }) => name).sort(),
     );
     const before = structuredClone(world);
     expect(() => generatePatron(world, deps)).toThrow(/Patron name/);
@@ -73,7 +102,17 @@ describe('generatePatron', () => {
     const before = structuredClone(world);
 
     expect(() => generatePatron(world, deps, { sphereKey: 'guilds' })).toThrow(/guilds/);
-    expect(() => generatePatron(world, deps, { name: '' })).toThrow(RangeError);
+    expect(() => generatePatron(world, deps, { name: '', sex: 'male' })).toThrow(RangeError);
+    expect(world).toEqual(before);
+  });
+
+  test('throws, changing nothing, on a name given without a sex, or a sex without a name: a programming error (v1.1.2-S3)', () => {
+    const deps = testDeps();
+    const world = testWorld('no-sex', deps);
+    const before = structuredClone(world);
+
+    expect(() => generatePatron(world, deps, { name: 'Mother Aldith' })).toThrow(/sex/);
+    expect(() => generatePatron(world, deps, { sex: 'female' })).toThrow(/name/);
     expect(world).toEqual(before);
   });
 });

@@ -42,10 +42,10 @@ describe('the Stores (M9-F3)', () => {
     expect(within(table()).getAllByRole('columnheader').map((cell) => cell.textContent)).toEqual(['Item', 'Kind', 'Where', 'Quantity', 'Sells for']);
     const shown = rows();
     expect(shown).toHaveLength(3);
-    expect(shown[0]?.slice(0, 4)).toEqual(['Whetstone', 'consumable', 'Held', '2']);
+    expect(shown[0]?.slice(0, 4)).toEqual(['Whetstone', 'Consumable', 'Held', '2']);
     expect(shown[0]?.[4]).toMatch(/^\d+$/);
-    expect(shown[1]?.slice(0, 4)).toEqual(['The Lantern of Stannary', 'trinket gear, unique', 'Held', '1']);
-    expect(shown[2]?.slice(0, 2)).toEqual(['Padded jack', 'armour gear']);
+    expect(shown[1]?.slice(0, 4)).toEqual(['The Lantern of Stannary', 'Trinket Gear, Unique Item', 'Held', '1']);
+    expect(shown[2]?.slice(0, 2)).toEqual(['Padded jack', 'Armour Gear']);
     expect(shown[2]?.[2]).toMatch(/^Carried by /);
     expect(shown[2]?.[4]).toBe('—');
   });

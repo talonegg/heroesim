@@ -52,6 +52,7 @@ import {
   type GuildId,
   type LoadRefusal,
   type Module,
+  type PortraitKey,
   type RebaseAction,
   type Rejection,
   type SetupRefusal,
@@ -87,6 +88,11 @@ export interface NewGame {
   /** A Guild Background; drawn as a Rival's is when omitted. */
   backgroundKey?: BackgroundKey;
   guildmasterSex?: Sex;
+  /**
+   * A Guildmaster picture in content, of the sex chosen (v1.1.2-S4, DL-125 item 3): with no sex
+   * chosen, the Guildmaster is of the picture's. Drawn from the pictures of the sex when omitted.
+   */
+  guildmasterPortraitKey?: PortraitKey;
   /** A whole number of years from `guildmasterStartingAgeMin` to `Max`. */
   guildmasterAge?: number;
   /** The Traits chosen, within the budget; drawn when omitted, none when empty. */
@@ -103,6 +109,11 @@ export interface NewGame {
 export interface Load {
   kind: 'load';
   text: string;
+  /**
+   * The save of this browser the text was read from, by its name, when it was one (v1.1.2-S3): a
+   * refusal carries it, so the page says why beside that save.
+   */
+  from?: string;
 }
 
 /** Plays `turns` Turns, one unless given, stopping early if the game ends: the CLI's `advance`. */
@@ -170,10 +181,14 @@ export type NewGameRejection = SetupRefusal extends infer Refusal
 /** The Background asked for is not a Guild Background of the content. */
 export type UnknownBackground = Extract<NewGameRejection, { reason: 'unknown-background' }>;
 
-/** A save that does not load: the engine's `LoadRefusal`, by its kind, with its message. */
+/**
+ * A save that does not load: the engine's `LoadRefusal`, by its kind, with the rest of it (its
+ * message, and an `unsupported-version`'s two versions, v1.1.2-S3); and the save of this browser it
+ * was read from, when it was one.
+ */
 export type LoadRejection = LoadRefusal extends infer Refusal
   ? Refusal extends LoadRefusal
-    ? Rejection<'load', Refusal['kind']> & { message: string }
+    ? Rejection<'load', Refusal['kind']> & Omit<Refusal, 'kind'> & { from?: string }
     : never
   : never;
 
@@ -361,7 +376,7 @@ function engineDeps(modules: readonly Module[]): EngineDeps {
 
 function run(document: WorldDocument | null, play: Play, modules: readonly Module[]): Outcome {
   if (play.kind === 'newGame') return newGame(play, modules);
-  if (play.kind === 'load') return load(play.text, modules);
+  if (play.kind === 'load') return load(play, modules);
   if (document === null) return refused(play.kind, 'no-game');
   // Not the play deps: under them every save would already be current (the CLI's `rebase`).
   if (play.kind === 'rebase') return rebase(document, engineDeps(modules));
@@ -437,14 +452,16 @@ function newGame(play: NewGame, modules: readonly Module[]): Outcome {
 }
 
 /**
- * A save's text read with the engine's own config, so an older schema is migrated first (DL-20), and
- * with `modules` installed, so each checks its own slice; a slice none owns is warned of and kept.
+ * A save's text read with the engine's own config, so its schema is compared with the engine's and
+ * not its own (DL-20; an older one is refused since schema 5, DL-125 item 10.2), and with `modules`
+ * installed, so each checks its own slice; a slice none owns is warned of and kept.
  */
-function load(text: string, modules: readonly Module[]): Outcome {
+function load({ text, from }: Load, modules: readonly Module[]): Outcome {
   const loaded = deserialise(text, engineDeps(modules));
   if (!loaded.ok) {
-    const { kind, message } = loaded.reason;
-    return { ok: false, rejection: { action: 'load', reason: kind, message } as LoadRejection };
+    const { kind, ...rest } = loaded.reason;
+    const rejection = { action: 'load', reason: kind, ...rest, ...(from === undefined ? {} : { from }) } as LoadRejection;
+    return { ok: false, rejection };
   }
   return { ok: true, document: loaded.document, events: [], warnings: loaded.warnings };
 }

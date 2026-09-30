@@ -141,6 +141,13 @@ export {
   type TransferSide,
 } from './controllers/rival.js';
 export * from './create.js';
+export {
+  biographyTraitSentences,
+  describeGuildmaster,
+  type DescribeRequest,
+  type DescriptionFacts,
+  type GuildmasterDescription,
+} from './descriptions.js';
 export * from './document.js';
 export {
   moduleEffectKinds,
@@ -169,6 +176,7 @@ export {
   type RivalOptions,
 } from './generators/guilds.js';
 export { sexes } from './generators/draw.js';
+export { guildmasterPortrait, portraitSexOf, portraitsOf } from './portraits.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';

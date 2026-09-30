@@ -593,7 +593,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     expect(entriesFor(document.history, partyId)[0]?.type).toBe('guild.folded');
   });
 
-  test('a fold draws from no stream, and a replacement from generation alone', () => {
+  test("a fold draws from no stream, and a replacement from generation alone, its Guildmaster's descriptions from descriptions", () => {
     for (const rivalReplacementDays of [5, 0]) {
       const deps = testDeps({ rivalCount: 1, rivalReplacementDays });
       const document = created('streams', deps);
@@ -610,7 +610,8 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       expect(ofType(events, 'guild.founded')).toHaveLength(rivalReplacementDays === 0 ? 1 : 0);
       const rng = world.rng as Record<string, unknown>;
       for (const name of plannedStreams) {
-        const moved = name === 'generation' && rivalReplacementDays === 0;
+        // A Guildmaster entering play is described on a stream of its own (v1.1.2-S5).
+        const moved = (name === 'generation' || name === 'descriptions') && rivalReplacementDays === 0;
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
         else expect(rng[name], name).toEqual(before[name]);
       }
@@ -651,12 +652,11 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(successor).toMatchObject({
       guildId: rival.id,
       enteredTurn: nightOf(0),
-      birthplace: '',
-      appearance: '',
-      biography: '',
       retiredOnTurn: null,
       regard: {},
     });
+    // Described as they enter play (v1.1.2-S5, DL-125 item 6).
+    for (const text of [successor.birthplace, successor.appearance, successor.biography]) expect(text).not.toBe('');
     expect(successor.ageAtEntry).toBeGreaterThanOrEqual(deps.config.guildmasterStartingAgeMin);
     expect(successor.ageAtEntry).toBeLessThanOrEqual(deps.config.guildmasterStartingAgeMax);
     for (const value of Object.values(successor.stats)) {
@@ -718,7 +718,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(successor?.regard).toEqual({});
   });
 
-  test('the successor is drawn from generation alone', () => {
+  test('the successor is drawn from generation alone, and described from descriptions (v1.1.2-S5)', () => {
     const deps = testDeps({ rivalCount: 1 });
     const document = created('succession-streams', deps);
     const world = structuredClone(document.world);
@@ -732,7 +732,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
     const rng = world.rng as Record<string, unknown>;
     for (const name of plannedStreams) {
-      if (name === 'generation') expect(rng[name], name).not.toEqual(before[name]);
+      if (name === 'generation' || name === 'descriptions') expect(rng[name], name).not.toEqual(before[name]);
       else expect(rng[name], name).toEqual(before[name]);
     }
   });

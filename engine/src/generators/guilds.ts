@@ -4,7 +4,7 @@
 // order is DL-19 items 6 and 7; changing it changes every seed's Guilds.
 
 import type { EngineDeps, GameConfig } from '../config.js';
-import type { BackgroundKey, ContentSet, DispositionKey, Trait, TraitKey } from '../content-types.js';
+import type { BackgroundKey, ContentSet, DispositionKey, PortraitKey, Trait, TraitKey } from '../content-types.js';
 import {
   facilityKeys,
   takeId,
@@ -20,8 +20,10 @@ import {
   type Turn,
   type World,
 } from '../document.js';
+import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
+import { guildmasterPortrait } from '../portraits.js';
 import { int, pick } from '../rng.js';
 import {
   checkName,
@@ -64,12 +66,21 @@ export interface GuildOptions extends DrawsFrom {
    * `createWorld` has checked it with `setupRefusal`; this trusts it.
    */
   guildmaster?: GuildmasterChoices;
+  /**
+   * The Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): when given, the picture `chosen`, else one
+   * drawn from the Guildmaster pictures of their sex, one draw from the stream `gm-portraits` either way
+   * (`guildmasterPortrait`), made before their texts are written, since a mapped picture's narrative
+   * is the Appearance (DL-127 item 4). Only the player's Guildmaster has one; omitted, as for every
+   * Rival's, the Portrait is `null`, the Silhouette, and nothing is drawn from `gm-portraits`.
+   */
+  portrait?: { chosen: PortraitKey | undefined };
 }
 
 /**
  * A Guildmaster's setup, each part optional (M9-S2): what is given replaces what is drawn, and the
  * draws are made either way, so a choice moves no later draw. The descriptive Attributes are
- * stored as given, trimmed by the caller; a drawn Guildmaster's are empty.
+ * stored as given, trimmed by the caller; each left blank is written from content as the Guildmaster
+ * enters play (`describeBlanks`, v1.1.2-S5).
  */
 export interface GuildmasterChoices {
   sex?: Sex;
@@ -145,6 +156,12 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   };
   world.guilds[guildId] = guild;
   world.guildmasters[guildmasterId] = guildmaster;
+  // The Portrait, then the texts, each from a stream of its own (ADR-0009), so no draw of
+  // `options.stream` moves (v1.1.2-S3, v1.1.2-S5).
+  if (options.portrait !== undefined) {
+    guildmaster.portraitKey = guildmasterPortrait(world.rng['gm-portraits'], content, guildmaster.sex, options.portrait.chosen);
+  }
+  describeBlanks(world, deps, guildmaster, backgroundKey);
 
   const labels: Record<EntityId, string> = {};
   labels[guildId] = guild.name;
@@ -220,7 +237,9 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
  * A successor to `guild`'s Guildmaster (M9-S2, DL-100 item 3): a Guildmaster drawn as a founding
  * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
  * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
- * neutral for everyone, their descriptive Attributes empty, and they enter the world now. The row
+ * neutral for everyone, their descriptive Attributes written from content on the stream
+ * `descriptions` as a successor's (`describeBlanks`, v1.1.2-S5 and S6), and they enter the world
+ * now. The row
  * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
  * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
  *
@@ -238,6 +257,8 @@ export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, 
     chosen: {},
   });
   world.guildmasters[successor.id] = successor;
+  // A successor came to the chair: their Biography says so in the Background's place (v1.1.2-S6).
+  describeBlanks(world, deps, successor, guild.backgroundKey, { successor: true });
   return successor;
 }
 
@@ -366,6 +387,7 @@ function drawGuildmaster(state: Stream, { config, content }: EngineDeps, setup: 
     birthplace: chosen.birthplace ?? '',
     appearance: chosen.appearance ?? '',
     biography: chosen.biography ?? '',
+    portraitKey: null,
     retiredOnTurn: null,
     regard: {},
   };

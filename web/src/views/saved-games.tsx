@@ -6,9 +6,11 @@
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { content } from '../content';
 import { savesFailureSentence, type Saves, type SavesFailure, type SaveSummary } from '../saves';
 import { saveFileName } from '../state/game-file';
-import type { GameAction } from '../state/reducer';
+import type { GameAction, PlayRejection } from '../state/reducer';
+import { refusedSave, rejectionSentence } from '../state/rejections';
 import { download } from './download';
 
 /** Lets the browser paint "Saving…" before the save text of a long game is written, which holds the page. */
@@ -35,6 +37,7 @@ export function SavedGames({
   document,
   busy,
   play,
+  rejection = null,
   level,
 }: {
   saves: Saves;
@@ -42,6 +45,12 @@ export function SavedGames({
   document: WorldDocument | null;
   busy: boolean;
   play: (action: GameAction) => void;
+  /**
+   * The last play refused: a save listed here that did not load has its sentence beside it, such as
+   * "This game was saved by an older Heroesim and cannot be loaded" (v1.1.2-S3, DL-125 item 10.2),
+   * and can still be exported and deleted.
+   */
+  rejection?: PlayRejection | null;
   /** Its heading's level: 3 in the new-game view, 4 in the game menu's part (M9-S3). */
   level: 3 | 4;
 }) {
@@ -99,7 +108,7 @@ export function SavedGames({
     void run(`Reading “${saveName}”…`, async () => {
       const loaded = await saves.load(saveName);
       if (!loaded.ok) return failed(loaded.failure);
-      play({ kind: 'load', text: loaded.value });
+      play({ kind: 'load', text: loaded.value, from: saveName });
       return null;
     });
   }
@@ -160,6 +169,11 @@ export function SavedGames({
                     <p className="subtle">
                       Saved {whenWords(save.savedAt)}, {sizeWords(save.bytes)}
                     </p>
+                    {rejection !== null && refusedSave(rejection) === save.name ? (
+                      <p className="warning" role="alert">
+                        {rejectionSentence(rejection, null, content)}
+                      </p>
+                    ) : null}
                     {deleting === save.name ? (
                       <div className="actions">
                         <button type="button" className="button--danger" disabled={!idle} onClick={() => remove(save.name)}>

@@ -31,3 +31,15 @@ component's later draws, which the Consequences accept. A new component still ge
 and never shares an old one. The Transfer Generator, a component of its own, draws from
 `rivals`, and that is an accepted exception rather than a stream of its own. This records what
 the build already does, so no seed's game changes. Decided by the owner (DL-84).
+
+*Amended 2026-09-30.* A Guildmaster's Portrait (`portraits`, v1.1.2-S3) and descriptive
+Attributes (`descriptions`, v1.1.2-S5) are drawn on streams of their own, though both are part
+of generating a Guildmaster. Drawn from `generation`, they would shift every later draw of it,
+and v1.1.2 moves no existing draw, so that a seed plays as it did in v1.1.1. This is an accepted
+exception, like the Transfer Generator's, and each is appended last to the streams. Decided by
+the owner (DL-125; built in DL-130).
+
+*Amended 2026-10-01.* The Guildmaster's Portrait stream is named `gm-portraits`, not `portraits`,
+from v1.1.2-S7, before `v1.1.2` was released, so that Heroes' Portraits can be drawn on a stream
+of their own, `hero-portraits`, later. No released save held `portraits`. Decided by the owner
+(DL-134, DL-135; built in DL-137).

@@ -113,7 +113,7 @@ describe("a Party's return and a module's stop (M9-F5, DL-112 item 8)", () => {
     expect(screen.queryAllByRole('button')).toHaveLength(0);
     cleanup();
 
-    const { onGo } = card({ kind: 'module', sentence: 'Stopped: the probe module asked to stop.' });
+    const { onGo } = card({ kind: 'module', sentence: 'Stopped: the probe Module asked to stop.' });
     fireEvent.click(screen.getByRole('button', { name: 'Read what happened' }));
     expect(onGo).toHaveBeenCalledWith('history');
   });

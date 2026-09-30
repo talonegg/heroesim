@@ -115,6 +115,7 @@ const guildmaster: Guildmaster = {
   birthplace: 'Stannary',
   appearance: 'Grey at the temples.',
   biography: '',
+  portraitKey: 'gm-male-01',
   retiredOnTurn: null,
   regard: { [heroId]: regardEntry },
 };
@@ -148,6 +149,7 @@ const hero: Hero = {
 const patron: Patron = {
   id: patronId,
   name: 'Lady Maud of Stannary',
+  sex: 'female',
   sphereKey: 'crown',
   regard: { [guildId]: regardEntry },
 };
@@ -349,7 +351,7 @@ describe('the World State document', () => {
     expect(defaultDocument.meta).toBe(meta);
   });
 
-  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1), rivals (M2-S9) and market (M5-S4), in ADR-0009 order', () => {
+  test('the streams so far are generation, board (M2-S3), quests (M2-S5), encounters (M4-S1), pool (M2-S8), heroes (M2-S6), progression (M3-S1), rivals (M2-S9), market (M5-S4), gm-portraits (v1.1.2-S3, renamed v1.1.2-S7) and descriptions (v1.1.2-S5), in ADR-0009 order', () => {
     expect(streamNames).toEqual([
       'generation',
       'board',
@@ -360,6 +362,8 @@ describe('the World State document', () => {
       'progression',
       'rivals',
       'market',
+      'gm-portraits',
+      'descriptions',
     ]);
   });
 

@@ -38,9 +38,12 @@ export function placeWords({ place, joint }: { place: number; joint: boolean }):
   return joint ? `joint ${ordinal(place)}` : ordinal(place);
 }
 
-/** Who makes a Guild's choices, in the CLI's words (`show guilds`), the player's Guild as `Yours`. */
-export function controllerWords(guild: Pick<Guild, 'controller'>): string {
-  return guild.controller.kind === 'player' ? 'Yours' : `Rival (${guild.controller.disposition})`;
+/**
+ * Who makes a Guild's choices (`show guilds`), the player's Guild as `Yours`, a Rival's with its
+ * Disposition by name as the Guilds' table has it: `Rival (Steady)` (DL-125 item 9).
+ */
+export function controllerWords(guild: Pick<Guild, 'controller'>, set: Pick<ContentSet, 'dispositions'>): string {
+  return guild.controller.kind === 'player' ? 'Yours' : `Rival (${nameIn(set.dispositions, guild.controller.disposition)})`;
 }
 
 /**
@@ -49,7 +52,7 @@ export function controllerWords(guild: Pick<Guild, 'controller'>): string {
  * the review's E4). The rule is the engine's (`makeTransfer`): gear returns to the Guild, and each
  * Hero who stays and holds the Hero in `transferRegardBand` or above loses `transferMoraleCost`.
  */
-export const transferCostWords = 'Their gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale.';
+export const transferCostWords = 'Their Gear stays with your Guild, and the Heroes left behind who held them in high Regard lose Morale.';
 
 /** `+2`, `-1`, `0`. */
 export function signed(n: number): string {
@@ -61,7 +64,7 @@ export function signed(n: number): string {
  * `Morale baseline -5`, `Upkeep ×0.9`; the Guildmaster's page's and the new-game form's (M9-S2).
  */
 export function traitEffectWords(effect: TraitEffect | null, set: Pick<ContentSet, 'stats' | 'classes'>): string {
-  if (effect === null) return 'no effect';
+  if (effect === null) return 'No effect';
   switch (effect.kind) {
     case 'classStatBonus':
       return `${signed(effect.delta)} ${nameIn(set.stats, effect.statKey)} to ${nameIn(set.classes, effect.classKey)}s`;

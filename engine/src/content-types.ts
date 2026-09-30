@@ -502,7 +502,118 @@ export interface Names {
   given: Record<Sex, string[]>;
   family: string[];
   guild: string[];
-  patron: string[];
+  /** A Patron's whole name, each with the sex it reads as (v1.1.2-S3, DL-125 item 5). */
+  patron: PatronName[];
+}
+
+/** A Patron's name and the sex that comes with it when it is drawn (v1.1.2-S3, DL-125 item 5). */
+export interface PatronName {
+  name: string;
+  sex: Sex;
+}
+
+/**
+ * Whose pictures a Portrait is drawn from (v1.1.2-S3, DL-125 items 2 and 3): each role has its
+ * pictures by sex, as `media/portraits/` has a folder per role and sex.
+ */
+export type PortraitRole = 'guildmaster' | 'hero' | 'patron';
+
+/**
+ * A Portrait's key: a picture's name without its extension, lower case and hyphens, never renamed
+ * once a save may hold it, and unique across the roles by their prefixes, `gm-`, `hero-` and
+ * `patron-` (DL-125 item 11, DL-126 item 2). The page finds the picture by it in `media/`.
+ */
+export type PortraitKey = string;
+
+/** The pictures of each role and sex, by key, in the order listed (`portraits.json`, v1.1.2-S3). */
+export type Portraits = Record<PortraitRole, Record<Sex, PortraitKey[]>>;
+
+/**
+ * The parts of a person's looks a picture's keyword names (DL-127 item 3): the slots of the
+ * Appearance but `build`, which a head and shoulders cannot show. No clothing (DL-127 item 2).
+ */
+export type AppearanceSlot = 'face' | 'hair' | 'facialHair' | 'eyes' | 'mark' | 'bearing';
+
+/** A keyword's key: lower case and hyphens, never renamed once a rule reads it (DL-127 item 3). */
+export type AppearanceKeywordKey = string;
+
+/** A keyword a picture's Appearance may use: its slot, and its word for display (DL-127 item 3). */
+export interface AppearanceKeyword {
+  slot: AppearanceSlot;
+  word: string;
+}
+
+/**
+ * What a picture shows of the person (DL-127 item 1): short keywords, which no rule reads yet, and
+ * a narrative of two or three sentences, in the third person with no name and no age, which is the
+ * Appearance of a Guildmaster with this Portrait (v1.1.2-S5).
+ */
+export interface PortraitAppearance {
+  keywords: AppearanceKeywordKey[];
+  narrative: string;
+}
+
+/**
+ * The Appearances mapped to pictures (`portrait-appearances.json`, v1.1.2-S4; DL-126 item 2,
+ * DL-127): the keywords defined once, and each mapped picture's row by its Portrait's key. A picture
+ * with no row is allowed; its Appearance is drawn whole.
+ */
+export interface PortraitAppearances {
+  keywords: Record<AppearanceKeywordKey, AppearanceKeyword>;
+  portraits: Record<PortraitKey, PortraitAppearance>;
+}
+
+/**
+ * The parts a drawn Appearance is written in (v1.1.2-S5, DL-125 item 6, DL-127 item 2): a keyword's
+ * slots and `build`, which a picture cannot show. No clothing, armour, gear or ornaments.
+ */
+export type DescriptionSlot = AppearanceSlot | 'build';
+
+/** An age band's key: lower case and hyphens, such as `young` (`descriptions.json`, v1.1.2-S5). */
+export type AgeBandKey = string;
+
+/** An age band: the ages from `from`, whole years, to the next band's `from`, the last to any age. */
+export interface AgeBand {
+  key: AgeBandKey;
+  from: number;
+}
+
+/**
+ * The phrases of one sex and age band, each a whole sentence, by slot (v1.1.2-S5). `facialHair` is a
+ * male's only; every other slot is in every band.
+ */
+export type AppearancePhrases = Record<Exclude<DescriptionSlot, 'facialHair'>, string[]> & { facialHair?: string[] };
+
+/**
+ * The sentences a Biography is written from (v1.1.2-S5, DL-125 item 6), each with slots: `{birthplace}`
+ * and the pronoun slots of `Descriptions.pronouns`. By age band: `origins`, `careers` and `closings`;
+ * by the optional keys: `backgrounds`, by a Guild Background, and `traits`, by a Guildmaster Trait;
+ * and `successors`, for a successor, who came to the Guild's chair rather than founding the Guild, in
+ * the Background's place (v1.1.2-S6).
+ */
+export interface BiographySentences {
+  origins: Record<AgeBandKey, string[]>;
+  careers: Record<AgeBandKey, string[]>;
+  backgrounds: Record<BackgroundKey, string[]>;
+  traits: Record<TraitKey, string[]>;
+  closings: Record<AgeBandKey, string[]>;
+  successors: string[];
+}
+
+/**
+ * What a Guildmaster's descriptive Attributes are written from (`descriptions.json`, v1.1.2-S5;
+ * DL-125 item 6, DL-127): the age bands, the pronoun each slot is for each sex, the Birthplaces, the
+ * Appearance's phrases by sex and age band, and the Biography's sentences. The content validator
+ * proves that nothing it can write passes `descriptiveAttributeMaxLength`.
+ */
+export interface Descriptions {
+  /** In order of `from`, the first from 0, so every age has a band. */
+  ageBands: AgeBand[];
+  /** Each sex's word for each pronoun slot, `{he}` → `she`: the same slots for every sex. */
+  pronouns: Record<Sex, Record<string, string>>;
+  birthplaces: string[];
+  appearance: Record<Sex, Record<AgeBandKey, AppearancePhrases>>;
+  biography: BiographySentences;
 }
 
 /** A loaded, validated set of content. Each table is keyed by its rows' kebab-case keys. */
@@ -518,6 +629,15 @@ export interface ContentSet {
   backgrounds: Record<BackgroundKey, Background>;
   spheres: Record<SphereKey, Sphere>;
   names: Names;
+  /**
+   * The pictures a Portrait may show, by role and sex (v1.1.2-S3, DL-125 item 3): a player's
+   * Guildmaster's Portrait is chosen or drawn from them. Empty lists where a role and sex has none.
+   */
+  portraits: Portraits;
+  /** What each mapped picture shows of the person (v1.1.2-S4, DL-127): read by no rule yet. */
+  portraitAppearances: PortraitAppearances;
+  /** What a Guildmaster's blank descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6). */
+  descriptions: Descriptions;
   /** The kinds of Quest the Patrons offer, found by Sphere at draw time (M2-S3, DL-20). */
   questTemplates: Record<QuestTemplateKey, QuestTemplate>;
   /** The types of Injury a Quest can leave; at least one (M2-S5). */

@@ -58,75 +58,13 @@ export type Migration = (document: SavedDocument) => SavedDocument;
 /**
  * The chain: `migrations[n]` turns a version-n document into version n + 1. A milestone that
  * changes the schema adds its step with the new `schemaVersion` (data-model §6).
+ *
+ * Empty since schema 5 (v1.1.2-S3): a save of schema 4, as `v1.1.1` wrote it, is refused as
+ * `unsupported-version` rather than migrated, the owner's decision (DL-125 item 10.2), and so is any
+ * older one. The steps from 1 to 4 (DL-27, DL-60, DL-102) led only to schema 4, so they went with it
+ * (DL-130).
  */
-export const migrations: Readonly<Record<number, Migration>> = Object.freeze({
-  1: unattachedPoolFields,
-  2: transferredOnTurnField,
-  3: guildmasterAttributeFields,
-});
-
-/**
- * Version 1 to 2 (M2-S8, DL-27): every Hero gains `unattachedSince` and `leftPoolOnTurn`. In a
- * version-1 world only generation put a Hero in the pool, so a living, unretired Hero with no
- * Guild entered it at `enteredTurn`; no Hero had yet left it. Changes nothing it does not
- * recognise, leaving a damaged save for the validator to refuse, and never changes its input.
- */
-function unattachedPoolFields(document: SavedDocument): SavedDocument {
-  const { world } = document;
-  if (!isObject(world) || !isObject(world.heroes)) return document;
-  const heroes = Object.fromEntries(
-    Object.entries(world.heroes).map(([id, hero]) => {
-      if (!isObject(hero)) return [id, hero];
-      const inPool = hero.guildId === null && hero.diedOnTurn === null && hero.retiredOnTurn === null;
-      return [id, { ...hero, unattachedSince: inPool ? hero.enteredTurn : null, leftPoolOnTurn: null }];
-    }),
-  );
-  return { ...document, world: { ...world, heroes } };
-}
-
-/**
- * Version 2 to 3 (DL-60): every Hero gains `transferredOnTurn`, the Turn of their last Transfer, read
- * from the History a version-2 save carries: the Turn of the last `hero.transferred` entry naming the
- * Hero in its payload, or `null` for a Hero it names in none (every Hero of a save made before M6-S2).
- * Changes nothing it does not recognise, leaving a damaged save for the validator to refuse, and
- * never changes its input.
- */
-function transferredOnTurnField(document: SavedDocument): SavedDocument {
-  const { world, history } = document;
-  if (!isObject(world) || !isObject(world.heroes)) return document;
-  const lastTransfer = new Map<unknown, unknown>();
-  const entries = isObject(history) && Array.isArray(history.entries) ? (history.entries as unknown[]) : [];
-  for (const entry of entries) {
-    if (isObject(entry) && entry.type === 'hero.transferred' && isObject(entry.payload)) lastTransfer.set(entry.payload.heroId, entry.turn);
-  }
-  const heroes = Object.fromEntries(
-    Object.entries(world.heroes).map(([id, hero]) => [id, isObject(hero) ? { ...hero, transferredOnTurn: lastTransfer.get(id) ?? null } : hero]),
-  );
-  return { ...document, world: { ...world, heroes } };
-}
-
-/**
- * Version 3 to 4 (M9-S2, DL-102): every Guildmaster gains the three descriptive Attributes, empty,
- * and `retiredOnTurn`, `null`. No Guildmaster retired in a version-3 world without their Guild
- * folding (DL-28 item 1), and a folded Guild's Guildmaster is a record no rule reads, so every one
- * is read as in office; their Traits are left as they are (DL-100 item 4). Changes nothing it does
- * not recognise, leaving a damaged save for the validator to refuse, and never changes its input.
- */
-function guildmasterAttributeFields(document: SavedDocument): SavedDocument {
-  const { world } = document;
-  if (!isObject(world) || !isObject(world.guildmasters)) return document;
-  const guildmasters = Object.fromEntries(
-    Object.entries(world.guildmasters).map(([id, guildmaster]) => [
-      id,
-      isObject(guildmaster) ? { ...guildmaster, birthplace: '', appearance: '', biography: '', retiredOnTurn: null } : guildmaster,
-    ]),
-  );
-  return { ...document, world: { ...world, guildmasters } };
-}
-
-function isObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+export const migrations: Readonly<Record<number, Migration>> = Object.freeze({});
 
 /** Why a save does not load. `message` is prose for a front end; tests assert on the rest. */
 export type LoadRefusal =

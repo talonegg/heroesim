@@ -1,0 +1,5 @@
+{
+  "guildmaster": { "female": ["gm-female-01"], "male": ["gm-male-01"] },
+  "hero": { "female": [], "male": [] },
+  "patron": { "female": [], "male": [] }
+}

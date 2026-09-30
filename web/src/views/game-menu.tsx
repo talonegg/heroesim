@@ -13,6 +13,7 @@ import type { Module, WorldDocument } from '@heroesim/engine';
 import { useEffect, useRef, type KeyboardEvent } from 'react';
 import { content } from '../content';
 import type { Saves } from '../saves';
+import { capitalised } from '../state/names';
 import { listed } from '../state/narrate';
 import type { GameAction, GameState } from '../state/reducer';
 import { GameFile } from './game-file';
@@ -20,9 +21,9 @@ import { Icon } from './icons';
 import { RulesNotice } from './rules-notice';
 import { HelpFor } from './section';
 
-/** `the probe module`, `the probe and weather modules`: what is installed for testing. */
+/** `the probe Module`, `the probe and weather Modules`: what is installed for testing; the menu's value begins with a capital (DL-125 item 9). */
 export function installedWords(modules: readonly Module[]): string {
-  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'module' : 'modules'}`;
+  return `the ${listed(modules.map((module) => module.id))} ${modules.length === 1 ? 'Module' : 'Modules'}`;
 }
 
 /** The controls the keyboard can reach inside `root`, in order. */
@@ -114,7 +115,7 @@ export function GameMenu({
           {modules.length === 0 ? null : (
             <div>
               <dt>Installed for testing</dt>
-              <dd>{installedWords(modules)}</dd>
+              <dd>{capitalised(installedWords(modules))}</dd>
             </div>
           )}
         </dl>

@@ -132,12 +132,17 @@ export const facilityIs: Readonly<Record<FacilityKey, string>> = Object.freeze({
   quarters: 'are',
 });
 
+/** An Item's kind as a column shows it, as the web's Kind cell does: `Weapon Gear` for Gear of its slot, or `Consumable`. */
+export function kindWords(definition: ItemDefinition): string {
+  return definition.kind === 'gear' ? `${capitalised(definition.slot)} Gear` : 'Consumable';
+}
+
 function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 function none(list: readonly string[]): string {
-  return list.length === 0 ? 'none' : list.join(', ');
+  return list.length === 0 ? 'None' : list.join(', ');
 }
 
 // ── Time ─────────────────────────────────────────────────────────────────────────────────────
@@ -152,8 +157,12 @@ export function renderTime(turn: number, config: EngineDeps['config']): string {
 
 // ── Guilds and the summary ───────────────────────────────────────────────────────────────────
 
-function controllerOf(guild: Guild): string {
-  return guild.controller.kind === 'player' ? 'Player' : `Rival (${guild.controller.disposition})`;
+/**
+ * Who makes a Guild's choices: `Player`, or a Rival with its Disposition by its name in content,
+ * `Rival (Steady)`, as the page's Guilds' table names it (v1.1.2-S6); a key content lacks as it is.
+ */
+function controllerOf(guild: Guild, content: EngineDeps['content']): string {
+  return guild.controller.kind === 'player' ? 'Player' : `Rival (${nameIn(content.dispositions, guild.controller.disposition)})`;
 }
 
 /**
@@ -180,7 +189,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
     guilds.map((guild) => [
       guild.id,
       guild.name,
-      controllerOf(guild),
+      controllerOf(guild, content),
       rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
@@ -273,8 +282,8 @@ export function renderHall(guild: Guild, deps: EngineDeps): string[] {
     return [
       capitalised(facilityNames[facility]),
       String(grade),
-      grade === 0 ? 'none' : builtAt(facility, grade),
-      next === null ? 'none: the top grade' : next.name,
+      grade === 0 ? 'None' : builtAt(facility, grade),
+      next === null ? 'None: the top grade' : next.name,
       next === null ? '' : String(next.cost),
     ];
   });
@@ -357,7 +366,7 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
     return [
       row.id,
       nameIn(deps.content.items, row.definitionKey),
-      definition === undefined ? '' : definition.kind === 'gear' ? `${definition.slot} gear` : 'consumable',
+      definition === undefined ? '' : kindWords(definition),
       'quantity' in row ? String(row.quantity) : '1',
       definition?.kind === 'gear' ? modifierWords(definition, deps.content) : '',
     ];
@@ -369,7 +378,7 @@ export function renderRoster(guild: Guild, document: WorldDocument, deps: Engine
     '',
     `Held by ${guild.name}`,
     ...(rows.length === 0
-      ? ['nothing']
+      ? ['Nothing']
       : table(
           [{ heading: 'Id' }, { heading: 'Item' }, { heading: 'Kind' }, { heading: 'Quantity', align: 'right' }, { heading: 'Modifies' }],
           rows,
@@ -426,7 +435,7 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
       heading: 'Signs',
       cell: (hero) => {
         const refusal = signingRefusal(guild, hero, deps.config);
-        return refusal === null ? 'yes' : `needs Fame ${refusal.fameRequired}`;
+        return refusal === null ? 'Yes' : `Needs Fame ${refusal.fameRequired}`;
       },
     });
   }
@@ -460,7 +469,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     ['Age', String(ageOf(hero, world.turn, config))],
     ['Class', nameIn(content.classes, hero.classKey)],
     ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
-    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'none' : 'Unattached') : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
+    ['Guild', hero.guildId === null ? (hero.unattachedSince === null ? 'None' : 'Unattached') : `${guild?.name ?? hero.guildId} (${hero.guildId})`],
     ['Level', String(hero.level)],
     ['XP', String(hero.xp)],
     ['Morale', String(hero.morale)],
@@ -525,7 +534,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
         '',
         'Relationships on the Roster',
         ...(mates.length === 0
-          ? ['none']
+          ? ['None']
           : table([{ heading: 'Id' }, { heading: 'Hero' }, { heading: 'Class' }, { heading: 'Regard' }, { heading: 'Relationship' }], mates)),
       ]
     : [];
@@ -552,7 +561,7 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
     '',
     'Skills',
     ...(skills.length === 0
-      ? ['none']
+      ? ['None']
       : table([{ heading: 'Skill' }, { heading: 'Rating', align: 'right' }], skills)),
     ...relationships,
   ];
@@ -574,7 +583,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
       ranking.joint ? `joint ${ranking.place}` : String(ranking.place),
       ranking.guildId,
       guild?.name ?? ranking.guildId,
-      guild === undefined ? '' : controllerOf(guild),
+      guild === undefined ? '' : controllerOf(guild, deps.content),
       String(ranking.value),
     ];
   });
@@ -597,7 +606,7 @@ export function renderRankings(document: WorldDocument, deps: EngineDeps, by: Ra
 // ── Patrons ──────────────────────────────────────────────────────────────────────────────────
 
 /**
- * `show patrons`: each Patron, their Sphere and, when there is a player's Guild, their Regard for
+ * `show patrons`: each Patron, their Sex (v1.1.2-S3), their Sphere and, when there is a player's Guild, their Regard for
  * it as a band (M4-S5), which weighs on how often they post to the Board and recovers toward
  * neutral with time.
  */
@@ -606,14 +615,21 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
   const guild = playerGuild(document.world);
   const regard = (patron: Patron): string[] =>
     guild === undefined ? [] : [regardBand(patronRegardFor(patron, guild.id), deps.config)];
-  const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sphere' }];
+  const columns: Column[] = [{ heading: 'Id' }, { heading: 'Patron' }, { heading: 'Sex' }, { heading: 'Sphere' }];
   if (guild !== undefined) columns.push({ heading: 'Regard for us' });
   return [
     'Patrons',
     '',
     ...table(
       columns,
-      patrons.map((patron) => [patron.id, patron.name, nameIn(deps.content.spheres, patron.sphereKey), ...regard(patron)]),
+      patrons.map((patron) => [
+        patron.id,
+        patron.name,
+        // The sex that came with the name (v1.1.2-S3); a body has none.
+        patron.sex === null ? 'None' : capitalised(patron.sex),
+        nameIn(deps.content.spheres, patron.sphereKey),
+        ...regard(patron),
+      ]),
     ),
   ];
 }
@@ -622,11 +638,11 @@ export function renderPatrons(document: WorldDocument, deps: EngineDeps): string
 
 /** What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key. */
 const guildmasterRules: Readonly<Record<string, string>> = Object.freeze({
-  negotiation: 'the reward agreed and the fees paid',
-  inspiration: 'the Morale baseline of the Heroes',
-  coaching: 'the XP of the training yard',
-  influence: "the Regard a Patron's Quest earns",
-  judgement: 'how sharp the Potential hints read',
+  negotiation: 'The reward agreed and the fees paid',
+  inspiration: 'The Morale baseline of the Heroes',
+  coaching: 'The XP of the training yard',
+  influence: "The Regard a Patron's Quest earns",
+  judgement: 'How sharp the Potential hints read',
 });
 
 /** A Guildmaster Trait's effect in words (M4-S5): `+1 Weaponry to Warriors`, `Upkeep ×0.9`. */
@@ -695,6 +711,8 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     '',
     ...fields([
       ['Sex', capitalised(guildmaster.sex)],
+      // The picture by its key (v1.1.2-S3), which the page finds in `media/`; none shows the Silhouette.
+      ['Portrait', guildmaster.portraitKey ?? 'None: the Silhouette'],
       ['Age', String(ageOf(guildmaster, world.turn, config))],
       // The descriptive Attributes written (M9-S2, DL-100 item 3); none is shown when empty.
       ...descriptiveAttributes.flatMap((attribute): [string, string][] =>
@@ -706,16 +724,16 @@ export function renderGuildmaster(guild: Guild, document: WorldDocument, deps: E
     ...table([{ heading: 'Stat' }, { heading: 'Value', align: 'right' }, { heading: 'Bears on' }], stats),
     '',
     'Traits',
-    ...(traits.length === 0 ? ['none'] : table([{ heading: 'Trait' }, { heading: 'Effect' }], traits)),
+    ...(traits.length === 0 ? ['None'] : table([{ heading: 'Trait' }, { heading: 'Effect' }], traits)),
     '',
     'Regard for Patrons',
     ...table(regardColumns('Patron', 'Sphere'), patrons),
     '',
     'Regard for Heroes on the Roster',
-    ...(heroes.length === 0 ? ['none'] : table(regardColumns('Hero', 'Class'), heroes)),
+    ...(heroes.length === 0 ? ['None'] : table(regardColumns('Hero', 'Class'), heroes)),
     '',
     'Regard for the other Guilds, through their Guildmasters',
-    ...(others.length === 0 ? ['none'] : table(regardColumns('Guild', 'Guildmaster'), others)),
+    ...(others.length === 0 ? ['None'] : table(regardColumns('Guild', 'Guildmaster'), others)),
   ];
 }
 
@@ -814,7 +832,7 @@ export function renderHistory(heading: string, entries: readonly Entry[]): strin
       entries.map((entry) => [
         String(entry.turn),
         entry.type,
-        entry.milestone ? 'yes' : '',
+        entry.milestone ? 'Yes' : '',
         entry.participants.map((id) => entry.labels[id] ?? id).join(', '),
       ]),
     ),

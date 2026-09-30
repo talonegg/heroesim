@@ -72,7 +72,7 @@ export function GameFile({
         </button>
         <LoadSave saves={saves} busy={busy} play={play} />
       </div>
-      <SavedGames saves={saves} document={document} busy={busy} play={play} level={4} />
+      <SavedGames saves={saves} document={document} busy={busy} play={play} rejection={state.rejection} level={4} />
       {state.warnings.length === 0 ? null : (
         <>
           <p>The save names things this release’s content does not define; they are shown as they are:</p>

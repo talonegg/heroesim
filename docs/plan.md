@@ -301,6 +301,22 @@ the agents recommended that story features be modules and rule extensions core i
   shortcuts come after it (DL-99 items 4 and 5). *Amended 2026-09-29 (DL-99): the owner put the
   redesign before Random Events.* *Amended 2026-09-29 (DL-111): the owner's player test of M9 adds a
   follow-on inside `v1.1.0` (`docs/planning/epics/M9-feedback.md`).*
+- **Then, inside the v1.1 line:** Portraits, Guild Banners and Unique Items' pictures, the
+  Guildmaster described from content, and every standalone text beginning with a capital, as the
+  patch `v1.1.2`, built on `v1.1.2-dev` from `main` (`docs/planning/epics/v1.1.2-release.md`).
+  *Added 2026-09-30 (DL-125).* *Built and verified on `v1.1.2-dev` 2026-09-30 (DL-133); the release
+  awaits the owner. S7, which renames the Portrait stream `gm-portraits`, was built 2026-10-01
+  (DL-137).*
+- **Then, inside the v1.1 line:** Portraits that follow the person, as the patch `v1.1.3`, built on
+  `v1.1.3-dev` from `main` (`docs/planning/epics/v1.1.3-release.md`):
+  - a Portrait for every Guildmaster and Hero, chosen to fit them, with the Silhouette where none
+    fits;
+  - Guildmasters' Portraits drawn on `gm-portraits`, which `v1.1.2` names in its S7, and Heroes' on
+    `hero-portraits`;
+  - Heroes gaining an Appearance and a Biography;
+  - a portrait tool, with its skills, for intake, analysis and apply.
+
+  *Added 2026-10-01 (DL-134, DL-135).* It awaits the owner's approval and pictures.
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
@@ -316,6 +332,8 @@ the agents recommended that story features be modules and rule extensions core i
   - The Guildmaster Trait that sharpens Potential hints (requirements §2, pre-M0 review D9);
     mid-Quest reports, the afternoon reporting a Quest's progress (M4's deferral).
   - Workers; Skill growth; the Guildmaster in a Party; the deferred endings.
+  - Patron pictures, drawn on a `patron-portraits` stream, through the portrait tool (DL-135
+    item 10).
 
 ## 5. Decisions this plan rests on
 

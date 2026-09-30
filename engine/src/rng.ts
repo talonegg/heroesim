@@ -34,8 +34,12 @@
  * the Board a seed produces is what it was before M4 (DL-42).
  * `rivals` (M2-S9) is the Rival controllers' own: a Disposition draws from it and from no other,
  * and `steady` draws nothing (DL-30). `market` (M5-S4) the Market Engine's morning refresh of the
- * Market's stacks (DL-51). The tuple keeps ADR-0009's order, which is also the order of a new
- * world's `rng` keys; an old save gains a missing stream wherever `ensureStreams` puts it.
+ * Market's stacks (DL-51). `gm-portraits` (v1.1.2-S3, renamed v1.1.2-S7) the player's Guildmaster's Portrait when the
+ * setup chooses none, one draw at creation (DL-125 item 3, DL-130). `descriptions` (v1.1.2-S5) the
+ * descriptive Attributes of each Guildmaster entering play, fifteen draws each, whatever is written
+ * (DL-125 item 6, DL-132). The tuple keeps ADR-0009's
+ * order, which is also the order of a new world's `rng` keys; an old save gains a missing stream
+ * wherever `ensureStreams` puts it.
  */
 export const streamNames = [
   'generation',
@@ -47,6 +51,8 @@ export const streamNames = [
   'progression',
   'rivals',
   'market',
+  'gm-portraits',
+  'descriptions',
 ] as const;
 
 export type StreamName = (typeof streamNames)[number];

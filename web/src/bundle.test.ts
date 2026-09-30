@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -14,6 +14,7 @@ import { afterAll, beforeAll, describe, expect, test } from 'vitest';
 const webDir = fileURLToPath(new URL('..', import.meta.url));
 const vite = path.join(webDir, '..', 'node_modules', 'vite', 'bin', 'vite.js');
 const gate = path.join(webDir, 'scripts', 'check-bundle.mjs');
+const mediaDir = path.join(webDir, '..', 'media');
 
 const temporaries: string[] = [];
 function temporaryDir(): string {
@@ -61,6 +62,18 @@ describe('the production build', { timeout: 120_000 }, () => {
     // Chromium refuses a module script from a file:// page; a classic deferred one runs.
     expect(html).toContain(`<script defer src="${references[0]}"></script>`);
     expect(html).not.toMatch(/type="module"|crossorigin/);
+  });
+
+  test("inlines each of media/'s Silhouettes into the one script, and every picture is a hashed file beside it (v1.1.2-S2)", () => {
+    const assets = readdirSync(path.join(outDir, 'assets'));
+    const [script = ''] = assets.filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const silhouettes = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' }).filter((file) => file.endsWith('silhouette.svg'));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+
+    expect(silhouettes.length).toBeGreaterThan(0);
+    // Each Silhouette, and the neutral one `media.ts` draws for a sex no folder knows (v1.1.2-S6).
+    expect(text.match(/data:image\/svg\+xml,/g)).toHaveLength(silhouettes.length + 1);
+    expect(assets.filter((file) => file !== script).filter((file) => !/-[\w-]{8}\.webp$/.test(file))).toEqual([]);
   });
 
   test('passes the bundle gate', () => {

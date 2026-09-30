@@ -1,10 +1,13 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { App } from '../app';
+import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
 import type { GameAction } from '../state/reducer';
-import { setupFormChoices } from '../state/setup';
+import { guildmasterPreview, setupFormChoices, writtenDescription, type SetupFields } from '../state/setup';
 import { NewGame } from './new-game';
+import { openView } from './page.test-support';
 
 // The new-game form's Guildmaster (M9-S7, #30): an optional sex and age, the Traits drawn from the
 // seed or chosen within the budget, and the three descriptive Attributes, all behind "Your
@@ -13,6 +16,11 @@ import { NewGame } from './new-game';
 // stands beside "Start the game". The values are DL-100 item 3's: a budget of 1, at most 2 Traits.
 
 afterEach(cleanup);
+
+/** The texts the form writes for `setup` and `seed`, from the engine's preview. */
+function writtenOf(setup: SetupFields, seed: string, n: number) {
+  return writtenDescription(guildmasterPreview(setup, seed), seed, n);
+}
 
 /** The form, before a game, and the plays it makes. */
 function form(): { play: ReturnType<typeof vi.fn<(action: GameAction) => void>> } {
@@ -40,9 +48,14 @@ function setup(): HTMLElement {
   return details;
 }
 
+/** A part of the Guildmaster's setup with its own legend: `Traits` or `Portrait`. */
+function part(legend: 'Traits' | 'Portrait'): HTMLElement {
+  return within(setup()).getByRole('group', { name: legend });
+}
+
 /** The Traits chosen rather than drawn, and the list of them. */
 function chooseTraits(): HTMLElement {
-  fireEvent.click(within(setup()).getByRole('radio', { name: 'Choose them' }));
+  fireEvent.click(within(part('Traits')).getByRole('radio', { name: 'Choose them' }));
   return within(setup()).getByRole('list', { name: 'Guildmaster Traits' });
 }
 
@@ -79,7 +92,9 @@ describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
       const select = within(details as HTMLElement).getByLabelText(label) as HTMLSelectElement;
       expect(select.selectedOptions[0]?.textContent, label).toBe('Drawn from the seed');
     }
-    expect((within(details as HTMLElement).getByRole('radio', { name: 'Drawn from the seed' }) as HTMLInputElement).checked).toBe(true);
+    for (const legend of ['Traits', 'Portrait'] as const) {
+      expect((within(part(legend)).getByRole('radio', { name: 'Drawn from the seed' }) as HTMLInputElement).checked, legend).toBe(true);
+    }
     fireEvent.click(start());
 
     expect(play).toHaveBeenCalledTimes(1);
@@ -211,7 +226,7 @@ describe("the Guildmaster's setup in the new-game form (M9-S7)", () => {
     expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterTraitKeys: [] });
     // Back to drawn, the choice is not sent.
     play.mockClear();
-    fireEvent.click(within(setup()).getByRole('radio', { name: 'Drawn from the seed' }));
+    fireEvent.click(within(part('Traits')).getByRole('radio', { name: 'Drawn from the seed' }));
     expect(within(setup()).queryByRole('list', { name: 'Guildmaster Traits' })).toBeNull();
     fireEvent.click(start());
     expect(play.mock.calls[0]?.[0]).not.toHaveProperty('guildmasterTraitKeys');
@@ -278,5 +293,407 @@ describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
 
     expect(said).toContain(setupFormChoices().retiresWords);
     expect(setupFormChoices().retiresWords).toMatch(/^Retires at \d+$/);
+  });
+});
+
+// v1.1.2-S4 (DL-125 items 3 and 6): the Portrait chosen from the owner's pictures, or drawn, and what the
+// seed draws shown before "Start the game". The core has one picture of each sex.
+describe("the Guildmaster's Portrait and what the seed draws, in the new-game form (v1.1.2-S4)", () => {
+  /** The Portrait's radio buttons, by the words each is named by. */
+  function portraitNames(): string[] {
+    return within(part('Portrait'))
+      .getAllByRole('radio')
+      .map((radio) => (radio.closest('label')?.textContent ?? '').trim());
+  }
+
+  function portraitRadio(name: string): HTMLInputElement {
+    return within(part('Portrait')).getByRole('radio', { name }) as HTMLInputElement;
+  }
+
+  function sexField(): HTMLSelectElement {
+    return within(setup()).getByLabelText('Sex') as HTMLSelectElement;
+  }
+
+  function preview(): HTMLElement {
+    return within(setup()).getByTestId('guildmaster-preview');
+  }
+
+  /** The preview's lines. */
+  function lines(): string[] {
+    return [...preview().querySelectorAll('p')].map((line) => line.textContent ?? '');
+  }
+
+  test('offers "Drawn from the seed", then a thumbnail of each picture of the sex, each a radio button with its picture as its label', () => {
+    form();
+    named();
+
+    // With the sex drawn, every sex's pictures: choosing one chooses its sex.
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    const female = portraitRadio('Female Portrait 1');
+    const thumbnail = female.closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
+    expect(thumbnail?.querySelector('img[data-picture="picture"]')?.getAttribute('src')).toBe(media.portrait('guildmaster', 'female', 'gm-female-01').picture);
+    // The picture is its label for the eye; its name is said in words, whether the picture loads or not.
+    expect(thumbnail?.getAttribute('aria-hidden')).toBe('true');
+
+    fireEvent.change(sexField(), { target: { value: 'male' } });
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+    fireEvent.change(sexField(), { target: { value: 'female' } });
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1']);
+  });
+
+  test('a Portrait chosen starts the game with it; with the sex drawn, choosing one chooses its sex, and every picture stays offered', () => {
+    const { play } = form();
+    named();
+
+    fireEvent.click(portraitRadio('Female Portrait 1'));
+    expect(sexField().value).toBe('female');
+    // The other sex's pictures stay, so the arrow keys move through every one.
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    fireEvent.click(portraitRadio('Male Portrait 1'));
+    expect(portraitRadio('Male Portrait 1').checked).toBe(true);
+    expect(sexField().value).toBe('male');
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'male', guildmasterPortraitKey: 'gm-male-01' });
+
+    // The Portrait drawn again draws the sex again, which was only the Portrait's.
+    fireEvent.click(portraitRadio('Drawn from the seed'));
+    expect(sexField().value).toBe('');
+    // A sex chosen in its own field stays when the Portrait is drawn again.
+    fireEvent.change(sexField(), { target: { value: 'male' } });
+    fireEvent.click(portraitRadio('Male Portrait 1'));
+    fireEvent.click(portraitRadio('Drawn from the seed'));
+    expect(sexField().value).toBe('male');
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+  });
+
+  test('changing the sex clears a Portrait of the other sex, and so does leaving the sex to the seed', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(sexField(), { target: { value: 'female' } });
+    fireEvent.click(portraitRadio('Female Portrait 1'));
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
+    expect(portraitRadio('Female Portrait 1').checked).toBe(true);
+
+    fireEvent.change(sexField(), { target: { value: 'male' } });
+    expect(portraitRadio('Drawn from the seed').checked).toBe(true);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'male' });
+    expect(play.mock.calls[0]?.[0]).not.toHaveProperty('guildmasterPortraitKey');
+
+    fireEvent.click(portraitRadio('Male Portrait 1'));
+    fireEvent.change(sexField(), { target: { value: '' } });
+    expect(portraitRadio('Drawn from the seed').checked).toBe(true);
+  });
+
+  test('with the sex and age drawn, shows "Drawn: Female, 34", the drawn Traits and the Portrait, and follows the Seed field', () => {
+    form();
+    named();
+
+    const [drawn, traits, portrait] = lines();
+    expect(drawn).toMatch(/^Drawn: (Female|Male), \d\d$/);
+    expect(traits).toMatch(/^Drawn Traits: /);
+    const sex = drawn?.startsWith('Drawn: Female') === true ? 'female' : 'male';
+    expect(portrait).toBe(`Drawn Portrait: ${sex === 'female' ? 'Female' : 'Male'} Portrait 1`);
+    const figure = within(preview()).getByTestId('portrait');
+    expect(within(figure).getByRole('img', { name: 'Portrait of Ada Vell' }).getAttribute('src')).toBe(
+      media.portrait('guildmaster', sex, `gm-${sex}-01`).picture,
+    );
+
+    // Another seed draws another Guildmaster; the preview follows it as it is typed.
+    const seen = new Set<string>();
+    for (let n = 0; n < 12; n += 1) {
+      fireEvent.change(screen.getByLabelText('Seed'), { target: { value: `follow-${n}` } });
+      seen.add(lines().join(' | '));
+    }
+    expect(seen.size).toBeGreaterThan(1);
+
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: ' ' } });
+    expect(preview().textContent).toBe('The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.');
+  });
+
+  test('says what the seed draws in a polite live region, so a screen reader hears it follow the fields (v1.1.2-S6)', () => {
+    form();
+    named();
+    const live = within(setup()).getByTestId('guildmaster-preview-live');
+    expect(live.getAttribute('aria-live')).toBe('polite');
+    expect(within(live).getByTestId('guildmaster-preview').textContent).toMatch(/^Drawn: /);
+    // With nothing left to the seed there are no words, and the region stays, so words that come
+    // later are announced as they arrive (the verification of the review's J).
+    fireEvent.click(within(part('Portrait')).getByRole('radio', { name: 'Female Portrait 1' }));
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
+    chooseTraits();
+    expect(within(setup()).queryByTestId('guildmaster-preview')).toBeNull();
+    expect(within(setup()).getByTestId('guildmaster-preview-live')).toBe(live);
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '' } });
+    expect(within(live).getByTestId('guildmaster-preview').textContent).toMatch(/^Drawn: Age \d+$/);
+  });
+
+  test('says only what is left to the seed, and nothing once everything is chosen', () => {
+    form();
+    named();
+    fireEvent.change(sexField(), { target: { value: 'female' } });
+    expect(lines()[0]).toMatch(/^Drawn: Age \d\d$/);
+    expect(lines().at(-1)).toBe('Drawn Portrait: Female Portrait 1');
+
+    fireEvent.click(portraitRadio('Female Portrait 1'));
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
+    expect(lines()).toHaveLength(1);
+    expect(lines()[0]).toMatch(/^Drawn Traits: /);
+    expect(within(preview()).queryByTestId('portrait')).toBeNull();
+
+    chooseTraits();
+    expect(within(setup()).queryByTestId('guildmaster-preview')).toBeNull();
+  });
+});
+
+// v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again" fill the three texts, which stay the player's.
+describe("the Guildmaster's Birthplace, Appearance and Biography written in the new-game form (v1.1.2-S5)", () => {
+  function field(label: 'Birthplace' | 'Appearance' | 'Biography'): HTMLInputElement | HTMLTextAreaElement {
+    return within(setup()).getByLabelText(label) as HTMLInputElement | HTMLTextAreaElement;
+  }
+
+  function texts(): { birthplace: string; appearance: string; biography: string } {
+    return { birthplace: field('Birthplace').value, appearance: field('Appearance').value, biography: field('Biography').value };
+  }
+
+  function writeButton(name: 'Write them for me' | 'Again'): HTMLButtonElement {
+    return within(setup()).getByRole('button', { name }) as HTMLButtonElement;
+  }
+
+  function writtenFor(): string {
+    return within(setup()).getByTestId('written-for').textContent ?? '';
+  }
+
+  test('"Write them for me" fills the three fields for the Guildmaster the seed draws, as the engine writes them, and says for whom', () => {
+    form();
+    named();
+    expect(texts()).toEqual({ birthplace: '', appearance: '', biography: '' });
+    expect(within(setup()).queryByRole('button', { name: 'Again' })).toBeNull();
+
+    fireEvent.click(writeButton('Write them for me'));
+
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 0)?.texts);
+    const [drawn = ''] = [...within(setup()).getByTestId('guildmaster-preview').querySelectorAll('p')].map((line) => line.textContent ?? '');
+    const [, sex = '', age = ''] = /^Drawn: (Female|Male), (\d+)$/.exec(drawn) ?? [];
+    expect(writtenFor()).toBe(`Written for a ${sex.toLowerCase()} Guildmaster of ${age}. Change them as you like.`);
+  });
+
+  test('"Again" writes them anew, each time another, and "Write them for me" writes the first again', () => {
+    form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    fireEvent.click(writeButton('Write them for me'));
+    const first = texts();
+
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 1)?.texts);
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual(writtenOf(fields, 'new-game-test', 2)?.texts);
+    expect(texts().biography).not.toBe(first.biography);
+
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual(first);
+  });
+
+  test('writes for the sex and age chosen, and the fields stay editable: what they hold at the start is kept', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '47' } });
+    fireEvent.click(writeButton('Write them for me'));
+
+    expect(writtenFor()).toBe('Written for a male Guildmaster of 47. Change them as you like.');
+    // The core maps the male picture the seed draws for a male: its narrative is the Appearance.
+    expect(field('Appearance').value).toMatch(/^A weathered, deeply lined face/);
+    fireEvent.change(field('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    fireEvent.click(start());
+
+    expect(play.mock.calls[0]?.[0]).toMatchObject({
+      guildmasterSex: 'male',
+      guildmasterAge: 47,
+      guildmasterBirthplace: texts().birthplace,
+      guildmasterAppearance: texts().appearance,
+      guildmasterBiography: 'Kept the toll bridge for twenty years.',
+    });
+  });
+
+  test('with the seed blank, makes one up as the click would, shows it, and writes for it', () => {
+    form();
+    named();
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: '  ' } });
+    fireEvent.click(writeButton('Write them for me'));
+
+    const seed = (screen.getByLabelText('Seed') as HTMLInputElement).value;
+    expect(seed.trim()).not.toBe('');
+    expect(texts()).toEqual(writtenOf({ guildName: 'The Lantern', guildmasterName: 'Ada Vell' }, seed, 0)?.texts);
+  });
+
+  // v1.1.2-S6 (the review's C): the buttons write only what is blank or still as written.
+  test('"Write them for me" and "Again" keep what the player typed, and write the rest', () => {
+    form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    fireEvent.change(field('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual({ ...writtenOf(fields, 'new-game-test', 0)?.texts, biography: 'Kept the toll bridge for twenty years.' });
+
+    fireEvent.change(field('Birthplace'), { target: { value: 'Kingsbridge' } });
+    fireEvent.click(writeButton('Again'));
+    expect(texts()).toEqual({
+      ...writtenOf(fields, 'new-game-test', 1)?.texts,
+      birthplace: 'Kingsbridge',
+      biography: 'Kept the toll bridge for twenty years.',
+    });
+  });
+
+  // v1.1.2-S6 (the verification of the review's fixes): the Birthplace typed is the one the Biography names.
+  test('a Birthplace typed is the Biography\'s: "Write them for me", "Again" and a Biography still as written name it, and the game starts with both', () => {
+    const { play } = form();
+    named();
+    const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+    const drawn = writtenOf(fields, 'new-game-test', 0)?.texts;
+    if (drawn === undefined) throw new Error('nothing written');
+    fireEvent.change(field('Birthplace'), { target: { value: 'Kingsbridge' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(texts()).toEqual({ ...drawn, birthplace: 'Kingsbridge', biography: drawn.biography.replace(drawn.birthplace, 'Kingsbridge') });
+
+    fireEvent.click(writeButton('Again'));
+    expect(field('Biography').value).toContain('Kingsbridge');
+    fireEvent.change(field('Birthplace'), { target: { value: 'Aldermoor, by the ford' } });
+    expect(field('Biography').value).toContain('Aldermoor, by the ford');
+    expect(field('Biography').value).not.toContain('Kingsbridge');
+    expect(writtenFor()).toMatch(/Change them as you like\.$/);
+
+    fireEvent.click(start());
+    const sent = play.mock.calls[0]?.[0];
+    expect(sent).toMatchObject({ guildmasterBirthplace: 'Aldermoor, by the ford' });
+    expect(sent !== undefined && 'guildmasterBiography' in sent ? sent.guildmasterBiography : '').toContain('Aldermoor, by the ford');
+  });
+
+  test('a text changed again after the Guildmaster changed is the player\'s, and the note no longer names it', () => {
+    form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.click(writeButton('Write them for me'));
+    fireEvent.change(field('Biography'), { target: { value: 'She rows.' } });
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    expect(writtenFor()).toMatch(/The Biography was written for another Guildmaster/);
+
+    fireEvent.change(field('Biography'), { target: { value: 'He rows.' } });
+    expect(writtenFor()).toMatch(/^Written for a male Guildmaster of \d+\. Change them as you like\.$/);
+  });
+
+  // v1.1.2-S6 (the review's B): the texts follow the Guildmaster the form makes, unless the player changed them.
+  test('changing the sex, the age, the Traits or the seed writes the texts still as written for the new Guildmaster, and says so', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '34' } });
+    fireEvent.click(writeButton('Write them for me'));
+    expect(writtenFor()).toBe('Written for a female Guildmaster of 34. Change them as you like.');
+
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '48' } });
+    const male = { guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterSex: 'male' as const, guildmasterAge: 48 };
+    expect(texts()).toEqual(writtenOf(male, 'new-game-test', 0)?.texts);
+    expect(writtenFor()).toBe('Written for a male Guildmaster of 48. Change them as you like.');
+
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'another-seed' } });
+    expect(texts()).toEqual(writtenOf(male, 'another-seed', 0)?.texts);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({
+      seed: 'another-seed',
+      guildmasterSex: 'male',
+      guildmasterAge: 48,
+      guildmasterBirthplace: writtenOf(male, 'another-seed', 0)?.texts.birthplace,
+      guildmasterBiography: writtenOf(male, 'another-seed', 0)?.texts.biography,
+    });
+  });
+
+  test('a text the player changed is kept when the Guildmaster changes, and the note says it was written for another', () => {
+    const { play } = form();
+    named();
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.click(writeButton('Write them for me'));
+    fireEvent.change(field('Biography'), { target: { value: `${field('Biography').value} She rows.` } });
+    const changed = field('Biography').value;
+
+    fireEvent.change(within(setup()).getByLabelText('Sex'), { target: { value: 'male' } });
+    expect(field('Biography').value).toBe(changed);
+    expect(writtenFor()).toMatch(/^Written for a male Guildmaster of \d+\. The Biography was written for another Guildmaster, and is kept as you changed it\.$/);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'male', guildmasterBiography: changed });
+  });
+
+  test('cannot write while the engine would refuse the rest of the setup, whose sentence stands', () => {
+    form();
+    named();
+    chooseTraits();
+    fireEvent.click(trait('Well liked'));
+
+    expect(writeButton('Write them for me').disabled).toBe(true);
+    expect(refusal()).toMatch(/budget/);
+  });
+});
+
+// The journey (v1.1.2-S4): from the form's Portrait, or its preview, to the Guildmaster view.
+describe('from the new-game form to the Guildmaster view (v1.1.2-S4)', () => {
+  async function begin(): Promise<void> {
+    fireEvent.click(start());
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Start the game' })).toBeNull());
+    await waitFor(() => expect(document.querySelector('main')?.getAttribute('aria-busy')).toBe('false'));
+  }
+
+  function guildmasterPicture(): HTMLElement {
+    return within(openView('Guildmaster')).getByRole('img', { name: 'Portrait of Ada Vell' });
+  }
+
+  test('a Portrait chosen is the one the Guildmaster view shows', async () => {
+    render(<App />);
+    named();
+    fireEvent.click(within(part('Portrait')).getByRole('radio', { name: 'Female Portrait 1' }));
+    await begin();
+
+    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', 'female', 'gm-female-01').picture);
+    const terms = [...openView('Guildmaster').querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(terms).toContainEqual(['Sex', 'Female']);
+  });
+
+  test('what the preview names is what "Start the game" makes: the sex, the age, the Traits and the Portrait', async () => {
+    render(<App />);
+    named();
+    const [drawn = '', traits = '', portrait = ''] = [...within(setup()).getByTestId('guildmaster-preview').querySelectorAll('p')].map(
+      (line) => line.textContent ?? '',
+    );
+    const [, sexWord = '', age = ''] = /^Drawn: (Female|Male), (\d+)$/.exec(drawn) ?? [];
+    const sex = sexWord === 'Female' ? 'female' : 'male';
+    await begin();
+
+    const view = openView('Guildmaster');
+    const terms = [...view.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(terms).toContainEqual(['Sex', sexWord]);
+    expect(terms).toContainEqual(['Age', age]);
+    const held = within(view).queryByRole('list', { name: "Ada Vell's Traits" });
+    const names = held === null ? [] : within(held).getAllByRole('listitem').map((item) => item.querySelector('.chip')?.textContent ?? '');
+    expect(traits).toBe(`Drawn Traits: ${names.length === 0 ? 'None' : names.join(' and ')}`);
+    expect(portrait).toBe(`Drawn Portrait: ${sexWord} Portrait 1`);
+    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-01`).picture);
+  });
+
+  test('the texts written, and one then changed, are the ones the Guildmaster view shows (v1.1.2-S5)', async () => {
+    render(<App />);
+    named();
+    fireEvent.click(within(setup()).getByRole('button', { name: 'Write them for me' }));
+    fireEvent.click(within(setup()).getByRole('button', { name: 'Again' }));
+    const birthplace = (within(setup()).getByLabelText('Birthplace') as HTMLInputElement).value;
+    const appearance = (within(setup()).getByLabelText('Appearance') as HTMLTextAreaElement).value;
+    fireEvent.change(within(setup()).getByLabelText('Biography'), { target: { value: 'Kept the toll bridge for twenty years.' } });
+    await begin();
+
+    const terms = [...openView('Guildmaster').querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(terms).toContainEqual(['Birthplace', birthplace]);
+    expect(terms).toContainEqual(['Appearance', appearance]);
+    expect(terms).toContainEqual(['Biography', 'Kept the toll bridge for twenty years.']);
   });
 });

@@ -144,7 +144,7 @@ describe('questReturn (M9-F5)', () => {
     expect(dead?.died).toBe(true);
     expect(dead?.xp).toBeNull();
     expect(dead?.gear).toEqual(['Short sword', 'Padded jack']);
-    expect(dead?.words).toEqual(['died on the Quest', 'their gear went back to The Lantern: Short sword and Padded jack']);
+    expect(dead?.words).toEqual(['died on the Quest', 'their Gear went back to The Lantern: Short sword and Padded jack']);
     expect(other?.died).toBe(false);
     expect(other?.gear).toEqual([]);
     expect(other?.regard).toEqual([{ heroId: written.party.heroIds[2], name: mate, bandBefore: 'neutral', bandAfter: 'warm' }]);

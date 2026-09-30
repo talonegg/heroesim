@@ -39,7 +39,7 @@ describe("the harness's player's Guildmaster, 30", () => {
     }
   });
 
-  test("moves no draw: each world is the one drawn with the age left to the seed, but for the Guildmaster's age", () => {
+  test("moves no draw: each world is the one drawn with the age left to the seed, but for the Guildmaster's age and the words it chooses", () => {
     const drawnAge: WorldSetup = { ...harnessSetup };
     delete drawnAge.guildmasterAge;
     for (const seed of seedNames(5)) {
@@ -47,7 +47,9 @@ describe("the harness's player's Guildmaster, 30", () => {
       const drawn = createWorld(seed, drawnAge, deps).document;
       const player = playerGuild(drawn.world) as Guild;
       const guildmaster = drawn.world.guildmasters[player.guildmasterId];
-      if (guildmaster !== undefined) guildmaster.ageAtEntry = 30;
+      const was = aged.world.guildmasters[player.guildmasterId];
+      // The age's band chooses the Appearance's and the Biography's words, by the same draws (v1.1.2-S5).
+      if (guildmaster !== undefined) Object.assign(guildmaster, { ageAtEntry: 30, appearance: was?.appearance, biography: was?.biography });
       expect(aged, seed).toEqual(drawn);
     }
   });

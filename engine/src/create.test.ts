@@ -5,7 +5,7 @@ import { makeId, tableNames, type Guild, type GuildId, type Sex, type WorldDocum
 import { count, entriesFor } from './history.js';
 import { isJsonSafe } from './json-safe.js';
 import { validate } from './validate.js';
-import { testDeps, withValid } from './world.test-support.js';
+import { testDeps, withoutPortraits, withValid } from './world.test-support.js';
 
 const playerId = makeId('guilds', 1);
 
@@ -393,7 +393,7 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     return guildmaster;
   };
 
-  test("gives the player's Guildmaster the sex, age, Traits and descriptive Attributes chosen, trimmed; a Rival's are empty", () => {
+  test("gives the player's Guildmaster the sex, age, Traits and descriptive Attributes chosen, trimmed; a Rival's are written", () => {
     const { document } = createWorld(
       'chosen',
       {
@@ -419,7 +419,8 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
       retiredOnTurn: null,
     });
     for (const rival of rivals(document)) {
-      expect(document.world.guildmasters[rival.guildmasterId]).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+      const { birthplace, appearance, biography } = document.world.guildmasters[rival.guildmasterId] ?? {};
+      expect([birthplace, appearance, biography].every((text) => text !== undefined && text !== '')).toBe(true);
     }
   });
 
@@ -428,8 +429,9 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     const none = createWorld('unset', { ...setup, guildmasterTraitKeys: [] }, deps).document;
 
     expect(guildmasterOf(none).traits).toEqual([]);
-    expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits }).toEqual(guildmasterOf(drawn));
-    expect(guildmasterOf(drawn)).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+    // The Biography gives the Traits held a sentence each (v1.1.2-S5).
+    expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits, biography: guildmasterOf(drawn).biography }).toEqual(guildmasterOf(drawn));
+    expect(guildmasterOf(drawn).birthplace).not.toBe('');
   });
 
   test("the player's choices move no draw: the world is the one drawn without them, but for their Guildmaster", () => {
@@ -441,7 +443,16 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
         deps,
       ).document;
       const was = guildmasterOf(drawn);
-      Object.assign(guildmasterOf(chosen), { sex: was.sex, ageAtEntry: was.ageAtEntry, traits: was.traits, biography: '' });
+      Object.assign(guildmasterOf(chosen), {
+        sex: was.sex,
+        ageAtEntry: was.ageAtEntry,
+        traits: was.traits,
+        portraitKey: was.portraitKey,
+        // Written for the Guildmaster they are (v1.1.2-S5), by the same draws of `descriptions`.
+        birthplace: was.birthplace,
+        appearance: was.appearance,
+        biography: was.biography,
+      });
 
       expect(chosen).toEqual(drawn);
     }
@@ -486,6 +497,8 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
       const unpriced = createWorld(seed, setup, free).document;
       for (const guildmaster of Object.values(unpriced.world.guildmasters)) {
         guildmaster.traits = priced.world.guildmasters[guildmaster.id]?.traits ?? [];
+        // A Biography gives the Traits held a sentence each (v1.1.2-S5).
+        guildmaster.biography = priced.world.guildmasters[guildmaster.id]?.biography ?? '';
       }
       expect(unpriced, seed).toEqual(priced);
     }
@@ -505,12 +518,114 @@ describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
       for (const guildmaster of Object.values(world.guildmasters)) {
         ages.add(guildmaster.ageAtEntry);
         const old = was.guildmasters[guildmaster.id];
-        if (old !== undefined) old.ageAtEntry = guildmaster.ageAtEntry;
+        // The age's band chooses the Appearance's and Biography's words (v1.1.2-S5).
+        if (old !== undefined) Object.assign(old, { ageAtEntry: guildmaster.ageAtEntry, appearance: guildmaster.appearance, biography: guildmaster.biography });
       }
       expect(was, seed).toEqual(world);
     }
     expect(Math.min(...ages)).toBe(21);
     expect(Math.max(...ages)).toBe(50);
     expect(ages.size).toBe(30);
+  });
+});
+
+describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)", () => {
+  const deps = testDeps();
+  const guildmasterOf = (document: WorldDocument) => {
+    const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
+    const guildmaster = guildmasterId === undefined ? undefined : document.world.guildmasters[guildmasterId];
+    if (guildmaster === undefined) throw new Error("No player's Guildmaster");
+    return guildmaster;
+  };
+  const seeds = Array.from({ length: 60 }, (_, n) => `portrait-${n}`);
+
+  test.each<[string, Partial<WorldSetup>, SetupRefusal | null]>([
+    ['a Portrait of the sex chosen', { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-02' }, null],
+    ['a Portrait with no sex chosen', { guildmasterPortraitKey: 'gm-male-03' }, null],
+    ['a key content has no picture for', { guildmasterPortraitKey: 'gm-male-99' }, { reason: 'unknown-portrait', portraitKey: 'gm-male-99' }],
+    ["a Hero's picture", { guildmasterSex: 'female', guildmasterPortraitKey: 'hero-female-01' }, { reason: 'unknown-portrait', portraitKey: 'hero-female-01' }],
+    [
+      'a Portrait of the other sex',
+      { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-male-01' },
+      { reason: 'portrait-of-another-sex', portraitKey: 'gm-male-01', sex: 'female', portraitSex: 'male' },
+    ],
+  ])('setupRefusal: %s', (_, change, refusal) => {
+    expect(setupRefusal({ ...setup, ...change }, deps)).toEqual(refusal);
+  });
+
+  test('setupRefusal checks the Portrait after the sex and before the age', () => {
+    expect(setupRefusal({ ...setup, guildmasterSex: 'other' as Sex, guildmasterPortraitKey: 'nope' }, deps)).toMatchObject({ reason: 'unknown-sex' });
+    expect(setupRefusal({ ...setup, guildmasterPortraitKey: 'nope', guildmasterAge: 12 }, deps)).toMatchObject({ reason: 'unknown-portrait' });
+  });
+
+  test('a Guildmaster set up with a Portrait keeps it', () => {
+    const { document } = createWorld('kept', { ...setup, guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-01' }, deps);
+    withValid(document, deps);
+
+    expect(guildmasterOf(document)).toMatchObject({ sex: 'female', portraitKey: 'gm-female-01' });
+  });
+
+  test("with a Portrait and no sex, the Guildmaster is of the Portrait's sex", () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const { document } = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-female-02' }, deps);
+      expect(guildmasterOf(document)).toMatchObject({ sex: 'female', portraitKey: 'gm-female-02' });
+    }
+  });
+
+  test("without one, the Portrait is drawn from the pictures of the Guildmaster's sex, chosen or drawn, and each of them is drawn", () => {
+    const drawn = new Map<Sex, Set<string | null>>([['female', new Set()], ['male', new Set()]]);
+    for (const seed of seeds) {
+      for (const change of [{}, { guildmasterSex: 'female' as const }, { guildmasterSex: 'male' as const }]) {
+        const guildmaster = guildmasterOf(createWorld(seed, { ...setup, ...change }, deps).document);
+        drawn.get(guildmaster.sex)?.add(guildmaster.portraitKey);
+      }
+    }
+
+    expect([...(drawn.get('female') ?? [])].sort()).toEqual(deps.content.portraits.guildmaster.female);
+    expect([...(drawn.get('male') ?? [])].sort()).toEqual(deps.content.portraits.guildmaster.male);
+  });
+
+  test('the same seed draws the same Portrait', () => {
+    for (const seed of seeds.slice(0, 10)) {
+      const first = guildmasterOf(createWorld(seed, setup, deps).document).portraitKey;
+      expect(guildmasterOf(createWorld(seed, setup, deps).document).portraitKey).toBe(first);
+    }
+  });
+
+  test('it is null, the Silhouette, when the sex has no picture, as in the core until v1.1.2-S4', () => {
+    const bare = testDeps({}, withoutPortraits());
+    const { document } = createWorld('none', setup, bare);
+    withValid(document, bare);
+
+    expect(guildmasterOf(document).portraitKey).toBeNull();
+  });
+
+  test("every Rival's Guildmaster has none", () => {
+    const { document } = createWorld('rivals', { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps);
+
+    for (const rival of rivals(document)) expect(document.world.guildmasters[rival.guildmasterId]?.portraitKey).toBeNull();
+  });
+
+  test("the Portrait is drawn on its own stream, gm-portraits, one draw whatever is chosen or listed, so it moves no other draw", () => {
+    for (const seed of seeds.slice(0, 5)) {
+      const drawn = createWorld(seed, setup, deps).document;
+      const chosen = createWorld(seed, { ...setup, guildmasterPortraitKey: 'gm-male-02' }, deps).document;
+      const bare = createWorld(seed, setup, testDeps({}, withoutPortraits())).document;
+      const was = guildmasterOf(drawn);
+
+      expect(Object.keys(drawn.world.rng)).toContain('gm-portraits');
+      for (const other of [chosen, bare]) {
+        // A mapped picture's narrative is the Appearance, and the sex chooses the words (v1.1.2-S5).
+        Object.assign(guildmasterOf(other), { sex: was.sex, portraitKey: was.portraitKey, appearance: was.appearance, biography: was.biography });
+        expect({ ...other, meta: drawn.meta }).toEqual(drawn);
+      }
+    }
+  });
+
+  test('throws on a Portrait setupRefusal refuses', () => {
+    expect(() => createWorld('bad', { ...setup, guildmasterPortraitKey: 'gm-male-99' }, deps)).toThrow(/unknown-portrait/);
+    expect(() => createWorld('bad', { ...setup, guildmasterSex: 'male', guildmasterPortraitKey: 'gm-female-01' }, deps)).toThrow(
+      /portrait-of-another-sex/,
+    );
   });
 });

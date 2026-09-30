@@ -142,7 +142,7 @@ export function time(): HTMLElement {
 
 /** Fast forward until new Heroes join the pool, from the status bar's other ways to fast forward. */
 export function fastForwardUntilPool(): void {
-  fireEvent.click(within(time()).getByRole('button', { name: 'More ways to fast forward' }));
+  fireEvent.click(within(time()).getByRole('button', { name: 'More ways to Fast forward' }));
   fireEvent.click(within(time()).getByRole('button', { name: 'Fast forward until new Heroes join the pool' }));
 }
 

@@ -39,7 +39,7 @@ describe('the Guildmaster view (M9-F2)', () => {
       played(initialGameState, { kind: 'newGame', seed: 'app-test', guildName: 'The Lantern', guildmasterName: 'Ada Vell', guildmasterAge: 30, createdAt: '2026-09-30T09:00:00.000Z' }),
     );
 
-    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 years.');
+    expect(within(section('Guildmaster')).getByTestId('retirement').textContent).toBe('Retires at 61 on the night of Day 11160, Year 31: in 31 Years.');
   });
 
   test('says why no Retirement came once the game has ended by another ending (M9-F7, DL-120 item 9)', () => {
@@ -69,6 +69,8 @@ describe('the Guildmaster view (M9-F2)', () => {
       if (guildmaster === undefined || patron === undefined) throw new Error('no Guildmaster or Patron');
       guildmaster.traits = ['thrifty', 'mistrusts-magic'] as never;
       guildmaster.birthplace = 'Harrowgate';
+      // Written as they enter play since v1.1.2-S5: an older save may hold one empty, which shows none.
+      guildmaster.appearance = '';
       guildmaster.biography = 'Once a quartermaster of the river levies.';
       guildmaster.regard[patron.id] = { value: 8, since: 0, reason: 'test' };
     });
@@ -85,7 +87,7 @@ describe('the Guildmaster view (M9-F2)', () => {
     const patrons = within(guildmaster).getByRole('list', { name: 'For Patrons' });
     const [warm] = within(patrons).getAllByRole('listitem');
     expect(within(patrons).getAllByRole('listitem')).toHaveLength(1);
-    expect(within(warm as HTMLElement).getByText('warm').closest('.chip')?.className).toBe('chip chip--good');
+    expect(within(warm as HTMLElement).getByText('Warm').closest('.chip')?.className).toBe('chip chip--good');
     const counts = within(guildmaster)
       .getAllByText(/^\d+ neutral$/)
       .map((each) => each.textContent);
@@ -93,7 +95,7 @@ describe('the Guildmaster view (M9-F2)', () => {
     expect(within(guildmaster).getByRole('list', { name: 'For Patrons, neutral' }).children.length).toBe(Number(/^(\d+)/.exec(counts[0] ?? '')?.[1]));
     // Never a number beside a band.
     for (const item of within(guildmaster).getAllByRole('listitem').filter((each) => each.closest('.regards') !== null)) {
-      expect(item.textContent).toMatch(/(hostile|cool|neutral|warm|close)$/);
+      expect(item.textContent).toMatch(/(Hostile|Cool|Neutral|Warm|Close)$/);
     }
   });
 });

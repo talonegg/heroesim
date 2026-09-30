@@ -13,12 +13,8 @@ import {
   type SavedDocument,
   type WorldDocument,
 } from './index.js';
-import { transferIn, transferOut } from './actions/transfer.js';
-import { advance } from './advance.js';
 import { createWorld } from './create.js';
-import type { HeroId } from './document.js';
-import { playerGuild } from './selectors.js';
-import { buildDocument, testContent, testDeps, withDispositions, withValid } from './world.test-support.js';
+import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
 
 const setup = { guildmasterName: 'Ada', guildName: 'The Test', createdAt: 'test' };
 
@@ -60,10 +56,6 @@ function refusal(result: LoadResult) {
 const withVersion = (document: WorldDocument, version: number): string =>
   serialise({ ...document, meta: { ...document.meta, version } });
 
-/** A Guildmaster row as a save before version 4 wrote it: no descriptive Attribute, no Retirement (DL-102). */
-function withoutVersion4(guildmaster: object): void {
-  for (const field of ['birthplace', 'appearance', 'biography', 'retiredOnTurn']) Reflect.deleteProperty(guildmaster, field);
-}
 
 // ── serialise ────────────────────────────────────────────────────────────────────────────────
 
@@ -173,7 +165,7 @@ describe('deserialise', () => {
   });
 
   test('a structurally broken document is refused, not thrown on', () => {
-    const reason = refusal(deserialise('{"meta":{"version":1},"world":[],"history":null}', deps));
+    const reason = refusal(deserialise('{"meta":{"version":5},"world":[],"history":null}', deps));
     expect(reason.kind).toBe('invalid');
   });
 
@@ -217,9 +209,9 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds three steps, from version 1 (M2-S8), version 2 (DL-60) and version 3 (DL-102), with schemaVersion 4', () => {
-    expect(Object.keys(migrations)).toEqual(['1', '2', '3']);
-    expect(defaultConfig.schemaVersion).toBe(4);
+  test('holds no step, so a save of a schema before 5 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2)', () => {
+    expect(Object.keys(migrations)).toEqual([]);
+    expect(defaultConfig.schemaVersion).toBe(5);
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -256,179 +248,35 @@ describe('the migration chain', () => {
   });
 });
 
-// ── Version 1 to 2: the pool's Hero fields (M2-S8, DL-27) ─────────────────────────────────────
+// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2) ──────────────────────────────────────
 
-describe('a version-1 save', () => {
-  /** `document` as a version-1 save wrote it: `meta.version` 1, and no Hero with the pool fields or version 3's, nor Guildmaster with version 4's. */
-  function asVersion1(document: WorldDocument): string {
-    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object>; guildmasters: Record<string, object> } };
-    parsed.meta.version = 1;
-    for (const hero of Object.values(parsed.world.heroes)) {
-      Reflect.deleteProperty(hero, 'unattachedSince');
-      Reflect.deleteProperty(hero, 'leftPoolOnTurn');
-      Reflect.deleteProperty(hero, 'transferredOnTurn');
-    }
-    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
-    return JSON.stringify(parsed);
-  }
-
-  const created = (): WorldDocument => createWorld('version-1', setup, testDeps()).document;
-
-  test.each([
-    ['a created world', created],
-    ['the fixture, with a dead Hero and a departed one', built],
-  ])('%s loads as the document the engine writes now', (_, make) => {
-    const document = make();
-
-    const result = loaded(deserialise(asVersion1(document), deps));
-
-    // Pool Heroes entered at enteredTurn, every other Hero has neither field, none has left.
-    expect(result).toEqual(document);
-    expect(result.meta.version).toBe(4);
-  });
-
-  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
-    const saved = JSON.parse(asVersion1(created())) as SavedDocument;
-    const before = structuredClone(saved);
-    const step = migrations[1] as Migration;
-
-    step(saved);
-    expect(saved).toEqual(before);
-
-    const damaged = { ...saved, world: { heroes: 'none' } };
-    expect(step(damaged)).toBe(damaged);
-    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
-  });
-});
-
-// ── Version 2 to 3: the Transfer lock's Hero field (DL-60) ────────────────────────────────────
-
-describe('a version-2 save', () => {
-  /** `document` as a version-2 save wrote it: `meta.version` 2, no Hero with `transferredOnTurn`, and no Guildmaster with version 4's fields. */
-  function asVersion2(document: WorldDocument): string {
-    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object>; guildmasters: Record<string, object> } };
-    parsed.meta.version = 2;
-    for (const hero of Object.values(parsed.world.heroes)) Reflect.deleteProperty(hero, 'transferredOnTurn');
-    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
-    return JSON.stringify(parsed);
-  }
-
+describe('a save of an older schema', () => {
   /**
-   * A world in which the player took a Rival's first Hero on Turn 0 and sent them back on Turn 4, and
-   * took its second on Turn 4: a History with two Transfers of one Hero and one of another.
+   * `document` as `v1.1.1` wrote it, schema 4: `meta.version` 4, no Guildmaster with a Portrait and
+   * no Patron with a sex.
    */
-  function withTransfers(): WorldDocument {
-    const dealing = testDeps({ transferLockDays: 0, marketSize: 0 }, withDispositions({ transferAppetite: 1, recruitThreshold: 0, buildThreshold: 1_000_000, gearThreshold: 1_000_000 }));
-    let document = createWorld('version-2', setup, dealing).document;
-    const player = playerGuild(document.world);
-    if (player === undefined) throw new Error("No player's Guild");
-    const playerId = player.id;
-    player.wealth = 100_000;
-    const rival = Object.values(document.world.guilds).find((guild) => guild.id !== playerId);
-    if (rival === undefined) throw new Error('No Rival');
-    const [first] = rival.rosterIds as [HeroId];
-    const take = (heroId: HeroId) => {
-      const result = transferIn(document, { guildId: playerId, heroId }, dealing);
-      if (!result.ok) throw new Error(JSON.stringify(result.rejection));
-      document = result.document;
+  function asVersion4(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & {
+      world: { guildmasters: Record<string, object>; patrons: Record<string, object> };
     };
-    take(first);
-    while (document.world.turn < 4) document = advance(document, dealing).document;
-    const back = transferOut(document, { guildId: playerId, heroId: first, toGuildId: rival.id }, dealing);
-    if (!back.ok) throw new Error(JSON.stringify(back.rejection));
-    document = back.document;
-    // A second Hero of the Rival's, one at home (the Rivals have been sending Parties out).
-    const second = document.world.guilds[rival.id]?.rosterIds.find((heroId) => heroId !== first && document.world.heroes[heroId]?.partyId === null);
-    if (second === undefined) throw new Error('No Hero at home');
-    take(second);
-    return withValid(document, dealing);
-  }
-
-  test.each([
-    ['a created world', () => createWorld('version-2', setup, testDeps()).document],
-    ['the fixture', built],
-  ])('%s, with no Transfer in its History, loads as the document the engine writes now', (_, make) => {
-    const document = make();
-
-    const result = loaded(deserialise(asVersion2(document), deps));
-
-    expect(result).toEqual(document);
-    expect(Object.values(result.world.heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
-    expect(result.meta.version).toBe(4);
-  });
-
-  test("a Hero's transferredOnTurn is the Turn of the last hero.transferred naming them, read from the History", () => {
-    const document = withTransfers();
-    // What the engine wrote as the Transfers were made: each Hero's field is the Turn of their last.
-    const turns = new Map<string, number[]>();
-    for (const entry of document.history.entries) {
-      if (entry.type !== 'hero.transferred') continue;
-      const { heroId } = entry.payload as { heroId: string };
-      turns.set(heroId, [...(turns.get(heroId) ?? []), entry.turn]);
-    }
-    for (const hero of Object.values(document.world.heroes)) expect(hero.transferredOnTurn, hero.id).toBe(turns.get(hero.id)?.at(-1) ?? null);
-    expect([...turns.values()]).toContainEqual([0, 4]);
-
-    const result = loaded(deserialise(asVersion2(document), { ...deps, content: withDispositions({}) }));
-
-    expect(result).toEqual(document);
-  });
-
-  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
-    const saved = JSON.parse(asVersion2(withTransfers())) as SavedDocument;
-    const before = structuredClone(saved);
-    const step = migrations[2] as Migration;
-
-    step(saved);
-    expect(saved).toEqual(before);
-
-    const damaged = { ...saved, world: { heroes: 'none' } };
-    expect(step(damaged)).toBe(damaged);
-    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
-    const noHistory = { ...saved, history: 'none' };
-    const { heroes } = (step(noHistory) as unknown as { world: { heroes: Record<string, Hero> } }).world;
-    expect(Object.values(heroes).every((hero) => hero.transferredOnTurn === null)).toBe(true);
-  });
-});
-
-// ── Version 3 to 4: the Guildmaster's descriptive Attributes and Retirement (M9-S2, DL-102) ────
-
-describe('a version-3 save', () => {
-  /** `document` as a version-3 save wrote it: `meta.version` 3, and no Guildmaster with version 4's fields. */
-  function asVersion3(document: WorldDocument): string {
-    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { guildmasters: Record<string, object> } };
-    parsed.meta.version = 3;
-    for (const guildmaster of Object.values(parsed.world.guildmasters)) withoutVersion4(guildmaster);
+    parsed.meta.version = 4;
+    for (const guildmaster of Object.values(parsed.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
+    for (const patron of Object.values(parsed.world.patrons)) Reflect.deleteProperty(patron, 'sex');
     return JSON.stringify(parsed);
   }
 
-  test.each([
-    ['a created world', () => createWorld('version-3', setup, testDeps()).document],
-    ['the fixture', built],
-  ])('%s loads with every Guildmaster in office and no descriptive Attribute, their Traits as they were (DL-100 item 4)', (_, make) => {
-    const document = make();
+  test('of schema 4, as v1.1.1 wrote it, is refused as unsupported-version, naming both versions, not as invalid', () => {
+    const text = asVersion4(createWorld('version-4', setup, testDeps()).document);
 
-    const result = loaded(deserialise(asVersion3(document), deps));
-
-    expect(result).toEqual(document);
-    expect(result.meta.version).toBe(4);
-    for (const guildmaster of Object.values(result.world.guildmasters)) {
-      expect(guildmaster).toMatchObject({ birthplace: '', appearance: '', biography: '', retiredOnTurn: null });
-      expect(guildmaster.traits).toEqual(document.world.guildmasters[guildmaster.id]?.traits);
-    }
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 5 });
   });
 
-  test('the step leaves its input alone, and a save it cannot read to the validator', () => {
-    const saved = JSON.parse(asVersion3(createWorld('version-3', setup, testDeps()).document)) as SavedDocument;
-    const before = structuredClone(saved);
-    const step = migrations[3] as Migration;
-
-    step(saved);
-    expect(saved).toEqual(before);
-
-    const damaged = { ...saved, world: { guildmasters: 'none' } };
-    expect(step(damaged)).toBe(damaged);
-    expect(refusal(deserialise(JSON.stringify(damaged), deps))).toMatchObject({ kind: 'invalid' });
+  test.each([1, 2, 3])('of schema %i is refused the same way: no migration leads from it', (version) => {
+    expect(refusal(deserialise(withVersion(built(), version), deps))).toMatchObject({
+      kind: 'unsupported-version',
+      documentVersion: version,
+      schemaVersion: 5,
+    });
   });
 });
 

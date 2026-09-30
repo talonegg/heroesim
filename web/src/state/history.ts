@@ -37,12 +37,14 @@ import {
   type GuildId,
   type HeroId,
   type QuestBand,
+  type Sex,
   type TimeOfDay,
   type TurnEvent,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
+import type { PortraitRole } from '../media';
 import { bandWords, rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
@@ -92,7 +94,7 @@ export interface HistoryLine {
  * A line, or several folded under one.
  * - An entry, and for a Party's outcome its steps on the Quest folded under it: its Encounters and
  *   the consumables it used, in the order they happened, with how many of each (`3 Encounters and
- *   1 consumable used`; empty when it has none).
+ *   1 Consumable used`; empty when it has none).
  * - A Rival's routine in the group, in one line for the Guild, with its entries in the order they
  *   happened.
  */
@@ -135,6 +137,14 @@ export interface HistoryView {
   mine: boolean;
   /** A Hero the world still holds, whose page the History opens in their place (DL-74); `null` otherwise. */
   hero: HeroId | null;
+  /** The Guild whose History it is, whose Banner stands beside its title (DL-125 item 7); `null` for anyone else's. */
+  banner: GuildId | null;
+  /**
+   * The Portrait of the person whose History it is (DL-125 item 2): a Guildmaster's, or a Patron's
+   * (v1.1.2-S3). `null` for a Guild's, the World's, a Hero's (one the world holds opens their Hero page,
+   * which has theirs, and one gone from it has no sex to show) and a Patron that is a body, which has none.
+   */
+  portrait: { role: PortraitRole; sex: Sex; portraitKey: string | null } | null;
   /** Which page, from 0, of how many, and how many entries in all. */
   page: number;
   pages: number;
@@ -192,10 +202,10 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'patron.regard-changed': 'Regard',
   'guildmaster.regard-changed': 'Regard',
   'hero.regard-changed': 'Regard',
-  'item.expended': 'consumables',
-  'item.equipped': 'gear',
-  'item.unequipped': 'gear',
-  'item.returned': 'gear',
+  'item.expended': 'Consumables',
+  'item.equipped': 'Gear',
+  'item.unequipped': 'Gear',
+  'item.returned': 'Gear',
   'item.bought': 'purchases',
   'item.sold': 'sales',
   'hero.transferred': null,
@@ -479,12 +489,29 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     scope: scope.kind,
     mine: scope.kind === 'mine',
     hero,
+    banner: entityId !== null && rowOf(world.guilds, entityId) !== undefined ? (entityId as GuildId) : null,
+    portrait: portraitOf(world, entityId),
     page: shown,
     pages,
     entries: scope.count,
     fresh: log.filter((event) => (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
     groups: groupsOf(positions, reading),
   };
+}
+
+/**
+ * Whose Portrait `entityId`'s History shows (DL-125 item 2): a Guildmaster's the world holds, or a
+ * Patron's by the sex their name came with (v1.1.2-S3). No Patron has a picture in v1.1.2 (DL-125 item
+ * 4), so theirs is the Silhouette of their sex; a Patron that is a body has none. A Hero's History has
+ * none of its own: one the world holds opens their Hero page, which has their Portrait (`hero`), and one
+ * gone from it has no sex to show (v1.1.2-S2's verification, DL-131).
+ */
+function portraitOf(world: World, entityId: EntityId | null): HistoryView['portrait'] {
+  if (entityId === null) return null;
+  const guildmaster = rowOf(world.guildmasters, entityId);
+  if (guildmaster !== undefined) return { role: 'guildmaster', sex: guildmaster.sex, portraitKey: guildmaster.portraitKey };
+  const patron = rowOf(world.patrons, entityId);
+  return patron === undefined || patron.sex === null ? null : { role: 'patron', sex: patron.sex, portraitKey: null };
 }
 
 // ── A page ───────────────────────────────────────────────────────────────────────────────────
@@ -659,13 +686,13 @@ function rowsOf(positions: readonly number[], reading: Reading): HistoryRow[] {
   return rows;
 }
 
-/** `3 Encounters and 1 consumable used`: what is folded under an outcome; empty for nothing. */
+/** `3 Encounters and 1 Consumable used`: what is folded under an outcome; empty for nothing. */
 function stepsWords(positions: readonly number[], entries: readonly Entry[]): string {
   const encounters = positions.filter((position) => entries[position]?.type === 'quest.encounter').length;
   const used = positions.length - encounters;
   return listed([
     ...(encounters === 0 ? [] : [`${encounters} ${encounters === 1 ? 'Encounter' : 'Encounters'}`]),
-    ...(used === 0 ? [] : [`${used} ${used === 1 ? 'consumable' : 'consumables'} used`]),
+    ...(used === 0 ? [] : [`${used} ${used === 1 ? 'Consumable' : 'Consumables'} used`]),
   ]);
 }
 
@@ -736,7 +763,7 @@ export function historyChoices(document: WorldDocument): HistoryChoice[] {
   const player = playerGuild(document.world);
   return [
     ...(player === undefined ? [] : [{ whose: null, label: player.name, mine: true }]),
-    { whose: 'world', label: 'The world', mine: false },
+    { whose: 'world', label: 'The World History', mine: false },
     ...guilds.filter((guild) => guild.id !== player?.id && guild.foldedOnTurn === null).map((guild) => ({ whose: guild.id, label: guild.name, mine: false })),
   ];
 }

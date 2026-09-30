@@ -84,14 +84,14 @@ describe('one view, opened on the player’s Guild (M9-S5)', () => {
   test('gives the world and each Rival’s in one choice, a choice that holds from view to view and play to play', async () => {
     render_(played(started(), { kind: 'advance', turns: 6 }));
 
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     expect(title()).toBe('The World History');
-    expect(within(whose()).getByRole('button', { name: 'The world' }).getAttribute('aria-pressed')).toBe('true');
+    expect(within(whose()).getByRole('button', { name: 'The World History' }).getAttribute('aria-pressed')).toBe('true');
     const rival = within(whose()).getAllByRole('button').at(-1) as HTMLElement;
     fireEvent.click(rival);
     expect(title()).toBe(`The History of ${rival.textContent}`);
 
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     openView('Board');
     fireEvent.click(screen.getByRole('button', { name: 'Advance a Turn' }));
     await idle();
@@ -288,13 +288,13 @@ describe("each one's page opens their History (M9-S5)", () => {
 
   test('the rail opens the History on the player’s Guild, at its newest, whatever was chosen before; a Party home opens Guild › Home at its report (M9-F5)', async () => {
     render_(withPartyOut(started('reducer-test')));
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     openView('Board');
 
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: 'Open the History' }));
     expect(title()).toBe('The History of The Lantern');
 
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();
     // The Party's stop offers no "Read what happened": the play opened its report (M9-F5).
@@ -372,7 +372,7 @@ describe('anyone the History names, found by name (DL-74)', () => {
 
     const page = within(history()).getByRole('article');
     expect(within(page).getByRole('heading', { level: 3, name: dead.name })).toBeDefined();
-    expect(within(page).getByText(/^died on Day \d+$/)).toBeDefined();
+    expect(within(page).getByText(/^Died on Day \d+$/)).toBeDefined();
     // This Hero is dead by the test's own hand, with no Milestone recorded: none is drawn (M9-S3, the review's A5).
     expect(within(page).queryByRole('heading', { name: 'Milestones' })).toBeNull();
     expect(within(page).getByRole('heading', { level: 4, name: 'History, newest first' })).toBeDefined();
@@ -401,7 +401,7 @@ describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", () => {
       .getAllByRole('button')
       .map((button) => button.textContent ?? '');
 
-    expect(labels.slice(0, 2)).toEqual(['The Lantern, your Guild', 'The world']);
+    expect(labels.slice(0, 2)).toEqual(['The Lantern, your Guild', 'The World History']);
     expect(labels.length).toBeGreaterThan(2);
     expect(labels.some((label) => /whole History/.test(label))).toBe(false);
   });
@@ -429,7 +429,7 @@ describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", () => {
 
   test('the world: every Guild’s news, grouped by Day and time of day, with no folds', () => {
     render_(played(withWorldNews(started('history-world')), { kind: 'advance', turns: 120 }));
-    fireEvent.click(within(whose()).getByRole('button', { name: 'The world' }));
+    fireEvent.click(within(whose()).getByRole('button', { name: 'The World History' }));
     const history = (): HTMLElement => section('History');
     const sentences: string[] = [];
     for (;;) {

@@ -39,6 +39,7 @@ import {
   type HeroId,
   type RankingMeasure,
   type RegardBand,
+  type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
@@ -67,7 +68,7 @@ export interface GuildRow {
   /** The player's own Guild. */
   mine: boolean;
   /**
-   * `1st`, or `joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95),
+   * `1st`, or `Joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95),
    * by the table's measure; `null` for a folded Guild, which is out of the Rankings (DL-28).
    */
   place: string | null;
@@ -79,7 +80,7 @@ export interface GuildRow {
   heroes: number;
   /** Its Upkeep, the engine's `upkeep`. */
   upkeep: number;
-  /** `folded on Day 12`, or `null` for a Guild in play (DL-28, DL-33). */
+  /** `Folded on Day 12`, or `null` for a Guild in play (DL-28, DL-33). */
   folded: string | null;
 }
 
@@ -112,7 +113,7 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
   const { world } = document;
   const { config } = playDeps(document);
   const measure: RankingMeasure = sort === 'wealth' ? 'wealth' : 'fame';
-  const places = new Map(rankingPlaces(world, measure).map((ranking) => [ranking.guildId, placeWords(ranking)]));
+  const places = new Map(rankingPlaces(world, measure).map((ranking) => [ranking.guildId, capitalised(placeWords(ranking))]));
   const rowFor = (guild: Guild): GuildRow => ({
     guildId: guild.id,
     name: guild.name,
@@ -123,7 +124,7 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     wealth: guild.wealth,
     heroes: guild.rosterIds.length,
     upkeep: upkeep(guild, world, config, content),
-    folded: guild.foldedOnTurn === null ? null : `folded on Day ${dayOf(guild.foldedOnTurn)}`,
+    folded: foldedWords(guild),
   });
   // The Rankings' order by the measure; by another column, a stable sort keeps it for ties.
   const rows = rankingPlaces(world, sort === 'wealth' ? 'wealth' : 'fame').flatMap((ranking) => {
@@ -135,6 +136,11 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     .filter((guild) => guild.foldedOnTurn !== null)
     .map(rowFor);
   return { measure, rows, folded };
+}
+
+/** `Folded on Day 12`, as a cell or a Guild's line says it; `null` for a Guild in play. */
+function foldedWords(guild: Pick<Guild, 'foldedOnTurn'>): string | null {
+  return guild.foldedOnTurn === null ? null : `Folded on Day ${dayOf(guild.foldedOnTurn)}`;
 }
 
 // ── A Hall ───────────────────────────────────────────────────────────────────────────────────
@@ -199,13 +205,16 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
 
 // ── A Guildmaster ────────────────────────────────────────────────────────────────────────────
 
-/** What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key: the CLI's words. */
+/**
+ * What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key: the CLI's words,
+ * beginning with a capital as a cell does (DL-125 item 9).
+ */
 const bearsOn: Readonly<Record<string, string>> = Object.freeze({
-  negotiation: 'the reward agreed and the fees paid',
-  inspiration: 'the Morale baseline of the Heroes',
-  coaching: 'the XP of the training yard',
-  influence: "the Regard a Patron's Quest earns",
-  judgement: 'how sharp the Potential hints read',
+  negotiation: 'The reward agreed and the fees paid',
+  inspiration: 'The Morale baseline of the Heroes',
+  coaching: 'The XP of the training yard',
+  influence: "The Regard a Patron's Quest earns",
+  judgement: 'How sharp the Potential hints read',
 });
 
 /** One entity a Guildmaster holds a Regard for: its name, a detail (a Sphere, a Class, a Guildmaster) and the band. */
@@ -213,6 +222,8 @@ export interface RegardRow {
   name: string;
   detail: string;
   regard: RegardBand;
+  /** The band as its chip says it, `Warm` (DL-125 item 9). */
+  regardWords: string;
   /** The band is neutral: the page folds such rows under a count (M9-S6, the review's C8). */
   neutral: boolean;
 }
@@ -220,14 +231,19 @@ export interface RegardRow {
 /** A Regard row for `name`, its `detail` and the Regard `value` in `config`'s bands. */
 function regardRow(name: string, detail: string, value: number, config: Pick<GameConfig, 'regardBands'>): RegardRow {
   const regard = regardBand(value, config);
-  return { name, detail, regard, neutral: regard === 'neutral' };
+  return { name, detail, regard, regardWords: capitalised(regard), neutral: regard === 'neutral' };
 }
 
 export interface GuildmasterView {
   /** Whose History a Guildmaster's page opens (M9-S5). */
   guildmasterId: GuildmasterId;
   name: string;
+  /** Their Guild, whose Banner stands beside "{Name}, Guildmaster of {Guild}" (DL-125 item 7). */
+  guildId: GuildId;
   guildName: string;
+  /** Their sex and their Portrait's key, `null` for the Silhouette of their sex: their Portrait (DL-125 item 2). */
+  sex: Sex;
+  portraitKey: string | null;
   attributes: [label: string, value: string][];
   /**
    * When they retire, from the engine's `retiresOn` (M9-F3, DL-113 item 5; M9-F6): `Retires at 61 on
@@ -261,7 +277,10 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   return {
     guildmasterId: guildmaster.id,
     name: guildmaster.name,
+    guildId: guild.id,
     guildName: guild.name,
+    sex: guildmaster.sex,
+    portraitKey: guildmaster.portraitKey,
     attributes: [
       // The Sex as a word, capitalised, as "Age" is (DL-111 item 9).
       ['Sex', capitalised(guildmaster.sex)],
@@ -324,7 +343,7 @@ function retirementWords(
 function timeLeft(night: number, turn: number, config: Pick<GameConfig, 'turnsPerYear'>): string {
   if (night - turn >= config.turnsPerYear) {
     const years = yearOf(night, config) - yearOf(turn, config);
-    return `in ${years} ${years === 1 ? 'year' : 'years'}`;
+    return `in ${years} ${years === 1 ? 'Year' : 'Years'}`;
   }
   const days = dayOf(night) - dayOf(turn);
   return days === 0 ? 'tonight' : `in ${days} ${days === 1 ? 'Day' : 'Days'}`;
@@ -355,6 +374,9 @@ export interface PatronRow {
   regard: RegardBand | null;
   /** The player's Guildmaster's Regard for them, as a band (M9-S6); `null` with no player's Guildmaster. */
   guildmasterRegard: RegardBand | null;
+  /** Each band as its chip says it, `Cool`, or `None` without one (DL-125 item 9). */
+  regardWords: string;
+  guildmasterRegardWords: string;
   /** How many of their Quests are on the Board now. */
   quests: number;
   /** Both Regards are neutral, or unknown: the page folds such rows under a count (M9-S6, the review's B5). */
@@ -381,6 +403,8 @@ export function patronsView(document: WorldDocument): PatronRow[] {
       sphere: nameIn(content.spheres, patron.sphereKey),
       regard,
       guildmasterRegard,
+      regardWords: regard === null ? 'None' : capitalised(regard),
+      guildmasterRegardWords: guildmasterRegard === null ? 'None' : capitalised(guildmasterRegard),
       quests: posters.filter((patronId) => patronId === patron.id).length,
       neutral: (regard ?? 'neutral') === 'neutral' && (guildmasterRegard ?? 'neutral') === 'neutral',
     };
@@ -432,11 +456,11 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
     guildId: guild.id,
     name: guild.name,
     mine: guild.controller.kind === 'player',
-    controller: controllerWords(guild),
+    controller: controllerWords(guild, content),
     background: nameIn(content.backgrounds, guild.backgroundKey),
     fame: guild.fame,
     wealth: guild.wealth,
-    folded: guild.foldedOnTurn === null ? null : `folded on Day ${dayOf(guild.foldedOnTurn)}`,
+    folded: foldedWords(guild),
     roster: guild.rosterIds.flatMap((heroId) => {
       const hero = rowOf(world.heroes, heroId);
       if (hero === undefined) return [];

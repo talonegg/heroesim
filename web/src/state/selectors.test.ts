@@ -2,6 +2,7 @@ import {
   addStack,
   advance,
   bankruptcyCountdown,
+  createItem,
   createWorld,
   dayOf,
   defaultConfig,
@@ -87,6 +88,8 @@ describe('headerView', () => {
     expect(rankingPlaces(document.world, 'fame').map(({ value }) => value)).toEqual([0, 0, 0, 0, 0]);
 
     expect(headerView(document)).toEqual({
+      // Whose Banner stands beside the name (DL-125 item 7).
+      guildId: guild.id,
       guildName: 'The Lantern',
       // The navigation's label for the Guildmaster view (M9-F2, DL-112 item 5).
       guildmasterName: 'Ada Vell',
@@ -98,8 +101,8 @@ describe('headerView', () => {
       timeOfDay: 'afternoon',
       when: `Day ${dayOf(4)}, ${timeOfDay(4)}`,
       year: 'Year 0',
-      rankings: 'joint 1st of 5 by Fame',
-      place: 'joint 1st of 5',
+      rankings: 'Joint 1st of 5 by Fame',
+      place: 'Joint 1st of 5',
       measure: 'by Fame',
       seed: 'selectors-played',
       countdown: null,
@@ -109,7 +112,7 @@ describe('headerView', () => {
   });
 
   test('a new game, every Guild at Fame 0, is joint 1st of 5 by Fame; a place no Guild shares is not joint', () => {
-    expect(headerView(newGame())?.rankings).toBe('joint 1st of 5 by Fame');
+    expect(headerView(newGame())?.rankings).toBe('Joint 1st of 5 by Fame');
 
     const document = structuredClone(newGame());
     const [mine, ...rivals] = Object.values(document.world.guilds);
@@ -122,7 +125,7 @@ describe('headerView', () => {
 
     expect(fames(9, 4, 4, 1, 0)).toBe('1st of 5 by Fame');
     expect(headerView(document)?.place).toBe('1st of 5');
-    expect(fames(4, 9, 4, 1, 0)).toBe('joint 2nd of 5 by Fame');
+    expect(fames(4, 9, 4, 1, 0)).toBe('Joint 2nd of 5 by Fame');
     expect(fames(1, 9, 4, 4, 0)).toBe('4th of 5 by Fame');
     expect(fames(0, 9, 4, 4, 1)).toBe('5th of 5 by Fame');
     // The engine's `rankings` gives these Guilds ranks 1 to 5, ties by Guild id; it is unchanged.
@@ -142,14 +145,14 @@ describe('headerView', () => {
     if (rival === undefined) throw new Error('expected a Rival');
     rival.foldedOnTurn = 0;
 
-    expect(headerView(document)?.rankings).toBe('joint 1st of 4 by Fame');
+    expect(headerView(document)?.rankings).toBe('Joint 1st of 4 by Fame');
   });
 
   test("says the player's Guild is not ranked once it has folded, with no measure to follow (M9-S3, DL-103)", () => {
     const document = structuredClone(newGame());
     player(document).foldedOnTurn = 0;
 
-    expect(headerView(document)).toMatchObject({ rankings: 'not ranked: the Guild has folded', place: 'not ranked: the Guild has folded', measure: '' });
+    expect(headerView(document)).toMatchObject({ rankings: 'Not ranked: the Guild has folded', place: 'Not ranked: the Guild has folded', measure: '' });
   });
 });
 
@@ -264,9 +267,9 @@ describe("the Board's Quest cards (M9-S4, DL-104)", () => {
     ]);
     expect(card?.skills).toEqual(['Stealth', 'Lockpicking', 'Swordcraft', 'Tactics', 'Trapcraft', 'Shieldwork', 'Field surgery', 'Herbalism']);
     expect(card?.encounters).toEqual([
-      { kind: 'stealth', count: 2, words: 'stealth ×2' },
-      { kind: 'combat', count: 2, words: 'combat ×2' },
-      { kind: 'travel', count: 1, words: 'travel ×1' },
+      { kind: 'stealth', count: 2, words: 'Stealth ×2' },
+      { kind: 'combat', count: 2, words: 'Combat ×2' },
+      { kind: 'travel', count: 1, words: 'Travel ×1' },
     ]);
   });
 
@@ -476,8 +479,8 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     expect(rows?.map(({ why, unavailable }) => ({ why, unavailable }))).toEqual([
       { why: null, unavailable: null },
       { why: null, unavailable: null },
-      { why: 'injured', unavailable: 'injured, healing on the night of Day 6' },
-      { why: 'in-party', unavailable: 'away with a Party, back on the night of Day 5' },
+      { why: 'injured', unavailable: 'Injured, healing on the night of Day 6' },
+      { why: 'in-party', unavailable: 'Away with a Party, back on the night of Day 5' },
     ]);
     for (const row of rows ?? []) expect(row.why).toBe(unavailability(document.world.heroes[row.heroId] as Hero));
     // As the Roster words it.
@@ -532,8 +535,8 @@ describe('rosterView', () => {
     const rows = rosterView(document);
 
     expect(rows.map((row) => row.heroId)).toEqual(player(document).rosterIds);
-    expect(rows[0]?.whereabouts).toBe('injured, healing on the night of Day 6');
-    expect(rows[1]?.whereabouts).toBe('at the Hall');
+    expect(rows[0]?.whereabouts).toBe('Injured, healing on the night of Day 6');
+    expect(rows[1]?.whereabouts).toBe('At the Hall');
   });
 
   test("gives each card its Morale and band apart, and why a Hero is not at the Hall, for the icon beside its words (M9-S6, DL-106)", () => {
@@ -556,9 +559,9 @@ describe('rosterView', () => {
 
     const [first, second, third] = rosterView(document);
 
-    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'injured, healing on the night of Day 6' });
-    expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'away with a Party, back on the night of Day 4' });
-    expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'at the Hall' });
+    expect(first).toMatchObject({ morale: 12, moraleBand: 'wretched', why: 'injured', whereabouts: 'Injured, healing on the night of Day 6' });
+    expect(second).toMatchObject({ morale: 80, moraleBand: 'high', why: 'in-party', whereabouts: 'Away with a Party, back on the night of Day 4' });
+    expect(third).toMatchObject({ morale: 50, moraleBand: 'steady', why: null, whereabouts: 'At the Hall' });
   });
 });
 
@@ -574,6 +577,8 @@ describe('heroPage', () => {
 
       const rows = page?.areas.flatMap((area) => area.stats) ?? [];
       expect(rows.map((row) => row.outlook)).toEqual(stats.map((stat) => potentialHint(hero, stat.key, bands)));
+      // The hint as its chip says it (DL-125 item 9).
+      expect(rows.map((row) => row.outlookWords)).toEqual(rows.map((row) => ({ modest: 'Modest', promising: 'Promising', exceptional: 'Exceptional' })[row.outlook]));
       expect(rows.map((row) => row.base)).toEqual(stats.map((stat) => hero.stats[stat.key]));
       expect(JSON.stringify(page)).not.toMatch(/potential/i);
     }
@@ -594,6 +599,13 @@ describe('heroPage', () => {
     expect(page).not.toHaveProperty('history');
   });
 
+  test("gives the Hero's sex for their Portrait, and no Portrait's key: every Hero shows the Silhouette of their sex (DL-125 items 2 and 4)", () => {
+    const document = newGame();
+    for (const hero of Object.values(document.world.heroes)) {
+      expect(heroPage(document, hero.id)).toMatchObject({ sex: hero.sex, portraitKey: null });
+    }
+  });
+
   test('is null for a Hero the world does not hold', () => {
     expect(heroPage(newGame(), 'hero-999999' as HeroId)).toBeNull();
   });
@@ -603,7 +615,7 @@ describe('heroPage', () => {
     const [pooled] = unattachedHeroes(document.world);
     if (pooled === undefined) throw new Error('an empty pool');
 
-    expect(heroPage(document, pooled.id)?.where).toEqual({ why: null, words: 'in the Unattached pool' });
+    expect(heroPage(document, pooled.id)?.where).toEqual({ why: null, words: 'In the Unattached pool' });
   });
 });
 
@@ -635,13 +647,13 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
 
     expect(page).toMatchObject({
       morale: { value: 30, band: 'low' },
-      where: { why: 'injured', words: 'injured, healing on the night of Day 6' },
+      where: { why: 'injured', words: 'Injured, healing on the night of Day 6' },
       injury: content.injuries['deep-cut']?.name,
       xp: 45,
       traits: [content.traits.scarred?.name ?? 'scarred'],
       fee: null,
     });
-    expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'at the Hall' }, injury: null, traits: [] });
+    expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'At the Hall' }, injury: null, traits: [] });
   });
 
   test('gives the Stats in four area blocks, in content’s order, each with the value a Check reads and what gear and the Guildmaster’s Traits add', () => {
@@ -692,7 +704,7 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
     if (hero === undefined) throw new Error('no Hero');
     hero.diedOnTurn = 9;
 
-    expect(heroPage(document, hero.id)?.where).toEqual({ why: 'dead', words: 'died on Day 3' });
+    expect(heroPage(document, hero.id)?.where).toEqual({ why: 'dead', words: 'Died on Day 3' });
   });
 });
 
@@ -714,13 +726,19 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     expect(page?.actions).toMatchObject({ kind: 'own' });
     if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
     expect(page.actions.equip.map(({ name, kind, gear }) => ({ name, kind, stack: 'stackId' in gear }))).toEqual([
-      { name: content.items['arming-sword']?.name, kind: 'weapon gear', stack: true },
+      { name: content.items['arming-sword']?.name, kind: 'Weapon Gear', stack: true },
     ]);
     expect(page.gear.filter((row) => row.worn).map((row) => row.slot)).toEqual(['armour']);
     expect(page.gear.map(({ slotName, item, worn }) => [slotName, item, worn])).toEqual([
-      ['Weapon', 'none', false],
+      ['Weapon', 'None', false],
       ['Armour', 'Padded jack', true],
-      ['Trinket', 'none', false],
+      ['Trinket', 'None', false],
+    ]);
+    // What is in a slot by its content key, none in an empty one; a common Item shows no picture (DL-125 item 8).
+    expect(page.gear.map(({ definitionKey, unique }) => [definitionKey, unique])).toEqual([
+      [null, false],
+      ['padded-jack', false],
+      [null, false],
     ]);
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
@@ -728,6 +746,25 @@ describe("a Hero's page offers what can be done with the Hero", () => {
         return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${fee} Wealth for ${hero.name}`) };
       }),
     );
+  });
+
+  test("gives a Unique Item's content key, carried or held, so its picture stands beside its name (DL-125 item 8)", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    createItem(document.world, 'barrow-kings-blade', { kind: 'hero', id: hero.id, slot: 'weapon' });
+    createItem(document.world, 'lantern-of-stannary', { kind: 'guild', id: guild.id });
+    addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
+
+    const page = heroPage(document, hero.id);
+
+    expect(page?.gear.find((row) => row.slot === 'weapon')).toMatchObject({ definitionKey: 'barrow-kings-blade', unique: true });
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    expect(page.actions.equip.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
+      { definitionKey: 'lantern-of-stannary', unique: true },
+      { definitionKey: 'arming-sword', unique: false },
+    ]);
   });
 
   test("asks before a Transfer out, stating the fee and the Morale it costs in the words the page gives them (M9-S6, the review's E4)", () => {
@@ -745,7 +782,7 @@ describe("a Hero's page offers what can be done with the Hero", () => {
     const target = page.actions.transferTo.find((each) => each.guildId === other.id);
 
     expect(target?.sentence).toBe(
-      `The Ashford Guild would pay ${target?.fee} Wealth for Finn Grimshaw, if it is willing to take them. Their gear stays with your ` +
+      `The Ashford Guild would pay ${target?.fee} Wealth for Finn Grimshaw, if it is willing to take them. Their Gear stays with your ` +
         'Guild, and the Heroes left behind who held them in high Regard lose Morale.',
     );
   });
