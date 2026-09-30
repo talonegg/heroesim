@@ -66,7 +66,8 @@ describe('describeGuildmaster', () => {
         const female = describeGuildmaster({ ...request, seed, n, sex: 'female', traitKeys: [], portraitKey: 'gm-female-01' }, deps);
         expect(male.appearance).toBe('A bearded face in a picture.');
         expect(female.appearance).toBe('A braided head in a picture.');
-        const unmapped = describeGuildmaster({ ...request, seed, n, portraitKey: 'gm-male-02' }, deps);
+        // A key with no row, as a retired picture's might be, is drawn whole.
+        const unmapped = describeGuildmaster({ ...request, seed, n, portraitKey: 'gm-male-99' }, deps);
         expect(unmapped.appearance).toMatch(/^Build (one|two) \(young male\)\. Face/);
       }
     }
@@ -128,6 +129,79 @@ describe('describeGuildmaster', () => {
     }
   });
 });
+
+// v1.1.3-S5 (DL-134 item 6): with a picture, the Biography's origin is its Station's, its career its
+// Callings' at the band with its hooks, and its closing its Temper's, each the band's where the
+// picture's own list is empty, in the same fifteen draws. The test content has a common Station's
+// origin, a soldier's young career and a stern Temper's closing, and none for gentry, the older band,
+// a merchant, a scholar or a composed Temper.
+describe("the Biography from the picture (v1.1.3-S5, DL-134 item 6)", () => {
+  const bio = (portraitKey: string | null, age: number, seed = 'from-picture') =>
+    describeGuildmaster({ ...request, seed, age, traitKeys: ['old-soldier'], portraitKey }, deps);
+
+  test("the picture's Station's origin, its Calling's career at the band, and its Temper's closing", () => {
+    // gm-male-01: common, a soldier, stern; 30 is young.
+    const { birthplace, biography } = bio('gm-male-01', 30);
+    expect(biography).toBe(`He was born common in ${birthplace}. He carried a pike. He took the old charter. He was a soldier. He is stern.`);
+  });
+
+  test("each falls back to the band's where the picture's own is empty", () => {
+    // gm-male-01 at 40 is older, where a soldier has no career: the band's.
+    expect(bio('gm-male-01', 40).biography).toMatch(/^He was born common in .*\. He kept an inn for his life\. .* He is stern\.$/);
+    // gm-male-03 is a scholar and a soldier: a scholar has none, so the soldier's at the band.
+    expect(bio('gm-male-03', 25).biography).toMatch(/^He was born common in .*\. He carried a pike\. /);
+  });
+
+  test("a picture's hooks join its Callings' careers, and stand alone where the Callings have none", () => {
+    // gm-male-02: gentry (no origin), a merchant (no career), composed (no closing), with one hook.
+    const { birthplace, biography } = bio('gm-male-02', 30);
+    expect(biography).toBe(`He was born in ${birthplace}. He kept a ledger of every debt. He took the old charter. He was a soldier. He is young.`);
+    // gm-female-02's hook beside a scholar's none, at 44: every seed writes it.
+    for (const seed of seeds.slice(0, 10)) {
+      const hers = describeGuildmaster({ ...request, seed, sex: 'female', age: 44, traitKeys: [], portraitKey: 'gm-female-02' }, deps);
+      expect(hers.biography).toMatch(/^She was born common in .*\. She keeps a lamp lit late\. She took the old charter\. She is stern\.$/);
+    }
+  });
+
+  test("with no picture, or one with no row, the band's alone", () => {
+    for (const portraitKey of [null, 'gm-male-99']) {
+      const { birthplace, biography } = bio(portraitKey, 30);
+      expect(biography).toBe(`He was born in ${birthplace}. He carried loads. He took the old charter. He was a soldier. He is young.`);
+    }
+  });
+
+  test('the same fifteen draws with a picture or without, at any band', () => {
+    const states = ['gm-male-01', 'gm-male-02', 'gm-male-03', null].flatMap((portraitKey) =>
+      [25, 44].map((age) => {
+        const world = testWorld('picture-draws', deps);
+        const row = { ...(guildmasterRow() as Guildmaster), sex: 'male' as const, ageAtEntry: age, portraitKey };
+        describeBlanks(world, deps, row, 'old-charter');
+        return world.rng.descriptions;
+      }),
+    );
+    for (const state of states) expect(state).toEqual(states[0]);
+  });
+});
+
+/** A Guildmaster's row with no texts, for `describeBlanks`. */
+function guildmasterRow(): Guildmaster {
+  return {
+    id: makeId('guildmasters', 1),
+    name: 'Ada Vell',
+    sex: 'female',
+    guildId: playerId,
+    enteredTurn: 0,
+    ageAtEntry: 40,
+    stats: {},
+    traits: ['thrifty'],
+    birthplace: '',
+    appearance: '',
+    biography: '',
+    portraitKey: null,
+    retiredOnTurn: null,
+    regard: {},
+  };
+}
 
 describe('describeBlanks, as a Guildmaster enters play', () => {
   const guildmaster = (texts: Partial<Pick<Guildmaster, 'birthplace' | 'appearance' | 'biography'>> = {}, portraitKey: string | null = null): Guildmaster => ({

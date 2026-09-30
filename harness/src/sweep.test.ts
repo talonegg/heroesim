@@ -192,6 +192,36 @@ describe('sweepPlay', () => {
     expect(report).toContain('| Back to it or more (`guild.floor-recovered`) | 1 | 0.50 | 4 | 2.00 |');
   });
 
+  test("totals and renders v1.1.3-S5's Portrait counters, by controller and in all (DL-134 item 9)", () => {
+    const games = sweep.games.map((game) => ({
+      ...game,
+      counters: {
+        ...game.counters,
+        portraits: {
+          player: { guildmasters: 1, pictured: 1, silhouettes: 0, ageHeld: 1, callingClashes: 0 },
+          rival: { guildmasters: 6, pictured: 4, silhouettes: 2, ageHeld: 3, callingClashes: 1 },
+        },
+      },
+    }));
+    const pictured = { ...sweep, games };
+    const summed = sweepTotals(pictured, deps.config.turnsPerYear);
+
+    expect(summed.portraits).toEqual({
+      player: { guildmasters: 2, pictured: 2, silhouettes: 0, ageHeld: 2, callingClashes: 0 },
+      rival: { guildmasters: 12, pictured: 8, silhouettes: 4, ageHeld: 6, callingClashes: 2 },
+    });
+    const report = playReport(pictured, { deps, machine: machine(), startedAt: new Date(2026, 9, 1, 12), milestone: 'm9-v113-s5' });
+    expect(report).toContain('## Portraits (v1.1.3-S5)');
+    expect(report).toContain("| Guildmasters | Player's | Rivals' | All |");
+    expect(report).toContain('| Entered play | 2 | 12 | 14 |');
+    expect(report).toContain('| With a picture | 2 (100.0%) | 8 (66.7%) | 10 (71.4%) |');
+    expect(report).toContain('| With the Silhouette | 0 (0.0%) | 4 (33.3%) | 4 (28.6%) |');
+    expect(report).toContain("| Their picture's `apparentAge` holds their age | 2 (100.0%) | 6 (75.0%) | 8 (80.0%) |");
+    expect(report).toContain("| Their picture's Calling clashes with a Trait | 0 (0.0%) | 2 (25.0%) | 2 (20.0%) |");
+    // After the Rivals and before the Measures, so the play counters' lines stand as they were.
+    expect(report.indexOf('## Portraits')).toBeLessThan(report.indexOf('## Measures'));
+  });
+
   test("fingerprints the sweep: SHA-256 over each seed's line of its seed and its last save's fingerprint, in seed order", () => {
     const lines = sweep.games.map((game) => `${game.seed}\t${game.measures.fingerprint}\n`).join('');
 

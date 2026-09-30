@@ -496,6 +496,22 @@ describe("a picture's row (v1.1.3-S1, DL-134 items 3 and 10, DL-135 item 2)", ()
     expect(message).toContain(`${at}.hooks.2: {birthplace} is not a slot; the slots are {he}`);
   });
 
+  // A narrative is shown as written (DL-127 item 4), so a slot in it would show as braces
+  // (DL-138's open point, closed by v1.1.3-S5); a hook is filled, and a stray brace in one is refused.
+  test('is refused with a narrative holding a slot or a brace, or a hook with a brace that is no slot', () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      rowOf(json, 'gm-male-01')['narrative'] = '{His} face is weathered.';
+      rowOf(json, 'gm-female-01')['narrative'] = 'A strong face } with a stray brace.';
+      rowOf(json, 'gm-female-01')['hooks'] = ['{He keeps a secret.'];
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    const rule = 'a narrative is shown as written, so it has no slot and no brace';
+    expect(message).toContain(`portraitAppearances.portraits.gm-male-01.narrative holds "{"; ${rule}`);
+    expect(message).toContain(`portraitAppearances.portraits.gm-female-01.narrative holds "}"; ${rule}`);
+    expect(message).toContain('portraitAppearances.portraits.gm-female-01.hooks.0 has a brace that is no slot');
+  });
+
   test("accepts a narrative of exactly 260 characters and a hook of exactly 160, filled with its picture's pronouns", () => {
     const files = withJson('portrait-appearances.json', (json) => {
       const male = rowOf(json, 'gm-male-01');

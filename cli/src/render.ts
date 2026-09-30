@@ -179,6 +179,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       { heading: 'Guild' },
       { heading: 'Controller' },
       { heading: 'Guildmaster' },
+      { heading: 'Portrait' },
       { heading: 'Background' },
       { heading: 'Roster', align: 'right' },
       { heading: 'Wealth', align: 'right' },
@@ -191,6 +192,8 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       guild.name,
       controllerOf(guild, content),
       rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
+      // Every Guildmaster's picture by its key (v1.1.3-S5), or the Silhouette where none fits them.
+      portraitWords(rowIn(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
       String(guild.wealth),
@@ -199,6 +202,11 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
     ]),
   );
+}
+
+/** A Guildmaster's Portrait in a table: its picture's key, or the Silhouette (v1.1.3-S5). */
+function portraitWords(portraitKey: string | null): string {
+  return portraitKey ?? 'Silhouette';
 }
 
 function inPlay(guild: Guild): boolean {

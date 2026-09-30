@@ -3,6 +3,7 @@ import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import type { StopReason } from '../stops.js';
 import { defaultConfig, type EngineDeps } from '../config.js';
+import type { ContentSet, PortraitAppearance } from '../content-types.js';
 import { availableHeroes, partyFor } from '../controllers/rival.js';
 import { createWorld } from '../create.js';
 import {
@@ -26,6 +27,7 @@ import { dispositionOf, playerGuild, rankings, signingFee, signingRefusal, unatt
 import { nightOf, retirementTurn, retiresOn } from '../time.js';
 import { guildmasterRegardForGuild } from '../regard.js';
 import { plannedStreams, testContent, testDeps, thriftyRivals, withDispositions, withValid } from '../world.test-support.js';
+import { ageSpanOf, portraitSexOf } from '../portraits.js';
 import { endings } from './endings.js';
 import { phaseContext } from './phase.js';
 
@@ -593,7 +595,7 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
     expect(entriesFor(document.history, partyId)[0]?.type).toBe('guild.folded');
   });
 
-  test("a fold draws from no stream, and a replacement from generation alone, its Guildmaster's descriptions from descriptions", () => {
+  test("a fold draws from no stream, and a replacement from generation alone, its Guildmaster's Portrait from gm-portraits and descriptions from descriptions", () => {
     for (const rivalReplacementDays of [5, 0]) {
       const deps = testDeps({ rivalCount: 1, rivalReplacementDays });
       const document = created('streams', deps);
@@ -610,8 +612,9 @@ describe("a Rival's ending folds it (pre-M0 review D6)", () => {
       expect(ofType(events, 'guild.founded')).toHaveLength(rivalReplacementDays === 0 ? 1 : 0);
       const rng = world.rng as Record<string, unknown>;
       for (const name of plannedStreams) {
-        // A Guildmaster entering play is described on a stream of its own (v1.1.2-S5).
-        const moved = (name === 'generation' || name === 'descriptions') && rivalReplacementDays === 0;
+        // A Guildmaster entering play is given a Portrait and described, each on a stream of its own
+        // (v1.1.2-S5, v1.1.3-S5).
+        const moved = (name === 'generation' || name === 'gm-portraits' || name === 'descriptions') && rivalReplacementDays === 0;
         if (moved) expect(rng[name], name).not.toEqual(before[name]);
         else expect(rng[name], name).toEqual(before[name]);
       }
@@ -718,7 +721,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(successor?.regard).toEqual({});
   });
 
-  test('the successor is drawn from generation alone, and described from descriptions (v1.1.2-S5)', () => {
+  test('the successor is drawn from generation alone, given a Portrait from gm-portraits, and described from descriptions (v1.1.2-S5, v1.1.3-S5)', () => {
     const deps = testDeps({ rivalCount: 1 });
     const document = created('succession-streams', deps);
     const world = structuredClone(document.world);
@@ -732,7 +735,7 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(ofType(events, 'guildmaster.succeeded')).toHaveLength(1);
     const rng = world.rng as Record<string, unknown>;
     for (const name of plannedStreams) {
-      if (name === 'generation' || name === 'descriptions') expect(rng[name], name).not.toEqual(before[name]);
+      if (name === 'generation' || name === 'gm-portraits' || name === 'descriptions') expect(rng[name], name).not.toEqual(before[name]);
       else expect(rng[name], name).toEqual(before[name]);
     }
   });
@@ -806,6 +809,104 @@ describe("a Rival's Guildmaster's Retirement is met by Succession", () => {
     expect(ofType(events, 'guildmaster.succeeded')).toEqual([]);
     expect(guildOf(document.world, player.id).guildmasterId).toBe(player.guildmasterId);
     expect(document.world.guildmasters[player.guildmasterId]?.retiredOnTurn).toBeNull();
+  });
+});
+
+// ── Every entrant's Portrait (v1.1.3-S5, DL-134 item 5, DL-135 items 3 and 4) ────────────────────
+
+describe("every Guildmaster entering play through Succession or a replacement has a Portrait that fits, or the Silhouette (v1.1.3-S5)", () => {
+  /** A Guildmaster picture's row: its ages, and the rest as any Guildmaster's. */
+  const row = (apparentAge: [number, number], narrative: string): PortraitAppearance => ({
+    apparentAge,
+    station: 'common',
+    callings: ['soldier'],
+    temper: 'stern',
+    features: [],
+    narrative,
+    hooks: [],
+  });
+  /**
+   * The test content with three pictures of each sex, spread over its two bands (young to 35, older
+   * from 36), so that some entrants find one free and some find every one that fits in use.
+   */
+  const pictures: Record<string, PortraitAppearance> = {
+    'gm-female-01': row([22, 30], 'A young face.'),
+    'gm-female-02': row([38, 50], 'A lined face.'),
+    'gm-female-03': row([30, 42], 'A steady face.'),
+    'gm-male-01': row([40, 50], 'A bearded face.'),
+    'gm-male-02': row([28, 40], 'A trimmed beard.'),
+    'gm-male-03': row([21, 30], 'A young face.'),
+  };
+  const content: ContentSet = {
+    ...testContent,
+    portraits: {
+      ...testContent.portraits,
+      guildmaster: { female: ['gm-female-01', 'gm-female-02', 'gm-female-03'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
+    },
+    portraitAppearances: { ...testContent.portraitAppearances, portraits: { ...testContent.portraitAppearances.portraits, ...pictures } },
+  };
+
+  /** Whether `key` is a Guildmaster picture of `sex` whose ages reach the band of `age`. */
+  const fits = (key: string, sex: string, age: number): boolean => {
+    const band = ageSpanOf(content.descriptions.ageBands, age);
+    const [from, to] = pictures[key]?.apparentAge ?? [1, 0];
+    return portraitSexOf(content, 'guildmaster', key) === sex && from <= band.to && to >= band.from;
+  };
+
+  test('forced Successions and folds over twenty nights: each entrant fits, no two living share, and a Silhouette only where every fitting picture is held', () => {
+    const deps = testDeps({ rivalCount: 4, rivalReplacementDays: 1, bankruptcyGraceDays: 0 }, content);
+    stillRivalControllers();
+    let document = created('entrants', deps);
+    const tally = { successions: 0, replacements: 0, pictured: 0, silhouettes: 0 };
+
+    for (let day = 0; day < 20; day += 1) {
+      const inPlay = Object.values(document.world.guilds)
+        .filter((guild) => guild.controller.kind === 'rival' && guild.foldedOnTurn === null)
+        .sort((a, b) => a.id.localeCompare(b.id));
+      // Each night one Rival's Guildmaster retires, and every third night another Rival goes bankrupt.
+      const retiring = inPlay[day % inPlay.length];
+      if (retiring !== undefined) arrange.retirement(document.world, retiring, deps);
+      const failing = inPlay[(day + 1) % inPlay.length];
+      if (day % 3 === 0 && failing !== undefined && failing !== retiring) arrange.bankruptcy(document.world, failing, deps);
+
+      const played = playTo(document, nightOf(day) + 1, deps);
+      document = played.document;
+      tally.successions += ofType(played.events, 'guildmaster.succeeded').length;
+      tally.replacements += ofType(played.events, 'guild.founded').length;
+
+      const { world } = document;
+      const living = Object.values(world.guilds)
+        .filter((guild) => guild.foldedOnTurn === null)
+        .map((guild) => world.guildmasters[guild.guildmasterId])
+        .filter((guildmaster) => guildmaster !== undefined);
+      const held = living.flatMap((guildmaster) => (guildmaster.portraitKey === null ? [] : [guildmaster.portraitKey]));
+      expect(new Set(held).size, `day ${day}: no two living share`).toBe(held.length);
+
+      for (const entrant of Object.values(world.guildmasters).filter((guildmaster) => guildmaster.enteredTurn === nightOf(day))) {
+        // What was held as they chose: every living Guildmaster's but theirs, and those who left the
+        // chair tonight, retired or folded.
+        const leftTonight = Object.values(world.guildmasters).filter(
+          (other) => other.retiredOnTurn === nightOf(day) || world.guilds[other.guildId]?.foldedOnTurn === nightOf(day),
+        );
+        const heldThen = new Set(
+          [...living, ...leftTonight].filter((other) => other.id !== entrant.id).flatMap((other) => other.portraitKey ?? []),
+        );
+        const fitting = Object.keys(pictures).filter((key) => fits(key, entrant.sex, entrant.ageAtEntry));
+        if (entrant.portraitKey === null) {
+          tally.silhouettes += 1;
+          for (const key of fitting) expect(heldThen.has(key), `day ${day}: ${entrant.id} could have had ${key}`).toBe(true);
+        } else {
+          tally.pictured += 1;
+          expect(fits(entrant.portraitKey, entrant.sex, entrant.ageAtEntry), `day ${day}: ${entrant.id}'s ${entrant.portraitKey}`).toBe(true);
+          expect(entrant.appearance).toBe(pictures[entrant.portraitKey]?.narrative);
+        }
+      }
+    }
+
+    expect(tally.successions).toBeGreaterThanOrEqual(15);
+    expect(tally.replacements).toBeGreaterThanOrEqual(4);
+    expect(tally.pictured).toBeGreaterThan(5);
+    expect(tally.silhouettes).toBeGreaterThan(0);
   });
 });
 

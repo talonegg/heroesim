@@ -176,7 +176,22 @@ export {
   type RivalOptions,
 } from './generators/guilds.js';
 export { sexes } from './generators/draw.js';
-export { guildmasterPortrait, portraitSexOf, portraitsOf } from './portraits.js';
+export {
+  ageIntoPortrait,
+  ageSpanOf,
+  callingClashes,
+  choosePortrait,
+  guildmasterPortraitsInUse,
+  portraitNotes,
+  portraitRowOf,
+  portraitSexOf,
+  portraitsOf,
+  type AgeSpan,
+  type CallingClash,
+  type ChosenRole,
+  type PortraitNote,
+  type PortraitPerson,
+} from './portraits.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';

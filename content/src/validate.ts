@@ -291,7 +291,8 @@ function picturesOf(portraits: ContentSet['portraits']): Map<string, { role: Por
  * - its station, temper, callings, classes and features are defined, each once, and a `maleOnly`
  *   feature is on a male picture's only;
  * - its `apparentAge` is two whole numbers from 0, the first no greater than the second;
- * - its narrative is written, at most 260 characters;
+ * - its narrative is written, at most 260 characters, with no slot or brace, since it is shown as
+ *   written (v1.1.3-S5);
  * - it has at most two hooks, each a sentence with no slot but the pronouns', at most 160 characters
  *   with its picture's sex's pronouns.
  * A feature no picture uses is allowed.
@@ -362,6 +363,9 @@ function checkPortraitAppearances(
     if (row.narrative.trim() === '') problems.push(`${where}.narrative is empty`);
     const length = lengthOf(row.narrative.trim());
     if (length > narrativeMaxLength) problems.push(`${where}.narrative is ${length} characters; a narrative holds at most ${narrativeMaxLength}`);
+    // Shown as written (DL-127 item 4), never filled: a slot would show as braces (v1.1.3-S5).
+    const brace = /[{}]/.exec(row.narrative)?.[0];
+    if (brace !== undefined) problems.push(`${where}.narrative holds "${brace}"; a narrative is shown as written, so it has no slot and no brace`);
 
     if (row.hooks.length > hooksMax) problems.push(`${where}.hooks has ${row.hooks.length}; a picture has at most two`);
     checkSentences(row.hooks, `${where}.hooks`, pronounSlots, descriptions.pronouns.female, problems, { mayBeEmpty: true });

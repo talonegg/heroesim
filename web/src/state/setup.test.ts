@@ -273,10 +273,15 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
       expect(view.drawnWords).toBe(`Drawn: ${guildmaster.sex === 'female' ? 'Female' : 'Male'}, ${guildmaster.ageAtEntry}`);
       const names = traitNames(guildmaster.traits);
       expect(view.traitsWords).toBe(names.length === 0 ? 'Drawn Traits: None' : `Drawn Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
+      // Chosen to fit them since v1.1.3-S5: the core's one picture of the sex, or the Silhouette where
+      // it does not fit their age.
       expect(view.portrait).toEqual({
         sex: guildmaster.sex,
         portraitKey: guildmaster.portraitKey,
-        words: `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait 1`,
+        words:
+          guildmaster.portraitKey === null
+            ? 'Drawn Portrait: None: the Silhouette'
+            : `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait 1`,
       });
     }
   });

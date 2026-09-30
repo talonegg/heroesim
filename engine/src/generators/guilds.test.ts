@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import type { Controller, Guild, World } from '../document.js';
 import { next, type StreamName } from '../rng.js';
 import { dealtDisposition, generateGuild, generateRival, generateSuccessor, type GuildOptions } from './guilds.js';
+import { ageIntoPortrait, ageSpanOf, guildmasterPortraitsInUse, portraitRowOf, portraitSexOf } from '../portraits.js';
 import { testDeps, testWorld } from '../world.test-support.js';
 
 const player: Controller = { kind: 'player' };
@@ -466,50 +467,121 @@ describe("the drawn Guildmasters' ages, 21 to 50 (M9-F1)", () => {
   });
 });
 
-// v1.1.2-S3 (DL-125 item 4): a Rival's Guildmaster, founding, a replacement or a successor, shows the
-// Silhouette, whatever pictures content has; only `createWorld` gives the player's a Portrait.
-describe("the drawn Guildmasters' Portraits (v1.1.2-S3)", () => {
-  test('a Rival, a replacement and a successor have none, and draw nothing from the gm-portraits stream', () => {
+// v1.1.3-S5 (DL-134 item 5, DL-135 items 3 and 4): every Guildmaster, the player's, a founding or
+// replacing Rival's and a successor's, is given a Portrait that fits them as they enter play, in one
+// draw from `gm-portraits`; no two living Guildmasters share one, and one whom nothing fits shows the
+// Silhouette. `portraits.test.ts` holds the choice itself.
+describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", () => {
+  /** Whether `key` is a Guildmaster picture of `sex` whose ages reach the band of `age`. */
+  function fits(deps: ReturnType<typeof testDeps>, key: string, sex: string, age: number): boolean {
+    const row = portraitRowOf(deps.content, key);
+    const band = ageSpanOf(deps.content.descriptions.ageBands, age);
+    return (
+      row !== undefined &&
+      portraitSexOf(deps.content, 'guildmaster', key) === sex &&
+      row.apparentAge[0] <= band.to &&
+      row.apparentAge[1] >= band.from
+    );
+  }
+
+  test('a Rival, a replacement and a successor each take one draw from gm-portraits, and a picture that fits them or the Silhouette', () => {
     const deps = testDeps();
-    const world = testWorld('no-portraits', deps);
-    const before = structuredClone(world.rng['gm-portraits']);
-    for (let i = 0; i < 6; i += 1) {
+    let pictured = 0;
+    for (let n = 0; n < 30; n += 1) {
+      const world = testWorld(`portraits-${n}`, deps);
+      const before = structuredClone(world.rng['gm-portraits']);
       const { guild, guildmaster } = generateRival(world, deps, { controller: rival });
-      expect(guildmaster.portraitKey).toBeNull();
-      expect(generateSuccessor(world, deps, guild).portraitKey).toBeNull();
+      const successor = generateSuccessor(world, deps, guild);
+      const twice = structuredClone(before);
+      next(twice);
+      next(twice);
+      expect(world.rng['gm-portraits']).toEqual(twice);
+      for (const { portraitKey, sex, ageAtEntry } of [guildmaster, successor]) {
+        if (portraitKey === null) continue;
+        pictured += 1;
+        expect(fits(deps, portraitKey, sex, ageAtEntry), `${portraitKey} for a ${sex} of ${ageAtEntry}`).toBe(true);
+      }
+      // The successor chose while the Guildmaster they succeed was still in the chair.
+      if (successor.portraitKey !== null) expect(successor.portraitKey).not.toBe(guildmaster.portraitKey);
     }
-    expect(generateGuild(world, deps, { controller: { kind: 'player' }, name: 'The Test Guild', rosterSize: 0, wealth: 0 }).guildmaster.portraitKey).toBeNull();
-    expect(world.rng['gm-portraits']).toEqual(before);
+    expect(pictured).toBeGreaterThan(30);
   });
-});
 
-describe("a Guildmaster's Portrait given to the Guild Generator (v1.1.2-S6, the review's E)", () => {
-  test("with `portrait`, draws it from `gm-portraits` before the texts are written, so a mapped picture's narrative is the Appearance", () => {
+  test('no two living Guildmasters share a picture: once every one that fits is in use, the Silhouette', () => {
     const deps = testDeps();
-    const world = testWorld('portrait-given', deps);
-    const { guildmaster } = generateGuild(world, deps, {
-      controller: player,
-      name: 'The Test Guild',
-      rosterSize: 0,
-      wealth: 0,
-      guildmaster: { sex: 'female' },
-      portrait: { chosen: 'gm-female-01' },
-    });
-    expect(guildmaster.portraitKey).toBe('gm-female-01');
-    expect(guildmaster.appearance).toBe(deps.content.portraitAppearances.portraits['gm-female-01']?.narrative.trim());
+    const world = testWorld('portraits-in-use', deps);
+    const keys: (string | null)[] = [];
+    for (let i = 0; i < 8; i += 1) keys.push(generateRival(world, deps, { controller: rival }).guildmaster.portraitKey);
+    const pictured = keys.filter((key) => key !== null);
+    expect(new Set(pictured).size).toBe(pictured.length);
+    expect(keys).toContain(null);
+    expect(guildmasterPortraitsInUse(world)).toEqual(new Set(pictured));
   });
 
-  test('with `portrait` and none chosen, takes one draw from `gm-portraits` and one of the sex, whatever is drawn', () => {
+  test("a retired Guildmaster's picture and a folded Guild's are free again; a retiring one's is not, while their successor is chosen", () => {
+    const deps = testDeps();
+    const world = testWorld('portraits-freed', deps);
+    const first = generateRival(world, deps, { controller: rival });
+    const second = generateRival(world, deps, { controller: rival });
+    first.guildmaster.portraitKey = 'gm-female-01';
+    second.guildmaster.portraitKey = 'gm-male-01';
+    expect(guildmasterPortraitsInUse(world)).toEqual(new Set(['gm-female-01', 'gm-male-01']));
+
+    const successor = generateSuccessor(world, deps, first.guild);
+    expect(successor.portraitKey).not.toBe('gm-female-01');
+    first.guildmaster.retiredOnTurn = world.turn;
+    first.guild.guildmasterId = successor.id;
+    expect(guildmasterPortraitsInUse(world).has('gm-female-01')).toBe(false);
+
+    second.guild.foldedOnTurn = world.turn;
+    expect(guildmasterPortraitsInUse(world).has('gm-male-01')).toBe(false);
+  });
+
+  test("the player's chosen picture is theirs whatever it fits, before the texts are written, in one draw", () => {
     const deps = testDeps();
     for (let n = 0; n < 20; n += 1) {
-      const world = testWorld(`portrait-drawn-${n}`, deps);
+      const world = testWorld(`portrait-given-${n}`, deps);
       const before = structuredClone(world.rng['gm-portraits']);
-      const { guildmaster } = generateGuild(world, deps, { controller: player, name: 'The Test Guild', rosterSize: 0, wealth: 0, portrait: { chosen: undefined } });
-      expect(deps.content.portraits.guildmaster[guildmaster.sex]).toContain(guildmaster.portraitKey);
+      const { guildmaster } = generateGuild(world, deps, {
+        controller: player,
+        name: 'The Test Guild',
+        rosterSize: 0,
+        wealth: 0,
+        guildmaster: { sex: 'female', age: 48, traitKeys: ['mistrusts-magic'] },
+        portraitKey: 'gm-female-01',
+      });
+      // Chosen for a woman of 48, though its ages are 22 to 30: the age chosen is kept.
+      expect(guildmaster).toMatchObject({ portraitKey: 'gm-female-01', ageAtEntry: 48 });
+      expect(guildmaster.appearance).toBe(deps.content.portraitAppearances.portraits['gm-female-01']?.narrative.trim());
       const once = structuredClone(before);
       next(once);
       expect(world.rng['gm-portraits']).toEqual(once);
     }
+  });
+
+  test("with the age not chosen, the age drawn is moved into the chosen picture's ages, and every other draw is as without it", () => {
+    const deps = testDeps();
+    const ages = new Set<number>();
+    for (let n = 0; n < 40; n += 1) {
+      const options = { controller: player, name: 'The Test Guild', rosterSize: 2, wealth: 0, guildmaster: { sex: 'male' as const } };
+      const drawn = testWorld(`age-moved-${n}`, deps);
+      const chosen = testWorld(`age-moved-${n}`, deps);
+      const plain = generateGuild(drawn, deps, options).guildmaster;
+      const moved = generateGuild(chosen, deps, { ...options, portraitKey: 'gm-male-01' }).guildmaster;
+      // gm-male-01 looks 40 to 50, within the starting ages 21 to 50.
+      expect(moved.ageAtEntry).toBe(ageIntoPortrait(plain.ageAtEntry, [40, 50], 21, 50));
+      expect(moved.ageAtEntry).toBeGreaterThanOrEqual(40);
+      ages.add(moved.ageAtEntry);
+      expect({ ...moved, ageAtEntry: 0, portraitKey: null, appearance: '', biography: '' }).toEqual({
+        ...plain,
+        ageAtEntry: 0,
+        portraitKey: null,
+        appearance: '',
+        biography: '',
+      });
+      for (const name of ['generation', 'gm-portraits', 'descriptions'] as const) expect(chosen.rng[name], name).toEqual(drawn.rng[name]);
+    }
+    expect(ages.size).toBeGreaterThan(5);
   });
 });
 

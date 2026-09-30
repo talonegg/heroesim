@@ -15284,6 +15284,114 @@ read (DL-134 items 3, 4 and 10; DL-135 items 2 and 5). The owner started v1.1.3 
 
 ---
 
+## DL-141 — v1.1.3-S5 built: every Guildmaster's Portrait chosen to fit them on `gm-portraits`, and their Biography written from the picture, with play unchanged
+
+**Status:** Accepted · **Date:** 2026-10-01 · **Decided by:** the agent, building DL-134 items 1,
+5, 6 and 7 and DL-135 items 3 and 4 as the epic's S5 describes. Item 4's reading of "in use" is the
+agent's, for the owner to confirm. Opus built it and a second Opus agent verified it.
+
+**Context.** S1 (DL-138) put each picture's row in content. S5 makes the engine read it for
+Guildmasters. It was built against S1's content, before S4's pictures, so its comparisons are with
+`66ac62e`.
+
+**Decision.**
+1. **`choosePortrait(state, content, role, person, inUse)`** (`engine/src/portraits.ts`) is one
+   function for both roles.
+   - *What must match.* The role and sex, and a picture with a row. The picture's `apparentAge`
+     must overlap the band the person's age falls in (`to >= band.from && from <= band.to`). The
+     band comes from `ageSpanOf`, which `descriptions.ts` now shares, so bands are defined once. A
+     Hero's Class must be among the picture's `classes`.
+   - *What is in use* is removed. A Guildmaster left with no picture gets `null`, the Silhouette,
+     and a Hero may repeat once every fitting picture is in use.
+   - *The preferences,* in DL-135 item 3's order, each kept only while one or more pictures remain:
+     1. the age within `apparentAge`;
+     2. for a Guildmaster, no calling that clashes with one of their Traits;
+     3. then a calling that suits one;
+     4. for a Hero, their station;
+     5. a feature that shows a Trait the person holds.
+   - *One draw.* It takes one draw whatever is left, none or many. So a stream never moves by the
+     choice.
+2. **Who draws.** `givePortrait` (`engine/src/generators/guilds.ts`) chooses on `gm-portraits`
+   before the texts are written. It is called for every Guildmaster entering play: the player's,
+   founded first, and each founding or replacing Rival's in `generateGuild`, and each successor's in
+   `generateSuccessor`.
+3. **In use** means the pictures of the Guildmasters of Guilds in play (the agent's reading of
+   DL-135 item 4).
+   - A successor is chosen while the Guildmaster retiring still holds the chair, so they never
+     take that picture.
+   - A retired Guildmaster's picture, like a folded Guild's, is free again. DL-135 said "living
+     Guildmasters", and a retired one is living. Keeping their pictures would soon leave only
+     Silhouettes, and the Hero rule counts only those on a Roster or in the Pool.
+   - `CONTEXT.md` and `docs/data-model.md` say "in office". The owner may confirm this reading.
+4. **The player.** A picture chosen at setup is theirs whatever it fits, still with one draw. With
+   the age blank, the age drawn is moved into the picture's `apparentAge` within 21 to 50, or to its
+   nearer bound where they do not meet (DL-134 item 7). `portraitFit(setup, seed, deps)` in
+   `create.ts` gives the notes: the age, and a calling that clashes with a Trait. It takes the seed,
+   since a Guildmaster's Traits are drawn.
+5. **The Biography** is still fifteen draws (DL-132). With a picture:
+   - the origin is drawn from its station's `stationOrigins`;
+   - the career from its callings' `callingCareers` at the band, together with its hooks;
+   - the closing from its temper's `temperClosings`.
+
+   Each falls back to the band's list where its own is empty. With no picture, the band's lists
+   alone are used, as before.
+6. **The harness** reports, per sweep, the Guildmasters who entered play:
+   - how many had a picture, and how many the Silhouette;
+   - how many pictures' `apparentAge` holds their age;
+   - how many callings clash with a Trait.
+7. **The CLI.** `new --portrait` still chooses, and `show` and `show guilds` name each Guildmaster's
+   Portrait.
+8. **Content.** A narrative or a hook holding `{` or `}` is refused, since a narrative is shown as
+   written. The engine's test pictures that had no row now have one.
+
+**The checks run.**
+- *The seam.* `engine/src/portraits.test.ts` has 20 tests, one for each of these, and each proves
+  exactly one draw:
+  - each criterion that must match;
+  - each preference, and their order;
+  - each fallback;
+  - a Guildmaster's refusal of a picture in use;
+  - a Hero's repeat.
+- *Creation.* The builder and the verifier each compared 1,000 seeds' created worlds with `66ac62e`.
+  The verifier used four setups: an age of 30; the age blank; `gm-female-01` chosen with the age
+  blank; and `gm-male-01` chosen at 45.
+  - Only `portraitKey`, `appearance`, `biography` and `gm-portraits`' state differ.
+  - The exception is the player's age where a picture is chosen with the age blank, as item 4
+    intends.
+  - `birthplace` and the `descriptions` stream never differ.
+- *Entrants.*
+  - Across 2,000 worlds, over the core content, content with many pictures and content with none,
+    `gm-portraits` moved exactly once for each Guildmaster, and no two shared a picture.
+  - Five seeds played 20 years with every Rival aged 55, forcing Successions. Every Turn, the draws
+    equalled the Guildmasters and no two in office shared a picture.
+  - The History was identical to `66ac62e`'s.
+  - An endings test forces Successions and Guilds folding, and finds every entrant's picture fits,
+    or every fitting picture held.
+- *The sweep.* `harness/reports/m9-v113-s5-2026-10-01.md`, core only, 50 × 20. From its counters
+  through the Rivals, it is byte-identical to `m9-v112-s7-2026-10-01.md`'s. The new counters are:
+  - 425 Guildmasters entered play;
+  - 88 had a picture (the player's 19 of 50, Rivals' 69 of 375), and 337 the Silhouette, with only
+    the two pictures S4 adds to;
+  - 67 of the 88 pictures hold the age;
+  - no calling clashes.
+- *The suite.* `npm run lint` and `typecheck` pass, and the page builds (719.89 kB). `npm test`
+  failed only load timeouts, and those files pass alone.
+
+**Consequences.**
+- With two pictures in content, the page's drawn Portrait is often the Silhouette until S4.
+  `web/src/state/setup.test.ts` expects this, and S7 shows it.
+- S6 calls `choosePortrait` for Heroes. It adds the `hero-portraits` stream, the set in use (a
+  Roster and the Pool), and the Hero's Class and their Background's station.
+
+**Actioned in:** `engine/src/` (`portraits.ts`, `portraits.test.ts`, `descriptions.ts`,
+`create.ts`, `generators/guilds.ts` and their tests, `world.test-support.ts`); `content/src/`
+(`validate.ts`, `refusals.test.ts`); `harness/src/`; `cli/src/`; `web/src/state/setup.test.ts`;
+`CONTEXT.md` (Portrait, Silhouette, Descriptive Attribute); `docs/data-model.md`;
+`harness/reports/m9-v113-s5-2026-10-01.md` (force-added); `docs/planning/epics/v1.1.3-release.md`
+(S5).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

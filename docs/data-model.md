@@ -79,7 +79,8 @@ configuration default and not a decision.
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
 Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
-subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7)
+subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7; one
+draw for each Guildmaster entering play, whatever is chosen, from v1.1.3-S5)
 and `descriptions` (v1.1.2-S5, fifteen draws for each Guildmaster entering play, whatever is written), drawn apart
 from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
@@ -131,8 +132,17 @@ birthplace, appearance, biography: string   the descriptive Attributes, which no
                                             the Guildmaster enters play, every Guildmaster's
                                             (R8, DL-102; DL-125 item 6, DL-132)
 portraitKey:    string | null               the Guildmaster picture their Portrait shows, of their
-                                            sex, chosen at setup or drawn from `gm-portraits`; null for
-                                            the Silhouette, as every Rival's (DL-125 items 3, 4)
+                                            sex: the player's chosen at setup, else, for every
+                                            Guildmaster as they enter play, one chosen to fit them
+                                            in one draw from `gm-portraits` (`choosePortrait`): a
+                                            picture whose `apparentAge` reaches the band of their
+                                            age, no Guildmaster's in office, preferring their age
+                                            within it, no Calling that clashes with a Trait, then
+                                            one that suits a Trait; null for the Silhouette where
+                                            none fits or every one that fits is in use (DL-125
+                                            items 3, 4; DL-134 items 5, 7; DL-135 items 3, 4;
+                                            v1.1.3-S5). A Portrait chosen with the age left blank
+                                            moves the age drawn into the picture's ages.
 retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
                                             Guild in play names them then (DL-100 item 3, DL-102)
 regard:         Record<EntityId, RegardEntry>

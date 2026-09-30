@@ -74,17 +74,22 @@ describe('describeGuildmaster over the core', () => {
     }
   });
 
-  test("every Guildmaster of 100 new games over the core, the player's with a picture, has three texts within their bounds", () => {
+  test("every Guildmaster of 100 new games over the core, each with a picture that fits or none, has three texts within their bounds", () => {
+    let pictured = 0;
     for (let index = 0; index < 100; index += 1) {
       const { document } = createWorld(`world-${index}`, { guildName: 'G', guildmasterName: 'M', createdAt: 'test' }, deps);
-      const player = Object.values(document.world.guildmasters)[0];
-      expect(player?.appearance).toBe(content.portraitAppearances.portraits[player?.portraitKey ?? '']?.narrative);
       for (const guildmaster of Object.values(document.world.guildmasters)) {
+        // A picture's narrative is the Appearance (DL-127 item 4); every Guildmaster may have one (v1.1.3-S5).
+        if (guildmaster.portraitKey !== null) {
+          pictured += 1;
+          expect(guildmaster.appearance).toBe(content.portraitAppearances.portraits[guildmaster.portraitKey]?.narrative);
+        }
         for (const attribute of descriptiveAttributes) {
           expect(guildmaster[attribute]).not.toBe('');
           expect([...guildmaster[attribute]].length).toBeLessThanOrEqual(descriptiveAttributeMaxLength[attribute]);
         }
       }
     }
+    expect(pictured).toBeGreaterThan(100);
   });
 });

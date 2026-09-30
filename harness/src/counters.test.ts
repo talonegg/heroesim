@@ -16,6 +16,8 @@ import {
   type EntityId,
   type FacilityKey,
   type Guild,
+  type Guildmaster,
+  type GuildmasterId,
   type Hero,
   type HeroId,
   type RegardBand,
@@ -35,6 +37,7 @@ import {
   noWealth,
   observe,
   playerRanking,
+  portraitCounters,
   questsTakenByController,
   regardSnapshot,
   takeCensus,
@@ -1208,5 +1211,36 @@ describe("M9-S1's counters, from the History (DL-101)", () => {
 
     expect(counted.belowFloor).toEqual({ player: 2, rival: 2 });
     expect(counted.floorRecovered).toEqual({ player: 1, rival: 1 });
+  });
+});
+
+describe("v1.1.3-S5's Portrait counters, from the World State (DL-134 item 9)", () => {
+  test("every Guildmaster who entered play, by their Guild's controller: with a picture or the Silhouette, the age held and a Calling clashing", () => {
+    const { document, player, rivals } = fixture('counters-portraits');
+    const { guildmasters } = document.world;
+    const of = (guild: Guild) => guildmasters[guild.guildmasterId] as Guildmaster;
+    // The core's gm-female-01 looks 22 to 30 and is a soldier's, suiting Old soldier and clashing with none.
+    Object.assign(of(player), { portraitKey: 'gm-female-01', ageAtEntry: 25, traits: [] });
+    Object.assign(of(rivals[0]), { portraitKey: 'gm-male-01', ageAtEntry: 30, traits: [] });
+    Object.assign(of(rivals[1]), { portraitKey: null });
+    // A retired Guildmaster of the first Rival's still counts: they entered play. The core's
+    // gm-male-01 looks 45 to 55; a scholar's picture would clash with Mistrusts magic, so a Calling
+    // clashing is shown by a content whose soldier clashes with it.
+    const retired = { ...of(rivals[0]), id: 'guildmaster-000099' as GuildmasterId, portraitKey: 'gm-male-01', ageAtEntry: 50, traits: ['mistrusts-magic'], retiredOnTurn: 5 };
+    guildmasters[retired.id] = retired;
+    const clashing: EngineDeps = {
+      ...shortYears,
+      content: {
+        ...content,
+        descriptions: { ...content.descriptions, callings: { ...content.descriptions.callings, soldier: { suits: [], clashes: ['mistrusts-magic'] } } },
+      },
+    };
+
+    expect(portraitCounters(document, shortYears)).toEqual({
+      player: { guildmasters: 1, pictured: 1, silhouettes: 0, ageHeld: 1, callingClashes: 0 },
+      rival: { guildmasters: 3, pictured: 2, silhouettes: 1, ageHeld: 1, callingClashes: 0 },
+    });
+    expect(portraitCounters(document, clashing).rival.callingClashes).toBe(1);
+    expect(countGame(document, shortYears).portraits).toEqual(portraitCounters(document, shortYears));
   });
 });

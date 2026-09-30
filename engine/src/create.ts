@@ -25,7 +25,7 @@ import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
 import { marketRefresh } from './phases/market-refresh.js';
 import { phaseContext } from './phases/phase.js';
-import { portraitSexOf } from './portraits.js';
+import { portraitNotes, portraitSexOf, type PortraitNote } from './portraits.js';
 import { createStreams, streamNames } from './rng.js';
 
 /**
@@ -43,8 +43,11 @@ export interface WorldSetup {
   guildmasterSex?: Sex;
   /**
    * The Guildmaster's Portrait, a Guildmaster picture in content of the sex chosen (v1.1.2-S3,
-   * DL-125 item 3). Drawn from the pictures of the sex, chosen or drawn, when omitted, and `null`,
-   * the Silhouette, when there are none. With no sex given, the Guildmaster is of the Portrait's.
+   * DL-125 item 3), theirs whatever it fits (DL-135 item 4): with the age omitted, the age drawn is
+   * moved into the picture's ages (DL-134 item 7, v1.1.3-S5), and `portraitFit` notes where the age or
+   * the Traits do not fit it. When omitted, one is chosen to fit the Guildmaster drawn
+   * (`choosePortrait`), `null`, the Silhouette, where none fits. With no sex given, the Guildmaster is
+   * of the Portrait's.
    */
   guildmasterPortraitKey?: PortraitKey;
   /** The Guildmaster's age, a whole number from `guildmasterStartingAgeMin` to `Max`; drawn when omitted. */
@@ -194,8 +197,8 @@ type Founding = 'guild' | 'guildmaster';
 /**
  * A new world's document with the player's Guild in it, the first thing `createWorld` makes
  * (DL-19 item 9): `meta`, one stream per core stream name, then the player's Guild and Guildmaster
- * with what the setup chose of them and the rest drawn from `generation`, their Portrait, chosen
- * or drawn from `gm-portraits`, a stream of its own (v1.1.2-S3), and each descriptive Attribute left
+ * with what the setup chose of them and the rest drawn from `generation`, their Portrait, chosen,
+ * or chosen to fit them on `gm-portraits`, a stream of its own (v1.1.2-S3, v1.1.3-S5), and each descriptive Attribute left
  * blank written on `descriptions`, another (v1.1.2-S5), all in `generateGuild`. `createWorld` goes on
  * from here, and `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree
  * (v1.1.2-S4, DL-125 item 6). With `founding` `'guildmaster'`, the preview's, the Guild is made with
@@ -238,10 +241,11 @@ function founded(
       appearance: (setup.guildmasterAppearance ?? '').trim(),
       biography: (setup.guildmasterBiography ?? '').trim(),
     },
-    // The player's alone (DL-125 item 4), chosen or drawn before the texts are written, since a mapped
-    // picture's narrative is the Appearance; the texts are the first `descriptions` writes, so
+    // Chosen, or chosen to fit them (v1.1.3-S5), before the texts are written, since a mapped
+    // picture's narrative is the Appearance; the player's is the first `gm-portraits` draws, so no
+    // Rival's picture is theirs, and their texts the first `descriptions` writes, so
     // `describeGuildmaster` with `n` 0 writes the same.
-    portrait: { chosen: portraitKey },
+    ...(portraitKey === undefined ? {} : { portraitKey }),
   });
   const drawn: GuildmasterDrawn = {
     sex: sex === undefined,
@@ -302,6 +306,22 @@ export function previewGuildmaster(setup: WorldSetup, seed: string, deps: Pick<E
   };
 }
 
+/**
+ * What a front end notes beside the Portrait the player chose (v1.1.3-S5, DL-134 item 7), never a
+ * refusal: the picture looks older or younger than the Guildmaster's age, or one of its Callings
+ * clashes with one of their Traits (`portraitNotes`). The age and the Traits are those
+ * `previewGuildmaster` gives, chosen or drawn from `seed`; with the age left blank it is already moved
+ * into the picture's ages, so an age is noted only where those lie outside the starting ages. None
+ * when no Portrait is chosen, since a Portrait chosen to fit carries its own fit, or when the setup
+ * is refused. The same for the same inputs, and it changes nothing.
+ */
+export function portraitFit(setup: WorldSetup, seed: string, deps: Pick<EngineDeps, 'config' | 'content'>): PortraitNote[] {
+  if (setup.guildmasterPortraitKey === undefined) return [];
+  const preview = previewGuildmaster(setup, seed, deps);
+  if (preview === null) return [];
+  return portraitNotes(deps.content, preview.portraitKey, preview.age, preview.traitKeys);
+}
+
 export interface CreatedWorld {
   document: WorldDocument;
   /** Every entry the History starts with, in order: the same objects, `world.created` first. */
@@ -313,9 +333,9 @@ export interface CreatedWorld {
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), its Guildmaster with what the setup chose of them and the rest drawn, every
  * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102), their
- * Portrait, chosen or drawn from `gm-portraits`, a stream of its own (v1.1.2-S3), and their descriptive
- * Attributes left blank written from `descriptions`, another (v1.1.2-S5), as every Rival's are; then
- * `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
+ * Portrait, chosen, or chosen to fit them on `gm-portraits`, a stream of its own (v1.1.2-S3, v1.1.3-S5),
+ * and their descriptive Attributes left blank written from `descriptions`, another (v1.1.2-S5), as
+ * every Rival's are; then `rivalCount` Rival Guilds, each Guildmaster's Portrait chosen likewise, `patronCount` Patrons with their Spheres dealt
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market
  * refresh, drawing `marketSize` stacks from `market` (DL-51). Appends

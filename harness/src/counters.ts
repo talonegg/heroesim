@@ -35,9 +35,15 @@
 //
 // M9-S1's (DL-101), from the History: the nights each kind of Guild fell below the Bankruptcy floor
 // (`guild.below-floor`) and was back to it or more (`guild.floor-recovered`).
+//
+// v1.1.3-S5's (DL-134 item 9), from the World State: every Guildmaster who entered play, by their
+// Guild's controller, with a picture or the Silhouette; of those with a picture, those whose picture's
+// `apparentAge` holds the age they entered play at, and those one of whose picture's Callings clashes
+// with one of their Traits. No rule reads a Portrait, so none of these moves a play counter.
 
 import {
   baseStat,
+  callingClashes,
   compareByCodeUnit,
   dispositionOf,
   encounterKinds,
@@ -45,6 +51,7 @@ import {
   isEngineEvent,
   isId,
   playerGuild,
+  portraitRowOf,
   questBands,
   rankings,
   regardBandCounts,
@@ -277,6 +284,48 @@ export interface GameCounters {
   belowFloor: ByController;
   /** `guild.floor-recovered`: the nights it was back to the floor or more, likewise. */
   floorRecovered: ByController;
+  // v1.1.3-S5's (DL-134 item 9).
+  /** Every Guildmaster who entered play and their Portraits, by their Guild's controller. */
+  portraits: Record<ControllerKind, PortraitTally>;
+}
+
+/** The Guildmasters who entered play, and how their Portraits fit them (v1.1.3-S5, DL-134 item 9). */
+export interface PortraitTally {
+  guildmasters: number;
+  /** With a picture, and with none, the Silhouette. */
+  pictured: number;
+  silhouettes: number;
+  /** Of those with a picture, those whose picture's `apparentAge` holds the age they entered play at. */
+  ageHeld: number;
+  /** Of those with a picture, those one of whose picture's Callings clashes with one of their Traits. */
+  callingClashes: number;
+}
+
+export const noPortraits = (): PortraitTally => ({ guildmasters: 0, pictured: 0, silhouettes: 0, ageHeld: 0, callingClashes: 0 });
+
+/**
+ * v1.1.3-S5's counters: every Guildmaster row of the world, the player's, the Rivals' founding and
+ * replacing ones and every successor, retired or folded or in office, by their Guild's controller.
+ * A picture content has no row for counts as pictured, holding no age and clashing with nothing.
+ */
+export function portraitCounters(document: WorldDocument, deps: EngineDeps): Record<ControllerKind, PortraitTally> {
+  const tallies = { player: noPortraits(), rival: noPortraits() };
+  const { world } = document;
+  for (const guildmaster of Object.values(world.guildmasters)) {
+    const guild = Object.hasOwn(world.guilds, guildmaster.guildId) ? world.guilds[guildmaster.guildId] : undefined;
+    if (guild === undefined) throw new Error(`${guildmaster.id} names ${guildmaster.guildId}, which has no row`);
+    const tally = tallies[guild.controller.kind];
+    tally.guildmasters += 1;
+    if (guildmaster.portraitKey === null) {
+      tally.silhouettes += 1;
+      continue;
+    }
+    tally.pictured += 1;
+    const [from, to] = portraitRowOf(deps.content, guildmaster.portraitKey)?.apparentAge ?? [1, 0];
+    if (guildmaster.ageAtEntry >= from && guildmaster.ageAtEntry <= to) tally.ageHeld += 1;
+    if (callingClashes(deps.content, guildmaster.portraitKey, guildmaster.traits).length > 0) tally.callingClashes += 1;
+  }
+  return tallies;
 }
 
 /**
@@ -1278,6 +1327,7 @@ export function countGame(
     ...moduleCounters(document),
     belowFloor: countByController(document, 'guild.below-floor'),
     floorRecovered: countByController(document, 'guild.floor-recovered'),
+    portraits: portraitCounters(document, deps),
   };
 }
 

@@ -32,6 +32,7 @@ import {
   noDisposition,
   noGear,
   noOffers,
+  noPortraits,
   noPurchases,
   noTransfers,
   noWealth,
@@ -54,6 +55,7 @@ import {
   type LootTally,
   type MarketTally,
   type OfferTally,
+  type PortraitTally,
   type RegardSnapshot,
   type RivalTransferWay,
   type RosterCensus,
@@ -296,6 +298,9 @@ export interface SweepTotals {
   /** `guild.below-floor` and `guild.floor-recovered`, by controller, summed over the games. */
   belowFloor: ByController;
   floorRecovered: ByController;
+  // v1.1.3-S5's counters (DL-134 item 9).
+  /** Every Guildmaster who entered play and how their Portraits fit them, by controller, summed over the games. */
+  portraits: Record<ControllerKind, PortraitTally>;
 }
 
 /** Rivals as a year began: each one's Roster size and Wealth. */
@@ -444,6 +449,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     moduleEffects: {},
     belowFloor: zero(),
     floorRecovered: zero(),
+    portraits: { player: noPortraits(), rival: noPortraits() },
   };
   for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
@@ -493,6 +499,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.heroesRetired[kind] += counters.heroesRetired[kind];
       totals.belowFloor[kind] += counters.belowFloor[kind];
       totals.floorRecovered[kind] += counters.floorRecovered[kind];
+      addFields(totals.portraits[kind], counters.portraits[kind]);
       for (const [band, n] of Object.entries(counters.questsResolved[kind])) {
         totals.questsResolved[kind][band as QuestBand] += n;
       }
@@ -1399,6 +1406,43 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   ];
 }
 
+/**
+ * v1.1.3-S5's section (DL-134 item 9): every Guildmaster who entered play, by their Guild's controller,
+ * with a picture or the Silhouette; and of those with a picture, those it holds the age of and those
+ * whose picture's Calling clashes with a Trait. Gaps in the pictures show here, and no play counter
+ * moves with them: no rule reads a Portrait.
+ */
+function portraitsSection(totals: SweepTotals): string[] {
+  const { player, rival } = totals.portraits;
+  const all: PortraitTally = { ...noPortraits() };
+  for (const tally of [player, rival]) addFields(all, tally);
+  const row = (label: string, pick: (tally: PortraitTally) => number, of: (tally: PortraitTally) => number): string[] => [
+    label,
+    ...[player, rival, all].map((tally) => `${whole(pick(tally))} (${percent(pick(tally), of(tally))})`),
+  ];
+  return [
+    '## Portraits (v1.1.3-S5)',
+    '',
+    "Every Guildmaster who entered play, the player's and every Rival's, founding, replacing or succeeding, by their Guild's " +
+      "controller. A Portrait is chosen to fit a Guildmaster already drawn (DL-134 item 5), so none of these moves a play counter.",
+    '',
+    markdownTable(
+      ['Guildmasters', "Player's", "Rivals'", 'All'],
+      [
+        ['Entered play', ...[player, rival, all].map((tally) => whole(tally.guildmasters))],
+        row('With a picture', (tally) => tally.pictured, (tally) => tally.guildmasters),
+        row('With the Silhouette', (tally) => tally.silhouettes, (tally) => tally.guildmasters),
+        row("Their picture's `apparentAge` holds their age", (tally) => tally.ageHeld, (tally) => tally.pictured),
+        row("Their picture's Calling clashes with a Trait", (tally) => tally.callingClashes, (tally) => tally.pictured),
+      ],
+      ['left', 'right', 'right', 'right'],
+    ),
+    '',
+    'The last two are shares of those with a picture.',
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
   const { config, content } = deps;
@@ -1566,6 +1610,7 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     ...questEngineSection(totals, deps),
     ...itemsSection(totals, deps),
     ...rivalsSection(totals, deps),
+    ...portraitsSection(totals),
     '## Measures',
     '',
     markdownTable(

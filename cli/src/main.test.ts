@@ -287,6 +287,26 @@ describe('show', () => {
     expect(rowOf(run.out, playerId)).toContain('Player');
   });
 
+  test("show and show guilds name each Guildmaster's Portrait, its picture's key or the Silhouette (v1.1.3-S5)", () => {
+    const rivalId = makeId('guilds', 2);
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      Object.assign(edited.world.guildmasters[rival.guildmasterId] ?? {}, { portraitKey: null });
+    });
+    const { world } = document();
+
+    for (const view of [['show'], ['show', 'guilds']]) {
+      const run = play(view);
+      expect(run.out.split('\n').find((line) => line.startsWith('Id'))).toMatch(/\sGuildmaster\s+Portrait\s+Background\s/);
+      for (const guild of Object.values(world.guilds)) {
+        const guildmaster = world.guildmasters[guild.guildmasterId];
+        const words = guildmaster?.portraitKey ?? 'Silhouette';
+        expect(rowOf(run.out, guild.id)).toMatch(new RegExp(`${guildmaster?.name ?? ''}\\s+${words}\\s`));
+      }
+      expect(rowOf(run.out, rivalId)).toMatch(/\sSilhouette\s/);
+    }
+  });
+
   test('guilds marks a folded Guild with the Day it folded, and show lists only the Guilds in play (DL-28, DL-33)', () => {
     const rivalId = makeId('guilds', 2);
     // Folded as M2-S10's fold leaves a Guild: its Heroes released to the pool, its Roster empty.
@@ -1509,11 +1529,14 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
-    // Drawn from the core's pictures of the sex since v1.1.2-S4: one of each.
+    // Chosen to fit them from the core's pictures of the sex since v1.1.3-S5: its one of each sex, or
+    // the Silhouette where that does not fit their age.
     const bare = lines(play(['show', 'guildmaster']));
     const sex = bare.find((line) => line.startsWith('Sex'))?.replace(/^Sex\s+/, '').toLowerCase() ?? '';
     expect(['female', 'male']).toContain(sex);
-    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+gm-${sex}-01$`));
+    const held = document().world.guildmasters[guildmasterId]?.portraitKey;
+    expect([`gm-${sex}-01`, null]).toContain(held);
+    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+${held ?? 'None: the Silhouette'}$`));
 
     edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: null }));
     expect(play(['show', 'guildmaster']).out).toMatch(/^Portrait\s+None: the Silhouette$/m);

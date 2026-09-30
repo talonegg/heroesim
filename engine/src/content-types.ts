@@ -720,10 +720,11 @@ export interface ContentSet {
   names: Names;
   /**
    * The pictures a Portrait may show, by role and sex (v1.1.2-S3, DL-125 item 3): a player's
-   * Guildmaster's Portrait is chosen or drawn from them. Empty lists where a role and sex has none.
+   * Guildmaster's Portrait is chosen from them, and every Guildmaster's chosen to fit them (v1.1.3-S5).
+   * Empty lists where a role and sex has none.
    */
   portraits: Portraits;
-  /** Each picture's row, what it shows of the person (v1.1.2-S4, v1.1.3-S1; DL-127, DL-134): read by no rule yet. */
+  /** Each picture's row, what it shows of the person (v1.1.2-S4, v1.1.3-S1; DL-127, DL-134): read by no rule; a Portrait is chosen by it (v1.1.3-S5). */
   portraitAppearances: PortraitAppearances;
   /** What a Guildmaster's blank descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6). */
   descriptions: Descriptions;
