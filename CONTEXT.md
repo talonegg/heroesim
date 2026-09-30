@@ -100,8 +100,8 @@ Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-10
 DL-102). By DL-125 the setup form writes all three from content on request, for the sex and age
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
 Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
-their Portrait shows, as each picture's Appearance is mapped in content (DL-126) (to be built;
-until then a drawn Guildmaster's are empty).
+their Portrait shows: a mapped picture's narrative is taken as it is, and no Appearance describes
+clothing (DL-126, DL-127) (to be built; until then a drawn Guildmaster's are empty).
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:

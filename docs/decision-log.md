@@ -13248,6 +13248,95 @@ shape are the agent's, as the owner asked for its recommendation.
 **Actioned in:** `CONTEXT.md` (Descriptive Attribute; Portrait);
 `docs/planning/epics/v1.1.2-release.md` (§0, S2, S4, S5, §2, §3, §4).
 
+## DL-127 — A picture's Appearance in two parts, keywords for the engine and a narrative for the page, with no clothing
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner, approving DL-126's
+recommendations and asking for two narrative elements per picture, with no clothing. The
+vocabulary's place and shape are the agent's.
+
+**Context.** DL-126 item 2 mapped each picture to a phrase per part of the Appearance, among them
+`dress` and `mark`. It gave the owner's two pictures a coat, mail and a hair clasp. The owner asked
+for two narrative elements instead:
+- short key words, which may drive the engine's decisions later;
+- a longer narrative, which the page takes as it is.
+
+Neither is to describe clothing.
+
+**Decision.** This supersedes DL-126 item 2's shape and example; its file, reasons and checks
+stand.
+
+1. **Two parts per picture** (the owner's), in `content/portrait-appearances.json`:
+   - `keywords`: short keys for what the picture shows of the person, such as `weathered` and
+     `bearded`. No rule reads them yet. They are keys, not prose, so a later rule can.
+   - `narrative`: two or three sentences of the person's looks. They are written in the third
+     person, with no name and no age, so they suit any name and any age chosen.
+2. **No clothing** (the owner's).
+   - Neither part describes clothing, armour, gear or ornaments: only face, hair, beard, eyes,
+     marks on the body such as scars, and bearing.
+   - The agent applies the same to every Appearance: `dress` leaves the slots of
+     `descriptions.json`, so a drawn Appearance and a picture's read alike.
+3. **The keywords' vocabulary** (the agent's).
+   - *Place.* The keywords are defined once, in the same file, under `keywords`. Each has its slot
+     (`face`, `hair`, `facialHair`, `eyes`, `mark` or `bearing`) and a word for display.
+   - *Checks.* A picture may use only defined keywords, and `facialHair` only on a male picture's. A
+     keyword no picture uses is allowed.
+   - *Names.* Keys are lower case with hyphens, never renamed once a rule reads them.
+   - *Glossary.* The keywords become a term when the first rule reads them, not before
+     (principle 13).
+4. **How the page and the engine use them** (the agent's).
+   - *With a mapped picture.* The Appearance a Guildmaster is given is the picture's `narrative`,
+     as written. That covers "Write them for me", a blank filled on entering play, and the
+     preview's. The player may still edit it at setup.
+   - *Without one.* With a Silhouette or an unmapped picture, the Appearance is drawn whole from
+     `descriptions.json`, as DL-125 item 6 said.
+   - *Bounds.* The `narrative` is held to the Appearance's bound, 280 characters. So is a
+     keyword's word, which is short by rule: at most 24 characters.
+   - *Keywords.* They are read by no rule and shown nowhere yet.
+   - *Later.* Should a rule come to read them, it reads the keywords of the Guildmaster's
+     `portraitKey`. `descriptions.json`'s phrases may then carry keywords too, so a drawn
+     Appearance has them. Either is a decision of its own.
+5. **The owner's two pictures** (the words are the agent's reading, for the owner to change):
+   ```json
+   {
+     "keywords": {
+       "weathered":      { "slot": "face",       "word": "weathered" },
+       "scarred":        { "slot": "mark",       "word": "scarred" },
+       "strong-boned":   { "slot": "face",       "word": "strong-boned" },
+       "dark-haired":    { "slot": "hair",       "word": "dark-haired" },
+       "unruly-hair":    { "slot": "hair",       "word": "unruly hair" },
+       "long-hair":      { "slot": "hair",       "word": "long hair" },
+       "braided":        { "slot": "hair",       "word": "braided" },
+       "bearded":        { "slot": "facialHair", "word": "bearded" },
+       "hard-eyed":      { "slot": "eyes",       "word": "hard-eyed" },
+       "shadowed-eyes":  { "slot": "eyes",       "word": "shadowed eyes" },
+       "stern":          { "slot": "bearing",    "word": "stern" },
+       "composed":       { "slot": "bearing",    "word": "composed" }
+     },
+     "portraits": {
+       "gm-male-01": {
+         "keywords": ["weathered", "scarred", "dark-haired", "unruly-hair", "bearded", "hard-eyed", "stern"],
+         "narrative": "A weathered, deeply lined face, scored across the brow and cheek by old scars. Thick dark hair falls unruly about it, and a full beard hides the set of the jaw. The eyes are hard and steady, used to weighing a stranger before a word is spoken."
+       },
+       "gm-female-01": {
+         "keywords": ["strong-boned", "dark-haired", "long-hair", "braided", "shadowed-eyes", "composed"],
+         "narrative": "A strong-boned face with high cheekbones and a composed, knowing look. Long dark hair, worked into braids at the crown and temples, falls loose past the shoulders. The eyes are dark and shadowed, and give away little of what she is thinking."
+       }
+     }
+   }
+   ```
+   The narratives are 243 and 241 characters.
+
+**Consequences.**
+- v1.1.2-S4 adds the two rows and the keywords, and v1.1.2-S5 builds item 4 and the checks.
+- `describeGuildmaster` takes the Portrait's key, as DL-126 said, and takes a mapped picture's
+  `narrative` whole instead of combining parts.
+- DL-126's risk of phrases crowding out drawn parts no longer applies: a mapped picture's
+  Appearance is its narrative.
+- The stories' entries now begin at DL-128.
+
+**Actioned in:** `CONTEXT.md` (Descriptive Attribute); `docs/planning/epics/v1.1.2-release.md`
+(§0, S4, S5, §3, §4).
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
