@@ -14,6 +14,9 @@
 // the player's Roster, the CLI's `equip`, `unequip` and `transfer --to`; on another Guild's, its
 // `transfer --in`; in the Unattached pool, its `recruit`. The fees are the engine's, and a play the
 // engine refuses is said as a sentence.
+//
+// Their Portrait stands beside who they are, the Silhouette of their sex, and a Unique Item's picture
+// before its name in their Gear and in the Gear the Guild holds (v1.1.2-S2, DL-125 items 2 and 8).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -21,6 +24,7 @@ import type { GameAction } from '../state/reducer';
 import { heroPage, type HeroActions, type HeroPageView, type LogLine } from '../state/selectors';
 import { EntityHistory } from './history-entries';
 import { Icon, type IconName } from './icons';
+import { ItemPicture, Portrait } from './pictures';
 import { Chip, Confirm, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
@@ -86,19 +90,22 @@ export function HeroPage({
   return (
     <article className="hero-page" aria-labelledby="hero-name">
       {back}
-      <header className="hero-page__head">
-        {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
-        {level === 3 ? (
-          <h3 id="hero-name" tabIndex={-1}>
-            {view.name}
-          </h3>
-        ) : (
-          <h4 id="hero-name" tabIndex={-1}>
-            {view.name}
-          </h4>
-        )}
-        <p className="hero-page__line">{view.line.join(' · ')}</p>
-        <State view={view} />
+      <header className="hero-page__head person">
+        <Portrait role="hero" sex={view.sex} portraitKey={view.portraitKey} name={view.name} />
+        <div className="person__about">
+          {/* The keyboard may be put on the name when the page opens (the Party builder's drill-down, M9-S4). */}
+          {level === 3 ? (
+            <h3 id="hero-name" tabIndex={-1}>
+              {view.name}
+            </h3>
+          ) : (
+            <h4 id="hero-name" tabIndex={-1}>
+              {view.name}
+            </h4>
+          )}
+          <p className="hero-page__line">{view.line.join(' · ')}</p>
+          <State view={view} />
+        </div>
       </header>
 
       {/* In the pool or on a Rival's Roster, what can be done comes first: it is why the page was opened. */}
@@ -143,6 +150,7 @@ export function HeroPage({
           <li key={`${gear.slot}-${index}`} className={gear.worn ? 'gear__row' : 'gear__row is-empty'}>
             <span className="gear__slot">{gear.slotName}</span>
             <span className="gear__item">
+              {gear.unique && gear.definitionKey !== null ? <ItemPicture definitionKey={gear.definitionKey} /> : null}
               {gear.item}
               {gear.modifies === '' ? null : <span className="subtle"> {gear.modifies}</span>}
             </span>
@@ -273,6 +281,7 @@ function Equip({
           <li key={gear.key} className="gear__row">
             <span className="gear__slot">{gear.kind}</span>
             <span className="gear__item">
+              {gear.unique ? <ItemPicture definitionKey={gear.definitionKey} /> : null}
               {gear.name}
               {gear.modifies === '' ? null : <span className="subtle"> {gear.modifies}</span>}
             </span>

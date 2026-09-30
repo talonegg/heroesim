@@ -20,6 +20,12 @@
  * The allow-list holds URLs that are identifiers rather than addresses — nothing in the page
  * ever resolves one. Each is justified where it is written.
  *
+ * The page's pictures are its own files (v1.1.2-S2, DL-125 item 1): a Silhouette is inlined into
+ * the script as a `data:` URL, whose SVG names only its namespace, and a picture is a hashed file
+ * beside the script in `assets/`, loaded by a relative path, from the page's own origin or its own
+ * folder. Neither is a URL literal, so this gate is unchanged by them. A picture's bytes are not
+ * text, and are not read.
+ *
  * The text is read as built, comments and all (M7 verification, DL-74). v1's gate stripped comments
  * first with a pattern that also matched inside strings, so whatever lay between a string holding
  * "/*" and a later one holding "*" and "/" (an accept of 'image/*', then '*' + '/*') went unchecked.

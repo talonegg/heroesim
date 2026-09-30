@@ -48,6 +48,8 @@ export interface StoresRow {
   name: string;
   /** `Armour Gear`, `Consumable`, `Weapon Gear, Unique Item`, as the Market says it. */
   kind: string;
+  /** A Unique Item, which shows its picture (DL-125 item 8). */
+  unique: boolean;
   /** The kind the filter names. */
   kindKey: MarketKind | null;
   where: StoresWhere;
@@ -108,6 +110,7 @@ export function storesView(document: WorldDocument, filter: StoresFilter): Store
       definitionKey: row.definitionKey,
       name: definition?.name ?? row.definitionKey,
       kind: definition === undefined ? '' : kindOf(definition),
+      unique: definition?.unique === true,
       kindKey: definition === undefined ? null : kindKeyOf(definition),
       where,
       whereWords: textOf(whereSegments),

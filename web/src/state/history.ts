@@ -37,13 +37,15 @@ import {
   type GuildId,
   type HeroId,
   type QuestBand,
+  type Sex,
   type TimeOfDay,
   type TurnEvent,
   type World,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { bandWords, rowOf } from './names';
+import type { PortraitRole } from '../media';
+import { bandWords, portraitKeyOf, rowOf } from './names';
 import { listed, narrateSegments, narrationFor, textOf, type Narration, type Segment } from './narrate';
 import { partOfAReturn, returnEntry, type ReturnEntry } from './quest-return';
 import { historyPageSize, whenOf } from './selectors';
@@ -135,6 +137,14 @@ export interface HistoryView {
   mine: boolean;
   /** A Hero the world still holds, whose page the History opens in their place (DL-74); `null` otherwise. */
   hero: HeroId | null;
+  /** The Guild whose History it is, whose Banner stands beside its title (DL-125 item 7); `null` for anyone else's. */
+  banner: GuildId | null;
+  /**
+   * The Portrait of the person whose History it is (DL-125 item 2): a Guildmaster's, or a Hero's the
+   * world holds. `null` for a Guild's, the World's, a Hero gone from the world, whose sex is no longer
+   * known, and a Patron's, who has no sex until v1.1.2-S3.
+   */
+  portrait: { role: PortraitRole; sex: Sex; portraitKey: string | null } | null;
   /** Which page, from 0, of how many, and how many entries in all. */
   page: number;
   pages: number;
@@ -479,12 +489,23 @@ export function historyView(document: WorldDocument, log: readonly TurnEvent[], 
     scope: scope.kind,
     mine: scope.kind === 'mine',
     hero,
+    banner: entityId !== null && rowOf(world.guilds, entityId) !== undefined ? (entityId as GuildId) : null,
+    portrait: portraitOf(world, entityId),
     page: shown,
     pages,
     entries: scope.count,
     fresh: log.filter((event) => (entityId === null || event.participants.includes(entityId)) && shows(event)).length,
     groups: groupsOf(positions, reading),
   };
+}
+
+/** Whose Portrait `entityId`'s History shows: a Guildmaster's or a Hero's the world holds (DL-125 item 2). */
+function portraitOf(world: World, entityId: EntityId | null): HistoryView['portrait'] {
+  if (entityId === null) return null;
+  const guildmaster = rowOf(world.guildmasters, entityId);
+  if (guildmaster !== undefined) return { role: 'guildmaster', sex: guildmaster.sex, portraitKey: portraitKeyOf(guildmaster) };
+  const hero = rowOf(world.heroes, entityId);
+  return hero === undefined ? null : { role: 'hero', sex: hero.sex, portraitKey: null };
 }
 
 // ── A page ───────────────────────────────────────────────────────────────────────────────────

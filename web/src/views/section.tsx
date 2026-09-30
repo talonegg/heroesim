@@ -261,9 +261,13 @@ export function Part({ id, children, className }: { id: PartId | 'game' | 'rules
 }
 
 /** A heading at `level`, for a part that sits at different depths: a Hall in its view, or on a Guild's page. */
-export function Heading({ level, id, children }: { level: 3 | 4 | 5 | 6; id?: string; children: ReactNode }) {
+export function Heading({ level, id, className, children }: { level: 3 | 4 | 5 | 6; id?: string; className?: string; children: ReactNode }) {
   const Tag = `h${level}` as const;
-  return <Tag id={id}>{children}</Tag>;
+  return (
+    <Tag id={id} className={className}>
+      {children}
+    </Tag>
+  );
 }
 
 /** Label and value pairs: the label in small capitals over its value. */

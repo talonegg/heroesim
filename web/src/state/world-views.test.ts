@@ -260,6 +260,24 @@ describe('guildmasterView', () => {
     expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age']);
   });
 
+  test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: every one a Silhouette until v1.1.2-S3", () => {
+    const document = newGame();
+    for (const guild of Object.values(document.world.guilds)) {
+      const guildmaster = guildmasterOf(guild, document.world);
+      if (guildmaster === undefined) throw new Error('no Guildmaster');
+      const view = guildmasterView(document, guild.id);
+      expect(view?.guildId).toBe(guild.id);
+      expect(view?.sex).toBe(guildmaster.sex);
+      expect(view?.portraitKey).toBeNull();
+    }
+    // The key a save of schema 5 will hold (v1.1.2-S3) is read as it is.
+    const later = structuredClone(document);
+    const guildmaster = guildmasterOf(player(later), later.world);
+    if (guildmaster === undefined) throw new Error('no Guildmaster');
+    Object.assign(guildmaster, { portraitKey: 'gm-female-01' });
+    expect(guildmasterView(later)?.portraitKey).toBe('gm-female-01');
+  });
+
   test('gives the Sex capitalised, and the Age as a label (DL-111 item 9)', () => {
     const document = structuredClone(newGame());
     for (const sex of ['male', 'female'] as const) {

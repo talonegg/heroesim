@@ -357,6 +357,61 @@ test('the Roster, the Hall, the Guildmaster, the Market, the Stores, the Treasur
   }
 });
 
+test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside the name, and the Guild's Banner beside its titles, with no sideways scroll (v1.1.2-S2)", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+  // About 7.5rem wide on a wide screen and 5rem on a phone (DL-125 item 2).
+  const wide = (page.viewportSize()?.width ?? 0) >= 600 ? 120 : 80;
+
+  /** The Portrait in `scope`: its size, and beside `heading`, the name, its top level with the name's. */
+  const portraitBeside = async (scope: Locator, heading: Locator, what: string): Promise<void> => {
+    const portrait = scope.getByTestId('portrait');
+    await expect(portrait).toBeVisible();
+    const box = await portrait.boundingBox();
+    const name = await heading.boundingBox();
+    if (box === null || name === null) throw new Error(`${what}: no Portrait or name drawn`);
+    expect(box.width, `${what}: the Portrait's width`).toBeCloseTo(wide, 0);
+    expect(box.height, `${what}: the Portrait's height`).toBeCloseTo((wide * 4) / 3, 0);
+    expect(box.x + box.width, `${what}: the Portrait before the name`).toBeLessThanOrEqual(name.x);
+    expect(Math.abs(name.y - box.y), `${what}: the name level with the Portrait's top`).toBeLessThanOrEqual(12);
+    // The Silhouette, which the script holds, is drawn.
+    expect(await portrait.locator('img').evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expectNoHorizontalOverflow(page, what);
+    await expectTargets(page, what);
+  };
+
+  /** The Banner in `heading`: two wide by three high, before the name. */
+  const bannerIn = async (heading: Locator, what: string): Promise<void> => {
+    const banner = heading.getByTestId('guild-banner');
+    const box = await banner.boundingBox();
+    const words = await heading.locator('span').last().boundingBox();
+    if (box === null || words === null) throw new Error(`${what}: no Banner drawn`);
+    expect(box.height / box.width, `${what}: the Banner 2 × 3`).toBeCloseTo(1.5, 1);
+    expect(box.x + box.width, `${what}: the Banner before the name`).toBeLessThanOrEqual(words.x);
+  };
+
+  await bannerIn(statusBar(page).getByRole('heading', { level: 1 }), 'the status bar');
+  const guildmaster = await openView(page, 'Guildmaster');
+  const title = guildmaster.getByRole('heading', { level: 3 });
+  await portraitBeside(guildmaster, title, "the Guildmaster's header");
+  await bannerIn(title, "the Guildmaster's title");
+
+  await (await rosterList(page)).locator('button.link').first().click();
+  const hero = page.getByRole('region', { name: 'Roster', exact: true }).getByRole('article');
+  await portraitBeside(hero, hero.getByRole('heading', { level: 3 }), "a Hero's page's header");
+
+  // A Guild's page, its Banner the largest, and its Guildmaster's header unfolded under it.
+  const guilds = await part(page, 'Guilds');
+  await rivalRows(guilds).first().locator('button.link').click();
+  const rival = guilds.getByRole('article');
+  await bannerIn(rival.getByRole('heading', { level: 4 }), "a Guild's page");
+  for (const summary of await rival.locator('details > summary').all()) await summary.click();
+  await portraitBeside(rival, rival.getByRole('heading', { level: 5, name: /, Guildmaster of / }), "a Rival's Guildmaster on its page");
+});
+
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */
 function rivalRows(guilds: Locator): Locator {
   return guilds.locator('[data-testid="guild-row"]:not(.mine)');

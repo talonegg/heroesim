@@ -2,6 +2,7 @@ import {
   addStack,
   advance,
   bankruptcyCountdown,
+  createItem,
   createWorld,
   dayOf,
   defaultConfig,
@@ -87,6 +88,8 @@ describe('headerView', () => {
     expect(rankingPlaces(document.world, 'fame').map(({ value }) => value)).toEqual([0, 0, 0, 0, 0]);
 
     expect(headerView(document)).toEqual({
+      // Whose Banner stands beside the name (DL-125 item 7).
+      guildId: guild.id,
       guildName: 'The Lantern',
       // The navigation's label for the Guildmaster view (M9-F2, DL-112 item 5).
       guildmasterName: 'Ada Vell',
@@ -596,6 +599,13 @@ describe('heroPage', () => {
     expect(page).not.toHaveProperty('history');
   });
 
+  test("gives the Hero's sex for their Portrait, and no Portrait's key: every Hero shows the Silhouette of their sex (DL-125 items 2 and 4)", () => {
+    const document = newGame();
+    for (const hero of Object.values(document.world.heroes)) {
+      expect(heroPage(document, hero.id)).toMatchObject({ sex: hero.sex, portraitKey: null });
+    }
+  });
+
   test('is null for a Hero the world does not hold', () => {
     expect(heroPage(newGame(), 'hero-999999' as HeroId)).toBeNull();
   });
@@ -724,12 +734,37 @@ describe("a Hero's page offers what can be done with the Hero", () => {
       ['Armour', 'Padded jack', true],
       ['Trinket', 'None', false],
     ]);
+    // What is in a slot by its content key, none in an empty one; a common Item shows no picture (DL-125 item 8).
+    expect(page.gear.map(({ definitionKey, unique }) => [definitionKey, unique])).toEqual([
+      [null, false],
+      ['padded-jack', false],
+      [null, false],
+    ]);
     expect(page.actions.transferTo).toEqual(
       others.map((other) => {
         const fee = transferFee(hero, guildmasterOf(other, document.world), deps);
         return { guildId: other.id, name: other.name, fee, sentence: expect.stringContaining(`${other.name} would pay ${fee} Wealth for ${hero.name}`) };
       }),
     );
+  });
+
+  test("gives a Unique Item's content key, carried or held, so its picture stands beside its name (DL-125 item 8)", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    createItem(document.world, 'barrow-kings-blade', { kind: 'hero', id: hero.id, slot: 'weapon' });
+    createItem(document.world, 'lantern-of-stannary', { kind: 'guild', id: guild.id });
+    addStack(document.world, 'arming-sword', 1, { kind: 'guild', id: guild.id });
+
+    const page = heroPage(document, hero.id);
+
+    expect(page?.gear.find((row) => row.slot === 'weapon')).toMatchObject({ definitionKey: 'barrow-kings-blade', unique: true });
+    if (page?.actions?.kind !== 'own') throw new Error("not the player's Hero");
+    expect(page.actions.equip.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
+      { definitionKey: 'lantern-of-stannary', unique: true },
+      { definitionKey: 'arming-sword', unique: false },
+    ]);
   });
 
   test("asks before a Transfer out, stating the fee and the Morale it costs in the words the page gives them (M9-S6, the review's E4)", () => {

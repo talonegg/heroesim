@@ -39,10 +39,11 @@ import {
   type HeroId,
   type RankingMeasure,
   type RegardBand,
+  type Sex,
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised, controllerWords, nameIn, placeWords, rowOf, traitEffectWords } from './names';
+import { capitalised, controllerWords, nameIn, placeWords, portraitKeyOf, rowOf, traitEffectWords } from './names';
 import { playDeps } from './reducer';
 import { endingWords, facilityNames } from './rejections';
 
@@ -237,7 +238,12 @@ export interface GuildmasterView {
   /** Whose History a Guildmaster's page opens (M9-S5). */
   guildmasterId: GuildmasterId;
   name: string;
+  /** Their Guild, whose Banner stands beside "{Name}, Guildmaster of {Guild}" (DL-125 item 7). */
+  guildId: GuildId;
   guildName: string;
+  /** Their sex and their Portrait's key, `null` for the Silhouette of their sex: their Portrait (DL-125 item 2). */
+  sex: Sex;
+  portraitKey: string | null;
   attributes: [label: string, value: string][];
   /**
    * When they retire, from the engine's `retiresOn` (M9-F3, DL-113 item 5; M9-F6): `Retires at 61 on
@@ -271,7 +277,10 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
   return {
     guildmasterId: guildmaster.id,
     name: guildmaster.name,
+    guildId: guild.id,
     guildName: guild.name,
+    sex: guildmaster.sex,
+    portraitKey: portraitKeyOf(guildmaster),
     attributes: [
       // The Sex as a word, capitalised, as "Age" is (DL-111 item 9).
       ['Sex', capitalised(guildmaster.sex)],

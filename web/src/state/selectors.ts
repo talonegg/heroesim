@@ -103,6 +103,8 @@ export function whenOf(turn: number): string {
 // ── The header ───────────────────────────────────────────────────────────────────────────────
 
 export interface HeaderView {
+  /** The player's Guild, whose Banner stands beside its name (DL-125 item 7). */
+  guildId: GuildId;
   guildName: string;
   /** The player's Guildmaster's name, the navigation's label for the Guildmaster view (M9-F2); `null` with none. */
   guildmasterName: string | null;
@@ -153,6 +155,7 @@ export function headerView(document: WorldDocument): HeaderView | null {
   const standing = place === undefined ? 'Not ranked: the Guild has folded' : `${capitalised(placeWords(place))} of ${byFame.length}`;
   const measure = place === undefined ? '' : 'by Fame';
   return {
+    guildId: guild.id,
     guildName: guild.name,
     guildmasterName: guildmasterOf(guild, world)?.name ?? null,
     wealth: guild.wealth,
@@ -682,6 +685,12 @@ export interface HeroPageView {
   heroId: HeroId;
   name: string;
   /**
+   * The Hero's sex and Portrait's key, for their Portrait (DL-125 item 2). No Hero has a picture in
+   * v1.1.2 (DL-125 item 4), so the key is `null`, the Silhouette of their sex.
+   */
+  sex: Sex;
+  portraitKey: string | null;
+  /**
    * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `Age 18`, `Female`,
    * Background, and `of The Lantern` while their Guild is known.
    */
@@ -697,8 +706,20 @@ export interface HeroPageView {
   fee: number | null;
   /** The Stats by area, each area a block on the page (M9-S6, the review's B7). */
   areas: StatArea[];
-  /** Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. */
-  gear: { slot: SlotKey; slotName: string; item: string; modifies: string; worn: boolean }[];
+  /**
+   * Each gear slot and what is in it; `worn` when an Item is, which `unequip` can take off. What is in
+   * it by its content key, `null` in an empty slot, and whether it is a Unique Item, which shows its
+   * picture (DL-125 item 8).
+   */
+  gear: {
+    slot: SlotKey;
+    slotName: string;
+    item: string;
+    modifies: string;
+    worn: boolean;
+    definitionKey: ItemDefinitionKey | null;
+    unique: boolean;
+  }[];
   skills: { name: string; rating: number }[];
   /**
    * Each other Hero on the Roster, the Hero's Regard for them and the Relationship, as bands; `null`
@@ -719,6 +740,9 @@ export interface GearChoice {
   /** `Weapon Gear`, as the slot's cell says it (DL-125 item 9). */
   kind: string;
   modifies: string;
+  /** The Item's content key, and whether it is a Unique Item, which shows its picture (DL-125 item 8). */
+  definitionKey: ItemDefinitionKey;
+  unique: boolean;
   /** What `equip` takes: the unique Item's id, or the stack's. */
   gear: { itemId: ItemId } | { stackId: StackId };
 }
@@ -820,7 +844,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   const carried = carriedGear(world, hero.id).flatMap((row: UniqueItem | Stack) =>
     row.holder.kind === 'hero' ? [{ row, slot: row.holder.slot }] : [],
   );
-  const line = (slot: SlotKey, row: UniqueItem | Stack) => {
+  const line = (slot: SlotKey, row: UniqueItem | Stack): HeroPageView['gear'][number] => {
     const definition = itemDefinition(content, row.definitionKey);
     return {
       slot,
@@ -828,13 +852,17 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
       item: nameIn(content.items, row.definitionKey),
       modifies: definition?.kind === 'gear' ? modifierWords(definition) : '',
       worn: true,
+      definitionKey: row.definitionKey,
+      unique: definition?.unique === true,
     };
   };
   const listedSlots: readonly SlotKey[] = config.gearSlots;
   const gear = [
     ...listedSlots.flatMap((slot) => {
       const inSlot = carried.filter((each) => each.slot === slot);
-      return inSlot.length === 0 ? [{ slot, slotName: capitalised(slot), item: 'None', modifies: '', worn: false }] : inSlot.map((each) => line(slot, each.row));
+      return inSlot.length === 0
+        ? [{ slot, slotName: capitalised(slot), item: 'None', modifies: '', worn: false, definitionKey: null, unique: false }]
+        : inSlot.map((each) => line(slot, each.row));
     }),
     ...carried.filter((each) => !listedSlots.includes(each.slot)).map((each) => line(each.slot, each.row)),
   ];
@@ -864,6 +892,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
   return {
     heroId: hero.id,
     name: hero.name,
+    sex: hero.sex,
+    portraitKey: null,
     line: who,
     morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
@@ -948,7 +978,17 @@ function gearChoices(world: World, guild: Guild): GearChoice[] {
   return rows.flatMap(({ id, definitionKey, gear }): GearChoice[] => {
     const definition = itemDefinition(content, definitionKey);
     if (definition?.kind !== 'gear') return [];
-    return [{ key: id, name: definition.name, kind: `${capitalised(definition.slot)} Gear`, modifies: modifierWords(definition), gear }];
+    return [
+      {
+        key: id,
+        name: definition.name,
+        kind: `${capitalised(definition.slot)} Gear`,
+        modifies: modifierWords(definition),
+        definitionKey,
+        unique: definition.unique,
+        gear,
+      },
+    ];
   });
 }
 

@@ -273,6 +273,45 @@ function worldNews(seed = 'history-world', turns = 120): { document: WorldDocume
   return { document: state.document as WorldDocument, log: state.log };
 }
 
+describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", () => {
+  test("a Guild's History has its Banner and no Portrait", () => {
+    const { document, log } = played(3);
+    for (const guild of Object.values(document.world.guilds)) {
+      expect(historyView(document, log, guild.id, 0)).toMatchObject({ banner: guild.id, portrait: null });
+    }
+  });
+
+  test("a Guildmaster's has their Portrait by their sex, a Silhouette until v1.1.2-S3, and no Banner", () => {
+    const { document, log } = played(3);
+    for (const guildmaster of Object.values(document.world.guildmasters)) {
+      expect(historyView(document, log, guildmaster.id, 0)).toMatchObject({
+        banner: null,
+        portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: null },
+      });
+    }
+  });
+
+  test("a Hero's the world holds has theirs; one gone from the world, whose sex is not known, and a Patron have none", () => {
+    const { state, gone } = withTheGone(started());
+    const { document } = state;
+    if (document === null) throw new Error('no game in hand');
+    const [hero] = Object.values(document.world.heroes);
+    if (hero === undefined) throw new Error('no Hero');
+    expect(historyView(document, [], hero.id, 0).portrait).toEqual({ role: 'hero', sex: hero.sex, portraitKey: null });
+    expect(historyView(document, [], gone.id, 0)).toMatchObject({ entityId: gone.id, hero: null, banner: null, portrait: null });
+    const [patron] = Object.values(document.world.patrons);
+    if (patron === undefined) throw new Error('no Patron');
+    expect(historyView(document, [], patron.id, 0)).toMatchObject({ entityId: patron.id, banner: null, portrait: null });
+  });
+
+  test('the World History and the whole History have neither', () => {
+    const { document, log } = played(3);
+    for (const whose of ['world', 'all'] as const) {
+      expect(historyView(document, log, whose, 0)).toMatchObject({ banner: null, portrait: null });
+    }
+  });
+});
+
 describe('the World History (M9-F4, DL-112 item 7, DL-113 item 1)', () => {
   const { document, log } = worldNews();
   const world = document.history.entries.filter((entry) => worldTypes.includes(entry.type)).reverse();

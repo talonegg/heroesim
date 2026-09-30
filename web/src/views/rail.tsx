@@ -5,13 +5,15 @@
 // 1100px, and while the History view itself is open, it is not drawn. The lines are `railView`'s.
 // "Open the History" opens the History on the player's Guild, at its newest, where what the last play
 // added is marked new (M9-S5, DL-105). A Party's return is one entry, as in the Guild's History
-// (M9-F5): its band in bold, a line per Hero behind a disclosure, and "Open the report".
+// (M9-F5): its band in bold, a line per Hero behind a disclosure, and "Open the report". The Guild's
+// Banner stands beside its name in the heading (v1.1.2-S2, DL-125 item 7).
 
 import { useMemo } from 'react';
 import { railView } from '../state/digest';
 import type { ReturnKey } from '../state/quest-return';
 import type { GameState } from '../state/reducer';
 import { Icon } from './icons';
+import { GuildBanner } from './pictures';
 import { ReturnEntryParts } from './quest-report';
 
 export function Rail({
@@ -31,7 +33,10 @@ export function Rail({
   return (
     <aside className="rail" aria-labelledby="rail-heading">
       <div className="rail__head">
-        <h2 id="rail-heading">Latest for {view.guildName}</h2>
+        <h2 id="rail-heading" className="titled">
+          <GuildBanner guild={view.guildId} />
+          <span>Latest for {view.guildName}</span>
+        </h2>
         {view.fresh === 0 ? null : <span className="chip chip--accent">{view.fresh} new</span>}
       </div>
       <ol className="lines lines--rail">

@@ -18,6 +18,7 @@ import { useCallback, useRef, useState, type ReactNode, type Ref } from 'react';
 import type { GameAction } from '../state/reducer';
 import type { HeaderView, ProgressView } from '../state/selectors';
 import { Icon, type IconName } from './icons';
+import { GuildBanner } from './pictures';
 import { StatPill, useDismiss, VisuallyHidden } from './ui';
 
 /** What time is, and what its controls do: the time controls' accessible description (DL-73 item 9). */
@@ -74,7 +75,11 @@ export function StatusBar({
     <header className="status" ref={bar}>
       <div className="status__bar">
         <div className="status__guild">
-          <h1 id="guild-name">{view.guildName}</h1>
+          {/* The Guild's Banner beside its name (v1.1.2-S2, DL-125 item 7). */}
+          <h1 id="guild-name" className="titled">
+            <GuildBanner guild={view.guildId} />
+            <span>{view.guildName}</span>
+          </h1>
         </div>
         <div className="status__facts">
           <StatPill icon="wealth" label="Wealth" value={view.wealth} testId="wealth" />

@@ -93,6 +93,9 @@ export interface HeldForSale {
   /** Unique within the list. */
   key: string;
   name: string;
+  /** The Item's content key, and whether it is a Unique Item, which shows its picture (DL-125 item 8). */
+  definitionKey: ItemDefinitionKey;
+  unique: boolean;
   /** `Weapon Gear`, `Consumable`, as the Market says it; empty for an Item content does not define. */
   kind: string;
   /** What it does, as the Market says it; empty for an Item content does not define. */
@@ -150,9 +153,11 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
   if (guild === undefined) return { forSale, kinds, totalForSale, guildName: null, wealth: null, held: [] };
 
   const { items, stacks } = holdings(world, { kind: 'guild', id: guild.id });
-  const described = (key: ItemDefinitionKey): { kind: string; does: string } => {
+  const described = (key: ItemDefinitionKey): { definitionKey: ItemDefinitionKey; unique: boolean; kind: string; does: string } => {
     const definition = itemDefinition(content, key);
-    return definition === undefined ? { kind: '', does: '' } : { kind: kindOf(definition), does: doesOf(definition) };
+    return definition === undefined
+      ? { definitionKey: key, unique: false, kind: '', does: '' }
+      : { definitionKey: key, unique: definition.unique, kind: kindOf(definition), does: doesOf(definition) };
   };
   const held: HeldForSale[] = [
     ...stacks.map((stack) => ({

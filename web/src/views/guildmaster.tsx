@@ -8,13 +8,16 @@
 // (M9-S2), each only when set; each Trait with its effect's words; and Regard as chips on one ramp
 // from hostile to close, the neutral ones folded under their count (M9-S6, DL-106; the review's C8).
 // A Guildmaster opens their History (M9-S5, DL-105). When they retire, its Day and the years left,
-// from the engine's Retirement Turn (M9-F3, DL-113 item 5, DL-116), under their Attributes.
+// from the engine's Retirement Turn (M9-F3, DL-113 item 5, DL-116), under their Attributes. Their
+// Portrait stands beside all of it, and their Guild's Banner beside its name (v1.1.2-S2, DL-125 items
+// 2 and 7).
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo } from 'react';
 import { guildmasterView, type GuildmasterView, type RegardRow } from '../state/world-views';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
+import { GuildBanner, Portrait } from './pictures';
 import { Heading, Terms, View } from './section';
 import { Chip, Folded, regardTones } from './ui';
 
@@ -34,22 +37,30 @@ export function GuildmasterDetails({ view, level }: { view: GuildmasterView; lev
   const links = useHistoryLinks();
   return (
     <div className="guildmaster">
-      <Heading level={level}>
-        {view.name}, Guildmaster of {view.guildName}
-      </Heading>
-      <Terms pairs={view.attributes} />
-      {/* When they retire, or why they never did (M9-F7, DL-120 items 2 and 9). */}
-      <p className="guildmaster__retirement" data-testid="retirement">
-        {view.retirement}
-      </p>
-      {links === null ? null : (
-        <div className="actions">
-          <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildmasterId)}>
-            <Icon name="history" />
-            <span>Read their History</span>
-          </button>
+      <div className="person">
+        <Portrait role="guildmaster" sex={view.sex} portraitKey={view.portraitKey} name={view.name} />
+        <div className="person__about">
+          <Heading level={level} className="titled">
+            <GuildBanner guild={view.guildId} />
+            <span>
+              {view.name}, Guildmaster of {view.guildName}
+            </span>
+          </Heading>
+          <Terms pairs={view.attributes} />
+          {/* When they retire, or why they never did (M9-F7, DL-120 items 2 and 9). */}
+          <p className="guildmaster__retirement" data-testid="retirement">
+            {view.retirement}
+          </p>
+          {links === null ? null : (
+            <div className="actions">
+              <button type="button" aria-label={`Read the History of ${view.name}`} onClick={() => links.onHistory(view.guildmasterId)}>
+                <Icon name="history" />
+                <span>Read their History</span>
+              </button>
+            </div>
+          )}
         </div>
-      )}
+      </div>
 
       <div className="guildmaster__grid">
         <div>

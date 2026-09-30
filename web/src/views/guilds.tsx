@@ -23,6 +23,7 @@ import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
+import { GuildBanner } from './pictures';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
 import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden, type Direction } from './ui';
@@ -236,8 +237,10 @@ function GuildPage({
   return (
     <article className="guild-page" aria-labelledby="guild-page-name">
       {toGuilds}
-      <h4 id="guild-page-name" tabIndex={-1}>
-        {view.name}
+      {/* The Guild's Banner beside its name, the largest of its Banners (v1.1.2-S2, DL-125 item 7). */}
+      <h4 id="guild-page-name" className="titled" tabIndex={-1}>
+        <GuildBanner guild={view.guildId} large />
+        <span>{view.name}</span>
       </h4>
       <p className="guild-page__line">
         {view.controller} · {view.background}

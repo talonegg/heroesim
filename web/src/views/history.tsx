@@ -15,6 +15,10 @@
 //
 // A page is `HistoryPage`'s (`history-entries.tsx`): groups by Day and time of day, folds, marks and
 // names that open whom they name. Every line and word comes from `state/history.ts`.
+//
+// A Guild's History has its Banner beside its title, and a Guildmaster's their Portrait (v1.1.2-S2,
+// DL-125 items 2 and 7); a Hero's page has its own. A Patron's History has no Portrait until a Patron
+// has a sex (v1.1.2-S3), nor has a Hero's gone from the world, whose sex is no longer known.
 
 import type { WorldDocument } from '@heroesim/engine';
 import { useMemo, useState } from 'react';
@@ -23,6 +27,7 @@ import type { GameAction } from '../state/reducer';
 import { HeroPage } from './hero-page';
 import { HistoryPage, useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
+import { GuildBanner, Portrait } from './pictures';
 import { View } from './section';
 import { VisuallyHidden } from './ui';
 
@@ -61,6 +66,17 @@ export function History({
   const view = useMemo(() => historyView(document, log ?? [], whose, page), [document, log, whose, page]);
   const found = useMemo(() => findInHistory(document, query), [document, query]);
   const back = trail.before === whose ? null : trail.before;
+  const title =
+    view.banner === null ? (
+      <h3 id="history-title" tabIndex={-1}>
+        {view.title}
+      </h3>
+    ) : (
+      <h3 id="history-title" className="titled" tabIndex={-1}>
+        <GuildBanner guild={view.banner} />
+        <span>{view.title}</span>
+      </h3>
+    );
 
   return (
     <View
@@ -126,9 +142,14 @@ export function History({
           level={4}
           onPage={setPage}
           heading={
-            <h3 id="history-title" tabIndex={-1}>
-              {view.title}
-            </h3>
+            view.portrait === null ? (
+              title
+            ) : (
+              <div className="person person--title">
+                <Portrait {...view.portrait} name={view.name ?? ''} />
+                {title}
+              </div>
+            )
           }
         />
       ) : (

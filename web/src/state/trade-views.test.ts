@@ -122,6 +122,18 @@ describe("the Market as tables (M9-S6, DL-106; the review's B3)", () => {
       { name: "The Barrow King's blade", kind: 'Weapon Gear, Unique Item', does: 'Weaponry +4, Strength +2, Courage +1' },
     ]);
   });
+
+  test("gives each held Item's content key, and whether it is a Unique Item, whose picture Sell shows (DL-125 item 8)", () => {
+    const document = structuredClone(newGame());
+    const guild = player(document);
+    addStack(document.world, 'healing-draught', 1, { kind: 'guild', id: guild.id });
+    createItem(document.world, 'barrow-kings-blade', { kind: 'guild', id: guild.id });
+
+    expect(marketView(document).held.map(({ definitionKey, unique }) => ({ definitionKey, unique }))).toEqual([
+      { definitionKey: 'healing-draught', unique: false },
+      { definitionKey: 'barrow-kings-blade', unique: true },
+    ]);
+  });
 });
 
 describe('poolView', () => {

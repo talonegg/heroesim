@@ -12,6 +12,7 @@ import {
   playerGuild,
   type Entry,
   type EngineEventOf,
+  type GuildId,
   type PartyId,
   type QuestId,
   type TurnEvent,
@@ -122,6 +123,8 @@ export interface RailLine extends LogLine {
 }
 
 export interface RailView {
+  /** The player's Guild, whose Banner stands beside "Latest for {Guild}" (DL-125 item 7). */
+  guildId: GuildId;
   guildName: string;
   /** The Guild's newest entries, newest first. */
   lines: RailLine[];
@@ -143,6 +146,7 @@ export function railView(state: Pick<GameState, 'document' | 'log'>, limit = rai
   const entries = besideTheirReturn(historyEntries(document, guild.id, limit));
   const lines = linesOf(entries, narrationFor(document, content));
   return {
+    guildId: guild.id,
     guildName: guild.name,
     lines: lines.map((line, index) => {
       const entry = entries[index] as Entry;

@@ -3390,6 +3390,111 @@ tr.mine td {
   margin-top: 1.25rem;
 }
 
+/* ── Pictures (v1.1.2-S2, DL-125 items 2, 7 and 8) ───────────────────────────────────────── */
+
+/*
+ * A Portrait, a Guild Banner and a Unique Item's picture (views/pictures.tsx): the Silhouette, and
+ * the picture over it once it loads. Each is graphite on the pictures' own cream, which they carry,
+ * so they sit alike in the light and the dark scheme; a hairline sets them off the page.
+ */
+.portrait,
+.guild-banner,
+.item-picture {
+  position: relative;
+  flex: none;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px var(--line);
+}
+
+.portrait img,
+.guild-banner img,
+.item-picture img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.picture__image.is-loading {
+  opacity: 0;
+}
+
+/* A Portrait: three wide by four high, 5rem wide on a phone and 7.5rem from 600px (DL-125 item 2). */
+.portrait {
+  margin: 0;
+  width: 5rem;
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius-small);
+}
+
+@media (min-width: 600px) {
+  .portrait {
+    width: 7.5rem;
+  }
+}
+
+/* A person's Portrait beside who they are: their name, their line and what follows it. */
+.person {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+  align-items: start;
+}
+
+.person__about > :first-child {
+  margin-top: 0;
+}
+
+/* On a History's page, the Portrait beside its title. */
+.person--title {
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.person--title > h3 {
+  margin: 0;
+}
+
+/* A title with its Guild's Banner before the name: two wide by three high, a line of the title tall. */
+/* The Banner beside the title's first line, however many lines the name takes; the largest beside the whole of it. */
+.titled {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45em;
+}
+
+.titled:has(> .guild-banner--large) {
+  align-items: center;
+}
+
+.titled > span {
+  min-width: 0;
+}
+
+.guild-banner {
+  width: 0.8em;
+  height: 1.2em;
+  border-radius: 2px;
+}
+
+/* A Guild's own page: its largest Banner (DL-125 item 7). */
+.guild-banner--large {
+  width: 2rem;
+  height: 3rem;
+}
+
+/* A Unique Item's picture: a small square before its name (DL-125 item 8). */
+.item-picture {
+  display: inline-block;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  border-radius: 4px;
+}
+
 /* ── Motion: short, and off when the player asks for less ───────────────────────────────── */
 
 @media (prefers-reduced-motion: no-preference) {

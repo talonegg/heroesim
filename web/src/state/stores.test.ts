@@ -131,6 +131,8 @@ describe('storesView (M9-F3)', () => {
     expect(blade).toMatchObject({ where: 'carried', heroId: home, quantity: 1, kind: 'Weapon Gear, Unique Item', whereWords: `Carried by ${document.world.heroes[home]?.name ?? ''}` });
     const lantern = view?.rows.find((row) => row.definitionKey === 'lantern-of-stannary');
     expect(lantern).toMatchObject({ where: 'held', quantity: 1, whereWords: 'Held', heroId: null, partyId: null, name: 'The Lantern of Stannary' });
+    // A Unique Item shows its picture (DL-125 item 8); a common one does not.
+    expect([blade?.unique, lantern?.unique, jack?.unique]).toEqual([true, true, false]);
   });
 
   test('gives what a held Item sells for, as the Market prices it, and nothing for one carried or away', () => {
