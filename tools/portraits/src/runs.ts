@@ -8,7 +8,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { check } from './check.js';
-import { contentChecks } from './content-checks.js';
+import { contentChecks, contentTexts, textChecks } from './content-checks.js';
 import { DraftError, Undone } from './errors.js';
 import { raiseContentVersion } from './content-version.js';
 import { formatJson } from './json-format.js';
@@ -41,6 +41,9 @@ export interface WrittenRun {
 /**
  * Writes an analysis run from the agents' draft: `{ date?, report, portraits,
  * portraitAppearances, descriptions }`. Nothing live changes.
+ *
+ * @throws DraftError before anything is written, for a draft of the wrong shape, or whose recommended
+ *   files fail the content's checks and so could not be applied
  */
 export async function writeRun(root: string, json: unknown, options: { date?: string } = {}): Promise<WrittenRun> {
   const problems: string[] = [];
@@ -51,6 +54,10 @@ export async function writeRun(root: string, json: unknown, options: { date?: st
     if (!isObject(json[field])) problems.push(`${field}: the recommended ${runFiles[field]}, an object, is wanted`);
   }
   if (problems.length > 0) throw new DraftError(problems);
+  // A run that could not be applied is refused before it is written (v1.1.3-S3).
+  const instead = Object.fromEntries((Object.keys(runFiles) as RunField[]).map((field) => [runFiles[field], JSON.stringify(json[field])]));
+  const content = textChecks(contentTexts(root, instead));
+  if (!content.ok) throw new DraftError(content.problems.map((problem) => `the recommended content fails its checks: ${problem}`));
   const date = options.date ?? (typeof json.date === 'string' ? json.date : today());
   const run = nextRun(analysisDir(root), date);
   const report = path.join(analysisDir(root), `${run}.md`);

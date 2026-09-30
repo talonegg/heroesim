@@ -10,6 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { dataUrlOf, isPicture, withChromium, type Chromium } from './chromium.js';
 import { check } from './check.js';
 import { convert, Refusal } from './convert.js';
+import { corpus, corpusText } from './corpus.js';
+import { diffRun, diffText } from './diff.js';
 import { DraftError, Undone } from './errors.js';
 import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
 import { readRegistry } from './registry.js';
@@ -26,8 +28,13 @@ export const usage = `Usage: npm run portraits -- <command> [--root <dir>] [--js
   fingerprint <file or folder>...      Each picture's hash, and the nearest pictures in the register
               [--nearest <n>]
   check                                The register, media/ and the content agree, within the limits
+  corpus [--run <run> | --draft <d>]   Every picture, its files and row, counted by role, sex, band
+                                       and Class; texts over bounds, unused terms, short sentence
+                                       lists, similar pairs; with a run's or a write-run draft's
+                                       files in place of the content's
   write-rows <draft.json> [--date d]   Take an intake draft's uploads in, as one transaction
   write-run <draft.json> [--date d]    Write an analysis run from its draft
+  diff <run>                           What applying an analysis run would change, path by path
   apply <run>                          Put an analysis run's JSON in place, as one transaction
 
 Exit codes: 0 done, 1 failed or refused (nothing changed), 2 a command line not understood.`;
@@ -47,11 +54,13 @@ interface Parsed {
   root: string;
   out: string | null;
   date: string | null;
+  run: string | null;
+  draft: string | null;
   nearest: number;
 }
 
 function parse(argv: readonly string[]): Parsed {
-  const parsed: Parsed = { command: '', args: [], json: false, root: repositoryRoot, out: null, date: null, nearest: 5 };
+  const parsed: Parsed = { command: '', args: [], json: false, root: repositoryRoot, out: null, date: null, run: null, draft: null, nearest: 5 };
   const value = (flag: string, index: number): string => {
     const next = argv[index + 1];
     if (next === undefined || next.startsWith('--')) throw new UsageError(`${flag} wants a value`);
@@ -63,6 +72,8 @@ function parse(argv: readonly string[]): Parsed {
     else if (arg === '--root') parsed.root = path.resolve(value(arg, index++));
     else if (arg === '--out') parsed.out = path.resolve(value(arg, index++));
     else if (arg === '--date') parsed.date = value(arg, index++);
+    else if (arg === '--run') parsed.run = value(arg, index++);
+    else if (arg === '--draft') parsed.draft = path.resolve(value(arg, index++));
     else if (arg === '--nearest') {
       parsed.nearest = Number(value(arg, index++));
       if (!Number.isInteger(parsed.nearest) || parsed.nearest < 1) throw new UsageError('--nearest wants a whole number of 1 or more');
@@ -192,6 +203,16 @@ async function dispatch(options: Parsed): Promise<Result> {
         ? [`Check passed: ${result.live} live pictures, each with its thumbnail, listed and with its row, within the limits`]
         : [`Check failed, ${result.failures.length} ${result.failures.length === 1 ? 'problem' : 'problems'}:`, ...result.failures.map((failure) => `  ${failure.message}`)];
       return { code: result.ok ? 0 : 1, json: result, text };
+    }
+    case 'corpus': {
+      const json = corpus(options.root, { run: options.run, draft: options.draft });
+      return { code: 0, json, text: corpusText(json) };
+    }
+    case 'diff': {
+      const run = options.args[0];
+      if (run === undefined) throw new UsageError('diff wants a run, such as 2026-10-02');
+      const json = diffRun(options.root, run);
+      return { code: 0, json, text: diffText(json) };
     }
     case 'write-rows': {
       const draft = readDraft(options.args[0]);

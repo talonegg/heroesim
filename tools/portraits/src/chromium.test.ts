@@ -1,4 +1,4 @@
-import { copyFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -133,6 +133,25 @@ describe.skipIf(!chromiumInstalled())('in Chromium', () => {
       expect(json.files[0]?.similar).toEqual(['gm-male-01']);
       expect(json.files[0]?.nearest.map((near) => near.key)).toEqual(['gm-male-01', 'gm-female-01']);
       expect(json.files[0]?.nearest[1]?.similar).toBe(false);
+    });
+
+    test('fingerprint of an inbox folder reads every picture in it, however deep, and names the uploads similar to each other (v1.1.3-S3)', async () => {
+      // As the portrait-intake skill calls it: the inbox of a role, with its sex subfolders.
+      const inbox = path.join(scratch, 'inbox', 'guildmaster');
+      mkdirSync(path.join(inbox, 'male'), { recursive: true });
+      mkdirSync(path.join(inbox, 'female'), { recursive: true });
+      writeFileSync(path.join(inbox, '.gitkeep'), '');
+      copyFileSync(pictures[0]?.file ?? '', path.join(inbox, 'male', 'one.webp'));
+      writeFileSync(path.join(inbox, 'male', 'two.webp'), Buffer.from((await redrawn(pictures[0]?.file ?? '', { left: 0.05, top: 0, right: 0, bottom: 0 })).split(',')[1] ?? '', 'base64'));
+      copyFileSync(pictures[1]?.file ?? '', path.join(inbox, 'female', 'three.webp'));
+      copyFileSync(picturePaths(root, 'guildmaster', 'female', 'gm-female-01').thumbnail, path.join(inbox, 'female', 'three.thumb.webp'));
+      let out = '';
+      const code = await run(['fingerprint', inbox, '--root', root, '--json'], { out: (text) => (out += text), err: () => undefined });
+      expect(code).toBe(0);
+      const json = JSON.parse(out) as { files: { file: string; similar: string[]; similarUploads: { file: string; distance: number }[] }[] };
+      expect(json.files.map((each) => path.relative(inbox, each.file).replace(/\\/g, '/'))).toEqual(['female/three.webp', 'male/one.webp', 'male/two.webp']);
+      expect(json.files.map((each) => each.similar)).toEqual([['gm-female-01'], ['gm-male-01'], ['gm-male-01']]);
+      expect(json.files.map((each) => each.similarUploads.map((upload) => path.basename(upload.file)))).toEqual([[], ['two.webp'], ['one.webp']]);
     });
   });
 });

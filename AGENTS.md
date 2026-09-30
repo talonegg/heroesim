@@ -17,3 +17,7 @@ Single-context: one root `CONTEXT.md` plus ADRs in `docs/adr/`. See `docs/agents
 ### The page's words
 
 Standalone text begins with a capital, and glossary terms are capitalised wherever they stand. See `docs/agents/ui-text.md`.
+
+### Portraits
+
+Pictures come into the game, and their rows and sentences are analysed and applied, through the skills `portrait-intake`, `portrait-analyse` and `portrait-apply` and the portrait tool's commands only. See `docs/agents/portraits.md`.

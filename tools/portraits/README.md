@@ -1,9 +1,10 @@
 # The portrait tool
 
 `tools/portraits` converts, registers, fingerprints and checks the Portraits' pictures, and takes
-them into the content (DL-135 item 11, v1.1.3-S2). It does the mechanical steps; the judgement,
+them into the content (DL-135 item 11, v1.1.3-S2). It also counts the corpus and compares an
+analysis run with the content (v1.1.3-S3). It does the mechanical steps; the judgement,
 what a picture shows and whether an upload is already in the game, is the portrait skills' and
-agents' (v1.1.3-S3), which call it for every change to a file.
+agents' (v1.1.3-S3, `docs/agents/portraits.md`), which call it for every change to a file.
 
 ```sh
 npm run portraits -- <command> [--root <dir>] [--json]
@@ -186,7 +187,59 @@ Writes an analysis run from the agents' draft. Nothing live changes.
   - `report` is Markdown, and its heading `# Portrait analysis <run>` is added where it has none.
   - The other three are the recommended `portraits.json`, `portrait-appearances.json` and
     `descriptions.json`, whole.
+- **A refusal.** A draft whose three files fail the content's own checks is refused before anything
+  is written (exit 1), each problem named: a run that could not be applied is never written
+  (v1.1.3-S3).
 - **JSON:** `{ "ok": true, "run", "report", "files": [...] }`.
+
+### `corpus [--run <run> | --draft <draft.json>]`
+
+Counts the corpus, for the `portrait-analyse` skill, and changes nothing.
+
+- **`--run <run>`** reads an analysis run's three files in place of the content's, so a run is
+  counted before it is applied.
+- **`--draft <draft.json>`** reads a `write-run` draft's three in their place, so a draft is counted
+  and checked before it is written.
+
+- **`pictures`.** Each picture `content/portraits.json` lists, and each key the register holds
+  `live`: its role, sex, `status` (`live`, `retired` or `unregistered`), whether it is `listed`,
+  its `picture` and `thumbnail` files relative to the root with whether each `exists`, its `row`
+  (or `null`), and the age `bands` its `apparentAge` touches.
+- **`counts`.** Guildmaster pictures by sex and band, and Hero pictures by Class, sex and band. A
+  picture counts in every band it touches, and a Hero's in each of its Classes.
+- **`gaps`.** Each of those cells with fewer than three pictures: `{ role, sex, band, class?, count }`.
+- **`overBounds`.** Each narrative over 260 characters, hook over 160 with its sex's pronouns, and
+  picture with more than two hooks: `{ key, field, length, limit }`.
+- **`vocabulary`.** For the Stations, Tempers, Callings, Features and Classes, the pictures `used`
+  by each term, and the terms `unused`.
+- **`sentences`.** Every key of the sentence lists the Biographies draw from, with its count, and
+  those `short` of `wanted`, three:
+  - `biography`: `origins`, `careers` and `closings` by band; `backgrounds` by Guild Background;
+    `traits` by Guildmaster Trait; `successors`; `stationOrigins` by Station; `callingCareers` by
+    Calling and band; `temperClosings` by Temper;
+  - `heroBiography`: `backgrounds` by Hero Background; `classes` by Class and band; `traits` by Hero
+    Trait; `closings` by band.
+- **`similar`.** Each pair of keys in the register, `live` or `retired`, within `similarWithin`.
+- **`content`.** Whether the content's own checks pass on these files, their `problems` and
+  `warnings`, and the `longest` Birthplace, Appearance and Biographies they can write, beside
+  their `bounds`.
+
+A run or draft that is not there, or both at once, is refused (exit 1). `source` says where the
+three files were read.
+
+### `diff <run>`
+
+What `apply <run>` would change, by each JSON path rather than by line, so a file the run rewrites
+in another layout shows only what differs. It changes nothing.
+
+- **An object** is compared key by key.
+- **A list of strings or numbers** is compared by its items: each item `added` or `removed` is
+  named. The same items in another order are `reordered`, since a list's order chooses which
+  picture a draw gives.
+- **Any other value** that differs is `changed`, whole.
+
+**JSON:** `{ "run", "files": [{ "file", "from", "changes": [{ "path", "kind", "before"?, "after"? }] }] }`.
+The text marks each change `+`, `-`, `~` or `↕`.
 
 ### `apply <run>`
 
@@ -207,6 +260,8 @@ It is undone as a whole on any failure. A run that is the content already change
 - **`chromium.test.ts`** converts and fingerprints the committed pictures, re-encoded and cropped.
 - **`write-rows.test.ts`** takes uploads into a scratch copy of the repository, made a git
   repository, and reads `git status` to prove a failure leaves it as it was.
+- **`corpus.test.ts`** counts the corpus as shipped and in a scratch copy, with a run's files in
+  place of the content's, and diffs a run written through the command line.
 - **`owner.test.ts`** reads the owner's 40, from `HEROESIM_OWNER_PICTURES` or
   `..\heroesim-inbox\guildmaster\`, and is skipped where they are absent, as in CI.
 - **Chromium.** The Chromium tests are skipped where it is not installed. CI installs it before
