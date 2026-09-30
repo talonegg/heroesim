@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, parseContent, validateContent } from './index.js';
+import { contentFiles, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory (M1-S4).
@@ -13,7 +13,7 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130), which v1.1.2-S4's pictures keep (DL-131)", () => {
+  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130), which v1.1.2-S4's pictures and v1.1.2-S5's descriptions keep (DL-131, DL-132)", () => {
     expect(content.id).toBe('core');
     expect(content.version).toBe(16);
   });
@@ -60,6 +60,69 @@ describe('loadContent()', () => {
     // DL-127 item 5 counts them: 243 and 241 characters.
     expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
     expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(241);
+  });
+
+  describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+    const { descriptions } = content;
+    const bands = descriptions.ageBands.map((band) => band.key);
+    const guildBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'guild').map((row) => row.key);
+    const guildmasterTraits = Object.values(content.traits).filter((row) => row.owner === 'guildmaster').map((row) => row.key);
+
+    test('has three age bands for the Guildmasters of 21 to 50, and at least thirty Birthplaces', () => {
+      expect(descriptions.ageBands).toEqual([
+        { key: 'young', from: 0 },
+        { key: 'middle', from: 31 },
+        { key: 'older', from: 41 },
+      ]);
+      expect(descriptions.birthplaces.length).toBeGreaterThanOrEqual(30);
+    });
+
+    test('has several phrases for every slot of every sex and band, and several sentences for every part, Background and Trait', () => {
+      for (const sex of ['female', 'male'] as const) {
+        for (const band of bands) {
+          const phrases = descriptions.appearance[sex][band];
+          const slots = sex === 'male' ? ['build', 'face', 'hair', 'facialHair', 'eyes', 'mark', 'bearing'] : ['build', 'face', 'hair', 'eyes', 'mark', 'bearing'];
+          expect(Object.keys(phrases ?? {}).sort()).toEqual([...slots].sort());
+          for (const slot of slots) expect((phrases as Record<string, string[]>)[slot]?.length, `${sex} ${band} ${slot}`).toBeGreaterThanOrEqual(4);
+        }
+      }
+      for (const part of ['origins', 'careers', 'closings'] as const) {
+        for (const band of bands) expect(descriptions.biography[part][band]?.length, `${part} ${band}`).toBeGreaterThanOrEqual(4);
+      }
+      expect(Object.keys(descriptions.biography.backgrounds).sort()).toEqual([...guildBackgrounds].sort());
+      expect(Object.keys(descriptions.biography.traits).sort()).toEqual([...guildmasterTraits].sort());
+      for (const texts of [...Object.values(descriptions.biography.backgrounds), ...Object.values(descriptions.biography.traits)]) {
+        expect(texts.length).toBeGreaterThanOrEqual(2);
+      }
+    });
+
+    test('proves the longest Birthplace, Appearance and Biography within 60, 280 and 1,000 characters', () => {
+      const longest = longestDescriptions(content);
+      expect(longest.birthplace).toBeLessThanOrEqual(descriptionBounds.birthplace);
+      expect(longest.appearance).toBeLessThanOrEqual(descriptionBounds.appearance);
+      expect(longest.biography).toBeLessThanOrEqual(descriptionBounds.biography);
+      expect(descriptionBounds).toEqual({ birthplace: 60, appearance: 280, biography: 1000 });
+    });
+
+    test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
+      const worn =
+        /\b(coats?|cloaks?|capes?|mail|armou?r|leathers?|tunics?|shirts?|dress(es)?|gowns?|robes?|hoods?|hats?|caps?|helms?|helmets?|boots?|belts?|buckles?|straps?|rings?|earrings?|necklaces?|brooch(es)?|clasps?|pins?|chains?|jewels?|satchels?|sashe?s?|gloves?|scarf|scarves|collars?|sleeves?|aprons?|jerkins?|doublets?|bracelets?|ribbons?|circlets?|beads?|torcs?|gear|swords?|blades?|staffs?|sticks?)\b/i;
+      const phrases = Object.values(descriptions.appearance).flatMap((byBand) =>
+        Object.values(byBand).flatMap((slots) => Object.values(slots).flat()),
+      );
+      const narratives = Object.values(content.portraitAppearances.portraits).map((row) => row.narrative);
+      const naming = [...phrases, ...narratives].filter((text) => worn.test(text));
+      expect(naming).toEqual([]);
+      expect(phrases.length).toBeGreaterThan(150);
+    });
+
+    test('writes each standalone text with a capital: every Birthplace, phrase and sentence begins with one', () => {
+      const texts = [
+        ...descriptions.birthplaces,
+        ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand).flatMap((slots) => Object.values(slots).flat())),
+      ];
+      for (const text of texts) expect(text, text).toMatch(/^\p{Lu}/u);
+    });
   });
 
   test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {

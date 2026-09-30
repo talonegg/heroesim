@@ -141,6 +141,13 @@ export {
   type TransferSide,
 } from './controllers/rival.js';
 export * from './create.js';
+export {
+  biographyTraitSentences,
+  describeGuildmaster,
+  type DescribeRequest,
+  type DescriptionFacts,
+  type GuildmasterDescription,
+} from './descriptions.js';
 export * from './document.js';
 export {
   moduleEffectKinds,

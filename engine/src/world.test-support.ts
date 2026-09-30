@@ -11,6 +11,7 @@
 
 import { defaultConfig, type EngineDeps, type GameConfig } from './config.js';
 import type {
+  AppearancePhrases,
   Class,
   Consequence,
   ConsumableEffect,
@@ -532,9 +533,62 @@ export const testContent: ContentSet = deepFreeze({
     hero: { female: ['hero-female-01'], male: [] },
     patron: { female: [], male: [] },
   },
-  // What a picture shows (v1.1.2-S4): read by no rule yet, so none is mapped here.
-  portraitAppearances: { keywords: {}, portraits: {} },
+  // What a picture shows (v1.1.2-S4): one picture of each sex mapped, so a Guildmaster with it takes its
+  // narrative for their Appearance (v1.1.2-S5); the others are drawn whole.
+  portraitAppearances: {
+    keywords: {
+      bearded: { slot: 'facialHair', word: 'bearded' },
+      braided: { slot: 'hair', word: 'braided' },
+    },
+    portraits: {
+      'gm-male-01': { keywords: ['bearded'], narrative: 'A bearded face in a picture.' },
+      'gm-female-01': { keywords: ['braided'], narrative: 'A braided head in a picture.' },
+    },
+  },
+  // What the descriptive Attributes are written from (v1.1.2-S5): two age bands, a phrase or two a
+  // slot, and Biography sentences for two of the three Guild Backgrounds and two of the six Traits.
+  descriptions: {
+    ageBands: [
+      { key: 'young', from: 0 },
+      { key: 'older', from: 36 },
+    ],
+    pronouns: {
+      female: { he: 'she', him: 'her', his: 'her', He: 'She', His: 'Her' },
+      male: { he: 'he', him: 'him', his: 'his', He: 'He', His: 'His' },
+    },
+    birthplaces: ['Saltcote', 'Hob\'s Ferry', 'Crane Marsh'],
+    appearance: {
+      female: {
+        young: descriptionPhrases('young', 'female'),
+        older: descriptionPhrases('older', 'female'),
+      },
+      male: {
+        young: { ...descriptionPhrases('young', 'male'), facialHair: ['A young beard.', 'A young moustache.'] },
+        older: { ...descriptionPhrases('older', 'male'), facialHair: ['An older beard.'] },
+      },
+    },
+    biography: {
+      origins: { young: ['{He} was born in {birthplace}.'], older: ['{He} left {birthplace} long ago.', '{His} people came from {birthplace}.'] },
+      careers: { young: ['{He} carried loads.'], older: ['{He} kept an inn for {his} life.'] },
+      backgrounds: { 'old-charter': ['{He} took the old charter.'], breakaway: ['{He} broke away.'] },
+      traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
+      closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
+    },
+  },
 });
+
+/** A test age band's Appearance phrases but `facialHair`: `Build (young female).`, two of each slot. */
+function descriptionPhrases(band: string, sex: Sex): Omit<AppearancePhrases, 'facialHair'> {
+  const slot = (name: string): string[] => [`${name} one (${band} ${sex}).`, `${name} two (${band} ${sex}).`];
+  return {
+    build: slot('Build'),
+    face: slot('Face'),
+    hair: slot('Hair'),
+    eyes: slot('Eyes'),
+    mark: slot('Mark'),
+    bearing: slot('Bearing'),
+  };
+}
 
 /** `content` (the test content by default) with no pictures of any role or sex, as the core's until v1.1.2-S4. */
 export function withoutPortraits(content: ContentSet = testContent): ContentSet {
@@ -563,6 +617,7 @@ export const plannedStreams = [
   'rivals',
   'market',
   'portraits',
+  'descriptions',
 ] as const;
 
 /** The test content, or `content`, with the default config, or with `overrides` on it. */

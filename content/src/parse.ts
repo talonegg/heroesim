@@ -4,6 +4,8 @@
 // type, and no field the schema does not know — then the whole set is validated.
 
 import type {
+  AgeBand,
+  AppearancePhrases,
   AppearanceSlot,
   Background,
   BackgroundOwner,
@@ -14,6 +16,7 @@ import type {
   ContentSet,
   Consequence,
   ConsequenceKind,
+  Descriptions,
   Disposition,
   Encounter,
   EncounterAggregate,
@@ -71,7 +74,8 @@ export const contentSetId = 'core';
  * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102); 16
  * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
  * (DL-125 items 3 and 5, DL-130). v1.1.2-S4's two pictures in `portraits.json` and their rows in
- * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131).
+ * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131); so does
+ * v1.1.2-S5's `descriptions.json`, for the same reason (DL-132).
  */
 export const contentVersion = 16;
 
@@ -94,6 +98,7 @@ export const contentFiles = [
   'loot-tables.json',
   'portraits.json',
   'portrait-appearances.json',
+  'descriptions.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -250,6 +255,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
     })),
     portraits: portraits(json('portraits.json'), problems),
     portraitAppearances: portraitAppearances(json('portrait-appearances.json'), problems),
+    descriptions: descriptions(json('descriptions.json'), problems),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -398,6 +404,91 @@ function portraitAppearances(json: unknown, problems: string[]): PortraitAppeara
     })),
   };
   top.refuseUnknown('the Appearances mapped to pictures');
+  return result;
+}
+
+/**
+ * What a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6): the age
+ * bands, the pronouns by sex, the Birthplaces, the Appearance's phrases by sex, age band and slot, and
+ * the Biography's sentences by part. A field missing, unknown or of the wrong type is refused; which
+ * keys, bands and texts are allowed, and how long they may make a text, is `validateContent`'s rule.
+ */
+function descriptions(json: unknown, problems: string[]): Descriptions {
+  const file = 'descriptions.json';
+  const none = (): Record<Sex, Record<string, never>> => ({ female: {}, male: {} });
+  const empty: Descriptions = {
+    ageBands: [],
+    pronouns: none(),
+    birthplaces: [],
+    appearance: none(),
+    biography: { origins: {}, careers: {}, backgrounds: {}, traits: {}, closings: {} },
+  };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push(`${file}: must be an object of the age bands, pronouns, Birthplaces, Appearances and Biographies`);
+    return empty;
+  }
+  const top = new RowReader(file, [], json, problems);
+  const ageBands = top.children('ageBands').map((row): AgeBand => {
+    const band = { key: row.string('key'), from: row.integer('from') };
+    row.refuseUnknown('an age band');
+    return band;
+  });
+  /** Each key of the object at `reader`'s `field`, with `read`'s value of it. */
+  const byKey = <Value>(reader: RowReader, field: string, read: (child: RowReader, key: string) => Value): Record<string, Value> => {
+    const child = reader.child(field);
+    const result = Object.fromEntries(child.keys().map((key) => [key, read(child, key)]));
+    return result;
+  };
+  /** An object of lists of strings by key, such as the Biography's sentences by age band. */
+  const lists = (reader: RowReader, field: string): Record<string, string[]> => byKey(reader, field, (child, key) => child.strings(key));
+
+  const pronouns = top.child('pronouns');
+  const appearance = top.child('appearance');
+  const result: Descriptions = {
+    ageBands,
+    pronouns: Object.fromEntries(
+      (Object.keys(sexChoices) as Sex[]).map((sex) => {
+        const words = pronouns.child(sex);
+        return [sex, Object.fromEntries(words.keys().map((slot) => [slot, words.string(slot)]))];
+      }),
+    ) as Descriptions['pronouns'],
+    birthplaces: top.strings('birthplaces'),
+    appearance: Object.fromEntries(
+      (Object.keys(sexChoices) as Sex[]).map((sex) => [
+        sex,
+        byKey(appearance, sex, (bands, band): AppearancePhrases => {
+          const row = bands.child(band);
+          const phrases: AppearancePhrases = {
+            build: row.strings('build'),
+            face: row.strings('face'),
+            hair: row.strings('hair'),
+            eyes: row.strings('eyes'),
+            mark: row.strings('mark'),
+            bearing: row.strings('bearing'),
+          };
+          const facialHair = row.optional('facialHair', (field) => row.strings(field));
+          row.refuseUnknown("an age band's Appearance phrases");
+          return facialHair === undefined ? phrases : { ...phrases, facialHair };
+        }),
+      ]),
+    ) as Descriptions['appearance'],
+    biography: (() => {
+      const biography = top.child('biography');
+      const sentences = {
+        origins: lists(biography, 'origins'),
+        careers: lists(biography, 'careers'),
+        backgrounds: lists(biography, 'backgrounds'),
+        traits: lists(biography, 'traits'),
+        closings: lists(biography, 'closings'),
+      };
+      biography.refuseUnknown("the Biography's sentences");
+      return sentences;
+    })(),
+  };
+  pronouns.refuseUnknown('the pronouns by sex');
+  appearance.refuseUnknown('the Appearances by sex');
+  top.refuseUnknown('the descriptions');
   return result;
 }
 
@@ -705,6 +796,13 @@ class RowReader {
       else this.problems.push(`${this.file}: ${where.join('.')} is ${JSON.stringify(item)}; expected an object`);
     });
     return readers;
+  }
+
+  /** Every field of the row, each then counted as read: for an object keyed by content, such as age bands. */
+  keys(): string[] {
+    const keys = Object.keys(this.raw);
+    for (const key of keys) this.read.add(key);
+    return keys;
   }
 
   /** Record a problem for every field of the row that nothing read. */

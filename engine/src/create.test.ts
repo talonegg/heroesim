@@ -393,7 +393,7 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     return guildmaster;
   };
 
-  test("gives the player's Guildmaster the sex, age, Traits and descriptive Attributes chosen, trimmed; a Rival's are empty", () => {
+  test("gives the player's Guildmaster the sex, age, Traits and descriptive Attributes chosen, trimmed; a Rival's are written", () => {
     const { document } = createWorld(
       'chosen',
       {
@@ -419,7 +419,8 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
       retiredOnTurn: null,
     });
     for (const rival of rivals(document)) {
-      expect(document.world.guildmasters[rival.guildmasterId]).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+      const { birthplace, appearance, biography } = document.world.guildmasters[rival.guildmasterId] ?? {};
+      expect([birthplace, appearance, biography].every((text) => text !== undefined && text !== '')).toBe(true);
     }
   });
 
@@ -428,8 +429,9 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
     const none = createWorld('unset', { ...setup, guildmasterTraitKeys: [] }, deps).document;
 
     expect(guildmasterOf(none).traits).toEqual([]);
-    expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits }).toEqual(guildmasterOf(drawn));
-    expect(guildmasterOf(drawn)).toMatchObject({ birthplace: '', appearance: '', biography: '' });
+    // The Biography gives the Traits held a sentence each (v1.1.2-S5).
+    expect({ ...guildmasterOf(none), traits: guildmasterOf(drawn).traits, biography: guildmasterOf(drawn).biography }).toEqual(guildmasterOf(drawn));
+    expect(guildmasterOf(drawn).birthplace).not.toBe('');
   });
 
   test("the player's choices move no draw: the world is the one drawn without them, but for their Guildmaster", () => {
@@ -445,8 +447,11 @@ describe("createWorld with the Guildmaster's setup (M9-S2)", () => {
         sex: was.sex,
         ageAtEntry: was.ageAtEntry,
         traits: was.traits,
-        biography: '',
         portraitKey: was.portraitKey,
+        // Written for the Guildmaster they are (v1.1.2-S5), by the same draws of `descriptions`.
+        birthplace: was.birthplace,
+        appearance: was.appearance,
+        biography: was.biography,
       });
 
       expect(chosen).toEqual(drawn);
@@ -492,6 +497,8 @@ describe("seeded worlds' drawn Guildmaster Traits, a whole legal set (DL-109 ite
       const unpriced = createWorld(seed, setup, free).document;
       for (const guildmaster of Object.values(unpriced.world.guildmasters)) {
         guildmaster.traits = priced.world.guildmasters[guildmaster.id]?.traits ?? [];
+        // A Biography gives the Traits held a sentence each (v1.1.2-S5).
+        guildmaster.biography = priced.world.guildmasters[guildmaster.id]?.biography ?? '';
       }
       expect(unpriced, seed).toEqual(priced);
     }
@@ -511,7 +518,8 @@ describe("the founders' ages, 21 to 50, over 1,000 worlds (M9-F1)", () => {
       for (const guildmaster of Object.values(world.guildmasters)) {
         ages.add(guildmaster.ageAtEntry);
         const old = was.guildmasters[guildmaster.id];
-        if (old !== undefined) old.ageAtEntry = guildmaster.ageAtEntry;
+        // The age's band chooses the Appearance's and Biography's words (v1.1.2-S5).
+        if (old !== undefined) Object.assign(old, { ageAtEntry: guildmaster.ageAtEntry, appearance: guildmaster.appearance, biography: guildmaster.biography });
       }
       expect(was, seed).toEqual(world);
     }
@@ -607,7 +615,8 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
 
       expect(Object.keys(drawn.world.rng)).toContain('portraits');
       for (const other of [chosen, bare]) {
-        Object.assign(guildmasterOf(other), { sex: was.sex, portraitKey: was.portraitKey });
+        // A mapped picture's narrative is the Appearance, and the sex chooses the words (v1.1.2-S5).
+        Object.assign(guildmasterOf(other), { sex: was.sex, portraitKey: was.portraitKey, appearance: was.appearance, biography: was.biography });
         expect({ ...other, meta: drawn.meta }).toEqual(drawn);
       }
     }

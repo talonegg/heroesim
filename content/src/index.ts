@@ -12,4 +12,14 @@ export {
   parseContent,
   type ContentFileName,
 } from './parse.js';
-export { ContentError, demandSumTolerance, growthSumTolerance, validateContent } from './validate.js';
+export {
+  biographyTraitSentences,
+  ContentError,
+  demandSumTolerance,
+  descriptionBounds,
+  growthSumTolerance,
+  keywordWordMaxLength,
+  longestDescriptions,
+  validateContent,
+  type LongestDescriptions,
+} from './validate.js';

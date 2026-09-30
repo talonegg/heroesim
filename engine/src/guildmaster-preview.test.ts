@@ -4,7 +4,7 @@ import { makeId, type Guild, type Guildmaster, type WorldDocument } from './docu
 import { testDeps, withoutPortraits } from './world.test-support.js';
 
 // The preview of the player's Guildmaster (v1.1.2-S4, DL-125 item 6): the sex, age, Traits and
-// Portrait "Start the game" makes, from the same function `createWorld` calls, so the two cannot
+// Portrait "Start the game" makes, and the Guild's Background (v1.1.2-S5), from the same function `createWorld` calls, so the two cannot
 // disagree. Proved over many seeds and every way of choosing, since a preview that drifted from the
 // world would name a Guildmaster the player never gets.
 
@@ -20,8 +20,10 @@ function guildmasterOf(document: WorldDocument): Guildmaster {
 
 /** What `createWorld` made of the Guildmaster, in the preview's shape. */
 function made(seed: string, setup: WorldSetup, withDeps = deps) {
-  const guildmaster = guildmasterOf(createWorld(seed, setup, withDeps).document);
-  return { sex: guildmaster.sex, age: guildmaster.ageAtEntry, traitKeys: guildmaster.traits, portraitKey: guildmaster.portraitKey };
+  const { document } = createWorld(seed, setup, withDeps);
+  const guildmaster = guildmasterOf(document);
+  const backgroundKey = (document.world.guilds[playerId] as Guild).backgroundKey;
+  return { sex: guildmaster.sex, age: guildmaster.ageAtEntry, traitKeys: guildmaster.traits, portraitKey: guildmaster.portraitKey, backgroundKey };
 }
 
 const seeds = Array.from({ length: 120 }, (_, n) => `preview-${n}`);

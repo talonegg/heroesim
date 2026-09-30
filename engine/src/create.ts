@@ -14,6 +14,7 @@ import {
   type Sex,
   type WorldDocument,
 } from './document.js';
+import { describeBlanks } from './descriptions.js';
 import type { EngineEvent, WorldCreated } from './events.js';
 import { dealEvenly, sexes, sortedKeys, streamOf } from './generators/draw.js';
 import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } from './generators/guilds.js';
@@ -29,8 +30,9 @@ import { createStreams, streamNames } from './rng.js';
 
 /**
  * What the player chooses before a game begins. Whatever of the Guildmaster is left unset is drawn
- * as a Rival's Guildmaster is (R8, DL-88 item 3, DL-100 item 3); `setupRefusal` says whether the
- * choices keep the rules.
+ * as a Rival's Guildmaster is (R8, DL-88 item 3, DL-100 item 3), and their descriptive Attributes
+ * left blank are written from content (v1.1.2-S5); `setupRefusal` says whether the choices keep the
+ * rules.
  */
 export interface WorldSetup {
   guildmasterName: string;
@@ -55,7 +57,8 @@ export interface WorldSetup {
   guildmasterTraitKeys?: readonly TraitKey[];
   /**
    * The descriptive Attributes (DL-100 item 3), stored trimmed, each at most
-   * `descriptiveAttributeMaxLength` characters once trimmed; none when omitted or blank.
+   * `descriptiveAttributeMaxLength` characters once trimmed; written from content when omitted or
+   * blank, as every Guildmaster's are (v1.1.2-S5, DL-125 item 6).
    */
   guildmasterBirthplace?: string;
   guildmasterAppearance?: string;
@@ -176,8 +179,9 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
 /**
  * A new world's document with the player's Guild in it, the first thing `createWorld` makes
  * (DL-19 item 9): `meta`, one stream per core stream name, then the player's Guild and Guildmaster
- * with what the setup chose of them and the rest drawn from `generation`, and their Portrait, chosen
- * or drawn from `portraits`, a stream of its own (v1.1.2-S3). `createWorld` goes on from here, and
+ * with what the setup chose of them and the rest drawn from `generation`, their Portrait, chosen
+ * or drawn from `portraits`, a stream of its own (v1.1.2-S3), and each descriptive Attribute left
+ * blank written on `descriptions`, another (v1.1.2-S5). `createWorld` goes on from here, and
  * `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree (v1.1.2-S4, DL-125
  * item 6). The setup has been checked by `setupRefusal`.
  */
@@ -204,6 +208,8 @@ function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document:
     name: setup.guildName,
     guildmasterName: setup.guildmasterName,
     ...(setup.backgroundKey === undefined ? {} : { backgroundKey: setup.backgroundKey }),
+    // Written below, once the Portrait is drawn, since a mapped picture's narrative is the Appearance.
+    describe: false,
     guildmaster: {
       ...(sex === undefined ? {} : { sex }),
       ...(setup.guildmasterAge === undefined ? {} : { age: setup.guildmasterAge }),
@@ -216,6 +222,9 @@ function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document:
   // The player's Portrait, from its own stream (ADR-0009), so no draw of `generation` moves; a Rival's
   // Guildmaster has none (DL-125 item 4).
   player.guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, player.guildmaster.sex, portraitKey);
+  // Each descriptive Attribute left blank, from `descriptions`, a stream of its own (v1.1.2-S5): the
+  // first Guildmaster it describes, so `describeGuildmaster` with `n` 0 writes the same.
+  describeBlanks(world, deps, player.guildmaster, player.guild.backgroundKey);
   return { document, player };
 }
 
@@ -228,6 +237,8 @@ export interface GuildmasterPreview {
   traitKeys: TraitKey[];
   /** A Guildmaster picture of `sex`, or `null`, the Silhouette, when the sex has none. */
   portraitKey: PortraitKey | null;
+  /** The player's Guild's Background, chosen or drawn: a Biography has a sentence for it (v1.1.2-S5). */
+  backgroundKey: BackgroundKey;
 }
 
 /** Stand-ins for names a front end may not have yet: a name given is never drawn, so it moves nothing. */
@@ -235,7 +246,8 @@ const previewNames = { guildName: 'Guild', guildmasterName: 'Guildmaster' } as c
 
 /**
  * The player's Guildmaster that `createWorld(seed, setup, deps)` would make: the sex, age, Traits
- * and Portrait, chosen or drawn (v1.1.2-S4, DL-125 item 6), for a front end to show before "Start the
+ * and Portrait, chosen or drawn (v1.1.2-S4, DL-125 item 6), and their Guild's Background, which
+ * `describeGuildmaster` writes for (v1.1.2-S5), for a front end to show before "Start the
  * game". It makes the world's beginning by the function `createWorld` makes it with (`founded`) and
  * reads the Guildmaster off it, so the two cannot disagree. Neither name is read: the player names
  * their Guild and Guildmaster, so neither is drawn, and the preview shows before they are typed.
@@ -245,8 +257,14 @@ const previewNames = { guildName: 'Guild', guildmasterName: 'Guildmaster' } as c
 export function previewGuildmaster(setup: WorldSetup, seed: string, deps: Pick<EngineDeps, 'config' | 'content'>): GuildmasterPreview | null {
   const named = { ...setup, ...previewNames };
   if (setupRefusal(named, deps) !== null) return null;
-  const { guildmaster } = founded(seed, named, { config: deps.config, content: deps.content }).player;
-  return { sex: guildmaster.sex, age: guildmaster.ageAtEntry, traitKeys: [...guildmaster.traits], portraitKey: guildmaster.portraitKey };
+  const { guild, guildmaster } = founded(seed, named, { config: deps.config, content: deps.content }).player;
+  return {
+    sex: guildmaster.sex,
+    age: guildmaster.ageAtEntry,
+    traitKeys: [...guildmaster.traits],
+    portraitKey: guildmaster.portraitKey,
+    backgroundKey: guild.backgroundKey,
+  };
 }
 
 export interface CreatedWorld {
@@ -259,8 +277,9 @@ export interface CreatedWorld {
  * Creates a world from `seed` and the player's `setup`, under `deps.config` and `deps.content`
  * (DL-19 item 9): `meta`, one stream per core stream name, the player's Guild first (so it is
  * `guild-000001`), its Guildmaster with what the setup chose of them and the rest drawn, every
- * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102), and their
- * Portrait, chosen or drawn from `portraits`, a stream of its own (v1.1.2-S3); then
+ * draw made whatever was chosen, so a choice moves no later draw (M9-S2, DL-102), their
+ * Portrait, chosen or drawn from `portraits`, a stream of its own (v1.1.2-S3), and their descriptive
+ * Attributes left blank written from `descriptions`, another (v1.1.2-S5), as every Rival's are; then
  * `rivalCount` Rival Guilds, `patronCount` Patrons with their Spheres dealt
  * evenly, and `unattachedPoolSize` Unattached Heroes, every draw from `generation`; then the
  * morning's Board refresh, drawing `boardSize` Quests from `board` (DL-25), and its Market

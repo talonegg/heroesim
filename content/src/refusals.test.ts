@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type {
   Background,
   Class,
+  Descriptions,
   Disposition,
   Encounter,
   InjuryType,
@@ -18,7 +19,7 @@ import type {
   Trait,
 } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { ContentError, contentFiles, parseContent, validateContent } from './index.js';
+import { ContentError, contentFiles, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // Each refusal of the content schema (M1-S4), triggered by a fixture made from the real files
@@ -45,6 +46,7 @@ interface Files {
   'loot-tables.json': Rows<LootTable>;
   'portraits.json': Portraits;
   'portrait-appearances.json': PortraitAppearances;
+  'descriptions.json': Descriptions;
 }
 
 function realFiles(): Record<string, string> {
@@ -320,6 +322,183 @@ describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)'
     expect(message).toContain('portrait-appearances.json: portraits.gm-male-01.dress is not a field of');
     expect(message).toContain('portrait-appearances.json: portraits.gm-female-01 must be an object');
     expect(message).toContain('portrait-appearances.json: colours is not a field of the Appearances mapped to pictures');
+  });
+});
+
+// v1.1.2-S5: DL-126 item 2's checks as DL-127 items 3 and 4 give them.
+describe("the Appearances mapped to pictures, checked in full (v1.1.2-S5, DL-127 items 3 and 4)", () => {
+  test("are refused with a keyword undefined or listed twice, facialHair on a female picture's, or a keyword's key not lower case and hyphens", () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      json.portraits['gm-male-01']?.keywords.push('grizzled', 'stern');
+      json.portraits['gm-female-01']?.keywords.push('bearded');
+      json.keywords['Scarred_Twice'] = { slot: 'mark', word: 'scarred twice' };
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('portraitAppearances.portraits.gm-male-01.keywords: "grizzled" is not a keyword defined under keywords');
+    expect(message).toContain('portraitAppearances.portraits.gm-male-01.keywords: "stern" is listed twice');
+    expect(message).toContain('portraitAppearances.portraits.gm-female-01.keywords: "bearded" is facialHair, which only a male picture\'s may use');
+    expect(message).toContain('portraitAppearances.keywords: "Scarred_Twice" is not lower case and hyphens');
+  });
+
+  test("are refused with a keyword's word past 24 characters or blank, and a narrative past 280 or empty", () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      json.keywords['stern'] = { slot: 'bearing', word: 'stern beyond all measuring' };
+      json.keywords['composed'] = { slot: 'bearing', word: ' ' };
+      const male = json.portraits['gm-male-01'];
+      if (male !== undefined) male.narrative = `${'A face. '.repeat(35)}A face.`;
+      const female = json.portraits['gm-female-01'];
+      if (female !== undefined) female.narrative = '  ';
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('portraitAppearances.keywords.stern.word is 26 characters; it holds at most 24');
+    expect(message).toContain('portraitAppearances.keywords.composed.word is " "; it is a word, trimmed');
+    expect(message).toContain('portraitAppearances.portraits.gm-male-01.narrative is 287 characters; an Appearance holds at most 280');
+    expect(message).toContain('portraitAppearances.portraits.gm-female-01.narrative is empty');
+  });
+
+  test('accept a narrative of exactly 280 characters and a word of exactly 24, and a keyword no picture uses', () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      json.keywords['long-word'] = { slot: 'face', word: 'x'.repeat(24) };
+      const male = json.portraits['gm-male-01'];
+      if (male !== undefined) male.narrative = `A${'x'.repeat(278)}.`;
+    });
+    expect([...(parseContent(files).portraitAppearances.portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(280);
+  });
+});
+
+describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
+  test('are required as a file', () => {
+    const files = realFiles();
+    delete files['descriptions.json'];
+    expect(refusalOf(() => parseContent(files)).message).toContain('descriptions.json: missing');
+  });
+
+  test('are refused with a field missing, unknown or of the wrong type, each named', () => {
+    const files = withJson('descriptions.json', (json) => {
+      const young = json.appearance.female['young'] as unknown as Record<string, unknown>;
+      delete young['eyes'];
+      young['dress'] = ['A plain dress.'];
+      (json.biography as unknown as Record<string, unknown>)['endings'] = {};
+      (json as unknown as Record<string, unknown>)['birthplaces'] = 'Saltcote';
+      (json.ageBands[0] as unknown as Record<string, unknown>)['from'] = 'birth';
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('descriptions.json: appearance.female.young.eyes is missing');
+    expect(message).toContain("descriptions.json: appearance.female.young.dress is not a field of an age band's Appearance phrases");
+    expect(message).toContain("descriptions.json: biography.endings is not a field of the Biography's sentences");
+    expect(message).toContain('descriptions.json: birthplaces is "Saltcote"; expected a list of strings');
+    expect(message).toContain('descriptions.json: ageBands.0.from is "birth"; expected a whole number');
+  });
+
+  test('are refused with age bands that leave an age without one, go backwards, or are missing from a part', () => {
+    const files = withJson('descriptions.json', (json) => {
+      json.ageBands = [
+        { key: 'young', from: 18 },
+        { key: 'Middle', from: 41 },
+        { key: 'older', from: 41 },
+      ];
+      delete json.biography.closings['older'];
+      json.biography.origins['ancient'] = ['{He} is ancient.'];
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('descriptions.ageBands.0.from is 18; the first band is from 0, so every age has one');
+    expect(message).toContain('descriptions.ageBands.1.key "Middle" is not lower case and hyphens');
+    expect(message).toContain('descriptions.ageBands.2.from is 41; each band begins after the one before, from 41');
+    expect(message).toContain('descriptions.biography.closings: the age band "older" is missing');
+    expect(message).toContain('descriptions.biography.origins: "ancient" is not an age band');
+    expect(message).toContain('descriptions.appearance.female: "middle" is not an age band');
+  });
+
+  test("are refused with facialHair on a female's, a male's missing, a slot empty, or a phrase that is no sentence or has a slot", () => {
+    const files = withJson('descriptions.json', (json) => {
+      const female = json.appearance.female['young'];
+      if (female !== undefined) female.facialHair = ['A beard.'];
+      const male = json.appearance.male['older'];
+      if (male !== undefined) {
+        delete male.facialHair;
+        male.mark = [];
+        male.bearing = ['he moves slowly.', 'He moves slowly', '{He} moves slowly.'];
+      }
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain("descriptions.appearance.female.young.facialHair: facialHair is a male's only");
+    expect(message).toContain('descriptions.appearance.male.older.facialHair is missing');
+    expect(message).toContain('descriptions.appearance.male.older.mark is empty');
+    expect(message).toContain('descriptions.appearance.male.older.bearing.0 is no sentence');
+    expect(message).toContain('descriptions.appearance.male.older.bearing.1 is no sentence');
+    expect(message).toContain('descriptions.appearance.male.older.bearing.2 has a brace that is no slot: an Appearance has no slot');
+  });
+
+  test("are refused with a Biography's key that is no Guild Background or Guildmaster Trait, a slot unknown, or pronouns that differ by sex", () => {
+    const files = withJson('descriptions.json', (json) => {
+      json.biography.backgrounds['farm-born'] = ['{He} grew up on a farm.'];
+      json.biography.traits['scarred'] = ['{He} is scarred.'];
+      json.biography.careers['young']?.push('{He} served {guild} well.', '{she} was a clerk.');
+      json.pronouns.female['hers'] = 'hers';
+      json.pronouns.male['birthplace'] = 'here';
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('descriptions.biography.backgrounds: "farm-born" is not a Guild Background');
+    expect(message).toContain('descriptions.biography.traits: "scarred" is not a Guildmaster Trait');
+    expect(message).toMatch(/descriptions\.biography\.careers\.young\.5: \{guild\} is not a slot; the slots are \{birthplace\}, \{he\}/);
+    expect(message).toMatch(/descriptions\.biography\.careers\.young\.6: \{she\} is not a slot/);
+    expect(message).toContain('descriptions.pronouns: every sex has the same slots');
+    expect(message).toContain('descriptions.pronouns.male.birthplace: a pronoun\'s slot is a word of letters, and not "birthplace"');
+  });
+
+  test('are refused with a Birthplace past 60 characters, blank or in lower case, or listed twice', () => {
+    const files = withJson('descriptions.json', (json) => {
+      json.birthplaces.push(`Saltcote${', by the sea'.repeat(5)}`, 'the Crane Marshes', ' ', "Hob's Ferry");
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toMatch(/descriptions\.birthplaces\.35 is 68 characters; a Birthplace holds at most 60/);
+    expect(message).toContain('descriptions.birthplaces.36 is "the Crane Marshes"; it is a place\'s name, trimmed, beginning with a capital');
+    expect(message).toContain('descriptions.birthplaces.37 is " "');
+    expect(message).toContain('descriptions.birthplaces: "Hob\'s Ferry" is listed twice');
+  });
+
+  test('are refused when the longest combination passes 280 or 1,000 characters, though every phrase and sentence is short', () => {
+    const files = withJson('descriptions.json', (json) => {
+      // Each phrase is well under the bound, but the longest of each slot together passes 280.
+      const male = json.appearance.male['middle'];
+      if (male !== undefined) male.build.push(`Big${' and broad'.repeat(7)}.`);
+      // And a long Background, two long Traits and the longest parts pass 1,000 together.
+      const long = (start: string) => `${start}${' and on and on'.repeat(14)}.`;
+      json.biography.backgrounds['inherited']?.push(long('{He} inherited it'));
+      json.biography.traits['thrifty']?.push(long('{He} saves'));
+      json.biography.traits['miser']?.push(long('{He} hoards'));
+      json.biography.origins['older']?.push(long('{He} was born in {birthplace}'));
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toMatch(/descriptions\.appearance: the longest Appearance it can write is 301 characters; it holds at most 280/);
+    expect(message).toMatch(/descriptions\.biography: the longest Biography it can write is 1\d{3} characters; it holds at most 1000/);
+  });
+
+  test("measure what the engine writes: a Birthplace's slot as long as the bound, the longer sex's pronouns, and only two Traits", () => {
+    const set = loadContent();
+    const tiny = {
+      ...set,
+      descriptions: {
+        ...set.descriptions,
+        biography: {
+          origins: { young: ['{He} was born in {birthplace}.'], middle: ['M.'], older: ['O.'] },
+          careers: { young: ['C.'], middle: ['C.'], older: ['C.'] },
+          backgrounds: {},
+          traits: { thrifty: ['Tt.'], miser: ['Mmm.'], spendthrift: ['S.'] },
+          closings: { young: ['E.'], middle: ['E.'], older: ['E.'] },
+        },
+      },
+    };
+    // "She was born in " 16 + 60 + "." 1 = 77; then "C." "Mmm." "Tt." "E." and four spaces.
+    expect(longestDescriptions(tiny).biography).toBe(77 + 2 + 4 + 3 + 2 + 4);
   });
 });
 

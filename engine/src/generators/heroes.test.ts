@@ -136,7 +136,7 @@ describe('generateHero', () => {
     heroes(world, deps, 1000);
 
     const others = plannedStreams.filter((name) => name !== 'generation');
-    expect(others).toHaveLength(9);
+    expect(others).toHaveLength(10);
     for (const name of others) {
       expect((world.rng as Record<string, unknown>)[name], name).toEqual(
         (before as Record<string, unknown>)[name],

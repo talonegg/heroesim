@@ -197,6 +197,23 @@ describe('new', () => {
     expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.traits).toEqual([]);
   });
 
+  test('writes each descriptive Attribute left blank as the engine does, with no flag, and keeps one given (v1.1.2-S5)', () => {
+    expect(newDemo('--birthplace', 'Harrowgate').code).toBe(exitCodes.ok);
+    const expected = createWorld(
+      'demo',
+      { guildName: 'The Test', guildmasterName: 'Ada', guildmasterBirthplace: 'Harrowgate', createdAt: clock.toISOString() },
+      { config: defaultConfig, content },
+    ).document;
+    expect(saved()).toBe(serialise(expected));
+    const written = guildmasterOf(document().world.guilds[playerId] as Guild, document().world);
+    expect(written?.birthplace).toBe('Harrowgate');
+    expect(written?.appearance).not.toBe('');
+    expect(written?.biography).toContain('Harrowgate');
+
+    const lines = play(['show', 'guildmaster']).out.split('\n');
+    for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(lines.some((line) => line.startsWith(label)), label).toBe(true);
+  });
+
   test.each<[string, string[], string]>([
     ['an age below the range', ['--age', '20'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 20 is not.'],
     ['an age above the range', ['--age', '51'], 'A Guildmaster starts aged 21 to 50, in whole years; --age 51 is not.'],
@@ -1467,8 +1484,13 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
 
   test('show guildmaster prints the descriptive Attributes written, after the sex and age, and none left empty (M9-S2)', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
+    // Every Guildmaster's are written as they enter play since v1.1.2-S5: an older save may hold one empty.
     edit((edited) => {
-      Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { birthplace: 'Harrowgate', biography: 'Once a quartermaster of the river levies.' });
+      Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, {
+        birthplace: 'Harrowgate',
+        appearance: '',
+        biography: 'Once a quartermaster of the river levies.',
+      });
     });
 
     const mine = play(['show', 'guildmaster']).out.split('\n');
@@ -1478,7 +1500,8 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(mine[age + 1]).toMatch(/^Birthplace\s+Harrowgate$/);
     expect(mine[age + 2]).toMatch(/^Biography\s+Once a quartermaster of the river levies\.$/);
     expect(mine.some((line) => line.startsWith('Appearance'))).toBe(false);
-    for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).not.toContain(label);
+    // A Rival's Guildmaster is described as they enter play (v1.1.2-S5).
+    for (const label of ['Birthplace', 'Appearance', 'Biography']) expect(theirs).toMatch(new RegExp(`^${label}\\s+\\S`, 'm'));
   });
 
   test("show guildmaster names the Portrait's key after the sex, or the Silhouette where there is none (v1.1.2-S3)", () => {

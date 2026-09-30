@@ -20,6 +20,7 @@ import {
   type Turn,
   type World,
 } from '../document.js';
+import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
 import { int, pick } from '../rng.js';
@@ -64,12 +65,19 @@ export interface GuildOptions extends DrawsFrom {
    * `createWorld` has checked it with `setupRefusal`; this trusts it.
    */
   guildmaster?: GuildmasterChoices;
+  /**
+   * Whether the Guildmaster's blank descriptive Attributes are written as they enter play, from the
+   * stream `descriptions` (v1.1.2-S5, DL-125 item 6): by default, as every Rival's are. `false` leaves
+   * them to the caller, as `createWorld` writes the player's once their Portrait is drawn.
+   */
+  describe?: boolean;
 }
 
 /**
  * A Guildmaster's setup, each part optional (M9-S2): what is given replaces what is drawn, and the
  * draws are made either way, so a choice moves no later draw. The descriptive Attributes are
- * stored as given, trimmed by the caller; a drawn Guildmaster's are empty.
+ * stored as given, trimmed by the caller; each left blank is written from content as the Guildmaster
+ * enters play (`describeBlanks`, v1.1.2-S5).
  */
 export interface GuildmasterChoices {
   sex?: Sex;
@@ -150,6 +158,8 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   };
   world.guilds[guildId] = guild;
   world.guildmasters[guildmasterId] = guildmaster;
+  // From its own stream (ADR-0009), so no draw of `options.stream` moves (v1.1.2-S5).
+  if (options.describe !== false) describeBlanks(world, deps, guildmaster, backgroundKey);
 
   const labels: Record<EntityId, string> = {};
   labels[guildId] = guild.name;
@@ -225,7 +235,9 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
  * A successor to `guild`'s Guildmaster (M9-S2, DL-100 item 3): a Guildmaster drawn as a founding
  * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
  * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
- * neutral for everyone, their descriptive Attributes empty, and they enter the world now. The row
+ * neutral for everyone, their descriptive Attributes written from content on the stream
+ * `descriptions` for the Guild's Background (`describeBlanks`, v1.1.2-S5), and they enter the world
+ * now. The row
  * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
  * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
  *
@@ -243,6 +255,7 @@ export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, 
     chosen: {},
   });
   world.guildmasters[successor.id] = successor;
+  describeBlanks(world, deps, successor, guild.backgroundKey);
   return successor;
 }
 
