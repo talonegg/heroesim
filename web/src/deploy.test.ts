@@ -9,7 +9,7 @@ import {
   addresses,
   deploy,
   pagesProject,
-  releaseBranch,
+  productionBranch,
   workerConfig,
   wranglerCommands,
   type DeployOptions,
@@ -117,16 +117,17 @@ describe('the deploy command', () => {
       worker: ['-y', 'wrangler@4', 'deploy', '--config', 'wrangler.jsonc', '--tag', 'v1.0.1', '--message', `v1.0.1 at commit ${sha}`],
       // `--branch` is written out, never inferred from git: a deploy for any other branch would be
       // a preview that never reaches https://heroesims.pages.dev (v1's DL-30 item 3).
-      pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'v1.1-release'],
+      pages: ['-y', 'wrangler@4', 'pages', 'deploy', 'dist', '--project-name', 'heroesims', '--branch', 'main'],
     });
-    expect([pagesProject, workerConfig, releaseBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'v1.1-release']);
+    expect([pagesProject, workerConfig, productionBranch]).toEqual(['heroesims', 'wrangler.jsonc', 'main']);
   });
 
-  test('writes the release branch once, as one constant: v1.1-release since v1.1.0 (#37, DL-123)', () => {
+  test('writes the production branch once, as one constant: main, whatever the release line (DL-124)', () => {
     const source = readText('web/scripts/deploy.mjs');
 
-    expect(source.split("'v1.1-release'")).toHaveLength(2);
-    expect(source).toContain("export const releaseBranch = 'v1.1-release';");
+    expect(source.split("'main'")).toHaveLength(2);
+    expect(source).toContain("export const productionBranch = 'main';");
+    expect(source).not.toMatch(/'v\d+\.\d+-release'/);
   });
 });
 
@@ -281,9 +282,9 @@ function recordEntries(pages: boolean, checkout: Checkout): object[] {
         pages_project: 'heroesims',
         deployment_id: 'd-1',
         url,
-        alias: 'https://v1-1-release.heroesims.pages.dev',
+        alias: 'https://main.heroesims.pages.dev',
         environment: checkout.environment ?? 'production',
-        production_branch: 'v1.1-release',
+        production_branch: 'main',
         deployment_trigger: { metadata: { commit_hash: checkout.pagesCommit ?? commit } },
       },
     ];
@@ -539,14 +540,19 @@ describe('the deploy', () => {
     ]);
   });
 
-  test("hands npm and wrangler the deploy's own environment: the login's profile, PATH and an account id (v1.0.1-S6, DL-97)", () => {
+  test("hands wrangler the deploy's own environment, the login's profile, PATH and an account id, and the build the same less any Cloudflare credential (v1.0.1-S6, DL-97; DL-124)", () => {
     // Assembled, so that the credential scan below stays quiet.
     const account = ['CLOUDFLARE', 'ACCOUNT', 'ID'].join('_');
-    const env = { PATH: '/usr/bin', HOME: '/home/someone', USERPROFILE: 'C:\\Users\\someone', [account]: 'the-account' };
+    const token = ['CLOUDFLARE', 'API', 'TOKEN'].join('_');
+    const plain = { PATH: '/usr/bin', HOME: '/home/someone', USERPROFILE: 'C:\\Users\\someone' };
+    const env = { ...plain, [account]: 'the-account', [token]: 'the-token' };
     const { builds, wrangler } = run({}, { env });
 
     expect(wrangler).toHaveLength(2);
-    for (const call of [...builds, ...wrangler]) expect(call.options.env).toMatchObject(env);
+    for (const call of wrangler) expect(call.options.env).toMatchObject(env);
+    // The build runs third-party code, and is handed no Cloudflare credential (DL-124).
+    expect(builds).toHaveLength(1);
+    expect(builds[0]?.options.env).toEqual(plain);
   });
 
   test('runs npm and npx from npm_execpath when npm runs it, and from beside Node when node does', () => {
@@ -590,9 +596,11 @@ describe('the deploy', () => {
     expect(output).toContain(`commit          ${commit}`);
     expect(output).not.toContain('Pages           wrangler');
     expect(output).not.toContain('WARNING');
-    // And the address warning, when the Worker went live somewhere else.
-    expect(run({ pages: 7, targets: ['https://heroesim.someone-else.workers.dev'] }).output).toContain(
-      `WARNING: the Worker is served at https://heroesim.someone-else.workers.dev, not at ${addresses.worker}`,
+    // And the address failure, when the Worker went live somewhere else: Pages's status still stands.
+    const elsewhere = run({ pages: 7, targets: ['https://heroesim.someone-else.workers.dev'] });
+    expect(elsewhere.status).toBe(7);
+    expect(elsewhere.output).toContain(
+      `FAILED: the Worker is served at https://heroesim.someone-else.workers.dev, not at ${addresses.worker}`,
     );
   });
 
@@ -633,25 +641,64 @@ describe('the deploy', () => {
     expect(output).not.toContain('WARNING');
   });
 
-  test("warns loudly, naming the override, when the Worker is not at the live check's address", () => {
+  test("fails loudly, naming the override, when the Worker is not at the live check's address (DL-124)", () => {
     const { status, output } = run({ targets: ['https://heroesim.someone-else.workers.dev'] });
 
-    expect(status).toBe(0);
+    expect(status).toBe(1);
     expect(output).toContain(
-      `WARNING: the Worker is served at https://heroesim.someone-else.workers.dev, not at ${addresses.worker}`,
+      `FAILED: the Worker is served at https://heroesim.someone-else.workers.dev, not at ${addresses.worker}`,
     );
     expect(output).toContain('HEROESIM_LIVE_URL');
   });
 
-  test('warns when Pages took the deploy as a preview or recorded another commit, or when wrangler wrote no record', () => {
-    expect(run({ environment: 'preview' }).output).toContain('WARNING: Pages took this deploy as preview, not production.');
-    expect(run({ pagesCommit: 'f'.repeat(40) }).output).toContain(`WARNING: Pages recorded commit ${'f'.repeat(40)}, not ${commit}.`);
-    expect(run({ pagesCommit: commit.slice(0, 7) }).output).not.toContain('WARNING');
+  test('fails when Pages took the deploy as a preview or recorded another commit (DL-124 item 5)', () => {
+    const preview = run({ environment: 'preview' });
+    expect(preview.status).toBe(1);
+    expect(preview.output).toContain(
+      `FAILED: Pages took this deploy as preview, not production: ${addresses.pages} still serves what it did. ` +
+        "Set the Pages project's production branch to main.",
+    );
 
+    const another = run({ pagesCommit: 'f'.repeat(40) });
+    expect(another.status).toBe(1);
+    expect(another.output).toContain(`FAILED: Pages recorded commit ${'f'.repeat(40)}, not ${commit}.`);
+
+    const abbreviated = run({ pagesCommit: commit.slice(0, 7) });
+    expect(abbreviated.status).toBe(0);
+    expect(abbreviated.output).not.toContain('FAILED');
+  });
+
+  test('only warns when wrangler wrote no record: the uploads succeeded', () => {
     const unrecorded = run({ records: false });
     expect(unrecorded.status).toBe(0);
     expect(unrecorded.output).toContain("WARNING: wrangler wrote no record of the Worker's deploy");
     expect(unrecorded.output).toContain('WARNING: wrangler wrote no record of the Pages deploy');
+    expect(unrecorded.output).not.toContain('FAILED');
+  });
+
+  test('writes the record to the file HEROESIM_DEPLOY_RECORD names, with what failed, for the run and the GitHub Release (DL-124 item 8)', () => {
+    const file = path.join(temporaryDir(), 'record.txt');
+
+    expect(run({}, { env: { HEROESIM_DEPLOY_RECORD: file } }).status).toBe(0);
+    const record = readFileSync(file, 'utf8');
+    expect(record).toContain('  tag             v1.0.1\n');
+    expect(record).toContain(`  commit          ${commit}\n`);
+    expect(record).toContain(`Worker          wrangler 4.142.0; version 11111111-2222-3333-4444-555555555555; at ${addresses.worker}`);
+    expect(record).toContain('Pages           wrangler 4.142.0; https://0a1b2c3d.heroesims.pages.dev; environment production');
+    expect(record).not.toContain('FAILED');
+
+    run({ environment: 'preview' }, { env: { HEROESIM_DEPLOY_RECORD: file } });
+    expect(readFileSync(file, 'utf8')).toContain('  FAILED: Pages took this deploy as preview, not production');
+
+    run({ pages: 7 }, { env: { HEROESIM_DEPLOY_RECORD: file } });
+    expect(readFileSync(file, 'utf8')).toContain('  Pages           failed after the Worker took the build');
+  });
+
+  test('writes no record file without HEROESIM_DEPLOY_RECORD, nor when refused', () => {
+    const file = path.join(temporaryDir(), 'record.txt');
+
+    run({ tags: '' }, { env: { HEROESIM_DEPLOY_RECORD: file } });
+    expect(existsSync(file)).toBe(false);
   });
 });
 
@@ -669,7 +716,7 @@ describe('the dry run', () => {
     expect(output).toContain(
       `npx -y wrangler@4 deploy --config wrangler.jsonc --tag v1.0.1 --message "v1.0.1 at commit ${commit}"`,
     );
-    expect(output).toContain('npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release');
+    expect(output).toContain('npx -y wrangler@4 pages deploy dist --project-name heroesims --branch main');
   });
 
   test.each(['', 'false'])('npm_config_dry_run=%j is no dry run', (value) => {
@@ -733,7 +780,7 @@ describe('the repository holds no deploy credential', () => {
     ['a secrets reference', 'CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}'],
     ['a placeholder', 'account_id = "<your account id>"'],
     ['the Worker command', `npx -y wrangler@4 deploy --config wrangler.jsonc --tag v1.0.1 --message "v1.0.1 at commit ${commit}"`],
-    ['the Pages command', 'npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release'],
+    ['the Pages command', 'npx -y wrangler@4 pages deploy dist --project-name heroesims --branch main'],
     ['a commit hash', `commit ${accountId}12345678`],
     ['a Guild name', 'The Company of the Lantern-Bearers of Aldmoor'],
   ])('the scan passes %s', (_kind, text) => {
@@ -762,57 +809,167 @@ describe('the repository holds no deploy credential', () => {
   });
 });
 
-// A release deploys from CI (DL-122): `.github/workflows/deploy.yml` deploys a pushed `v*` tag,
-// only one on the release branch, after the same checks as `check.yml`, with the credentials as
-// the `production` environment's secrets, and then reads both addresses live.
-describe('the deploy workflow (DL-122)', () => {
-  const workflow = readText('.github/workflows/deploy.yml').replace(/\r\n/g, '\n');
-  const steps = workflow.slice(workflow.indexOf('    steps:'));
-  const order = (text: string): number => {
-    const at = steps.indexOf(text);
+// A release deploys from CI (DL-122, DL-124). `main` is production: CI raises a release branch's
+// pull request to it (release-pr.yml); merging it tags the line's next patch and calls the deploy
+// (release.yml); the deploy refuses a tag not on `main` or older than the newest release, checks,
+// runs the browser specs, reads Pages's production branch, deploys and reads both addresses live,
+// then publishes the record (deploy.yml); and every day the watch reads production (watch.yml).
+// The Cloudflare credentials are the `production` environment's secrets, read only by the steps
+// that talk to Cloudflare.
+function workflowText(name: string): string {
+  return readText(`.github/workflows/${name}`).replace(/\r\n/g, '\n');
+}
+
+/** A job of a workflow, from its name to the next job's. */
+function jobOf(workflow: string, job: string): string {
+  const start = workflow.indexOf(`\n  ${job}:\n`);
+  expect(start, job).toBeGreaterThan(-1);
+  const next = workflow.slice(start + 1).search(/\n {2}[a-z-]+:\n/);
+  return next === -1 ? workflow.slice(start) : workflow.slice(start, start + 1 + next);
+}
+
+/** A job's steps, each as its text from `- ` to the next. */
+function stepsOf(job: string): string[] {
+  return job.split(/\n {6}- /).slice(1);
+}
+
+const secretReference = /\$\{\{ secrets\.[A-Z_]+ \}\}/g;
+const secretsIn = (text: string): string[] => text.match(secretReference) ?? [];
+
+describe('the deploy workflow (DL-122, DL-124)', () => {
+  const workflow = workflowText('deploy.yml');
+  const deployJob = jobOf(workflow, 'deploy');
+  const steps = stepsOf(deployJob);
+  const stepWith = (text: string): number => {
+    const at = steps.findIndex((step) => step.includes(text));
     expect(at, text).toBeGreaterThan(-1);
     return at;
   };
 
-  test('runs on a pushed v* tag, or by hand for a tag already pushed, and never on a branch', () => {
+  test('runs on a pushed v* tag, by hand for a tag already pushed, or called by release.yml, never on a branch', () => {
     expect(workflow).toMatch(/\non:\n {2}push:\n {4}tags:\n {6}- 'v\*'\n {2}workflow_dispatch:/);
+    expect(workflow).toMatch(/\n {2}workflow_call:\n {4}inputs:\n {6}tag:/);
+    expect(workflow).toMatch(/\n {6}allow_older:\n(?: {8}.*\n)* {8}type: boolean\n {8}default: false/);
     expect(workflow).not.toMatch(/\n {4}branches:/);
     expect(workflow).toContain("format('refs/tags/{0}', inputs.tag)");
     expect(workflow).toContain('fetch-depth: 0');
   });
 
-  test('refuses a tag whose commit is not on the branch the deploy names', () => {
-    expect(workflow).toContain("import { releaseBranch } from './web/scripts/deploy.mjs'");
-    expect(workflow).toContain('git merge-base --is-ancestor HEAD "origin/$branch"');
-    expect(releaseBranch).toBe('v1.1-release');
+  test('refuses a tag not on main, and one older than the newest release unless allow_older is ticked', () => {
+    const guard = steps[stepWith('The tag is the newest release, on main')] ?? '';
+
+    expect(guard).toContain("import { productionBranch } from './web/scripts/deploy.mjs'");
+    expect(guard).toContain('git merge-base --is-ancestor HEAD "origin/$branch"');
+    expect(guard).toContain('ALLOW_OLDER: ${{ inputs.allow_older == true }}');
+    expect(guard).toMatch(/if \[ "\$ALLOW_OLDER" = "true" \]; then\n[^\n]*rollback[^\n]*\n {10}else\n {12}node web\/scripts\/release\.mjs newest "\$tag"/);
+    expect(productionBranch).toBe('main');
   });
 
-  test('checks, then deploys with npm run deploy, then reads both addresses live, one run at a time', () => {
-    const guard = order('The tag is on the release branch');
-    const checks = [order('npm run lint'), order('npm run typecheck'), order('npm test')];
-    const deployed = order('run: npm run deploy');
-    const live = order('npm run e2e:live -w web');
+  test('checks, runs the browser specs, reads Pages, deploys, then reads both addresses live, one run at a time', () => {
+    const guard = stepWith('The tag is the newest release, on main');
+    const checks = [stepWith('npm run lint'), stepWith('npm run typecheck'), stepWith('npm test')];
+    const specs = stepWith('npm run e2e -w web');
+    const pages = stepWith('node web/scripts/cloudflare.mjs pages');
+    const deployed = stepWith('run: npm run deploy');
+    const live = stepWith('npm run e2e:live -w web');
 
-    expect(checks.every((at) => at > guard && at < deployed)).toBe(true);
+    expect(checks.every((at) => at > guard && at < specs)).toBe(true);
+    expect(specs).toBeLessThan(pages);
+    expect(pages).toBeLessThan(deployed);
     expect(live).toBeGreaterThan(deployed);
-    expect(workflow).toContain('group: deploy-production');
-    expect(workflow).toContain('cancel-in-progress: false');
+    expect(deployJob).toContain('group: deploy-production');
+    expect(deployJob).toContain('cancel-in-progress: false');
   });
 
-  test('reads the two credentials from the production environment by reference, and asks for nothing else', () => {
-    expect(workflow).toMatch(/environment:\n {6}name: production/);
+  test('hands the credentials only to the two steps that talk to Cloudflare, from the production environment', () => {
+    expect(deployJob).toMatch(/environment:\n {6}name: production/);
     expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n/);
-    expect(workflow.match(/\$\{\{ secrets\.[A-Z_]+ \}\}/g)).toEqual([
-      '${{ secrets.CLOUDFLARE_API_TOKEN }}',
-      '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}',
-    ]);
+    const holding = steps.filter((step) => secretsIn(step).length > 0);
+    expect(holding.map((step) => step.split('\n')[0])).toEqual(['name: Pages publishes main as production', 'name: Deploy to the Worker and Pages']);
+    for (const step of holding) {
+      expect(secretsIn(step)).toEqual(['${{ secrets.CLOUDFLARE_API_TOKEN }}', '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}']);
+    }
     expect(credentialsIn(workflow)).toEqual([]);
   });
 
-  test('check.yml stays a check: no deploy and no secret', () => {
-    const check = readText('.github/workflows/check.yml');
+  test('writes the record to the run and the GitHub Release, from a job that holds no Cloudflare secret', () => {
+    const publish = jobOf(workflow, 'publish');
 
+    expect(steps[stepWith('run: npm run deploy')]).toContain('HEROESIM_DEPLOY_RECORD: ${{ runner.temp }}/deploy-record.txt');
+    expect(steps[stepWith('name: The record')]).toContain('GITHUB_STEP_SUMMARY');
+    expect(publish).toContain('needs: deploy');
+    expect(publish).toMatch(/permissions:\n {6}contents: write/);
+    expect(publish).toContain('gh release create "$TAG"');
+    expect(secretsIn(publish)).toEqual([]);
+    expect(deployJob).not.toContain('contents: write');
+  });
+});
+
+describe('the release workflows (DL-124)', () => {
+  test("release.yml: a push to main tags the merged release branch's next patch and calls the deploy", () => {
+    const workflow = workflowText('release.yml');
+
+    expect(workflow).toMatch(/\non:\n {2}push:\n {4}branches:\n {6}- main\n/);
+    expect(workflow).toContain('repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls');
+    expect(workflow).toContain('git diff --quiet "$head" HEAD');
+    expect(workflow).toContain('node web/scripts/release.mjs next "$BRANCH"');
+    expect(workflow).toContain('git push origin "refs/tags/$tag"');
+    expect(jobOf(workflow, 'tag')).toMatch(/permissions:\n {6}contents: write/);
+    expect(jobOf(workflow, 'deploy')).toMatch(
+      /uses: \.\/\.github\/workflows\/deploy\.yml\n {4}with:\n {6}tag: \$\{\{ needs\.tag\.outputs\.tag \}\}\n {4}secrets: inherit/,
+    );
+    expect(secretsIn(workflow)).toEqual([]);
+  });
+
+  test('release-pr.yml: a push to a release branch opens or updates its pull request to main', () => {
+    const workflow = workflowText('release-pr.yml');
+
+    expect(workflow).toMatch(/\non:\n {2}push:\n {4}branches:\n {6}- 'v\*-release'\n/);
+    expect(workflow).toMatch(/\npermissions:\n {2}contents: read\n {2}pull-requests: write\n/);
+    expect(workflow).toContain('node web/scripts/release.mjs next "$BRANCH"');
+    expect(workflow).toContain('gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$BRANCH"');
+    expect(workflow).toContain('gh pr edit "$number"');
+    expect(secretsIn(workflow)).toEqual([]);
+  });
+
+  test('watch.yml: every day, the live check and the Cloudflare checks, and an issue on a failure', () => {
+    const workflow = workflowText('watch.yml');
+    const cloudflare = jobOf(workflow, 'cloudflare');
+    const report = jobOf(workflow, 'report');
+
+    expect(workflow).toMatch(/\non:\n {2}schedule:\n {4}- cron: '[^']+'\n {2}workflow_dispatch:/);
+    expect(jobOf(workflow, 'live')).toContain('npm run e2e:live -w web');
+    expect(cloudflare).toMatch(/environment:\n {6}name: production\n {6}deployment: false/);
+    expect(cloudflare).toContain('node web/scripts/cloudflare.mjs token');
+    expect(cloudflare).toContain('node web/scripts/cloudflare.mjs pages');
+    expect(report).toContain("contains(needs.*.result, 'failure')");
+    expect(report).toContain('gh issue create');
+    expect(secretsIn(jobOf(workflow, 'live'))).toEqual([]);
+    expect(secretsIn(report)).toEqual([]);
+    expect(credentialsIn(workflow)).toEqual([]);
+  });
+
+  test('check.yml: every line by pattern, and the browser specs, with no deploy and no secret', () => {
+    const check = workflowText('check.yml');
+
+    expect(check).toMatch(/\n {2}push:\n {4}branches:\n {6}- 'v\*-dev'\n {6}- 'v\*-release'\n/);
+    expect(check).toMatch(/\n {2}pull_request:\n {4}branches:\n {6}- 'v\*-dev'\n {6}- 'v\*-release'\n/);
+    expect(jobOf(check, 'e2e')).toContain('npm run e2e -w web');
     expect(check).not.toContain('npm run deploy');
     expect(check).not.toContain('secrets.');
+  });
+
+  test('no workflow names a secret but the two Cloudflare credentials', () => {
+    const names = ['check.yml', 'deploy.yml', 'release.yml', 'release-pr.yml', 'watch.yml'].flatMap((name) => secretsIn(workflowText(name)));
+
+    expect(new Set(names)).toEqual(new Set(['${{ secrets.CLOUDFLARE_API_TOKEN }}', '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}']));
+  });
+
+  test("Dependabot updates into a line's dev branch, never main or a release branch", () => {
+    const dependabot = readText('.github/dependabot.yml').replace(/\r\n/g, '\n');
+    const targets = [...dependabot.matchAll(/target-branch: (\S+)/g)].map((match) => match[1]);
+
+    expect(targets).toHaveLength(2);
+    for (const target of targets) expect(target).toMatch(/^v\d+\.\d+-dev$/);
   });
 });

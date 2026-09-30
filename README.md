@@ -15,8 +15,9 @@ it (DL-111 to DL-121): a Quest's return as one entry with its report, the World 
 in four parts with its Stores and Treasury, and the Market and the Guildmaster as views. It is
 released as `v1.1.0` on `v1.1-release`, tagged `m9-redesign` too (#37, DL-123). Random Events, the
 first real module, follows on the v1.2 line as M10 (DL-99). `v1.0-dev` and `v1.0-release` are
-frozen, and the v1.0 line is not deployed again after `v1.1.0` (DL-86, DL-88, DL-110). GitHub's
-default branch is the latest release branch, `v1.1-release` (DL-88).
+frozen, and the v1.0 line is not deployed again after `v1.1.0` (DL-86, DL-88, DL-110). `main` is
+production and GitHub's default branch: only a release branch's pull request moves it, and merging
+one releases (DL-124; see [Deploy](#deploy)).
 
 ## Play
 
@@ -37,20 +38,47 @@ One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, 
   subdomain, `magical-potato`. The subdomain is account-wide and set in the Cloudflare dashboard
   (Workers & Pages, "Your subdomain"); changing it would move the address and strand the saves
   kept there;
-- the Pages project `heroesims`, production branch `v1.1-release`, at <https://heroesims.pages.dev>,
+- the Pages project `heroesims`, production branch `main`, at <https://heroesims.pages.dev>,
   deployed until Cloudflare retires Pages.
 
-**A release deploys from CI** (DL-122, superseding DL-68's "nothing deploys from CI"). Pushing a
-`v*` tag runs `.github/workflows/deploy.yml`:
-- it refuses a tag whose commit is not on the branch the deploy names (`releaseBranch` in
-  `web/scripts/deploy.mjs`, `v1.1-release`), so a tag on the frozen v1.0 line never deploys;
-- it runs the checks `check.yml` runs (lint, typecheck, tests);
-- it runs `npm run deploy` from its clean checkout of the tag, and then `npm run e2e:live -w web`
-  on both addresses.
+**A release is a merged pull request** (DL-122, DL-124). `main` is production: only a release
+branch's pull request moves it, and each merge releases.
+1. Work lands on the line's `v#.#-dev` and is merged into its `v#.#-release`. `check` runs on
+   every push to either: lint, typecheck, the tests at Node 22 and at `.node-version`, and the
+   browser specs in Chromium at three widths.
+2. A push that leaves the release branch ahead of `main` makes CI open the branch's pull request
+   to `main`, or update the open one (`release-pr.yml`). The pull request names the tag its merge
+   will release.
+3. **Merging it (with a merge commit) is the release.** `release.yml` tags the merge with the
+   line's next patch, `v#.#.0` for a line's first (`web/scripts/release.mjs`), and runs the
+   deploy (`deploy.yml`):
+   - it refuses a tag not on `main`, or older than the newest release;
+   - it runs the checks and the browser specs again;
+   - it reads that Pages's production branch is `main`, so that no upload is a preview;
+   - it runs `npm run deploy` from its clean checkout of the tag, which fails if Pages took the
+     upload as anything but production;
+   - it runs `npm run e2e:live -w web` on both addresses;
+   - it publishes the record as the tag's GitHub Release.
+
+   Leaving the pull request open holds the next release while commits gather.
+
+If `main` ever takes a commit that no release branch holds (a direct push, or a pull request
+from elsewhere), every later release is refused, because `main` differs from the pull request's
+head. Merge `main` back into the current release branch and push it; the next pull request
+releases both.
+
+A new line needs only its two branches, and Dependabot's `target-branch` (`.github/dependabot.yml`)
+moved to its dev branch. Every day `watch.yml` does three things, and opens an issue when any of
+them fails, or when the token expires within 30 days:
+- it plays both addresses;
+- it verifies the Cloudflare token and its expiry;
+- it reads Pages's production branch.
 
 A tag already pushed can be deployed again from the Actions tab ("deploy", "Run workflow", with
-the tag). One deploy runs at a time. The two credentials are secrets of the repository's
-`production` environment, never a file here (INPUTS 7.9):
+the tag). A rollback is the same run with "allow_older" ticked, and only to `v1.1.1` or later: code
+older than a save may not load it. One deploy runs at a time. The two credentials are secrets of
+the repository's `production` environment, never a file here (INPUTS 7.9), read only by the steps
+that talk to Cloudflare:
 - `CLOUDFLARE_API_TOKEN`: a custom API token scoped to the one account, from the "Edit Cloudflare
   Workers" template with Account › Cloudflare Pages › Edit added;
 - `CLOUDFLARE_ACCOUNT_ID`: the account's id.
@@ -58,13 +86,11 @@ the tag). One deploy runs at a time. The two credentials are secrets of the repo
 Set them with `gh secret set CLOUDFLARE_API_TOKEN --env production` and
 `gh secret set CLOUDFLARE_ACCOUNT_ID --env production`, each reading its value from the prompt.
 
-A release is therefore: merge the release into its release branch and push it (`check` runs),
-then tag its head `v*` and push the tag. Production serves the latest release: the deploy moved
-to `v1.1-release` at that branch's first release, `v1.1.0` (DL-86, DL-123). A Worker has no
-branches, so every upload to it goes live: the deploy runs only from a clean checkout of a release
-tag, and refuses anything else (DL-92).
+A Worker has no branches, so every upload to it goes live: the deploy runs only from a clean
+checkout of a release tag, and refuses anything else (DL-92).
 
-**By hand**, the same deploy runs from this machine, as every release before `v1.1.0` did:
+**By hand**, the same deploy runs from this machine, as every release before `v1.1.0` did. It is
+for when CI cannot run:
 
 1. **Once per machine:** `npx wrangler login`. It opens the browser to sign in to Cloudflare and
    keeps its token in wrangler's own directory under your user profile, never in this repository.
@@ -90,7 +116,7 @@ tag, and refuses anything else (DL-92).
 
    ```sh
    npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit <sha>"
-   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch v1.1-release
+   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch main
    ```
 
    A Worker version records its commit only in its message or tag; Pages reads the commit from
@@ -106,13 +132,20 @@ tag, and refuses anything else (DL-92).
    holds "dry" or "run": npm hands the script `--dryrun` as `npm_config_dryrun`, and from the
    root even `npm run deploy -- --dryrun`. A flag npm keeps under any other name never reaches
    the script, and on a clean checkout of a release tag the deploy goes ahead (DL-97).
-3. **The record.** After both uploads the script prints what the release's decision-log entry
-   records with the live check's result (DL-88): the tag, the commit, the UTC time, each wrangler
-   run's version, the Worker's version id and address, and the Pages deployment's URL,
-   environment and commit, read from the file wrangler writes when `WRANGLER_OUTPUT_FILE_PATH`
-   names one. It warns loudly if the Worker is not at the address the live check reads. If Pages
-   fails after the Worker took the build, it prints the Worker's part, for the entry that records
-   the attempt.
+3. **The record.** After both uploads the script prints the release's record, which CI publishes
+   as the tag's GitHub Release (DL-88, DL-124). It holds:
+   - the tag, the commit and the UTC time;
+   - each wrangler run's version;
+   - the Worker's version id and address;
+   - the Pages deployment's URL, environment and commit.
+
+   These are read from the file wrangler writes when `WRANGLER_OUTPUT_FILE_PATH` names one. With
+   `HEROESIM_DEPLOY_RECORD` set, the record is also written to the file it names.
+
+   The script fails if Pages took the upload as anything but production, or recorded another
+   commit, or if the Worker is not at the address the live check reads. It only warns when
+   wrangler wrote no record. If Pages fails after the Worker took the build, it prints the
+   Worker's part, the record of the attempt.
 4. **After each deploy:** `npm run e2e:live -w web` plays a game on both addresses, each in
    Chromium at a phone's width and a desktop's (four tests), saves it in IndexedDB, reloads and
    loads it, and fails if the page asks anything of another origin (DL-75). With

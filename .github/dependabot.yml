@@ -1,0 +1,24 @@
+# DL-124 item 11: the GitHub Actions and npm packages, monthly, into the current line's dev branch,
+# where `check` (the browser specs among it) reviews each pull request. Minor and patch updates
+# come grouped; a major comes alone. A new line moves both `target-branch`es to its `v#.#-dev`.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: v1.1-dev
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: npm
+    directory: /
+    target-branch: v1.1-dev
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        patterns: ['*']
+        update-types: [minor, patch]
