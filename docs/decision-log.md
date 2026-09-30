@@ -13854,6 +13854,228 @@ tests); `engine/src/` (`portraits.ts` new, `document.ts`, `config.ts`, `content-
 `views/history.tsx`, and the tests named); `harness/reports/m9-v112-s3-2026-09-30.md` (force-added); `docs/data-model.md`
 (§3.2, §6); `CONTEXT.md` (Patron; Attribute; Portrait); `docs/planning/epics/v1.1.2-release.md`.
 
+## DL-131 — v1.1.2-S4 built: the owner's two pictures converted and listed, their Appearances in content, the engine's preview of the Guildmaster a seed draws, and the Portrait chosen on the new-game form
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S4's implementer. The pictures,
+their format and size, the Portrait choice and the preview are the owner's and DL-125's (items 3, 6, 11 and
+12), and the Appearances' words DL-127 item 5's, as written. The crop, the conversion script, the preview's
+shape and words, how the form offers a picture with the sex drawn, the radio buttons' names, the content
+version and the S2 findings' fixes are the implementer's, each marked, for the owner to change.
+
+**Context.** v1.1.2-S4 brings the owner's two drawings into the game and lets the player choose one for their
+Guildmaster, seeing beside the form what the seed would draw. It is built on `v1.1.2-dev` from `6e03a43`. It
+carries four findings of v1.1.2-S2's verification now that real pictures exist. No draw moves: the preview
+calls what `createWorld` calls, and the Portrait's stream is S3's.
+
+**Decision.**
+
+1. **The pictures** (DL-125 items 11 and 12).
+   - *The crop* (the implementer's). The drawings are 896 × 1200; 3 × 4 at that width is 896 × 1194⅔.
+     A canvas takes a fractional source rectangle, so the crop is exact: 2⅔ px of paper from the top and
+     2⅔ from the bottom, the "5 px from the height" DL-125 item 12 measured. Then scaled to 480 × 640 with
+     the canvas's high-quality smoothing, and written by `canvas.toBlob('image/webp', 0.8)`.
+   - *The files*, each checked by eye after conversion:
+     - `media/portraits/guildmasters/male/gm-male-01.webp`: 95,072 bytes;
+     - `media/portraits/guildmasters/female/gm-female-01.webp`: 98,430 bytes.
+   - *`content/portraits.json`* lists `gm-female-01` and `gm-male-01` as the Guildmaster pictures of their
+     sexes. The Heroes' and Patrons' lists stay empty (DL-125 item 4).
+   - *The script* (`web/scripts/convert-picture.mjs`): `node web/scripts/convert-picture.mjs <source>
+     <target.webp> [--size 480x640] [--quality 0.8]`. It launches the Chromium the specs install, crops
+     the largest centred rectangle of the target's shape, and prints the file's size and the crop. It is
+     run by hand and never by the build. Run twice, it wrote the same bytes. No test imports it, so it
+     has no `.d.mts`; it declares its two browser globals for lint.
+   - *`media.test.ts`* holds each Portrait picture to WebP, 480 × 640 read from its header, and at most
+     150 kB (the implementer's bound).
+2. **`content/portrait-appearances.json`** (DL-126 item 2, DL-127 item 5).
+   - *The words.* DL-127 item 5's twelve keywords and its two rows, exactly as written, since the owner
+     changed none. The narratives are 243 and 241 characters.
+   - *Parsed* (`content/src/parse.ts`) into `ContentSet.portraitAppearances`, typed in the engine
+     (`AppearanceSlot`, `AppearanceKeyword`, `PortraitAppearance`, `PortraitAppearances`). A keyword's
+     `slot` is one of DL-127 item 3's six (`face`, `hair`, `facialHair`, `eyes`, `mark`, `bearing`). A
+     field missing, unknown or of the wrong type is refused, and so is a row that is no object. The file
+     is required, as every content file is, and may map none.
+   - *Validated now* (`content/src/validate.ts`): each row's key names a picture that `portraits.json`
+     lists, of any role, since the file will serve Heroes' and Patrons' pictures too.
+   - *Left to v1.1.2-S5* (the implementer's split, as the epic puts them there): a picture's keywords
+     must be defined, `facialHair` only on a male picture's, and the bounds of 280 and 24 characters. No
+     rule reads the file yet.
+   - *The content version stays 16* (the implementer's). S3 took it to 16 in this unreleased patch; no
+     release has held 16 without the pictures and their rows, so no save can name 16 and mean other
+     content.
+3. **The preview** (DL-125 item 6; `engine/src/create.ts`).
+   - *One function* (the implementer's). `founded(seed, setup, deps)` makes what `createWorld` makes
+     first: `meta`, the streams, the player's Guild and Guildmaster through `generateGuild`, and their
+     Portrait through `guildmasterPortrait` on `portraits`. `createWorld` goes on from its document.
+     `previewGuildmaster` makes the same and reads the Guildmaster off it. So the two cannot disagree,
+     however a later change moves the draws.
+   - *Its signature.* `previewGuildmaster(setup, seed, deps)` returns `{ sex, age, traitKeys, portraitKey }`.
+     It takes `deps` beside the epic's `(setup, seed)`, as every engine function does, so the preview reads
+     the rules and content a new game begins under.
+   - *Neither name is read.* The player names their Guild and Guildmaster, so neither is drawn, and a
+     name given moves no draw. The preview stands in its own names, and shows before the player types
+     theirs.
+   - *`null`* when `setupRefusal` refuses the setup for anything but a blank name, since "Start the game"
+     would then make nothing.
+   - *No draw moves.* `founded` is `createWorld`'s own code, moved: the same calls in the same order.
+   - *Its cost* (measured under the test suite's load): 0.07 ms a preview, against 1.04 ms a whole
+     world, so the form previews on every change.
+   - *Proved* (`engine/src/guildmaster-preview.test.ts`): over 120 seeds and nine setups (everything
+     drawn; a Background, the sex, the age, no Trait, two Traits, a Portrait alone, the sex with a
+     Portrait, and everything chosen), the preview equals the Guildmaster `createWorld` makes. The seeds
+     draw both sexes, all five test pictures, more than ten ages and more than three sets of Traits.
+     Also: the Silhouette where the sex has none, blank names, the refusals, and the same for the same
+     seed.
+4. **The form** (`web/src/views/new-game.tsx`, `web/src/state/setup.ts`).
+   - *The Portrait choice.* A fieldset, "Portrait", after the preview and before the Traits. It holds
+     "Drawn from the seed", then a thumbnail per picture. Each is a radio button of one group, labelled by
+     its picture, so one Tab reaches the choice and the arrows move through it.
+   - *Their names* (the implementer's). "Female Portrait 1", "Male Portrait 1": the sex and the picture's
+     place among that sex's in content. The name is visually hidden text in the label, and the picture
+     is hidden from screen readers. So the radio button keeps its name when the picture fails and shows
+     its Silhouette. A key is no name for a person, and the keywords are shown nowhere yet (DL-127 item 4).
+   - *With the sex drawn* (the implementer's). Every sex's pictures are offered, and choosing one chooses
+     its sex, since a picture is of one sex (DL-130 item 5). The Sex field then shows it, so the form says
+     what the game makes. The pictures stay offered while the sex is only the Portrait's, so the arrows
+     still move through all of them. Choosing "Drawn from the seed" again draws the sex again.
+     - *Found in the browser specs.* The first build narrowed the list to the sex chosen by the picture.
+       An arrow then moved from Female Portrait 1 to "Drawn from the seed", since Male Portrait 1 had gone.
+   - *Changing the sex* in its own field clears a Portrait of another sex, and "Drawn from the seed"
+     clears any. With a sex chosen, only its pictures are offered.
+   - *The preview* (the words the implementer's). The form shows it after the Sex and Age fields, in a
+     box beside the Portrait the seed draws. It shows only what is left to the seed, a line each:
+     - "Drawn: Female, 34", or "Drawn: Female", or "Drawn: Age 34", for the sex and age;
+     - "Drawn Traits: Miser and Old soldier", or "Drawn Traits: None";
+     - "Drawn Portrait: Female Portrait 1", or "Drawn Portrait: None: the Silhouette", with the picture
+       itself, "Portrait of {name}", or "of your Guildmaster" before a name is typed.
+
+     A Portrait chosen chooses the sex, so neither the sex nor the Portrait is then drawn. With
+     everything chosen, the box is gone. It follows the Seed field as it is typed, trimmed, as the click
+     sends it. With the seed blank it says: "The seed is blank, so one is made up when the game starts,
+     and what is left to it is drawn then." While the engine would refuse the setup, it shows nothing,
+     and the refusal's sentence stands.
+   - *`guildmasterPreviewView`* (`state/setup.ts`) calls the engine's `previewGuildmaster` under the
+     current defaults and the core, as `newGameRefusal` does. The view computes no rule (ADR-0007). The
+     form hands it neither name nor text, so typing them previews nothing again.
+   - *`NewGame.guildmasterPortraitKey`* goes to the engine as `WorldSetup.guildmasterPortraitKey`.
+     S3's two sentences are now met by a player choosing it.
+   - *The header comment* now says what is drawn: the sex, the age, the Portrait and the Traits. A
+     descriptive Attribute left blank stays empty until v1.1.2-S5. The disclosure's hint reads "Sex, Age,
+     Portrait and Traits, or drawn from the seed, and a few words about them".
+   - *The look.* Thumbnails 4rem wide (4.5rem from 600px), each beside its radio button, the one chosen
+     ringed in the accent; the preview's Portrait 4rem.
+5. **v1.1.2-S2's verification findings**, fixed now that real pictures exist.
+   - *A cached picture's frame of Silhouette* (`views/pictures.tsx`). A picture's `<img>` has a ref
+     callback. When the browser already holds the picture (`complete`, with a `naturalWidth`), the ref
+     settles it as loaded. A state set in a ref callback is applied before the browser paints, so a
+     Portrait seen before shows at once when its view opens again. A test mocks both properties, and it
+     failed with the ref taken out.
+   - *The Hero branch of `portraitOf`* (`state/history.ts`) is dropped. A Hero's History opens their
+     Hero page, which has their Portrait, so the branch was never shown. `HistoryView.portrait` is now
+     `null` for a Hero, and its comment and test say why.
+   - *`web/vite.config.ts`* now says that the pictures resolve against `document.currentScript.src` as
+     the IIFE first runs. So the script must stay a classic, non-async `<script>`: a module script has no
+     `currentScript`, and the fallback, `document.baseURI`, is the page's folder, where no picture is.
+   - *The Silhouettes shared* (the implementer's: left). The three roles' Silhouettes of a sex are the
+     same drawing, inlined three times, some 1.6 kB of the script. Sharing one `data:` URL per drawing
+     needs a plugin, or a catalogue that no longer reads each role's folder, which DL-129 item 1 keeps so
+     a role's pictures can come alone. gzip already folds the repeats, which sit together in the
+     script, to a few dozen bytes, so it is left.
+6. **The `file://` spec** (`web/e2e/file.spec.ts`; the implementer's call).
+   - *The built page itself.* `dist/assets/` holds the one script and the two pictures,
+     `gm-female-01-<hash>.webp` and `gm-male-01-<hash>.webp`, and the bundle gate passes on `dist/`. Over
+     `file://`:
+     - the form's two thumbnails load from `file:///…/assets/`;
+     - the Female Portrait is chosen and the game started;
+     - the status bar's Banner, a Silhouette, loads;
+     - the Guildmaster's picture loads, `gm-female-01`, and its Silhouette is gone;
+     - a Rival's Guildmaster's Silhouette loads.
+
+     No page error.
+   - *S2's test picture is gone*: `e2e/fixtures/` and the `file-spec` build mode's plugin. The owner's
+     pictures prove in `dist/` what the fixture proved in a build of its own, by the same relative `<img>`,
+     as DL-129's consequences foresaw. A Unique Item's picture uses the same catalogue and component, and
+     `pictures.test.tsx` still holds it.
+7. **The tests.**
+   - *Content:* the two pictures listed; the keywords and rows as DL-127 wrote them, with the narratives'
+     lengths; the file required; a row naming no picture refused, another role's allowed; a slot not
+     laid out, a field missing or unknown, a row that is no object, and a field the file does not know,
+     each refused and named. A picture added to each role and sex is still accepted.
+   - *Engine:* the preview's file (item 3).
+   - *CLI:* `new --portrait gm-male-09` names the core's two pictures, `--sex female --portrait
+     gm-male-01` is refused in its words, and `show guildmaster` gives the drawn picture's key. The
+     "None: the Silhouette" line and the words for content with no picture are held over content made
+     so.
+   - *Web, state:* the pictures offered by sex and with the sex drawn; the preview's words against the
+     engine's world over 40 seeds, only what is drawn, following the seed, a blank seed, a refusal,
+     blank names; a Portrait started with and one of the other sex refused in words. The Guildmaster
+     view's and the History's keys: the player's drawn, a Rival's `null`.
+   - *Web, views:* the thumbnails, their names and pictures; a Portrait chosen, with the sex drawn and
+     chosen; the sex clearing it; the preview's lines, following the Seed field, a blank seed, and gone
+     when everything is chosen. *The journey*, through `App`: a Portrait chosen on the form is the
+     Guildmaster view's picture; and the preview's sex, age, Traits and Portrait are the Guildmaster the
+     game begins with. The thumbnail's name when its picture fails; the cached picture; the Traits'
+     radio buttons found within their fieldset, now that two fieldsets offer "Drawn from the seed"; the
+     capitals guard's new hint.
+   - *Browser* (`e2e/portrait.spec.ts`, at 360, 820 and 1280):
+     - the choice named "Drawn from the seed", "Female Portrait 1" and "Male Portrait 1", each picture
+       loaded, no sideways scroll and 44px targets;
+     - from the Age field, one Tab reaches the choice. The arrows move Female, then Male, the Sex field
+       following, then round to "Drawn from the seed", which draws the sex again, and back;
+     - the game started shows the chosen picture, loaded, on the Guildmaster view;
+     - the preview follows the Seed field, and its sex, age and Portrait are the game's.
+8. **The script's size**, against S3's (662.39 kB, 188.49 kB gzipped): 670.33 kB, 190.61 kB gzipped, 7.94 kB
+   and 2.12 kB gzipped more. That is the Appearances' content (about 2 kB), the preview's engine and state
+   code, the form's fieldset and box, and the styles. The pictures are files beside it, 193.5 kB in all.
+9. **The screenshots.** From `dist/index.html` over `file://` at 360 × 800, 820 × 1180 and 1280 × 800, in the
+   light and the dark scheme, 36 files in the scratchpad's `v112-s4-shots\`, with `shots-s4.mjs`, kept
+   out of git.
+   - *What they show:*
+     - the new-game form, drawn, on seed `e2e-shots`;
+     - the Guildmaster's setup, drawn;
+     - the Female Portrait chosen by the keyboard, its focus ring showing;
+     - the Male Portrait with the sex chosen;
+     - the Guildmaster view with the Male Portrait;
+     - a second game's Guildmaster view with the Portrait drawn.
+   - *Seen:* none scrolls sideways, and no page error was logged. The pictures sit on their cream in both
+     schemes. At 360px the second thumbnail wraps under the first, beside its radio button.
+10. **The final checks**, on the code commit's tree:
+    - `npm run lint`: clean. `npm run typecheck`: clean.
+    - `npm test`: 3,605 tests in 153 files.
+      - *The first run* failed four. One was this story's own: `state/world-views.test.ts` still took
+        every Guildmaster's key to be `null`, and the player's is now drawn. The test was fixed. The
+        other three were the known timeouts, `harness/src/succession.test.ts`, `engine/src/create.test.ts`
+        and `web/src/views/treasury.test.tsx`, and all four files pass alone (98 tests).
+      - *The second run* failed five under load, none of them this story's:
+        - four known timeouts: `create.test.ts`, `modules/probe.test.ts`, `reducer.test.ts`'s fast
+          forward in steps, and `treasury.test.tsx`;
+        - one assertion on timing, `web/src/state/use-game.test.tsx`'s "with frames that fire at once, a
+          settle asked for before a Stop is called off as well", which this story does not touch.
+
+        All five files pass alone (184 tests), and `use-game.test.tsx` passed alone three times more.
+    - `npm run e2e -w web`: the build, one script of 670.33 kB (190.61 kB gzipped), "check-bundle: 2 built
+      files, no network or filesystem reference"; 74 runs, all passing.
+
+**Consequences.**
+- *Play is unchanged.* No draw, stream, schema, `configVersion` or content version moves. The player's
+  Guildmaster now draws one of the owner's two pictures, where S3 drew `null`, from the same one draw of
+  `portraits`, so only their `portraitKey` differs.
+- *For v1.1.2-S5.*
+  - `previewGuildmaster` gives "Write them for me" the drawn sex, age, Traits and Portrait.
+  - `ContentSet.portraitAppearances` holds the two narratives for `describeGuildmaster`, and its full
+    checks are S5's.
+  - The preview's box is where the written Attributes' button can stand.
+- *Tests:* 3,571 to 3,605, in 152 files to 153. The browser specs, 69 runs to 74: the portrait spec's six
+  added, the `file://` spec's three made two.
+
+**Actioned in:** `media/portraits/guildmasters/{female,male}/` (the two pictures); `content/`
+(`portraits.json`, `portrait-appearances.json` new, `src/parse.ts`, `src/validate.ts` and their tests);
+`engine/src/` (`content-types.ts`, `create.ts`, `guildmaster-preview.test.ts` new,
+`world.test-support.ts`); `cli/src/` (`main.test.ts`, `commands/setup.test.ts`); `web/scripts/convert-picture.mjs`
+(new); `web/src/` (`state/setup.ts`, `state/reducer.ts`, `state/history.ts`, `views/new-game.tsx`,
+`views/pictures.tsx`, `styles.css`, `media.ts` (comment), and the tests named); `web/vite.config.ts`,
+`web/playwright.config.ts` (comments), `web/e2e/` (`file.spec.ts`, `portrait.spec.ts` new, `fixtures/`
+removed); `CONTEXT.md` (Portrait); `docs/planning/epics/v1.1.2-release.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

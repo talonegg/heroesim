@@ -111,8 +111,9 @@ a Guildmaster's, a Hero's and a Patron's. The player's Guildmaster has one of th
 pictures of their sex, chosen at setup or drawn from the seed, and none while their sex has no
 picture; everyone else shows the Silhouette of their sex for now, a Rival's Guildmaster included.
 A save holds the Portrait by its picture's key (DL-125, DL-130). Every picture is drawn in graphite
-on cream paper (DL-126). The owner's pictures, and the choice on the page's setup form, are to be
-built; the CLI's `new --portrait` chooses one.
+on cream paper (DL-126); the first are the owner's two, one of each sex (DL-131). The page's setup
+form offers the pictures, with the Portrait the seed would draw beside them, and the CLI's
+`new --portrait` chooses one.
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:
