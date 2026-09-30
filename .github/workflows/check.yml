@@ -1,24 +1,27 @@
 name: check
 
-# M0-S3: lint, typecheck and test on push and pull request. No Playwright, no deploy, and no
-# repository secret is referenced anywhere below. The matrix proves the documented floor (Node
-# 22, ADR-0007 / pre-M0 review A8) against the Node this repository is developed on
-# (.node-version), rather than assuming the floor works. The v1.1 line's branches were added on
-# 2026-09-28 (DL-86 item 2: new work on v1.1-dev, released to v1.1-release; issue #38); the
-# v1.0 branches stay, for v1.0.x releases.
+# M0-S3: lint, typecheck and test on push and pull request. No deploy, and no repository secret is
+# referenced anywhere below. The matrix proves the documented floor (Node 22, ADR-0007 / pre-M0
+# review A8) against the Node this repository is developed on (.node-version), rather than
+# assuming the floor works.
+#
+# DL-124: every line's branches by pattern, `v#.#-dev` and `v#.#-release`, so that a new line edits
+# no workflow; and the browser specs, `npm run e2e -w web`, in Chromium at the three widths,
+# superseding INPUTS 7.10's "no Playwright in CI". `main` is not here: only a release branch's
+# merged pull request moves it, whose commit `check` has already passed on the release branch,
+# and release.yml checks again before it deploys.
 on:
   push:
     branches:
-      - v1.0-dev
-      - v1.0-release
-      - v1.1-dev
-      - v1.1-release
+      - 'v*-dev'
+      - 'v*-release'
   pull_request:
     branches:
-      - v1.0-dev
-      - v1.0-release
-      - v1.1-dev
-      - v1.1-release
+      - 'v*-dev'
+      - 'v*-release'
+
+permissions:
+  contents: read
 
 jobs:
   check:
@@ -42,3 +45,31 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.node-version'
+          cache: npm
+      - run: npm ci
+      - name: Playwright's version, for the browsers' cache
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: npx playwright install --with-deps chromium
+      - name: The browser specs
+        run: npm run e2e -w web
+      - name: Keep the report of a failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 14

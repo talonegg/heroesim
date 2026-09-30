@@ -1,12 +1,18 @@
 name: deploy
 
-# DL-122 (the owner, 2026-09-30): a release deploys from CI. Pushing a `v*` tag deploys that tag
-# to the Worker and to Pages with `npm run deploy` (web/scripts/deploy.mjs, whose guard still
-# refuses anything but a clean checkout of a `v*` tag), then runs the live check on both addresses
-# (`npm run e2e:live -w web`). A tag whose commit is not on the release branch the deploy names
-# (`releaseBranch`) is refused, so a tag on the frozen v1.0 line never deploys (DL-110). A tag
-# already pushed can be deployed again by hand (workflow_dispatch). The two Cloudflare credentials
-# are secrets of the `production` environment, never a file in the repository (INPUTS 7.9).
+# DL-122, DL-124: a release deploys from CI. release.yml calls this for the tag it makes when a
+# release branch's pull request is merged into `main`; a `v*` tag pushed by hand runs it too, and
+# a tag already pushed can be deployed again from the Actions tab.
+#
+# The tag must be on `main` (`productionBranch` in web/scripts/deploy.mjs) and the newest release
+# tag (web/scripts/release.mjs), so that production never goes back, but by a manual run with
+# `allow_older` ticked: the rollback (DL-124 item 9). Then the same checks as check.yml and the
+# browser specs; then Pages's production branch is read, so that no upload can be a preview; then
+# `npm run deploy` (deploy.mjs, whose guard still refuses anything but a clean checkout of one `v*`
+# tag, and which fails on a preview); then the live check on both addresses. The record goes to
+# the run's summary and to the tag's GitHub Release, made by a job of its own that holds no
+# Cloudflare secret. The two credentials are secrets of the `production` environment, never a
+# file in the repository (INPUTS 7.9).
 on:
   push:
     tags:
@@ -14,51 +20,119 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'A release tag already pushed, to deploy again (for example v1.1.0)'
+        description: 'A release tag already pushed, to deploy again (for example v1.1.1)'
+        required: true
+      allow_older:
+        description: 'Deploy it even when a newer release exists: a rollback'
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      tag:
+        description: 'The release tag release.yml made'
+        type: string
         required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: deploy-production
-  cancel-in-progress: false
-
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     environment:
       name: production
       url: https://heroesims.pages.dev
+    outputs:
+      tag: ${{ steps.guard.outputs.tag }}
+      record: ${{ steps.record.outputs.record }}
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && format('refs/tags/{0}', inputs.tag) || github.ref }}
+          ref: ${{ inputs.tag && format('refs/tags/{0}', inputs.tag) || github.ref }}
           fetch-depth: 0
       - uses: actions/setup-node@v7
         with:
           node-version-file: '.node-version'
           cache: npm
       - run: npm ci
-      - name: The tag is on the release branch
+      - name: The tag is the newest release, on main
+        id: guard
+        env:
+          ALLOW_OLDER: ${{ inputs.allow_older == true }}
         run: |
-          branch="$(node --input-type=module -e "import { releaseBranch } from './web/scripts/deploy.mjs'; console.log(releaseBranch)")"
+          branch="$(node --input-type=module -e "import { productionBranch } from './web/scripts/deploy.mjs'; console.log(productionBranch)")"
           tag="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
           if [ -z "$tag" ]; then echo "HEAD is not a v* tag: nothing to deploy." >&2; exit 1; fi
           if ! git merge-base --is-ancestor HEAD "origin/$branch"; then
-            echo "$tag is not on origin/$branch, the branch the deploy names: refused." >&2
+            echo "$tag is not on origin/$branch, the production branch: refused." >&2
             exit 1
           fi
-          echo "$tag at $(git rev-parse HEAD), on origin/$branch."
+          if [ "$ALLOW_OLDER" = "true" ]; then
+            echo "$tag at $(git rev-parse HEAD), on origin/$branch; allow_older is ticked: a rollback."
+          else
+            node web/scripts/release.mjs newest "$tag"
+            echo "$tag at $(git rev-parse HEAD), on origin/$branch."
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Playwright's version, for the browsers' cache
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: npx playwright install --with-deps chromium
+      - name: The browser specs
+        run: npm run e2e -w web
+      - name: Pages publishes main as production
+        run: node web/scripts/cloudflare.mjs pages
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       - name: Deploy to the Worker and Pages
         run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      - run: npx playwright install --with-deps chromium
+          HEROESIM_DEPLOY_RECORD: ${{ runner.temp }}/deploy-record.txt
+      - name: The record
+        id: record
+        if: always()
+        env:
+          RECORD: ${{ runner.temp }}/deploy-record.txt
+        run: |
+          if [ ! -f "$RECORD" ]; then echo "No upload was made: no record." >> "$GITHUB_STEP_SUMMARY"; exit 0; fi
+          { echo '### The deploy'; echo; echo '```'; cat "$RECORD"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          { echo 'record<<RECORD_END'; cat "$RECORD"; echo 'RECORD_END'; } >> "$GITHUB_OUTPUT"
       - name: The live check on both addresses
         run: npm run e2e:live -w web
+      - name: The live check's result
+        run: echo 'The live check passed on both addresses, at both widths.' >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: The tag's GitHub Release, holding the record
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.deploy.outputs.tag }}
+          RECORD: ${{ needs.deploy.outputs.record }}
+          LATEST: ${{ inputs.allow_older != true }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$TAG already has a GitHub Release: this was a redeploy, and it is left as it was."
+            exit 0
+          fi
+          notes="$(printf 'Deployed to https://heroesims.pages.dev and https://heroesim.magical-potato.workers.dev; the live check passed on both.\n\n```\n%s\n```\n' "$RECORD")"
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "$TAG" \
+            --notes "$notes" --generate-notes --latest="$LATEST"

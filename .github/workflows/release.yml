@@ -1,0 +1,89 @@
+name: release
+
+# DL-124: merging a release branch's pull request into `main` is the release. This finds the
+# pull request the push merged, makes its line's next patch tag (web/scripts/release.mjs) on the
+# merge, pushes it, and calls deploy.yml for it. It refuses a push to `main` that merged no pull
+# request from a release branch `v#.#-release`, a merge whose tree differs from that pull
+# request's head, and a tag older than the newest release. A tag pushed with the workflow's own
+# token starts no workflow, so deploy.yml runs once, called from here.
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.node-version'
+      - name: The release pull request this push merged
+        id: merged
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub links a merge commit to its pull request within moments; ask a few times.
+          for attempt in 1 2 3 4 5; do
+            prs="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              --jq '[.[] | select(.merged_at != null and .base.ref == "main") | {number, branch: .head.ref, head: .head.sha}]')"
+            [ "$(jq length <<< "$prs")" -gt 0 ] && break
+            sleep 10
+          done
+          if [ "$(jq length <<< "$prs")" -ne 1 ]; then
+            echo "main moved at $GITHUB_SHA without one merged pull request: nothing is released. Only a release branch's pull request moves main." >&2
+            exit 1
+          fi
+          branch="$(jq -r '.[0].branch' <<< "$prs")"
+          head="$(jq -r '.[0].head' <<< "$prs")"
+          number="$(jq -r '.[0].number' <<< "$prs")"
+          git fetch --no-tags origin "$head"
+          if ! git diff --quiet "$head" HEAD; then
+            echo "main at $GITHUB_SHA differs from #$number's head $head: main holds what $branch did not. Refused." >&2
+            exit 1
+          fi
+          echo "#$number merged $branch at $head."
+          { echo "branch=$branch"; echo "number=$number"; } >> "$GITHUB_OUTPUT"
+      - name: The next release tag, made and pushed
+        id: tag
+        env:
+          BRANCH: ${{ steps.merged.outputs.branch }}
+          NUMBER: ${{ steps.merged.outputs.number }}
+        run: |
+          existing="$(git tag --points-at HEAD --list 'v*' | head -n 1)"
+          if [ -n "$existing" ]; then
+            echo "$existing already marks $GITHUB_SHA: it is deployed again, and no tag is made."
+            echo "tag=$existing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          tag="$(node web/scripts/release.mjs next "$BRANCH")"
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git tag -a "$tag" -m "$tag: $BRANCH, merged into main by #$NUMBER"
+          git push origin "refs/tags/$tag"
+          echo "Released $tag: $BRANCH, merged into main by #$NUMBER." >> "$GITHUB_STEP_SUMMARY"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: tag
+    permissions:
+      contents: write
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ needs.tag.outputs.tag }}
+    secrets: inherit

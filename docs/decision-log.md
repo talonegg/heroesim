@@ -12806,6 +12806,122 @@ Before the release, the owner:
 the tags `m9-redesign` and `v1.1.0`; the branch `v1.1-release`; the GitHub issues #30, #32 and
 #37.
 
+## DL-124 — Production is `main`: a release branch's PR to `main` is raised by CI, merging it releases the next patch tag and deploys it, the browser specs run in CI, and a daily watch reads both addresses and the token
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner, that the CI process be
+improved as the orchestrator proposed after DL-123 (its items 1 to 8 and 9's redeploy), with
+`main` as the production branch and pull requests to `main` from the release branches
+`v#.#-release`. How it is done is the agent's, marked below.
+
+**Context.** Releasing `v1.1.0` (DL-123) needed these steps by hand:
+- a dashboard change to the Pages production branch, which is renamed with each line. The first
+  attempt did not take, so the Worker served `v1.1.0` for fourteen minutes while pages.dev served
+  `v1.0.1`;
+- a re-run of the deploy;
+- the merge, the tag and its push;
+- the 63 browser specs, run on this machine through temporary configurations on spare ports;
+- the record, transcribed into this log.
+
+`releaseBranch` and `check.yml`'s branch list are edited for each new line. The repository is
+private on GitHub's free plan, so it has no branch protection (the API answers 403). The workflows
+therefore enforce their own rules.
+
+**Decision.**
+
+1. **`main` is production** (the owner's).
+   - *The branch.* `main` is created at `v1.1-release`'s head (3c21d1f) and becomes GitHub's
+     default branch. This supersedes DL-88's "the default branch is the latest release branch".
+   - *What reaches it.* Only a merged pull request from a release branch `v#.#-release`. Its tree
+     is always a released tree.
+   - *Pages.* Pages's production branch is `main`, for good. The deploy names it as the constant
+     `productionBranch` (was `releaseBranch`), so a new line changes nothing at Cloudflare.
+   - *Merges.* The repository allows merge commits only, so a release branch and `main` keep a
+     common history (the agent's).
+2. **CI raises the pull request** (the owner's; the workflow is the agent's).
+   - *The workflow.* `release-pr.yml` runs on a push to `v*-release`.
+   - *What it does.* When the branch is ahead of `main`, it opens the pull request to `main`, or
+     updates the open one. The pull request names the tag its merge will release.
+   - *A setting.* This needs the repository setting "Allow GitHub Actions to create and approve
+     pull requests".
+   - *Checks.* A pull request made with the workflow's token starts no `check` of its own without
+     approval. Its head commit already carries the `check` of its push to the release branch.
+3. **Merging releases** (the agent's).
+   - *The workflow.* `release.yml` runs on a push to `main`.
+   - *What it finds.* The pull request the push merged, through the commit's associated pull
+     requests. It refuses when there is none, when its head is not `v#.#-release`, or when
+     `main`'s tree differs from that pull request's head.
+   - *The tag.* The next patch of the line: `v1.1-release` after `v1.1.0` gives `v1.1.1`, and a
+     line's first gives `v#.#.0`. It is refused unless it is newer than every `v*` tag.
+   - *Then.* It pushes the annotated tag and calls the deploy as a reusable workflow for it. A tag
+     pushed with the workflow's token starts no other workflow, so the tag's push does not deploy
+     twice.
+   - *The consequence.* Merging the pull request is the release. Leaving it open holds the next
+     release while commits gather.
+4. **The deploy's guard** (the agent's). `deploy.yml` runs:
+   - on a tag pushed by hand;
+   - by hand (`workflow_dispatch`);
+   - when called by `release.yml`.
+
+   It refuses a tag whose commit is not on `origin/main`, and a tag older than the newest `v*`
+   tag, unless the manual run's `allow_older` is ticked (the redeploy of item 9). The version
+   rules are `web/scripts/release.mjs`, tested.
+5. **A preview fails, and Pages is read first** (the agent's).
+   - *Before the upload.* `web/scripts/cloudflare.mjs` asks Cloudflare for the Pages project's
+     production branch. The deploy refuses, before the Worker's upload, unless it is `main`.
+   - *After it.* `deploy.mjs` now returns non-zero when Pages took the upload as anything but
+     production, recorded another commit, or the Worker landed at another address. A missing
+     wrangler record stays a warning.
+6. **The browser specs run in CI** (the owner's "implement these changes", superseding INPUTS 7.10
+   and its ratification in DL-90).
+   - *Where.* `check.yml` gains an `e2e` job: the build, then Chromium at the three widths. The
+     deploy runs the same specs before anything is uploaded.
+   - *Caching.* The browsers are cached by Playwright's version.
+   - *On failure.* The report is kept as an artifact.
+7. **Lines by pattern** (the agent's). `check.yml` runs on `v*-dev` and `v*-release` pushes and
+   pull requests, so a new line edits no workflow.
+8. **The record writes itself** (the agent's).
+   - *In the run.* The deploy writes its record to the run's summary.
+   - *The GitHub Release.* A final job with `contents: write`, apart from the job that holds the
+     Cloudflare secrets, creates one for the tag: the record, then the generated notes.
+   - *This log.* The Release is a release's record. An entry is written here only when a release
+     goes wrong or decides something. Otherwise each record would be a commit that opens the next
+     release's pull request.
+9. **Rollback stays manual.** Code older than a save may not load it (schema 4). A rollback is
+   therefore a manual run of `deploy` with `allow_older`, and only to a tag that holds this
+   entry's deploy, `v1.1.1` or later.
+10. **A daily watch** (the agent's). `watch.yml` runs daily and by hand.
+    - *The live check.* It runs `e2e:live` on both addresses.
+    - *The token.* It asks Cloudflare whether the token is active, and when it expires.
+    - *Pages.* It reads that Pages's production branch is still `main`.
+    - *On a failure.* It opens an issue, or comments on the open one, when any check fails or the
+      token expires within 30 days.
+    - *The environment.* It reads the `production` environment's secrets with `deployment: false`,
+      so it records no deployment.
+11. **Dependabot** (the agent's). The GitHub Actions and npm packages, grouped, monthly, into
+    the current dev branch (`v1.1-dev`). A new line updates its `target-branch`.
+
+**Consequences.**
+- *Superseded.*
+  - DL-88's default branch.
+  - DL-122 items 2 (the release branch as the rule) and 5 (a release is a pushed tag).
+  - DL-97's warning, not a failure, for a Pages preview.
+  - INPUTS 7.10 ("no Playwright in CI", DL-90).
+- *The owner's, once.* Set Pages's production branch to `main`, before merging the first pull
+  request. Until then the deploy's first check refuses before anything uploads.
+- *The next release.* Merging the pull request `v1.1-release` → `main` that CI raises for this
+  entry releases `v1.1.1`: the same game, deployed by the new process.
+- *A new line.* Create `v#.#-dev` and `v#.#-release`, then move Dependabot's `target-branch`.
+  Nothing else.
+- *Minutes.* The browser specs cost CI minutes on every push to a line. The free plan's monthly
+  allowance is the limit to watch.
+
+**Actioned in:** `.github/workflows/check.yml`, `deploy.yml`, `release.yml`, `release-pr.yml`,
+`watch.yml`; `.github/dependabot.yml`; `web/scripts/deploy.mjs`, `deploy.d.mts`, `release.mjs`,
+`cloudflare.mjs`; `web/src/deploy.test.ts`, `release.test.ts`, `cloudflare.test.ts`;
+`web/playwright.config.ts`; `vitest.config.ts` (a comment); `README.md`;
+`docs/planning/epics/INPUTS-REQUIRED.md` (7.8, 7.9, 7.10); the branch `main` and the repository's
+settings.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

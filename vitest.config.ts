@@ -9,7 +9,7 @@ import { configDefaults, defineConfig } from 'vitest/config';
 //
 // The browser front end's tests render React into jsdom, so its project has the React plugin and
 // a DOM, and takes .tsx as well (M7-S1). Its Playwright specs, web/e2e/*.spec.ts, are not
-// Vitest's: `npm run e2e` runs them, locally only (INPUTS 7.10).
+// Vitest's: `npm run e2e` runs them, here and in CI (DL-124).
 const nodePackages = ['engine', 'content', 'harness', 'cli'];
 const harnessRuns = '**/*.harness.test.ts';
 

@@ -22,7 +22,7 @@
  * Then it builds once (`npm run build`: Vite, then the bundle gate) and runs
  *
  *   npx -y wrangler@4 deploy --config wrangler.jsonc --tag <tag> --message "<tag> at commit <sha>"
- *   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch <releaseBranch>
+ *   npx -y wrangler@4 pages deploy dist --project-name heroesims --branch <productionBranch>
  *
  * from web/, stopping at the first failure. The Worker goes first, so that its failure leaves
  * pages.dev, where the players' saves are, as it was. A Worker version records a commit only in
@@ -60,7 +60,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -68,9 +68,11 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 /**
  * The branch Pages publishes as production, named on every Pages deploy: an upload for any other
  * branch is a preview that never reaches https://heroesims.pages.dev. The only place it is
- * written; it became `v1.1-release` at that branch's first release, `v1.1.0` (DL-86, #37, DL-123).
+ * written. It is `main`, the repository's production branch, which only a release branch's merged
+ * pull request moves, so that a new release line changes nothing at Cloudflare (DL-124; it was
+ * the latest release branch, last `v1.1-release`, DL-86, DL-123).
  */
-export const releaseBranch = 'v1.1-release';
+export const productionBranch = 'main';
 
 /**
  * The page's two addresses (INPUTS 7.8): the Worker's, `heroesim` on the account's workers.dev
@@ -101,7 +103,7 @@ export function wranglerCommands(tag, commit) {
   const message = `${tag} at commit ${commit}`;
   return {
     worker: ['-y', wrangler, 'deploy', '--config', workerConfig, '--tag', tag, '--message', message],
-    pages: ['-y', wrangler, 'pages', 'deploy', 'dist', '--project-name', pagesProject, '--branch', releaseBranch],
+    pages: ['-y', wrangler, 'pages', 'deploy', 'dist', '--project-name', pagesProject, '--branch', productionBranch],
   };
 }
 
@@ -283,11 +285,11 @@ export function deploy({
       );
       // The Worker went live: print its record, for the entry that records this attempt, before
       // its file goes with the directory (v1.0.1-S6, DL-97).
-      report({ tag, commit, records, say, complain, now, pagesFailed: true });
+      report({ tag, commit, records, say, complain, now, env, pagesFailed: true });
       return statusOf(pages);
     }
 
-    return report({ tag, commit, records, say, complain, now, pagesFailed: false });
+    return report({ tag, commit, records, say, complain, now, env, pagesFailed: false });
   } finally {
     rmSync(recordDir, { recursive: true, force: true });
   }
@@ -296,7 +298,10 @@ export function deploy({
 const versionOf = (entries) => entryOf(entries, 'wrangler-session')?.wrangler_version ?? 'unknown';
 const at = (entry) => (entry?.timestamp ? `; ${entry.timestamp}` : '');
 
-/** The Worker's line of the record, from the file its wrangler run wrote, and what in it to warn of. */
+/**
+ * The Worker's line of the record, from the file its wrangler run wrote: what in it fails the
+ * deploy, and what is only warned of.
+ */
 function workerRecord(file) {
   const entries = readRecord(file);
   const deployed = entryOf(entries, 'deploy');
@@ -304,11 +309,12 @@ function workerRecord(file) {
   const line =
     `  Worker          wrangler ${versionOf(entries)}; version ${deployed?.version_id ?? 'unknown'}; ` +
     `at ${targets.join(', ') || 'no address'}${at(deployed)}`;
-  const problems = [];
+  const failures = [];
+  const warnings = [];
   if (deployed === undefined) {
-    problems.push(`wrangler wrote no record of the Worker's deploy; read its version and address in its output above.`);
+    warnings.push(`wrangler wrote no record of the Worker's deploy; read its version and address in its output above.`);
   } else if (!targets.includes(addresses.worker)) {
-    problems.push(
+    failures.push(
       `the Worker is served at ${targets.join(', ') || 'no address'}, not at ${addresses.worker},`,
       'the address the live check reads.',
       "Run the live check on each address alone, with HEROESIM_LIVE_URL set to the Worker's address, then to",
@@ -316,10 +322,13 @@ function workerRecord(file) {
       'in the commit that records this deploy.',
     );
   }
-  return { line, problems };
+  return { line, failures, warnings };
 }
 
-/** The Pages deployment's line of the record, from the file its wrangler run wrote, and what in it to warn of. */
+/**
+ * The Pages deployment's line of the record, from the file its wrangler run wrote: what in it
+ * fails the deploy, a preview among them (DL-124 item 5), and what is only warned of.
+ */
 function pagesRecord(file, commit) {
   const entries = readRecord(file);
   const deployed = entryOf(entries, 'pages-deploy-detailed');
@@ -327,50 +336,69 @@ function pagesRecord(file, commit) {
   const line =
     `  Pages           wrangler ${versionOf(entries)}; ${deployed?.url ?? 'no URL'}; ` +
     `environment ${deployed?.environment ?? 'unknown'}; commit ${pagesCommit || 'unknown'}${at(deployed)}`;
-  const problems = [];
+  const failures = [];
+  const warnings = [];
   if (deployed === undefined) {
-    problems.push('wrangler wrote no record of the Pages deploy; read its URL in its output above.');
+    warnings.push('wrangler wrote no record of the Pages deploy; read its URL in its output above.');
   } else {
     if (deployed.environment !== 'production') {
-      problems.push(`Pages took this deploy as ${deployed.environment ?? 'an unknown environment'}, not production.`);
+      failures.push(
+        `Pages took this deploy as ${deployed.environment ?? 'an unknown environment'}, not production: ` +
+          `${addresses.pages} still serves what it did. Set the Pages project's production branch to ${productionBranch}.`,
+      );
     }
     // Compared as a prefix, in case Pages keeps an abbreviated hash.
     if (pagesCommit && !commit.startsWith(pagesCommit)) {
-      problems.push(`Pages recorded commit ${pagesCommit}, not ${commit}.`);
+      failures.push(`Pages recorded commit ${pagesCommit}, not ${commit}.`);
     }
   }
-  return { line, problems };
+  return { line, failures, warnings };
 }
 
 /**
- * Print the deploy's record from the files wrangler wrote, and warn of anything unexpected in it:
- * both uploads', or, when Pages failed after the Worker took the build, the Worker's alone.
+ * Print the deploy's record from the files wrangler wrote, and what in it fails the deploy or is
+ * warned of: both uploads', or, when Pages failed after the Worker took the build, the Worker's
+ * alone. With HEROESIM_DEPLOY_RECORD set, the record is written to the file it names too, for the
+ * run's summary and the release's GitHub Release (DL-124 item 8). Returns 1 on a failure, else 0.
  */
-function report({ tag, commit, records, say, complain, now, pagesFailed }) {
+function report({ tag, commit, records, say, complain, now, env, pagesFailed }) {
   const worker = workerRecord(records.worker);
   const pages = pagesFailed ? null : pagesRecord(records.pages, commit);
+  const record = [
+    `  tag             ${tag}`,
+    `  commit          ${commit}`,
+    `  finished (UTC)  ${now().toISOString()}`,
+    worker.line,
+    ...(pages === null ? ['  Pages           failed after the Worker took the build'] : [pages.line]),
+  ];
 
   say(
     pages === null
-      ? "the Worker's record, for the release's decision-log entry, which records this attempt:"
-      : "both uploads succeeded. The record, for the release's decision-log entry:",
+      ? "the Worker's record, for the release's record of this attempt:"
+      : "both uploads succeeded. The record, for the release's record:",
   );
-  say(`  tag             ${tag}`);
-  say(`  commit          ${commit}`);
-  say(`  finished (UTC)  ${now().toISOString()}`);
-  say(worker.line);
-  if (pages !== null) {
-    say(pages.line);
-    say('Next, the live check on both addresses: npm run e2e:live -w web');
+  for (const line of record) say(line);
+  if (pages !== null) say('Next, the live check on both addresses: npm run e2e:live -w web');
+
+  const failures = [...worker.failures, ...(pages?.failures ?? [])];
+  const warnings = [...worker.warnings, ...(pages?.warnings ?? [])];
+  if (warnings.length > 0) {
+    complain('WARNING '.repeat(8).trim());
+    for (const warning of warnings) complain(`WARNING: ${warning}`);
+    complain('WARNING '.repeat(8).trim());
+  }
+  if (failures.length > 0) {
+    complain('FAILED '.repeat(8).trim());
+    for (const failure of failures) complain(`FAILED: ${failure}`);
+    complain('FAILED '.repeat(8).trim());
   }
 
-  const problems = [...worker.problems, ...(pages?.problems ?? [])];
-  if (problems.length > 0) {
-    complain('WARNING '.repeat(8).trim());
-    for (const problem of problems) complain(`WARNING: ${problem}`);
-    complain('WARNING '.repeat(8).trim());
+  const recordFile = env.HEROESIM_DEPLOY_RECORD?.trim();
+  if (recordFile) {
+    const noted = [...failures.map((failure) => `  FAILED: ${failure}`), ...warnings.map((warning) => `  WARNING: ${warning}`)];
+    writeFileSync(recordFile, `${[...record, ...noted].join('\n')}\n`);
   }
-  return 0;
+  return failures.length > 0 ? 1 : 0;
 }
 
 // Run when Node runs this file, not when a test imports it.
