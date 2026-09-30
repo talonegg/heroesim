@@ -12922,6 +12922,248 @@ therefore enforce their own rules.
 `docs/planning/epics/INPUTS-REQUIRED.md` (7.8, 7.9, 7.10); the branch `main` and the repository's
 settings.
 
+## DL-125 — Pictures and words for v1.1.2: a `media/` folder, Portraits of the Guildmaster, Heroes and Patrons, a Guild Banner beside each Guild's title, Unique Items' pictures, the Guildmaster described from content, every standalone text beginning with a capital, and all of it a v1.1.x patch
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** the owner, answering the agent's
+analysis question by question.
+- *Owner-decided.* The requests themselves, and items 1 to 11: each is the owner's answer. Items
+  10.1 and 10.2 go against the agent's recommendation, which each names.
+- *The agent's.* The names, files and mechanisms under each item, and items 12 and 13. Each is
+  marked, and the owner may change any before its story starts.
+
+**Context.** On 2026-09-30, with `v1.1.1` in production, the owner asked for six changes to the
+page:
+1. A folder in the repository for the media the page shows.
+2. A 3 × 4 Portrait on the Guildmaster's, a Hero's and a Patron's details and History. Each shows
+   a Silhouette for its sex, except the player's Guildmaster. Guildmasters, Heroes and Patrons each
+   have a folder of pictures, with a folder per sex.
+3. The player's Guildmaster setup gains three things. The player chooses a Portrait for the sex
+   chosen, and one is drawn when the sex is drawn. One more picture of each sex is added, supplied
+   by the owner. The Guildmaster's background and Appearance are written for the player, even when
+   the player chooses the age and sex.
+4. A Guild Banner beside the Guild's name in titles, with a Silhouette of a banner for now.
+5. A Unique Item's picture beside its name in the Market and the Stores, with a Silhouette of a
+   chest for now.
+6. Consistent capitals: headings and labels begin with a capital letter, and so do the special
+   terms.
+
+The agent read the page, the engine and the decisions that bind them. It found these constraints:
+- One page with one classic script, opening from `file://` (R38).
+- No network call (principle 12), with the bundle gate, which refuses any URL literal. The web UI
+  review read this as "the page requests nothing" (`docs/web-ui-review-2026-09-29.md` §3).
+- A Patron has no sex (`Patron` in `engine/src/document.ts`), and no Patron details page exists.
+  The Patrons table opens a Patron's History.
+- A drawn Guildmaster's descriptive Attributes are empty (DL-100 item 3), and nothing writes them.
+- Unique Items are never offered in the Market's Buy (DL-48).
+- No decision writes a rule for capitals. The decisions that do exist are only one-off choices
+  (DL-111 item 9, DL-112 item 4, DL-115 item 9).
+
+The owner then answered ten questions, one at a time, each with the agent's analysis for the build
+and for later. The owner cut `v1.1.2-dev` from `main` for the work.
+
+**Decision.**
+
+1. **A root `media/` folder, and how pictures reach the page** (the owner's: the recommended mix).
+   - *The folder* (the agent's). `media/` sits beside `content/`:
+     ```
+     media/portraits/guildmasters/{female,male}/silhouette.svg, gm-female-01.webp, …
+     media/portraits/heroes/{female,male}/silhouette.svg
+     media/portraits/patrons/{female,male}/silhouette.svg
+     media/banners/silhouette.svg
+     media/items/silhouette.svg, <definitionKey>.webp
+     ```
+     The page reads it through Vite's `import.meta.glob`, so the build knows every file, and a
+     test can find a key that names no file.
+   - *Delivery.*
+     - The Silhouettes are small SVGs, inlined into the one script. They are always present, and
+       each is the fallback while a picture loads or when one fails.
+     - The pictures are hashed files beside the script in `dist/assets/`, loaded by relative
+       `<img>`.
+     - The size under which Vite inlines a file is set explicitly, so a large SVG cannot slip into
+       the script unnoticed.
+   - *Principle 12, read.* The page loads only its own files, by relative path, from its own origin
+      or its own folder, and never another origin. No call is made to any server. The UI review's
+      "the page requests nothing" is read this way from now on. R38 stands: one page, one classic
+      script, opening from `file://`.
+   - *Measured.* On 2026-09-30 Chromium, through Playwright, loaded a relative PNG and SVG from a
+     `file://` page, one of them added by a classic script. Firefox was not installed, so it was
+     not tried.
+   - *Checked.* A browser spec opening the built page over `file://` and seeing a picture load joins
+     the checks. The bundle gate is unchanged: a relative path is no URL literal.
+2. **Portraits** (the owner's request; places and data the agent's).
+   - *The picture.* A `<figure>` three wide by four high: about 7.5rem wide on a wide screen and
+     5rem on a phone.
+   - *Alt text.* A picture's alt text is "Portrait of {name}". A Silhouette's is empty, since it
+     says nothing the name beside it does not.
+   - *Where.*
+     - The Guildmaster's details, which also draw each Guild's Guildmaster on its Guild page.
+     - A Hero's page, which the Roster, the Party builder, the Unattached pool, a Rival's Roster and
+       the History all open.
+     - The History page of a Hero, Guildmaster or Patron. A Patron has no other page: the Patrons
+       table opens their History.
+   - *Selectors.* Each selector that feeds these places gains the person's sex and Portrait,
+     beside the words it already gives.
+3. **The player's Guildmaster's Portrait: pictures only** (the owner's).
+   - *The choice.* The player chooses among the Guildmaster pictures of their Guildmaster's sex. A
+     Silhouette is never offered or drawn. If a sex has no pictures, the Guildmaster shows its
+     Silhouette, and nothing is refused.
+   - *Engine* (the agent's).
+     - `Guildmaster.portraitKey: string | null`, in save schema 5. `null` means the Silhouette.
+     - `content/portraits.json` lists the pictures by role and sex, and a test holds it and
+       `media/` to the same files.
+     - `WorldSetup.guildmasterPortraitKey` is optional. `setupRefusal` gains `unknown-portrait`
+       and `portrait-of-another-sex`.
+     - When no Portrait is chosen, one is drawn from the pictures of the sex, chosen or drawn, on a
+       new named stream, `portraits` (ADR-0009). No existing draw moves.
+   - *The form.* "Your Guildmaster" gains a Portrait choice, a thumbnail per picture of the sex
+     with "Drawn from the seed" first. With the sex drawn, it shows the Portrait the seed will draw
+     (item 6).
+4. **Rival Guildmasters show the Silhouette** (the owner's).
+   - *Now.* A Rival's Guildmaster, founding or a successor, has `portraitKey: null`. The player's
+     Guildmaster is never succeeded, since their Retirement ends the game.
+   - *Later, recorded as the direction.* Rivals draw from the Guildmaster pictures once there are
+     enough, about eight a sex. A picture is not held by two Guildmasters in play at once, as with
+     names (DL-88), and the Silhouette is the fallback. It is a decision of its own when it comes.
+5. **A Patron's sex comes with their name** (the owner's).
+   - *Content.* Each `names.patron` entry becomes `{ name, sex }`, in the same order. The draw
+     still picks a name from the same list, so every seed draws the same Patrons.
+   - *Jocelyn* is female, which makes the 30 names 16 male and 14 female.
+   - *The engine.* `Patron.sex: Sex | null` is stored. `null` is kept for a Patron that is a body,
+     which will show an emblem of its Sphere; none is drawn yet. A Patron given a name, as tests
+     and modules do, is given a sex with it.
+6. **The Guildmaster described from content** (the owner's: all three, in the engine, with a
+   preview, for every Guildmaster).
+   - *Wording.* "Background" stays the Guild's and the Hero's (CONTEXT). A Guildmaster's
+     background is their Birthplace and Biography, beside their Appearance.
+   - *Content* (the agent's). `content/descriptions.json` holds:
+     - birthplaces;
+     - Appearance phrases by sex and by age band;
+     - Biography sentences by age band, with the Guild's Background and the Guildmaster's Traits
+       as optional keys, and slots for pronouns.
+     Validation proves that nothing it can write passes `descriptiveAttributeMaxLength` (60, 280
+     and 1,000).
+   - *Engine* (the agent's).
+     - `describeGuildmaster({ seed, n, sex, age, backgroundKey, traitKeys })` is pure and repeats
+       for the same inputs. Its `n` is how many times "Again" was pressed.
+     - `previewGuildmaster(setup, seed)` returns the sex, age, Traits and Portrait a new game would
+       draw, by the same function `createWorld` calls, so the two cannot disagree.
+   - *The form.* "Write them for me" fills the three fields, "Again" writes them anew, and the
+     fields stay the player's to edit. What they hold at "Start the game" is what is kept. With a
+     sex or age drawn, the form shows the preview's, and the button works in every case.
+   - *Blanks.* When any Guildmaster enters play (the player's, a founding Rival's or a successor)
+     each descriptive Attribute left blank is written, on a new named stream, `descriptions`. This
+     supersedes DL-100 item 3's "a drawn Guildmaster's are empty".
+7. **The Guild Banner** (the owner's: the five titles, and heraldry with an override later).
+   - *Where.* Beside:
+     - the status bar's Guild name (`h1`);
+     - "Latest for {Guild}" on the rail;
+     - a Guild's page heading, the largest;
+     - "{Name}, Guildmaster of {Guild}";
+     - "The History of {Guild}".
+
+     It is hidden from screen readers, the name standing beside it. Not in tables, buttons or
+     sentences.
+   - *Now.* Every Guild shows the Silhouette, and nothing is stored.
+   - *Later, recorded as the direction.* Heraldry drawn at a Guild's founding (field, division,
+     charge and colours, drawn as SVG from content), which the player designs for theirs at setup.
+     A picture may stand in its place for a Guild a module or Campaign brings. The page's
+     `<GuildBanner>` takes a Guild, never a file, so either comes without changing a view.
+8. **Unique Items' pictures** (the owner's: the Stores, the Market's Sell and a Hero's Gear; found
+   by file name).
+   - *Where.* The Stores, the Market's Sell, and the Gear and Equip rows of a Hero's page. Each is a
+     small square before the name, hidden from screen readers.
+   - *The Market's Buy.* It never offers a Unique Item (DL-48), so in the Market a Unique Item's
+     picture is seen when one is sold.
+   - *Found by.* `media/items/<definitionKey>.webp`, with the chest's Silhouette when there is
+     none. A test refuses a file that names no Item in content. Each Unique Item exists once, so
+     its content key is its picture's key.
+   - *Later.* An optional `image` field on an Item's content, for Items a module brings with
+     pictures of its own; and Common Items' pictures, then shown in the Buy too.
+9. **Every standalone text begins with a capital** (the owner's).
+   - *What counts.* Headings, titles, buttons, table headers and cells, chips, legends, labels and
+     `dt`s. Text inside a sentence keeps its case, as in "retired at age 65" (DL-112 item 4).
+   - *Glossary terms* are capitalised wherever they stand, in the headword's own case.
+   - *The words settled.*
+     - **Fast forward** is capitalised as the term, and CONTEXT's own prose is corrected.
+     - **Year** joins the glossary beside Day and Turn.
+     - **Offer**, alone, is short for Transfer Offer.
+     - "Unattached pool" keeps a lower-case pool, which is no term.
+     - "Debug: Whole History" stays as the owner worded it (DL-120).
+   - *The style.* The tracked capitals of small labels stay (DL-103 item 11). The source is
+     corrected under them for screen readers and copying.
+   - *How it is kept.*
+     - Lower-case data is capitalised by `capitalised()` in the selector that builds the text,
+       never by CSS `capitalize`.
+     - The rule is written in `docs/agents/ui-text.md`.
+     - A guard test renders every view and fails any standalone text that begins in lower case.
+       Numbers and names are allowed.
+10. **The release: all of it a v1.1.x patch** (the owner's).
+    - *The branch.* The work is built on `v1.1.2-dev`, cut from `main` at `a1b4178`, the merge that
+      released `v1.1.1`.
+    - *The release.* On completion `v1.1-release` is fast-forwarded to it and pushed. CI then raises
+      the pull request to `main`, and merging it releases `v1.1.2` (DL-124).
+    1. *Against the recommendation.* The agent recommended two releases: the page's work, which
+      changes no save, as `v1.1.1`, and the engine's as `v1.2.0`, since a new save schema is a
+      minor version's. The owner put all of it in the v1.1 line.
+    2. *Saves of schema 4 are refused* (against the recommendation to migrate them to schema 5).
+      The page and the CLI say so in a sentence ("This game was saved by an older Heroesim and
+      cannot be loaded"), not a bare failure. DL-113 made older saves no priority in the 1.x line.
+    3. *Random Events stay the v1.2 line's* (DL-99).
+11. **The pictures' format** (the owner's).
+    - *Conversion.* The agent converts each supplied picture once, when adding it. It uses the
+      Chromium Playwright installs, drawing to a canvas and writing WebP at about 80: 480 × 640 for
+      a Portrait, 256 × 256 for an Item. No image package joins the build, which only copies files.
+    - *Backdrop.* Plain and neutral (see item 12).
+    - *Names.* Lower case and hyphens, never renamed once a save may hold them. No credits file.
+12. **The owner's two pictures** (supplied 2026-09-30; the reading is the agent's, for the owner
+    to confirm).
+    - *What they are.* Two graphite drawings on cream paper, 896 × 1200 JPEG, about 376 kB each.
+      One is a bearded man, weathered, in a leather coat before a hearth. The other is a woman with
+      long, braided dark hair, in mail and tooled leather, in a stone hall.
+    - *Fit.* Both are head and shoulders, and nearly 3 × 4 (0.747): taking 5 px from the height
+      makes it exact.
+    - *Where they go.* The originals are kept as `docs/images/portraits/guildmaster-male-01.jpg`
+      and `-female-01.jpg`, and become `media/portraits/guildmasters/{male,female}/gm-…-01.webp` in
+      the story that adds them.
+    - *The reading.* They set the style: graphite on cream paper, with a drawn interior behind.
+      Item 11's plain backdrop is read as the Silhouettes', each drawn as a graphite form on the
+      same cream so that it sits as the pictures do. Later pictures follow these two.
+13. **Silhouette, not template** (the agent's, principle 13). "Template" already names a Quest
+    template, so the stand-in picture is a **Silhouette** in CONTEXT, in code and in its file name,
+    `silhouette.svg`.
+
+**Consequences.**
+- *Superseded.*
+  - DL-100 item 3's empty descriptive Attributes of a drawn Guildmaster.
+  - The UI review's reading of principle 12, which becomes item 1's.
+- *The save.*
+  - Schema 5 holds `Guildmaster.portraitKey` and `Patron.sex`, and the content version rises.
+  - A save made by `v1.1.2` does not load in `v1.1.1` or before. DL-124 item 9's rollback therefore
+    reaches only as far back as `v1.1.2` once it is released.
+- *Play.*
+  - The new streams, `portraits` and `descriptions`, move no existing draw, so every seed plays as
+    in `v1.1.1`. A 50 × 20 sweep's counters must equal `v1.1.1`'s.
+  - Saves differ by the new fields and texts.
+  - Tests that expect a drawn Guildmaster's empty texts change with item 6.
+- *The page.*
+  - The deploy uploads the pictures beside the script, and the live check still sees only its own
+    origin.
+  - About 110 test lines change their expected words with item 9.
+- *Branches.*
+  - `v1.1-dev` is 15 commits behind `main` and is not where this work is built. Dependabot still
+    targets it (DL-124 item 11).
+- *Left open for the owner.*
+  - Item 12's reading.
+  - Whether a Portrait's row in `content/portraits.json` may carry appearance words (a beard,
+    braids, dark hair). With them, a written Appearance would match the face chosen, where without
+    them it may contradict it.
+
+**Actioned in:** `CONTEXT.md` (Patron; Guild Banner; Attribute; Descriptive Attribute; Portrait;
+Silhouette; Year; Fast forward, Fast-forward stop, Watched Guild and Hook's prose; Transfer Offer;
+Unique Item); `docs/planning/epics/v1.1.2-release.md`; `docs/planning/epics/README.md`;
+`docs/plan.md` §4; `docs/agents/ui-text.md`; `AGENTS.md`; `docs/images/portraits/`. The build
+waits for the owner's word.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26

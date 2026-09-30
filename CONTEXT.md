@@ -41,7 +41,9 @@ dispatched is never called home (DL-89); only its Guild's fold disbands it early
 _Avoid_: Team, Squad, Band
 
 **Patron**:
-A person or body that offers Quests to Guilds.
+A person or body that offers Quests to Guilds. By DL-125 a Patron who is a person has a sex,
+which their Portrait follows; a Patron that is a body has none (to be built; every Patron drawn so
+far is a person).
 _Avoid_: Client, Employer, Quest-giver
 
 **Sphere**:
@@ -76,20 +78,44 @@ Defeated by a Rival and to Rival encounters during Quests; direct contests betwe
 separate later feature (DL-89). None of them is built.
 _Avoid_: Guild war, Battle (alone), Clash
 
+**Guild Banner**:
+The picture that stands for a Guild beside its name wherever a title names it. For now every
+Guild shows the banner's Silhouette; later a Guild's Banner is heraldry drawn at its founding,
+which the player designs for theirs at setup, with a picture in its place for a Guild a module or
+Campaign brings (DL-125, to be built).
+_Avoid_: Flag, Crest, Logo, Emblem (kept for a Patron that is a body)
+
 ### What a Hero is made of
 
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
 Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
-(R8; DL-88, DL-100).
+(R8; DL-88, DL-100), with a Portrait (DL-125, to be built).
 _Avoid_: Property, Field, Detail
 
 **Descriptive Attribute**:
 One of three short texts about a Guildmaster that no rule reads: **Birthplace**, a place and not
 the Guild's Background; **Appearance**; and **Biography**. The player may write them for their
-Guildmaster at setup, each trimmed and held to a length; a drawn Guildmaster's are empty (R8;
-DL-88 item 3, DL-100 item 3, DL-102).
+Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
+DL-102). By DL-125 the setup form writes all three from content on request, for the sex and age
+chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
+Guildmaster: the player's, a Rival's and a successor's (to be built; until then a drawn
+Guildmaster's are empty).
 _Avoid_: Detail, Origin, Backstory, Bio, Description
+
+**Portrait**:
+The picture of a person, three wide by four high, shown on their details and on their History:
+a Guildmaster's, a Hero's and a Patron's. The player's Guildmaster has one of the Guildmaster
+pictures of their sex, chosen at setup or drawn; everyone else shows the Silhouette of their sex
+for now, a Rival's Guildmaster included (DL-125, to be built).
+_Avoid_: Avatar, Profile picture, Headshot, Image (alone)
+
+**Silhouette**:
+The stand-in picture shown where no picture exists yet: a head and shoulders of the person's sex
+for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. It is never
+drawn or chosen for the player's Guildmaster while a picture of their sex exists (DL-125, to be
+built).
+_Avoid_: Template (a Quest template is another thing), Placeholder, Default image
 
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its
@@ -341,6 +367,11 @@ drift, ageing, Upkeep and the ending checks fall, as Random Events will once tha
 (R3, approach §2). Quests span several Days.
 _Avoid_: Step, Phase, Tick
 
+**Year**:
+360 Days, 1,080 Turns (`turnsPerYear`), by which ages and the calendar are counted: the game
+begins in Year 0 (DL-125 names it).
+_Avoid_: Season, Annum
+
 **Action**:
 A choice made through the engine, accepted with events or refused with a typed reason and
 nothing changed: dispatching a Party, recruiting, a Transfer, a Transfer Offer or its answer,
@@ -356,12 +387,12 @@ every Guild (DL-89). Actions inside the Hall are never limited.
 _Avoid_: Action point, Move, Trip
 
 **Fast forward**:
-Playing Turn after Turn for a watched Guild until a fast-forward stop holds or a set number of
+Playing Turn after Turn for a watched Guild until a Fast-forward stop holds or a set number of
 Turns has passed; it lands exactly where as many single Turns would (DL-33).
 _Avoid_: Skip, Auto-play, Simulate
 
 **Fast-forward stop**:
-A typed reason fast forward halts. Some always stop it: an ending, the watched Guild falling below
+A typed reason Fast forward halts. Some always stop it: an ending, the watched Guild falling below
 the Bankruptcy floor, its Party coming home, a decision it needs to make, a Transfer Offer for it,
 and a module asking; others only when the caller names them: a Quest its free Heroes can staff
 appearing, even with a Party out, and the Unattached pool refreshing (approach §2, DL-33, DL-85,
@@ -369,7 +400,7 @@ DL-101). To be built: an opt-in stop for a Random Event (DL-82).
 _Avoid_: Interrupt, Pause, Breakpoint
 
 **Watched Guild**:
-The Guild whose Parties, decisions and Transfer Offers stop fast forward, named by whoever runs
+The Guild whose Parties, decisions and Transfer Offers stop Fast forward, named by whoever runs
 it: in a front end, the player's. So no rule needs to ask which Guild is the player's (DL-33).
 _Avoid_: Current Guild, Active Guild
 
@@ -400,7 +431,7 @@ _Avoid_: Module state, Namespace, Store
 **Hook**:
 A point in the Turn where the World Engine calls each installed module: morning, afternoon and
 night. At a hook a module reads the world without changing it, changes its own slice, makes its
-own events, applies effects and may ask fast forward to stop (DL-77). DL-82 adds a hook at
+own events, applies effects and may ask Fast forward to stop (DL-77). DL-82 adds a hook at
 rebase, through which a module adopts its current tunables (to be built).
 _Avoid_: Callback, Handler, Listener
 
@@ -496,7 +527,8 @@ _Avoid_: Stackable, Generic item, Commodity
 
 **Unique Item**:
 An Item that is an individual, magical, special or belonging to a Campaign, with exactly one
-holder at a time.
+holder at a time. By DL-125 it shows its picture beside its name, or a chest's Silhouette until it
+has one (to be built).
 _Avoid_: Artefact, Legendary, Named item
 
 **Unattached Hero**:
@@ -514,7 +546,7 @@ _Avoid_: Sell, Buy, Trade, Signing, Poach (until poaching is a distinct thing)
 **Transfer Offer**:
 A pending bid for a Hero, held until accepted, declined or expired. A Rival answers a bid at
 once and the player's Guild through Transfer Offers: a difference of controller, not a rule
-about the player's Guild (DL-57, DL-85).
+about the player's Guild (DL-57, DL-85). On the page, Offer alone is short for it (DL-125).
 _Avoid_: Bid, Request
 
 **Transfer lock**:

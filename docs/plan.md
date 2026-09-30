@@ -301,6 +301,10 @@ the agents recommended that story features be modules and rule extensions core i
   shortcuts come after it (DL-99 items 4 and 5). *Amended 2026-09-29 (DL-99): the owner put the
   redesign before Random Events.* *Amended 2026-09-29 (DL-111): the owner's player test of M9 adds a
   follow-on inside `v1.1.0` (`docs/planning/epics/M9-feedback.md`).*
+- **Then, inside the v1.1 line:** Portraits, Guild Banners and Unique Items' pictures, the
+  Guildmaster described from content, and every standalone text beginning with a capital, as the
+  patch `v1.1.2`, built on `v1.1.2-dev` from `main` (`docs/planning/epics/v1.1.2-release.md`).
+  *Added 2026-09-30 (DL-125).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
