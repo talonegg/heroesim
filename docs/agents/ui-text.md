@@ -36,4 +36,5 @@ words are terms; this decides how they, and the words around them, are written.
   legends, `h6`s and captions render in capitals. The source under them still follows the rule, for
   screen readers and copying.
 - **A guard test** renders every view and fails any standalone text that begins with a lower-case
-  letter (to be built in v1.1.2-S1).
+  letter (`web/src/views/capitals.test.tsx`, v1.1.2-S1, DL-128). A new view, or a new part of one,
+  is opened there too.

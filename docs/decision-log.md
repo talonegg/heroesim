@@ -13337,6 +13337,133 @@ stand.
 **Actioned in:** `CONTEXT.md` (Descriptive Attribute); `docs/planning/epics/v1.1.2-release.md`
 (§0, S4, S5, §3, §4).
 
+## DL-128 — v1.1.2-S1 built: every standalone text begins with a capital, the audit's findings capitalised in the selectors that build them, the terms written as the glossary has them, and a guard test that reads every view and lists what begins in lower case
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S1's implementer. The rule
+and the words are the owner's (DL-125 item 9, `docs/agents/ui-text.md`), and where the epic names a word
+it is used. The findings the guard added to the audit's, the words for them, and the reading of what
+stands on its own are the implementer's, each marked, for the owner to change.
+
+**Context.** DL-125 item 9 made every standalone text begin with a capital, and v1.1.2-S1 makes the
+page keep it: the audit's findings of 2026-09-30, the terms, and a guard test. It is built on
+`v1.1.2-dev` from `8d706eb`. It changes no save and no rule: every change is in `web/`, in the words a
+selector or a view gives, and the CLI is unchanged.
+
+**Decision.**
+
+1. **The guard** (`web/src/views/capitals.test.tsx`).
+   - *What it draws.* The page (`App`) over a seeded game with something in every part: a Rival folded
+     and another's Guildmaster succeeded (`withWorldNews`), six Turns played, a Hero dead, one retired
+     and one gone from the pool (`withTheGone`), one injured, one with no Skill, a Guildmaster with no
+     Trait, a Party out, a Hero signed after it left so one is at the Hall, a Unique Item and a
+     Consumable held, older rules, and a Transfer Offer that stopped the last play.
+   - *What it opens,* as a player does, through `page.test-support.ts`: the seven views and the
+     Guild's four parts; each Hero's page on the Roster, one in the pool, and the dead, retired and gone
+     Heroes' from the History's search; the Offer asked about; the Party builder, each Quest unfolded;
+     a Rival Guild's page; each History; the game menu; the other ways to Fast forward. Then a Quest
+     report, over a game whose Party came home, and the new-game form with its disclosures open.
+   - *What it reads* (the implementer's reading of "standalone"): headings, buttons, links, summaries,
+     table headers and cells, captions, chips, legends, labels, `dt`s and `dd`s, options, tabs,
+     paragraphs, list items and the values the page marks for its tests, and the `aria-label` of a
+     control. Each is read whole, as a screen reader has it, and as shown, without the visually hidden
+     words: an Outlook chip reads "Outlook Promising" and shows "Promising".
+   - *What passes.* A text whose first letter or digit, past any sign or bracket, is not a lower-case
+     letter; so a number may begin one ("3 neutral", "+2 on a combat Encounter"). A name keeps its own
+     case: a text that begins with a name the History labels, the seed or the content set's id passes.
+   - *What it says.* Every failure, not the first: each text once, with what holds it and every place
+     it was read, as `<span.chip.chip--plain> "at the Hall" (Roster, A Hero’s page, …)`. A guard that
+     reads nothing would pass, so it also counts what it read (over 5,000 texts in the busy game).
+   - *Proved:* with the Roster's "At the Hall" put back to "at the Hall" in `selectors.ts`, it failed
+     and named the chip, on the Roster, the Hero pages and beside the Offer, and the `li` holding it;
+     restored, it passes. Its first draft read a game with every Hero away or hurt, so that chip was
+     never drawn and the revert passed; the Hero signed at the Hall is there for it.
+   - *Its timeout* is 30 seconds: it draws the page some sixty times, 1 to 2 seconds alone and more
+     under the suite's load.
+2. **Where a Hero is** (`whereabouts` in `web/src/state/selectors.ts`): "At the Hall", "Away with a
+   Party, back on the night of Day 5", "Injured, healing on the night of Day 6", "In the Unattached
+   pool", "On no Roster", "Died on Day N", "Retired on Day N". The Roster's chips, a Hero's page's and
+   the Party builder's read it from there; the Board's own `capitalised` in `board.tsx` is gone.
+3. **None, wherever a part is empty:** a Hero's Skills (`hero-page.tsx`), the Guildmaster's Traits
+   (`guildmaster.tsx`), the Patrons' Regard without a Guild or Guildmaster (`patrons.tsx`, from
+   `patronsView`), `Folded`'s default (`ui.tsx`), and a Hero's empty Gear slot (`heroPage`).
+4. **The Kind and Effect cells** (`kindOf` and `doesOf` in `web/src/state/trade-views.ts`): "Weapon
+   Gear", "Consumable", "Weapon Gear, Unique Item", the first word the Kind filter's chip; and an effect
+   as its cell begins it, "An Injury on the Quest heals 5 Days sooner", "Rolls a failed travel or
+   stealth Encounter again". The Market's Buy and Sell and the Stores read them. The Gear a Hero's
+   page offers to equip says its slot the same way, "Weapon Gear" (the implementer's, a finding of
+   the guard's).
+5. **The chips.**
+   - *Regard bands:* `RegardRow.regardWords` and `PatronRow`'s `regardWords` and
+     `guildmasterRegardWords` (`world-views.ts`), "Warm", beside the band the chip's tone reads.
+   - *The Outlook:* `StatRow.outlookWords`, "Promising", beside the hint.
+   - *The pool's Signs:* "Yes", "Needs Fame 12" (`poolView`). A Hero's page in the pool keeps its
+     sentence, "Signs for your Guild: needs Fame 30.", since data inside a sentence keeps its case
+     (rule 4; the implementer's).
+   - *Encounters:* "Combat ×2" (`encounterCounts`). A Quest's hardness keeps "joint 2nd hardest of the 6
+     Quests on the Board", which is read inside a sentence and an `aria-label`.
+   - *"Cannot be priced"* (`market.tsx`).
+6. **The Disposition on a Guild page's line:** `controllerWords` (`names.ts`) takes the content and
+   names the Disposition as the Guilds' table does, "Rival (Steady)".
+7. **The History** (`history.ts`): the choice "The World History", as its page's title; and "3
+   Encounters and 1 Consumable used" under an outcome.
+8. **The terms.**
+   - "Stop the Fast forward" and "More ways to Fast forward" (`status-bar.tsx`).
+   - "Accept the Offer", "Answer the Offer", and an Offer's controls, "Accept The Ashford Guild's
+     Offer for Thorald Dunmere…" (`offers.tsx`, `stop.tsx`).
+   - "{Name}'s Gear", the list's name on a Hero's page.
+   - The new-game disclosure's hint, "Sex, Age, Traits and a few words about them, or all drawn from
+     the seed".
+   - The help (`section.tsx`): Gear and Consumables in the Board's, the Roster's, the Stores', the
+     Offers' and Sell's; Sex and Age in the new game's.
+   - *Beside them* (the implementer's, so a view does not say both): the Transfer's cost, "Their Gear
+     stays with your Guild, …" (`transferCostWords`), and a Hero's page's "The Guild holds no Gear; the
+     Market sells it."
+   - "Unattached pool" and "Debug: Whole History" are as they were.
+9. **The guard's other findings** (the implementer's words for each).
+   - *Places and folds* (`world-views.ts`, `selectors.ts`): the Guilds' Place cell "Joint 1st" and
+     "Folded on Day 12", also on a folded Guild's line; the status bar's Rankings "Joint 1st of 5 by
+     Fame" and "Not ranked: the Guild has folded".
+   - *What a Guildmaster's Stat bears on,* a cell: "The reward agreed and the fees paid".
+   - *A Trait with no effect:* "No effect" (`traitEffectWords`).
+   - *The modules installed, in the game menu:* "The probe module", capitalised where `game-menu.tsx`
+     builds it; the sentence under the page keeps "Installed for testing: the probe module.".
+10. **Not changed.**
+    - *CSS:* no `text-transform: capitalize` is added, and the tracked capitals of small labels
+      (DL-103 item 11) are as they were.
+    - *Terms inside sentences* the epic does not name, in the History's narration, the refusals and the
+      Quest report ("put … in Hero's weapon slot", "their gear went back", "declined … offer for …",
+      "in 1 year"): the guard reads no sentence's inside, and they are left for the owner. The Hall's
+      `built`, "none", is never shown. The Quest report's lines are still capitalised in
+      `quest-report.tsx`, as M9-F5 built them.
+11. **The tests.** Each finding is proved by its selector's test (`selectors`, `world-views`,
+    `trade-views`, `stores`, `history`, `digest`) or its view's (`capitals`, `actions`, `board`,
+    `guildmaster`, `hero-page`, `history`, `market`, `rankings`, `roster`, `stops`, `stores`,
+    `world`, `app`); two are new, a Unique Item's Kind with a Consumable's effect, and the Consumables
+    used under an outcome, read from a Rival's History. About 140 lines of the tests moved with the
+    words, and 10 of the browser specs (`fast-forward`, `journey`, `layout`, `party-and-pool`): their
+    `exact: true` names and `toHaveText`s.
+12. **The final checks**, on the last commit's tree:
+    - `npm run lint`: clean. `npm run typecheck`: clean.
+    - `npm test`: 3,471 tests in 149 files; three failed under the suite's load, each timing out at
+      5 seconds, and all three pass alone: `harness/src/succession.test.ts` and
+      `engine/src/create.test.ts`, the known ones, and `web/src/views/treasury.test.tsx`'s "pages the
+      ledger by 20", which this story does not touch.
+    - `npm run e2e -w web`: the build, one script of 649.58 kB (185.14 kB gzipped), "check-bundle: 2
+      built files, no network or filesystem reference"; 63 runs across the phone, tablet and desktop
+      projects, all passing.
+
+**Consequences.**
+- *Play and saves are unchanged:* no rule, draw, schema or `configVersion` moves.
+- *A new view or part* is opened in the guard, as `docs/agents/ui-text.md` now says.
+- *Tests:* 3,464 to 3,471, in 148 files to 149. The browser specs keep 63 runs, all passing.
+
+**Actioned in:** `web/src/state/` (`selectors.ts`, `world-views.ts`, `trade-views.ts`, `stores.ts`,
+`history.ts`, `names.ts` and their tests), `web/src/views/` (`capitals.test.tsx` new, `board.tsx`,
+`game-menu.tsx`, `guildmaster.tsx`, `hero-page.tsx`, `market.tsx`, `new-game.tsx`, `offers.tsx`,
+`patrons.tsx`, `section.tsx`, `status-bar.tsx`, `stop.tsx`, `ui.tsx`, `page.test-support.ts` and the
+tests named), `web/src/app.test.tsx`, `web/e2e/`; `docs/agents/ui-text.md`;
+`docs/planning/epics/v1.1.2-release.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
