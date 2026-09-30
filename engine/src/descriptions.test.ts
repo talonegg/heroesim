@@ -149,6 +149,20 @@ describe('describeBlanks, as a Guildmaster enters play', () => {
     }
   });
 
+  // v1.1.2-S6 (the S5 verification): a successor did not found the Guild they lead.
+  test("writes a successor's sentence in the Background's place, in the same draw, so nothing after moves", () => {
+    const founder = guildmaster();
+    const successor = guildmaster();
+    const [founding, succeeding] = [testWorld('successor', deps), testWorld('successor', deps)];
+    describeBlanks(founding, deps, founder, 'breakaway');
+    describeBlanks(succeeding, deps, successor, 'breakaway', { successor: true });
+
+    expect(founder.biography).toContain(' She broke away. ');
+    expect(successor.biography).not.toContain('broke away');
+    expect(successor.biography).toContain(' She took the chair. ');
+    expect(succeeding.rng.descriptions).toEqual(founding.rng.descriptions);
+  });
+
   test('takes the same draws whatever is given, mapped or keyed, so the next Guildmaster is described as they would have been', () => {
     const states = [
       guildmaster(),

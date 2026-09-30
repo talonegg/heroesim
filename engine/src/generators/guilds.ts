@@ -238,7 +238,7 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
  * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
  * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
  * neutral for everyone, their descriptive Attributes written from content on the stream
- * `descriptions` for the Guild's Background (`describeBlanks`, v1.1.2-S5), and they enter the world
+ * `descriptions` as a successor's (`describeBlanks`, v1.1.2-S5 and S6), and they enter the world
  * now. The row
  * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
  * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
@@ -257,7 +257,8 @@ export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, 
     chosen: {},
   });
   world.guildmasters[successor.id] = successor;
-  describeBlanks(world, deps, successor, guild.backgroundKey);
+  // A successor came to the chair: their Biography says so in the Background's place (v1.1.2-S6).
+  describeBlanks(world, deps, successor, guild.backgroundKey, { successor: true });
   return successor;
 }
 

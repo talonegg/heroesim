@@ -53,6 +53,11 @@ export interface DescriptionFacts {
   traitKeys: readonly TraitKey[];
   /** Their Portrait: a mapped picture's narrative is the Appearance, as written (DL-127 item 4). */
   portraitKey: PortraitKey | null;
+  /**
+   * Whether they succeeded to the Guild's chair rather than founding the Guild (v1.1.2-S6): their
+   * Biography then has a successor's sentence in the Background's place, drawn in the same draw.
+   */
+  successor?: boolean;
 }
 
 /** The Appearance's slots in the order they are written, `mark` and `bearing` last, one of the two. */
@@ -106,7 +111,7 @@ function write(state: Stream, content: Pick<ContentSet, 'descriptions' | 'portra
   const drawnBiography = [
     pickOrNone(state, listed(sentences.origins, band)),
     pickOrNone(state, listed(sentences.careers, band)),
-    pickOrNone(state, listed(sentences.backgrounds, facts.backgroundKey)),
+    pickOrNone(state, facts.successor === true ? sentences.successors : listed(sentences.backgrounds, facts.backgroundKey)),
     ...traitKeys.map((key) => pickOrNone(state, listed(sentences.traits, key))),
     pickOrNone(state, listed(sentences.closings, band)),
   ]
@@ -152,10 +157,17 @@ export function describeGuildmaster(request: DescribeRequest, deps: Pick<EngineD
 /**
  * Writes each of `guildmaster`'s descriptive Attributes left blank (v1.1.2-S5, DL-125 item 6), as
  * they enter play, from the world's `descriptions` stream; a text written is kept. Their Guild's
- * Background is `backgroundKey`. Takes the same fifteen draws whatever it writes, so the Guildmasters
- * described after are described as they would have been. Changes `guildmaster` in place.
+ * Background is `backgroundKey`; a successor's Biography has a successor's sentence in its place
+ * (`options.successor`, v1.1.2-S6). Takes the same fifteen draws whatever it writes, so the
+ * Guildmasters described after are described as they would have been. Changes `guildmaster` in place.
  */
-export function describeBlanks(world: World, deps: Pick<EngineDeps, 'content'>, guildmaster: Guildmaster, backgroundKey: BackgroundKey): void {
+export function describeBlanks(
+  world: World,
+  deps: Pick<EngineDeps, 'content'>,
+  guildmaster: Guildmaster,
+  backgroundKey: BackgroundKey,
+  options: { successor?: boolean } = {},
+): void {
   const written = write(
     streamOf(world, descriptionsStream),
     deps.content,
@@ -165,6 +177,7 @@ export function describeBlanks(world: World, deps: Pick<EngineDeps, 'content'>, 
       backgroundKey,
       traitKeys: guildmaster.traits,
       portraitKey: guildmaster.portraitKey,
+      successor: options.successor === true,
     },
     { birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography },
   );

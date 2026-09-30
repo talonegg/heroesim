@@ -421,7 +421,7 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
     pronouns: none(),
     birthplaces: [],
     appearance: none(),
-    biography: { origins: {}, careers: {}, backgrounds: {}, traits: {}, closings: {} },
+    biography: { origins: {}, careers: {}, backgrounds: {}, traits: {}, closings: {}, successors: [] },
   };
   if (json === undefined) return empty;
   if (!isObject(json)) {
@@ -481,6 +481,7 @@ function descriptions(json: unknown, problems: string[]): Descriptions {
         backgrounds: lists(biography, 'backgrounds'),
         traits: lists(biography, 'traits'),
         closings: lists(biography, 'closings'),
+        successors: biography.strings('successors'),
       };
       biography.refuseUnknown("the Biography's sentences");
       return sentences;

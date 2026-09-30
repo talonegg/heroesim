@@ -512,3 +512,18 @@ describe("a Guildmaster's Portrait given to the Guild Generator (v1.1.2-S6, the 
     }
   });
 });
+
+// v1.1.2-S6 (the S5 verification): a successor's Biography says they came to the chair, not that they
+// founded the Guild, whatever its Background.
+describe("a successor's Biography (v1.1.2-S6)", () => {
+  test("has a successor's sentence where a founder's has the Background's", () => {
+    const deps = testDeps();
+    const world = testWorld('successor-biography', deps);
+    for (let i = 0; i < 6; i += 1) {
+      const { guild } = generateRival(world, deps, { controller: rival });
+      const successor = generateSuccessor(world, deps, guild);
+      expect(successor.biography).toMatch(/(He|She) took the chair\./);
+      expect(successor.biography).not.toMatch(/took the old charter|broke away/);
+    }
+  });
+});

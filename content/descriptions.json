@@ -74,7 +74,7 @@
         ],
         "mark": [
           "A thin white scar crosses her chin.",
-          "Freckles scatter across her nose and cheeks.",
+          "A small scar nicks her upper lip.",
           "A burn scar marks the inside of one forearm.",
           "One ear is notched from an old fight."
         ],
@@ -133,11 +133,11 @@
         "face": [
           "A lined, weather-browned face with a hawk's nose.",
           "A soft, creased face with a stubborn mouth.",
-          "A narrow face, the skin as fine as old paper.",
+          "A narrow face, fine-boned and weathered.",
           "A broad face, deeply furrowed by sun and wind."
         ],
         "hair": [
-          "White hair worn in a long plait.",
+          "Greying hair worn in a long plait.",
           "Iron-grey hair cropped close.",
           "Silver hair, thick still, swept back.",
           "Grey hair streaked with its old black."
@@ -152,7 +152,7 @@
           "Old scars mark both forearms.",
           "Her knuckles are swollen and knotted.",
           "A scar pulls at one corner of her mouth.",
-          "One eye is clouded from an old wound."
+          "An old wound has left a pale scar through one brow."
         ],
         "bearing": [
           "She speaks seldom, and is listened to.",
@@ -198,7 +198,7 @@
           "A pale scar splits the left eyebrow.",
           "A burn scar puckers the back of one hand.",
           "One front tooth is chipped from an old fall.",
-          "Freckles dust his nose and cheeks."
+          "A thin scar runs along his jaw."
         ],
         "bearing": [
           "He carries himself with easy confidence.",
@@ -266,26 +266,26 @@
         ],
         "hair": [
           "Iron-grey hair, cropped close.",
-          "White hair, thin and wild.",
+          "Greying hair, thin and wild.",
           "What is left of his hair is grey and short.",
           "Grey hair worn long and tied back."
         ],
         "facialHair": [
           "A grey beard, full and neatly kept.",
-          "A white moustache, yellowed at the ends.",
+          "A greying moustache, yellowed at the ends.",
           "He is clean-shaven, the jaw gone soft.",
-          "A short beard gone white at the chin."
+          "A short beard gone grey at the chin."
         ],
         "eyes": [
           "The eyes are faded blue, and sharp as ever.",
           "Hooded grey eyes that seem half asleep.",
-          "Dark eyes, deep-set under white brows.",
+          "Dark eyes, deep-set under heavy brows.",
           "Pale eyes, narrowed by years of squinting."
         ],
         "mark": [
           "Old scars cross the backs of both hands.",
           "A scar puckers the corner of his mouth.",
-          "His knuckles are thick and swollen with age.",
+          "His knuckles are thick and scarred from old fights.",
           "One eyelid droops from an old wound."
         ],
         "bearing": [
@@ -308,17 +308,17 @@
       ],
       "middle": [
         "{He} was born in {birthplace}, where {his} father drove a carrier's cart for thirty years.",
-        "{He} grew up in {birthplace} and left it young, and has been back only twice.",
+        "{He} grew up in {birthplace}, left it young, and has been back only twice.",
         "{He} was born in a hard winter in {birthplace}, and was not expected to live.",
         "{He} comes from {birthplace}, and speaks of it more fondly the longer {he} is away.",
         "{His} family were tenants in {birthplace}, and poorer every year {he} can remember."
       ],
       "older": [
-        "{He} was born in {birthplace}, longer ago than {he} cares to say.",
+        "{He} was born in {birthplace}, and has not been back in twenty years.",
         "{He} grew up in {birthplace}, though little of the place {he} knew is left standing.",
-        "{He} left {birthplace} as a youth, and has spent a lifetime on the roads since.",
+        "As a youth {he} left {birthplace}, and has spent the better part of {his} life on the roads since.",
         "{He} comes from {birthplace}, where they still remember {his} family, not always kindly.",
-        "{His} people farmed poor ground in {birthplace} for five generations before {him}."
+        "For five generations before {him}, {his} people farmed poor ground in {birthplace}."
       ]
     },
     "careers": {
@@ -362,14 +362,14 @@
       ],
       "inherited": [
         "{He} took the Guild over from an ailing aunt who swore it would ruin {him}, and may yet be proved right.",
-        "The Guild came to {him} on the death of its old master, along with his debts and his enemies.",
+        "The Guild came to {him} on the death of its old master, along with the old master's debts and enemies.",
         "{He} was named heir to the Guild by a master who had no one else, and has been trying to deserve it since."
       ]
     },
     "traits": {
       "old-soldier": [
-        "The years in the ranks never quite left {him}: {he} still rises before dawn and inspects anyone who stands still long enough.",
-        "{He} speaks of {his} old company rarely, but a Warrior finds {him} a good judge of a blade and of the one who holds it."
+        "{He} keeps a soldier's hours still, rising before dawn and inspecting anyone who stands still long enough.",
+        "{He} speaks little of soldiering, but a Warrior finds {him} a good judge of a blade and of the one who holds it."
       ],
       "well-liked": [
         "People warm to {him} quickly, and the Guild's Heroes would follow {him} further than their pay alone would take them.",
@@ -409,8 +409,13 @@
         "{He} has outlived most of {his} enemies, and means to outlast the rest.",
         "{He} carries {his} years lightly, and expects the Guild's Heroes to carry theirs the same way.",
         "Age has made {him} slower to anger and quicker to see a trick coming.",
-        "{He} wants one more good season, and then another, and will not hear talk of stepping down."
+        "{He} has good years left in {him}, and means to spend every one of them on the Guild."
       ]
-    }
+    },
+    "successors": [
+      "{He} was chosen to lead the Guild when its chair fell empty, and took on its debts and quarrels along with its Hall.",
+      "{He} served the Guild before its members voted {him} into the chair, and knows where every ledger is kept.",
+      "{He} took up the Guild's leadership from another's hands, and is still learning which of its old habits to keep."
+    ]
   }
 }

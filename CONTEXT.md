@@ -105,6 +105,9 @@ their Portrait shows: a mapped picture's narrative is taken as it is, and no App
 clothing (DL-126, DL-127). Built in v1.1.2-S5 (DL-132): the Birthplace, Appearance and Biography
 are written from `content/descriptions.json`, by sex and age band, the Biography with the Guild's
 Background and the Traits, and the setup form's "Write them for me" and "Again" fill the fields.
+Since v1.1.2-S6 (DL-133) a successor's Biography says they came to the chair, not the Background's
+founding, and the form writes only the fields left blank or still as written, which follow the
+Guildmaster as the setup changes.
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:

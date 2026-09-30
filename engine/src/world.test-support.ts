@@ -573,6 +573,7 @@ export const testContent: ContentSet = deepFreeze({
       backgrounds: { 'old-charter': ['{He} took the old charter.'], breakaway: ['{He} broke away.'] },
       traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
       closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
+      successors: ['{He} took the chair.'],
     },
   },
 });

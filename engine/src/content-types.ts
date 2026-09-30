@@ -587,7 +587,9 @@ export type AppearancePhrases = Record<Exclude<DescriptionSlot, 'facialHair'>, s
 /**
  * The sentences a Biography is written from (v1.1.2-S5, DL-125 item 6), each with slots: `{birthplace}`
  * and the pronoun slots of `Descriptions.pronouns`. By age band: `origins`, `careers` and `closings`;
- * by the optional keys: `backgrounds`, by a Guild Background, and `traits`, by a Guildmaster Trait.
+ * by the optional keys: `backgrounds`, by a Guild Background, and `traits`, by a Guildmaster Trait;
+ * and `successors`, for a successor, who came to the Guild's chair rather than founding the Guild, in
+ * the Background's place (v1.1.2-S6).
  */
 export interface BiographySentences {
   origins: Record<AgeBandKey, string[]>;
@@ -595,6 +597,7 @@ export interface BiographySentences {
   backgrounds: Record<BackgroundKey, string[]>;
   traits: Record<TraitKey, string[]>;
   closings: Record<AgeBandKey, string[]>;
+  successors: string[];
 }
 
 /**

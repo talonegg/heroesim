@@ -91,6 +91,7 @@ describe('loadContent()', () => {
       }
       expect(Object.keys(descriptions.biography.backgrounds).sort()).toEqual([...guildBackgrounds].sort());
       expect(Object.keys(descriptions.biography.traits).sort()).toEqual([...guildmasterTraits].sort());
+      expect(descriptions.biography.successors.length).toBeGreaterThanOrEqual(3);
       for (const texts of [...Object.values(descriptions.biography.backgrounds), ...Object.values(descriptions.biography.traits)]) {
         expect(texts.length).toBeGreaterThanOrEqual(2);
       }
@@ -106,7 +107,7 @@ describe('loadContent()', () => {
 
     test('names no clothing, armour, gear or ornament in any Appearance, drawn or mapped (DL-127 item 2)', () => {
       const worn =
-        /\b(coats?|cloaks?|capes?|mail|armou?r|leathers?|tunics?|shirts?|dress(es)?|gowns?|robes?|hoods?|hats?|caps?|helms?|helmets?|boots?|belts?|buckles?|straps?|rings?|earrings?|necklaces?|brooch(es)?|clasps?|pins?|chains?|jewels?|satchels?|sashe?s?|gloves?|scarf|scarves|collars?|sleeves?|aprons?|jerkins?|doublets?|bracelets?|ribbons?|circlets?|beads?|torcs?|gear|swords?|blades?|staffs?|sticks?)\b/i;
+        /\b(coats?|cloaks?|capes?|mail|armou?r|leathers?|tunics?|shirts?|dress(es)?|gowns?|robes?|hoods?|hats?|caps?|helms?|helmets?|boots?|belts?|buckles?|straps?|rings?|earrings?|necklaces?|brooch(es)?|clasps?|pins?|chains?|jewels?|satchels?|sashe?s?|gloves?|scarf|scarves|collars?|sleeves?|aprons?|jerkins?|doublets?|bracelets?|ribbons?|circlets?|beads?|torcs?|gear|swords?|blades?|staffs?|sticks?|breeches|trousers|mantles?|cowls?|veils?|shawls?|bonnets?|tabards?|gauntlets?|spectacles|eyepatch(es)?)\b/i;
       const phrases = Object.values(descriptions.appearance).flatMap((byBand) =>
         Object.values(byBand).flatMap((slots) => Object.values(slots).flat()),
       );
@@ -114,6 +115,50 @@ describe('loadContent()', () => {
       const naming = [...phrases, ...narratives].filter((text) => worn.test(text));
       expect(naming).toEqual([]);
       expect(phrases.length).toBeGreaterThan(150);
+    });
+
+    // v1.1.2-S6, the S5 verification's findings: the prose read whole, and what it showed held here.
+    const biographySentences = (): string[] => {
+      const { origins, careers, backgrounds, traits, closings, successors } = descriptions.biography;
+      return [origins, careers, backgrounds, traits, closings].flatMap((lists) => Object.values(lists).flat()).concat(successors);
+    };
+
+    test("gives a successor sentences of coming to the Guild's chair, none of founding it", () => {
+      for (const sentence of descriptions.biography.successors) expect(sentence, sentence).not.toMatch(/\bfound(ed|ing|er)?\b|own making/i);
+    });
+
+    test('closes every Birthplace in a sentence with a comma or a full stop, since a Birthplace may hold a comma of its own', () => {
+      const open = biographySentences().filter((sentence) => /\{birthplace\}(?![,.])/.test(sentence));
+      expect(open).toEqual([]);
+      expect(descriptions.birthplaces.some((place) => place.includes(','))).toBe(true);
+    });
+
+    test("names the Guildmaster only by a slot, so no he, his or her is anyone else's", () => {
+      const bare = biographySentences().filter((sentence) => /\b(he|she|him|his|her|hers)\b/i.test(sentence.replace(/\{[^{}]*\}/g, '')));
+      expect(bare).toEqual([]);
+    });
+
+    test("leaves the eyes to their own slot and freckles to the face, so a mark never says them again", () => {
+      for (const byBand of Object.values(descriptions.appearance)) {
+        for (const [band, phrases] of Object.entries(byBand)) {
+          // A bearing may meet another's eye; a mark is of the body, drawn beside the eyes' own phrase.
+          expect(phrases.mark.filter((phrase) => /\beyes?\b/i.test(phrase)), band).toEqual([]);
+          if (phrases.face.some((phrase) => /freckl/i.test(phrase))) expect(phrases.mark.filter((phrase) => /freckl/i.test(phrase)), band).toEqual([]);
+        }
+      }
+    });
+
+    test('writes the older band for a Guildmaster of 41 as for one of 50: no white hair, no lifetime behind them, no talk of stepping down', () => {
+      const older = [
+        ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand.older ?? {}).flat()),
+        ...(['origins', 'careers', 'closings'] as const).flatMap((part) => descriptions.biography[part].older ?? []),
+      ];
+      expect(older.filter((text) => /\bwhite\b|lifetime|longer ago|stepping down|with age|old paper/i.test(text))).toEqual([]);
+    });
+
+    test("writes each Guildmaster Trait's sentences for any age, so a young career and a Trait never disagree", () => {
+      const traits = Object.values(descriptions.biography.traits).flat();
+      expect(traits.filter((sentence) => /\byears\b|\bold (company|days)\b|long ago/i.test(sentence))).toEqual([]);
     });
 
     test('writes each standalone text with a capital: every Birthplace, phrase and sentence begins with one', () => {

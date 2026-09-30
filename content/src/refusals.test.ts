@@ -452,6 +452,24 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
     expect(message).toContain('descriptions.pronouns.male.birthplace: a pronoun\'s slot is a word of letters, and not "birthplace"');
   });
 
+  // v1.1.2-S6: a successor's sentences, and a Birthplace closed in its sentence.
+  test("are refused with a successor's sentences missing or empty, or a Birthplace left open in a sentence", () => {
+    const missing = withJson('descriptions.json', (json) => {
+      delete (json.biography as unknown as Record<string, unknown>)['successors'];
+    });
+    expect(refusalOf(() => parseContent(missing)).message).toContain('descriptions.json: biography.successors is missing');
+
+    const files = withJson('descriptions.json', (json) => {
+      json.biography.successors = [];
+      json.biography.origins['young']?.push('{He} left {birthplace} young.');
+    });
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('descriptions.biography.successors is empty');
+    expect(message).toContain(
+      'descriptions.biography.origins.young.5: {birthplace} is followed by a comma or a full stop, since a Birthplace may hold a comma',
+    );
+  });
+
   test('are refused with a Birthplace past 60 characters, blank or in lower case, or listed twice', () => {
     const files = withJson('descriptions.json', (json) => {
       json.birthplaces.push(`Saltcote${', by the sea'.repeat(5)}`, 'the Crane Marshes', ' ', "Hob's Ferry");
@@ -494,11 +512,13 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
           backgrounds: {},
           traits: { thrifty: ['Tt.'], miser: ['Mmm.'], spendthrift: ['S.'] },
           closings: { young: ['E.'], middle: ['E.'], older: ['E.'] },
+          successors: ['Su.'],
         },
       },
     };
-    // "She was born in " 16 + 60 + "." 1 = 77; then "C." "Mmm." "Tt." "E." and four spaces.
-    expect(longestDescriptions(tiny).biography).toBe(77 + 2 + 4 + 3 + 2 + 4);
+    // "She was born in " 16 + 60 + "." 1 = 77; then "C.", "Su." (a successor's, in the Background's
+    // place), "Mmm." "Tt." "E." and five spaces.
+    expect(longestDescriptions(tiny).biography).toBe(77 + 2 + 3 + 4 + 3 + 2 + 5);
   });
 });
 

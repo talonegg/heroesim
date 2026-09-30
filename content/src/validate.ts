@@ -332,7 +332,8 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): Long
       );
     }
     const parts = descriptions.biography;
-    const background = most(Object.values(parts.backgrounds).map(longest));
+    // A successor's sentence stands in the Background's place (v1.1.2-S6).
+    const background = Math.max(most(Object.values(parts.backgrounds).map(longest)), longest(parts.successors));
     const traits = Object.values(parts.traits)
       .map(longest)
       .sort((a, b) => b - a)
@@ -356,8 +357,10 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): Long
  * - the Appearance: every sex has a phrase list for each age band and slot, `facialHair` a male's
  *   only; each phrase is a sentence, beginning with a capital and ending with a full stop, with no slot;
  * - the Biography: its origins, careers and closings have every age band; its backgrounds are Guild
- *   Backgrounds and its traits Guildmaster Traits, each optional; each sentence begins with a capital
- *   and ends with a full stop, and its slots are the pronouns' and `{birthplace}`;
+ *   Backgrounds and its traits Guildmaster Traits, each optional; a successor's sentences are at least
+ *   one (v1.1.2-S6); each sentence begins with a capital and ends with a full stop, its slots are the
+ *   pronouns' and `{birthplace}`, and `{birthplace}` is followed by a comma or a full stop, since a
+ *   Birthplace may hold a comma of its own ("Scarrow, a fishing village"; v1.1.2-S6);
  * - and the longest Birthplace, Appearance and Biography they can make (`longestDescriptions`) are
  *   within 60, 280 and 1,000 characters.
  */
@@ -422,6 +425,9 @@ function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' 
         return name === birthplaceSlot ? 'Place' : (pronouns.female[name] ?? name);
       });
       if (/[{}]/.test(filled)) problems.push(`${at} has a brace that is no slot${slotted ? '' : ': an Appearance has no slot'}`);
+      if (slotted && new RegExp(`\\{${birthplaceSlot}\\}(?![,.])`).test(text)) {
+        problems.push(`${at}: {${birthplaceSlot}} is followed by a comma or a full stop, since a Birthplace may hold a comma`);
+      }
       if (!written(filled) || !filled.endsWith('.')) problems.push(`${at} is no sentence: trimmed, a capital first and a full stop last`);
     });
   };
@@ -453,6 +459,7 @@ function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' 
     if (set.traits[key]?.owner !== 'guildmaster') problems.push(`descriptions.biography.traits: "${key}" is not a Guildmaster Trait`);
     sentences(texts, `descriptions.biography.traits.${key}`, true);
   }
+  sentences(biography.successors, 'descriptions.biography.successors', true);
 
   const longest = longestDescriptions(set);
   const names = { appearance: 'Appearance', biography: 'Biography' } as const;
