@@ -15,7 +15,7 @@ describe('loadContent()', () => {
 
   test("is the core content set, version 17 since v1.1.3-S1's pictures' rows, vocabulary and a Hero's sentences (DL-134, DL-135)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(17);
+    expect(content.version).toBe(19);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -36,9 +36,10 @@ describe('loadContent()', () => {
     expect(male).toHaveLength(16);
   });
 
-  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, 38 more since v1.1.3-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+    const twenty = (sex: string) => Array.from({ length: 20 }, (_, index) => `gm-${sex}-${String(index + 1).padStart(2, '0')}`);
     expect(content.portraits).toEqual({
-      guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] },
+      guildmaster: { female: twenty('female'), male: twenty('male') },
       hero: { female: [], male: [] },
       patron: { female: [], male: [] },
     });
@@ -54,8 +55,11 @@ describe('loadContent()', () => {
       'long-hair': { maleOnly: false, shows: [] },
       'curly-hair': { maleOnly: false, shows: [] },
       'grey-hair': { maleOnly: false, shows: [] },
+      bald: { maleOnly: false, shows: [] },
     });
-    expect(Object.keys(portraits)).toEqual(['gm-male-01', 'gm-female-01']);
+    // The owner's two first; v1.1.3-S4 took in 38 more, and its analysis gave these two hooks.
+    expect(Object.keys(portraits).slice(0, 2)).toEqual(['gm-male-01', 'gm-female-01']);
+    expect(Object.keys(portraits)).toHaveLength(40);
     expect(portraits['gm-male-01']).toEqual({
       apparentAge: [45, 55],
       station: 'common',
@@ -63,7 +67,7 @@ describe('loadContent()', () => {
       temper: 'stern',
       features: ['beard', 'scar', 'curly-hair'],
       narrative: expect.stringMatching(/^A weathered, deeply lined face, .* before a word is spoken\.$/) as unknown,
-      hooks: [],
+      hooks: ['{He} still wears the scuffed, stained leather coat of {his} road years, and has sent away every tailor the Guild has found for {him}.'],
     });
     expect(portraits['gm-female-01']).toEqual({
       apparentAge: [22, 30],
@@ -72,21 +76,20 @@ describe('loadContent()', () => {
       temper: 'composed',
       features: ['braids', 'long-hair'],
       narrative: expect.stringMatching(/^A strong-boned face with high cheekbones .* what she is thinking\.$/) as unknown,
-      hooks: [],
+      hooks: [
+        "{He} grew up in a vaulted stone house with {his} family's arms carved above the fire, and still sleeps poorly under a low roof.",
+        '{He} has pinned {his} braids with the same worked clasp since {his} first muster, and is never seen without it.',
+      ],
     });
-    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260.
+    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260; v1.1.3-S4's
+    // analysis read gm-female-01's eyes as pale, and made it 255.
     expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
-    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(241);
+    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(255);
   });
 
   test("warns of every sex and band of Guildmaster pictures, and every Class and sex of Hero pictures, short of three (DL-134 item 10)", () => {
+    // Since v1.1.3-S4 every sex and band of Guildmaster pictures holds three or more.
     expect(contentWarnings(content)).toEqual([
-      'portraits.guildmaster.female: 1 picture in the young band, fewer than 3',
-      'portraits.guildmaster.female: 0 pictures in the middle band, fewer than 3',
-      'portraits.guildmaster.female: 0 pictures in the older band, fewer than 3',
-      'portraits.guildmaster.male: 0 pictures in the young band, fewer than 3',
-      'portraits.guildmaster.male: 0 pictures in the middle band, fewer than 3',
-      'portraits.guildmaster.male: 1 picture in the older band, fewer than 3',
       'portraits.hero.female: 0 pictures of the Class warrior, fewer than 3',
       'portraits.hero.female: 0 pictures of the Class rogue, fewer than 3',
       'portraits.hero.female: 0 pictures of the Class mage, fewer than 3',
@@ -153,9 +156,9 @@ describe('loadContent()', () => {
 
     // v1.1.3-S1: the structure proved with a first sentence in every list; the first `analyse` run fills
     // them to three or more (v1.1.3-S4, DL-135 item 11).
-    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1)", () => {
+    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1), and v1.1.3-S4's genial", () => {
       expect(descriptions.stations).toEqual(['common', 'trade', 'gentry']);
-      expect(descriptions.tempers).toEqual(['stern', 'composed', 'intense', 'calculating', 'wry', 'steady']);
+      expect(descriptions.tempers).toEqual(['stern', 'composed', 'intense', 'calculating', 'wry', 'steady', 'genial']);
       expect(descriptions.callings).toEqual({
         soldier: { suits: ['old-soldier'], clashes: [] },
         adventurer: { suits: ['old-soldier'], clashes: [] },
@@ -185,7 +188,7 @@ describe('loadContent()', () => {
         ...heroTraits.map((key): [string, string[] | undefined] => [`heroBiography.traits.${key}`, hero.traits[key]]),
         ...bands.map((band): [string, string[] | undefined] => [`heroBiography.closings.${band}`, hero.closings[band]]),
       ];
-      expect(lists).toHaveLength(3 + 7 * 3 + 6 + 8 + 4 * 3 + 4 + 3);
+      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + 4 + 3);
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
     });
 

@@ -229,9 +229,9 @@ describe('new', () => {
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
-    // v1.1.2-S4: the core lists the owner's two pictures (`portrait.test.ts` holds the rest).
-    ['a Portrait content lacks', ['--portrait', 'gm-male-09'], 'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male).'],
-    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-male-01 (male).'],
+    // v1.1.2-S4: the core lists its pictures, 40 since v1.1.3-S4: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
+    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is keyed "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
+    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
     ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female"],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);
@@ -1529,22 +1529,23 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
-    // Chosen to fit them from the core's pictures of the sex since v1.1.3-S5: its one of each sex, or
-    // the Silhouette where that does not fit their age.
+    // Chosen to fit them from the core's pictures of the sex since v1.1.3-S5: its 20 of each sex, or
+    // the Silhouette where none fits their age. Under the seed 'demo' they are a man of 39, and gm-male-14's
+    // row is of a man of 38 to 48.
     const bare = lines(play(['show', 'guildmaster']));
     const sex = bare.find((line) => line.startsWith('Sex'))?.replace(/^Sex\s+/, '').toLowerCase() ?? '';
     expect(['female', 'male']).toContain(sex);
     const held = document().world.guildmasters[guildmasterId]?.portraitKey;
-    expect([`gm-${sex}-01`, null]).toContain(held);
+    expect([`gm-${sex}-14`, null]).toContain(held);
     expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+${held ?? 'None: the Silhouette'}$`));
 
     edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: null }));
     expect(play(['show', 'guildmaster']).out).toMatch(/^Portrait\s+None: the Silhouette$/m);
 
     // A key the core lacks still shows, with the load's warning (data-model rule 5).
-    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-09' }));
+    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-99' }));
     const run = play(['show', 'guildmaster']);
-    expect(run.out).toMatch(/^Portrait\s+gm-male-09$/m);
+    expect(run.out).toMatch(/^Portrait\s+gm-male-99$/m);
     expect(run.err).toContain('Warning:');
   });
 

@@ -249,18 +249,22 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
     return guild === undefined ? undefined : world.guildmasters[guild.guildmasterId];
   }
 
-  test("offers the owner's two pictures, each named by its sex and its place, by the sex chosen, or both with the sex drawn", () => {
+  test("offers content's pictures, each named by its sex and its place, by the sex chosen, or both with the sex drawn", () => {
+    /** The 20 pictures of `sex` since v1.1.3-S4, as the form offers them. */
+    const twenty = (sex: Sex, label: string) =>
+      Array.from({ length: 20 }, (_, n) => ({ key: `gm-${sex}-${String(n + 1).padStart(2, '0')}`, sex, label: `${label} Portrait ${n + 1}` }));
     expect(portraitChoices(null)).toEqual([
-      { sex: 'female', label: 'Female', pictures: [{ key: 'gm-female-01', sex: 'female', label: 'Female Portrait 1' }] },
-      { sex: 'male', label: 'Male', pictures: [{ key: 'gm-male-01', sex: 'male', label: 'Male Portrait 1' }] },
+      { sex: 'female', label: 'Female', pictures: twenty('female', 'Female') },
+      { sex: 'male', label: 'Male', pictures: twenty('male', 'Male') },
     ]);
-    expect(portraitChoices('male').map((group) => group.pictures.map((pick) => pick.key))).toEqual([['gm-male-01']]);
-    expect(portraitChoices('female').map((group) => group.pictures.map((pick) => pick.key))).toEqual([['gm-female-01']]);
+    expect(portraitChoices('male').map((group) => group.pictures.map((pick) => pick.key))).toEqual([content.portraits.guildmaster.male]);
+    expect(portraitChoices('female').map((group) => group.pictures.map((pick) => pick.key))).toEqual([content.portraits.guildmaster.female]);
     // A sex with no picture has no group: a Silhouette is never offered (DL-125 item 3).
     const none = { female: [], male: [] };
     expect(portraitChoices(null, { ...content, portraits: { ...content.portraits, guildmaster: { ...none, male: ['gm-male-01'] } } })).toHaveLength(1);
     expect(portraitPick('gm-male-01')?.label).toBe('Male Portrait 1');
-    expect(portraitPick('gm-male-09')).toBeUndefined();
+    expect(portraitPick('gm-male-09')?.label).toBe('Male Portrait 9');
+    expect(portraitPick('gm-male-21')).toBeUndefined();
   });
 
   test('names the sex, age, Traits and Portrait "Start the game" makes, over many seeds, each line only for what is drawn', () => {
@@ -273,15 +277,16 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
       expect(view.drawnWords).toBe(`Drawn: ${guildmaster.sex === 'female' ? 'Female' : 'Male'}, ${guildmaster.ageAtEntry}`);
       const names = traitNames(guildmaster.traits);
       expect(view.traitsWords).toBe(names.length === 0 ? 'Drawn Traits: None' : `Drawn Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
-      // Chosen to fit them since v1.1.3-S5: the core's one picture of the sex, or the Silhouette where
-      // it does not fit their age.
+      // Chosen to fit them since v1.1.3-S5: a picture of the sex, named by its place in content's list,
+      // or the Silhouette where none fits their age.
+      const place = guildmaster.portraitKey === null ? 0 : content.portraits.guildmaster[guildmaster.sex].indexOf(guildmaster.portraitKey) + 1;
       expect(view.portrait).toEqual({
         sex: guildmaster.sex,
         portraitKey: guildmaster.portraitKey,
         words:
           guildmaster.portraitKey === null
             ? 'Drawn Portrait: None: the Silhouette'
-            : `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait 1`,
+            : `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait ${place}`,
       });
     }
   });
@@ -289,7 +294,8 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   test('says only what is drawn: the age alone, the sex alone, or nothing at all when everything is chosen', () => {
     const chosenSex = previewOf({ ...fields, guildmasterSex: 'male' }, 'seed-a');
     expect(chosenSex).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: Age ${made('seed-a', { ...fields, guildmasterSex: 'male' })?.ageAtEntry}` });
-    expect(chosenSex?.kind === 'drawn' && chosenSex.portrait?.words).toBe('Drawn Portrait: Male Portrait 1');
+    // A male of 46 for 'seed-a': gm-male-17, of 38 to 48, fits him (v1.1.3-S5).
+    expect(chosenSex?.kind === 'drawn' && chosenSex.portrait?.words).toBe('Drawn Portrait: Male Portrait 17');
 
     const chosenAge = previewOf({ ...fields, guildmasterAge: 40, guildmasterTraitKeys: [] }, 'seed-a');
     expect(chosenAge).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: ${capitalised(made('seed-a', fields)?.sex ?? '')}`, traitsWords: null });
@@ -348,11 +354,13 @@ describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", ()
     }
   });
 
-  test("with the owner's pictures mapped, the Appearance is the Portrait's narrative; \"Again\" writes the rest anew", () => {
+  test("with every picture mapped, the Appearance is the Portrait's narrative; \"Again\" writes the rest anew", () => {
     const first = writtenOf(fields, 'again-seed', 0);
     const again = [1, 2, 3, 4].map((n) => writtenOf(fields, 'again-seed', n));
-    const sex = made('again-seed', fields)?.guildmaster?.sex ?? 'female';
-    const narrative = content.portraitAppearances.portraits[`gm-${sex}-01`]?.narrative;
+    const key = made('again-seed', fields)?.guildmaster?.portraitKey ?? null;
+    expect(key).not.toBeNull();
+    const narrative = content.portraitAppearances.portraits[key ?? '']?.narrative;
+    expect(narrative).toBeDefined();
     for (const each of [first, ...again]) expect(each?.texts.appearance).toBe(narrative);
     expect(new Set([first, ...again].map((each) => each?.texts.biography)).size).toBeGreaterThan(3);
     expect(writtenOf(fields, 'again-seed', 3)).toEqual(again[2]);

@@ -152,7 +152,10 @@ describe('media/', () => {
   // 120 kB (DL-134 item 9), which `npm run portraits -- check` holds too.
   test('holds each Portrait picture as WebP, 480 × 640, of at most 120 kB', () => {
     const pictures = files.filter(isPortraitPicture);
-    expect(pictures).toEqual(['portraits/guildmasters/female/gm-female-01.webp', 'portraits/guildmasters/male/gm-male-01.webp']);
+    // The owner's two and the 38 v1.1.3-S4 took in: gm-female-01 to 20 and gm-male-01 to 20.
+    const twenty = (sex: Sex): string[] =>
+      Array.from({ length: 20 }, (_, index) => `portraits/guildmasters/${sex}/gm-${sex}-${String(index + 1).padStart(2, '0')}.webp`);
+    expect(pictures).toEqual([...twenty('female'), ...twenty('male')]);
     for (const file of pictures) {
       const bytes = readFileSync(path.join(mediaDir, file));
       expect(bytes.length, file).toBeLessThanOrEqual(120_000);

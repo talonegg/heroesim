@@ -243,7 +243,12 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const rival = Object.values(world.guilds).find((guild) => guild.name === heading.textContent);
     const guildmaster = rival === undefined ? undefined : world.guildmasters[rival.guildmasterId];
     if (rival === undefined || guildmaster === undefined) throw new Error('no Rival Guildmaster');
-    expect(layers(within(page).getByTestId('portrait'))).toEqual([silhouette(`portraits/guildmasters/${guildmaster.sex}/silhouette.svg`)]);
+    // A Rival's Portrait is chosen to fit them as they enter play (v1.1.3-S5): this one's, gm-male-15.
+    expect(guildmaster.portraitKey).toBe('gm-male-15');
+    expect(layers(within(page).getByTestId('portrait'))).toEqual([
+      silhouette(`portraits/guildmasters/${guildmaster.sex}/silhouette.svg`),
+      { is: 'picture', src: mediaFiles[`portraits/guildmasters/${guildmaster.sex}/gm-male-15.webp`], alt: `Portrait of ${guildmaster.name}` },
+    ]);
     const theirs = within(page).getByRole('heading', { level: 5, name: `${guildmaster.name}, Guildmaster of ${rival.name}` });
     expect(layers(within(theirs).getByTestId('guild-banner'))).toEqual([bannerSilhouette]);
   });

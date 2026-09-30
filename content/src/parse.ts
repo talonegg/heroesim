@@ -81,8 +81,10 @@ export const contentSetId = 'core';
  * picture's row its role's fields and `features` in the place of `keywords`, `descriptions.json` the
  * Stations, Tempers and Callings and their sentences and a Hero's Biography's, and each Hero Background
  * its Station (DL-134, DL-135); no rule reads them yet.
+ * 18 from the portrait tool's intake 2026-10-01 (`docs/portraits/intake/2026-10-01.md`).
+ * 19 from the portrait tool's apply of analysis run 2026-10-01 (`docs/portraits/analysis/2026-10-01.md`).
  */
-export const contentVersion = 17;
+export const contentVersion = 19;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

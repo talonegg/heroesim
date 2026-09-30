@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, test } from 'vitest';
 import { chromiumInstalled, launchChromium, type Chromium } from './chromium.js';
@@ -7,6 +7,7 @@ import { run } from './cli.js';
 import { contentChecks } from './content-checks.js';
 import { readContentVersion } from './content-version.js';
 import { DraftError, Undone } from './errors.js';
+import { editJson } from './json-edit.js';
 import { picturePaths, type Registry } from './registry.js';
 import { apply, writeRun } from './runs.js';
 import { git, noisePng, readJson, root, scratchRepository, status, upload, writeJson } from './test-support.js';
@@ -25,6 +26,39 @@ afterEach(() => {
 function scratch(): string {
   const { dir, remove } = scratchRepository();
   scratches.push(remove);
+  return dir;
+}
+
+/**
+ * A scratch copy held back to the owner's two pictures of v1.1.2, gm-female-01 and gm-male-01, and
+ * committed: since v1.1.3-S4 the game holds gm-female-01..20 and gm-male-01..20, and these tests
+ * take gm-male-02 or gm-female-02 as the next key. Each file keeps its layout, `portraits.json` the
+ * one of v1.1.2, a role's lists on one line.
+ */
+function ownersTwo(): string {
+  const dir = scratch();
+  const owners = ['gm-female-01', 'gm-male-01'];
+  const registry = readJson<Registry>(dir, 'media/portraits/registry.json');
+  for (const [key, each] of Object.entries(registry.portraits)) {
+    if (owners.includes(key)) continue;
+    const paths = picturePaths(dir, each.role, each.sex, key);
+    rmSync(paths.picture);
+    rmSync(paths.thumbnail);
+    delete registry.portraits[key];
+  }
+  writeJson(dir, 'media/portraits/registry.json', registry);
+  const portraits = readJson<Record<string, Record<string, string[]>>>(dir, 'content/portraits.json');
+  for (const sexes of Object.values(portraits)) {
+    for (const [sex, keys] of Object.entries(sexes)) sexes[sex] = keys.filter((key) => owners.includes(key));
+  }
+  writeJson(dir, 'content/portraits.json', portraits);
+  const file = path.join(dir, 'content/portrait-appearances.json');
+  const text = readFileSync(file, 'utf8');
+  const appearances = JSON.parse(text) as { portraits: Record<string, unknown> };
+  for (const key of Object.keys(appearances.portraits)) if (!owners.includes(key)) delete appearances.portraits[key];
+  writeFileSync(file, editJson(text, appearances));
+  git(dir, 'add', '--all');
+  git(dir, 'commit', '--quiet', '-m', "the owner's two");
   return dir;
 }
 
@@ -63,7 +97,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
   });
 
   test('with a row that breaks a content check, leaves the tree as it was, and the upload in the inbox', async () => {
-    const dir = scratch();
+    const dir = ownersTwo();
     const source = upload(dir, committedFemale, 'media/inbox/guildmaster/male/1790740777932.webp');
     const draft = { date: '2026-10-02', report: 'One picture, badly read.', pictures: [{ source, row: badRow(dir) }] };
 
@@ -78,7 +112,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
   });
 
   test('with an upload that cannot fit second in the list, leaves the tree as it was, the first taken in and put back, and both uploads kept', async () => {
-    const dir = scratch();
+    const dir = ownersTwo();
     const first = upload(dir, committedMale, 'media/inbox/guildmaster/male/g.webp');
     const second = 'media/inbox/guildmaster/male/noise.png';
     mkdirSync(path.dirname(path.join(dir, second)), { recursive: true });
@@ -110,7 +144,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
   });
 
   test('takes an upload in: its picture, thumbnail, register entry and rows, the content version, the report, and the upload deleted', async () => {
-    const dir = scratch();
+    const dir = ownersTwo();
     const before = readContentVersion(dir);
     const source = upload(dir, committedMale, 'media/inbox/guildmaster/male/1790763974495.webp');
     const row = goodRow(dir);
@@ -148,8 +182,10 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
     );
     // Each content file keeps its layout: the key joins its role's line, and the row is added below
     // the last, whose closing brace alone gains a comma (a row copied from the one above may show as
-    // its lines added whole, the comma sliding with them).
-    const rowLines = Object.keys(row).length + 2;
+    // its lines added whole, the comma sliding with them). A field on a line each, and the hooks, which
+    // gm-male-01's row has since v1.1.3-S4, opened out a sentence to a line.
+    const hooks = Array.isArray(row.hooks) ? row.hooks.length + 1 : 0;
+    const rowLines = Object.keys(row).length + 2 + hooks;
     const changed = numstat(dir);
     expect(changed['content/portraits.json']).toEqual([1, 1]);
     const [added, removed] = changed['content/portrait-appearances.json'] ?? [0, 0];
@@ -164,7 +200,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
   });
 
   test('never gives a retired key again: the next is past it', async () => {
-    const dir = scratch();
+    const dir = ownersTwo();
     const registry = readJson<Registry>(dir, 'media/portraits/registry.json');
     const male = registry.portraits['gm-male-01'];
     if (male === undefined) throw new Error('no gm-male-01');
@@ -179,7 +215,7 @@ describe.skipIf(!chromiumInstalled())('write-rows', () => {
   });
 
   test('records where the draft reads a sex other than its inbox folder says', async () => {
-    const dir = scratch();
+    const dir = ownersTwo();
     const source = upload(dir, committedFemale, 'media/inbox/guildmaster/male/d.webp');
     const intake = await writeRows(dir, { report: 'Read as a woman.', pictures: [{ source, sex: 'female', row: goodRow(dir, 'gm-female-01') }] }, chromium, { date: '2026-10-02' });
     expect(intake.pictures[0]).toMatchObject({ key: 'gm-female-02', folderSex: 'male' });
@@ -317,7 +353,7 @@ describe('write-run and apply', () => {
     const written = await writeRun(
       dir,
       runDraft(dir, (files) => {
-        files.portraits.guildmaster = { female: [], male: ['gm-male-01'] };
+        files.portraits.guildmaster = { ...files.portraits.guildmaster, female: (files.portraits.guildmaster?.female ?? []).filter((key) => key !== 'gm-female-01') };
         delete files.portraitAppearances.portraits['gm-female-01'];
       }),
       { date: '2026-10-02' },

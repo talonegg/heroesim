@@ -58,9 +58,10 @@ describe('keys', () => {
 });
 
 describe('the register as shipped', () => {
-  test('holds the two pictures of v1.1.2, live, their fingerprints taken, and the distance tuned on the owner\'s 40', () => {
+  test('holds the 40 Guildmaster pictures of v1.1.3-S4, live, their fingerprints taken, and the distance tuned on the owner\'s 40', () => {
     const shipped = readRegistry(root);
-    expect(Object.keys(shipped.portraits).sort()).toEqual(['gm-female-01', 'gm-male-01']);
+    const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
+    expect(Object.keys(shipped.portraits).sort()).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);
     for (const [key, each] of Object.entries(shipped.portraits)) {
       expect(each.status, key).toBe('live');
       expect(each.hash, key).toMatch(/^[0-9a-f]{128}$/);

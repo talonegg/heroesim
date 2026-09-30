@@ -6,7 +6,8 @@
     "braids":     {},
     "long-hair":  {},
     "curly-hair": {},
-    "grey-hair":  {}
+    "grey-hair":  {},
+    "bald":       {}
   },
   "portraits": {
     "gm-male-01": {
@@ -15,7 +16,10 @@
       "callings": ["soldier", "adventurer"],
       "temper": "stern",
       "features": ["beard", "scar", "curly-hair"],
-      "narrative": "A weathered, deeply lined face, scored across the brow and cheek by old scars. Thick dark hair falls unruly about it, and a full beard hides the set of the jaw. The eyes are hard and steady, used to weighing a stranger before a word is spoken."
+      "narrative": "A weathered, deeply lined face, scored across the brow and cheek by old scars. Thick dark hair falls unruly about it, and a full beard hides the set of the jaw. The eyes are hard and steady, used to weighing a stranger before a word is spoken.",
+      "hooks": [
+        "{He} still wears the scuffed, stained leather coat of {his} road years, and has sent away every tailor the Guild has found for {him}."
+      ]
     },
     "gm-female-01": {
       "apparentAge": [22, 30],
@@ -23,7 +27,461 @@
       "callings": ["soldier"],
       "temper": "composed",
       "features": ["braids", "long-hair"],
-      "narrative": "A strong-boned face with high cheekbones and a composed, knowing look. Long dark hair, worked into braids at the crown and temples, falls loose past the shoulders. The eyes are dark and shadowed, and give away little of what she is thinking."
+      "narrative": "A strong-boned face with high cheekbones and a composed, knowing look. Long dark hair, worked into braids at the crown and temples, falls loose past the shoulders. The eyes are pale under heavy, shadowed lids, and give away little of what she is thinking.",
+      "hooks": [
+        "{He} grew up in a vaulted stone house with {his} family's arms carved above the fire, and still sleeps poorly under a low roof.",
+        "{He} has pinned {his} braids with the same worked clasp since {his} first muster, and is never seen without it."
+      ]
+    },
+    "gm-female-02": {
+      "apparentAge": [22, 30],
+      "station": "common",
+      "callings": ["soldier", "adventurer"],
+      "temper": "intense",
+      "features": ["scar", "braids", "long-hair"],
+      "narrative": "A young, strong-boned face with high cheekbones, two thin scars cut across one of them. Long dark hair is worked into a thick braid over the shoulder, loose strands falling about the brow. The stare is level and guarded, the mouth set firm.",
+      "hooks": [
+        "{He} came up through a crowded barracks, sleeping in a stacked bunk with {his} pack stowed beneath it.",
+        "{He} still wears the mail {he} served in, and keeps two old helmets close at hand."
+      ]
+    },
+    "gm-female-03": {
+      "apparentAge": [38, 48],
+      "station": "common",
+      "callings": ["explorer", "adventurer"],
+      "temper": "composed",
+      "features": ["braids", "long-hair"],
+      "narrative": "A fine-boned face, lined at the corners of the eyes and about the mouth. Dark hair is worked into one thick braid from the crown and falls past the shoulder, a few strands loose at the temple. The eyes are dark and level, fixed on something far off.",
+      "hooks": [
+        "{He} still does the Guild's hiring at a taproom table by the fire, where {he} can watch a Hero drink before {he} trusts one."
+      ]
+    },
+    "gm-female-04": {
+      "apparentAge": [20, 28],
+      "station": "common",
+      "callings": ["adventurer", "soldier"],
+      "temper": "intense",
+      "features": ["scar", "braids", "long-hair"],
+      "narrative": "A young, strong-browed face with a level, unsmiling mouth and a thin scar beneath one eye. Dark hair, braided at the crown and in one long plait over the shoulder, is half worked loose. The pale eyes hold a stranger's gaze and do not look away first.",
+      "hooks": [
+        "{He} is at the wooden pells of the Guild's practice room most mornings, and will spar with any Hero who asks.",
+        "{He} has every new Hero climb the ropes in the practice room before {he} will speak to them of Quests."
+      ]
+    },
+    "gm-female-05": {
+      "apparentAge": [26, 34],
+      "station": "gentry",
+      "callings": ["soldier", "adventurer"],
+      "temper": "intense",
+      "features": ["braids", "long-hair", "scar"],
+      "narrative": "A strong, fine-boned face with level brows and a firm, unsmiling mouth. Fair hair is braided back from the brow, one long plait falling over the shoulder, and fresh cuts mark the brow and cheekbone. The eyes are pale and fixed, and do not look away.",
+      "hooks": [
+        "{He} wears a brooch worked in the shape of a bear's head, and tells a different story of how {he} came by it each winter.",
+        "{He} keeps a rack of axes and swords in the Guild's Hall, and still takes a turn at the practice butts most mornings."
+      ]
+    },
+    "gm-female-06": {
+      "apparentAge": [46, 56],
+      "station": "gentry",
+      "callings": ["soldier"],
+      "temper": "composed",
+      "features": ["braids"],
+      "narrative": "A lean, fine-boned face, lined at the brow and about the eyes and mouth. Fair hair is drawn back from a centre parting and braided into a crown about the head. The eyes are level and steady, and a faint closed smile says she has already made up her mind.",
+      "hooks": [
+        "{He} keeps the Guild's spare blades racked on the wall behind {his} chair, and knows each one by its nicks.",
+        "The runes stitched about {his} collar were worked by {his} own hand, and {he} has never said what they spell."
+      ]
+    },
+    "gm-female-07": {
+      "apparentAge": [32, 42],
+      "station": "gentry",
+      "callings": ["soldier", "scholar"],
+      "temper": "intense",
+      "features": ["scar", "braids", "long-hair"],
+      "narrative": "A lean, hard-set face, a thin scar cutting down through the brow and on across the cheek. Long dark hair falls in loose waves past the shoulders, with slim braids at the temples. The brows are drawn low over pale, unblinking eyes.",
+      "hooks": [
+        "{He} keeps a fire lit in {his} study and reads there among the old scrolls long after the Guild has gone to bed.",
+        "{He} still wears the sword-belt with the knotted buckle {he} was given on leaving the ranks."
+      ]
+    },
+    "gm-female-08": {
+      "apparentAge": [34, 44],
+      "station": "common",
+      "callings": ["adventurer", "soldier"],
+      "temper": "genial",
+      "features": ["braids", "long-hair"],
+      "narrative": "A broad, weathered face, creased at the eyes and brow by years of laughing. Long wavy hair, worked into many fine braids at the crown and down each side, falls past the shoulders. The eyes are bright and warm, and the grin is wide and unguarded.",
+      "hooks": [
+        "The knotwork boss on {his} strap was the pommel of the sword that broke in {his} hand on {his} first Quest.",
+        "{He} laughs louder than anyone at {his} own misfortunes, and has had a good many of them to practise on."
+      ]
+    },
+    "gm-female-09": {
+      "apparentAge": [34, 44],
+      "station": "gentry",
+      "callings": ["explorer", "scholar"],
+      "temper": "composed",
+      "features": ["curly-hair"],
+      "narrative": "A lean, lined face under dark curling hair, pinned up loosely, with strands escaping about the temples and neck. The brows are heavy and straight, and the pale eyes hold a level, measuring look. The closed mouth rests in the faintest of smiles.",
+      "hooks": [
+        "Above {his} fireplace hangs a map of a coast {he} charted {him}self, its bays and soundings marked in {his} own hand.",
+        "{He} still carries the leather satchel {he} took on every journey, and keeps {his} notes in it rather than in a desk."
+      ]
+    },
+    "gm-female-10": {
+      "apparentAge": [24, 32],
+      "station": "gentry",
+      "callings": ["mage", "scholar"],
+      "temper": "calculating",
+      "features": ["curly-hair"],
+      "narrative": "A smooth, fine-boned face with high cheekbones and full lips set in the faintest of smiles. Tight curls are gathered up off the neck, a few loose ringlets falling at the temple. The eyes are dark and heavy-lidded, and weigh a stranger without hurry.",
+      "hooks": [
+        "{He} wears a small key and has never said which door it opens.",
+        "{He} spent {his} early years copying rune circles in a tower library, and can still draw one from memory."
+      ]
+    },
+    "gm-female-11": {
+      "apparentAge": [30, 40],
+      "station": "trade",
+      "callings": ["adventurer"],
+      "temper": "steady",
+      "features": ["curly-hair"],
+      "narrative": "A fine-boned face with a firm, full mouth and a level, unsmiling gaze. Dark hair in tight curls is pinned up, with loose ringlets escaping at the temples and neck. The eyes are dark and steady, and wait for the other person to speak first.",
+      "hooks": [
+        "{He} had the old banner over the Hall's great hearth taken down and mended stitch by stitch, and lets no one else touch it.",
+        "{He} still wears the buckled leather strap {he} carried on the road, and has had the buckle mended more often than the strap."
+      ]
+    },
+    "gm-female-12": {
+      "apparentAge": [38, 48],
+      "station": "trade",
+      "callings": ["merchant"],
+      "temper": "wry",
+      "features": ["braids", "long-hair"],
+      "narrative": "A lean, open face, lined at the eyes and about the mouth by years of smiling. Dark hair, parted in the middle, is braided close about the crown and falls in one long plait over the shoulder. The eyes are bright and amused, and miss very little.",
+      "hooks": [
+        "{He} kept a busy inn for years, and learned to size up a stranger before the first cup was poured.",
+        "{He} keeps a plain plate on {his} mantelpiece, the first {he} ever bought for {his} inn, and will not have it eaten from."
+      ]
+    },
+    "gm-female-13": {
+      "apparentAge": [26, 36],
+      "station": "trade",
+      "callings": ["adventurer", "merchant"],
+      "temper": "wry",
+      "features": ["scar", "long-hair"],
+      "narrative": "A fine-boned face with dark, arched brows and a half-smile that knows more than it says. Three short scars score one cheek. Long dark hair, gathered up in a loose knot, falls in heavy strands past the shoulders.",
+      "hooks": [
+        "{He} pins up {his} hair with a long carved pin that a debtor once handed over in place of coin, and calls it the best bargain {he} ever made.",
+        "{He} took the scars on {his} cheek in a brawl over a cargo, and says only that the other one came off worse."
+      ]
+    },
+    "gm-female-14": {
+      "apparentAge": [30, 40],
+      "station": "gentry",
+      "callings": ["adventurer", "soldier"],
+      "temper": "calculating",
+      "features": ["braids", "long-hair"],
+      "narrative": "A fine-boned face with high cheekbones and dark, heavy-lidded eyes narrowed in appraisal. Dark hair is swept up loosely, a single long braid falling over one shoulder. A slight, knowing smile plays at the mouth, as if she already knows how the bargain ends.",
+      "hooks": [
+        "{He} wears the fang of the first beast {he} was paid to hunt down, hung among the scales of {his} necklace, and has not taken it off since.",
+        "{He} still wears a steel vambrace with {his} finest gown, a habit kept from years when an audience could end in a fight."
+      ]
+    },
+    "gm-female-15": {
+      "apparentAge": [25, 34],
+      "station": "gentry",
+      "callings": ["lawyer"],
+      "temper": "calculating",
+      "features": ["braids", "long-hair", "curly-hair"],
+      "narrative": "A striking face with strong dark brows, full lips and a firm, unsmiling mouth. Thick dark hair, braided at the crown, falls over one shoulder in a single heavy plait. The dark eyes glance back sidelong, level and weighing.",
+      "hooks": [
+        "{He} learned the county's business at the great houses' feasts, watching from the edge of the floor while others danced."
+      ]
+    },
+    "gm-female-16": {
+      "apparentAge": [50, 60],
+      "station": "trade",
+      "callings": ["scholar"],
+      "temper": "steady",
+      "features": ["curly-hair", "grey-hair"],
+      "narrative": "A lined, level face, creased across the brow and about the mouth. Tight dark curls, grey at the hairline, are drawn up off the forehead. The eyes are dark and steady under straight brows, and a few small moles mark one cheek.",
+      "hooks": [
+        "{His} study wall is hung with drawings of herbs and of the bones of the body, and {he} can give the use of every one.",
+        "{He} makes the tinctures in the stoppered bottles on {his} shelves {him}self, and doses the Guild's wounded from no others."
+      ]
+    },
+    "gm-female-17": {
+      "apparentAge": [44, 54],
+      "station": "common",
+      "callings": ["explorer", "scholar"],
+      "temper": "genial",
+      "features": ["braids", "long-hair"],
+      "narrative": "A round, open face, lined about the eyes and softened by a broad, easy smile. Long dark hair is worked into two thick braids that fall past the shoulders, with loose strands escaping at the temples. The dark eyes are creased with amusement, and miss little.",
+      "hooks": [
+        "{He} still wears the old compass that brought {him} home from the far fells, and trusts it before any map.",
+        "A painting of a mountain {he} once crossed hangs among {his} books, and {he} will tell anyone who asks how nearly it killed {him}."
+      ]
+    },
+    "gm-female-18": {
+      "apparentAge": [26, 36],
+      "station": "common",
+      "callings": ["scholar", "adventurer"],
+      "temper": "intense",
+      "features": ["scar"],
+      "narrative": "A lean, strong-browed face, cut from brow to cheek by a jagged scar beside one eye. Dark hair escapes in loose wisps about it. The eyes are pale and deep-shadowed under heavy brows, and fix on a stranger without a blink.",
+      "hooks": [
+        "{He} keeps an inkpot and a quill at each end of {his} desk, and writes with whichever hand is nearer.",
+        "{He} keeps the Guild's charter rolled and tied on {his} desk, and reads it aloud to any Hero who questions {his} orders."
+      ]
+    },
+    "gm-female-19": {
+      "apparentAge": [36, 46],
+      "station": "common",
+      "callings": ["soldier", "adventurer"],
+      "temper": "steady",
+      "features": ["scar", "braids", "long-hair"],
+      "narrative": "A calm, lined face with high cheekbones, marked by a long scar through one brow and shorter ones on both cheeks. Black hair is braided close at the crown and falls in two long braids over the shoulders. Her dark eyes are steady, and she smiles faintly.",
+      "hooks": [
+        "{He} was decorated for holding a bridge that everyone else had given up, and still wears the medal at {his} collar.",
+        "A painting of {him} in {his} youth hangs in {his} study; {he} says it reminds {him} how little {he} knew."
+      ]
+    },
+    "gm-female-20": {
+      "apparentAge": [42, 52],
+      "station": "gentry",
+      "callings": ["scholar", "mage"],
+      "temper": "wry",
+      "narrative": "A fine-boned face, lined at the eyes and mouth, with a small, knowing smile. Fair hair, fading towards grey, is pinned up loosely, a few strands escaping at the temples. Her pale eyes are amused, as if she has heard the question before.",
+      "hooks": [
+        "{He} keeps {his} spectacles on the desk beside {his} book of sigils, and takes them off before anyone is shown in.",
+        "The mirror on {his} study wall is an old one, and {he} will not say what {he} warded it against."
+      ]
+    },
+    "gm-male-02": {
+      "apparentAge": [24, 32],
+      "station": "gentry",
+      "callings": ["soldier", "adventurer"],
+      "temper": "calculating",
+      "features": ["scar", "long-hair"],
+      "narrative": "A lean, fine-boned face with high cheekbones, a firm jaw and a clean-shaven chin. Dark hair falls loose and wavy to the shoulders. The eyes are narrowed under heavy brows and weigh a stranger coolly, and old scars cut across the chest.",
+      "hooks": [
+        "{He} wears a heavy signet ring and has never said whose seal it bears.",
+        "{He} took the scars across {his} chest in a fight {he} will not speak of, and does not trouble to hide them."
+      ]
+    },
+    "gm-male-03": {
+      "apparentAge": [36, 46],
+      "station": "gentry",
+      "callings": ["mage", "scholar"],
+      "temper": "composed",
+      "features": ["beard"],
+      "narrative": "A smooth, even-featured face, lined only faintly about the eyes. Dark hair is swept back from a high brow, and a close-trimmed beard and moustache frame a faint, closed smile. The eyes are level and a little narrowed, as if amused by something not yet said.",
+      "hooks": [
+        "{He} casts a chart of the stars before any Quest of consequence, and has been known to delay one on its reading.",
+        "{His} cloak is held by a clasp worked as a dragon, a gift {he} has never once explained."
+      ]
+    },
+    "gm-male-04": {
+      "apparentAge": [45, 55],
+      "station": "common",
+      "callings": ["soldier"],
+      "temper": "stern",
+      "features": ["beard", "braids", "long-hair"],
+      "narrative": "A weathered, deeply lined face with an inked mark high on one cheek. Long dark hair is drawn up into a knot, with a braid at the side and loose strands at the brow. A short beard frames a closed mouth, and the narrowed eyes look hard aside.",
+      "hooks": [
+        "{He} still wears the mark inked beneath one eye by the company {he} first marched with.",
+        "{He} spent years sleeping in a barracks bunk within reach of the spear rack, and still wakes before the watch is called."
+      ]
+    },
+    "gm-male-05": {
+      "apparentAge": [28, 38],
+      "station": "gentry",
+      "callings": ["soldier"],
+      "temper": "intense",
+      "features": ["beard", "scar"],
+      "narrative": "A lean, hard-boned face with high cheekbones and a level stare under heavy brows. Dark hair is drawn back and tied, loose strands falling to the jaw, and a short beard frames the mouth. A small crossed scar marks one cheek.",
+      "hooks": [
+        "{He} still wears a gorget engraved with a dragon, the mark of a company {he} no longer names.",
+        "{He} kept a drill yard for years, and could tell from a recruit's first stance how long the recruit would last."
+      ]
+    },
+    "gm-male-06": {
+      "apparentAge": [28, 36],
+      "station": "common",
+      "callings": ["adventurer", "explorer"],
+      "temper": "wry",
+      "features": ["beard", "long-hair"],
+      "narrative": "A lean, fine-boned face under a tangle of dark, wavy hair that falls to the shoulders. A short beard shadows the jaw, and the mouth is set in a crooked half-smile. The eyes are narrowed and amused, as if at a joke he has not yet chosen to share.",
+      "hooks": [
+        "{He} wears a cord of small tokens about {his} neck, one for each road {he} has come home from, and names each one for the price of a drink.",
+        "{He} kept the same seat by a tavern hearth for years, and learned more there of Quests than any Guild's ledger held."
+      ]
+    },
+    "gm-male-07": {
+      "apparentAge": [24, 32],
+      "station": "trade",
+      "callings": ["explorer", "scholar"],
+      "temper": "intense",
+      "narrative": "A lean, strong-jawed face with high cheekbones and a faint shadow of stubble. Thick dark hair is swept back from the brow and falls in loose waves about the ears. The eyes are deep-set under heavy brows, fixed on something far off, and do not waver.",
+      "hooks": [
+        "{He} keeps the rolled charts of a dozen unfinished surveys in a pot by {his} desk, and means to finish every one.",
+        "{He} reads by lamplight long after the Hall is dark, with a map spread out under the book."
+      ]
+    },
+    "gm-male-08": {
+      "apparentAge": [36, 46],
+      "station": "common",
+      "callings": ["adventurer"],
+      "temper": "wry",
+      "features": ["beard"],
+      "narrative": "A lean, handsome face, lined about the eyes and across the brow. Dark hair falls short and tousled over the forehead, and a close-cut beard frames a crooked half-smile. The eyes are narrowed and amused, as if he has already seen the joke coming.",
+      "hooks": [
+        "{He} wears a small eagle on a cord at {his} throat, and has never said who gave it to {him}.",
+        "{He} still keeps a seat by the fire of the tavern where {he} signed on for {his} first Quest."
+      ]
+    },
+    "gm-male-09": {
+      "apparentAge": [56, 66],
+      "station": "common",
+      "callings": ["soldier", "adventurer"],
+      "temper": "stern",
+      "features": ["beard", "scar", "braids", "long-hair", "grey-hair"],
+      "narrative": "A craggy, deeply lined face, split from brow to cheek by an old scar that runs through one eye. Long grey hair falls wild about it, worked into braids, and a full beard ends in a braided point. The eyes are narrowed and hard, and give nothing away.",
+      "hooks": [
+        "{He} wears a heavy brooch cut with old letters, taken from the first shield-wall {he} ever broke.",
+        "{He} braids a bead into {his} hair for every fight {he} walked away from, and is running out of hair to braid."
+      ]
+    },
+    "gm-male-10": {
+      "apparentAge": [38, 48],
+      "station": "gentry",
+      "callings": ["soldier", "adventurer"],
+      "temper": "genial",
+      "features": ["beard", "braids", "long-hair"],
+      "narrative": "A broad, weathered face, creased by laughter and deeply lined about the eyes. Long dark hair is swept back from the brow and braided at the crown, and a full beard falls to two long braids. The eyes are narrowed with open, unguarded mirth.",
+      "hooks": [
+        "{He} wears the wolves of {his} first war band worked into {his} armour, and has them polished before every feast in the Guild's Hall.",
+        "{He} meets the worst news of a Quest with a great laugh, and says it does a Party more good than any amount of grief."
+      ]
+    },
+    "gm-male-11": {
+      "apparentAge": [27, 36],
+      "station": "common",
+      "callings": ["soldier", "adventurer"],
+      "temper": "steady",
+      "features": ["scar"],
+      "narrative": "A lean, angular face, nicked at the temple and cut across one cheek by old scars. Fair hair, cropped short, falls untidily over the brow, and stubble shadows the jaw. The eyes are pale and heavy-lidded, ringed with tiredness, and fixed on something far off.",
+      "hooks": [
+        "{He} sleeps with {his} old round shield hung on the post above {his} bed, where {he} can reach it before {he} is fully awake.",
+        "The cross scratched into the flap of {his} pouch is {his} own mark, and {he} still cuts it into everything {he} owns."
+      ]
+    },
+    "gm-male-12": {
+      "apparentAge": [23, 32],
+      "station": "common",
+      "callings": ["adventurer", "explorer"],
+      "temper": "wry",
+      "features": ["long-hair", "braids"],
+      "narrative": "A smooth, fine-boned face with a strong jaw, high cheekbones and a straight nose. Long dark hair falls past the shoulders, worked into thin braids at the temples and crown. The eyes are pale under heavy dark brows, narrowed above a faint, lopsided smile.",
+      "hooks": [
+        "{He} still keeps the hand-drawn map {he} carried on {his} first Quest, and will not say where it ends.",
+        "{He} still wears the tooled leather armour {he} had made with {his} first real fee, and oils it by hand."
+      ]
+    },
+    "gm-male-13": {
+      "apparentAge": [21, 30],
+      "station": "common",
+      "callings": ["soldier"],
+      "temper": "steady",
+      "features": ["curly-hair"],
+      "narrative": "A young, clean-shaven face, broad at the cheekbones, with a strong nose and full lips pressed firmly together. Short hair sits in tight curls close to the head. The eyes are dark and level under straight brows, and hold a stranger's look without wavering.",
+      "hooks": [
+        "{He} learned the sword and the bow in a walled practice yard, where targets stood on trestles and blades waited in a rack by the wall.",
+        "Only one of {his} pauldrons is tooled; the plain one belonged to the friend who taught {him} to fight, and {he} will not have it worked."
+      ]
+    },
+    "gm-male-14": {
+      "apparentAge": [38, 48],
+      "station": "common",
+      "callings": ["soldier", "adventurer"],
+      "temper": "intense",
+      "features": ["beard", "bald"],
+      "narrative": "A broad, hard-set face under a shaven head, the brow lined and the cheekbones high. A close beard, greying at the chin, frames a full mouth set firm. The eyes are narrowed and turned aside, weighing whoever stands before him without hurry.",
+      "hooks": [
+        "The woven hanging of a horned beast on {his} wall was given to {him} by a village {he} once held against raiders, and {he} still answers its letters.",
+        "{He} still walks the battlements by torchlight before {he} sleeps, a habit kept from the years {he} stood the night watch."
+      ]
+    },
+    "gm-male-15": {
+      "apparentAge": [26, 36],
+      "station": "gentry",
+      "callings": ["lawyer", "merchant"],
+      "temper": "calculating",
+      "features": ["beard"],
+      "narrative": "A lean face, high in the cheekbone, with a straight nose and heavy dark brows. Thick dark hair is swept back in loose waves, and a close-cut beard shadows the jaw and lip. The eyes are level and appraising above a faint, knowing half-smile.",
+      "hooks": [
+        "{He} still wears the signet ring {he} once pressed into the wax of every contract {he} drew up.",
+        "{He} was raised in a house hung with tapestries, where {he} learned early that a smile can close a bargain."
+      ]
+    },
+    "gm-male-16": {
+      "apparentAge": [42, 52],
+      "station": "common",
+      "callings": ["explorer", "adventurer"],
+      "temper": "genial",
+      "features": ["beard", "bald"],
+      "narrative": "A bald head, weathered and flecked with spots, above a broad and open grin. A short beard, grey at the chin and darker about the lip, frames a lined face. The eyes crease deep at the corners and look glad of the company.",
+      "hooks": [
+        "{He} keeps the maps of {his} own roads pinned to the wall behind {his} usual bench, and inks in whatever a returning Hero says has changed."
+      ]
+    },
+    "gm-male-17": {
+      "apparentAge": [38, 48],
+      "station": "common",
+      "callings": ["explorer", "adventurer"],
+      "temper": "intense",
+      "features": ["beard", "curly-hair"],
+      "narrative": "A lean, weathered face, the brow creased deep and drawn into a frown. Thick dark hair curls back from it, and a full beard hides the jaw. The eyes are narrowed and turned aside, fixed on something no one else has yet noticed.",
+      "hooks": [
+        "{He} still keeps a rolled blanket and two waterskins hung by {his} bed, as though the road might call {him} back before morning.",
+        "{He} keeps a coarse wool scarf wound close about {his} throat indoors or out, a habit brought home from colder roads."
+      ]
+    },
+    "gm-male-18": {
+      "apparentAge": [48, 58],
+      "station": "gentry",
+      "callings": ["scholar", "soldier"],
+      "temper": "stern",
+      "features": ["beard", "scar", "curly-hair"],
+      "narrative": "A heavy, deeply lined face, one cheek crazed with fine old scars. Close-cropped hair sits in tight curls, and a full beard runs grey at the chin. The brows are drawn down hard over hooded eyes that hold a stranger's gaze and give nothing back.",
+      "hooks": [
+        "{He} came to books late, after the fighting that marked {his} face, and reads as if to make up the lost years.",
+        "{His} shelves hold more volumes than {he} can have read, and {he} will not lend a single one of them."
+      ]
+    },
+    "gm-male-19": {
+      "apparentAge": [32, 42],
+      "station": "gentry",
+      "callings": ["lawyer", "scholar"],
+      "temper": "intense",
+      "features": ["beard"],
+      "narrative": "A handsome, strong-jawed face under a furrowed brow, with grey eyes that meet a stranger's and do not look away. Thick dark hair is swept back from the forehead in a heavy wave, and a close-trimmed beard frames a mouth set firm and giving nothing away.",
+      "hooks": [
+        "{He} still cuts {his} own quills and seals every letter with {his} own hand, and trusts no clerk with either.",
+        "{He} keeps a shelf of sealed agreements {he} has never needed to open, and makes sure {his} rivals know it."
+      ]
+    },
+    "gm-male-20": {
+      "apparentAge": [34, 44],
+      "station": "common",
+      "callings": ["scholar", "explorer"],
+      "temper": "intense",
+      "features": ["beard", "curly-hair", "long-hair"],
+      "narrative": "A lean, hawkish face with a long straight nose and a brow knotted in thought. Dark curls fall loose about the ears and are caught up carelessly behind. A full dark beard hides the jaw, and the wide, pale eyes are fixed on something only he can see.",
+      "hooks": [
+        "{He} has spent years on a map of a land called Arcadia, and will not say whether {he} ever found it."
+      ]
     }
   }
 }

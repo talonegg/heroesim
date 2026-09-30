@@ -297,8 +297,13 @@ describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
 });
 
 // v1.1.2-S4 (DL-125 items 3 and 6): the Portrait chosen from the owner's pictures, or drawn, and what the
-// seed draws shown before "Start the game". The core has one picture of each sex.
+// seed draws shown before "Start the game". The core has 20 pictures of each sex (v1.1.3-S4).
 describe("the Guildmaster's Portrait and what the seed draws, in the new-game form (v1.1.2-S4)", () => {
+  /** The names of the 20 pictures of a sex, by its word, as the form offers them. */
+  function twenty(sexWord: 'Female' | 'Male'): string[] {
+    return Array.from({ length: 20 }, (_, n) => `${sexWord} Portrait ${n + 1}`);
+  }
+
   /** The Portrait's radio buttons, by the words each is named by. */
   function portraitNames(): string[] {
     return within(part('Portrait'))
@@ -328,7 +333,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     named();
 
     // With the sex drawn, every sex's pictures: choosing one chooses its sex.
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female'), ...twenty('Male')]);
     const female = portraitRadio('Female Portrait 1');
     const thumbnail = female.closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
     expect(thumbnail?.querySelector('img[data-picture="picture"]')?.getAttribute('src')).toBe(media.portrait('guildmaster', 'female', 'gm-female-01').picture);
@@ -336,9 +341,9 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     expect(thumbnail?.getAttribute('aria-hidden')).toBe('true');
 
     fireEvent.change(sexField(), { target: { value: 'male' } });
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
     fireEvent.change(sexField(), { target: { value: 'female' } });
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female')]);
   });
 
   test('a Portrait chosen starts the game with it; with the sex drawn, choosing one chooses its sex, and every picture stays offered', () => {
@@ -348,7 +353,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     fireEvent.click(portraitRadio('Female Portrait 1'));
     expect(sexField().value).toBe('female');
     // The other sex's pictures stay, so the arrow keys move through every one.
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female'), ...twenty('Male')]);
     fireEvent.click(portraitRadio('Male Portrait 1'));
     expect(portraitRadio('Male Portrait 1').checked).toBe(true);
     expect(sexField().value).toBe('male');
@@ -363,7 +368,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     fireEvent.click(portraitRadio('Male Portrait 1'));
     fireEvent.click(portraitRadio('Drawn from the seed'));
     expect(sexField().value).toBe('male');
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
   });
 
   test('changing the sex clears a Portrait of the other sex, and so does leaving the sex to the seed', () => {
@@ -393,10 +398,12 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     expect(drawn).toMatch(/^Drawn: (Female|Male), \d\d$/);
     expect(traits).toMatch(/^Drawn Traits: /);
     const sex = drawn?.startsWith('Drawn: Female') === true ? 'female' : 'male';
-    expect(portrait).toBe(`Drawn Portrait: ${sex === 'female' ? 'Female' : 'Male'} Portrait 1`);
+    // 'new-game-test' draws a female of 26, and gm-female-13, of 26 to 36, fits her (v1.1.3-S5).
+    expect(sex).toBe('female');
+    expect(portrait).toBe('Drawn Portrait: Female Portrait 13');
     const figure = within(preview()).getByTestId('portrait');
     expect(within(figure).getByRole('img', { name: 'Portrait of Ada Vell' }).getAttribute('src')).toBe(
-      media.portrait('guildmaster', sex, `gm-${sex}-01`).picture,
+      media.portrait('guildmaster', sex, 'gm-female-13').picture,
     );
 
     // Another seed draws another Guildmaster; the preview follows it as it is typed.
@@ -433,7 +440,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     named();
     fireEvent.change(sexField(), { target: { value: 'female' } });
     expect(lines()[0]).toMatch(/^Drawn: Age \d\d$/);
-    expect(lines().at(-1)).toBe('Drawn Portrait: Female Portrait 1');
+    expect(lines().at(-1)).toBe('Drawn Portrait: Female Portrait 13');
 
     fireEvent.click(portraitRadio('Female Portrait 1'));
     fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
@@ -677,8 +684,10 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4)', () => {
     const held = within(view).queryByRole('list', { name: "Ada Vell's Traits" });
     const names = held === null ? [] : within(held).getAllByRole('listitem').map((item) => item.querySelector('.chip')?.textContent ?? '');
     expect(traits).toBe(`Drawn Traits: ${names.length === 0 ? 'None' : names.join(' and ')}`);
-    expect(portrait).toBe(`Drawn Portrait: ${sexWord} Portrait 1`);
-    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-01`).picture);
+    // The picture the preview names by its place is the one the view shows.
+    const place = portrait.replace(`Drawn Portrait: ${sexWord} Portrait `, '');
+    expect(place).toMatch(/^\d+$/);
+    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-${place.padStart(2, '0')}`).picture);
   });
 
   test('the texts written, and one then changed, are the ones the Guildmaster view shows (v1.1.2-S5)', async () => {

@@ -257,8 +257,9 @@ It is undone as a whole on any failure. A run that is the content already change
 ## The content's layout
 
 The content's JSON is laid out by hand: the Features' values aligned, a sentence list opened out
-even where it would fit on a line, a role's picture lists on one line. `write-rows`, `write-run` and
-`apply` write a changed value into the file's own text (`src/json-edit.ts`), so `git diff` shows
+even where it would fit on a line, and a role's picture lists on one line while they fit (the
+Heroes' and Patrons') and a key to a line once they do not (the Guildmasters', since v1.1.3-S4).
+`write-rows`, `write-run` and `apply` write a changed value into the file's own text (`src/json-edit.ts`), so `git diff` shows
 only what changed:
 
 - a value that is unchanged keeps its text, byte for byte, and the file its LF or CRLF line ends;

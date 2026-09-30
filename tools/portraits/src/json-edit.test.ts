@@ -65,9 +65,10 @@ describe('editJson()', () => {
   test('adds a Feature in line with the others, their values aligned', () => {
     const text = content('portrait-appearances.json');
     const value = JSON.parse(text) as Appearances;
+    const last = Object.keys(value.features).at(-1) ?? '';
     value.features = { ...value.features, freckles: {} };
     const lines = text.split('\n');
-    const at = lines.findIndex((line) => line.includes('"grey-hair":'));
+    const at = lines.findIndex((line) => line.includes(`"${last}":`));
     const column = (lines[at] ?? '').indexOf('{');
     const added = '    "freckles":'.padEnd(column, ' ') + '{}';
     expect(editJson(text, value).split('\n')).toEqual([...lines.slice(0, at), `${lines[at]},`, added, ...lines.slice(at + 1)]);
@@ -77,7 +78,8 @@ describe('editJson()', () => {
     const text = content('portrait-appearances.json');
     const value = JSON.parse(text) as Appearances;
     const narrative = `${'A long, lined face. '.repeat(6)}The eyes are grey.`;
-    value.portraits['gm-male-02'] = {
+    // A key the content does not hold: since v1.1.3-S4 it holds gm-male-01..20.
+    value.portraits['gm-male-21'] = {
       apparentAge: [34, 44],
       station: 'trade',
       callings: ['merchant'],
@@ -91,7 +93,7 @@ describe('editJson()', () => {
     expect(editJson(text, value).split('\n')).toEqual([
       ...lines.slice(0, end),
       '    },',
-      '    "gm-male-02": {',
+      '    "gm-male-21": {',
       '      "apparentAge": [34, 44],',
       '      "station": "trade",',
       '      "callings": ["merchant"],',
@@ -109,10 +111,11 @@ describe('editJson()', () => {
   test("lists a new key on its role's one line", () => {
     const text = content('portraits.json');
     const value = JSON.parse(text) as Record<string, Record<string, string[]>>;
-    value.guildmaster?.male?.push('gm-male-02');
+    // Since v1.1.3-S4 the Guildmasters' lists are too long for a line, and opened out; the Heroes' are on one.
+    value.hero?.male?.push('hero-male-01');
     const lines = text.split('\n');
-    const at = lines.findIndex((line) => line.includes('"guildmaster"'));
-    expect(editJson(text, value).split('\n')).toEqual([...lines.slice(0, at), (lines[at] ?? '').replace('["gm-male-01"]', '["gm-male-01", "gm-male-02"]'), ...lines.slice(at + 1)]);
+    const at = lines.findIndex((line) => line.includes('"hero"'));
+    expect(editJson(text, value).split('\n')).toEqual([...lines.slice(0, at), (lines[at] ?? '').replace('"male": []', '"male": ["hero-male-01"]'), ...lines.slice(at + 1)]);
   });
 
   test('writes text it cannot read as the tool lays out a new file', () => {

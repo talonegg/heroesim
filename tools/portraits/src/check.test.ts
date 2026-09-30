@@ -29,7 +29,7 @@ describe('check', () => {
     const result = check(root);
     expect(result.failures).toEqual([]);
     expect(result.ok).toBe(true);
-    expect(result.live).toBe(2);
+    expect(result.live).toBe(40); // gm-female-01..20 and gm-male-01..20, since v1.1.3-S4
     expect(await cli('check')).toMatchObject({ code: 0, json: { ok: true, failures: [] } });
   });
 
@@ -50,7 +50,7 @@ describe('check', () => {
   test('fails on a live key content/portraits.json does not list, naming it', () => {
     const dir = scratch();
     const portraits = readJson<Record<string, Record<string, string[]>>>(dir, 'content/portraits.json');
-    portraits.guildmaster = { ...portraits.guildmaster, female: [] };
+    portraits.guildmaster = { ...portraits.guildmaster, female: (portraits.guildmaster?.female ?? []).filter((key) => key !== 'gm-female-01') };
     writeJson(dir, 'content/portraits.json', portraits);
     expect(check(dir).failures).toEqual([
       expect.objectContaining({

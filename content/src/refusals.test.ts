@@ -117,6 +117,21 @@ function withPicture(
   });
 }
 
+/**
+ * `files` with the owner's two pictures alone, `gm-female-01` and `gm-male-01`, as the picture tests
+ * below were written: v1.1.3-S4 took in 38 more, whose keys those tests add of their own.
+ */
+function ownersTwo(files: Record<string, string>): Record<string, string> {
+  const listed = changed(files, 'portraits.json', (json) => {
+    json.guildmaster.female = ['gm-female-01'];
+    json.guildmaster.male = ['gm-male-01'];
+  });
+  return changed(listed, 'portrait-appearances.json', (json) => {
+    const rows = json.portraits as unknown as Record<string, PictureRow>;
+    for (const key of Object.keys(rows)) if (key !== 'gm-female-01' && key !== 'gm-male-01') delete rows[key];
+  });
+}
+
 /** The row of `key` in a `portrait-appearances.json` being changed, loosely typed, so a test may break it. */
 const rowOf = (json: PortraitAppearances, key: string): PictureRow => (json.portraits as unknown as Record<string, PictureRow>)[key] ?? {};
 
@@ -293,7 +308,7 @@ describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
 
   // A Guildmaster's and a Hero's picture has its row since v1.1.3-S1 (DL-134 item 10); a Patron's none yet.
   test('are accepted with a picture of each role and sex', () => {
-    let files = withPicture(realFiles(), 'guildmaster', 'female', 'gm-female-02', guildmasterRow());
+    let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'female', 'gm-female-02', guildmasterRow());
     files = withPicture(files, 'guildmaster', 'male', 'gm-male-02', guildmasterRow());
     files = withPicture(files, 'hero', 'female', 'hero-female-01', heroRow());
     files = withPicture(files, 'patron', 'male', 'patron-male-01', undefined);
@@ -345,12 +360,12 @@ describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)'
   });
 
   test("are refused with a row whose key names no picture, another role's included", () => {
-    const files = withJson('portrait-appearances.json', (json) => {
+    const files = changed(ownersTwo(realFiles()), 'portrait-appearances.json', (json) => {
       (json.portraits as unknown as Record<string, PictureRow>)['gm-male-09'] = guildmasterRow();
     });
     expect(refusalOf(() => parseContent(files)).message).toContain('portraitAppearances.portraits: "gm-male-09" names no picture in portraits.json');
 
-    const mapped = withPicture(realFiles(), 'hero', 'female', 'hero-female-01', heroRow());
+    const mapped = withPicture(ownersTwo(realFiles()), 'hero', 'female', 'hero-female-01', heroRow());
     expect(Object.keys(parseContent(mapped).portraitAppearances.portraits)).toEqual(['gm-male-01', 'gm-female-01', 'hero-female-01']);
   });
 
@@ -378,7 +393,7 @@ describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)'
 
 describe("a picture's row (v1.1.3-S1, DL-134 items 3 and 10, DL-135 item 2)", () => {
   test("is required for every Guildmaster's and Hero's picture, each named, and a Patron's picture has none yet", () => {
-    let files = withPicture(realFiles(), 'guildmaster', 'male', 'gm-male-02', undefined);
+    let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'male', 'gm-male-02', undefined);
     files = withPicture(files, 'hero', 'female', 'hero-female-01', undefined);
     files = withPicture(files, 'patron', 'female', 'patron-female-01', guildmasterRow());
 
@@ -654,13 +669,15 @@ describe("the Biography's sentences from a picture, and a Hero's (v1.1.3-S1, DL-
 
   test("measure a Guildmaster's Biography by their picture, a hook standing in a career's place, and a Hero's by S6's shape", () => {
     const set = loadContent();
+    // The owner's two pictures alone, gm-female-01 without the hooks v1.1.3-S4 gave it.
     const tiny = {
       ...set,
+      portraits: { ...set.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] } },
       portraitAppearances: {
         ...set.portraitAppearances,
         portraits: {
-          ...set.portraitAppearances.portraits,
           'gm-male-01': { ...(set.portraitAppearances.portraits['gm-male-01'] as PortraitAppearance), hooks: ['A hook, much longer than that.'] },
+          'gm-female-01': { ...(set.portraitAppearances.portraits['gm-female-01'] as PortraitAppearance), hooks: [] },
         },
       },
       descriptions: {
@@ -712,7 +729,7 @@ describe("the Biography's sentences from a picture, and a Hero's (v1.1.3-S1, DL-
 
 describe('the pictures short of three (v1.1.3-S1, DL-134 item 10)', () => {
   test('are warned of, not refused: each sex and band of Guildmaster pictures, and each Class and sex of Hero pictures', () => {
-    let files = withPicture(realFiles(), 'guildmaster', 'male', 'gm-male-02', { ...guildmasterRow(), apparentAge: [38, 46] });
+    let files = withPicture(ownersTwo(realFiles()), 'guildmaster', 'male', 'gm-male-02', { ...guildmasterRow(), apparentAge: [38, 46] });
     files = withPicture(files, 'guildmaster', 'male', 'gm-male-03', { ...guildmasterRow(), apparentAge: [41, 60] });
     files = withPicture(files, 'hero', 'female', 'hero-female-01', { ...heroRow(), classes: ['warrior', 'rogue'] });
 
@@ -862,8 +879,12 @@ describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S
 
   test("measure what the engine writes: a Birthplace's slot as long as the bound, the longer sex's pronouns, and only two Traits", () => {
     const set = loadContent();
+    const owner = (key: string) => ({ ...(set.portraitAppearances.portraits[key] as PortraitAppearance), hooks: [] });
     const tiny = {
       ...set,
+      // The owner's two pictures alone, without the hooks v1.1.3-S4 gave them.
+      portraits: { ...set.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] } },
+      portraitAppearances: { ...set.portraitAppearances, portraits: { 'gm-male-01': owner('gm-male-01'), 'gm-female-01': owner('gm-female-01') } },
       descriptions: {
         ...set.descriptions,
         biography: {

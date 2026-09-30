@@ -51,24 +51,26 @@ describe('corpus', () => {
       { key: 'middle', from: 31, to: 40 },
       { key: 'older', from: 41, to: null },
     ]);
-    expect(result.pictures.map((picture) => [picture.key, picture.status, picture.listed, picture.bands, picture.picture, picture.row?.temper])).toEqual([
-      ['gm-female-01', 'live', true, ['young'], { file: 'media/portraits/guildmasters/female/gm-female-01.webp', exists: true }, 'composed'],
-      ['gm-male-01', 'live', true, ['older'], { file: 'media/portraits/guildmasters/male/gm-male-01.webp', exists: true }, 'stern'],
-    ]);
-    expect(result.counts.guildmaster).toEqual({ female: { young: 1, middle: 0, older: 0 }, male: { young: 0, middle: 0, older: 1 } });
+    // Since v1.1.3-S4 the game holds 40 pictures: gm-female-01..20 and gm-male-01..20.
+    const pictures = result.pictures.map((picture) => [picture.key, picture.status, picture.listed, picture.bands, picture.picture, picture.row?.temper]);
+    const numbered = (prefix: string): string[] => Array.from({ length: 20 }, (_, index) => `${prefix}-${String(index + 1).padStart(2, '0')}`);
+    expect(pictures.map((picture) => picture[0])).toEqual([...numbered('gm-female'), ...numbered('gm-male')]);
+    expect(pictures).toContainEqual(['gm-female-01', 'live', true, ['young'], { file: 'media/portraits/guildmasters/female/gm-female-01.webp', exists: true }, 'composed']);
+    expect(pictures).toContainEqual(['gm-male-01', 'live', true, ['older'], { file: 'media/portraits/guildmasters/male/gm-male-01.webp', exists: true }, 'stern']);
+    expect(result.pictures.every((picture) => picture.status === 'live' && picture.listed && picture.picture.exists)).toBe(true);
+    expect(result.counts.guildmaster).toEqual({ female: { young: 10, middle: 13, older: 10 }, male: { young: 8, middle: 14, older: 12 } });
     expect(result.counts.hero.warrior).toEqual({ female: { young: 0, middle: 0, older: 0 }, male: { young: 0, middle: 0, older: 0 } });
-    expect(result.gaps).toContainEqual({ role: 'guildmaster', sex: 'male', band: 'young', count: 0 });
     expect(result.gaps).toContainEqual({ role: 'hero', sex: 'female', band: 'older', class: 'healer', count: 0 });
-    expect(result.gaps.filter((gap) => gap.role === 'guildmaster')).toHaveLength(6);
+    expect(result.gaps.filter((gap) => gap.role === 'guildmaster')).toHaveLength(0);
     expect(result.gaps.filter((gap) => gap.role === 'hero')).toHaveLength(24);
   });
 
   test('names the unused vocabulary, the sentence keys short of three, and the content passing with its warnings', () => {
     const result = corpus(root);
-    expect(result.vocabulary.tempers.used.stern).toEqual(['gm-male-01']);
-    expect(result.vocabulary.tempers.unused).toEqual(['intense', 'calculating', 'wry', 'steady']);
-    expect(result.vocabulary.features.unused).toEqual(['eyepatch', 'grey-hair']);
-    expect(result.vocabulary.stations.unused).toEqual(['trade']);
+    expect(result.vocabulary.tempers.used.stern).toEqual(['gm-male-01', 'gm-male-04', 'gm-male-09', 'gm-male-18']);
+    expect(result.vocabulary.tempers.unused).toEqual([]);
+    expect(result.vocabulary.features.unused).toEqual(['eyepatch']);
+    expect(result.vocabulary.stations.unused).toEqual([]);
     expect(result.sentences.wanted).toBe(3);
     const keys = result.sentences.lists.map((each) => `${each.list}${each.key === '' ? '' : `.${each.key}`}`);
     for (const key of [
@@ -86,12 +88,17 @@ describe('corpus', () => {
     ]) {
       expect(keys).toContain(key);
     }
-    expect(result.sentences.short).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 1 });
-    expect(result.sentences.short.some((each) => each.list === 'biography.origins')).toBe(false);
+    // Since v1.1.3-S4 no key is short of three; one cut back to a sentence is named.
+    expect(result.sentences.short).toEqual([]);
+    const dir = scratch();
+    const descriptions = readJson<Descriptions>(dir, 'content/descriptions.json');
+    descriptions.biography.temperClosings.wry = descriptions.biography.temperClosings.wry?.slice(0, 1) ?? [];
+    writeJson(dir, 'content/descriptions.json', descriptions);
+    expect(corpus(dir).sentences.short).toEqual([{ list: 'biography.temperClosings', key: 'wry', count: 1 }]);
     expect(result.overBounds).toEqual([]);
     expect(result.similar).toEqual([]);
     expect(result.content).toMatchObject({ ok: true, problems: [] });
-    expect(result.content.warnings).toHaveLength(14);
+    expect(result.content.warnings).toHaveLength(8);
     expect(result.content.longest?.biography).toBeLessThanOrEqual(result.content.bounds.biography);
   });
 
@@ -134,8 +141,9 @@ describe('corpus', () => {
     expect(code).toBe(0);
     expect(json.source).toBe('docs/portraits/analysis/2026-10-02/');
     const sentences = json.sentences as { lists: { list: string; key: string; count: number }[] };
-    expect(sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 3 });
-    expect(corpus(dir).sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 1 });
+    // The content's wry holds three sentences since v1.1.3-S4; the run's, two more.
+    expect(sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 5 });
+    expect(corpus(dir).sentences.lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 3 });
     expect(status(dir)).toBe(before);
   });
 
@@ -148,7 +156,7 @@ describe('corpus', () => {
     const counted = await cli('corpus', '--draft', good, '--root', dir);
     expect(counted.code).toBe(0);
     expect(counted.json.source).toBe(good);
-    expect((counted.json.sentences as { lists: unknown[] }).lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 2 });
+    expect((counted.json.sentences as { lists: unknown[] }).lists).toContainEqual({ list: 'biography.temperClosings', key: 'wry', count: 4 });
 
     const bad = path.join(outside, 'bad.json');
     writeFileSync(
