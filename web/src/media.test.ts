@@ -2,7 +2,7 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sexes, type GuildId, type PortraitRole } from '@heroesim/engine';
+import type { GuildId, PortraitRole, Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from './content';
 import { media, mediaCatalogue, mediaFiles, mediaPathOf } from './media';
@@ -32,6 +32,7 @@ const folders = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })
 /** The roles a Portrait is drawn for, and each one's folder (DL-125 item 2). */
 const roleFolders: Readonly<Record<PortraitRole, string>> = { guildmaster: 'guildmasters', hero: 'heroes', patron: 'patrons' };
 const portraitRoles = Object.keys(roleFolders) as PortraitRole[];
+const sexes: readonly Sex[] = ['female', 'male'];
 
 /** The folders a picture may be in (DL-125 item 1). */
 const pictureFolders = [
