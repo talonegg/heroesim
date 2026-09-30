@@ -41,9 +41,10 @@ dispatched is never called home (DL-89); only its Guild's fold disbands it early
 _Avoid_: Team, Squad, Band
 
 **Patron**:
-A person or body that offers Quests to Guilds. By DL-125 a Patron who is a person has a sex,
-which their Portrait follows; a Patron that is a body has none (to be built; every Patron drawn so
-far is a person).
+A person or body that offers Quests to Guilds. A Patron who is a person has a sex, which comes
+with their name when it is drawn and which their Portrait follows; a Patron that is a body has none
+(DL-125, DL-130). Every Patron drawn so far is a person; a body, shown with an emblem of its
+Sphere, is to be built.
 _Avoid_: Client, Employer, Quest-giver
 
 **Sphere**:
@@ -90,7 +91,7 @@ _Avoid_: Flag, Crest, Logo, Emblem (kept for a Patron that is a body)
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
 Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
-(R8; DL-88, DL-100), with a Portrait (DL-125, to be built).
+(R8; DL-88, DL-100), with a Portrait (DL-125, DL-130).
 _Avoid_: Property, Field, Detail
 
 **Descriptive Attribute**:
@@ -107,9 +108,11 @@ _Avoid_: Detail, Origin, Backstory, Bio, Description
 **Portrait**:
 The picture of a person, three wide by four high, shown on their details and on their History:
 a Guildmaster's, a Hero's and a Patron's. The player's Guildmaster has one of the Guildmaster
-pictures of their sex, chosen at setup or drawn; everyone else shows the Silhouette of their sex
-for now, a Rival's Guildmaster included. Every picture is drawn in graphite on cream paper
-(DL-125, DL-126, to be built).
+pictures of their sex, chosen at setup or drawn from the seed, and none while their sex has no
+picture; everyone else shows the Silhouette of their sex for now, a Rival's Guildmaster included.
+A save holds the Portrait by its picture's key (DL-125, DL-130). Every picture is drawn in graphite
+on cream paper (DL-126). The owner's pictures, and the choice on the page's setup form, are to be
+built; the CLI's `new --portrait` chooses one.
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:

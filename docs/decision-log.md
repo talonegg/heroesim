@@ -13670,6 +13670,190 @@ the tests named); `web/src/views/` (`pictures.tsx` and `pictures.test.tsx` new, 
 `section.tsx`); `web/e2e/` (`file.spec.ts`, `fixtures/` new, `layout.spec.ts`);
 `docs/planning/epics/v1.1.2-release.md`.
 
+## DL-130 — v1.1.2-S3 built: the Portrait in the save, chosen or drawn on its own stream, a Patron's sex coming with their name, schema 5, and every older save refused in the owner's words
+
+**Status:** Accepted · **Date:** 2026-09-30 · **Decided by:** an agent, v1.1.2-S3's implementer. The fields,
+the refusals' names, the stream's name, the sentence for an older save and Jocelyn's sex are the owner's and
+DL-125's (items 3, 4, 5, 10 and 11). The sexes of the other names, the shape of `portraits.json`, where the
+checks sit, how a choice moves no draw, and the words are the implementer's, each marked, for the owner to
+change.
+
+**Context.** v1.1.2-S3 is the engine's part of v1.1.2: the save learns a Guildmaster's Portrait and a
+Patron's sex, and the page and the CLI refuse a save of `v1.1.1` in words. It is built on `v1.1.2-dev` from
+`1247291`. No existing draw moves: the Portrait has a stream of its own, and a Patron's sex comes with the
+name drawn as before. No picture exists yet, so every Portrait is still a Silhouette; v1.1.2-S4 adds the
+owner's two.
+
+**Decision.**
+
+1. **Content, version 15 to 16** (`content/`).
+   - *`portraits.json`* lists the pictures by role, then sex, each a list of keys:
+     `{ "guildmaster": { "female": [], "male": [] }, "hero": …, "patron": … }`, every list empty until
+     v1.1.2-S4.
+   - *No `file`* (the implementer's; the epic wrote `{ key, file }`). A picture's file is always
+     `media/portraits/<role>s/<sex>/<key>.webp`: DL-125 item 11 makes every picture WebP and names it by
+     its key, and the page's catalogue finds it by role, sex and key (DL-129 item 4). A `file` could only
+     repeat the key or disagree with it, and S2's verifier found the catalogue never read it. So the list
+     holds keys, and the page's test holds each to its file (item 7).
+   - *Checks* (`content/src/validate.ts`): every key lower case and hyphens, beginning with its role's
+     prefix (`gm-`, `hero-`, `patron-`, DL-126 item 2), and listed once in the whole file. A role or sex
+     not laid out, or a picture written as an object, is refused by the parser.
+   - *`names.patron`* is a list of `{ name, sex }`, in the order the names had, so the draw picks from the
+     same list (item 4). The parser refuses a bare name, a missing sex and a sex that is not `female` or
+     `male`; a name listed twice is refused as before.
+2. **The Patrons' sexes: 16 male, 14 female** (the implementer's reading of each name; Jocelyn the owner's,
+   DL-125 item 5).
+   - *Male:* Aldous Fairweather, Berengar Holt, Denholm Crane, Florian Keld, Godwin Harrow, Lambert Sowerby,
+     Nicolas Aske, Piers Latimer, Simeon Garrow, Petronel Swift, Walter Moorby, Baldwin Cressy, Geoffrey
+     Brand, Hamo Redvers, Ranulf Tarrant, Tobias Wendle.
+   - *Female:* Cecily Ashdown, Edith Marlow, Hawise Brennard, Isolde Varney, Jocelyn Pike, Mabel Thorne,
+     Orabel Quint, Rohesia Dunmore, Agnes Wolstan, Emmeline Stake, Juliana Cray, Letice Gorham, Sybil
+     Hawtrey, Ysmay Carew.
+   - *The two readings that decide the count.* Jocelyn was a man's name in the Middle Ages and is a
+     woman's now: female, as the owner said. Petronel is read as male: it is the Romanian man's form of
+     Peter's family of names, and Sir Petronel Flash is a man in *Eastward Ho!* (1605); the woman's form is
+     Petronella. That makes DL-125's 16 and 14. Read the other way, the count is 15 and 15.
+3. **The save, schema 4 to 5** (`engine/src/document.ts`, `docs/data-model.md`).
+   - `Guildmaster.portraitKey: string | null`: a Guildmaster picture of their sex, or `null` for the
+     Silhouette. `Patron.sex: Sex | null`: `null` kept for a Patron that is a body; none is drawn yet.
+   - *The validator.* Both fields are shape-checked, so a schema-4 row without them is refused as
+     `document-shape` (were it ever to pass the version check). A `portraitKey` that names no Guildmaster
+     picture in content warns `unknown-portrait`, and one of the other sex warns `portrait-of-another-sex`
+     (the implementer's: warnings, not refusals, since content may move a picture under a live save, as
+     any content key may, data-model rule 5; the page then shows the Silhouette of the Guildmaster's sex,
+     which finds no picture of the other). §6's table has the row.
+4. **Older saves refused** (DL-125 item 10.2).
+   - *The chain is empty* (`engine/src/serialise.ts`): `schemaVersion` is 5 and `migrations` holds no
+     step, so a save of schema 4, or of any older one, is `unsupported-version`, naming both versions,
+     before the validator reads it.
+   - *Steps 1 to 3 removed* (the implementer's). They led only to schema 4, which is refused, so no load
+     could reach them; their tests went with them. Should the owner want schema 4 migrated after all, a
+     step 4 is new, and steps 1 to 3 are in git at `1247291`.
+   - *The words.* The page: "This game was saved by an older Heroesim and cannot be loaded." The CLI, from
+     `open`, so `load` and every command that opens a save: "This game was saved by an older Heroesim and
+     cannot be loaded: <path>." A newer save keeps its words, naming both versions.
+5. **The Portrait at setup** (`engine/src/create.ts`, `engine/src/portraits.ts`).
+   - *`WorldSetup.guildmasterPortraitKey`*, optional. `setupRefusal` checks it after the sex and before the
+     age: `unknown-portrait` (`{ portraitKey }`) when content lists no Guildmaster picture by that key,
+     another role's included; `portrait-of-another-sex` (`{ portraitKey, sex, portraitSex }`) when a sex
+     is chosen and the picture is of the other.
+   - *A Portrait and no sex* (the implementer's): the Guildmaster is of the Portrait's sex. Choosing a
+     picture chooses a face of one sex, and the epic names no refusal for it.
+   - *The draw.* With no Portrait chosen, one of the Guildmaster pictures of the sex, chosen or drawn, each
+     equally likely, from the new stream `portraits`, appended last to `streamNames` (ADR-0009); `null`
+     when the sex has none, as every sex has until v1.1.2-S4. It is drawn once the player's Guild is made,
+     from its own stream, so no draw of `generation`, `board` or `market` moves.
+   - *One draw, whatever is chosen or listed* (the implementer's, M9-S2's rule for the setup, DL-102):
+     `pickOrNone` (`generators/draw.ts`) takes exactly one draw from a list of any length, none included,
+     and `guildmasterPortrait` draws before it takes the one chosen. So a choice, or how many pictures
+     there are, moves no later draw of `portraits`, which a later rule may share.
+   - *For v1.1.2-S4.* `guildmasterPortrait`, `portraitsOf` and `portraitSexOf` are exported, so
+     `previewGuildmaster` can call what `createWorld` calls.
+   - *Rivals and successors* have `null` (DL-125 item 4): `drawGuildmaster` gives `null` unless the setup
+     gives a key, and only `createWorld` does, for the player's. A test proves they draw nothing from
+     `portraits`.
+6. **Patrons** (`engine/src/generators/patrons.ts`).
+   - *The draw.* `pickUnusedBy` filters the `{ name, sex }` rows by the names in use and picks from what
+     is left, exactly as `pickUnused` filtered and picked the bare names: the same candidates in the same
+     order, so the same index, and the sex comes with the name.
+   - *Given.* `options.name` comes with `options.sex` (`Sex`, or `null` for a body). A name without a sex,
+     or a sex without a name (the implementer's), is a programming error and throws, changing nothing.
+7. **The page** (`web/`).
+   - *The sentences* (`state/rejections.ts`): `unknown-portrait`, "No Guildmaster Portrait is called
+     "gm-male-09"."; `portrait-of-another-sex`, "That Portrait is of a male Guildmaster, and your
+     Guildmaster's Sex is female."; and an older save's, above. The setup form offers no Portrait until
+     v1.1.2-S4, so no player meets the first two yet.
+   - *The rejection* (`state/reducer.ts`) carries the engine's `LoadRefusal` whole, its two versions
+     among it, and `from`, the name of the save of this browser the text came from, when it was one.
+   - *Beside the saved game* (`views/saved-games.tsx`; the implementer's reading). The card of the save
+     that did not load says why, as an alert, and the docked refusal stays silent for it
+     (`refusedSave`), so the sentence is read once, where the player chose. Load, Export and Delete stay
+     on the card: a save that cannot load can be exported, and deleted when asked twice, as any other.
+   - *In place of loading a file:* the docked refusal says it, and the game in hand stays.
+   - *The seams S2 left* (DL-129 item 6). `portraitKeyOf` reads the field, and a Patron's History has
+     their Portrait, `{ role: 'patron', sex, portraitKey: null }`: the Silhouette of their sex. A body has
+     none. `media.ts` takes `PortraitRole` from the engine.
+   - *`portraits.json` and `media/` in step* (`src/media.test.ts`): each key content lists is
+     `<key>.webp` in its role's folder of its sex, every picture in `media/portraits/` is listed there,
+     and the catalogue finds a picture for every key listed. Vacuous until v1.1.2-S4 fills it; with a key
+     listed and no file, and with a file not listed, it failed and named each.
+8. **The CLI** (`cli/`, DL-102 item 10's pattern).
+   - `new --portrait <key>`: the key's form checked by `args.ts` ("--portrait needs a picture's key such as
+     gm-female-01"), the rest by the engine. Its refusals: "No Guildmaster Portrait is keyed "gm-male-09".
+     Choose from: gm-female-01 (female), …", or "There are none yet: leave out --portrait." while the core
+     lists none; and "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female: choose
+     a Portrait of that sex, or leave out --sex." The usage says what the flag does.
+   - `show guildmaster` gives a `Portrait` line after the Sex: the key, or "None: the Silhouette".
+   - `show patrons` gives each Patron's Sex, "Female" or "Male", between the name and the Sphere ("None" for
+     a body).
+   - A test over the core with three pictures added (`cli/src/portrait.test.ts`, the content mocked)
+     proves a Portrait kept, the sex taken from it, one drawn as the engine draws it, and both refusals.
+9. **Every seed plays as in `v1.1.1`.**
+   - *Creation, 1,000 seeds* (`seed-0001` to `seed-1000`, the bare setup). The engine and content built at
+     `1247291` (unchanged since `v1.1.1`) and at this story's tree each created every world; with the new
+     fields taken out (`portraitKey`, `sex`, the `portraits` stream, the schema and content versions), all
+     1,000 documents are byte-identical, and every Patron is the same one, 12 a world, now 5,642 female
+     and 6,358 male. The script was the scratchpad's, not kept.
+   - *The sweep.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v112-s3 npm run harness` at `f1d361a`, 16
+     processes, not validated. Its report is `harness/reports/m9-v112-s3-2026-09-30.md`, force-added.
+     - *Against `v1.1.1`'s* (M9-F7's `m9-f7-2026-09-30.md`; the engine is unchanged since): the report's
+       every line from its Counters to its Rivals section, 566 lines, is identical: every counter, yearly
+       table and ending. 138 Rival folds, 37 Successions, no player ending, no refused action, 50 of 50
+       saves round trip.
+     - *What moves:* the saves' length (`seed-0001` 106,331,268 characters against 106,330,913, 355 more for
+       the `portraits` stream, each Guildmaster's `portraitKey` and each Patron's `sex`) and so the
+       fingerprint, now `b6a48a517c85dd968698f6192e9c466c056573773f1a6eb1cf6ad230ef9b5422` (was
+       `b4290f09…a7f8`). The timings are not comparable: 689 s against 1,023 s, on a shared machine.
+     - *Two tries.* The first, named `v112-s3`, played all 50 games and then refused its report's name,
+       which the harness holds to `m<n>-<name>`. The second's shell was stopped by the machine for low
+       memory while the run itself played on and wrote its report.
+10. **The tests.**
+    - *Content:* the version, the Patrons' names and sexes in order, the empty Portraits; refusals of a bare
+      name, a missing or unknown sex, a name twice, a missing `portraits.json`, a bad key, a key without
+      its prefix, a key twice, a role or sex not laid out, a picture as an object.
+    - *Engine:* setup's refusals and their order; a Portrait kept, taken for the sex, drawn from the
+      sex's pictures (each drawn over 60 seeds), the same for the same seed, `null` with none; Rivals and
+      successors `null` and drawing nothing; the world with a Portrait chosen, or with no picture listed,
+      the one drawn but for the Portrait; the Patron draw against `pickUnused` over the bare names, both
+      sexes, a name given with a sex or `null`, and the throws; the shape and the two warnings; schema 1
+      to 4 refused as `unsupported-version`, a real schema-4 save among them; `streamNames` and
+      `plannedStreams` with `portraits`.
+    - *CLI:* the flag, its refusals over the core and over pictures, `show guildmaster`'s line,
+      `show patrons`'s column, and a schema-4 save refused by `load` and by `show`.
+    - *Web:* the sentences, the rejection carried whole with `from`, the saved game refused beside it
+      before a game and with one in hand, and deleted; a file refused in place of loading; the Patron's
+      History and its Portrait; the media checks; the reducer's load read with the engine's config, now
+      refusing a schema-4 save a merged config would have let through.
+11. **The final checks**, on the last commit's tree:
+    - `npm run lint`: clean. `npm run typecheck`: clean.
+    - `npm test`: 3,571 tests in 152 files. The first run failed two, both this story's own:
+      `generators/heroes.test.ts` counted the planned streams without `portraits`, and `media.test.ts`
+      took `sexes` as a value from the engine, which only `state/` may (`imports.test.ts`). Both fixed
+      (`7eb7ad7`); the second run passed every test, with none of the known timeouts.
+    - `npm run e2e -w web`: the build, one script of 662.39 kB (188.49 kB gzipped; 4.04 kB more than S2's,
+      the sentences, the saved game's alert and the Patron's Portrait), "check-bundle: 2 built files, no
+      network or filesystem reference"; 69 runs, all passing.
+
+**Consequences.**
+- *Saves.* A `v1.1.2` save is schema 5 and does not load in `v1.1.1`; a `v1.1.1` save does not load here,
+  and the player is told so in words. DL-124 item 9's rollback reaches back only to `v1.1.2` once released.
+- *Play is unchanged:* no draw moves and no `configVersion` changes; only the saves' new fields and stream
+  differ, and so the fingerprint.
+- *For v1.1.2-S4:* the owner's two pictures are listed in `portraits.json` by key, and `media.test.ts`
+  holds them to their files; `guildmasterPortrait` is what the preview calls; the setup form's Portrait
+  passes `guildmasterPortraitKey`, and the page's two setup sentences are met.
+- *Tests:* 3,508 to 3,571, in 151 files to 152. The browser specs keep 69 runs.
+
+**Actioned in:** `content/` (`portraits.json` new, `names.json`, `src/parse.ts`, `src/validate.ts` and their
+tests); `engine/src/` (`portraits.ts` new, `document.ts`, `config.ts`, `content-types.ts`, `create.ts`,
+`serialise.ts`, `validate.ts`, `rng.ts`, `index.ts`, `generators/draw.ts`, `generators/guilds.ts`,
+`generators/patrons.ts`, `world.test-support.ts` and the tests named); `cli/src/` (`args.ts`, `main.ts`,
+`render.ts`, `commands/setup.ts`, `portrait.test.ts` new, and the tests named); `web/src/` (`media.ts`,
+`app.tsx`, `state/reducer.ts`, `state/rejections.ts`, `state/names.ts`, `state/history.ts`,
+`views/saved-games.tsx`, `views/refusal.tsx`, `views/new-game.tsx`, `views/game-file.tsx`,
+`views/history.tsx`, and the tests named); `harness/reports/m9-v112-s3-2026-09-30.md` (force-added); `docs/data-model.md`
+(§3.2, §6); `CONTEXT.md` (Patron; Attribute; Portrait); `docs/planning/epics/v1.1.2-release.md`.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
