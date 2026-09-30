@@ -281,12 +281,14 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
     }
   });
 
-  test("a Guildmaster's has their Portrait by their sex and key, the Silhouette's while the core has no picture, and no Banner", () => {
+  test("a Guildmaster's has their Portrait by their sex and key, the player's drawn from the owner's pictures and a Rival's the Silhouette's, and no Banner", () => {
     const { document, log } = played(3);
+    const keys = Object.values(document.world.guildmasters).map((guildmaster) => guildmaster.portraitKey);
+    expect(keys.filter((key) => key !== null)).toHaveLength(1);
     for (const guildmaster of Object.values(document.world.guildmasters)) {
       expect(historyView(document, log, guildmaster.id, 0)).toMatchObject({
         banner: null,
-        portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: null },
+        portrait: { role: 'guildmaster', sex: guildmaster.sex, portraitKey: guildmaster.portraitKey },
       });
     }
     // A save of schema 5 holds a key (v1.1.2-S3), which the History reads as it is.
@@ -296,13 +298,14 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
     expect(historyView(document, log, first.id, 0).portrait).toEqual({ role: 'guildmaster', sex: first.sex, portraitKey: `gm-${first.sex}-01` });
   });
 
-  test("a Hero's the world holds has theirs, and a Patron theirs by the sex their name came with (v1.1.2-S3); a Hero gone from the world, whose sex is not known, and a body have none", () => {
+  test("a Patron's has theirs by the sex their name came with (v1.1.2-S3); a Hero's has none, their page showing it, and a body none", () => {
     const { state, gone } = withTheGone(started());
     const { document } = state;
     if (document === null) throw new Error('no game in hand');
     const [hero] = Object.values(document.world.heroes);
     if (hero === undefined) throw new Error('no Hero');
-    expect(historyView(document, [], hero.id, 0).portrait).toEqual({ role: 'hero', sex: hero.sex, portraitKey: null });
+    // A Hero the world holds opens their Hero page, which has their Portrait (DL-131).
+    expect(historyView(document, [], hero.id, 0)).toMatchObject({ hero: hero.id, portrait: null });
     expect(historyView(document, [], gone.id, 0)).toMatchObject({ entityId: gone.id, hero: null, banner: null, portrait: null });
     const patrons = Object.values(document.world.patrons);
     expect(new Set(patrons.map(({ sex }) => sex))).toEqual(new Set(['female', 'male']));

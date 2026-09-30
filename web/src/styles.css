@@ -912,6 +912,66 @@ input[type='radio'] {
   border-top: none;
 }
 
+/* What the seed draws of the Guildmaster, beside its Portrait (v1.1.2-S4). */
+.setup-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  max-width: 36rem;
+  margin: 0.35rem 0 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-small);
+}
+
+p.setup-preview {
+  display: block;
+}
+
+.setup-preview .portrait {
+  width: 4rem;
+}
+
+.setup-preview__words p {
+  margin: 0.15rem 0;
+}
+
+/* The Portrait: "Drawn from the seed", then a thumbnail of each picture, each with its radio button (v1.1.2-S4). */
+.setup__portraits {
+  margin-top: 0.25rem;
+}
+
+.portrait-picks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1.5rem;
+}
+
+.portrait-picks .choice + .choice {
+  border-top: none;
+}
+
+.portrait-pick {
+  align-items: center;
+}
+
+.portrait.portrait--thumbnail {
+  display: block;
+  width: 4rem;
+}
+
+@media (min-width: 600px) {
+  .portrait.portrait--thumbnail {
+    width: 4.5rem;
+  }
+}
+
+/* The picture chosen is ringed, as well as its radio button checked. */
+.portrait-pick input:checked + .portrait {
+  box-shadow: 0 0 0 3px var(--accent);
+}
+
 .budget {
   display: flex;
   flex-wrap: wrap;

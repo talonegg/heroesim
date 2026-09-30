@@ -48,7 +48,7 @@ export function mediaPathOf(key: string): string {
   return path.slice(path.indexOf('media/') + 'media/'.length);
 }
 
-/** The shipped files' URLs by their path under `media/`. Exported for a test, and for the `file://` spec's build. */
+/** The shipped files' URLs by their path under `media/`. Exported for a test. */
 export const mediaFiles: Readonly<Record<string, string>> = Object.fromEntries(
   Object.entries(shipped).map(([key, url]) => [mediaPathOf(key), url]),
 );

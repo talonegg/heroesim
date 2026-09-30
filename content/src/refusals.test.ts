@@ -7,6 +7,7 @@ import type {
   Encounter,
   InjuryType,
   Names,
+  PortraitAppearances,
   Portraits,
   QuestTemplate,
   Skill,
@@ -43,6 +44,7 @@ interface Files {
   'items.json': Record<string, Record<string, unknown>>;
   'loot-tables.json': Rows<LootTable>;
   'portraits.json': Portraits;
+  'portrait-appearances.json': PortraitAppearances;
 }
 
 function realFiles(): Record<string, string> {
@@ -235,13 +237,13 @@ describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
 
   test('are accepted with a picture of each role and sex', () => {
     const files = withJson('portraits.json', (json) => {
-      json.guildmaster.female.push('gm-female-01');
-      json.guildmaster.male.push('gm-male-01');
+      json.guildmaster.female.push('gm-female-02');
+      json.guildmaster.male.push('gm-male-02');
       json.hero.female.push('hero-female-01');
       json.patron.male.push('patron-male-01');
     });
 
-    expect(parseContent(files).portraits.guildmaster).toEqual({ female: ['gm-female-01'], male: ['gm-male-01'] });
+    expect(parseContent(files).portraits.guildmaster).toEqual({ female: ['gm-female-01', 'gm-female-02'], male: ['gm-male-01', 'gm-male-02'] });
   });
 
   test.each([
@@ -274,6 +276,50 @@ describe('the Portraits (v1.1.2-S3, DL-125 item 3)', () => {
     });
 
     expect(refusalOf(() => parseContent(files)).message).toContain('portraits.json: guildmaster.male');
+  });
+});
+
+// v1.1.2-S4 parses the file and holds its keys to the pictures; v1.1.2-S5 adds the rest of DL-127's checks.
+describe('the Appearances mapped to pictures (v1.1.2-S4, DL-126 item 2, DL-127)', () => {
+  test('are required as a file, which may map none', () => {
+    const files = realFiles();
+    delete files['portrait-appearances.json'];
+    expect(refusalOf(() => parseContent(files)).message).toContain('portrait-appearances.json: missing');
+
+    const none = withJson('portrait-appearances.json', (json) => {
+      json.portraits = {};
+    });
+    expect(parseContent(none).portraitAppearances.portraits).toEqual({});
+  });
+
+  test("are refused with a row whose key names no picture, another role's included", () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      json.portraits['gm-male-09'] = { keywords: [], narrative: 'A face.' };
+    });
+    expect(refusalOf(() => parseContent(files)).message).toContain('portraitAppearances.portraits: "gm-male-09" names no picture in portraits.json');
+
+    const hero = withJson('portraits.json', (json) => {
+      json.hero.female.push('hero-female-01');
+    });
+    const mapped = { ...hero, 'portrait-appearances.json': JSON.stringify({ keywords: {}, portraits: { 'hero-female-01': { keywords: [], narrative: 'A face.' } } }) };
+    expect(Object.keys(parseContent(mapped).portraitAppearances.portraits)).toEqual(['hero-female-01']);
+  });
+
+  test('are refused with a slot not laid out, a field missing or unknown, or a row that is no object', () => {
+    const files = withJson('portrait-appearances.json', (json) => {
+      (json.keywords['stern'] as unknown as Record<string, unknown>)['slot'] = 'dress';
+      delete (json.keywords['composed'] as unknown as Record<string, unknown>)['word'];
+      (json.portraits['gm-male-01'] as unknown as Record<string, unknown>)['dress'] = 'a coat';
+      (json.portraits as unknown as Record<string, unknown>)['gm-female-01'] = 'long dark hair';
+      (json as unknown as Record<string, unknown>)['colours'] = {};
+    });
+
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toContain('portrait-appearances.json: keywords.stern.slot is "dress"; expected one of face, hair, facialHair, eyes, mark, bearing');
+    expect(message).toContain('portrait-appearances.json: keywords.composed.word is missing');
+    expect(message).toContain('portrait-appearances.json: portraits.gm-male-01.dress is not a field of');
+    expect(message).toContain('portrait-appearances.json: portraits.gm-female-01 must be an object');
+    expect(message).toContain('portrait-appearances.json: colours is not a field of the Appearances mapped to pictures');
   });
 });
 

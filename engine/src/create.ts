@@ -16,7 +16,7 @@ import {
 } from './document.js';
 import type { EngineEvent, WorldCreated } from './events.js';
 import { dealEvenly, sexes, sortedKeys, streamOf } from './generators/draw.js';
-import { dealtDisposition, generateGuild, generateRival } from './generators/guilds.js';
+import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
 import { append } from './history.js';
@@ -173,6 +173,82 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
   return null;
 }
 
+/**
+ * A new world's document with the player's Guild in it, the first thing `createWorld` makes
+ * (DL-19 item 9): `meta`, one stream per core stream name, then the player's Guild and Guildmaster
+ * with what the setup chose of them and the rest drawn from `generation`, and their Portrait, chosen
+ * or drawn from `portraits`, a stream of its own (v1.1.2-S3). `createWorld` goes on from here, and
+ * `previewGuildmaster` reads the Guildmaster it makes, so the two cannot disagree (v1.1.2-S4, DL-125
+ * item 6). The setup has been checked by `setupRefusal`.
+ */
+function founded(seed: string, setup: WorldSetup, deps: EngineDeps): { document: WorldDocument; player: GeneratedGuild } {
+  const { config, content } = deps;
+  // With a Portrait and no sex, the Guildmaster is of the Portrait's (v1.1.2-S3).
+  const portraitKey = setup.guildmasterPortraitKey;
+  const portraitSex = portraitKey === undefined ? null : portraitSexOf(content, 'guildmaster', portraitKey);
+  const sex = setup.guildmasterSex ?? portraitSex ?? undefined;
+  const meta: Meta = {
+    version: config.schemaVersion,
+    seed,
+    content: { id: content.id, version: content.version },
+    config: { ...config },
+    createdAt: setup.createdAt,
+  };
+  const document = emptyDocument(meta, createStreams(seed, streamNames));
+  const { world } = document;
+
+  const player = generateGuild(world, deps, {
+    controller: { kind: 'player' },
+    rosterSize: config.startingRosterSize,
+    wealth: config.startingWealth,
+    name: setup.guildName,
+    guildmasterName: setup.guildmasterName,
+    ...(setup.backgroundKey === undefined ? {} : { backgroundKey: setup.backgroundKey }),
+    guildmaster: {
+      ...(sex === undefined ? {} : { sex }),
+      ...(setup.guildmasterAge === undefined ? {} : { age: setup.guildmasterAge }),
+      ...(setup.guildmasterTraitKeys === undefined ? {} : { traitKeys: setup.guildmasterTraitKeys }),
+      birthplace: (setup.guildmasterBirthplace ?? '').trim(),
+      appearance: (setup.guildmasterAppearance ?? '').trim(),
+      biography: (setup.guildmasterBiography ?? '').trim(),
+    },
+  });
+  // The player's Portrait, from its own stream (ADR-0009), so no draw of `generation` moves; a Rival's
+  // Guildmaster has none (DL-125 item 4).
+  player.guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, player.guildmaster.sex, portraitKey);
+  return { document, player };
+}
+
+/** The player's Guildmaster as a new game would make them: what the setup chose, and what the seed draws. */
+export interface GuildmasterPreview {
+  sex: Sex;
+  /** Whole years, the age they enter play at. */
+  age: number;
+  /** The Traits, in the order the setup gave them, or in key order when drawn. */
+  traitKeys: TraitKey[];
+  /** A Guildmaster picture of `sex`, or `null`, the Silhouette, when the sex has none. */
+  portraitKey: PortraitKey | null;
+}
+
+/** Stand-ins for names a front end may not have yet: a name given is never drawn, so it moves nothing. */
+const previewNames = { guildName: 'Guild', guildmasterName: 'Guildmaster' } as const;
+
+/**
+ * The player's Guildmaster that `createWorld(seed, setup, deps)` would make: the sex, age, Traits
+ * and Portrait, chosen or drawn (v1.1.2-S4, DL-125 item 6), for a front end to show before "Start the
+ * game". It makes the world's beginning by the function `createWorld` makes it with (`founded`) and
+ * reads the Guildmaster off it, so the two cannot disagree. Neither name is read: the player names
+ * their Guild and Guildmaster, so neither is drawn, and the preview shows before they are typed.
+ * `null` when `setupRefusal` refuses the setup for anything but a blank name, since "Start the game"
+ * would then make nothing. The same for the same inputs, and it changes nothing.
+ */
+export function previewGuildmaster(setup: WorldSetup, seed: string, deps: Pick<EngineDeps, 'config' | 'content'>): GuildmasterPreview | null {
+  const named = { ...setup, ...previewNames };
+  if (setupRefusal(named, deps) !== null) return null;
+  const { guildmaster } = founded(seed, named, { config: deps.config, content: deps.content }).player;
+  return { sex: guildmaster.sex, age: guildmaster.ageAtEntry, traitKeys: [...guildmaster.traits], portraitKey: guildmaster.portraitKey };
+}
+
 export interface CreatedWorld {
   document: WorldDocument;
   /** Every entry the History starts with, in order: the same objects, `world.created` first. */
@@ -200,42 +276,10 @@ export function createWorld(seed: string, setup: WorldSetup, deps: EngineDeps): 
   const { config, content } = deps;
   const refusal = setupRefusal(setup, deps);
   if (refusal !== null) throw new RangeError(`The setup is refused: ${JSON.stringify(refusal)}`);
-  // With a Portrait and no sex, the Guildmaster is of the Portrait's (v1.1.2-S3).
-  const portraitKey = setup.guildmasterPortraitKey;
-  const portraitSex = portraitKey === undefined ? null : portraitSexOf(content, 'guildmaster', portraitKey);
-  const sex = setup.guildmasterSex ?? portraitSex ?? undefined;
-  const meta: Meta = {
-    version: config.schemaVersion,
-    seed,
-    content: { id: content.id, version: content.version },
-    config: { ...config },
-    createdAt: setup.createdAt,
-  };
-  const document = emptyDocument(meta, createStreams(seed, streamNames));
+  const { document, player } = founded(seed, setup, deps);
   const { world } = document;
   const generation = streamOf(world);
-  const generated: EngineEvent[] = [];
-
-  const player = generateGuild(world, deps, {
-    controller: { kind: 'player' },
-    rosterSize: config.startingRosterSize,
-    wealth: config.startingWealth,
-    name: setup.guildName,
-    guildmasterName: setup.guildmasterName,
-    ...(setup.backgroundKey === undefined ? {} : { backgroundKey: setup.backgroundKey }),
-    guildmaster: {
-      ...(sex === undefined ? {} : { sex }),
-      ...(setup.guildmasterAge === undefined ? {} : { age: setup.guildmasterAge }),
-      ...(setup.guildmasterTraitKeys === undefined ? {} : { traitKeys: setup.guildmasterTraitKeys }),
-      birthplace: (setup.guildmasterBirthplace ?? '').trim(),
-      appearance: (setup.guildmasterAppearance ?? '').trim(),
-      biography: (setup.guildmasterBiography ?? '').trim(),
-    },
-  });
-  generated.push(...player.events);
-  // The player's Portrait, from its own stream (ADR-0009), so no draw of `generation` moves; a Rival's
-  // Guildmaster has none (DL-125 item 4).
-  player.guildmaster.portraitKey = guildmasterPortrait(world.rng.portraits, content, player.guildmaster.sex, portraitKey);
+  const generated: EngineEvent[] = [...player.events];
 
   // Each Rival draws its Roster size and Wealth before it is generated (DL-19 item 9), and is dealt
   // its Disposition round-robin, which draws nothing (M6-S1, DL-56).

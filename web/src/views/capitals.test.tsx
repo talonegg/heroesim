@@ -323,7 +323,7 @@ describe('the words DL-125 item 9 settled, where the guard reads no failure to s
 
   test('the terms in the help and the new-game form', () => {
     render(<App />);
-    expect(screen.getByText('Sex, Age, Traits and a few words about them, or all drawn from the seed')).toBeDefined();
+    expect(screen.getByText('Sex, Age, Portrait and Traits, or drawn from the seed, and a few words about them')).toBeDefined();
     cleanup();
 
     render(<App initial={started('capitals')} />);

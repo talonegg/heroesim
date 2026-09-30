@@ -4,6 +4,7 @@
 // type, and no field the schema does not know — then the whole set is validated.
 
 import type {
+  AppearanceSlot,
   Background,
   BackgroundOwner,
   Class,
@@ -27,6 +28,8 @@ import type {
   LootTable,
   Names,
   PatronName,
+  PortraitAppearance,
+  PortraitAppearances,
   PortraitRole,
   Portraits,
   QuestTemplate,
@@ -67,7 +70,8 @@ export const contentSetId = 'core';
  * 14 from the M6 close's balance pass on the four Dispositions' rows (DL-69); 15 from M9-S2, which
  * gave every Trait a cost against the Trait budget and a list of the Traits it excludes (DL-102); 16
  * from v1.1.2-S3, which added the Portraits (`portraits.json`) and gave each Patron's name its sex
- * (DL-125 items 3 and 5, DL-130).
+ * (DL-125 items 3 and 5, DL-130). v1.1.2-S4's two pictures in `portraits.json` and their rows in
+ * `portrait-appearances.json` keep 16: no release has held 16 without them (DL-131).
  */
 export const contentVersion = 16;
 
@@ -89,6 +93,7 @@ export const contentFiles = [
   'items.json',
   'loot-tables.json',
   'portraits.json',
+  'portrait-appearances.json',
 ] as const;
 
 export type ContentFileName = (typeof contentFiles)[number];
@@ -118,6 +123,7 @@ const gearSlots: Record<SlotKey, true> = { weapon: true, armour: true, trinket: 
 const consumableEffectKinds: Record<ConsumableEffectKind, true> = { reroll: true, bonus: true, heal: true };
 const sexChoices: Record<Sex, true> = { female: true, male: true };
 const portraitRoles: Record<PortraitRole, true> = { guildmaster: true, hero: true, patron: true };
+const appearanceSlots: Record<AppearanceSlot, true> = { face: true, hair: true, facialHair: true, eyes: true, mark: true, bearing: true };
 
 /**
  * Parse and validate a content set from the text of its files.
@@ -243,6 +249,7 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
       entries: row.children('entries').map(lootEntry),
     })),
     portraits: portraits(json('portraits.json'), problems),
+    portraitAppearances: portraitAppearances(json('portrait-appearances.json'), problems),
   };
 
   if (problems.length > 0) throw new ContentError(problems);
@@ -352,6 +359,45 @@ function portraits(json: unknown, problems: string[]): Portraits {
     }),
   ) as Portraits;
   top.refuseUnknown('the Portraits');
+  return result;
+}
+
+/**
+ * The Appearances mapped to pictures (v1.1.2-S4; DL-126 item 2, DL-127): `keywords`, each with its
+ * slot and its word, and `portraits`, each mapped picture's keywords and narrative by its key.
+ * Which keys are allowed is `validateContent`'s rule.
+ */
+function portraitAppearances(json: unknown, problems: string[]): PortraitAppearances {
+  const file = 'portrait-appearances.json';
+  const empty: PortraitAppearances = { keywords: {}, portraits: {} };
+  if (json === undefined) return empty;
+  if (!isObject(json)) {
+    problems.push(`${file}: must be an object of the keywords and the pictures`);
+    return empty;
+  }
+  const top = new RowReader(file, [], json, problems);
+  /** Each row of the object in `field`, by its key, read by `shape`. */
+  const rows = <Row>(field: string, what: string, shape: (row: RowReader) => Row): Record<string, Row> =>
+    Object.fromEntries(
+      Object.entries(top.object(field)).flatMap(([key, raw]): [string, Row][] => {
+        if (!isObject(raw)) {
+          problems.push(`${file}: ${field}.${key} must be an object`);
+          return [];
+        }
+        const row = new RowReader(file, [field, key], raw, problems);
+        const read = shape(row);
+        row.refuseUnknown(what);
+        return [[key, read]];
+      }),
+    );
+  const result: PortraitAppearances = {
+    keywords: rows('keywords', 'a keyword', (row) => ({ slot: row.oneOf('slot', appearanceSlots), word: row.string('word') })),
+    portraits: rows('portraits', "a picture's Appearance", (row): PortraitAppearance => ({
+      keywords: row.strings('keywords'),
+      narrative: row.string('narrative'),
+    })),
+  };
+  top.refuseUnknown('the Appearances mapped to pictures');
   return result;
 }
 

@@ -51,6 +51,26 @@ const inlineLimit = 1024;
 const cream = '#f3ecdb';
 const graphite = '#5a5752';
 
+/**
+ * A WebP's width and height, from its header: a lossy (`VP8 `), lossless (`VP8L`) or extended (`VP8X`)
+ * file; `null` for anything that is not a WebP.
+ */
+function webpSize(bytes: Buffer): { width: number; height: number } | null {
+  if (bytes.toString('ascii', 0, 4) !== 'RIFF' || bytes.toString('ascii', 8, 12) !== 'WEBP') return null;
+  switch (bytes.toString('ascii', 12, 16)) {
+    case 'VP8 ':
+      return { width: bytes.readUInt16LE(26) & 0x3fff, height: bytes.readUInt16LE(28) & 0x3fff };
+    case 'VP8L': {
+      const bits = bytes.readUInt32LE(21);
+      return { width: (bits & 0x3fff) + 1, height: ((bits >> 14) & 0x3fff) + 1 };
+    }
+    case 'VP8X':
+      return { width: bytes.readUIntLE(24, 3) + 1, height: bytes.readUIntLE(27, 3) + 1 };
+    default:
+      return null;
+  }
+}
+
 describe('media/', () => {
   test('is read: it holds files', () => {
     expect(files.length).toBeGreaterThan(0);
@@ -117,6 +137,18 @@ describe('media/', () => {
     expect(onDisk.filter((file) => !listed.includes(file))).toEqual([]);
   });
 
+  // v1.1.2-S4 (DL-125 items 11 and 12): a Portrait's picture is WebP, 480 × 640, converted once by
+  // `web/scripts/convert-picture.mjs`, and small enough to load at once.
+  test('holds each Portrait picture as WebP, 480 × 640, of at most 150 kB', () => {
+    const pictures = files.filter((file) => file.startsWith('portraits/') && file.endsWith('.webp'));
+    expect(pictures).toEqual(['portraits/guildmasters/female/gm-female-01.webp', 'portraits/guildmasters/male/gm-male-01.webp']);
+    for (const file of pictures) {
+      const bytes = readFileSync(path.join(mediaDir, file));
+      expect(bytes.length, file).toBeLessThanOrEqual(150_000);
+      expect(webpSize(bytes), file).toEqual({ width: 480, height: 640 });
+    }
+  });
+
   test("names each Item's picture by an Item's content key", () => {
     const unknown = files
       .filter((file) => file.startsWith('items/') && file !== 'items/silhouette.svg')
@@ -139,7 +171,7 @@ describe("the page's catalogue of media/", () => {
     expect(media.portrait('patron', 'female', null).silhouette).toBe(mediaFiles['portraits/patrons/female/silhouette.svg']);
   });
 
-  test('finds the picture of every Portrait content lists, by its role, sex and key (v1.1.2-S3; none until v1.1.2-S4)', () => {
+  test("finds the picture of every Portrait content lists, by its role, sex and key (v1.1.2-S3): the owner's two since v1.1.2-S4", () => {
     const missing = portraitRoles.flatMap((role) =>
       sexes.flatMap((sex) => content.portraits[role][sex].filter((key) => media.portrait(role, sex, key).picture === null)),
     );

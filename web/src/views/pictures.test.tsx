@@ -6,14 +6,14 @@ import { mediaFiles } from '../media';
 import { carryingUnique, changed, holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { openView, rosterList, section } from './page.test-support';
-import { GuildBanner, ItemPicture, Portrait } from './pictures';
+import { GuildBanner, ItemPicture, Portrait, PortraitThumbnail } from './pictures';
 
 // The page's pictures (v1.1.2-S2; DL-125 items 2, 7 and 8): each shows its Silhouette until its
 // picture loads, and again when it fails. A Portrait's picture is named "Portrait of {name}", and its
 // Silhouette is hidden from screen readers; a Banner and an Item's picture always are.
 //
-// `media/` has no picture before v1.1.2-S4, so these read a catalogue with two made up: one of the
-// Guildmaster pictures and one of a Unique Item. Then each place a picture goes, in the page: the
+// These read a catalogue with two pictures of their own, so they hold whatever `media/` holds: one of
+// the Guildmaster pictures, over the owner's (v1.1.2-S4), and one of a Unique Item, which has none. Then each place a picture goes, in the page: the
 // Guild's Banner beside the five titles, a person's Portrait on their details and their History, and
 // a Unique Item's picture in the Stores, the Market's Sell and a Hero's Gear and Equip rows.
 
@@ -75,6 +75,47 @@ test('a Portrait with a picture shows the Silhouette until it loads, then the pi
   expect(picture.classList.contains('is-loading')).toBe(false);
 });
 
+// v1.1.2-S2's verification (DL-131): a view opened again mounts its pictures again, and a picture the
+// browser holds is complete as it mounts. It shows at once, with no frame of its Silhouette.
+test('a picture the browser already holds shows at once when its place is drawn again, with no Silhouette first', () => {
+  const complete = vi.spyOn(HTMLImageElement.prototype, 'complete', 'get').mockReturnValue(true);
+  const width = vi.spyOn(HTMLImageElement.prototype, 'naturalWidth', 'get').mockReturnValue(480);
+  try {
+    render(<Portrait role="guildmaster" sex="female" portraitKey="gm-female-01" name="Ada Vell" />);
+    const figure = screen.getByTestId('portrait');
+    expect(layers(figure)).toEqual([{ is: 'picture', src: 'assets/gm-female-01-test.webp', alt: 'Portrait of Ada Vell' }]);
+    expect(screen.getByRole('img', { name: 'Portrait of Ada Vell' }).classList.contains('is-loading')).toBe(false);
+  } finally {
+    complete.mockRestore();
+    width.mockRestore();
+  }
+  cleanup();
+
+  // Complete but broken (no width), it is left to its error, as any picture loading is.
+  render(<Portrait role="guildmaster" sex="female" portraitKey="gm-female-01" name="Ada Vell" />);
+  expect(layers(screen.getByTestId('portrait')).map((layer) => layer.is)).toEqual(['silhouette', 'picture']);
+});
+
+test("a Portrait's thumbnail on the new-game form: the picture over its Silhouette, hidden, and its name in words", () => {
+  render(
+    <label>
+      <input type="radio" name="portrait" />
+      <PortraitThumbnail sex="female" portraitKey="gm-female-01" label="Female Portrait 1" />
+    </label>,
+  );
+  const thumbnail = screen.getByTestId('portrait-thumbnail');
+  expect(thumbnail.getAttribute('aria-hidden')).toBe('true');
+  expect(layers(thumbnail)).toEqual([
+    { is: 'silhouette', src: mediaFiles['portraits/guildmasters/female/silhouette.svg'], alt: '' },
+    { is: 'picture', src: 'assets/gm-female-01-test.webp', alt: '' },
+  ]);
+  expect(screen.getByRole('radio', { name: 'Female Portrait 1' })).toBeDefined();
+  // A picture that fails leaves the Silhouette, and the radio button keeps its name.
+  fireEvent.error(thumbnail.querySelector('img[data-picture="picture"]') as HTMLImageElement);
+  expect(layers(thumbnail).map((layer) => layer.is)).toEqual(['silhouette']);
+  expect(screen.getByRole('radio', { name: 'Female Portrait 1' })).toBeDefined();
+});
+
 test('a picture that fails leaves the Silhouette, hidden from screen readers', () => {
   render(<Portrait role="guildmaster" sex="female" portraitKey="gm-female-01" name="Ada Vell" />);
   fireEvent.error(screen.getByRole('img', { name: 'Portrait of Ada Vell' }));
@@ -125,13 +166,16 @@ function documentOf(state: GameState): WorldDocument {
   return state.document;
 }
 
-/** The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it (v1.1.2-S3). */
-function withGuildmaster(state: GameState, sex: Sex, portraitKey?: string): GameState {
+/**
+ * The player's Guildmaster, of `sex`, and with `portraitKey` as a save of schema 5 holds it (v1.1.2-S3):
+ * `null`, the Silhouette, unless given, where a new game draws one of the owner's pictures (v1.1.2-S4).
+ */
+function withGuildmaster(state: GameState, sex: Sex, portraitKey: string | null = null): GameState {
   return changed(state, (document, player) => {
     const guildmaster = document.world.guildmasters[player.guildmasterId];
     if (guildmaster === undefined) throw new Error('no Guildmaster');
     guildmaster.sex = sex;
-    if (portraitKey !== undefined) Object.assign(guildmaster, { portraitKey });
+    guildmaster.portraitKey = portraitKey;
   });
 }
 

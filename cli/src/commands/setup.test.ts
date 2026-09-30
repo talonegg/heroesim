@@ -15,7 +15,7 @@ describe("new's words for a setup the engine refuses", () => {
     );
   });
 
-  // v1.1.2-S3: the core has no picture until v1.1.2-S4, so the choices are held over content with some.
+  // v1.1.2-S3: held over content with more pictures than the core's two (v1.1.2-S4), and with none.
   const pictured = {
     ...content,
     portraits: { ...content.portraits, guildmaster: { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] } },
@@ -25,7 +25,9 @@ describe("new's words for a setup the engine refuses", () => {
     expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, pictured)).toBe(
       'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male), gm-male-02 (male).',
     );
-    expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, content)).toBe(
+    const none = { female: [], male: [] };
+    const bare = { ...content, portraits: { guildmaster: none, hero: none, patron: none } };
+    expect(setupRefusalWords({ reason: 'unknown-portrait', portraitKey: 'gm-male-09' }, bare)).toBe(
       'No Guildmaster Portrait is keyed "gm-male-09". There are none yet: leave out --portrait.',
     );
   });

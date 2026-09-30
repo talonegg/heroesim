@@ -7,23 +7,40 @@
 // for this form, and it says the game in hand goes unless exported, with a way back to it.
 //
 // The Guildmaster's setup (M9-S7, #30; the CLI's `new` flags, DL-102 item 10) sits behind "Your
-// Guildmaster", closed: an optional sex and age, the Traits drawn from the seed or chosen within
-// the Trait budget, and the Birthplace, Appearance and Biography, anything left unset drawn from the
-// seed. Each Trait says what it does, what it costs and what it excludes, and how it stands against
-// those chosen; the budget left moves as the player picks. Every number, bound and judgement comes
-// from `state/setup.ts`, the engine's own check (`setupRefusal`) and sum: nothing here computes a
-// rule. A setup the engine would refuse cannot be started, and its sentence stands beside the button,
-// once a field has been touched; before that, a hint asks for the names (DL-109 item 2, Q22).
+// Guildmaster", closed: an optional sex and age, a Portrait (v1.1.2-S4), the Traits chosen within the
+// Trait budget, and the Birthplace, Appearance and Biography. The sex, the age, the Portrait and the
+// Traits are each drawn from the seed when left unset, and the form shows what the seed draws, as it
+// follows the Seed field; a descriptive Attribute left blank stays empty. Each Trait says what it
+// does, what it costs and what it excludes, and how it stands against those chosen; the budget left
+// moves as the player picks. Every number, bound, judgement and draw comes from `state/setup.ts`, the
+// engine's own check (`setupRefusal`), sum and preview (`previewGuildmaster`): nothing here computes
+// a rule. A setup the engine would refuse cannot be started, and its sentence stands beside the
+// button, once a field has been touched; before that, a hint asks for the names (DL-109 item 2, Q22).
+//
+// The Portrait (DL-125 item 3): "Drawn from the seed", then a thumbnail of each Guildmaster picture of
+// the sex, each a radio button with its picture as its label. With the sex drawn, every sex's pictures
+// are offered, and choosing one chooses its sex, which the Sex field shows, until the Portrait is drawn
+// again; changing the sex clears a Portrait of another.
 
-import type { DescriptiveAttribute, Sex, TraitKey } from '@heroesim/engine';
+import type { DescriptiveAttribute, PortraitKey, Sex, TraitKey } from '@heroesim/engine';
 import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import type { Saves } from '../saves';
 import { readableSeed } from '../seed';
 import type { GameAction, NewGame as NewGamePlay, PlayRejection } from '../state/reducer';
 import { guildBackgrounds } from '../state/selectors';
-import { setupFormChoices, setupNotice, traitPicksView, type TraitPick } from '../state/setup';
+import {
+  guildmasterPreviewView,
+  portraitChoices,
+  portraitPick,
+  setupFormChoices,
+  setupNotice,
+  traitPicksView,
+  type PortraitPick,
+  type TraitPick,
+} from '../state/setup';
 import { LoadSave } from './game-file';
 import { Icon } from './icons';
+import { Portrait, PortraitThumbnail } from './pictures';
 import { SavedGames } from './saved-games';
 import { View } from './section';
 import { Chip, Disclosure } from './ui';
@@ -59,6 +76,10 @@ export function NewGame({
   const [backgroundKey, setBackgroundKey] = useState('');
   const [seed, setSeed] = useState(() => readableSeed(Math.random));
   const [sex, setSex] = useState<Sex | ''>('');
+  // A Guildmaster picture of the sex, or `''` while drawn from the seed.
+  const [portraitKey, setPortraitKey] = useState<PortraitKey | ''>('');
+  // Whether the sex is the Portrait's, chosen with it while the sex was drawn, rather than the Sex field's own.
+  const [sexOfPortrait, setSexOfPortrait] = useState(false);
   const [age, setAge] = useState('');
   // The Traits drawn from the seed, or chosen: `null` while drawn, and none chosen is a choice.
   const [traitKeys, setTraitKeys] = useState<readonly TraitKey[] | null>(null);
@@ -78,13 +99,34 @@ export function NewGame({
       guildmasterName,
       ...(backgroundKey === '' ? {} : { backgroundKey }),
       ...(sex === '' ? {} : { guildmasterSex: sex }),
+      ...(portraitKey === '' ? {} : { guildmasterPortraitKey: portraitKey }),
       ...(age === '' ? {} : { guildmasterAge: Number(age) }),
       ...(traitKeys === null ? {} : { guildmasterTraitKeys: traitKeys }),
       ...written,
     };
-  }, [guildName, guildmasterName, backgroundKey, sex, age, traitKeys, texts]);
+  }, [guildName, guildmasterName, backgroundKey, sex, portraitKey, age, traitKeys, texts]);
   const notice = useMemo(() => setupNotice({ kind: 'newGame', seed: '', createdAt: '', ...setup }, touched), [setup, touched]);
   const picks = useMemo(() => (traitKeys === null ? null : traitPicksView(traitKeys)), [traitKeys]);
+  // The pictures of the sex chosen; every sex's while it is drawn, or is only the Portrait's.
+  const offered = sex === '' || sexOfPortrait ? null : sex;
+  const portraits = useMemo(() => portraitChoices(offered).flatMap((group) => group.pictures), [offered]);
+  // What the seed draws, the engine's. It reads neither name nor any text, so typing them draws nothing again.
+  const preview = useMemo(
+    () =>
+      guildmasterPreviewView(
+        {
+          guildName: '',
+          guildmasterName: '',
+          ...(backgroundKey === '' ? {} : { backgroundKey }),
+          ...(sex === '' ? {} : { guildmasterSex: sex }),
+          ...(portraitKey === '' ? {} : { guildmasterPortraitKey: portraitKey }),
+          ...(age === '' ? {} : { guildmasterAge: Number(age) }),
+          ...(traitKeys === null ? {} : { guildmasterTraitKeys: traitKeys }),
+        },
+        seed,
+      ),
+    [backgroundKey, sex, portraitKey, age, traitKeys, seed],
+  );
 
   function start(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -94,6 +136,34 @@ export function NewGame({
       ...setup,
       createdAt: new Date().toISOString(),
     });
+  }
+
+  /** A sex chosen, or drawn: a Portrait of another sex, or any with the sex drawn, is cleared. */
+  function chooseSex(next: Sex | ''): void {
+    setSex(next);
+    setSexOfPortrait(false);
+    if (portraitKey !== '' && portraitPick(portraitKey)?.sex !== next) setPortraitKey('');
+  }
+
+  /**
+   * A picture chosen. With the sex drawn it chooses its sex (DL-130 item 5), which the Sex field then
+   * shows, while every sex's pictures stay offered, so the arrow keys still move through them all.
+   */
+  function choosePortrait(pick: PortraitPick): void {
+    setPortraitKey(pick.key);
+    if (sex === '' || sexOfPortrait) {
+      setSex(pick.sex);
+      setSexOfPortrait(true);
+    }
+  }
+
+  /** The Portrait drawn from the seed again; a sex that was only the Portrait's is drawn again with it. */
+  function drawPortrait(): void {
+    setPortraitKey('');
+    if (sexOfPortrait) {
+      setSex('');
+      setSexOfPortrait(false);
+    }
   }
 
   function toggle(key: TraitKey): void {
@@ -137,7 +207,7 @@ export function NewGame({
           summary={
             <>
               <span className="disclosure__title">Your Guildmaster</span>{' '}
-              <span className="disclosure__hint">Sex, Age, Traits and a few words about them, or all drawn from the seed</span>
+              <span className="disclosure__hint">Sex, Age, Portrait and Traits, or drawn from the seed, and a few words about them</span>
             </>
           }
         >
@@ -145,7 +215,7 @@ export function NewGame({
             <div className="setup__pair">
               <Field label="Sex">
                 {(id) => (
-                  <select id={id} name="guildmasterSex" value={sex} onChange={(event) => setSex(event.target.value as Sex | '')}>
+                  <select id={id} name="guildmasterSex" value={sex} onChange={(event) => chooseSex(event.target.value as Sex | '')}>
                     <option value="">Drawn from the seed</option>
                     {choices.sexes.map(({ value, label }) => (
                       <option key={value} value={value}>
@@ -168,6 +238,50 @@ export function NewGame({
                 )}
               </Field>
             </div>
+
+            {preview === null ? null : preview.kind === 'unseeded' ? (
+              <p className="note setup-preview" data-testid="guildmaster-preview">
+                {preview.words}
+              </p>
+            ) : (
+              <div className="setup-preview" data-testid="guildmaster-preview">
+                {preview.portrait === null ? null : (
+                  <Portrait
+                    role="guildmaster"
+                    sex={preview.portrait.sex}
+                    portraitKey={preview.portrait.portraitKey}
+                    name={guildmasterName.trim() === '' ? 'your Guildmaster' : guildmasterName.trim()}
+                  />
+                )}
+                <div className="setup-preview__words">
+                  {preview.drawnWords === null ? null : <p>{preview.drawnWords}</p>}
+                  {preview.traitsWords === null ? null : <p>{preview.traitsWords}</p>}
+                  {preview.portrait === null ? null : <p>{preview.portrait.words}</p>}
+                </div>
+              </div>
+            )}
+
+            <fieldset className="setup__portraits">
+              <legend>Portrait</legend>
+              <div className="portrait-picks">
+                <label className="choice">
+                  <input type="radio" name="guildmasterPortrait" value="" checked={portraitKey === ''} onChange={drawPortrait} />
+                  <span>Drawn from the seed</span>
+                </label>
+                {portraits.map((pick) => (
+                  <label key={pick.key} className="choice portrait-pick">
+                    <input
+                      type="radio"
+                      name="guildmasterPortrait"
+                      value={pick.key}
+                      checked={portraitKey === pick.key}
+                      onChange={() => choosePortrait(pick)}
+                    />
+                    <PortraitThumbnail sex={pick.sex} portraitKey={pick.key} label={pick.label} />
+                  </label>
+                ))}
+              </div>
+            </fieldset>
 
             <fieldset className="setup__traits">
               <legend>Traits</legend>

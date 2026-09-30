@@ -52,6 +52,7 @@ import {
   type GuildId,
   type LoadRefusal,
   type Module,
+  type PortraitKey,
   type RebaseAction,
   type Rejection,
   type SetupRefusal,
@@ -87,6 +88,11 @@ export interface NewGame {
   /** A Guild Background; drawn as a Rival's is when omitted. */
   backgroundKey?: BackgroundKey;
   guildmasterSex?: Sex;
+  /**
+   * A Guildmaster picture in content, of the sex chosen (v1.1.2-S4, DL-125 item 3): with no sex
+   * chosen, the Guildmaster is of the picture's. Drawn from the pictures of the sex when omitted.
+   */
+  guildmasterPortraitKey?: PortraitKey;
   /** A whole number of years from `guildmasterStartingAgeMin` to `Max`. */
   guildmasterAge?: number;
   /** The Traits chosen, within the budget; drawn when omitted, none when empty. */

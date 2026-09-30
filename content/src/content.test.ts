@@ -13,7 +13,7 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130)", () => {
+  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130), which v1.1.2-S4's pictures keep (DL-131)", () => {
     expect(content.id).toBe('core');
     expect(content.version).toBe(16);
   });
@@ -36,12 +36,30 @@ describe('loadContent()', () => {
     expect(male).toHaveLength(16);
   });
 
-  test('lists the pictures by role and sex, none until v1.1.2-S4 adds the owner\'s two (DL-125 item 3)', () => {
+  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
     expect(content.portraits).toEqual({
-      guildmaster: { female: [], male: [] },
+      guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] },
       hero: { female: [], male: [] },
       patron: { female: [], male: [] },
     });
+  });
+
+  test("maps each of the owner's two pictures to DL-127 item 5's keywords and narrative, as written (v1.1.2-S4)", () => {
+    const { keywords, portraits } = content.portraitAppearances;
+    expect(Object.keys(keywords)).toEqual([
+      'weathered', 'scarred', 'strong-boned', 'dark-haired', 'unruly-hair', 'long-hair', 'braided', 'bearded', 'hard-eyed',
+      'shadowed-eyes', 'stern', 'composed',
+    ]);
+    expect(keywords['bearded']).toEqual({ slot: 'facialHair', word: 'bearded' });
+    expect(keywords['shadowed-eyes']).toEqual({ slot: 'eyes', word: 'shadowed eyes' });
+    expect(Object.keys(portraits)).toEqual(['gm-male-01', 'gm-female-01']);
+    expect(portraits['gm-male-01']?.keywords).toEqual(['weathered', 'scarred', 'dark-haired', 'unruly-hair', 'bearded', 'hard-eyed', 'stern']);
+    expect(portraits['gm-female-01']?.keywords).toEqual(['strong-boned', 'dark-haired', 'long-hair', 'braided', 'shadowed-eyes', 'composed']);
+    expect(portraits['gm-male-01']?.narrative).toMatch(/^A weathered, deeply lined face, .* before a word is spoken\.$/);
+    expect(portraits['gm-female-01']?.narrative).toMatch(/^A strong-boned face with high cheekbones .* what she is thinking\.$/);
+    // DL-127 item 5 counts them: 243 and 241 characters.
+    expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
+    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(241);
   });
 
   test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits cost 0 and exclude nothing (M9-S2)", () => {

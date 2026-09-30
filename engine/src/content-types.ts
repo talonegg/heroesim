@@ -528,6 +528,41 @@ export type PortraitKey = string;
 /** The pictures of each role and sex, by key, in the order listed (`portraits.json`, v1.1.2-S3). */
 export type Portraits = Record<PortraitRole, Record<Sex, PortraitKey[]>>;
 
+/**
+ * The parts of a person's looks a picture's keyword names (DL-127 item 3): the slots of the
+ * Appearance but `build`, which a head and shoulders cannot show. No clothing (DL-127 item 2).
+ */
+export type AppearanceSlot = 'face' | 'hair' | 'facialHair' | 'eyes' | 'mark' | 'bearing';
+
+/** A keyword's key: lower case and hyphens, never renamed once a rule reads it (DL-127 item 3). */
+export type AppearanceKeywordKey = string;
+
+/** A keyword a picture's Appearance may use: its slot, and its word for display (DL-127 item 3). */
+export interface AppearanceKeyword {
+  slot: AppearanceSlot;
+  word: string;
+}
+
+/**
+ * What a picture shows of the person (DL-127 item 1): short keywords, which no rule reads yet, and
+ * a narrative of two or three sentences, in the third person with no name and no age, which is the
+ * Appearance of a Guildmaster with this Portrait (v1.1.2-S5).
+ */
+export interface PortraitAppearance {
+  keywords: AppearanceKeywordKey[];
+  narrative: string;
+}
+
+/**
+ * The Appearances mapped to pictures (`portrait-appearances.json`, v1.1.2-S4; DL-126 item 2,
+ * DL-127): the keywords defined once, and each mapped picture's row by its Portrait's key. A picture
+ * with no row is allowed; its Appearance is drawn whole.
+ */
+export interface PortraitAppearances {
+  keywords: Record<AppearanceKeywordKey, AppearanceKeyword>;
+  portraits: Record<PortraitKey, PortraitAppearance>;
+}
+
 /** A loaded, validated set of content. Each table is keyed by its rows' kebab-case keys. */
 export interface ContentSet {
   /** Which content set: `"core"` for the one this repository ships. */
@@ -546,6 +581,8 @@ export interface ContentSet {
    * Guildmaster's Portrait is chosen or drawn from them. Empty lists where a role and sex has none.
    */
   portraits: Portraits;
+  /** What each mapped picture shows of the person (v1.1.2-S4, DL-127): read by no rule yet. */
+  portraitAppearances: PortraitAppearances;
   /** The kinds of Quest the Patrons offer, found by Sphere at draw time (M2-S3, DL-20). */
   questTemplates: Record<QuestTemplateKey, QuestTemplate>;
   /** The types of Injury a Quest can leave; at least one (M2-S5). */

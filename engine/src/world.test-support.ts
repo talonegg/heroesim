@@ -532,6 +532,8 @@ export const testContent: ContentSet = deepFreeze({
     hero: { female: ['hero-female-01'], male: [] },
     patron: { female: [], male: [] },
   },
+  // What a picture shows (v1.1.2-S4): read by no rule yet, so none is mapped here.
+  portraitAppearances: { keywords: {}, portraits: {} },
 });
 
 /** `content` (the test content by default) with no pictures of any role or sex, as the core's until v1.1.2-S4. */

@@ -1,0 +1,26 @@
+{
+  "keywords": {
+    "weathered":      { "slot": "face",       "word": "weathered" },
+    "scarred":        { "slot": "mark",       "word": "scarred" },
+    "strong-boned":   { "slot": "face",       "word": "strong-boned" },
+    "dark-haired":    { "slot": "hair",       "word": "dark-haired" },
+    "unruly-hair":    { "slot": "hair",       "word": "unruly hair" },
+    "long-hair":      { "slot": "hair",       "word": "long hair" },
+    "braided":        { "slot": "hair",       "word": "braided" },
+    "bearded":        { "slot": "facialHair", "word": "bearded" },
+    "hard-eyed":      { "slot": "eyes",       "word": "hard-eyed" },
+    "shadowed-eyes":  { "slot": "eyes",       "word": "shadowed eyes" },
+    "stern":          { "slot": "bearing",    "word": "stern" },
+    "composed":       { "slot": "bearing",    "word": "composed" }
+  },
+  "portraits": {
+    "gm-male-01": {
+      "keywords": ["weathered", "scarred", "dark-haired", "unruly-hair", "bearded", "hard-eyed", "stern"],
+      "narrative": "A weathered, deeply lined face, scored across the brow and cheek by old scars. Thick dark hair falls unruly about it, and a full beard hides the set of the jaw. The eyes are hard and steady, used to weighing a stranger before a word is spoken."
+    },
+    "gm-female-01": {
+      "keywords": ["strong-boned", "dark-haired", "long-hair", "braided", "shadowed-eyes", "composed"],
+      "narrative": "A strong-boned face with high cheekbones and a composed, knowing look. Long dark hair, worked into braids at the crown and temples, falls loose past the shoulders. The eyes are dark and shadowed, and give away little of what she is thinking."
+    }
+  }
+}

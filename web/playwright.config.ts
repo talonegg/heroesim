@@ -39,8 +39,8 @@ export default defineConfig({
   // Chromium at a phone's width, a tablet's and a desktop's (M7-S3, M7-S4; M9-S3): the bottom bar
   // under 600px, the side rail from 600px, and the History rail beside the view from 1100px. The
   // page opened from the filesystem, seeing its pictures load, is a project of its own, once
-  // (v1.1.2-S2): e2e/file.spec.ts builds the page again with a test picture, and opens both builds
-  // over file://.
+  // (v1.1.2-S2): e2e/file.spec.ts opens the built page over file:// and sees the owner's pictures and
+  // the Silhouettes load (v1.1.2-S4).
   projects: [
     {
       name: 'phone',

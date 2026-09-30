@@ -4,10 +4,26 @@
 // is `setupRefusal`'s verdict on the Traits chosen with it added, and the budget is
 // `guildmasterTraitCost`'s sum through `traitBudgetView`, so the form copies no rule (ADR-0007).
 // Built on M9-S2's `guildmasterSetupChoices`, `traitBudgetView` and `newGameRefusal`.
+//
+// Since v1.1.2-S4 (DL-125 items 3 and 6): the Guildmaster pictures offered for the Portrait, and the
+// preview of what the seed draws, which is the engine's `previewGuildmaster`, the function
+// `createWorld` makes the Guildmaster by, so the form names what "Start the game" makes.
 
-import { defaultConfig, setupRefusal, type ContentSet, type DescriptiveAttribute, type GameConfig, type Sex, type TraitKey } from '@heroesim/engine';
+import {
+  defaultConfig,
+  portraitsOf,
+  previewGuildmaster,
+  setupRefusal,
+  sexes,
+  type ContentSet,
+  type DescriptiveAttribute,
+  type GameConfig,
+  type PortraitKey,
+  type Sex,
+  type TraitKey,
+} from '@heroesim/engine';
 import { content } from '../content';
-import { capitalised } from './names';
+import { capitalised, nameIn } from './names';
 import { listed } from './narrate';
 import { newGameRefusal, type NewGame } from './reducer';
 import { rejectionSentence } from './rejections';
@@ -188,4 +204,102 @@ export function traitPicksView(
     }
   });
   return { budget: budgetOf(chosen, set, config), traits: picks };
+}
+
+/** A Guildmaster picture as the form offers it for the Portrait (v1.1.2-S4). */
+export interface PortraitPick {
+  key: PortraitKey;
+  sex: Sex;
+  /** `Female Portrait 1`: its sex and its place among that sex's pictures, its name for a screen reader. */
+  label: string;
+}
+
+/** The Guildmaster pictures of one sex, as the form groups them. */
+export interface PortraitGroup {
+  sex: Sex;
+  /** `Female`. */
+  label: string;
+  pictures: PortraitPick[];
+}
+
+/** Every Guildmaster picture of `set`, by sex in the engine's order, each in content's order. */
+function portraitPicks(set: ContentSet): PortraitGroup[] {
+  return sexes.map((sex) => ({
+    sex,
+    label: capitalised(sex),
+    pictures: portraitsOf(set, 'guildmaster', sex).map((key, index) => ({ key, sex, label: `${capitalised(sex)} Portrait ${index + 1}` })),
+  }));
+}
+
+/**
+ * The Guildmaster pictures the form offers after "Drawn from the seed" (v1.1.2-S4, DL-125 item 3):
+ * those of `sex`, the sex chosen; with the sex drawn (`null`), every sex's, a group each, since a
+ * picture is of one sex and choosing it chooses the sex (DL-130 item 5). A sex with no picture has no
+ * group, and a Silhouette is never offered.
+ */
+export function portraitChoices(sex: Sex | null, set: ContentSet = content): PortraitGroup[] {
+  return portraitPicks(set).filter((group) => (sex === null || group.sex === sex) && group.pictures.length > 0);
+}
+
+/** The picture of the Guildmaster's keyed `key`, as the form names it; `undefined` when content lists none. */
+export function portraitPick(key: PortraitKey, set: ContentSet = content): PortraitPick | undefined {
+  return portraitPicks(set)
+    .flatMap((group) => group.pictures)
+    .find((pick) => pick.key === key);
+}
+
+/** What the form holds of a new game: all of it but the seed and the clock, which the click supplies. */
+export type SetupFields = Omit<NewGame, 'kind' | 'seed' | 'createdAt'>;
+
+/** What the form says of the seed's draws with the seed blank: one is made up at the click. */
+export const unseededWords = 'The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.';
+
+/**
+ * What the new-game form shows of the Guildmaster the seed draws (v1.1.2-S4, DL-125 item 6), each line
+ * only for what is left to the seed:
+ * - `drawnWords`, the sex and the age: `Drawn: Female, 34`, `Drawn: Female` or `Drawn: Age 34`;
+ * - `traitsWords`: `Drawn Traits: Miser and Old soldier`, or `Drawn Traits: None`;
+ * - `portrait`, the Portrait drawn, with its words: `Drawn Portrait: Female Portrait 1`.
+ */
+export type GuildmasterPreviewView =
+  | {
+      kind: 'drawn';
+      drawnWords: string | null;
+      traitsWords: string | null;
+      portrait: { sex: Sex; portraitKey: PortraitKey | null; words: string } | null;
+    }
+  | { kind: 'unseeded'; words: string };
+
+/**
+ * The preview of the Guildmaster `setup` makes from `seed`, under `config` and `set` (the current
+ * defaults and the core, a new game's rules): the engine's `previewGuildmaster`, so the form computes
+ * no rule (ADR-0007). `null` when nothing is left to the seed, or when the engine would refuse the
+ * setup, whose sentence the form already says; the `unseeded` words when the seed is blank. A
+ * Portrait chosen chooses the sex with it, so the sex is drawn only when neither is chosen.
+ */
+export function guildmasterPreviewView(
+  setup: SetupFields,
+  seed: string,
+  set: ContentSet = content,
+  config: GameConfig = defaultConfig,
+): GuildmasterPreviewView | null {
+  const drawn = {
+    sex: setup.guildmasterSex === undefined && setup.guildmasterPortraitKey === undefined,
+    age: setup.guildmasterAge === undefined,
+    traits: setup.guildmasterTraitKeys === undefined,
+    portrait: setup.guildmasterPortraitKey === undefined,
+  };
+  if (!(drawn.sex || drawn.age || drawn.traits || drawn.portrait)) return null;
+  if (seed.trim() === '') return { kind: 'unseeded', words: unseededWords };
+  const preview = previewGuildmaster({ ...setup, createdAt: '' }, seed.trim(), { config, content: set });
+  if (preview === null) return null;
+  const { sex, age, traitKeys, portraitKey } = preview;
+  const parts = [drawn.sex ? capitalised(sex) : null, drawn.age ? (drawn.sex ? String(age) : `Age ${age}`) : null].filter((part) => part !== null);
+  const pictured = portraitKey === null ? 'None: the Silhouette' : (portraitPick(portraitKey, set)?.label ?? portraitKey);
+  return {
+    kind: 'drawn',
+    drawnWords: parts.length === 0 ? null : `Drawn: ${parts.join(', ')}`,
+    traitsWords: drawn.traits ? `Drawn Traits: ${traitKeys.length === 0 ? 'None' : listed(traitKeys.map((key) => nameIn(set.traits, key)))}` : null,
+    portrait: drawn.portrait ? { sex, portraitKey, words: `Drawn Portrait: ${pictured}` } : null,
+  };
 }

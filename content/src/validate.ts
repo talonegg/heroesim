@@ -175,6 +175,7 @@ export function validateContent(set: ContentSet): ContentSet {
   }
 
   checkPortraits(set.portraits, problems);
+  checkPortraitAppearances(set, problems);
 
   if (problems.length > 0) throw new ContentError(problems);
   return set;
@@ -209,6 +210,19 @@ function checkPortraits(portraits: ContentSet['portraits'], problems: string[]):
     }
   }
   for (const key of repeated(keys)) problems.push(`portraits: "${key}" is listed twice`);
+}
+
+/**
+ * The Appearances mapped to pictures (v1.1.2-S4; DL-126 item 2, DL-127 item 5): each row's key names a
+ * picture `portraits.json` lists, of any role, since the file will serve Heroes' and Patrons' pictures
+ * too. The keywords' own checks, the slots a picture may use and the bounds are v1.1.2-S5's, with the
+ * Appearance's use (DL-127 items 3 and 4).
+ */
+function checkPortraitAppearances(set: Pick<ContentSet, 'portraits' | 'portraitAppearances'>, problems: string[]): void {
+  const pictures = new Set(Object.values(set.portraits).flatMap((bySex) => Object.values(bySex).flat()));
+  for (const key of Object.keys(set.portraitAppearances.portraits)) {
+    if (!pictures.has(key)) problems.push(`portraitAppearances.portraits: "${key}" names no picture in portraits.json`);
+  }
 }
 
 /**

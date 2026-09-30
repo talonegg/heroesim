@@ -212,8 +212,9 @@ describe('new', () => {
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
-    // v1.1.2-S3: the core lists no picture until v1.1.2-S4 (`portrait.test.ts` holds the rest).
-    ['a Portrait content lacks', ['--portrait', 'gm-male-01'], 'No Guildmaster Portrait is keyed "gm-male-01". There are none yet: leave out --portrait.'],
+    // v1.1.2-S4: the core lists the owner's two pictures (`portrait.test.ts` holds the rest).
+    ['a Portrait content lacks', ['--portrait', 'gm-male-09'], 'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male).'],
+    ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female"],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);
 
@@ -1484,13 +1485,19 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
+    // Drawn from the core's pictures of the sex since v1.1.2-S4: one of each.
     const bare = lines(play(['show', 'guildmaster']));
-    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(/^Portrait\s+None: the Silhouette$/);
+    const sex = bare.find((line) => line.startsWith('Sex'))?.replace(/^Sex\s+/, '').toLowerCase() ?? '';
+    expect(['female', 'male']).toContain(sex);
+    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+gm-${sex}-01$`));
+
+    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: null }));
+    expect(play(['show', 'guildmaster']).out).toMatch(/^Portrait\s+None: the Silhouette$/m);
 
     // A key the core lacks still shows, with the load's warning (data-model rule 5).
-    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-01' }));
+    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-09' }));
     const run = play(['show', 'guildmaster']);
-    expect(run.out).toMatch(/^Portrait\s+gm-male-01$/m);
+    expect(run.out).toMatch(/^Portrait\s+gm-male-09$/m);
     expect(run.err).toContain('Warning:');
   });
 

@@ -2,12 +2,19 @@ import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
-import { defineConfig, normalizePath, type Plugin } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 
 // Harvested from v1 (feature/poc, E8-S1) and adapted (M7-S1, DL-64): the build is one classic
 // script so that it opens from the filesystem. v2's content is JSON, bundled as text. Its pictures
 // are `media/`'s (v1.1.2-S2, DL-125 item 1): the Silhouettes inlined into the script, and every
 // picture a hashed file beside it in `dist/assets/`, loaded by a relative `<img>`.
+//
+// The one script finds its pictures from its own address: the IIFE resolves each against
+// `document.currentScript.src` as it first runs, so `./assets/gm-female-01-<hash>.webp` is beside the
+// script over `file://` and on the page's own origin alike. That holds only while the script stays a
+// classic, non-async `<script>` (`classicScript`, below): a module script has no `currentScript`, and
+// the IIFE's fallback, `document.baseURI`, is the page's own folder, where no picture is
+// (v1.1.2-S2's verification, DL-131).
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(webDir, '..');
@@ -19,27 +26,6 @@ const repoRoot = path.resolve(webDir, '..');
  * picture is always a file of its own.
  */
 const silhouetteInlineLimit = 1024;
-
-/**
- * The `file://` spec's build only, `vite build --mode file-spec` (e2e/file.spec.ts, v1.1.2-S2): the
- * page's catalogue of `media/` (`src/media.ts`) is read with a test picture added
- * (`e2e/fixtures/media.ts`), so the spec sees a hashed picture load before the owner's pictures come
- * (v1.1.2-S4). No other build has it, so the picture never ships.
- */
-function mediaFixtures(): Plugin {
-  const catalogue = normalizePath(path.join(webDir, 'src', 'media.ts'));
-  const withFixtures = normalizePath(path.join(webDir, 'e2e', 'fixtures', 'media.ts'));
-  return {
-    name: 'heroesim:media-fixtures',
-    apply: 'build',
-    enforce: 'pre',
-    async resolveId(source, importer, options) {
-      if (importer === undefined || normalizePath(importer) === withFixtures) return null;
-      const resolved = await this.resolve(source, importer, { ...options, skipSelf: true });
-      return resolved !== null && normalizePath(resolved.id) === catalogue ? withFixtures : null;
-    },
-  };
-}
 
 /**
  * Chromium refuses a module script from a `file://` page ("blocked by CORS policy"; v1 measured
@@ -78,11 +64,11 @@ const noNodeBuiltins: Plugin = {
   },
 };
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig({
   // Relative asset URLs, so the built folder works from any path, Cloudflare Pages's root and
   // the filesystem included (M7-S1).
   base: './',
-  plugins: [noNodeBuiltins, react(), classicScript, ...(mode === 'file-spec' ? [mediaFixtures()] : [])],
+  plugins: [noNodeBuiltins, react(), classicScript],
   build: {
     // Each Silhouette inlined into the one script, and nothing else: a picture is a hashed file in
     // dist/assets/ (DL-125 item 1).
@@ -110,4 +96,4 @@ export default defineConfig(({ mode }) => ({
     // Playwright's http://127.0.0.1 health check (playwright.config.ts) cannot reach it.
     host: '127.0.0.1',
   },
-}));
+});
