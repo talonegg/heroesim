@@ -16439,6 +16439,87 @@ register's row); `docs/plan.md` (§4).
 
 ---
 
+## DL-147 — The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a thumbnail beside each name on a Guild's Roster, the rest kept as built, and `v1.1.3-dev` pushed with the release held
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, answering the items DL-145 and
+DL-146 left open; how the grid keeps its radio button checked is the agent's, for the owner to change.
+Built at `a099013`, verified by a second Opus agent, and its findings fixed at `11e4d18`.
+
+**Context.** DL-145 put three items to the owner (the grid's switch between the sexes, the notes'
+words, a Rival's Roster), and its verification two small things (a note under the grid on a phone, and
+no radio button checked with the other sex shown). DL-146 left W1 (the same radio button), E3 (a Hero's
+texts checked on load as strings only) and T3 (Chromium without its sandbox) for the owner.
+
+**Decision.**
+
+1. **The grid's switch** (DL-145 item 1) stays as built: with the Sex drawn, the grid shows the sex the
+   seed draws, and Female and Male show either.
+2. **A radio button always checked** (DL-146 W1). With a picture of one sex chosen and the other sex
+   shown, the picture chosen stays in the grid, checked, after "Drawn from the seed"
+   (`portraitGrid`'s `chosen`). The keyboard comes to it, and an arrow moves on from it. With its own
+   sex shown, it stands in its place alone. Opening the grid reads nothing more, since it shows only
+   once a picture is chosen.
+3. **A Guild's Roster** (DL-145 item 3): each Hero's thumbnail stands beside their name on a Guild's
+   page, a Rival's and the player's own, as in the pool: the small Silhouette while no Hero has a
+   picture. The name cell, fixed as the table scrolls, never covers the Transfer fee's heading.
+4. **Kept as built:**
+   - the notes' words (DL-145 item 2);
+   - a note under the grid on a phone, which the live region reads aloud (DL-145's verification);
+   - a Hero's Appearance and Biography checked on load as strings (DL-146 E3);
+   - Chromium launched without its sandbox by the portrait tool (DL-146 T3).
+5. **The release.** `v1.1.3-dev` is pushed to origin. `v1.1-release`, the pull request CI raises and
+   the tag wait for the owner (DL-124).
+
+**The build** (`a099013`). Each change had its failing test first.
+- `web/src/state/setup.ts` `portraitGrid` gains `chosen`; `web/src/views/new-game.tsx` puts it after
+  "Drawn from the seed". `setup.test.ts` and `new-game.test.tsx` test it, and S7's test that showed the
+  other sex after a choice now expects the picture chosen kept.
+- `web/src/state/world-views.ts` `OtherRosterRow` gains `sex` and `portraitKey`;
+  `web/src/views/guilds.tsx` shows `PortraitThumb` in the name cell. `world-views.test.ts` and
+  `rankings.test.tsx` test it, and `layout.spec.ts`'s S7 test reads a Rival's Roster at each width and
+  in both schemes, its Transfer fee's heading clear of the name cell.
+- `npm run lint` and `typecheck` pass; `npm test`, 3,881 tests in 165 files, passes; `npm run e2e -w
+  web`, 86 specs, passes. The script is 769.88 kB (220.65 kB gzipped), under 800 kB.
+
+**The verification.** A second Opus agent verified `a099013`, without a worktree.
+- *The diff.* `chosen` is set only for a picture of the sex not shown, so it never repeats a key of the
+  list. It is `null` with the Sex field chosen, the seed blank, "Drawn from the seed" chosen, or nothing
+  chosen. The grid still reads 250 kB or less as it opens (`portrait.spec`, at each width).
+- *Each test fails without its fix.* With the four source files put back to `a099013~1`, 7 unit tests
+  failed, and the layout spec's S7 test failed at each width.
+- *The suite.* `npm run lint` and `typecheck` pass; `npm test`, 3,881 tests, passes; `npm run e2e -w
+  web`, 86 specs, passes. The script is 769.88 kB.
+- *In the browser,* at 360, 820 and 1280px in light and dark: with Female Portrait 3 chosen and Male
+  shown, 22 radio buttons, one checked; Tab from the Female or Male button comes to it; the right
+  arrow moves to Male Portrait 1, and Female Portrait 3 leaves the grid; the left arrow moves to
+  "Drawn from the seed" and the sex is drawn again. A Rival's Roster: a thumbnail on every row, no
+  sideways scroll, 44px targets, and a Hero's page opening from a name and returning the keyboard to it.
+- *Its findings,* and what was done (`11e4d18`):
+  1. Low. The layout spec measured the Transfer fee's heading with the table unscrolled, where it
+     cannot fail. It now scrolls the Roster's box to its end first, and failed there at 360px by 40px.
+  2. Low, older than DL-147 and made worse by it. At 360px, with the table scrolled to its end, the
+     fixed name cell, 166px with its thumbnail, covered the Transfer fee's heading's first letters
+     ("SFER FEE"; "ANSFER FEE" before). The heading may now take two lines (`heading--wraps`), and
+     the Take in column gives up its trailing space and a little of its button's (`guild-roster`), so
+     the heading, the fees and Take in are in view together. The spec passes at each width.
+  3. Nit. The spec's comment said the name cell was widened; it grows by itself. Reworded.
+  4. Nit, the design's. The picture chosen among the other sex's is marked by its ring alone; its name,
+     "Female Portrait 3", says its sex to a screen reader. Left, as the owner's choice.
+- *After the fixes,* at `11e4d18`: `npm run lint` and `typecheck` pass; `npm test`, 3,881 tests,
+  passes; `npm run e2e -w web`, 86 specs, passes. The script is 770.09 kB (220.71 kB gzipped). By eye,
+  at 360px in light, the Roster scrolled to its end shows the whole heading on two lines beside the
+  names.
+
+**Consequences.**
+- No rule, save or content changes: play is as DL-146's sweep found it, and no sweep is run again.
+- The release is the owner's, as DL-146 item 7 sets out.
+
+**Actioned in:** `web/src/state/setup.ts`, `web/src/views/new-game.tsx`, `web/src/state/world-views.ts`,
+`web/src/views/guilds.tsx`, `web/src/styles.css` (`heading--wraps`, `guild-roster`) and their tests; `web/e2e/layout.spec.ts`;
+`docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`; `docs/plan.md`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

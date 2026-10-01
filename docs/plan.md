@@ -317,7 +317,7 @@ the agents recommended that story features be modules and rule extensions core i
   - a portrait tool, with its skills, for intake, analysis and apply.
 
   *Added 2026-10-01 (DL-134, DL-135).* *Built and verified on `v1.1.3-dev` 2026-10-02 (DL-138 to
-  DL-146). The release awaits the owner (DL-124).*
+  DL-147). The release awaits the owner (DL-124).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*
