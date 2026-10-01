@@ -139,13 +139,14 @@ portraitKey:    string | null               the Guildmaster picture their Portra
                                             Guildmaster as they enter play, one chosen to fit them
                                             in one draw from `gm-portraits` (`choosePortrait`): a
                                             picture whose `apparentAge` reaches the band of their
-                                            age, no Guildmaster's in office, preferring their age
-                                            within it, no Calling that clashes with a Trait, then
-                                            one that suits a Trait; null for the Silhouette where
-                                            none fits or every one that fits is in use (DL-125
-                                            items 3, 4; DL-134 items 5, 7; DL-135 items 3, 4;
-                                            v1.1.3-S5). A Portrait chosen with the age left blank
-                                            moves the age drawn into the picture's ages.
+                                            age, no living Guildmaster's, retired or in office
+                                            (every Guildmaster's: no death is recorded), preferring
+                                            their age within it, no Calling that clashes with a
+                                            Trait, then one that suits a Trait; null for the
+                                            Silhouette where none fits or every one that fits is in
+                                            use (DL-125 items 3, 4; DL-134 items 5, 7; DL-135 items
+                                            3, 4; v1.1.3-S5; DL-144). A Portrait chosen with the age
+                                            left blank moves the age drawn into the picture's ages.
 retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
                                             Guild in play names them then (DL-100 item 3, DL-102)
 regard:         Record<EntityId, RegardEntry>

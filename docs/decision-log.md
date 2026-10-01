@@ -15883,6 +15883,147 @@ and the content checks pass.
 
 ---
 
+## DL-144 — The owner's answers to DL-141, DL-142 and DL-143: every living Guildmaster holds their picture, the save's bound restated, the Biography kept as written, and the review's content changes written as a run
+
+**Status:** Accepted; the content part is a run written, awaiting the owner's review before apply ·
+**Date:** 2026-10-02 · **Decided by:** the owner, answering the questions DL-141, DL-142 and DL-143
+left open. Where the World State could not carry an answer as given, the reading is the agent's,
+for the owner to confirm (item 1). Item 8's replacement hooks are the agents' wording. Built by
+Opus.
+
+**Context.** S5 (DL-141) read "in use" for a Guildmaster's picture as the pictures of the
+Guildmasters in office, and asked the owner to confirm. S6 (DL-142) put two questions: the save's
+bound, and a Trait gained. S4's first analysis run was applied with its review left open (DL-143).
+
+**Decision.**
+1. **"In use" is every living Guildmaster's picture, retired or in office** (overturning DL-141 item
+   3's reading, and matching DL-135 item 4's "living Guildmasters"). A dead Guildmaster's picture is
+   free again.
+   - *What the World State records.* A Guildmaster's row is never removed. One who retires keeps it
+     with `retiredOnTurn` set (`phases/endings.ts`, `succeed`). The Guildmaster of a folded Guild
+     keeps theirs too, `retiredOnTurn` still `null`, with the Guild's `foldedOnTurn` set. **No
+     Guildmaster's death is recorded:** a Guildmaster has no `diedOnTurn`, and no rule ends one's
+     life.
+   - *The reading* (the agent's, from what the state supports). Every Guildmaster in the world is
+     living, so `guildmasterPortraitsInUse` (`engine/src/portraits.ts`) is now every Guildmaster
+     row's picture: in office, retired, or of a folded Guild. No picture is ever freed. The owner's
+     "a dead one's is free" waits for a Guildmaster's death to exist.
+   - *A folded Guild's Guildmaster* is read as living, and keeps their picture. They are neither in
+     office nor retired, so the owner may read them otherwise.
+   - *Unchanged.* Each Guildmaster still takes exactly one draw of `gm-portraits`, whatever is held.
+     No other stream's draws move. The player's chosen picture is still theirs whatever is in use.
+     A retiring Guildmaster's picture is held while their successor is chosen, and after.
+2. **The save's size (DL-142, for the owner, item 1).** The last S6 box is restated and ticked: "The
+   Heroes' `portraitKey`, `appearance` and `biography` add under 1% to the year-20 save (measured
+   0.07% to 0.09%), and the page keeps its saves gzipped in IndexedDB, unchanged (DL-67)." The epic's
+   "Save size" risk is restated to match. The 2.5 MB bound, read against localStorage, is withdrawn.
+3. **A Trait gained (DL-142, for the owner, item 2).** The Biography stays as written at
+   generation. A Trait gained from an Injury adds no sentence. The alternative is backlog issue #46
+   (`talonegg/heroesim`). No code changes.
+4. **`gm-male-03`'s Temper is `wry`,** the checker's reading in DL-143 item 2.
+5. **`gm-male-20`'s hook drops "Arcadia":** "{He} has spent years on a map of a land no chart names,
+   and will not say whether {he} ever found it." The owner accepted this wording by not objecting,
+   and the content checks take it.
+6. **The six possibly anachronistic pictures stay** (DL-143 item 5), unchanged.
+7. **`genial` and `bald` stay.**
+8. **The clothing hooks.** Some of the hooks resting on clothing or armour are replaced, only enough
+   that "{He} still wears" opens no more than two or three hooks, keeping the best clothing readings.
+   - *Readers.* A `portrait-reader` (Opus) looked again at each of the 16 pictures whose hook rests
+     on something worn: the ten opening "{He} still wears", and the six others resting on clothing or
+     armour. Each rated the worn hook from 1 to 5 and drafted a replacement from the room, an object
+     in view or the face.
+   - *Kept.* `gm-male-01`'s leather coat and `gm-male-12`'s tooled armour, the strongest clothing
+     readings, still open "{He} still wears": 2 hooks, from 10.
+   - *Replaced (agent's):* `gm-female-02`, `gm-female-07`, `gm-female-11`, `gm-female-14` (the
+     vambrace, the weaker of its two worn hooks), `gm-female-17`, `gm-male-05` and `gm-male-15` (whose
+     signet ring repeated `gm-male-02`'s). `gm-male-04`'s rests on a face mark, which the hook rules
+     allow, and is reworded to open "bears".
+   - *Checkers.* A `portrait-checker` (Opus) checked each of the eight beside its picture. Six were
+     confirmed. Two were disputed and went back to their reader once:
+     - `gm-female-02`'s first draft repeated `gm-male-13`'s keepsake of a teacher, and said
+       "battered"; its reader took the checker's wording;
+     - `gm-male-05`'s said one cut where the picture shows a crossed scar, and "took the short cut"
+       misread; its reader's own rewording met both points.
+   - *The other worn hooks* stay, and their readers' drafts are listed in the run's report for the
+     owner.
+9. **`gm-female-15`'s ballroom hook stays.**
+10. **"rivals" reworded,** since Rival is a glossary term:
+    - the `genial` closing becomes "{He} greets friends and strangers with the same broad smile, and
+      most of the strangers end up as friends.";
+    - `gm-male-19`'s hook becomes "{He} keeps a shelf of sealed agreements {he} has never needed to
+      open, and makes sure everyone who deals with {him} knows it."
+11. **The `genial` closing that laughed** becomes "{He} is easy company, and strangers find
+    themselves telling {him} things they meant to keep to themselves."
+12. **How items 4, 5 and 8 to 11 are made.** They are made through the portrait tool alone, as one
+    analysis run, `docs/portraits/analysis/2026-10-02/`, written by `write-run`. Its report,
+    `docs/portraits/analysis/2026-10-02.md`, lists every changed field, old and new, with the decision
+    behind it, and marks the agents' wording. **It is not applied.** The owner reads it and its
+    `diff` first, then `portrait-apply 2026-10-02` puts it in place and raises the content version
+    from 19.
+
+**The checks run.**
+- *TDD.* The tests were written first and failed against `840ae45`:
+  - in `engine/src/generators/guilds.test.ts`, DL-141's "a retired Guildmaster's picture and a
+    folded Guild's are free again" test is replaced by four:
+    - "a retired Guildmaster's picture stays in use while they live: no successor, nor a new Rival's
+      Guildmaster, is given it";
+    - "a folded Guild's Guildmaster lives on, and keeps their picture from every later entrant";
+    - "with every fitting picture held by the living, retired and in office, the Silhouette; a free
+      one is still given, once";
+    - "a retiring Guildmaster's picture is in use while their successor is chosen".
+  - `engine/src/phases/endings.test.ts`'s forced-Successions test now holds that no two
+    Guildmasters ever share a picture, retired and folded among them. It also holds that an
+    entrant shows the Silhouette only where every fitting picture is held by a Guildmaster made
+    before them. Its content has twelve pictures, up from six, so entrants still find one: over
+    twenty nights, 20 Successions and 7 replacements; 7 pictured and 20 Silhouettes.
+  - No test asks for a dead Guildmaster's picture to be freed, since no Guildmaster can die
+    (item 1).
+- *Creation, 1,000 seeds, two setups* (the harness's age 30, and the age blank), against a
+  `git archive` of `840ae45` with its own install. All 2,000 documents are identical, with the same
+  combined hash `63ef0dc3…`. At creation no Guildmaster has retired or folded, so the set is the
+  same.
+- *The sweep.* `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v113-dl144 npm run harness`, core only (content
+  19), not validated: `harness/reports/m9-v113-dl144-2026-10-02.md`, force-added. A baseline of
+  `840ae45` was run beside it, on the same content (`m9-v113-base840`, not committed).
+  - *Play is unchanged.* From the Counters through the Rivals, 566 lines are byte-identical to
+    `m9-v112-s7-2026-10-01.md`'s and `m9-v113-s6-2026-10-01.md`'s.
+  - *The Silhouette counter is unchanged: 0 of 425 Guildmasters, before and after.* With S4's 40
+    pictures, eight or more in every sex and band, and about 8.5 Guildmasters entering each world in
+    20 years, no entrant found every fitting picture held. Under DL-141's reading S6's sweep, on
+    content 17 with two pictures, had 337 Silhouettes of 425.
+  - *What moved.* Pictures whose `apparentAge` holds their Guildmaster's age went from 423 to 422
+    (Rivals' 373 to 372): one entrant took another picture. The fingerprint of the last saves went
+    from `1a5d087e…` to `54914b49…`, the saves differing by a few characters in a Guildmaster's
+    picture and texts. All 50 still round trip.
+- *The run.* `corpus --draft`, then `write-run` and `corpus --run 2026-10-02`.
+  - The content's checks pass. No key is short, nothing is over its bounds, and the eight warnings,
+    all for Hero pictures, are the live content's.
+  - The longest Biography is unchanged: 774 for a Guildmaster, 579 for a Hero.
+  - `diff 2026-10-02` shows no change to `portraits.json`. `portrait-appearances.json` has 21: ten
+    hooks each removed and added, and one Temper. `descriptions.json` has 4: two closings each
+    removed and added.
+  - The live content is untouched, and `npm run portraits -- check` passes.
+- *The suite.* `npm run lint` and `typecheck` pass. The affected files pass: `portraits`,
+  `generators/guilds`, `phases/endings`, `create`, and the harness's `creation`.
+
+**For the owner.**
+1. *A folded Guild's Guildmaster* is read as living, and holds their picture for good (item 1). Is
+   that the owner's reading, or should a folded Guild's free it as a retirement does not?
+2. *No Guildmaster dies,* so no picture is freed. If a Guildmaster's death is ever added, the set
+   should drop them; the reading lives in `guildmasterPortraitsInUse` alone.
+3. *The run `2026-10-02`* awaits the owner's reading and `portrait-apply`. Its report notes three
+   points the checkers raised, none a dispute:
+   - `gm-female-07`'s is a third scar whose story is kept back;
+   - `gm-female-14`'s two hooks are both keepsakes of first paid work;
+   - "great" slightly overstates `gm-male-15`'s chandelier.
+
+**Actioned in:** `engine/src/portraits.ts`, `generators/guilds.ts` (a comment), `generators/guilds.test.ts`,
+`phases/endings.test.ts`; `CONTEXT.md` (Portrait, Silhouette); `docs/data-model.md`;
+`docs/planning/epics/v1.1.3-release.md` (status, S6's last box, the Save size risk);
+`harness/reports/m9-v113-dl144-2026-10-02.md` (force-added); `docs/portraits/analysis/2026-10-02.md`
+and its folder (written, not applied).
+
+---
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

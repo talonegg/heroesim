@@ -123,8 +123,8 @@ a Guildmaster's, a Hero's and a Patron's. Every Guildmaster and Hero has one whe
 it is chosen to fit a person already drawn, by their sex, age and a Hero's Class, and never changes
 them, and one whom no picture fits shows the Silhouette of their sex (DL-134, DL-135). Since
 v1.1.3-S5 every Guildmaster's is chosen to fit them as they enter play, the player's, a Rival's and a
-successor's, and no two Guildmasters in office share a picture; the player may instead choose one at
-setup, which is theirs whatever it fits. Since v1.1.3-S6 every Hero's is chosen to fit them as they
+successor's, and no two living Guildmasters, retired or in office, share a picture (DL-144); the
+player may instead choose one at setup, which is theirs whatever it fits. Since v1.1.3-S6 every Hero's is chosen to fit them as they
 are generated, in the pool or on a Roster: the Class must match, and a picture no Hero on a Roster or
 in the pool has is taken first, one repeating once every one that fits is. A save holds the Portrait by
 its picture's key (DL-125, DL-130). Each picture has a row in content that reads it: its apparent
@@ -138,8 +138,8 @@ _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 **Silhouette**:
 The stand-in picture shown where no picture exists yet: a head and shoulders of the person's sex
 for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. A Guildmaster
-shows it where no picture fits them, or every one that does is held by another Guildmaster in office
-(DL-125, DL-129, DL-135 item 3; v1.1.3-S5). A Hero shows it where no picture of their sex, band and
+shows it where no picture fits them, or every one that does is held by another living Guildmaster,
+retired or in office (DL-125, DL-129, DL-135 item 3; v1.1.3-S5, DL-144). A Hero shows it where no picture of their sex, band and
 Class exists, as every Hero does while content has no Hero picture (DL-135 item 8; v1.1.3-S6).
 _Avoid_: Template (a Quest template is another thing), Placeholder, Default image
 

@@ -827,22 +827,30 @@ describe("every Guildmaster entering play through Succession or a replacement ha
     hooks: [],
   });
   /**
-   * The test content with three pictures of each sex, spread over its two bands (young to 35, older
-   * from 36), so that some entrants find one free and some find every one that fits in use.
+   * The test content with six pictures of each sex, spread over its two bands (young to 35, older
+   * from 36), so that some entrants find one free and some find every one that fits in use, now that
+   * a retired or folded Guildmaster keeps theirs (DL-144 item 1).
    */
   const pictures: Record<string, PortraitAppearance> = {
     'gm-female-01': row([22, 30], 'A young face.'),
     'gm-female-02': row([38, 50], 'A lined face.'),
     'gm-female-03': row([30, 42], 'A steady face.'),
+    'gm-female-04': row([21, 29], 'A bright face.'),
+    'gm-female-05': row([40, 52], 'A weathered face.'),
+    'gm-female-06': row([26, 34], 'A calm face.'),
     'gm-male-01': row([40, 50], 'A bearded face.'),
     'gm-male-02': row([28, 40], 'A trimmed beard.'),
     'gm-male-03': row([21, 30], 'A young face.'),
+    'gm-male-04': row([36, 46], 'A broken nose.'),
+    'gm-male-05': row([22, 32], 'A clean-shaven face.'),
+    'gm-male-06': row([42, 55], 'A grey beard.'),
   };
+  const ofSex = (sex: string) => Object.keys(pictures).filter((key) => key.split('-')[1] === sex);
   const content: ContentSet = {
     ...testContent,
     portraits: {
       ...testContent.portraits,
-      guildmaster: { female: ['gm-female-01', 'gm-female-02', 'gm-female-03'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
+      guildmaster: { female: ofSex('female'), male: ofSex('male') },
     },
     portraitAppearances: { ...testContent.portraitAppearances, portraits: { ...testContent.portraitAppearances.portraits, ...pictures } },
   };
@@ -854,7 +862,7 @@ describe("every Guildmaster entering play through Succession or a replacement ha
     return portraitSexOf(content, 'guildmaster', key) === sex && from <= band.to && to >= band.from;
   };
 
-  test('forced Successions and folds over twenty nights: each entrant fits, no two living share, and a Silhouette only where every fitting picture is held', () => {
+  test('forced Successions and folds over twenty nights: each entrant fits, no two living share, retired and folded among them, and a Silhouette only where every fitting picture is held', () => {
     const deps = testDeps({ rivalCount: 4, rivalReplacementDays: 1, bankruptcyGraceDays: 0 }, content);
     stillRivalControllers();
     let document = created('entrants', deps);
@@ -876,22 +884,16 @@ describe("every Guildmaster entering play through Succession or a replacement ha
       tally.replacements += ofType(played.events, 'guild.founded').length;
 
       const { world } = document;
-      const living = Object.values(world.guilds)
-        .filter((guild) => guild.foldedOnTurn === null)
-        .map((guild) => world.guildmasters[guild.guildmasterId])
-        .filter((guildmaster) => guildmaster !== undefined);
+      // No Guildmaster's death is recorded, so every one in the world is living, retired, folded or in
+      // office, and holds their picture for good (DL-144 item 1).
+      const living = Object.values(world.guildmasters);
       const held = living.flatMap((guildmaster) => (guildmaster.portraitKey === null ? [] : [guildmaster.portraitKey]));
       expect(new Set(held).size, `day ${day}: no two living share`).toBe(held.length);
 
       for (const entrant of Object.values(world.guildmasters).filter((guildmaster) => guildmaster.enteredTurn === nightOf(day))) {
-        // What was held as they chose: every living Guildmaster's but theirs, and those who left the
-        // chair tonight, retired or folded.
-        const leftTonight = Object.values(world.guildmasters).filter(
-          (other) => other.retiredOnTurn === nightOf(day) || world.guilds[other.guildId]?.foldedOnTurn === nightOf(day),
-        );
-        const heldThen = new Set(
-          [...living, ...leftTonight].filter((other) => other.id !== entrant.id).flatMap((other) => other.portraitKey ?? []),
-        );
+        // What was held as they chose: the picture of every Guildmaster made before them, retired,
+        // folded or in office, since ids are given in order.
+        const heldThen = new Set(living.filter((other) => other.id < entrant.id).flatMap((other) => other.portraitKey ?? []));
         const fitting = Object.keys(pictures).filter((key) => fits(key, entrant.sex, entrant.ageAtEntry));
         if (entrant.portraitKey === null) {
           tally.silhouettes += 1;

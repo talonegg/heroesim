@@ -264,7 +264,8 @@ export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, 
 /**
  * Gives `guildmaster`, entering play, their Portrait (v1.1.3-S5; DL-134 items 5 and 7, DL-135 items 3
  * and 4), in one draw from `gm-portraits` whatever is chosen: one chosen to fit them
- * (`choosePortrait`) among the pictures no living Guildmaster has (`guildmasterPortraitsInUse`), or
+ * (`choosePortrait`) among the pictures no living Guildmaster, retired or in office, has
+ * (`guildmasterPortraitsInUse`, DL-144: no Guildmaster's death is recorded, so none is freed), or
  * `null`, the Silhouette, where none fits or every one that fits is in use. The player's `chosen`
  * picture is theirs whatever it fits, and with their age not chosen, the age drawn is moved into the
  * picture's ages within the starting ages (`ageIntoPortrait`), with no further draw. Changes

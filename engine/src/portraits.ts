@@ -146,16 +146,16 @@ export function choosePortrait(
 }
 
 /**
- * The pictures in use by Guildmasters (v1.1.3-S5, DL-135 item 4): every living Guildmaster's, that
- * is the Guildmaster of each Guild in play. A retired Guildmaster's and a folded Guild's are free, and
- * a retiring Guildmaster's is in use while their successor is chosen, since they are still in the chair.
+ * The pictures in use by Guildmasters (v1.1.3-S5, DL-135 item 4, DL-144 item 1): every living
+ * Guildmaster's, retired or in office. The World State records no Guildmaster's death: a Guildmaster's
+ * row is kept for good, a retired one's with `retiredOnTurn`, and a folded Guild's Guildmaster keeps
+ * theirs. So every Guildmaster in the world is living, and holds their picture for good. A retiring
+ * Guildmaster's is in use while their successor is chosen, as it is after.
  */
-export function guildmasterPortraitsInUse(world: Pick<World, 'guilds' | 'guildmasters'>): Set<PortraitKey> {
+export function guildmasterPortraitsInUse(world: Pick<World, 'guildmasters'>): Set<PortraitKey> {
   const inUse = new Set<PortraitKey>();
-  for (const guild of Object.values(world.guilds)) {
-    if (guild.foldedOnTurn !== null) continue;
-    const key = Object.hasOwn(world.guildmasters, guild.guildmasterId) ? world.guildmasters[guild.guildmasterId]?.portraitKey : null;
-    if (key !== null && key !== undefined) inUse.add(key);
+  for (const guildmaster of Object.values(world.guildmasters)) {
+    if (guildmaster.portraitKey !== null) inUse.add(guildmaster.portraitKey);
   }
   return inUse;
 }

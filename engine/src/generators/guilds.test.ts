@@ -518,23 +518,109 @@ describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", 
     expect(guildmasterPortraitsInUse(world)).toEqual(new Set(pictured));
   });
 
-  test("a retired Guildmaster's picture and a folded Guild's are free again; a retiring one's is not, while their successor is chosen", () => {
-    const deps = testDeps();
-    const world = testWorld('portraits-freed', deps);
-    const first = generateRival(world, deps, { controller: rival });
-    const second = generateRival(world, deps, { controller: rival });
-    first.guildmaster.portraitKey = 'gm-female-01';
-    second.guildmaster.portraitKey = 'gm-male-01';
-    expect(guildmasterPortraitsInUse(world)).toEqual(new Set(['gm-female-01', 'gm-male-01']));
+  // DL-144 item 1: "in use" is every living Guildmaster's picture, retired or in office. No
+  // Guildmaster's death is recorded in the World State (a Guildmaster's row is kept for good, with
+  // `retiredOnTurn` once they retire), so every Guildmaster ever in play is living, and their picture
+  // is never freed: a retired one's, and a folded Guild's Guildmaster's, stay held.
 
+  /** The test content with only `keys` as Guildmaster pictures, each reaching every age (both bands). */
+  function heldContent(keys: readonly string[]): ReturnType<typeof testDeps> {
+    const base = testDeps();
+    const rows = base.content.portraitAppearances.portraits;
+    const sexOf = (sex: string) => keys.filter((key) => key.split('-')[1] === sex);
+    return testDeps({}, {
+      ...base.content,
+      portraits: { ...base.content.portraits, guildmaster: { female: sexOf('female'), male: sexOf('male') } },
+      portraitAppearances: {
+        ...base.content.portraitAppearances,
+        portraits: Object.fromEntries(
+          Object.entries(rows).map(([key, row]) => [key, keys.includes(key) ? { ...row, apparentAge: [21, 70] as [number, number] } : row]),
+        ),
+      },
+    });
+  }
+
+  /** `guild`'s Guildmaster retires, as the endings phase does it: a successor, then `retiredOnTurn`. */
+  function retire(world: World, deps: ReturnType<typeof testDeps>, guild: Guild) {
+    const retiring = world.guildmasters[guild.guildmasterId];
+    const successor = generateSuccessor(world, deps, guild);
+    if (retiring !== undefined) retiring.retiredOnTurn = world.turn;
+    guild.guildmasterId = successor.id;
+    return successor;
+  }
+
+  test("a retired Guildmaster's picture stays in use while they live: no successor, nor a new Rival's Guildmaster, is given it", () => {
+    const deps = heldContent(['gm-female-01', 'gm-male-01']);
+    for (let n = 0; n < 10; n += 1) {
+      const world = testWorld(`portraits-retired-${n}`, deps);
+      const first = generateRival(world, deps, { controller: rival });
+      first.guildmaster.portraitKey = 'gm-female-01';
+      first.guildmaster.sex = 'female';
+      const second = generateRival(world, deps, { controller: rival });
+      second.guildmaster.portraitKey = 'gm-male-01';
+      second.guildmaster.sex = 'male';
+      retire(world, deps, first.guild);
+      retire(world, deps, second.guild);
+      expect(guildmasterPortraitsInUse(world)).toEqual(new Set(['gm-female-01', 'gm-male-01']));
+
+      // Entrants after the Retirements: Successions in both Guilds again, and new Rivals.
+      const entrants = [retire(world, deps, first.guild), retire(world, deps, second.guild)];
+      for (let i = 0; i < 4; i += 1) entrants.push(generateRival(world, deps, { controller: rival }).guildmaster);
+      for (const entrant of entrants) expect(entrant.portraitKey, `seed ${n}: ${entrant.id}`).toBeNull();
+    }
+  });
+
+  test("a folded Guild's Guildmaster lives on, and keeps their picture from every later entrant", () => {
+    const deps = heldContent(['gm-female-01']);
+    const world = testWorld('portraits-folded', deps);
+    const first = generateRival(world, deps, { controller: rival });
+    first.guildmaster.portraitKey = 'gm-female-01';
+    first.guild.foldedOnTurn = world.turn;
+    expect(guildmasterPortraitsInUse(world).has('gm-female-01')).toBe(true);
+    for (let i = 0; i < 6; i += 1) expect(generateRival(world, deps, { controller: rival }).guildmaster.portraitKey).toBeNull();
+  });
+
+  test('with every fitting picture held by the living, retired and in office, the Silhouette; a free one is still given, once', () => {
+    const deps = heldContent(['gm-female-01', 'gm-female-02', 'gm-male-01']);
+    let females = 0;
+    let males = 0;
+    let maleGiven = 0;
+    for (let n = 0; n < 10; n += 1) {
+      const world = testWorld(`portraits-held-${n}`, deps);
+      const first = generateRival(world, deps, { controller: rival });
+      first.guildmaster.portraitKey = 'gm-female-01';
+      const second = generateRival(world, deps, { controller: rival });
+      second.guildmaster.portraitKey = 'gm-female-02';
+      retire(world, deps, first.guild);
+      // gm-female-01's holder retired and gm-female-02's is in office: no female entrant has either.
+      const given: (string | null)[] = [];
+      for (let i = 0; i < 6; i += 1) {
+        const { portraitKey, sex } = generateRival(world, deps, { controller: rival }).guildmaster;
+        if (sex === 'female') {
+          females += 1;
+          expect(portraitKey).toBeNull();
+        } else {
+          males += 1;
+          given.push(portraitKey);
+        }
+      }
+      // The one male picture is free until a man takes it, and held from then on.
+      const holders = Object.values(world.guildmasters).filter((guildmaster) => guildmaster.portraitKey === 'gm-male-01');
+      expect(holders.length).toBeLessThanOrEqual(1);
+      if (given.includes('gm-male-01')) maleGiven += 1;
+    }
+    expect(females).toBeGreaterThan(0);
+    expect(males).toBeGreaterThan(0);
+    expect(maleGiven).toBeGreaterThan(0);
+  });
+
+  test("a retiring Guildmaster's picture is in use while their successor is chosen", () => {
+    const deps = testDeps();
+    const world = testWorld('portraits-retiring', deps);
+    const first = generateRival(world, deps, { controller: rival });
+    first.guildmaster.portraitKey = 'gm-female-01';
     const successor = generateSuccessor(world, deps, first.guild);
     expect(successor.portraitKey).not.toBe('gm-female-01');
-    first.guildmaster.retiredOnTurn = world.turn;
-    first.guild.guildmasterId = successor.id;
-    expect(guildmasterPortraitsInUse(world).has('gm-female-01')).toBe(false);
-
-    second.guild.foldedOnTurn = world.turn;
-    expect(guildmasterPortraitsInUse(world).has('gm-male-01')).toBe(false);
   });
 
   test("the player's chosen picture is theirs whatever it fits, before the texts are written, in one draw", () => {
