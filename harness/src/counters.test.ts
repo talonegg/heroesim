@@ -1275,8 +1275,16 @@ describe("v1.1.3-S6's Hero counters and the save's size (DL-134 item 9, DL-135 i
     add(document, 5, 'hero.generated', [makeId('heroes', 999)], { heroId: makeId('heroes', 999), guildId: null, classKey: 'warrior' });
     observeHeroes(observations, document);
 
-    expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 2, blank: 1 });
+    // The first was given a picture no one held; the second, read after it, one the first held.
+    expect(observations.heroes).toMatchObject({ generated: generated + 2, pictured: 2, silhouettes: generated, repeats: 1, blank: 1 });
     expect(observations.heroEntriesRead).toBe(generated + 3);
+
+    // A Hero generated in a later batch, given a picture the two already hold, is a repeat too.
+    const third = document.world.heroes[firstHero(rivals[1])] as Hero;
+    Object.assign(third, { portraitKey: 'hero-female-01' });
+    add(document, 6, 'hero.generated', [third.id], { heroId: third.id, guildId: third.guildId, classKey: third.classKey });
+    observeHeroes(observations, document);
+    expect(observations.heroes).toMatchObject({ generated: generated + 3, pictured: 3, repeats: 2 });
   });
 
   test("the save's size as a year ends, and the part the Heroes' three fields take in it", () => {

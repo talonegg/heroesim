@@ -1456,19 +1456,25 @@ export function emptyObservations(): GameObservations {
 /**
  * Reads each `hero.generated` entry of `document`'s History not yet read (v1.1.3-S6), with the Hero's
  * row as the World State holds it just after the Turn that generated them: whether they have a picture
- * or the Silhouette, whether another Hero on a Roster or in the pool holds the same picture (a repeat),
- * and their texts' lengths. A pool Hero leaves before the refill of the same night, so no Hero is gone
- * the Turn they are generated; one whose row is gone is not counted. Called once the world is created
- * and after each `advance`.
+ * or the Silhouette, whether another Hero on a Roster or in the pool held the same picture as they were
+ * given it (a repeat), and their texts' lengths. A pool Hero leaves before the refill of the same night,
+ * so no Hero is gone the Turn they are generated; one whose row is gone is not counted. Called once the
+ * world is created and after each `advance`.
+ *
+ * The holders are read once a batch, as the World State stands after it, less the batch's own Heroes,
+ * who are added in the order they were generated: so the first holder of a picture is no repeat, and
+ * each later one is (v1.1.3-S8). A holder who died or left within the same batch is not seen.
  */
 export function observeHeroes(observations: GameObservations, document: WorldDocument): void {
   const { world, history } = document;
   const positions = history.byType['hero.generated'] ?? [];
   const tally = observations.heroes;
-  let heldBy: Map<string, number> | null = null;
-  for (const position of positions.slice(observations.heroEntriesRead)) {
+  const batch = positions.slice(observations.heroEntriesRead).map((position) => {
     const payload = history.entries[position]?.payload;
-    const heroId = typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined;
+    return typeof payload === 'object' && payload !== null ? Reflect.get(payload, 'heroId') : undefined;
+  });
+  let heldBy: Map<string, number> | null = null;
+  for (const heroId of batch) {
     const hero = typeof heroId === 'string' && Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId as HeroId] : undefined;
     if (hero === undefined) continue;
     tally.generated += 1;
@@ -1482,16 +1488,19 @@ export function observeHeroes(observations: GameObservations, document: WorldDoc
       continue;
     }
     tally.pictured += 1;
-    heldBy ??= portraitHolders(world);
-    if ((heldBy.get(hero.portraitKey) ?? 0) > 1) tally.repeats += 1;
+    heldBy ??= portraitHolders(world, new Set(batch.filter((id): id is string => typeof id === 'string')));
+    const holders = heldBy.get(hero.portraitKey) ?? 0;
+    if (holders > 0) tally.repeats += 1;
+    heldBy.set(hero.portraitKey, holders + 1);
   }
   observations.heroEntriesRead = positions.length;
 }
 
-/** How many Heroes on a Roster or in the pool hold each picture. */
-function portraitHolders(world: World): Map<string, number> {
+/** How many Heroes on a Roster or in the pool hold each picture, those in `leaving` aside. */
+function portraitHolders(world: World, leaving: ReadonlySet<string>): Map<string, number> {
   const held = new Map<string, number>();
   const count = (hero: Hero | undefined): void => {
+    if (hero !== undefined && leaving.has(hero.id)) return;
     if (hero?.portraitKey !== null && hero?.portraitKey !== undefined) held.set(hero.portraitKey, (held.get(hero.portraitKey) ?? 0) + 1);
   };
   for (const guild of Object.values(world.guilds)) for (const heroId of guild.rosterIds) count(Object.hasOwn(world.heroes, heroId) ? world.heroes[heroId] : undefined);
