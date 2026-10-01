@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
+import { run } from './cli.js';
 import { formatJson } from './json-format.js';
 import { nextRun, today } from './records.js';
 import { NotUndone } from './errors.js';
@@ -110,5 +111,14 @@ describe('a transaction', () => {
     expect(files.touched).toEqual([path.resolve(dir, 'a.txt')]);
     files.rollback();
     expect(existsSync(path.join(dir, 'a.txt'))).toBe(false);
+  });
+});
+
+describe('--date', () => {
+  test('a date not written YYYY-MM-DD is a command line the tool cannot read, exit 2, before anything is read (v1.1.3-S8)', async () => {
+    let out = '';
+    const code = await run(['write-run', 'no-such-draft.json', '--date', '2026-1-2', '--json'], { out: (text) => (out += text), err: () => undefined });
+    expect(code).toBe(2);
+    expect(JSON.parse(out)).toMatchObject({ ok: false, kind: 'usage' });
   });
 });

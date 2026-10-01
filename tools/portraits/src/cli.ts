@@ -13,6 +13,7 @@ import { convert, Refusal } from './convert.js';
 import { corpus, corpusText } from './corpus.js';
 import { diffRun, diffText } from './diff.js';
 import { DraftError, NotUndone, Undone } from './errors.js';
+import { datePattern } from './records.js';
 import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
 import { readRegistry } from './registry.js';
 import { apply, writeRun } from './runs.js';
@@ -71,7 +72,10 @@ function parse(argv: readonly string[]): Parsed {
     if (arg === '--json') parsed.json = true;
     else if (arg === '--root') parsed.root = path.resolve(value(arg, index++));
     else if (arg === '--out') parsed.out = path.resolve(value(arg, index++));
-    else if (arg === '--date') parsed.date = value(arg, index++);
+    else if (arg === '--date') {
+      parsed.date = value(arg, index++);
+      if (!datePattern.test(parsed.date)) throw new UsageError(`--date wants a date written YYYY-MM-DD, not ${parsed.date}`);
+    }
     else if (arg === '--run') parsed.run = value(arg, index++);
     else if (arg === '--draft') parsed.draft = path.resolve(value(arg, index++));
     else if (arg === '--nearest') {
