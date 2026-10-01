@@ -85,7 +85,7 @@ and `descriptions` (v1.1.2-S5, fifteen draws for each Guildmaster entering play,
 from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30), then `hero-portraits`
 (v1.1.3-S6, one draw for each Hero generated) and `hero-descriptions` (v1.1.3-S6, thirteen draws for each
 Hero generated, whatever is written), drawn apart from `generation` and `pool` likewise (ADR-0009 as
-amended 2026-10-01). A stream is seeded from the master seed and its
+amended 2026-10-01, again). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
 random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
 component uses that component's stream, and the Transfer Generator's draw from `rivals` is an

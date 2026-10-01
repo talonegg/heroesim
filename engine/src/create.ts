@@ -263,7 +263,7 @@ export interface GuildmasterPreview {
   age: number;
   /** The Traits, in the order the setup gave them, or in key order when drawn. */
   traitKeys: TraitKey[];
-  /** A Guildmaster picture of `sex`, or `null`, the Silhouette, when the sex has none. */
+  /** A Guildmaster picture of `sex`, or `null`, the Silhouette, when none fits or every one that fits is in use. */
   portraitKey: PortraitKey | null;
   /** The player's Guild's Background, chosen or drawn: a Biography has a sentence for it (v1.1.2-S5). */
   backgroundKey: BackgroundKey;

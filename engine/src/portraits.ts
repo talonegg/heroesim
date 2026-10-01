@@ -1,7 +1,7 @@
 // Portraits (v1.1.2-S3; DL-125 items 2 to 4; v1.1.3-S5, DL-134 items 5 and 7, DL-135 items 3 and 4):
 // the pictures content lists by role and sex, and the one chosen to fit a person already drawn. A
 // Portrait is a key, never a file: the page finds the picture by it in
-// `media/portraits/<role>s/<sex>/` and shows the Silhouette of the sex where it finds none or the key
+// `media/portraits/guildmasters/<sex>/` or `media/portraits/heroes/<sex>/` and shows the Silhouette of the sex where it finds none or the key
 // is `null`. No rule reads a Portrait or anything of its row: the picture follows the person, and
 // never changes them (DL-134 item 1).
 

@@ -90,15 +90,16 @@ _Avoid_: Flag, Crest, Logo, Emblem (kept for a Patron that is a body)
 
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
-Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
-(R8; DL-88, DL-100), with a Portrait (DL-125, DL-130).
+Class (R12), and two descriptive Attributes, with a Portrait (DL-135, DL-142); a Guildmaster's are
+name, sex and age, and the three descriptive Attributes (R8; DL-88, DL-100), with a Portrait
+(DL-125, DL-130).
 _Avoid_: Property, Field, Detail
 
 **Descriptive Attribute**:
-One of three short texts about a Guildmaster that no rule reads: **Birthplace**, a place and not
-the Guild's Background; **Appearance**; and **Biography**. A Hero has two of them, an Appearance
-and a Biography, and no Birthplace, since their Background says where they are from. The player may write them for their
-Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
+One of the short texts about a Guildmaster or a Hero that no rule reads. A Guildmaster has three:
+**Birthplace**, a place and not the Guild's Background; **Appearance**; and **Biography**. A Hero
+has two of them, an Appearance and a Biography, and no Birthplace, since their Background says
+where they are from. The player may write them for their Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
 DL-102). By DL-125 the setup form writes all three from content on request, for the sex and age
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
 Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
