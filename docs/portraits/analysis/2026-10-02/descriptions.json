@@ -1,0 +1,766 @@
+{
+  "ageBands": [
+    { "key": "young", "from": 0 },
+    { "key": "middle", "from": 31 },
+    { "key": "older", "from": 41 }
+  ],
+  "pronouns": {
+    "female": { "he": "she", "him": "her", "his": "her", "He": "She", "His": "Her" },
+    "male": { "he": "he", "him": "him", "his": "his", "He": "He", "His": "His" }
+  },
+  "birthplaces": [
+    "Saltcote, on the Blackfen shore",
+    "Hob's Ferry",
+    "Kettlewick, a mill town on the Swale",
+    "Crane Marsh",
+    "Ormside, under the northern fells",
+    "Wetherby Cross",
+    "Scarrow, a fishing village",
+    "Highmoor, a hill farm above Coldbeck",
+    "Aldby-on-Wray",
+    "Brackenholme",
+    "Stanegate, by the old wall",
+    "Greywater Quay",
+    "Thornhythe",
+    "Ravensgill, a lead-mining valley",
+    "Marrowdale",
+    "Cinder Hill, a smithing town",
+    "Wyndham Bridge",
+    "Low Fallow, among the salt flats",
+    "Harrow Cross, where the drove roads meet",
+    "Skelwith Force",
+    "Yewbarrow",
+    "Northmoor, beyond the peat cuttings",
+    "Kirkby Wold",
+    "Swalebeck, in the abbey lands",
+    "Coldharbour, a garrison town",
+    "Pennock Staithe",
+    "Farthing Mere",
+    "Blackwater Mill",
+    "Rookhaven, a port on the grey sea",
+    "Tollbar End",
+    "Garside Head, high in the dales",
+    "Longbarrow, a village of shepherds",
+    "Wickham Fold",
+    "Hollin Green",
+    "Ingleby Moor"
+  ],
+  "stations": ["common", "trade", "gentry"],
+  "tempers": ["stern", "composed", "intense", "calculating", "wry", "steady", "genial"],
+  "callings": {
+    "soldier": { "suits": ["old-soldier"], "clashes": [] },
+    "adventurer": { "suits": ["old-soldier"], "clashes": [] },
+    "scholar": { "suits": [], "clashes": ["mistrusts-magic"] },
+    "mage": { "suits": [], "clashes": ["mistrusts-magic"] },
+    "explorer": { "suits": [], "clashes": [] },
+    "merchant": { "suits": ["thrifty", "miser"], "clashes": ["spendthrift"] },
+    "lawyer": { "suits": ["thrifty"], "clashes": [] }
+  },
+  "appearance": {
+    "female": {
+      "young": {
+        "build": [
+          "Slight and quick, all wire and nerve.",
+          "Tall and strong, with a rower's shoulders.",
+          "Small and sturdy, and hard to knock down.",
+          "Long-limbed and graceful, restless when still."
+        ],
+        "face": [
+          "A heart-shaped face, freckled by the sun.",
+          "A sharp, clever face with a pointed chin.",
+          "A round, open face, quick to laugh.",
+          "A pale, serious face with strong brows."
+        ],
+        "hair": [
+          "Fair hair worn in a single thick braid.",
+          "Black hair cropped as short as a boy's.",
+          "Red-gold curls that refuse any order.",
+          "Brown hair twisted up, escaping in wisps."
+        ],
+        "eyes": [
+          "The eyes are green and bright with curiosity.",
+          "Dark eyes, quick and assessing.",
+          "Grey eyes, calm beyond her years.",
+          "Blue eyes that crinkle when she smiles."
+        ],
+        "mark": [
+          "A thin white scar crosses her chin.",
+          "A small scar nicks her upper lip.",
+          "A burn scar marks the inside of one forearm.",
+          "One ear is notched from an old fight."
+        ],
+        "bearing": [
+          "She moves like someone used to climbing.",
+          "She meets every eye directly, and holds it.",
+          "She talks fast and thinks faster.",
+          "She is watchful, and quieter than she looks."
+        ]
+      },
+      "middle": {
+        "build": [
+          "Strongly made, broad through the shoulders.",
+          "Lean and wiry, hardened by long roads.",
+          "Tall and angular, straight as a spear.",
+          "Solid and unhurried, with a porter's strength."
+        ],
+        "face": [
+          "A strong-jawed face, tanned and lined.",
+          "A long, thoughtful face with a crooked mouth.",
+          "A broad face with high, weathered cheekbones.",
+          "A fine-boned face, sharpened by hard years."
+        ],
+        "hair": [
+          "Dark hair braided close to the head.",
+          "Chestnut hair, the first grey at the temples.",
+          "Fair hair cut short at the jaw.",
+          "Thick black hair gathered in a heavy knot."
+        ],
+        "eyes": [
+          "The eyes are hazel and very steady.",
+          "Grey eyes that give little away.",
+          "Brown eyes, warm but wary.",
+          "Dark eyes with laughter lines at the corners."
+        ],
+        "mark": [
+          "An old scar runs along her jaw.",
+          "Her left hand is missing its smallest finger.",
+          "A healed break has left her nose a little crooked.",
+          "A pale scar crosses the back of one hand."
+        ],
+        "bearing": [
+          "She stands square, as if braced against a wind.",
+          "She has a low voice that carries.",
+          "She moves carefully, like one who has been hurt.",
+          "She is quick to judge, and seldom wrong."
+        ]
+      },
+      "older": {
+        "build": [
+          "Thin and upright, all sinew now.",
+          "Short and broad, still strong in the arm.",
+          "Tall and gaunt, a little bowed by the years.",
+          "Small and spare, and light on her feet still."
+        ],
+        "face": [
+          "A lined, weather-browned face with a hawk's nose.",
+          "A soft, creased face with a stubborn mouth.",
+          "A narrow face, fine-boned and weathered.",
+          "A broad face, deeply furrowed by sun and wind."
+        ],
+        "hair": [
+          "Greying hair worn in a long plait.",
+          "Iron-grey hair cropped close.",
+          "Silver hair, thick still, swept back.",
+          "Grey hair streaked with its old black."
+        ],
+        "eyes": [
+          "The eyes are pale and piercing.",
+          "Dark eyes, bright and amused.",
+          "Faded blue eyes that miss nothing.",
+          "Grey eyes, hooded and patient."
+        ],
+        "mark": [
+          "Old scars mark both forearms.",
+          "Her knuckles are swollen and knotted.",
+          "A scar pulls at one corner of her mouth.",
+          "An old wound has left a pale scar through one brow."
+        ],
+        "bearing": [
+          "She speaks seldom, and is listened to.",
+          "She has the patience of long experience.",
+          "She walks slowly, and sees everything.",
+          "She has a dry wit and a sharper tongue."
+        ]
+      }
+    },
+    "male": {
+      "young": {
+        "build": [
+          "Lean and long-limbed, still filling out.",
+          "Broad in the shoulder and quick on his feet.",
+          "Wiry and restless, never quite still.",
+          "Tall and rangy, with big, capable hands."
+        ],
+        "face": [
+          "A narrow, sunburned face with a stubborn chin.",
+          "An open, freckled face, quick to grin.",
+          "A thin face, all cheekbones and angles.",
+          "A broad, honest face with a nose broken once."
+        ],
+        "hair": [
+          "Straw-coloured hair falls into his eyes.",
+          "Thick red hair, badly cut.",
+          "Black hair tied back at the nape.",
+          "Sandy hair that will not lie flat."
+        ],
+        "facialHair": [
+          "He is clean-shaven, or near enough.",
+          "A thin, hopeful moustache.",
+          "A short, scrubby beard he is proud of.",
+          "Stubble shadows the jaw most days."
+        ],
+        "eyes": [
+          "The eyes are blue and quick.",
+          "Dark eyes, watchful under heavy brows.",
+          "Grey eyes, steady and a little wary.",
+          "Hazel eyes with a glint of mischief."
+        ],
+        "mark": [
+          "A pale scar splits the left eyebrow.",
+          "A burn scar puckers the back of one hand.",
+          "One front tooth is chipped from an old fall.",
+          "A thin scar runs along his jaw."
+        ],
+        "bearing": [
+          "He carries himself with easy confidence.",
+          "He stands too straight, as if expecting a fight.",
+          "He moves quickly, as though always late.",
+          "He listens more than he speaks."
+        ]
+      },
+      "middle": {
+        "build": [
+          "Thickset and solid, built like a gatepost.",
+          "Lean and hard, with a soldier's straight back.",
+          "Heavy-shouldered, gone a little soft at the middle.",
+          "Of middling height, compact and strong."
+        ],
+        "face": [
+          "A square, weathered face, lined about the eyes.",
+          "A long, grave face that rarely smiles.",
+          "A ruddy face, broad across the cheekbones.",
+          "A lean face, tanned dark by years outdoors."
+        ],
+        "hair": [
+          "Brown hair, thinning at the crown.",
+          "Dark hair cropped close, grey at the temples.",
+          "Thick black hair worn long and swept back.",
+          "Russet hair gone faded and dull."
+        ],
+        "facialHair": [
+          "A close-trimmed beard, flecked with grey.",
+          "A heavy moustache hides the mouth.",
+          "He is clean-shaven, and blue-jawed by evening.",
+          "A full brown beard, kept short."
+        ],
+        "eyes": [
+          "The eyes are pale blue and hard to read.",
+          "Brown eyes, shrewd and patient.",
+          "Deep-set grey eyes that weigh a stranger.",
+          "Dark, tired eyes that still miss nothing."
+        ],
+        "mark": [
+          "An old scar runs from ear to jaw.",
+          "Two fingers of his left hand are stiff.",
+          "A notch is missing from one ear.",
+          "His nose has been broken more than once."
+        ],
+        "bearing": [
+          "He is slow to speak and slower to anger.",
+          "He stands easy, like a man used to command.",
+          "He has a quiet way of filling a room.",
+          "He walks with a slight, stubborn limp."
+        ]
+      },
+      "older": {
+        "build": [
+          "Big-framed and gone gaunt with the years.",
+          "Short and barrel-chested, still strong.",
+          "Tall and spare, a little stooped now.",
+          "Stocky and weather-hardened, slow but sure."
+        ],
+        "face": [
+          "A craggy face, deeply lined and burned brown.",
+          "A long face, hollow at the cheeks.",
+          "A broad, weathered face, mapped with fine lines.",
+          "A heavy-jowled face with a hawkish nose."
+        ],
+        "hair": [
+          "Iron-grey hair, cropped close.",
+          "Greying hair, thin and wild.",
+          "What is left of his hair is grey and short.",
+          "Grey hair worn long and tied back."
+        ],
+        "facialHair": [
+          "A grey beard, full and neatly kept.",
+          "A greying moustache, yellowed at the ends.",
+          "He is clean-shaven, the jaw gone soft.",
+          "A short beard gone grey at the chin."
+        ],
+        "eyes": [
+          "The eyes are faded blue, and sharp as ever.",
+          "Hooded grey eyes that seem half asleep.",
+          "Dark eyes, deep-set under heavy brows.",
+          "Pale eyes, narrowed by years of squinting."
+        ],
+        "mark": [
+          "Old scars cross the backs of both hands.",
+          "A scar puckers the corner of his mouth.",
+          "His knuckles are thick and scarred from old fights.",
+          "One eyelid droops from an old wound."
+        ],
+        "bearing": [
+          "He moves slowly, and wastes no motion.",
+          "He has the stillness of one who has seen it all.",
+          "He speaks softly and expects to be heard.",
+          "He sits like a judge, and listens like one."
+        ]
+      }
+    }
+  },
+  "biography": {
+    "origins": {
+      "young": [
+        "{He} was born in {birthplace}, and left it at fifteen with a borrowed knife and no plan.",
+        "{He} grew up in {birthplace}, the youngest of a large and noisy family.",
+        "{He} was born in {birthplace}, and learned early that no one gives a stranger anything for nothing.",
+        "{He} comes from {birthplace}, and still speaks with its flat, unhurried vowels.",
+        "{His} mother kept an alehouse in {birthplace}, and {he} grew up on the talk of travellers."
+      ],
+      "middle": [
+        "{He} was born in {birthplace}, where {his} father drove a carrier's cart for thirty years.",
+        "{He} grew up in {birthplace}, left it young, and has been back only twice.",
+        "{He} was born in a hard winter in {birthplace}, and was not expected to live.",
+        "{He} comes from {birthplace}, and speaks of it more fondly the longer {he} is away.",
+        "{His} family were tenants in {birthplace}, and poorer every year {he} can remember."
+      ],
+      "older": [
+        "{He} was born in {birthplace}, and has not been back in twenty years.",
+        "{He} grew up in {birthplace}, though little of the place {he} knew is left standing.",
+        "As a youth {he} left {birthplace}, and has spent the better part of {his} life on the roads since.",
+        "{He} comes from {birthplace}, where they still remember {his} family, not always kindly.",
+        "For five generations before {him}, {his} people farmed poor ground in {birthplace}."
+      ]
+    },
+    "careers": {
+      "young": [
+        "{He} spent three seasons carrying loads for a caravan master before trying anything braver.",
+        "Before the Guild, {he} ran errands for a moneylender, and learned how debts are kept and collected.",
+        "{He} served a short, unhappy apprenticeship to a scribe, and left with a fair hand and few friends.",
+        "{He} fought in one border skirmish, which was enough to teach {him} how little glory there is in it.",
+        "{He} went adventuring young with a band that broke up within the year, and learned more from its failure than from anything since."
+      ],
+      "middle": [
+        "{He} spent the better part of ten years guiding travellers over the high passes, and lost fewer than most.",
+        "For a decade {he} kept the books of a wool merchant, and can still price a bale at a glance.",
+        "{He} served a full term in a lord's company of foot, then turned down a sergeant's post and walked away.",
+        "{He} made and lost a small fortune in the salt trade, and kept only the lesson.",
+        "Years with a band of sellswords taught {him} which contracts to take, and which to walk away from."
+      ],
+      "older": [
+        "{He} has been a soldier, a drover, a toll-keeper and a clerk, and was good enough at each to be bored by it.",
+        "For twenty years {he} led Parties into the wild country, and buried more friends than {he} likes to count.",
+        "{He} kept an inn on the high road for most of {his} life, and has heard every tale a Hero ever told.",
+        "A long career as a magistrate's officer left {him} with a sharp eye for a liar and little patience for one.",
+        "{He} captained a river barge for many years, and still judges people by how they behave in bad weather."
+      ]
+    },
+    "backgrounds": {
+      "old-charter": [
+        "The Guild's charter is older than anyone living, and {he} took the chair meaning to prove it still counts for something.",
+        "{He} was voted to the head of an old chartered house whose glories are mostly painted on its walls.",
+        "{He} was handed the keeping of a charter granted by a king nobody remembers, and a Hall that needs a new roof."
+      ],
+      "breakaway": [
+        "{He} walked out of a larger Guild over a quarrel about shares, and took the best of its members along.",
+        "When {his} old Guild refused to pay its wounded, {he} left it and founded this one out of spite and principle.",
+        "{He} and a handful of others broke away from a Guild grown fat and careless, and have not been forgiven for it."
+      ],
+      "newly-founded": [
+        "The Guild is {his} own making, begun with a rented room, a borrowed ledger and more hope than coin.",
+        "{He} founded the Guild with {his} savings and a sign painted by a friend, and has been paying for both since.",
+        "The Guild is new, and so is {his} name on its door: everything it has, {he} has built."
+      ],
+      "inherited": [
+        "{He} took the Guild over from an ailing aunt who swore it would ruin {him}, and may yet be proved right.",
+        "The Guild came to {him} on the death of its old master, along with the old master's debts and enemies.",
+        "{He} was named heir to the Guild by a master who had no one else, and has been trying to deserve it since."
+      ]
+    },
+    "traits": {
+      "old-soldier": [
+        "{He} keeps a soldier's hours still, rising before dawn and inspecting anyone who stands still long enough.",
+        "{He} speaks little of soldiering, but a Warrior finds {him} a good judge of a blade and of the one who holds it.",
+        "{He} drills the Guild's Warriors in the training yard as {he} was once drilled, and they fight the better for it."
+      ],
+      "well-liked": [
+        "People warm to {him} quickly, and the Guild's Heroes would follow {him} further than their pay alone would take them.",
+        "{He} remembers every name, every child and every old wound, and is loved for it.",
+        "Quarrels in the Hall seldom outlast a word from {him}, and the Morale of the whole Guild rises when {he} walks in."
+      ],
+      "thrifty": [
+        "{He} counts every copper twice and wastes nothing, and the Guild's books have never been tidier.",
+        "{He} haggles over candles and mends what others would throw away, and the Guild is the richer for it.",
+        "{He} goes over the Upkeep every quarter-day with a list of savings in hand, and seldom pays a mason what the mason asked."
+      ],
+      "miser": [
+        "The Heroes grumble that the stew grows thinner every winter, and that {he} has never once stood them a round.",
+        "{He} hoards firewood as others hoard grudges, and the Guild's Hall is the colder for it.",
+        "{He} pays the Heroes late and grudgingly, and their Morale sinks a little with every payday."
+      ],
+      "spendthrift": [
+        "Money runs through {his} fingers like water, and the Guild's Wealth feels every generous impulse.",
+        "{He} buys the best of everything, and the next round too, and the Guild pays the bills.",
+        "{He} will not have the Hall patched when it could be rebuilt, and the Guild's Upkeep has grown to match."
+      ],
+      "mistrusts-magic": [
+        "{He} has never trusted magic, and watches the Guild's Mages as a farmer watches a fox near the henhouse.",
+        "Something {he} saw as a child left {him} wary of spellcraft, and {he} does not hide it well.",
+        "{He} grudges the Guild's Mages their books and their candles, and their spellcraft is the weaker for it."
+      ]
+    },
+    "closings": {
+      "young": [
+        "{He} is young for the work, and knows it, and means to be underestimated for as short a time as possible.",
+        "{He} wants a name the ballad-singers will get right, and a Guild that outlives {him}.",
+        "Those who know {him} say {he} learns fast, forgets nothing and sleeps too little.",
+        "{He} has more ambition than experience, but is gaining the second quickly."
+      ],
+      "middle": [
+        "{He} means to see the Guild at the head of the Rankings while {he} is still in {his} prime.",
+        "{He} has seen enough of the world to be wary of it, and enough of people to like them anyway.",
+        "Those who have crossed {him} say {he} is patient, fair and very hard to forget.",
+        "{He} keeps {his} own counsel, and the Guild runs better for it than anyone expected."
+      ],
+      "older": [
+        "{He} has outlived most of {his} enemies, and means to outlast the rest.",
+        "{He} carries {his} years lightly, and expects the Guild's Heroes to carry theirs the same way.",
+        "Age has made {him} slower to anger and quicker to see a trick coming.",
+        "{He} has good years left in {him}, and means to spend every one of them on the Guild."
+      ]
+    },
+    "successors": [
+      "{He} was chosen to lead the Guild when its chair fell empty, and took on its debts and quarrels along with its Hall.",
+      "{He} served the Guild before its members voted {him} into the chair, and knows where every ledger is kept.",
+      "{He} took up the Guild's leadership from another's hands, and is still learning which of its old habits to keep."
+    ],
+    "stationOrigins": {
+      "common": [
+        "{He} was born in {birthplace}, the youngest of a carter's seven children.",
+        "{He} was born in {birthplace}, where {his} father fished the cold water and {his} mother mended the nets.",
+        "{He} was born to a farm labourer's family in {birthplace}, and was out in the harvest fields as soon as {he} could carry a sheaf."
+      ],
+      "trade": [
+        "{He} was born above a chandler's shop in {birthplace}, and could weigh and tally before {he} could read.",
+        "{He} was born in {birthplace}, where {his} father was a cooper, and grew up to the sound of the mallet on the staves.",
+        "{His} family were merchants of modest standing in {birthplace}, with a counting-house, a warehouse and a great many cousins."
+      ],
+      "gentry": [
+        "{He} was born to a landed family in {birthplace}, with a name that opened doors and a purse that no longer did.",
+        "{He} was born in {birthplace}, in a manor house with more rooms than servants to keep them and more ancestors than money.",
+        "{He} was the third child of a knightly family in {birthplace}, and learned early that the land and the title would go elsewhere."
+      ]
+    },
+    "callingCareers": {
+      "soldier": {
+        "young": [
+          "{He} carried a pike in two short wars before {he} was twenty-five.",
+          "{He} ran away at sixteen to follow the drum, and held a place in the shield wall within the year.",
+          "{He} spent a few hard years guarding a frontier fort, and learned more of mud, fever and boredom than of fighting."
+        ],
+        "middle": [
+          "{He} served ten years in a lord's company of foot, and left it a sergeant with a sergeant's opinions.",
+          "For ten years {he} drilled recruits for a border lord, and can still tell in a morning which of them will run.",
+          "{He} spent a decade in the garrison of a river fortress, and held it through one long siege that nobody now remembers."
+        ],
+        "older": [
+          "{He} soldiered for twenty years on three borders, and knows the price of a battle better than its glory.",
+          "{He} rose from the line to command a company of foot, and spent twenty years keeping it fed, paid and mostly alive.",
+          "{He} was a quartermaster in the wars for twenty years, and holds that more battles are lost for want of bread than of courage."
+        ]
+      },
+      "adventurer": {
+        "young": [
+          "{He} joined a band of adventurers at seventeen, and learned on the first venture how quickly a plan comes apart.",
+          "{He} earned {his} first coin clearing cellars of rats and worse, and took the first road out of town that promised better.",
+          "{He} spent a few seasons as a Party's torch-bearer and pack-mule, and watched closely how its leader earned the larger share."
+        ],
+        "middle": [
+          "For a dozen years {he} led Parties into the barrows and the fells, and brought most of them home.",
+          "{He} spent ten years as a Party's scout and lock-picker, the one sent first into every dark place.",
+          "For a decade {he} took whatever work a stranger offered across an inn table, from wolf-hunts to haunted mills."
+        ],
+        "older": [
+          "{He} spent twenty years on the roads with one Party or another, and has buried more friends than {he} will name.",
+          "{He} adventured for twenty years and came out of it with a sound pair of knees, which {he} counts the greater prize.",
+          "{He} has delved in more ruins than {he} can name, and has sold the tale of each at least twice."
+        ]
+      },
+      "scholar": {
+        "young": [
+          "{He} spent {his} youth copying in an abbey library, and left it with a fair hand and a head full of questions.",
+          "{He} studied the old tongues at a college until {his} purse ran dry, and can still read inscriptions few others can.",
+          "{He} spent a few years as tutor to a merchant's children, and read every book in the house while they were at play."
+        ],
+        "middle": [
+          "{He} taught letters and reckoning for ten years, and wrote a history of the northern roads that no one copied.",
+          "{He} spent ten years compiling a herbal of the valley plants, and can still name every one a Healer ought to trust.",
+          "For a decade {he} kept the library of a great house, and learned that its owners valued the bindings above the words."
+        ],
+        "older": [
+          "{He} spent twenty years among the archives of three cities, and still writes to scholars who have never met {him}.",
+          "{He} gave twenty years to a study of the old kingdoms' coinage, and can date a worn penny by its weight alone.",
+          "{He} lectured on rhetoric for twenty years and more, and still cannot let a poor argument pass unremarked."
+        ]
+      },
+      "mage": {
+        "young": [
+          "{He} was apprenticed to a hedge-wizard at twelve, and left when {he} could do more than {his} master.",
+          "{He} found {his} gift at thirteen when a barn caught fire, and spent the next few years learning, carefully, not to do it again.",
+          "{He} spent a few seasons with a travelling conjurer, and learned that not all of the tricks were tricks."
+        ],
+        "middle": [
+          "{He} spent ten years in the service of a college of Mages, and left it with a licence and few regrets.",
+          "For ten years {he} kept the wards on a lord's keep, and was blamed for every storm that came over the hills.",
+          "{He} spent a decade as a battle Mage in the border wars, and prefers not to say what {he} did there."
+        ],
+        "older": [
+          "For twenty years {he} cast spells for any lord who would pay, and learned how little gratitude a spell buys.",
+          "{He} has spent the better part of {his} life on one long and difficult working of spellcraft, and believes it nearly finished.",
+          "For twenty years {he} took apprentices, and there are Mages on three borders who still dread {his} letters."
+        ]
+      },
+      "explorer": {
+        "young": [
+          "{He} signed on with a surveyor's crew at sixteen, and has been drawing maps of places no one asked about since.",
+          "{He} went to sea as a deckhand at fourteen, and had seen three far coasts before {he} was twenty.",
+          "{He} spent a few summers guiding hunters into the deep forest, and came back every time, which not all of them did."
+        ],
+        "middle": [
+          "{He} spent ten years charting the fells and the far coast, and sold the maps to anyone who would buy them.",
+          "For ten years {he} went looking for the source of a great river, and found three, each already claimed by someone else.",
+          "{He} spent a decade in the marshes and the drowned lands, and can find firm ground where others see only reeds."
+        ],
+        "older": [
+          "{He} has walked every road on the old maps, and drawn a good many that were never on them.",
+          "{He} spent twenty years among the ice and the high peaks, and has been cold, {he} says, ever since.",
+          "{He} led twenty years of expeditions into country no map had drawn, and named more rivers than {he} can now remember."
+        ]
+      },
+      "merchant": {
+        "young": [
+          "{He} kept a market stall at fifteen, and had two by the next spring.",
+          "{He} ran for a pedlar through {his} teens, and could sell a needle to a tailor before {he} was eighteen.",
+          "{He} was apprenticed to a spice dealer, and learned to count, to smile, and never to give credit twice."
+        ],
+        "middle": [
+          "{He} ran wool and salt along the river roads for a decade, and knows what every town will pay for either.",
+          "For ten years {he} bought grain at harvest and sold it at the end of winter, and was not always thanked for it.",
+          "{He} kept a trading house's warehouses for a decade, and can tell at a glance what a clerk has pocketed."
+        ],
+        "older": [
+          "{He} traded in three kingdoms for twenty years, and left each richer than {he} came, if not always welcome.",
+          "Over twenty years {he} built a shipping concern from one leaky boat, and sold it for a sum {he} will not name.",
+          "{He} dealt in horses at every fair for twenty years and more, and has never been sold a lame one twice."
+        ]
+      },
+      "lawyer": {
+        "young": [
+          "{He} clerked for a magistrate's advocate, and learned early how to find the clause that undoes a contract.",
+          "{He} copied deeds for a notary for a few years, and learned how much can be hidden in a single word.",
+          "{He} argued {his} first case at nineteen, over a neighbour's stolen pig, and won it on a point nobody else had noticed."
+        ],
+        "middle": [
+          "For ten years {he} argued cases before the assize courts, and won more than {his} clients deserved.",
+          "{He} spent ten years as steward to a lord's estates, settling boundary quarrels and collecting rents nobody wished to pay.",
+          "For a decade {he} drew up the agreements of the river traders, and there is hardly a bargain on the water {he} could not undo."
+        ],
+        "older": [
+          "{He} spent twenty years drafting charters and settling disputes, and still reads every contract twice.",
+          "{He} sat as a judge in the hill towns for twenty years, and was known for short hearings and long memories.",
+          "{He} spent twenty years as counsel to a great family, and knows where more of its secrets are buried than is good for {him}."
+        ]
+      }
+    },
+    "temperClosings": {
+      "stern": [
+        "{He} forgives a mistake once, and says so.",
+        "{He} gives praise rarely and orders plainly, and expects both to be taken to heart.",
+        "Few have seen {him} smile, and fewer still have given {him} a reason to."
+      ],
+      "composed": [
+        "Little shows on {his} face that {he} has not decided to show.",
+        "{He} speaks quietly and never hurries, and a room tends to settle once {he} is in it.",
+        "Bad news reaches {him} as good news does, heard out in full before {he} says a word."
+      ],
+      "intense": [
+        "Once {he} has fixed on a thing, no argument, weather or sense will turn {him} from it.",
+        "{He} does nothing by halves, and has worn out more than one companion trying to keep pace with {him}.",
+        "{His} gaze settles on a person and stays there, and few can hold it for long."
+      ],
+      "calculating": [
+        "{He} weighs every offer twice, and the one who made it three times.",
+        "{He} keeps a tally of every favour owed, and knows to the penny what each one will be worth.",
+        "{He} rarely says all {he} knows, and never says it before it is worth the most."
+      ],
+      "wry": [
+        "{He} finds most things a little funny, {his} own misfortunes most of all.",
+        "{He} meets bad news with a raised eyebrow and a dry remark, and saves {his} worrying for when no one is watching.",
+        "{He} rarely laughs aloud, but the corner of {his} mouth says a good deal that {he} leaves unsaid."
+      ],
+      "steady": [
+        "{He} is the same in a crisis as at breakfast, which is a comfort to everyone but {his} enemies.",
+        "{He} is neither quick to anger nor quick to praise, and those who work beside {him} always know where they stand.",
+        "{He} does what {he} said {he} would, when {he} said {he} would, and has never needed to be asked twice."
+      ],
+      "genial": [
+        "{He} is easy company, and strangers find themselves telling {him} things they meant to keep to themselves.",
+        "{He} greets friends and strangers with the same broad smile, and most of the strangers end up as friends.",
+        "No table stays quiet for long with {him} at it, and {he} has turned more than one quarrel into a round of drinks."
+      ]
+    }
+  },
+  "heroBiography": {
+    "backgrounds": {
+      "farm-born": [
+        "{He} grew up behind a plough, and left the farm the first spring {he} was strong enough to walk away from it.",
+        "{He} was raised on a hill farm where every lamb was counted, and can still smell rain coming long before anyone else.",
+        "{His} people have worked the same thin fields for generations, and not one of them understands why {he} left."
+      ],
+      "levy-soldier": [
+        "{He} was called up with the levy at sixteen, and found {he} was better at the fighting than the farming.",
+        "{He} marched with the levy in a war nobody explained to {him}, and came home knowing how to hold a line.",
+        "{He} learned drill, thirst and long marches with the county levy, and has never since complained of a hard road."
+      ],
+      "temple-ward": [
+        "{He} was raised by the temple after {his} parents died, and learned {his} letters and {his} prayers in the same cold room.",
+        "{He} was left on the temple steps as an infant, and has never learned who left {him} there.",
+        "The temple fed {him}, schooled {him} and expected {him} to take its vows; {he} slipped away the night before."
+      ],
+      "river-folk": [
+        "{He} grew up on the river barges, and still sleeps best with water moving underneath.",
+        "{He} was poling a barge through the locks before {he} could read, and can still judge a current at a glance.",
+        "{His} family carried coal and grain between the river towns, and {he} has never quite trusted ground that keeps still."
+      ],
+      "pit-village": [
+        "{He} comes from a pit village, went down the mine at ten, and swore {he} would not die in it.",
+        "{He} grew up in a row of pit cottages under the slag heaps, where every family had lost someone to the mine.",
+        "{He} can tell sound rock from bad by the ring of it, a lesson the pit taught {him} long before any Quest did."
+      ],
+      "town-apprentice": [
+        "{He} was apprenticed to a town craftsman, and broke the indenture a year short of its end.",
+        "{He} learned a cooper's trade in a busy town, and still judges any piece of work by the joints no one else looks at.",
+        "{He} grew up among the workshops of a walled town, where a trade was a fortune and a lost apprenticeship a disgrace."
+      ],
+      "poachers-child": [
+        "{His} mother poached the lord's woods to feed them, and taught {him} to move without a sound.",
+        "{He} grew up on rabbit and stolen venison, and could set a snare long before {he} could write {his} own name.",
+        "{His} father was caught by the gamekeepers when {he} was small, and {he} has had no love for a lord's law since."
+      ],
+      "fallen-gentry": [
+        "{His} family had land and a name once, and lost the land; {he} has kept the name and little else.",
+        "{He} was taught fencing, riding and fine manners in a house since sold for debt, and finds only the first two earn {him} anything.",
+        "{His} grandfather gambled away the estate, and {he} grew up in its gatehouse, watching strangers live in the house."
+      ]
+    },
+    "classes": {
+      "warrior": {
+        "young": [
+          "{He} learned to fight in tavern yards and village brawls, and has been learning properly ever since.",
+          "{He} was trained by an old sergeant who taught {him} to keep {his} guard up and {his} mouth shut.",
+          "{He} hired on to guard merchants' wagons on the high road, and learned to fight because the road left no choice."
+        ],
+        "middle": [
+          "{He} has fought in more skirmishes than {he} can name, and knows which of them were worth it.",
+          "{He} has stood in the front rank of more Parties than {he} can remember, and trusts no plan that puts {him} anywhere else.",
+          "{He} spent {his} first years with a shield in a hired company, and still thinks of every Quest as a line to be held."
+        ],
+        "older": [
+          "{He} has carried a blade for twenty years, and still expects to carry it for twenty more.",
+          "{He} has outlived three swords and two shields, and speaks of the swords more warmly than of most people.",
+          "{He} fought in a war that most young Heroes know only as a song, and learned there what a charge costs."
+        ]
+      },
+      "rogue": {
+        "young": [
+          "{He} picked {his} first lock at nine, and has met few since that {he} could not open with patience.",
+          "{He} ran messages for a gang of cutpurses as a child, and learned the rest by watching them get caught.",
+          "{He} learned to climb on the rooftops of a crowded town, and has never since trusted a door to be the only way in."
+        ],
+        "middle": [
+          "{He} has been a thief, a spy and a smuggler, and prefers not to say which paid best.",
+          "{He} has spent ten years going first into places others would rather not, and has found most of the traps the hard way.",
+          "{He} has lived under more false names than true ones, and answers to all of them without a flicker."
+        ],
+        "older": [
+          "{He} has slipped through more locked doors than most people have walked through open ones.",
+          "{He} has been caught twice in a long career, and speaks of both times as lessons rather than misfortunes.",
+          "{He} has taught half the young thieves of a river town their trade, and still does not trust any of them."
+        ]
+      },
+      "mage": {
+        "young": [
+          "{He} showed the gift young, and learned to hide it before {he} learned to use it.",
+          "{He} was sent to an old Mage at fourteen to learn {his} letters, and learned rather more than {his} parents had paid for.",
+          "{He} made the well water boil the first time the power came to {him}, and has studied control more than force ever since."
+        ],
+        "middle": [
+          "{He} has studied under three masters and quarrelled with each, and learned most from the last quarrel.",
+          "{He} has spent ten years learning to carve runes, and trusts a well-cut one over any spell said in haste.",
+          "{He} left the academy with a scholar's learning and no money, and has paid for {his} books with Quests ever since."
+        ],
+        "older": [
+          "{He} has practised the craft for twenty years, and treats every new spell as a debt to be paid.",
+          "{He} keeps notebooks of every spell {he} has cast in twenty years, and reads the early ones with some embarrassment.",
+          "{He} has buried two apprentices who were cleverer than {he} was, and teaches caution now before anything else."
+        ]
+      },
+      "healer": {
+        "young": [
+          "{He} learned herb-lore from a village wise-woman, and set {his} first bone at twelve.",
+          "{He} was taught in a temple infirmary, and left it for the road when {he} saw how many of the wounded never reached one.",
+          "{He} learned to stitch a wound on {his} own brothers, who gave {him} more practice than {he} ever wanted."
+        ],
+        "middle": [
+          "{He} has patched up soldiers, miners and fools for ten years, and lost fewer of them than anyone expected.",
+          "{He} has worked through a plague summer and a hard siege, and is surprised by very little that a body can do.",
+          "{He} has followed Parties into the wild for the better part of ten years, and can set a bone by firelight."
+        ],
+        "older": [
+          "{He} has sat at more sickbeds than {he} can count, and still believes every patient can be saved.",
+          "{He} has trained a generation of village midwives and bonesetters, and hears {his} methods, garbled, wherever {he} goes.",
+          "{His} hands have grown less steady with the years, but {his} judgement of a wound has only grown sharper."
+        ]
+      }
+    },
+    "traits": {
+      "scarred": [
+        "{He} carries the scars of a Quest {he} will not talk about.",
+        "A blade opened {his} face on a Quest in the fells, and the scar still whitens when {he} is angry.",
+        "{His} forearms are laced with old scars, and {he} tells a different story for each one to anyone who asks."
+      ],
+      "lame": [
+        "An old Injury left {him} lame, and {he} hates to be helped on the stairs.",
+        "{He} has walked with a stick since a fall on a Quest, and can still keep pace with most Parties, if not for long.",
+        "A leg badly set after an Injury left {him} with a limp that worsens in the cold and the wet."
+      ],
+      "one-eyed": [
+        "{He} lost an eye on a Quest, and watches twice as hard with the one that is left.",
+        "An Injury took one of {his} eyes, and {he} keeps anyone {he} does not trust on {his} good side.",
+        "{He} has misjudged distances since losing the eye, and makes up for it by getting closer than most would dare."
+      ],
+      "short-winded": [
+        "{He} has been short of breath since a bad Injury, and resents every hill between {him} and a Quest.",
+        "A crushed chest on a Quest left {him} short of breath, and {he} has learned to do everything in short, hard bursts.",
+        "{He} breathed too much smoke on a Quest gone wrong, and {his} rasping breath gives {him} away in any quiet place."
+      ]
+    },
+    "closings": {
+      "young": [
+        "{He} is young, and means to make a name before anyone thinks to ask {his} age.",
+        "{He} is still learning which risks are worth taking, and has so far been lucky with the ones that were not.",
+        "{He} takes every Quest as a chance to be noticed, and has not yet learned to count the cost first."
+      ],
+      "middle": [
+        "{He} has seen enough Quests to be careful, and enough to know that care is not always enough.",
+        "{He} is past the recklessness of youth and not yet slowed by caution, which suits most Parties well.",
+        "{He} knows {his} own limits now, and is honest about them, which makes {him} a steadier Hero than many."
+      ],
+      "older": [
+        "{He} has outlasted most of the Heroes {he} started with, and means to outlast the rest.",
+        "{He} is slower than {he} was, and wiser for it, and the young Heroes would do well to listen to {him}.",
+        "{He} knows every trick of the road by now, and meets each new Quest with the respect the old ones taught {him}."
+      ]
+    }
+  }
+}
