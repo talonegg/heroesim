@@ -243,6 +243,29 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     expect(reader.checked).toBeGreaterThan(20);
     expect(reader.failures).toEqual([]);
   });
+
+  // v1.1.3-S7: the setup grid's buttons and "Drawn from the seed", and a note beside a Portrait chosen.
+  test('in the setup grid, with a note beside a Portrait chosen', () => {
+    render(<App />);
+    const reader = new Reader([]);
+    for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'capitals' } });
+    fireEvent.change(screen.getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.change(screen.getByLabelText('Age'), { target: { value: '21' } });
+    const portrait = screen.getByRole('group', { name: 'Portrait' });
+    const radios = within(portrait).getAllByRole('radio');
+    // Each picture chosen in turn, so that the notes of every kind they give are read.
+    let noted = 0;
+    for (const radio of radios.slice(1)) {
+      fireEvent.click(radio);
+      if (screen.queryByTestId('portrait-notes') !== null) noted += 1;
+      reader.read(`The setup grid, ${radio.closest('label')?.textContent ?? ''} chosen`);
+    }
+
+    expect(noted).toBeGreaterThan(0);
+    expect(reader.checked).toBeGreaterThan(20);
+    expect(reader.failures).toEqual([]);
+  });
 });
 
 describe('the guard itself fails what begins in lower case, and names it', () => {

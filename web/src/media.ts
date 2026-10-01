@@ -1,7 +1,8 @@
 // The page's pictures (v1.1.2-S2; DL-125 items 1, 2, 7 and 8): the repository's `media/` folder,
 // which the build knows file by file through `import.meta.glob`, as `content.ts` knows `content/`.
 //
-//   media/portraits/{guildmasters,heroes,patrons}/{female,male}/silhouette.svg, <portraitKey>.webp
+//   media/portraits/{guildmasters,heroes,patrons}/{female,male}/silhouette.svg, <portraitKey>.webp,
+//     <portraitKey>.thumb.webp (its thumbnail, v1.1.3-S2)
 //   media/banners/silhouette.svg
 //   media/items/silhouette.svg, <definitionKey>.webp
 //
@@ -74,6 +75,13 @@ export interface MediaCatalogue {
    * engine's is (`media.test.ts`).
    */
   portrait(role: PortraitRole, sex: Sex, portraitKey: string | null): Pictured;
+  /**
+   * A person's thumbnail (v1.1.3-S7, DL-135 item 9): as their Portrait, from `<key>.thumb.webp`, the
+   * 160 × 213 picture beside the full one, for a list and the setup grid. A Hero's is found under
+   * `portraits/heroes/<sex>/` once Hero pictures exist; until then, as for anyone with no picture, it
+   * is the Silhouette.
+   */
+  portraitThumbnail(role: PortraitRole, sex: Sex, portraitKey: string | null): Pictured;
   /** A Guild's Banner: every Guild shows the Silhouette for now (DL-125 item 7). */
   banner(guild: GuildId): Pictured;
   /** An Item's picture, found by its content key (DL-125 item 8). */
@@ -88,12 +96,15 @@ export function mediaCatalogue(files: Readonly<Record<string, string>>): MediaCa
     if (url === null) throw new Error(`media/${folder} has no silhouette.svg`);
     return url;
   };
+  /** A person's Silhouette, and their picture of `suffix`: `.webp`, or `.thumb.webp` for the thumbnail. */
+  const person = (role: PortraitRole, sex: Sex, portraitKey: string | null, suffix: string): Pictured => {
+    const folder = `portraits/${roleFolders[role]}/${sex}`;
+    if (file(`${folder}/silhouette.svg`) === null) return { silhouette: neutralSilhouette, picture: null };
+    return { silhouette: silhouette(folder), picture: portraitKey === null ? null : file(`${folder}/${portraitKey}${suffix}`) };
+  };
   return {
-    portrait: (role, sex, portraitKey) => {
-      const folder = `portraits/${roleFolders[role]}/${sex}`;
-      if (file(`${folder}/silhouette.svg`) === null) return { silhouette: neutralSilhouette, picture: null };
-      return { silhouette: silhouette(folder), picture: portraitKey === null ? null : file(`${folder}/${portraitKey}.webp`) };
-    },
+    portrait: (role, sex, portraitKey) => person(role, sex, portraitKey, '.webp'),
+    portraitThumbnail: (role, sex, portraitKey) => person(role, sex, portraitKey, '.thumb.webp'),
     banner: () => ({ silhouette: silhouette('banners'), picture: null }),
     item: (definitionKey) => ({ silhouette: silhouette('items'), picture: file(`items/${definitionKey}.webp`) }),
   };

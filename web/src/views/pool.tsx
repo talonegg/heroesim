@@ -7,13 +7,15 @@
 // rows, for display only (`poolView`), and the order is kept in this browser. A Hero who will not
 // sign is set back, with the pool's own reason, and their Recruit is disabled, the reason describing
 // it: the engine's `signingRefusal`, as the row reads it (DL-109 item 2, Q17).
-// A Hero's name opens their page in place, and "Back to the pool" returns to their row.
+// A Hero's name opens their page in place, and "Back to the pool" returns to their row. Their
+// thumbnail stands beside their name (v1.1.3-S7, DL-135 item 9).
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
 import type { GameAction } from '../state/reducer';
 import { poolView, type PoolOrder } from '../state/trade-views';
 import { HeroPage } from './hero-page';
+import { PortraitThumb } from './pictures';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
 import { SortHeader, useReturn, VisuallyHidden } from './ui';
@@ -99,17 +101,20 @@ export function Pool({ document, busy, play }: { document: WorldDocument; busy: 
               {view.rows.map((row) => (
                 <tr key={row.heroId} className={row.willSign === false ? 'is-set-back' : undefined} data-testid="pool-row">
                   <th scope="row">
-                    <button
-                      type="button"
-                      id={rowId(row.heroId)}
-                      className="link"
-                      onClick={() => {
-                        back.opened(rowId(row.heroId));
-                        setOpen(row.heroId);
-                      }}
-                    >
-                      {row.name}
-                    </button>
+                    <span className="named">
+                      <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
+                      <button
+                        type="button"
+                        id={rowId(row.heroId)}
+                        className="link"
+                        onClick={() => {
+                          back.opened(rowId(row.heroId));
+                          setOpen(row.heroId);
+                        }}
+                      >
+                        {row.name}
+                      </button>
+                    </span>
                   </th>
                   <td>{row.className}</td>
                   <td className="number">{row.level}</td>

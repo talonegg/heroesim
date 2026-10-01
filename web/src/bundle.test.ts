@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,10 @@ const webDir = fileURLToPath(new URL('..', import.meta.url));
 const vite = path.join(webDir, '..', 'node_modules', 'vite', 'bin', 'vite.js');
 const gate = path.join(webDir, 'scripts', 'check-bundle.mjs');
 const mediaDir = path.join(webDir, '..', 'media');
+const contentDir = path.join(webDir, '..', 'content');
+
+/** The bytes a built script may hold (scripts/check-bundle.mjs; DL-134 item 9): 800 kB. */
+const scriptLimit = 800_000;
 
 const temporaries: string[] = [];
 function temporaryDir(): string {
@@ -81,6 +85,26 @@ describe('the production build', { timeout: 120_000 }, () => {
 
     expect(gated.output).toContain('no network or filesystem reference');
     expect(gated.status).toBe(0);
+  });
+
+  // v1.1.3-S7 (DL-134 item 9, DL-143): the content's JSON is bundled as data, not as it is written,
+  // so its indentation and line breaks do not count against the script's 800 kB.
+  test("bundles each content file's JSON without its whitespace", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const bundled = (json: string): boolean => text.includes(json) || text.includes(JSON.stringify(json).slice(1, -1));
+    for (const file of ['spheres.json', 'skills.json', 'dispositions.json']) {
+      const written = readFileSync(path.join(contentDir, file), 'utf8');
+      const compact = JSON.stringify(JSON.parse(written));
+      expect(written, file).not.toBe(compact);
+      expect(bundled(compact), `${file} compact`).toBe(true);
+      expect(bundled(written), `${file} as written`).toBe(false);
+    }
+  });
+
+  test('builds a script under the 800 kB the gate allows', () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);
   });
 });
 
@@ -169,6 +193,24 @@ describe('the bundle gate', () => {
 
     expect(gated.output).toContain(`${path.join(...file)}: ${complaint}`);
     expect(gated.status).toBe(1);
+  });
+
+  // v1.1.3-S7 (DL-134 item 9): the one script is held under 800 kB, so the page stays as quick to open
+  // as it is. A stylesheet or the page itself is not a script, and is not held to it.
+  test('fails a script over 800 kB, naming its size, and passes one of 800 kB', () => {
+    // `const pad = '` and `';` are 15 characters. Padded with digits: a long run of letters would
+    // keep the gate's search for a URL's scheme at every letter of it.
+    const over = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 14)}';`)]);
+    const at = run([gate, bundleOf(`const pad = '${'0'.repeat(scriptLimit - 15)}';`)]);
+
+    expect(over.output).toContain(`${path.join('assets', 'index.js')}: a script of 800.00 kB (800,001 bytes), over the 800 kB a script may be`);
+    expect(over.status).toBe(1);
+    expect(at.output).toContain('no network or filesystem reference');
+    expect(at.status).toBe(0);
+  });
+
+  test("holds no stylesheet to the script's limit", () => {
+    expect(run([gate, bundleOf('const quiet = 1;', { css: `.a{content:'${'0'.repeat(scriptLimit)}'}` })]).status).toBe(0);
   });
 
   test("passes minified React's `{node:n}` object key, which is not a specifier", () => {

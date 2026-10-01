@@ -3,14 +3,16 @@ import { readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { guildmasterSetup, openView, part, startGame, statusBar } from './support';
+import { guildmasterSetup, openView, part, rosterList, startGame, statusBar } from './support';
 
 // The page opened from the filesystem shows its pictures (v1.1.2-S2; DL-125 item 1, the epic's gate),
 // in a Playwright project of its own: the built page, `dist/index.html`, over file://. Its Silhouettes,
 // inlined into the one script, load; and since v1.1.2-S4 the owner's two pictures are hashed files
 // beside the script, which the bundle gate passes, and a relative `<img>` the script made loads one,
 // on the new-game form and on the Guildmaster view. v1.1.2-S2 built the page again with a test
-// picture to see this before any picture existed; the owner's pictures take its place (DL-131).
+// picture to see this before any picture existed; the owner's pictures take its place (DL-131). Since
+// v1.1.3-S7, a thumbnail in the setup grid, a Hero's small Silhouette on the Roster, and a Rival's
+// thumbnail in the Guilds' table and Portrait on their Guild's page, each loading over file://.
 
 const webDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.join(webDir, 'dist');
@@ -44,12 +46,17 @@ test("the built page, opened from the filesystem, loads its Silhouettes from its
   const errors: string[] = [];
   await opened(page, errors);
 
-  // On the new-game form, each picture offered for the Portrait, from the folder beside the page.
+  // On the new-game form, each sex's pictures offered for the Portrait as thumbnails, from the folder
+  // beside the page (v1.1.3-S7: the setup grid shows one sex at a time).
   const setup = await guildmasterSetup(page);
   const portrait = setup.getByRole('group', { name: 'Portrait', exact: true });
-  for (const name of ['Female Portrait 1', 'Male Portrait 1']) {
-    const thumbnail = portrait.getByRole('radio', { name, exact: true }).locator('xpath=..').locator('img[data-picture="picture"]');
-    await expect(thumbnail).toHaveAttribute('src', /^file:\/\/\/.+\/assets\/gm-(female|male)-01-[\w-]{8}\.webp$/);
+  for (const [sex, word] of [
+    ['male', 'Male'],
+    ['female', 'Female'],
+  ] as const) {
+    await setup.getByLabel('Sex', { exact: true }).selectOption(sex);
+    const thumbnail = portrait.getByRole('radio', { name: `${word} Portrait 1`, exact: true }).locator('xpath=..').locator('img[data-picture="picture"]');
+    await expect(thumbnail).toHaveAttribute('src', new RegExp(`^file:///.+/assets/gm-${sex}-01\\.thumb-[\\w-]{8}\\.webp$`));
     await expect.poll(() => loaded(thumbnail)).toBe(true);
   }
   await portrait.getByRole('radio', { name: 'Female Portrait 1', exact: true }).check();
@@ -68,11 +75,30 @@ test("the built page, opened from the filesystem, loads its Silhouettes from its
   expect(await picture.evaluate((image) => image.getBoundingClientRect().width)).toBeGreaterThan(0);
   await expect(guildmaster.getByTestId('portrait').locator('img[data-picture="silhouette"]')).toHaveCount(0);
 
-  // A Rival's Guildmaster: the Silhouette of their sex, from the script.
+  // A Hero's thumbnail on the Roster: the small Silhouette of their sex, from the script.
+  const card = (await rosterList(page)).getByRole('listitem').first();
+  const small = card.getByTestId('portrait-thumb').locator('img');
+  await expect(small).toHaveAttribute('src', /^data:image\/svg\+xml,/);
+  await expect.poll(() => loaded(small)).toBe(true);
+
+  // A Rival's Guildmaster with a picture chosen for them (v1.1.3-S5): their thumbnail in the Guilds'
+  // table, then their Portrait on their Guild's page, each from beside the page (v1.1.3-S7).
   const guilds = await part(page, 'Guilds');
-  await guilds.locator('[data-testid="guild-row"]:not(.mine)').first().locator('button.link').click();
-  const rival = guilds.getByRole('article').getByTestId('portrait').locator('img');
-  await expect(rival).toHaveAttribute('src', /^data:image\/svg\+xml,/);
+  const pictured = guilds.locator('[data-testid="guild-row"]:not(.mine)').filter({ has: page.locator('[data-testid="portrait-thumb"] img[data-picture="picture"]') });
+  const row = pictured.first();
+  await row.scrollIntoViewIfNeeded();
+  const thumbnail = row.getByTestId('portrait-thumb').locator('img').last();
+  await expect(thumbnail).toHaveAttribute('src', /^file:\/\/\/.+\/assets\/gm-(female|male)-\d\d\.thumb-[\w-]{8}\.webp$/);
+  await expect.poll(() => loaded(thumbnail)).toBe(true);
+  const name = (await row.locator('button.link').textContent()) ?? '';
+  await row.locator('button.link').click();
+  const guildPage = guilds.getByRole('article');
+  await expect(guildPage.getByRole('heading', { level: 4 })).toHaveText(name);
+  // Folded, the Guildmaster's details read nothing; unfolded, their picture loads.
+  await guildPage.locator('summary', { hasText: /^Guildmaster: / }).click();
+  const rival = guildPage.getByTestId('portrait').locator('img[data-picture]').last();
+  await expect(rival).toHaveAttribute('src', /^file:\/\/\/.+\/assets\/gm-(female|male)-\d\d-[\w-]{8}\.webp$/);
   await expect.poll(() => loaded(rival)).toBe(true);
+  await expect(guildPage.getByTestId('portrait').locator('img[data-picture="silhouette"]')).toHaveCount(0);
   expect(errors).toEqual([]);
 });

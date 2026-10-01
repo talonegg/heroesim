@@ -15883,6 +15883,127 @@ and the content checks pass.
 
 ---
 
+## DL-145 — v1.1.3-S7 built: the setup grid of one sex's thumbnails, a thumbnail beside each name in the lists, every picture read lazily, a Hero's Appearance and Biography on their page, and the script held under 800 kB
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-134 items 7 and 9
+and DL-135 items 6 and 9 as the epic's S7 describes. The grid's switch between the sexes, the notes'
+words and the lists' reach are the agent's, for the owner to confirm. Built by Opus in a worktree from
+`840ae45`.
+
+**Context.** S5 (DL-141) and S6 (DL-142) chose every Guildmaster's and Hero's Portrait and wrote a
+Hero's texts; S4 (DL-143) put 40 Guildmaster pictures and their thumbnails in `media/`. The page still
+offered every picture at setup from its full 480 × 640 file, both sexes at once, showed no thumbnail
+in a list, and showed no Hero's texts. DL-143 left the script 18 kB under the 800 kB S7 was to hold,
+and both sexes' thumbnails at 435 kB, over the grid's 250 kB.
+
+**Decision.**
+1. **The thumbnail** (`media.ts`, `views/pictures.tsx`, DL-135 item 9).
+   - `media.portraitThumbnail(role, sex, key)` finds `<key>.thumb.webp` beside the picture, in the
+     role's folder of the sex, as `portrait` finds `<key>.webp`. A Hero's is looked for under
+     `media/portraits/heroes/<sex>/`, so a Hero picture shows as soon as one is taken in.
+   - `<PortraitThumb>` is 2.25rem wide and 48px high, three by four, hidden from screen readers, since
+     the name beside it says who it is. It is the small Silhouette of the person's sex where there is
+     no picture, as for every Hero today.
+2. **The lists.** A thumbnail stands before the name in:
+   - the Roster's cards;
+   - the Unattached pool's rows, in the name's cell, which stays fixed as the table scrolls on a
+     phone;
+   - the Guilds' table, which is the Rivals list: each Guild's Guildmaster's, the player's included.
+     A Guild with no Guildmaster shows none.
+
+   The Roster table on a Rival Guild's page is not one of DL-135's three, and has none.
+3. **Loading** (DL-134 item 9). Every `<img>` of a picture sets `loading="lazy"`, `decoding="async"`
+   and its `width` and `height`: 480 × 640 for a Portrait, 160 × 213 for a thumbnail, and a Banner's
+   and an Item's by their Silhouettes' frames. A Silhouette, inlined in the script, is never lazy, so
+   a place is never empty. A picture in a folded part is now read only when it is unfolded, as a
+   Rival's Portrait under "Guildmaster:" on their Guild's page is.
+4. **The setup grid** (`state/setup.ts`, `views/new-game.tsx`).
+   - *One sex at a time.* `portraitGrid` shows the Sex field's sex. With the sex drawn it shows the one
+     the seed draws, with Female and Male buttons (`aria-pressed`) to show the other. Choosing a picture
+     still chooses its sex (DL-130 item 5), and the other sex can still be shown and chosen.
+   - *The radio group* is unchanged: one Tab reaches it, the arrows move through it, and each picture is
+     named "Female Portrait 3" for a screen reader. Each radio button covers its picture, unseen, so the
+     picture is the target; the chosen one is ringed and the keyboard's outlined.
+   - *Not narrowed to the age's band.* The epic allows it, but the notes say what does not fit, and
+     every picture stays the player's to choose.
+   - *"Drawn from the seed"* shows the thumbnail of the picture the seed chooses, the engine's
+     `previewGuildmaster` without the Portrait chosen, or the Silhouette while the seed is blank. The
+     preview beside the Age shows the same picture from its thumbnail, which the grid has read, where it
+     showed the full picture before.
+   - *The notes.* `portraitFitWords` puts the engine's `portraitFit` in words, in a polite live region
+     under the grid, with the "about" icon, and never as a refusal: "Start the game" stays open.
+     - "This Portrait looks 22 to 30: older than your Guildmaster's 21."
+     - "This Portrait's Calling, Scholar, clashes with the Trait Mistrusts magic."
+
+     There are none while no Portrait is chosen or the seed is blank, since the Traits, and an age left
+     blank, are the seed's.
+5. **A Hero's page** shows their Appearance and Biography under the header that holds the Portrait, as
+   label and words (`heroPage`'s `texts`), before the Stats. Its Portrait now reads `hero.portraitKey`,
+   which S6 added and the page had left `null`.
+6. **The script's limit** (`scripts/check-bundle.mjs`). A `.js` or `.mjs` file over 800,000 bytes fails
+   the gate, its size named ("a script of 800.00 kB (800,001 bytes), over the 800 kB a script may be").
+   A stylesheet or the page is not held to it.
+7. **The script's room.** The script was 786.78 kB at `840ae45` (DL-143 measured 782.16 kB before the
+   last content), and is 769.50 kB.
+   - *Done:* the content's JSON is bundled without its whitespace (`vite.config.ts`'s
+     `compactContent`): each `content/*.json` taken `?raw` is parsed and written compact, about 24 kB
+     less. `parseContent` reads the same set (`content.test.ts`).
+   - *Considered, not done:* one URL base for the pictures. Each picture's address is now about 140
+     bytes of `new URL(…, document.currentScript…)` around its name, about 11 kB for the 80 files. S7
+     adds about 7 kB of its own and leaves 30 kB of room, so it was not needed. The 72 Hero pictures
+     S4's report recommends, at about 470 bytes of script each, would need about 34 kB. Sharing the base
+     (a `renderBuiltUrl` and one function in the script's intro) brings each to about 200 bytes, and
+     should come with them.
+
+**The checks run.**
+- *Test first at the seams:* the gate's limit, the compact JSON and the built script's size
+  (`bundle.test.ts`); the thumbnail's lookup (`media.test.ts`); the thumbnails, the loading attributes
+  and the drawn option (`pictures.test.tsx`); the grid and the notes over 30 seeds against `createWorld`
+  and `portraitFit` (`setup.test.ts`); the form's grid, switch, drawn picture and note
+  (`new-game.test.tsx`); and the lists and a Hero's texts in the page (`pictures.test.tsx`). No test
+  pins a picture's narrative or a sentence: those that need one read it from the world or from content.
+- *The capitals.* `capitals.test.tsx` reads the setup grid with every picture of a sex chosen in turn
+  at age 21, and so every note given, as well as every view; no failure.
+- *The browser specs* (`npm run e2e -w web`), at 360px, 820px and 1280px:
+  - `portrait.spec.ts`: the grid read nothing while folded, then 20 thumbnails of 217.9 kB as it
+    opened, and no full picture, at each width; the keyboard; a note beside a picture chosen at 21, and
+    the game started with it; the drawn picture in the preview and the grid.
+  - `layout.spec.ts`: every card and row of the Roster, the pool and the Guilds' table with its
+    thumbnail, 48px high and before the name, in the light and the dark scheme, with no sideways scroll
+    and every target 44px.
+  - `file.spec.ts`, over `file://`: a thumbnail of each sex in the grid, a Hero's small Silhouette, and
+    a Rival's thumbnail and Portrait.
+  - `described.spec.ts` pinned the two v1.1.2 narratives, which S4 changed. It now reads the narratives
+    from content, so it holds whatever their words become.
+- *By eye:* the grid, the Roster and pool, the Guilds' table and a Hero's page at 360, 820 and 1280px,
+  light and dark.
+- *The suite.* `npm run lint` and `typecheck` pass. `npm test` (3,870 tests) failed two of S7's own,
+  fixed (`world-views.test.ts` given the row's new field, and `roster.test.tsx` a Hero's page's two
+  terms), and five load timeouts (`succession`, `cli/main`, `imports`, `reducer`, `treasury`), each
+  passing alone. `npm run e2e -w web` passes, 86 specs. A pool row's name cell widened for its thumbnail
+  hid the Fee heading under it on a phone, as the layout spec found, and was put back to its width.
+
+**For the owner.**
+1. *The switch.* With the sex drawn, the grid shows the sex the seed draws, and Female and Male show
+   either. Or the grid could show nothing until a Sex is chosen.
+2. *The notes' words*, above.
+3. *A Rival's Roster.* DL-135 item 9 names the Roster; this reads it as the player's. A Rival's Roster
+   table on its Guild's page could take thumbnails too.
+
+**Consequences.**
+- A picture is read only as it nears the screen, so a long list or a folded part costs nothing until
+  seen.
+- The script has about 30 kB of room. Hero pictures need the shared URL base first (item 7).
+- S8 checks the gate's limits and screenshots every view.
+
+**Actioned in:** `web/src/` (`media.ts`, `views/pictures.tsx`, `views/new-game.tsx`, `views/roster.tsx`,
+`views/pool.tsx`, `views/guilds.tsx`, `views/hero-page.tsx`, `state/setup.ts`, `state/selectors.ts`,
+`state/trade-views.ts`, `state/world-views.ts`, `styles.css` and their tests); `web/scripts/check-bundle.mjs`;
+`web/vite.config.ts`; `web/e2e/` (`portrait`, `layout`, `file` and `described` specs); `CONTEXT.md`
+(Portrait); `docs/planning/epics/v1.1.3-release.md` (S7).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
