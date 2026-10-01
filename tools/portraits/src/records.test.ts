@@ -4,6 +4,7 @@ import path from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import { formatJson } from './json-format.js';
 import { nextRun, today } from './records.js';
+import { NotUndone } from './errors.js';
 import { Transaction, transaction } from './transaction.js';
 
 // The files the tool writes (v1.1.3-S2): runs named by date, JSON written as the content keeps it,
@@ -81,6 +82,25 @@ describe('a transaction', () => {
     expect(readFileSync(path.join(dir, 'kept.txt'), 'utf8')).toBe('before');
     expect(readFileSync(path.join(dir, 'removed.txt'), 'utf8')).toBe('there');
     expect(existsSync(path.join(dir, 'deep'))).toBe(false);
+  });
+
+  test('puts back every file it can when one cannot be put back, and names that one with the first failure (v1.1.3-S8)', async () => {
+    const dir = scratch();
+    const [a, b] = [path.join(dir, 'a.txt'), path.join(dir, 'b.txt')];
+    writeFileSync(a, 'A0');
+    writeFileSync(b, 'B0');
+    const failed = transaction(async (files) => {
+      files.write(a, 'A1');
+      files.write(b, 'B1');
+      // A folder where a.txt was: it cannot be written back.
+      rmSync(a);
+      mkdirSync(a);
+      throw new Error('a check failed');
+    });
+    await expect(failed).rejects.toBeInstanceOf(NotUndone);
+    await expect(failed).rejects.toThrow(/a check failed/);
+    await expect(failed).rejects.toThrow(/a\.txt/);
+    expect(readFileSync(b, 'utf8')).toBe('B0');
   });
 
   test('names the files it touched', () => {

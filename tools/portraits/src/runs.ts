@@ -9,7 +9,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { check } from './check.js';
 import { contentChecks, contentTexts, textChecks } from './content-checks.js';
-import { DraftError, Undone } from './errors.js';
+import { DraftError, NotUndone, Undone } from './errors.js';
 import { raiseContentVersion } from './content-version.js';
 import { editJson } from './json-edit.js';
 import { formatJson } from './json-format.js';
@@ -143,7 +143,7 @@ export async function apply(root: string, run: string): Promise<Applied> {
       return { run, changed, contentVersion };
     });
   } catch (error) {
-    if (error instanceof Undone) throw error;
+    if (error instanceof Undone || error instanceof NotUndone) throw error;
     throw new Undone([error instanceof Error ? error.message : String(error)], `Applying ${run}`);
   }
 }

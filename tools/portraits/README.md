@@ -17,8 +17,10 @@ npm run portraits -- <command> [--root <dir>] [--json]
   lines for a person.
 - **Exit codes:** `0` done; `1` a check failed, or a change was refused or undone, so nothing
   changed; `2` a command line the tool could not read.
-- **A failure in JSON** is `{ "ok": false, "kind": "usage" | "refused" | "undone" | "failed",
-  "problems": ["…"] }`, each problem naming its file, key or field.
+- **A failure in JSON** is `{ "ok": false, "kind": "usage" | "refused" | "undone" | "not-undone" |
+  "failed", "problems": ["…"] }`, each problem naming its file, key or field. `not-undone` (exit 1)
+  is a failure some of whose changes could not be put back: every other file was, and each one left
+  is named "not put back" (v1.1.3-S8).
 
 ## Files
 

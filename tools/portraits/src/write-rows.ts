@@ -20,7 +20,7 @@ import { fingerprint } from './fingerprint.js';
 import { editJson } from './json-edit.js';
 import { datePattern, intakeDir, nextRun, today } from './records.js';
 import { formatRegistry, isRole, isSex, nextKey, picturePaths, readRegistry, registryPath, roles, type Role, type Sex } from './registry.js';
-import { DraftError, Undone } from './errors.js';
+import { DraftError, NotUndone, Undone } from './errors.js';
 import { transaction } from './transaction.js';
 
 /** One upload in a draft: where it is, its sex where the draft says it, and its drafted row. */
@@ -204,7 +204,7 @@ export async function writeRows(root: string, json: unknown, chromium: Chromium,
       return { run, report: shown(root, reportFile), contentVersion: version, pictures: taken };
     });
   } catch (error) {
-    if (error instanceof Undone) throw error;
+    if (error instanceof Undone || error instanceof NotUndone) throw error;
     throw new Undone([error instanceof Error ? error.message : String(error)], 'The intake');
   }
 }

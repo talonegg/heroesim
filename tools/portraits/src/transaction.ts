@@ -4,6 +4,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmdirSync, rmSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { DraftError, NotUndone, Undone } from './errors.js';
 
 export class Transaction {
   /** Each touched file's bytes before the first change, or `null` where it did not exist. */
@@ -43,33 +44,52 @@ export class Transaction {
     return [...this.#before.keys()];
   }
 
-  /** Puts every file back as it was, and removes every folder made that is empty again. */
-  rollback(): void {
+  /**
+   * Puts every file back as it was, and removes every folder made that is empty again. A file that
+   * cannot be put back does not stop the others (v1.1.3-S8): each is named, with its error, in what
+   * this returns.
+   */
+  rollback(): string[] {
+    const left: string[] = [];
     for (const [file, bytes] of this.#before) {
-      if (bytes === null) rmSync(file, { force: true });
-      else {
-        mkdirSync(path.dirname(file), { recursive: true });
-        writeFileSync(file, bytes);
+      try {
+        if (bytes === null) rmSync(file, { force: true });
+        else {
+          mkdirSync(path.dirname(file), { recursive: true });
+          writeFileSync(file, bytes);
+        }
+      } catch (error) {
+        left.push(`${file}: ${error instanceof Error ? error.message : String(error)}`);
       }
     }
     for (const folder of [...this.#folders].reverse()) {
-      if (existsSync(folder) && readdirSync(folder).length === 0) rmdirSync(folder);
+      try {
+        if (existsSync(folder) && readdirSync(folder).length === 0) rmdirSync(folder);
+      } catch (error) {
+        left.push(`${folder}: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
     this.#before.clear();
     this.#folders.length = 0;
+    return left;
   }
 }
 
 /**
  * Runs `work` as one transaction: what it changes stays if it returns, and is put back if it
- * throws, the error then thrown on.
+ * throws, the error then thrown on. Where some file cannot be put back, `NotUndone` is thrown
+ * instead, with the error's problems and each file left (v1.1.3-S8).
  */
 export async function transaction<T>(work: (files: Transaction) => Promise<T>): Promise<T> {
   const files = new Transaction();
   try {
     return await work(files);
   } catch (error) {
-    files.rollback();
+    const left = files.rollback();
+    if (left.length > 0) {
+      const problems = error instanceof Undone || error instanceof DraftError ? [...error.problems] : [error instanceof Error ? error.message : String(error)];
+      throw new NotUndone(problems, left);
+    }
     throw error;
   }
 }

@@ -12,7 +12,7 @@ import { check } from './check.js';
 import { convert, Refusal } from './convert.js';
 import { corpus, corpusText } from './corpus.js';
 import { diffRun, diffText } from './diff.js';
-import { DraftError, Undone } from './errors.js';
+import { DraftError, NotUndone, Undone } from './errors.js';
 import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
 import { readRegistry } from './registry.js';
 import { apply, writeRun } from './runs.js';
@@ -261,8 +261,10 @@ export async function run(argv: readonly string[], io: Io): Promise<number> {
     const problems =
       error instanceof DraftError || error instanceof Undone
         ? [...error.problems]
+        : error instanceof NotUndone
+          ? [...error.problems, ...error.left.map((file) => `not put back: ${file}`)]
         : [error instanceof Error ? error.message : String(error)];
-    const kind = error instanceof UsageError ? 'usage' : error instanceof DraftError ? 'refused' : error instanceof Undone ? 'undone' : error instanceof Refusal ? 'refused' : 'failed';
+    const kind = error instanceof UsageError ? 'usage' : error instanceof DraftError ? 'refused' : error instanceof Undone ? 'undone' : error instanceof NotUndone ? 'not-undone' : error instanceof Refusal ? 'refused' : 'failed';
     if (json) io.out(JSON.stringify({ ok: false, kind, problems }, null, 2));
     else {
       io.err(error instanceof Error ? error.message : String(error));

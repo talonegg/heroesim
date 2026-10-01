@@ -19,3 +19,17 @@ export class DraftError extends Error {
     this.name = 'DraftError';
   }
 }
+
+/**
+ * A failure whose changes could not all be put back (v1.1.3-S8): the failure, and each file left as
+ * the command made it. Every other file was put back.
+ */
+export class NotUndone extends Error {
+  constructor(
+    readonly problems: readonly string[],
+    readonly left: readonly string[],
+  ) {
+    super(`${problems.join('\n')}\nAnd these could not be put back, and are left as the command made them:\n  ${left.join('\n  ')}`);
+    this.name = 'NotUndone';
+  }
+}
