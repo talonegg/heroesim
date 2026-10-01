@@ -16430,6 +16430,12 @@ register's row); `docs/plan.md` (§4).
   - *Lost:* the ignored or untracked files in those folders, all rebuildable: `web/dist`,
     `test-results`, `.wrangler`, `harness/samples` and uncommitted harness reports.
   - *For next time:* remove a junction with `rmdir` before removing a worktree.
+- *The verifier's finding, fixed.* After T5, `commandConvert` (`tools/portraits/src/cli.ts`) kept its
+  own undo and ignored the files `rollback()` could not put back, so a failed `convert` could leave a
+  picture behind and say nothing. It now runs inside `transaction()`, which throws `NotUndone` naming
+  each file left, as `write-rows` and `apply` do; T5's test in `records.test.ts` proves that path. No
+  new test drives it through `convert`, which would need a Chromium made to fail between two writes.
+  `typecheck`, `lint` and the tool's 78 tests pass, its Chromium `convert` tests among them.
 
 ---
 

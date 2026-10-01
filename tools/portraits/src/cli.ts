@@ -18,7 +18,7 @@ import { distance, fingerprint, type Fingerprint } from './fingerprint.js';
 import { readRegistry } from './registry.js';
 import { apply, writeRun } from './runs.js';
 import { writeRows } from './write-rows.js';
-import { Transaction } from './transaction.js';
+import { transaction } from './transaction.js';
 
 /** This repository's root, three folders above this file. */
 export const repositoryRoot = fileURLToPath(new URL('../../../', import.meta.url));
@@ -116,12 +116,12 @@ function readDraft(file: string | undefined): unknown {
 
 async function commandConvert(options: Parsed, chromium: Chromium): Promise<unknown> {
   if (options.args.length === 0) throw new UsageError('convert wants a source');
-  const results = [];
-  const files = new Transaction();
   // A path as the filesystem may match it: Windows' and macOS's ignore case (v1.1.3-S8).
   const same = (file: string): string => path.resolve(file).toLowerCase();
   const targets = new Set<string>();
-  try {
+  // A file that cannot be put back is named, as NotUndone, rather than left silently (v1.1.3-S8).
+  const converted = await transaction(async (files) => {
+    const results = [];
     for (const source of options.args.map((each) => path.resolve(each))) {
       if (!isPicture(source)) throw new UsageError(`${source}: a JPEG, PNG or WebP is converted`);
       const base = path.basename(source, path.extname(source));
@@ -130,21 +130,19 @@ async function commandConvert(options: Parsed, chromium: Chromium): Promise<unkn
       if (same(picture) === same(source)) throw new UsageError(`${source}: its picture would overwrite it; give --out <dir>`);
       if (targets.has(same(picture))) throw new UsageError(`${source}: another source given is converted to the same picture, ${picture}`);
       targets.add(same(picture));
-      const converted = await convert(chromium, dataUrlOf(source), source);
-      files.write(picture, converted.picture.bytes);
-      files.write(thumbnail, converted.thumbnail.bytes);
+      const drawn = await convert(chromium, dataUrlOf(source), source);
+      files.write(picture, drawn.picture.bytes);
+      files.write(thumbnail, drawn.thumbnail.bytes);
       results.push({
         source,
-        picture: { file: picture, bytes: converted.picture.bytes.length, quality: converted.picture.quality },
-        thumbnail: { file: thumbnail, bytes: converted.thumbnail.bytes.length, quality: converted.thumbnail.quality },
-        natural: converted.picture.natural,
+        picture: { file: picture, bytes: drawn.picture.bytes.length, quality: drawn.picture.quality },
+        thumbnail: { file: thumbnail, bytes: drawn.thumbnail.bytes.length, quality: drawn.thumbnail.quality },
+        natural: drawn.picture.natural,
       });
     }
-  } catch (error) {
-    files.rollback();
-    throw error;
-  }
-  return { converted: results };
+    return results;
+  });
+  return { converted };
 }
 
 async function commandFingerprint(options: Parsed, chromium: Chromium): Promise<unknown> {
