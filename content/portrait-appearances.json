@@ -42,7 +42,7 @@
       "narrative": "A young, strong-boned face with high cheekbones, two thin scars cut across one of them. Long dark hair is worked into a thick braid over the shoulder, loose strands falling about the brow. The stare is level and guarded, the mouth set firm.",
       "hooks": [
         "{He} came up through a crowded barracks, sleeping in a stacked bunk with {his} pack stowed beneath it.",
-        "{He} still wears the mail {he} served in, and keeps two old helmets close at hand."
+        "{He} keeps two old helmets set out by {his} window, and will tell anyone who asks which of them saved {his} life."
       ]
     },
     "gm-female-03": {
@@ -101,7 +101,7 @@
       "narrative": "A lean, hard-set face, a thin scar cutting down through the brow and on across the cheek. Long dark hair falls in loose waves past the shoulders, with slim braids at the temples. The brows are drawn low over pale, unblinking eyes.",
       "hooks": [
         "{He} keeps a fire lit in {his} study and reads there among the old scrolls long after the Guild has gone to bed.",
-        "{He} still wears the sword-belt with the knotted buckle {he} was given on leaving the ranks."
+        "The scar across {his} cheek came from a hired knife meant for someone else, and {he} has never told the Guild whose life it bought."
       ]
     },
     "gm-female-08": {
@@ -149,7 +149,7 @@
       "narrative": "A fine-boned face with a firm, full mouth and a level, unsmiling gaze. Dark hair in tight curls is pinned up, with loose ringlets escaping at the temples and neck. The eyes are dark and steady, and wait for the other person to speak first.",
       "hooks": [
         "{He} had the old banner over the Hall's great hearth taken down and mended stitch by stitch, and lets no one else touch it.",
-        "{He} still wears the buckled leather strap {he} carried on the road, and has had the buckle mended more often than the strap."
+        "A pail of water stands by the Hall's hearth day and night, set there by {him} the winter a spark nearly took the old roof."
       ]
     },
     "gm-female-12": {
@@ -185,7 +185,7 @@
       "narrative": "A fine-boned face with high cheekbones and dark, heavy-lidded eyes narrowed in appraisal. Dark hair is swept up loosely, a single long braid falling over one shoulder. A slight, knowing smile plays at the mouth, as if she already knows how the bargain ends.",
       "hooks": [
         "{He} wears the fang of the first beast {he} was paid to hunt down, hung among the scales of {his} necklace, and has not taken it off since.",
-        "{He} still wears a steel vambrace with {his} finest gown, a habit kept from years when an audience could end in a fight."
+        "The lion on {his} wall hanging was the badge of the first lord to hire {him}; the lord's line is gone, and {he} kept the hanging."
       ]
     },
     "gm-female-15": {
@@ -219,7 +219,7 @@
       "features": ["braids", "long-hair"],
       "narrative": "A round, open face, lined about the eyes and softened by a broad, easy smile. Long dark hair is worked into two thick braids that fall past the shoulders, with loose strands escaping at the temples. The dark eyes are creased with amusement, and miss little.",
       "hooks": [
-        "{He} still wears the old compass that brought {him} home from the far fells, and trusts it before any map.",
+        "The small bust on {his} highest shelf is of the scholar who first taught {him} to read a map, and {he} dusts it with {his} own hand.",
         "A painting of a mountain {he} once crossed hangs among {his} books, and {he} will tell anyone who asks how nearly it killed {him}."
       ]
     },
@@ -274,7 +274,7 @@
       "apparentAge": [36, 46],
       "station": "gentry",
       "callings": ["mage", "scholar"],
-      "temper": "composed",
+      "temper": "wry",
       "features": ["beard"],
       "narrative": "A smooth, even-featured face, lined only faintly about the eyes. Dark hair is swept back from a high brow, and a close-trimmed beard and moustache frame a faint, closed smile. The eyes are level and a little narrowed, as if amused by something not yet said.",
       "hooks": [
@@ -290,7 +290,7 @@
       "features": ["beard", "braids", "long-hair"],
       "narrative": "A weathered, deeply lined face with an inked mark high on one cheek. Long dark hair is drawn up into a knot, with a braid at the side and loose strands at the brow. A short beard frames a closed mouth, and the narrowed eyes look hard aside.",
       "hooks": [
-        "{He} still wears the mark inked beneath one eye by the company {he} first marched with.",
+        "{He} bears the curled mark inked high on {his} cheek by the company {he} first marched with, and has outlived everyone else who took it.",
         "{He} spent years sleeping in a barracks bunk within reach of the spear rack, and still wakes before the watch is called."
       ]
     },
@@ -302,7 +302,7 @@
       "features": ["beard", "scar"],
       "narrative": "A lean, hard-boned face with high cheekbones and a level stare under heavy brows. Dark hair is drawn back and tied, loose strands falling to the jaw, and a short beard frames the mouth. A small crossed scar marks one cheek.",
       "hooks": [
-        "{He} still wears a gorget engraved with a dragon, the mark of a company {he} no longer names.",
+        "{He} came by the crossed scar high on {his} cheek from two strokes {he} was a breath too slow to turn, and calls it the cheapest lesson {he} ever paid for.",
         "{He} kept a drill yard for years, and could tell from a recruit's first stance how long the recruit would last."
       ]
     },
@@ -421,7 +421,7 @@
       "features": ["beard"],
       "narrative": "A lean face, high in the cheekbone, with a straight nose and heavy dark brows. Thick dark hair is swept back in loose waves, and a close-cut beard shadows the jaw and lip. The eyes are level and appraising above a faint, knowing half-smile.",
       "hooks": [
-        "{He} still wears the signet ring {he} once pressed into the wax of every contract {he} drew up.",
+        "{He} receives every Patron beneath the great chandelier of the Hall, where the light falls on their faces and not on {his}.",
         "{He} was raised in a house hung with tapestries, where {he} learned early that a smile can close a bargain."
       ]
     },
@@ -469,7 +469,7 @@
       "narrative": "A handsome, strong-jawed face under a furrowed brow, with grey eyes that meet a stranger's and do not look away. Thick dark hair is swept back from the forehead in a heavy wave, and a close-trimmed beard frames a mouth set firm and giving nothing away.",
       "hooks": [
         "{He} still cuts {his} own quills and seals every letter with {his} own hand, and trusts no clerk with either.",
-        "{He} keeps a shelf of sealed agreements {he} has never needed to open, and makes sure {his} rivals know it."
+        "{He} keeps a shelf of sealed agreements {he} has never needed to open, and makes sure everyone who deals with {him} knows it."
       ]
     },
     "gm-male-20": {
@@ -480,7 +480,7 @@
       "features": ["beard", "curly-hair", "long-hair"],
       "narrative": "A lean, hawkish face with a long straight nose and a brow knotted in thought. Dark curls fall loose about the ears and are caught up carelessly behind. A full dark beard hides the jaw, and the wide, pale eyes are fixed on something only he can see.",
       "hooks": [
-        "{He} has spent years on a map of a land called Arcadia, and will not say whether {he} ever found it."
+        "{He} has spent years on a map of a land no chart names, and will not say whether {he} ever found it."
       ]
     }
   }

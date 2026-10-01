@@ -15885,11 +15885,10 @@ and the content checks pass.
 
 ## DL-144 — The owner's answers to DL-141, DL-142 and DL-143: every living Guildmaster holds their picture, the save's bound restated, the Biography kept as written, and the review's content changes written as a run
 
-**Status:** Accepted; the content part is a run written, awaiting the owner's review before apply ·
-**Date:** 2026-10-02 · **Decided by:** the owner, answering the questions DL-141, DL-142 and DL-143
-left open. Where the World State could not carry an answer as given, the reading is the agent's,
-for the owner to confirm (item 1). Item 8's replacement hooks are the agents' wording. Built by
-Opus.
+**Status:** Accepted, and its run applied · **Date:** 2026-10-02 · **Decided by:** the owner,
+answering the questions DL-141, DL-142 and DL-143 left open, and confirming item 1's reading and
+item 8's hooks after reading the run. Item 8's replacement hooks are the agents' wording, kept by the
+owner. Built by Opus.
 
 **Context.** S5 (DL-141) read "in use" for a Guildmaster's picture as the pictures of the
 Guildmasters in office, and asked the owner to confirm. S6 (DL-142) put two questions: the save's
@@ -15908,8 +15907,8 @@ bound, and a Trait gained. S4's first analysis run was applied with its review l
      living, so `guildmasterPortraitsInUse` (`engine/src/portraits.ts`) is now every Guildmaster
      row's picture: in office, retired, or of a folded Guild. No picture is ever freed. The owner's
      "a dead one's is free" waits for a Guildmaster's death to exist.
-   - *A folded Guild's Guildmaster* is read as living, and keeps their picture. They are neither in
-     office nor retired, so the owner may read them otherwise.
+   - *A folded Guild's Guildmaster* is living, and keeps their picture: the owner's word, confirming
+     the agent's reading.
    - *Unchanged.* Each Guildmaster still takes exactly one draw of `gm-portraits`, whatever is held.
      No other stream's draws move. The player's chosen picture is still theirs whatever is in use.
      A retiring Guildmaster's picture is held while their successor is chosen, and after.
@@ -15957,9 +15956,9 @@ bound, and a Trait gained. S4's first analysis run was applied with its review l
 12. **How items 4, 5 and 8 to 11 are made.** They are made through the portrait tool alone, as one
     analysis run, `docs/portraits/analysis/2026-10-02/`, written by `write-run`. Its report,
     `docs/portraits/analysis/2026-10-02.md`, lists every changed field, old and new, with the decision
-    behind it, and marks the agents' wording. **It is not applied.** The owner reads it and its
-    `diff` first, then `portrait-apply 2026-10-02` puts it in place and raises the content version
-    from 19.
+    behind it, and marks the agents' wording. The owner read it and its `diff`, kept every hook as
+    written, and `npm run portraits -- apply 2026-10-02` put it in place: the content version went
+    from 19 to 20, and `check` passes with 40 live pictures.
 
 **The checks run.**
 - *TDD.* The tests were written first and failed against `840ae45`:
@@ -16006,22 +16005,21 @@ bound, and a Trait gained. S4's first analysis run was applied with its review l
 - *The suite.* `npm run lint` and `typecheck` pass. The affected files pass: `portraits`,
   `generators/guilds`, `phases/endings`, `create`, and the harness's `creation`.
 
-**For the owner.**
-1. *A folded Guild's Guildmaster* is read as living, and holds their picture for good (item 1). Is
-   that the owner's reading, or should a folded Guild's free it as a retirement does not?
-2. *No Guildmaster dies,* so no picture is freed. If a Guildmaster's death is ever added, the set
-   should drop them; the reading lives in `guildmasterPortraitsInUse` alone.
-3. *The run `2026-10-02`* awaits the owner's reading and `portrait-apply`. Its report notes three
-   points the checkers raised, none a dispute:
-   - `gm-female-07`'s is a third scar whose story is kept back;
-   - `gm-female-14`'s two hooks are both keepsakes of first paid work;
-   - "great" slightly overstates `gm-male-15`'s chandelier.
+**The owner's answers** (2026-10-02, after reading the run).
+1. *A folded Guild's Guildmaster* is living, and holds their picture for good (item 1).
+2. *The run's hooks are kept as written,* the checkers' notes and the verifier's clusters below
+   (cheek marks, `gm-female-11`'s hearth, "strangers") notwithstanding. The run is applied.
+
+**Left as it stands.** *No Guildmaster dies,* so no picture is freed. If a Guildmaster's death is
+ever added, the set should drop them; the reading lives in `guildmasterPortraitsInUse` alone. The
+verifier's estimate puts the first Silhouette about 60 years in at the earliest.
 
 **Actioned in:** `engine/src/portraits.ts`, `generators/guilds.ts` (a comment), `generators/guilds.test.ts`,
 `phases/endings.test.ts`; `CONTEXT.md` (Portrait, Silhouette); `docs/data-model.md`;
 `docs/planning/epics/v1.1.3-release.md` (status, S6's last box, the Save size risk);
 `harness/reports/m9-v113-dl144-2026-10-02.md` (force-added); `docs/portraits/analysis/2026-10-02.md`
-and its folder (written, not applied).
+and its folder; `content/portrait-appearances.json`, `content/descriptions.json`,
+`content/src/parse.ts` and `content/src/content.test.ts` (version 20, by `apply`).
 
 **The verification** (a second Opus agent, of `6edaf83` and `05b378f`).
 - *No Guildmaster leaves the World State.* The engine deletes rows of `offers`, `stacks`, `quests`,

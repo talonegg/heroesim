@@ -83,8 +83,9 @@ export const contentSetId = 'core';
  * its Station (DL-134, DL-135); no rule reads them yet.
  * 18 from the portrait tool's intake 2026-10-01 (`docs/portraits/intake/2026-10-01.md`).
  * 19 from the portrait tool's apply of analysis run 2026-10-01 (`docs/portraits/analysis/2026-10-01.md`).
+ * 20 from the portrait tool's apply of analysis run 2026-10-02 (`docs/portraits/analysis/2026-10-02.md`).
  */
-export const contentVersion = 19;
+export const contentVersion = 20;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [

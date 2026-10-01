@@ -15,7 +15,7 @@ describe('loadContent()', () => {
 
   test("is the core content set, version 17 since v1.1.3-S1's pictures' rows, vocabulary and a Hero's sentences (DL-134, DL-135)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(19);
+    expect(content.version).toBe(20);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
