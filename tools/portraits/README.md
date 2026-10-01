@@ -163,7 +163,7 @@ comes first.
 
 | Field | Required | What it is |
 | --- | --- | --- |
-| `date` | no | The run's date, `YYYY-MM-DD`; `--date`, then today, where it is missing |
+| `date` | no | The run's date, `YYYY-MM-DD`. `--date` comes before it, and today where neither is given |
 | `report` | yes | The report's text, in Markdown. `{{key:<n>}}` becomes the key given to `pictures[n]` |
 | `pictures[].source` | yes | The upload, relative to the root: under `media/inbox/<role>/`, whose folder says its role |
 | `pictures[].sex` | where the folder has no `male/` or `female/` | The agents' reading. Where it differs from the folder's, the report says so |
@@ -188,9 +188,9 @@ Writes an analysis run from the agents' draft. Nothing live changes.
   - The other three are the recommended `portraits.json`, `portrait-appearances.json` and
     `descriptions.json`, whole. Each is written in the live file's layout, so it differs from it
     only where it changes.
-- **A refusal.** A draft whose three files fail the content's own checks is refused before anything
-  is written (exit 1), each problem named: a run that could not be applied is never written
-  (v1.1.3-S3).
+- **A refusal.** A draft whose three files fail the content's own checks (v1.1.3-S3), or the tool's
+  `check` as `apply` runs it (v1.1.3-S8), is refused before anything is written (exit 1), each
+  problem named: a run that could not be applied is never written.
 - **JSON:** `{ "ok": true, "run", "report", "files": [...] }`.
 
 ### `corpus [--run <run> | --draft <draft.json>]`

@@ -29,6 +29,13 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+/** `value` as JSON with every object's fields in one order, so two values equal but for order are one text. */
+function canonical(value: unknown): string {
+  return JSON.stringify(value, (_key, each: unknown) =>
+    isObject(each) ? Object.fromEntries(Object.keys(each).sort().map((key) => [key, each[key]])) : each,
+  );
+}
+
 function shown(root: string, file: string): string {
   return path.relative(root, file).replace(/\\/g, '/');
 }
@@ -44,7 +51,7 @@ export interface WrittenRun {
  * portraitAppearances, descriptions }`. Nothing live changes.
  *
  * @throws DraftError before anything is written, for a draft of the wrong shape, or whose recommended
- *   files fail the content's checks and so could not be applied
+ *   files fail the content's checks or the tool's `check`, and so could not be applied
  */
 export async function writeRun(root: string, json: unknown, options: { date?: string } = {}): Promise<WrittenRun> {
   const problems: string[] = [];
@@ -59,6 +66,9 @@ export async function writeRun(root: string, json: unknown, options: { date?: st
   const instead = Object.fromEntries((Object.keys(runFiles) as RunField[]).map((field) => [runFiles[field], JSON.stringify(json[field])]));
   const content = textChecks(contentTexts(root, instead));
   if (!content.ok) throw new DraftError(content.problems.map((problem) => `the recommended content fails its checks: ${problem}`));
+  // And the tool's own check, which `apply` runs too (v1.1.3-S8).
+  const tool = check(root, instead);
+  if (!tool.ok) throw new DraftError(tool.failures.map((failure) => `the recommended content fails the tool's check: ${failure.message}`));
   const date = options.date ?? (typeof json.date === 'string' ? json.date : today());
   const run = nextRun(analysisDir(root), date);
   const report = path.join(analysisDir(root), `${run}.md`);
@@ -117,7 +127,8 @@ export async function apply(root: string, run: string): Promise<Applied> {
         const target = path.join(root, 'content', runFiles[field]);
         const text = texts[field] ?? '';
         const current = existsSync(target) ? readFileSync(target, 'utf8') : null;
-        if (current !== null && JSON.stringify(JSON.parse(current)) === JSON.stringify(JSON.parse(text))) continue;
+        // Equal whatever the order of an object's fields, as `diff` compares them (v1.1.3-S8).
+        if (current !== null && canonical(JSON.parse(current)) === canonical(JSON.parse(text))) continue;
         // The run's value written into the live file's own layout, whatever the run's (v1.1.3-S3), so
         // `git diff` shows only what the run changes.
         files.write(target, current === null ? text : editJson(current, JSON.parse(text)));

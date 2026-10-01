@@ -348,16 +348,44 @@ describe('write-run and apply', () => {
     }
   });
 
-  test('apply of a run that breaks a check is undone, leaving the tree as it was', async () => {
+  /** Drops gm-female-01, live in the register, from the list and the rows: `check` refuses it. */
+  const dropFemale01 = (files: Parameters<Parameters<typeof runDraft>[1]>[0]) => {
+    files.portraits.guildmaster = { ...files.portraits.guildmaster, female: (files.portraits.guildmaster?.female ?? []).filter((key) => key !== 'gm-female-01') };
+    delete files.portraitAppearances.portraits['gm-female-01'];
+  };
+
+  test("write-run refuses a run that apply would undo for the tool's check, writing nothing (v1.1.3-S8)", async () => {
+    const dir = scratch();
+    const before = status(dir);
+    const refused = writeRun(dir, runDraft(dir, dropFemale01), { date: '2026-10-02' });
+    await expect(refused).rejects.toBeInstanceOf(DraftError);
+    await expect(refused).rejects.toThrow(/gm-female-01 is live in the register, and content\/portraits\.json does not list it/);
+    expect(status(dir)).toBe(before);
+  });
+
+  test("apply takes a run that differs from the content only in a row's order of fields as no change, as diff does (v1.1.3-S8)", async () => {
     const dir = scratch();
     const written = await writeRun(
       dir,
       runDraft(dir, (files) => {
-        files.portraits.guildmaster = { ...files.portraits.guildmaster, female: (files.portraits.guildmaster?.female ?? []).filter((key) => key !== 'gm-female-01') };
-        delete files.portraitAppearances.portraits['gm-female-01'];
+        const row = files.portraitAppearances.portraits['gm-male-01'] ?? {};
+        files.portraitAppearances.portraits['gm-male-01'] = Object.fromEntries(Object.entries(row).reverse());
       }),
       { date: '2026-10-02' },
     );
+    const before = status(dir);
+    await expect(apply(dir, written.run)).resolves.toEqual({ run: written.run, changed: [], contentVersion: null });
+    expect(status(dir)).toBe(before);
+  });
+
+  test('apply of a run that breaks a check is undone, leaving the tree as it was', async () => {
+    const dir = scratch();
+    // Written whole, then edited on disk, since write-run refuses such a run (v1.1.3-S8).
+    const written = await writeRun(dir, runDraft(dir, () => undefined), { date: '2026-10-02' });
+    const broken = runDraft(dir, dropFemale01);
+    for (const [name, value] of [['portraits.json', broken.portraits], ['portrait-appearances.json', broken.portraitAppearances]] as const) {
+      writeFileSync(path.join(dir, 'docs/portraits/analysis', written.run, name), `${JSON.stringify(value, null, 2)}\n`);
+    }
     const before = status(dir);
     let out = '';
     const code = await run(['apply', written.run, '--root', dir, '--json'], { out: (text) => (out += text), err: () => undefined });

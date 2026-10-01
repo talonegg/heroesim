@@ -44,9 +44,9 @@ function shown(root: string, file: string): string {
   return path.relative(root, file).replace(/\\/g, '/');
 }
 
-function readJson(root: string, file: string, failures: Failure[]): unknown {
+function readJson(root: string, file: string, failures: Failure[], instead?: string): unknown {
   try {
-    return JSON.parse(readFileSync(file, 'utf8'));
+    return JSON.parse(instead ?? readFileSync(file, 'utf8'));
   } catch (error) {
     failures.push({ code: 'content-file', file: shown(root, file), message: `${shown(root, file)} cannot be read: ${error instanceof Error ? error.message : String(error)}` });
     return null;
@@ -66,8 +66,12 @@ function checkSize(root: string, file: string, key: string, limits: { width: num
   }
 }
 
-/** Runs the tool's checks on the repository at `root`. */
-export function check(root: string): CheckResult {
+/**
+ * Runs the tool's checks on the repository at `root`. `instead` holds texts to read in place of
+ * content files, by name (`portraits.json`, `portrait-appearances.json`), as `write-run` checks the
+ * run it would write (v1.1.3-S8).
+ */
+export function check(root: string, instead: Readonly<Record<string, string>> = {}): CheckResult {
   const failures: Failure[] = [];
   let registry: Registry;
   try {
@@ -108,9 +112,9 @@ export function check(root: string): CheckResult {
 
   // The register against the content.
   const portraitsFile = path.join(root, 'content', 'portraits.json');
-  const listed = readJson(root, portraitsFile, failures) as Record<string, Record<string, unknown>> | null;
+  const listed = readJson(root, portraitsFile, failures, instead['portraits.json']) as Record<string, Record<string, unknown>> | null;
   const appearancesFile = path.join(root, 'content', 'portrait-appearances.json');
-  const appearances = readJson(root, appearancesFile, failures) as { portraits?: Record<string, unknown> } | null;
+  const appearances = readJson(root, appearancesFile, failures, instead['portrait-appearances.json']) as { portraits?: Record<string, unknown> } | null;
   if (listed !== null) {
     for (const [key, entry] of live) {
       const list = listed[entry.role]?.[entry.sex];
