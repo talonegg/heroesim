@@ -470,6 +470,10 @@ describe('guildPage', () => {
     expect(page?.roster.map((row) => ({ heroId: row.heroId, fee: row.fee }))).toEqual(
       other.rosterIds.map((heroId) => ({ heroId, fee: transferFee(document.world.heroes[heroId] as never, buyer, deps) })),
     );
+    // Each Hero's sex and Portrait's key, for their thumbnail beside their name (DL-147).
+    expect(page?.roster.map((row) => ({ sex: row.sex, portraitKey: row.portraitKey }))).toEqual(
+      other.rosterIds.map((heroId) => ({ sex: document.world.heroes[heroId]?.sex, portraitKey: document.world.heroes[heroId]?.portraitKey })),
+    );
     expect(page?.hall.guildId).toBe(other.id);
     expect(page?.guildmaster?.guildName).toBe(other.name);
     expect(guildPage(document, 'guild-999999' as GuildId)).toBeNull();

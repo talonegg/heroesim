@@ -11,7 +11,8 @@
 //
 // A row opens its Guild in place (no router, M7 §0): its page (B10) has its Roster as a table with
 // the Transfer fee your Guild would pay for each Hero and "Take in" (the CLI's `transfer --in`), and
-// its Hall and Guildmaster folded; a Hero's page opens from its Roster. A part of the Rankings view.
+// its Hall and Guildmaster folded; a Hero's page opens from its Roster, each Hero's thumbnail beside
+// their name (DL-147). A part of the Rankings view.
 // A Guild's page opens the Guild's History, and a Guild's name in the History opens its page here,
 // the player's Guild's included (M9-S5, DL-105): which Guild is open is then the shell's.
 
@@ -305,17 +306,20 @@ function GuildPage({
               {view.roster.map((row) => (
                 <tr key={row.heroId} data-testid="guild-hero">
                   <th scope="row">
-                    <button
-                      type="button"
-                      id={heroRowId(row.heroId)}
-                      className="link"
-                      onClick={() => {
-                        back.opened(heroRowId(row.heroId));
-                        setHero(row.heroId);
-                      }}
-                    >
-                      {row.name}
-                    </button>
+                    <span className="named">
+                      <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
+                      <button
+                        type="button"
+                        id={heroRowId(row.heroId)}
+                        className="link"
+                        onClick={() => {
+                          back.opened(heroRowId(row.heroId));
+                          setHero(row.heroId);
+                        }}
+                      >
+                        {row.name}
+                      </button>
+                    </span>
                   </th>
                   <td>{row.className}</td>
                   <td className="number">{row.level}</td>

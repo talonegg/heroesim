@@ -278,6 +278,12 @@ export interface PortraitGridView {
    * to the seed; `null` once the Sex field chooses it, which then chooses the pictures too.
    */
   sexes: { sex: Sex; label: string; shown: boolean }[] | null;
+  /**
+   * The picture chosen while the other sex's are shown, which the grid keeps after "Drawn from the seed"
+   * so that one of its radio buttons is always checked (DL-147); `null` while it is among `pictures`, or
+   * none is chosen.
+   */
+  chosen: PortraitPick | null;
 }
 
 /**
@@ -309,6 +315,7 @@ export function portraitGrid(
     pictures: groups.find((group) => group.sex === sex)?.pictures ?? [],
     drawn,
     sexes: fieldSex === null ? groups.map((group) => ({ sex: group.sex, label: group.label, shown: group.sex === sex })) : null,
+    chosen: chosen === undefined || chosen.sex === sex ? null : chosen,
   };
 }
 

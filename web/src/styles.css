@@ -3580,7 +3580,7 @@ tr.mine td {
 
 /*
  * A person's thumbnail beside their name in a list (v1.1.3-S7, DL-135 item 9): the Roster's cards,
- * the pool's rows and the Guilds' table, 48px high and three wide by four.
+ * the pool's rows, the Guilds' table and a Guild's Roster (DL-147), 48px high and three wide by four.
  */
 .portrait-thumb {
   display: block;

@@ -396,7 +396,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     expect(sexField().value).toBe('female');
     expect(shownSexes()).toEqual(['Female (shown)', 'Male']);
     showSex('Male');
-    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', ...twenty('Male')]);
     fireEvent.click(portraitRadio('Male Portrait 1'));
     expect(portraitRadio('Male Portrait 1').checked).toBe(true);
     expect(sexField().value).toBe('male');
@@ -412,6 +412,34 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     fireEvent.click(portraitRadio('Drawn from the seed'));
     expect(sexField().value).toBe('male');
     expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+  });
+
+  // DL-147 (DL-146 W1): with the other sex shown, the picture chosen stays in the grid, checked, so the
+  // keyboard comes to it and an arrow moves on from it.
+  test('keeps the picture chosen, checked, after "Drawn from the seed" while the other sex is shown', () => {
+    const { play } = form();
+    named();
+    const checked = () => within(part('Portrait')).getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked);
+
+    fireEvent.click(portraitRadio('Female Portrait 3'));
+    showSex('Male');
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 3', ...twenty('Male')]);
+    expect(checked()).toEqual([portraitRadio('Female Portrait 3')]);
+    expect(thumbnailOf('Female Portrait 3')).toBe(media.portraitThumbnail('guildmaster', 'female', 'gm-female-03').picture);
+    expect(sexField().value).toBe('female');
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-03' });
+
+    // Its own sex shown again, it stands in its place alone.
+    showSex('Female');
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female')]);
+    expect(checked()).toEqual([portraitRadio('Female Portrait 3')]);
+
+    // A picture of the sex shown chosen in its place, it goes.
+    showSex('Male');
+    fireEvent.click(portraitRadio('Male Portrait 2'));
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+    expect(checked()).toEqual([portraitRadio('Male Portrait 2')]);
   });
 
   // v1.1.3-S7 (DL-134 item 7): the engine's `portraitFit`, beside the choice, never a refusal.

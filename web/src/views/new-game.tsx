@@ -347,7 +347,7 @@ export function NewGame({
                     labelShown
                   />
                 </label>
-                {grid.pictures.map((pick) => (
+                {[...(grid.chosen === null ? [] : [grid.chosen]), ...grid.pictures].map((pick) => (
                   <label key={pick.key} className="choice portrait-pick">
                     <input
                       type="radio"

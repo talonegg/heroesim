@@ -380,6 +380,21 @@ describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', ()
     expect(pictured.sex).toBe(other);
     expect(pictured.drawn).toEqual(portraitGrid(fields, seed, drawnSex).drawn);
     expect(pictured.sexes).not.toBeNull();
+    expect(pictured.chosen).toBeNull();
+  });
+
+  // DL-147 (DL-146 W1): a radio button of the grid is always checked.
+  test('keeps the picture chosen in the grid while the other sex is shown, and only then', () => {
+    const seed = 'grid-chosen';
+    const chosen = 'gm-female-02';
+    const setup = { ...fields, guildmasterSex: 'female' as const, guildmasterPortraitKey: chosen };
+    const other = portraitGrid(setup, seed, { fieldSex: null, lookAt: 'male' });
+    expect(other.sex).toBe('male');
+    expect(other.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster.male);
+    expect(other.chosen).toEqual(portraitPick(chosen));
+    expect(portraitGrid(setup, seed, { fieldSex: null, lookAt: 'female' }).chosen).toBeNull();
+    expect(portraitGrid(setup, seed, drawnSex).chosen).toBeNull();
+    expect(portraitGrid(fields, seed, { fieldSex: null, lookAt: 'male' }).chosen).toBeNull();
   });
 
   test('shows nothing drawn while the seed is blank, and the first sex with pictures', () => {

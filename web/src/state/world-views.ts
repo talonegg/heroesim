@@ -427,6 +427,9 @@ export function patronsView(document: WorldDocument): PatronRow[] {
 export interface OtherRosterRow {
   heroId: HeroId;
   name: string;
+  /** Their sex and Portrait's key, for the thumbnail beside their name (DL-147). */
+  sex: Sex;
+  portraitKey: string | null;
   className: string;
   level: number;
   age: number;
@@ -479,6 +482,8 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
         {
           heroId,
           name: hero.name,
+          sex: hero.sex,
+          portraitKey: hero.portraitKey,
           className: nameIn(content.classes, hero.classKey),
           level: hero.level,
           age: ageOf(hero, world.turn, deps.config),
