@@ -16371,6 +16371,66 @@ test first. It then runs the gate's checks.
 (status, the gate's words, S7's figures, S8's first box); `docs/planning/epics/README.md` (the
 register's row); `docs/plan.md` (§4).
 
+**The verification** (a second Opus agent, of `5037787`).
+- *Each fix fails without itself.* In a scratch worktree, with each fix's source put back as it was,
+  its new test fails, and it passes at `5037787`:
+  - E1: `repeats` is 2 where 1 is expected.
+  - E2: with the Guildmaster in office left out of the set in use, the new test fails ("seed 0: a female
+    successor"), and the old one still passes.
+  - W2: with the Calling's note lowercased, only the new test fails.
+  - T1: write-run no longer refuses the run.
+  - T4: apply writes a reordered row.
+  - T5: an `EISDIR`, not `NotUndone`.
+  - T2: exit 0 for `upper.WEBP`, and again with only the two-sources guard removed.
+  - `--date`: exit 1.
+
+  Each fix is correct, and small.
+- *The checks at HEAD.* `npm run lint` and `typecheck` are clean.
+  - `npm test`: 3,879 tests. The first run failed four files under load: `succession` and `probe` on
+    timeouts, `saves` and `use-game` on a wait. The four pass alone, 70 tests. The second run failed
+    DL-146's three, `treasury` passing alone (7 tests). A third run passed whole.
+  - `npm run e2e -w web`: 86 pass, the `file://` specs among them. `check-bundle` passes.
+  - The script is `index-DfsJ-wBr.js`, 769,655 bytes.
+  - `npm run portraits -- check` passes, 40 pictures.
+- *The sweep needs no rerun.*
+  - It began at 01:34:54, before E1 (`74ab4bd`, 01:49).
+  - Its lines 27 to 592 hash `84d68609…`, equal to `m9-v112-s7-2026-10-01.md`'s.
+  - E1 changes only the pictured branch of `observeHeroes`, and every Hero has the Silhouette.
+  - The engine's other changes are comments. No content changed.
+- *The screenshots.* `results.json` lists 126, with no overflow, broken picture or error. Twelve seen
+  by eye show no new defect. They are:
+  - the grid at 360 light and 1280 dark;
+  - the note at 360 dark;
+  - the Guildmaster at 820 light;
+  - the Roster and pool at 820 dark;
+  - a Hero at 1280 light;
+  - a Rival's Guild at 1280 dark;
+  - a Rival's Hero at 360 light;
+  - the Board at 820 dark;
+  - the Market at 1280 light;
+  - the World History at 360 dark;
+  - the Home at 820 light.
+- *The four left* are fairly left. T3 is low: Playwright's default, and Chromium decodes only pictures
+  the owner gives it, as `data:` URLs on a blank page with no network. An exploit in an image decoder
+  would then run with the owner's rights, so turning the sandbox on outside Linux is cheap hardening for
+  the owner to choose.
+- *One finding, low, not a gate item.* T5 made `Transaction.rollback()` return the files it could not
+  put back. `commandConvert` (`tools/portraits/src/cli.ts:144`) ignores that list, so a failed
+  `convert` can leave a picture that was not put back and say nothing. Before T5 it threw. A second
+  nit: T2's `same()` lowercases on Linux too, so it is stricter than it needs to be there.
+- *The epic.* S8's first box is ticked and its second is not. The register's row and `docs/plan.md`
+  say the release awaits the owner. Item 7's steps are DL-124's, and origin's `v1.1-release`
+  (`4f2ce68`) is an ancestor of `v1.1.3-dev`.
+- *An incident in the verification.* The scratch worktree's `node_modules` was a junction to the main
+  checkout's. `git worktree remove --force` followed it, and through the `@heroesim/*` links, into the
+  main checkout. It deleted the files of `cli/`, `content/`, `engine/`, `harness/`, `tools/portraits/`
+  and `web/`, and part of `node_modules`.
+  - *Repaired:* `git restore .`, `npm install` (lock unchanged), and every check above run again
+    passing. The script's hash is the same.
+  - *Lost:* the ignored or untracked files in those folders, all rebuildable: `web/dist`,
+    `test-results`, `.wrangler`, `harness/samples` and uncommitted harness reports.
+  - *For next time:* remove a junction with `rmdir` before removing a worktree.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
