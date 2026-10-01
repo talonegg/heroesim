@@ -279,7 +279,7 @@ function GuildPage({
         <p>The Roster is empty.</p>
       ) : (
         <div className="table-wrap">
-          <table className="table table--first-sticky guild-roster" aria-label={`The Roster of ${view.name}`}>
+          <table className="table table--first-sticky" aria-label={`The Roster of ${view.name}`}>
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -292,8 +292,10 @@ function GuildPage({
                 </th>
                 {view.mine ? null : (
                   <>
-                    <th scope="col" className="number heading--wraps">
-                      Transfer fee
+                    <th scope="col" className="number">
+                      {/* "Fee" alone on a phone, as the pool's, so the fixed name cell with its thumbnail
+                          leaves it in view; a screen reader still hears "Transfer fee" (DL-147). */}
+                      <span className="hidden-on-phone">Transfer </span>fee
                     </th>
                     <th scope="col">
                       <VisuallyHidden>Take in</VisuallyHidden>

@@ -16442,8 +16442,9 @@ register's row); `docs/plan.md` (§4).
 ## DL-147 — The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a thumbnail beside each name on a Guild's Roster, the rest kept as built, and `v1.1.3-dev` pushed with the release held
 
 **Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, answering the items DL-145 and
-DL-146 left open; how the grid keeps its radio button checked is the agent's, for the owner to change.
-Built at `a099013`, verified by a second Opus agent, and its findings fixed at `11e4d18`.
+DL-146 left open; how the grid keeps its radio button checked, and "Fee" for the Roster's heading on a
+phone, are the agent's, for the owner to change. Built at `a099013`, verified by a second Opus agent,
+and its findings fixed after it.
 
 **Context.** DL-145 put three items to the owner (the grid's switch between the sexes, the notes'
 words, a Rival's Roster), and its verification two small things (a note under the grid on a phone, and
@@ -16461,7 +16462,8 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
    once a picture is chosen.
 3. **A Guild's Roster** (DL-145 item 3): each Hero's thumbnail stands beside their name on a Guild's
    page, a Rival's and the player's own, as in the pool: the small Silhouette while no Hero has a
-   picture. The name cell, fixed as the table scrolls, never covers the Transfer fee's heading.
+   picture. The name cell, fixed as the table scrolls, never covers the Transfer fee's heading, which
+   a phone shows as "Fee".
 4. **Kept as built:**
    - the notes' words (DL-145 item 2);
    - a note under the grid on a phone, which the live region reads aloud (DL-145's verification);
@@ -16499,23 +16501,24 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
      cannot fail. It now scrolls the Roster's box to its end first, and failed there at 360px by 40px.
   2. Low, older than DL-147 and made worse by it. At 360px, with the table scrolled to its end, the
      fixed name cell, 166px with its thumbnail, covered the Transfer fee's heading's first letters
-     ("SFER FEE"; "ANSFER FEE" before). The heading may now take two lines (`heading--wraps`), and
-     the Take in column gives up its trailing space and a little of its button's (`guild-roster`), so
-     the heading, the fees and Take in are in view together. The spec passes at each width.
+     ("SFER FEE"; "ANSFER FEE" before). First fixed by letting the heading take two lines and
+     trimming the Take in column (`11e4d18`), which passed on Windows but failed in CI by 10.7px, its
+     fonts measuring otherwise. So on a phone the heading now says "Fee", as the pool's does, its
+     "Transfer" kept for a screen reader (`hidden-on-phone`, under 600px), and the trims are undone:
+     at 360px the heading stands 27px clear of the name cell. Wider screens still say "Transfer fee".
   3. Nit. The spec's comment said the name cell was widened; it grows by itself. Reworded.
   4. Nit, the design's. The picture chosen among the other sex's is marked by its ring alone; its name,
      "Female Portrait 3", says its sex to a screen reader. Left, as the owner's choice.
-- *After the fixes,* at `11e4d18`: `npm run lint` and `typecheck` pass; `npm test`, 3,881 tests,
-  passes; `npm run e2e -w web`, 86 specs, passes. The script is 770.09 kB (220.71 kB gzipped). By eye,
-  at 360px in light, the Roster scrolled to its end shows the whole heading on two lines beside the
-  names.
+- *After the fixes:* `npm run lint` and `typecheck` pass; `npm test`, 3,881 tests, passes; `npm run
+  e2e -w web`, 86 specs, passes. The script is 770.12 kB (220.68 kB gzipped). By eye, at 360px, the
+  Roster scrolled to its end shows "Fee", the fees and Take in beside the names.
 
 **Consequences.**
 - No rule, save or content changes: play is as DL-146's sweep found it, and no sweep is run again.
 - The release is the owner's, as DL-146 item 7 sets out.
 
 **Actioned in:** `web/src/state/setup.ts`, `web/src/views/new-game.tsx`, `web/src/state/world-views.ts`,
-`web/src/views/guilds.tsx`, `web/src/styles.css` (`heading--wraps`, `guild-roster`) and their tests; `web/e2e/layout.spec.ts`;
+`web/src/views/guilds.tsx`, `web/src/styles.css` (`hidden-on-phone`) and their tests; `web/e2e/layout.spec.ts`;
 `docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`; `docs/plan.md`.
 
 ---
