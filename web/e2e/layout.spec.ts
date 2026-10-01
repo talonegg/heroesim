@@ -538,12 +538,15 @@ test("the Roster's cards, the pool's rows and the Guilds' table: each name with 
     await page.screenshot({ path: test.info().outputPath(`lists-${scheme}.png`), fullPage: true });
 
     // A Rival's Roster on its Guild's page (DL-147): each Hero's small Silhouette, and the fixed name
-    // cell, widened for it, never over the Transfer fee's heading as the table scrolls in its box.
+    // cell, wider with it, never over the Transfer fee's heading with the table scrolled to its end.
     await rivalRows(guilds).first().locator('button.link').click();
     const rival = guilds.getByRole('article');
     expect(await thumbsBeside(rival.getByTestId('guild-hero'), `a Rival's Roster, ${scheme}`)).toBe(0);
     await expectNoHorizontalOverflow(page, `a Rival's Roster's thumbnails, ${scheme}`);
     await expectTargets(page, `a Rival's Roster's thumbnails, ${scheme}`);
+    await rival.locator('.table-wrap', { has: page.getByRole('table', { name: /^The Roster of / }) }).evaluate((box) => {
+      box.scrollLeft = box.scrollWidth;
+    });
     const nameHeading = await rival.getByRole('columnheader', { name: 'Name' }).boundingBox();
     const feeHeading = await rival.getByRole('columnheader', { name: 'Transfer fee' }).boundingBox();
     if (nameHeading === null || feeHeading === null) throw new Error(`a Rival's Roster, ${scheme}: no headings drawn`);

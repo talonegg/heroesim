@@ -2785,6 +2785,12 @@ ul.chips {
   white-space: nowrap;
 }
 
+/* A heading of two words over a narrow number, which may take two lines (DL-147): a Guild's Roster's
+   Transfer fee, so the fixed name cell, with its thumbnail, leaves it in view on a phone. */
+.table th.heading--wraps {
+  white-space: normal;
+}
+
 /* A row's button and a heading that orders the table keep their words on one line. */
 .table td > button,
 .table .sort {
@@ -3054,6 +3060,18 @@ tr.is-folded td {
 
 .guild-page .disclosure {
   margin-top: 1rem;
+}
+
+/* A Guild's Roster scrolls in its box on a phone, its name cell fixed and wider with a thumbnail
+   (DL-147): its last column, "Take in", gives up its trailing space so the Transfer fee's heading
+   stays in view beside the name cell with the table scrolled to its end. */
+.guild-roster td:last-child,
+.guild-roster th:last-child {
+  padding-inline-end: 0;
+}
+
+.guild-roster td > button {
+  padding-inline: 0.75rem;
 }
 
 /* The Patrons neutral both ways, folded under their count. */

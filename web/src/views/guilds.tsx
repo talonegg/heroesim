@@ -279,7 +279,7 @@ function GuildPage({
         <p>The Roster is empty.</p>
       ) : (
         <div className="table-wrap">
-          <table className="table table--first-sticky" aria-label={`The Roster of ${view.name}`}>
+          <table className="table table--first-sticky guild-roster" aria-label={`The Roster of ${view.name}`}>
             <thead>
               <tr>
                 <th scope="col">Name</th>
@@ -292,7 +292,7 @@ function GuildPage({
                 </th>
                 {view.mine ? null : (
                   <>
-                    <th scope="col" className="number">
+                    <th scope="col" className="number heading--wraps">
                       Transfer fee
                     </th>
                     <th scope="col">
