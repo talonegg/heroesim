@@ -16439,7 +16439,7 @@ register's row); `docs/plan.md` (§4).
 
 ---
 
-## DL-147 — The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a thumbnail beside each name on a Guild's Roster, the rest kept as built, and `v1.1.3-dev` pushed with the release held
+## DL-147 — The owner's answers to DL-145 and DL-146: a radio button of the setup grid always checked, a thumbnail beside each name on a Guild's Roster, the rest kept as built, Dependabot into the newest dev branch, and the release
 
 **Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the owner, answering the items DL-145 and
 DL-146 left open; how the grid keeps its radio button checked, and "Fee" for the Roster's heading on a
@@ -16469,8 +16469,14 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
    - a note under the grid on a phone, which the live region reads aloud (DL-145's verification);
    - a Hero's Appearance and Biography checked on load as strings (DL-146 E3);
    - Chromium launched without its sandbox by the portrait tool (DL-146 T3).
-5. **The release.** `v1.1.3-dev` is pushed to origin. `v1.1-release`, the pull request CI raises and
-   the tag wait for the owner (DL-124).
+5. **The release.** `v1.1.3-dev` is pushed to origin. The owner then asked for the release to go
+   ahead: `v1.1-release` fast-forwarded to `v1.1.3-dev` and pushed, the pull request CI raises
+   merged by the owner (DL-124).
+6. **Dependabot** goes into the newest dev branch, now `v1.1.3-dev`, amending DL-124 item 11 (the
+   current line's `v1.1-dev`, which the patches' `v1.1.x-dev` branches never merged from). Each new
+   dev branch moves both `target-branch`es to itself. Dependabot reads its file from `main`, so the
+   move takes effect with this release. Its two open pull requests into `v1.1-dev`, #43 and #44,
+   were closed.
 
 **The build** (`a099013`). Each change had its failing test first.
 - `web/src/state/setup.ts` `portraitGrid` gains `chosen`; `web/src/views/new-game.tsx` puts it after
@@ -16519,7 +16525,8 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
 
 **Actioned in:** `web/src/state/setup.ts`, `web/src/views/new-game.tsx`, `web/src/state/world-views.ts`,
 `web/src/views/guilds.tsx`, `web/src/styles.css` (`hidden-on-phone`) and their tests; `web/e2e/layout.spec.ts`;
-`docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`; `docs/plan.md`.
+`.github/dependabot.yml`; `docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`;
+`docs/plan.md`.
 
 ---
 
