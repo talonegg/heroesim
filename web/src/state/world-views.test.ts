@@ -82,6 +82,8 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
+        // Its Guildmaster's sex and Portrait's key, for the thumbnail beside its name (v1.1.3-S7).
+        guildmaster: { sex: document.world.guildmasters[guild.guildmasterId]?.sex, portraitKey: document.world.guildmasters[guild.guildmasterId]?.portraitKey },
         place: expect.stringMatching(/^(Joint )?\d+(st|nd|rd|th)$/),
         disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
         fame: guild.fame,

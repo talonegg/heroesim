@@ -220,6 +220,32 @@ describe("the page's catalogue of media/", () => {
     expect(catalogue.banner('guild-000001' as GuildId)).toEqual({ silhouette: mediaFiles['banners/silhouette.svg'], picture: null });
   });
 
+  // v1.1.3-S7 (DL-135 item 9): a person's thumbnail, beside their name in a list and in the setup grid.
+  test("finds a person's thumbnail, <key>.thumb.webp, by their role, sex and key, and the Silhouette of their sex without one", () => {
+    const catalogue = mediaCatalogue({
+      ...mediaFiles,
+      'portraits/heroes/female/hero-female-01.webp': './assets/hero-female-01-abc.webp',
+      'portraits/heroes/female/hero-female-01.thumb.webp': './assets/hero-female-01.thumb-abc.webp',
+    });
+    // A Hero's, under media/portraits/heroes/<sex>/, once a Hero picture exists.
+    expect(catalogue.portraitThumbnail('hero', 'female', 'hero-female-01')).toEqual({
+      silhouette: mediaFiles['portraits/heroes/female/silhouette.svg'],
+      picture: './assets/hero-female-01.thumb-abc.webp',
+    });
+    expect(catalogue.portraitThumbnail('hero', 'male', 'hero-female-01').picture).toBeNull();
+    expect(catalogue.portraitThumbnail('guildmaster', 'female', 'hero-female-01').picture).toBeNull();
+    expect(catalogue.portraitThumbnail('hero', 'female', null)).toEqual({ silhouette: mediaFiles['portraits/heroes/female/silhouette.svg'], picture: null });
+    // Every Guildmaster picture shipped has its thumbnail, a file of its own.
+    for (const sex of sexes) {
+      for (const key of content.portraits.guildmaster[sex]) {
+        const thumbnail = media.portraitThumbnail('guildmaster', sex, key).picture;
+        expect(thumbnail, key).toBe(mediaFiles[`portraits/guildmasters/${sex}/${key}.thumb.webp`]);
+        expect(thumbnail, key).not.toBe(media.portrait('guildmaster', sex, key).picture);
+      }
+    }
+    expect(media.portraitThumbnail('guildmaster', 'other' as Sex, 'gm-female-01')).toEqual({ silhouette: neutralSilhouette, picture: null });
+  });
+
   test("gives a person of a sex the folders do not know the neutral Silhouette and no picture, rather than throwing (v1.1.2-S6)", () => {
     for (const sex of ['other', '', 'Female', 'constructor'] as unknown as Sex[]) {
       expect(media.portrait('guildmaster', sex, 'gm-female-01')).toEqual({ silhouette: neutralSilhouette, picture: null });

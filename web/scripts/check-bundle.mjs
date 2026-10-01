@@ -35,6 +35,10 @@
  * A Node built-in the page imports never reaches the bundle: Vite replaces it with an empty stub in
  * a browser build, so the "node:" pattern here cannot see it. vite.config.ts refuses that build
  * instead (DL-74).
+ *
+ * It also refuses a script over 800 kB (v1.1.3-S7, DL-134 item 9), naming its size: the page is one
+ * script, which holds the content and every picture's address, and is read whole before it shows
+ * anything.
  */
 
 import { readdirSync, readFileSync, statSync } from 'node:fs';
@@ -72,6 +76,14 @@ const FORBIDDEN = [
 
 const CHECKED_EXTENSIONS = new Set(['.js', '.mjs', '.css', '.html']);
 
+/**
+ * The most a script may be, in bytes (v1.1.3-S7, DL-134 item 9): 800 kB, so that the one script,
+ * which holds the content and every picture's address, stays as quick to open as the page is. A
+ * stylesheet or the page itself is not held to it.
+ */
+const SCRIPT_LIMIT_BYTES = 800_000;
+const SCRIPT_EXTENSIONS = new Set(['.js', '.mjs']);
+
 function filesUnder(directory) {
   const found = [];
   for (const entry of readdirSync(directory)) {
@@ -107,10 +119,18 @@ if (files.length === 0) {
 }
 
 const complaints = [];
+const tooLarge = [];
 
 for (const file of files) {
   const source = readFileSync(file, 'utf8');
   const shown = path.relative(distDir, file);
+
+  const bytes = statSync(file).size;
+  if (SCRIPT_EXTENSIONS.has(path.extname(file)) && bytes > SCRIPT_LIMIT_BYTES) {
+    tooLarge.push(
+      `${shown}: a script of ${(bytes / 1000).toFixed(2)} kB (${bytes.toLocaleString('en-GB')} bytes), over the ${SCRIPT_LIMIT_BYTES / 1000} kB a script may be`,
+    );
+  }
 
   for (const { name, pattern } of FORBIDDEN) {
     const hit = pattern.exec(source);
@@ -136,4 +156,11 @@ if (complaints.length > 0) {
   process.exit(1);
 }
 
-console.log(`check-bundle: ${files.length} built files, no network or filesystem reference.`);
+if (tooLarge.length > 0) {
+  console.error('check-bundle: the built page is too large.\n');
+  for (const complaint of tooLarge) console.error(`  ${complaint}`);
+  console.error('\nKeep the script under its limit (DL-134 item 9): bundle less into it, or decide anew with the owner.');
+  process.exit(1);
+}
+
+console.log(`check-bundle: ${files.length} built files, no network or filesystem reference, every script within ${SCRIPT_LIMIT_BYTES / 1000} kB.`);

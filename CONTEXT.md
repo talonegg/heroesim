@@ -132,7 +132,10 @@ age, Station, Temper, Callings or a Hero's Classes, Features, narrative and hook
 sentences written for that picture alone and not a module's Hook (DL-134, DL-135 item 2,
 v1.1.3-S1). Every picture is drawn in graphite on cream paper (DL-126); the first are the owner's
 two, one of each sex (DL-131). The page's setup form offers the pictures, with the Portrait the
-seed would choose beside them, and the CLI's `new --portrait` chooses one.
+seed would choose beside them, and the CLI's `new --portrait` chooses one. Since v1.1.3-S7 the form
+offers them as a grid of one sex's thumbnails at a time, and a person's thumbnail, or their small
+Silhouette, stands beside their name in the Roster, the Unattached pool and the Guilds' table (DL-135
+item 9).
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:

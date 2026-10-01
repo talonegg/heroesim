@@ -485,6 +485,60 @@ test("the Guildmaster's header and a Hero's page's: the Portrait, 3 × 4, beside
   await portraitBeside(rival, rival.getByRole('heading', { level: 5, name: /, Guildmaster of / }), "a Rival's Guildmaster on its page");
 });
 
+// v1.1.3-S7 (DL-135 item 9): a thumbnail beside each name in the Roster, the pool and the Guilds' table,
+// 48px high and before the name, at every width and in both schemes, with no sideways scroll.
+test("the Roster's cards, the pool's rows and the Guilds' table: each name with its thumbnail or small Silhouette, and no sideways scroll (v1.1.3-S7)", async ({
+  page,
+}) => {
+  test.setTimeout(120_000);
+  await page.goto('/');
+  await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+
+  /** Each thumbnail in `rows`: drawn, 48px high and three wide by four, before the name beside it. */
+  const thumbsBeside = async (rows: Locator, what: string): Promise<number> => {
+    const count = await rows.count();
+    expect(count, `${what}: rows`).toBeGreaterThan(0);
+    let pictured = 0;
+    for (let index = 0; index < count; index += 1) {
+      const row = rows.nth(index);
+      await row.scrollIntoViewIfNeeded();
+      const thumb = row.getByTestId('portrait-thumb');
+      const name = row.locator('button.link').first();
+      const box = await thumb.boundingBox();
+      const named = await name.boundingBox();
+      if (box === null || named === null) throw new Error(`${what} ${index}: no thumbnail or name drawn`);
+      expect(box.height, `${what} ${index}: 48px high`).toBeCloseTo(48, 0);
+      expect(box.width / box.height, `${what} ${index}: 3 × 4`).toBeCloseTo(0.75, 1);
+      expect(box.x + box.width, `${what} ${index}: before the name`).toBeLessThanOrEqual(named.x);
+      const image = thumb.locator('img').last();
+      await expect.poll(() => image.evaluate((element) => (element as HTMLImageElement).complete && (element as HTMLImageElement).naturalWidth > 0)).toBe(true);
+      if ((await image.getAttribute('data-picture')) === 'picture') pictured += 1;
+    }
+    return pictured;
+  };
+
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const roster = await rosterList(page);
+    // No Hero has a picture yet: each shows the small Silhouette.
+    expect(await thumbsBeside(roster.getByRole('listitem'), `the Roster, ${scheme}`)).toBe(0);
+    await expectNoHorizontalOverflow(page, `the Roster's thumbnails, ${scheme}`);
+    await expectTargets(page, `the Roster's thumbnails, ${scheme}`);
+
+    const pool = await part(page, 'Unattached pool');
+    expect(await thumbsBeside(pool.getByTestId('pool-row'), `the pool, ${scheme}`)).toBe(0);
+    await expectNoHorizontalOverflow(page, `the pool's thumbnails, ${scheme}`);
+    await expectTargets(page, `the pool's thumbnails, ${scheme}`);
+
+    // The Guilds' table: each Guildmaster's, the picture chosen for them where one fits.
+    const guilds = await part(page, 'Guilds');
+    expect(await thumbsBeside(guilds.getByTestId('guild-row'), `the Guilds' table, ${scheme}`)).toBeGreaterThan(0);
+    await expectNoHorizontalOverflow(page, `the Guilds' thumbnails, ${scheme}`);
+    await expectTargets(page, `the Guilds' thumbnails, ${scheme}`);
+    await page.screenshot({ path: test.info().outputPath(`lists-${scheme}.png`), fullPage: true });
+  }
+});
+
 /** The rows of the Guilds' table that are not the player's Guild (M9-S6). */
 function rivalRows(guilds: Locator): Locator {
   return guilds.locator('[data-testid="guild-row"]:not(.mine)');

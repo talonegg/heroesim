@@ -955,11 +955,28 @@ p.setup-preview {
   margin-top: 0.25rem;
 }
 
-.portrait-picks {
+/*
+ * Since v1.1.3-S7 a grid of one sex's thumbnails (DL-134 item 9): "Drawn from the seed" across the top
+ * with the picture the seed chooses, then a column for each picture as wide as the row allows. Each
+ * radio button is the picture itself: the button is kept for the keyboard and a screen reader, and the
+ * picture is ringed when chosen and outlined when the keyboard is on it.
+ */
+.portrait-sexes {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  gap: 0.25rem 1.5rem;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
+}
+
+.portrait-sexes [aria-pressed='true'] {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.portrait-picks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+  gap: 0.6rem;
+  max-width: 40rem;
 }
 
 .portrait-picks .choice + .choice {
@@ -967,7 +984,28 @@ p.setup-preview {
 }
 
 .portrait-pick {
+  position: relative;
+  justify-content: center;
   align-items: center;
+  padding: 0.2rem;
+}
+
+.portrait-pick > input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+  /* Over the picture, so a press anywhere on it is the button's own. */
+  z-index: 1;
+}
+
+.portrait-pick--drawn {
+  grid-column: 1 / -1;
+  justify-content: flex-start;
+  gap: 0.75rem;
 }
 
 .portrait.portrait--thumbnail {
@@ -981,9 +1019,29 @@ p.setup-preview {
   }
 }
 
-/* The picture chosen is ringed, as well as its radio button checked. */
+/* The picture chosen is ringed; the one the keyboard is on is outlined. */
 .portrait-pick input:checked + .portrait {
   box-shadow: 0 0 0 3px var(--accent);
+}
+
+.portrait-pick input:focus-visible + .portrait {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* The engine's notes on a picture chosen, beside the choice: words to weigh, never a refusal. */
+.portrait-notes {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: 40rem;
+}
+
+.portrait-notes li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0.2rem 0;
 }
 
 .budget {
@@ -2546,6 +2604,15 @@ ul.chips {
   margin-bottom: 0.5rem;
 }
 
+/* Their Appearance and Biography under the Portrait (v1.1.3-S7): each the width of a line of reading. */
+.hero-page__texts .terms {
+  max-width: 40rem;
+}
+
+.hero-page__texts .terms > div {
+  grid-column: 1 / -1;
+}
+
 .hero-page__head h3,
 .hero-page__head h4 {
   margin-bottom: 0.1rem;
@@ -3472,6 +3539,7 @@ tr.mine td {
  * so they sit alike in the light and the dark scheme; a hairline sets them off the page.
  */
 .portrait,
+.portrait-thumb,
 .guild-banner,
 .item-picture {
   position: relative;
@@ -3481,6 +3549,7 @@ tr.mine td {
 }
 
 .portrait img,
+.portrait-thumb img,
 .guild-banner img,
 .item-picture img {
   position: absolute;
@@ -3507,6 +3576,31 @@ tr.mine td {
   .portrait {
     width: 7.5rem;
   }
+}
+
+/*
+ * A person's thumbnail beside their name in a list (v1.1.3-S7, DL-135 item 9): the Roster's cards,
+ * the pool's rows and the Guilds' table, 48px high and three wide by four.
+ */
+.portrait-thumb {
+  display: block;
+  width: 2.25rem;
+  aspect-ratio: 3 / 4;
+  border-radius: 3px;
+}
+
+/* A name with its thumbnail before it; a long name wraps beside it, never under it. */
+.named {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.named > .link {
+  min-width: 0;
+  text-align: start;
+  overflow-wrap: break-word;
 }
 
 /* A person's Portrait beside who they are: their name, their line and what follows it. */

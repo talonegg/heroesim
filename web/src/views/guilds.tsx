@@ -6,7 +6,8 @@
 // By Wealth toggle. By Fame or by Wealth, the table is the Rankings and Guilds level on the measure
 // share a place ("joint 1st", DL-95, DL-91); by any other column the order is for display only, and
 // Place still reads by Fame. The order is kept in this browser. The player's Guild's row is marked,
-// and a folded Guild is listed last with the Day it folded.
+// and a folded Guild is listed last with the Day it folded. Each Guild's name has its Guildmaster's
+// thumbnail beside it (v1.1.3-S7, DL-135 item 9: the Rivals list).
 //
 // A row opens its Guild in place (no router, M7 §0): its page (B10) has its Roster as a table with
 // the Transfer fee your Guild would pay for each Hero and "Take in" (the CLI's `transfer --in`), and
@@ -23,7 +24,7 @@ import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
-import { GuildBanner } from './pictures';
+import { GuildBanner, PortraitThumb } from './pictures';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
 import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden, type Direction } from './ui';
@@ -157,9 +158,12 @@ function GuildLine({ row, onOpen }: { row: GuildRow; onOpen: (guildId: GuildId) 
     <tr className={row.mine ? 'mine' : row.folded === null ? undefined : 'is-folded'} data-testid="guild-row">
       <td className="guilds-table__place">{row.place ?? row.folded}</td>
       <th scope="row">
-        <button type="button" id={rowId(row.guildId)} className="link" aria-label={`Open ${row.name}`} onClick={() => onOpen(row.guildId)}>
-          {row.name}
-        </button>
+        <span className="named">
+          {row.guildmaster === null ? null : <PortraitThumb role="guildmaster" sex={row.guildmaster.sex} portraitKey={row.guildmaster.portraitKey} />}
+          <button type="button" id={rowId(row.guildId)} className="link" aria-label={`Open ${row.name}`} onClick={() => onOpen(row.guildId)}>
+            {row.name}
+          </button>
+        </span>
         {row.mine ? <VisuallyHidden>, your Guild</VisuallyHidden> : null}
       </th>
       <td>{row.disposition}</td>

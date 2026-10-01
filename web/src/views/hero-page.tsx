@@ -17,6 +17,7 @@
 //
 // Their Portrait stands beside who they are, the Silhouette of their sex, and a Unique Item's picture
 // before its name in their Gear and in the Gear the Guild holds (v1.1.2-S2, DL-125 items 2 and 8).
+// Their Appearance and Biography follow, under the Portrait (v1.1.3-S7, DL-135 item 6).
 
 import type { GuildId, HeroId, Unavailability, WorldDocument } from '@heroesim/engine';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
@@ -25,6 +26,7 @@ import { heroPage, type HeroActions, type HeroPageView, type LogLine } from '../
 import { EntityHistory } from './history-entries';
 import { Icon, type IconName } from './icons';
 import { ItemPicture, Portrait } from './pictures';
+import { Terms } from './section';
 import { Chip, Confirm, Folded, moraleTones, regardTones, VisuallyHidden, type Tone } from './ui';
 
 /** The heading levels a Hero's page takes: its name's, and one below for its parts (M9-S3). */
@@ -107,6 +109,12 @@ export function HeroPage({
           <State view={view} />
         </div>
       </header>
+      {/* Their Appearance and Biography under their Portrait (v1.1.3-S7, DL-135 item 6). */}
+      {view.texts.length === 0 ? null : (
+        <div className="hero-page__texts" data-testid="hero-texts">
+          <Terms pairs={view.texts} />
+        </div>
+      )}
 
       {/* In the pool or on a Rival's Roster, what can be done comes first: it is why the page was opened. */}
       {play === undefined || view.actions === null || view.actions.kind === 'own' ? null : (

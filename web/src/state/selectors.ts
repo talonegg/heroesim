@@ -565,6 +565,9 @@ type Taken = EngineEventOf<'quest.taken'>;
 export interface RosterRow {
   heroId: HeroId;
   name: string;
+  /** Their sex and Portrait's key, for the thumbnail beside their name (v1.1.3-S7, DL-135 item 9). */
+  sex: Sex;
+  portraitKey: string | null;
   className: string;
   level: number;
   age: number;
@@ -633,6 +636,8 @@ export function rosterView(document: WorldDocument): RosterRow[] {
       {
         heroId,
         name: hero.name,
+        sex: hero.sex,
+        portraitKey: hero.portraitKey,
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
         age: ageOf(hero, world.turn, config),
@@ -685,11 +690,17 @@ export interface HeroPageView {
   heroId: HeroId;
   name: string;
   /**
-   * The Hero's sex and Portrait's key, for their Portrait (DL-125 item 2). No Hero has a picture in
-   * v1.1.2 (DL-125 item 4), so the key is `null`, the Silhouette of their sex.
+   * The Hero's sex and Portrait's key, for their Portrait (DL-125 item 2): the key chosen as they were
+   * generated (v1.1.3-S6), `null` for the Silhouette of their sex, as every Hero's is while content
+   * holds no Hero picture (DL-135 item 8).
    */
   sex: Sex;
   portraitKey: string | null;
+  /**
+   * Their Appearance and Biography (v1.1.3-S6, DL-135 item 6), each a label and its words, shown under
+   * their Portrait (v1.1.3-S7); one written empty, as no Hero's is, is left out.
+   */
+  texts: [label: string, words: string][];
   /**
    * Who the Hero is, in one line of parts (M9-S6, the review's B7): Class, `Level 3`, `Age 18`, `Female`,
    * Background, and `of The Lantern` while their Guild is known.
@@ -893,7 +904,10 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     heroId: hero.id,
     name: hero.name,
     sex: hero.sex,
-    portraitKey: null,
+    portraitKey: hero.portraitKey,
+    texts: (['appearance', 'biography'] as const).flatMap((attribute): [string, string][] =>
+      hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]],
+    ),
     line: who,
     morale: { value: hero.morale, band: moraleBand(hero.morale, config) },
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
