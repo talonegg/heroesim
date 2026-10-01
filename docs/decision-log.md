@@ -16205,6 +16205,174 @@ and both sexes' thumbnails at 435 kB, over the grid's 250 kB.
 
 ---
 
+## DL-146 — v1.1.3 built, reviewed and verified: the code review's findings fixed test first, the 50 × 20 sweep's play counters equal to v1.1.2's, every check passing, the release awaiting the owner
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, closing v1.1.3 as the epic's
+S8 describes, after the owner approved S8 on 2026-10-02. The findings are the review's. How each was
+fixed, and why four were left, is the agent's, each marked, for the owner to change. The release is
+the owner's (DL-124).
+
+**Context.** S8 begins with a code review of the whole patch, `800a402..51d5199`, its findings fixed
+test first. It then runs the gate's checks.
+- *The reviewers.* Four Opus reviewers read the patch in parallel:
+  - the portrait tool;
+  - the engine, with the harness and the CLI;
+  - the content checks, with the page;
+  - the docs.
+- *What was not read closely.* The pictures and the runs' JSON were checked by the tool.
+- *The commits.* The review began at `51d5199`. This entry's checks were run at `811a842`, and it is
+  committed after them.
+
+**Decision.**
+
+1. **The review's findings, and what was done.** E is the engine's, W the page's, T the tool's and D
+   the docs'. Each fix had its failing test first.
+
+   | | Where | Severity | Finding | Done |
+   | --- | --- | --- | --- | --- |
+   | E1 | `harness/src/counters.ts` `observeHeroes` | medium | A Hero's repeat was counted for every holder of a shared picture in a batch, the first holder included, so creation's one batch overcounted. Its test asserted 2 where its comment said "the second a repeat". | Fixed, `74ab4bd`. The holders are read less the batch's own Heroes, and each is added in the order generated. The test expects 1, and 2 once a later Hero is given a held picture. Every sweep read 0, since no Hero has a picture. |
+   | E2 | `engine/src/generators/guilds.test.ts` | low | The retiring Guildmaster's test could not fail: its successor was male, and no man takes a woman's picture. | Fixed, `276da6c`. The content has one female picture of every age, and the retiring Guildmaster is female, with a female successor among twelve seeds. The test fails when the Guildmaster in office is left out of the set in use. |
+   | E3 | `engine/src/validate.ts` | low | A Hero's Appearance and Biography are checked on load as strings, not for length. | Left (the agent's). A Guildmaster's three texts have been the same since v1.1.2. The engine writes the texts within their bounds, no rule reads them, and the page shows them as text. |
+   | E4 | `engine/src/rng.ts`, `create.ts`, `portraits.ts` | nit | Three comments were out of date: `gm-portraits` "one draw at creation"; the preview's `null` only "when the sex has none"; `media/portraits/<role>s/`. | Fixed, `811a842`. The new exports with no user outside the engine are left, as part of its API. |
+   | W1 | `web/src/views/new-game.tsx` | low | With the sex drawn, a picture of one sex chosen and the other sex shown, no radio button of the grid is checked. | Left for the owner. DL-145 already put this to them: its item 1, and its verification's "two small things". |
+   | W2 | `web/src/views/capitals.test.tsx` | low | The guard read the grid only with the sex chosen, so it never read the Female and Male buttons. No seed it used gave a Calling's note. | Fixed, `d85a602`. A new test reads the grid with the sex drawn and a Trait chosen that a Calling clashes with, choosing every picture of both sexes in turn. No capital was wrong. |
+   | W3 | `web/scripts/check-bundle.mjs` | nit | "800.00 kB (800,001 bytes)": the kB figure alone does not look over the limit. | Left. The bytes are named, and the wording is DL-145's. |
+   | T1 | `tools/portraits/src/runs.ts` `writeRun` | medium | `write-run` ran the content's checks but not the tool's `check`, which `apply` runs. So it could write a run that `apply` must undo, against the README's "a run that could not be applied is never written". | Fixed, `e767c4f`. `check` can read content texts in place of the files, and `write-run` refuses a run that fails it, writing nothing. The test of `apply`'s undo now edits a written run on disk. |
+   | T2 | `tools/portraits/src/cli.ts` `convert` | low | On Windows, `convert up.WEBP` wrote its picture over its source, because the guard's comparison was case-sensitive. And `a.png a.jpg` wrote one picture twice. | Fixed, `cc6b03f`. Paths are compared ignoring case, and two sources converted to one picture are refused, exit 2. |
+   | T3 | `tools/portraits/src/chromium.ts` | low, hardening | Chromium is launched without its sandbox, which is Playwright's default. | Left for the owner (the agent's). GitHub's Ubuntu runners restrict the user namespaces Chromium's sandbox needs, so turning it on risks the tool's tests in CI. The pictures are the owner's own, and only the tool reads them. |
+   | T4 | `tools/portraits/src/runs.ts` `apply` | low | `diff` compared objects ignoring the order of their fields, and `apply` compared them as text. So a run `diff` called unchanged was written, and raised the content version. | Fixed, `e767c4f`. `apply` now ignores the order too, as `diff` does. |
+   | T5 | `tools/portraits/src/transaction.ts` | low | A file that could not be put back stopped the rollback, leaving the rest changed. Intake and `apply` then said "was undone". | Fixed, `63832cc`. Every file that can be put back is. One that cannot is named, as `NotUndone`: `kind: "not-undone"` in JSON, exit 1. |
+   | T6 | `tools/portraits/src/cli.ts` and others | nit | Four small things: a `--date` not written YYYY-MM-DD exited 1 where the README says 2; no command uses `retire`; the draft's "named twice" check is case-sensitive; `isRole` is always true. | `--date` fixed, `59dab9a`. The rest are left: `retire` is tested and kept for retiring a picture; one Windows folder cannot hold both `A.png` and `a.png`; `isRole` is harmless. |
+   | D1 | `tools/portraits/README.md` | low | A run's date was said to be "`--date`, then today", leaving out the draft's date, which comes between. | Fixed, `e767c4f`. |
+   | D2 | The register (`docs/planning/epics/README.md`) and `docs/plan.md` | low | Both still said v1.1.3 was "awaiting the owner's approval and pictures". | Fixed in this entry's commit. |
+   | D3 | `CONTEXT.md`: Attribute, Descriptive Attribute | low | Neither entry's opening named a Hero's Portrait and two texts. | Fixed, `811a842`. |
+   | D4 | The epic, `docs/data-model.md` | nit | Three slips: "`intake`" and "`analyse`" for the skills; S7's boxes giving one sex's 217.9 kB, and 769.50 kB from before content 20; and "ADR-0009 as amended 2026-10-01", where two amendments bear that date. | Fixed, in `811a842` and this entry's commit. |
+
+   *Found sound by the reviewers:*
+   - `choosePortrait`: one draw on every path, and its band overlap;
+   - `ageIntoPortrait`, over every age;
+   - "in use" for both roles;
+   - a Hero's 1 and 13 draws, and schema 6;
+   - the content checks and their bounds;
+   - the page's lazy pictures, keys, memoised grid and notes, and `compactContent`;
+   - the tool's paths:
+     - a draft's sources are held to the inbox;
+     - run names and dates are checked against their patterns;
+     - keys come only from `nextKey`;
+     - there is no shell, and data reaches Chromium as arguments;
+   - `json-edit`, over 20,000 random round trips;
+   - the dHash;
+   - the CLI's numbers, and the docs'.
+2. **The checks,** at `811a842`:
+   - `npm run lint` and `npm run typecheck`: clean.
+   - `npm test`: 3,879 tests in 165 files, six more than DL-145's verification. Three failed on the
+     known load timeouts, each just over 5 s: `harness/src/succession`, `engine/src/modules/probe`
+     and `web/src/views/treasury`. Run alone, the three files pass, 58 tests.
+   - `npm run e2e -w web`: the build passes, and so does check-bundle ("2 built files, no network or
+     filesystem reference, every script within 800 kB"). All 86 specs pass:
+     - 28 each at 360, 820 and 1280px;
+     - 2 over `file://`, which see these load from the filesystem: the Silhouettes, a thumbnail of
+       each sex, a Hero's Silhouette, and a Rival's thumbnail and Portrait.
+   - `npm run portraits -- check`: "Check passed: 40 live pictures, each with its thumbnail, listed
+     and with its row, within the limits".
+3. **The 50 × 20 sweep,** at `51d5199`. It was run as `HEROESIM_SEEDS=50
+   HEROESIM_MILESTONE=m9-v113-close npm run harness`: core only, content 20, not validated. The
+   report, `harness/reports/m9-v113-close-2026-10-02.md`, is force-added (`1153088`).
+   - *Play is unchanged.* Lines 27 to 592, the Counters through the Rivals, hash equal (`84d68609…`)
+     to v1.1.2's `m9-v112-s7-2026-10-01.md`, and to S6's and DL-144's reports.
+     - 138 Rival folds and 37 Successions.
+     - No ending and no refused action.
+     - One seed played twice is byte-identical, and 50 of 50 saves round trip.
+   - *The Portraits.* 425 Guildmasters entered play, every one with a picture and none with the
+     Silhouette. 422 pictures' ages hold their Guildmaster's age, and no Calling clashes.
+   - *The Heroes.* 292,607 were generated, all with the Silhouette, and none with an empty text. The
+     longest Appearance is 278 and the longest Biography 353, within their 280 and 1,000.
+   - *What moved since DL-144's sweep,* run on content 19:
+     - the fingerprint of the last saves (`deaf4d1e…`);
+     - the largest save, 3 characters longer, from the content's words alone;
+     - the timings.
+   - *Not run again after the fixes,* since none touches a rule. E1 changes only a counter that reads
+     0 while no Hero has a picture. The rest are tests, the tool and comments.
+4. **The sizes.**
+   - *The script:* 769.65 kB (769,655 bytes), 220.62 kB gzipped. That is under 800 kB, against
+     v1.1.2's 703.04 kB.
+   - *The pictures:* 40, 3,802,692 bytes in all, each within 120 kB. The largest is `gm-male-04`, at
+     107,594 bytes.
+   - *Their thumbnails:* 40, 434,738 bytes in all, the largest 11,952. The grid reads one sex's:
+     216,854 bytes (female) or 217,884 (male), within about 250 kB.
+   - *The save at year 20,* from the sweep:
+     - a mean of 100.06 MiB, and at most 118.72 MiB;
+     - gzipped, as the page keeps it in IndexedDB, a mean of 11.13 MiB and at most 13.24 MiB;
+     - the Heroes' three fields are 0.09 MiB of the mean, 0.1%, under S6's restated 1% (DL-144
+       item 2).
+5. **The screenshots.** There are 126: 21 views and parts at 360, 820 and 1280px, in light and dark.
+   They were taken from `dist/index.html` over `file://`, and are kept outside git in the close's
+   scratchpad (`v113-close-shots`).
+   - *The views and parts:*
+     - the new-game form;
+     - "Your Guildmaster" open with the grid;
+     - a picture chosen at 21, with its note;
+     - the Guildmaster;
+     - the Guild's Home, Hall, Stores and Treasury;
+     - the Roster and the pool;
+     - a Hero's page, and a pool Hero's page;
+     - the Board, and the Party builder;
+     - the Rankings;
+     - a Rival's Guild page with its Guildmaster unfolded, and a Rival's Hero's page;
+     - the Market;
+     - the History, and the World History;
+     - the game menu, and "Debug: Whole History".
+   - *Found:* none scrolls the page sideways. None has a broken picture, a page error, a console error
+     or a failed request.
+   - *By eye:* these look right in both schemes:
+     - the grid, and the note;
+     - the thumbnails in the Roster, the pool and the Guilds' table;
+     - a Rival's Portrait;
+     - a Hero's Appearance and Biography.
+   - *Seen and left,* both older than v1.1.3. Full-page captures show the fixed bars mid-page. At
+     360px the pool's table scrolls in its own box, its name cell fixed (DL-145).
+6. **The gate** is met, but for the release:
+   - each decision's items, driven through the page, the CLI or the tool (DL-138 to DL-145);
+   - play unchanged (item 3);
+   - the tool's intake, first run and apply (DL-143, DL-144), and `check` (item 2);
+   - the limits, each held by a check (item 4): `check-bundle`; `check` and the page's media test;
+     the content's checks; `portrait.spec.ts`;
+   - schema 6 written, and schema 5 refused in DL-130's words (DL-142);
+   - the page opening from `file://` (item 2);
+   - the views' screenshots (item 5).
+7. **The release is the owner's** (DL-124).
+   - *Where things stand.* `v1.1.3-dev` holds every commit. Origin has it only to `840ae45`. Origin's
+     `v1.1-release` is at `4f2ce68`, an ancestor of `v1.1.3-dev`.
+   - *The steps:*
+     1. Fast-forward `v1.1-release` to `v1.1.3-dev`, and push it: `git checkout v1.1-release`, then
+        `git merge --ff-only v1.1.3-dev`, then `git push origin v1.1-release`. Push `v1.1.3-dev` as
+        well (`git push origin v1.1.3-dev`), so that its `check` runs and origin's copy is whole.
+     2. Merge the pull request that CI raises (`release-pr.yml`), which names `v1.1.3`. Merging it
+        tags `v1.1.3` on `main`, deploys it from CI and writes its GitHub Release (`release.yml`).
+     3. See `e2e:live` pass on both addresses, in the deploy's run or with `npm run e2e:live -w web`.
+     4. Tick S8's second box.
+
+**Consequences.**
+- *Play is unchanged* by the close. The harness's repeat counter and the tool now behave as their
+  docs say, and nothing the page shows changes.
+- *For the owner:*
+  - W1 and T3, above;
+  - DL-145's three items: the grid's switch, the notes' words, and a Rival's Roster;
+  - #46, a Trait gained.
+- *The script's room* stays about 30 kB. Hero pictures need the shared URL base first (DL-145
+  item 7).
+
+**Actioned in:** `harness/src/counters.ts` and its test; `engine/src/generators/guilds.test.ts`;
+`engine/src/rng.ts`, `create.ts`, `portraits.ts` (comments); `tools/portraits/src/` (`check.ts`,
+`runs.ts`, `transaction.ts`, `errors.ts`, `cli.ts`, `write-rows.ts`, and `write-rows.test.ts`,
+`records.test.ts`, `chromium.test.ts`), `tools/portraits/README.md`; `web/src/views/capitals.test.tsx`;
+`CONTEXT.md` (Attribute, Descriptive Attribute); `docs/data-model.md`;
+`harness/reports/m9-v113-close-2026-10-02.md` (force-added); `docs/planning/epics/v1.1.3-release.md`
+(status, the gate's words, S7's figures, S8's first box); `docs/planning/epics/README.md` (the
+register's row); `docs/plan.md` (§4).
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)
