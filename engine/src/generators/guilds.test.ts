@@ -615,12 +615,19 @@ describe("every Guildmaster's Portrait, chosen as they enter play (v1.1.3-S5)", 
   });
 
   test("a retiring Guildmaster's picture is in use while their successor is chosen", () => {
-    const deps = testDeps();
-    const world = testWorld('portraits-retiring', deps);
-    const first = generateRival(world, deps, { controller: rival });
-    first.guildmaster.portraitKey = 'gm-female-01';
-    const successor = generateSuccessor(world, deps, first.guild);
-    expect(successor.portraitKey).not.toBe('gm-female-01');
+    // The one picture reaches every age, so a female successor would take it were it free (v1.1.3-S8:
+    // the core's content let a male successor pass whatever the rule).
+    const deps = heldContent(['gm-female-01']);
+    let females = 0;
+    for (let n = 0; n < 12; n += 1) {
+      const world = testWorld(`portraits-retiring-${n}`, deps);
+      const first = generateRival(world, deps, { controller: rival });
+      Object.assign(first.guildmaster, { portraitKey: 'gm-female-01', sex: 'female' });
+      const successor = generateSuccessor(world, deps, first.guild);
+      if (successor.sex === 'female') females += 1;
+      expect(successor.portraitKey, `seed ${n}: a ${successor.sex} successor`).toBeNull();
+    }
+    expect(females).toBeGreaterThan(0);
   });
 
   test("the player's chosen picture is theirs whatever it fits, before the texts are written, in one draw", () => {
