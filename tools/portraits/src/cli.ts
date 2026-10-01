@@ -114,13 +114,18 @@ async function commandConvert(options: Parsed, chromium: Chromium): Promise<unkn
   if (options.args.length === 0) throw new UsageError('convert wants a source');
   const results = [];
   const files = new Transaction();
+  // A path as the filesystem may match it: Windows' and macOS's ignore case (v1.1.3-S8).
+  const same = (file: string): string => path.resolve(file).toLowerCase();
+  const targets = new Set<string>();
   try {
     for (const source of options.args.map((each) => path.resolve(each))) {
       if (!isPicture(source)) throw new UsageError(`${source}: a JPEG, PNG or WebP is converted`);
       const base = path.basename(source, path.extname(source));
       const dir = options.out ?? path.dirname(source);
       const [picture, thumbnail] = [path.join(dir, `${base}.webp`), path.join(dir, `${base}.thumb.webp`)];
-      if (path.resolve(picture) === source) throw new UsageError(`${source}: its picture would overwrite it; give --out <dir>`);
+      if (same(picture) === same(source)) throw new UsageError(`${source}: its picture would overwrite it; give --out <dir>`);
+      if (targets.has(same(picture))) throw new UsageError(`${source}: another source given is converted to the same picture, ${picture}`);
+      targets.add(same(picture));
       const converted = await convert(chromium, dataUrlOf(source), source);
       files.write(picture, converted.picture.bytes);
       files.write(thumbnail, converted.thumbnail.bytes);

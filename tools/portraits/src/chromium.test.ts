@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, test } from 'vitest';
@@ -119,6 +119,24 @@ describe.skipIf(!chromiumInstalled())('in Chromium', () => {
       let err = '';
       expect(await run(['convert', source], { out: () => undefined, err: (text) => (err += text) })).toBe(2);
       expect(err).toContain('its picture would overwrite it; give --out <dir>');
+    });
+
+    test('convert will not write over its source whatever the case of its extension, nor two sources to one picture (v1.1.3-S8)', async () => {
+      const source = path.join(scratch, 'upper.WEBP');
+      copyFileSync(pictures[0]?.file ?? '', source);
+      const before = readFileSync(source);
+      let err = '';
+      expect(await run(['convert', source], { out: () => undefined, err: (text) => (err += text) })).toBe(2);
+      expect(err).toContain('its picture would overwrite it; give --out <dir>');
+      expect(readFileSync(source).equals(before)).toBe(true);
+
+      const [png, jpg] = [path.join(scratch, 'twice.png'), path.join(scratch, 'twice.jpg')];
+      copyFileSync(pictures[0]?.file ?? '', png);
+      copyFileSync(pictures[1]?.file ?? '', jpg);
+      err = '';
+      expect(await run(['convert', png, jpg, '--out', path.join(scratch, 'twice')], { out: () => undefined, err: (text) => (err += text) })).toBe(2);
+      expect(err).toContain('another source given is converted to the same picture');
+      expect(existsSync(path.join(scratch, 'twice', 'twice.webp'))).toBe(false);
     });
 
     test('fingerprint names the pictures in the register an upload is similar to, the nearest first', async () => {
