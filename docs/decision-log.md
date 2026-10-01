@@ -16023,6 +16023,32 @@ bound, and a Trait gained. S4's first analysis run was applied with its review l
 `harness/reports/m9-v113-dl144-2026-10-02.md` (force-added); `docs/portraits/analysis/2026-10-02.md`
 and its folder (written, not applied).
 
+**The verification** (a second Opus agent, of `6edaf83` and `05b378f`).
+- *No Guildmaster leaves the World State.* The engine deletes rows of `offers`, `stacks`, `quests`,
+  `parties` and, from the pool, `heroes`, never of `guildmasters`; a Guildmaster has no
+  `diedOnTurn`. Ids are `<prefix>-<six digits>`, so the endings test's `other.id < entrant.id` orders
+  them truly.
+- *The tests.* Run against `840ae45`'s engine, the three new `guilds.test.ts` tests and the endings
+  test fail, and the retiring one passes, as it should under both readings. With the endings test's
+  six old pictures under the new rule, 1 entrant of 27 is pictured and `pictured > 5` fails; twelve
+  keep that bound unchanged and met, 7 of 27.
+- *Creation, 1,000 seeds, two setups* (age 30, and blank), against a `git worktree` of `840ae45`:
+  every document's hash equal, combined `f49e2b23…` both sides, 10,000 Guildmasters all pictured.
+- *Long games.* Successions on core content 19 after creation, 300 worlds: the first Silhouette
+  comes at the 11th entrant at the least, the 26th at the median. At the sweep's 3.5 entrants a
+  world in 20 years, that is about 60 years in the unluckiest world and about 150 typically.
+- *The sweep's report.* Lines 27 to 592 hash equal to `m9-v112-s7`'s, `m9-v113-s5`'s and
+  `m9-v113-s6`'s; 0 Silhouettes of 425.
+- *The run.* `diff 2026-10-02` shows only the 25 changes listed; live content is version 19, and
+  `content/` and `media/` are unchanged since `840ae45`. `corpus --run 2026-10-02` passes with no
+  problem. Each new hook rests on something in its picture. Three new or reworded hooks now tell
+  of a mark on the cheek (`gm-female-07`, `gm-male-04`, `gm-male-05`, the last two both "high on
+  {his} cheek"), beside `gm-female-13`'s cheek scars; both `gm-female-11` hooks rest on the Hall's
+  hearth; both `genial` closings now turn on "strangers". None breaks a rule; the owner may want
+  them varied before applying.
+- *The suite.* `lint` and `typecheck` pass; `npm test` failed three files on load timeouts
+  (`harness/src/succession`, `engine/src/modules/probe`, `web/src/views/saves`), each passing alone.
+
 ---
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
