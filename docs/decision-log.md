@@ -16167,6 +16167,42 @@ and both sexes' thumbnails at 435 kB, over the grid's 250 kB.
 `web/vite.config.ts`; `web/e2e/` (`portrait`, `layout`, `file` and `described` specs); `CONTEXT.md`
 (Portrait); `docs/planning/epics/v1.1.3-release.md` (S7).
 
+**The verification** (a second Opus agent, of `f17d954`: S7's `6abb1db` merged over DL-144's content 20).
+- *The grid's reading.* Measured apart from the spec, against `vite preview`, at 360, 820 and 1280px
+  and three seeds, the page scrolled through: no picture read before "Your Guildmaster" opens, then 20
+  thumbnails and no full picture, 216.9 kB (female) or 217.9 kB (male). The built thumbnails of one sex
+  total 216,854 and 217,884 bytes.
+- *The script.* `npm run build -w web` gives `index-*.js` of 769.65 kB (769,655 bytes; content 20 adds
+  0.15 kB to S7's 769.50), and `check-bundle` passes it. `bundle.test.ts` runs the gate on a script of
+  800,001 bytes, which fails with its size named, and on one of 800,000, which passes.
+- *Loading.* The only `<img>`s in `web/src` are `Layers`' two (`views/pictures.tsx`). The picture's
+  sets `loading="lazy"`, `decoding="async"`, `width` and `height`; the Silhouette's, a `data:` URL in
+  the script, sets all but `loading`, as item 3 says, so a place is never empty.
+- *The specs' rewrites.* `file.spec` is stronger: it now sees a Rival's thumbnail and full Portrait
+  load over `file://` where it saw a Silhouette, and unfolding "Guildmaster:" first is what lazy
+  loading requires. `portrait.spec`'s keyboard test keeps every check that still applies (one Tab past
+  the two buttons, the arrows, the sex chosen and drawn again). Its preview test no longer asserts that
+  the preview changes with the seed; `new-game.test.tsx` still does. `described.spec`'s first check
+  holds the Appearance to equal one picture's narrative exactly, which still tests that the narrative
+  is written; its second, at male 47, is now only "not empty", which the final check, that the Guildmaster
+  view shows those words, still ties to something real.
+- *The page by eye*, at 360, 820 and 1280px, light and dark: the grid, a note, the Roster, the pool, the
+  Guilds' table and a Hero's page. No sideways scroll and no page error in any of them, and no layout
+  defect. The pool's table scrolls within itself at 360px, its name cell fixed, as before.
+- *The capitals.* The new words ("Pictures shown", Female, Male, "Drawn from the seed", both notes,
+  Appearance and Biography) follow `docs/agents/ui-text.md`; the guard test passes.
+- *The suite.* `npm run lint` and `typecheck` pass. `npm test` failed three files on load timeouts
+  (`succession`, `probe`, `saves`), each passing alone (3,873 tests). `npm run e2e -w web` passes, 86
+  specs, the `file://` project among them.
+- *The owner's three items* are choices, not defects. The epic allows a grid narrowed and shows one sex
+  because of the 250 kB limit (DL-143). The notes are DL-134 item 7's, in its manner. The epic and DL-135
+  item 9 name "the Roster" beside the pool and the Rivals list, which reads as the view; the glossary's
+  Roster is any Guild's, so thumbnails on a Rival's Roster table are the owner's to ask for.
+- *Two small things for the owner*, neither against the epic. On a phone a note shows under the 20
+  thumbnails, often off the screen from the picture just chosen; the live region reads it aloud. With a
+  picture of one sex chosen and the other sex shown, no radio button of the grid is checked, so Tab
+  reaches the first.
+
 ---
 
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
