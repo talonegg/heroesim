@@ -497,7 +497,18 @@ export function bestParty(
   if (requiredParty(quest, available) === null) return null;
   const { partySizeMin, partySizeMax, classKey, skillKey } = quest.requirements;
   const estimate = questEstimator(world, quest, available, deps);
-  const chanceOf = (heroes: readonly Hero[]): Chance => chanceIn(estimate(heroes));
+  // Each Party's chance, by its Heroes in order: the Party the search ends on is one `best` weighed
+  // already, and an estimate is the rule's whole cost (DL-164). It draws nothing, so asking once is
+  // asking as often.
+  const weighed = new Map<string, Chance>();
+  const chanceOf = (heroes: readonly Hero[]): Chance => {
+    const key = heroes.map((hero) => hero.id).join(' ');
+    const known = weighed.get(key);
+    if (known !== undefined) return known;
+    const chance = chanceIn(estimate(heroes));
+    weighed.set(key, chance);
+    return chance;
+  };
   const party: Hero[] = [];
   const left = (): Hero[] => available.filter((hero) => !party.includes(hero));
   // Of `candidates`, the Hero whose joining leaves the Party the best chance, and that chance.

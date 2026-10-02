@@ -16,8 +16,9 @@ const scratches: (() => void)[] = [];
 afterEach(() => {
   for (const remove of scratches.splice(0)) remove();
 });
-function scratch(): string {
-  const { dir, remove } = scratchRepository();
+/** A scratch copy; with `engine`, its engine/src/ too, for a test that runs the doctor. */
+function scratch(options: { engine?: boolean } = {}): string {
+  const { dir, remove } = scratchRepository(options);
   scratches.push(remove);
   return dir;
 }
@@ -213,7 +214,7 @@ describe('editing, held as pending between command lines', () => {
 // holds only the fields it gave, and the pending file is written whole and dropped when unreadable.
 describe('the pending edits, checked as saved', () => {
   test('a Trait added, excluded by another and removed leaves edits that apply and pass (the verifier\'s case)', async () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     expect((await json(dir, 'traits', 'add', 'hero', 'foo', '--name', 'Foo')).code).toBe(0);
     expect((await json(dir, 'traits', 'change', 'lame', '--excludes', 'foo')).code).toBe(0);
     const removed = await json<{ stripped: { at: string }[] }>(dir, 'traits', 'remove', 'foo');
@@ -239,7 +240,7 @@ describe('the pending edits, checked as saved', () => {
   });
 
   test('the doctor holds the pending edits to the content\'s checks, and names their problems', async () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     const { mkdirSync, writeFileSync } = await import('node:fs');
     mkdirSync(path.dirname(pendingPath(dir, 'traits')), { recursive: true });
     writeFileSync(pendingPath(dir, 'traits'), JSON.stringify({ kind: 'traits', edits: [{ op: 'change', list: 'hero', key: 'lame', fields: { excludes: ['nobody'] } }] }));
@@ -373,14 +374,14 @@ describe('assign and unassign', () => {
   });
 
   /** A scratch copy with the Queries planted, whose Check, harm and Synergy a `has-trait` may filter. */
-  function prepared(): string {
-    const dir = scratch();
+  function prepared(options: { engine?: boolean } = {}): string {
+    const dir = scratch(options);
     plantQueries(dir);
     return dir;
   }
 
   test.each(cases)('%s: a use added, pending, then taken out', async (id, key, words, at) => {
-    const dir = prepared();
+    const dir = prepared({ engine: true });
     const before = (await json<{ uses: { at: string }[] }>(dir, 'traits', 'uses', key)).json.uses.map((use) => use.at);
     const assigned = await json<Assigned>(dir, 'traits', 'assign', key, id, ...words);
 
@@ -594,7 +595,7 @@ describe('finish', () => {
 
 describe('doctor and doc', () => {
   test('the doctor passes on the content as shipped, and fails on a planted read, a stale doc and broken content', async () => {
-    const dir = scratch();
+    const dir = scratch({ engine: true });
     const healthy = await json<{ ok: boolean; drift: { ok: boolean; reads: number } }>(dir, 'traits', 'doctor');
     expect(healthy.code).toBe(0);
     expect(healthy.json.ok).toBe(true);

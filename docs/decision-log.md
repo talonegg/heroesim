@@ -19853,6 +19853,103 @@ entry's command lines. The doctor reports no drift.
 
 ---
 
+## DL-164 — v1.1.4: the test suite's time restored: the Rivals' Party search made cheaper with the same games, the editor's tests copying one scratch repository, a sweep held to a representative size, and the long tests given their time
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, asked by the orchestrator to
+find what costs `npm test` its time on `v1.1.4-dev` at `470746f` and to fix it with the default pool.
+The calls in item 6 are the agent's, for the owner to change.
+
+**Context.** On `470746f`, `npm test` took 149 s and failed 12 or 13 tests, all timeouts but the
+1,000-Hero validation's 50 ms; each passed alone. v1.1.3 passed in 55 to 66 s. Measured the same
+morning on this machine, in worktrees at `v1.1.3` and `470746f` beside the owner's running tools:
+v1.1.3 88 s (2 failed: `upkeepParts` over a season, the probe over a year), `470746f` 150 s (12
+failed). The workers' summed file time rose from 653 s to 1,305 s: the editor's tests 283 s (none at
+v1.1.3), the web's 219 to 361 s, the engine's 181 to 233 s, the harness's 27 to 114 s. In the suite's
+first minute a test that takes a third of a second alone takes three to six.
+
+1. **Game code, the one regression.** The Rivals choose their Party by the estimate (S6, DL-157:
+   `bestParty`, `partyFor`), and Rival play took twice as long: a month of 100 seeds as
+   `dispositions.test.ts` plays it, 1.2 to 1.7 s at v1.1.3 and 2.7 to 3.4 s at `470746f`; one
+   twenty-year seed of `rivals-build-and-buy.test.ts`, 6.1 s and 11.8 s. `bestParty` was a third of a
+   played game, and three of its costs were not the estimate's own: each free Hero brought home by
+   `structuredClone`; `holdings` copying the whole Item and stack tables for every Hero a Query reads
+   (a fifth of a twenty-year game, through `effectiveStats`); and the search's last estimate asked
+   again. `validate` is not slower (a median of 16 ms of CPU time, v1.1.3's 15).
+2. **Test weight.** Each of the editor's 93 tests copied `engine/src/` and ran `git init`, `add` and
+   `commit` (0.65 s a test alone, 105 s in all); the "Choose myself" sweep held 1,000 seeds (8 s alone,
+   41 s in the suite); `weightedPick`'s test made 320,000 `expect` calls (5.6 s); the calibration's,
+   the estimate probe's and S4's 20,000-draw tests take 1 to 3 s alone under the default 5 s. The two
+   twenty-year sweeps (`rivals-build-and-buy`, `transfer-generator`, a `beforeAll` each) are the run's
+   critical path: 32 s each alone at v1.1.3, 60 s at `470746f`.
+
+**Decision.**
+
+1. **The same games, cheaper** (`engine/src/`). `bestParty` keeps each Party's chance by its Heroes in
+   order, so the Party the search ends on is not estimated again; `homecoming` copies the free Heroes
+   with a JSON copy (`copyOf`; the document is JSON-safe) at a third of `structuredClone`'s cost; and
+   `holdings` and `findStack` walk the tables in place (`rowsWhere`) instead of copying them. Nothing
+   draws or orders differently: the month plays its 83,204 events and the twenty-year seed its 204,971,
+   as before, and the History fingerprints (`quests-conclude.test.ts`) and the harness's fingerprint
+   tests pass. The month now takes 2.4 to 2.8 s, the twenty-year seed 9.2 to 9.4 s, each twenty-year
+   test file 49 s alone. The rest is the estimate S6 asks for: every candidate Party of every Rival,
+   every afternoon.
+2. **The editor's tests** (`tools/editor/src/test-support.ts`). Each test file makes its scratch
+   repository once (`git init --template=`, the content, the doc and the planted `npm test`, committed)
+   and each test copies that folder, `.git` and all, spawning no git; `engine/src/` is copied only with
+   `{ engine: true }`, for the tests that run the doctor or the drift check, and is ignored by git. The
+   drift check keeps each file's reads by its text (`reads.ts`), so a doctor run again parses only what
+   changed, in the page's server too. The same 93 tests: 105 s alone to 40 s.
+3. **A sweep held to a representative size.** "Choose myself" against "Choose for me" runs over 60
+   seeds in `npm test` (the thirty settings of age, sex and Traits the seeds go round, each twice) and
+   over `HEROESIM_SEEDS`, 1,000 by default, in `create.harness.test.ts`: `npm run harness --
+   create.harness`. Both call `harness/src/guildmaster-chosen.test-support.ts`. `weightedPick`'s test
+   compares its 160,000 draws without an `expect` each (65 ms).
+4. **The long tests given their time**, each with a comment saying why: the probe over a year,
+   `upkeepParts` over a season, S4's 20,000-draw tests, the estimate against the resolver, the
+   calibration's shard and rates, the estimate probe, the Succession probe's child processes, the
+   reducer's year of steps, the Treasury's 900 Turns, the History's scopes, `show hero` for every Hero
+   and the 60 seeds. The validator's speed test times up to 400 runs or 15 s, not 40 or 3 s, for one
+   under 50 ms: its fastest of forty was 62 and 63 ms in two loaded runs, its cost unchanged.
+5. **Three races a loaded machine found**, each fixed in its test: the History's test waits for the
+   keyboard to reach the Quest report, which an effect moves after the render `idle` waits for;
+   `useGame`'s fast forwards after a Stop wait up to 20 s, as their sibling did; and the recovery test
+   takes `taskkill`'s failure on a process of the tree already gone, the journal saying what counts.
+6. **Calls where the plan was silent.**
+   - *The twenty-year sweeps stay at four seeds.* They are M6's boxes and the run's critical path; a
+     smaller `npm test` set with the full one behind `HEROESIM_HARNESS`, as `transfer-generator` has
+     for its 100 seeds, is the owner's to choose.
+   - *The editor's tests stay in `npm test`*, made cheap rather than moved to an opt-in project: they
+     are the editor's only tests, and S13's skills rest on them.
+   - *No pool, worker count or global timeout changed.*
+
+Nothing changed for Traits; the doctor reports no drift (110 reads), a fresh doc, the content passing
+and no pending edits.
+
+**The checks.** `npm run typecheck` and `npm run lint` are clean. `npm test`, three runs in a row:
+4,709 of 4,709 passed each time, in 115.5, 115.3 and 116.6 s (from 149.6 s and 12 failed at
+`470746f`). The ten slowest files, `beforeAll` included, before → after: `transfer-generator` 138.3 →
+109.4 s, `rivals-build-and-buy` 135.4 → 112.3, the editor's `cli` 120.7 → 69.0, the portrait tool's
+`owner` 83.2 → 75.8, the editor's `drift` 58.5 → 46.2, `write-rows` 44.3 → 49.5, the editor's
+`server` 42.7 → 24.9, the CLI's `main` 36.2 → 44.5, `boundary` 36.0 (failed) → 6.9 and `imports`
+35.4 (failed) → 3.0; after, `refusals` 45.2, `chromium` 35.8 and `corpus` 35.7 are among the ten. The
+summed file time, `beforeAll` included: 1,461 s before, 1,363 s after. The 1,000 chosen seeds pass in
+`npm run harness -- create.harness`.
+
+**Consequences.**
+- The suite runs about 30 s longer than v1.1.3 beside it: the twenty-year sweeps' extra time, which is
+  S6's estimate, the cost the game asks for.
+- A test of v1.1.4 that plays, sweeps or spawns states its time, as the older ones do.
+
+**Actioned in:** `engine/src/` (`controllers/rival.ts`, `items.ts`, `quest-engine/estimate.ts`, and
+the tests named above); `tools/editor/src/` (`test-support.ts`, `reads.ts`, `cli.test.ts`,
+`drift.test.ts`, `server.test.ts`, `recovery.test.ts`); `harness/src/` (`creation.test.ts`,
+`create.harness.test.ts`, `guildmaster-chosen.test-support.ts`, `calibrate.test.ts`,
+`estimate.test.ts`, `succession.test.ts`); `web/src/` (`state/reducer.test.ts`,
+`state/use-game.test.tsx`, `views/history.test.tsx`, `views/treasury.test.tsx`);
+`cli/src/main.test.ts`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

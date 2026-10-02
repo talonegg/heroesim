@@ -179,7 +179,9 @@ describe("upkeepParts and nextUpkeepDay (M9-F1)", () => {
     expect(upkeepParts(guild, world, deps.config)).toEqual({ wages, hallMaintenance: 30, traitFactor: 1, total: wages + 30 });
   });
 
-  test('sums to upkeep() for every Guild over seeded worlds, played a season', () => {
+  // Four worlds played ninety Days through `advance`: about a second alone, and five to seven under
+  // the whole suite's load, past the default 5 s (DL-164).
+  test('sums to upkeep() for every Guild over seeded worlds, played a season', { timeout: 60_000 }, () => {
     const deps = testDeps({ startingWealth: 100_000 });
     const factors = new Set<number>();
     for (const seed of ['parts-a', 'parts-b', 'parts-c', 'parts-d']) {

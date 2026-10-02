@@ -1,19 +1,8 @@
-import { createHash } from 'node:crypto';
 import { loadContent } from '@heroesim/content/node';
-import {
-  createWorld,
-  defaultConfig,
-  playerGuild,
-  serialise,
-  validate,
-  type EngineDeps,
-  type Guild,
-  type Guildmaster,
-  type WorldDocument,
-  type WorldSetup,
-} from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
+import { expectChosenAsNone, picturesAside } from './guildmaster-chosen.test-support.js';
 import { playGame } from './play.js';
 import { machine } from './report.js';
 import { seedNames } from './seeds.js';
@@ -28,13 +17,6 @@ const deps: EngineDeps = { config: { ...defaultConfig }, content };
 function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
-}
-
-/** `document` with every Guildmaster's Portrait, Appearance and Biography set aside (v1.1.3-S5). */
-function picturesAside(document: WorldDocument): WorldDocument {
-  const copy = structuredClone(document);
-  for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
-  return copy;
 }
 
 describe('createWorld with the core content', () => {
@@ -77,52 +59,15 @@ describe("the harness's player's Guildmaster, 30", () => {
 
 // v1.1.4-S11 (DL-149): "Choose myself" sets every attribute of the player's Guildmaster, and what is
 // chosen replaces what is drawn after the draw, so the world a seed makes is otherwise the one "Choose
-// for me" makes: the creation hashes, but for the player's Guildmaster, are equal.
+// for me" makes: the creation hashes, but for the player's Guildmaster, are equal. Over 60 seeds: every
+// age, both sexes and both choices of Traits, the thirty settings the seeds go round, each twice; the
+// 1,000 of S11 are create.harness.test.ts's (DL-164). Half a second alone, several under the suite's load.
 describe('every Guildmaster attribute chosen, against none (v1.1.4-S11)', () => {
-  const portraits = content.portraits.guildmaster;
-  const hashed = (document: WorldDocument): string => createHash('sha256').update(serialise(document)).digest('hex');
-  /** The parts of a world a Guildmaster chosen at setup leaves as they were, each hashed. */
-  const parts = (document: WorldDocument) => {
-    const { world } = picturesAside(document);
-    const player = playerGuild(world) as Guild;
-    const rest = (table: 'guilds' | 'guildmasters' | 'heroes' | 'quests' | 'patrons' | 'stacks') =>
-      Object.values(world[table]).filter((row) => row.id !== player.guildmasterId);
-    return Object.fromEntries(
-      (['guilds', 'guildmasters', 'heroes', 'quests', 'patrons', 'stacks'] as const).map((table) => [
-        table,
-        createHash('sha256').update(JSON.stringify(rest(table))).digest('hex'),
-      ]),
-    );
-  };
-
-  test('makes the same Rivals, Heroes, Patrons, Board and Market, and every stream where it was, over 1,000 seeds', () => {
-    let rivalPictureMoved = 0;
-    seedNames(1000).forEach((seed, n) => {
-      const sex = n % 2 === 0 ? 'female' : 'male';
-      const chosen: WorldSetup = {
-        ...harnessSetup,
-        guildmasterSex: sex,
-        guildmasterAge: 21 + (n % 30),
-        guildmasterPortraitKey: portraits[sex][n % portraits[sex].length] ?? '',
-        guildmasterStats: { inspiration: 10, influence: 15, negotiation: 15, coaching: 5, judgement: 5 },
-        guildmasterTraitKeys: n % 3 === 0 ? [] : ['old-soldier', 'mistrusts-magic'],
-        guildmasterBirthplace: 'Harrowgate',
-        guildmasterAppearance: 'Grey at the temples.',
-        guildmasterBiography: 'Kept the toll bridge at Wyndham.',
-      };
-      const none = createWorld(seed, harnessSetup, deps).document;
-      const every = createWorld(seed, chosen, deps).document;
-      expect(parts(every), seed).toEqual(parts(none));
-      expect(every.world.rng, seed).toEqual(none.world.rng);
-      // The whole world, the player's Guildmaster and every Guildmaster's picture and its texts set aside.
-      const player = playerGuild(none.world) as Guild;
-      every.world.guildmasters[player.guildmasterId] = structuredClone(none.world.guildmasters[player.guildmasterId] as Guildmaster);
-      expect(hashed(picturesAside(every)), seed).toBe(hashed(picturesAside(none)));
-      if (hashed(every) !== hashed(none)) rivalPictureMoved += 1;
-    });
+  test('makes the same Rivals, Heroes, Patrons, Board and Market, and every stream where it was, over 60 seeds', { timeout: 30_000 }, () => {
+    const { rivalPictureMoved } = expectChosenAsNone(seedNames(60), deps);
     // A Rival's picture fits them among those not in use (v1.1.3-S5), so the player's may move one.
     expect(rivalPictureMoved).toBeGreaterThan(0);
-  }, 60_000);
+  });
 });
 
 // M5-S5 (DL-52): content names a template's Loot table and config says from which difficulty a

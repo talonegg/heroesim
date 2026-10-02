@@ -299,7 +299,9 @@ describe("each one's page opens their History (M9-S5)", () => {
     await idle();
     // The Party's stop offers no "Read what happened": the play opened its report (M9-F5).
     expect(within(screen.getByTestId('stop')).queryByRole('button', { name: 'Read what happened' })).toBeNull();
-    expect((document.activeElement as HTMLElement).textContent).toMatch(/^Quest report: /);
+    // The keyboard moves in an effect after the render that ends the play, which a loaded machine may
+    // run after `idle` has seen that render (DL-164).
+    await waitFor(() => expect((document.activeElement as HTMLElement).textContent).toMatch(/^Quest report: /));
     fireEvent.click(within(screen.getByRole('complementary', { name: 'Latest for The Lantern' })).getByRole('button', { name: 'Open the History' }));
     expect(title()).toBe('The History of The Lantern');
     expect(inHistory(/^The Lantern's Party came home from /).classList.contains('is-new')).toBe(true);
@@ -394,7 +396,9 @@ describe('anyone the History names, found by name (DL-74)', () => {
   });
 });
 
-describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", () => {
+// Each plays a month or more before it renders the History: up to two seconds alone, near the default
+// 5 s under the whole suite's load (DL-164).
+describe("the History's scopes (M9-F4, DL-111 item 4, DL-112 item 7)", { timeout: 30_000 }, () => {
   test('the choices are your Guild, the world and each Rival: the whole History is not among them', () => {
     render_(played(started(), { kind: 'advance', turns: 3 }));
     const labels = within(whose())

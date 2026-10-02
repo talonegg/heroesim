@@ -9,7 +9,9 @@ import { machine } from './report.js';
 
 const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
 
-describe('the estimate probe', () => {
+// Samples estimated and resolved over thousands of seeds: up to two seconds a test alone, more than the
+// default 5 s under the whole suite's load (DL-164).
+describe('the estimate probe', { timeout: 60_000 }, () => {
   test('takes every Injury, Death and Morale out of the content, and keeps the rest', () => {
     const kept = harmless(deps.content);
     const all = Object.values(kept.encounters).flatMap(({ consequences }) => Object.values(consequences).flat());

@@ -89,7 +89,9 @@ describe('the probe registers', () => {
 
 // ── M8-S3 box 1 ──────────────────────────────────────────────────────────────────────────────
 
-describe('over a year', () => {
+// A year of Turns, each through `advance`, which copies the world: about a second alone, and
+// five to eight under the whole suite's load, past the default 5 s (DL-164).
+describe('over a year', { timeout: 60_000 }, () => {
   // Wealth enough that the player's Guild, which takes no Quest here, lasts the year unbankrupt.
   const yearDeps = testDeps({ startingWealth: 1_000_000 });
   const turns = yearDeps.config.turnsPerYear;

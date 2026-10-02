@@ -597,7 +597,9 @@ describe('show', () => {
     }
   });
 
-  test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', () => {
+  // `show hero` for every Hero of the world: a third of a second alone, three to six under the whole
+  // suite's load, which ran past the default 5 s (DL-164).
+  test('hero never prints Potential, and every Stat row carries its hint (data-model rule 9, M3-S3)', { timeout: 30_000 }, () => {
     const { world } = document();
     for (const hero of Object.values(world.heroes)) {
       const run = play(['show', 'hero', hero.id]);

@@ -138,7 +138,8 @@ describe('the Succession probe over a few seeds', () => {
     for (const game of games) expect(report).toContain(game.seed);
   });
 
-  test('plays the same games shared among child processes', async () => {
+  // Two child processes, each starting tsx and loading the content, as sweep.test.ts's: given as long.
+  test('plays the same games shared among child processes', { timeout: 120_000 }, async () => {
     const parallel = await probeInParallel(seeds.slice(0, 2), shortYears, { years, age: successionProbeAge, workers: 2 });
     expect(parallel).toEqual(games.slice(0, 2));
   });

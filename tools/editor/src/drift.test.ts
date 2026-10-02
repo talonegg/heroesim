@@ -14,7 +14,7 @@ afterEach(() => {
   for (const remove of scratches.splice(0)) remove();
 });
 function scratch(): string {
-  const { dir, remove } = scratchRepository();
+  const { dir, remove } = scratchRepository({ engine: true });
   scratches.push(remove);
   return dir;
 }

@@ -52,8 +52,14 @@ describe('a "Finish" cut off', () => {
       ' M content/src/parse.ts',
     ]);
     expect(readContentVersion(dir)).toBe(version + 1);
-    if (process.platform === 'win32') execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
-    else process.kill(-(child.pid ?? 0), 'SIGKILL');
+    if (process.platform === 'win32') {
+      try {
+        execFileSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      } catch {
+        // taskkill fails when a process of the tree ends while it kills the rest, as one may under
+        // the whole suite's load (DL-164): the "Finish" killed is what counts, and the journal says so.
+      }
+    } else process.kill(-(child.pid ?? 0), 'SIGKILL');
     await exited;
     expect(existsSync(journalPath(dir))).toBe(true);
     expect(journalState(dir)).toBe('cut-off');

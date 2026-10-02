@@ -427,11 +427,14 @@ describe('weightedPick (M4-S5, DL-43)', () => {
       const weighted = generation(`weighted-ones-${length}`);
       const byInt = generation(`weighted-ones-${length}`);
       const byPick = generation(`weighted-ones-${length}`);
+      // The draws that differ, compared without an expect each: 320,000 expects took five seconds (DL-164).
+      const differing: { draw: number; drawn: number; int: number; pick: number }[] = [];
       for (let i = 0; i < 20_000; i += 1) {
         const drawn = weightedPick(weighted, items, ones);
-        expect(drawn).toBe(int(byInt, 0, length - 1));
-        expect(drawn).toBe(pick(byPick, items));
+        const [byIntDrawn, byPickDrawn] = [int(byInt, 0, length - 1), pick(byPick, items)];
+        if (drawn !== byIntDrawn || drawn !== byPickDrawn) differing.push({ draw: i, drawn, int: byIntDrawn, pick: byPickDrawn });
       }
+      expect(differing, `length ${length}`).toEqual([]);
       expect(weighted).toEqual(byInt);
     }
   });

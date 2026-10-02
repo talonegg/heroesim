@@ -246,7 +246,7 @@ function estimateFor(
  * `world` and `heroes` are left as they are.
  */
 function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'durationTurns'>, deps: CheckDeps): { world: World; heroes: Hero[] } {
-  const away = heroes.map((hero) => structuredClone(hero));
+  const away = heroes.map((hero) => copyOf(hero));
   const home: World = { ...world, heroes: { ...world.heroes, ...Object.fromEntries(away.map((hero) => [hero.id, hero])) } };
   const returns = returnNightOf(world.turn, quest);
   const first = nightOf(dayOf(world.turn));
@@ -257,6 +257,18 @@ function homecoming(world: World, heroes: readonly Hero[], quest: Pick<Quest, 'd
   }
   home.turn = returns;
   return { world: home, heroes: away };
+}
+
+/**
+ * A deep copy of `value`, JSON-safe as the document is (data-model rule 6), equal to `structuredClone`'s
+ * at a third of its cost: the Rivals' `partyFor` brings its free Heroes home every afternoon (DL-164).
+ */
+function copyOf<T>(value: T): T {
+  if (typeof value !== 'object' || value === null) return value;
+  if (Array.isArray(value)) return value.map((item: unknown) => copyOf(item)) as T;
+  const copy: Record<string, unknown> = {};
+  for (const key in value) copy[key] = copyOf(value[key]);
+  return copy as T;
 }
 
 /** The estimate for a Party of no one: it meets none of `sequence`, so no Degree has a chance, and the Quest fails. */

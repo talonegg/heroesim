@@ -612,7 +612,8 @@ function fastForwardCalls(): Parameters<typeof fastForward>[] {
 }
 
 describe('fast forward in steps of at most 30 Turns (v1.0.1-S5, DL-96)', () => {
-  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', () => {
+  // A year fast forwarded, a step at a time: several seconds alone, as the cases below (DL-164).
+  test('is fastForward calls of at most 30 Turns, a settle each, each from the game the step before it left', { timeout: 30_000 }, () => {
     const before = withRosterReleased(started());
     const guildId = playerOf(before).id;
     const turn = documentOf(before).world.turn;

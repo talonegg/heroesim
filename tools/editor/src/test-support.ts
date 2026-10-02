@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import type { ContentFileName } from '@heroesim/content';
 import { formatJson } from '@heroesim/portraits';
+import { afterAll } from 'vitest';
 import { run, type Deps } from './cli.js';
 import { repositoryRoot } from './content-files.js';
 import { isBoundaryProbe } from './reads.js';
@@ -47,12 +48,20 @@ console.log(' ✓ src/planted.test.ts (1 test)');
 `;
 
 /**
- * A scratch copy of this repository's content (its JSON, and the source that holds the content
- * version and its checks), `engine/src/`, and `docs/agents/traits.md`, committed, with a planted `npm
- * test` that passes; removed by the function it returns with.
+ * The scratch copies' first state, made once for each test file that asks for one: its content, its
+ * doc and its planted `npm test`, committed. Each copy is a copy of its folder, `.git` and all, so that
+ * a test spawns no git to make one: three git commands for each test took most of the editor's tests'
+ * time, and more under the whole suite's load (DL-164). Removed after the file's tests.
  */
-export function scratchRepository(): { dir: string; remove: () => void } {
-  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-'));
+let template: string | undefined;
+afterAll(() => {
+  if (template !== undefined) rmSync(template, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+  template = undefined;
+});
+
+function templateRepository(): string {
+  if (template !== undefined) return template;
+  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-template-'));
   cpSync(path.join(root, 'content'), path.join(dir, 'content'), {
     recursive: true,
     filter: (source) => {
@@ -60,19 +69,37 @@ export function scratchRepository(): { dir: string; remove: () => void } {
       return relative === '' || relative.endsWith('.json') || ['src', 'src/parse.ts', 'src/content.test.ts', 'src/validate.ts'].includes(relative);
     },
   });
-  // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
-  cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {
-    recursive: true,
-    filter: (source) => !isBoundaryProbe(path.relative(root, source).replace(/\\/g, '/')),
-  });
   cpSync(path.join(root, 'docs', 'agents', 'traits.md'), path.join(dir, 'docs', 'agents', 'traits.md'));
   writeFileSync(path.join(dir, 'package.json'), `${JSON.stringify({ name: 'scratch', private: true, scripts: { test: 'node planted-test.mjs' } }, null, 2)}\n`);
   writeFileSync(path.join(dir, 'planted-test.mjs'), plantedTest);
   writeFileSync(path.join(dir, 'test-outcome.txt'), 'pass\n');
-  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\n');
-  git(dir, 'init', '--quiet');
+  writeFileSync(path.join(dir, '.gitignore'), '.editor/\ntests-started.txt\nengine/\n');
+  // No template: git's sample hooks are files each copy would copy for nothing.
+  git(dir, 'init', '--quiet', '--template=');
   git(dir, 'add', '--all');
   git(dir, 'commit', '--quiet', '-m', 'scratch');
+  template = dir;
+  return dir;
+}
+
+/**
+ * A scratch copy of this repository's content (its JSON, and the source that holds the content
+ * version and its checks) and `docs/agents/traits.md`, committed, with a planted `npm test` that
+ * passes; removed by the function it returns with. With `engine`, `engine/src/` too, which only the
+ * drift check reads (the doctor's, `drift.ts`): copied beside the commit and ignored by git, since
+ * the editor never writes it, as copying and committing its files for every test took most of the
+ * editor's tests' time (DL-164).
+ */
+export function scratchRepository(options: { engine?: boolean } = {}): { dir: string; remove: () => void } {
+  const dir = mkdtempSync(path.join(tmpdir(), 'heroesim-editor-'));
+  cpSync(templateRepository(), dir, { recursive: true, preserveTimestamps: true });
+  if (options.engine === true) {
+    // engine/src/boundary.test.ts writes and deletes probe files in engine/src/ while other tests run.
+    cpSync(path.join(root, 'engine', 'src'), path.join(dir, 'engine', 'src'), {
+      recursive: true,
+      filter: (source) => !isBoundaryProbe(path.relative(root, source).replace(/\\/g, '/')),
+    });
+  }
   // Windows may hold a file of it a moment after a child process or the server lets it go.
   return { dir, remove: () => rmSync(dir, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 }) };
 }

@@ -2,6 +2,7 @@ import { loadContent } from '@heroesim/content/node';
 import { defaultConfig, type EngineDeps } from '@heroesim/engine';
 import { expect, test } from 'vitest';
 import { creationReport, sweepCreation } from './creation.js';
+import { expectChosenAsNone } from './guildmaster-chosen.test-support.js';
 import { moduleIds } from './modules.js';
 import { machine, reportPath, writeReport } from './report.js';
 import { probeName } from './succession.js';
@@ -34,4 +35,11 @@ test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} wor
   expect(sweep.mismatches).toEqual([]);
   expect(sweep.identical).toBe(seeds.length);
   expect(sweep.outOfRange).toEqual([]);
+});
+
+// v1.1.4-S11 (DL-149): every attribute of the player's Guildmaster chosen leaves the rest of the world
+// as none chosen, over the same seeds; `npm test` holds it over 60 (creation.test.ts, DL-164).
+test.skipIf(moduleIds().length > 0 || probeName() !== null)(`${seeds.length} worlds with every Guildmaster attribute chosen are those with none, but for the Guildmaster`, { timeout: 30 * 60_000 }, () => {
+  const deps: EngineDeps = { config: { ...defaultConfig }, content: loadContent() };
+  expect(expectChosenAsNone(seeds, deps).rivalPictureMoved).toBeGreaterThan(0);
 });

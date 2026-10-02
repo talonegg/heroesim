@@ -72,13 +72,23 @@ function matches(holder: Holder, query: HolderQuery): boolean {
 export function holdings(world: Pick<World, 'items' | 'stacks'>, holder: HolderQuery): Holdings {
   const byId = (a: { id: string }, b: { id: string }): number => compareByCodeUnit(a.id, b.id);
   return {
-    items: Object.values(world.items)
-      .filter((item) => matches(item.holder, holder))
-      .sort(byId),
-    stacks: Object.values(world.stacks)
-      .filter((stack) => matches(stack.holder, holder))
-      .sort(byId),
+    items: rowsWhere(world.items, (item) => matches(item.holder, holder)).sort(byId),
+    stacks: rowsWhere(world.stacks, (stack) => matches(stack.holder, holder)).sort(byId),
   };
+}
+
+/**
+ * The rows of `table` that `keep`, in its order, as `Object.values(table).filter(keep)` gives them
+ * without the copy of the whole table: `holdings` is asked for every Hero a Query reads, and copying
+ * the tables was a fifth of a twenty-year game's time (DL-164).
+ */
+function rowsWhere<T>(table: Readonly<Record<string, T>>, keep: (row: T) => boolean): T[] {
+  const kept: T[] = [];
+  for (const id in table) {
+    const row = table[id] as T;
+    if (keep(row)) kept.push(row);
+  }
+  return kept;
 }
 
 /** `holder`'s stack of `definitionKey`, or `undefined` when it has none: by the rule, there is one at most. */
@@ -87,9 +97,11 @@ export function findStack(
   definitionKey: ItemDefinitionKey,
   holder: Holder,
 ): Stack | undefined {
-  return Object.values(world.stacks).find(
-    (stack) => stack.definitionKey === definitionKey && sameHolder(stack.holder, holder),
-  );
+  for (const id in world.stacks) {
+    const stack = world.stacks[id as StackId] as Stack;
+    if (stack.definitionKey === definitionKey && sameHolder(stack.holder, holder)) return stack;
+  }
+  return undefined;
 }
 
 /**

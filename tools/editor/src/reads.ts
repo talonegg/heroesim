@@ -235,8 +235,18 @@ export function readsIn(file: string, text: string, helpers: readonly SourcePlac
   return found;
 }
 
+/**
+ * Each file's reads as `readsIn` found them, by the helpers and then by the file's name and text, so
+ * that a process that runs the doctor again (the page's server, the editor's tests) parses only the
+ * files changed since (DL-164). The reads are the file's text's alone, so a file read again is
+ * parsed again only when its text has changed.
+ */
+const parsed = new WeakMap<readonly SourcePlace[], Map<string, TraitRead[]>>();
+
 /** Every read of a Trait in the scanned files under `root`. */
 export function traitReads(root: string, helpers: readonly SourcePlace[] = traitHelpers): TraitRead[] {
+  const known = parsed.get(helpers) ?? new Map<string, TraitRead[]>();
+  parsed.set(helpers, known);
   return scannedFiles(root).flatMap((file) => {
     let text: string;
     try {
@@ -245,6 +255,9 @@ export function traitReads(root: string, helpers: readonly SourcePlace[] = trait
       // A file gone since the folder was read holds nothing to read.
       return [];
     }
-    return readsIn(file, text, helpers);
+    const key = `${file}\n${text}`;
+    const reads = known.get(key) ?? readsIn(file, text, helpers);
+    known.set(key, reads);
+    return reads.map((read) => ({ ...read }));
   });
 }

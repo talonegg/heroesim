@@ -816,7 +816,9 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
   });
 
   // The epic's third box.
-  test('over 20,000 draws, the Hero at the bottom of exposedBy is hit about three times as often as the one at the top', () => {
+  // 20,000 resolutions for a ratio held to 5%, and 60,000 for three rates held to 1.5 points below: one
+  // to two seconds each alone, past the default 5 s under the whole suite's load (DL-164).
+  test('over 20,000 draws, the Hero at the bottom of exposedBy is hit about three times as often as the one at the top', { timeout: 30_000 }, () => {
     const h = harmed('exposure', [failing('front', [injury({ exposedBy: ['constitution'] })])], {
       size: 2,
       set: (heroes) => heroes.forEach((hero, index) => (hero.stats['constitution'] = index === 0 ? 1 : 20)),
@@ -833,7 +835,7 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     expect(ratio).toBeLessThan(3.15);
   });
 
-  test('over 20,000 draws, guardedBy at the top halves the chance, and at the bottom leaves it', () => {
+  test('over 20,000 draws, guardedBy at the top halves the chance, and at the bottom leaves it', { timeout: 30_000 }, () => {
     const rate = (constitution: number, kind: 'injury' | 'death'): number => {
       const harm: Consequence = kind === 'injury' ? injury({ chance: 0.8, guardedBy: ['constitution'] }) : { kind, chance: 0.8, guardedBy: ['constitution'] };
       const h = harmed(`guard-${constitution}-${kind}`, [failing('front', [harm])], {

@@ -388,7 +388,9 @@ describe('the estimate', () => {
   });
 });
 
-describe('the estimate against the resolver, no one falling', () => {
+// Each estimate held to 3,000 resolutions: a second or more a test alone, past the default 5 s under
+// the whole suite's load (DL-164).
+describe('the estimate against the resolver, no one falling', { timeout: 30_000 }, () => {
   const runs = 3000;
   const points = 0.03;
 

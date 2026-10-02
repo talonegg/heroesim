@@ -16,8 +16,8 @@ afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) await cleanup();
 });
 
-async function served(runTests: TestRunner = npmTest): Promise<{ dir: string; page: Served; api: (method: string, path: string, body?: unknown) => Promise<{ status: number; json: Record<string, unknown> }> }> {
-  const { dir, remove } = scratchRepository();
+async function served(runTests: TestRunner = npmTest, options: { engine?: boolean } = {}): Promise<{ dir: string; page: Served; api: (method: string, path: string, body?: unknown) => Promise<{ status: number; json: Record<string, unknown> }> }> {
+  const { dir, remove } = scratchRepository(options);
   cleanups.push(remove);
   const page = await serve({ root: dir, port: 0, runTests });
   cleanups.push(() => page.close());
@@ -90,7 +90,7 @@ describe('the API', () => {
   });
 
   test('discards, and runs the doctor', async () => {
-    const { api } = await served();
+    const { api } = await served(npmTest, { engine: true });
     await api('PUT', '/api/traits/lame', { name: 'Limping' });
     const discarded = await api('POST', '/api/discard', {});
     expect(discarded.json.discarded).toEqual({ discarded: 1, left: 0 });

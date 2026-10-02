@@ -83,7 +83,9 @@ describe('loadDrafts', () => {
   });
 });
 
-describe('a play shard with drafts (HEROESIM_DRAFTS)', () => {
+// Three games of forty Days, one through a shard: three seconds alone, more than the default 5 s under
+// the whole suite's load (DL-164).
+describe('a play shard with drafts (HEROESIM_DRAFTS)', { timeout: 60_000 }, () => {
   test('plays the content with the drafts its job names, as this process plays it, and otherwise the core', () => {
     const years = 120 / deps.config.turnsPerYear;
     const job = { seeds: ['seed-0001'], config: deps.config, years, validate: false, policy: defaultPolicyConfig };
@@ -146,7 +148,9 @@ describe('formatJson', () => {
   });
 });
 
-describe('the rates', () => {
+// Tunings and a calibration over a pool of Heroes, each Encounter estimated over many Parties: up to three
+// seconds a test alone, more than the default 5 s under the whole suite's load (DL-164).
+describe('the rates', { timeout: 60_000 }, () => {
   const { content } = loadDrafts(draftsDir);
   const drafts: EngineDeps = { config: { ...defaultConfig }, content };
   const pool = heroPool('calibrate-test', 5, 40, drafts);
