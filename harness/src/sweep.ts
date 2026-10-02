@@ -1609,7 +1609,8 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +
       `onto Heroes with the slot empty (M5-S2); the highest-reward ` +
-      `Quest it can staff, the strongest Party of the size it requires, carrying one of each consumable held that ` +
+      `Quest it can staff, the Party the engine's \`partyFor\` names by the chance estimate at a margin of ` +
+      `${config.playerPartyMargin} (v1.1.4-S6), carrying one of each consumable held that ` +
       `serves the Quest (DL-62); one purchase a Turn: the infirmary's next grade while Wealth exceeds ` +
       `${sweep.policy.buildWealthMultiple} times its cost (M3-S6), else one armour while a Hero has none and Wealth ` +
       `exceeds ${sweep.policy.buyWealthMultiple} times its price (M5-S4), else the cheapest Hero who would sign while ` +

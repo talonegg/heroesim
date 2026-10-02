@@ -1530,6 +1530,8 @@ describe('a Disposition (M6-S1)', () => {
   test.each<[string, (it: Omit<Disposition, 'key'>) => void, RegExp]>([
     ['with a questRiskAppetite above 1', (it) => (it.questRiskAppetite = 1.5), /dispositions\.reckless\.questRiskAppetite is 1\.5; it is a number from 0 to 1/],
     ['with a transferAppetite below 0', (it) => (it.transferAppetite = -0.1), /dispositions\.reckless\.transferAppetite is -0\.1; it is a number from 0 to 1/],
+    ['with a partyMargin below 0', (it) => (it.partyMargin = -0.05), /dispositions\.reckless\.partyMargin is -0\.05; it is a number from 0 to 1/],
+    ['with a partyMargin above 1', (it) => (it.partyMargin = 1.5), /dispositions\.reckless\.partyMargin is 1\.5; it is a number from 0 to 1/],
     ['with a negative recruitThreshold', (it) => (it.recruitThreshold = -1), /dispositions\.reckless\.recruitThreshold is -1; it is a number of 0 or more/],
     ['with a negative buildThreshold', (it) => (it.buildThreshold = -2), /dispositions\.reckless\.buildThreshold is -2; it is a number of 0 or more/],
     ['with a negative gearThreshold', (it) => (it.gearThreshold = -3), /dispositions\.reckless\.gearThreshold is -3; it is a number of 0 or more/],
@@ -1546,8 +1548,12 @@ describe('a Disposition (M6-S1)', () => {
     const wrong = withJson('dispositions.json', (json) => {
       Object.assign(reckless(json), { questRiskAppetite: 'high' });
     });
+    const noMargin = withJson('dispositions.json', (json) => {
+      Reflect.deleteProperty(reckless(json), 'partyMargin');
+    });
 
     expect(refusalOf(() => parseContent(missing)).message).toMatch(/dispositions\.json: reckless\.buildThreshold is missing/);
+    expect(refusalOf(() => parseContent(noMargin)).message).toMatch(/dispositions\.json: reckless\.partyMargin is missing/);
     expect(refusalOf(() => parseContent(wrong)).message).toMatch(/dispositions\.json: reckless\.questRiskAppetite is "high"/);
   });
 
@@ -1564,6 +1570,7 @@ describe('a Disposition (M6-S1)', () => {
         buildThreshold: 0,
         gearThreshold: 0,
         transferAppetite: 0,
+        partyMargin: 0,
       };
     });
 

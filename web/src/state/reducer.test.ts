@@ -957,9 +957,10 @@ describe('the document is never mutated', () => {
       (state) => {
         const { world } = documentOf(state);
         const available = availableHeroes(world, playerOf(state));
-        const quest = offeredQuests(world).find((each) => partyFor(each, available, content) !== null);
+        const deps = playDeps(documentOf(state));
+        const quest = offeredQuests(world).find((each) => partyFor(world, playerOf(state), each, available, deps) !== null);
         if (quest === undefined) throw new Error('expected a Quest the Roster can staff');
-        const heroIds = partyFor(quest, available, content) ?? [];
+        const heroIds = partyFor(world, playerOf(state), quest, available, deps) ?? [];
         return { kind: 'dispatch', questId: quest.id, heroIds, consumables: [{ definitionKey: 'whetstone', quantity: 1 }] };
       },
       () => ({ kind: 'build', facility: 'infirmary' }),

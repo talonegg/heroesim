@@ -782,7 +782,8 @@ function written(text: string): boolean {
 
 /**
  * The Dispositions (M2-S9, M6-S1, DL-56): at least one, since the Guild Generator deals one to
- * every Rival; each appetite a fraction from 0 to 1, and each threshold a multiple of 0 or more.
+ * every Rival; each appetite, and the `partyMargin` (v1.1.4-S6, DL-157), a fraction from 0 to 1,
+ * and each threshold a multiple of 0 or more.
  */
 function checkDispositions(dispositions: ContentSet['dispositions'], problems: string[]): void {
   if (Object.keys(dispositions).length === 0) {
@@ -790,7 +791,7 @@ function checkDispositions(dispositions: ContentSet['dispositions'], problems: s
   }
   for (const [key, disposition] of Object.entries(dispositions)) {
     const where = `dispositions.${key}`;
-    for (const field of ['questRiskAppetite', 'transferAppetite'] as const) {
+    for (const field of ['questRiskAppetite', 'transferAppetite', 'partyMargin'] as const) {
       const value = disposition[field];
       if (!(value >= 0 && value <= 1)) problems.push(`${where}.${field} is ${value}; it is a number from 0 to 1`);
     }

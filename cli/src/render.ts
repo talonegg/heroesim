@@ -19,7 +19,9 @@
 
 import {
   ageOf,
+  availableHeroes,
   bankruptcyCountdown,
+  bestParty,
   baseStat,
   carriedGear,
   dayOf,
@@ -65,6 +67,7 @@ import {
   type UniqueItem,
   type WorldDocument,
 } from '@heroesim/engine';
+import { chanceWords, encounterReadings, shownPercent, readsAsOne } from './query-words.js';
 
 // ── Tables ───────────────────────────────────────────────────────────────────────────────────
 
@@ -766,8 +769,10 @@ function requiredOf(quest: Quest, content: ContentSet): string {
 
 /**
  * `show board`: the Quests on offer in the Board's order, each with its template's name, its
- * Patron, its terms and the last Day it stays on offer; then what each demands (M2-S3), the Skills
- * that help in its Encounters' Checks and the kinds of those Encounters (M4-S1, M4 verification).
+ * Patron, its terms and the last Day it stays on offer; then the Skills that help in its Encounters'
+ * Checks and the kinds of those Encounters (M4-S1, M4 verification); then each Quest's Encounters
+ * with each Check's name and what it reads, and the player's best Party with its chance (v1.1.4-S6,
+ * DL-148 items 15 to 17), where M2-S3's demands stood, which no view shows now.
  */
 export function renderBoard(document: WorldDocument, deps: EngineDeps): string[] {
   const { world } = document;
@@ -806,15 +811,45 @@ export function renderBoard(document: WorldDocument, deps: EngineDeps): string[]
     ),
     '',
     ...table(
-      [{ heading: 'Id' }, { heading: 'Demands' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
-      quests.map((quest) => [
-        quest.id,
-        quest.demands.map(([key, weight]) => `${nameIn(content.stats, key)} ${weight}`).join(', '),
-        skillsThatHelpWords(quest, content),
-        encounterKindsOf(quest, content),
-      ]),
+      [{ heading: 'Id' }, { heading: 'Skills that help' }, { heading: 'Encounters' }],
+      quests.map((quest) => [quest.id, skillsThatHelpWords(quest, content), encounterKindsOf(quest, content)]),
     ),
+    ...quests.flatMap((quest) => ['', ...questReadings(document, quest, deps)]),
   ];
+}
+
+/**
+ * A Quest's Encounters as the Board gives them (v1.1.4-S6): each with its kind and each Check's name
+ * and what it reads, an Encounter of one Check of its own name on one line; then the Party the engine
+ * would send from the player's free Heroes (`partyFor`) and its chance, if no one falls.
+ */
+function questReadings(document: WorldDocument, quest: Quest, deps: EngineDeps): string[] {
+  const { content } = deps;
+  const readings = encounterReadings(quest, content);
+  const lines = readings.flatMap((reading) => {
+    const kind = reading.kind === null ? '' : ` (${reading.kind})`;
+    if (readsAsOne(reading)) return [`  ${reading.name}${kind}: ${reading.checks[0]?.reads ?? ''}`];
+    return [`  ${reading.name}${kind}`, ...reading.checks.map((it) => `    ${it.name}: ${it.reads}`)];
+  });
+  return [
+    `${quest.id}, ${nameIn(content.questTemplates, quest.templateKey)}`,
+    ...(readings.length === 0 ? ['  Its Encounters are drawn on the way.'] : lines),
+    `  ${bestPartyWords(document, quest, deps)}`,
+  ];
+}
+
+/** "Your best Party": the Party `partyFor` names from the player's free Heroes, its chance in a word and floored to 5%, or why there is none. */
+function bestPartyWords(document: WorldDocument, quest: Quest, deps: EngineDeps): string {
+  const { world } = document;
+  const guild = playerGuild(world);
+  const available = guild === undefined ? [] : availableHeroes(world, guild);
+  const best = guild === undefined ? null : bestParty(world, guild, quest, available, deps);
+  if (best === null) return 'No Party of your free Heroes meets its requirements.';
+  const names = best.heroIds.flatMap((id) => rowIn(world.heroes, id)?.name ?? []).join(', ');
+  // The estimate the rule chose the Party by, which is `estimateQuest`'s for it: not worked out again.
+  const { estimate } = best;
+  if (estimate === null) return `Your best Party: ${names}; its chance is not known until its Encounters are drawn.`;
+  return `Your best Party: ${chanceWords[estimate.chance]} (${shownPercent(estimate.success)}% if no one falls), ${names}.`;
 }
 
 /** The Skills that help on a Quest, by name: the engine's `skillsThatHelp` (DL-70; moved there by M7-S3, DL-66). */

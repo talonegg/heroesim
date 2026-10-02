@@ -11,7 +11,9 @@ import type { ContentSet } from '@heroesim/engine';
  * bundle.
  */
 const bundled = import.meta.glob<string>(
-  ['../../content/*.json', '!**/package.json', '!**/tsconfig.json'],
+  // The negations name the files as the pattern does: `!**/package.json` matched no `../../content/` path,
+  // and both manifests were bundled until v1.1.4-S6's verification (DL-157).
+  ['../../content/*.json', '!../../content/package.json', '!../../content/tsconfig.json'],
   { query: '?raw', import: 'default', eager: true },
 );
 

@@ -19,6 +19,16 @@ import { contentGate } from './content-gate';
 // (v1.1.2-S2's verification, DL-131).
 
 const webDir = path.dirname(fileURLToPath(import.meta.url));
+
+/**
+ * The script's own address, worked out once as the IIFE first runs, and every picture's URL resolved
+ * against it (`renderBuiltUrl`, below). Vite writes the same `document.currentScript…` expression into
+ * each picture's URL, some 130 bytes each, 10 kB for the Guildmasters' 80 files alone; one name for
+ * it, set in the IIFE's intro, keeps the one rule and those bytes (v1.1.4-S6's verification, DL-157).
+ */
+const scriptBase = '__heroesimScript';
+const scriptBaseIntro =
+  `var ${scriptBase}=document.currentScript&&document.currentScript.tagName.toUpperCase()==="SCRIPT"&&document.currentScript.src||document.baseURI;`;
 const repoRoot = path.resolve(webDir, '..');
 
 /**
@@ -92,12 +102,22 @@ export default defineConfig({
   base: './',
   // The content gate validates the content the script carries, which reads it unchecked (DL-152).
   plugins: [noNodeBuiltins, contentGate(contentDir), compactContent, react(), classicScript],
+  experimental: {
+    // A picture's URL in the script is resolved against the script's address, named once (above),
+    // relative to the script, as Vite's own expression resolves it; in the stylesheet and the page,
+    // Vite's relative URL as before.
+    renderBuiltUrl(filename, { hostType, hostId }) {
+      if (hostType !== 'js') return { relative: true };
+      const relative = path.posix.relative(path.posix.dirname(hostId), filename);
+      return { runtime: `new URL(${JSON.stringify(relative)},${scriptBase}).href` };
+    },
+  },
   build: {
     // Each Silhouette inlined into the one script, and nothing else: a picture is a hashed file in
     // dist/assets/ (DL-125 item 1).
     assetsInlineLimit: (file: string, content: Buffer) => path.basename(file) === 'silhouette.svg' && content.length <= silhouetteInlineLimit,
     // One chunk, as an IIFE, for the classic script above. There is no dynamic import to split.
-    rolldownOptions: { output: { format: 'iife' } },
+    rolldownOptions: { output: { format: 'iife', intro: scriptBaseIntro } },
     // Vite's modulepreload polyfill injects a `fetch()` of every preloaded chunk, which
     // scripts/check-bundle.mjs refuses (principle 12). Off, so it cannot return with a change of
     // format.

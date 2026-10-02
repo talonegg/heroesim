@@ -93,8 +93,9 @@ export const contentSetId = 'core';
  * 21 from v1.1.4-S1, which loads each Encounter into a list of Checks scored by Queries and each Synergy's
  * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
  * v1.1.4-S2's new form of an Encounter, `checks` and `pass`, keeps 21: no file is written in it yet (DL-152).
+ * 22 from v1.1.4-S6, which gives each Disposition its `partyMargin` (DL-157).
  */
-export const contentVersion = 21;
+export const contentVersion = 22;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -256,6 +257,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
       buildThreshold: row.number('buildThreshold'),
       gearThreshold: row.number('gearThreshold'),
       transferAppetite: row.number('transferAppetite'),
+      partyMargin: row.number('partyMargin'),
     })),
     injuries: table<InjuryType>('injuries.json', json('injuries.json'), problems, 'an Injury type', (row) => ({
       name: row.string('name'),

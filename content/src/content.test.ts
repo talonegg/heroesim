@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 21 since v1.1.4-S1's Checks and Synergy requirements as Queries (DL-151)", () => {
+  test("is the core content set, version 22 since v1.1.4-S6's partyMargin for each Disposition (DL-157)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(21);
+    expect(content.version).toBe(22);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -329,17 +329,24 @@ describe('loadContent()', () => {
     for (const it of improvements) expect(it.name.length).toBeGreaterThan(0);
   });
 
-  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69)', () => {
-    const weights = (questRiskAppetite: number, recruitThreshold: number, buildThreshold: number, gearThreshold: number, transferAppetite: number) =>
-      ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite });
+  test('has the four named Dispositions (INPUTS 7.5), their weights as the M6 close retuned them (DL-69), and their partyMargins (DL-157)', () => {
+    const weights = (
+      questRiskAppetite: number,
+      recruitThreshold: number,
+      buildThreshold: number,
+      gearThreshold: number,
+      transferAppetite: number,
+      partyMargin: number,
+    ) => ({ questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin });
     expect(content.dispositions).toEqual({
       // DL-56 set the rows, DL-58 gave reckless a gearThreshold of 3; the M6 close's balance pass
       // (DL-69) moved steady to the middle of the Quests it can staff, every transferAppetite below a
       // third, so that no Rival sells itself below rivalRosterMin, and the hiring and building bars.
-      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2) },
-      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3) },
-      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1) },
-      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25) },
+      // v1.1.4-S6 gave each its partyMargin, 0.05 and reckless's 0.10, first values S10 tunes (DL-148).
+      steady: { key: 'steady', name: 'Steady', ...weights(0.5, 60, 12, 3, 0.2, 0.05) },
+      ambitious: { key: 'ambitious', name: 'Ambitious', ...weights(0.7, 45, 1.5, 2, 0.3, 0.05) },
+      miserly: { key: 'miserly', name: 'Miserly', ...weights(0.35, 60, 40, 10, 0.1, 0.05) },
+      reckless: { key: 'reckless', name: 'Reckless', ...weights(1, 30, 4, 3, 0.25, 0.1) },
     });
   });
 

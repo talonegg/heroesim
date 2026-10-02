@@ -18191,6 +18191,263 @@ boxes and status.
 
 ---
 
+## DL-157 — v1.1.4-S6 built: the Board's cards show each Encounter and what each Check reads with "Your best Party" and a chance word, the Party builder a chance word for each Encounter and the Quest with the numbers in its detail, and the Rivals choose their Parties by the estimate
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 15 to
+17 as the epic's S6 describes, DL-148 winning where the two differ. Where the plan was silent, the
+calls are the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent
+verifies it.
+
+**Context.** S5 (DL-156) built the chance estimate, the chance bands and the typed account of what a
+Check reads, and nothing showed or used them. A Quest card showed its template's demands, which no
+Check reads, and the Rivals (and the harness's policy) chose their Parties by those demands
+(`strengthFor`), the fewest Heroes a Quest allowed. DL-148 item 16 puts each Encounter's Checks on
+the card in their place, item 15 the chance words on the Board and in the Party builder, and item 17
+has the Rivals choose by the estimate. It was built on `v1.1.4-dev` at `d0dab9f` (S5, DL-156), and
+every comparison of play below is with S4's sweep, `harness/reports/m9-v114-s4-2026-10-02.md`, since
+S5 changed no play.
+
+**Decision.**
+
+1. **The Rivals' Party** (`engine/src/controllers/rival.ts`, `partyFor`; DL-148 item 17).
+   `partyFor(world, guild, quest, available, deps)` weighs a Party by the chance estimate's chance of
+   success (a success or a strong success; the Party as it comes home, carrying nothing, if no one
+   falls):
+   - it starts with the Heroes the Quest's Class and Skill requirements take: while one is unmet, the
+     Hero who most raises the chance among those who meet every requirement still unmet, or, when no
+     one does, among those who meet one of them (so one Hero with both goes alone, and two only when
+     no one has both, as before);
+   - it adds whoever most raises the chance until `partySizeMin`;
+   - then keeps adding whoever most raises it while that Hero raises it by at least the Guild's margin
+     (`partyMarginOf`: its Disposition's `partyMargin`), up to `partySizeMax`.
+
+   `strengthFor` is gone, and with it the last rule that read a Quest's `demands`. The Party is in the
+   order its Heroes were added, which the Queries read for their ties (DL-148 item 18). It is `null`
+   exactly when `requiredParty`, its first step, is: the requirements' Heroes, then the first of the
+   rest up to `partySizeMin`, asking no estimate.
+2. **The margins.** Each Disposition in `content/dispositions.json` gains `partyMargin`: 0.05, and
+   `reckless` 0.10 (S10 tunes them). Content validation holds it, as the appetites, to a number from 0
+   to 1, and a row without it is refused. The content version is **22** (from 21). A Guild with no
+   Disposition, the player's, uses the configuration's `playerPartyMargin`, 0.05, held by
+   `configProblems` to a share from 0 to 1, under `configVersion` 13, not raised (as S5's
+   `chanceBands`, DL-156).
+3. **Who reads `partyFor`.**
+   - *A Rival* (`preferredQuest`) ranks the Quests it can staff by `requiredParty`, draws its Quest as
+     before (one draw on `rivals`, the same draw on the same candidates), and asks `partyFor` for the
+     chosen Quest only.
+   - *The harness's automatic policy* sends `partyFor`'s Party at `playerPartyMargin`: the Board's
+     "Your best Party". Its report says so in place of "the strongest Party of the size it requires".
+   - *The `quest-staffable` and `decision-needed` stops* (`staffableQuests`, `staffingParty`) search
+     the Board with `requiredParty` and judge the Party by `dispatchRefusal`, as before. `partyFor`
+     names a Party exactly when `requiredParty` does, and the estimate cannot change whether a Party can
+     go, so the stops ask no estimate of every Quest on the Board each Turn. A test holds
+     `staffableQuests` to the Quests for which `partyFor` names a Party `dispatch` would send.
+4. **The estimate, many times** (`questEstimator`, estimate.ts). The greedy rule estimates many
+   Parties of one pool. `questEstimator(world, quest, pool, deps)` brings each Hero of the pool home
+   once (`homecoming`) and reads each as a Query reads them (`queryParty`'s members, each of a Hero
+   alone) once, and builds each Party estimated from them; `estimateQuest` is now
+   `questEstimator(…)(heroes, carried)`, so the two cannot differ, and a test holds every Party of a
+   pool, in any order and carrying anything, to `estimateQuest`'s exactly. `synergiesFor` is worked
+   out once for a Party taken and a content's Synergies (a `WeakMap`), however many Checks read it.
+5. **The Board's cards** (`web/src/state/selectors.ts`, `boardView`; `web/src/views/board.tsx`;
+   DL-148 items 15 and 16).
+   - Under the terms: "Your best Party: **Likely**, Maud Pennock and Ingram Holloway", the Party
+     `partyFor` names from the player's free Heroes and its estimate's word; "not known until its
+     Encounters are drawn" for a Quest drawn before M4; and "No Party of your free Heroes meets its
+     requirements." when there is none.
+   - Unfolded, in the demands' place: each Encounter, drawn when the Quest was posted, in order, with
+     its kind's icon, and each Check's name and what it reads ("Name: the total Strength of the
+     Party"); an Encounter of one Check of its own name, as every Encounter in the old form loads,
+     says "Reads 0.4 × the total Weaponry of the Party + …" under its name. The counts of Encounters by
+     kind give way to it. No view shows a Quest's demands, and no rule reads them.
+6. **The Party builder.** Each Hero's row shows the effective values of the Stats the Quest's Checks
+   read (`statsRead`, preview.ts, through `statsIn`, describe.ts), in the order the Quest meets them,
+   where it showed the demands'. With a Party chosen, after S3's Morale line, "Chances": a word for each
+   Encounter and for "The Quest", and a detail, "The numbers, if no one falls", with each percentage
+   floored to a multiple of 5, between 5 and 95 unless certain (`shownPercent`; built rounded to the
+   nearest 5, corrected by the verification, item 1). The engine's `previewDispatch` carries the estimate (`chances`, with
+   the consumables chosen; `null` for no one, or Encounters drawn on the way), so the CLI's `preview`
+   gives the same: "Chances, if no one falls", then "Ambush on the road: Likely, 70%" for each
+   Encounter and "The Quest: Even, 50%". The CLI's `show board` drops its Demands column and gives each
+   Quest's Encounters and Checks and its best Party with its word and percentage.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The tie-breaks*, recorded: of Heroes who raise the chance of success alike, the one who raises
+     the chance of a strong success more, then the lower Hero id. A chance of success is held to at
+     most 1 against a sum's rounding, so that "no Hero can raise it by more than is left of it" ends
+     the third step without asking, exactly. A Quest with no estimate (Encounters drawn on the way)
+     raises nothing: its Party is the requirements' Heroes and then the lowest ids up to the least size,
+     and at a margin of 0 every Hero to the most.
+   - *The first step adds only the Heroes the requirements need,* not every Hero who meets them: one
+     Hero who holds both the Class and the Skill, else one of each. DL-148 item 17's "starts from the
+     Heroes who meet the requirements" is read as the fewest that meet them, since every Hero of a
+     common Class could otherwise pass `partySizeMax`; the others may join by the margin.
+   - *The estimate carries nothing.* `partyFor` weighs Parties without consumables: the Rivals carry
+     none (DL-83 item 20), and the policy chooses what to carry after its Party. The builder's chances
+     are for what the player has chosen to carry.
+   - *The player's margin* is a configuration field, `playerPartyMargin`, since the player's Guild has
+     no Disposition and principle 8 makes it a field; the Board's "Your best Party" and the policy
+     share it.
+   - *The Rival's Quest is chosen as before*, by `questRiskAppetite` among the Quests it can staff: the
+     estimate chooses who goes, not where. A Rival may still take a Quest its best Party is Hopeless on.
+   - *Where the card shows it.* The best Party on the card's face, the Encounters and what each Check
+     reads in what the card's name unfolds, as the demands were; at 360px a card stays a few lines.
+   - *The stops* read `partyFor`'s first step (item 3), on the measure in item 9.
+   - *Tests that fixed the old Party.* The harness policy's tests of two Parties of two, the web's
+     `withPartyOut` and the history test's seeded Parties set `playerPartyMargin` to 1, the fewest a
+     Quest allows, as they assumed. The Quest report's test of an Injury raises its Quest's difficulty,
+     since the Party sent now comes through its own Quest unhurt. The Transfer Generator's test holds
+     each year's median Roster size within the range and the mean of all twenty years' sizes, no longer
+     each year's mean: one of its sixteen Rivals, choosing by the estimate, hired to 18 Heroes and moved
+     years 14 to 18's means to 8.06 to 8.13, the median 6.5 to 7. The History fingerprints of
+     `quests-conclude.test.ts` are re-recorded (item 8).
+8. **Nothing else moves.** With M2-S9's rule by the demands put back in `partyFor`'s place, for one run
+   and not kept, `quests-conclude.test.ts`'s three fingerprints were 86c7afa's again and the Transfer
+   Generator's twenty years as before: the Rivals' Parties are the only change of play. The test now
+   holds S6's fingerprints, the old ones named in its comment.
+9. **The time it takes** (`advance` per Turn, the Rivals' choices within it; the policy outside it).
+   `seed-0001` and `seed-0002` played 3 years alone, before (the old rule, as in item 8) and after:
+   `advance` 0.799 and 0.714 ms a Turn before, 0.863 and 0.842 after (+0.06 and +0.13 ms); the whole
+   game, the policy's `partyFor` included, 1.310 and 1.190 ms a Turn before, 1.381 and 1.386 after. A
+   `partyFor` over a Rival's whole Roster, after 300 Turns of `seed-0001`, takes 0.22 ms; one
+   `estimateQuest`, 0.05 ms. The Transfer Generator's test of 4 × 20 years took 24 s by the old rule,
+   41 to 43 s with each Party's Heroes read afresh, and 38 s once each was read once (item 4). Bringing a Party home, a
+   `structuredClone` of each Hero and their nights away, is now the largest part; a per-Turn cache of it
+   across calls was not needed and is not built.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's, for the owner to change:
+1. **The word and the number disagreed.** The word is the unrounded chance's band, and the number
+   was rounded to the nearest 5: 0.64 read "Even, 65%", 0.976 "Near certain, 100%". Now the detail and
+   the CLI show each chance floored to a multiple of 5, held within 5 to 95 unless the chance is
+   exactly 0 or 1 (`shownPercent`, in both front ends' `query-words.ts`, which the builder, `preview`
+   and `show board` read). Every band starts at a multiple of 5, so the number always lies in its
+   word's band; the multiple is found against k ÷ 20, as a band's start is written, so a product's
+   rounding cannot carry it across a start. DL-148 item 15's "rounded to 5%" is read so; the epic's
+   S6 text and box say "floored to a multiple of 5, between 5 and 95 unless certain". Tested at 0,
+   0.03, 0.1, 0.349, 0.35, 0.64, 0.65, 0.899, 0.9, 0.976 and 1, and at every hundredth and the edges
+   a sum's rounding leaves, word and number agreeing, in each front end.
+2. **The best Party was worked out where nothing showed it.** `boardView`'s cards, which the
+   digest's leaving-today line and the stop view read too, each ran `partyFor` and then estimated
+   the chosen Party again. The cards carry none now: `bestPartyView` gives "Your best Party" for the
+   Board alone, once a document, and reads the engine's new `bestParty`, `partyFor`'s Party with the
+   estimate the rule chose it by (`partyFor` is `bestParty`'s Party). Tested: `bestParty`'s Party is
+   `partyFor`'s and its estimate `estimateQuest`'s for it, at three margins; no card carries `best`.
+   The CLI's `show board` reads `bestParty` too.
+3. **The content package's manifests were bundled.** `web/src/content.ts`'s negations,
+   `!**/package.json` and `!**/tsconfig.json`, matched no `../../content/` path, so both files rode
+   in the script (416 bytes). They are named as the pattern names them now; a build test holds the
+   script free of them.
+4. **A Check's line was keyed by its name**, which two Checks may share; it is keyed by the Check's
+   key, which `encounterReadings` now carries.
+5. **Every picture repeated the script's address.** Vite wrote each picture's URL as
+   `new URL(file, document.currentScript && … || document.baseURI)`, some 130 bytes, 80 times for the
+   Guildmasters' pictures. `web/vite.config.ts` now names the address once, in the IIFE's intro
+   (`output.intro`), and `experimental.renderBuiltUrl` resolves each picture in the script against it,
+   relative to the script, as Vite did; in the stylesheet and the page Vite's relative URL as before.
+   A build test holds one `document.baseURI` in the script and every picture resolved against the one
+   name. The page opened from `file://` and the deployed form both load their pictures: the e2e
+   `file.spec.ts` and `portrait.spec.ts` pass.
+
+After the fixes:
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,416 tests in 174 files, with no flake.
+- `npm run e2e -w web` passes all 96 specs.
+- The script is 767,162 bytes (767.16 kB, 223.65 kB gzipped), 9,822 fewer than the 776,984 below:
+  the pictures' one base took 9,779, the manifests 416, and the fixes' code added 373. 32.84 kB is
+  left under 800 kB, and 2,689 bytes more than S5's 764,473.
+- No play changed, so no sweep was run again: the sweep below stands.
+
+**The checks.**
+These were run before the verification's fixes; the section above gives the numbers after them.
+1. **The greedy rule** (`rival.test.ts`, "which Heroes: the greedy rule by the chance estimate").
+   `greedyParty` states the rule in the test from `estimateQuest` alone, a fresh estimate for every
+   Party weighed. For each of the four Dispositions at margins 0, 0.02, 0.05, 0.1, 0.3 and 1 set in its
+   row (`withDispositions({ partyMargin })`), on a Board of difficulty 70 to 95 and Parties of 1 to 4,
+   the Rival's Party is `greedyParty`'s; at 1 each sent one Hero, at 0 more than one, and no Party grew
+   as the margin rose. The player's Guild at each margin of `playerPartyMargin` likewise. Besides: the
+   Hero who most raises the chance goes first whatever the Roster's order; a Hero of a required Class
+   goes however weak; two Heroes go to a Quest of one for a Class and a Skill no one holds both of, and
+   one who holds both goes alone; a Quest drawn on the way sends the fewest by id; no unavailable Hero
+   goes; `partyFor` changes nothing in the world; every Party it names over 3 seeds × 6 Quests × 4
+   sizes × 4 requirement shapes is `greedyParty`'s and meets `unmetRequirements`; and `staffableQuests`
+   is the Quests `partyFor` staffs.
+2. **The estimator.** `estimate.test.ts`: every Party of a pool of four at Morale 19, 38, 76 and 91,
+   carrying nothing or a grappling line, equals `estimateQuest`'s; a Hero outside the pool; a Hero named
+   twice; `null` with no Encounters; a throw at difficulty 0. `playerPartyMargin` is 0.05 and refused
+   outside 0 to 1.
+3. **The detail's percentages equal S5's estimate, shown as the detail shows it** (the epic's second
+   box; as built, rounded to 5%, and from the verification floored, item 1): in `selectors.test.ts`
+   (`previewView`), `board.test.tsx` (through the page: two Heroes and a whetstone chosen, each
+   Encounter's and the Quest's word, and each percentage `shownPercent` of `estimateQuest`'s), and `cli/src/main.test.ts` (`preview`'s lines, and `show board`'s best Party).
+4. **The page** (the epic's first box). `web/e2e/layout.spec.ts`, "the Board's chances and what each
+   Check reads, and the Party builder's, in the light and the dark scheme (v1.1.4-S6)", at 360, 820
+   and 1280px in each scheme: the card's best Party and word, the card unfolded to its Encounters and
+   what they read, the builder with two Heroes, its words, its detail opened and every percentage a
+   multiple of 5, with no sideways scroll and every control a 44px target (the detail's summary among
+   them), and the dark scheme the page's own. The capitals guard (`capitals.test.tsx`) now reads the
+   best Party, the Encounters unfolded, the chances and the detail opened, and passes.
+5. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s6 npm run harness`, core only, 20
+   years, content 22, config 13, not validated: `harness/reports/m9-v114-s6-2026-10-02.md`, to be
+   force-added. Against S4's (`m9-v114-s4-2026-10-02.md`; S5 changed no play):
+   - *Both sides choose better Parties, a little larger.* Over 4 seeds × 5 years under the same policy
+     (a probe, not kept), the player's Parties averaged 1.72 Heroes (1.64 by the old rule) and the
+     Rivals' 1.75 (1.62); Parties of three rose from 10% to 15% of the player's and from 6% to 13% of
+     the Rivals', and of four appear (0.6% and 0.2%).
+   - *The player's Quests:* failed 9.9% (15.2%), succeeded 15.0% (18.1%), strong 75.2% (66.7%);
+     335,682 resolved (348,218). Encounters at Success or better 88.7% (83.3%). Injuries 13,446
+     (19,361), Deaths 1,153 (1,648). Loot 0.176 an award a Quest (0.125). Wealth after 20 years
+     167,490 a game (164,837).
+   - *The Rivals' Quests:* failed 6.0% (11.3%), succeeded 12.0% (14.5%), strong 82.0% (74.1%); 831,148
+     resolved (805,084). Encounters at Success or better 92.1% (87.0%). Injuries 24,630 (38,878),
+     Deaths 2,106 (3,298). Synergies on 24.0% of their Quests (17.0%), the player's 23.1% (15.4%): the
+     estimate reads them.
+   - *What follows.* Richer, safer Rivals hire more: a Rival's Roster at a year's start averages 6.44
+     (5.85), `reckless`'s 8.47 (6.89), 35.9% of its year-starts above `rivalRosterMax` (27.4%). Yet
+     181 Rivals folded (163) and 2 of the player's games ended in bankruptcy, as before (years 16 and
+     19). Rival-to-Rival Transfers 229 (208). The mean save at year 20 is 117.40 MiB (113.77).
+   - *For S10.* The Quest target moves away: the player's failed 9.9% against 20 to 30%, and strong
+     75.2% against at most 50%. The estimate makes every Guild's Parties fit the Checks; the content
+     and the margins S10 tunes must make the Quests harder to match.
+   - *Morale and quarters* (DL-154). The Rivals build quarters, and most of their Heroes set out in
+     the `high` band; the harness's policy never builds them, and its Heroes set out `steady`. The
+     estimate reads form, so a Rival's high spirits now also count in whom it sends; the policy's
+     Guild, choosing by the same rule, gains nothing from it. S10's balance pass should weigh the two
+     beside these numbers.
+   - *The time:* `advance` mean 3.573 ms a Turn, p99 8.633, under 16 processes' load (3.564 and 9.135);
+     `seed-0001` replayed alone 1.330 ms (1.284), a year's fast forward 1,437 ms (1,387), as before over
+     the 1 s the plan names. 701.6 s in all.
+6. **The script.** `npm run build -w web`'s check-bundle passes. The script is 776,984 bytes
+   (776.98 kB, 224.00 kB gzipped), 12,511 more than S5's 764,473: the estimate, the account of a
+   Query, both sets of words and `partyFor` reach the page for the first time. 23.02 kB is left under
+   800 kB, for S7 to S10's content and code: the content's JSON must be weighed at each story's close.
+7. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,413 tests in 174 files, 23 more than S5's 4,390, with no flake.
+   - `npm run e2e -w web` passes all 96 specs (93 before, and the new one at each of three widths).
+
+**Consequences.**
+- Play changes: the Rivals and the harness's policy send the Party the estimate names. The baseline
+  DL-83 measures against moved again; S10's DL entry records the policy beside its numbers.
+- A Quest's `demands` are read by no rule and shown by no view, on templates and Quest rows alike,
+  until a later rule gives them a job (DL-148 item 16). They stay in content and the save; schema 6.
+- Each new Query operator needs `statsIn`'s walk too, beside `describeQuery`'s node and both front
+  ends' words.
+- `partyFor`'s signature changed: `(world, guild, quest, available, deps)`.
+
+**Actioned in:** `engine/src/controllers/rival.ts` (`partyFor`, `requiredParty`, `partyMarginOf`;
+`strengthFor` removed) and its tests; `engine/src/quest-engine/estimate.ts` (`questEstimator`),
+`describe.ts` (`statsIn`), `synergy.ts` and their tests; `engine/src/preview.ts` (`chances`,
+`statsRead`) and its test; `engine/src/config.ts` (`playerPartyMargin`), `content-types.ts`,
+`index.ts`, `world.test-support.ts`; `content/dispositions.json`, `content/src/parse.ts` (version 22),
+`validate.ts` and their tests; `harness/src/policy.ts`, `sweep.ts`, `policy.test.ts`;
+`cli/src/query-words.ts`, `render.ts`, `commands/preview.ts`, `args.ts` and their tests;
+`web/src/state/query-words.ts`, `selectors.ts`, `game.test-support.ts`, `web/src/views/board.tsx`,
+`web/src/styles.css`, `web/e2e/layout.spec.ts` and the web's tests; the engine tests that called
+`partyFor`; `harness/reports/m9-v114-s6-2026-10-02.md`; `CONTEXT.md` (Best Party, Party margin; Stat
+demand); the epic's S6 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

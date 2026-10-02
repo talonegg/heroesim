@@ -750,7 +750,9 @@ describe("the pages' count, from the edges the pages keep (the M9 review)", () =
 
     expect(views).toHaveLength(2);
     expect(entriesOn(document, views[0] as HistoryView)).toHaveLength(20 + historyPageSize + 5);
-    const outcome = views[0]?.groups.flatMap((group) => group.rows).find((row) => row.kind === 'entry' && row.steps.length > 0);
+    // The outcome stands after the ten older entries and its steps; another Party's among the newer may fold its own.
+    const outcomeKey = String(10 + historyPageSize + 5);
+    const outcome = views[0]?.groups.flatMap((group) => group.rows).find((row) => row.kind === 'entry' && row.key === outcomeKey);
     expect(outcome?.kind === 'entry' && outcome.steps).toHaveLength(historyPageSize + 5);
   });
 

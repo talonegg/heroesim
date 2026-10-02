@@ -44,7 +44,8 @@ export interface GameConfig {
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
    * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
-   * `exposureRange` and `guardRange` (DL-148, DL-155), and S5's `chanceBands` (DL-148, DL-156).
+   * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), and S6's
+   * `playerPartyMargin` (DL-148, DL-157).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -239,6 +240,13 @@ export interface GameConfig {
    * that band. Strictly increasing, each above 0 and below 1.
    */
   chanceBands: Readonly<Record<Exclude<ChanceBand, 'hopeless'>, number>>;
+  /**
+   * The `partyMargin` of a Guild with no Disposition, the player's (v1.1.4-S6, DL-148 item 17): the
+   * Party the engine would send from its free Heroes (`partyFor`), which the Board's card gives as
+   * "Your best Party" and the harness's automatic policy sends, keeps adding a Hero only while each
+   * raises the estimated chance of success by at least this. A share from 0 to 1.
+   */
+  playerPartyMargin: number;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -604,6 +612,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   exposureRange: 2,
   guardRange: 0.5,
   chanceBands: Object.freeze({ unlikely: 0.1, even: 0.35, likely: 0.65, 'near-certain': 0.9 }),
+  playerPartyMargin: 0.05,
 
   moraleMin: 0,
   moraleMax: 100,
@@ -698,7 +707,8 @@ export interface EngineDeps {
  * so that no weight in the draw of who is hit falls below 1, and `guardRange` a share from 0 to 1, so
  * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). `chanceBands`' starts
  * are finite, strictly increasing and each above 0 and below 1, so that every band holds some chances
- * (v1.1.4-S5, DL-156). The Quest Engine refuses to resolve, and to estimate, under a config with a
+ * (v1.1.4-S5, DL-156). `playerPartyMargin` is a share from 0 to 1, as a Disposition's `partyMargin` is
+ * (v1.1.4-S6, DL-157). The Quest Engine refuses to resolve, and to estimate, under a config with a
  * problem (`resolveQuest`, `estimateQuest`).
  */
 export function configProblems(
@@ -712,6 +722,7 @@ export function configProblems(
     | 'exposureRange'
     | 'guardRange'
     | 'chanceBands'
+    | 'playerPartyMargin'
   >,
 ): string[] {
   const problems: string[] = [];
@@ -753,6 +764,8 @@ export function configProblems(
   if (!rising) {
     problems.push(`chanceBands is ${JSON.stringify(config.chanceBands)}; unlikely < even < likely < near-certain, each above 0 and below 1`);
   }
+  const margin = config.playerPartyMargin;
+  if (!(margin >= 0 && margin <= 1)) problems.push(`playerPartyMargin is ${margin}; it is a share from 0 to 1`);
   return problems;
 }
 

@@ -8,19 +8,23 @@ import {
   addStack,
   advance,
   ageOf,
+  availableHeroes,
   count,
   createWorld,
   dayOf,
   defaultConfig,
+  describeQuery,
   deserialise,
   dispatch,
   effectiveStats,
+  estimateQuest,
   fastForward,
   makeId,
   guildmasterOf,
   isModuleEvent,
   judgedHintBands,
   nightOf,
+  partyFor,
   potentialHint,
   potentialHints,
   probe,
@@ -38,6 +42,7 @@ import {
 import { loadContent } from '@heroesim/content/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import { exitCodes, main } from './main.js';
+import { chanceWords, shownPercent, queryWords } from './query-words.js';
 import { narrate } from './narrate.js';
 
 const content = loadContent();
@@ -474,6 +479,41 @@ describe('show', () => {
       const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
       const lines = run.out.split('\n').filter((line) => line.startsWith(id));
       expect(lines.some((line) => line.endsWith(kinds)), `${id}: ${kinds}`).toBe(true);
+    }
+  });
+
+  // v1.1.4-S6 (DL-148 items 15 to 17): what each Check reads, in place of the template's demands, and the best Party.
+  test("board gives each Quest's Encounters, each Check's name and what it reads, and the best Party of the free Heroes with its chance", () => {
+    const { world } = document();
+    const deps = { config: defaultConfig, content };
+    const guild = world.guilds[playerId] as Guild;
+
+    const run = play(['show', 'board']);
+
+    expect(run.code).toBe(exitCodes.ok);
+    expect(run.out).not.toContain('Demands');
+    const lines = run.out.split('\n');
+    for (const id of world.board) {
+      const quest = world.quests[id] as Quest;
+      const at = lines.indexOf(`${id}, ${content.questTemplates[quest.templateKey]?.name}`);
+      expect(at, id).toBeGreaterThan(0);
+      const block = lines.slice(at + 1, at + 1 + quest.encounterKeys.length + 1);
+      quest.encounterKeys.forEach((key, index) => {
+        const encounter = content.encounters[key];
+        const [only] = encounter?.checks ?? [];
+        // Each Encounter in the core content is in the old form: one Check of its own name, on one line.
+        expect(encounter?.checks).toHaveLength(1);
+        expect(block[index]).toBe(`  ${encounter?.name} (${encounter?.kind}): ${queryWords(describeQuery(only?.score ?? 0), content)}`);
+      });
+      const heroIds = partyFor(world, guild, quest, availableHeroes(world, guild), deps);
+      const best = block.at(-1) ?? '';
+      if (heroIds === null) {
+        expect(best).toBe('  No Party of your free Heroes meets its requirements.');
+        continue;
+      }
+      const estimate = estimateQuest(world, quest, heroIds.map((heroId) => world.heroes[heroId] as Hero), deps);
+      const names = heroIds.map((heroId) => world.heroes[heroId]?.name).join(', ');
+      expect(best).toBe(`  Your best Party: ${chanceWords[estimate?.chance ?? 'hopeless']} (${shownPercent(estimate?.success ?? 0)}% if no one falls), ${names}.`);
     }
   });
 
@@ -1690,6 +1730,27 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     expect(saved()).toBe(original);
   });
 
+  // v1.1.4-S6 (DL-148 item 15): each Encounter's chance and the Quest's in a word, with the estimate's percentage floored to 5.
+  test('preview gives the chance of each Encounter and of the Quest, a word and the estimate floored to a multiple of 5%, if no one falls', () => {
+    const { world } = document();
+    const [questId] = world.board as QuestId[];
+    const heroIds = (world.guilds[playerId]?.rosterIds ?? []).slice(0, 2);
+    const quest = world.quests[questId as QuestId] as Quest;
+    const estimate = estimateQuest(world, quest, heroIds.map((id) => world.heroes[id] as Hero), { config: defaultConfig, content });
+    if (estimate === null) throw new Error('No estimate');
+
+    const run = play(['preview', '--quest', quest.id, '--heroes', heroIds.join(',')]);
+
+    expect(run.code).toBe(exitCodes.ok);
+    const lines = run.out.split('\n');
+    const at = lines.indexOf('Chances, if no one falls');
+    expect(at).toBeGreaterThan(0);
+    expect(lines.slice(at + 1, at + 2 + estimate.encounters.length)).toEqual([
+      ...estimate.encounters.map((it) => `  ${content.encounters[it.encounterKey]?.name}: ${chanceWords[it.chance]}, ${shownPercent(it.success)}%`),
+      `  The Quest: ${chanceWords[estimate.chance]}, ${shownPercent(estimate.success)}%`,
+    ]);
+  });
+
   test('preview names a Hero who cannot go, and refuses a Quest not on the Board', () => {
     const { world } = document();
     const [questId] = world.board as QuestId[];
@@ -1845,9 +1906,9 @@ describe('the command line', () => {
 
     expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
     expect(run.out).toContain('Usage: heroesim <command> [flags]');
-    // Each section preview prints is named in its help, the Synergies (M4-S3) and the consumables (M5-S3) among them.
+    // Each section preview prints is named in its help, the Synergies (M4-S3), the consumables (M5-S3) and the chances (v1.1.4-S6) among them.
     const preview = run.out.slice(run.out.indexOf('  preview '), run.out.indexOf('  dispatch '));
-    for (const part of ['requirement', 'cannot go', 'Synergies', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
+    for (const part of ['requirement', 'cannot go', 'Synergies', 'Morale', 'chances', 'consumables', 'reward', 'dispatch would send']) expect(preview).toContain(part);
   });
 
   test("help gives new's ages as the rules do: 21 to 50, retiring at 61 (M9-F1, DL-113 item 4)", () => {

@@ -143,8 +143,10 @@ function playersMonth(document: WorldDocument, month: number): WorldDocument {
   const [stack] = holdings(next.world, { kind: 'guild', id: guildId }).stacks;
   if (stack !== undefined) next = tried(next, sell(next, { guildId, stackId: stack.id, quantity: 1 }, deps));
   const available = availableHeroes(next.world, guild() ?? { rosterIds: [] });
+  const owner = guild();
   for (const quest of offeredQuests(next.world)) {
-    const heroIds = partyFor(quest, available, content);
+    if (owner === undefined) break;
+    const heroIds = partyFor(next.world, owner, quest, available, deps);
     if (heroIds === null) continue;
     next = tried(next, dispatch(next, { guildId, questId: quest.id, heroIds }, deps));
     break;

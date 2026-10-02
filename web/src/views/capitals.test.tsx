@@ -193,6 +193,11 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
     fireEvent.click(pick as HTMLElement);
     expect(within(board).getByTestId('party-morale')).toBeDefined();
+    // And its chances, a word each, with the numbers in the detail, opened (v1.1.4-S6).
+    expect(within(board).getAllByTestId('best-party').length).toBeGreaterThan(0);
+    expect(within(board).getAllByTestId('encounters').length).toBeGreaterThan(0);
+    expect(within(board).getByTestId('chances')).toBeDefined();
+    fireEvent.click(within(within(board).getByTestId('chance-numbers')).getByText('The numbers, if no one falls'));
     reader.read('The Party builder, a Hero chosen');
 
     // A Rival Guild's page, its Hall and Guildmaster.

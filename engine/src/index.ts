@@ -132,10 +132,12 @@ export * from './config.js';
 export * from './content-types.js';
 export {
   availableHeroes,
+  bestParty,
   partyFor,
   rivalChoices,
   staffableQuests,
   transferAnswer,
+  type BestParty,
   type TransferAnswer,
   type TransferRefusalReason,
   type TransferSide,
@@ -244,6 +246,7 @@ export * from './preview.js';
 export { capability, check, targetOf, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
 export {
   describeQuery,
+  statsIn,
   type HeroAccount,
   type PredAccount,
   type QueryAccount,
@@ -254,6 +257,7 @@ export {
   chanceBand,
   chanceToReach,
   estimateQuest,
+  questEstimator,
   type CheckEstimate,
   type DegreeChances,
   type EncounterEstimate,

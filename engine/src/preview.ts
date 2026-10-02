@@ -7,7 +7,9 @@
 // requirement met or missed is `unmetRequirements`', each Hero who cannot go `unavailability`'s,
 // the Synergies `synergiesFor`'s and where each applies `appliesOn`'s, the reward the Guildmaster's
 // `negotiatedReward`, and the verdict `dispatch`'s own checks (`dispatchRefusal`). From v1.1.4-S3,
-// what the Party's form as it sets out does to its odds, for the Party as a whole (`formEffect`).
+// what the Party's form as it sets out does to its odds, for the Party as a whole (`formEffect`); from
+// v1.1.4-S6, how likely it is to come through each Encounter and the Quest (`estimateQuest`), and
+// which Stats the Quest's Checks read (`statsRead`).
 
 import {
   dispatchRefusal,
@@ -26,11 +28,14 @@ import type {
   EncounterKind,
   ItemDefinitionKey,
   SkillKey,
+  StatKey,
   Synergy,
 } from './content-types.js';
 import type { Guild, Hero, HeroId, Quest, Stack, World } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { holdings, itemDefinition } from './items.js';
+import { describeQuery, statsIn } from './quest-engine/describe.js';
+import { estimateQuest, type QuestEstimate } from './quest-engine/estimate.js';
 import { formEffect, meanForm, type FormEffect } from './quest-engine/form.js';
 import { queryParty } from './quest-engine/query.js';
 import { appliesOn, synergiesFor } from './quest-engine/synergy.js';
@@ -92,6 +97,12 @@ export interface DispatchPreview {
    * Party of no one.
    */
   form: { mean: number; effect: FormEffect } | null;
+  /**
+   * How likely the Party, carrying what it would carry, is to come through each of the Quest's
+   * Encounters and the Quest (v1.1.4-S6, DL-148 item 15): `estimateQuest`'s, if no one falls. `null`
+   * for a Party of no one, and for a Quest whose Encounters are drawn on the way.
+   */
+  chances: QuestEstimate | null;
   /** The reward the Patron offers. */
   offeredReward: number;
   /** The reward the Guild's Guildmaster would agree on a success (`negotiatedReward`, M4-S5). */
@@ -149,6 +160,7 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
     consumables,
     held,
     form: heroes.length === 0 ? null : { mean, effect: formEffect(mean, config) },
+    chances: heroes.length === 0 ? null : estimateQuest(world, quest, heroes, deps, request.consumables ?? []),
     offeredReward: quest.reward,
     agreedReward: negotiatedReward(quest.reward, guildmasterOf(guild, world), content, config),
     refusal,
@@ -196,6 +208,17 @@ export function skillsThatHelp(
       ? quest.skillKeys
       : [...new Set(quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
   return keys.filter((key) => Object.hasOwn(content.skills, key));
+}
+
+/**
+ * The Hero Stats a Quest's Checks read (v1.1.4-S6, DL-148 item 16): each Stat any of its Encounters'
+ * Checks' scores names (`statsIn`), once, in the order the Quest meets them; none while its Encounters
+ * are drawn on the way. A key content lacks is left out (data-model rule 5). The Party builder shows
+ * each Hero's value of them, where it showed the template's demands, which no view shows now.
+ */
+export function statsRead(quest: Pick<Quest, 'encounterKeys'>, content: Pick<ContentSet, 'encounters' | 'stats'>): StatKey[] {
+  const keys = quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.checks.flatMap((it) => statsIn(describeQuery(it.score))) ?? []);
+  return [...new Set(keys)].filter((key) => own(content.stats, key)?.owner === 'hero');
 }
 
 /** The row keyed `id`, looked up without falling through to `Object.prototype`. */

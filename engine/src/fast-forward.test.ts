@@ -127,7 +127,7 @@ describe('fastForward: a decision needed (always on)', () => {
     for (const questId of questIds) {
       expect(newToday.has(questId), questId).toBe(true);
       const quest = after.world.quests[questId] as Quest;
-      const heroIds = partyFor(quest, player(after).rosterIds.map((id) => after.world.heroes[id]!), deps.content);
+      const heroIds = partyFor(after.world, player(after), quest, player(after).rosterIds.map((id) => after.world.heroes[id]!), deps);
       expect(heroIds, questId).not.toBeNull();
       expect(dispatch(after, { guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }
@@ -157,7 +157,7 @@ describe('fastForward: a decision needed (always on)', () => {
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps.content);
+    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
     if (going === null) throw new Error('No pair for the Quest');
     const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -246,7 +246,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     const quest = pairs.sort((a, b) => b.durationTurns - a.durationTurns)[0];
     if (quest === undefined) throw new Error('No long Quest a pair can take');
     const available = guild.rosterIds.map((id) => document.world.heroes[id] as Hero);
-    const going = partyFor({ ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps.content);
+    const going = partyFor(document.world, guild, { ...quest, requirements: { ...quest.requirements, partySizeMin: 2 } }, available, deps);
     if (going === null) throw new Error('No pair for the Quest');
     const sent = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds: going }, deps);
     if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);
@@ -273,7 +273,7 @@ describe('fastForward: a Quest the free Heroes can staff (opt-in, M9-S1)', () =>
     expect(result.stoppedBecause.questIds.length).toBeGreaterThan(0);
     for (const questId of result.stoppedBecause.questIds) {
       expect(newToday.has(questId), questId).toBe(true);
-      const heroIds = partyFor(after.world.quests[questId] as Quest, home, deps.content);
+      const heroIds = partyFor(after.world, player(after), after.world.quests[questId] as Quest, home, deps);
       expect(heroIds, questId).not.toBeNull();
       expect(dispatch(after, { guildId, questId, heroIds: heroIds ?? [] }, deps).ok, questId).toBe(true);
     }

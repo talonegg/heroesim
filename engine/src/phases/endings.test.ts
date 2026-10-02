@@ -958,7 +958,7 @@ describe("a fold's one order (DL-54)", () => {
     // A Party in flight, its first member wearing a unique Item and common gear.
     const staffing = (questId: QuestId) => {
       const quest = world.quests[questId];
-      const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(world, rival), deps.content);
+      const heroIds = quest === undefined ? null : partyFor(world, rival, quest, availableHeroes(world, rival), deps);
       return quest === undefined || heroIds === null ? [] : [{ quest, heroIds }];
     };
     const [staffed] = world.board.flatMap(staffing);

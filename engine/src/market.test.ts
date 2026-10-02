@@ -103,7 +103,7 @@ describe("a folding Guild's Items go to the Market (pre-M0 review D6)", () => {
     const { document: start } = createWorld(seed, setup, deps);
     const rival = Object.values(start.world.guilds).find((guild) => guild.controller.kind === 'rival') as Guild;
     const quest = start.world.quests[start.world.board[0] as string as keyof typeof start.world.quests];
-    const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(start.world, rival), deps.content);
+    const heroIds = quest === undefined ? null : partyFor(start.world, rival, quest, availableHeroes(start.world, rival), deps);
     if (quest === undefined || heroIds === null) throw new Error('The Rival cannot staff the first Quest');
     const sent = dispatch(start, { guildId: rival.id, questId: quest.id, heroIds }, deps);
     if (!sent.ok) throw new Error(`Refused: ${sent.rejection.reason}`);

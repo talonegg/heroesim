@@ -12,6 +12,7 @@ import {
   dayOf,
   defaultConfig,
   durationDaysOf,
+  estimateQuest,
   isId,
   isMilestone,
   makeId,
@@ -20,6 +21,7 @@ import {
   parseId,
   partyFor,
   playerGuild,
+  type ConsumableRequest,
   type Degree,
   type EncounterOutcome,
   type FormDecided,
@@ -34,7 +36,9 @@ import {
   type MoraleBand,
   type PartyId,
   type PatronId,
+  type Quest,
   type QuestBand,
+  type QuestEstimate,
   type QuestId,
   type QuestTemplateKey,
   type RegardBand,
@@ -43,7 +47,7 @@ import {
   type WorldDocument,
 } from '@heroesim/engine';
 import { content } from '../content';
-import { gameReducer, initialGameState, type GameState, type Play } from './reducer';
+import { gameReducer, initialGameState, playDeps, type GameState, type Play } from './reducer';
 
 /** Plays `action` as the page does, accepted then settled, a fast forward step by step, outside React. */
 export function played(state: GameState, action: Play): GameState {
@@ -142,14 +146,17 @@ export function withRosterReleased(state: GameState, wealth = 1_000_000): GameSt
 /**
  * A Party of the player's out on the longest Quest on the Board the Roster can staff, sent by the
  * page's own dispatch: while it is out no decision is needed, so a fast forward stops when it
- * comes home (or for an offer, or at the end).
+ * comes home (or for an offer, or at the end). The Party is `partyFor`'s at the player's margin of 1,
+ * the fewest the Quest allows (v1.1.4-S6), so that Heroes stay at home to staff what comes next.
  */
 export function withPartyOut(state: GameState): GameState {
   const document = documentOf(state);
   const available = availableHeroes(document.world, playerOf(document));
+  const deps = playDeps(document);
+  const fewest = { ...deps, config: { ...deps.config, playerPartyMargin: 1 } };
   const [longest] = offeredQuests(document.world)
     .flatMap((quest) => {
-      const heroIds = partyFor(quest, available, content);
+      const heroIds = partyFor(document.world, playerOf(document), quest, available, fewest);
       return heroIds === null ? [] : [{ quest, heroIds }];
     })
     .sort((a, b) => durationDaysOf(b.quest) - durationDaysOf(a.quest));
@@ -157,6 +164,16 @@ export function withPartyOut(state: GameState): GameState {
   const sent = played(state, { kind: 'dispatch', questId: longest.quest.id, heroIds: longest.heroIds });
   if (sent.rejection !== null) throw new Error(`dispatch refused: ${sent.rejection.reason}`);
   return sent;
+}
+
+/**
+ * S5's estimate for `heroIds` of `state`'s player on `questId`, carrying `carried` (v1.1.4-S6): for a
+ * view's test to hold the page's chances to, since a view imports no engine value.
+ */
+export function estimateOf(state: GameState, questId: QuestId, heroIds: readonly HeroId[], carried: ConsumableRequest[] = []): QuestEstimate | null {
+  const document = documentOf(state);
+  const quest = document.world.quests[questId] as Quest;
+  return estimateQuest(document.world, quest, heroIds.map((id) => document.world.heroes[id] as Hero), playDeps(document), carried);
 }
 
 /** `state` once a Party of the player's has come home: `withPartyOut`, then fast forward until it stops for it. */

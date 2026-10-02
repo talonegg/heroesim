@@ -1,10 +1,22 @@
 // What a Check reads, and how likely a Party is to pass it, in the page's words (v1.1.4-S5, DL-148
 // items 15 and 16): the engine's typed account of a Query (`describeQuery`) worded, "Strength of the
 // Warrior with the highest Strength", and a chance band's key as the word DL-148 item 15 gives it. The
-// CLI words them the same (cli/src/query-words.ts). Words only; no rule. S6 shows them on the Board
-// and in the Party builder, capitalised where they stand alone (`capitalised`, docs/agents/ui-text.md).
+// CLI words them the same (cli/src/query-words.ts). Words only; no rule. From v1.1.4-S6 the Board's
+// cards show each Encounter's Checks and what they read (`encounterReadings`), and the Party builder
+// each chance in a word with its percentage floored to 5 in the detail (`shownPercent`), capitalised where they
+// stand alone (`capitalised`, docs/agents/ui-text.md).
 
-import type { ChanceBand, ContentSet, PredAccount, QueryAccount, SetAccount, ValAccount } from '@heroesim/engine';
+import {
+  describeQuery,
+  type ChanceBand,
+  type ContentSet,
+  type EncounterKind,
+  type PredAccount,
+  type Quest,
+  type QueryAccount,
+  type SetAccount,
+  type ValAccount,
+} from '@heroesim/engine';
 import { nameIn } from './names';
 
 /** A chance band in words (DL-148 item 15). */
@@ -18,6 +30,55 @@ export const chanceWords: Readonly<Record<ChanceBand, string>> = {
 
 /** The content a Query's keys are named from. */
 export type QueryNames = Pick<ContentSet, 'stats' | 'skills' | 'classes' | 'backgrounds' | 'traits'>;
+
+/**
+ * A chance as the detail gives it (DL-148 item 15, v1.1.4-S6): its percentage floored to a multiple
+ * of 5, and held within 5 to 95 unless the chance is 0 or 1, so that "95%" is never certain and "5%"
+ * never impossible. Every chance band starts at a multiple of 5 (`chanceBands`), so the number
+ * always falls in its word's band (v1.1.4-S6's verification, DL-157): 0.64 is "Even, 60%", never
+ * "Even, 65%". The multiple is found against `k / 20`, as a band's start is written, not by
+ * `Math.floor(chance × 20)` alone, whose product can round across a start.
+ */
+export function shownPercent(chance: number): number {
+  if (chance <= 0) return 0;
+  if (chance >= 1) return 100;
+  let twentieths = Math.floor(chance * 20);
+  if ((twentieths + 1) / 20 <= chance) twentieths += 1;
+  if (twentieths / 20 > chance) twentieths -= 1;
+  return Math.min(95, Math.max(5, twentieths * 5));
+}
+
+/** One of a Quest's Encounters as the Board shows it (v1.1.4-S6, DL-148 item 16): each Check's name and what it reads. */
+export interface EncounterReading {
+  encounterKey: string;
+  name: string;
+  /** Its kind; `null` for an Encounter content does not define, which reads nothing. */
+  kind: EncounterKind | null;
+  /** Each Check, in the Encounter's order: its key, its name, and what its score reads (`queryWords`), to stand in a sentence. */
+  checks: { key: string; name: string; reads: string }[];
+}
+
+/**
+ * `quest`'s Encounters, drawn when it was posted, in the order it meets them, each with its Checks'
+ * names and what they read (v1.1.4-S6); none while they are drawn on the way. An Encounter content
+ * does not define is named by its key and reads nothing (data-model rule 5).
+ */
+export function encounterReadings(quest: Pick<Quest, 'encounterKeys'>, content: QueryNames & Pick<ContentSet, 'encounters'>): EncounterReading[] {
+  return quest.encounterKeys.map((encounterKey) => {
+    const encounter = Object.hasOwn(content.encounters, encounterKey) ? content.encounters[encounterKey] : undefined;
+    return {
+      encounterKey,
+      name: encounter?.name ?? encounterKey,
+      kind: encounter?.kind ?? null,
+      checks: (encounter?.checks ?? []).map((it) => ({ key: it.key, name: it.name, reads: queryWords(describeQuery(it.score), content) })),
+    };
+  });
+}
+
+/** Whether `reading` is one Check named as its Encounter is, as an Encounter in the old form loads: its line says what it reads. */
+export function readsAsOne(reading: EncounterReading): boolean {
+  return reading.checks.length === 1 && reading.checks[0]?.name === reading.name;
+}
 
 /** `a`, `a and b`, `a, b and c`; or with `or`. */
 function joined(items: readonly string[], word = 'and'): string {

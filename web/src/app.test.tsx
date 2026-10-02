@@ -1,7 +1,8 @@
+import type { Quest } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from './app';
-import { started as startedFrom, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
+import { changed, started as startedFrom, withOffer, withOlderRules, withPartyOut, withRosterReleased, withWealth } from './state/game.test-support';
 import { fastForwardStepTurns, gameReducer, initialGameState, type GameState, type Play } from './state/reducer';
 import { download } from './views/download';
 import {
@@ -283,7 +284,7 @@ describe('the home view (M9-S3, DL-103)', () => {
     // The Party builder (M9-S4, DL-104): a row for each Hero on the Roster, and the card's details unfolded.
     const roster = Object.values(initial.document?.world.guilds ?? {}).find((guild) => guild.controller.kind === 'player')?.rosterIds;
     expect(within(card).getAllByTestId('party-row')).toHaveLength(roster?.length ?? -1);
-    expect(within(card).getByRole('heading', { level: 4, name: 'Demands' })).toBeDefined();
+    expect(within(card).getByRole('heading', { level: 4, name: 'Encounters' })).toBeDefined();
   });
 
   test('shows the Parties out, with who went and the night they return', () => {
@@ -296,8 +297,14 @@ describe('the home view (M9-S3, DL-103)', () => {
   });
 
   test("shows the report of the Party that came home, in the Came home cards' place: its band, Wealth, Fame, XP and Injuries, as its History says", async () => {
-    // A Party out on a Quest of ten Days, home on the night of Day 10.
-    render(<App initial={withPartyOut(startedFrom('reducer-test'))} />);
+    // A Party out on a Quest made as hard as a Quest is, so that it comes home hurt: from v1.1.4-S6 the
+    // Party sent is the one most likely to come through (DL-157), and on this seed's own Quest it does.
+    const hard = changed(withPartyOut(startedFrom('report-d')), (document, player) => {
+      for (const party of Object.values(document.world.parties)) {
+        if (party.guildId === player.id) (document.world.quests[party.questId] as Quest).difficulty = 100;
+      }
+    });
+    render(<App initial={hard} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Fast forward' }));
     await idle();

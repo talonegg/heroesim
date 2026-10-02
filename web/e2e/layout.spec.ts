@@ -117,7 +117,7 @@ test('the Board and the Party builder: no sideways scroll, 44px targets, Send in
     await expectNoHorizontalOverflow(page, `the Board's cards ${at}`);
     await expectTargets(page, `the Board's cards ${at}`);
 
-    // A card unfolded: its Demands, Skills, Encounters and its difficulty on its meter.
+    // A card unfolded: its Encounters and what each Check reads, Skills, and its difficulty on its meter.
     const quest = board.getByRole('article').first();
     await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
     await expect(quest.getByRole('img', { name: /^Difficulty \d+: .+ Quests? on the Board/ })).toBeVisible();
@@ -629,6 +629,56 @@ test('the setup screen, each way, in the light and the dark scheme: no sideways 
     }
     backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
     await page.screenshot({ path: test.info().outputPath(`setup-myself-${scheme}.png`), fullPage: true });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
+});
+
+// v1.1.4-S6 (DL-148 items 15 to 17): the Board's card with "Your best Party:" and a chance word, unfolded to
+// each Encounter and what each Check reads, and the Party builder with a chance word for each Encounter and
+// the Quest and the numbers in its detail, opened, at each width, in the light and the dark scheme: no
+// sideways scroll and 44px targets.
+test('the Board’s chances and what each Check reads, and the Party builder’s, in the light and the dark scheme (v1.1.4-S6)', async ({ page }) => {
+  test.setTimeout(120_000);
+  const backgrounds: string[] = [];
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('/');
+    await startGame(page, { guild: longGuild, master: longMaster, seed: 'e2e-layout' });
+    const at = `${scheme}, ${page.viewportSize()?.width ?? 0}px`;
+    const board = await openView(page, 'Board');
+    const quest = board.getByRole('article').first();
+    await expect(quest.getByTestId('best-party')).toHaveText(
+      /^(Your best Party: (Hopeless|Unlikely|Even|Likely|Near certain|not known until its Encounters are drawn), .+|No Party of your free Heroes meets its requirements\.)$/,
+    );
+    await expectNoHorizontalOverflow(page, `the Board's cards, ${at}`);
+
+    // Unfolded: each Encounter, and what its Checks read.
+    await quest.getByRole('heading', { level: 3 }).getByRole('button').click();
+    const encounters = quest.getByTestId('encounters');
+    await expect(encounters.locator(':scope > li').first()).toBeVisible();
+    await expect(encounters.locator(':scope > li').first()).toContainText(/(Reads |: )(the |\d|Strength|Wits)/);
+    await expectNoHorizontalOverflow(page, `a card unfolded, ${at}`);
+    await expectTargets(page, `a card unfolded, ${at}`);
+
+    // The builder, two Heroes chosen: a word for each Encounter and for the Quest, and the numbers opened.
+    await quest.getByRole('button', { name: 'Choose a Party' }).click();
+    const form = quest.getByRole('form');
+    const boxes = form.getByRole('checkbox');
+    for (const index of [0, 1]) if (await boxes.nth(index).isEnabled()) await boxes.nth(index).check();
+    const chances = form.getByTestId('chances');
+    await expect(chances.getByRole('listitem').last()).toHaveText(/^The Quest: (Hopeless|Unlikely|Even|Likely|Near certain)$/);
+    await form.getByText('The numbers, if no one falls').click();
+    const numbers = form.getByTestId('chance-numbers');
+    await expect(numbers.getByRole('listitem').last()).toBeVisible();
+    for (const line of await numbers.getByRole('listitem').allTextContents()) expect(line).toMatch(/: (\d+)%$/);
+    for (const line of await numbers.getByRole('listitem').allTextContents()) expect(Number(/(\d+)%$/.exec(line)?.[1]) % 5).toBe(0);
+    await expect(form.getByTestId('party-morale')).toBeVisible();
+    await expectNoHorizontalOverflow(page, `the Party builder with its chances, ${at}`);
+    await expectTargets(page, `the Party builder with its chances, ${at}`);
+    await page.screenshot({ path: test.info().outputPath(`board-chances-${scheme}.png`), fullPage: true });
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
   }
   await page.emulateMedia({ colorScheme: 'light' });
   // The dark scheme is the page's, not the test's: the body's background is the dark token's.

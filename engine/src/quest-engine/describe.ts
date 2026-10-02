@@ -171,6 +171,54 @@ function predAccount(pred: PredQuery): PredAccount {
   }
 }
 
+/**
+ * Every Stat `account` reads, once each, in the order it names them: in what it adds up, in whom it
+ * picks and by what, and in its filters (v1.1.4-S6: the Stats the Party builder shows each Hero's
+ * value of, `statsRead`).
+ */
+export function statsIn(account: QueryAccount): StatKey[] {
+  const found: StatKey[] = [];
+  const add = (statKey: StatKey): void => {
+    if (!found.includes(statKey)) found.push(statKey);
+  };
+  const val = (it: ValAccount): void => {
+    if (it.kind === 'stat') add(it.statKey);
+    else if (it.kind === 'weighted') for (const { statKey } of it.stats) add(statKey);
+    else if (it.kind === 'arithmetic') it.operands.forEach(val);
+  };
+  const pred = (it: PredAccount): void => {
+    if (it.kind === 'compare') [it.left, it.right].forEach(val);
+    else if (it.kind === 'and' || it.kind === 'or') it.operands.forEach(pred);
+    else if (it.kind === 'not') pred(it.operand);
+  };
+  const set = (it: SetAccount): void => {
+    if (it.kind === 'party') return;
+    set(it.of);
+    if (it.kind === 'where') pred(it.filter);
+    else val(it.by);
+  };
+  const num = (it: QueryAccount): void => {
+    switch (it.kind) {
+      case 'number':
+        return;
+      case 'aggregate':
+      case 'ranked':
+        set(it.of);
+        return val(it.value);
+      case 'count':
+        return set(it.of);
+      case 'hero':
+        set(it.hero.of);
+        val(it.hero.by);
+        return val(it.value);
+      case 'arithmetic':
+        return it.operands.forEach(num);
+    }
+  };
+  num(account);
+  return found;
+}
+
 /** Throws on an operator no type has: content validation refuses it, so only a Query built in memory reaches here. */
 function unknown(query: unknown, type: string): never {
   throw new RangeError(`${JSON.stringify(query)} is not ${type} Query`);

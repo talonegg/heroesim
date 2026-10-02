@@ -308,7 +308,9 @@ _Avoid_: Quest type, Blueprint, Archetype
 **Stat demand**:
 A Hero Stat a piece of work asks for, with a weight; a Quest template's or an Encounter's
 weights sum to one. A Quest's demands describe the work as a whole; each Check reads its
-Encounter's (DL-06, DL-42).
+Encounter's (DL-06, DL-42). From v1.1.4-S6 a Quest's are shown nowhere and read by no rule: the
+Board shows what each Check reads, and the Rivals choose by the chance estimate (DL-148 items 16
+and 17, DL-157).
 _Avoid_: Requirement (a Quest's requirements are its Party size and any Class or Skill it needs),
 Weighting
 
@@ -402,6 +404,15 @@ sets out, and assumes no one falls: no Hero hurt or killed on the way, and no Mo
 Encounter. So the words come with "if no one falls", and the numbers stay in the detail (DL-148
 item 15; built in v1.1.4-S5, DL-156; shown from v1.1.4-S6).
 _Avoid_: Odds (for the word), Rating, Difficulty
+
+**Best Party**:
+The Party the engine would send on a Quest from a Guild's free Heroes (`partyFor`): first those its
+Class and Skill requirements take, then whoever most raises the estimated chance of success up to
+its least Party size, then each Hero who raises it by at least the Guild's **Party margin**, up to
+its greatest. A Rival sends it, at its Disposition's margin; the Board shows the player's, "Your best
+Party", at the configuration's `playerPartyMargin`, and the harness's policy sends that (DL-148 item
+17, v1.1.4-S6, DL-157).
+_Avoid_: Strongest Party, Optimal Party, Recommended Party
 
 **Board**:
 Where the Quests currently on offer are posted. Every Guild draws from it.

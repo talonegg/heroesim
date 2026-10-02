@@ -922,7 +922,7 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     expect(loaded.ok && loaded.warnings).toEqual([]);
   });
 
-  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth)", () => {
+  test("nothing else moves: the same seed gives the History of 86c7afa, entry for entry, but for the new fields and participants (M9-F1's questId, M9-F7's founding Wealth) and the Rivals' Parties (v1.1.4-S6)", () => {
     const fingerprints = seeds.map((seed) => {
       const { history } = played.get(seed) as WorldDocument;
       return createHash('sha256').update(JSON.stringify(history.entries.map(unnamed))).digest('hex');
@@ -931,10 +931,13 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
     // stripping above took nothing out. M9-F7 added the founding Wealth to the stripping, not new
     // values: with it set aside, the History is unchanged (DL-121). v1.1.4-S2 added an Encounter's
     // Degree, deciding Check and Checks, and, under the band's rule before it, nothing else (DL-152).
+    // v1.1.4-S6's Rivals choose their Parties by the chance estimate (DL-157), which changes who goes:
+    // these are its fingerprints. With M2-S9's rule by the demands put back in its place, for one run
+    // and not kept, the three were 86c7afa's again: a85e889a…, c5afab2d… and 55432d24….
     expect(fingerprints).toEqual([
-      'a85e889aec1df8341984e146796c9f761387ce6c7d08946fce9fc688a4494b82',
-      'c5afab2df5c747649e2c0d39c977cb36b08dec94829ed3d82d8ced72917d72a9',
-      '55432d24ff8cb68d4608f49a4da7ab9d10d8b02edeb0bf3abd3ebfe09c9434f7',
+      '00de1d954f3c7cf0c11cfdb770ac0336a9da9004139da1b3134d2f7e4213e377',
+      'db199b7cf4d2ef8326060e4d3f21c5bae3726ad0631e6e8fc522d51134be663e',
+      'c5519e6731b18cacb6cd5e1b9929e57351185c9435fc2fb0e695be137223e180',
     ]);
   });
 

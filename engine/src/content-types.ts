@@ -196,8 +196,9 @@ export interface QuestTemplate {
   partySizeMin: number;
   partySizeMax: number;
   /**
-   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). A Party is
-   * chosen by them (`partyFor`); from M4-S2 the Check reads its Encounters' demands instead.
+   * The Hero Stats the work asks for, each with a weight; the weights sum to 1 (DL-06). From M4-S2
+   * the Check reads its Encounters' Checks instead, and from v1.1.4-S6 no rule reads them and no view
+   * shows them: `partyFor` chooses by the chance estimate (DL-148 items 16 and 17).
    */
   demands: [statKey: StatKey, weight: number][];
   /** The Skills that help on this kind of work (R15, pre-M0 review A4). */
@@ -535,6 +536,12 @@ export interface Disposition {
   gearThreshold: number;
   /** How readily it deals in Transfers, from 0 to 1 (M6-S2 and M6-S3 read it). */
   transferAppetite: number;
+  /**
+   * How much a Hero must raise the estimated chance of success to be added to its Party past the
+   * Quest's `partySizeMin`, from 0 to 1 (v1.1.4-S6, DL-148 item 17, `partyFor`): 0 sends every Hero
+   * who raises it at all, up to `partySizeMax`; 1 never more than the fewest the Quest allows.
+   */
+  partyMargin: number;
 }
 
 /**

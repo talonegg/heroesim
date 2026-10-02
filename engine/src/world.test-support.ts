@@ -357,8 +357,9 @@ function disposition(
   buildThreshold: number,
   gearThreshold: number,
   transferAppetite: number,
+  partyMargin: number,
 ): Record<string, Disposition> {
-  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite } };
+  return { [key]: { key, name: title(key), questRiskAppetite, recruitThreshold, buildThreshold, gearThreshold, transferAppetite, partyMargin } };
 }
 
 /**
@@ -481,13 +482,14 @@ export const testContent: ContentSet = deepFreeze({
   ]),
   // The four Dispositions (INPUTS 7.5) with the weights M6-S1 gave the core (DL-56; reckless's
   // gearThreshold retuned by M6-S4, DL-58): questRiskAppetite, recruitThreshold, buildThreshold,
-  // gearThreshold, transferAppetite. The M6 close retuned the core's rows (DL-69); the engine's tests
-  // keep these, on which their margins were measured, as a fixture of the one rule.
+  // gearThreshold, transferAppetite; then v1.1.4-S6's partyMargin, the core's (DL-157). The M6 close
+  // retuned the core's rows (DL-69); the engine's tests keep these, on which their margins were
+  // measured, as a fixture of the one rule.
   dispositions: {
-    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75),
-    ...disposition('miserly', 0.25, 80, 20, 10, 0.1),
-    ...disposition('reckless', 1, 30, 4, 3, 0.5),
-    ...disposition('steady', 0, 60, 3, 3, 0.25),
+    ...disposition('ambitious', 0.6, 40, 1.5, 2, 0.75, 0.05),
+    ...disposition('miserly', 0.25, 80, 20, 10, 0.1, 0.05),
+    ...disposition('reckless', 1, 30, 4, 3, 0.5, 0.1),
+    ...disposition('steady', 0, 60, 3, 3, 0.25, 0.05),
   },
   improvements: improvements(),
   // key, kind, aggregate, demands, Skills, difficulty factor; then success and failure (M4-S1):

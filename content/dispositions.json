@@ -5,7 +5,8 @@
     "recruitThreshold": 60,
     "buildThreshold": 12,
     "gearThreshold": 3,
-    "transferAppetite": 0.2
+    "transferAppetite": 0.2,
+    "partyMargin": 0.05
   },
   "ambitious": {
     "name": "Ambitious",
@@ -13,7 +14,8 @@
     "recruitThreshold": 45,
     "buildThreshold": 1.5,
     "gearThreshold": 2,
-    "transferAppetite": 0.3
+    "transferAppetite": 0.3,
+    "partyMargin": 0.05
   },
   "miserly": {
     "name": "Miserly",
@@ -21,7 +23,8 @@
     "recruitThreshold": 60,
     "buildThreshold": 40,
     "gearThreshold": 10,
-    "transferAppetite": 0.1
+    "transferAppetite": 0.1,
+    "partyMargin": 0.05
   },
   "reckless": {
     "name": "Reckless",
@@ -29,6 +32,7 @@
     "recruitThreshold": 30,
     "buildThreshold": 4,
     "gearThreshold": 3,
-    "transferAppetite": 0.25
+    "transferAppetite": 0.25,
+    "partyMargin": 0.1
   }
 }

@@ -102,6 +102,27 @@ describe('the production build', { timeout: 120_000 }, () => {
     }
   });
 
+  // v1.1.4-S6's verification (DL-157): the content package's manifests are no content, and each
+  // picture's URL resolves against the script's address, worked out once.
+  test("bundles neither of the content package's manifests", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    expect(text).not.toContain('@heroesim/content');
+    expect(text).not.toContain('compilerOptions');
+  });
+
+  test("works out the script's address once, and resolves every picture's URL against it", () => {
+    const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
+    const text = readFileSync(path.join(outDir, 'assets', script), 'utf8');
+    const pictures = readdirSync(path.join(outDir, 'assets')).filter((file) => file.endsWith('.webp'));
+    expect(text.match(/document\.baseURI/g)).toHaveLength(1);
+    expect(pictures.length).toBeGreaterThanOrEqual(80);
+    // The one name, minified, as each picture's base: `new URL(\`gm-female-01-<hash>.webp\`,t)`.
+    const [, base] = /new URL\(`[\w.-]+\.webp`,(\w+)\)/.exec(text) ?? [];
+    expect(base).toBeDefined();
+    for (const picture of pictures) expect(text.includes(`new URL(\`${picture}\`,${base})`), picture).toBe(true);
+  });
+
   test('builds a script under the 800 kB the gate allows', () => {
     const [script = ''] = readdirSync(path.join(outDir, 'assets')).filter((file) => /^index-[\w-]+\.js$/.test(file));
     expect(statSync(path.join(outDir, 'assets', script)).size).toBeLessThan(scriptLimit);

@@ -38,7 +38,7 @@
 import { checkProposedParty, type ConsumableRequest } from '../actions/dispatch.js';
 import { chanceBandNames, configProblems, type ChanceBand, type GameConfig, type QuestBand } from '../config.js';
 import { degrees, type CheckKey, type Degree, type Encounter, type EncounterKey, type EncounterKind } from '../content-types.js';
-import { compareByCodeUnit, type Hero, type Quest, type World } from '../document.js';
+import { compareByCodeUnit, type Hero, type HeroId, type Quest, type World } from '../document.js';
 import { eventEmitter } from '../emit.js';
 import { clamp } from '../generators/draw.js';
 import { itemDefinition } from '../items.js';
@@ -48,7 +48,7 @@ import { capability, targetOf, type CheckDeps } from './check.js';
 import { bonusOf, rerollFor, takeBonuses, type Left } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { storedSequence } from './encounters.js';
-import { queryParty, type QueryParty } from './query.js';
+import { queryParty, type QueryMember, type QueryParty } from './query.js';
 import { questBand } from './resolve.js';
 
 /** The chance of each Degree, which sum to 1. */
@@ -135,17 +135,60 @@ export function estimateQuest(
   deps: CheckDeps,
   carried: readonly ConsumableRequest[] = [],
 ): QuestEstimate | null {
+  return questEstimator(world, quest, heroes, deps)(heroes, carried);
+}
+
+/**
+ * `estimateQuest` for any Party of `pool` on `quest`, many times over (v1.1.4-S6, the Rivals'
+ * `partyFor`): each Hero of the pool is brought home, and read as a Query reads them (`queryParty`:
+ * their effective Stats, Morale, age and form, each of their own alone), once, however many Parties
+ * are estimated, and each estimate equals `estimateQuest`'s for the same Party and consumables. A
+ * Hero outside the pool is brought home on each call. Throws as `estimateQuest` does: on a configuration
+ * with a problem or a difficulty not above 0 at once, and on a Party or consumables `dispatch` would
+ * throw on, or a malformed Encounter, at the call.
+ */
+export function questEstimator(
+  world: World,
+  quest: Pick<Quest, 'difficulty' | 'encounterKeys' | 'durationTurns'>,
+  pool: readonly Hero[],
+  deps: CheckDeps,
+): (heroes: readonly Hero[], carried?: readonly ConsumableRequest[]) => QuestEstimate | null {
   const { config, content } = deps;
   const [problem] = configProblems(config);
   if (problem !== undefined) throw new RangeError(`The Quest Engine's configuration: ${problem}`);
   if (!(quest.difficulty > 0)) throw new RangeError(`A Quest of difficulty ${quest.difficulty} has no estimate; it is above 0`);
-  checkProposedParty(heroes.map((hero) => hero.id), carried);
   const sequence = storedSequence(quest, content);
-  if (sequence.length === 0) return null;
-  if (heroes.length === 0) return noOne(sequence, config);
+  // Brought home only when a Party is first estimated, since a Quest of no known Encounters needs none.
+  // A member of a Party is read of the Hero alone, so each is read once and the Parties are made of them.
+  let pooled: { world: World; members: Map<HeroId, QueryMember> } | undefined;
+  return (heroes, carried = []) => {
+    checkProposedParty(heroes.map((hero) => hero.id), carried);
+    if (sequence.length === 0) return null;
+    if (heroes.length === 0) return noOne(sequence, config);
+    if (pooled === undefined) {
+      const home = homecoming(world, pool, quest, deps);
+      pooled = { world: home.world, members: new Map(queryParty(home.heroes, home.world, deps).members.map((member) => [member.hero.id, member])) };
+    }
+    const { world: poolWorld, members } = pooled;
+    if (heroes.every((hero) => members.has(hero.id))) {
+      const party = { members: heroes.map((hero) => members.get(hero.id) as QueryMember), content };
+      return estimateFor(party, poolWorld, quest, sequence, deps, carried);
+    }
+    const home = homecoming(world, heroes, quest, deps);
+    return estimateFor(queryParty(home.heroes, home.world, deps), home.world, quest, sequence, deps, carried);
+  };
+}
 
-  const home = homecoming(world, heroes, quest, deps);
-  const party = queryParty(home.heroes, home.world, deps);
+/** The estimate for `party`, brought home on `world` (`homecoming`), meeting `sequence` on `quest`. */
+function estimateFor(
+  party: QueryParty,
+  world: World,
+  quest: Pick<Quest, 'difficulty'>,
+  sequence: readonly Encounter[],
+  deps: CheckDeps,
+  carried: readonly ConsumableRequest[],
+): QuestEstimate {
+  const { config, content } = deps;
   const kit = carried
     .flatMap(({ definitionKey, quantity }) => {
       const definition = itemDefinition(content, definitionKey);
@@ -155,7 +198,7 @@ export function estimateQuest(
   // A bonus is spent on each Encounter of its kinds while it lasts, whatever the rolls (resolve.ts).
   const rolled = sequence.map((encounter) => {
     const bonus = takeBonuses(kit, encounter.kind).reduce((total, it) => total + bonusOf(it), 0);
-    const checks = checksOf(party, encounter, quest, home.world, deps, bonus);
+    const checks = checksOf(party, encounter, quest, world, deps, bonus);
     return { encounter, checks, ...foldedIn(encounter, checks) };
   });
 

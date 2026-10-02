@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import type { NumQuery } from '../content-types.js';
-import { describeQuery, type QueryAccount, type SetAccount, type ValAccount } from './describe.js';
+import { describeQuery, statsIn, type QueryAccount, type SetAccount, type ValAccount } from './describe.js';
 
 // v1.1.4-S5 (DL-156): the typed account of a Query, for the front ends to word. Every operator of
 // every type (content-types.ts) is accounted for, through a Num that holds it.
@@ -92,6 +92,20 @@ describe('describeQuery', () => {
         { kind: 'arithmetic', operator: '*', operands: [{ kind: 'number', value: 0.5 }, { kind: 'aggregate', aggregate: 'max', of: party, value: { kind: 'stat', statKey: 'wits' } }] },
       ],
     });
+  });
+
+  // v1.1.4-S6: the Stats a Check reads, for the Party builder's rows.
+  test('statsIn names every Stat an account reads, once, in the order it names them: values, weightings, rankings, choices and filters', () => {
+    const query: NumQuery = [
+      '+',
+      ['sum', ['where', 'party', ['and', ['>=', ['stat', 'strength'], 12], ['not', ['<', ['level'], 2]]]], ['weighted', [['wits', 0.5], ['perception', 0.5]]]],
+      ['of', ['worst', ['top', 'party', 2, ['stat', 'dexterity']], ['-', ['stat', 'courage'], 1]], ['stat', 'wits']],
+      ['ranked', 'party', ['stat', 'spirit'], [1, 0.5]],
+      ['count', ['where', 'party', ['class', 'mage']]],
+      3,
+    ];
+    expect(statsIn(describeQuery(query))).toEqual(['strength', 'wits', 'perception', 'dexterity', 'courage', 'spirit']);
+    expect(statsIn(describeQuery(['count', 'party']))).toEqual([]);
   });
 
   test('throws on an operator no type has', () => {

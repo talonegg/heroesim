@@ -14,7 +14,7 @@ import { playerGuild } from '../selectors.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { testContent, testDeps } from '../world.test-support.js';
 import { capability } from './check.js';
-import { chanceBand, chanceToReach, estimateQuest, type QuestEstimate } from './estimate.js';
+import { chanceBand, chanceToReach, estimateQuest, questEstimator, type QuestEstimate } from './estimate.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
 
@@ -230,6 +230,15 @@ describe('chance bands', () => {
       /chanceBands/,
     );
   });
+
+  // v1.1.4-S6 (DL-157): the margin of the player's best Party, as a Disposition's `partyMargin` is held.
+  test('playerPartyMargin is 0.05 by default, a share from 0 to 1', () => {
+    expect(defaultConfig.playerPartyMargin).toBe(0.05);
+    for (const playerPartyMargin of [0, 0.5, 1]) expect(configProblems({ ...defaultConfig, playerPartyMargin })).toEqual([]);
+    for (const playerPartyMargin of [-0.05, 1.5, Number.NaN]) {
+      expect(configProblems({ ...defaultConfig, playerPartyMargin })).toEqual([`playerPartyMargin is ${playerPartyMargin}; it is a share from 0 to 1`]);
+    }
+  });
 });
 
 describe('the estimate', () => {
@@ -264,6 +273,26 @@ describe('the estimate', () => {
     expect(() => estimateQuest(s.world, s.quest, s.heroes, s.deps, twice)).toThrow("A Party's consumables name whetstone twice");
     expect(() => estimateQuest(s.world, s.quest, s.heroes, s.deps, [{ definitionKey: 'whetstone', quantity: 0 }])).toThrow(RangeError);
     expect(() => estimateQuest(s.world, s.quest, s.heroes, s.deps, [{ definitionKey: 'whetstone', quantity: 1.5 }])).toThrow(RangeError);
+  });
+
+  // v1.1.4-S6: the Rivals' `partyFor` estimates many Parties of one pool, each Hero brought home once.
+  test('questEstimator gives every Party of its pool, in any order and carrying anything, exactly the estimate estimateQuest gives', () => {
+    const s = scene('estimate-pool', [
+      { key: 'first', kind: 'travel', checks: [draft('first', strength, 1), draft('second', wits, 1.1)], pass: ['or', 'first', 'second'] },
+      { key: 'third', kind: 'combat', checks: [draft('third', courage, 0.9)] },
+    ], { morale: [19, 38, 76, 91], carried: [['grappling-line', 1]] });
+    const estimate = questEstimator(s.world, s.quest, s.heroes, s.deps);
+    const [a, b, c, d] = s.heroes as [Hero, Hero, Hero, Hero];
+    for (const party of [[], [a], [d, b], [b, d], [a, b, c, d], [c, a, d]]) {
+      for (const carried of [[], s.carried]) {
+        expect(estimate(party, carried), party.map((hero) => hero.id).join()).toEqual(estimateQuest(s.world, s.quest, party, s.deps, carried));
+      }
+    }
+    // A Hero outside the pool is brought home on the call.
+    expect(questEstimator(s.world, s.quest, [a], s.deps)([a, b])).toEqual(estimateQuest(s.world, s.quest, [a, b], s.deps));
+    expect(() => estimate([a, a])).toThrow(`A Party names ${a.id} twice`);
+    expect(questEstimator(s.world, { ...s.quest, encounterKeys: [] }, s.heroes, s.deps)([a])).toBeNull();
+    expect(() => questEstimator(s.world, { ...s.quest, difficulty: 0 }, s.heroes, s.deps)).toThrow(RangeError);
   });
 
   test("reads the Party as the resolver meets it on the night it comes home: a wretched Hero's Morale has drifted a band up", () => {

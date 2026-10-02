@@ -390,7 +390,7 @@ describe('stopsOfTurn', () => {
       const guild = player(document.world);
       const idle = guild.rosterIds.every((heroId) => document.world.heroes[heroId]?.partyId === null);
       const [quest] = idle && turn % 3 === 0 ? staffableQuests(document.world, guild, deps) : [];
-      const heroIds = quest === undefined ? null : partyFor(quest, availableHeroes(document.world, guild), deps.content);
+      const heroIds = quest === undefined ? null : partyFor(document.world, guild, quest, availableHeroes(document.world, guild), deps);
       if (quest !== undefined && heroIds !== null) {
         const sent = dispatch(document, { guildId, questId: quest.id, heroIds }, deps);
         if (!sent.ok) throw new Error(`Rejected ${sent.rejection.reason}`);

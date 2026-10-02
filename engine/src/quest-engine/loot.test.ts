@@ -338,7 +338,7 @@ function season(seed: string, regime: Regime, days: number, deps: EngineDeps): {
     const [quest] = offered;
     if (quest !== undefined && world.ended === null) {
       const available = availableHeroes(world, guild);
-      const party = partyFor(quest, available, deps.content) ?? [];
+      const party = partyFor(world, guild, quest, available, deps) ?? [];
       const rest = available.map((hero) => hero.id).filter((id) => !party.includes(id));
       const heroIds = [...party, ...rest].slice(0, quest.requirements.partySizeMax);
       const result = dispatch(document, { guildId: guild.id, questId: quest.id, heroIds }, deps);

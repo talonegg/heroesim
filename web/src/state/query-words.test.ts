@@ -1,7 +1,7 @@
-import { chanceBandNames, describeQuery, type NumQuery } from '@heroesim/engine';
+import { chanceBand, chanceBandNames, defaultConfig, describeQuery, type NumQuery } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
-import { chanceWords, queryWords } from './query-words';
+import { chanceWords, encounterReadings, shownPercent, queryWords, readsAsOne } from './query-words';
 
 // v1.1.4-S5 (DL-156): the page words every operator of a Query through the engine's account of it
 // (`describeQuery`), and every chance band, as the CLI does (cli/src/query-words.test.ts).
@@ -74,5 +74,53 @@ describe('queryWords', () => {
 describe('chanceWords', () => {
   test('words every chance band as DL-148 item 15 does', () => {
     expect(chanceBandNames.map((band) => chanceWords[band])).toEqual(['Hopeless', 'Unlikely', 'Even', 'Likely', 'Near certain']);
+  });
+});
+
+// v1.1.4-S6: the detail's percentages, and each Encounter's Checks as the Board's card gives them, as the CLI does.
+describe('the Board and the detail (v1.1.4-S6)', () => {
+  // v1.1.4-S6's verification: floored to a multiple of 5, within 5 to 95 unless certain, so that the
+  // number always falls in its word's band, every band starting at a multiple of 5.
+  test('a chance is shown floored to a multiple of 5, between 5 and 95 unless it is 0 or 1, and agrees with its word', () => {
+    const cases: [number, number, string][] = [
+      [0, 0, 'Hopeless'],
+      [0.03, 5, 'Hopeless'],
+      [0.1, 10, 'Unlikely'],
+      [0.349, 30, 'Unlikely'],
+      [0.35, 35, 'Even'],
+      [0.64, 60, 'Even'],
+      [0.65, 65, 'Likely'],
+      [0.899, 85, 'Likely'],
+      [0.9, 90, 'Near certain'],
+      [0.976, 95, 'Near certain'],
+      [1, 100, 'Near certain'],
+    ];
+    for (const [chance, percent, word] of cases) {
+      expect(shownPercent(chance), String(chance)).toBe(percent);
+      expect(chanceWords[chanceBand(chance, defaultConfig)], String(chance)).toBe(word);
+    }
+    // Every chance's number lies in its word's band, by hundredths and at the edges a sum's rounding leaves.
+    const starts = [0, 0.1, 0.35, 0.65, 0.9];
+    for (let at = 0; at <= 10_000; at += 1) {
+      for (const chance of [at / 10_000, 0.65 - 1e-15, 0.35 + 1e-15, 1 - 1e-15]) {
+        const band = chanceBandNames.indexOf(chanceBand(chance, defaultConfig));
+        const shown = shownPercent(chance) / 100;
+        expect(shown >= (starts[band] ?? 0) && (band === 4 || shown < (starts[band + 1] ?? 1)), String(chance)).toBe(true);
+      }
+    }
+  });
+
+  test("each of a Quest's Encounters gives each Check's name and what it reads, in order; one content lacks reads nothing", () => {
+    const [ambush, unknown] = encounterReadings({ encounterKeys: ['ambush-on-the-road', 'no-such-encounter'] }, content);
+
+    expect(ambush).toEqual({
+      encounterKey: 'ambush-on-the-road',
+      name: 'Ambush on the road',
+      kind: 'combat',
+      checks: [{ key: 'ambush-on-the-road', name: 'Ambush on the road', reads: queryWords(describeQuery(content.encounters['ambush-on-the-road']?.checks[0]?.score ?? 0), content) }],
+    });
+    expect(ambush && readsAsOne(ambush)).toBe(true);
+    expect(unknown).toEqual({ encounterKey: 'no-such-encounter', name: 'no-such-encounter', kind: null, checks: [] });
+    expect(unknown && readsAsOne(unknown)).toBe(false);
   });
 });

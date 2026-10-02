@@ -2173,9 +2173,22 @@ p.setup-preview {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-areas:
     'line choose'
-    'chips choose';
+    'chips choose'
+    'best choose';
   align-items: center;
   gap: 0 1rem;
+}
+
+/* "Your best Party" and its chance (v1.1.4-S6). */
+.quest__best {
+  grid-area: best;
+  margin: 0.3rem 0 0;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.quest__best strong {
+  color: var(--ink);
 }
 
 .quest__line {
@@ -2269,39 +2282,31 @@ ul.chips {
   margin: 0;
 }
 
-/* The Demands as bars of their share of the work. */
-.demands {
-  list-style: none;
-  padding: 0;
+/* Each Encounter, and what each of its Checks reads (v1.1.4-S6), across the details' width. */
+.quest__reads {
+  grid-column: 1 / -1;
+}
+
+.reads,
+.reads ul {
   margin: 0;
-  display: grid;
-  grid-template-columns: max-content minmax(3rem, 1fr) 2.75rem;
+  padding-left: 1.1rem;
+}
+
+.reads > li + li {
+  margin-top: 0.35rem;
+}
+
+.reads__name {
+  display: flex;
   align-items: center;
-  gap: 0.3rem 0.6rem;
+  gap: 0.35rem;
+  font-weight: 600;
 }
 
-.demands li {
-  display: contents;
-}
-
-.demand__bar {
-  height: 0.5rem;
-  border-radius: 999px;
-  background: var(--sunk);
-  overflow: hidden;
-}
-
-.demand__bar > span {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--accent);
-}
-
-.demand__share {
-  text-align: right;
-  color: var(--ink-soft);
-  font-size: 0.875rem;
+.reads li,
+.reads p {
+  overflow-wrap: anywhere;
 }
 
 /* The difficulty placed against the Quests on the Board now: display only. */
@@ -2374,6 +2379,7 @@ ul.chips {
     grid-template-areas:
       'line'
       'chips'
+      'best'
       'choose';
   }
 
@@ -2559,6 +2565,17 @@ ul.chips {
 
 .preview > p {
   margin: 0.75rem 0 0;
+}
+
+.preview details {
+  margin-top: 0.35rem;
+}
+
+/* The detail's summary is a control, a 44px target like the rest, its marker kept. */
+.preview summary {
+  line-height: 2.75rem;
+  cursor: pointer;
+  color: var(--accent);
 }
 
 .marks,

@@ -227,20 +227,22 @@ describe(`the Transfer Generator over ${seeds.length} seeds × ${years} years (M
   test('the Roster-size distribution across Rivals stays within the generation range', () => {
     const { rivalRosterMin: min, rivalRosterMax: max } = deps.config;
     // The Generator's own moves never take a Roster out of the range (`expectWithinTheRule`, above).
-    // At every year's end, across the seeds' Rivals in play, the distribution's median and mean lie
-    // within the range: Deaths, Retirements, recruits, the afternoon's Transfers and folds move single
-    // Rosters out of it, which the Generator does not undo (DL-59), but not the distribution.
+    // At every year's end, across the seeds' Rivals in play, the distribution's median lies within
+    // the range, and so does the mean of every year's: Deaths, Retirements, recruits, the afternoon's
+    // Transfers and folds move single Rosters out of it, which the Generator does not undo (DL-59), but
+    // not the distribution. From v1.1.4-S6 a year's own mean is not held: a Rival choosing its Party by
+    // the estimate earns more, and one of the sixteen here hired to 18 Heroes, moving its years' means
+    // to 8.125 with the median at 7 (DL-157).
+    const every: number[] = [];
     for (let year = 0; year < years; year += 1) {
       const sizes = tallies.flatMap((tally) => tally.yearEnds[year] ?? []);
       expect(sizes.length, `year ${year + 1}`).toBeGreaterThan(0);
-      for (const [what, value] of [
-        ['median', median(sizes)],
-        ['mean', mean(sizes)],
-      ] as const) {
-        expect(value, `year ${year + 1} ${what}`).toBeGreaterThanOrEqual(min);
-        expect(value, `year ${year + 1} ${what}`).toBeLessThanOrEqual(max);
-      }
+      expect(median(sizes), `year ${year + 1} median`).toBeGreaterThanOrEqual(min);
+      expect(median(sizes), `year ${year + 1} median`).toBeLessThanOrEqual(max);
+      every.push(...sizes);
     }
+    expect(mean(every)).toBeGreaterThanOrEqual(min);
+    expect(mean(every)).toBeLessThanOrEqual(max);
   });
 
   test("the player's Roster is never changed by the phase, on any night of twenty years", () => {
