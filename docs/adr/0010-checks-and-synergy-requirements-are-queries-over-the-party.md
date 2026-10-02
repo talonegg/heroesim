@@ -35,10 +35,14 @@ this decision plays the same.
 
 A Hero's form (v1.1.4-S3, DL-154) scales the Stat values a Hero adds into a Check's score, and
 nothing that chooses, filters or counts. So a wound or low spirits must never raise a score: a Stat
-subtracted would be scaled with the rest, and a hurt Hero would subtract less. Validation refuses,
-in a Check's score, any `-` whose right operand reads a Stat a Hero adds: a `stat`, a `weighted`, or
-a Num of such a Val, at any depth. A raw Check, read without form, and a Synergy's requirement, read
-as the Heroes are, may still subtract one.
+subtracted would be scaled with the rest, and a hurt Hero would subtract less. Validation carries
+the sign each node adds into a Check's score with down to every Stat a Hero adds (a `stat`, or a
+pair of a `weighted`), and refuses the score where that sign may be negative, naming the node that
+turned it so: a `-` whose right operand reads the Stat (v1.1.4-S3), a `weighted` or `ranked` with a
+negative weight, and a `*` beside an operand that is, or may be, negative, such as a count less a
+number (v1.1.4-S9 and its verification, DL-162). A Stat negated twice counts for the score again,
+and is accepted. A raw Check, read without form, and a Synergy's requirement, read as the Heroes
+are, may still do any of these.
 
 Harm reads the Party in the same language (v1.1.4-S4, DL-155). An Injury's or a Death's `among` is
 a Set Query, held as a Check's score is, Sex allowed in its filters, since it decides who takes part
@@ -57,5 +61,6 @@ A text form, compiled when content is built, is not part of this decision. It is
 writing the arrays proves painful (DL-148 item 4).
 
 *Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20; the refusal of a
-subtracted Stat added in v1.1.4-S3 (DL-154), harm's `among` in v1.1.4-S4 (DL-155), and the account
-of a Query in v1.1.4-S5 (DL-156).
+subtracted Stat added in v1.1.4-S3 (DL-154), of a negative weight or factor on a Stat in
+v1.1.4-S9 (DL-162), harm's `among` in v1.1.4-S4 (DL-155), and the account of a Query in v1.1.4-S5
+(DL-156).

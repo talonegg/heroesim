@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { defaultPlaySeedCount, defaultSeedCount, seedCount, seedNames, yearCount } from './seeds.js';
+import { configChanges, defaultPlaySeedCount, defaultSeedCount, seedCount, seedNames, yearCount } from './seeds.js';
 
 describe('seedCount', () => {
   test('is 1,000 when HEROESIM_SEEDS is unset or blank (INPUTS §9)', () => {
@@ -21,6 +21,12 @@ describe('seedCount', () => {
 
   test.each(['0', '-5', '2.5', 'ten', '1e400'])('refuses %j rather than playing none', (value) => {
     expect(() => seedCount(value)).toThrow(/HEROESIM_SEEDS/);
+  });
+
+  // v1.1.4-S9's verification (DL-162): a count read of another variable names that variable.
+  test('names the variable it read, when told it', () => {
+    expect(() => seedCount('ten', 200, 'HEROESIM_SAMPLES')).toThrow(/^HEROESIM_SAMPLES must be a whole number from 1, not "ten"$/);
+    expect(seedCount('', 200, 'HEROESIM_SAMPLES')).toBe(200);
   });
 });
 
@@ -44,4 +50,26 @@ test('seedNames numbers from seed-0001, four digits at least', () => {
   expect(seedNames(3)).toEqual(['seed-0001', 'seed-0002', 'seed-0003']);
   expect(seedNames(10_000).at(-1)).toBe('seed-10000');
   expect(seedNames(0)).toEqual([]);
+});
+
+// v1.1.4-S9's verification (DL-162): a play sweep under config other than the defaults, for trials of
+// values S10 would tune, never changed in engine/src/config.ts to try them.
+describe('configChanges', () => {
+  test('is no change when HEROESIM_CONFIG is unset or blank', () => {
+    expect(configChanges('')).toEqual({});
+    expect(configChanges('  ')).toEqual({});
+  });
+
+  test('reads a JSON object of config keys, checked as the Quest Engine checks the config', () => {
+    expect(configChanges('{"checkVariance":0.4,"marketSize":14}')).toEqual({ checkVariance: 0.4, marketSize: 14 });
+  });
+
+  test.each([
+    ['[1]', /HEROESIM_CONFIG is "\[1\]"; expected a JSON object of config keys/],
+    ['{', /HEROESIM_CONFIG is "\{"; expected a JSON object of config keys/],
+    ['{"noSuchKey":1}', /HEROESIM_CONFIG: "noSuchKey" is not a config key/],
+    ['{"checkVariance":2}', /HEROESIM_CONFIG: checkVariance is 2; it is a share from 0 to 1/],
+  ])('refuses %s', (value, problem) => {
+    expect(() => configChanges(value)).toThrow(problem);
+  });
 });

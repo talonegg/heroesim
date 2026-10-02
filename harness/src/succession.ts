@@ -43,14 +43,19 @@ export const defaultProbeSeedCount = 50;
 /** Years each probe game lasts at most when `HEROESIM_YEARS` is unset. */
 export const defaultProbeYears = 12;
 
-/** The probes the harness knows, by the name `HEROESIM_PROBE` gives: this one, and v1.1.4-S5's chance estimate (estimate.ts). */
-export const probeNames = ['succession', 'estimate'] as const;
+/**
+ * The probes the harness knows, by the name `HEROESIM_PROBE` gives: this one, v1.1.4-S5's chance
+ * estimate (estimate.ts) and v1.1.4-S9's calibration (calibrate.ts). `run.mjs` lists them too, so that
+ * `npm run harness -- calibrate` names the probe; a test holds the two lists equal.
+ */
+export const probeNames = ['succession', 'estimate', 'calibrate'] as const;
 export type ProbeName = (typeof probeNames)[number];
 
 /**
  * The probe `HEROESIM_PROBE` names: `null` when it is unset or blank, so the milestone's runs play;
- * `succession` for this one or `estimate` for the estimate's, whatever its case. Throws on any other name, so a mistyped probe fails
- * the run rather than running the milestone's instead.
+ * `succession` for this one, `estimate` for the estimate's or `calibrate` for the calibration, whatever
+ * its case. Throws on any other name, so a mistyped probe fails the run rather than running the
+ * milestone's instead.
  */
 export function probeName(value: string | undefined = process.env.HEROESIM_PROBE): ProbeName | null {
   const name = (value ?? '').trim().toLowerCase();

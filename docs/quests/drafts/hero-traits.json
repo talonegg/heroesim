@@ -1,0 +1,48 @@
+{
+  "scarred": {
+    "name": "Scarred",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"courage":1,"charisma":-1}}]
+  },
+  "lame": {
+    "name": "Lame",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"dexterity":-2,"endurance":-1}}]
+  },
+  "one-eyed": {
+    "name": "One-eyed",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"perception":-2,"weaponry":-1}}]
+  },
+  "short-winded": {
+    "name": "Short-winded",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"endurance":-2,"constitution":-1}}]
+  },
+  "battle-tried": {
+    "name": "Battle-tried",
+    "excludes": ["battle-shy"],
+    "effects": [{"kind":"encounterBonus","flat":2,"kinds":["combat"]}]
+  },
+  "wayfinder": {"name":"Wayfinder","excludes":[],"effects":[{"kind":"encounterBonus","flat":2,"kinds":["travel"]}]},
+  "silver-tongued": {
+    "name": "Silver-tongued",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"diplomacy":1,"charisma":1}}]
+  },
+  "lettered": {
+    "name": "Lettered",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"intelligence":1,"knowledge":1}}]
+  },
+  "battle-shy": {
+    "name": "Battle-shy",
+    "excludes": ["battle-tried"],
+    "effects": [{"kind":"statModifiers","modifiers":{"courage":-1,"weaponry":-1}}]
+  },
+  "haunted": {
+    "name": "Haunted",
+    "excludes": [],
+    "effects": [{"kind":"statModifiers","modifiers":{"willpower":-1,"spirit":-1}}]
+  }
+}

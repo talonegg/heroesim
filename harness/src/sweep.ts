@@ -184,7 +184,7 @@ export function defaultWorkers(): number {
 export async function sweepPlayInParallel(
   seeds: readonly string[],
   deps: EngineDeps,
-  options: SweepOptions & { workers?: number } = {},
+  options: SweepOptions & { workers?: number; drafts?: string } = {},
 ): Promise<PlaySweep> {
   const now = options.now ?? (() => performance.now());
   const workers = Math.max(1, Math.min(options.workers ?? defaultWorkers(), seeds.length));
@@ -198,6 +198,7 @@ export async function sweepPlayInParallel(
       validate: options.validate ?? false,
       policy: options.policy ?? defaultPolicyConfig,
       ...(modules.length === 0 ? {} : { modules }),
+      ...(options.drafts === undefined ? {} : { drafts: options.drafts }),
     }),
   );
   const results = await runShardJobs(jobs);
@@ -599,6 +600,10 @@ export interface PlayReportContext {
   startedAt: Date;
   /** The milestone whose run this is, as its report is named: `m3`. */
   milestone: string;
+  /** The draft content files played in place of the core's (v1.1.4-S9, `loadDrafts`); none when absent. */
+  drafted?: string[];
+  /** The config values played in place of `defaultConfig`'s (v1.1.4-S9's verification, `HEROESIM_CONFIG`); none when absent. */
+  configured?: Readonly<Record<string, unknown>>;
 }
 
 /** data-model §7's targets, provisional, to set the measures against (DL-08). */
@@ -1545,7 +1550,7 @@ function heroesSection(totals: SweepTotals): string[] {
 }
 
 /** The sweep as a Markdown report. */
-export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
+export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone, drafted = [], configured = {} }: PlayReportContext): string {
   const { config, content } = deps;
   const totals = sweepTotals(sweep, config.turnsPerYear);
   const count = sweep.seeds.length;
@@ -1613,8 +1618,10 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     `# ${milestone.toUpperCase()} harness report: play`,
     '',
     `Run begun ${localTimestamp(startedAt)} · ${whole(count)} seeds, ${range} · up to ${yearsText} years ` +
-      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version} · ` +
-      `config version ${config.configVersion}, schema version ${config.schemaVersion} · ` +
+      `(${whole(sweep.years * config.turnsPerYear)} Turns) each · content \`${content.id}\` version ${content.version}` +
+      `${drafted.length === 0 ? '' : ` with the drafts of ${drafted.map((name) => `\`${name}\``).join(', ')}`} · ` +
+      `config version ${config.configVersion}, schema version ${config.schemaVersion}` +
+      `${Object.keys(configured).length === 0 ? '' : `, the defaults changed by \`${JSON.stringify(configured)}\``} · ` +
       `\`createdAt: "${harnessSetup.createdAt}"\` · validated after every advance: ${sweep.validated ? 'yes' : 'no'}`,
     '',
     `Policy (INPUTS 4.14): first decline every Transfer Offer made for its Heroes (M6-S2); then the gear it holds ` +

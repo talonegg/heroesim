@@ -14,7 +14,7 @@ import { probeName } from './succession.js';
 // band and of success, held within 2 points of the resolver's rate (the epic's S5); the report written
 // to harness/reports/m9-estimate-<date>.md.
 
-const samples = seedCount(process.env.HEROESIM_SAMPLES, defaultEstimateSamples);
+const samples = seedCount(process.env.HEROESIM_SAMPLES ?? '', defaultEstimateSamples, 'HEROESIM_SAMPLES');
 const runs = seedCount(process.env.HEROESIM_SEEDS, defaultEstimateRuns);
 
 test.runIf(probeName() === 'estimate')(`${samples} Parties and Quests, each estimated within 2 points of ${runs} seeds resolved`, { timeout: 24 * 60 * 60_000 }, () => {

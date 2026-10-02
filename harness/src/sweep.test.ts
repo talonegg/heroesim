@@ -276,6 +276,18 @@ describe('sweepPlay', () => {
       expect(report).toContain(`| Fingerprint of every seed's last save | \`${sweepFingerprint(sweep.games)}\` |`);
     });
 
+    test('names the draft content files it played in place of the core files, and none when it played the core (v1.1.4-S9)', () => {
+      expect(report).toContain(` · content \`core\` version ${deps.content.version} · config version`);
+      const drafted = playReport(sweep, { ...context, drafted: ['encounters.json', 'items.json'] });
+      expect(drafted).toContain(` · content \`core\` version ${deps.content.version} with the drafts of \`encounters.json\`, \`items.json\` · config version`);
+    });
+
+    test('names the config it changed from the defaults, and nothing when it changed none (v1.1.4-S9 verification)', () => {
+      expect(report).toContain(`schema version ${deps.config.schemaVersion} · \`createdAt`);
+      const changed = playReport(sweep, { ...context, configured: { checkVariance: 0.4, marketSize: 14 } });
+      expect(changed).toContain(`schema version ${deps.config.schemaVersion}, the defaults changed by \`{"checkVariance":0.4,"marketSize":14}\` · \`createdAt`);
+    });
+
     test('states the seeds, the endings, byte equality and the measures against the targets', () => {
       expect(report).toContain('2 seeds, `seed-0001` to `seed-0002`');
       // M9-S2: the Rival Guildmasters succeeded, beside the folds by cause.

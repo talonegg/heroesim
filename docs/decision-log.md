@@ -19011,6 +19011,390 @@ DL-159), and every comparison of play below is with S7's sweep, `harness/reports
 
 ---
 
+## DL-162 — v1.1.4-S9 built: a negative weight or factor on a Stat refused in a Check's score, the calibration, the drafts of every Encounter, Finale, Item, Trait and Synergy under `docs/quests/`, and the review page for the owner
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building S9 as the epic's S9 bullets
+describe, on DL-148 items 20 to 25 and 30. Where the plan was silent, the calls are the agent's, in
+item 7, for the owner to change. The owner's answers to the review are not recorded here: none has
+been given yet, and S10 starts from them. Opus built it; a second Opus agent verifies it.
+
+**Context.** S1 to S8 (DL-151 to DL-160) built everything content can now say: Checks scored by
+Queries, several to an Encounter with a pass formula, Degrees and consequences by Degree, form,
+harm's `among`, `exposedBy`, `guardedBy` and `steadiedBy`, Hero Traits with effects and the `trait`
+consequence, tags, Finales and the `lore` kind. Today's content uses none of it: twelve Encounters in
+the old form, one Check each, and the player's Quests fail 10.1% of the time and are strong successes
+74.9% (S8's sweep, `harness/reports/m9-v114-s8-2026-10-03.md`), against DL-83 item 4's 20 to 30% and
+at most 50%. A Check's factor means nothing without calibration (the epic's §4), so S9 builds the
+calibration first, then drafts the content against it, then puts both before the owner (DL-148 item
+30). Nothing is written into `content/`: S10 does that after the owner's answers. It was built on
+`v1.1.4-dev` at `8232b11` (S8, DL-160).
+
+**Decision.**
+
+1. **A Stat turned against itself is refused** (`content/src/validate.ts`, `checkInversions`, test
+   first; DL-154's "left open"). Form scales each Stat a Hero adds into a score, so S3 refused a Stat
+   on the right of a `-`. A negative weight in a `weighted`, and a `*` whose constant operands multiply
+   to a negative number beside an operand that reads such a Stat, invert form the same way, and are
+   now refused in a Check's score, each naming its path: `encounters.<key>.checks.0.score.2.1.1.1:
+   weighted gives "wits" a negative weight; …` and `….score.2: "*" multiplies a Stat a Hero adds by a
+   negative number; …`. A constant is a number, or `+`, `-`, `*`, `least` or `greatest` of numbers
+   alone (`constantOf`), so `["*", ["-", 1, 3], …]` is caught; two negatives that cancel are accepted.
+   A raw Check and a Synergy's requirement, read without form, may still do either. ADR-0010 says so.
+   Core content writes neither, so nothing is refused.
+2. **The calibration** (`harness/src/calibrate.ts`; `npm run harness -- calibrate`,
+   `calibrate.harness.test.ts`). `harness/run.mjs` now reads a first argument that names a probe as
+   `HEROESIM_PROBE` and runs only its file, so the epic's command works in every shell;
+   `HEROESIM_PROBE=calibrate npm run harness` works too, and a test holds `run.mjs`'s list of probes
+   to `probeNames`.
+   - *Heroes.* For each of Levels 1, 5 and 10, 300 Heroes drawn by the Heroes Generator into a world of
+     their own and raised by the engine's own growth (`growOneLevel`, now exported), unattached, at the
+     Morale baseline, with no gear and no Regard between them.
+   - *Each Encounter and each of its Checks.* For each Level and Party size 1 to 5, 120 random Parties,
+     each estimated alone on a Quest of that one Encounter at difficulties 20, 40, 60, 80 and 100:
+     each Degree's rate, the mean of the estimate's chances.
+   - *Each template.* At each Level, 48 Quests drawn by the Quest Generator, their difficulty and
+     Encounters as the game draws them, binned by the third of the template's range: the Quest bands
+     of the best Party (`bestParty`) of a Roster of 8 drawn until it can staff the Quest, its mean
+     size, the positive Earned Traits a Quest draws, and random Parties of each size the template
+     allows that meet its requirements.
+   - *The spot-check.* 24 samples, half an Encounter met by a random Party, half a template's Quest
+     met by its best Party, each resolved for `HEROESIM_SEEDS` seeds (4,000 by default) with no one
+     falling, held to the estimate.
+   - *The coverage grid.* Each Hero Stat's Checks by kind: the Checks whose score adds the Stat
+     (`statsAdded`), not those that only choose or filter by it, against the gate's three Checks
+     across two kinds.
+   - *Drafts.* `HEROESIM_DRAFTS` names a directory of content files, each in place of the core file of
+     its name (`loadDrafts`, content's Node entry; `docs/quests/drafts/` by default, `none` for the
+     core). The play sweep takes it too, in its child processes, and its report names the files.
+   - *Tuning.* With `HEROESIM_TUNE` set to a chance, it first sets every Check's factor in the drafts'
+     `encounters.json` (`tunedFactors`): each Check alone so that at the aim (random Parties of 3 at
+     Level 5, difficulty 60) it succeeds with the chance, then every factor of the Encounter scaled by
+     one number so that the Encounter, by its pass formula (`encounterDegrees`, the estimate's own
+     combination, held to it to 12 places), succeeds with it. A Check that reads a Hero of a Class
+     scores nothing without one, so it is aimed at the Parties that score.
+   - It writes `docs/quests/calibration.md` and the data the review page reads,
+     `docs/quests/calibration.json`, in about a minute.
+3. **The drafts** (`docs/quests/drafts/`, content-shaped JSON that `loadDrafts` validates as the
+   game's content is, for S10 to copy into `content/`).
+   - *`encounters.json`: 29 Encounters, 68 Checks.* The twelve of today re-authored under their own
+     keys and names; thirteen new (Wolves at dusk, Short of supplies, The old shaft, Frightened
+     villagers, A word with the fence, The hungry ward, The dead-light, Among the crowd, Stalking the
+     beast, and the four `lore` ones: Old records, A riddle at the gate, The cause of the sickness, The
+     names of the dead); and four Finales, each a new Encounter as DL-160 requires: The Warden's seal
+     (Break the sealed vault), The last assault (Hold the border fort), The strongroom (The
+     counting-house job) and The last rite (Lay the restless dead). Each has two to four named Checks,
+     a pass formula of `and`, `or` or `at-least` (nested in five), consequences for all four Degrees,
+     and harm fields wherever harm falls. By kind: combat 5, travel 5, social 4, arcane 6, stealth 5,
+     lore 4, Finales included.
+   - *The Checks* read the right Hero and the weakest link: the best Hero's Stat (`max`, or `of` the
+     best of a Class or a Skill), the least of the Party's (`min`, "the weakest link"), the best few
+     with falling weights (`ranked`), the Party's average where everyone must manage, and a sum only
+     where Heroes truly add (the three sturdiest on a shield wall, the Mages' and Healers' joint
+     work). DL-148's example is The fells' Footing, "Wits of the Hero with the lowest Dexterity".
+   - *`quest-templates.json`*: the four Finales; the lore kind added to Lay the restless dead, Survey
+     the old workings and Break the sealed vault; The sickness at the mill draws social and lore in
+     place of social and arcane; two new tags, `holy` (Escort the tithe, Lay the restless dead) and
+     `study` (the mill, the old workings, the vault).
+   - *`items.json`*: six gear Items for the Mental and Social Stats: Commonplace book (Knowledge +1),
+     Reading glass (Intelligence +2, Perception +1), Signet ring (Diplomacy +2, Charisma +1), Officer's
+     sash (Leadership +2, Courage +1), Fine doublet (armour: Charisma +2, Diplomacy +1) and Scholar's
+     almanac (Knowledge +3, Intelligence +2). The verification made them all trinkets, the doublet a
+     Courtier's brooch, at prices that tie no core piece's (item 1 there).
+   - *`hero-traits.json`*: six earned Traits. Positive, each on one Encounter's Triumph at 5%:
+     Battle-tried (+2 to every Check of combat Encounters; The last assault), Wayfinder (+2 to travel;
+     Lost in the fells), Silver-tongued (Diplomacy +1, Charisma +1; The Patron's steward) and Lettered
+     (Intelligence +1, Knowledge +1; The Warden's seal). Negative, at 8% after an Injury in the same
+     Failure list: Battle-shy (Courage −1, Weaponry −1; Hold the line, The last assault), which
+     excludes Battle-tried both ways, and Haunted (Willpower −1, Spirit −1; A restless power, The last
+     rite).
+   - *`synergies.json`*: the six of today written as Queries, and three new that read Stats and Levels:
+     Two learned heads (two Heroes of Intelligence 13 or more: +2 on lore and arcane), Under a captain
+     (a Hero of Leadership 14 or more in a Party of three or more: ×1.1 on combat and travel) and Old
+     hands (every Hero Level 6 or more: +2 on every kind).
+   - *The Stats harm reads* (`notes.json`, and the review page): a blow falls likelier on the slow
+     (`exposedBy` Dexterity) and lands less on the hardy (`guardedBy` Constitution); a fall or a trap
+     on the unwatchful (Perception), less on the nimble (Dexterity); fever on the weary (Endurance),
+     less on the hardy (Constitution); magic on and against Resistance. A Death is guarded by the Stat
+     of its blow. A Morale loss is steadied by Courage and Willpower (dread), Endurance and Willpower
+     (hardship), Adaptability (shame) or Willpower (a puzzle). `among` names the Warriors on Hold the
+     line, the three sturdiest on The last assault, the weakest on The flooded ford and the least
+     watchful in The trapped passage.
+   - *`notes.json`*: a sentence for each new thing in the game's voice, the sweep's paragraphs and the
+     calls for the owner, which the page reads. Not a content file: `loadDrafts` passes it over.
+4. **The review page** (`docs/quests/v1.1.4-review.html`, 451 kB, written by `npm run quest-review`,
+   `cli/src/quest-review.ts`). One self-contained page: what is drafted and how to read the rates;
+   every new name (Encounters, Checks, Items, Traits, Synergies, tags); the Quest target as the
+   estimate sees it and in play; the coverage grid; the Stats harm reads; each Encounter by kind and
+   each Finale in words, with each Check worded by the CLI's `queryWords` ("The lowest Courage in the
+   Party", "Wits of the Hero with the lowest Dexterity"), its Skills and target, the pass formula in
+   words ("Steel and (Nerve or Rallying)"), the consequences of each Degree in words, and the rates by
+   Level and difficulty for Parties of 3, with each Check's and by Party size folded beneath; each
+   template, what changed and its best Party's bands; the Items, Traits (with where each is earned),
+   Synergies (their requirements worded) and tags; and the calls. Every Encounter, Check, template,
+   Item, Trait, Synergy and tag has an id to comment by (`#enc-ambush-on-the-road`).
+   - *The page contract.* Title "Quest content review"; colours as tokens on `:root`, again for dark
+     under `prefers-color-scheme` guarded by `:root:not([data-theme="light"])` and under
+     `:root[data-theme="dark"]`; `body` with its background; no script, stylesheet or font fetched;
+     each table in its own scroll box. Opened in Chromium at 360, 820 and 1280px in both schemes, no
+     width scrolls sideways.
+   - *Why in the CLI.* The words are the CLI's, and the harness and the tools may not import a front
+     end (eslint), so the generator sits beside `query-words.ts` and reads the harness's
+     `calibration.json`. S10 runs it again after the owner's answers.
+5. **The glossary.** No new term: the calibration and the coverage grid are the harness's, not the
+   game's.
+6. **Content and configuration** are unchanged in `content/` and `engine/src/config.ts`; content stays
+   25 and configuration 13. `docs/quests/` is not ignored by git.
+7. **Calls where the plan was silent** (the agent's, for the owner to change; the review page's
+   "Calls for the owner" gives them in plain words).
+   - *Every Check of the drafts rolls within 40% either way* (`variance` 0.4), where today's roll within
+     `checkVariance`'s 20%. At 20% a Party's chance runs from nothing to certain over a small change of
+     its Stats: in a first trial at 20%, three random Heroes came through the same Encounter 28% of
+     the time at Level 1 and 97% at Level 10 (A hostile reeve, difficulty 60). At 40% each end keeps a
+     chance.
+   - *Where the factors were tuned.* At random Parties of 3, Level 5, difficulty 60, to a chance of
+     0.44 (`HEROESIM_TUNE=0.44`), chosen from the trials in the checks' item 3. S10 tunes from there.
+   - *The mill's kinds, the lore kind's templates and the two tags,* as item 3 lists them.
+   - *Earned Traits on few Encounters.* The epic asks for chances of about 5 to 10% and a career mean of
+     about one or fewer. A first trial with the positive Traits on nine Encounters' Triumphs gave 3.1 a
+     career, since a Hero meets about 400 Quests; on one Encounter each, 1.15.
+   - *A Check that wants a Hero of a Class or a Skill* scores nothing without one (DL-151), so each
+     stands in an `or` or on a template that requires that Hero: Diagnosis (a Healer), Unbinding (the
+     Mages), the last assault's Command (a Warrior), The rite (a Healer) and The lock (Lockpicking).
+   - *The coverage counts a Check that adds the Stat,* not one that only chooses or filters by it, so
+     "Wits of the Hero with the lowest Dexterity" counts for Wits alone; S10's content test may count
+     either, and the drafts meet the gate both ways.
+   - *The Fine doublet is armour,* so a Hero dressed for a hall is not dressed for a fight. Withdrawn by
+     the verification (item 1 there): the automatic buyer took it in place of the Mail shirt.
+   - *The drafts live as content files* under `docs/quests/drafts/`, so `loadDrafts` validates them as
+     the game's content and S10 copies them; the Earned Traits go in through the editor or the
+     `trait-edit` skill (DL-150 item 15), the rest by hand.
+
+**The checks.**
+1. **The refusals, test first** (`refusals.test.ts`): six scores refused, each naming its path (a
+   negative weight; one deep in a Num; a Stat times −1; times `["-", 1, 3]`; a sum of a Stat times
+   −0.5; the best Hero's Stat times −2), red before the change; five accepted (a weight of 0, a
+   positive factor, a Level or a count times a negative number, two negatives that cancel); a raw
+   Check that does both, accepted.
+2. **The calibration** (`HEROESIM_TUNE=0.44 HEROESIM_SEEDS=10000 npm run harness -- calibrate`, 53.5 s;
+   `docs/quests/calibration.md`):
+   - *The coverage grid:* all 20 Hero Stats meet the gate. Endurance is read by 3 Checks across 2
+     kinds, Constitution, Willpower, Arcana, Power, Spelllore, Resistance, Leadership, Charisma,
+     Diplomacy and Adaptability by 4, and Dexterity, Intelligence, Perception and Wits by 8. Today's
+     content meets it for 3 Stats of 20.
+   - *The estimate held to the resolver:* 284 chances over 24 samples of 10,000 seeds each, the widest
+     1.21 points apart (2.47 standard errors).
+   - *The Quest target as the estimate sees it* (the best Party of a Roster of 8, if no one falls):
+     at Level 1, 18% fail and 58% strong over every template's Quests, 35% and 37% in the hardest
+     third of each range; at Level 5, 15% and 62% (25% and 42%); at Level 10, 2% and 80% (5% and 65%).
+     Today's content, so measured in a smaller run (12 Quests a template): 1%, 1% and 0% fail at
+     Levels 1, 5 and 10.
+   - *The hardest templates below Level 10:* Break the sealed vault's top third (difficulty 88 to 100)
+     fails 92% at Level 1 and 94% at Level 5, and 16% at Level 10.
+   - `harness/src/calibrate.test.ts`, 12 tests: drafts loaded in place of the core and validated, and
+     the core alone; the drafts meet the gate; `statsAdded` (DL-148's example adds Wits and not
+     Dexterity); the grid on today's content; the thirds; `formatJson` reads back as written;
+     `encounterDegrees` equals the estimate's Encounter to 12 places for every drafted Encounter;
+     a tuned Encounter at its aim within 0.005 of the chance; a small calibration's every cell, its
+     chances summing to 1, its spot-check within 5 standard errors; and a play shard with drafts plays
+     as this process plays them, and otherwise the core.
+3. **The drafts in play** (`HEROESIM_DRAFTS=…/docs/quests/drafts HEROESIM_SEEDS=50
+   HEROESIM_MILESTONE=m9-v114-s9-drafts npm run harness -- play.harness`, core only, 20 years, content
+   25 with the drafts, config 13, not validated, 590.6 s): `harness/reports/m9-v114-s9-drafts-2026-10-03.md`,
+   to be force-added. Against S8's (in brackets):
+   - *The player's Quests:* failed 16.2% (10.1%), succeeded 19.5% (15.0%), strong 64.3% (74.9%);
+     242,950 resolved (339,051).
+   - *The Rivals' Quests:* failed 11.9% (6.4%), succeeded 15.1% (12.3%), strong 73.0% (81.3%).
+   - *Traits earned per Hero career:* the player's 1.149, the Rivals' 0.740 (none before: no content
+     earned one).
+   - *The cost.* 19 of the 50 player's Guilds went bankrupt (2), 14 of them in their first two years;
+     the years survived average 14.18 (19.86). 378 Rivals folded (178), and 11 Rival Guildmasters were
+     succeeded (26). The player's Injuries were 9,311 (13,370) and Deaths 595 (1,085), over fewer
+     Guild-years. A Guild's Upkeep took 85% of its Quest income (49,111 of 58,081 a Guild-year; S8 78%,
+     46,580 of 59,981).
+   - *Why.* The harness's player takes the highest-reward Quest it can staff whatever its chance, so a
+     Guild of Level 1 Heroes takes the vault, the fort and the counting-house at the top of their
+     ranges and fails them (item 2's hardest templates); and with Upkeep near its income, a few more
+     failures tip it over.
+   - *The trials* that chose the variance and the tuning (16 seeds each, not kept; the drafts' Traits
+     on fewer Encounters from the second on):
+
+     | Variance, tuned to | Years | Player failed | Strong | Bankrupt of 16 | Traits a career |
+     | --- | ---: | ---: | ---: | ---: | ---: |
+     | 0.2, 0.7 | 10 | 5.1% | 84.8% | 0 | 3.149 |
+     | 0.2, 0.5 | 10 | 13.8% | 68.9% | 0 | 1.451 |
+     | 0.2, 0.35 | 10 | 25.4% | 54.9% | 10 | 0.535 |
+     | 0.4, 0.5 | 10 | 16.1% | 65.2% | 0 | 1.206 |
+     | 0.4, 0.42 | 10 | 22.9% | 56.7% | 5 | 0.894 |
+     | 0.4, 0.5 | 20 | 12.7% | 69.5% | 5 | 1.536 |
+     | 0.4, 0.47 | 20 | 14.7% | 65.9% | 7 | 1.334 |
+     | 0.4, 0.44 | 20 | 17.7% | 63.0% | 8 | 0.972 |
+     | 0.4, 0.40 | 20 | 23.2% | 56.6% | 10 | 0.772 |
+
+     The fifty-seed sweep of item 3 is the 0.44 row's drafts, byte for byte.
+4. **The review page:** `cli/src/quest-review.test.ts`, 3 tests: the page contract; an id for every
+   Encounter, template, new Item, new Trait and Synergy, and the owner's example worded; the pass
+   formulas and each kind of consequence in words. In Chromium, no width of 360, 820 or 1280px in either
+   scheme scrolls sideways.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,552 tests in 178 files (4,523 in 176 at S8), with no flake.
+   - `npm run build -w web`'s check-bundle passes; the script is 774,039 bytes, as at S8.
+   - No page of the game changed, so `e2e -w web` was not run.
+
+**Consequences.**
+- *The expected effect on the Quest target.* With these drafts the player's Quests fail 16.2% and are
+  strong 64.3%: nearer the target than today's 10.1% and 74.9%, and short of it on both counts. The
+  strong share moves least with the factors (every trial above 54%); S10's controls of the Degrees,
+  `checkDegrees.triumph` and `strongTriumphShare`, reach it more directly. The verification's drafts
+  (a flat term, the Finales at their ranges) fail 19.9% and are strong 59.5%, and 20.2% and 45.3% with
+  the stricter Degrees (its item 2).
+- *For the owner, before S10* (the review page's last call). In every trial that brought the player's
+  failures near 20%, a third to a half of its Guilds went bankrupt, most in their first two years. The
+  content alone cannot meet the target with the harness's player as it chooses Quests and the economy
+  as it stands (DL-83 items 8 and 9 wait for Random Events, DL-148 item 3). S10 needs one of: the
+  harness's player choosing its Quests by their chance (say, none its best Party finds Hopeless or
+  Unlikely); the economy looked at now; or the target set aside for this release.
+- S10 starts from the owner's answers, copies the drafts into `content/` (raising the content version),
+  writes the Earned Traits through the editor or the `trait-edit` skill, runs `npm run harness --
+  calibrate` with `HEROESIM_DRAFTS=none` once they are content, and `npm run quest-review` if the page
+  is wanted again.
+- The six Earned Traits have no Biography sentences in `descriptions.json` (drafted nowhere); a Hero
+  who holds one is written without one until S10, or the `trait-assign` skill, adds them.
+- *A finding outside S9:* S5's `estimate.harness.test.ts` reads `seedCount(process.env.HEROESIM_SAMPLES,
+  …)`, and `seedCount`'s default parameter reads `HEROESIM_SEEDS` when the variable is unset, so
+  `HEROESIM_SEEDS=20000` alone also sets 20,000 samples. The calibration passes `?? ''` to avoid it;
+  the estimate's probe is left as it is. The verification fixed it (its item 7).
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first
+where they were code, each call the agent's, for the owner to change:
+1. **The Fine doublet hijacked the armour.** The automatic buyer (`gearPurchase`) takes the dearest
+   piece the Market has for a slot whose price Wealth covers enough times, the lowest key on a tie;
+   the harness's player buys armour alone, and Rivals armour first. The doublet, armour at 120, tied
+   the Mail shirt and won on its key, so the Guilds bought Charisma in place of Constitution. The six
+   new Items are now all trinkets, the doublet a Courtier's brooch (Charisma +2, Diplomacy +1), each
+   priced a little below its tier's core trinket and tied with no core piece (Commonplace book 35;
+   Reading glass 100, Signet ring 105, Officer's sash 110, Courtier's brooch 115; Scholar's almanac
+   280; against 40, 120 and 300), so the buyer takes the core piece whenever it can afford it. A test
+   holds the drafts to it (`calibrate.test.ts`: no new piece in the armour slot, none at a core
+   piece's price in its slot). Found besides: the Market's ten stacks a day are drawn from every
+   priced common Item, so six more hold each one less often (10 of 21 in place of 10 of 15); S10 may
+   raise `marketSize`.
+2. **The levers the first build missed,** tried before concluding.
+   - *A flat term* (`HEROESIM_FLAT`, a share; `TuningAim.flatShare`): that share of each Check's target
+     at the aim is its `flat`, the rest its factor times the difficulty, so a target grows more slowly
+     than the difficulty, easy Quests harder and the hardest less hopeless. Tested: the share is kept
+     and the aim still met.
+   - *Each Finale tuned at its template's range* (`aimOf`): at the middle of its difficulties (70 to
+     80), with Parties of the aim's size brought within the template's sizes. Tested: each Finale at
+     its middle meets the aim.
+   - *The Degrees,* configuration S10 tunes: a play sweep now takes `HEROESIM_CONFIG`, a JSON object of
+     config keys in place of the defaults, checked as the Quest Engine checks the config
+     (`configChanges`, `seeds.ts`, tested); the calibration takes it too, and the report names it.
+   - *The trials* (16 seeds, 20 years; the drafts tuned to 0.44 with no flat term gave 15.8% failed,
+     65.1% strong, 6 bankrupt, 2 of them in the first two years):
+
+     | Flat share, tuned to | Config | Player failed | Strong | Bankrupt of 16 (first two years) | Traits a career |
+     | --- | --- | ---: | ---: | ---: | ---: |
+     | 0.4, 0.44 | defaults | 21.9% | 56.7% | 7 (4) | 1.332 |
+     | 0.6, 0.44 | defaults | 25.3% | 53.1% | 12 (7) | 1.096 |
+     | 0.4, 0.44 | Triumph 1.3, share 0.6 | 24.5% | 43.0% | 9 (5) | 1.027 |
+     | 0.4, 0.47 | Triumph 1.3, share 0.6 | 17.6% | 53.0% | 8 (5) | 1.294 |
+     | 0.4, 0.50 | Triumph 1.3, share 0.6 | 16.4% | 54.9% | 6 (0) | 1.683 |
+     | 0.4, 0.50 | Triumph 1.35, share 0.6 | 15.7% | 52.1% | 4 (1) | 1.474 |
+     | 0.4, 0.44 | Triumph 1.35, share 0.6 | 22.0% | 44.0% | 9 (5) | 0.887 |
+     | 0.4, 0.47 | Triumph 1.35, share 0.65 | 22.3% | 41.0% | 10 (5) | 1.004 |
+     | 0.5, 0.45 | Triumph 1.35, share 0.65 | 23.4% | 39.1% | 10 (6) | 0.980 |
+
+   - *The drafts now* are tuned so: `HEROESIM_TUNE=0.44 HEROESIM_FLAT=0.4 HEROESIM_SEEDS=10000 npm run
+     harness -- calibrate` (102.4 s). As the estimate sees it: at Level 1, 16% fail and 51% strong (28%
+     and 32% in the hardest third); at Level 5, 12% and 56% (18% and 41%); at Level 10, 1% and 80%
+     (2% and 66%). Break the sealed vault's top third fails 60% at Level 1 and 52% at Level 5, where it
+     failed 92% and 94%. The spot-check: 284 chances, the widest 1.20 points apart (2.41 standard
+     errors). Coverage unchanged, 20 of 20.
+   - *The fifty-seed sweeps* (50 seeds, 20 years, the drafts, run side by side):
+     `harness/reports/m9-v114-s9-drafts-2026-10-03.md` (the defaults; it replaces the first build's)
+     and `m9-v114-s9-drafts-degrees-2026-10-03.md` (Triumph 1.35, `strongTriumphShare` 0.6), both to be
+     force-added. Against S8's (in brackets):
+
+     | | Defaults | Stricter Degrees |
+     | --- | ---: | ---: |
+     | Player failed | 19.9% (10.1%) | 20.2% |
+     | Player succeeded | 20.5% (15.0%) | 34.5% |
+     | Player strong | 59.5% (74.9%) | 45.3% |
+     | Rivals failed, strong | 19.3%, 60.7% (6.4%, 81.3%) | 19.8%, 46.1% |
+     | Player's Guilds bankrupt of 50 | 20 (2) | 24 |
+     | … by year (year 0 first) | 0: 7, 1: 4, 4: 1, 8: 1, 12: 2, 16: 2, 17: 2, 19: 1 | 0: 7, 1: 6, 4: 1, 6: 1, 9: 1, 11: 1, 12: 2, 15: 1, 17: 2, 18: 2 |
+     | Years survived, mean | 14.68 (19.86) | 13.52 |
+     | Rivals folded | 405 (178) | 413 |
+     | Traits a career, player's and Rivals' | 1.339, 0.663 | 1.116, 0.532 |
+
+   - *Plainly:* the target is reachable, but only with the Degrees made stricter as well and with
+     heavy bankruptcy: 20.2% failed and 45.3% strong cost 24 of 50 Guilds, 13 of them in their first
+     two years. Every trial at 20% failed or more bankrupted two fifths of its games or more; every
+     trial with few bankruptcies left the failures near 16% and the strong share above 50%. That is
+     the owner's question for S10 (the review page's last call): the harness's player choosing its
+     Quests by their chance, the economy looked at before Random Events, or the target waiting.
+3. **The variance, a proposal.** The answer (A riddle at the gate) rolled within 50% against the
+   page's 40%; it rolls within 40% now, as every Check of the drafts does. Proposed for S10, not done
+   (configuration is S10's): `checkVariance` 0.4 in config, and a Check's own `variance` only where
+   that Check truly differs, with its reason. The argument: a Party whose capability equals the target
+   rolls between 0.8 and 1.2 times it at 20%, so it can only Setback (from 0.75) or succeed (below the
+   Triumph's 1.25); at 40% it rolls between 0.6 and 1.4 times it, so all four Degrees can happen.
+4. **The sign was read of constants alone.** `["*", ["*", -1, ["count", "party"]], …Stat]` and
+   `["*", ["-", 0, ["count", "party"]], …]` passed, though each is a Stat times a number never above
+   nought. `checkInversions` now carries the sign each node adds into the score with (its polarity)
+   down to every `stat` and `weighted` pair, multiplying it by the sign of each operand beside it
+   (`signOf`: a constant's own; a Stat, Skill rating, Level, Morale, age or count never below nought;
+   sums, differences, products, `least`, `greatest` and the aggregates following their operands; an
+   unknown operator any sign), and refuses a Stat whose polarity may be negative, naming the node that
+   last turned it so. A `*` beside an operand that may be negative (a count less 3) is refused as
+   such; so is a `ranked` with a negative weight. A Stat negated twice counts for the score again
+   and is accepted, `["*", -1, ["*", -1, …Stat]]` among them. Tests: six refused (the two forms
+   above, a count less 3, a Stat negated thrice, one negated then subtracted, a `ranked` weight of
+   −0.5), five accepted (negated twice; subtracted from nought, then negated; a negative weight,
+   negated; times the count; times a count less nought), each red before. ADR-0010 says so.
+5. **The page's words.** "When the highest Leadership in the Party at least 14" now reads "is at
+   least"; "among the 1 Hero with the lowest Strength" reads "among the Hero with the lowest
+   Strength"; the tags, standalone list text, begin with a capital ("Tags Escort, Wilds", and in the
+   names list); a template's changed kinds are named ("Combat, Arcane → Combat, Arcane, Lore"). Read
+   again whole, one more: "the highest Dexterity in the Heroes who have Lockpicking" (The lock, now
+   a `max` over them) reads "among" a Set less than the Party, in both front ends' `query-words.ts`,
+   tested. "A target is its factor times the Quest's difficulty" names the flat term. Tested.
+6. **`loadDrafts` took a mistyped directory for none.** It now throws when `HEROESIM_DRAFTS` names a
+   missing directory or one with no content file (tested both ways), so a typo cannot play the core
+   as the drafts.
+7. **`HEROESIM_SAMPLES` fell back to `HEROESIM_SEEDS`.** The estimate probe passes `?? ''`, and
+   `seedCount` takes the name of the variable it read for its message (tested); the calibration's
+   `HEROESIM_PARTIES` too. The first build's finding is closed.
+8. **A fragment to publish.** `npm run quest-review -- --fragment --out <path>` writes the page
+   without its document tags, the `<title>`, `<style>` and `<main>` alone in that order, for a
+   publisher that wraps them; the style pads only the block ends (`padding-block` on `main`), and the
+   whole page's side gutter is `padding-inline` on `body`, so a publisher's `:root` padding is never
+   overridden. Tested; opened in Chromium wrapped at 360, 820 and 1280px in both schemes, no width
+   scrolls sideways.
+
+The rest: `npm run typecheck` and `npm run lint` clean; `npm test` passes 4,580 tests in 178 files
+with `--maxWorkers=12`. With the default pool, 12 or 13 of the heaviest tests time out at 5 s on
+this machine, the same each run and untouched ones among them (`selectors`, `modules/probe`, `rng`,
+the reducer's fast forward): the suite now takes 124 s where it took 55 s at the first build, and
+another agent's run on the machine at the same hour failed so too.
+
+**Actioned in:** `content/src/validate.ts` (`checkInversions`, `signOf`, `constantOf`), `refusals.test.ts` and
+`node.ts` (`loadDrafts`); `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`engine/src/index.ts` (`growOneLevel`); `harness/src/calibrate.ts`, `calibrate.test.ts` and
+`calibrate.harness.test.ts` (new); `harness/run.mjs`; `harness/src/succession.ts` (`probeNames`) and
+its test; `harness/src/estimate.ts` (`drawer`); `harness/src/shard.ts`, `sweep.ts`,
+`play.harness.test.ts` and `sweep.test.ts` (drafts in play); `cli/src/quest-review.ts` and its test
+(new); `package.json` (`quest-review`); `docs/quests/` (new: `calibration.md`, `calibration.json`,
+`v1.1.4-review.html`, `drafts/`); `harness/reports/m9-v114-s9-drafts-2026-10-03.md`; the epic's
+first S9 box and status. The verification: `harness/src/seeds.ts` (`seedCount`'s name,
+`configChanges`) and its test; `harness/src/estimate.harness.test.ts`; `calibrate.ts` (`aimOf`,
+`CheckTuning`, `flatShare`) and its tests; `play.harness.test.ts` and `sweep.ts` (`HEROESIM_CONFIG`);
+`cli/src/query-words.ts` and `web/src/state/query-words.ts` ("among") and their tests;
+`harness/reports/m9-v114-s9-drafts-degrees-2026-10-03.md`.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

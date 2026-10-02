@@ -190,7 +190,9 @@ export function queryWords(account: QueryAccount, names: QueryNames): string {
       case 'aggregate': {
         const of = set(it.of);
         const value = val(it.value);
-        return { sum: `the total ${value} of ${of}`, avg: `the average ${value} of ${of}`, max: `the highest ${value} in ${of}`, min: `the lowest ${value} in ${of}` }[it.aggregate];
+        // In the Party; among a Set less than it (v1.1.4-S9's verification, DL-162).
+        const among = of === 'the Party' ? 'in' : 'among';
+        return { sum: `the total ${value} of ${of}`, avg: `the average ${value} of ${of}`, max: `the highest ${value} ${among} ${of}`, min: `the lowest ${value} ${among} ${of}` }[it.aggregate];
       }
       case 'count': {
         const words = core(it.of);

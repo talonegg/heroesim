@@ -14,6 +14,8 @@ const worded: [string, NumQuery, string][] = [
   ['sum', ['sum', 'party', ['stat', 'strength']], 'the total Strength of the Party'],
   ['avg, of a Class filter', ['avg', ['where', 'party', ['class', 'mage', 'healer']], ['stat', 'intelligence']], 'the average Intelligence of the Mages and Healers'],
   ['max', ['max', 'party', ['stat', 'wits']], 'the highest Wits in the Party'],
+  // v1.1.4-S9's verification (DL-162): of a Set less than the Party, among it.
+  ['max, of a Skill filter', ['max', ['where', 'party', ['has-skill', 'lockpicking']], ['stat', 'dexterity']], 'the highest Dexterity among the Heroes who have Lockpicking'],
   ['min, of a weighting', ['min', 'party', ['weighted', [['wits', 0.6], ['perception', 0.4]]]], 'the lowest (0.6 Wits + 0.4 Perception) in the Party'],
   ['count of the Party', ['count', 'party'], 'the size of the Party'],
   ['count, of a comparison', ['count', ['where', 'party', ['>=', ['stat', 'strength'], 12]]], 'the number of Heroes whose Strength is at least 12'],

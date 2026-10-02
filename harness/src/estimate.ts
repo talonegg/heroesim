@@ -95,7 +95,7 @@ export interface Sample {
 }
 
 /** A small deterministic stream for drawing the samples (mulberry32), apart from the game's. */
-function drawer(seed: string): () => number {
+export function drawer(seed: string): () => number {
   let state = createHash('sha256').update(seed).digest().readUInt32LE(0);
   return () => {
     state = (state + 0x6d2b79f5) >>> 0;

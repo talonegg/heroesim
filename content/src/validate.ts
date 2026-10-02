@@ -882,7 +882,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
       if (!kebabCase.test(it.key)) problems.push(`${at}.key: "${it.key}" is not kebab-case`);
       if (it.name.trim() === '') problems.push(`${at}.name is empty: a Check is named for the narration and the Board`);
       checkQuery(`${at}.score`, it.score, 'num', keys, problems);
-      if (it.raw !== true) checkSubtractions(`${at}.score`, it.score, 'num', problems);
+      if (it.raw !== true) checkInversions(`${at}.score`, it.score, 'num', problems);
       checkReferences(`${at}.skills`, it.skills, keys.skills, 'a Skill', problems);
       checkTarget(at, it, problems);
       if (it.raw === true && it.skills.length > 0) {
@@ -1573,34 +1573,176 @@ function queryArgument(
 }
 
 /**
- * A Check's score subtracts no Stat a Hero adds (v1.1.4-S3's verification, DL-154, ADR-0010). Form
- * scales each Stat a Hero adds into a score (query.ts), so a Stat on the right of a `-` would be
- * scaled too, and a wound or low spirits would raise the score. A `-` of Vals or of Nums whose right
- * operand reads such a Stat (`addsStat`) is refused, naming its path. A raw Check, read without form,
- * and a Synergy's requirement, read as the Heroes are, are not held to it. Run on a score
+ * A Check's score turns no Stat a Hero adds against itself (v1.1.4-S3's verification, DL-154;
+ * v1.1.4-S9 and its verification, DL-162; ADR-0010). Form scales each Stat a Hero adds into a score
+ * (query.ts), so a Stat that counts against the score would be scaled too, and a wound or low
+ * spirits would raise the score.
+ *
+ * The walk carries the sign each node adds into the score with (its polarity) down to every `stat`
+ * and `weighted` pair, multiplying it by the sign of each operand beside it (`signOf`): a `-` flips
+ * its right operand, a `*` multiplies by its other operands, a `weighted` or `ranked` by its weights.
+ * A Stat whose polarity may be negative is refused, naming the node that last turned it so:
+ *
+ * - a `-` whose right operand reads the Stat;
+ * - a `weighted` that gives the Stat a negative weight;
+ * - a `*` whose other operands are, or may be, negative (a count less a number, say);
+ * - a `ranked` with a negative weight.
+ *
+ * So twice negated, a Stat counts for the score again, and is accepted. A raw Check, read without
+ * form, and a Synergy's requirement, read as the Heroes are, are not held to it. Run on a score
  * `checkQuery` has checked; a node of the wrong shape is that check's to refuse, and passed over here.
  */
-function checkSubtractions(where: string, query: unknown, type: 'num' | 'val', problems: string[]): void {
+function checkInversions(
+  where: string,
+  query: unknown,
+  type: 'num' | 'val',
+  problems: string[],
+  polarity: Sign = positive,
+  culprit = '',
+): void {
   if (!Array.isArray(query)) return;
   const [operator, ...args] = query as unknown[];
-  if (operator === '-' && addsStat(args[1], type)) {
-    problems.push(`${where}.2: "-" subtracts a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero`);
+  const inverts = 'form would then raise the score of a hurt or low-spirited Hero';
+  const refuse = (problem: string): void => {
+    if (!problems.includes(problem)) problems.push(problem);
+  };
+  // A child's culprit: this node, when it turned the polarity to one that may be negative; else the parent's.
+  const turned = (child: Sign, problem: string): string => (child.down && !sameSign(child, polarity) ? problem : culprit);
+  if (type === 'val' && operator === 'stat') {
+    if (polarity.down) refuse(culprit);
+    return;
   }
+  if (type === 'val' && operator === 'weighted') {
+    if (!Array.isArray(args[0])) return;
+    (args[0] as unknown[]).forEach((pair, index) => {
+      const [statKey, weight] = Array.isArray(pair) ? (pair as unknown[]) : [];
+      if (typeof weight !== 'number') return;
+      const child = times(polarity, signOfNumber(weight));
+      if (child.down) refuse(turned(child, `${where}.1.${index}.1: weighted gives ${JSON.stringify(statKey)} a negative weight; ${inverts}`));
+    });
+    return;
+  }
+  const signs = operator === '*' ? args.map((arg) => signOf(arg, type)) : [];
   for (const [index, arg] of args.entries()) {
     const below = belowOf(operator, index, type);
-    if (below !== null) checkSubtractions(`${where}.${index + 1}`, arg, below, problems);
+    if (below === null) continue;
+    let child = polarity;
+    let problem = culprit;
+    if (operator === '-' && index === 1) {
+      child = flip(polarity);
+      problem = turned(child, `${where}.2: "-" subtracts a Stat a Hero adds; ${inverts}`);
+    } else if (operator === '*') {
+      const others = signs.reduce<Sign>((product, sign, other) => (other === index ? product : times(product, sign)), positive);
+      child = times(polarity, others);
+      const by = others.down && !others.up ? 'a negative number' : 'a number that may be negative';
+      problem = turned(child, `${where}: "*" multiplies a Stat a Hero adds by ${by}; ${inverts}`);
+    } else if (operator === 'ranked') {
+      child = times(polarity, signOfWeights(args[2]));
+      problem = turned(child, `${where}.3: "ranked" gives a negative weight to a value that reads a Stat a Hero adds; ${inverts}`);
+    }
+    checkInversions(`${where}.${index + 1}`, arg, below, problems, child, problem);
   }
 }
 
-/** Whether `query`, a Num or a Val, reads a Stat a Hero adds into a score: a `stat` or `weighted`, or a Num of a Val that does. */
-function addsStat(query: unknown, type: 'num' | 'val'): boolean {
-  if (!Array.isArray(query)) return false;
+/** Whether a value may be above nought (`up`), and whether it may be below (`down`); a value of nought alone is neither. */
+interface Sign {
+  readonly up: boolean;
+  readonly down: boolean;
+}
+
+const positive: Sign = { up: true, down: false };
+const anySign: Sign = { up: true, down: true };
+const nought: Sign = { up: false, down: false };
+const flip = (sign: Sign): Sign => ({ up: sign.down, down: sign.up });
+const times = (left: Sign, right: Sign): Sign => ({
+  up: (left.up && right.up) || (left.down && right.down),
+  down: (left.up && right.down) || (left.down && right.up),
+});
+const either = (left: Sign, right: Sign): Sign => ({ up: left.up || right.up, down: left.down || right.down });
+const sameSign = (left: Sign, right: Sign): boolean => left.up === right.up && left.down === right.down;
+const signOfNumber = (value: number): Sign => ({ up: value > 0, down: value < 0 });
+
+/** The signs a list of weights may give: each weight's, together; any sign when it is not a list of numbers. */
+function signOfWeights(weights: unknown): Sign {
+  if (!Array.isArray(weights)) return anySign;
+  return (weights as unknown[]).reduce<Sign>((sign, weight) => either(sign, typeof weight === 'number' ? signOfNumber(weight) : anySign), nought);
+}
+
+/**
+ * The signs `query`, a Num or a Val, may take for any Party: a constant's own; a Stat, a Skill
+ * rating, Level, Morale, age and a count are never below nought; sums, differences, products and
+ * the rest follow their operands. An operator it does not know may take any sign.
+ */
+function signOf(query: unknown, type: 'num' | 'val'): Sign {
+  const constant = constantOf(query);
+  if (constant !== null) return signOfNumber(constant);
+  if (!Array.isArray(query)) return anySign;
   const [operator, ...args] = query as unknown[];
-  if (type === 'val' && (operator === 'stat' || operator === 'weighted')) return true;
-  return args.some((arg, index) => {
-    const below = belowOf(operator, index, type);
-    return below !== null && addsStat(arg, below);
-  });
+  switch (operator) {
+    case '+':
+      return args.reduce<Sign>((sign, arg) => either(sign, signOf(arg, type)), nought);
+    case '-':
+      return either(signOf(args[0], type), flip(signOf(args[1], type)));
+    case '*':
+      return args.reduce<Sign>((sign, arg) => times(sign, signOf(arg, type)), positive);
+  }
+  if (type === 'val') {
+    switch (operator) {
+      case 'stat':
+      case 'skill':
+      case 'level':
+      case 'morale':
+      case 'age':
+        return positive;
+      case 'weighted':
+        return Array.isArray(args[0])
+          ? signOfWeights((args[0] as unknown[]).map((pair) => (Array.isArray(pair) ? (pair as unknown[])[1] : undefined)))
+          : anySign;
+      default:
+        return anySign;
+    }
+  }
+  switch (operator) {
+    case 'count':
+      return positive;
+    case 'sum':
+    case 'avg':
+    case 'max':
+    case 'min':
+    case 'of':
+      return signOf(args[1], 'val');
+    case 'ranked':
+      return times(signOf(args[1], 'val'), signOfWeights(args[2]));
+    case 'least':
+    case 'greatest':
+      return args.reduce<Sign>((sign, arg) => either(sign, signOf(arg, 'num')), nought);
+    default:
+      return anySign;
+  }
+}
+
+/** The value of `query` when it is a number, or `+`, `-`, `*`, `least` or `greatest` of numbers alone; `null` when it reads anything else. */
+function constantOf(query: unknown): number | null {
+  if (typeof query === 'number') return query;
+  if (!Array.isArray(query)) return null;
+  const [operator, ...args] = query as unknown[];
+  const values = args.map(constantOf);
+  if (values.length === 0 || values.some((value) => value === null)) return null;
+  const numbers = values as number[];
+  switch (operator) {
+    case '+':
+      return numbers.reduce((sum, value) => sum + value, 0);
+    case '-':
+      return numbers.length === 2 ? (numbers[0] as number) - (numbers[1] as number) : null;
+    case '*':
+      return numbers.reduce((product, value) => product * value, 1);
+    case 'least':
+      return Math.min(...numbers);
+    case 'greatest':
+      return Math.max(...numbers);
+    default:
+      return null;
+  }
 }
 
 /** What the argument at `index` of a Num's or a Val's `operator` adds into its value: a Num, a Val, or nothing (a Set, a Hero, a key, a weight). */

@@ -1,0 +1,89 @@
+{
+  "summary": [
+    "Every Encounter is written in the new form: two to four named Checks, each a Query over the Party, combined by a pass formula, with consequences by Degree and harm that reads the Stats. The twelve Encounters of today are re-authored under their own names and keys; thirteen are new, four of them of the lore kind; and the four hardest templates end in a Finale of their own.",
+    "The Checks lean on the right Hero and on the weakest link rather than on headcount: most read the best Hero's Stat, the least of the Party's, or the best few with falling weights, and only the shield walls and the Mages' and Healers' joint work add Heroes up. Every Check rolls within 40% either way (today's Checks within 20%), so that a strong Party can still stumble and a weak one can still get through.",
+    "The targets were set by the calibration, each Encounter tuned so that three Heroes of Level 5 drawn at random come through it 44% of the time at difficulty 60, every Check of it as hard on its own, and each Finale so at the middle of its template's difficulties. Two fifths of each target at difficulty 60 is a flat term and the rest grows with the difficulty, so an easy Quest is harder than before and the hardest less hopeless. S10 tunes them again from its sweeps."
+  ],
+  "play": [
+    "In play, a 50-game sweep of 20 years with these drafts (harness/reports/m9-v114-s9-drafts-2026-10-03.md), the harness's player failed 19.9% of its Quests (10.1% with today's content), succeeded 20.5% and won 59.5% strong (74.9%). Its Heroes earned 1.34 Traits a career, the Rivals' 0.66. The failures are at the target's edge; the strong share is above it.",
+    "With the Degrees made stricter as well, which is configuration for S10 (a Triumph at 1.35 times the target in place of 1.25, and a strong success needing 60% of the Encounters it comes through to be Triumphs in place of half), the same 50 games (harness/reports/m9-v114-s9-drafts-degrees-2026-10-03.md) meet the target: failed 20.2%, succeeded 34.5% and won 45.3% strong, with 1.12 Traits a career.",
+    "The cost: 20 of the 50 player's Guilds went bankrupt with the drafts as they are, 11 of them in their first two years (2 of 50 with today's content), and 24 with the stricter Degrees, 13 in their first two years; 405 and 413 Rivals folded (178). The harness's player takes the highest-reward Quest it can staff whatever its chance, so a Guild of Level 1 Heroes takes the hardest Quests and fails them, and Upkeep takes nearly all of a Guild's income, so a few more failures tip it over. Every trial that brought failures to 20% or more bankrupted two fifths of the games or more."
+  ],
+  "encounters": {
+    "ambush-on-the-road": "Bandits break from the trees. The Party's best blades carry the fight, and it holds only if its least courageous Hero keeps their nerve, or someone rallies them.",
+    "the-restless-dead": "The dead walk. A blessing, good steel or raw power will put them down, but the whole Party must stand the chill of them.",
+    "hold-the-line": "A press of bodies at a gate or a breach. The three sturdiest hold the wall, someone gives the orders, and the one with the least wind must last; any two of the three will do.",
+    "wolves-at-dusk": "A pack closes in as the light goes. Spears and quick hands keep them off, if someone sees them coming.",
+    "the-long-march": "Day after day on the road. The slowest Hero sets the pace, and someone who knows a poultice from a poison keeps the rest on their feet.",
+    "the-flooded-ford": "The river is up. Either someone finds the shallow place, or every Hero must be strong enough to wade the deep one, and the weakest of them is the one the current takes.",
+    "lost-in-the-fells": "Mist on the high ground. Someone must read the land, and the least agile Hero must keep their wits on the scree.",
+    "short-of-supplies": "The stores run out a week from anywhere. A forager who knows the land, or a Party that can make do, gets through.",
+    "the-old-shaft": "A climb down into old workings. Either every Hero can make the climb, or the strongest lowers them on the rope.",
+    "a-hostile-reeve": "A reeve who wants the Party gone. Its best talker must win him round, and the Party as a whole must stand its ground before him.",
+    "the-patrons-steward": "The Patron's steward haggles over the fee. A sharp negotiator, or a Hero he takes for the one in charge, gets fair terms.",
+    "frightened-villagers": "Folk who bar their doors to strangers. Kind words from someone they trust, or a Party that fits in, opens them.",
+    "a-word-with-the-fence": "A receiver of stolen goods with something to sell. Haggling gets a price; seeing through him gets the truth.",
+    "the-sealed-door": "A door shut with a ward. A Hero who knows wards unpicks it, and a clever one sees what it guards.",
+    "a-restless-power": "Something old and angry, loose in a dark place. The Party's power binds it, and its least resistant Hero is the way it gets in.",
+    "the-hungry-ward": "A ward that feeds on whoever stands in it. Break it with a counter-spell, or outlast it.",
+    "the-dead-light": "A cold light over a grave. The Healers and Mages together must consecrate the ground, and no Hero may falter while they do.",
+    "past-the-watch": "Slipping by the town watch at night. The clumsiest Hero gives the Party away, and someone must judge the moment to move.",
+    "the-trapped-passage": "A corridor of traps. Someone must spot them and someone must disarm them; the least watchful Hero springs any that are missed.",
+    "among-the-crowd": "Moving unseen through a market or a fair. Every Hero must blend in, and someone must have a story ready.",
+    "stalking-the-beast": "Following the beast to its lair. Someone must read its tracks, and then either the Party creeps close enough or someone makes the shot.",
+    "old-records": "A muniment room of deeds and letters. One good reader, or two clever heads together, find what is wanted.",
+    "a-riddle-at-the-gate": "A gate that asks a riddle. The cleverest answers, or the quickest guesses; a wrong answer has a price.",
+    "the-cause-of-the-sickness": "Something is making people ill. The Party's Healer may know it, or someone may learn it by asking around.",
+    "the-names-of-the-dead": "The dead will not rest until they are named. Someone must find them in the parish rolls, and someone must know the old rites to speak them.",
+    "the-wardens-seal": "The vault's last door, sealed by its long-dead Warden. Three of four must hold: the Mages unbind the seal, the most powerful holds back what it lets loose, the least resistant is shielded, and the cleverest reads the cipher.",
+    "the-last-assault": "The enemy throws everything at the fort. Two of three must hold: the wall, the command of the best Warrior, and the endurance of the most worn-out Hero.",
+    "the-strongroom": "The counting-house's strongroom. A Hero with Lockpicking must open it, and then either every Hero gets past the watchman or someone picks the right chest at once.",
+    "the-last-rite": "The heart of the haunting. The Party's Healer performs the rite, and the rest hold the dead off, or at least hold their nerve, until it is done."
+  },
+  "templates": {
+    "hold-the-border-fort": "Ends with The last assault.",
+    "lay-the-restless-dead": "Draws lore Encounters too, and ends with The last rite.",
+    "the-sickness-at-the-mill": "Draws social and lore Encounters in place of social and arcane: talking to the villagers and finding the cause, not breaking wards.",
+    "survey-the-old-workings": "Draws lore Encounters too.",
+    "break-the-sealed-vault": "Draws lore Encounters too, and ends with The Warden's seal.",
+    "the-counting-house-job": "Ends with The strongroom.",
+    "escort-the-tithe": "Gains the holy tag, as Church work."
+  },
+  "items": {
+    "commonplace-book": "A Hero's own book of things worth remembering.",
+    "reading-glass": "A lens on a handle, for small print and smaller clues.",
+    "signet-ring": "A ring that opens doors and closes bargains.",
+    "officers-sash": "Worn by those whom others follow.",
+    "courtiers-brooch": "A jewelled pin for a cloak, worn where it pays to look the part.",
+    "scholars-almanac": "A fat, much-annotated book of tables, histories and hints."
+  },
+  "traits": {
+    "battle-tried": "A Hero who has come through the worst of a fight steadies every Party they march with: +2 to every Check of a combat Encounter, once for the Party.",
+    "wayfinder": "A Hero who has found the way where there was none: +2 to every Check of a travel Encounter, once for the Party.",
+    "silver-tongued": "A Hero who has talked a hard man round.",
+    "lettered": "A Hero who has read their way through a vault's secrets.",
+    "battle-shy": "A Hero badly hurt when the line broke, who flinches since.",
+    "haunted": "A Hero touched by the dead, or by worse, who sleeps badly since."
+  },
+  "synergies": {
+    "two-learned-heads": "Two Heroes of Intelligence 13 or more together.",
+    "under-a-captain": "A Party of three or more led by a Hero of Leadership 14 or more.",
+    "old-hands": "A Party in which every Hero is Level 6 or more."
+  },
+  "tags": {
+    "holy": "Church work: the dead, rites and blessings.",
+    "study": "Scholars' work: records, riddles and wards to be read."
+  },
+  "calls": [
+    "Every Check rolls within 40% either way (its own variance 0.4, The answer's too) where today's roll within 20%. A proposal for S10: make it configuration, checkVariance 0.4, and keep a Check's own variance only where that Check truly differs. At 20%, a Party whose capability equals the target rolls between 0.8 and 1.2 times it, so it can only Setback (from 0.75) or succeed (below the Triumph's 1.25); at 40% it rolls between 0.6 and 1.4 times it, so all four Degrees can happen. With 20%, Heroes of Level 10 passed everything and Heroes of Level 1 almost nothing.",
+    "The targets are set by the calibration (HEROESIM_TUNE=0.44 HEROESIM_FLAT=0.4): each Encounter so that three random Heroes of Level 5 come through it 44% of the time at difficulty 60, every Check of it as hard on its own; each Finale at the middle of its template's difficulties; two fifths of each target a flat term. Without the flat term the vault's hardest third failed 92% at Level 1 and 94% at Level 5; with it, 60% and 52%. S10 tunes from there.",
+    "The Checks read the best Hero, the weakest Hero or the best few with falling weights; only the shield walls (the three sturdiest) and the Mages' and Healers' joint work add Heroes up, so a large Party helps less than before.",
+    "A Check that wants a Hero of a Class reads none without one: the Diagnosis (a Healer), the Unbinding (the Mages), the Command of the fort's last assault (a Warrior), The rite (a Healer) and The lock (Lockpicking). Each sits in an 'or' with another Check, or on a template that requires that Hero.",
+    "The sickness at the mill draws social and lore Encounters, not social and arcane; Lay the restless dead, Survey the old workings and Break the sealed vault draw lore Encounters as well.",
+    "Two new tags: holy (Church work) and study (scholars' work). The Encounter tags follow the templates' vocabulary otherwise.",
+    "Each positive Trait is earned on one Encounter's Triumph, at 5%: Battle-tried on The last assault; Wayfinder on Lost in the fells; Silver-tongued on The Patron's steward; Lettered on The Warden's seal. The two negative Traits, at 8%, follow an Injury: Battle-shy on Hold the line and The last assault, Haunted on A restless power and The last rite. Battle-shy and Battle-tried exclude each other.",
+    "The harm table: a blow falls likelier on the slow (Dexterity) and lands less on the hardy (Constitution); a fall or a trap on the unwatchful (Perception), less on the nimble (Dexterity); fever on the weary (Endurance), less on the hardy (Constitution); magic on the unresisting, less on the resisting (Resistance). A Death is guarded by the Stat of its blow. Morale losses are steadied by Courage and Willpower (dread), Endurance and Willpower (hardship), Adaptability (shame) or Willpower (a puzzle).",
+    "The six new Items are all trinkets, each priced a little below its tier's core trinket (35, 100 to 115 and 280 against 40, 120 and 300): the automatic buyer takes the dearest piece it can afford, the lowest key on a tie, so a piece in the armour slot, or at a core price, would take the place of the Constitution armour the harness's player and the Rivals buy. With six more Items for sale, the Market's ten stacks a day hold each Item less often (10 of 21 in place of 10 of 15); S10 may raise marketSize.",
+    "For the owner: the Quest target is met by the drafts with the stricter Degrees (20.2% failed, 45.3% strong), but only with 24 of the 50 harness Guilds bankrupt, 13 of them in their first two years (2 of 50 with today's content). Either the harness's player chooses its Quests by their chance (say, never one its best Party finds Hopeless or Unlikely), or the economy is looked at before Random Events, or the target waits. S10 needs that answer."
+  ]
+}

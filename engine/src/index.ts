@@ -203,6 +203,9 @@ export {
   type PortraitPerson,
 } from './portraits.js';
 export { generateHero, type GeneratedHero, type HeroOptions } from './generators/heroes.js';
+// A Level's growth, for the harness's calibration (v1.1.4-S9, DL-162), which raises a generated Hero
+// to a Level as the `levelUps` phase would.
+export { growOneLevel, type Growth } from './progression.js';
 export { generatePatron, type GeneratedPatron, type PatronOptions } from './generators/patrons.js';
 export { generateQuest, templatesFor, type GeneratedQuest, type QuestOptions } from './generators/quests.js';
 export * from './hero-regard.js';
