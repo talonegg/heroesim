@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "exports": "./src/cli.ts",
+  "exports": "./src/index.ts",
   "devDependencies": {
     "@playwright/test": "1.63.0"
   }

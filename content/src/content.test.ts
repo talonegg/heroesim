@@ -12,8 +12,10 @@ describe('loadContent()', () => {
   const stats = Object.values(content.stats);
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
+  /** A Guildmaster Trait's effect that helps the Guild: DL-100 item 3's buff. */
+  const buff = (effect: GuildmasterTraitEffect): boolean => (effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0);
 
-  test("is the core content set, version 25 since v1.1.4-S8 gave the Encounters their tags (DL-160)", () => {
+  test("is the core content set, at the version its last change raised it to (parse.ts's comment says why)", () => {
     expect(content.id).toBe('core');
     expect(content.version).toBe(25);
   });
@@ -188,7 +190,7 @@ describe('loadContent()', () => {
         ...heroTraits.map((key): [string, string[] | undefined] => [`heroBiography.traits.${key}`, hero.traits[key]]),
         ...bands.map((band): [string, string[] | undefined] => [`heroBiography.closings.${band}`, hero.closings[band]]),
       ];
-      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + 4 + 3);
+      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + heroTraits.length + 3);
       for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
     });
 
@@ -290,20 +292,17 @@ describe('loadContent()', () => {
     });
   });
 
-  test("gives each Guildmaster Trait DL-100 item 3's cost, a buff costing and a penalty refunding, and its three exclusions both ways; Hero Traits exclude nothing yet (M9-S2, v1.1.4-S7)", () => {
-    const costs = Object.fromEntries(Object.values(content.guildmasterTraits).map((trait) => [trait.key, trait.cost]));
-    expect(costs).toEqual({ 'well-liked': 2, thrifty: 2, 'old-soldier': 1, miser: -2, spendthrift: -2, 'mistrusts-magic': -1 });
-
-    const excludes = Object.fromEntries(Object.values(content.guildmasterTraits).map((trait) => [trait.key, [...trait.excludes].sort()]));
-    expect(excludes).toEqual({
-      thrifty: ['spendthrift'],
-      spendthrift: ['miser', 'thrifty'],
-      'well-liked': ['miser'],
-      miser: ['spendthrift', 'well-liked'],
-      'old-soldier': [],
-      'mistrusts-magic': [],
-    });
-    for (const trait of Object.values(content.heroTraits)) expect([trait.key, trait.excludes]).toEqual([trait.key, []]);
+  // The Traits are the owner's to add, change and remove through the content editor (DL-150 items 7
+  // to 12), so these tests hold the rules a Trait keeps, not the Traits shipped (the verification of
+  // v1.1.4-S13); the content's checks hold the rest, an exclusion both ways among them.
+  test("costs a Guildmaster Trait as DL-100 item 3 says: a buff costs, and a penalty refunds (M9-S2)", () => {
+    const traits = Object.values(content.guildmasterTraits);
+    expect(traits.length).toBeGreaterThan(0);
+    for (const trait of traits) {
+      const effects = trait.effects.map(buff);
+      if (effects.length > 0 && effects.every(Boolean)) expect(trait.cost, trait.key).toBeGreaterThan(0);
+      if (effects.length > 0 && !effects.some(Boolean)) expect(trait.cost, trait.key).toBeLessThan(0);
+    }
   });
 
   test('has three grades of each Hall facility, at 200, 500 and 1,000 Wealth (INPUTS 7.3, M3-S6)', () => {
@@ -388,20 +387,10 @@ describe('loadContent()', () => {
     }
   });
 
-  test("has six Guildmaster Traits, three buffs and three penalties, one effect each and each kind of effect among them; the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
-    const guildmaster = Object.values(content.guildmasterTraits);
-    const buff = (effect: GuildmasterTraitEffect): boolean =>
-      effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0;
-
-    expect(guildmaster).toHaveLength(6);
-    for (const trait of guildmaster) expect(trait.effects, trait.key).toHaveLength(1);
-    const effects = guildmaster.flatMap((trait) => trait.effects);
-    expect(effects.filter(buff)).toHaveLength(3);
-    expect(new Set(effects.map((effect) => effect.kind))).toEqual(new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor']));
-    expect(content.guildmasterTraits['old-soldier']?.effects).toEqual([{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }]);
-    expect(Object.keys(content.heroTraits).sort()).toEqual(['lame', 'one-eyed', 'scarred', 'short-winded']);
-    const modifiers = (it: Record<string, number>) => [{ kind: 'statModifiers', modifiers: it }];
-    expect(Object.fromEntries(Object.values(content.heroTraits).map((trait) => [trait.key, trait.effects]))).toEqual({
+  test("gives each Guildmaster Trait an effect, and the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
+    for (const trait of Object.values(content.guildmasterTraits)) expect(trait.effects.length, trait.key).toBeGreaterThan(0);
+    const modifiers = (it: Record<string, number>) => ({ effects: [{ kind: 'statModifiers', modifiers: it }] });
+    expect(content.heroTraits).toMatchObject({
       lame: modifiers({ dexterity: -2, endurance: -1 }),
       'one-eyed': modifiers({ perception: -2, weaponry: -1 }),
       'short-winded': modifiers({ endurance: -2, constitution: -1 }),
@@ -732,12 +721,10 @@ describe('loadContent()', () => {
       }
     });
 
-    test('leave a Hero Trait or none, and between them leave every Hero Trait', () => {
-      const left = types.flatMap((it) => (it.leavesTrait === null ? [] : [it.leavesTrait]));
-      const heroTraits = Object.keys(content.heroTraits);
-
+    // A Trait earned on a Quest is left by no Injury (DL-148 item 25), so not every Hero Trait is one.
+    test("leave a Hero Trait or none, some none, and each `leavesTrait` names a Hero Trait", () => {
       expect(types.some((it) => it.leavesTrait === null)).toBe(true);
-      expect([...new Set(left)].sort()).toEqual(heroTraits.sort());
+      for (const it of types) if (it.leavesTrait !== null) expect(Object.keys(content.heroTraits), it.key).toContain(it.leavesTrait);
     });
   });
 

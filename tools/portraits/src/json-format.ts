@@ -6,7 +6,7 @@
 const width = 100;
 
 /** A value inline, spaced as a person would write it: `{ "a": [1, 2] }`. */
-function compact(value: unknown): string {
+export function compact(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(compact).join(', ')}]`;
   if (typeof value === 'object' && value !== null) {
     const entries = Object.entries(value).filter(([, each]) => each !== undefined);

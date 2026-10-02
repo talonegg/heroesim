@@ -35,9 +35,10 @@ describe('traitEffectWords', () => {
     expect(traitEffectWords([], content)).toBe('No effect');
   });
 
+  // Other Hero Traits are the owner's to add through the content editor (the verification of v1.1.4-S13).
   test('each Injury Trait in content says its Stat changes', () => {
     const words = Object.fromEntries(Object.values(content.heroTraits).map((trait) => [trait.key, traitEffectWords(trait.effects, content)]));
-    expect(words).toEqual({
+    expect(words).toMatchObject({
       scarred: '+1 Courage, -1 Charisma',
       lame: '-2 Dexterity, -1 Endurance',
       'one-eyed': '-2 Perception, -1 Weaponry',

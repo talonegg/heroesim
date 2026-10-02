@@ -26,8 +26,9 @@ const byNameOnly =
 // Every package exports only its entry, so no subpath exists to import, with one exception:
 // content's Node entry, `@heroesim/content/node` (M1-S4, DL-14 item 7), which reads the content
 // files with node:fs. The harness and the CLI run on Node and may import it; the web runs in a
-// browser and may not, except in its tests, which run on Node (M7-S1, DL-64).
-// content/src/imports.test.ts proves each.
+// browser and may not, except in its tests, which run on Node (M7-S1, DL-64). A second, content's
+// register of a Trait's uses, `@heroesim/content/uses`, is the tools' alone (v1.1.4-S12; the tools'
+// block below). content/src/imports.test.ts proves each.
 function noSubpath({ node }) {
   return {
     regex: node ? '^@heroesim/(?!content/node$)[^/]+/' : '^@heroesim/[^/]+/',
@@ -222,6 +223,15 @@ export default defineConfig(
       },
     },
   },
+  // The content editor's page (v1.1.4-S12), plain JavaScript served to a browser from the repository.
+  {
+    files: ['tools/editor/page/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
 
   // The engine: no clock, no global random source and no environment (ADR-0001, DL-16), no output
   // (ADR-0003), nothing imported from outside itself (ADR-0007). Tests included, except that
@@ -289,13 +299,20 @@ export default defineConfig(
     rules: restrictImports(consumerImports('web', ['cli'], { node: true, climbs: 2 })),
   },
 
-  // The portrait tool (v1.1.3-S2): a Node package outside the game, which takes content's checks by
-  // name, content's Node entry among them, and imports neither front end nor the harness.
+  // The portrait tool (v1.1.3-S2) and the content editor (v1.1.4-S12): Node packages outside the game,
+  // which take content's checks by name, content's Node entry among them, and import neither front end
+  // nor the harness. The editor, and only a tool, takes the register of a Trait's uses,
+  // `@heroesim/content/uses`, which the game never imports.
   {
     files: ['tools/**/*.ts'],
     rules: restrictImports({
       patterns: [
-        noSubpath({ node: true }),
+        {
+          regex: '^@heroesim/(?!content/(node|uses)$)[^/]+/',
+          message:
+            "Import a package by its name only; its entry is all it exports, but for content's Node entry " +
+            'and its register of uses, `@heroesim/content/node` and `@heroesim/content/uses` (approach §5).',
+        },
         {
           group: ['@heroesim/cli', '@heroesim/web', '@heroesim/harness'],
           message: 'The portrait tool takes the engine and content only; the front ends and the harness are not its.',

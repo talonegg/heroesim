@@ -123,7 +123,8 @@ describe('the TypeScript project references', () => {
   });
 });
 
-// The one subpath any package exports is content's Node entry (M1-S4, DL-14 item 7).
+// Content's Node entry is one of the two subpaths any package exports (M1-S4, DL-14 item 7); the
+// other is its register of a Trait's uses, below (v1.1.4-S12).
 describe('@heroesim/content/node', { timeout: 30_000 }, () => {
   const eslint = new ESLint({ cwd: root });
   const lint = async (pkg: string, specifier: string, file = 'subpath-probe.ts') => {
@@ -162,5 +163,32 @@ describe('@heroesim/content/node', { timeout: 30_000 }, () => {
 
     expect(errors).toHaveLength(1);
     expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
+  });
+});
+
+// The register of a Trait's uses (v1.1.4-S12, DL-150 item 14), content's second subpath, is the tools':
+// the game never imports it, so no byte of it is in the page's script.
+describe('@heroesim/content/uses', { timeout: 30_000 }, () => {
+  const eslint = new ESLint({ cwd: root });
+  const lint = async (pkg: string, specifier: string) => {
+    const [result] = await eslint.lintText(`import { x } from '${specifier}';\nexport { x };\n`, {
+      filePath: join(root, pkg, 'src', 'subpath-probe.ts'),
+    });
+    return (result?.messages ?? []).filter((message) => message.severity === 2);
+  };
+
+  test.each(['tools/editor', 'tools/portraits'])('may be imported by %s', async (pkg) => {
+    expect(await lint(pkg, '@heroesim/content/uses')).toEqual([]);
+  });
+
+  test.each(['web', 'cli', 'harness', 'engine'])('may not be imported by %s', async (pkg) => {
+    const errors = await lint(pkg, '@heroesim/content/uses');
+
+    expect(errors).toHaveLength(1);
+    expect(errors[0]?.ruleId).toBe('@typescript-eslint/no-restricted-imports');
+  });
+
+  test('nor may another subpath by a tool', async () => {
+    expect(await lint('tools/editor', '@heroesim/content/uses/register')).toHaveLength(1);
   });
 });
