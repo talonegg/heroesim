@@ -4,6 +4,7 @@ import {
   closeGameMenu,
   debugHistory,
   expectNoHorizontalOverflow,
+  chooseGuildmaster,
   expectTargets,
   guildmasterSetup,
   guildPart,
@@ -569,6 +570,7 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
   await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
   const setup = await guildmasterSetup(page);
+  await chooseGuildmaster(setup);
   await setup.getByRole('radio', { name: 'Choose them' }).check();
   await traitBox(setup, 'Miser').check();
   // Miser excludes two; two pass the budget of 1 with it or alone.
@@ -579,6 +581,58 @@ test("the new-game form with the Guildmaster's setup open, a Trait chosen and ot
   await expect(page.getByTestId('setup-refusal')).toHaveText('The Birthplace is 61 characters long; it holds at most 60.');
   await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
   await expectNoHorizontalOverflow(page, "the Guildmaster's setup refused");
+});
+
+// v1.1.4-S11 (DL-149): the setup screen's two ways at each width, in the light and the dark scheme: "Choose
+// for me" with the Guildmaster chosen for the player beside their Portrait, and "Choose myself" before a
+// sex is chosen, then with the grid, the Stats' steppers and a point left unspent, every control a 44px
+// target and the page never wider than the viewport.
+test('the setup screen, each way, in the light and the dark scheme: no sideways scroll, and 44px targets (v1.1.4-S11)', async ({ page }) => {
+  const backgrounds: string[] = [];
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    await page.goto('/');
+    const form = page.getByRole('region', { name: 'A new game', exact: true });
+    await form.getByRole('textbox', { name: 'Guild name', exact: true }).fill(longGuild);
+    await form.getByRole('textbox', { name: /Guildmaster/ }).fill(longMaster);
+    await form.getByRole('textbox', { name: 'Seed', exact: true }).fill('e2e-layout-setup');
+    const forMe = await guildmasterSetup(page, 'Choose for me');
+    const preview = forMe.getByTestId('guildmaster-preview');
+    await expect(preview.locator('p').first()).toHaveText('Chosen for you');
+    await expect(preview.locator('p')).toHaveCount(5);
+    await expect(forMe.getByLabel('Sex', { exact: true })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeEnabled();
+    await expectNoHorizontalOverflow(page, `"Choose for me", ${scheme}`);
+    await expectTargets(page, `"Choose for me", ${scheme}`);
+    await page.screenshot({ path: test.info().outputPath(`setup-for-me-${scheme}.png`), fullPage: true });
+
+    const mine = await guildmasterSetup(page, 'Choose myself');
+    await expect(mine.getByTestId('portrait-unsexed')).toHaveText('Choose a Sex to see the pictures.');
+    await expect(page.getByTestId('setup-hint')).toHaveText("Choose your Guildmaster's Sex, Age and Portrait to start.");
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeDisabled();
+    await expectNoHorizontalOverflow(page, `"Choose myself", no sex chosen, ${scheme}`);
+    await expectTargets(page, `"Choose myself", no sex chosen, ${scheme}`);
+    await chooseGuildmaster(mine, { sex: 'male', age: '44', picture: 'Male Portrait 5' });
+    const stats = mine.getByRole('group', { name: 'Stats', exact: true });
+    await stats.getByRole('button', { name: 'Lower Judgement' }).click();
+    await expect(stats.getByTestId('stat-points-unspent')).toHaveText('Stat points left unspent are lost.');
+    await expect(page.getByRole('button', { name: 'Start the game' })).toBeEnabled();
+    await expectNoHorizontalOverflow(page, `"Choose myself", chosen, ${scheme}`);
+    await expectTargets(page, `"Choose myself", chosen, ${scheme}`);
+    // Each Stat's stepper on one line with its name, at every width.
+    for (const row of await stats.locator('.stat-pick__line').all()) {
+      const name = await row.locator('.stat-pick__name').boundingBox();
+      const lower = await row.getByRole('button', { name: /^Lower / }).boundingBox();
+      const raise = await row.getByRole('button', { name: /^Raise / }).boundingBox();
+      if (name === null || lower === null || raise === null) throw new Error(`a Stat, ${scheme}: not drawn`);
+      expect(Math.abs(lower.y - raise.y), `a Stat's buttons side by side, ${scheme}`).toBeLessThan(2);
+    }
+    backgrounds.push(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
+    await page.screenshot({ path: test.info().outputPath(`setup-myself-${scheme}.png`), fullPage: true });
+  }
+  await page.emulateMedia({ colorScheme: 'light' });
+  // The dark scheme is the page's, not the test's: the body's background is the dark token's.
+  expect(new Set(backgrounds).size).toBe(2);
 });
 
 test("a view's first part, straight under its head, draws no rule above it, as the game menu's first part draws none (M9-S8)", async ({

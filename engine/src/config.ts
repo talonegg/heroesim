@@ -42,7 +42,8 @@ export interface GameConfig {
    * Transfer lock of a season (DL-69); 11 from M9-S2's Trait budget, `guildmasterTraitBudget`
    * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
-   * v1.1.4's later stories add their fields under before the release.
+   * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
+   * (DL-149, DL-153).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -105,9 +106,18 @@ export interface GameConfig {
    */
   guildmasterStartingAgeMin: number;
   guildmasterStartingAgeMax: number;
-  /** Each Guildmaster Stat is drawn from this range (DL-19). */
+  /**
+   * Each Guildmaster Stat is drawn from this range (DL-19), and a player who chooses the Stats at
+   * setup sets each within it (v1.1.4-S11, DL-149 item 5).
+   */
   guildmasterStatMin: number;
   guildmasterStatMax: number;
+  /**
+   * The Stat points (v1.1.4-S11, DL-149 item 5): what a player who chooses their Guildmaster's Stats
+   * at setup shares among them, 50 by default, the drawn Stats' mean of 10 each. The Stats chosen may
+   * cost no more in all; points left unspent are lost. A drawn Guildmaster is not held to it.
+   */
+  guildmasterStatPoints: number;
   /**
    * How many Guildmaster Traits a Guildmaster is generated with (pre-M0 review B2): the count is
    * drawn from this range, and a smaller set is drawn when no legal set has that many
@@ -528,6 +538,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   guildmasterStartingAgeMax: 50,
   guildmasterStatMin: 5,
   guildmasterStatMax: 15,
+  guildmasterStatPoints: 50,
   guildmasterTraitsMin: 0,
   guildmasterTraitsMax: 2,
   guildmasterTraitBudget: 1,

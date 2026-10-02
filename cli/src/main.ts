@@ -46,7 +46,7 @@ import { recruitHero } from './commands/recruit.js';
 import { answerOffer, renderOffers, transferHero } from './commands/transfer.js';
 import { dispatchParty } from './commands/dispatch.js';
 import { previewParty } from './commands/preview.js';
-import { setupRefusalWords } from './commands/setup.js';
+import { setupRefusalWords, unknownStatWords } from './commands/setup.js';
 import type { CommandOutcome } from './commands/outcome.js';
 import { modulesFor } from './modules.js';
 import { narrateStop, renderAdvance } from './narrate.js';
@@ -259,7 +259,7 @@ function look(
  * save is touched.
  */
 function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, path, modules }: Context): Exit {
-  const { background, sex, age, traits, birthplace, appearance, biography, portrait } = command;
+  const { background, sex, age, traits, birthplace, appearance, biography, portrait, stats } = command;
   const setup: WorldSetup = {
     guildmasterName: command.master.trim(),
     guildName: command.guild.trim(),
@@ -271,11 +271,15 @@ function newWorld(command: Extract<Command, { name: 'new' }>, { io, content, pat
     ...(appearance === undefined ? {} : { guildmasterAppearance: appearance }),
     ...(biography === undefined ? {} : { guildmasterBiography: biography }),
     ...(portrait === undefined ? {} : { guildmasterPortraitKey: portrait }),
+    ...(stats === undefined ? {} : { guildmasterStats: stats }),
     createdAt: io.now().toISOString(),
   };
   // A new game starts under the current defaults; from then on it plays under its own. Each
   // module installed makes its slice and stream (M8-S4).
   const deps = { config: defaultConfig, content, ...withModules(modules) };
+  // A Stat content lacks counts for nothing in the engine (rule 5), so `new` refuses it first (v1.1.4-S11).
+  const unknownStat = stats === undefined ? null : unknownStatWords(stats, content);
+  if (unknownStat !== null) return refuse(io, unknownStat, exitCodes.usage);
   const refusal = setupRefusal(setup, deps);
   if (refusal !== null) return refuse(io, setupRefusalWords(refusal, content), exitCodes.usage);
 

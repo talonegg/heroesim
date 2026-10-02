@@ -109,7 +109,11 @@ Every system in the game must serve at least one of these:
   Guildmaster's Traits are then drawn as one whole legal set, uniformly among the sets of the count
   drawn, by the owner's DL-109 item 1; built in DL-110. Amended again 2026-09-29 by the owner's
   DL-113 item 4: every Guildmaster 21 to 50 at the start, originally 30 to 45, and retiring at 61,
-  originally 65; built in M9-F1, DL-114.)
+  originally 65; built in M9-F1, DL-114. Amended again 2026-10-02 by the owner's DL-149: from
+  `v1.1.4` the player either has the whole Guildmaster chosen for them from the seed, or chooses the
+  sex, the age and a Portrait of that sex, none of them drawn, and the five Guildmaster Stats, each 5
+  to 15, sharing the Stat points (`guildmasterStatPoints`, 50), points left unspent being lost; the
+  Traits are chosen or drawn as before; built in v1.1.4-S11, DL-153.)
 - R9. The Guildmaster holds Regard for Heroes, Guilds, other Guildmasters and Patrons.
 - R10. Rankings order every Guild by Fame and by Wealth. Fame rises and falls with Quest
   outcomes and, later, with dealings with Patrons, Contacts and Inciting Events. Fame is never

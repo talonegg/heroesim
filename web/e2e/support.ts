@@ -200,13 +200,31 @@ export async function rosterList(scope: Scope): Promise<Locator> {
   return roster.getByRole('list', { name: 'Heroes on the Roster' });
 }
 
-/** "Your Guildmaster" in the new-game form, opened. */
-export async function guildmasterSetup(page: Page): Promise<Locator> {
+/**
+ * "Your Guildmaster" in the new-game form, opened, on one of its two ways (v1.1.4-S11, DL-149): "Choose
+ * myself" unless `way` says "Choose for me", which the form opens on.
+ */
+export async function guildmasterSetup(page: Page, way: 'Choose for me' | 'Choose myself' = 'Choose myself'): Promise<Locator> {
   const form = region(page, 'A new game');
   const setup = form.locator('details', { has: page.getByText('Your Guildmaster', { exact: true }) });
   if ((await setup.getAttribute('open')) === null) await setup.getByText('Your Guildmaster', { exact: true }).click();
-  await expect(setup.getByLabel('Sex', { exact: true })).toBeVisible();
+  await setup.getByRole('radiogroup', { name: 'Who chooses' }).getByRole('radio', { name: way, exact: true }).check();
+  if (way === 'Choose myself') await expect(setup.getByLabel('Sex', { exact: true })).toBeVisible();
+  else await expect(setup.getByTestId('guildmaster-preview-live')).toBeAttached();
   return setup;
+}
+
+/**
+ * With "Choose myself", the sex, the age and a picture chosen (v1.1.4-S11), which "Start the game" waits
+ * for: `Female Portrait 1` unless another is named.
+ */
+export async function chooseGuildmaster(
+  setup: Locator,
+  { sex = 'female', age = '34', picture = `${sex === 'female' ? 'Female' : 'Male'} Portrait 1` }: { sex?: 'female' | 'male'; age?: string; picture?: string } = {},
+): Promise<void> {
+  await setup.getByLabel('Sex', { exact: true }).selectOption(sex);
+  await setup.getByLabel('Age', { exact: true }).selectOption(age);
+  await setup.getByRole('group', { name: 'Portrait', exact: true }).getByRole('radio', { name: picture, exact: true }).check();
 }
 
 /** A Guildmaster Trait's box in the new-game form, by the Trait's name. */

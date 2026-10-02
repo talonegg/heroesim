@@ -218,9 +218,10 @@ export function hallView(document: WorldDocument, guildId?: GuildId): HallView |
 
 /**
  * What each Guildmaster Stat's rule bears on (R8, M4-S5), by the Stat's content key: the CLI's words,
- * beginning with a capital as a cell does (DL-125 item 9).
+ * beginning with a capital as a cell does (DL-125 item 9). The new-game form says them beside each
+ * Stat chosen (v1.1.4-S11).
  */
-const bearsOn: Readonly<Record<string, string>> = Object.freeze({
+export const guildmasterStatBearsOn: Readonly<Record<string, string>> = Object.freeze({
   negotiation: 'The reward agreed and the fees paid',
   inspiration: 'The Morale baseline of the Heroes',
   coaching: 'The XP of the training yard',
@@ -304,7 +305,7 @@ export function guildmasterView(document: WorldDocument, guildId?: GuildId): Gui
     retirement: retirementWords(guildmaster, guild, world, config),
     stats: Object.values(content.stats)
       .filter((stat) => stat.owner === 'guildmaster')
-      .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: bearsOn[stat.key] ?? '' })),
+      .map((stat) => ({ name: stat.name, value: baseStat(guildmaster.stats, stat), bearsOn: guildmasterStatBearsOn[stat.key] ?? '' })),
     traits: guildmaster.traits.map((key) => ({
       name: nameIn(content.traits, key),
       effect: traitEffectWords(rowOf(content.traits, key)?.effect ?? null, content),

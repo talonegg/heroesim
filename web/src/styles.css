@@ -965,28 +965,17 @@ p.setup-preview {
   margin: 0.35rem 0;
 }
 
-/* The Portrait: "Drawn from the seed", then a thumbnail of each picture, each with its radio button (v1.1.2-S4). */
+/* The Portrait: a thumbnail of each picture, each with its radio button (v1.1.2-S4). */
 .setup__portraits {
   margin-top: 0.25rem;
 }
 
 /*
- * Since v1.1.3-S7 a grid of one sex's thumbnails (DL-134 item 9): "Drawn from the seed" across the top
- * with the picture the seed chooses, then a column for each picture as wide as the row allows. Each
- * radio button is the picture itself: the button is kept for the keyboard and a screen reader, and the
- * picture is ringed when chosen and outlined when the keyboard is on it.
+ * Since v1.1.3-S7 a grid of one sex's thumbnails (DL-134 item 9), since v1.1.4-S11 the sex chosen's,
+ * a column for each picture as wide as the row allows. Each radio button is the picture itself: the
+ * button is kept for the keyboard and a screen reader, and the picture is ringed when chosen and
+ * outlined when the keyboard is on it.
  */
-.portrait-sexes {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.25rem 0 0.5rem;
-}
-
-.portrait-sexes [aria-pressed='true'] {
-  box-shadow: inset 0 0 0 2px var(--accent);
-}
-
 .portrait-picks {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
@@ -1015,12 +1004,6 @@ p.setup-preview {
   cursor: pointer;
   /* Over the picture, so a press anywhere on it is the button's own. */
   z-index: 1;
-}
-
-.portrait-pick--drawn {
-  grid-column: 1 / -1;
-  justify-content: flex-start;
-  gap: 0.75rem;
 }
 
 .portrait.portrait--thumbnail {
@@ -1139,6 +1122,82 @@ p.setup-preview {
 .trait-pick--at-most .trait-pick__name,
 .trait-pick--excluded .trait-pick__cost,
 .trait-pick--at-most .trait-pick__cost {
+  color: var(--ink-soft);
+}
+
+/*
+ * "Choose for me" or "Choose myself" (v1.1.4-S11): the two ways at the head of "Your Guildmaster". The
+ * preview's lead names what follows as chosen for the player.
+ */
+.setup__way {
+  margin-bottom: 0.25rem;
+}
+
+.setup-preview__lead {
+  font-weight: 600;
+}
+
+/*
+ * The Guildmaster's Stats chosen (v1.1.4-S11): each a row of its name and a stepper, two 44px buttons
+ * around its value, with what it does under it; the Stat points left above them, as the Trait budget's.
+ */
+.setup__stats {
+  margin-top: 0.25rem;
+}
+
+.stat-points__unspent {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  margin: 0 0 0.5rem;
+}
+
+.stat-picks {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  max-width: 36rem;
+}
+
+.stat-pick {
+  border-top: 1px solid var(--line);
+  padding: 0.3rem 0 0.4rem;
+}
+
+.stat-pick__line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.stat-pick__name {
+  font-family: var(--serif);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.stat-pick__stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+}
+
+.stat-pick__stepper button {
+  padding: 0.2rem 0.5rem;
+  font-size: 1.125rem;
+}
+
+.stat-pick__value {
+  min-width: 2.25rem;
+  text-align: center;
+  font-weight: 600;
+}
+
+.stat-pick__does {
+  margin: 0.1rem 0 0;
+  font-size: 0.875rem;
   color: var(--ink-soft);
 }
 

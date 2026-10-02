@@ -3,6 +3,7 @@
 // Background keep the words `new` gave them before M9-S2.
 
 import {
+  guildmasterStatsOf,
   guildmasterTraitsOf,
   portraitsOf,
   sexes,
@@ -37,8 +38,28 @@ function traitName(content: Pick<ContentSet, 'traits'>, key: string): string {
   return Object.hasOwn(content.traits, key) ? (content.traits[key]?.name ?? key) : key;
 }
 
+/** `a, b and c`: words joined as a list. */
+function listed(words: readonly string[]): string {
+  return words.length <= 1 ? (words[0] ?? '') : `${words.slice(0, -1).join(', ')} and ${words.at(-1) ?? ''}`;
+}
+
+/** Every Guildmaster Stat by key, in content's order: `inspiration, influence, negotiation, coaching and judgement`. */
+function guildmasterStatChoices(content: Pick<ContentSet, 'stats'>): string {
+  return listed(guildmasterStatsOf(content).map((stat) => stat.key));
+}
+
+/**
+ * Why `--stats` names a Stat that is no Guildmaster Stat of the content, the first it names (v1.1.4-S11),
+ * or `null`: the engine counts such a key for nothing (data-model rule 5), so `new` refuses it first.
+ */
+export function unknownStatWords(stats: Readonly<Record<string, number>>, content: Pick<ContentSet, 'stats'>): string | null {
+  const known = new Set(guildmasterStatsOf(content).map((stat) => stat.key));
+  const unknown = Object.keys(stats).find((key) => !known.has(key));
+  return unknown === undefined ? null : `No Guildmaster Stat is keyed "${unknown}". Choose from: ${guildmasterStatChoices(content)}.`;
+}
+
 /** Why `new` refuses a setup, in one sentence naming what to change. */
-export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'traits' | 'backgrounds' | 'portraits'>): string {
+export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSet, 'traits' | 'backgrounds' | 'portraits' | 'stats'>): string {
   switch (refusal.reason) {
     case 'guild-name-blank':
       return 'The Guild needs a name: --guild <name>.';
@@ -56,6 +77,13 @@ export function setupRefusalWords(refusal: SetupRefusal, content: Pick<ContentSe
       return `A Guildmaster's sex is ${sexes.join(' or ')}; --sex ${refusal.sex} is not.`;
     case 'age-out-of-range':
       return `A Guildmaster starts aged ${refusal.min} to ${refusal.max}, in whole years; --age ${refusal.age} is not.`;
+    // The Stats chosen (v1.1.4-S11, DL-149 item 9).
+    case 'stats-incomplete':
+      return `--stats sets every Guildmaster Stat or none; it leaves out ${listed(refusal.missing)}.`;
+    case 'stat-out-of-range':
+      return `A Guildmaster's Stat is ${refusal.min} to ${refusal.max} when chosen, in whole numbers; --stats ${refusal.statKey}=${refusal.value} is not.`;
+    case 'stats-over-points':
+      return `Those Stats spend ${refusal.spent} points and a Guildmaster has ${refusal.points} to share: lower one to raise another.`;
     case 'unknown-trait':
       return `No Guildmaster Trait is keyed "${refusal.traitKey}". Choose from: ${guildmasterTraitChoices(content)}.`;
     case 'repeated-trait':

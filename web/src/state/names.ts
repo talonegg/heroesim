@@ -17,6 +17,11 @@ export function nameIn(rows: Readonly<Record<string, { name: string }>>, key: st
   return rowOf(rows, key)?.name ?? key;
 }
 
+/** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
+export function listed(items: readonly string[]): string {
+  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
+}
+
 export function capitalised(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
 }

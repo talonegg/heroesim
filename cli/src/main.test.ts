@@ -241,6 +241,55 @@ describe('new', () => {
     expect(existsSync(current())).toBe(false);
   });
 
+  // v1.1.4-S11 (DL-149 item 9): the Guildmaster's Stats, every one or none, within the Stat points.
+  test("--stats sets the Guildmaster's Stats, as the engine makes them; left out, they are drawn", () => {
+    const stats = { inspiration: 12, influence: 8, negotiation: 15, coaching: 5, judgement: 10 };
+    const run = newDemo('--stats', 'inspiration=12,influence=8,negotiation=15,coaching=5,judgement=10');
+
+    expect(run).toMatchObject({ code: exitCodes.ok, err: '' });
+    const expected = createWorld(
+      'demo',
+      { guildName: 'The Test', guildmasterName: 'Ada', guildmasterStats: stats, createdAt: clock.toISOString() },
+      { config: defaultConfig, content },
+    ).document;
+    expect(saved()).toBe(serialise(expected));
+    expect(guildmasterOf(document().world.guilds[playerId] as Guild, document().world)?.stats).toEqual(stats);
+    // Points left unspent are allowed, and lost.
+    expect(newDemo('--stats', 'inspiration=5,influence=5,negotiation=5,coaching=5,judgement=5', '--force').code).toBe(exitCodes.ok);
+    // Left out, the world is the one drawn, Stats and all.
+    expect(newDemo('--force').code).toBe(exitCodes.ok);
+    const drawn = createWorld('demo', { guildName: 'The Test', guildmasterName: 'Ada', createdAt: clock.toISOString() }, { config: defaultConfig, content });
+    expect(saved()).toBe(serialise(drawn.document));
+  });
+
+  test.each<[string, string, string]>([
+    ['a Stat left out', 'inspiration=12,influence=8,negotiation=15', '--stats sets every Guildmaster Stat or none; it leaves out coaching and judgement.'],
+    [
+      'a Stat out of range',
+      'inspiration=16,influence=8,negotiation=10,coaching=5,judgement=10',
+      "A Guildmaster's Stat is 5 to 15 when chosen, in whole numbers; --stats inspiration=16 is not.",
+    ],
+    [
+      'Stats over the points',
+      'inspiration=15,influence=15,negotiation=10,coaching=5,judgement=10',
+      'Those Stats spend 55 points and a Guildmaster has 50 to share: lower one to raise another.',
+    ],
+    [
+      'a Stat content lacks',
+      'inspiration=10,influence=10,negotiation=10,coaching=10,judgement=5,charm=5',
+      'No Guildmaster Stat is keyed "charm". Choose from: inspiration, influence, negotiation, coaching and judgement.',
+    ],
+    ['a Hero Stat', 'strength=10', 'No Guildmaster Stat is keyed "strength".'],
+    ['a Stat named twice', 'inspiration=10,inspiration=12', '--stats names inspiration twice.\n\n'],
+    ['a Stat with no number', 'inspiration=high', '--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "inspiration=high"'],
+  ])('refuses %s with its own sentence as a bad command line, writing nothing (v1.1.4-S11)', (_, stats, sentence) => {
+    const run = newDemo('--stats', stats);
+
+    expect(run.code).toBe(exitCodes.usage);
+    expect(run.err).toContain(sentence);
+    expect(existsSync(current())).toBe(false);
+  });
+
   test('writes to the save --save names, in HEROESIM_SAVE_DIR when it is set', () => {
     expect(newDemo('--save', 'demo').code).toBe(exitCodes.ok);
     expect(existsSync(join(dir, '.saves', 'demo.json'))).toBe(true);
@@ -1788,5 +1837,18 @@ describe('the command line', () => {
 
     expect(newHelp).toContain('their age, 21 to 50 (a Guildmaster retires at 61);');
     expect(newHelp).not.toContain('30 to 45');
+  });
+
+  test("help gives new's --stats: every Guildmaster Stat or none, by key, within the rules' range and points (v1.1.4-S11)", () => {
+    const { out } = play(['help']);
+    const newHelp = out.slice(out.indexOf('  new '), out.indexOf('  show ')).replace(/\s+/g, ' ');
+
+    expect(newHelp).toContain('[--stats <stat=n,stat=n,...>]');
+    expect(newHelp).toContain(
+      '--stats sets every Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each 5 to 15, sharing 50 points in all, and any left over are lost.',
+    );
+    for (const key of ['inspiration', 'influence', 'negotiation', 'coaching', 'judgement']) expect(newHelp).toContain(key);
+    // The rest of the help keeps "drawn from the seed" (DL-149 item 7).
+    expect(newHelp).toContain('whatever is left out is drawn from the seed');
   });
 });

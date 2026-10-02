@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createWorld, previewGuildmaster, type WorldSetup } from './create.js';
+import { createWorld, previewGuildmaster, type GuildmasterDrawn, type WorldSetup } from './create.js';
 import { makeId, type Guild, type Guildmaster, type WorldDocument } from './document.js';
 import { testDeps, withoutPortraits } from './world.test-support.js';
 
@@ -27,6 +27,7 @@ function made(seed: string, setup: WorldSetup, withDeps = deps) {
     sex: guildmaster.sex,
     age: guildmaster.ageAtEntry,
     traitKeys: guildmaster.traits,
+    stats: guildmaster.stats,
     portraitKey: guildmaster.portraitKey,
     backgroundKey,
     description: { birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography },
@@ -37,11 +38,14 @@ function made(seed: string, setup: WorldSetup, withDeps = deps) {
 function previewed(setup: WorldSetup, seed: string, withDeps = deps) {
   const preview = previewGuildmaster(setup, seed, withDeps);
   if (preview === null) return null;
-  const { sex, age, traitKeys, portraitKey, backgroundKey, description } = preview;
-  return { sex, age, traitKeys, portraitKey, backgroundKey, description };
+  const { sex, age, traitKeys, stats, portraitKey, backgroundKey, description } = preview;
+  return { sex, age, traitKeys, stats, portraitKey, backgroundKey, description };
 }
 
 const seeds = Array.from({ length: 120 }, (_, n) => `preview-${n}`);
+
+/** Five Stats within the Stat points, as a player might choose them (v1.1.4-S11). */
+const chosenStats = { inspiration: 12, influence: 8, negotiation: 15, coaching: 5, judgement: 10 };
 
 describe('previewGuildmaster', () => {
   test.each<[string, Partial<WorldSetup>]>([
@@ -53,7 +57,11 @@ describe('previewGuildmaster', () => {
     ['the Traits chosen', { guildmasterTraitKeys: ['miser', 'old-soldier'] }],
     ['a Portrait chosen, and with it the sex', { guildmasterPortraitKey: 'gm-male-02' }],
     ['the sex and a Portrait of it chosen', { guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-02' }],
-    ['every part chosen', { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: [], guildmasterPortraitKey: 'gm-male-01' }],
+    ['the Stats chosen (v1.1.4-S11)', { guildmasterStats: chosenStats }],
+    [
+      'every part chosen',
+      { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: [], guildmasterPortraitKey: 'gm-male-01', guildmasterStats: chosenStats },
+    ],
   ])('names what createWorld makes, over %i seeds, with %s', (_, chosen) => {
     for (const seed of seeds) {
       const setup = { ...bare, ...chosen };
@@ -86,12 +94,17 @@ describe('previewGuildmaster', () => {
 
   // v1.1.2-S6 (the review's I): which parts the seed draws is the engine's to say, a Portrait chosen
   // choosing the sex with it, so a front end does not repeat the rule.
-  test.each<[string, Partial<WorldSetup>, { sex: boolean; age: boolean; traits: boolean; portrait: boolean }]>([
-    ['everything drawn', {}, { sex: true, age: true, traits: true, portrait: true }],
-    ['the sex chosen', { guildmasterSex: 'male' }, { sex: false, age: true, traits: true, portrait: true }],
-    ['a Portrait chosen, and with it the sex', { guildmasterPortraitKey: 'gm-female-01' }, { sex: false, age: true, traits: true, portrait: false }],
-    ['the age and no Trait chosen', { guildmasterAge: 40, guildmasterTraitKeys: [] }, { sex: true, age: false, traits: false, portrait: true }],
-    ['every part chosen', { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: ['miser'], guildmasterPortraitKey: 'gm-male-01' }, { sex: false, age: false, traits: false, portrait: false }],
+  test.each<[string, Partial<WorldSetup>, GuildmasterDrawn]>([
+    ['everything drawn', {}, { sex: true, age: true, traits: true, portrait: true, stats: true }],
+    ['the sex chosen', { guildmasterSex: 'male' }, { sex: false, age: true, traits: true, portrait: true, stats: true }],
+    ['a Portrait chosen, and with it the sex', { guildmasterPortraitKey: 'gm-female-01' }, { sex: false, age: true, traits: true, portrait: false, stats: true }],
+    ['the age and no Trait chosen', { guildmasterAge: 40, guildmasterTraitKeys: [] }, { sex: true, age: false, traits: false, portrait: true, stats: true }],
+    ['the Stats chosen (v1.1.4-S11)', { guildmasterStats: chosenStats }, { sex: true, age: true, traits: true, portrait: true, stats: false }],
+    [
+      'every part chosen',
+      { guildmasterSex: 'male', guildmasterAge: 50, guildmasterTraitKeys: ['miser'], guildmasterPortraitKey: 'gm-male-01', guildmasterStats: chosenStats },
+      { sex: false, age: false, traits: false, portrait: false, stats: false },
+    ],
   ])('says which parts the seed draws, with %s', (_, chosen, drawn) => {
     expect(previewGuildmaster({ ...bare, ...chosen }, 'drawn-seed', deps)?.drawn).toEqual(drawn);
   });

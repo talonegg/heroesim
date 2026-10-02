@@ -64,6 +64,29 @@ describe('parseArgs', () => {
     expect(command('new', '--guild', 'G', '--master', 'M', '--traits', 'miser,miser,brave')).toMatchObject({ traits: ['miser', 'miser', 'brave'] });
   });
 
+  test("reads new's --stats as key=number pairs, refusing a pair of another form or a key named twice (v1.1.4-S11)", () => {
+    expect(command('new', '--guild', 'G', '--master', 'M', '--stats', 'inspiration=12, influence=8,judgement=30')).toMatchObject({
+      stats: { inspiration: 12, influence: 8, judgement: 30 },
+    });
+    expect(command('new', '--guild', 'G', '--master', 'M')).not.toHaveProperty('stats');
+    // Which keys content has, whether all are given, the range and the points are new's and the engine's to say.
+    expect(command('new', '--guild', 'G', '--master', 'M', '--stats', 'charm=3')).toMatchObject({ stats: { charm: 3 } });
+    for (const [given, problem] of [
+      ['inspiration', '--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "inspiration"'],
+      ['inspiration=-1', 'got "inspiration=-1"'],
+      ['inspiration=1.5', 'got "inspiration=1.5"'],
+      ['Inspiration=10', 'got "Inspiration=10"'],
+      ['inspiration=10,inspiration=11', '--stats names inspiration twice'],
+    ] as const) {
+      expect(parseArgs(['new', '--guild', 'G', '--master', 'M', '--stats', given])).toEqual({ ok: false, problem: expect.stringContaining(problem) });
+    }
+    // The printer adds the full stop, so the problem carries none.
+    expect(parseArgs(['new', '--guild', 'G', '--master', 'M', '--stats', 'inspiration=10,inspiration=11'])).toEqual({
+      ok: false,
+      problem: '--stats names inspiration twice',
+    });
+  });
+
   test('reads every view of show', () => {
     expect(command('show')).toMatchObject({ view: { kind: 'summary' } });
     expect(command('show', 'guilds')).toMatchObject({ view: { kind: 'guilds' } });

@@ -10,6 +10,7 @@ import {
   expectNoHorizontalOverflow,
   expectTargets,
   groupOf,
+  chooseGuildmaster,
   guildmasterSetup,
   guildPart,
   history,
@@ -82,10 +83,11 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   test.setTimeout(120_000);
   await page.goto('/');
   await expectNoHorizontalOverflow(page, 'the new-game form');
-  // The Guildmaster set up under "Your Guildmaster" (M9-S7, #30): an age, and two Traits within the
-  // budget of 1, a buff and a penalty; the sex and the rest drawn from the seed.
+  // The Guildmaster set up under "Your Guildmaster" (M9-S7, #30), with "Choose myself" (v1.1.4-S11): a
+  // sex, an age and a picture, the Stats as they start, and two Traits within the budget of 1, a buff
+  // and a penalty.
   const setup = await guildmasterSetup(page);
-  await setup.getByLabel('Age', { exact: true }).selectOption('38');
+  await chooseGuildmaster(setup, { sex: 'male', age: '38', picture: 'Male Portrait 2' });
   // The Age field says when a Guildmaster retires, from the rules (M9-F2, DL-113 item 5).
   await expect(setup.getByText(/^Years, \d+ to \d+\. Retires at \d+\.$/)).toBeVisible();
   await setup.getByRole('radio', { name: 'Choose them' }).check();
@@ -108,7 +110,7 @@ test('a game played, a Hero recruited, saved in the browser, reloaded, loaded at
   // (M9-F2): the Sex capitalised, the Age and the Traits chosen.
   const guildmaster = await openView(page, 'Guildmaster');
   await expect(guildmaster.getByRole('heading', { level: 3 })).toHaveText('Ada Vell, Guildmaster of The Lantern');
-  await expect(guildmaster).toContainText(/Sex\s*(Male|Female)/);
+  await expect(guildmaster).toContainText(/Sex\s*Male/);
   await expect(guildmaster).toContainText(/Age\s*38/);
   await expect(guildmaster).toContainText('Old soldier');
   await expect(guildmaster).toContainText('Mistrusts magic');

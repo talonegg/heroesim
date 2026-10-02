@@ -17354,6 +17354,179 @@ tests pinned to configVersion 12; `content/src/parse.ts`, `validate.ts` and `ref
 
 ---
 
+## DL-153 — v1.1.4-S11 built: "Choose for me" for the whole Guildmaster, or "Choose myself" with the sex, the age, a picture and the Stats within the Stat points
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-149 as the epic's
+S11 describes, DL-149 winning where the two differ. Where the plan was silent, the calls are the
+agent's, in item 6, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** DL-149 lets the player have the whole Guildmaster chosen for them from the seed, or choose
+the sex, the age, a picture and the five Guildmaster Stats. Before S11 the Stats were always drawn, and
+the sex, the age, the Portrait and the Traits each offered "Drawn from the seed". S11 touches neither
+the Quest Engine nor content. It was built on `v1.1.4-dev` at `099f6e3` (S2, DL-152), and every
+comparison below is with that commit.
+
+**Decision.**
+
+1. **The engine** (`engine/src/create.ts`, `generators/guilds.ts`, `guildmaster.ts`, `config.ts`).
+   - `WorldSetup.guildmasterStats`: every Guildmaster Stat by key, or none (DL-149 item 5).
+   - `setupRefusal` checks the Stats after the age and before the Traits, with three new reasons:
+     - `stats-incomplete`, naming the Stats `missing` in content's order;
+     - `stat-out-of-range`, the first in content's order that is not a whole number within its bounds;
+     - `stats-over-points`, with what they `spent` and the `points`.
+   - `drawGuildmaster` draws every Stat as before, and a Stat chosen replaces its draw after it, as the
+     sex, the age and the Traits do. No draw moves. Rivals and successors are given none.
+   - `previewGuildmaster` gives the `stats` and `drawn.stats`.
+   - New exports: `guildmasterStatsOf` (content's order), `guildmasterStatBounds` and
+     `guildmasterStatCost` (the sum a front end shows beside the points).
+   - Configuration: `guildmasterStatPoints`, 50, under `configVersion` 13, not raised again.
+2. **The page** (`web/src/views/new-game.tsx`, `web/src/state/setup.ts`).
+   - "Your Guildmaster" opens on two ways, a radio group named "Who chooses": "Choose for me", chosen
+     at first, and "Choose myself" (DL-149 item 8).
+   - *"Choose for me".* No control of the Guildmaster shows. The preview, "Chosen for you", shows the
+     Portrait's thumbnail, `Female, 26`, the five Stats (`Inspiration 12, Influence 8, …`),
+     `Traits: …` and `Portrait: Female Portrait 13`, and it follows the Seed field. The game starts
+     with the names, the Background and the seed alone.
+   - *"Choose myself".* The Sex and Age fields open on a disabled "Choose" and offer no draw. "Start
+     the game" is held, after the names' hint or refusal and any refusal of the engine's, by a hint
+     naming what is still to choose: "Choose your Guildmaster's Sex, Age and Portrait to start."
+     (`unchosenWords`).
+   - *The Portrait.* Before a sex is chosen the grid reads no picture and says "Choose a Sex to see
+     the pictures." It then shows that sex's 20 thumbnails only, with no draw among them and no Female
+     or Male buttons. Changing the sex clears the picture. `portraitFit`'s notes stay.
+   - *The Stats.* A fieldset with the rules ("Each 5 to 15, sharing 50 Stat points; each starts at
+     10."), the points as the Trait budget's are ("Stat points left: 0" in a chip, "The Stats spend 50
+     of 50 Stat points."), and a stepper for each Stat: two 44px buttons, "Lower Coaching" and "Raise
+     Coaching", around its value. Each button is held where the engine's `setupRefusal` would refuse
+     the step. Each Stat says what it does in the Guildmaster view's words, `guildmasterStatBearsOn`,
+     now exported from `world-views.ts`. While points are left, "Stat points left unspent are lost."
+   - *The Traits* keep their two ways, now "Choose for me" and "Choose them". While they are chosen
+     for the player, the preview's `Traits: …` stands inside their fieldset.
+   - *The words* (DL-149 item 7). The Background's option is "Choose for me". The hint under "Your
+     Guildmaster" is "Chosen for you, or choose their Sex, Age, Portrait, Stats and Traits, and a few
+     words about them", and the view's help names what “Choose for me” chooses, their Sex, Age, Portrait, Stats and Traits. With the seed blank the preview says "…,
+     and your Guildmaster is chosen for you then." The Seed field keeps its name, and the CLI's help
+     keeps "drawn from the seed". Each new refusal has its page sentence.
+   - Switching ways keeps every choice for when the player comes back.
+3. **The CLI.** `new --stats inspiration=12,influence=8,…`: every Guildmaster Stat or none. `args.ts`
+   reads key=number pairs and refuses a pair of another form or a key named twice. `new` refuses a key
+   that is no Guildmaster Stat of the content, then the engine's three reasons, each in its own
+   sentence. The help names the flag, its range, the points and the keys.
+4. **The record.** `CONTEXT.md` gains **Stat points**. `docs/requirements.md` R8 is amended for
+   DL-149.
+5. **The tests,** 51 more in all (4,124 against DL-152's 4,073), and the page's rewritten.
+   - `create.test.ts`, 18: the config, each refusal, its order, the bounds read from the config,
+     the cost, the Stats given, the Rivals unchanged, no draw moved, and every attribute chosen.
+   - `guildmaster-preview.test.ts`: the preview names the Stats `createWorld` makes over 120 seeds,
+     and `drawn.stats`.
+   - `harness/src/creation.test.ts`: the creation hashes of 1,000 seeds, every attribute chosen
+     against none (the checks, item 2).
+   - The CLI's `--stats`: parsing, the world made, the seven refusals' sentences, and the help.
+   - `setup.test.ts` and `rejections.test.ts`: the hold's words, the Stats' view, the starting values,
+     the grid, the preview each way and the three sentences.
+   - `new-game.test.tsx` (35): both ways, the hold, switching, the Stats' steppers, the grid, no
+     "Drawn from the seed", and the Guildmaster view after each way.
+   - `capitals.test.tsx` reads "Choose myself" before and after a sex is chosen, with a point unspent.
+   - Playwright, each at 360, 820 and 1280px:
+     - `portrait.spec.ts`: no picture read before a sex is chosen, then the grid within 250 kB; "Choose
+       for me"'s Guildmaster is the game's; the Stats chosen are the game's.
+     - `layout.spec.ts`: the setup screen each way, light and dark, with no sideways scroll and 44px
+       targets.
+     - `file.spec.ts`: a game started each way from `file://`.
+     - `journey.spec.ts` and `described.spec.ts` now take "Choose myself".
+6. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The Background stays on the screen with "Choose for me".* It is the Guild's, not the
+     Guildmaster's, and DL-149 item 7 renames its option rather than removing it. The acceptance's "no
+     setup control but the names and the seed" is read as no control of the Guildmaster.
+   - *The Stats start at the points shared evenly*, ⌊50 ÷ 5⌋ = 10, held within the bounds. This comes
+     from the configuration, so the start never overspends, and with 10 each every point is spent: a
+     Stat is raised only after another is lowered.
+   - *A chosen Stat's bounds* are `guildmasterStatMin` to `Max` within the Stat's own content range (1
+     to 20 in the core), so no value chosen is one a draw would clamp.
+   - *A key that is no Guildmaster Stat* counts for nothing in the engine (data-model rule 5), so there
+     is no fourth reason. The CLI refuses it in its own words first, so a mistyped key is never
+     dropped in silence.
+   - *The hold is the form's.* The engine still draws a sex, an age or a Portrait left out, for the
+     CLI. The notice is a hint, not a refusal, and "Write them for me" waits for the same three, so
+     no text is written for a sex not yet chosen.
+   - *"Choose myself"'s preview* is the Traits alone, when they are chosen for the player.
+   - *Words.* "Choose a Sex to see the pictures." takes Sex's capital, the settled word
+     (`docs/agents/ui-text.md`), where the epic wrote it lower case. Also: "Choose" on the fields,
+     "Chosen for you", "Who chooses" (a name without "Guildmaster", which would shadow the name
+     field's label), and "Stat points left: N", "Over the Stat points by N" and "Stat points left
+     unspent are lost."
+   - *Clean-up.* `listed` moved to `state/names.ts`, and `narrate.ts` re-exports it, so the refusals
+     can list the missing Stats without an import cycle. The grid's Female and Male buttons, its
+     "Drawn from the seed" thumbnail, the Portrait's choosing of the sex and their CSS are gone.
+     `PortraitThumbnail`'s `labelShown` stays, with its own test.
+
+**The checks.**
+1. **The default path is unchanged.** 1,000 seeds (`seed-0001` to `seed-1000`) × 2 setups (the
+   harness's age 30, and bare), 2,000 worlds. Each document's SHA-256 is equal to `099f6e3`'s once
+   `meta.config`'s new field is set aside, the combined hash `0331bb1e…` both sides. No rule reads
+   `guildmasterStatPoints`, so play is unchanged and no sweep was run.
+2. **Every attribute chosen against none,** over the same 1,000 seeds. The chosen setup sets the sex,
+   the age, a Portrait, the Stats, the Traits and the three texts.
+   - The Guilds, the Heroes, the Board, the Patrons, the Market and every stream are identical
+     outright in 1,000 of 1,000.
+   - The whole world is identical in 1,000 of 1,000 once the player's Guildmaster and every
+     Guildmaster's Portrait and its texts are set aside (combined `0892a5fc…` both sides).
+   - Rival Guildmasters' Portraits moved in 441 of 4,000, in 355 worlds, and their Appearance and
+     Biography follow. That is v1.1.3-S5's rule: each picture is fitted among those no living
+     Guildmaster holds. A chosen sex, age, Trait or Portrait has moved them since then, and the Stats
+     alone move nothing at all.
+3. **The best allocation's effect on a year's Wealth** (the epic's §4), measured with a scratch harness script (not kept). It played 100 seeds (`seed-0001` to
+   `seed-0100`) for one year each, with the automatic policy and the harness's setup, once with the
+   Stats drawn and once for each of five allocations. The Stats are chosen after the draw, so each
+   seed makes the same world either way, and the games are paired.
+
+   | Stats (Insp., Infl., Neg., Coach., Judg.) | Wealth after a year | Against drawn (paired) | Higher in |
+   | --- | ---: | ---: | ---: |
+   | Drawn (means 10.5, 10.1, 9.7, 9.7, 9.4) | 19,448 | — | — |
+   | 10, 10, 10, 10, 10 | 19,254 | −194 (se 379) | 45 of 100 |
+   | 10, 15, 15, 5, 5 | 21,118 | +1,670 (se 424) | 67 of 100 |
+   | **15, 10, 15, 5, 5** | **21,407** | **+1,959 (se 403)** | 64 of 100 |
+   | 5, 10, 15, 15, 5 | 21,407 | +1,959 (se 403) | 64 of 100 |
+   | 15, 5, 10, 15, 5 | 19,665 | +217 (se 366) | 50 of 100 |
+
+   - *The best allocation* sets Negotiation at 15. It ends the first year about 1,960 Wealth ahead of
+     a drawn Guildmaster: the year's gain is 20,907 against 18,948 (+10.3%), as Negotiation's +10%
+     on rewards would have it.
+   - *Only Negotiation shows.* Inspiration and Coaching change nothing the policy's year shows: the two
+     allocations that trade them are equal in every seed. Morale decides nothing on a Quest yet (DL-148)
+     and the policy does not train. Influence at 15 shows no gain beside Negotiation alone within the
+     noise.
+   - S3 gives Morale a part in a Check, and S10 tunes the economy. A later sweep could play a chosen
+     Guildmaster to see the margin over twenty years.
+4. **The script** is 759,048 bytes (759.05 kB, 218.11 kB gzipped), up 5,039 bytes from 754,009,
+   leaving 40.95 kB under 800 kB. One sex's thumbnails are 216,854 bytes (female) and 217,884
+   (male), both within the grid's 250 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,124 tests in 167 files, with no load flake.
+   - `npm run e2e -w web` passes all 93 specs, 7 more than S2's 86, the `file://` spec's three
+     among them.
+
+**Consequences.**
+- A player who chooses can set two Stats at 15. The automatic policy plays a drawn Guildmaster, so S10's
+  balance pass does not see it. Item 3 measures the effect.
+- No save row gains a field, so the schema stays 6. Configuration 13 gains `guildmasterStatPoints`.
+- Nothing changed for Traits: no rule, content check or event reads a Trait anew (DL-150 item 14's
+  doctor begins with S13).
+- The page's "Choose myself" is DL-149 items 3 and 4. The CLI still draws whatever it is not given,
+  as DL-149 item 9 says.
+
+**Actioned in:** `engine/src/config.ts`, `create.ts`, `generators/guilds.ts`, `guildmaster.ts`,
+`create.test.ts` and `guildmaster-preview.test.ts`; `cli/src/args.ts`, `main.ts`, `commands/setup.ts`
+and their tests; `harness/src/creation.test.ts`; `web/src/views/new-game.tsx`, `section.tsx` and
+`styles.css`; `web/src/state/setup.ts`, `reducer.ts`, `rejections.ts`, `world-views.ts`, `names.ts`
+and `narrate.ts`; `web/src/state/setup.test.ts` and `rejections.test.ts`;
+`web/src/views/new-game.test.tsx` and `capitals.test.tsx`; `web/e2e/support.ts`, `portrait.spec.ts`,
+`layout.spec.ts`, `file.spec.ts`, `journey.spec.ts` and `described.spec.ts`; `CONTEXT.md` (Stat
+points); `docs/requirements.md` (R8); the epic's S11 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

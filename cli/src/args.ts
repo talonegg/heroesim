@@ -6,6 +6,7 @@
 import {
   defaultConfig,
   gearSlotKeys,
+  guildmasterStatKeys,
   isId,
   sexes,
   type ConsumableRequest,
@@ -26,12 +27,16 @@ import {
 import { cliModules, isCliModule } from './modules.js';
 import { currentSave } from './saves.js';
 
+/** The Guildmaster Stats' keys, the rules' own, in words: `negotiation, inspiration, ... and judgement`. */
+const statKeysWords = ((keys: string[]) => `${keys.slice(0, -1).join(', ')} and ${keys.at(-1) ?? ''}`)(Object.values(guildmasterStatKeys));
+
 export const usage = `Usage: heroesim <command> [flags]
 
 Commands:
   new --guild <name> --master <name> [--seed <seed>] [--background <key>] [--force]
       [--sex ${sexes.join('|')}] [--age <years>] [--traits <key,key,...> | --traits none]
       [--birthplace <text>] [--appearance <text>] [--biography <text>] [--portrait <key>]
+      [--stats <stat=n,stat=n,...>]
       Create a world and make it the save. Without --seed a readable seed is made up.
       Without --background the Guild's Background is drawn from the seed. An existing
       save is replaced only with --force.
@@ -43,7 +48,10 @@ Commands:
       and 1,000 characters). --portrait names a Guildmaster picture by its key, of the
       sex given, or making the Guildmaster of its sex, whatever it fits; without --age,
       their age is drawn within the picture's. Left out, one is chosen to fit them, and
-      where none fits the Guildmaster shows its Silhouette.
+      where none fits the Guildmaster shows its Silhouette. --stats sets every
+      Guildmaster Stat or none, by key, as inspiration=12,influence=8,...: each ${defaultConfig.guildmasterStatMin} to
+      ${defaultConfig.guildmasterStatMax}, sharing ${defaultConfig.guildmasterStatPoints} points in all, and any left over are lost. The keys
+      are ${statKeysWords}.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]
@@ -172,6 +180,12 @@ export type Command =
       biography?: string;
       /** The Portrait's key (v1.1.2-S3); whether content has it, and of which sex, is the engine's to say. */
       portrait?: string;
+      /**
+       * The Guildmaster's Stats by key (v1.1.4-S11, DL-149 item 9), each a whole number as given; which
+       * keys content has, whether every one is given, the range and the points are `new`'s and the
+       * engine's to say.
+       */
+      stats?: Record<string, number>;
     }
   | { name: 'show'; save: string; view: View }
   | { name: 'advance'; save: string; turns: number; modules?: string[] }
@@ -213,6 +227,7 @@ const flagsOf: Record<Command['name'], Record<string, 'value' | 'switch'>> = {
     appearance: 'value',
     biography: 'value',
     portrait: 'value',
+    stats: 'value',
   },
   show: { save: 'value', by: 'value' },
   advance: { save: 'value', turns: 'value', until: 'value', max: 'value', modules: 'value' },
@@ -356,12 +371,32 @@ function traitList(value: string): string[] {
   return keys;
 }
 
+/**
+ * `--stats` (v1.1.4-S11, DL-149 item 9): `key=value` pairs joined by commas, each key in a key's form and
+ * named once, each value a whole number in digits. Which keys content has, whether every Guildmaster
+ * Stat is given, each one's range and the points are for `new` and the engine to say.
+ */
+function statList(value: string): Record<string, number> {
+  const stats: Record<string, number> = {};
+  for (const pair of value.split(',').map((word) => word.trim())) {
+    const [, key = '', digits = ''] = /^([a-z][a-z0-9]*(?:-[a-z0-9]+)*)=(\d+)$/.exec(pair) ?? [];
+    const n = Number(digits);
+    if (key === '' || !Number.isSafeInteger(n)) {
+      refuse(`--stats needs each Guildmaster Stat as key=number, such as inspiration=12, joined by commas; got "${pair}"`);
+    }
+    if (Object.hasOwn(stats, key)) refuse(`--stats names ${key} twice`);
+    stats[key] = n;
+  }
+  return stats;
+}
+
 /** The Guildmaster's setup flags `new` was given (M9-S2), as the command's fields. */
 function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, { name: 'new' }>> {
   const sex = flags.get('sex');
   const age = flags.get('age');
   const traits = flags.get('traits');
   const portrait = flags.get('portrait');
+  const stats = flags.get('stats');
   const texts = (['birthplace', 'appearance', 'biography'] as const).flatMap((flag) => {
     const text = flags.get(flag);
     return text === undefined ? [] : [[flag, text]];
@@ -372,6 +407,7 @@ function guildmasterFlags(flags: Map<string, string>): Partial<Extract<Command, 
     ...(traits === undefined ? {} : { traits: traitList(traits) }),
     // Any value: whether content lists it, and of which sex, is the engine's to say (`setupRefusal`, v1.1.2-S6).
     ...(portrait === undefined ? {} : { portrait }),
+    ...(stats === undefined ? {} : { stats: statList(stats) }),
     ...Object.fromEntries(texts),
   };
 }

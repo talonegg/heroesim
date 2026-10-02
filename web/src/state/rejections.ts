@@ -22,6 +22,7 @@ import {
   type Unavailability,
   type World,
 } from '@heroesim/engine';
+import { listed } from './names';
 import type { DocumentPlayKind, GameRefusal, PlayRejection } from './reducer';
 
 // ── Kinds ────────────────────────────────────────────────────────────────────────────────────
@@ -196,6 +197,12 @@ const sentences: Sentences = {
   // The Guildmaster's setup (M9-S2): the CLI's `new` words, less its flags.
   'newGame unknown-sex': ({ sex }) => `A Guildmaster's Sex is ${sexes.join(' or ')}; "${sex}" is not.`,
   'newGame age-out-of-range': ({ age, min, max }) => `A Guildmaster starts aged ${min} to ${max}, in whole Years; ${age} is not.`,
+  // The Stats chosen (v1.1.4-S11, DL-149 item 5): the CLI's words, less its flag.
+  'newGame stats-incomplete': ({ missing }, { content }) =>
+    `Every Guildmaster Stat is chosen, or none; ${listed(missing.map((key) => nameIn(content.stats, key)))} ${missing.length === 1 ? 'is' : 'are'} not.`,
+  'newGame stat-out-of-range': ({ statKey, value, min, max }, { content }) =>
+    `A Guildmaster's ${nameIn(content.stats, statKey)} is ${min} to ${max} when chosen, in whole numbers; ${value} is not.`,
+  'newGame stats-over-points': ({ spent, points }) => `Those Stats spend ${spent} points, and the Stat points are ${points}: lower one to raise another.`,
   'newGame unknown-trait': ({ traitKey }, { content }) =>
     rowOf(content.traits, traitKey) === undefined
       ? `No Guildmaster Trait is called "${traitKey}".`

@@ -226,6 +226,14 @@ need a penalty beside them. The player's choice at setup and every drawn Guildma
 or a successor's, keep within it and hold no excluded pair (DL-88 item 4, DL-100 item 3).
 _Avoid_: Point buy, Allowance, Points (alone)
 
+**Stat points**:
+The points a player shares among their Guildmaster's five Stats when they choose them at setup,
+`guildmasterStatPoints` (50, the drawn Stats' mean of 10 each). Each Stat chosen is 5 to 15, the
+range the Stats are drawn from; the Stats may cost no more than the points in all, and points left
+unspent are lost. Every Stat is chosen or none is. A drawn Guildmaster, the player's under "Choose
+for me", a Rival's or a successor's, is not held to them (DL-149 item 5, v1.1.4-S11).
+_Avoid_: Point buy, Pool (alone), Points (alone), Stat budget
+
 **Level**:
 A Hero's rank of experience. XP earned from Quests and training raises it, and each Level
 raises Stats along the Class's growth profile.

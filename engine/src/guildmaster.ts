@@ -13,7 +13,7 @@
 // Guildmaster Stat has no effect; one the row lacks reads as the content's default (rule 5).
 
 import type { GameConfig, PotentialHint } from './config.js';
-import type { ClassKey, ContentSet, StatKey, Trait, TraitEffect } from './content-types.js';
+import type { ClassKey, ContentSet, Stat, StatKey, Trait, TraitEffect } from './content-types.js';
 import type { Guild, Guildmaster, World } from './document.js';
 import { sortedRows } from './generators/draw.js';
 import { baseStat } from './selectors.js';
@@ -34,6 +34,15 @@ export const guildmasterStatKeys = Object.freeze({
  */
 export function guildmasterTraitsOf(content: Pick<ContentSet, 'traits'>): Trait[] {
   return sortedRows(content.traits, (row) => row.owner === 'guildmaster');
+}
+
+/**
+ * Every Guildmaster Stat of `content`, in content's order (v1.1.4-S11): those a player who chooses
+ * their Guildmaster's Stats at setup sets, each one, as the front ends list them. A Hero's Stat is
+ * not among them.
+ */
+export function guildmasterStatsOf(content: Pick<ContentSet, 'stats'>): Stat[] {
+  return Object.values(content.stats).filter((row) => row.owner === 'guildmaster');
 }
 
 /** The Guildmaster rules, each named after the Stat it reads. */

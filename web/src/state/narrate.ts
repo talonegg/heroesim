@@ -56,6 +56,7 @@ import {
   type TurnEvent,
   type WorldDocument,
 } from '@heroesim/engine';
+import { listed } from './names';
 import { facilityIs, facilityNames } from './rejections';
 
 /** What a sentence reads beyond its event: content's names, and a Quest's name by its id. */
@@ -151,10 +152,8 @@ function night(turn: number): string {
   return `the night of Day ${dayOf(turn)}`;
 }
 
-/** A list as a sentence gives one: `a`, `a and b`, `a, b and c`. */
-export function listed(items: readonly string[]): string {
-  return items.length <= 1 ? (items[0] ?? '') : `${items.slice(0, -1).join(', ')} and ${items.at(-1) ?? ''}`;
-}
+/** A list as a sentence gives one (`names.ts`, since v1.1.4-S11, where the refusals' words read it too). */
+export { listed };
 
 /** `listed` for segments: the names in the list stay names. */
 function listedWords(items: readonly Words[]): Words {

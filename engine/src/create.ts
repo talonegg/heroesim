@@ -3,8 +3,8 @@
 // M2-S3 the first Board is drawn last, from the `board` stream, so a new game opens on a full
 // Board rather than waiting for the first morning phase at Turn 3 (DL-25).
 
-import type { EngineDeps } from './config.js';
-import type { BackgroundKey, ContentSet, PortraitKey, TraitKey } from './content-types.js';
+import type { EngineDeps, GameConfig } from './config.js';
+import type { BackgroundKey, ContentSet, PortraitKey, StatKey, TraitKey } from './content-types.js';
 import {
   descriptiveAttributeMaxLength,
   descriptiveAttributes,
@@ -12,6 +12,7 @@ import {
   type DescriptiveAttribute,
   type Meta,
   type Sex,
+  type StatValues,
   type WorldDocument,
 } from './document.js';
 import type { GuildmasterDescription } from './descriptions.js';
@@ -20,6 +21,7 @@ import { dealEvenly, sexes, sortedKeys, streamOf } from './generators/draw.js';
 import { dealtDisposition, generateGuild, generateRival, type GeneratedGuild } from './generators/guilds.js';
 import { generateHero } from './generators/heroes.js';
 import { generatePatron } from './generators/patrons.js';
+import { guildmasterStatsOf } from './guildmaster.js';
 import { append } from './history.js';
 import { ensureModules } from './modules.js';
 import { boardRefresh } from './phases/board-refresh.js';
@@ -59,6 +61,13 @@ export interface WorldSetup {
    */
   guildmasterTraitKeys?: readonly TraitKey[];
   /**
+   * The Guildmaster's Stats (v1.1.4-S11, DL-149 item 5), by key: every Guildmaster Stat of the content
+   * or none, each a whole number from `guildmasterStatMin` to `Max` (`guildmasterStatBounds`), costing
+   * no more than `guildmasterStatPoints` in all, points left unspent being lost. Drawn when omitted, as
+   * a Rival's are. A key that is no Guildmaster Stat counts for nothing (data-model rule 5).
+   */
+  guildmasterStats?: Readonly<StatValues>;
+  /**
    * The descriptive Attributes (DL-100 item 3), stored trimmed, each at most
    * `descriptiveAttributeMaxLength` characters once trimmed; written from content when omitted or
    * blank, as every Guildmaster's are (v1.1.2-S5, DL-125 item 6).
@@ -94,6 +103,12 @@ export type SetupRefusal =
   | { reason: 'portrait-of-another-sex'; portraitKey: PortraitKey; sex: Sex; portraitSex: Sex }
   /** Not a whole number from `min` to `max`, the starting ages. */
   | { reason: 'age-out-of-range'; age: number; min: number; max: number }
+  /** Stats chosen, but not every Guildmaster Stat: `missing`, in content's order, are left out (v1.1.4-S11). */
+  | { reason: 'stats-incomplete'; missing: StatKey[] }
+  /** A Stat chosen that is not a whole number from `min` to `max`, the first in content's order (v1.1.4-S11). */
+  | { reason: 'stat-out-of-range'; statKey: StatKey; value: number; min: number; max: number }
+  /** The Stats chosen cost `spent` in all, past the Stat points, `guildmasterStatPoints` (v1.1.4-S11). */
+  | { reason: 'stats-over-points'; spent: number; points: number }
   /** Not a Guildmaster Trait of the content: unknown, or a Hero's. */
   | { reason: 'unknown-trait'; traitKey: TraitKey }
   | { reason: 'repeated-trait'; traitKey: TraitKey }
@@ -124,8 +139,8 @@ function lengthOf(text: string): number {
  * Whether `setup` keeps the rules, and if not the first it breaks (M9-S2, R8, DL-100 item 3), in
  * this order: the names, the Background, the sex (one of `sexes`, since the M9 review), the
  * Portrait (a Guildmaster picture of the content, of the sex when one is chosen; v1.1.2-S3), the
- * age, each Trait in turn (a Guildmaster Trait of the
- * content, given once), how many Traits, an excluded pair, their cost, then each descriptive
+ * age, the Stats (every one, each within its bounds, then their cost; v1.1.4-S11), each Trait in turn
+ * (a Guildmaster Trait of the content, given once), how many Traits, an excluded pair, their cost, then each descriptive
  * Attribute's length. `null` when it keeps them all. Reads the bounds from `deps.config` and the
  * Traits from `deps.content`, so a front end checks with the rules the game will begin under,
  * without copying them. Changes nothing.
@@ -150,6 +165,9 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
   const age = setup.guildmasterAge;
   const [min, max] = [config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax];
   if (age !== undefined && !(Number.isSafeInteger(age) && age >= min && age <= max)) return { reason: 'age-out-of-range', age, min, max };
+
+  const statsRefusal = guildmasterStatsRefusal(setup.guildmasterStats, deps);
+  if (statsRefusal !== null) return statsRefusal;
 
   const keys = setup.guildmasterTraitKeys ?? [];
   const seen = new Set<TraitKey>();
@@ -180,15 +198,53 @@ export function setupRefusal(setup: WorldSetup, deps: Pick<EngineDeps, 'config' 
 }
 
 /**
+ * The bounds a chosen Guildmaster Stat is held to (v1.1.4-S11, DL-149 item 5): `guildmasterStatMin` to
+ * `Max`, the range the Stats are drawn from, within the Stat's own content range, so that no value
+ * chosen is one a draw would clamp.
+ */
+export function guildmasterStatBounds(
+  stat: { min: number; max: number },
+  config: Pick<GameConfig, 'guildmasterStatMin' | 'guildmasterStatMax'>,
+): { min: number; max: number } {
+  return { min: Math.max(config.guildmasterStatMin, stat.min), max: Math.min(config.guildmasterStatMax, stat.max) };
+}
+
+/**
+ * What `stats` cost against the Stat points (v1.1.4-S11, DL-149 item 5): the sum of the content's
+ * Guildmaster Stats among them; a key that is no Guildmaster Stat counts for nothing. The sum
+ * `setupRefusal` holds to `guildmasterStatPoints`, for a front end to show beside the points.
+ */
+export function guildmasterStatCost(stats: Readonly<StatValues>, content: Pick<ContentSet, 'stats'>): number {
+  return guildmasterStatsOf(content).reduce((sum, row) => sum + (Object.hasOwn(stats, row.key) ? (stats[row.key] ?? 0) : 0), 0);
+}
+
+/** Why the Stats chosen break a rule, the first in `setupRefusal`'s order, or `null` when none is chosen or they keep them. */
+function guildmasterStatsRefusal(stats: Readonly<StatValues> | undefined, { config, content }: Pick<EngineDeps, 'config' | 'content'>): SetupRefusal | null {
+  if (stats === undefined) return null;
+  const rows = guildmasterStatsOf(content);
+  const missing = rows.filter((row) => !Object.hasOwn(stats, row.key)).map((row) => row.key);
+  if (missing.length > 0) return { reason: 'stats-incomplete', missing };
+  for (const row of rows) {
+    const value = stats[row.key] ?? Number.NaN;
+    const { min, max } = guildmasterStatBounds(row, config);
+    if (!(Number.isSafeInteger(value) && value >= min && value <= max)) return { reason: 'stat-out-of-range', statKey: row.key, value, min, max };
+  }
+  const spent = guildmasterStatCost(stats, content);
+  if (spent > config.guildmasterStatPoints) return { reason: 'stats-over-points', spent, points: config.guildmasterStatPoints };
+  return null;
+}
+
+/**
  * What the seed draws of the player's Guildmaster, rather than the setup choosing it (v1.1.2-S6): the
  * sex when neither it nor a Portrait is chosen, since a Portrait chooses its sex (v1.1.2-S3); the age,
- * the Traits and the Portrait when each is left out.
+ * the Traits and the Portrait when each is left out; and the Stats, when they are (v1.1.4-S11).
  */
 export interface GuildmasterDrawn {
   sex: boolean;
   age: boolean;
   traits: boolean;
   portrait: boolean;
+  stats: boolean;
 }
 
 /** How much of the world `founded` makes: all of the player's Guild, or its Guildmaster alone, for the preview. */
@@ -237,6 +293,7 @@ function founded(
       ...(sex === undefined ? {} : { sex }),
       ...(setup.guildmasterAge === undefined ? {} : { age: setup.guildmasterAge }),
       ...(setup.guildmasterTraitKeys === undefined ? {} : { traitKeys: setup.guildmasterTraitKeys }),
+      ...(setup.guildmasterStats === undefined ? {} : { stats: setup.guildmasterStats }),
       birthplace: (setup.guildmasterBirthplace ?? '').trim(),
       appearance: (setup.guildmasterAppearance ?? '').trim(),
       biography: (setup.guildmasterBiography ?? '').trim(),
@@ -252,6 +309,7 @@ function founded(
     age: setup.guildmasterAge === undefined,
     traits: setup.guildmasterTraitKeys === undefined,
     portrait: portraitKey === undefined,
+    stats: setup.guildmasterStats === undefined,
   };
   return { document, player, drawn };
 }
@@ -263,6 +321,8 @@ export interface GuildmasterPreview {
   age: number;
   /** The Traits, in the order the setup gave them, or in key order when drawn. */
   traitKeys: TraitKey[];
+  /** Each Guildmaster Stat, chosen or drawn (v1.1.4-S11). */
+  stats: StatValues;
   /** A Guildmaster picture of `sex`, or `null`, the Silhouette, when none fits or every one that fits is in use. */
   portraitKey: PortraitKey | null;
   /** The player's Guild's Background, chosen or drawn: a Biography has a sentence for it (v1.1.2-S5). */
@@ -272,7 +332,7 @@ export interface GuildmasterPreview {
    * for them as `describeGuildmaster` writes with `n` 0 (v1.1.2-S6).
    */
   description: GuildmasterDescription;
-  /** Which of the sex, the age, the Traits and the Portrait the seed draws (v1.1.2-S6). */
+  /** Which of the sex, the age, the Traits, the Portrait and the Stats the seed draws (v1.1.2-S6, v1.1.4-S11). */
   drawn: GuildmasterDrawn;
 }
 
@@ -299,6 +359,7 @@ export function previewGuildmaster(setup: WorldSetup, seed: string, deps: Pick<E
     sex: guildmaster.sex,
     age: guildmaster.ageAtEntry,
     traitKeys: [...guildmaster.traits],
+    stats: { ...guildmaster.stats },
     portraitKey: guildmaster.portraitKey,
     backgroundKey: guild.backgroundKey,
     description: { birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography },

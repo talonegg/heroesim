@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { createWorld, portraitFit, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
+import { createWorld, guildmasterStatBounds, guildmasterStatCost, portraitFit, setupRefusal, type SetupRefusal, type WorldSetup } from './create.js';
 import type { Disposition } from './content-types.js';
 import { makeId, tableNames, type Guild, type GuildId, type Sex, type WorldDocument } from './document.js';
 import { count, entriesFor } from './history.js';
@@ -694,5 +694,132 @@ describe("the player's Guildmaster's Portrait (v1.1.2-S3, DL-125 items 3 and 4)"
     expect(() => createWorld('bad', { ...setup, guildmasterSex: 'male', guildmasterPortraitKey: 'gm-female-01' }, deps)).toThrow(
       /portrait-of-another-sex/,
     );
+  });
+});
+
+// v1.1.4-S11 (DL-149 item 5): the Guildmaster's five Stats chosen at setup, every one or none, each 5
+// to 15, within the Stat points; chosen after the draw, so the world a seed makes is otherwise the same.
+describe("the player's Guildmaster's Stats chosen (v1.1.4-S11, DL-149)", () => {
+  const deps = testDeps();
+  const even = { inspiration: 10, influence: 10, negotiation: 10, coaching: 10, judgement: 10 };
+  const best = { inspiration: 10, influence: 15, negotiation: 15, coaching: 5, judgement: 5 };
+  const guildmasterOf = (document: WorldDocument) => {
+    const guildmasterId = document.world.guilds[playerId]?.guildmasterId;
+    const guildmaster = guildmasterId === undefined ? undefined : document.world.guildmasters[guildmasterId];
+    if (guildmaster === undefined) throw new Error("No player's Guildmaster");
+    return guildmaster;
+  };
+
+  test('guildmasterStatPoints is 50 by default, under configVersion 13 (DL-149, DL-153)', () => {
+    expect(deps.config).toMatchObject({ guildmasterStatPoints: 50, guildmasterStatMin: 5, guildmasterStatMax: 15, configVersion: 13 });
+  });
+
+  test('accepts every Stat within 5 to 15 spending 50 or less, unspent points allowed', () => {
+    expect(setupRefusal({ ...setup, guildmasterStats: even }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterStats: best }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterStats: { ...even, coaching: 5, judgement: 5 } }, deps)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterStats: { inspiration: 5, influence: 5, negotiation: 5, coaching: 5, judgement: 5 } }, deps)).toBeNull();
+    // A key that is no Guildmaster Stat counts for nothing (data-model rule 5).
+    expect(setupRefusal({ ...setup, guildmasterStats: { ...even, strength: 20 } }, deps)).toBeNull();
+  });
+
+  test.each<[string, NonNullable<WorldSetup['guildmasterStats']>, SetupRefusal]>([
+    ['none of them', {}, { reason: 'stats-incomplete', missing: ['inspiration', 'influence', 'negotiation', 'coaching', 'judgement'] }],
+    ['two left out', { inspiration: 10, influence: 10, negotiation: 10 }, { reason: 'stats-incomplete', missing: ['coaching', 'judgement'] }],
+    ['a Stat below 5', { ...even, influence: 4 }, { reason: 'stat-out-of-range', statKey: 'influence', value: 4, min: 5, max: 15 }],
+    ['a Stat above 15', { ...even, coaching: 16 }, { reason: 'stat-out-of-range', statKey: 'coaching', value: 16, min: 5, max: 15 }],
+    ['a Stat not whole', { ...even, judgement: 9.5 }, { reason: 'stat-out-of-range', statKey: 'judgement', value: 9.5, min: 5, max: 15 }],
+    [
+      'the first out of range, in content order',
+      { ...even, judgement: 3, inspiration: 20 },
+      { reason: 'stat-out-of-range', statKey: 'inspiration', value: 20, min: 5, max: 15 },
+    ],
+    ['more than the Stat points', { ...even, negotiation: 11 }, { reason: 'stats-over-points', spent: 51, points: 50 }],
+    ['two at 15 and none lowered', { ...even, negotiation: 15, influence: 15 }, { reason: 'stats-over-points', spent: 60, points: 50 }],
+  ])('refuses %s with a reason of its own', (_, stats, refusal) => {
+    expect(setupRefusal({ ...setup, guildmasterStats: stats }, deps)).toEqual(refusal);
+  });
+
+  test('checks the Stats after the age and before the Traits', () => {
+    const stats = { ...even, negotiation: 30 };
+    expect(setupRefusal({ ...setup, guildmasterAge: 12, guildmasterStats: stats }, deps)?.reason).toBe('age-out-of-range');
+    expect(setupRefusal({ ...setup, guildmasterStats: stats, guildmasterTraitKeys: ['well-liked'] }, deps)?.reason).toBe('stat-out-of-range');
+  });
+
+  test("reads its bounds and points from the config it is given, held within each Stat's own range", () => {
+    const wider = testDeps({ guildmasterStatMin: 0, guildmasterStatMax: 30, guildmasterStatPoints: 60 });
+    expect(setupRefusal({ ...setup, guildmasterStats: { ...even, negotiation: 20 } }, wider)).toBeNull();
+    expect(setupRefusal({ ...setup, guildmasterStats: { ...even, negotiation: 20 } }, deps)?.reason).toBe('stat-out-of-range');
+    // The Stats' own range is 1 to 20 in content, so 0 is refused under a config that allows it.
+    expect(setupRefusal({ ...setup, guildmasterStats: { ...even, coaching: 0 } }, wider)).toEqual({
+      reason: 'stat-out-of-range',
+      statKey: 'coaching',
+      value: 0,
+      min: 1,
+      max: 20,
+    });
+    expect(guildmasterStatBounds({ min: 1, max: 20 }, wider.config)).toEqual({ min: 1, max: 20 });
+    expect(guildmasterStatBounds({ min: 1, max: 20 }, deps.config)).toEqual({ min: 5, max: 15 });
+  });
+
+  test('guildmasterStatCost sums the Guildmaster Stats given, a key that is none counting nothing', () => {
+    expect(guildmasterStatCost(best, deps.content)).toBe(50);
+    expect(guildmasterStatCost({ negotiation: 12, strength: 99 }, deps.content)).toBe(12);
+  });
+
+  test("gives the player's Guildmaster the Stats chosen, and the game starts with them", () => {
+    const { document } = createWorld('stats-chosen', { ...setup, guildmasterStats: { ...best, strength: 20 } }, deps);
+    withValid(document, deps);
+    expect(guildmasterOf(document).stats).toEqual(best);
+  });
+
+  test("a Rival Guildmaster's Stats are drawn as before, whatever the player chose", () => {
+    const drawn = createWorld('stats-rivals', setup, deps).document;
+    const chosen = createWorld('stats-rivals', { ...setup, guildmasterStats: best }, deps).document;
+    for (const rival of rivals(drawn)) {
+      expect(chosen.world.guildmasters[rival.guildmasterId]?.stats).toEqual(drawn.world.guildmasters[rival.guildmasterId]?.stats);
+    }
+  });
+
+  test("the Stats chosen move no draw: the world is the one drawn without them, but for the Guildmaster's Stats", () => {
+    for (const seed of ['stats-1', 'stats-2', 'stats-3', 'stats-4', 'stats-5']) {
+      const drawn = createWorld(seed, setup, deps).document;
+      const chosen = createWorld(seed, { ...setup, guildmasterStats: best }, deps).document;
+      expect(guildmasterOf(chosen).stats).not.toEqual(guildmasterOf(drawn).stats);
+      guildmasterOf(chosen).stats = guildmasterOf(drawn).stats;
+      // No picture or text reads a Stat, so not even they are set aside.
+      expect(chosen, seed).toEqual(drawn);
+    }
+  });
+
+  test('every Guildmaster attribute chosen makes the world none chosen makes, but for the Guildmaster and the pictures that fit them', () => {
+    for (const seed of ['every-1', 'every-2', 'every-3', 'every-4', 'every-5']) {
+      const drawn = createWorld(seed, setup, deps).document;
+      const chosen = createWorld(
+        seed,
+        {
+          ...setup,
+          guildmasterSex: 'male',
+          guildmasterAge: 44,
+          guildmasterPortraitKey: 'gm-male-01',
+          guildmasterStats: best,
+          guildmasterTraitKeys: ['old-soldier', 'mistrusts-magic'],
+          guildmasterBirthplace: 'Harrowgate',
+          guildmasterAppearance: 'Grey at the temples.',
+          guildmasterBiography: 'A life.',
+        },
+        deps,
+      ).document;
+      const was = guildmasterOf(drawn);
+      chosen.world.guildmasters[was.id] = structuredClone(was);
+      // Every Guildmaster's picture fits them among those not in use (v1.1.3-S5), so a Rival's, and the
+      // texts it writes, may follow the player's; every draw of every stream is the same.
+      expect(picturesAside(chosen), seed).toEqual(picturesAside(drawn));
+    }
+  });
+
+  test('throws on Stats setupRefusal refuses', () => {
+    expect(() => createWorld('bad', { ...setup, guildmasterStats: { ...even, negotiation: 11 } }, deps)).toThrow(/stats-over-points/);
+    expect(() => createWorld('bad', { ...setup, guildmasterStats: { negotiation: 10 } }, deps)).toThrow(/stats-incomplete/);
   });
 });
