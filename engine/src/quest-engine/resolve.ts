@@ -24,6 +24,15 @@
 // weight and guard is 1, and the draws are what `chance` and `pick` drew. A Morale loss
 // `steadiedBy` some Stats is less for a Hero with more of them, so each Hero's Morale on the Quest,
 // and what they bring home (`moraleByHero`), is their own.
+// Heroes earn Traits (v1.1.4-S7, DL-148 item 25, DL-150 item 5): a `trait` consequence takes two
+// draws in its place, whether it lands and on whom, whether or not it lands, before Loot's. A
+// positive Trait, on a Triumph's list, falls among the Party still in the sequence and is held until
+// the band is known, granted only on a strong success; a negative one, on a Failure's, falls only
+// among the Heroes the same Encounter injured. Either falls only on a Hero who may take it: who does
+// not hold it and holds none it conflicts with (`mayEarn`), and has drawn no other on this Quest, a
+// held positive one aside for a negative Trait, which then stands in its place (DL-159's
+// verification). The Traits are the resolution's `traits`, for `questsConclude` to grant, at most one a
+// Hero, a Hero who died taking none.
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
 // loot.ts, DL-52).
 //
@@ -46,19 +55,33 @@
 // (ADR-0002 as amended by pre-M0 review A1).
 
 import { configProblems, type GameConfig, type QuestBand } from '../config.js';
-import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, HarmReads, InjuryTypeKey, PassFormula, SynergyKey } from '../content-types.js';
+import type {
+  CheckKey,
+  Consequence,
+  Degree,
+  Encounter,
+  EncounterKey,
+  EncounterKind,
+  HarmReads,
+  InjuryTypeKey,
+  PassFormula,
+  SynergyKey,
+  TraitConsequence,
+  TraitKey,
+} from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
-import { int, next, weightedPick } from '../rng.js';
+import { int, next, pick, weightedPick } from '../rng.js';
 import { healFactor } from '../selectors.js';
+import { mayEarn } from '../traits.js';
 import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { sequenceFor } from './encounters.js';
 import { exposure, guard, narrowed } from './harm.js';
 import { drawLoot, type LootDraw } from './loot.js';
-import { queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
+import { membersOf, queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -148,10 +171,27 @@ export interface QuestOutcome {
   synergyKeys: SynergyKey[];
 }
 
+/**
+ * A Trait a Hero earned on the Quest (v1.1.4-S7, DL-148 item 25): the Hero, the Hero Trait, and the
+ * Encounter whose consequence gave it, by its place in the sequence and its key.
+ */
+export interface EarnedTrait {
+  heroId: HeroId;
+  traitKey: TraitKey;
+  encounterIndex: number;
+  encounterKey: EncounterKey;
+}
+
 /** A Quest resolved: its outcome, and each Encounter checked, in sequence order. */
 export interface Resolution {
   outcome: QuestOutcome;
   encounters: EncounterResult[];
+  /**
+   * The Traits Heroes earned (v1.1.4-S7), in the order drawn, at most one a Hero: a positive one only
+   * on a strong success and only to a Hero who gained no negative one, and none for a Hero who died.
+   * For `questsConclude` to grant.
+   */
+  traits: EarnedTrait[];
   /**
    * The consumables the Party used, one entry an Item, in the order used (M5-S3, consumables.ts):
    * for `questsConclude` to expend. None when it carried none, or none applied.
@@ -198,6 +238,8 @@ interface Working {
    */
   moraleByHero: Record<HeroId, number>;
   regardDelta: number;
+  /** The Traits drawn so far (v1.1.4-S7), each a positive one held for the band or a negative one. */
+  earned: (EarnedTrait & { positive: boolean })[];
 }
 
 /**
@@ -238,6 +280,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     moraleDelta: 0,
     moraleByHero: Object.fromEntries(heroes.map((hero) => [hero.id, 0])),
     regardDelta: 0,
+    earned: [],
   };
   const encounters: EncounterResult[] = [];
   const synergyKeys = new Set<SynergyKey>();
@@ -265,8 +308,9 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       decided = passDegree(pass, degreesOf(encounter, results));
     }
     const harm: Harm = { injured: [], died: [] };
+    const applying: Applying = { state, guild, world, encounterIndex: index, encounterKey: encounter.key, degree: decided.degree };
     for (const consequence of consequencesOf(encounter, decided.degree)) {
-      apply(consequence, working, harm, { state, guild, world }, deps);
+      apply(consequence, working, harm, applying, deps);
     }
     const deciding = rollOf(encounter, results, decided.decidedBy);
     const formDecided = formDecidedOf(encounter, pass, results, decided.degree);
@@ -295,6 +339,11 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const triumphs = encounters.filter((result) => result.degree === 'triumph').length;
   const band = questBand(successes, triumphs, sequence.length, config);
   const paid = band !== 'fail';
+  // v1.1.4-S7: a positive Trait held for a strong success, unless its Hero gained a negative one; none for a Hero who died.
+  const marked = new Set(working.earned.filter((it) => !it.positive).map((it) => it.heroId));
+  const traits = working.earned
+    .filter((it) => (!it.positive || (band === 'strong' && !marked.has(it.heroId))) && !working.deaths.includes(it.heroId))
+    .map(({ heroId, traitKey, encounterIndex, encounterKey }) => ({ heroId, traitKey, encounterIndex, encounterKey }));
   const xp = quest.difficulty * config.xpPerDifficultyPoint * config.xpBandFactor[band] * working.xpFactor;
   return {
     outcome: {
@@ -313,6 +362,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       synergyKeys: [...synergyKeys].sort(compareByCodeUnit),
     },
     encounters,
+    traits,
     consumables: kit.used,
     loot: drawLoot(world, quest, band, deps), // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52)
   };
@@ -372,11 +422,14 @@ function consequencesOf({ consequences }: Pick<Encounter, 'consequences'>, degre
 /** Who one Encounter's consequences hurt. */
 type Harm = Pick<EncounterResult, 'injured' | 'died'>;
 
-/** Where a consequence is applied: the `quests` stream, the Party's Guild and the world. */
+/** Where a consequence is applied: the `quests` stream, the Party's Guild and the world, and the Encounter and its Degree. */
 interface Applying {
   state: Stream;
   guild: Guild;
   world: World;
+  encounterIndex: number;
+  encounterKey: EncounterKey;
+  degree: Degree;
 }
 
 /** What has happened to the Party so far, as the Queries read it: who is hurt, and each Hero's Morale. */
@@ -442,6 +495,39 @@ function apply(consequence: Consequence, working: Working, harm: Harm, at: Apply
     case 'fame':
       working.fameDelta += consequence.delta;
       return;
+    case 'trait':
+      earn(consequence, working, harm, at, deps);
+      return;
+  }
+}
+
+/**
+ * Draws an earned Trait (v1.1.4-S7, DL-148 item 25): whether it lands, then on whom, two draws taken
+ * whether or not it lands, the second from no one too. A positive Trait, on a Triumph's list, falls
+ * among the Party still in the sequence; a negative one, on a Failure's, among those this Encounter
+ * injured who are still in it; of them those `among` names, and of those the Heroes who may take it:
+ * who may earn this one (`mayEarn`) and have drawn no Trait on this Quest, save that a negative one
+ * may fall on a Hero holding a positive one, which it then takes the place of (DL-159's verification).
+ */
+function earn(consequence: TraitConsequence, working: Working, harm: Harm, at: Applying, deps: CheckDeps): void {
+  const { state } = at;
+  const u = next(state);
+  const positive = succeeded(at.degree);
+  const pool = positive ? working.alive : working.alive.filter((hero) => harm.injured.includes(hero.id));
+  const named = consequence.among === undefined ? undefined : new Set(membersOf(consequence.among, partyNow(working, at, deps)).map((member) => member.hero.id));
+  const eligible = pool.filter(
+    (hero) =>
+      (named === undefined || named.has(hero.id)) &&
+      !working.earned.some((it) => it.heroId === hero.id && (positive || !it.positive)) &&
+      mayEarn(hero.traits, consequence.traitKey, deps.content),
+  );
+  if (eligible.length === 0) {
+    next(state);
+    return;
+  }
+  const hero = pick(state, eligible);
+  if (u < consequence.chance) {
+    working.earned.push({ heroId: hero.id, traitKey: consequence.traitKey, encounterIndex: at.encounterIndex, encounterKey: at.encounterKey, positive });
   }
 }
 

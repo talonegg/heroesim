@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test('is the core content set, version 23 since v1.1.4-S7 moved the Traits into two lists of effect lists (DL-158)', () => {
+  test("is the core content set, version 24 since v1.1.4-S7 gave the Injury Traits their effects (DL-159)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(23);
+    expect(content.version).toBe(24);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -388,7 +388,7 @@ describe('loadContent()', () => {
     }
   });
 
-  test('has six Guildmaster Traits, three buffs and three penalties, one effect each and each kind of effect among them; Hero Traits have none yet (M4-S5, v1.1.4-S7)', () => {
+  test("has six Guildmaster Traits, three buffs and three penalties, one effect each and each kind of effect among them; the four Injury Traits DL-148 item 24's Stat changes (M4-S5, v1.1.4-S7)", () => {
     const guildmaster = Object.values(content.guildmasterTraits);
     const buff = (effect: GuildmasterTraitEffect): boolean =>
       effect.kind === 'upkeepFactor' ? effect.factor < 1 : effect.delta > 0;
@@ -400,7 +400,13 @@ describe('loadContent()', () => {
     expect(new Set(effects.map((effect) => effect.kind))).toEqual(new Set(['classStatBonus', 'guildMoraleShift', 'upkeepFactor']));
     expect(content.guildmasterTraits['old-soldier']?.effects).toEqual([{ kind: 'classStatBonus', classKey: 'warrior', statKey: 'weaponry', delta: 1 }]);
     expect(Object.keys(content.heroTraits).sort()).toEqual(['lame', 'one-eyed', 'scarred', 'short-winded']);
-    for (const trait of Object.values(content.heroTraits)) expect(trait.effects, trait.key).toEqual([]);
+    const modifiers = (it: Record<string, number>) => [{ kind: 'statModifiers', modifiers: it }];
+    expect(Object.fromEntries(Object.values(content.heroTraits).map((trait) => [trait.key, trait.effects]))).toEqual({
+      lame: modifiers({ dexterity: -2, endurance: -1 }),
+      'one-eyed': modifiers({ perception: -2, weaponry: -1 }),
+      'short-winded': modifiers({ endurance: -2, constitution: -1 }),
+      scarred: modifiers({ courage: 1, charisma: -1 }),
+    });
   });
 
   test('keys every Trait in one of the two lists, Guildmaster and Hero, never both (v1.1.4-S7, DL-150 item 1)', () => {

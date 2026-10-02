@@ -314,6 +314,16 @@ const sentences: Sentences = {
     const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
     return say`${called(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
   },
+  // v1.1.4-S7: an earned Trait (DL-148 item 25), named with the Encounter that gave it.
+  'hero.trait-gained': (event, { content, questName }) => {
+    const { heroId, traitKey, questId, encounterKey } = event.payload;
+    return say`${called(event, heroId)} earned the Trait ${nameIn(content.heroTraits, traitKey)} on ${questName(questId)}, at ${nameIn(content.encounters, encounterKey)}.`;
+  },
+  // v1.1.4-S7: a Trait an Injury left replaced one it conflicts with (DL-150 item 5).
+  'hero.trait-lost': (event, { content }) => {
+    const { heroId, traitKey, replacedBy } = event.payload;
+    return say`${called(event, heroId)} lost the Trait ${nameIn(content.heroTraits, traitKey)}, replaced by ${nameIn(content.heroTraits, replacedBy)}.`;
+  },
   'hero.retired': (event) =>
     say`${called(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`,
   'hero.declined': (event, { content }) => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { chanceBandNames, configProblems, defaultConfig, questBands, type EngineDeps, type GameConfig, type QuestBand } from '../config.js';
-import { degrees, type ContentSet, type Degree, type Encounter, type EncounterCheck, type EncounterKind, type NumQuery, type PassFormula } from '../content-types.js';
+import { degrees, type ContentSet, type Degree, type Encounter, type EncounterCheck, type EncounterKind, type HeroTraitEffect, type NumQuery, type PassFormula } from '../content-types.js';
 import { dispatch } from '../actions/dispatch.js';
 import { advance } from '../advance.js';
 import { createWorld } from '../create.js';
@@ -320,6 +320,33 @@ describe('the estimate', () => {
     // Wretched (0.85) when sent; low (0.93) by the night home, the Morale 19 drifted up a point a night.
     expect(met.checks?.[0]?.capability).toBe(estimate?.encounters[0]?.checks[0]?.capability);
     expect(met.checks?.[0]?.capability).toBeGreaterThan(asTheySetOut);
+  });
+
+  // v1.1.4-S7: a Hero Trait's Stat change and Encounter bonus are read as a Check reads them, and a
+  // Trait an Injury leaves on a night away replaces one it conflicts with before the Party is met.
+  test("reads a Trait an Injury leaves on a night away, which replaces one it conflicts with: its Stat change in, the other's bonus out", () => {
+    const trait = (key: string, excludes: string[], effects: HeroTraitEffect[]) => ({ key, name: key, excludes, effects });
+    const s = scene('estimate-traits', [{ key: 'march', kind: 'travel', checks: [draft('march', strength, 1)] }]);
+    const heroTraits = {
+      ...s.deps.content.heroTraits,
+      scarred: trait('scarred', ['veteran'], [{ kind: 'statModifiers', modifiers: { strength: -3 } }]),
+      veteran: trait('veteran', ['scarred'], [{ kind: 'encounterBonus', flat: 4, kinds: ['travel'] }]),
+    };
+    const traited: Scene = { ...s, deps: { ...s.deps, content: { ...s.deps.content, heroTraits } } };
+    const [hero] = s.heroes as [Hero];
+    hero.traits = ['veteran'];
+    hero.injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(dayOf(s.world.turn) + 2) };
+    const march = traited.deps.content.encounters.march?.checks[0] as EncounterCheck;
+    const asTheySetOut = capability(queryParty(s.heroes, s.world, traited.deps), { kind: 'travel' }, march, s.world, traited.deps);
+
+    const estimate = estimated(traited);
+    const home = homeNight(traited);
+    const met = resolveQuest(home, s.quest, s.party, traited.deps).encounters[0]?.checks[0]?.capability;
+
+    expect((home.heroes[hero.id] as Hero).traits).toEqual(['scarred']);
+    expect(estimate.encounters[0]?.checks[0]?.capability).toBe(met);
+    // As they set out the bonus is there and the Strength whole: 4 more, and 3 Strength, times form and teamwork.
+    expect(asTheySetOut - (met ?? 0)).toBeGreaterThan(4);
   });
 
   test("folds a reroll in exactly: a second Encounter has it only if the first did not use it", () => {

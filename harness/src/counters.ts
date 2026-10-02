@@ -169,6 +169,29 @@ export function questsTakenByController(document: WorldDocument): ByController {
   return countByController(document, 'quest.taken');
 }
 
+/**
+ * The Heroes `quest.taken` sends, each once however many Quests they went on, by the kind of
+ * controller of the Guild that first sent them (v1.1.4-S7): the Hero careers the Traits earned are
+ * counted over.
+ *
+ * @throws Error on an entry naming no Guild the world holds, or with no list of Heroes
+ */
+export function questingHeroes(document: WorldDocument): ByController {
+  const counts = byController();
+  const seen = new Set<unknown>();
+  entriesOf(document, 'quest.taken').forEach((entry, index) => {
+    const heroIds = payloadField(entry, 'heroIds');
+    if (!Array.isArray(heroIds)) throw new Error(`quest.taken entry ${index} has no heroIds`);
+    const kind = guildOf(document, entry, `${index}`).controller.kind;
+    for (const heroId of heroIds) {
+      if (seen.has(heroId)) continue;
+      seen.add(heroId);
+      counts[kind] += 1;
+    }
+  });
+  return counts;
+}
+
 /** The year M3's counters read at: "after 10 years" and "by year 10" (the epic's §2, DL-40). */
 export const countedYear = 10;
 
@@ -205,6 +228,16 @@ export interface GameCounters {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
+  /** `hero.trait-gained`, by the Hero's Guild's controller then (v1.1.4-S7, DL-148 item 25). */
+  traitsGained: ByController;
+  /** `hero.trait-lost`, a Trait an Injury's replaced, by the Hero's Guild's controller then (v1.1.4-S7, DL-150 item 5). */
+  traitsLost: ByController;
+  /**
+   * The Heroes sent on at least one Quest (`quest.taken`'s `heroIds`), each once, by the controller of
+   * the Guild that first sent them: the careers the Traits earned are counted over (v1.1.4-S7, the
+   * epic's "Rare Traits" gate).
+   */
+  questingHeroes: ByController;
   /**
    * `guild.folded`, by the reason the Rival reached its ending. Since M9-S2 a Rival's Guildmaster's
    * Retirement is met by Succession, so `retirement` stays 0 in a game played under its rules.
@@ -1307,6 +1340,9 @@ export function countGame(
     heroesDied: countByController(document, 'hero.died'),
     heroesRecruited: countByController(document, 'hero.recruited'),
     heroesRetired: countByController(document, 'hero.retired'),
+    traitsGained: countByController(document, 'hero.trait-gained'),
+    traitsLost: countByController(document, 'hero.trait-lost'),
+    questingHeroes: questingHeroes(document),
     rivalFolds,
     rivalSuccessions: entriesOf(document, 'guildmaster.succeeded').length,
     ending: reason,

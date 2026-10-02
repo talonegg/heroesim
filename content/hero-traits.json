@@ -1,6 +1,6 @@
 {
-  "scarred": { "name": "Scarred", "excludes": [], "effects": [] },
-  "lame": { "name": "Lame", "excludes": [], "effects": [] },
-  "one-eyed": { "name": "One-eyed", "excludes": [], "effects": [] },
-  "short-winded": { "name": "Short-winded", "excludes": [], "effects": [] }
+  "scarred": { "name": "Scarred", "excludes": [], "effects": [{ "kind": "statModifiers", "modifiers": { "courage": 1, "charisma": -1 } }] },
+  "lame": { "name": "Lame", "excludes": [], "effects": [{ "kind": "statModifiers", "modifiers": { "dexterity": -2, "endurance": -1 } }] },
+  "one-eyed": { "name": "One-eyed", "excludes": [], "effects": [{ "kind": "statModifiers", "modifiers": { "perception": -2, "weaponry": -1 } }] },
+  "short-winded": { "name": "Short-winded", "excludes": [], "effects": [{ "kind": "statModifiers", "modifiers": { "endurance": -2, "constitution": -1 } }] }
 }

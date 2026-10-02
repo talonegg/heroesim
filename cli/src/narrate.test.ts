@@ -134,6 +134,14 @@ const samples: { [Type in EngineEventType]: EngineEventOf<Type> } = {
     bandAfter: 'low',
   }),
   'hero.healed': event('hero.healed', [heroId], { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }),
+  'hero.trait-gained': event('hero.trait-gained', [heroId, questId], {
+    heroId,
+    traitKey: 'scarred',
+    questId,
+    encounterIndex: 1,
+    encounterKey: 'ambush-on-the-road',
+  }),
+  'hero.trait-lost': event('hero.trait-lost', [heroId], { heroId, traitKey: 'lame', replacedBy: 'scarred' }),
   'hero.retired': event('hero.retired', [heroId, guildId], { heroId, guildId, age: 51 }),
   'hero.declined': event('hero.declined', [heroId, guildId], { heroId, statKey: 'endurance', delta: -1, age: 41 }),
   'game.ended': event('game.ended', [guildId, guildmasterId], { guildId, reason: 'bankruptcy' }),
@@ -282,6 +290,9 @@ describe('narrate', () => {
       `Lady Maud offered ${content.questTemplates['clear-the-barrow']?.name} (quest-000003).`,
     );
     expect(narrate(samples['hero.healed'], content)).toBe('Brenna Ashcombe (hero-000007) recovered from Deep cut, left Scarred.');
+    // v1.1.4-S7: an earned Trait, and one an Injury's Trait replaced.
+    expect(narrate(samples['hero.trait-gained'], content)).toBe('Brenna Ashcombe (hero-000007) earned the Trait Scarred on quest-000003, at Ambush on the road.');
+    expect(narrate(samples['hero.trait-lost'], content)).toBe('Brenna Ashcombe (hero-000007) lost the Trait Lame, replaced by Scarred.');
     expect(narrate(samples['hero.declined'], content)).toBe('Brenna Ashcombe (hero-000007), at 41, lost 1 Endurance to age.');
     expect(narrate(samples['quest.resolved'], content)).toMatch(/and failed: Wealth 0, Fame -2\.$/);
     // M4-S3: the Synergies that applied, by name, when any did; none, or an entry from before M4-S3, says nothing.

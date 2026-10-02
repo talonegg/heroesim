@@ -231,6 +231,10 @@ export interface SweepTotals {
   heroesDied: ByController;
   heroesRecruited: ByController;
   heroesRetired: ByController;
+  /** `hero.trait-gained` and `hero.trait-lost`, and the Heroes sent on a Quest (v1.1.4-S7). */
+  traitsGained: ByController;
+  traitsLost: ByController;
+  questingHeroes: ByController;
   rivalFolds: Record<string, number>;
   /** `guildmaster.succeeded` across the games (M9-S2, DL-102). */
   rivalSuccessions: number;
@@ -420,6 +424,9 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     heroesDied: zero(),
     heroesRecruited: zero(),
     heroesRetired: zero(),
+    traitsGained: zero(),
+    traitsLost: zero(),
+    questingHeroes: zero(),
     rivalFolds: Object.fromEntries(endingReasons.map((reason) => [reason, 0])),
     rivalSuccessions: 0,
     endings: { ...Object.fromEntries(endingReasons.map((reason) => [reason, 0])), survived: 0 },
@@ -526,6 +533,9 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.heroesDied[kind] += counters.heroesDied[kind];
       totals.heroesRecruited[kind] += counters.heroesRecruited[kind];
       totals.heroesRetired[kind] += counters.heroesRetired[kind];
+      totals.traitsGained[kind] += counters.traitsGained[kind];
+      totals.traitsLost[kind] += counters.traitsLost[kind];
+      totals.questingHeroes[kind] += counters.questingHeroes[kind];
       totals.belowFloor[kind] += counters.belowFloor[kind];
       totals.floorRecovered[kind] += counters.floorRecovered[kind];
       addFields(totals.portraits[kind], counters.portraits[kind]);
@@ -1673,9 +1683,17 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
         heroRow('`hero.died`', totals.heroesDied),
         heroRow('`hero.recruited`', totals.heroesRecruited),
         heroRow('`hero.retired`', totals.heroesRetired),
+        heroRow('`hero.trait-gained`', totals.traitsGained),
+        heroRow('`hero.trait-lost`', totals.traitsLost),
+        heroRow('Heroes sent on a Quest', totals.questingHeroes),
       ],
       ['left', 'right', 'right', 'right', 'right'],
     ),
+    '',
+    // v1.1.4-S7: the epic's "Rare Traits" gate reads the Traits earned per Hero career.
+    `Traits earned per Hero career (a Hero sent on a Quest at least once): the player's ` +
+      `${ratio(totals.traitsGained.player, totals.questingHeroes.player, 3)}, the Rivals' ` +
+      `${ratio(totals.traitsGained.rival, totals.questingHeroes.rival, 3)}.`,
     '',
     markdownTable(
       ['Ending', '`game.ended` (the player)', '`guild.folded` (Rivals)'],

@@ -257,6 +257,16 @@ function narrateEngineEvent(event: EngineEvent, content: ContentSet): string {
       const left = traitKey === null ? '' : `, left ${nameIn(content.heroTraits, traitKey)}`;
       return `${hero(event, heroId)} recovered from ${nameIn(content.injuries, typeKey)}${left}.`;
     }
+    case 'hero.trait-gained': {
+      // v1.1.4-S7: an earned Trait (DL-148 item 25), named with the Encounter that gave it.
+      const { heroId, traitKey, questId, encounterKey } = event.payload;
+      return `${hero(event, heroId)} earned the Trait ${nameIn(content.heroTraits, traitKey)} on ${questId}, at ${nameIn(content.encounters, encounterKey)}.`;
+    }
+    case 'hero.trait-lost': {
+      // v1.1.4-S7: a Trait an Injury left replaced one it conflicts with (DL-150 item 5).
+      const { heroId, traitKey, replacedBy } = event.payload;
+      return `${hero(event, heroId)} lost the Trait ${nameIn(content.heroTraits, traitKey)}, replaced by ${nameIn(content.heroTraits, replacedBy)}.`;
+    }
     case 'hero.retired':
       return `${hero(event, event.payload.heroId)} retired from ${called(event, event.payload.guildId)} at ${event.payload.age}.`;
     case 'hero.declined': {

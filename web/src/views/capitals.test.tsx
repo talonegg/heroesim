@@ -3,7 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
 import { content } from '../content';
-import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withWorldNews, type Named } from '../state/game.test-support';
+import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withTraitNews, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
 import { closeMenu, openGuildPart, openMenu, openView, rosterList, section, time, type GuildPartName, type ViewName } from './page.test-support';
@@ -145,7 +145,8 @@ function busyGame(): { state: GameState; gone: Named[] } {
     guildmaster.traits = [];
   });
   // One Hero of the pool signed after the Party left, so one is at the Hall.
-  const out = withPartyOut(changed6);
+  // v1.1.4-S7: a Hero Trait with its effects on the page, and a Trait gained and one lost in the History.
+  const out = withPartyOut(withTraitNews(changed6));
   const signing = poolView(out.document as WorldDocument).rows.find((row) => row.willSign === true);
   if (signing === undefined) throw new Error('no Hero in the pool who signs');
   const recruited = played(out, { kind: 'recruit', heroId: signing.heroId });

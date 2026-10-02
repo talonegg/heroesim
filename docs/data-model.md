@@ -175,7 +175,9 @@ stats:          Record<StatKey, number>     base values only
 potential:      Record<StatKey, number>     hidden ceiling per Stat; stored plainly, the UI hides it
 skills:         Record<SkillKey, 1..5>      absent means the Hero does not have the Skill
 traits:         TraitKey[]                  Hero Traits (`hero-traits.json`), no two of which one
-                                            excludes the other (v1.1.4-S7, DL-150)
+                                            excludes the other (v1.1.4-S7, DL-150); one an Injury
+                                            leaves replaces any it conflicts with, and one earned
+                                            on a Quest joins it (`hero.trait-gained`)
 xp, level
 injury:         { typeKey, healsOnTurn } | null
 morale:         number

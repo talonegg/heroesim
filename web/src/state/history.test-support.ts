@@ -19,7 +19,8 @@ function partyOf(entry: Entry): unknown {
   return (entry.payload as { partyId?: unknown } | null)?.partyId;
 }
 
-const beside = new Set(['quest.loot', 'hero.injured', 'hero.died']);
+// v1.1.4-S7: a Trait a Hero earned on the Quest stands beside its return too.
+const beside = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);
 
 /** Whether `next`, older than `last`, is the return `last` stands beside, or another thing beside it. */
 function besideItsReturn(last: Entry | undefined, next: Entry | undefined): boolean {

@@ -108,6 +108,25 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(document.body.innerHTML).not.toMatch(/potential/i);
   });
 
+  // v1.1.4-S7 (DL-148 item 24): a Hero Trait's effects beside its name, and its Stat changes in the blocks.
+  test("gives each Trait with what it does, and a Trait's Stat change lowers the Stat where it shows", () => {
+    const state = changed(started(), (document, player) => {
+      const first = document.world.heroes[player.rosterIds[0] as never];
+      if (first === undefined) throw new Error('an empty Roster');
+      first.traits = ['lame'];
+      first.stats['dexterity'] = 12;
+    });
+    render_(state);
+    const { name, page } = openFirstHero();
+
+    const chips = within(page()).getByRole('list', { name: `${name}'s State` });
+    expect(chip(chips, 'Lame: -2 Dexterity, -1 Endurance').title).toBe('Trait');
+    const dexterity = within(within(page()).getByRole('table', { name: 'Physical' })).getByRole('rowheader', { name: 'Dexterity' }).closest('tr') as HTMLElement;
+    const [value] = within(dexterity).getAllByRole('cell');
+    expect(value?.firstChild?.textContent).toBe('10');
+    expect(value?.querySelector('.lift')?.textContent).toBe('-2 on its base of 12');
+  });
+
   test('shows the Relationships as bands, a ramp of tones, and folds those neutral both ways under their count', () => {
     const state = changed(started(), (document, player) => {
       const [first, second] = player.rosterIds;

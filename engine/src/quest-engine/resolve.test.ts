@@ -8,8 +8,10 @@ import {
   type Encounter,
   type EncounterCheck,
   type InjuryConsequence,
+  type HeroTraitEffect,
   type PassFormula,
   type SetQuery,
+  type TraitConsequence,
 } from '../content-types.js';
 import { createWorld } from '../create.js';
 import { addStack } from '../items.js';
@@ -18,6 +20,7 @@ import { streamOf } from '../generators/draw.js';
 import { chance, int, next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
 import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { capability as checkCapability } from './check.js';
 import { drawLoot } from './loot.js';
 import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
@@ -954,3 +957,237 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     expect(outcome.moraleByHero).toEqual({ [plated.id]: -25, [bare.id]: Math.round(-50 * kept) });
   });
 });
+
+// v1.1.4-S7 (DL-148 items 25 and 26, DL-150 item 5): Traits earned on a Quest, and a Trait's
+// Encounter bonus. The test content's Hero Traits, with three of the tests' own: `battle-hardened`
+// and `shaken`, which exclude each other, and `quick-study`.
+describe('earned Traits (v1.1.4-S7)', () => {
+  const trait = (key: string, excludes: string[] = []) => ({ key, name: key, excludes, effects: [] });
+  const heroTraits = {
+    ...testContent.heroTraits,
+    'battle-hardened': trait('battle-hardened', ['shaken']),
+    shaken: trait('shaken', ['battle-hardened']),
+    'quick-study': trait('quick-study'),
+  };
+  const earned = (traitKey: string, fields: Partial<TraitConsequence> = {}): TraitConsequence => ({ kind: 'trait', traitKey, chance: 1, ...fields });
+  const injury = (fields: Partial<InjuryConsequence> = {}): InjuryConsequence => ({ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1, ...fields });
+  /** An Encounter the Party of 8s always meets at a Triumph, with `triumph`. */
+  const triumphant = (key: string, triumph: Consequence[] = []): Encounter => ({ ...encounter(key, true), consequences: { success: [], failure: [], triumph } });
+  /** An Encounter the Party of 8s always fails, with `failure`. */
+  const failing = (key: string, failure: Consequence[] = []): Encounter => encounter(key, false, failure);
+
+  /** The scene through `encounters`, of `size` Heroes, each set by `set`, with no Loot unless `loot`. */
+  function earning(
+    seed: string,
+    encounters: Encounter[],
+    {
+      size = 3,
+      set = (() => undefined) as (heroes: Hero[]) => void,
+      traits = heroTraits as ContentSet['heroTraits'],
+      loot = false,
+      config = {} as Partial<EngineDeps['config']>,
+    } = {},
+  ) {
+    const s = scene(seed, { ...contentWith(...encounters), synergies: {}, heroTraits: traits }, encounters.map((it) => it.key), { size });
+    s.quest.lootTableKey = loot ? 'lesser-loot' : null;
+    set(s.heroes);
+    const deps = { ...s.deps, config: { ...s.deps.config, ...config } };
+    return { ...s, deps, resolve: () => resolveQuest(s.world, s.quest, s.party, deps) };
+  }
+
+  test('a positive Trait drawn on a Triumph is granted on a strong success, naming the Encounter, and not on a plain one', () => {
+    const strong = earning('strong', [triumphant('feat', [earned('quick-study')]), triumphant('again')]);
+    const { outcome, traits } = strong.resolve();
+    expect(outcome.band).toBe('strong');
+    expect(traits).toHaveLength(1);
+    expect(traits[0]).toMatchObject({ traitKey: 'quick-study', encounterIndex: 0, encounterKey: 'feat' });
+    expect(strong.party.heroIds).toContain(traits[0]?.heroId);
+
+    // The same Triumph, held: a third Encounter failed leaves a plain success, and nothing is granted.
+    const plain = earning('strong', [triumphant('feat', [earned('quick-study')]), triumphant('again'), failing('lost')]);
+    const resolved = plain.resolve();
+    expect(resolved.outcome.band).toBe('success');
+    expect(resolved.traits).toEqual([]);
+  });
+
+  test("takes its two draws in its place whether or not it lands, before Loot's, and a chance of 0 grants nothing", () => {
+    for (let seed = 0; seed < 10; seed += 1) {
+      const sequence = (consequences: Consequence[]) => [triumphant('feat', consequences), triumphant('again')];
+      const without = earning(`draws-${seed}`, sequence([{ kind: 'fame', delta: 1 }]), { loot: true });
+      const twin = structuredClone(without.world);
+      const lands = earning(`draws-${seed}`, sequence([earned('quick-study'), { kind: 'fame', delta: 1 }]), { loot: true });
+      const misses = earning(`draws-${seed}`, sequence([earned('quick-study', { chance: 0 }), { kind: 'fame', delta: 1 }]), { loot: true });
+
+      const plain = without.resolve();
+      const landed = lands.resolve();
+      const missed = misses.resolve();
+
+      expect(landed.traits).toHaveLength(1);
+      expect(missed.traits).toEqual([]);
+      expect(streamOf(misses.world, 'quests')).toEqual(streamOf(lands.world, 'quests'));
+      // Two Checks, then the Trait's two draws, then Loot's: a twin of the Quest without it, two draws on.
+      for (let draw = 0; draw < 2 + 2; draw += 1) next(streamOf(twin, 'quests'));
+      expect(landed.loot).toEqual(drawLoot(twin, lands.quest, 'strong', lands.deps));
+      expect(streamOf(lands.world, 'quests')).toEqual(streamOf(twin, 'quests'));
+      expect(plain.outcome).toEqual(landed.outcome);
+    }
+  });
+
+  test('with no one who may take it, still takes its two draws: all hold it, it conflicts, among names no one, or the Encounter injured no one', () => {
+    const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+    const fame: Consequence = { kind: 'fame', delta: 1 };
+    const unhurt = injury({ chance: 0 });
+    const cases: [string, (consequences: Consequence[]) => Encounter[], Consequence, (heroes: Hero[]) => void][] = [
+      ['all hold it', (it) => [triumphant('feat', it), triumphant('again')], earned('quick-study'), (heroes) => heroes.forEach((hero) => hero.traits.push('quick-study'))],
+      ['it conflicts', (it) => [triumphant('feat', it), triumphant('again')], earned('battle-hardened'), (heroes) => heroes.forEach((hero) => hero.traits.push('shaken'))],
+      ['among names no one', (it) => [triumphant('feat', it), triumphant('again')], earned('quick-study', { among: warriors }), (heroes) => heroes.forEach((hero) => (hero.classKey = 'mage'))],
+      ['the Encounter injured no one', (it) => [failing('ambush', [unhurt, ...it])], earned('shaken'), () => undefined],
+    ];
+    for (const [why, sequence, trait, set] of cases) {
+      const without = earning(`none-${why}`, sequence([fame]), { set });
+      const twin = structuredClone(without.world);
+      const plain = without.resolve();
+      const withIt = earning(`none-${why}`, sequence([trait, fame]), { set });
+      const resolved = withIt.resolve();
+
+      expect(resolved.traits, why).toEqual([]);
+      expect(resolved.outcome, why).toEqual(plain.outcome);
+      // The twin, resolved without it, then two draws on: what the Trait drew from no one.
+      resolveQuest(twin, without.quest, without.party, without.deps);
+      next(streamOf(twin, 'quests'));
+      next(streamOf(twin, 'quests'));
+      expect(streamOf(withIt.world, 'quests'), why).toEqual(streamOf(twin, 'quests'));
+    }
+  });
+
+  test("a held positive Trait does not keep a negative one from its Hero, and the negative one stands in its place on a strong success", () => {
+    // Strong at two Encounters of three at Success or better, so a Failure leaves the band strong.
+    const config = { bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 0.6 }, strongTriumphShare: 0.5 };
+    const h = earning('held-then-hurt', [triumphant('feat', [earned('quick-study')]), triumphant('again'), failing('ambush', [injury(), earned('one-eyed')])], {
+      size: 1,
+      config,
+    });
+    const { outcome, encounters, traits } = h.resolve();
+    expect(outcome.band).toBe('strong');
+    expect(encounters[2]?.injured).toEqual([h.heroes[0]?.id]);
+    expect(traits).toEqual([{ heroId: h.heroes[0]?.id, traitKey: 'one-eyed', encounterIndex: 2, encounterKey: 'ambush' }]);
+  });
+
+  test('draws whether it lands, then on whom by pick among those who may take it', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const h = earning(`whom-${seed}`, [triumphant('feat', [earned('quick-study', { chance: 0.5 })]), triumphant('again')]);
+      const twin = structuredClone(streamOf(h.world, 'quests'));
+      const { traits } = h.resolve();
+      next(twin);
+      const lands = chance(twin, 0.5);
+      const who = h.heroes[int(twin, 0, h.heroes.length - 1)] as Hero;
+      expect(traits.map((it) => it.heroId)).toEqual(lands ? [who.id] : []);
+    }
+  });
+
+  test('a negative Trait falls only on a Hero that Encounter injured', () => {
+    for (let seed = 0; seed < 20; seed += 1) {
+      const h = earning(`shaken-${seed}`, [failing('ambush', [injury(), earned('shaken')])]);
+      const { encounters, traits } = h.resolve();
+      expect(traits).toEqual([{ heroId: encounters[0]?.injured[0], traitKey: 'shaken', encounterIndex: 0, encounterKey: 'ambush' }]);
+    }
+    // No one injured by that Encounter, though one is hurt from the one before: it falls on no one.
+    const h = earning('shaken-none', [failing('ambush', [injury()]), failing('rout', [injury({ chance: 0 }), earned('shaken')])]);
+    const { encounters, traits } = h.resolve();
+    expect(encounters[0]?.injured).toHaveLength(1);
+    expect(traits).toEqual([]);
+  });
+
+  test('a negative Trait on a Failure is granted on a failed Quest, and a Hero who died on the Quest gains none', () => {
+    const hurt: SetQuery = ['where', 'party', ['hurt']];
+    const kept = earning('kept', [failing('ambush', [injury(), earned('shaken')])], { size: 1 }).resolve();
+    expect([kept.outcome.band, kept.traits.length]).toEqual(['fail', 1]);
+    const died = earning('died', [failing('ambush', [injury(), earned('shaken'), { kind: 'death', chance: 1, among: hurt }])], { size: 1 }).resolve();
+    expect(died.outcome.deaths).toHaveLength(1);
+    expect(died.traits).toEqual([]);
+  });
+
+  test('no Hero gains two in one Quest, one they hold, or one that conflicts with one they hold', () => {
+    // Two in one Quest: one Hero, three Traits drawn for certain; the first stands.
+    const one = earning('two', [triumphant('feat', [earned('quick-study'), earned('battle-hardened')]), triumphant('again', [earned('scarred')])], { size: 1 });
+    expect(one.resolve().traits.map((it) => it.traitKey)).toEqual(['quick-study']);
+    // Three Heroes, four drawn for certain: one each, to three Heroes.
+    const three = earning('each', [triumphant('feat', [earned('quick-study'), earned('battle-hardened'), earned('scarred'), earned('lame')])]);
+    const granted = three.resolve().traits;
+    expect(granted.map((it) => it.traitKey)).toEqual(['quick-study', 'battle-hardened', 'scarred']);
+    expect(new Set(granted.map((it) => it.heroId)).size).toBe(3);
+
+    // One they hold: only the Hero who lacks it may take it.
+    const held = earning('held', [triumphant('feat', [earned('quick-study')]), triumphant('again')], {
+      set: (heroes) => heroes.slice(0, 2).forEach((hero) => hero.traits.push('quick-study')),
+    });
+    expect(held.resolve().traits.map((it) => it.heroId)).toEqual([held.heroes[2]?.id]);
+    const all = earning('all-held', [triumphant('feat', [earned('quick-study')]), triumphant('again')], { set: (heroes) => heroes.forEach((hero) => hero.traits.push('quick-study')) });
+    expect(all.resolve().traits).toEqual([]);
+
+    // One that conflicts, either way round: `shaken` excludes `battle-hardened` from its own side only.
+    for (const traits of [heroTraits, { ...heroTraits, 'battle-hardened': trait('battle-hardened') }]) {
+      const shaken = earning('conflict', [triumphant('feat', [earned('battle-hardened')]), triumphant('again')], {
+        traits,
+        set: (heroes) => heroes.forEach((hero) => hero.traits.push('shaken')),
+      });
+      expect(shaken.resolve().traits).toEqual([]);
+    }
+  });
+
+  test('among names who it may fall on, and when it names no one it falls on no one', () => {
+    const warriors: SetQuery = ['where', 'party', ['class', 'warrior']];
+    const classes = (...keys: string[]) => (heroes: Hero[]) => heroes.forEach((hero, index) => (hero.classKey = keys[index] ?? hero.classKey));
+    for (let seed = 0; seed < 10; seed += 1) {
+      const h = earning(`among-${seed}`, [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'warrior', 'rogue') });
+      expect(h.resolve().traits.map((it) => it.heroId)).toEqual([h.heroes[1]?.id]);
+    }
+    const none = earning('among-none', [triumphant('feat', [earned('quick-study', { among: warriors })]), triumphant('again')], { set: classes('mage', 'mage', 'rogue') });
+    expect(none.resolve().traits).toEqual([]);
+  });
+});
+
+describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {
+  const withEffects = (key: string, effects: HeroTraitEffect[]) => ({ key, name: key, excludes: [], effects });
+  const heroTraits = {
+    ...testContent.heroTraits,
+    lame: withEffects('lame', [{ kind: 'statModifiers', modifiers: { strength: -2, endurance: -1 } }]),
+    veteran: withEffects('veteran', [{ kind: 'encounterBonus', flat: 5, kinds: ['combat'] }]),
+    'tomb-wise': withEffects('tomb-wise', [{ kind: 'encounterBonus', flat: 3, tags: ['undead'] }]),
+  };
+  const content = { ...contentWith(encounter('strength', true)), synergies: {}, heroTraits };
+
+  test("a Stat change shows in the Check: a lame Hero adds 2 less Strength to a sum", () => {
+    const s = scene('lame', content, ['strength']);
+    const party = () => queryParty(s.heroes, s.world, s.deps);
+    const check = (s.deps.content.encounters['strength'] as Encounter);
+    const before = checkCapability(party(), check, onlyCheckOf(check), s.world, s.deps);
+    (s.heroes[0] as Hero).traits.push('lame');
+    const form = party().members[0]?.form ?? 1;
+    expect(checkCapability(party(), check, onlyCheckOf(check), s.world, s.deps)).toBeCloseTo(before - 2 * form * teamwork(s.heroes, s.world, s.deps), 10);
+  });
+
+  test('an Encounter bonus applies once however many hold it, to an Encounter of its kinds or tags, and never to a raw Check', () => {
+    const s = scene('bonus', content, ['strength']);
+    const check = s.deps.content.encounters['strength'] as Encounter;
+    const at = (target: Parameters<typeof checkCapability>[1], it = onlyCheckOf(check)) => checkCapability(queryParty(s.heroes, s.world, s.deps), target, it, s.world, s.deps);
+    const plain = at(check);
+    (s.heroes[0] as Hero).traits.push('veteran');
+    expect(at(check)).toBeCloseTo(plain + 5, 10);
+    for (const hero of s.heroes) if (!hero.traits.includes('veteran')) hero.traits.push('veteran');
+    expect(at(check)).toBeCloseTo(plain + 5, 10);
+    expect(at({ kind: 'travel' })).toBeCloseTo(plain, 10);
+    // Tags: an Encounter of v1.1.4-S8's shape, sharing one, gains it; one sharing none does not.
+    (s.heroes[1] as Hero).traits.push('tomb-wise');
+    expect(at({ kind: 'combat', tags: ['crypt', 'undead'] })).toBeCloseTo(plain + 5 + 3, 10);
+    expect(at({ kind: 'combat', tags: ['crypt'] })).toBeCloseTo(plain + 5, 10);
+    // A raw Check is its score alone (DL-152).
+    const raw: EncounterCheck = { ...onlyCheckOf(check), raw: true };
+    expect(at(check, raw)).toBe(at({ kind: 'travel' }, raw));
+  });
+});
+
+/** An Encounter's one Check. */
+function onlyCheckOf(it: Encounter): EncounterCheck {
+  return it.checks[0] as EncounterCheck;
+}

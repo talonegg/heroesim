@@ -190,6 +190,9 @@ export const routineKinds: Readonly<Record<EngineEventType, string | null>> = Ob
   'hero.xp-gained': 'XP',
   'hero.morale-changed': 'Morale',
   'hero.healed': 'healing',
+  // v1.1.4-S7: a Trait gained or lost is a Milestone, so never routine.
+  'hero.trait-gained': null,
+  'hero.trait-lost': null,
   'hero.retired': null,
   'hero.declined': 'Decline',
   'game.ended': null,
@@ -285,6 +288,8 @@ export const inTheWorldHistory: Readonly<Record<EngineEventType, boolean>> = Obj
   'hero.xp-gained': false,
   'hero.morale-changed': false,
   'hero.healed': false,
+  'hero.trait-gained': false,
+  'hero.trait-lost': false,
   'hero.retired': false,
   'hero.declined': false,
   'game.ended': true,
@@ -553,8 +558,11 @@ function besideItsReturn(last: Entry | undefined, next: Entry | undefined): bool
   return next.type === 'quest.resolved' || besideAReturn.has(next.type);
 }
 
-/** The entries that stand beside a return in the player's Guild's History, after it: its Loot, Injuries and Deaths. */
-const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died']);
+/**
+ * The entries that stand beside a return in the player's Guild's History, after it: its Loot, Injuries and Deaths, and
+ * from v1.1.4-S7 the Traits its Heroes earned, written next after them.
+ */
+const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);
 
 /**
  * Where the page that starts at `start` ends, counted from the newest: `historyPageSize` entries on,

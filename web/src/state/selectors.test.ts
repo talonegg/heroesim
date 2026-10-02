@@ -1,6 +1,7 @@
 import {
   addStack,
   advance,
+  append,
   availableHeroes,
   bankruptcyCountdown,
   createItem,
@@ -11,6 +12,7 @@ import {
   estimateQuest,
   guildmasterOf,
   judgedHintBands,
+  milestoneTypes,
   nightOf,
   partyFor,
   playerGuild,
@@ -661,6 +663,24 @@ describe('heroPage', () => {
     expect(page).not.toHaveProperty('history');
   });
 
+  // v1.1.4-S7 (DL-148 item 27, DL-150 item 5): a Trait gained or lost is a Milestone, on the Hero's page.
+  test("shows a Trait gained and a Trait lost among its Milestones, in the History's words", () => {
+    const document = structuredClone(newGame());
+    const [hero] = heroes(document);
+    if (hero === undefined) throw new Error('no Hero');
+    const guildId = player(document).id;
+    const questId = 'quest-000900' as QuestId;
+    const at = (turn: number, type: 'hero.trait-gained' | 'hero.trait-lost', payload: object) =>
+      append(document.history, { turn, type, participants: [hero.id, guildId], labels: { [hero.id]: hero.name }, milestone: milestoneTypes[type], payload } as never);
+    at(document.world.turn, 'hero.trait-gained', { heroId: hero.id, traitKey: 'lame', questId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' });
+    at(document.world.turn, 'hero.trait-lost', { heroId: hero.id, traitKey: 'lame', replacedBy: 'one-eyed' });
+
+    const sentences = heroPage(document, hero.id)?.milestones.map((line) => line.sentence) ?? [];
+
+    expect(sentences).toContain(`${hero.name} lost the Trait Lame, replaced by One-eyed.`);
+    expect(sentences.some((sentence) => sentence.startsWith(`${hero.name} earned the Trait Lame on `))).toBe(true);
+  });
+
   test("gives the Hero's sex for their Portrait, and no Portrait's key: every Hero shows the Silhouette of their sex (DL-125 items 2 and 4)", () => {
     const document = newGame();
     for (const hero of Object.values(document.world.heroes)) {
@@ -712,7 +732,8 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
       where: { why: 'injured', words: 'Injured, healing on the night of Day 6' },
       injury: content.injuries['deep-cut']?.name,
       xp: 45,
-      traits: [content.heroTraits.scarred?.name ?? 'scarred'],
+      // v1.1.4-S7: each Trait with what it does, in `traitEffectWords`.
+      traits: [{ name: content.heroTraits.scarred?.name ?? 'scarred', effect: '+1 Courage, -1 Charisma' }],
       fee: null,
     });
     expect(heroPage(document, other.id)).toMatchObject({ where: { why: null, words: 'At the Hall' }, injury: null, traits: [] });
@@ -743,6 +764,11 @@ describe("a Hero's page as a header line and chips (M9-S6, DL-106)", () => {
     expect(stat('Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
     expect(stat('Arcana')).toMatchObject({ value: base('arcana') - 1, lift: { words: '-1', up: false } });
     expect(stat('Wits')).toMatchObject({ value: base('wits'), lift: null });
+    // v1.1.4-S7 (DL-148 item 24): a Hero Trait's Stat change shows where the Stat shows, as gear's does.
+    hero.traits = ['lame' as never];
+    const lame = heroPage(document, hero.id)?.areas.flatMap((area) => area.stats) ?? [];
+    expect(lame.find((row) => row.name === 'Dexterity')).toMatchObject({ value: Math.max(1, base('dexterity') - 2), lift: { words: '-2', up: false } });
+    expect(lame.find((row) => row.name === 'Strength')).toMatchObject({ value: base('strength') + 1, lift: { words: '+1', up: true } });
     expect(JSON.stringify(areas)).not.toMatch(/potential/i);
   });
 

@@ -98,8 +98,10 @@ export const contentSetId = 'core';
  * 22 from v1.1.4-S6, which gives each Disposition its `partyMargin` (DL-157).
  * 23 from v1.1.4-S7, which moves `traits.json` into `guildmaster-traits.json` and `hero-traits.json`,
  * each Trait's `effect` into `effects`, a list, and drops `owner` (DL-158); the same games are played.
+ * 24 from v1.1.4-S7's second step, which gives the four Injury Traits their `statModifiers` (DL-148
+ * item 24, DL-159).
  */
-export const contentVersion = 23;
+export const contentVersion = 24;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -131,7 +133,7 @@ export type ContentFileName = (typeof contentFiles)[number];
 const statAreas: Record<StatArea, true> = { physical: true, mental: true, magical: true, social: true };
 const statOwners: Record<StatOwner, true> = { hero: true, guildmaster: true };
 const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { classStatBonus: true, guildMoraleShift: true, upkeepFactor: true };
-const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = {};
+const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = { statModifiers: true, encounterBonus: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
 const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
@@ -144,6 +146,7 @@ const consequenceKinds: Record<ConsequenceKind, true> = {
   xp: true,
   wealth: true,
   fame: true,
+  trait: true,
 };
 const regardBetween: Record<'party', true> = { party: true };
 const itemKinds: Record<ItemKind, true> = { gear: true, consumable: true };
@@ -216,7 +219,7 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     heroTraits: table<HeroTrait>('hero-traits.json', json('hero-traits.json'), problems, 'a Hero Trait', (row) => ({
       name: row.string('name'),
       excludes: row.strings('excludes'),
-      effects: row.children('effects').flatMap(heroTraitEffect),
+      effects: row.children('effects').map(heroTraitEffect),
     })),
     backgrounds: table<Background>(
       'backgrounds.json',
@@ -629,13 +632,26 @@ function guildmasterTraitEffect(reader: RowReader): GuildmasterTraitEffect {
 }
 
 /**
- * One of a Hero Trait's `effects` (v1.1.4-S7, DL-150 item 8): no kind is defined yet, so `oneOf`
- * refuses every one, and it reads as none. S7's next step adds `statModifiers` and `encounterBonus`
- * to `HeroTraitEffect` and reads each here, as `guildmasterTraitEffect` reads a Guildmaster Trait's.
+ * One of a Hero Trait's `effects` (v1.1.4-S7, DL-150 item 8): one of the closed union's kinds with
+ * exactly its fields, an `encounterBonus`'s `kinds` and `tags` each optional. The values, and that an
+ * Encounter bonus names a kind or a tag, are `validateContent`'s rules.
  */
-function heroTraitEffect(reader: RowReader): HeroTraitEffect[] {
-  reader.oneOf('kind', heroTraitEffectKinds);
-  return [];
+function heroTraitEffect(reader: RowReader): HeroTraitEffect {
+  const kind = reader.oneOf('kind', heroTraitEffectKinds);
+  let effect: HeroTraitEffect;
+  switch (kind) {
+    case 'statModifiers':
+      effect = { kind, modifiers: reader.numbers('modifiers') };
+      break;
+    case 'encounterBonus': {
+      const kinds = reader.optional('kinds', (field) => reader.oneOfEach(field, encounterKinds));
+      const tags = reader.optional('tags', (field) => reader.strings(field));
+      effect = { kind, flat: reader.number('flat'), ...(kinds === undefined ? {} : { kinds }), ...(tags === undefined ? {} : { tags }) };
+      break;
+    }
+  }
+  reader.refuseUnknown(`a ${kind} effect`);
+  return effect;
 }
 
 /**
@@ -813,7 +829,7 @@ function outcomes(reader: RowReader): Encounter['consequences'] {
 /**
  * One consequence: its `kind`, then the fields that kind has, and no others (M4-S1). An Injury and a
  * Death may also name `among` (a Set Query, held by `validateContent`), `exposedBy` and `guardedBy`,
- * and a Morale `steadiedBy` (v1.1.4-S4, DL-148 item 14).
+ * and a Morale `steadiedBy` (v1.1.4-S4, DL-148 item 14); an earned Trait `among` (v1.1.4-S7).
  */
 function consequence(reader: RowReader): Consequence {
   const kind = reader.oneOf('kind', consequenceKinds);
@@ -834,6 +850,11 @@ function consequence(reader: RowReader): Consequence {
         return { kind, factor: reader.number('factor') };
       case 'fame':
         return { kind, delta: reader.integer('delta') };
+      case 'trait': {
+        // v1.1.4-S7: an earned Trait; its `among` is a Set Query, held by `validateContent` as harm's is.
+        const among = reader.optional('among', (field) => reader.value(field) as SetQuery);
+        return { kind, traitKey: reader.string('traitKey'), chance: reader.number('chance'), ...(among === undefined ? {} : { among }) };
+      }
     }
   })();
   reader.refuseUnknown(`a consequence of kind ${kind}`);
@@ -903,7 +924,7 @@ class RowReader {
     const value = this.field(field);
     if (typeof value === 'string' && Object.hasOwn(choices, value)) return value as Choice;
     const listed = Object.keys(choices);
-    this.wrong(field, value, listed.length === 0 ? 'none: no kind is defined yet' : `one of ${listed.join(', ')}`);
+    this.wrong(field, value, listed.length === 0 ? 'none: there is nothing to choose from' : `one of ${listed.join(', ')}`);
     return Object.keys(choices)[0] as Choice;
   }
 

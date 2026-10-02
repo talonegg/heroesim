@@ -387,6 +387,28 @@ describe('the entry reads its Hero lines without building the whole report (M9-F
   });
 });
 
+describe('a Trait earned on the Quest (v1.1.4-S7, DL-148 items 25 and 27)', () => {
+  test("is in the report's line of the Hero who earned it, and a Milestone that stands beside the return in the player's Guild's History", () => {
+    const written = withReturn(base, {
+      band: 'fail',
+      encounters: [{ outcome: 'failure', injured: [1] }],
+      injuries: [{ hero: 1, typeKey: 'deep-cut', healsOnTurn: 9999 }],
+      traits: [{ hero: 1, traitKey: 'one-eyed', encounterIndex: 0 }],
+    });
+    const [first, second] = read(written).outcomes;
+    expect(second?.trait).toBe(content.heroTraits['one-eyed']?.name);
+    expect(second?.words).toContain(`earned the Trait ${content.heroTraits['one-eyed']?.name}`);
+    expect(first?.trait).toBeNull();
+
+    const after = documentOf(written);
+    const guild = playerGuild(after.world);
+    if (guild === undefined) throw new Error("no player's Guild");
+    const night = after.history.entries.filter((entry) => entry.turn === written.turn && historyFilter(after, guild.id)(entry));
+    expect(night.map((entry) => entry.type)).toEqual(['quest.resolved', 'hero.injured', 'hero.trait-gained']);
+    expect(night.at(-1)?.milestone).toBe(true);
+  });
+});
+
 describe('the player’s Guild’s History gathers a return’s parts under its entry (M9-F5, DL-113 item 1; M9-F7, DL-120 item 6)', () => {
   test('its Encounters, consumables, the dead’s gear, and its Heroes’ Levels that night; not a Level at home that night, nor the Loot; its Injuries and Deaths stand out beside it', () => {
     const document = base.document as WorldDocument;

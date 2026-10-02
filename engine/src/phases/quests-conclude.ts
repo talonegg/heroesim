@@ -6,7 +6,8 @@
 // `quest.resolved`; any Loot to the Guild's holding with `quest.loot` (M5-S5, quest-engine/loot.ts,
 // DL-52); the Guild's Wealth and Fame move (Fame's floor is the Guild State Engine's, later the same
 // night); a Hero injured carries the Injury until its night; a Hero who died leaves
-// the Roster and keeps their row (data-model rule 8); each Hero who came home gains the XP; Morale
+// the Roster and keeps their row (data-model rule 8); each Trait a Hero earned joins their Traits,
+// with `hero.trait-gained` (v1.1.4-S7, DL-148 item 25); each Hero who came home gains the XP; Morale
 // moves by each Hero's own of the Encounters' Morale (v1.1.4-S4), on a strong success and on a Death in the Roster, each change
 // emitting `hero.morale-changed`; the Patron's and the Guildmaster's Regard move, once for the
 // resolved Quest (M4-S5, regard.ts, events only on a band crossing); each Hero home alive gains
@@ -103,6 +104,18 @@ function conclude(world: World, ctx: PhaseContext, { party, guild, quest, resolu
     hero.partyId = null;
     guild.rosterIds = guild.rosterIds.filter((id) => id !== heroId);
     events.push(emit({ type: 'hero.died', participants: [heroId, quest.id], payload: { heroId, questId: quest.id } }));
+  }
+
+  // v1.1.4-S7: the Traits the Heroes earned, a Milestone each; the resolver drew them only for those who may take them.
+  for (const { heroId, traitKey, encounterIndex, encounterKey } of resolution.traits) {
+    row(world.heroes, heroId).traits.push(traitKey);
+    events.push(
+      emit({
+        type: 'hero.trait-gained',
+        participants: [heroId, quest.id],
+        payload: { heroId, traitKey, questId: quest.id, encounterIndex, encounterKey },
+      }),
+    );
   }
 
   const survivors = heroes.filter((hero) => hero.diedOnTurn === null);

@@ -7,6 +7,7 @@ import type {
   Consequence,
   ConsumableEffect,
   ContentSet,
+  Degree,
   Descriptions,
   EncounterCheck,
   EncounterKind,
@@ -883,10 +884,27 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
     if (encounter.pass !== undefined) checkPass(`${where}.pass`, encounter.pass, checks.map((it) => it.key), problems);
     else if (checks.length > 1) problems.push(`${where}.pass is missing: an Encounter of several Checks combines them by a pass formula`);
     for (const degree of ['success', 'failure', 'triumph', 'setback'] as const) {
-      encounter.consequences[degree]?.forEach((consequence, index) => {
-        checkConsequence(`${where}.consequences.${degree}.${index}`, consequence, set, keys, problems);
+      encounter.consequences[degree]?.forEach((consequence, index, list) => {
+        const at = `${where}.consequences.${degree}.${index}`;
+        checkConsequence(at, consequence, set, keys, problems);
+        if (consequence.kind === 'trait') checkEarnedTraitPlace(at, degree, list.slice(0, index), problems);
       });
     }
+  }
+}
+
+/**
+ * Where an earned Trait stands (v1.1.4-S7, DL-148 item 25): its list says what it is, so it stands
+ * in an Encounter's `triumph` list, a positive Trait granted on a strong success, or its `failure`
+ * list, a negative one; never in `success`, which a Triumph without a list of its own reads too, nor
+ * in `setback`. A negative Trait falls only among the Heroes the same Encounter injured, so an Injury
+ * comes before it in its list.
+ */
+function checkEarnedTraitPlace(at: string, degree: Degree, before: readonly Consequence[], problems: string[]): void {
+  if (degree === 'success' || degree === 'setback') {
+    problems.push(`${at}: an earned Trait stands in the triumph list, a positive one, or the failure list, a negative one; not in ${degree}`);
+  } else if (degree === 'failure' && !before.some((it) => it.kind === 'injury')) {
+    problems.push(`${at}: a negative Trait falls only among the Heroes this Encounter injured, so an Injury comes before it in the failure list`);
   }
 }
 
@@ -987,6 +1005,11 @@ function checkConsequence(where: string, consequence: Consequence, set: ContentS
     case 'regard':
     case 'fame':
       return;
+    case 'trait':
+      if (!Object.hasOwn(set.heroTraits, consequence.traitKey)) problems.push(`${where}.traitKey: "${consequence.traitKey}" is not a Hero Trait`);
+      probability(consequence.chance);
+      if (consequence.among !== undefined) checkQuery(`${where}.among`, consequence.among, 'set', keys, problems);
+      return;
   }
 }
 
@@ -1011,9 +1034,12 @@ function checkStatList(where: string, statKeys: readonly string[], keys: QueryKe
  * number, a buff's positive and a penalty's negative, though the sign is the author's to choose.
  *
  * Effects (M4-S5, pre-M0 review B2, DL-43; DL-150 item 2): a Guildmaster Trait carries one or more,
- * each of the closed union; a Hero Trait none or more, of a union no kind joins until S7's next step.
+ * each of the closed union; a Hero Trait none or more, of its own union (v1.1.4-S7, DL-150 item 8).
  * A `classStatBonus` names a Class and a Hero Stat and moves it by a whole number other than 0; a
- * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0.
+ * `guildMoraleShift` moves the baseline by a number other than 0; an `upkeepFactor` is above 0. A
+ * `statModifiers` moves one or more Hero Stats, each by a whole number other than 0, as gear's do; an
+ * `encounterBonus` adds a number other than 0, a bonus or a penalty, on the Encounter kinds it names,
+ * none twice, or the tags it names, each kebab-case and none twice, and names at least one of either.
  */
 function checkTraits(
   set: Pick<ContentSet, 'guildmasterTraits' | 'heroTraits'>,
@@ -1055,6 +1081,33 @@ function checkTraits(
             problems.push(`${at}.factor is ${effect.factor}; it is a number above 0`);
           }
           break;
+      }
+    }
+  }
+
+  for (const [key, trait] of Object.entries(set.heroTraits)) {
+    for (const [index, effect] of trait.effects.entries()) {
+      const at = `heroTraits.${key}.effects.${index}`;
+      switch (effect.kind) {
+        case 'statModifiers': {
+          const modifiers = Object.entries(effect.modifiers);
+          if (modifiers.length === 0) problems.push(`${at}.modifiers is empty: a statModifiers effect moves at least one Stat`);
+          for (const [statKey, delta] of modifiers) {
+            if (!heroStats.has(statKey)) problems.push(`${at}.modifiers: "${statKey}" is not a Hero Stat`);
+            if (!(Number.isInteger(delta) && delta !== 0)) problems.push(`${at}.modifiers.${statKey} is ${delta}; it is a whole number other than 0`);
+          }
+          break;
+        }
+        case 'encounterBonus': {
+          if (!(Number.isFinite(effect.flat) && effect.flat !== 0)) problems.push(`${at}.flat is ${effect.flat}; it is a number other than 0`);
+          const kinds = effect.kinds ?? [];
+          const tags = effect.tags ?? [];
+          if (kinds.length + tags.length === 0) problems.push(`${at} names no Encounter kind and no tag: it adds to the Encounters it names`);
+          for (const kind of repeated(kinds)) problems.push(`${at}.kinds: "${kind}" is listed twice`);
+          for (const tag of tags) if (!kebabCase.test(tag)) problems.push(`${at}.tags: "${tag}" is not kebab-case`);
+          for (const tag of repeated(tags)) problems.push(`${at}.tags: "${tag}" is listed twice`);
+          break;
+        }
       }
     }
   }

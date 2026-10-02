@@ -7,6 +7,7 @@ import type { MoraleBand, RegardBand } from './config.js';
 import type {
   ClassKey,
   Degree,
+  EncounterKey,
   ImprovementKey,
   InjuryTypeKey,
   ItemDefinitionKey,
@@ -328,6 +329,24 @@ export type HeroMoraleChanged = Entry<
 
 /** A Hero's Injury healed, leaving the Trait `traitKey` if it left one they lacked. Names the Hero. */
 export type HeroHealed = Entry<'hero.healed', { heroId: HeroId; typeKey: InjuryTypeKey; traitKey: TraitKey | null }>;
+
+/**
+ * A Hero earned the Hero Trait `traitKey` on a Quest (v1.1.4-S7, DL-148 items 25 and 27), from the
+ * consequence of its Encounter `encounterKey`, the `encounterIndex`th of the sequence from 0: a
+ * positive Trait on a strong success, or a negative one beside an Injury. A Milestone, positive or
+ * negative, naming the Hero and the Quest.
+ */
+export type HeroTraitGained = Entry<
+  'hero.trait-gained',
+  { heroId: HeroId; traitKey: TraitKey; questId: QuestId; encounterIndex: number; encounterKey: EncounterKey }
+>;
+
+/**
+ * A Hero lost the Hero Trait `traitKey`, replaced by `replacedBy`, a Trait an Injury left as it
+ * healed, which excludes it or is excluded by it (v1.1.4-S7, DL-150 item 5): the wound is a fact of
+ * the body. Emitted after the `hero.healed` that left `replacedBy`. A Milestone, naming the Hero.
+ */
+export type HeroTraitLost = Entry<'hero.trait-lost', { heroId: HeroId; traitKey: TraitKey; replacedBy: TraitKey }>;
 
 /**
  * A Hero retired at a yearly check, at `age`: off the Roster, the row kept with `retiredOnTurn`. A
@@ -667,6 +686,8 @@ export type EngineEvent =
   | HeroXpGained
   | HeroMoraleChanged
   | HeroHealed
+  | HeroTraitGained
+  | HeroTraitLost
   | HeroRetired
   | HeroDeclined
   | GameEnded
@@ -726,6 +747,8 @@ export const milestoneTypes: Readonly<Record<EngineEventType, boolean>> = Object
   'hero.xp-gained': false,
   'hero.morale-changed': false,
   'hero.healed': false,
+  'hero.trait-gained': true,
+  'hero.trait-lost': true,
   'hero.retired': true,
   'hero.declined': false,
   'game.ended': true,

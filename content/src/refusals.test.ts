@@ -1719,13 +1719,73 @@ describe('a file', () => {
     expect(refusalOf(() => parseContent(withJson('guildmaster-traits.json', change))).message).toMatch(message);
   });
 
-  // v1.1.4-S7: a Hero Trait in `hero-traits.json` has no cost, effects of no kind yet, and exclusions
-  // of Hero Traits, both ways (DL-150 items 1 to 3).
+  // v1.1.4-S7: a Hero Trait in `hero-traits.json` has no cost, effects of its own list's kinds, and
+  // exclusions of Hero Traits, both ways (DL-150 items 1 to 3 and 8).
   const heroTraitRefusals: [string, (json: Files['hero-traits.json']) => void, RegExp][] = [
     [
-      'an effect, of a kind no Hero Trait has yet',
+      "an effect of a Guildmaster Trait's kind",
       (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'guildMoraleShift', delta: -1 }] }),
-      /hero-traits\.json: scarred\.effects\.0\.kind is "guildMoraleShift"; expected none: no kind is defined yet/,
+      /hero-traits\.json: scarred\.effects\.0\.kind is "guildMoraleShift"; expected one of statModifiers, encounterBonus/,
+    ],
+    [
+      'a statModifiers naming a Stat content lacks',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { agility: -2 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers: "agility" is not a Hero Stat/,
+    ],
+    [
+      'a statModifiers naming a Guildmaster Stat',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { judgement: -2 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers: "judgement" is not a Hero Stat/,
+    ],
+    [
+      'a statModifiers by a part of a point',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: -1.5 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers\.dexterity is -1\.5; it is a whole number other than 0/,
+    ],
+    [
+      'a statModifiers by 0',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: 0 } }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers\.dexterity is 0; it is a whole number other than 0/,
+    ],
+    [
+      'a statModifiers that moves no Stat',
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: {} }] }),
+      /heroTraits\.lame\.effects\.0\.modifiers is empty: a statModifiers effect moves at least one Stat/,
+    ],
+    [
+      "a statModifiers with an Encounter bonus's field",
+      (json) => Object.assign(json['lame'] ?? {}, { effects: [{ kind: 'statModifiers', modifiers: { dexterity: -2 }, flat: 2 }] }),
+      /hero-traits\.json: lame\.effects\.0\.flat is not a field of a statModifiers effect/,
+    ],
+    [
+      'an encounterBonus naming no kind and no tag',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2 }] }),
+      /heroTraits\.scarred\.effects\.0 names no Encounter kind and no tag: it adds to the Encounters it names/,
+    ],
+    [
+      'an encounterBonus of 0',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 0, kinds: ['combat'] }] }),
+      /heroTraits\.scarred\.effects\.0\.flat is 0; it is a number other than 0/,
+    ],
+    [
+      'an encounterBonus on a kind that is not one',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['naval'] }] }),
+      /hero-traits\.json: scarred\.effects\.0\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/,
+    ],
+    [
+      'an encounterBonus naming a kind twice',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['combat', 'combat'] }] }),
+      /heroTraits\.scarred\.effects\.0\.kinds: "combat" is listed twice/,
+    ],
+    [
+      'an encounterBonus on a tag that is not kebab-case',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, tags: ['Undead'] }] }),
+      /heroTraits\.scarred\.effects\.0\.tags: "Undead" is not kebab-case/,
+    ],
+    [
+      'an encounterBonus naming a tag twice',
+      (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, tags: ['undead', 'undead'] }] }),
+      /heroTraits\.scarred\.effects\.0\.tags: "undead" is listed twice/,
     ],
     ['effects missing', (json) => Reflect.deleteProperty(json['scarred'] ?? {}, 'effects'), /hero-traits\.json: scarred\.effects is missing; expected a list of objects/],
     ['a cost, which only a Guildmaster Trait has', (json) => Object.assign(json['scarred'] ?? {}, { cost: 0 }), /hero-traits\.json: scarred\.cost is not a field of a Hero Trait/],
@@ -1750,6 +1810,17 @@ describe('a file', () => {
 
   test.each(heroTraitRefusals)('with %s is refused, naming the Trait (v1.1.4-S7)', (_, change, message) => {
     expect(refusalOf(() => parseContent(withJson('hero-traits.json', change))).message).toMatch(message);
+  });
+
+  test("a Hero Trait's effects of both kinds load as written: Stat changes naming several Stats, and an Encounter bonus by kinds, by tags or both (v1.1.4-S7)", () => {
+    const effects = [
+      { kind: 'statModifiers', modifiers: { dexterity: -2, endurance: -1 } },
+      { kind: 'encounterBonus', flat: -3, kinds: ['combat', 'travel'] },
+      { kind: 'encounterBonus', flat: 2, tags: ['undead'] },
+      { kind: 'encounterBonus', flat: 1, kinds: ['social'], tags: ['court'] },
+    ];
+    const files = withJson('hero-traits.json', (json) => void Object.assign(json['lame'] ?? {}, { effects }));
+    expect(parseContent(files).heroTraits.lame?.effects).toEqual(effects);
   });
 
   test('a Hero Trait may exclude another that excludes it in return (v1.1.4-S7, DL-150 item 3)', () => {
@@ -2021,6 +2092,56 @@ describe('harm that reads the Stats (v1.1.4-S4)', () => {
     );
     expect(refusalOf(() => parseContent(failing({ kind: 'morale', delta: -1, among: 'party' }))).message).toMatch(
       read('0.among is not a field of a consequence of kind morale'),
+    );
+  });
+});
+
+// v1.1.4-S7 (DL-148 item 25, DL-159): an earned Trait, `{ kind: "trait", traitKey, chance, among }`.
+// Its list says what it is: a positive Trait in an Encounter's `triumph` list, a negative one in its
+// `failure` list after an Injury; it stands in no other. Each refusal names its path.
+describe('an earned Trait (v1.1.4-S7)', () => {
+  type Lists = Partial<Record<'success' | 'failure' | 'triumph' | 'setback', Record<string, unknown>[]>>;
+  /** The real files with `ambush-on-the-road`'s consequences as given. */
+  const consequences = (lists: Lists) =>
+    withJson('encounters.json', (json) => {
+      const ambush = json['ambush-on-the-road'] as EncounterRow;
+      ambush.consequences = { success: [], failure: [], ...lists } as never;
+    });
+  const injury = { kind: 'injury', typeKey: 'deep-cut', chance: 0.2, count: 1 };
+  const trait = { kind: 'trait', traitKey: 'scarred', chance: 0.1 };
+  const escaped = (rest: string) => rest.replace(/[.[\]()"]/g, (char) => `\\${char}`);
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.consequences\\.${escaped(rest)}`);
+
+  test('loads as written, a positive one on a Triumph and a negative one after an Injury, `among` a Set Query or absent', () => {
+    const among = ['where', 'party', ['class', 'warrior']];
+    const files = consequences({ triumph: [{ ...trait, among }], failure: [injury, trait] });
+    const ambush = parseContent(files).encounters['ambush-on-the-road'];
+    expect(ambush?.consequences.triumph).toEqual([{ ...trait, among }]);
+    expect(ambush?.consequences.failure).toEqual([injury, trait]);
+  });
+
+  test.each<[string, Lists, RegExp]>([
+    ['a Trait content lacks', { triumph: [{ ...trait, traitKey: 'lucky' }] }, at('triumph.0.traitKey: "lucky" is not a Hero Trait')],
+    ['a Guildmaster Trait', { triumph: [{ ...trait, traitKey: 'miser' }] }, at('triumph.0.traitKey: "miser" is not a Hero Trait')],
+    ['a chance above 1', { triumph: [{ ...trait, chance: 1.5 }] }, at('triumph.0.chance is 1.5; it is a probability from 0 to 1')],
+    ['an among that is not a Set', { triumph: [{ ...trait, among: ['count', 'party'] }] }, at('triumph.0.among: "count" makes a Num, where a Set is expected')],
+    ['one in the success list', { success: [trait] }, at('success.0: an earned Trait stands in the triumph list, a positive one, or the failure list, a negative one; not in success')],
+    ['one in the setback list', { setback: [injury, trait] }, at('setback.1: an earned Trait stands in the triumph list, a positive one, or the failure list, a negative one; not in setback')],
+    [
+      'a negative one with no Injury before it',
+      { failure: [trait, injury] },
+      at('failure.0: a negative Trait falls only among the Heroes this Encounter injured, so an Injury comes before it in the failure list'),
+    ],
+  ])('with %s is refused, naming its path', (_, lists, problem) => {
+    expect(refusalOf(() => parseContent(consequences(lists))).message).toMatch(problem);
+  });
+
+  test("a field it lacks is refused as the file is read: a count, an Injury's exposedBy", () => {
+    expect(refusalOf(() => parseContent(consequences({ triumph: [{ ...trait, count: 1 }] }))).message).toMatch(
+      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.count is not a field of a consequence of kind trait/,
+    );
+    expect(refusalOf(() => parseContent(consequences({ triumph: [{ ...trait, exposedBy: ['dexterity'] }] }))).message).toMatch(
+      /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.exposedBy is not a field of a consequence of kind trait/,
     );
   });
 });

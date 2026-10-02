@@ -1,7 +1,7 @@
-import { advance, createWorld, defaultConfig, playerGuild, rankings, type Guild, type Hero, type WorldDocument } from '@heroesim/engine';
+import { advance, baseStat, createWorld, defaultConfig, playerGuild, rankings, type Guild, type Hero, type TraitEffect, type WorldDocument } from '@heroesim/engine';
 import { loadContent } from '@heroesim/content/node';
 import { describe, expect, test } from 'vitest';
-import { renderCountdown, renderGuildmaster, renderGuilds, renderHero, renderRankings, renderSummary, table } from './render.js';
+import { renderCountdown, renderGuildmaster, renderGuilds, renderHero, renderRankings, renderSummary, table, traitEffectWords } from './render.js';
 
 test('a table aligns its columns, numbers to the right, and leaves no trailing space', () => {
   const lines = table(
@@ -163,5 +163,39 @@ describe('the Sex values, capitalised (M9-F1)', () => {
       const guild = playerGuild(document.world) as Guild;
       expect(sexLine(renderGuildmaster(guild, document, playDeps(document)))?.split(/\s+/)).toEqual(['Sex', word]);
     }
+  });
+});
+
+// v1.1.4-S7: a Trait's effects in words, each in the Trait's order, and a Hero's Traits with theirs.
+describe("a Trait's effects in words (v1.1.4-S7)", () => {
+  test('several effects, of either list, are each worded and joined by commas, in order', () => {
+    const effects: TraitEffect[] = [
+      { kind: 'statModifiers', modifiers: { dexterity: -2, endurance: -1 } },
+      { kind: 'encounterBonus', flat: 2, kinds: ['combat', 'travel'] },
+      { kind: 'encounterBonus', flat: -1, tags: ['undead'] },
+      { kind: 'upkeepFactor', factor: 0.9 },
+    ];
+    expect(traitEffectWords(effects, content)).toBe(
+      '-2 Dexterity, -1 Endurance, +2 to every Check of combat or travel Encounters, -1 to every Check of Encounters tagged undead, Upkeep ×0.9',
+    );
+  });
+
+  test('none is "no effect"', () => {
+    expect(traitEffectWords([], content)).toBe('no effect');
+  });
+
+  test("show hero gives each Trait with what it does, and its Stat changes in the effective Stats", () => {
+    const document = newGame();
+    const hero = Object.values(document.world.heroes).find((it) => it.guildId !== null && it.traits.length === 0) as Hero;
+    const dexterity = content.stats.dexterity;
+    if (dexterity === undefined) throw new Error('no Dexterity');
+    const before = baseStat(hero.stats, dexterity);
+    hero.traits = ['lame'];
+
+    const lines = renderHero(hero, document, playDeps(document));
+
+    expect(lines.find((line) => line.startsWith('Traits'))?.replace(/\s+/, ' ')).toBe('Traits Lame (-2 Dexterity, -1 Endurance)');
+    const row = lines.find((line) => line.includes(' Dexterity '));
+    expect(row?.trim().split(/\s+/).slice(-3, -1)).toEqual([String(before), String(Math.max(1, before - 2))]);
   });
 });

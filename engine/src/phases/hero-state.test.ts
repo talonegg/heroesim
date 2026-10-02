@@ -98,6 +98,62 @@ describe('healing', () => {
     expect(hero(world, heroId).traits).toEqual(['scarred']);
   });
 
+  // v1.1.4-S7 (DL-150 item 5): the wound is a fact of the body.
+  test("a Trait an Injury leaves replaces each held one it conflicts with, either way round, with hero.trait-lost, a Milestone, after hero.healed", () => {
+    const base = testDeps();
+    const trait = (key: string, excludes: string[]) => ({ key, name: key, excludes, effects: [] });
+    // `scarred` excludes `fearless`; `vain` excludes `scarred` only from its own side, which the rule reads too.
+    const content = {
+      ...base.content,
+      heroTraits: {
+        ...base.content.heroTraits,
+        scarred: trait('scarred', ['fearless']),
+        fearless: trait('fearless', ['scarred']),
+        vain: trait('vain', ['scarred']),
+        lucky: trait('lucky', []),
+      },
+    };
+    const deps = testDeps({}, content);
+    const { world } = created('replaced', deps);
+    const [heroId] = rosterOf(world) as [HeroId];
+    hero(world, heroId).traits = ['fearless', 'lucky', 'vain'];
+    hero(world, heroId).injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(1) };
+
+    const events = night(world, 1, deps).filter((event) => event.type === 'hero.healed' || event.type === 'hero.trait-lost');
+
+    expect(hero(world, heroId).traits).toEqual(['lucky', 'scarred']);
+    expect(events.map((event) => [event.type, event.payload, event.milestone])).toEqual([
+      ['hero.healed', { heroId, typeKey: 'deep-cut', traitKey: 'scarred' }, false],
+      ['hero.trait-lost', { heroId, traitKey: 'fearless', replacedBy: 'scarred' }, true],
+      ['hero.trait-lost', { heroId, traitKey: 'vain', replacedBy: 'scarred' }, true],
+    ]);
+    expect(events[1]?.participants).toEqual([heroId, (playerGuild(world) as Guild).id]);
+  });
+
+  test('a Trait already held replaces nothing, and one that conflicts with nothing held loses nothing', () => {
+    const base = testDeps();
+    const content = {
+      ...base.content,
+      heroTraits: {
+        ...base.content.heroTraits,
+        scarred: { key: 'scarred', name: 'Scarred', excludes: ['fearless'], effects: [] },
+        fearless: { key: 'fearless', name: 'Fearless', excludes: ['scarred'], effects: [] },
+      },
+    };
+    const deps = testDeps({}, content);
+    const { world } = created('kept', deps);
+    const [first, second] = rosterOf(world) as [HeroId, HeroId];
+    hero(world, first).traits = ['scarred'];
+    hero(world, second).traits = ['lame'];
+    for (const heroId of [first, second]) hero(world, heroId).injury = { typeKey: 'deep-cut', healsOnTurn: nightOf(1) };
+
+    const events = night(world, 1, deps);
+
+    expect(ofType(events, 'hero.trait-lost')).toEqual([]);
+    expect(hero(world, first).traits).toEqual(['scarred']);
+    expect(hero(world, second).traits).toEqual(['lame', 'scarred']);
+  });
+
   test('a type content no longer defines heals on its night and leaves nothing (data-model rule 5)', () => {
     const deps = testDeps();
     const { world } = created('unknown-injury', deps);

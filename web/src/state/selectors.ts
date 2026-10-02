@@ -760,7 +760,8 @@ export interface HeroPageView {
   /** The Injury's name, while they have one; `where` says when it heals. */
   injury: string | null;
   xp: number;
-  traits: string[];
+  /** Each Trait the Hero holds, by name, with what its effects do in words (v1.1.4-S7, `traitEffectWords`). */
+  traits: { name: string; effect: string }[];
   /** What the player's Guild would pay to take in a Hero on another Guild's Roster (`transferFee`); `null` otherwise. */
   fee: number | null;
   /** The Stats by area, each area a block on the page (M9-S6, the review's B7). */
@@ -961,7 +962,7 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
     where: { why: unavailability(hero), words: whereabouts(hero, world) },
     injury: hero.injury === null ? null : nameIn(content.injuries, hero.injury.typeKey),
     xp: hero.xp,
-    traits: hero.traits.map((key) => nameIn(content.heroTraits, key)),
+    traits: hero.traits.map((key) => ({ name: nameIn(content.heroTraits, key), effect: traitEffectWords(rowOf(content.heroTraits, key)?.effects ?? [], content) })),
     fee,
     areas,
     gear,
@@ -976,8 +977,8 @@ export function heroPage(document: WorldDocument, heroId: HeroId): HeroPageView 
 }
 
 /**
- * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus and the
- * Hero's gear applied, M5-S2) beside its base, keyed by Stat: what a Hero's page and the Party
+ * Each of a Hero's Stats as a Check reads it (`effectiveStats`: the Guildmaster's Class bonus, the
+ * Hero's gear, M5-S2, and their Hero Traits' Stat changes, v1.1.4-S7, applied) beside its base, keyed by Stat: what a Hero's page and the Party
  * builder show alike.
  */
 function statValues(hero: Hero, world: World): Map<string, { base: number; effective: number }> {

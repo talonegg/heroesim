@@ -130,7 +130,7 @@ export interface GameConfig {
   guildmasterTraitsMax: number;
   /**
    * The Trait budget (M9-S2, DL-88 item 4, DL-100 item 3): the most a Guildmaster's Traits may cost
-   * in all, each Trait's cost being content's (`Trait.cost`), a buff costing and a penalty
+   * in all, each Trait's cost being content's (`GuildmasterTrait.cost`), a buff costing and a penalty
    * refunding. A drawn Guildmaster's Traits are one set drawn from every set within it (DL-109
    * item 1); a player's choice at setup is refused over it. At 1, the dearer buffs need a penalty
    * beside them.

@@ -222,6 +222,30 @@ describe("M3's counters, from the History", () => {
     expect(counters.heroesRetired).toEqual({ player: 1, rival: 2 });
   });
 
+  // v1.1.4-S7: the Traits earned and lost, and the careers they are counted over.
+  test('Traits gained and lost by controller, and each Hero sent on a Quest once, by the Guild that first sent them', () => {
+    const { document, player, rivals } = fixture('counters-traits');
+    const [mine, rivalHero] = [firstHero(player), firstHero(rivals[0])];
+    const second = player.rosterIds[1] as HeroId;
+    const taken = (turn: number, guild: Guild, heroIds: HeroId[]): void => {
+      const questId = makeId('quests', 900 + turn);
+      add(document, turn, 'quest.taken', [questId, guild.id], { questId, partyId: makeId('parties', 900 + turn), guildId: guild.id, heroIds, returnsOnTurn: turn + 5 });
+    };
+    taken(3, player, [mine, second]);
+    taken(4, rivals[0], [rivalHero]);
+    add(document, 8, 'hero.trait-gained', [mine, player.id], { heroId: mine, traitKey: 'scarred', questId: makeId('quests', 903), encounterIndex: 0, encounterKey: 'x' });
+    taken(9, player, [mine]);
+    add(document, 9, 'hero.trait-gained', [rivalHero, rivals[0].id], { heroId: rivalHero, traitKey: 'lame', questId: makeId('quests', 904), encounterIndex: 1, encounterKey: 'x' });
+    add(document, 12, 'hero.trait-lost', [mine, player.id], { heroId: mine, traitKey: 'scarred', replacedBy: 'lame' });
+    document.world.turn = 20;
+
+    const counters = countGame(document, shortYears);
+
+    expect(counters.traitsGained).toEqual({ player: 1, rival: 1 });
+    expect(counters.traitsLost).toEqual({ player: 1, rival: 0 });
+    expect(counters.questingHeroes).toEqual({ player: 2, rival: 1 });
+  });
+
   test('Improvement grades by year 10: the highest each Guild founded before it reached before it, by controller', () => {
     const { document, player, rivals } = fixture('counters-improved');
     const [a, b] = rivals;

@@ -2,7 +2,8 @@
 // difficulty (INPUTS 6.2, DL-42). Capability is the Check's score, a Query over the Party's members
 // (v1.1.4-S1, query.ts, ADR-0010), plus `skillBonusPerRating` times the best rating any member holds
 // of each of its Skills, plus the Synergy term (`synergy.ts`, M4-S3's), all times the teamwork
-// scalar (`teamwork.ts`, M4-S4's). One roll from the `quests` stream scales it by up to
+// scalar (`teamwork.ts`, M4-S4's), plus the Encounter bonus of the members' Hero Traits (v1.1.4-S7,
+// traits.ts). One roll from the `quests` stream scales it by up to
 // ±`checkVariance`, or the Check's own `variance`, and the roll against the target, `flat` plus
 // `difficultyFactor` times the Quest's difficulty, gives the Check's Degree (v1.1.4-S2, degree.ts):
 // a Success or better when it reaches the target. An Encounter in the old form has one Check, whose
@@ -19,10 +20,11 @@
 // risk); a test reads both files to hold it so.
 
 import type { EngineDeps } from '../config.js';
-import type { Degree, Encounter, EncounterCheck } from '../content-types.js';
+import type { Degree, EncounterCheck } from '../content-types.js';
 import type { Quest, World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { next } from '../rng.js';
+import { traitEncounterBonus, type BonusTarget } from '../traits.js';
 import { degreeOf, succeeded } from './degree.js';
 import { evaluate, type QueryParty } from './query.js';
 import { synergyBonus } from './synergy.js';
@@ -67,12 +69,15 @@ export interface CheckResult {
  * nothing (data-model rule 5). No members, no capability. A member's effective values are the one
  * selector's, `effectiveStats` (selectors.ts), read once as the Party is taken (`queryParty`), which
  * holds every modifier of a Stat: the Class Stat bonuses of the Hero's Guild's Traits (M4-S5) and,
- * from M5-S2, gear (DL-44). None is worked out here. A raw Check's capability is its score alone
- * (v1.1.4-S2's verification, DL-152), read without form.
+ * from M5-S2, gear (DL-44); from v1.1.4-S7, the Hero Traits' Stat changes. None is worked out here.
+ * Then, after the teamwork scalar, the Encounter bonus of the members' Hero Traits
+ * (`traitEncounterBonus`, v1.1.4-S7, DL-148 item 26), once for the Party however many hold each
+ * Trait. A raw Check's capability is its score alone (v1.1.4-S2's verification, DL-152), read
+ * without form and without a Trait's bonus, as without a consumable's.
  */
 export function capability(
   party: QueryParty,
-  encounter: Pick<Encounter, 'kind'>,
+  encounter: BonusTarget,
   encounterCheck: EncounterCheck,
   world: World,
   deps: CheckDeps,
@@ -88,7 +93,7 @@ export function capability(
     const ratings = heroes.map((hero) => (Object.hasOwn(hero.skills, skillKey) ? (hero.skills[skillKey] ?? 0) : 0));
     base += config.skillBonusPerRating * Math.max(0, ...ratings);
   }
-  return (base + synergyBonus(party, encounter, base, deps)) * teamwork(heroes, world, deps);
+  return (base + synergyBonus(party, encounter, base, deps)) * teamwork(heroes, world, deps) + traitEncounterBonus(heroes, encounter, content);
 }
 
 /** What `encounterCheck`'s roll must reach on `quest` (v1.1.4-S2): its `flat`, 0 when it has none, plus `difficultyFactor` times the difficulty. */
@@ -110,7 +115,7 @@ export function targetOf(encounterCheck: Pick<EncounterCheck, 'flat' | 'difficul
  */
 export function check(
   party: QueryParty,
-  encounter: Pick<Encounter, 'kind'>,
+  encounter: BonusTarget,
   encounterCheck: EncounterCheck,
   quest: Pick<Quest, 'difficulty'>,
   world: World,

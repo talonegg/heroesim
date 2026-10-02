@@ -396,6 +396,31 @@ describe('questsConclude', () => {
     withValid({ ...eve, world }, deps);
   });
 
+  // v1.1.4-S7 (DL-148 items 25 and 27): a Trait earned on the Quest joins the Hero's, a Milestone.
+  test('a Trait earned joins the Hero\'s Traits with hero.trait-gained, a Milestone naming the Hero, the Trait, the Quest and the Encounter', () => {
+    const deps = soloDeps(
+      {},
+      withEncounters({ success: [], failure: [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'trait', traitKey: 'one-eyed', chance: 1 }] }),
+    );
+    const { eve, quest } = sentAway('earned', deps, { size: 2, difficulty: 5000, encounterKeys: ['hold-the-line'] });
+
+    const { world, events } = concludeAlone(eve, deps);
+
+    const [encounter] = ofType(events, 'quest.encounter');
+    const heroId = encounter?.payload.injured[0] as HeroId;
+    const gained = ofType(events, 'hero.trait-gained');
+    expect(gained.map((event) => [event.payload, event.milestone])).toEqual([
+      [{ heroId, traitKey: 'one-eyed', questId: quest.id, encounterIndex: 0, encounterKey: 'hold-the-line' }, true],
+    ]);
+    expect(gained[0]?.participants.slice(0, 2)).toEqual([heroId, quest.id]);
+    // After the Injuries and Deaths, before the XP.
+    const order = events.map((event) => event.type);
+    expect(order.indexOf('hero.trait-gained')).toBeGreaterThan(order.indexOf('hero.injured'));
+    expect(order.indexOf('hero.trait-gained')).toBeLessThan(order.indexOf('hero.xp-gained'));
+    expect(hero(world, heroId).traits).toContain('one-eyed');
+    withValid({ ...eve, world }, deps);
+  });
+
   test('resolves a Quest saved before M4, with no Encounters, through a sequence drawn from the encounters stream', () => {
     const deps = soloDeps({}, harmlessContent);
     const { eve, party, quest } = sentAway('pre-m4', deps, { encounterKeys: [] });

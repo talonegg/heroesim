@@ -66,8 +66,9 @@ export function signed(n: number): string {
 
 /**
  * A Trait's effects in words (the CLI's `traitEffectWords`), each in the Trait's order and joined by
- * commas (v1.1.4-S7): `+1 Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`; `No effect` for
- * none. The Guildmaster's page's and the new-game form's (M9-S2).
+ * commas (v1.1.4-S7): `+1 Weaponry to Warriors`, `Morale baseline -5`, `Upkeep ×0.9`, a Hero Trait's
+ * `-2 Dexterity, -1 Endurance` and `+2 to every Check of combat or travel Encounters`; `No effect` for
+ * none. The Guildmaster's page's, the new-game form's (M9-S2) and a Hero's page's (v1.1.4-S7).
  */
 export function traitEffectWords(effects: readonly TraitEffect[], set: Pick<ContentSet, 'stats' | 'classes'>): string {
   if (effects.length === 0) return 'No effect';
@@ -83,5 +84,15 @@ function effectWords(effect: TraitEffect, set: Pick<ContentSet, 'stats' | 'class
       return `Morale baseline ${signed(effect.delta)}`;
     case 'upkeepFactor':
       return `Upkeep ×${effect.factor}`;
+    case 'statModifiers':
+      return Object.entries(effect.modifiers)
+        .map(([statKey, delta]) => `${signed(delta)} ${nameIn(set.stats, statKey)}`)
+        .join(', ');
+    case 'encounterBonus': {
+      const kinds = effect.kinds ?? [];
+      const tags = effect.tags ?? [];
+      const on = [...(kinds.length === 0 ? [] : [`${kinds.join(' or ')} Encounters`]), ...(tags.length === 0 ? [] : [`Encounters tagged ${tags.join(' or ')}`])];
+      return `${signed(effect.flat)} to every Check of ${on.join(' or ')}`;
+    }
   }
 }

@@ -88,6 +88,8 @@ const readers: { readonly [Type in EngineEventType]: Reader<Type> | null } = {
   'hero.xp-gained': null,
   'hero.morale-changed': null,
   'hero.healed': null,
+  'hero.trait-gained': null,
+  'hero.trait-lost': null,
   'hero.retired': null,
   'hero.declined': null,
   'game.ended': null,

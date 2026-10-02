@@ -211,16 +211,20 @@ lists in content, a key in one only, and each Trait carries a list of effects, s
 later trade a buff for a penalty (DL-87 item 6, DL-150 items 1 and 2; v1.1.4-S7). A Guildmaster or
 a Hero holds none or more of their own list, never two of which one excludes the other, each
 exclusion holding both ways. A Guildmaster Trait has a cost, a buff costing points and a penalty
-refunding them, and one effect or more (DL-87 item 5, DL-88 item 4, DL-100). Hero Traits have no
-effect yet: DL-148 and DL-150 item 8 give them Stat changes and an Encounter bonus (to be built,
-v1.1.4-S7).
+refunding them, and one effect or more (DL-87 item 5, DL-88 item 4, DL-100). A Hero Trait has none
+or more: Stat changes, which the Hero's effective Stats carry as gear's, and an Encounter bonus, added
+to every Check of the Encounters it names once for the Party however many hold it (DL-148 items 24
+and 26, DL-150 item 8; v1.1.4-S7). A Trait an Injury leaves replaces any the Hero holds that it
+conflicts with (DL-150 item 5).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 
 **Earned Trait**:
 A Hero Trait a Hero gains on a Quest, rarely. A positive one is drawn on an Encounter's Triumph
 and kept only if the Quest ends a strong success; a negative one falls only on a Hero injured by
-the same failed Encounter. At most one a Hero a Quest, none twice, and each a Milestone (DL-148
-items 25 to 27; to be built, v1.1.4-S7).
+the same failed Encounter. At most one a Hero a Quest, none held already nor one that conflicts with
+one held, and each a Milestone, as is a Trait lost to an Injury's (DL-148 items 25 to 27, DL-150 item
+5; v1.1.4-S7). Which it is, positive or negative, is where content lists it: in an Encounter's
+Triumph consequences or its Failure ones.
 _Avoid_: Perk, Achievement, Level-up
 
 **Trait budget**:
@@ -516,7 +520,7 @@ _Avoid_: World log, Chronicle, News
 
 **Milestone**:
 A History entry marked as one a Hero's or a Guild's page always shows first: a Level gained,
-a Death, a Transfer, a Campaign beat. No entry is dropped; a Milestone is one that is surfaced.
+a Death, a Transfer, a Trait gained or lost, a Campaign beat. No entry is dropped; a Milestone is one that is surfaced.
 _Avoid_: Highlight, Achievement, Key event
 
 **Day**:

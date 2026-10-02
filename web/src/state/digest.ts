@@ -186,5 +186,5 @@ function besideTheirReturn(entries: readonly Entry[]): Entry[] {
   return ordered;
 }
 
-/** The entries of a return that stand beside its entry in the rail: its Loot, Injuries and Deaths. */
-const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died']);
+/** The entries of a return that stand beside its entry in the rail: its Loot, Injuries and Deaths, and the Traits its Heroes earned (v1.1.4-S7). */
+const besideAReturn: ReadonlySet<string> = new Set(['quest.loot', 'hero.injured', 'hero.died', 'hero.trait-gained']);

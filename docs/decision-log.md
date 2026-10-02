@@ -18576,6 +18576,248 @@ at `1769b30` (S6, DL-157), and every comparison below is with that tree and its 
 
 ---
 
+## DL-159 — v1.1.4-S7 built: Hero Traits that change Stats and give the Party an Encounter bonus, the four Injury Traits' Stat changes, Traits earned on Quests, an Injury's Trait replacing one it conflicts with, and the two Milestones
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building S7's second step as
+the epic's S7 bullets "Each list's kinds of effect" to "Content" describe, on DL-148 items 24 to 27 and
+DL-150 items 5 and 8. Where the plan was silent, the calls are the agent's, in item 8, for the owner
+to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S7's first step (DL-158, `7c09953`) moved the Traits into two lists of effect lists,
+playing the same games, and left `HeroTraitEffect` as `never`, the seam for this step. No Hero Trait
+did anything: the four an Injury leaves were names. DL-148 item 24 gives them Stat changes, item 25
+lets Heroes earn Traits on Quests, item 26 gives a Trait an Encounter bonus that is the Party's, item
+27 makes a Trait gained a Milestone, and DL-150 item 5 has a Trait an Injury leaves replace one it
+conflicts with. Every comparison of play below is with S7a's sweep,
+`harness/reports/m9-v114-s7a-2026-10-02.md`.
+
+**Decision.**
+
+1. **The Hero effect kinds** (`engine/src/content-types.ts`, `HeroTraitEffect`; DL-150 item 8).
+   - `{ "kind": "statModifiers", "modifiers": { <Hero Stat>: <whole number other than 0>, … } }`: one
+     effect may name several Stats (DL-150 item 2's reading). `effectiveStats` adds the sum of every
+     held Trait's modifiers (`traitStatModifiers`, `engine/src/traits.ts`) beside the Guildmaster's
+     Class bonus and gear, and holds the total inside the Stat's range once, as before (DL-49). So the
+     change shows wherever a Stat shows: a Hero's page (the lift beside the base, as gear's), `show
+     hero`, every Check and Query, the harm shares (`exposedBy`, `guardedBy`, `steadiedBy`), the chance
+     estimate and the Rivals' choice of Party.
+   - `{ "kind": "encounterBonus", "flat": <number other than 0>, "kinds"?: [...], "tags"?: [...] }`:
+     `flat` is added to the capability of every Check of an Encounter whose kind it names, or which
+     shares one of its tags, when any Hero still in the sequence holds the Trait, once for the Party
+     however many hold it (DL-148 item 26; `traitEncounterBonus`). Two Traits that match add both. It
+     is added in `capability` after the teamwork scalar, as a consumable's bonus is added, so the
+     resolver, the form check (`formDecided`) and the estimate all read it from the one place, and the
+     estimate stays exact. A raw Check is its score alone (DL-152) and takes no Trait's bonus, as it
+     takes no consumable's.
+   - *Tags.* Encounters gain `tags` in S8. `tags` is accepted and validated now (kebab-case, none
+     twice) and matched against `tags` on the Encounter when it has them (`BonusTarget`, the
+     Encounter's kind and optional tags); until S8 no Encounter has any, so only `kinds` match. An
+     Encounter bonus names at least one kind or tag.
+   - The parser reads each kind with exactly its fields (`heroTraitEffect`), and `validateContent`
+     holds the values (`checkTraits`): a refusal names the Trait and the effect's place.
+2. **The four Injury Traits** (DL-148 item 24; `content/hero-traits.json`), each one `statModifiers`:
+   Lame Dexterity −2, Endurance −1; One-eyed Perception −2, Weaponry −1; Short-winded Endurance −2,
+   Constitution −1; Scarred Courage +1, Charisma −1. The keys are content's `dexterity`, `endurance`,
+   `perception`, `weaponry`, `constitution`, `courage` and `charisma`. Deep cut leaves Scarred,
+   Shattered knee Lame, Eye wound One-eyed, Lung fever Short-winded. The content version is **24**.
+3. **The `trait` consequence** (DL-148 item 25; `TraitConsequence`):
+   `{ "kind": "trait", "traitKey", "chance", "among"? }`.
+   - *Positive or negative is where it is listed.* In an Encounter's `triumph` list it is positive:
+     drawn on the Triumph, held, and granted only if the Quest ends a strong success. In its `failure`
+     list it is negative: it falls only among the Heroes the same Encounter injured. Content
+     validation refuses one in `success` (which a Triumph without a list of its own reads too) or
+     `setback`, and a negative one with no Injury before it in its list (it could fall on no one).
+     A Setback that reads the Failure's list may bring a negative one: it is a failed Encounter.
+   - *Who.* A positive one falls among the Party still in the sequence, a negative one among those
+     the Encounter injured who are still in it; of them those `among` names, a Set Query over the
+     Party as harm's is; and of those only the Heroes who may take it: who do not hold it, and hold
+     none it excludes or that excludes it, read either way round (`mayEarn`, DL-150 item 5), and who
+     have drawn no Trait on this Quest, save that a negative one may fall on a Hero holding a positive
+     one (item 8).
+   - *Draws.* Two from `quests`, in the consequence's place in its list: whether it lands (`next`,
+     below `chance`), then on whom (`pick` among those who may take it, or one `next` when no one
+     may), taken whether or not it lands. Loot's two stay last, after the sequence.
+   - *Granted.* The resolution carries `traits` (`EarnedTrait`: the Hero, the Trait, the Encounter's
+     place and key), the positive ones only on a strong success, none for a Hero who died later on the
+     Quest, nor to a Hero who gained a negative one (item 8). `questsConclude` adds each to the Hero's
+     `traits` with `hero.trait-gained`, after the
+     Injuries and Deaths and before the XP. The outcome, `quest.resolved`'s payload, is unchanged.
+4. **Conflicts** (DL-150 item 5). An earned Trait that conflicts with one held, either way round, is
+   not granted (item 3). A Trait an Injury leaves as it heals replaces each held Trait it excludes or
+   that excludes it (`replacedBy`), the new Trait last: `heal` in `phases/hero-state.ts` emits
+   `hero.healed`, then a `hero.trait-lost` for each Trait replaced. Content's Hero Traits exclude
+   nothing yet, so no Trait is lost in play until S10 writes one that does. The estimate's projection
+   of the nights away, `heroNight`, is the same function run on copies, so it replaces Traits as the
+   night does and the estimate stays exact.
+5. **The events** (`engine/src/events.ts`), both Milestones (DL-148 item 27, DL-150 item 5).
+   - `hero.trait-gained` `{ heroId, traitKey, questId, encounterIndex, encounterKey }`, naming the
+     Hero and the Quest.
+   - `hero.trait-lost` `{ heroId, traitKey, replacedBy }`, naming the Hero.
+6. **The front ends.**
+   - *Words.* Both `traitEffectWords` word the new kinds: `-2 Dexterity, -1 Endurance` and `+2 to
+     every Check of combat or travel Encounters` (`… of Encounters tagged undead`); several effects
+     are joined by commas; none is "No effect" on the page and "no effect" in the CLI. Both narrate
+     the two events: "Brenna Ashcombe earned the Trait Scarred on Clear the barrow, at Ambush on the
+     road." and "Brenna Ashcombe lost the Trait Lame, replaced by Scarred."
+   - *The History.* Both are Milestones, so never routine, and on the Hero's page among their
+     Milestones. In the player's Guild's History and the rail a Trait gained stands beside its
+     return, as its Injuries and Deaths do (`besideAReturn`).
+   - *The Quest report.* Each Hero's line says "Earned the Trait One-eyed" (`HeroOutcome.trait`).
+   - *A Hero's page.* Each Trait's chip gives what it does: "Lame: -2 Dexterity, -1 Endurance"; the
+     Stat blocks show its change as a lift, as gear's. `show hero` gives "Lame (-2 Dexterity, -1
+     Endurance)".
+   - *A clamped Stat* (informational): the chip says what the Trait does, "-2 Dexterity", while the
+     Stat may show less of a change, since `effectiveStats` holds the total inside the Stat's range
+     once, after every modifier (DL-49): a Hero at Dexterity 2 shows 1, a lift of -1.
+7. **R16 and R24** stand as DL-150 reworded them; what is built is what they say.
+8. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *How positive and negative are known:* by the list the consequence stands in (item 3), not a
+     field of the Trait, so a Trait may be earned either way from different Encounters.
+   - *`among`'s default:* the Party still in the sequence for a positive Trait, the Heroes the
+     Encounter injured for a negative one. Unlike harm's, `among` has no fallback: one that names no
+     one who may take the Trait grants it to no one, since a Trait for, say, the Mages should never
+     fall on a Warrior.
+   - *One a Quest, granted* (the coordinator's call at the verification, replacing the agent's; **for
+     the owner to confirm**): a negative Trait may land on a Hero who holds a drawn but not yet granted
+     positive one, and at the Quest's end a Hero who gained a negative Trait on it does not also gain
+     their held positive one. So at most one Trait is granted a Hero a Quest, and a negative one always
+     lands when its Hero may take it. A Hero holding a negative one, or a positive one, takes no other
+     positive one, and no Hero two negative ones. (As first built, a Hero who had drawn any Trait took
+     no other, so a held positive Trait, which a band short of strong may void, kept a later negative
+     one off its Hero.)
+   - *An Encounter bonus may be negative,* a penalty, since a negative Trait may weaken the Party; it
+     is added after teamwork and never to a raw Check.
+   - *A Trait lost belongs to no Quest.* The epic says the Quest report shows both events. A Trait is
+     lost only as an Injury heals, on a later night that names no Quest, so the report shows the
+     Trait gained, and the History and the Hero's page show both.
+   - *The harness* counts `hero.trait-gained` and `hero.trait-lost` by controller, and the Heroes sent
+     on at least one Quest (`questingHeroes`), and reports the Traits earned per Hero career over them,
+     for the closing gate's "Rare Traits".
+   - *The nits.* `config.ts`'s Trait budget comment names `GuildmasterTrait.cost`; `RowReader.oneOf`'s
+     words for an empty set of choices are "none: there is nothing to choose from".
+
+**The checks.**
+1. **The boxes, test first.**
+   - *A Stat change shows on a Hero's page and in a Check, and a bonus applies once* (box 2):
+     `resolve.test.ts` ("a Hero Trait's effects in a Check"): a lame Hero adds 2 less Strength (times
+     their form and the teamwork) to a sum; a bonus of 5 on combat adds 5 with one holder and 5 with
+     three, nothing on travel, a tag shared adds and one not shared does not, and a raw Check takes
+     none. `selectors.test.ts` and `roster.test.tsx`: the chip "Lame: -2 Dexterity, -1 Endurance" and
+     Dexterity 10 with "-2 on its base of 12"; `render.test.ts`: `show hero`'s Traits and effective
+     Dexterity.
+   - *A positive Trait on a strong success and not a plain one* (box 3), *a negative one only on a
+     Hero that Encounter injured* (box 4), *no two, none held, none conflicting* (box 5):
+     `resolve.test.ts` ("earned Traits"), seven tests: granted on a strong success naming its
+     Encounter, nothing on a plain success; its two draws in place whether or not it lands, Loot
+     drawn from a twin two draws on; whether and whom as `chance` and `pick` draw over 20 seeds; a
+     negative one on the injured Hero over 20 seeds, and on no one when the Encounter injured no one
+     though a Hero was hurt earlier; granted on a failed Quest, and not to a Hero who died after; one a
+     Hero (three drawn for one Hero, four for three), only to the Hero who lacks it, none when all hold
+     it, none beside a conflicting one with the exclusion written on either side; `among` names who,
+     and naming no one grants nothing.
+   - *An Injury's Trait replaces one it conflicts with, recorded* (box 6): `hero-state.test.ts`, two
+     tests: Fearless (excluded both ways) and Vain (excluding Scarred from its side only) are replaced
+     by Scarred, Lucky kept, `hero.healed` then two `hero.trait-lost`, Milestones; a Trait held already,
+     or one conflicting with nothing, loses nothing.
+   - *Both Milestones in the History* (box 7): `quests-conclude.test.ts` (`hero.trait-gained`, a
+     Milestone after the Injury and before the XP, the Hero holding it, the document valid);
+     `quest-return.test.ts` (the report's line, the entry beside its return, a Milestone);
+     `selectors.test.ts` (both among a Hero's page's Milestones in their words); both front ends'
+     `narrate.test.ts`; `counters.test.ts`.
+   - *The estimate stays exact:* `estimate.test.ts`, a Hero holding a travel bonus Trait whose Injury
+     heals on the second night away leaving a Trait that replaces it: the estimate's capability
+     equals the resolver's met on the night home, Scarred's Strength −3 in and the bonus out.
+   - *Content:* `refusals.test.ts`, 13 refusals of a Hero Trait's effects and 9 of a `trait`
+     consequence, each naming its path, and both loaded as written; `content.test.ts` pins the four
+     Injury Traits' effects. `traitEffectWords` with several effects and with none in both front ends
+     (`render.test.ts`, the new `web/src/state/names.test.ts`).
+2. **The same games with the Injury Traits' effects emptied.** A copy of this tree with
+   `hero-traits.json`'s effects emptied and the content version set back to 23, and a `git archive`
+   of `7c09953` (S7a), each played `HEROESIM_SEEDS=6 HEROESIM_YEARS=6`, core only: the two reports
+   differ only in their titles and timings. Every counter is equal, and so is the fingerprint of
+   every seed's last save, `d767a87e…`: play is bit-identical, the new code drawing and changing
+   nothing while no Hero Trait has an effect and no Encounter a `trait` consequence.
+3. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s7 npm run harness`, core only, 20
+   years, content 24, config 13, not validated: `harness/reports/m9-v114-s7-2026-10-02.md`, to be
+   force-added. Against S7a's, play changes, by the Injury Traits alone (no content earns a Trait,
+   and no Hero Trait excludes another, so `hero.trait-gained` and `hero.trait-lost` are 0, and the
+   Traits earned per career 0.000 over 1,533 of the player's Heroes and 4,817 of the Rivals' sent on
+   a Quest):
+   - *The Heroes an Injury marked are weaker.* Lame, One-eyed and Short-winded each take three
+     points, Scarred trades Charisma for Courage, and every Check, the estimate and the Rivals'
+     choice read them.
+   - *The player's Quests:* failed 10.7% (9.9%), succeeded 15.7% (15.0%), strong 73.6% (75.2%);
+     338,559 resolved (335,682). Encounters at Success or better 87.9% (88.7%). Injuries 14,761
+     (13,446), Deaths 1,119 (1,153).
+   - *The Rivals' Quests:* failed 6.9% (6.0%), succeeded 12.9% (12.0%), strong 80.2% (82.0%); 836,871
+     resolved (831,148). Encounters at Success or better 91.1% (92.1%). Injuries 27,492 (24,630),
+     Deaths 2,235 (2,106). The Rivals recruited 2,567 (2,300).
+   - *What follows.* 180 Rivals folded (181); 2 of the player's games ended in bankruptcy, in years
+     18 and 19 (16 and 19). Wealth after 20 years 161,526 a game (167,490). The mean save at year 20 is
+     118.36 MiB (117.40); `seed-0001` played twice is identical, 121,813,183 characters.
+   - *For S10.* The Quest target moves a little toward DL-83 item 4's: the player's failed 10.7%
+     against 20 to 30%, strong 73.6% against at most 50%.
+   - *The time:* `advance` mean 6.134 ms a Turn, p99 22.895 (3.301 and 7.848), and 1,106.9 s in all
+     (663.6), measured while the two parity runs of check 2 and a Web test file shared the machine;
+     `seed-0001` replayed alone 1.769 ms (1.340). In check 2's runs, side by side under the same load,
+     the two trees' replay alone was 6.130 and 6.132 ms: the new code costs nothing measurable when no
+     Trait has an effect. S8's or S9's sweep, on a quiet machine, should read the time again.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 771,976 bytes (771.98
+   kB, 224.89 kB gzipped), 4,099 more than S7a's 767,877: the effects' words, the events' words and
+   the earned Traits' rules. 28.02 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,488 tests in 176 files (4,435 in 175 at S7a). Two runs straight after the
+     sweep, with the machine still loaded, timed out in 8 or 9 tests, a different few each time
+     (`rng.test.ts`, `probe.test.ts`, `treasury.test.tsx`, `use-game.test.tsx` among them); each
+     passed alone, the whole suite passed at `--maxWorkers=6`, and then `npm test` itself passed
+     every test.
+   - `npm run e2e -w web` passes all 96 specs.
+
+**The verification.** A second Opus agent read the step and found no correctness bug. Its findings,
+fixed test first:
+1. *The draws from no one were not held by a test.* `resolve.test.ts` gains a test of the four ways
+   no Hero may take a Trait (all hold it; it conflicts with one each holds; `among` names no one; a
+   negative Trait when the Encounter injured no one): each grants nothing, leaves the outcome as
+   without it, and leaves the `quests` stream exactly two draws past a twin resolved without it.
+   With `earn`'s `next` for no one taken out, the test fails; put back, it passes.
+2. *A held positive Trait kept a negative one off its Hero.* The rule is item 8's "One a Quest,
+   granted". The test: one Hero, a positive Trait drawn at Encounter 1's Triumph, a Failure at
+   Encounter 3 injuring them and a negative Trait after it, the bands set so the Quest still ends
+   strong (`strongAtLeast` 0.6): the negative Trait is granted and the positive one not. It failed
+   before the fix (the positive one was granted) and passes after.
+3. *The epic's events bullet* now says `hero.trait-gained` shows in the History, the Quest report and
+   a Hero's page, and `hero.trait-lost` in the History and a Hero's page (item 8); the box stays
+   ticked.
+4. *The chip and a clamped Stat,* recorded in item 6.
+
+After the fixes: `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,490 tests in 176 files.
+No sweep was run: no content has a `trait` consequence, so neither fix changes play, and S7's sweep
+stands.
+
+**Consequences.**
+- Play changes: a Hero an Injury marked is weaker for the rest of their career. S10's balance pass
+  starts from this sweep.
+- Content may now write earned Traits (S10, after the owner's review), Hero Traits that exclude each
+  other, and Encounter bonuses; an Encounter bonus by `tags` matches once S8 gives Encounters theirs.
+- S12's register will list these readers: `traitStatModifiers` (`effectiveStats`),
+  `traitEncounterBonus` (`capability`), `mayEarn` (the resolver's `trait` consequence), `replacedBy`
+  (`heal`), the two events, and the content checks of a `trait` consequence's `traitKey`.
+
+**Actioned in:** `engine/src/content-types.ts`, `traits.ts`, `selectors.ts` (`effectiveStats`),
+`events.ts`, `config.ts` (a comment), `quest-engine/check.ts`, `quest-engine/resolve.ts`,
+`phases/quests-conclude.ts`, `phases/hero-state.ts` and their tests (`traits`, `resolve`,
+`estimate`, `hero-state`, `quests-conclude`); `content/hero-traits.json`, `content/src/parse.ts`
+(version 24), `validate.ts`, `content.test.ts`, `refusals.test.ts`; `cli/src/render.ts`,
+`narrate.ts` and their tests; `web/src/state/names.ts` (and the new `names.test.ts`), `narrate.ts`,
+`history.ts`, `digest.ts`, `treasury.ts`, `quest-return.ts`, `selectors.ts`, `game.test-support.ts`,
+`history.test-support.ts`, `web/src/views/hero-page.tsx` and the web's tests (`narrate`,
+`selectors`, `quest-return`, `roster`, `capitals`); `harness/src/counters.ts`, `sweep.ts`,
+`counters.test.ts`; `harness/reports/m9-v114-s7-2026-10-02.md`; `CONTEXT.md` (Trait, Earned Trait,
+Milestone); `docs/data-model.md` (a Hero's `traits`); the epic's S7 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

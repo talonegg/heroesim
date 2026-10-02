@@ -117,12 +117,20 @@ export type GuildmasterTraitEffect =
 export type GuildmasterTraitEffectKind = GuildmasterTraitEffect['kind'];
 
 /**
- * What a Hero Trait does (DL-150 item 8): a closed union like a Guildmaster Trait's, which no kind
- * joins yet. v1.1.4-S7 moved the Traits into two lists first, playing the same games (DL-158), and
- * its next step adds `statModifiers` and `encounterBonus` here; until then a Hero Trait's `effects`
- * is empty.
+ * What a Hero Trait does (v1.1.4-S7, DL-148 items 24 and 26, DL-150 item 8): a closed union like a
+ * Guildmaster Trait's, so a new kind is an engine change.
+ *
+ * - `statModifiers`: each Hero Stat `modifiers` names moved by its whole number, in `effectiveStats`,
+ *   as gear's are (DL-148 item 24), so the change shows wherever a Stat shows. One effect may name
+ *   several Stats.
+ * - `encounterBonus`: `flat` added to the capability of every Check of an Encounter of one of its
+ *   `kinds`, or sharing one of its `tags` (which Encounters gain in v1.1.4-S8), when any Hero still in
+ *   the sequence holds the Trait: once for the Party however many hold it (DL-148 item 26), and never
+ *   to a raw Check, which is its score alone (DL-152), as a consumable's bonus is not.
  */
-export type HeroTraitEffect = never;
+export type HeroTraitEffect =
+  | { kind: 'statModifiers'; modifiers: Record<StatKey, number> }
+  | { kind: 'encounterBonus'; flat: number; kinds?: EncounterKind[]; tags?: string[] };
 
 /** The kinds of `HeroTraitEffect`. */
 export type HeroTraitEffectKind = HeroTraitEffect['kind'];
@@ -167,10 +175,11 @@ export interface HeroTrait {
   name: string;
   /**
    * The Hero Traits a Hero holding this one may not also hold (DL-150 items 3 and 5), each exclusion
-   * both ways, as a Guildmaster Trait's. Empty for every Hero Trait content holds yet.
+   * both ways, as a Guildmaster Trait's. A Trait an Injury leaves replaces any it excludes; an earned
+   * one is never granted beside one it excludes (DL-150 item 5).
    */
   excludes: TraitKey[];
-  /** What it does (DL-150 items 2 and 8): none or more; none yet, until a kind is defined. */
+  /** What it does (DL-150 items 2 and 8): none or more, each applied in turn. */
   effects: HeroTraitEffect[];
 }
 
@@ -459,6 +468,31 @@ export interface FameConsequence {
   delta: number;
 }
 
+/**
+ * A Hero earns the Hero Trait `traitKey` with probability `chance` (v1.1.4-S7, DL-148 item 25,
+ * `CONTEXT.md` Earned Trait): one Hero, drawn from those `among` names (a Set Query over the Party
+ * still in the sequence; every one of them when absent), and of those only the Heroes who may take
+ * it: who do not hold it, hold none it excludes or that excludes it (DL-150 item 5), and have drawn no
+ * other on this Quest, save that a negative one may fall on a Hero holding a positive one, and is
+ * then granted in its place: at most one is granted a Hero a Quest (DL-159). When `among` names none
+ * of them it falls on no one. Where it is listed says what it is:
+ *
+ * - in an Encounter's `triumph` list, a positive Trait: drawn on the Triumph, held, and granted only
+ *   if the Quest ends a strong success;
+ * - in its `failure` list, a negative one: it falls only among the Heroes this same Encounter
+ *   injured, so it follows an Injury in that list, and a Setback that reads the Failure's list may
+ *   bring it.
+ *
+ * It is listed nowhere else (`validateContent`). Two draws from `quests`, whether it lands and on whom,
+ * taken whether or not it lands.
+ */
+export interface TraitConsequence {
+  kind: 'trait';
+  traitKey: TraitKey;
+  chance: number;
+  among?: SetQuery;
+}
+
 /** What an Encounter's outcome does (M4-S1): a closed union, so a new kind is an engine change. */
 export type Consequence =
   | InjuryConsequence
@@ -467,7 +501,8 @@ export type Consequence =
   | RegardConsequence
   | XpConsequence
   | WealthConsequence
-  | FameConsequence;
+  | FameConsequence
+  | TraitConsequence;
 
 export type ConsequenceKind = Consequence['kind'];
 

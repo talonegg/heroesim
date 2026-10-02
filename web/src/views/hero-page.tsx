@@ -226,7 +226,7 @@ export function HeroPage({
   );
 }
 
-/** The Hero's State as chips: Morale and its band, where they are, an Injury, XP, Traits, and the fee to take them in. */
+/** The Hero's State as chips: Morale and its band, where they are, an Injury, XP, Traits with what each does (v1.1.4-S7), and the fee to take them in. */
 function State({ view }: { view: HeroPageView }) {
   const { morale, where } = view;
   return (
@@ -250,9 +250,9 @@ function State({ view }: { view: HeroPageView }) {
         <Chip>XP {view.xp}</Chip>
       </li>
       {view.traits.map((trait) => (
-        <li key={trait}>
+        <li key={trait.name}>
           <Chip tone="accent" title="Trait">
-            {trait}
+            {trait.name}: {trait.effect}
           </Chip>
         </li>
       ))}

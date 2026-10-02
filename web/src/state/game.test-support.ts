@@ -85,6 +85,27 @@ export function changed(state: GameState, change: (document: WorldDocument, play
   return { ...state, document };
 }
 
+/**
+ * `state` with the player's first Hero holding the Hero Trait Lame, and a Trait they gained on a Quest
+ * the History names and one they lost to Lame written to the History as `emit` writes them, Milestones
+ * both, at the Turn the world stands on (v1.1.4-S7).
+ */
+export function withTraitNews(state: GameState): GameState {
+  return changed(state, (document, player) => {
+    const hero = document.world.heroes[player.rosterIds[0] as HeroId];
+    if (hero === undefined) throw new Error('an empty Roster');
+    hero.traits = ['lame'];
+    const offered = document.history.entries.find((entry) => entry.type === 'quest.offered');
+    const questId = (offered?.payload as { questId: QuestId } | undefined)?.questId ?? ('quest-000001' as QuestId);
+    const labels = { [hero.id]: hero.name, [player.id]: player.name };
+    const turn = document.world.turn;
+    const gained = { heroId: hero.id, traitKey: 'scarred', questId, encounterIndex: 0, encounterKey: 'ambush-on-the-road' };
+    append(document.history, { turn, type: 'hero.trait-gained', participants: [hero.id, player.id], labels, milestone: isMilestone('hero.trait-gained', gained), payload: gained });
+    const lost = { heroId: hero.id, traitKey: 'scarred', replacedBy: 'lame' };
+    append(document.history, { turn, type: 'hero.trait-lost', participants: [hero.id, player.id], labels, milestone: isMilestone('hero.trait-lost', lost), payload: lost });
+  });
+}
+
 /** The player's Guild holding `quantity` of `definitionKey` besides what it held. */
 export function holding(state: GameState, definitionKey: ItemDefinitionKey, quantity: number): GameState {
   return changed(state, (document, player) => addStack(document.world, definitionKey, quantity, { kind: 'guild', id: player.id }));
@@ -225,6 +246,8 @@ export interface ReturnTold {
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
   injuries?: readonly { hero: number; typeKey: InjuryTypeKey; healsOnTurn: number }[];
   deaths?: readonly number[];
+  /** The Traits the Party's Heroes earned, each from an Encounter of the sequence (v1.1.4-S7). */
+  traits?: readonly { hero: number; traitKey: string; encounterIndex: number }[];
   /** Morale the return moved, each change as the Hero State Engine records it; a Hero outside the Party by their id. */
   morale?: readonly { hero: number | HeroId; cause: 'encounters' | 'strong-success' | 'roster-death'; before: number; after: number; bandAfter: MoraleBand }[];
   /** The Patron's Regard for the Guild crossing into a new band on the return. */
@@ -349,6 +372,11 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
       write('hero.injured', [hero(at), questId], { heroId: hero(at), questId, typeKey, healsOnTurn });
     }
     for (const heroId of deaths) write('hero.died', [heroId, questId], { heroId, questId });
+    for (const { hero: at, traitKey, encounterIndex } of told.traits ?? []) {
+      const encounterKey = told.encounters?.[encounterIndex]?.encounterKey ?? Object.keys(content.encounters)[0] ?? '';
+      write('hero.trait-gained', [hero(at), questId], { heroId: hero(at), traitKey, questId, encounterIndex, encounterKey });
+      world.heroes[hero(at)]?.traits.push(traitKey);
+    }
     for (const heroId of survivors) write('hero.xp-gained', [heroId, questId], { heroId, questId, amount: told.xp ?? 0 });
     for (const { hero: at, cause, before, after, bandAfter } of told.morale ?? []) {
       write('hero.morale-changed', [hero(at), questId], { heroId: hero(at), cause, questId, before, after, bandBefore: 'steady', bandAfter });
