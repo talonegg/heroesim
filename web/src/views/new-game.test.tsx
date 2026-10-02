@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { App } from '../app';
+import { content } from '../content';
 import { media } from '../media';
 import { createSaves } from '../saves';
 import { memoryStore } from '../saves.test-support';
@@ -297,8 +298,13 @@ describe('when the Guildmaster retires (M9-F2, DL-113 item 5)', () => {
 });
 
 // v1.1.2-S4 (DL-125 items 3 and 6): the Portrait chosen from the owner's pictures, or drawn, and what the
-// seed draws shown before "Start the game". The core has one picture of each sex.
+// seed draws shown before "Start the game". The core has 20 pictures of each sex (v1.1.3-S4).
 describe("the Guildmaster's Portrait and what the seed draws, in the new-game form (v1.1.2-S4)", () => {
+  /** The names of the 20 pictures of a sex, by its word, as the form offers them. */
+  function twenty(sexWord: 'Female' | 'Male'): string[] {
+    return Array.from({ length: 20 }, (_, n) => `${sexWord} Portrait ${n + 1}`);
+  }
+
   /** The Portrait's radio buttons, by the words each is named by. */
   function portraitNames(): string[] {
     return within(part('Portrait'))
@@ -323,32 +329,74 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     return [...preview().querySelectorAll('p')].map((line) => line.textContent ?? '');
   }
 
-  test('offers "Drawn from the seed", then a thumbnail of each picture of the sex, each a radio button with its picture as its label', () => {
+  /** The buttons that show one sex's pictures or the other's, while the sex is drawn: their words and which is pressed. */
+  function shownSexes(): string[] {
+    const group = within(part('Portrait')).queryByRole('group', { name: 'Pictures shown' });
+    return group === null ? [] : within(group).getAllByRole('button').map((button) => `${button.textContent}${button.getAttribute('aria-pressed') === 'true' ? ' (shown)' : ''}`);
+  }
+
+  function showSex(word: 'Female' | 'Male'): void {
+    fireEvent.click(within(within(part('Portrait')).getByRole('group', { name: 'Pictures shown' })).getByRole('button', { name: word }));
+  }
+
+  /** The thumbnail a radio button's label holds: its picture's `src`, or `null` for the Silhouette alone. */
+  function thumbnailOf(name: string): string | null {
+    const thumbnail = portraitRadio(name).closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
+    return thumbnail?.querySelector('img[data-picture="picture"]')?.getAttribute('src') ?? null;
+  }
+
+  // v1.1.3-S7 (DL-134 item 9, DL-143): one sex's thumbnails at a time, since both are more than 250 kB.
+  test('offers "Drawn from the seed", then a thumbnail of each picture of one sex, each a radio button with its picture as its label', () => {
     form();
     named();
 
-    // With the sex drawn, every sex's pictures: choosing one chooses its sex.
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    // With the sex drawn, the sex the seed draws: 'new-game-test' draws a female (v1.1.3-S5).
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female')]);
+    expect(shownSexes()).toEqual(['Female (shown)', 'Male']);
     const female = portraitRadio('Female Portrait 1');
     const thumbnail = female.closest('label')?.querySelector('[data-testid="portrait-thumbnail"]');
-    expect(thumbnail?.querySelector('img[data-picture="picture"]')?.getAttribute('src')).toBe(media.portrait('guildmaster', 'female', 'gm-female-01').picture);
+    // Each from its thumbnail, never the full picture.
+    expect(thumbnailOf('Female Portrait 1')).toBe(media.portraitThumbnail('guildmaster', 'female', 'gm-female-01').picture);
     // The picture is its label for the eye; its name is said in words, whether the picture loads or not.
     expect(thumbnail?.getAttribute('aria-hidden')).toBe('true');
 
+    showSex('Male');
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+    expect(shownSexes()).toEqual(['Female', 'Male (shown)']);
+    expect(sexField().value).toBe('');
+
+    // The Sex field chooses the pictures, and the buttons go.
     fireEvent.change(sexField(), { target: { value: 'male' } });
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+    expect(shownSexes()).toEqual([]);
     fireEvent.change(sexField(), { target: { value: 'female' } });
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female')]);
   });
 
-  test('a Portrait chosen starts the game with it; with the sex drawn, choosing one chooses its sex, and every picture stays offered', () => {
+  test('"Drawn from the seed" shows the picture the seed chooses, and follows the seed', () => {
+    form();
+    named();
+    // 'new-game-test' draws a female of 26, and gm-female-13 fits her (v1.1.3-S5), as the preview names.
+    const named13 = lines().at(-1)?.replace('Drawn Portrait: Female Portrait ', '') ?? '';
+    const key = `gm-female-${named13.padStart(2, '0')}`;
+    expect(thumbnailOf('Drawn from the seed')).toBe(media.portraitThumbnail('guildmaster', 'female', key).picture);
+    // Still the seed's own while another picture is chosen.
+    fireEvent.click(portraitRadio('Female Portrait 1'));
+    expect(thumbnailOf('Drawn from the seed')).toBe(media.portraitThumbnail('guildmaster', 'female', key).picture);
+    // A blank seed draws nothing yet: the Silhouette.
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: ' ' } });
+    expect(thumbnailOf('Drawn from the seed')).toBeNull();
+  });
+
+  test('a Portrait chosen starts the game with it; with the sex drawn, choosing one chooses its sex, and the other sex can still be shown and chosen', () => {
     const { play } = form();
     named();
 
     fireEvent.click(portraitRadio('Female Portrait 1'));
     expect(sexField().value).toBe('female');
-    // The other sex's pictures stay, so the arrow keys move through every one.
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', 'Male Portrait 1']);
+    expect(shownSexes()).toEqual(['Female (shown)', 'Male']);
+    showSex('Male');
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 1', ...twenty('Male')]);
     fireEvent.click(portraitRadio('Male Portrait 1'));
     expect(portraitRadio('Male Portrait 1').checked).toBe(true);
     expect(sexField().value).toBe('male');
@@ -363,7 +411,60 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     fireEvent.click(portraitRadio('Male Portrait 1'));
     fireEvent.click(portraitRadio('Drawn from the seed'));
     expect(sexField().value).toBe('male');
-    expect(portraitNames()).toEqual(['Drawn from the seed', 'Male Portrait 1']);
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+  });
+
+  // DL-147 (DL-146 W1): with the other sex shown, the picture chosen stays in the grid, checked, so the
+  // keyboard comes to it and an arrow moves on from it.
+  test('keeps the picture chosen, checked, after "Drawn from the seed" while the other sex is shown', () => {
+    const { play } = form();
+    named();
+    const checked = () => within(part('Portrait')).getAllByRole('radio').filter((radio) => (radio as HTMLInputElement).checked);
+
+    fireEvent.click(portraitRadio('Female Portrait 3'));
+    showSex('Male');
+    expect(portraitNames()).toEqual(['Drawn from the seed', 'Female Portrait 3', ...twenty('Male')]);
+    expect(checked()).toEqual([portraitRadio('Female Portrait 3')]);
+    expect(thumbnailOf('Female Portrait 3')).toBe(media.portraitThumbnail('guildmaster', 'female', 'gm-female-03').picture);
+    expect(sexField().value).toBe('female');
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterSex: 'female', guildmasterPortraitKey: 'gm-female-03' });
+
+    // Its own sex shown again, it stands in its place alone.
+    showSex('Female');
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Female')]);
+    expect(checked()).toEqual([portraitRadio('Female Portrait 3')]);
+
+    // A picture of the sex shown chosen in its place, it goes.
+    showSex('Male');
+    fireEvent.click(portraitRadio('Male Portrait 2'));
+    expect(portraitNames()).toEqual(['Drawn from the seed', ...twenty('Male')]);
+    expect(checked()).toEqual([portraitRadio('Male Portrait 2')]);
+  });
+
+  // v1.1.3-S7 (DL-134 item 7): the engine's `portraitFit`, beside the choice, never a refusal.
+  test('notes beside the choice a Portrait chosen that looks older than the age chosen, and lets the game start', () => {
+    const { play } = form();
+    named();
+    const youngest = Math.min(...setupFormChoices().ages);
+    const older = content.portraits.guildmaster.female.find((key) => (content.portraitAppearances.portraits[key]?.apparentAge[0] ?? 0) > youngest);
+    if (older === undefined) throw new Error('no female picture older than the youngest age');
+    const [from, to] = content.portraitAppearances.portraits[older]?.apparentAge ?? [];
+    const live = within(part('Portrait')).getByTestId('portrait-notes-live');
+    expect(live.getAttribute('aria-live')).toBe('polite');
+    expect(within(live).queryByTestId('portrait-notes')).toBeNull();
+
+    fireEvent.change(sexField(), { target: { value: 'female' } });
+    fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: String(youngest) } });
+    fireEvent.click(portraitRadio(`Female Portrait ${content.portraits.guildmaster.female.indexOf(older) + 1}`));
+    expect(within(live).getByTestId('portrait-notes').textContent).toBe(`This Portrait looks ${from} to ${to}: older than your Guildmaster's ${youngest}.`);
+    expect(refusal()).toBeNull();
+    expect(start().disabled).toBe(false);
+    fireEvent.click(start());
+    expect(play.mock.calls[0]?.[0]).toMatchObject({ guildmasterPortraitKey: older, guildmasterAge: youngest });
+
+    fireEvent.click(portraitRadio('Drawn from the seed'));
+    expect(within(live).queryByTestId('portrait-notes')).toBeNull();
   });
 
   test('changing the sex clears a Portrait of the other sex, and so does leaving the sex to the seed', () => {
@@ -393,10 +494,13 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     expect(drawn).toMatch(/^Drawn: (Female|Male), \d\d$/);
     expect(traits).toMatch(/^Drawn Traits: /);
     const sex = drawn?.startsWith('Drawn: Female') === true ? 'female' : 'male';
-    expect(portrait).toBe(`Drawn Portrait: ${sex === 'female' ? 'Female' : 'Male'} Portrait 1`);
+    // 'new-game-test' draws a female of 26, and gm-female-13, of 26 to 36, fits her (v1.1.3-S5).
+    expect(sex).toBe('female');
+    expect(portrait).toBe('Drawn Portrait: Female Portrait 13');
+    // Drawn from its thumbnail, which the grid reads already (v1.1.3-S7).
     const figure = within(preview()).getByTestId('portrait');
     expect(within(figure).getByRole('img', { name: 'Portrait of Ada Vell' }).getAttribute('src')).toBe(
-      media.portrait('guildmaster', sex, `gm-${sex}-01`).picture,
+      media.portraitThumbnail('guildmaster', sex, 'gm-female-13').picture,
     );
 
     // Another seed draws another Guildmaster; the preview follows it as it is typed.
@@ -433,7 +537,7 @@ describe("the Guildmaster's Portrait and what the seed draws, in the new-game fo
     named();
     fireEvent.change(sexField(), { target: { value: 'female' } });
     expect(lines()[0]).toMatch(/^Drawn: Age \d\d$/);
-    expect(lines().at(-1)).toBe('Drawn Portrait: Female Portrait 1');
+    expect(lines().at(-1)).toBe('Drawn Portrait: Female Portrait 13');
 
     fireEvent.click(portraitRadio('Female Portrait 1'));
     fireEvent.change(within(setup()).getByLabelText('Age'), { target: { value: '30' } });
@@ -677,8 +781,10 @@ describe('from the new-game form to the Guildmaster view (v1.1.2-S4)', () => {
     const held = within(view).queryByRole('list', { name: "Ada Vell's Traits" });
     const names = held === null ? [] : within(held).getAllByRole('listitem').map((item) => item.querySelector('.chip')?.textContent ?? '');
     expect(traits).toBe(`Drawn Traits: ${names.length === 0 ? 'None' : names.join(' and ')}`);
-    expect(portrait).toBe(`Drawn Portrait: ${sexWord} Portrait 1`);
-    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-01`).picture);
+    // The picture the preview names by its place is the one the view shows.
+    const place = portrait.replace(`Drawn Portrait: ${sexWord} Portrait `, '');
+    expect(place).toMatch(/^\d+$/);
+    expect(guildmasterPicture().getAttribute('src')).toBe(media.portrait('guildmaster', sex, `gm-${sex}-${place.padStart(2, '0')}`).picture);
   });
 
   test('the texts written, and one then changed, are the ones the Guildmaster view shows (v1.1.2-S5)', async () => {

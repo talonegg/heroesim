@@ -6,7 +6,7 @@ import { mediaFiles, neutralSilhouette } from '../media';
 import { carryingUnique, changed, holding, holdingUnique, started } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { openView, rosterList, section } from './page.test-support';
-import { GuildBanner, ItemPicture, Portrait, PortraitThumbnail } from './pictures';
+import { GuildBanner, ItemPicture, Portrait, PortraitThumb, PortraitThumbnail } from './pictures';
 
 // The page's pictures (v1.1.2-S2; DL-125 items 2, 7 and 8): each shows its Silhouette until its
 // picture loads, and again when it fails. A Portrait's picture is named "Portrait of {name}", and its
@@ -24,6 +24,8 @@ vi.mock('../media', async (original) => {
     media: actual.mediaCatalogue({
       ...actual.mediaFiles,
       'portraits/guildmasters/female/gm-female-01.webp': 'assets/gm-female-01-test.webp',
+      'portraits/guildmasters/female/gm-female-01.thumb.webp': 'assets/gm-female-01.thumb-test.webp',
+      'portraits/heroes/male/hero-male-01.thumb.webp': 'assets/hero-male-01.thumb-test.webp',
       'items/barrow-kings-blade.webp': 'assets/barrow-kings-blade-test.webp',
     }),
   };
@@ -105,15 +107,82 @@ test("a Portrait's thumbnail on the new-game form: the picture over its Silhouet
   );
   const thumbnail = screen.getByTestId('portrait-thumbnail');
   expect(thumbnail.getAttribute('aria-hidden')).toBe('true');
+  // The picture's own thumbnail, never the full picture (v1.1.3-S7).
   expect(layers(thumbnail)).toEqual([
     { is: 'silhouette', src: mediaFiles['portraits/guildmasters/female/silhouette.svg'], alt: '' },
-    { is: 'picture', src: 'assets/gm-female-01-test.webp', alt: '' },
+    { is: 'picture', src: 'assets/gm-female-01.thumb-test.webp', alt: '' },
   ]);
   expect(screen.getByRole('radio', { name: 'Female Portrait 1' })).toBeDefined();
   // A picture that fails leaves the Silhouette, and the radio button keeps its name.
   fireEvent.error(thumbnail.querySelector('img[data-picture="picture"]') as HTMLImageElement);
   expect(layers(thumbnail).map((layer) => layer.is)).toEqual(['silhouette']);
   expect(screen.getByRole('radio', { name: 'Female Portrait 1' })).toBeDefined();
+});
+
+test('"Drawn from the seed" in the setup grid: the Silhouette with no picture, and its words shown as well as read', () => {
+  render(
+    <label>
+      <input type="radio" name="portrait" />
+      <PortraitThumbnail sex="male" portraitKey={null} label="Drawn from the seed" labelShown />
+    </label>,
+  );
+  expect(layers(screen.getByTestId('portrait-thumbnail'))).toEqual([{ is: 'silhouette', src: mediaFiles['portraits/guildmasters/male/silhouette.svg'], alt: '' }]);
+  const words = screen.getByText('Drawn from the seed');
+  expect(words.classList.contains('visually-hidden')).toBe(false);
+  expect(screen.getByRole('radio', { name: 'Drawn from the seed' })).toBeDefined();
+});
+
+// v1.1.3-S7 (DL-135 item 9): a person's thumbnail beside their name in a list.
+test("a person's thumbnail is their picture's thumbnail over the Silhouette of their sex, hidden from screen readers", () => {
+  render(<PortraitThumb role="guildmaster" sex="female" portraitKey="gm-female-01" />);
+  const thumb = screen.getByTestId('portrait-thumb');
+  expect(thumb.getAttribute('aria-hidden')).toBe('true');
+  expect(thumb.classList.contains('portrait-thumb')).toBe(true);
+  expect(layers(thumb)).toEqual([
+    { is: 'silhouette', src: mediaFiles['portraits/guildmasters/female/silhouette.svg'], alt: '' },
+    { is: 'picture', src: 'assets/gm-female-01.thumb-test.webp', alt: '' },
+  ]);
+  fireEvent.load(thumb.querySelector('img[data-picture="picture"]') as HTMLImageElement);
+  expect(layers(thumb)).toEqual([{ is: 'picture', src: 'assets/gm-female-01.thumb-test.webp', alt: '' }]);
+});
+
+test("a person with no picture has the small Silhouette of their sex; a Hero's thumbnail is found in the Heroes' folder", () => {
+  const { unmount } = render(<PortraitThumb role="hero" sex="female" portraitKey={null} />);
+  expect(layers(screen.getByTestId('portrait-thumb'))).toEqual([{ is: 'silhouette', src: mediaFiles['portraits/heroes/female/silhouette.svg'], alt: '' }]);
+  unmount();
+  render(<PortraitThumb role="hero" sex="male" portraitKey="hero-male-01" />);
+  expect(layers(screen.getByTestId('portrait-thumb'))[1]).toEqual({ is: 'picture', src: 'assets/hero-male-01.thumb-test.webp', alt: '' });
+});
+
+test('a Portrait drawn from its thumbnail, as the setup preview draws it', () => {
+  render(<Portrait role="guildmaster" sex="female" portraitKey="gm-female-01" name="Ada Vell" thumbnail />);
+  expect(screen.getByRole('img', { name: 'Portrait of Ada Vell' }).getAttribute('src')).toBe('assets/gm-female-01.thumb-test.webp');
+});
+
+// v1.1.3-S7 (DL-134 item 9): every picture is read lazily, decoded off the main thread, its size stated.
+test('every picture is read lazily and decoded off the main thread, with its width and height', () => {
+  render(
+    <>
+      <Portrait role="guildmaster" sex="female" portraitKey="gm-female-01" name="Ada Vell" />
+      <PortraitThumb role="guildmaster" sex="female" portraitKey="gm-female-01" />
+      <PortraitThumbnail sex="female" portraitKey="gm-female-01" label="Female Portrait 1" />
+      <ItemPicture definitionKey="barrow-kings-blade" />
+      <GuildBanner guild={'guild-000001' as GuildId} />
+    </>,
+  );
+  const sizes = (place: string): string[] =>
+    [...screen.getByTestId(place).querySelectorAll('img')].map((img) =>
+      [img.dataset.picture, img.getAttribute('loading'), img.getAttribute('decoding'), img.getAttribute('width'), img.getAttribute('height')].join(' '),
+    );
+  expect(sizes('portrait')).toEqual(['silhouette  async 480 640', 'picture lazy async 480 640']);
+  expect(sizes('portrait-thumb')).toEqual(['silhouette  async 160 213', 'picture lazy async 160 213']);
+  expect(sizes('portrait-thumbnail')).toEqual(['silhouette  async 160 213', 'picture lazy async 160 213']);
+  expect(sizes('item-picture')).toEqual(['silhouette  async 20 20', 'picture lazy async 20 20']);
+  expect(sizes('guild-banner')).toEqual(['silhouette  async 20 30']);
+  // `loading` comes before `src`, so the browser knows it before it starts to read.
+  const picture = screen.getByRole('img', { name: 'Portrait of Ada Vell' });
+  const names = picture.getAttributeNames();
+  expect(names.indexOf('loading')).toBeLessThan(names.indexOf('src'));
 });
 
 test('a picture that fails leaves the Silhouette, hidden from screen readers', () => {
@@ -243,7 +312,12 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     const rival = Object.values(world.guilds).find((guild) => guild.name === heading.textContent);
     const guildmaster = rival === undefined ? undefined : world.guildmasters[rival.guildmasterId];
     if (rival === undefined || guildmaster === undefined) throw new Error('no Rival Guildmaster');
-    expect(layers(within(page).getByTestId('portrait'))).toEqual([silhouette(`portraits/guildmasters/${guildmaster.sex}/silhouette.svg`)]);
+    // A Rival's Portrait is chosen to fit them as they enter play (v1.1.3-S5): this one's, gm-male-15.
+    expect(guildmaster.portraitKey).toBe('gm-male-15');
+    expect(layers(within(page).getByTestId('portrait'))).toEqual([
+      silhouette(`portraits/guildmasters/${guildmaster.sex}/silhouette.svg`),
+      { is: 'picture', src: mediaFiles[`portraits/guildmasters/${guildmaster.sex}/gm-male-15.webp`], alt: `Portrait of ${guildmaster.name}` },
+    ]);
     const theirs = within(page).getByRole('heading', { level: 5, name: `${guildmaster.name}, Guildmaster of ${rival.name}` });
     expect(layers(within(theirs).getByTestId('guild-banner'))).toEqual([bannerSilhouette]);
   });
@@ -310,6 +384,75 @@ describe('where each picture goes (DL-125 items 2, 7 and 8)', () => {
     expect(title().textContent).toBe('The World History');
     expect(within(section('History')).queryByTestId('portrait')).toBeNull();
     expect(within(title()).queryByTestId('guild-banner')).toBeNull();
+  });
+
+  // v1.1.3-S7 (DL-135 item 9): a thumbnail beside each name in the Roster, the pool and the Guilds' table.
+  test("the Roster, the Unattached pool and the Guilds' table: each person's thumbnail beside their name", () => {
+    const state = started();
+    const { world } = documentOf(state);
+    render(<App initial={state} />);
+    const heroOf = (name: string) => Object.values(world.heroes).find((hero) => hero.name === name);
+    const expectThumb = (thumb: HTMLElement | undefined, role: string, sex: string | undefined, key: string | null | undefined, where: string): void => {
+      const folder = role === 'hero' ? 'heroes' : 'guildmasters';
+      const pictured = key === null || key === undefined ? [] : [{ is: 'picture', src: mediaFiles[`portraits/${folder}/${sex}/${key}.thumb.webp`] ?? null, alt: '' }];
+      expect(thumb, where).toBeDefined();
+      expect(layers(thumb as HTMLElement), where).toEqual([silhouette(`portraits/${folder}/${sex}/silhouette.svg`), ...pictured]);
+    };
+
+    // Each Hero card on the Roster: the small Silhouette of their sex, since no Hero has a picture.
+    const cards = within(rosterList()).getAllByRole('listitem');
+    expect(cards.length).toBeGreaterThan(0);
+    for (const card of cards) {
+      const name = within(card).getByRole('button').textContent ?? '';
+      const hero = heroOf(name);
+      expectThumb(within(card).getByTestId('portrait-thumb'), 'hero', hero?.sex, hero?.portraitKey, name);
+    }
+
+    // Each Hero in the pool, in their row's heading cell, before their name.
+    const rows = within(section('Unattached pool')).getAllByTestId('pool-row');
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      const header = within(row).getByRole('rowheader');
+      const name = within(header).getByRole('button').textContent ?? '';
+      const hero = heroOf(name);
+      expectThumb(within(header).getByTestId('portrait-thumb'), 'hero', hero?.sex, hero?.portraitKey, name);
+    }
+
+    // Each Guild's row, its Guildmaster's thumbnail beside its name: the picture chosen for them, or their Silhouette.
+    const guildRows = within(section('Guilds')).getAllByTestId('guild-row');
+    expect(guildRows).toHaveLength(Object.values(world.guilds).filter((guild) => guild.foldedOnTurn === null).length);
+    let pictured = 0;
+    for (const row of guildRows) {
+      const header = within(row).getByRole('rowheader');
+      const guild = Object.values(world.guilds).find((each) => each.name === within(header).getByRole('button').textContent);
+      const guildmaster = guild === undefined ? undefined : world.guildmasters[guild.guildmasterId];
+      if (guildmaster?.portraitKey !== null) pictured += 1;
+      expectThumb(within(header).getByTestId('portrait-thumb'), 'guildmaster', guildmaster?.sex, guildmaster?.portraitKey, guild?.name ?? '');
+    }
+    expect(pictured).toBeGreaterThan(0);
+  });
+
+  test("a Hero's page: their Appearance and Biography under their Portrait", () => {
+    const state = started();
+    const { world } = documentOf(state);
+    render(<App initial={state} />);
+    const [first] = within(rosterList()).getAllByRole('button');
+    fireEvent.click(first as HTMLElement);
+    const page = within(section('Roster')).getByRole('article');
+    const hero = Object.values(world.heroes).find((each) => each.name === within(page).getByRole('heading', { level: 3 }).textContent);
+    if (hero === undefined) throw new Error('no Hero');
+    expect(hero.appearance).not.toBe('');
+    expect(hero.biography).not.toBe('');
+
+    const texts = within(page).getByTestId('hero-texts');
+    const terms = [...texts.querySelectorAll('dt')].map((dt) => [dt.textContent, dt.nextElementSibling?.textContent]);
+    expect(terms).toEqual([
+      ['Appearance', hero.appearance],
+      ['Biography', hero.biography],
+    ]);
+    // Under the Portrait: after the head that holds it, before the Stats.
+    const head = within(page).getByTestId('portrait').closest('header');
+    expect(head?.nextElementSibling).toBe(texts);
   });
 
   test("the Stores and the Market's Sell: a Unique Item's picture before its name, and none before a common Item's", () => {

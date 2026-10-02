@@ -7,6 +7,8 @@
 // Unattached pool as its parts. Each Hero is a compact card (M9-S6, DL-106): their name, Class, Level
 // and age, a Morale chip, and where they are, injured or away shown by an icon and its words. Their
 // page opens with the keyboard on their name, and closing it returns the keyboard to their card.
+// Their thumbnail stands beside their name (v1.1.3-S7, DL-135 item 9), the small Silhouette while
+// they have no picture.
 
 import type { HeroId, WorldDocument } from '@heroesim/engine';
 import { useEffect, useMemo, useState } from 'react';
@@ -14,6 +16,7 @@ import type { GameAction } from '../state/reducer';
 import { rosterView, type RosterRow } from '../state/selectors';
 import { HeroPage } from './hero-page';
 import { Offers } from './offers';
+import { PortraitThumb } from './pictures';
 import { Pool } from './pool';
 import { View } from './section';
 import { Chip, moraleTones, useReturn } from './ui';
@@ -75,9 +78,12 @@ export function Roster({ document, busy, play }: { document: WorldDocument; busy
 function HeroCard({ row, onOpen }: { row: RosterRow; onOpen: () => void }) {
   return (
     <>
-      <button type="button" id={cardId(row.heroId)} className="link" onClick={onOpen}>
-        {row.name}
-      </button>
+      <span className="named">
+        <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
+        <button type="button" id={cardId(row.heroId)} className="link" onClick={onOpen}>
+          {row.name}
+        </button>
+      </span>
       <p className="hero-card__line">
         {row.className} · Level {row.level} · Age {row.age}
       </p>

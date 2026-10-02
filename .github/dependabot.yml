@@ -1,11 +1,13 @@
-# DL-124 item 11: the GitHub Actions and npm packages, monthly, into the current line's dev branch,
-# where `check` (the browser specs among it) reviews each pull request. Minor and patch updates
-# come grouped; a major comes alone. A new line moves both `target-branch`es to its `v#.#-dev`.
+# DL-124 item 11: the GitHub Actions and npm packages, monthly, into the newest dev branch (DL-147),
+# a patch's `v#.#.#-dev` or a line's `v#.#-dev`, where `check` (the browser specs among it) reviews
+# each pull request. Minor and patch updates come grouped; a major comes alone. Each new dev branch
+# moves both `target-branch`es to itself. Dependabot reads this file from `main`, so a move takes
+# effect when it is released.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
-    target-branch: v1.1-dev
+    target-branch: v1.1.3-dev
     schedule:
       interval: monthly
     groups:
@@ -14,7 +16,7 @@ updates:
 
   - package-ecosystem: npm
     directory: /
-    target-branch: v1.1-dev
+    target-branch: v1.1.3-dev
     schedule:
       interval: monthly
     open-pull-requests-limit: 5

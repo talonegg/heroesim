@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { EncounterKind, StatArea, TraitEffect } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
-import { contentFiles, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
+import { contentFiles, contentWarnings, descriptionBounds, longestDescriptions, parseContent, validateContent } from './index.js';
 import { contentDir, loadContent } from './node.js';
 
 // The core content set as the Node entry loads it from this package's directory (M1-S4).
@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 16 since v1.1.2-S3's Portraits and Patrons' sexes (DL-130), which v1.1.2-S4's pictures and v1.1.2-S5's descriptions keep (DL-131, DL-132)", () => {
+  test("is the core content set, version 17 since v1.1.3-S1's pictures' rows, vocabulary and a Hero's sentences (DL-134, DL-135)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(16);
+    expect(content.version).toBe(20);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -36,30 +36,87 @@ describe('loadContent()', () => {
     expect(male).toHaveLength(16);
   });
 
-  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+  test("lists the pictures by role and sex: the owner's two Guildmasters since v1.1.2-S4, 38 more since v1.1.3-S4, and no Hero's or Patron's (DL-125 items 3, 4 and 12)", () => {
+    const twenty = (sex: string) => Array.from({ length: 20 }, (_, index) => `gm-${sex}-${String(index + 1).padStart(2, '0')}`);
     expect(content.portraits).toEqual({
-      guildmaster: { female: ['gm-female-01'], male: ['gm-male-01'] },
+      guildmaster: { female: twenty('female'), male: twenty('male') },
       hero: { female: [], male: [] },
       patron: { female: [], male: [] },
     });
   });
 
-  test("maps each of the owner's two pictures to DL-127 item 5's keywords and narrative, as written (v1.1.2-S4)", () => {
-    const { keywords, portraits } = content.portraitAppearances;
-    expect(Object.keys(keywords)).toEqual([
-      'weathered', 'scarred', 'strong-boned', 'dark-haired', 'unruly-hair', 'long-hair', 'braided', 'bearded', 'hard-eyed',
-      'shadowed-eyes', 'stern', 'composed',
-    ]);
-    expect(keywords['bearded']).toEqual({ slot: 'facialHair', word: 'bearded' });
-    expect(keywords['shadowed-eyes']).toEqual({ slot: 'eyes', word: 'shadowed eyes' });
-    expect(Object.keys(portraits)).toEqual(['gm-male-01', 'gm-female-01']);
-    expect(portraits['gm-male-01']?.keywords).toEqual(['weathered', 'scarred', 'dark-haired', 'unruly-hair', 'bearded', 'hard-eyed', 'stern']);
-    expect(portraits['gm-female-01']?.keywords).toEqual(['strong-boned', 'dark-haired', 'long-hair', 'braided', 'shadowed-eyes', 'composed']);
-    expect(portraits['gm-male-01']?.narrative).toMatch(/^A weathered, deeply lined face, .* before a word is spoken\.$/);
-    expect(portraits['gm-female-01']?.narrative).toMatch(/^A strong-boned face with high cheekbones .* what she is thinking\.$/);
-    // DL-127 item 5 counts them: 243 and 241 characters.
+  test("gives each of the owner's two pictures DL-134 item 8's row, its narrative as DL-127 item 5 wrote it (v1.1.3-S1)", () => {
+    const { features, portraits } = content.portraitAppearances;
+    expect(features).toEqual({
+      beard: { maleOnly: true, shows: [] },
+      scar: { maleOnly: false, shows: ['scarred'] },
+      eyepatch: { maleOnly: false, shows: ['one-eyed'] },
+      braids: { maleOnly: false, shows: [] },
+      'long-hair': { maleOnly: false, shows: [] },
+      'curly-hair': { maleOnly: false, shows: [] },
+      'grey-hair': { maleOnly: false, shows: [] },
+      bald: { maleOnly: false, shows: [] },
+    });
+    // The owner's two first; v1.1.3-S4 took in 38 more, and its analysis gave these two hooks.
+    expect(Object.keys(portraits).slice(0, 2)).toEqual(['gm-male-01', 'gm-female-01']);
+    expect(Object.keys(portraits)).toHaveLength(40);
+    expect(portraits['gm-male-01']).toEqual({
+      apparentAge: [45, 55],
+      station: 'common',
+      callings: ['soldier', 'adventurer'],
+      temper: 'stern',
+      features: ['beard', 'scar', 'curly-hair'],
+      narrative: expect.stringMatching(/^A weathered, deeply lined face, .* before a word is spoken\.$/) as unknown,
+      hooks: ['{He} still wears the scuffed, stained leather coat of {his} road years, and has sent away every tailor the Guild has found for {him}.'],
+    });
+    expect(portraits['gm-female-01']).toEqual({
+      apparentAge: [22, 30],
+      station: 'gentry',
+      callings: ['soldier'],
+      temper: 'composed',
+      features: ['braids', 'long-hair'],
+      narrative: expect.stringMatching(/^A strong-boned face with high cheekbones .* what she is thinking\.$/) as unknown,
+      hooks: [
+        "{He} grew up in a vaulted stone house with {his} family's arms carved above the fire, and still sleeps poorly under a low roof.",
+        '{He} has pinned {his} braids with the same worked clasp since {his} first muster, and is never seen without it.',
+      ],
+    });
+    // DL-127 item 5 counts them: 243 and 241 characters, within a narrative's 260; v1.1.3-S4's
+    // analysis read gm-female-01's eyes as pale, and made it 255.
     expect([...(portraits['gm-male-01']?.narrative ?? '')]).toHaveLength(243);
-    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(241);
+    expect([...(portraits['gm-female-01']?.narrative ?? '')]).toHaveLength(255);
+  });
+
+  test("warns of every sex and band of Guildmaster pictures, and every Class and sex of Hero pictures, short of three (DL-134 item 10)", () => {
+    // Since v1.1.3-S4 every sex and band of Guildmaster pictures holds three or more.
+    expect(contentWarnings(content)).toEqual([
+      'portraits.hero.female: 0 pictures of the Class warrior, fewer than 3',
+      'portraits.hero.female: 0 pictures of the Class rogue, fewer than 3',
+      'portraits.hero.female: 0 pictures of the Class mage, fewer than 3',
+      'portraits.hero.female: 0 pictures of the Class healer, fewer than 3',
+      'portraits.hero.male: 0 pictures of the Class warrior, fewer than 3',
+      'portraits.hero.male: 0 pictures of the Class rogue, fewer than 3',
+      'portraits.hero.male: 0 pictures of the Class mage, fewer than 3',
+      'portraits.hero.male: 0 pictures of the Class healer, fewer than 3',
+    ]);
+  });
+
+  test("gives each Hero Background its Station: Fallen gentry gentry, Town apprentice trade, the other six common (DL-135 item 5)", () => {
+    const stations = Object.fromEntries(Object.values(content.backgrounds).map((row) => [row.key, row.station ?? null]));
+    expect(stations).toEqual({
+      'farm-born': 'common',
+      'levy-soldier': 'common',
+      'temple-ward': 'common',
+      'river-folk': 'common',
+      'pit-village': 'common',
+      'town-apprentice': 'trade',
+      'poachers-child': 'common',
+      'fallen-gentry': 'gentry',
+      'old-charter': null,
+      breakaway: null,
+      'newly-founded': null,
+      inherited: null,
+    });
   });
 
   describe("what a Guildmaster's descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6)", () => {
@@ -97,11 +154,50 @@ describe('loadContent()', () => {
       }
     });
 
-    test('proves the longest Birthplace, Appearance and Biography within 60, 280 and 1,000 characters', () => {
+    // v1.1.3-S1: the structure proved with a first sentence in every list; the first `analyse` run fills
+    // them to three or more (v1.1.3-S4, DL-135 item 11).
+    test("has DL-134 item 8's three Stations, six Tempers and seven Callings, lawyer apart from merchant (DL-135 item 1), and v1.1.3-S4's genial", () => {
+      expect(descriptions.stations).toEqual(['common', 'trade', 'gentry']);
+      expect(descriptions.tempers).toEqual(['stern', 'composed', 'intense', 'calculating', 'wry', 'steady', 'genial']);
+      expect(descriptions.callings).toEqual({
+        soldier: { suits: ['old-soldier'], clashes: [] },
+        adventurer: { suits: ['old-soldier'], clashes: [] },
+        scholar: { suits: [], clashes: ['mistrusts-magic'] },
+        mage: { suits: [], clashes: ['mistrusts-magic'] },
+        explorer: { suits: [], clashes: [] },
+        merchant: { suits: ['thrifty', 'miser'], clashes: ['spendthrift'] },
+        lawyer: { suits: ['thrifty'], clashes: [] },
+      });
+    });
+
+    test("has a sentence at least for every Station, Calling at every band, Temper, Hero Background, Class at every band and Hero Trait, and a Hero's closing for every band", () => {
+      const { stationOrigins, callingCareers, temperClosings } = descriptions.biography;
+      const hero = descriptions.heroBiography;
+      const heroBackgrounds = Object.values(content.backgrounds).filter((row) => row.owner === 'hero').map((row) => row.key);
+      const heroTraits = Object.values(content.traits).filter((row) => row.owner === 'hero').map((row) => row.key);
+      const lists: [string, string[] | undefined][] = [
+        ...descriptions.stations.map((key): [string, string[] | undefined] => [`stationOrigins.${key}`, stationOrigins[key]]),
+        ...Object.keys(descriptions.callings).flatMap((key) =>
+          bands.map((band): [string, string[] | undefined] => [`callingCareers.${key}.${band}`, callingCareers[key]?.[band]]),
+        ),
+        ...descriptions.tempers.map((key): [string, string[] | undefined] => [`temperClosings.${key}`, temperClosings[key]]),
+        ...heroBackgrounds.map((key): [string, string[] | undefined] => [`heroBiography.backgrounds.${key}`, hero.backgrounds[key]]),
+        ...Object.keys(content.classes).flatMap((key) =>
+          bands.map((band): [string, string[] | undefined] => [`heroBiography.classes.${key}.${band}`, hero.classes[key]?.[band]]),
+        ),
+        ...heroTraits.map((key): [string, string[] | undefined] => [`heroBiography.traits.${key}`, hero.traits[key]]),
+        ...bands.map((band): [string, string[] | undefined] => [`heroBiography.closings.${band}`, hero.closings[band]]),
+      ];
+      expect(lists).toHaveLength(3 + 7 * 3 + 7 + 8 + 4 * 3 + 4 + 3);
+      for (const [where, list] of lists) expect(list?.length ?? 0, where).toBeGreaterThanOrEqual(1);
+    });
+
+    test("proves the longest Birthplace, Appearance and Biography, a Guildmaster's and a Hero's, within 60, 280 and 1,000 characters", () => {
       const longest = longestDescriptions(content);
       expect(longest.birthplace).toBeLessThanOrEqual(descriptionBounds.birthplace);
       expect(longest.appearance).toBeLessThanOrEqual(descriptionBounds.appearance);
       expect(longest.biography).toBeLessThanOrEqual(descriptionBounds.biography);
+      expect(longest.heroBiography).toBeLessThanOrEqual(descriptionBounds.biography);
       expect(descriptionBounds).toEqual({ birthplace: 60, appearance: 280, biography: 1000 });
     });
 
@@ -119,8 +215,12 @@ describe('loadContent()', () => {
 
     // v1.1.2-S6, the S5 verification's findings: the prose read whole, and what it showed held here.
     const biographySentences = (): string[] => {
-      const { origins, careers, backgrounds, traits, closings, successors } = descriptions.biography;
-      return [origins, careers, backgrounds, traits, closings].flatMap((lists) => Object.values(lists).flat()).concat(successors);
+      const { origins, careers, backgrounds, traits, closings, successors, stationOrigins, callingCareers, temperClosings } = descriptions.biography;
+      const hero = descriptions.heroBiography;
+      return [origins, careers, backgrounds, traits, closings, stationOrigins, temperClosings, hero.backgrounds, hero.traits, hero.closings]
+        .flatMap((lists) => Object.values(lists).flat())
+        .concat(successors)
+        .concat([callingCareers, hero.classes].flatMap((byKey) => Object.values(byKey).flatMap((byBand) => Object.values(byBand).flat())));
     };
 
     test("gives a successor sentences of coming to the Guild's chair, none of founding it", () => {
@@ -152,6 +252,7 @@ describe('loadContent()', () => {
       const older = [
         ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand.older ?? {}).flat()),
         ...(['origins', 'careers', 'closings'] as const).flatMap((part) => descriptions.biography[part].older ?? []),
+        ...Object.values(descriptions.biography.callingCareers).flatMap((byBand) => byBand.older ?? []),
       ];
       expect(older.filter((text) => /\bwhite\b|lifetime|longer ago|stepping down|with age|old paper/i.test(text))).toEqual([]);
     });
@@ -183,6 +284,7 @@ describe('loadContent()', () => {
       const texts = [
         ...descriptions.birthplaces,
         ...Object.values(descriptions.appearance).flatMap((byBand) => Object.values(byBand).flatMap((slots) => Object.values(slots).flat())),
+        ...biographySentences().map((sentence) => sentence.replace(/^\{(\w+)\}/, (_, slot: string) => descriptions.pronouns.female[slot] ?? slot)),
       ];
       for (const text of texts) expect(text, text).toMatch(/^\p{Lu}/u);
     });

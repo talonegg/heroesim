@@ -965,11 +965,13 @@ describe('the release workflows (DL-124)', () => {
     expect(new Set(names)).toEqual(new Set(['${{ secrets.CLOUDFLARE_API_TOKEN }}', '${{ secrets.CLOUDFLARE_ACCOUNT_ID }}']));
   });
 
-  test("Dependabot updates into a line's dev branch, never main or a release branch", () => {
+  // DL-147: the newest dev branch, a patch's `v#.#.#-dev` or a line's `v#.#-dev`, the same for both.
+  test("Dependabot updates into one dev branch, a line's or a patch's, never main or a release branch", () => {
     const dependabot = readText('.github/dependabot.yml').replace(/\r\n/g, '\n');
     const targets = [...dependabot.matchAll(/target-branch: (\S+)/g)].map((match) => match[1]);
 
     expect(targets).toHaveLength(2);
-    for (const target of targets) expect(target).toMatch(/^v\d+\.\d+-dev$/);
+    expect(new Set(targets).size).toBe(1);
+    for (const target of targets) expect(target).toMatch(/^v\d+\.\d+(\.\d+)?-dev$/);
   });
 });

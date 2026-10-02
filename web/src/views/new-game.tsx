@@ -18,9 +18,13 @@
 // button, once a field has been touched; before that, a hint asks for the names (DL-109 item 2, Q22).
 //
 // The Portrait (DL-125 item 3): "Drawn from the seed", then a thumbnail of each Guildmaster picture of
-// the sex, each a radio button with its picture as its label. With the sex drawn, every sex's pictures
-// are offered, and choosing one chooses its sex, which the Sex field shows, until the Portrait is drawn
-// again; changing the sex clears a Portrait of another.
+// the sex, each a radio button with its picture as its label. Since v1.1.3-S7 it is a grid of one sex's
+// thumbnails at a time (DL-134 item 9, DL-143: both sexes' are more than the 250 kB the grid may read):
+// the Sex field's, or with the sex drawn the one the seed draws, with Female and Male to show the other.
+// Choosing a picture with the sex drawn chooses its sex, which the Sex field shows, until the Portrait is
+// drawn again; changing the sex clears a Portrait of another. "Drawn from the seed" shows the picture the
+// seed chooses, and the engine's `portraitFit` notes a picture chosen that looks older or younger than the
+// age, or whose Calling clashes with a Trait, beside the choice and never as a refusal.
 //
 // The Birthplace, Appearance and Biography (v1.1.2-S5, DL-125 item 6): "Write them for me" fills the
 // three fields for the Guildmaster the form makes, their sex and age chosen or drawn, the Background
@@ -45,7 +49,8 @@ import {
   guildmasterPreview,
   guildmasterPreviewView,
   noTexts,
-  portraitChoices,
+  portraitFitWords,
+  portraitGrid,
   portraitPick,
   setupFormChoices,
   setupNotice,
@@ -98,6 +103,8 @@ export function NewGame({
   const [portraitKey, setPortraitKey] = useState<PortraitKey | ''>('');
   // Whether the sex is the Portrait's, chosen with it while the sex was drawn, rather than the Sex field's own.
   const [sexOfPortrait, setSexOfPortrait] = useState(false);
+  // The sex whose pictures the player asked to see while the sex is drawn, or `null` (v1.1.3-S7).
+  const [lookAt, setLookAt] = useState<Sex | null>(null);
   const [age, setAge] = useState('');
   // The Traits drawn from the seed, or chosen: `null` while drawn, and none chosen is a choice.
   const [traitKeys, setTraitKeys] = useState<readonly TraitKey[] | null>(null);
@@ -110,22 +117,19 @@ export function NewGame({
 
   // The engine's Guildmaster for the facts chosen and the seed, asked once for the preview and the texts
   // (v1.1.2-S6). It reads neither name nor any text, so typing them asks nothing again.
-  const previewed = useMemo(
-    () =>
-      guildmasterPreview(
-        {
-          guildName: '',
-          guildmasterName: '',
-          ...(backgroundKey === '' ? {} : { backgroundKey }),
-          ...(sex === '' ? {} : { guildmasterSex: sex }),
-          ...(portraitKey === '' ? {} : { guildmasterPortraitKey: portraitKey }),
-          ...(age === '' ? {} : { guildmasterAge: Number(age) }),
-          ...(traitKeys === null ? {} : { guildmasterTraitKeys: traitKeys }),
-        },
-        seed,
-      ),
-    [backgroundKey, sex, portraitKey, age, traitKeys, seed],
+  const facts = useMemo(
+    () => ({
+      guildName: '',
+      guildmasterName: '',
+      ...(backgroundKey === '' ? {} : { backgroundKey }),
+      ...(sex === '' ? {} : { guildmasterSex: sex }),
+      ...(portraitKey === '' ? {} : { guildmasterPortraitKey: portraitKey }),
+      ...(age === '' ? {} : { guildmasterAge: Number(age) }),
+      ...(traitKeys === null ? {} : { guildmasterTraitKeys: traitKeys }),
+    }),
+    [backgroundKey, sex, portraitKey, age, traitKeys],
   );
+  const previewed = useMemo(() => guildmasterPreview(facts, seed), [facts, seed]);
   // What the seed draws, in words, and whether there is a Guildmaster to write for.
   const preview = useMemo(() => guildmasterPreviewView(previewed, seed), [previewed, seed]);
   const writable = previewed !== null;
@@ -156,9 +160,11 @@ export function NewGame({
   }, [guildName, guildmasterName, backgroundKey, sex, portraitKey, age, traitKeys, texts]);
   const notice = useMemo(() => setupNotice({ kind: 'newGame', seed: '', createdAt: '', ...setup }, touched), [setup, touched]);
   const picks = useMemo(() => (traitKeys === null ? null : traitPicksView(traitKeys)), [traitKeys]);
-  // The pictures of the sex chosen; every sex's while it is drawn, or is only the Portrait's.
-  const offered = sex === '' || sexOfPortrait ? null : sex;
-  const portraits = useMemo(() => portraitChoices(offered).flatMap((group) => group.pictures), [offered]);
+  // The setup grid (v1.1.3-S7): one sex's pictures at a time, "Drawn from the seed" showing the seed's,
+  // and the engine's notes on a picture chosen. Neither name nor any text is read, so typing asks nothing.
+  const fieldSex = sex === '' || sexOfPortrait ? null : sex;
+  const grid = useMemo(() => portraitGrid(facts, seed, { fieldSex, lookAt }), [facts, seed, fieldSex, lookAt]);
+  const fitNotes = useMemo(() => portraitFitWords(facts, seed), [facts, seed]);
 
   function start(event: FormEvent<HTMLFormElement>): void {
     event.preventDefault();
@@ -174,12 +180,13 @@ export function NewGame({
   function chooseSex(next: Sex | ''): void {
     setSex(next);
     setSexOfPortrait(false);
+    setLookAt(null);
     if (portraitKey !== '' && portraitPick(portraitKey)?.sex !== next) setPortraitKey('');
   }
 
   /**
    * A picture chosen. With the sex drawn it chooses its sex (DL-130 item 5), which the Sex field then
-   * shows, while every sex's pictures stay offered, so the arrow keys still move through them all.
+   * shows, while the other sex's pictures can still be shown and chosen.
    */
   function choosePortrait(pick: PortraitPick): void {
     setPortraitKey(pick.key);
@@ -301,6 +308,7 @@ export function NewGame({
                       sex={preview.portrait.sex}
                       portraitKey={preview.portrait.portraitKey}
                       name={guildmasterName.trim() === '' ? 'your Guildmaster' : guildmasterName.trim()}
+                      thumbnail
                     />
                   )}
                   <div className="setup-preview__words">
@@ -314,12 +322,32 @@ export function NewGame({
 
             <fieldset className="setup__portraits">
               <legend>Portrait</legend>
+              {grid.sexes === null ? null : (
+                <div className="portrait-sexes" role="group" aria-label="Pictures shown">
+                  {grid.sexes.map((each) => (
+                    <button
+                      key={each.sex}
+                      type="button"
+                      className="button--quiet"
+                      aria-pressed={each.shown}
+                      onClick={() => setLookAt(each.sex)}
+                    >
+                      {each.label}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="portrait-picks">
-                <label className="choice">
+                <label className="choice portrait-pick portrait-pick--drawn">
                   <input type="radio" name="guildmasterPortrait" value="" checked={portraitKey === ''} onChange={drawPortrait} />
-                  <span>Drawn from the seed</span>
+                  <PortraitThumbnail
+                    sex={grid.drawn?.sex ?? grid.sex}
+                    portraitKey={grid.drawn?.portraitKey ?? null}
+                    label="Drawn from the seed"
+                    labelShown
+                  />
                 </label>
-                {portraits.map((pick) => (
+                {[...(grid.chosen === null ? [] : [grid.chosen]), ...grid.pictures].map((pick) => (
                   <label key={pick.key} className="choice portrait-pick">
                     <input
                       type="radio"
@@ -331,6 +359,19 @@ export function NewGame({
                     <PortraitThumbnail sex={pick.sex} portraitKey={pick.key} label={pick.label} />
                   </label>
                 ))}
+              </div>
+              {/* The engine's notes on the picture chosen, beside it and never a refusal (DL-134 item 7). */}
+              <div aria-live="polite" data-testid="portrait-notes-live">
+                {fitNotes.length === 0 ? null : (
+                  <ul className="portrait-notes" data-testid="portrait-notes">
+                    {fitNotes.map((words) => (
+                      <li key={words} className="note">
+                        <Icon name="about" />
+                        <span>{words}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
             </fieldset>
 

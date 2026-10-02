@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises';
 import { builtinModules } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,26 @@ const classicScript: Plugin = {
   },
 };
 
+const contentDir = path.join(repoRoot, 'content');
+
+/**
+ * The content's JSON bundled as data, without the indentation and line breaks it is written with
+ * (v1.1.3-S7, DL-134 item 9, DL-143): `src/content.ts` takes each file as text, which Vite would
+ * bundle as written, about 24 kB of whitespace in an 800 kB script. Only the files of `content/`
+ * taken `?raw` are read here, and each is parsed, so a file that is not JSON fails the build. What
+ * `parseContent` makes of the text is the same either way (`src/content.test.ts`).
+ */
+const compactContent: Plugin = {
+  name: 'heroesim:compact-content',
+  enforce: 'pre',
+  async load(id) {
+    const [file = '', query] = id.split('?');
+    if (query !== 'raw' || path.extname(file) !== '.json' || path.dirname(path.resolve(file)) !== contentDir) return null;
+    const written = await readFile(file, 'utf8');
+    return `export default ${JSON.stringify(JSON.stringify(JSON.parse(written)))};`;
+  },
+};
+
 const nodeBuiltins = new Set(builtinModules);
 
 /**
@@ -68,7 +89,7 @@ export default defineConfig({
   // Relative asset URLs, so the built folder works from any path, Cloudflare Pages's root and
   // the filesystem included (M7-S1).
   base: './',
-  plugins: [noNodeBuiltins, react(), classicScript],
+  plugins: [noNodeBuiltins, compactContent, react(), classicScript],
   build: {
     // Each Silhouette inlined into the one script, and nothing else: a picture is a hashed file in
     // dist/assets/ (DL-125 item 1).

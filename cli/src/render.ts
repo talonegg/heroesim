@@ -179,6 +179,7 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       { heading: 'Guild' },
       { heading: 'Controller' },
       { heading: 'Guildmaster' },
+      { heading: 'Portrait' },
       { heading: 'Background' },
       { heading: 'Roster', align: 'right' },
       { heading: 'Wealth', align: 'right' },
@@ -191,6 +192,8 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       guild.name,
       controllerOf(guild, content),
       rowIn(world.guildmasters, guild.guildmasterId)?.name ?? guild.guildmasterId,
+      // Every Guildmaster's picture by its key (v1.1.3-S5), or the Silhouette where none fits them.
+      portraitWords(rowIn(world.guildmasters, guild.guildmasterId)?.portraitKey ?? null),
       nameIn(content.backgrounds, guild.backgroundKey),
       String(guild.rosterIds.length),
       String(guild.wealth),
@@ -199,6 +202,11 @@ function guildTable(guilds: readonly Guild[], document: WorldDocument, deps: Eng
       ...(anyFolded ? [guild.foldedOnTurn === null ? '' : `on Day ${dayOf(guild.foldedOnTurn)}`] : []),
     ]),
   );
+}
+
+/** A Guildmaster's Portrait in a table: its picture's key, or the Silhouette (v1.1.3-S5). */
+function portraitWords(portraitKey: string | null): string {
+  return portraitKey ?? 'Silhouette';
 }
 
 function inPlay(guild: Guild): boolean {
@@ -446,8 +454,11 @@ export function renderPool(document: WorldDocument, deps: EngineDeps): string[] 
   return ['Unattached pool', '', ...heroTable(unattachedHeroes(document.world), document, deps, columns), ...note];
 }
 
+/** A Hero's descriptive Attributes, in the order a Guildmaster's are shown: no Birthplace (v1.1.3-S6). */
+const heroAttributes = ['appearance', 'biography'] as const;
+
 /**
- * `show hero <id>`: the Hero's Attributes, State, Stats, gear and Skills. Never Potential (rule 9):
+ * `show hero <id>`: the Hero's Attributes, their Portrait, Appearance and Biography (v1.1.3-S6), State, Stats, gear and Skills. Never Potential (rule 9):
  * each Stat's base value, read through `baseStat`, and beside it its effective value, the engine's
  * `effectiveStats` with the Guildmaster's Class bonus and the Hero's gear (M5-S2), which is what a
  * Quest's Check reads; then its Potential hint under "Outlook", the word `potentialHint` gives (M3-S3) through the bands the player's
@@ -466,6 +477,8 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
 
   const attributes: [string, string][] = [
     ['Sex', capitalised(hero.sex)],
+    // The picture by its key (v1.1.3-S6), which the page finds in `media/`; none shows the Silhouette.
+    ['Portrait', hero.portraitKey ?? 'None: the Silhouette'],
     ['Age', String(ageOf(hero, world.turn, config))],
     ['Class', nameIn(content.classes, hero.classKey)],
     ['Background', nameIn(content.backgrounds, hero.backgroundKey)],
@@ -481,6 +494,8 @@ export function renderHero(hero: Hero, document: WorldDocument, deps: EngineDeps
           `(Turn ${hero.injury.healsOnTurn})`,
     ],
     ['Traits', none(hero.traits.map((key) => nameIn(content.traits, key)))],
+    // A Hero's two descriptive Attributes, written as they were generated (v1.1.3-S6); none is shown when empty.
+    ...heroAttributes.flatMap((attribute): [string, string][] => (hero[attribute] === '' ? [] : [[descriptiveAttributeLabels[attribute], hero[attribute]]])),
   ];
   // A Hero on another Guild's Roster: what the player's Guild would pay to take them (M6-S2).
   if (player !== undefined && guild !== undefined && guild.id !== player.id && guild.rosterIds.includes(hero.id)) {

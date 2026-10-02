@@ -1,4 +1,4 @@
-import { createWorld, defaultConfig, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
+import { createWorld, defaultConfig, portraitFit, type DescriptiveAttribute, type Sex } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { content } from '../content';
 import { capitalised } from './names';
@@ -9,6 +9,8 @@ import {
   guildmasterPreviewView,
   noTexts,
   portraitChoices,
+  portraitFitWords,
+  portraitGrid,
   portraitPick,
   setupFormChoices,
   setupNotice,
@@ -249,18 +251,22 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
     return guild === undefined ? undefined : world.guildmasters[guild.guildmasterId];
   }
 
-  test("offers the owner's two pictures, each named by its sex and its place, by the sex chosen, or both with the sex drawn", () => {
+  test("offers content's pictures, each named by its sex and its place, by the sex chosen, or both with the sex drawn", () => {
+    /** The 20 pictures of `sex` since v1.1.3-S4, as the form offers them. */
+    const twenty = (sex: Sex, label: string) =>
+      Array.from({ length: 20 }, (_, n) => ({ key: `gm-${sex}-${String(n + 1).padStart(2, '0')}`, sex, label: `${label} Portrait ${n + 1}` }));
     expect(portraitChoices(null)).toEqual([
-      { sex: 'female', label: 'Female', pictures: [{ key: 'gm-female-01', sex: 'female', label: 'Female Portrait 1' }] },
-      { sex: 'male', label: 'Male', pictures: [{ key: 'gm-male-01', sex: 'male', label: 'Male Portrait 1' }] },
+      { sex: 'female', label: 'Female', pictures: twenty('female', 'Female') },
+      { sex: 'male', label: 'Male', pictures: twenty('male', 'Male') },
     ]);
-    expect(portraitChoices('male').map((group) => group.pictures.map((pick) => pick.key))).toEqual([['gm-male-01']]);
-    expect(portraitChoices('female').map((group) => group.pictures.map((pick) => pick.key))).toEqual([['gm-female-01']]);
+    expect(portraitChoices('male').map((group) => group.pictures.map((pick) => pick.key))).toEqual([content.portraits.guildmaster.male]);
+    expect(portraitChoices('female').map((group) => group.pictures.map((pick) => pick.key))).toEqual([content.portraits.guildmaster.female]);
     // A sex with no picture has no group: a Silhouette is never offered (DL-125 item 3).
     const none = { female: [], male: [] };
     expect(portraitChoices(null, { ...content, portraits: { ...content.portraits, guildmaster: { ...none, male: ['gm-male-01'] } } })).toHaveLength(1);
     expect(portraitPick('gm-male-01')?.label).toBe('Male Portrait 1');
-    expect(portraitPick('gm-male-09')).toBeUndefined();
+    expect(portraitPick('gm-male-09')?.label).toBe('Male Portrait 9');
+    expect(portraitPick('gm-male-21')).toBeUndefined();
   });
 
   test('names the sex, age, Traits and Portrait "Start the game" makes, over many seeds, each line only for what is drawn', () => {
@@ -273,10 +279,16 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
       expect(view.drawnWords).toBe(`Drawn: ${guildmaster.sex === 'female' ? 'Female' : 'Male'}, ${guildmaster.ageAtEntry}`);
       const names = traitNames(guildmaster.traits);
       expect(view.traitsWords).toBe(names.length === 0 ? 'Drawn Traits: None' : `Drawn Traits: ${names.length === 1 ? names[0] : `${names[0]} and ${names[1]}`}`);
+      // Chosen to fit them since v1.1.3-S5: a picture of the sex, named by its place in content's list,
+      // or the Silhouette where none fits their age.
+      const place = guildmaster.portraitKey === null ? 0 : content.portraits.guildmaster[guildmaster.sex].indexOf(guildmaster.portraitKey) + 1;
       expect(view.portrait).toEqual({
         sex: guildmaster.sex,
         portraitKey: guildmaster.portraitKey,
-        words: `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait 1`,
+        words:
+          guildmaster.portraitKey === null
+            ? 'Drawn Portrait: None: the Silhouette'
+            : `Drawn Portrait: ${guildmaster.sex === 'female' ? 'Female' : 'Male'} Portrait ${place}`,
       });
     }
   });
@@ -284,7 +296,8 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   test('says only what is drawn: the age alone, the sex alone, or nothing at all when everything is chosen', () => {
     const chosenSex = previewOf({ ...fields, guildmasterSex: 'male' }, 'seed-a');
     expect(chosenSex).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: Age ${made('seed-a', { ...fields, guildmasterSex: 'male' })?.ageAtEntry}` });
-    expect(chosenSex?.kind === 'drawn' && chosenSex.portrait?.words).toBe('Drawn Portrait: Male Portrait 1');
+    // A male of 46 for 'seed-a': gm-male-17, of 38 to 48, fits him (v1.1.3-S5).
+    expect(chosenSex?.kind === 'drawn' && chosenSex.portrait?.words).toBe('Drawn Portrait: Male Portrait 17');
 
     const chosenAge = previewOf({ ...fields, guildmasterAge: 40, guildmasterTraitKeys: [] }, 'seed-a');
     expect(chosenAge).toMatchObject({ kind: 'drawn', drawnWords: `Drawn: ${capitalised(made('seed-a', fields)?.sex ?? '')}`, traitsWords: null });
@@ -319,6 +332,122 @@ describe("the Guildmaster's Portrait and the preview on the form (v1.1.2-S4)", (
   });
 });
 
+// v1.1.3-S7 (DL-134 items 7 and 9, DL-143): the setup grid, one sex's thumbnails at a time, "Drawn from
+// the seed" showing the picture the seed chooses, and `portraitFit`'s notes in words.
+describe('the setup grid and the notes beside a Portrait chosen (v1.1.3-S7)', () => {
+  const fields = { guildName: 'The Lantern', guildmasterName: 'Ada Vell' };
+  const drawnSex = { fieldSex: null, lookAt: null };
+
+  function made(seed: string, setup: SetupFields) {
+    const { world } = createWorld(seed, { ...setup, createdAt: '' }, { config: defaultConfig, content }).document;
+    const guild = Object.values(world.guilds).find((each) => each.controller.kind === 'player');
+    return guild === undefined ? undefined : world.guildmasters[guild.guildmasterId];
+  }
+
+  test('shows one sex at a time: the sex the seed draws, and "Drawn from the seed" the picture it chooses, over many seeds', () => {
+    for (let n = 0; n < 30; n += 1) {
+      const seed = `grid-${n}`;
+      const guildmaster = made(seed, fields);
+      if (guildmaster === undefined) throw new Error(`${seed}: no Guildmaster`);
+      const grid = portraitGrid(fields, seed, drawnSex);
+      expect(grid.sex, seed).toBe(guildmaster.sex);
+      expect(grid.pictures.map((pick) => pick.key), seed).toEqual(content.portraits.guildmaster[guildmaster.sex]);
+      expect(grid.drawn, seed).toEqual({ sex: guildmaster.sex, portraitKey: guildmaster.portraitKey });
+      expect(grid.sexes, seed).toEqual([
+        { sex: 'female', label: 'Female', shown: guildmaster.sex === 'female' },
+        { sex: 'male', label: 'Male', shown: guildmaster.sex === 'male' },
+      ]);
+    }
+  });
+
+  test('shows the sex asked to see, the Sex field’s, or the picture chosen’s; "Drawn from the seed" is what the seed would draw without it', () => {
+    const seed = 'grid-chosen';
+    const seedSex = made(seed, fields)?.sex;
+    const other: Sex = seedSex === 'female' ? 'male' : 'female';
+    expect(portraitGrid(fields, seed, { fieldSex: null, lookAt: other })).toMatchObject({ sex: other, sexes: [{ shown: other === 'female' }, { shown: other === 'male' }] });
+
+    // The Sex field chooses the sex shown, and offers no other.
+    const male = portraitGrid({ ...fields, guildmasterSex: 'male' }, seed, { fieldSex: 'male', lookAt: 'female' });
+    expect(male.sex).toBe('male');
+    expect(male.sexes).toBeNull();
+    expect(male.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster.male);
+    const madeMale = made(seed, { ...fields, guildmasterSex: 'male' });
+    expect(male.drawn).toEqual({ sex: 'male', portraitKey: madeMale?.portraitKey });
+
+    // A picture chosen with the sex drawn: its sex is shown, and "Drawn from the seed" is still the seed's own.
+    const chosen = `gm-${other}-02`;
+    const pictured = portraitGrid({ ...fields, guildmasterSex: other, guildmasterPortraitKey: chosen }, seed, drawnSex);
+    expect(pictured.sex).toBe(other);
+    expect(pictured.drawn).toEqual(portraitGrid(fields, seed, drawnSex).drawn);
+    expect(pictured.sexes).not.toBeNull();
+    expect(pictured.chosen).toBeNull();
+  });
+
+  // DL-147 (DL-146 W1): a radio button of the grid is always checked.
+  test('keeps the picture chosen in the grid while the other sex is shown, and only then', () => {
+    const seed = 'grid-chosen';
+    const chosen = 'gm-female-02';
+    const setup = { ...fields, guildmasterSex: 'female' as const, guildmasterPortraitKey: chosen };
+    const other = portraitGrid(setup, seed, { fieldSex: null, lookAt: 'male' });
+    expect(other.sex).toBe('male');
+    expect(other.pictures.map((pick) => pick.key)).toEqual(content.portraits.guildmaster.male);
+    expect(other.chosen).toEqual(portraitPick(chosen));
+    expect(portraitGrid(setup, seed, { fieldSex: null, lookAt: 'female' }).chosen).toBeNull();
+    expect(portraitGrid(setup, seed, drawnSex).chosen).toBeNull();
+    expect(portraitGrid(fields, seed, { fieldSex: null, lookAt: 'male' }).chosen).toBeNull();
+  });
+
+  test('shows nothing drawn while the seed is blank, and the first sex with pictures', () => {
+    const grid = portraitGrid(fields, '  ', drawnSex);
+    expect(grid.drawn).toBeNull();
+    expect(grid.sex).toBe('female');
+    expect(grid.pictures).toHaveLength(content.portraits.guildmaster.female.length);
+  });
+
+  /** A Guildmaster picture whose row `test` passes, and its row. */
+  function pictureWhere(test: (row: { apparentAge: [number, number]; callings: string[] }) => boolean) {
+    for (const sex of ['female', 'male'] as const) {
+      for (const key of content.portraits.guildmaster[sex]) {
+        const found = content.portraitAppearances.portraits[key];
+        const row = found === undefined ? undefined : { apparentAge: found.apparentAge, callings: found.callings ?? [] };
+        if (row !== undefined && test(row)) return { key, sex, row };
+      }
+    }
+    throw new Error('no such picture in content');
+  }
+
+  test("notes in words a Portrait chosen that looks older or younger than the age chosen, as the engine's portraitFit does", () => {
+    const youngest = Math.min(...setupFormChoices().ages);
+    const older = pictureWhere((row) => row.apparentAge[0] > youngest);
+    const setup = { ...fields, guildmasterPortraitKey: older.key, guildmasterAge: youngest, guildmasterTraitKeys: [] };
+    expect(portraitFit({ ...setup, createdAt: '' }, 'fit-seed', { config: defaultConfig, content })).toHaveLength(1);
+    expect(portraitFitWords(setup, 'fit-seed')).toEqual([
+      `This Portrait looks ${older.row.apparentAge[0]} to ${older.row.apparentAge[1]}: older than your Guildmaster's ${youngest}.`,
+    ]);
+  });
+
+  test('notes a Calling of the Portrait chosen that clashes with a Trait chosen, and nothing for one that fits', () => {
+    const clashing = Object.entries(content.descriptions.callings).find(([, calling]) => calling.clashes.length > 0);
+    if (clashing === undefined) throw new Error('no Calling clashes with a Trait');
+    const [callingKey, calling] = clashing;
+    const traitKey = calling.clashes[0] as string;
+    const picture = pictureWhere((row) => row.callings.includes(callingKey));
+    const ages = setupFormChoices().ages;
+    const age = Math.min(Math.max(picture.row.apparentAge[0], Math.min(...ages)), Math.max(...ages));
+    const setup = { ...fields, guildmasterPortraitKey: picture.key, guildmasterAge: age, guildmasterTraitKeys: [traitKey] };
+    const words = portraitFitWords(setup, 'fit-seed');
+    expect(words).toContain(`This Portrait's Calling, ${capitalised(callingKey)}, clashes with the Trait ${content.traits[traitKey]?.name}.`);
+    expect(words).toHaveLength(portraitFit({ ...setup, createdAt: '' }, 'fit-seed', { config: defaultConfig, content }).length);
+
+    // None while no Portrait is chosen, or the seed is blank; and none is a refusal.
+    const unpictured: SetupFields = { ...setup };
+    delete unpictured.guildmasterPortraitKey;
+    expect(portraitFitWords(unpictured, 'fit-seed')).toEqual([]);
+    expect(portraitFitWords(setup, ' ')).toEqual([]);
+    expect(setupRefusalWords({ kind: 'newGame', seed: 'fit-seed', createdAt: '', ...setup })).toBeNull();
+  });
+});
+
 // v1.1.2-S5 (DL-125 item 6): "Write them for me" and "Again", the engine's `describeGuildmaster` for
 // the Guildmaster the form makes, whose facts are `previewGuildmaster`'s.
 describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", () => {
@@ -343,11 +472,13 @@ describe("the Guildmaster's texts written for the new-game form (v1.1.2-S5)", ()
     }
   });
 
-  test("with the owner's pictures mapped, the Appearance is the Portrait's narrative; \"Again\" writes the rest anew", () => {
+  test("with every picture mapped, the Appearance is the Portrait's narrative; \"Again\" writes the rest anew", () => {
     const first = writtenOf(fields, 'again-seed', 0);
     const again = [1, 2, 3, 4].map((n) => writtenOf(fields, 'again-seed', n));
-    const sex = made('again-seed', fields)?.guildmaster?.sex ?? 'female';
-    const narrative = content.portraitAppearances.portraits[`gm-${sex}-01`]?.narrative;
+    const key = made('again-seed', fields)?.guildmaster?.portraitKey ?? null;
+    expect(key).not.toBeNull();
+    const narrative = content.portraitAppearances.portraits[key ?? '']?.narrative;
+    expect(narrative).toBeDefined();
     for (const each of [first, ...again]) expect(each?.texts.appearance).toBe(narrative);
     expect(new Set([first, ...again].map((each) => each?.texts.biography)).size).toBeGreaterThan(3);
     expect(writtenOf(fields, 'again-seed', 3)).toEqual(again[2]);

@@ -304,9 +304,9 @@ the agents recommended that story features be modules and rule extensions core i
 - **Then, inside the v1.1 line:** Portraits, Guild Banners and Unique Items' pictures, the
   Guildmaster described from content, and every standalone text beginning with a capital, as the
   patch `v1.1.2`, built on `v1.1.2-dev` from `main` (`docs/planning/epics/v1.1.2-release.md`).
-  *Added 2026-09-30 (DL-125).* *Built and verified on `v1.1.2-dev` 2026-09-30 (DL-133); the release
-  awaits the owner. S7, which renames the Portrait stream `gm-portraits`, was built 2026-10-01
-  (DL-137).*
+  *Added 2026-09-30 (DL-125).* *Built and verified on `v1.1.2-dev` 2026-09-30 (DL-133); S7, which
+  renames the Portrait stream `gm-portraits`, was built 2026-10-01 (DL-137). Released as `v1.1.2`
+  on 2026-10-01.*
 - **Then, inside the v1.1 line:** Portraits that follow the person, as the patch `v1.1.3`, built on
   `v1.1.3-dev` from `main` (`docs/planning/epics/v1.1.3-release.md`):
   - a Portrait for every Guildmaster and Hero, chosen to fit them, with the Silhouette where none
@@ -316,7 +316,8 @@ the agents recommended that story features be modules and rule extensions core i
   - Heroes gaining an Appearance and a Biography;
   - a portrait tool, with its skills, for intake, analysis and apply.
 
-  *Added 2026-10-01 (DL-134, DL-135).* It awaits the owner's approval and pictures.
+  *Added 2026-10-01 (DL-134, DL-135).* *Built and verified on `v1.1.3-dev` 2026-10-02 (DL-138 to
+  DL-147). The release awaits the owner (DL-124).*
 - **Then:** Random Events, M10, on `v1.2-dev` (§2), with its groundwork and the issues ordered
   against it. Random Events never produce Quests (DL-82). *Amended 2026-09-29 (DL-99): it was
   "Next", on `v1.1-dev`.*

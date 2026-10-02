@@ -23,7 +23,9 @@ export interface GameConfig {
    * 3 from the M6 verification, whose Heroes gained `transferredOnTurn` (DL-60); 4 from M9-S2, whose
    * Guildmasters gained the descriptive Attributes and `retiredOnTurn` (DL-102); 5 from v1.1.2-S3,
    * whose Guildmasters gained `portraitKey` and Patrons `sex`, and which refuses every older save
-   * rather than migrating it (DL-125 item 10.2, DL-130).
+   * rather than migrating it (DL-125 item 10.2, DL-130); 6 from v1.1.3-S6, whose Heroes gained
+   * `portraitKey`, `appearance` and `biography`, and which refuses every older save likewise (DL-135
+   * item 7).
    */
   schemaVersion: number;
   /**
@@ -480,7 +482,7 @@ export const regardBandNames = ['hostile', 'cool', 'neutral', 'warm', 'close'] a
 export type RegardBand = (typeof regardBandNames)[number];
 
 export const defaultConfig: Readonly<GameConfig> = Object.freeze({
-  schemaVersion: 5,
+  schemaVersion: 6,
   configVersion: 12,
   turnsPerYear: 1080,
 

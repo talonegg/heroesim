@@ -84,8 +84,8 @@ describe("a Hero's page (M9-S6, the review's B7)", () => {
     expect(within(state).getByText(/^Morale \d+, (wretched|low|steady|high|elated)$/)).toBeDefined();
     expect(within(state).getByText('At the Hall')).toBeDefined();
     expect(within(state).getByText(/^XP \d+$/)).toBeDefined();
-    // No longer eleven label and value rows.
-    expect(within(page()).queryByRole('term')).toBeNull();
+    // No longer eleven label and value rows: the only terms are the Appearance and Biography (v1.1.3-S7).
+    expect(within(page()).getAllByRole('term').map((term) => term.textContent)).toEqual(['Appearance', 'Biography']);
 
     const blocks = within(page()).getAllByRole('table');
     expect(blocks.map((block) => block.querySelector('caption')?.textContent)).toEqual(['Physical', 'Mental', 'Magical', 'Social']);

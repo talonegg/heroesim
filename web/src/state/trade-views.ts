@@ -24,6 +24,7 @@ import {
   type ItemDefinitionKey,
   type ItemId,
   type OfferId,
+  type Sex,
   type SlotKey,
   type StackId,
   type WorldDocument,
@@ -185,6 +186,9 @@ export function marketView(document: WorldDocument, only: MarketKind | null = nu
 export interface PoolRow {
   heroId: HeroId;
   name: string;
+  /** Their sex and Portrait's key, for the thumbnail beside their name (v1.1.3-S7, DL-135 item 9). */
+  sex: Sex;
+  portraitKey: string | null;
   className: string;
   level: number;
   age: number;
@@ -222,6 +226,8 @@ export function poolView(document: WorldDocument, order: PoolOrder = 'listed'): 
     return {
       heroId: hero.id,
       name: hero.name,
+      sex: hero.sex,
+      portraitKey: hero.portraitKey,
       className: nameIn(content.classes, hero.classKey),
       level: hero.level,
       age: ageOf(hero, world.turn, deps.config),

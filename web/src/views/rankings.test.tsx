@@ -198,6 +198,10 @@ describe("a Guild's page (M9-S6, the review's B10)", () => {
     expect(heroes.length).toBeGreaterThan(0);
     for (const hero of heroes) {
       const name = within(hero).getByRole('rowheader').textContent ?? '';
+      // Their thumbnail before their name, hidden from a screen reader, which reads the name (DL-147).
+      const thumb = within(hero).getByTestId('portrait-thumb');
+      expect(thumb.getAttribute('aria-hidden')).toBe('true');
+      expect(thumb.compareDocumentPosition(within(hero).getByRole('button', { name })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(within(hero).getByTestId('fee').textContent).toMatch(/^\d+$/);
       expect(within(hero).getByRole('button', { name: `Take ${name} in` })).toBeDefined();
     }
@@ -229,6 +233,8 @@ describe("a Guild's page (M9-S6, the review's B10)", () => {
     const roster = within(page).getByRole('table', { name: 'The Roster of The Lantern' });
     expect(within(roster).getAllByRole('columnheader').map((header) => header.textContent)).toEqual(['Name', 'Class', 'Level', 'Age']);
     expect(within(roster).queryByRole('button', { name: /^Take / })).toBeNull();
+    const heroes = within(roster).getAllByTestId('guild-hero');
+    expect(heroes.every((hero) => within(hero).queryByTestId('portrait-thumb') !== null)).toBe(true);
   });
 });
 

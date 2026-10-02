@@ -229,9 +229,9 @@ describe('new', () => {
     ],
     ['a Birthplace too long', ['--birthplace', 'x'.repeat(61)], '--birthplace is 61 characters once trimmed; it holds at most 60.'],
     ['a Biography too long', ['--biography', 'x'.repeat(1001)], '--biography is 1001 characters once trimmed; it holds at most 1000.'],
-    // v1.1.2-S4: the core lists the owner's two pictures (`portrait.test.ts` holds the rest).
-    ['a Portrait content lacks', ['--portrait', 'gm-male-09'], 'No Guildmaster Portrait is keyed "gm-male-09". Choose from: gm-female-01 (female), gm-male-01 (male).'],
-    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-male-01 (male).'],
+    // v1.1.2-S4: the core lists its pictures, 40 since v1.1.3-S4: gm-female-01 to 20 and gm-male-01 to 20 (`portrait.test.ts` holds the rest).
+    ['a Portrait content lacks', ['--portrait', 'gm-male-99'], 'No Guildmaster Portrait is keyed "gm-male-99". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
+    ['a Portrait not in the form of a key', ['--portrait', 'GM Female 1'], 'No Guildmaster Portrait is keyed "GM Female 1". Choose from: gm-female-01 (female), gm-female-02 (female), gm-female-03 (female), gm-female-04 (female), gm-female-05 (female), gm-female-06 (female), gm-female-07 (female), gm-female-08 (female), gm-female-09 (female), gm-female-10 (female), gm-female-11 (female), gm-female-12 (female), gm-female-13 (female), gm-female-14 (female), gm-female-15 (female), gm-female-16 (female), gm-female-17 (female), gm-female-18 (female), gm-female-19 (female), gm-female-20 (female), gm-male-01 (male), gm-male-02 (male), gm-male-03 (male), gm-male-04 (male), gm-male-05 (male), gm-male-06 (male), gm-male-07 (male), gm-male-08 (male), gm-male-09 (male), gm-male-10 (male), gm-male-11 (male), gm-male-12 (male), gm-male-13 (male), gm-male-14 (male), gm-male-15 (male), gm-male-16 (male), gm-male-17 (male), gm-male-18 (male), gm-male-19 (male), gm-male-20 (male).'],
     ['a Portrait of the other sex', ['--sex', 'female', '--portrait', 'gm-male-01'], "--portrait gm-male-01 is a male Guildmaster's Portrait, and --sex is female"],
   ])('refuses %s with its own sentence as a bad command line, writing nothing (M9-S2)', (_, flags, sentence) => {
     const run = newDemo(...flags);
@@ -285,6 +285,26 @@ describe('show', () => {
       expect(row).toMatch(new RegExp(`\\b${guild.rosterIds.length}\\s+${guild.wealth}\\s+${guild.fame}\\s+${due}$`));
     }
     expect(rowOf(run.out, playerId)).toContain('Player');
+  });
+
+  test("show and show guilds name each Guildmaster's Portrait, its picture's key or the Silhouette (v1.1.3-S5)", () => {
+    const rivalId = makeId('guilds', 2);
+    edit((edited) => {
+      const rival = edited.world.guilds[rivalId] as Guild;
+      Object.assign(edited.world.guildmasters[rival.guildmasterId] ?? {}, { portraitKey: null });
+    });
+    const { world } = document();
+
+    for (const view of [['show'], ['show', 'guilds']]) {
+      const run = play(view);
+      expect(run.out.split('\n').find((line) => line.startsWith('Id'))).toMatch(/\sGuildmaster\s+Portrait\s+Background\s/);
+      for (const guild of Object.values(world.guilds)) {
+        const guildmaster = world.guildmasters[guild.guildmasterId];
+        const words = guildmaster?.portraitKey ?? 'Silhouette';
+        expect(rowOf(run.out, guild.id)).toMatch(new RegExp(`${guildmaster?.name ?? ''}\\s+${words}\\s`));
+      }
+      expect(rowOf(run.out, rivalId)).toMatch(/\sSilhouette\s/);
+    }
   });
 
   test('guilds marks a folded Guild with the Day it folded, and show lists only the Guilds in play (DL-28, DL-33)', () => {
@@ -462,6 +482,13 @@ describe('show', () => {
 
     expect(run.code).toBe(exitCodes.ok);
     expect(run.out).toContain(`${hero.name} (${hero.id})`);
+    // The Portrait, and the two texts written as the Hero was generated (v1.1.3-S6): the core has no Hero picture.
+    expect(run.out).toMatch(/^Portrait\s+None: the Silhouette$/m);
+    expect(hero.appearance).not.toBe('');
+    expect(hero.biography).not.toBe('');
+    const lineOf = (label: string) => run.out.split('\n').find((line) => line.startsWith(`${label} `));
+    expect(lineOf('Appearance')?.replace(/^Appearance +/, '')).toBe(hero.appearance);
+    expect(lineOf('Biography')?.replace(/^Biography +/, '')).toBe(hero.biography);
     expect(run.out).toMatch(new RegExp(`^Age\\s+${ageOf(hero, world.turn, defaultConfig)}$`, 'm'));
     expect(run.out).toMatch(new RegExp(`^Class\\s+${content.classes[hero.classKey]?.name}$`, 'm'));
     expect(run.out).toMatch(/^Guild\s+The Test \(guild-000001\)$/m);
@@ -1275,6 +1302,30 @@ describe('save and load', () => {
     expect(shown.err).toContain('This game was saved by an older Heroesim and cannot be loaded');
   });
 
+  test("a save of schema 5, as v1.1.2 wrote it, is refused in the owner's words, and replacing it with a new game works (v1.1.3-S6, DL-135 item 7)", () => {
+    newDemo();
+    const parsed = JSON.parse(saved()) as { meta: { version: number }; world: { heroes: Record<string, object> } };
+    parsed.meta.version = 5;
+    for (const hero of Object.values(parsed.world.heroes)) {
+      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+    }
+    const older = JSON.stringify(parsed);
+    writeFileSync(join(dir, '.saves', 'current.json'), older);
+
+    for (const argv of [['show'], ['show', 'guildmaster'], ['advance']]) {
+      const run = play(argv);
+      expect(run.code, argv.join(' ')).toBe(exitCodes.refused);
+      expect(run.err).toBe(`This game was saved by an older Heroesim and cannot be loaded: ${join(dir, '.saves', 'current.json')}.\n`);
+    }
+    expect(saved()).toBe(older);
+
+    // The save is kept until the player replaces it: a new game over it, which then loads.
+    expect(newDemo().code).toBe(exitCodes.refused);
+    expect(newDemo('--force').code).toBe(exitCodes.ok);
+    expect(JSON.parse(saved())).toMatchObject({ meta: { version: 6 } });
+    expect(play(['show']).code).toBe(exitCodes.ok);
+  });
+
   test('the newer-schema refusal names both versions', () => {
     newDemo();
     const bad = join(dir, 'future.json');
@@ -1509,19 +1560,23 @@ describe('show guildmaster, show patrons and preview (M4-S5)', () => {
     const guildmasterId = (document().world.guilds[playerId] as Guild).guildmasterId;
     const lines = (run: Run) => run.out.split('\n');
 
-    // Drawn from the core's pictures of the sex since v1.1.2-S4: one of each.
+    // Chosen to fit them from the core's pictures of the sex since v1.1.3-S5: its 20 of each sex, or
+    // the Silhouette where none fits their age. Under the seed 'demo' they are a man of 39, and gm-male-14's
+    // row is of a man of 38 to 48.
     const bare = lines(play(['show', 'guildmaster']));
     const sex = bare.find((line) => line.startsWith('Sex'))?.replace(/^Sex\s+/, '').toLowerCase() ?? '';
     expect(['female', 'male']).toContain(sex);
-    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+gm-${sex}-01$`));
+    const held = document().world.guildmasters[guildmasterId]?.portraitKey;
+    expect([`gm-${sex}-14`, null]).toContain(held);
+    expect(bare[bare.findIndex((line) => line.startsWith('Sex')) + 1]).toMatch(new RegExp(`^Portrait\\s+${held ?? 'None: the Silhouette'}$`));
 
     edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: null }));
     expect(play(['show', 'guildmaster']).out).toMatch(/^Portrait\s+None: the Silhouette$/m);
 
     // A key the core lacks still shows, with the load's warning (data-model rule 5).
-    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-09' }));
+    edit((edited) => Object.assign(edited.world.guildmasters[guildmasterId] ?? {}, { portraitKey: 'gm-male-99' }));
     const run = play(['show', 'guildmaster']);
-    expect(run.out).toMatch(/^Portrait\s+gm-male-09$/m);
+    expect(run.out).toMatch(/^Portrait\s+gm-male-99$/m);
     expect(run.err).toContain('Warning:');
   });
 

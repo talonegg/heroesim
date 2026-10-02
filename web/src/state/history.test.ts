@@ -281,10 +281,12 @@ describe("a History's Banner and Portrait (v1.1.2-S2, DL-125 items 2 and 7)", ()
     }
   });
 
-  test("a Guildmaster's has their Portrait by their sex and key, the player's drawn from the owner's pictures and a Rival's the Silhouette's, and no Banner", () => {
+  test("a Guildmaster's has their Portrait by their sex and key, the player's and each Rival's chosen to fit them, and no Banner", () => {
     const { document, log } = played(3);
     const keys = Object.values(document.world.guildmasters).map((guildmaster) => guildmaster.portraitKey);
-    expect(keys.filter((key) => key !== null)).toHaveLength(1);
+    // With 20 pictures of each sex (v1.1.3-S4), each of the five has one of their own (v1.1.3-S5).
+    expect(keys.filter((key) => key !== null)).toHaveLength(5);
+    expect(new Set(keys).size).toBe(5);
     for (const guildmaster of Object.values(document.world.guildmasters)) {
       expect(historyView(document, log, guildmaster.id, 0)).toMatchObject({
         banner: null,

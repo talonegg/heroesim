@@ -29,12 +29,13 @@ function documentOf(state: GameState): WorldDocument {
   return state.document;
 }
 
-/** `document` as `v1.1.1` saved it, schema 4: no Guildmaster's Portrait and no Patron's sex. */
+/** `document` as `v1.1.2` saved it, schema 5: no Hero's Portrait, Appearance or Biography (v1.1.3-S6). */
 function olderSave(document: WorldDocument): WorldDocument {
   const older = structuredClone(document);
-  older.meta.version = 4;
-  for (const guildmaster of Object.values(older.world.guildmasters)) Reflect.deleteProperty(guildmaster, 'portraitKey');
-  for (const patron of Object.values(older.world.patrons)) Reflect.deleteProperty(patron, 'sex');
+  older.meta.version = 5;
+  for (const hero of Object.values(older.world.heroes)) {
+    for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+  }
   return older;
 }
 
@@ -141,10 +142,10 @@ describe('saved in this browser', () => {
     expect(store.records.size).toBe(0);
   });
 
-  test('a save of an older Heroesim is refused in words beside it, before a game and with one in hand, and can still be deleted (v1.1.2-S3, DL-125 item 10.2)', async () => {
+  test('a save of an older Heroesim, schema 5 as v1.1.2 wrote it, is refused in words beside it, before a game and with one in hand, and can still be deleted (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7)', async () => {
     const { store, saves } = keptInMemory();
-    await saves.save('older', olderSave(documentOf(started('saved-by-v1.1.1'))));
-    await saves.save('newer', documentOf(started('saved-by-v1.1.2')));
+    await saves.save('older', olderSave(documentOf(started('saved-by-v1.1.2'))));
+    await saves.save('newer', documentOf(started('saved-by-v1.1.3')));
     const sentence = 'This game was saved by an older Heroesim and cannot be loaded.';
 
     // Before a game: the sentence beside the save, and once only, no game begun.

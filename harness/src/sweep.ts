@@ -32,6 +32,8 @@ import {
   noDisposition,
   noGear,
   noOffers,
+  noHeroes,
+  noPortraits,
   noPurchases,
   noTransfers,
   noWealth,
@@ -54,6 +56,8 @@ import {
   type LootTally,
   type MarketTally,
   type OfferTally,
+  type HeroTally,
+  type PortraitTally,
   type RegardSnapshot,
   type RivalTransferWay,
   type RosterCensus,
@@ -296,6 +300,22 @@ export interface SweepTotals {
   /** `guild.below-floor` and `guild.floor-recovered`, by controller, summed over the games. */
   belowFloor: ByController;
   floorRecovered: ByController;
+  // v1.1.3-S5's counters (DL-134 item 9).
+  /** Every Guildmaster who entered play and how their Portraits fit them, by controller, summed over the games. */
+  portraits: Record<ControllerKind, PortraitTally>;
+  // v1.1.3-S6's counters (DL-134 item 9, DL-135 item 6).
+  /** Every Hero generated and their Portraits and texts, summed over the games; the longest the longest of any game. */
+  heroes: HeroTally;
+  /** The saves as each year ended, over the games: index k is after k + 1 years. */
+  saves: SaveYear[];
+}
+
+/** The saves of the games that reached a year's end. */
+export interface SaveYear {
+  lengths: number[];
+  heroFields: number[];
+  /** Gzipped lengths, measured at the last year only. */
+  gzipped: number[];
 }
 
 /** Rivals as a year began: each one's Roster size and Wealth. */
@@ -444,6 +464,9 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
     moduleEffects: {},
     belowFloor: zero(),
     floorRecovered: zero(),
+    portraits: { player: noPortraits(), rival: noPortraits() },
+    heroes: noHeroes(),
+    saves: [],
   };
   for (const { counters, observations, refusals, invalid, assertion } of sweep.games) {
     addTallies(totals.playerQuestsByDifficulty, counters.playerQuestsByDifficulty);
@@ -475,6 +498,18 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       addSeries(tally.wealth, Array.from({ length: ranking.wealth }, (_, index) => (index === ranking.wealth - 1 ? 1 : 0)));
     });
     if (assertion !== null) totals.assertionGames += 1;
+    // v1.1.3-S6's: summed, but the longest texts the longest of any game.
+    const { longestAppearance, longestBiography, ...counts } = observations.heroes;
+    const { longestAppearance: appearanceSoFar, longestBiography: biographySoFar } = totals.heroes;
+    addFields(totals.heroes, { ...counts, longestAppearance: 0, longestBiography: 0 });
+    totals.heroes.longestAppearance = Math.max(appearanceSoFar, longestAppearance);
+    totals.heroes.longestBiography = Math.max(biographySoFar, longestBiography);
+    observations.saves.forEach((save, year) => {
+      const into = (totals.saves[year] ??= { lengths: [], heroFields: [], gzipped: [] });
+      into.lengths.push(save.length);
+      into.heroFields.push(save.heroFields);
+      if (save.gzipped !== null) into.gzipped.push(save.gzipped);
+    });
     addFields(totals.moduleEvents, counters.moduleEvents);
     for (const [moduleId, byType] of Object.entries(counters.moduleEffects)) addFields((totals.moduleEffects[moduleId] ??= {}), byType);
     for (const kind of controllerKinds) {
@@ -493,6 +528,7 @@ export function sweepTotals(sweep: PlaySweep, turnsPerYear: number): SweepTotals
       totals.heroesRetired[kind] += counters.heroesRetired[kind];
       totals.belowFloor[kind] += counters.belowFloor[kind];
       totals.floorRecovered[kind] += counters.floorRecovered[kind];
+      addFields(totals.portraits[kind], counters.portraits[kind]);
       for (const [band, n] of Object.entries(counters.questsResolved[kind])) {
         totals.questsResolved[kind][band as QuestBand] += n;
       }
@@ -1399,6 +1435,105 @@ function rivalsSection(totals: SweepTotals, deps: EngineDeps): string[] {
   ];
 }
 
+/**
+ * v1.1.3-S5's section (DL-134 item 9): every Guildmaster who entered play, by their Guild's controller,
+ * with a picture or the Silhouette; and of those with a picture, those it holds the age of and those
+ * whose picture's Calling clashes with a Trait. Gaps in the pictures show here, and no play counter
+ * moves with them: no rule reads a Portrait.
+ */
+function portraitsSection(totals: SweepTotals): string[] {
+  const { player, rival } = totals.portraits;
+  const all: PortraitTally = { ...noPortraits() };
+  for (const tally of [player, rival]) addFields(all, tally);
+  const row = (label: string, pick: (tally: PortraitTally) => number, of: (tally: PortraitTally) => number): string[] => [
+    label,
+    ...[player, rival, all].map((tally) => `${whole(pick(tally))} (${percent(pick(tally), of(tally))})`),
+  ];
+  return [
+    '## Portraits (v1.1.3-S5)',
+    '',
+    "Every Guildmaster who entered play, the player's and every Rival's, founding, replacing or succeeding, by their Guild's " +
+      "controller. A Portrait is chosen to fit a Guildmaster already drawn (DL-134 item 5), so none of these moves a play counter.",
+    '',
+    markdownTable(
+      ['Guildmasters', "Player's", "Rivals'", 'All'],
+      [
+        ['Entered play', ...[player, rival, all].map((tally) => whole(tally.guildmasters))],
+        row('With a picture', (tally) => tally.pictured, (tally) => tally.guildmasters),
+        row('With the Silhouette', (tally) => tally.silhouettes, (tally) => tally.guildmasters),
+        row("Their picture's `apparentAge` holds their age", (tally) => tally.ageHeld, (tally) => tally.pictured),
+        row("Their picture's Calling clashes with a Trait", (tally) => tally.callingClashes, (tally) => tally.pictured),
+      ],
+      ['left', 'right', 'right', 'right'],
+    ),
+    '',
+    'The last two are shares of those with a picture.',
+    '',
+  ];
+}
+
+/** A length in characters as MiB, two places. */
+const mebibytes = (length: number): string => fixed(length / 1024 / 1024, 2);
+
+/**
+ * v1.1.3-S6's section (DL-134 item 9, DL-135 item 6): every Hero generated, with a picture or the
+ * Silhouette, the repeats, and the longest texts written; then the save's size as each year ended,
+ * with the part the Heroes' three new fields take. No rule reads a Portrait or a text, so none of
+ * these moves a play counter.
+ */
+function heroesSection(totals: SweepTotals): string[] {
+  const { heroes, saves } = totals;
+  const share = (n: number, of: number): string => `${whole(n)} (${percent(n, of)})`;
+  const last = saves.at(-1);
+  const gzipped = last === undefined ? summarise([]) : summarise(last.gzipped);
+  const largest = last === undefined ? Number.NaN : Math.max(...last.lengths);
+  return [
+    '## Heroes described (v1.1.3-S6)',
+    '',
+    'Every Hero generated, at creation, in the pool and on a new Rival\'s Roster. A Portrait is chosen to fit a Hero already ' +
+      'drawn and their texts follow it (DL-135 items 3 and 6), each on a stream of its own, so none of these moves a play counter.',
+    '',
+    markdownTable(
+      ['Heroes', 'Count'],
+      [
+        ['Generated', whole(heroes.generated)],
+        ['With a picture', share(heroes.pictured, heroes.generated)],
+        ['With the Silhouette', share(heroes.silhouettes, heroes.generated)],
+        ['Given a picture another Hero on a Roster or in the pool held (a repeat)', share(heroes.repeats, heroes.pictured)],
+        ['With an empty Appearance or Biography', whole(heroes.blank)],
+        ['The longest Appearance written, in characters (at most 280)', whole(heroes.longestAppearance)],
+        ['The longest Biography written, in characters (at most 1,000)', whole(heroes.longestBiography)],
+      ],
+      ['left', 'right'],
+    ),
+    '',
+    "The save as each year ended: `serialise(document).length` in characters, its bytes while it is ASCII, over the games " +
+      "that reached it, and the part the Heroes' `portraitKey`, `appearance` and `biography` take:",
+    '',
+    markdownTable(
+      ['Year', 'Games', 'Mean MiB', 'Max MiB', "Heroes' fields, mean MiB", "Heroes' fields, max MiB", 'Share of the mean'],
+      saves.map((year, index) => {
+        const lengths = summarise(year.lengths);
+        const fields = summarise(year.heroFields);
+        return [
+          String(index + 1),
+          whole(year.lengths.length),
+          mebibytes(lengths.mean),
+          mebibytes(lengths.max),
+          mebibytes(fields.mean),
+          mebibytes(fields.max),
+          percent(fields.mean, lengths.mean),
+        ];
+      }),
+      ['right', 'right', 'right', 'right', 'right', 'right', 'right'],
+    ),
+    '',
+    `The largest save at year ${saves.length}: ${Number.isNaN(largest) ? 'none' : `${whole(largest)} characters, ${mebibytes(largest)} MiB`}; ` +
+      `gzipped, as the page keeps it in IndexedDB (DL-67): mean ${mebibytes(gzipped.mean)} MiB, max ${mebibytes(gzipped.max)} MiB.`,
+    '',
+  ];
+}
+
 /** The sweep as a Markdown report. */
 export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milestone }: PlayReportContext): string {
   const { config, content } = deps;
@@ -1566,6 +1701,8 @@ export function playReport(sweep: PlaySweep, { deps, machine, startedAt, milesto
     ...questEngineSection(totals, deps),
     ...itemsSection(totals, deps),
     ...rivalsSection(totals, deps),
+    ...portraitsSection(totals),
+    ...heroesSection(totals),
     '## Measures',
     '',
     markdownTable(

@@ -13,21 +13,31 @@ import { media, mediaCatalogue, mediaFiles, mediaPathOf, neutralSilhouette } fro
 // - the folders DL-125 item 1 lays out, and no other, each with its Silhouette;
 // - a Silhouette is SVG, one graphite form on the pictures' cream, and a few hundred bytes, under
 //   the size the build inlines (vite.config.ts); a picture is WebP;
-// - in `media/items/`, a picture is named by an Item's content key.
+// - in `media/items/`, a picture is named by an Item's content key;
+// - a Portrait's picture has its thumbnail beside it, `<key>.thumb.webp` (v1.1.3-S2, DL-135 item 9).
+// Two things under `media/` are the portrait tool's and never the page's (v1.1.3-S2, DL-135 item 11):
+// its register, `portraits/registry.json`, and its inbox, `inbox/`, which is ignored but for each
+// folder's `.gitkeep`. Neither is shipped (src/media.ts), and neither is held to these rules.
 
 const mediaDir = fileURLToPath(new URL('../../media/', import.meta.url));
+
+/** The portrait tool's own files under `media/`: its register and its inbox. */
+const toolsOwn = (entry: string): boolean => entry === 'portraits/registry.json' || entry === 'inbox' || entry.startsWith('inbox/');
 
 /** Every file under `media/`, by its path under it with `/` separators. */
 const files = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })
   .map((entry) => entry.replace(/\\/g, '/'))
-  .filter((entry) => statSync(path.join(mediaDir, entry)).isFile())
+  .filter((entry) => !toolsOwn(entry) && statSync(path.join(mediaDir, entry)).isFile())
   .sort();
 
 /** Every folder under `media/`, by its path under it. */
 const folders = readdirSync(mediaDir, { recursive: true, encoding: 'utf8' })
   .map((entry) => entry.replace(/\\/g, '/'))
-  .filter((entry) => statSync(path.join(mediaDir, entry)).isDirectory())
+  .filter((entry) => !toolsOwn(entry) && statSync(path.join(mediaDir, entry)).isDirectory())
   .sort();
+
+/** A Portrait's pictures, without their thumbnails. */
+const isPortraitPicture = (file: string): boolean => file.startsWith('portraits/') && file.endsWith('.webp') && !file.endsWith('.thumb.webp');
 
 /** The roles a Portrait is drawn for, and each one's folder (DL-125 item 2). */
 const roleFolders: Readonly<Record<PortraitRole, string>> = { guildmaster: 'guildmasters', hero: 'heroes', patron: 'patrons' };
@@ -79,7 +89,7 @@ describe('media/', () => {
   test('names every folder and file in lower case and hyphens', () => {
     const badFolders = folders.filter((folder) => !folder.split('/').every((part) => lowerAndHyphens.test(part)));
     const badFiles = files.filter((file) => {
-      const name = path.posix.basename(file);
+      const name = path.posix.basename(file).replace(/\.thumb\.webp$/, '.webp');
       const dot = name.lastIndexOf('.');
       return dot < 0 || !lowerAndHyphens.test(name.slice(0, dot));
     });
@@ -132,20 +142,36 @@ describe('media/', () => {
     const listed = portraitRoles.flatMap((role) =>
       sexes.flatMap((sex) => content.portraits[role][sex].map((key) => `portraits/${roleFolders[role]}/${sex}/${key}.webp`)),
     );
-    const onDisk = files.filter((file) => file.startsWith('portraits/') && file.endsWith('.webp'));
+    const onDisk = files.filter(isPortraitPicture);
     expect(listed.filter((file) => !files.includes(file))).toEqual([]);
     expect(onDisk.filter((file) => !listed.includes(file))).toEqual([]);
   });
 
-  // v1.1.2-S4 (DL-125 items 11 and 12): a Portrait's picture is WebP, 480 × 640, converted once by
-  // `web/scripts/convert-picture.mjs`, and small enough to load at once.
-  test('holds each Portrait picture as WebP, 480 × 640, of at most 150 kB', () => {
-    const pictures = files.filter((file) => file.startsWith('portraits/') && file.endsWith('.webp'));
-    expect(pictures).toEqual(['portraits/guildmasters/female/gm-female-01.webp', 'portraits/guildmasters/male/gm-male-01.webp']);
+  // v1.1.2-S4 (DL-125 items 11 and 12): a Portrait's picture is WebP, 480 × 640, converted once, and
+  // small enough to load at once; since v1.1.3-S2 by the portrait tool, `tools/portraits`, within
+  // 120 kB (DL-134 item 9), which `npm run portraits -- check` holds too.
+  test('holds each Portrait picture as WebP, 480 × 640, of at most 120 kB', () => {
+    const pictures = files.filter(isPortraitPicture);
+    // The owner's two and the 38 v1.1.3-S4 took in: gm-female-01 to 20 and gm-male-01 to 20.
+    const twenty = (sex: Sex): string[] =>
+      Array.from({ length: 20 }, (_, index) => `portraits/guildmasters/${sex}/gm-${sex}-${String(index + 1).padStart(2, '0')}.webp`);
+    expect(pictures).toEqual([...twenty('female'), ...twenty('male')]);
     for (const file of pictures) {
       const bytes = readFileSync(path.join(mediaDir, file));
-      expect(bytes.length, file).toBeLessThanOrEqual(150_000);
+      expect(bytes.length, file).toBeLessThanOrEqual(120_000);
       expect(webpSize(bytes), file).toEqual({ width: 480, height: 640 });
+    }
+  });
+
+  // v1.1.3-S2 (DL-135 item 9): each picture's thumbnail, for the lists and the setup grid.
+  test('holds beside each Portrait picture its thumbnail, <key>.thumb.webp, 160 × 213, of about 10 kB, and no thumbnail without its picture', () => {
+    const pictures = files.filter(isPortraitPicture);
+    const thumbnails = files.filter((file) => file.endsWith('.thumb.webp'));
+    expect(thumbnails).toEqual(pictures.map((file) => file.replace(/\.webp$/, '.thumb.webp')));
+    for (const file of thumbnails) {
+      const bytes = readFileSync(path.join(mediaDir, file));
+      expect(bytes.length, file).toBeLessThanOrEqual(12_000);
+      expect(webpSize(bytes), file).toEqual({ width: 160, height: 213 });
     }
   });
 
@@ -192,6 +218,32 @@ describe("the page's catalogue of media/", () => {
     expect(catalogue.item('mantle-of-the-fells')).toEqual({ silhouette: mediaFiles['items/silhouette.svg'], picture: null });
     // Every Guild shows the Banner's Silhouette for now (DL-125 item 7).
     expect(catalogue.banner('guild-000001' as GuildId)).toEqual({ silhouette: mediaFiles['banners/silhouette.svg'], picture: null });
+  });
+
+  // v1.1.3-S7 (DL-135 item 9): a person's thumbnail, beside their name in a list and in the setup grid.
+  test("finds a person's thumbnail, <key>.thumb.webp, by their role, sex and key, and the Silhouette of their sex without one", () => {
+    const catalogue = mediaCatalogue({
+      ...mediaFiles,
+      'portraits/heroes/female/hero-female-01.webp': './assets/hero-female-01-abc.webp',
+      'portraits/heroes/female/hero-female-01.thumb.webp': './assets/hero-female-01.thumb-abc.webp',
+    });
+    // A Hero's, under media/portraits/heroes/<sex>/, once a Hero picture exists.
+    expect(catalogue.portraitThumbnail('hero', 'female', 'hero-female-01')).toEqual({
+      silhouette: mediaFiles['portraits/heroes/female/silhouette.svg'],
+      picture: './assets/hero-female-01.thumb-abc.webp',
+    });
+    expect(catalogue.portraitThumbnail('hero', 'male', 'hero-female-01').picture).toBeNull();
+    expect(catalogue.portraitThumbnail('guildmaster', 'female', 'hero-female-01').picture).toBeNull();
+    expect(catalogue.portraitThumbnail('hero', 'female', null)).toEqual({ silhouette: mediaFiles['portraits/heroes/female/silhouette.svg'], picture: null });
+    // Every Guildmaster picture shipped has its thumbnail, a file of its own.
+    for (const sex of sexes) {
+      for (const key of content.portraits.guildmaster[sex]) {
+        const thumbnail = media.portraitThumbnail('guildmaster', sex, key).picture;
+        expect(thumbnail, key).toBe(mediaFiles[`portraits/guildmasters/${sex}/${key}.thumb.webp`]);
+        expect(thumbnail, key).not.toBe(media.portrait('guildmaster', sex, key).picture);
+      }
+    }
+    expect(media.portraitThumbnail('guildmaster', 'other' as Sex, 'gm-female-01')).toEqual({ silhouette: neutralSilhouette, picture: null });
   });
 
   test("gives a person of a sex the folders do not know the neutral Silhouette and no picture, rather than throwing (v1.1.2-S6)", () => {

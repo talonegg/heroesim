@@ -68,6 +68,11 @@ export interface GuildRow {
   /** The player's own Guild. */
   mine: boolean;
   /**
+   * Its Guildmaster's sex and Portrait's key, for the thumbnail beside its name (v1.1.3-S7, DL-135
+   * item 9); `null` for a Guild with no Guildmaster, which shows none.
+   */
+  guildmaster: { sex: Sex; portraitKey: string | null } | null;
+  /**
    * `1st`, or `Joint 2nd` for a place Guilds share: the engine's `rankingPlaces` in words (DL-95),
    * by the table's measure; `null` for a folded Guild, which is out of the Rankings (DL-28).
    */
@@ -118,6 +123,7 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     guildId: guild.id,
     name: guild.name,
     mine: guild.controller.kind === 'player',
+    guildmaster: picturedOf(guildmasterOf(guild, world)),
     place: places.get(guild.id) ?? null,
     disposition: guild.controller.kind === 'player' ? 'Yours' : nameIn(content.dispositions, guild.controller.disposition),
     fame: guild.fame,
@@ -136,6 +142,11 @@ export function guildsTable(document: WorldDocument, sort: GuildSort): GuildsTab
     .filter((guild) => guild.foldedOnTurn !== null)
     .map(rowFor);
   return { measure, rows, folded };
+}
+
+/** A Guildmaster's sex and Portrait's key, for their thumbnail; `null` for none. */
+function picturedOf(guildmaster: { sex: Sex; portraitKey: string | null } | undefined): GuildRow['guildmaster'] {
+  return guildmaster === undefined ? null : { sex: guildmaster.sex, portraitKey: guildmaster.portraitKey };
 }
 
 /** `Folded on Day 12`, as a cell or a Guild's line says it; `null` for a Guild in play. */
@@ -416,6 +427,9 @@ export function patronsView(document: WorldDocument): PatronRow[] {
 export interface OtherRosterRow {
   heroId: HeroId;
   name: string;
+  /** Their sex and Portrait's key, for the thumbnail beside their name (DL-147). */
+  sex: Sex;
+  portraitKey: string | null;
   className: string;
   level: number;
   age: number;
@@ -468,6 +482,8 @@ export function guildPage(document: WorldDocument, guildId: GuildId): GuildPageV
         {
           heroId,
           name: hero.name,
+          sex: hero.sex,
+          portraitKey: hero.portraitKey,
           className: nameIn(content.classes, hero.classKey),
           level: hero.level,
           age: ageOf(hero, world.turn, deps.config),

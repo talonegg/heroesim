@@ -352,6 +352,22 @@ export interface Hero {
    * transferred. Within `transferLockDays` of it no Transfer moves them again (DL-60).
    */
   transferredOnTurn: Turn | null;
+  /**
+   * The picture the Hero's Portrait shows (v1.1.3-S6, DL-135 items 3 and 4): a Hero picture of their
+   * sex and Class in content, chosen to fit them as they are generated, on `hero-portraits`; `null` for
+   * the Silhouette of their sex, as every Hero has while content lists no Hero picture.
+   */
+  portraitKey: PortraitKey | null;
+  /**
+   * A Hero's two descriptive Attributes (v1.1.3-S6, DL-135 item 6): texts no rule reads, written as they
+   * are generated, on `hero-descriptions`, and never edited, since the player sets up no Hero. The
+   * Appearance is their picture's narrative, or drawn from the phrases by sex and age band; the
+   * Biography is written from their Background, their Class at their band and their Traits, and their
+   * picture's Temper and hooks where they have one. At most `descriptiveAttributeMaxLength` characters each.
+   * A Hero has no Birthplace: their Background says where they are from.
+   */
+  appearance: string;
+  biography: string;
   regard: RegardMap;
 }
 

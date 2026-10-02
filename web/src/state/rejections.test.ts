@@ -392,6 +392,12 @@ describe('what the words name', () => {
     expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
   });
 
+  test('a save of schema 5, as v1.1.2 wrote it, in the same words (v1.1.3-S6, DL-135 item 7)', () => {
+    const older = { action: 'load', reason: 'unsupported-version', documentVersion: 5, schemaVersion: 6, message: 'The save is schema version 5' } as const;
+
+    expect(rejectionSentence(older, null, content)).toBe('This game was saved by an older Heroesim and cannot be loaded.');
+  });
+
   test('a Quest by its template, and Items by their content names', () => {
     const template = content.questTemplates[quest.templateKey];
 

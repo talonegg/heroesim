@@ -79,9 +79,13 @@ configuration default and not a decision.
 Streams are named per drawing subsystem so that adding a subsystem never shifts another's
 draws: `generation`, `board`, `quests`, `encounters`, `pool`, `heroes` (the Hero State
 Engine), `progression`, `rivals`, `market`, each added in the milestone that introduces its
-subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7)
+subsystem (ADR-0009 as amended 2026-09-26), then `gm-portraits` (v1.1.2-S3, renamed in S7; one
+draw for each Guildmaster entering play, whatever is chosen, from v1.1.3-S5)
 and `descriptions` (v1.1.2-S5, fifteen draws for each Guildmaster entering play, whatever is written), drawn apart
-from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30). A stream is seeded from the master seed and its
+from `generation` so that no existing draw moves (ADR-0009 as amended 2026-09-30), then `hero-portraits`
+(v1.1.3-S6, one draw for each Hero generated) and `hero-descriptions` (v1.1.3-S6, thirteen draws for each
+Hero generated, whatever is written), drawn apart from `generation` and `pool` likewise (ADR-0009 as
+amended 2026-10-01, again). A stream is seeded from the master seed and its
 name. A new subsystem gets a new stream and never shares an old one. A module that draws
 random numbers registers a stream of its own. A subsystem is a component: a new draw inside a
 component uses that component's stream, and the Transfer Generator's draw from `rivals` is an
@@ -131,8 +135,18 @@ birthplace, appearance, biography: string   the descriptive Attributes, which no
                                             the Guildmaster enters play, every Guildmaster's
                                             (R8, DL-102; DL-125 item 6, DL-132)
 portraitKey:    string | null               the Guildmaster picture their Portrait shows, of their
-                                            sex, chosen at setup or drawn from `gm-portraits`; null for
-                                            the Silhouette, as every Rival's (DL-125 items 3, 4)
+                                            sex: the player's chosen at setup, else, for every
+                                            Guildmaster as they enter play, one chosen to fit them
+                                            in one draw from `gm-portraits` (`choosePortrait`): a
+                                            picture whose `apparentAge` reaches the band of their
+                                            age, no living Guildmaster's, retired or in office
+                                            (every Guildmaster's: no death is recorded), preferring
+                                            their age within it, no Calling that clashes with a
+                                            Trait, then one that suits a Trait; null for the
+                                            Silhouette where none fits or every one that fits is in
+                                            use (DL-125 items 3, 4; DL-134 items 5, 7; DL-135 items
+                                            3, 4; v1.1.3-S5; DL-144). A Portrait chosen with the age
+                                            left blank moves the age drawn into the picture's ages.
 retiredOnTurn:  integer | null              set when the Guildmaster retired and was succeeded; no
                                             Guild in play names them then (DL-100 item 3, DL-102)
 regard:         Record<EntityId, RegardEntry>
@@ -140,7 +154,8 @@ regard:         Record<EntityId, RegardEntry>
 Schema version 4 added the descriptive Attributes and `retiredOnTurn` (M9-S2, DL-102); a version-3
 save loaded with every Guildmaster in office and no descriptive Attribute. Schema version 5 added
 `portraitKey` and a Patron's `sex` (v1.1.2-S3, DL-130), and a save of version 4 or before is refused, not migrated (DL-125
-item 10.2).
+item 10.2). Schema version 6 added a Hero's `portraitKey`, `appearance` and `biography` (v1.1.3-S6), and
+a save of version 5 or before is refused likewise (DL-135 item 7).
 
 **heroes**
 ```
@@ -166,6 +181,26 @@ diedOnTurn:     integer | null
 retiredOnTurn:  integer | null
 transferredOnTurn: integer | null           the Turn of the Hero's last Transfer; null if never. No
                                             Transfer moves them within transferLockDays of it (DL-60)
+portraitKey:    string | null               the Hero picture their Portrait shows, of their sex and
+                                            Class, chosen to fit them as they are generated, in the
+                                            pool or on a Roster, in one draw from `hero-portraits`
+                                            (`choosePortrait`): a picture whose `apparentAge`
+                                            reaches the band of their age and whose Classes hold
+                                            theirs, preferring one no Hero on a Roster or in the
+                                            pool has, repeating once every one that fits is, then
+                                            their age within it, their Background's Station, and a
+                                            Feature showing a Trait they hold; null for the
+                                            Silhouette where none fits, as for every Hero while
+                                            content lists no Hero picture (DL-135 items 3 to 5, 8;
+                                            v1.1.3-S6)
+appearance, biography: string               a Hero's descriptive Attributes, which no rule reads and
+                                            the player never edits, written as they are generated,
+                                            after the Portrait, on `hero-descriptions`: the
+                                            picture's narrative, or drawn from the phrases by sex
+                                            and band; the Biography from their Background, Class at
+                                            band, first two Traits, and the picture's hooks and
+                                            Temper, at most 280 and 1,000 characters. A Hero has no
+                                            Birthplace (DL-135 item 6, v1.1.3-S6)
 regard:         Record<EntityId, RegardEntry>
 ```
 A Hero's gear is not on the Hero: it is the Items, unique or a stack of one, whose holder is this Hero in a slot (3.3).
@@ -364,7 +399,8 @@ document's version to the current one, it runs, forward only, one step per versi
 exists, the load is refused with the versions named. Modules migrate their own slices, after
 the chain and before the validator, each reading its own version from inside its slice (DL-76).
 Since schema 5 the chain is empty: a save of schema 4 or before is refused, and a front end says it
-was saved by an older Heroesim (DL-125 item 10.2, DL-130).
+was saved by an older Heroesim (DL-125 item 10.2, DL-130). Since schema 6 a save of schema 5, as
+`v1.1.2` wrote it, is refused in the same words (DL-135 item 7, v1.1.3-S6).
 
 The hand-written validator runs on every load and, in tests, after every `advance`. It never
 runs per Turn in play.
@@ -387,7 +423,7 @@ runs per Turn in play.
 | A Guildmaster's, Hero's or Patron's `sex` that is not `"female"` or `"male"` (a Patron's may be `null`): a shape error, since a front end finds a Portrait's folder by it (v1.1.2-S6, DL-133) | refuse |
 | A Stat, Class, Skill, Trait, Item, template or Injury type key the content does not define | warn |
 | An Item a Hero holds in a slot `gearSlots` does not list, or that is not gear for its slot (DL-48) | warn |
-| A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130) | warn |
+| A Guildmaster's `portraitKey` that names no Guildmaster picture in content, or one of the other sex (DL-130); a Hero's that names no Hero picture, or one of the other sex (v1.1.3-S6) | warn |
 | A module slice no installed module owns (DL-76) | warn |
 
 A refused document names the failed check. Nothing is repaired silently.

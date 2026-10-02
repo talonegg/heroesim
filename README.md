@@ -29,6 +29,12 @@ one releases (DL-124; see [Deploy](#deploy)).
   by "Export this game" at one and "Load a save file" at the other.
 - **In a terminal:** `npm ci` once, then `npm run play -- help` for the commands.
 
+## Portraits
+
+The Portraits' pictures in `media/portraits/` are converted, registered and checked by the
+portrait tool, `npm run portraits -- <command>`, described in
+[`tools/portraits/README.md`](tools/portraits/README.md) (DL-135 item 11).
+
 ## Deploy
 
 One build of the page, gated, is uploaded to both addresses (INPUTS 7.8; DL-88, DL-92, DL-94):
@@ -67,8 +73,9 @@ from elsewhere), every later release is refused, because `main` differs from the
 head. Merge `main` back into the current release branch and push it; the next pull request
 releases both.
 
-A new line needs only its two branches, and Dependabot's `target-branch` (`.github/dependabot.yml`)
-moved to its dev branch. Every day `watch.yml` does three things, and opens an issue when any of
+A new line needs only its two branches. Each new dev branch, a line's or a patch's, moves
+Dependabot's `target-branch` (`.github/dependabot.yml`) to itself (DL-147), which takes effect once
+released to `main`. Every day `watch.yml` does three things, and opens an issue when any of
 them fails, or when the token expires within 30 days:
 - it plays both addresses;
 - it verifies the Cloudflare token and its expiry;

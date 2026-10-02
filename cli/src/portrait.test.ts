@@ -1,13 +1,13 @@
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createWorld, defaultConfig, deserialise, playerGuild, type ContentSet, type WorldDocument } from '@heroesim/engine';
+import { createWorld, defaultConfig, deserialise, playerGuild, type ContentSet, type PortraitAppearance, type WorldDocument } from '@heroesim/engine';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { exitCodes, main } from './main.js';
 
-// `new --portrait` and `show guildmaster` over content with pictures (v1.1.2-S3, DL-125 item 3). The
-// core lists none until v1.1.2-S4, so the content the CLI loads is the core with three Guildmaster
-// pictures added; `main.test.ts` holds the refusal the core itself gives.
+// `new --portrait` and `show guildmaster` over content with pictures (v1.1.2-S3, DL-125 item 3): the
+// core with a third Guildmaster picture, a young man's, beside its two (v1.1.3-S5, so that a man of
+// either band has one that fits); `main.test.ts` holds the refusal the core itself gives.
 
 const pictures: ContentSet['portraits']['guildmaster'] = { female: ['gm-female-01'], male: ['gm-male-01', 'gm-male-02'] };
 
@@ -15,7 +15,12 @@ vi.mock('@heroesim/content/node', async (original) => {
   const actual = await original<typeof import('@heroesim/content/node')>();
   const loadContent = (): ContentSet => {
     const core = actual.loadContent();
-    return { ...core, portraits: { ...core.portraits, guildmaster: pictures } };
+    const young = { ...(core.portraitAppearances.portraits['gm-male-01'] as PortraitAppearance), apparentAge: [21, 32] as [number, number] };
+    return {
+      ...core,
+      portraits: { ...core.portraits, guildmaster: pictures },
+      portraitAppearances: { ...core.portraitAppearances, portraits: { ...core.portraitAppearances.portraits, 'gm-male-02': young } },
+    };
   };
   return { ...actual, loadContent };
 });
@@ -74,7 +79,18 @@ describe('new --portrait (v1.1.2-S3)', () => {
     expect(playerGuildmaster(saved())).toMatchObject({ sex: 'female', portraitKey: 'gm-female-01' });
   });
 
-  test('draws the Portrait from the pictures of the sex when none is given, as the engine does', () => {
+  test("with --portrait and no --age, draws the age within the picture's (v1.1.3-S5, DL-134 item 7)", () => {
+    // The core's gm-male-01 looks 45 to 55, held to the starting ages' 50.
+    expect(newGame('--portrait', 'gm-male-01').code).toBe(exitCodes.ok);
+    const age = playerGuildmaster(saved())?.ageAtEntry ?? 0;
+    expect(age).toBeGreaterThanOrEqual(45);
+    expect(age).toBeLessThanOrEqual(50);
+    // An age given is kept, whatever the picture looks.
+    expect(newGame('--portrait', 'gm-male-01', '--age', '25', '--force').code).toBe(exitCodes.ok);
+    expect(playerGuildmaster(saved())).toMatchObject({ portraitKey: 'gm-male-01', ageAtEntry: 25 });
+  });
+
+  test('chooses the Portrait to fit them from the pictures of the sex when none is given, as the engine does', () => {
     expect(newGame('--sex', 'male').code).toBe(exitCodes.ok);
 
     const expected = createWorld(

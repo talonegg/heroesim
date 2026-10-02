@@ -17,5 +17,11 @@ test-results/
 playwright-report/
 .wrangler/
 
+# The portrait tool's inbox (v1.1.3-S2, DL-135 item 11): uploads wait here, in guildmaster/ or hero/
+# and perhaps male/ or female/, and are never committed; only each folder's .gitkeep is.
+media/inbox/**
+!media/inbox/*/
+!media/inbox/*/.gitkeep
+
 # Agent worktrees are separate checkouts, never part of this one
 .claude/worktrees/

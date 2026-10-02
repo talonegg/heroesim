@@ -151,6 +151,12 @@ export interface Background {
   key: BackgroundKey;
   name: string;
   owner: BackgroundOwner;
+  /**
+   * A Hero Background's Station, the walk of life a Hero of it was born to (v1.1.3-S1, DL-135 item 5):
+   * one of `Descriptions.stations`. A Hero's Biography writes from the Background, and a Hero's
+   * Portrait prefers a picture of its Station. A Guild Background has none.
+   */
+  station?: StationKey;
 }
 
 /** The walk of life a Patron belongs to (INPUTS 3.8; `spheres.json`). */
@@ -529,43 +535,93 @@ export type PortraitKey = string;
 export type Portraits = Record<PortraitRole, Record<Sex, PortraitKey[]>>;
 
 /**
- * The parts of a person's looks a picture's keyword names (DL-127 item 3): the slots of the
- * Appearance but `build`, which a head and shoulders cannot show. No clothing (DL-127 item 2).
+ * The parts of a person's looks the Appearance is written in, but `build` (DL-127 item 3): what a head
+ * and shoulders can show. No clothing (DL-127 item 2).
  */
 export type AppearanceSlot = 'face' | 'hair' | 'facialHair' | 'eyes' | 'mark' | 'bearing';
 
-/** A keyword's key: lower case and hyphens, never renamed once a rule reads it (DL-127 item 3). */
-export type AppearanceKeywordKey = string;
+/** A Station's key, such as `common` (`descriptions.json`'s `stations`, v1.1.3-S1, DL-134 item 4). */
+export type StationKey = string;
+/** A Temper's key, such as `stern` (`descriptions.json`'s `tempers`, v1.1.3-S1, DL-134 item 4). */
+export type TemperKey = string;
+/** A Calling's key, such as `soldier` (`descriptions.json`'s `callings`, v1.1.3-S1, DL-134 item 4). */
+export type CallingKey = string;
+/** A Feature's key, such as `beard` (`portrait-appearances.json`'s `features`, v1.1.3-S1, DL-134 item 4). */
+export type FeatureKey = string;
 
-/** A keyword a picture's Appearance may use: its slot, and its word for display (DL-127 item 3). */
-export interface AppearanceKeyword {
-  slot: AppearanceSlot;
-  word: string;
+/**
+ * A Calling (v1.1.3-S1, DL-134 item 4): what a Guildmaster did before the chair, and the Guildmaster
+ * Traits it `suits` and `clashes` with, set once for the Calling and not on each picture. A Portrait
+ * is preferred whose Callings clash with none of a Guildmaster's Traits, then one whose Calling suits
+ * one (DL-135 item 3). No Trait both suits and clashes.
+ */
+export interface Calling {
+  suits: TraitKey[];
+  clashes: TraitKey[];
 }
 
 /**
- * What a picture shows of the person (DL-127 item 1): short keywords, which no rule reads yet, and
- * a narrative of two or three sentences, in the third person with no name and no age, which is the
- * Appearance of a Guildmaster with this Portrait (v1.1.2-S5).
+ * A Feature (v1.1.3-S1, DL-134 item 4): what can be seen of the body in a picture, such as a beard or
+ * a scar. A `maleOnly` Feature is on male pictures only; `shows` names the Hero Traits it shows, such
+ * as `scar` for `scarred`, so that a Hero holding one is given a picture that shows it where one fits.
+ * Both are read as `false` and none where the file leaves them out.
+ */
+export interface Feature {
+  maleOnly: boolean;
+  shows: TraitKey[];
+}
+
+/**
+ * A picture's row (v1.1.3-S1; DL-127, DL-134 item 3, DL-135 item 2): what it shows of the person, as
+ * the agent reads it and the owner corrects it. No rule reads it; a Portrait is chosen by it to fit a
+ * person already drawn, and never changes them (DL-134 item 1). Its role is the list `portraits.json`
+ * holds it in, and it has that role's fields and no other's:
+ * - both roles: `apparentAge`, `station`, `temper` and `narrative`; `features` and up to two `hooks`,
+ *   read as none where the file leaves them out;
+ * - a Guildmaster's: one or two `callings`;
+ * - a Hero's: one or more `classes`, the Classes the picture could be.
+ * A Patron's picture has no row yet (DL-135 item 10).
  */
 export interface PortraitAppearance {
-  keywords: AppearanceKeywordKey[];
+  /** `[from, to]`, the whole years the face could be, `from` no greater than `to`: the age bands it touches are `Descriptions.ageBands`'. */
+  apparentAge: [from: number, to: number];
+  /** The Station the picture suggests the person was born to: a Guildmaster's Biography's origin is drawn by it. */
+  station: StationKey;
+  /** The Temper the face shows: the Biography's closing is drawn by it. */
+  temper: TemperKey;
+  /** A Guildmaster's picture's Callings, one or two: the Biography's career is drawn by them. */
+  callings?: CallingKey[];
+  /** A Hero's picture's Classes, one or more: a Hero's Class must be among them. */
+  classes?: ClassKey[];
+  /** What can be seen of the body, each a Feature defined once, none twice. */
+  features: FeatureKey[];
+  /**
+   * The Appearance of a person with this Portrait, word for word: face, hair, marks and bearing, in the
+   * third person with no name, never clothing or an age in years (DL-127, DL-134 item 3), at most 260
+   * characters.
+   */
   narrative: string;
+  /**
+   * Up to two sentences written for this picture alone, each at most 160 characters with its sex's
+   * pronouns, and no Birthplace: they join the career sentences a Guildmaster's Biography draws from,
+   * or a Hero's Class sentences (DL-134 item 3).
+   */
+  hooks: string[];
 }
 
 /**
- * The Appearances mapped to pictures (`portrait-appearances.json`, v1.1.2-S4; DL-126 item 2,
- * DL-127): the keywords defined once, and each mapped picture's row by its Portrait's key. A picture
- * with no row is allowed; its Appearance is drawn whole.
+ * The rows of the pictures (`portrait-appearances.json`, v1.1.2-S4, v1.1.3-S1; DL-126 item 2, DL-127,
+ * DL-134 item 3): the Features defined once, and each picture's row by its Portrait's key. Every
+ * Guildmaster's and Hero's picture has a row, and every row a picture.
  */
 export interface PortraitAppearances {
-  keywords: Record<AppearanceKeywordKey, AppearanceKeyword>;
+  features: Record<FeatureKey, Feature>;
   portraits: Record<PortraitKey, PortraitAppearance>;
 }
 
 /**
- * The parts a drawn Appearance is written in (v1.1.2-S5, DL-125 item 6, DL-127 item 2): a keyword's
- * slots and `build`, which a picture cannot show. No clothing, armour, gear or ornaments.
+ * The parts a drawn Appearance is written in (v1.1.2-S5, DL-125 item 6, DL-127 item 2): the slots a
+ * picture can show and `build`, which it cannot. No clothing, armour, gear or ornaments.
  */
 export type DescriptionSlot = AppearanceSlot | 'build';
 
@@ -585,11 +641,17 @@ export interface AgeBand {
 export type AppearancePhrases = Record<Exclude<DescriptionSlot, 'facialHair'>, string[]> & { facialHair?: string[] };
 
 /**
- * The sentences a Biography is written from (v1.1.2-S5, DL-125 item 6), each with slots: `{birthplace}`
- * and the pronoun slots of `Descriptions.pronouns`. By age band: `origins`, `careers` and `closings`;
- * by the optional keys: `backgrounds`, by a Guild Background, and `traits`, by a Guildmaster Trait;
- * and `successors`, for a successor, who came to the Guild's chair rather than founding the Guild, in
- * the Background's place (v1.1.2-S6).
+ * The sentences a Guildmaster's Biography is written from (v1.1.2-S5, DL-125 item 6), each with slots:
+ * `{birthplace}` and the pronoun slots of `Descriptions.pronouns`. By age band: `origins`, `careers`
+ * and `closings`; by the optional keys: `backgrounds`, by a Guild Background, and `traits`, by a
+ * Guildmaster Trait; and `successors`, for a successor, who came to the Guild's chair rather than
+ * founding the Guild, in the Background's place (v1.1.2-S6).
+ *
+ * With a picture (v1.1.3-S1, DL-134 items 4 and 6), each optional by key: the origin is drawn from
+ * `stationOrigins` by its Station, the career from `callingCareers` by its Callings and then by age
+ * band, together with its hooks, and the closing from `temperClosings` by its Temper; each falls back
+ * to the band's list where its own is empty. A Temper's closing may close a Hero's Biography too
+ * (`HeroBiographySentences`), so it names no Birthplace.
  */
 export interface BiographySentences {
   origins: Record<AgeBandKey, string[]>;
@@ -598,13 +660,32 @@ export interface BiographySentences {
   traits: Record<TraitKey, string[]>;
   closings: Record<AgeBandKey, string[]>;
   successors: string[];
+  stationOrigins: Record<StationKey, string[]>;
+  callingCareers: Record<CallingKey, Record<AgeBandKey, string[]>>;
+  temperClosings: Record<TemperKey, string[]>;
+}
+
+/**
+ * The sentences a Hero's Biography is written from (v1.1.3-S1, DL-135 item 6), each with the pronoun
+ * slots and no `{birthplace}`, since a Hero has no Birthplace: by Hero Background, by Class and then
+ * by age band, and by Hero Trait, each optional by key; and a closing by age band, every band, for a
+ * Hero with no picture. A Hero with a picture closes with its Temper's
+ * (`BiographySentences.temperClosings`), and its hooks join its Class's sentences.
+ */
+export interface HeroBiographySentences {
+  backgrounds: Record<BackgroundKey, string[]>;
+  classes: Record<ClassKey, Record<AgeBandKey, string[]>>;
+  traits: Record<TraitKey, string[]>;
+  closings: Record<AgeBandKey, string[]>;
 }
 
 /**
  * What a Guildmaster's descriptive Attributes are written from (`descriptions.json`, v1.1.2-S5;
  * DL-125 item 6, DL-127): the age bands, the pronoun each slot is for each sex, the Birthplaces, the
- * Appearance's phrases by sex and age band, and the Biography's sentences. The content validator
- * proves that nothing it can write passes `descriptiveAttributeMaxLength`.
+ * Appearance's phrases by sex and age band, and the Biography's sentences; and since v1.1.3-S1 the
+ * vocabulary a picture is read in, its Stations, Tempers and Callings, and a Hero's Biography's
+ * sentences (DL-134 item 4, DL-135 item 6). The content validator proves that nothing it can write
+ * passes `descriptiveAttributeMaxLength`.
  */
 export interface Descriptions {
   /** In order of `from`, the first from 0, so every age has a band. */
@@ -612,8 +693,16 @@ export interface Descriptions {
   /** Each sex's word for each pronoun slot, `{he}` → `she`: the same slots for every sex. */
   pronouns: Record<Sex, Record<string, string>>;
   birthplaces: string[];
+  /** The Stations a person may be born to: `common`, `trade` and `gentry` (v1.1.3-S1, DL-134 item 4). */
+  stations: StationKey[];
+  /** The Tempers a face may show, such as `stern` (v1.1.3-S1, DL-134 item 4). */
+  tempers: TemperKey[];
+  /** The Callings a Guildmaster may have followed, each with the Traits it suits and clashes with (v1.1.3-S1). */
+  callings: Record<CallingKey, Calling>;
   appearance: Record<Sex, Record<AgeBandKey, AppearancePhrases>>;
   biography: BiographySentences;
+  /** What a Hero's Biography is written from (v1.1.3-S1, DL-135 item 6): read by no rule yet. */
+  heroBiography: HeroBiographySentences;
 }
 
 /** A loaded, validated set of content. Each table is keyed by its rows' kebab-case keys. */
@@ -631,10 +720,11 @@ export interface ContentSet {
   names: Names;
   /**
    * The pictures a Portrait may show, by role and sex (v1.1.2-S3, DL-125 item 3): a player's
-   * Guildmaster's Portrait is chosen or drawn from them. Empty lists where a role and sex has none.
+   * Guildmaster's Portrait is chosen from them, and every Guildmaster's chosen to fit them (v1.1.3-S5).
+   * Empty lists where a role and sex has none.
    */
   portraits: Portraits;
-  /** What each mapped picture shows of the person (v1.1.2-S4, DL-127): read by no rule yet. */
+  /** Each picture's row, what it shows of the person (v1.1.2-S4, v1.1.3-S1; DL-127, DL-134): read by no rule; a Portrait is chosen by it (v1.1.3-S5). */
   portraitAppearances: PortraitAppearances;
   /** What a Guildmaster's blank descriptive Attributes are written from (v1.1.2-S5, DL-125 item 6). */
   descriptions: Descriptions;

@@ -10,6 +10,11 @@
 // (`pickOrNone`). So a text given, a picture mapped or a part with no sentence never moves a later
 // draw, and the Guildmasters after it are described as they would have been.
 //
+// With a picture (v1.1.3-S5, DL-134 item 6), the Biography follows it in the same draws: the origin
+// is drawn from its Station's sentences, the career from its Callings' at the band together with its
+// hooks, and the closing from its Temper's, each from the band's where its own list is empty. With no
+// picture, each is the band's, as before.
+//
 // The content validator proves that nothing written here passes `descriptiveAttributeMaxLength`,
 // taking the Appearance and the Biography to be made as they are below
 // (`content/src/validate.ts`'s `longestDescriptions`): a change to how they are joined is a change
@@ -17,17 +22,18 @@
 
 import type { EngineDeps } from './config.js';
 import type {
-  AgeBand,
   AppearancePhrases,
   BackgroundKey,
+  ClassKey,
   ContentSet,
   DescriptionSlot,
   Descriptions,
   PortraitKey,
   TraitKey,
 } from './content-types.js';
-import type { DescriptiveAttribute, Guildmaster, Sex, World } from './document.js';
+import type { DescriptiveAttribute, Guildmaster, Hero, Sex, World } from './document.js';
 import { pickOrNone, streamOf, type Stream } from './generators/draw.js';
+import { ageSpanOf, portraitRowOf } from './portraits.js';
 import { createStreams } from './rng.js';
 
 /** The stream every description is drawn from (ADR-0009 as amended; v1.1.2-S5). */
@@ -51,7 +57,11 @@ export interface DescriptionFacts {
   backgroundKey: BackgroundKey;
   /** Their Traits, in order: the first `biographyTraitSentences` have a sentence each, if content has one. */
   traitKeys: readonly TraitKey[];
-  /** Their Portrait: a mapped picture's narrative is the Appearance, as written (DL-127 item 4). */
+  /**
+   * Their Portrait: a mapped picture's narrative is the Appearance, as written (DL-127 item 4), and
+   * its Station, Callings, hooks and Temper choose the Biography's origin, career and closing
+   * (v1.1.3-S5, DL-134 item 6).
+   */
   portraitKey: PortraitKey | null;
   /**
    * Whether they succeeded to the Guild's chair rather than founding the Guild (v1.1.2-S6): their
@@ -64,11 +74,18 @@ export interface DescriptionFacts {
 const writtenSlots = ['build', 'face', 'hair', 'facialHair', 'eyes'] as const satisfies readonly DescriptionSlot[];
 const lastSlots = ['mark', 'bearing'] as const satisfies readonly DescriptionSlot[];
 
-/** The band `age` falls in: the last whose `from` it has reached. Content's first band is from 0. */
-function bandOf(ageBands: readonly AgeBand[], age: number): string {
-  let band = ageBands[0]?.key ?? '';
-  for (const each of ageBands) if (age >= each.from) band = each.key;
-  return band;
+/**
+ * An Appearance drawn whole from the phrases of `sex` and `band` (v1.1.2-S5): one phrase of each of
+ * `build`, `face`, `hair`, `facialHair` (a male's) and `eyes`, then `mark` or `bearing`, joined by
+ * spaces. Eight draws whatever the lists hold (`pickOrNone`): one a slot, and one for the last.
+ * A Guildmaster's and a Hero's are drawn alike (v1.1.3-S6, DL-135 item 6).
+ */
+function drawAppearance(state: Stream, descriptions: Descriptions, sex: Sex, band: string): string {
+  const phrases: Partial<AppearancePhrases> = Object.hasOwn(descriptions.appearance[sex], band) ? (descriptions.appearance[sex][band] ?? {}) : {};
+  const parts = writtenSlots.map((slot) => pickOrNone(state, phrases[slot] ?? []));
+  const lasts = lastSlots.map((slot) => pickOrNone(state, phrases[slot] ?? []));
+  const last = pickOrNone(state, lasts);
+  return [...parts, last].filter((part) => part !== null).join(' ');
 }
 
 /** `text` with each slot filled: a pronoun's by `sex`'s word, `{birthplace}` by the Birthplace, its full stop dropped. */
@@ -83,11 +100,14 @@ function filled(text: string, descriptions: Descriptions, sex: Sex, birthplace: 
  * The three texts for `facts`, each drawn from `state` in fifteen draws whatever is kept (above),
  * then `given`'s kept where it is written: a text given is kept, trimmed; a blank one is written. The
  * Biography's `{birthplace}` is the Birthplace kept, given or written. With a mapped picture, the
- * Appearance is its narrative, as written (DL-127 item 4); otherwise it is drawn whole.
+ * Appearance is its narrative, as written (DL-127 item 4), and the Biography's origin, career and
+ * closing are drawn from its Station's, its Callings' at the band with its hooks, and its Temper's
+ * sentences, each the band's where its own are none (DL-134 item 6); otherwise the Appearance is drawn
+ * whole and those three are the band's.
  */
 function write(state: Stream, content: Pick<ContentSet, 'descriptions' | 'portraitAppearances'>, facts: DescriptionFacts, given: Partial<GuildmasterDescription> = {}): GuildmasterDescription {
   const { descriptions } = content;
-  const band = bandOf(descriptions.ageBands, facts.age);
+  const band = ageSpanOf(descriptions.ageBands, facts.age).key;
   const kept = (text: string | undefined): string | null => {
     const trimmed = (text ?? '').trim();
     return trimmed === '' ? null : trimmed;
@@ -96,24 +116,31 @@ function write(state: Stream, content: Pick<ContentSet, 'descriptions' | 'portra
   const drawnPlace = pickOrNone(state, descriptions.birthplaces) ?? '';
   const birthplace = kept(given.birthplace) ?? drawnPlace;
 
-  const phrases: Partial<AppearancePhrases> = Object.hasOwn(descriptions.appearance[facts.sex], band) ? (descriptions.appearance[facts.sex][band] ?? {}) : {};
-  const parts = writtenSlots.map((slot) => pickOrNone(state, phrases[slot] ?? []));
-  const lasts = lastSlots.map((slot) => pickOrNone(state, phrases[slot] ?? []));
-  const last = pickOrNone(state, lasts);
-  const drawnAppearance = [...parts, last].filter((part) => part !== null).join(' ');
-  const mapped = facts.portraitKey === null ? undefined : content.portraitAppearances.portraits[facts.portraitKey];
+  const drawnAppearance = drawAppearance(state, descriptions, facts.sex, band);
+  const mapped = facts.portraitKey === null ? undefined : portraitRowOf(content, facts.portraitKey);
   const appearance = kept(given.appearance) ?? (mapped === undefined ? drawnAppearance : mapped.narrative.trim());
 
   const { biography: sentences } = descriptions;
-  const listed = (lists: Readonly<Record<string, string[]>>, key: string | undefined): readonly string[] =>
-    key !== undefined && Object.hasOwn(lists, key) ? (lists[key] ?? []) : [];
+  const listed = <T>(lists: Readonly<Record<string, T>>, key: string | undefined): T | undefined =>
+    key !== undefined && Object.hasOwn(lists, key) ? lists[key] : undefined;
+  /** The picture's own sentences, or the band's where it has none or there is no picture. */
+  const ownElseBand = (own: readonly string[] | undefined, byBand: Readonly<Record<string, string[]>>): readonly string[] =>
+    own !== undefined && own.length > 0 ? own : (listed(byBand, band) ?? []);
+  const origins = ownElseBand(mapped === undefined ? undefined : listed(sentences.stationOrigins, mapped.station), sentences.origins);
+  const careers = ownElseBand(
+    mapped === undefined
+      ? undefined
+      : [...(mapped.callings ?? []).flatMap((calling) => listed(listed(sentences.callingCareers, calling) ?? {}, band) ?? []), ...mapped.hooks],
+    sentences.careers,
+  );
+  const closings = ownElseBand(mapped === undefined ? undefined : listed(sentences.temperClosings, mapped.temper), sentences.closings);
   const traitKeys = Array.from({ length: biographyTraitSentences }, (_, index) => facts.traitKeys[index]);
   const drawnBiography = [
-    pickOrNone(state, listed(sentences.origins, band)),
-    pickOrNone(state, listed(sentences.careers, band)),
-    pickOrNone(state, facts.successor === true ? sentences.successors : listed(sentences.backgrounds, facts.backgroundKey)),
-    ...traitKeys.map((key) => pickOrNone(state, listed(sentences.traits, key))),
-    pickOrNone(state, listed(sentences.closings, band)),
+    pickOrNone(state, origins),
+    pickOrNone(state, careers),
+    pickOrNone(state, facts.successor === true ? sentences.successors : (listed(sentences.backgrounds, facts.backgroundKey) ?? [])),
+    ...traitKeys.map((key) => pickOrNone(state, listed(sentences.traits, key) ?? [])),
+    pickOrNone(state, closings),
   ]
     .filter((sentence) => sentence !== null)
     .map((sentence) => filled(sentence, descriptions, facts.sex, birthplace))
@@ -188,4 +215,98 @@ export function describeBlanks(
     { birthplace: guildmaster.birthplace, appearance: guildmaster.appearance, biography: guildmaster.biography },
   );
   Object.assign(guildmaster, written);
+}
+
+// ── A Hero described (v1.1.3-S6, DL-135 item 6) ──────────────────────────────────────────────
+
+/** The stream every Hero's Appearance and Biography are drawn from (ADR-0009 as amended 2026-10-01; v1.1.3-S6). */
+export const heroDescriptionsStream = 'hero-descriptions';
+
+/**
+ * How many of a Hero's Traits their Biography gives a sentence: the first two in their order, as many
+ * as a Guildmaster's (v1.1.3-S1). The content validator repeats it as `heroBiographyTraitSentences`.
+ */
+export const heroBiographyTraitSentences = 2;
+
+/**
+ * How many draws `describeHero` takes, whatever it writes: eight for the Appearance (`drawAppearance`)
+ * and one for each of the Biography's five parts, the Background's, the Class's, the two Traits' and
+ * the closing.
+ */
+export const heroDescriptionDraws = 8 + 3 + heroBiographyTraitSentences;
+
+/** A Hero's two descriptive Attributes: a Hero has no Birthplace, since their Background says where they are from. */
+export type HeroDescription = Pick<Record<DescriptiveAttribute, string>, 'appearance' | 'biography'>;
+
+/** What a Hero's texts are written from: who the Hero is, and their Portrait. */
+export interface HeroFacts {
+  sex: Sex;
+  /** Whole years, the age they enter play at: it chooses the age band. */
+  age: number;
+  /** Their Background: the Biography's first sentence, if content has one. */
+  backgroundKey: BackgroundKey;
+  /** Their Class: the Biography's sentence of it at their band, if content has one. */
+  classKey: ClassKey;
+  /** Their Traits, in order: the first `heroBiographyTraitSentences` have a sentence each, if content has one. */
+  traitKeys: readonly TraitKey[];
+  /**
+   * Their Portrait: a picture's narrative is the Appearance, as written (DL-127 item 4); its hooks join
+   * their Class's sentences, and its Temper chooses the closing (DL-135 item 6).
+   */
+  portraitKey: PortraitKey | null;
+}
+
+/**
+ * A Hero's Appearance and Biography, drawn from `state` in `heroDescriptionDraws` (13) draws whatever
+ * is written (v1.1.3-S6, DL-135 item 6), so a picture, a Background, Class or Trait with no sentence,
+ * the sex or the age never moves a later draw, and the Heroes after are described as they would have
+ * been. Pure but for advancing `state`.
+ * - *The Appearance* is their picture's narrative, as written, or with no picture drawn whole from the
+ *   phrases of their sex and band, as a Guildmaster's is (`drawAppearance`), the draws taken either way.
+ * - *The Biography* (the shape `content`'s `longestDescriptions` bounds, v1.1.3-S1): a sentence of their
+ *   Background; one of their Class at their band, with a picture its hooks among them; one for each of
+ *   their first two Traits; and a closing, with a picture its Temper's, else, or where the Temper has
+ *   none, their band's. Those there are, joined by spaces, each pronoun slot the sex's word.
+ */
+export function describeHero(state: Stream, content: Pick<ContentSet, 'descriptions' | 'portraitAppearances'>, facts: HeroFacts): HeroDescription {
+  const { descriptions } = content;
+  const band = ageSpanOf(descriptions.ageBands, facts.age).key;
+  const drawnAppearance = drawAppearance(state, descriptions, facts.sex, band);
+  const pictured = facts.portraitKey === null ? undefined : portraitRowOf(content, facts.portraitKey);
+  const appearance = pictured === undefined ? drawnAppearance : pictured.narrative.trim();
+
+  const sentences = descriptions.heroBiography;
+  const listed = <T>(lists: Readonly<Record<string, T>>, key: string | undefined): T | undefined =>
+    key !== undefined && Object.hasOwn(lists, key) ? lists[key] : undefined;
+  const classSentences = [...(listed(listed(sentences.classes, facts.classKey) ?? {}, band) ?? []), ...(pictured?.hooks ?? [])];
+  const temperClosings = pictured === undefined ? [] : (listed(descriptions.biography.temperClosings, pictured.temper) ?? []);
+  const closings = temperClosings.length > 0 ? temperClosings : (listed(sentences.closings, band) ?? []);
+  const traitKeys = Array.from({ length: heroBiographyTraitSentences }, (_, index) => facts.traitKeys[index]);
+  const biography = [
+    pickOrNone(state, listed(sentences.backgrounds, facts.backgroundKey) ?? []),
+    pickOrNone(state, classSentences),
+    ...traitKeys.map((key) => pickOrNone(state, listed(sentences.traits, key) ?? [])),
+    pickOrNone(state, closings),
+  ]
+    .filter((sentence) => sentence !== null)
+    .map((sentence) => filled(sentence, descriptions, facts.sex, ''))
+    .join(' ');
+  return { appearance, biography };
+}
+
+/**
+ * Writes `hero`'s Appearance and Biography as they are generated (v1.1.3-S6, DL-135 item 6), from the
+ * world's `hero-descriptions` stream, after their Portrait, since the texts follow the picture. A
+ * Hero's texts are never given: the player sets up no Hero. Changes `hero` in place.
+ */
+export function describeNewHero(world: World, deps: Pick<EngineDeps, 'content'>, hero: Hero): void {
+  const written = describeHero(streamOf(world, heroDescriptionsStream), deps.content, {
+    sex: hero.sex,
+    age: hero.ageAtEntry,
+    backgroundKey: hero.backgroundKey,
+    classKey: hero.classKey,
+    traitKeys: hero.traits,
+    portraitKey: hero.portraitKey,
+  });
+  Object.assign(hero, written);
 }

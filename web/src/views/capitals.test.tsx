@@ -2,6 +2,7 @@ import type { OfferId, WorldDocument } from '@heroesim/engine';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, test } from 'vitest';
 import { App } from '../app';
+import { content } from '../content';
 import { cameHome, changed, holding, holdingUnique, played, started, withOffer, withOlderRules, withPartyOut, withTheGone, withWorldNews, type Named } from '../state/game.test-support';
 import type { GameState } from '../state/reducer';
 import { poolView } from '../state/trade-views';
@@ -240,6 +241,58 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
     reader.read('The new-game form');
 
+    expect(reader.checked).toBeGreaterThan(20);
+    expect(reader.failures).toEqual([]);
+  });
+
+  // v1.1.3-S7: the setup grid's buttons and "Drawn from the seed", and a note beside a Portrait chosen.
+  test('in the setup grid, with a note beside a Portrait chosen', () => {
+    render(<App />);
+    const reader = new Reader([]);
+    for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'capitals' } });
+    fireEvent.change(screen.getByLabelText('Sex'), { target: { value: 'female' } });
+    fireEvent.change(screen.getByLabelText('Age'), { target: { value: '21' } });
+    const portrait = screen.getByRole('group', { name: 'Portrait' });
+    const radios = within(portrait).getAllByRole('radio');
+    // Each picture chosen in turn, so that the notes of every kind they give are read.
+    let noted = 0;
+    for (const radio of radios.slice(1)) {
+      fireEvent.click(radio);
+      if (screen.queryByTestId('portrait-notes') !== null) noted += 1;
+      reader.read(`The setup grid, ${radio.closest('label')?.textContent ?? ''} chosen`);
+    }
+
+    expect(noted).toBeGreaterThan(0);
+    expect(reader.checked).toBeGreaterThan(20);
+    expect(reader.failures).toEqual([]);
+  });
+
+  // v1.1.3-S8: with the sex drawn, the grid's Female and Male buttons; and with a Trait chosen that a
+  // Calling clashes with, the note of a Calling, each picture of both sexes chosen in turn.
+  test('in the setup grid with the sex drawn, its buttons, and a Calling that clashes with a Trait chosen', () => {
+    const clashing = Object.values(content.descriptions.callings).find((calling) => calling.clashes.length > 0);
+    const traitName = content.traits[clashing?.clashes[0] ?? '']?.name;
+    if (traitName === undefined) throw new Error('no Calling clashes with a Trait');
+    render(<App />);
+    const reader = new Reader([]);
+    for (const summary of Array.from(document.querySelectorAll('summary'))) fireEvent.click(summary);
+    fireEvent.change(screen.getByLabelText('Seed'), { target: { value: 'capitals' } });
+    fireEvent.click(within(screen.getByRole('group', { name: 'Traits' })).getByRole('radio', { name: 'Choose them' }));
+    fireEvent.click(screen.getByRole('checkbox', { name: new RegExp(`^${traitName}\\b`) }));
+    const shown = screen.getByRole('group', { name: 'Pictures shown' });
+    let clashes = 0;
+    for (const sex of ['Female', 'Male']) {
+      fireEvent.click(within(shown).getByRole('button', { name: sex }));
+      const radios = within(screen.getByRole('group', { name: 'Portrait' })).getAllByRole('radio');
+      for (const radio of radios.slice(1)) {
+        fireEvent.click(radio);
+        if (/clashes with the Trait/.test(screen.queryByTestId('portrait-notes')?.textContent ?? '')) clashes += 1;
+        reader.read(`The setup grid, ${sex} shown, ${radio.closest('label')?.textContent ?? ''} chosen`);
+      }
+    }
+
+    expect(clashes).toBeGreaterThan(0);
     expect(reader.checked).toBeGreaterThan(20);
     expect(reader.failures).toEqual([]);
   });

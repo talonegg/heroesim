@@ -215,7 +215,8 @@ const sentences: Sentences = {
     `That Portrait is of a ${portraitSex} Guildmaster, and your Guildmaster's Sex is ${sex}.`,
   'load malformed-json': ({ message }) => `Cannot load the save: ${message}.`,
   'load not-a-document': ({ message }) => `Cannot load the save: ${message}.`,
-  // A save of an older schema, as v1.1.1 wrote it, in the owner's words (v1.1.2-S3, DL-125 item 10.2).
+  // A save of an older schema, as v1.1.1 and v1.1.2 wrote it, in the owner's words (v1.1.2-S3, DL-125
+  // item 10.2; v1.1.3-S6, DL-135 item 7).
   'load unsupported-version': ({ documentVersion, schemaVersion, message }) =>
     documentVersion < schemaVersion ? 'This game was saved by an older Heroesim and cannot be loaded.' : `Cannot load the save: ${message}.`,
   'load invalid': ({ message }) => `Cannot load the save: ${message}.`,

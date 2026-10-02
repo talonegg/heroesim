@@ -16,6 +16,7 @@ import {
   describeGuildmaster,
   descriptiveAttributeLabels,
   descriptiveAttributes,
+  portraitFit,
   portraitsOf,
   previewGuildmaster,
   setupRefusal,
@@ -257,6 +258,82 @@ export function portraitPick(key: PortraitKey, set: ContentSet = content): Portr
 
 /** What the form holds of a new game: all of it but the seed and the clock, which the click supplies. */
 export type SetupFields = Omit<NewGame, 'kind' | 'seed' | 'createdAt'>;
+
+/**
+ * The setup grid (v1.1.3-S7; DL-134 item 9, DL-143): the Portrait choice as the form shows it, one
+ * sex's thumbnails at a time, since both sexes' together are more than the 250 kB the grid may read.
+ */
+export interface PortraitGridView {
+  /** The sex whose pictures are shown. */
+  sex: Sex;
+  pictures: PortraitPick[];
+  /**
+   * What "Drawn from the seed" shows: the picture the seed chooses for the Guildmaster the form makes
+   * with no Portrait chosen, `portraitKey` `null` for the Silhouette where none fits; `null` while the
+   * seed is blank, or the engine would refuse the setup, when there is nothing to show.
+   */
+  drawn: { sex: Sex; portraitKey: PortraitKey | null } | null;
+  /**
+   * The sexes whose pictures can be shown, each with whether it is, while the Sex field leaves the sex
+   * to the seed; `null` once the Sex field chooses it, which then chooses the pictures too.
+   */
+  sexes: { sex: Sex; label: string; shown: boolean }[] | null;
+  /**
+   * The picture chosen while the other sex's are shown, which the grid keeps after "Drawn from the seed"
+   * so that one of its radio buttons is always checked (DL-147); `null` while it is among `pictures`, or
+   * none is chosen.
+   */
+  chosen: PortraitPick | null;
+}
+
+/**
+ * The setup grid for the form's `setup` and `seed` (v1.1.3-S7). `fieldSex` is the Sex field's own
+ * choice, `null` while it is drawn, even when a picture chosen has chosen the sex with it; `lookAt` is
+ * the sex the player asked to see, `null` until they do. The sex shown is the Sex field's, else the one
+ * asked to see, else the chosen picture's, else the one the seed draws. What the seed draws is the
+ * engine's `previewGuildmaster` for the setup without the Portrait, and without a sex that was only the
+ * Portrait's, so the form names no rule of its own (ADR-0007).
+ */
+export function portraitGrid(
+  setup: SetupFields,
+  seed: string,
+  { fieldSex, lookAt }: { fieldSex: Sex | null; lookAt: Sex | null },
+  set: ContentSet = content,
+  config: GameConfig = defaultConfig,
+): PortraitGridView {
+  const unpictured: SetupFields = { ...setup };
+  delete unpictured.guildmasterPortraitKey;
+  if (fieldSex === null) delete unpictured.guildmasterSex;
+  else unpictured.guildmasterSex = fieldSex;
+  const preview = seed.trim() === '' ? null : guildmasterPreview(unpictured, seed, set, config);
+  const drawn = preview === null ? null : { sex: preview.sex, portraitKey: preview.portraitKey };
+  const groups = portraitChoices(null, set);
+  const chosen = setup.guildmasterPortraitKey === undefined ? undefined : portraitPick(setup.guildmasterPortraitKey, set);
+  const sex: Sex = fieldSex ?? lookAt ?? chosen?.sex ?? drawn?.sex ?? groups[0]?.sex ?? 'female';
+  return {
+    sex,
+    pictures: groups.find((group) => group.sex === sex)?.pictures ?? [],
+    drawn,
+    sexes: fieldSex === null ? groups.map((group) => ({ sex: group.sex, label: group.label, shown: group.sex === sex })) : null,
+    chosen: chosen === undefined || chosen.sex === sex ? null : chosen,
+  };
+}
+
+/**
+ * What the form notes beside a Portrait the player chose (v1.1.3-S7; DL-134 item 7): the engine's
+ * `portraitFit`, in words, never a refusal. None while no Portrait is chosen, or the seed is blank,
+ * since the Guildmaster's Traits, and the age left blank, are the seed's to draw.
+ * - `This Portrait looks 40 to 55: older than your Guildmaster's 25.`
+ * - `This Portrait's Calling, Scholar, clashes with the Trait Mistrusts magic.`
+ */
+export function portraitFitWords(setup: SetupFields, seed: string, set: ContentSet = content, config: GameConfig = defaultConfig): string[] {
+  if (setup.guildmasterPortraitKey === undefined || seed.trim() === '') return [];
+  return portraitFit({ ...factsOf(setup), createdAt: '' }, seed.trim(), { config, content: set }).map((note) =>
+    note.kind === 'age'
+      ? `This Portrait looks ${note.apparentAge[0]} to ${note.apparentAge[1]}: ${note.looks} than your Guildmaster's ${note.age}.`
+      : `This Portrait's Calling, ${capitalised(note.callingKey)}, clashes with the Trait ${nameIn(set.traits, note.traitKey)}.`,
+  );
+}
 
 /** What the form says of the seed's draws with the seed blank: one is made up at the click. */
 export const unseededWords = 'The seed is blank, so one is made up when the game starts, and what is left to it is drawn then.';

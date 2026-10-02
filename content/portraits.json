@@ -1,5 +1,50 @@
 {
-  "guildmaster": { "female": ["gm-female-01"], "male": ["gm-male-01"] },
+  "guildmaster": {
+    "female": [
+      "gm-female-01",
+      "gm-female-02",
+      "gm-female-03",
+      "gm-female-04",
+      "gm-female-05",
+      "gm-female-06",
+      "gm-female-07",
+      "gm-female-08",
+      "gm-female-09",
+      "gm-female-10",
+      "gm-female-11",
+      "gm-female-12",
+      "gm-female-13",
+      "gm-female-14",
+      "gm-female-15",
+      "gm-female-16",
+      "gm-female-17",
+      "gm-female-18",
+      "gm-female-19",
+      "gm-female-20"
+    ],
+    "male": [
+      "gm-male-01",
+      "gm-male-02",
+      "gm-male-03",
+      "gm-male-04",
+      "gm-male-05",
+      "gm-male-06",
+      "gm-male-07",
+      "gm-male-08",
+      "gm-male-09",
+      "gm-male-10",
+      "gm-male-11",
+      "gm-male-12",
+      "gm-male-13",
+      "gm-male-14",
+      "gm-male-15",
+      "gm-male-16",
+      "gm-male-17",
+      "gm-male-18",
+      "gm-male-19",
+      "gm-male-20"
+    ]
+  },
   "hero": { "female": [], "male": [] },
   "patron": { "female": [], "male": [] }
 }

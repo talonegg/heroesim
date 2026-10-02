@@ -90,14 +90,16 @@ _Avoid_: Flag, Crest, Logo, Emblem (kept for a Patron that is a body)
 
 **Attribute**:
 A fixed or slowly changing fact about a person. A Hero's are name, sex, age, Background and
-Class (R12); a Guildmaster's are name, sex and age, and the three descriptive Attributes
-(R8; DL-88, DL-100), with a Portrait (DL-125, DL-130).
+Class (R12), and two descriptive Attributes, with a Portrait (DL-135, DL-142); a Guildmaster's are
+name, sex and age, and the three descriptive Attributes (R8; DL-88, DL-100), with a Portrait
+(DL-125, DL-130).
 _Avoid_: Property, Field, Detail
 
 **Descriptive Attribute**:
-One of three short texts about a Guildmaster that no rule reads: **Birthplace**, a place and not
-the Guild's Background; **Appearance**; and **Biography**. The player may write them for their
-Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
+One of the short texts about a Guildmaster or a Hero that no rule reads. A Guildmaster has three:
+**Birthplace**, a place and not the Guild's Background; **Appearance**; and **Biography**. A Hero
+has two of them, an Appearance and a Biography, and no Birthplace, since their Background says
+where they are from. The player may write them for their Guildmaster at setup, each trimmed and held to a length (R8; DL-88 item 3, DL-100 item 3,
 DL-102). By DL-125 the setup form writes all three from content on request, for the sex and age
 chosen or drawn, and any left blank are written when the Guildmaster enters play, for every
 Guildmaster: the player's, a Rival's and a successor's. A Guildmaster's Appearance keeps to what
@@ -107,25 +109,73 @@ are written from `content/descriptions.json`, by sex and age band, the Biography
 Background and the Traits, and the setup form's "Write them for me" and "Again" fill the fields.
 Since v1.1.2-S6 (DL-133) a successor's Biography says they came to the chair, not the Background's
 founding, and the form writes only the fields left blank or still as written, which follow the
-Guildmaster as the setup changes.
+Guildmaster as the setup changes. Since v1.1.3-S5 a Biography follows the Portrait: its origin is
+written by the picture's Station, its career by its Callings and hooks, and its closing by its
+Temper (DL-134 item 6). Since v1.1.3-S6 every Hero's two are written as they are generated, in the
+pool or on a Roster, and the player never edits them, since the player sets up no Hero: the
+Appearance is their picture's narrative, or drawn from the phrases by sex and age band as a
+Guildmaster's is; the Biography is written from their Background, their Class at their age band,
+their first two Traits and, with a picture, its hooks and Temper (DL-135 item 6).
 _Avoid_: Detail, Origin, Backstory, Bio, Description
 
 **Portrait**:
 The picture of a person, three wide by four high, shown on their details and on their History:
-a Guildmaster's, a Hero's and a Patron's. The player's Guildmaster has one of the Guildmaster
-pictures of their sex, chosen at setup or drawn from the seed, and none while their sex has no
-picture; everyone else shows the Silhouette of their sex for now, a Rival's Guildmaster included.
-A save holds the Portrait by its picture's key (DL-125, DL-130). Every picture is drawn in graphite
-on cream paper (DL-126); the first are the owner's two, one of each sex (DL-131). The page's setup
-form offers the pictures, with the Portrait the seed would draw beside them, and the CLI's
-`new --portrait` chooses one.
+a Guildmaster's, a Hero's and a Patron's. Every Guildmaster and Hero has one where a picture fits:
+it is chosen to fit a person already drawn, by their sex, age and a Hero's Class, and never changes
+them, and one whom no picture fits shows the Silhouette of their sex (DL-134, DL-135). Since
+v1.1.3-S5 every Guildmaster's is chosen to fit them as they enter play, the player's, a Rival's and a
+successor's, and no two living Guildmasters, retired or in office, share a picture (DL-144); the
+player may instead choose one at setup, which is theirs whatever it fits. Since v1.1.3-S6 every Hero's is chosen to fit them as they
+are generated, in the pool or on a Roster: the Class must match, and a picture no Hero on a Roster or
+in the pool has is taken first, one repeating once every one that fits is. A save holds the Portrait by
+its picture's key (DL-125, DL-130). Each picture has a row in content that reads it: its apparent
+age, Station, Temper, Callings or a Hero's Classes, Features, narrative and hooks, the Biography's
+sentences written for that picture alone and not a module's Hook (DL-134, DL-135 item 2,
+v1.1.3-S1). Every picture is drawn in graphite on cream paper (DL-126); the first are the owner's
+two, one of each sex (DL-131). The page's setup form offers the pictures, with the Portrait the
+seed would choose beside them, and the CLI's `new --portrait` chooses one. Since v1.1.3-S7 the form
+offers them as a grid of one sex's thumbnails at a time, and a person's thumbnail, or their small
+Silhouette, stands beside their name in the Roster, the Unattached pool and the Guilds' table (DL-135
+item 9).
 _Avoid_: Avatar, Profile picture, Headshot, Image (alone)
 
 **Silhouette**:
 The stand-in picture shown where no picture exists yet: a head and shoulders of the person's sex
-for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. It is never
-drawn or chosen for the player's Guildmaster while a picture of their sex exists (DL-125, DL-129).
+for a Portrait, a banner's outline for a Guild Banner, a chest's for a Unique Item. A Guildmaster
+shows it where no picture fits them, or every one that does is held by another living Guildmaster,
+retired or in office (DL-125, DL-129, DL-135 item 3; v1.1.3-S5, DL-144). A Hero shows it where no picture of their sex, band and
+Class exists, as every Hero does while content has no Hero picture (DL-135 item 8; v1.1.3-S6).
 _Avoid_: Template (a Quest template is another thing), Placeholder, Default image
+
+**Station**:
+The walk of life a person was born to: `common`, `trade` or `gentry`. A picture's row reads one,
+and each Hero Background has one: Fallen gentry is gentry, Town apprentice trade, and the other six
+common. A Guildmaster's Biography begins from their picture's Station, and a Hero's Portrait is
+preferred of their Background's (DL-134 item 4, DL-135 item 5; in content since v1.1.3-S1, read
+from v1.1.3-S5).
+_Avoid_: Rank, Class (a Hero's Class is another thing), Caste, Birth
+
+**Calling**:
+What a Guildmaster did before the Guild's chair, read from their picture, one or two to a picture:
+`soldier`, `adventurer`, `scholar`, `mage`, `explorer`, `merchant` or `lawyer`. Each suits some
+Guildmaster Traits and clashes with others, set once for the Calling, so that a Portrait is
+preferred whose Callings clash with none of the Guildmaster's Traits. A Biography's career is
+written by it. A Hero's picture has Classes instead (DL-134 item 4, DL-135 items 1 and 2; in
+content since v1.1.3-S1, read from v1.1.3-S5).
+_Avoid_: Career, Profession, Job, Class (on a Guildmaster)
+
+**Temper**:
+The manner a picture's face shows, such as stern, composed or wry. The closing sentence of the
+Biography of a Guildmaster or Hero with the picture is written by it (DL-134 item 4, DL-135 item 2;
+in content since v1.1.3-S1, read from v1.1.3-S5).
+_Avoid_: Mood, Personality, Disposition (a Rival Guild's is another thing), Trait
+
+**Feature**:
+What a picture shows of the body, such as a beard, a scar or an eyepatch, defined once for every
+picture and never clothing (DL-127). A Feature may be on male pictures only, and may show Hero
+Traits, as a scar shows Scarred, so that a Hero who holds one is given a picture that shows it where
+one fits (DL-134 items 3 and 4, DL-135 item 3; in content since v1.1.3-S1, read from v1.1.3-S6).
+_Avoid_: Keyword, Tag, Mark, Trait
 
 **Class**:
 A Hero's fixed archetype, chosen at generation: Warrior, Rogue, Mage or Healer. It raises its

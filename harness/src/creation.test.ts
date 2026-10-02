@@ -1,5 +1,5 @@
 import { loadContent } from '@heroesim/content/node';
-import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldSetup } from '@heroesim/engine';
+import { createWorld, defaultConfig, playerGuild, validate, type EngineDeps, type Guild, type WorldDocument, type WorldSetup } from '@heroesim/engine';
 import { describe, expect, test } from 'vitest';
 import { creationReport, harnessSetup, sweepCreation, type CreationSweep } from './creation.js';
 import { playGame } from './play.js';
@@ -16,6 +16,13 @@ const deps: EngineDeps = { config: { ...defaultConfig }, content };
 function tickingClock(): () => number {
   let t = 0;
   return () => (t += 1);
+}
+
+/** `document` with every Guildmaster's Portrait, Appearance and Biography set aside (v1.1.3-S5). */
+function picturesAside(document: WorldDocument): WorldDocument {
+  const copy = structuredClone(document);
+  for (const guildmaster of Object.values(copy.world.guildmasters)) Object.assign(guildmaster, { portraitKey: null, appearance: '', biography: '' });
+  return copy;
 }
 
 describe('createWorld with the core content', () => {
@@ -47,10 +54,11 @@ describe("the harness's player's Guildmaster, 30", () => {
       const drawn = createWorld(seed, drawnAge, deps).document;
       const player = playerGuild(drawn.world) as Guild;
       const guildmaster = drawn.world.guildmasters[player.guildmasterId];
-      const was = aged.world.guildmasters[player.guildmasterId];
-      // The age's band chooses the Appearance's and the Biography's words, by the same draws (v1.1.2-S5).
-      if (guildmaster !== undefined) Object.assign(guildmaster, { ageAtEntry: 30, appearance: was?.appearance, biography: was?.biography });
-      expect(aged, seed).toEqual(drawn);
+      if (guildmaster !== undefined) guildmaster.ageAtEntry = 30;
+      // The age's band chooses the Appearance's and the Biography's words, by the same draws (v1.1.2-S5),
+      // and the Portrait, one draw a Guildmaster, among pictures no living Guildmaster has, so the
+      // player's may change the Rivals' (v1.1.3-S5): every Guildmaster's three are set aside.
+      expect(picturesAside(aged), seed).toEqual(picturesAside(drawn));
     }
   });
 });

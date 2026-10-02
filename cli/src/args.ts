@@ -41,8 +41,9 @@ Commands:
       two Traits that exclude each other cannot be held together), or none; and their
       Birthplace, Appearance and Biography, short texts no rule reads (at most 60, 280
       and 1,000 characters). --portrait names a Guildmaster picture by its key, of the
-      sex given, or making the Guildmaster of its sex; left out, one of the sex's is
-      drawn, and where the sex has none the Guildmaster shows its Silhouette.
+      sex given, or making the Guildmaster of its sex, whatever it fits; without --age,
+      their age is drawn within the picture's. Left out, one is chosen to fit them, and
+      where none fits the Guildmaster shows its Silhouette.
   show [guilds | roster [guildId] | hall [guildId] | pool | patrons | board
         | rankings [--by fame|wealth] | hero <heroId> | guildmaster [guildId] | market
         | offers | history [entityId]]

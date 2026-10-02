@@ -44,6 +44,15 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm run typecheck
+      # The portrait tool's tests (tools/portraits, v1.1.3-S2) draw pictures in Chromium.
+      - name: Playwright's version, for the browsers' cache
+        id: playwright
+        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v6
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: npx playwright install --with-deps chromium
       - run: npm test
 
   e2e:

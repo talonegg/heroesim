@@ -154,7 +154,7 @@ describe('the refill', () => {
     expect(unattachedHeroes(document.world)).toHaveLength(deps.config.unattachedPoolSize);
   });
 
-  test('advances only the pool stream', () => {
+  test("advances only the pool stream, and each new Hero's own two, hero-portraits and hero-descriptions (v1.1.3-S6)", () => {
     const deps = quietDeps({ unattachedStayDays: 0 });
     const document = created('streams', deps);
     const world = structuredClone(document.world);
@@ -168,7 +168,7 @@ describe('the refill', () => {
     expect(ofType(events, 'hero.left-pool')).toHaveLength(deps.config.unattachedPoolSize);
     const rng = world.rng as Record<string, unknown>;
     for (const name of plannedStreams) {
-      if (name === 'pool') expect(rng[name], name).not.toEqual(before.pool);
+      if (name === 'pool' || name === 'hero-portraits' || name === 'hero-descriptions') expect(rng[name], name).not.toEqual((before as Record<string, unknown>)[name]);
       else expect(rng[name], name).toEqual((before as Record<string, unknown>)[name]);
     }
   });

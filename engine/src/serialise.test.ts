@@ -165,7 +165,7 @@ describe('deserialise', () => {
   });
 
   test('a structurally broken document is refused, not thrown on', () => {
-    const reason = refusal(deserialise('{"meta":{"version":5},"world":[],"history":null}', deps));
+    const reason = refusal(deserialise('{"meta":{"version":6},"world":[],"history":null}', deps));
     expect(reason.kind).toBe('invalid');
   });
 
@@ -209,9 +209,9 @@ describe('the migration chain', () => {
     (from: number): Migration =>
     (document) => ({ ...document, steps: [...(document.steps as number[]), from] });
 
-  test('holds no step, so a save of a schema before 5 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2)', () => {
+  test('holds no step, so a save of a schema before 6 is refused, not migrated (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7)', () => {
     expect(Object.keys(migrations)).toEqual([]);
-    expect(defaultConfig.schemaVersion).toBe(5);
+    expect(defaultConfig.schemaVersion).toBe(6);
   });
 
   test('runs forward one step per version, in order, setting meta.version after each', () => {
@@ -248,9 +248,32 @@ describe('the migration chain', () => {
   });
 });
 
-// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2) ──────────────────────────────────────
+// ── Older saves: refused (v1.1.2-S3, DL-125 item 10.2; v1.1.3-S6, DL-135 item 7) ────────────
 
 describe('a save of an older schema', () => {
+  /**
+   * `document` as `v1.1.2` wrote it, schema 5: `meta.version` 5, and no Hero with a Portrait, an
+   * Appearance or a Biography (v1.1.3-S6).
+   */
+  function asVersion5(document: WorldDocument): string {
+    const parsed = JSON.parse(serialise(document)) as SavedDocument & { world: { heroes: Record<string, object> } };
+    parsed.meta.version = 5;
+    for (const hero of Object.values(parsed.world.heroes)) {
+      for (const field of ['portraitKey', 'appearance', 'biography']) Reflect.deleteProperty(hero, field);
+    }
+    return JSON.stringify(parsed);
+  }
+
+  test('of schema 5, as v1.1.2 wrote it, is refused as unsupported-version, naming both versions, not as invalid (DL-135 item 7)', () => {
+    const text = asVersion5(createWorld('version-5', setup, testDeps()).document);
+
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
+  });
+
+  test("of schema 5 with a Hero's three fields is refused the same way: the version, not the shape, refuses it", () => {
+    expect(refusal(deserialise(withVersion(built(), 5), deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
+  });
+
   /**
    * `document` as `v1.1.1` wrote it, schema 4: `meta.version` 4, no Guildmaster with a Portrait and
    * no Patron with a sex.
@@ -268,14 +291,14 @@ describe('a save of an older schema', () => {
   test('of schema 4, as v1.1.1 wrote it, is refused as unsupported-version, naming both versions, not as invalid', () => {
     const text = asVersion4(createWorld('version-4', setup, testDeps()).document);
 
-    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 5 });
+    expect(refusal(deserialise(text, deps))).toMatchObject({ kind: 'unsupported-version', documentVersion: 4, schemaVersion: 6 });
   });
 
   test.each([1, 2, 3])('of schema %i is refused the same way: no migration leads from it', (version) => {
     expect(refusal(deserialise(withVersion(built(), version), deps))).toMatchObject({
       kind: 'unsupported-version',
       documentVersion: version,
-      schemaVersion: 5,
+      schemaVersion: 6,
     });
   });
 });

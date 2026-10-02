@@ -6,11 +6,13 @@
 // By Wealth toggle. By Fame or by Wealth, the table is the Rankings and Guilds level on the measure
 // share a place ("joint 1st", DL-95, DL-91); by any other column the order is for display only, and
 // Place still reads by Fame. The order is kept in this browser. The player's Guild's row is marked,
-// and a folded Guild is listed last with the Day it folded.
+// and a folded Guild is listed last with the Day it folded. Each Guild's name has its Guildmaster's
+// thumbnail beside it (v1.1.3-S7, DL-135 item 9: the Rivals list).
 //
 // A row opens its Guild in place (no router, M7 §0): its page (B10) has its Roster as a table with
 // the Transfer fee your Guild would pay for each Hero and "Take in" (the CLI's `transfer --in`), and
-// its Hall and Guildmaster folded; a Hero's page opens from its Roster. A part of the Rankings view.
+// its Hall and Guildmaster folded; a Hero's page opens from its Roster, each Hero's thumbnail beside
+// their name (DL-147). A part of the Rankings view.
 // A Guild's page opens the Guild's History, and a Guild's name in the History opens its page here,
 // the player's Guild's included (M9-S5, DL-105): which Guild is open is then the shell's.
 
@@ -23,7 +25,7 @@ import { HallDetails } from './hall';
 import { HeroPage } from './hero-page';
 import { useHistoryLinks } from './history-entries';
 import { Icon } from './icons';
-import { GuildBanner } from './pictures';
+import { GuildBanner, PortraitThumb } from './pictures';
 import { rememberChoice, rememberedChoice } from './remembered';
 import { Part } from './section';
 import { Chip, Disclosure, SortHeader, useReturn, VisuallyHidden, type Direction } from './ui';
@@ -157,9 +159,12 @@ function GuildLine({ row, onOpen }: { row: GuildRow; onOpen: (guildId: GuildId) 
     <tr className={row.mine ? 'mine' : row.folded === null ? undefined : 'is-folded'} data-testid="guild-row">
       <td className="guilds-table__place">{row.place ?? row.folded}</td>
       <th scope="row">
-        <button type="button" id={rowId(row.guildId)} className="link" aria-label={`Open ${row.name}`} onClick={() => onOpen(row.guildId)}>
-          {row.name}
-        </button>
+        <span className="named">
+          {row.guildmaster === null ? null : <PortraitThumb role="guildmaster" sex={row.guildmaster.sex} portraitKey={row.guildmaster.portraitKey} />}
+          <button type="button" id={rowId(row.guildId)} className="link" aria-label={`Open ${row.name}`} onClick={() => onOpen(row.guildId)}>
+            {row.name}
+          </button>
+        </span>
         {row.mine ? <VisuallyHidden>, your Guild</VisuallyHidden> : null}
       </th>
       <td>{row.disposition}</td>
@@ -288,7 +293,9 @@ function GuildPage({
                 {view.mine ? null : (
                   <>
                     <th scope="col" className="number">
-                      Transfer fee
+                      {/* "Fee" alone on a phone, as the pool's, so the fixed name cell with its thumbnail
+                          leaves it in view; a screen reader still hears "Transfer fee" (DL-147). */}
+                      <span className="hidden-on-phone">Transfer </span>fee
                     </th>
                     <th scope="col">
                       <VisuallyHidden>Take in</VisuallyHidden>
@@ -301,17 +308,20 @@ function GuildPage({
               {view.roster.map((row) => (
                 <tr key={row.heroId} data-testid="guild-hero">
                   <th scope="row">
-                    <button
-                      type="button"
-                      id={heroRowId(row.heroId)}
-                      className="link"
-                      onClick={() => {
-                        back.opened(heroRowId(row.heroId));
-                        setHero(row.heroId);
-                      }}
-                    >
-                      {row.name}
-                    </button>
+                    <span className="named">
+                      <PortraitThumb role="hero" sex={row.sex} portraitKey={row.portraitKey} />
+                      <button
+                        type="button"
+                        id={heroRowId(row.heroId)}
+                        className="link"
+                        onClick={() => {
+                          back.opened(heroRowId(row.heroId));
+                          setHero(row.heroId);
+                        }}
+                      >
+                        {row.name}
+                      </button>
+                    </span>
                   </th>
                   <td>{row.className}</td>
                   <td className="number">{row.level}</td>

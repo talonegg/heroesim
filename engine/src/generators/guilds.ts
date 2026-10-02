@@ -23,7 +23,7 @@ import {
 import { describeBlanks } from '../descriptions.js';
 import type { GuildFounded, GuildmasterGenerated, HeroGenerated } from '../events.js';
 import { guildmasterTraitsOf } from '../guildmaster.js';
-import { guildmasterPortrait } from '../portraits.js';
+import { ageIntoPortrait, choosePortrait, guildmasterPortraitsInUse, portraitRowOf } from '../portraits.js';
 import { int, pick } from '../rng.js';
 import {
   checkName,
@@ -67,13 +67,12 @@ export interface GuildOptions extends DrawsFrom {
    */
   guildmaster?: GuildmasterChoices;
   /**
-   * The Guildmaster's Portrait (v1.1.2-S3, DL-125 item 3): when given, the picture `chosen`, else one
-   * drawn from the Guildmaster pictures of their sex, one draw from the stream `gm-portraits` either way
-   * (`guildmasterPortrait`), made before their texts are written, since a mapped picture's narrative
-   * is the Appearance (DL-127 item 4). Only the player's Guildmaster has one; omitted, as for every
-   * Rival's, the Portrait is `null`, the Silhouette, and nothing is drawn from `gm-portraits`.
+   * The Portrait the player chose for their Guildmaster (v1.1.2-S3, DL-125 item 3), a Guildmaster
+   * picture of their sex, theirs whatever it fits (DL-135 item 4); with their age left blank, the age
+   * drawn is moved into the picture's ages (`givePortrait`, DL-134 item 7). Omitted, as for every
+   * Rival's, the Portrait is chosen to fit the Guildmaster drawn (`choosePortrait`, v1.1.3-S5).
    */
-  portrait?: { chosen: PortraitKey | undefined };
+  portraitKey?: PortraitKey;
 }
 
 /**
@@ -157,10 +156,8 @@ export function generateGuild(world: World, deps: EngineDeps, options: GuildOpti
   world.guilds[guildId] = guild;
   world.guildmasters[guildmasterId] = guildmaster;
   // The Portrait, then the texts, each from a stream of its own (ADR-0009), so no draw of
-  // `options.stream` moves (v1.1.2-S3, v1.1.2-S5).
-  if (options.portrait !== undefined) {
-    guildmaster.portraitKey = guildmasterPortrait(world.rng['gm-portraits'], content, guildmaster.sex, options.portrait.chosen);
-  }
+  // `options.stream` moves (v1.1.2-S3, v1.1.2-S5, v1.1.3-S5). The texts follow the picture.
+  givePortrait(world, deps, guildmaster, { chosen: options.portraitKey, ageChosen: options.guildmaster?.age !== undefined });
   describeBlanks(world, deps, guildmaster, backgroundKey);
 
   const labels: Record<EntityId, string> = {};
@@ -237,9 +234,10 @@ export function generateRival(world: World, deps: EngineDeps, options: RivalOpti
  * A successor to `guild`'s Guildmaster (M9-S2, DL-100 item 3): a Guildmaster drawn as a founding
  * Rival's is, by the same draws in the same order (sex, name, age, Stats, Traits on the budget), save
  * that the name is one no one in play has (`namesInUse`), drawn in one draw. Their Regard is empty,
- * neutral for everyone, their descriptive Attributes written from content on the stream
- * `descriptions` as a successor's (`describeBlanks`, v1.1.2-S5 and S6), and they enter the world
- * now. The row
+ * neutral for everyone, their Portrait chosen to fit them on `gm-portraits` while the Guildmaster they
+ * succeed still holds theirs (`givePortrait`, v1.1.3-S5), their descriptive Attributes written from
+ * content on the stream `descriptions` as a successor's (`describeBlanks`, v1.1.2-S5 and S6), and
+ * they enter the world now. The row
  * is added to `world` with the next Guildmaster id; the Guild is not changed, which is the endings
  * phase's to do. Draws from `options.stream`, `generation` by default, as the Guild Generator does.
  *
@@ -257,9 +255,38 @@ export function generateSuccessor(world: World, deps: EngineDeps, guild: Guild, 
     chosen: {},
   });
   world.guildmasters[successor.id] = successor;
+  givePortrait(world, deps, successor, { chosen: undefined, ageChosen: false });
   // A successor came to the chair: their Biography says so in the Background's place (v1.1.2-S6).
   describeBlanks(world, deps, successor, guild.backgroundKey, { successor: true });
   return successor;
+}
+
+/**
+ * Gives `guildmaster`, entering play, their Portrait (v1.1.3-S5; DL-134 items 5 and 7, DL-135 items 3
+ * and 4), in one draw from `gm-portraits` whatever is chosen: one chosen to fit them
+ * (`choosePortrait`) among the pictures no living Guildmaster, retired or in office, has
+ * (`guildmasterPortraitsInUse`, DL-144: no Guildmaster's death is recorded, so none is freed), or
+ * `null`, the Silhouette, where none fits or every one that fits is in use. The player's `chosen`
+ * picture is theirs whatever it fits, and with their age not chosen, the age drawn is moved into the
+ * picture's ages within the starting ages (`ageIntoPortrait`), with no further draw. Changes
+ * `guildmaster` in place, before their texts are written, since the texts follow the picture.
+ */
+function givePortrait(
+  world: World,
+  { config, content }: EngineDeps,
+  guildmaster: Guildmaster,
+  { chosen, ageChosen }: { chosen: PortraitKey | undefined; ageChosen: boolean },
+): void {
+  const person = { sex: guildmaster.sex, age: guildmaster.ageAtEntry, traitKeys: guildmaster.traits };
+  const fitted = choosePortrait(streamOf(world, 'gm-portraits'), content, 'guildmaster', person, guildmasterPortraitsInUse(world));
+  if (chosen === undefined) {
+    guildmaster.portraitKey = fitted;
+    return;
+  }
+  guildmaster.portraitKey = chosen;
+  const row = portraitRowOf(content, chosen);
+  if (ageChosen || row === undefined) return;
+  guildmaster.ageAtEntry = ageIntoPortrait(guildmaster.ageAtEntry, row.apparentAge, config.guildmasterStartingAgeMin, config.guildmasterStartingAgeMax);
 }
 
 /**

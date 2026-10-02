@@ -377,7 +377,7 @@ export const testContent: ContentSet = deepFreeze({
     ...keyed({ owner: 'hero' as const, cost: 0, excludes: [] as string[], effect: null }, 'scarred', 'lame', 'one-eyed', 'short-winded'),
   },
   backgrounds: {
-    ...keyed({ owner: 'hero' as const }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
+    ...keyed({ owner: 'hero' as const, station: 'common' }, 'farm-born', 'levy-soldier', 'temple-ward', 'river-folk'),
     ...keyed({ owner: 'guild' as const }, 'old-charter', 'breakaway', 'newly-founded'),
   },
   spheres: keyed({}, 'crown', 'church', 'merchants', 'villages', 'scholars', 'underworld'),
@@ -526,23 +526,78 @@ export const testContent: ContentSet = deepFreeze({
         'barrow-kings-blade:3:1 vault-wardens-staff:3:1 mantle-of-the-fells:3:1 lantern-of-stannary:3:1 abbots-reliquary:3:1',
     ),
   ]),
-  // Pictures the core has none of yet (v1.1.2-S3): three and two for the Guildmaster, so a Portrait
-  // is drawn from each sex's, and one Hero's, which is no Guildmaster's.
+  // Pictures of the test's own (v1.1.2-S3): two and three for the Guildmaster, so a Portrait is chosen
+  // among each sex's, and one Hero's, which is no Guildmaster's.
   portraits: {
     guildmaster: { female: ['gm-female-01', 'gm-female-02'], male: ['gm-male-01', 'gm-male-02', 'gm-male-03'] },
     hero: { female: ['hero-female-01'], male: [] },
     patron: { female: [], male: [] },
   },
-  // What a picture shows (v1.1.2-S4): one picture of each sex mapped, so a Guildmaster with it takes its
-  // narrative for their Appearance (v1.1.2-S5); the others are drawn whole.
+  // What a picture shows (v1.1.2-S4, its fields v1.1.3-S1's): every picture has its row (v1.1.3-S5),
+  // and a Guildmaster with one takes its narrative for their Appearance (v1.1.2-S5).
   portraitAppearances: {
-    keywords: {
-      bearded: { slot: 'facialHair', word: 'bearded' },
-      braided: { slot: 'hair', word: 'braided' },
+    features: {
+      beard: { maleOnly: true, shows: [] },
+      braids: { maleOnly: false, shows: [] },
+      scar: { maleOnly: false, shows: ['scarred'] },
     },
     portraits: {
-      'gm-male-01': { keywords: ['bearded'], narrative: 'A bearded face in a picture.' },
-      'gm-female-01': { keywords: ['braided'], narrative: 'A braided head in a picture.' },
+      'gm-male-01': {
+        apparentAge: [40, 50],
+        station: 'common',
+        callings: ['soldier'],
+        temper: 'stern',
+        features: ['beard'],
+        narrative: 'A bearded face in a picture.',
+        hooks: [],
+      },
+      'gm-female-01': {
+        apparentAge: [22, 30],
+        station: 'gentry',
+        callings: ['soldier'],
+        temper: 'composed',
+        features: ['braids'],
+        narrative: 'A braided head in a picture.',
+        hooks: [],
+      },
+      // Rows for the rest (v1.1.3-S5), so that every picture fits someone: each sex has a young and
+      // an older picture, and a man's from 28 to 40 reaches both bands.
+      'gm-female-02': {
+        apparentAge: [38, 50],
+        station: 'common',
+        callings: ['scholar'],
+        temper: 'stern',
+        features: [],
+        narrative: 'A lined face in a picture.',
+        hooks: ['{He} keeps a lamp lit late.'],
+      },
+      'gm-male-02': {
+        apparentAge: [28, 40],
+        station: 'gentry',
+        callings: ['merchant'],
+        temper: 'composed',
+        features: ['beard'],
+        narrative: 'A trimmed beard in a picture.',
+        hooks: ['{He} kept a ledger of every debt.'],
+      },
+      'gm-male-03': {
+        apparentAge: [21, 30],
+        station: 'common',
+        callings: ['scholar', 'soldier'],
+        temper: 'stern',
+        features: [],
+        narrative: 'A young face in a picture.',
+        hooks: [],
+      },
+      'hero-female-01': {
+        apparentAge: [18, 30],
+        station: 'common',
+        classes: ['warrior'],
+        temper: 'stern',
+        features: ['braids', 'scar'],
+        narrative: 'A scarred young face in a picture.',
+        hooks: [],
+      },
     },
   },
   // What the descriptive Attributes are written from (v1.1.2-S5): two age bands, a phrase or two a
@@ -557,6 +612,14 @@ export const testContent: ContentSet = deepFreeze({
       male: { he: 'he', him: 'him', his: 'his', He: 'He', His: 'His' },
     },
     birthplaces: ['Saltcote', 'Hob\'s Ferry', 'Crane Marsh'],
+    // The vocabulary a picture is read in (v1.1.3-S1): no rule reads it; a Portrait is chosen by it (v1.1.3-S5).
+    stations: ['common', 'gentry'],
+    tempers: ['stern', 'composed'],
+    callings: {
+      soldier: { suits: ['old-soldier'], clashes: [] },
+      scholar: { suits: [], clashes: ['mistrusts-magic'] },
+      merchant: { suits: ['thrifty'], clashes: ['spendthrift'] },
+    },
     appearance: {
       female: {
         young: descriptionPhrases('young', 'female'),
@@ -574,6 +637,17 @@ export const testContent: ContentSet = deepFreeze({
       traits: { 'old-soldier': ['{He} was a soldier.'], thrifty: ['{He} counts coins.', 'Nothing is wasted by {him}.'] },
       closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
       successors: ['{He} took the chair.'],
+      // By a picture's Station, Calling and Temper (v1.1.3-S1): the Biography with a picture (v1.1.3-S5).
+      stationOrigins: { common: ['{He} was born common in {birthplace}.'] },
+      callingCareers: { soldier: { young: ['{He} carried a pike.'] } },
+      temperClosings: { stern: ['{He} is stern.'] },
+    },
+    // A Hero's (v1.1.3-S1): no rule reads them yet.
+    heroBiography: {
+      backgrounds: { 'farm-born': ['{He} grew up on a farm.'] },
+      classes: { warrior: { young: ['{He} fought young.'], older: ['{He} fought long.'] } },
+      traits: { scarred: ['{He} is scarred.'] },
+      closings: { young: ['{He} is young.'], older: ['{He} is old.'] },
     },
   },
 });
@@ -619,6 +693,8 @@ export const plannedStreams = [
   'market',
   'gm-portraits',
   'descriptions',
+  'hero-portraits',
+  'hero-descriptions',
 ] as const;
 
 /** The test content, or `content`, with the default config, or with `overrides` on it. */
@@ -820,6 +896,9 @@ export function buildDocument(size: DocumentSize = {}): { document: WorldDocumen
       diedOnTurn: null,
       retiredOnTurn: null,
       transferredOnTurn: null,
+      portraitKey: null,
+      appearance: `An Appearance of ${id}.`,
+      biography: `A Biography of ${id}.`,
       regard: {},
     };
     world.heroes[id] = row;

@@ -82,6 +82,8 @@ describe("the Guilds as one table, the Rankings in it (M9-S6, DL-106; the review
         guildId: guild.id,
         name: guild.name,
         mine: guild.controller.kind === 'player',
+        // Its Guildmaster's sex and Portrait's key, for the thumbnail beside its name (v1.1.3-S7).
+        guildmaster: { sex: document.world.guildmasters[guild.guildmasterId]?.sex, portraitKey: document.world.guildmasters[guild.guildmasterId]?.portraitKey },
         place: expect.stringMatching(/^(Joint )?\d+(st|nd|rd|th)$/),
         disposition: guild.controller.kind === 'player' ? 'Yours' : content.dispositions[guild.controller.disposition]?.name,
         fame: guild.fame,
@@ -264,16 +266,19 @@ describe('guildmasterView', () => {
     expect(guildmasterView(document, rival(document).id)?.attributes.map(([label]) => label)).toEqual(['Sex', 'Age', 'Birthplace', 'Appearance', 'Biography']);
   });
 
-  test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: the player's drawn from the owner's pictures of their sex, and every Rival's the Silhouette", () => {
+  test("gives the Guild, for its Banner, and the sex and Portrait's key, for the Portrait: the player's and every Rival's chosen to fit them", () => {
     const document = newGame();
+    const keys: (string | null | undefined)[] = [];
     for (const guild of Object.values(document.world.guilds)) {
       const guildmaster = guildmasterOf(guild, document.world);
       if (guildmaster === undefined) throw new Error('no Guildmaster');
       const view = guildmasterView(document, guild.id);
       expect(view?.guildId).toBe(guild.id);
       expect(view?.sex).toBe(guildmaster.sex);
-      expect(view?.portraitKey).toBe(guild.controller.kind === 'player' ? `gm-${guildmaster.sex}-01` : null);
+      keys.push(view?.portraitKey);
     }
+    // The player's first, a male of 41, then the Rivals', each of their sex and age (v1.1.3-S5).
+    expect(keys).toEqual(['gm-male-10', 'gm-male-19', 'gm-female-12', 'gm-male-16', 'gm-male-05']);
     // The key a save of schema 5 holds (v1.1.2-S3) is read as it is.
     const later = structuredClone(document);
     const guildmaster = guildmasterOf(player(later), later.world);
@@ -464,6 +469,10 @@ describe('guildPage', () => {
     expect(page?.name).toBe(other.name);
     expect(page?.roster.map((row) => ({ heroId: row.heroId, fee: row.fee }))).toEqual(
       other.rosterIds.map((heroId) => ({ heroId, fee: transferFee(document.world.heroes[heroId] as never, buyer, deps) })),
+    );
+    // Each Hero's sex and Portrait's key, for their thumbnail beside their name (DL-147).
+    expect(page?.roster.map((row) => ({ sex: row.sex, portraitKey: row.portraitKey }))).toEqual(
+      other.rosterIds.map((heroId) => ({ sex: document.world.heroes[heroId]?.sex, portraitKey: document.world.heroes[heroId]?.portraitKey })),
     );
     expect(page?.hall.guildId).toBe(other.id);
     expect(page?.guildmaster?.guildName).toBe(other.name);

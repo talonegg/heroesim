@@ -299,20 +299,21 @@ describe('the rules a game plays under', () => {
     expect(lastDeps(applyAction).content).toBe(content);
   });
 
-  test('a save is read with the engine’s own config, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3)', () => {
-    // A schema version 4 save, as v1.1.1 wrote it: no Guildmaster's Portrait, no Patron's sex, and its
+  test('a save is read with the engine’s own config, so its schema is the engine’s to judge (DL-20): an older one is refused (v1.1.2-S3, v1.1.3-S6)', () => {
+    // A schema version 5 save, as v1.1.2 wrote it: no Hero's Portrait, Appearance or Biography, and its
     // config names the schema it was made under. Merging that config before the load would compare
-    // version 4 with version 4, and the save would be read as though it were current.
+    // version 5 with version 5, and the save would be read as though it were current.
     const text = saveText(started(), ({ meta, world }) => {
-      meta['version'] = 4;
-      (meta['config'] as Record<string, unknown>)['schemaVersion'] = 4;
-      for (const guildmaster of Object.values(world['guildmasters'] as Record<string, Record<string, unknown>>)) delete guildmaster['portraitKey'];
-      for (const patron of Object.values(world['patrons'] as Record<string, Record<string, unknown>>)) delete patron['sex'];
+      meta['version'] = 5;
+      (meta['config'] as Record<string, unknown>)['schemaVersion'] = 5;
+      for (const hero of Object.values(world['heroes'] as Record<string, Record<string, unknown>>)) {
+        for (const field of ['portraitKey', 'appearance', 'biography']) delete hero[field];
+      }
     });
     const loaded = play(initialGameState, { kind: 'load', text });
 
     expect(deserialise).toHaveBeenCalledWith(text, { config: defaultConfig, content });
-    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsupported-version', documentVersion: 4, schemaVersion: 5 });
+    expect(loaded.rejection).toMatchObject({ action: 'load', reason: 'unsupported-version', documentVersion: 5, schemaVersion: 6 });
     expect(loaded.document).toBeNull();
   });
 
@@ -475,8 +476,8 @@ describe('a refusal is stored, never thrown', () => {
     ['not JSON', 'not a save', 'malformed-json'],
     ['not a document', '{"meta":{}}', 'not-a-document'],
     ['a newer schema', '{"meta":{"version":99}}', 'unsupported-version'],
-    ['an older schema', '{"meta":{"version":4}}', 'unsupported-version'],
-    ['damaged', '{"meta":{"version":5},"world":{},"history":{}}', 'invalid'],
+    ['an older schema', '{"meta":{"version":5}}', 'unsupported-version'],
+    ['damaged', '{"meta":{"version":6},"world":{},"history":{}}', 'invalid'],
   ])('a save that is %s does not load, and the game in hand stays', (_name, text, reason) => {
     const before = started();
     const refused = play(before, { kind: 'load', text });
@@ -486,13 +487,13 @@ describe('a refusal is stored, never thrown', () => {
   });
 
   test("a load refused carries the engine's reason whole, and the browser save it came from (v1.1.2-S3)", () => {
-    const text = '{"meta":{"version":4}}';
+    const text = '{"meta":{"version":5}}';
 
     expect(play(started(), { kind: 'load', text }).rejection).toEqual({
       action: 'load',
       reason: 'unsupported-version',
-      documentVersion: 4,
-      schemaVersion: 5,
+      documentVersion: 5,
+      schemaVersion: 6,
       message: expect.any(String) as string,
     });
     expect(play(started(), { kind: 'load', text, from: 'older' }).rejection).toMatchObject({ reason: 'unsupported-version', from: 'older' });

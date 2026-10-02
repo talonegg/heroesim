@@ -2,7 +2,18 @@
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
 // later module, runs it directly.
 
-import type { Consequence, ConsumableEffect, ContentSet, Descriptions, EncounterKind, FacilityKey, SlotKey } from '@heroesim/engine';
+import type {
+  Consequence,
+  ConsumableEffect,
+  ContentSet,
+  Descriptions,
+  EncounterKind,
+  FacilityKey,
+  PortraitAppearance,
+  PortraitRole,
+  Sex,
+  SlotKey,
+} from '@heroesim/engine';
 
 /**
  * Content that breaks the schema. The message lists every problem found, one per line, and
@@ -220,8 +231,21 @@ function checkPortraits(portraits: ContentSet['portraits'], problems: string[]):
  */
 export const descriptionBounds = Object.freeze({ birthplace: 60, appearance: 280, biography: 1000 });
 
-/** The most characters a keyword's word holds (DL-127 item 4). */
-export const keywordWordMaxLength = 24;
+/** The most characters a picture's narrative holds (DL-134 items 3 and 9): within an Appearance's 280. */
+export const narrativeMaxLength = 260;
+
+/** The most characters a picture's hook holds, written with its picture's sex's pronouns (DL-134 items 3 and 9). */
+export const hookMaxLength = 160;
+
+/** The most hooks a picture has (DL-134 item 3, DL-135 item 2). */
+export const hooksMax = 2;
+
+/**
+ * How many pictures content is wanted to hold of each sex and age band of Guildmasters, and of each
+ * Class and sex of Heroes: fewer is warned of, never refused (DL-134 item 10), since a person with no
+ * picture that fits shows the Silhouette (DL-135 item 3).
+ */
+export const picturesWanted = 3;
 
 /**
  * How many of a Guildmaster's Traits the Biography gives a sentence, the first in their order: the
@@ -229,56 +253,205 @@ export const keywordWordMaxLength = 24;
  */
 export const biographyTraitSentences = 2;
 
+/**
+ * How many of a Hero's Traits their Biography gives a sentence, the first in their order (v1.1.3-S1):
+ * as many as a Guildmaster's. v1.1.3-S6's `describeHero` repeats it, or changes it here with itself.
+ */
+export const heroBiographyTraitSentences = 2;
+
 /** A text's length as the engine counts it: Unicode code points, so an accented letter counts once. */
 function lengthOf(text: string): number {
   return [...text].length;
 }
 
-/**
- * The Appearances mapped to pictures (v1.1.2-S4 and S5; DL-126 item 2, DL-127 items 3 and 4):
- * - each keyword's key is lower case and hyphens, and its word is written, at most 24 characters;
- * - each row's key names a picture `portraits.json` lists, of any role, since the file will serve
- *   Heroes' and Patrons' pictures too;
- * - a row's keywords are defined, each once, and a `facialHair` keyword is on a male picture's only;
- * - its narrative is written, at most the Appearance's 280 characters.
- * A keyword no picture uses is allowed, and so is a picture with no row.
- */
-function checkPortraitAppearances(set: Pick<ContentSet, 'portraits' | 'portraitAppearances'>, problems: string[]): void {
-  const { keywords, portraits } = set.portraitAppearances;
-  for (const [key, { word }] of Object.entries(keywords)) {
-    const where = `portraitAppearances.keywords.${key}`;
-    if (!lowerAndHyphens.test(key)) problems.push(`portraitAppearances.keywords: "${key}" is not lower case and hyphens`);
-    if (word.trim() === '' || word !== word.trim()) problems.push(`${where}.word is ${JSON.stringify(word)}; it is a word, trimmed`);
-    if (lengthOf(word) > keywordWordMaxLength) {
-      problems.push(`${where}.word is ${lengthOf(word)} characters; it holds at most ${keywordWordMaxLength}`);
+/** The value `record` holds under `key`, its own and not its prototype's; `undefined` for none. */
+function own<Value>(record: Readonly<Record<string, Value>>, key: string | undefined): Value | undefined {
+  return key !== undefined && Object.hasOwn(record, key) ? record[key] : undefined;
+}
+
+/** Each picture `portraits.json` lists, by key, with its role and sex. */
+function picturesOf(portraits: ContentSet['portraits']): Map<string, { role: PortraitRole; sex: Sex }> {
+  const pictures = new Map<string, { role: PortraitRole; sex: Sex }>();
+  for (const [role, bySex] of Object.entries(portraits) as [PortraitRole, ContentSet['portraits']['hero']][]) {
+    for (const [sex, list] of Object.entries(bySex) as [Sex, string[]][]) {
+      for (const key of list) pictures.set(key, { role, sex });
     }
   }
-  const pictures = new Set(Object.values(set.portraits).flatMap((bySex) => Object.values(bySex).flat()));
-  const male = new Set(Object.values(set.portraits).flatMap((bySex) => bySex.male));
-  for (const [key, row] of Object.entries(portraits)) {
+  return pictures;
+}
+
+/**
+ * The rows of the pictures (v1.1.2-S4 and S5, v1.1.3-S1; DL-126 item 2, DL-127, DL-134 items 3 and 10,
+ * DL-135 item 2), each problem named by its path:
+ * - each feature's key is lower case and hyphens, and the Traits it shows are Hero Traits, each once;
+ * - every Guildmaster's and Hero's picture `portraits.json` lists has a row, and every row names a
+ *   picture; a Patron's picture has no row yet (DL-135 item 10);
+ * - a row has its role's fields and no other's: a Guildmaster's one or two callings, a Hero's one or
+ *   more classes;
+ * - its station, temper, callings, classes and features are defined, each once, and a `maleOnly`
+ *   feature is on a male picture's only;
+ * - its `apparentAge` is two whole numbers from 0, the first no greater than the second;
+ * - its narrative is written, at most 260 characters, with no slot or brace, since it is shown as
+ *   written (v1.1.3-S5);
+ * - it has at most two hooks, each a sentence with no slot but the pronouns', at most 160 characters
+ *   with its picture's sex's pronouns.
+ * A feature no picture uses is allowed.
+ */
+function checkPortraitAppearances(
+  set: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'classes' | 'traits'>,
+  problems: string[],
+): void {
+  const { features, portraits: rows } = set.portraitAppearances;
+  const { descriptions } = set;
+  const heroTraits = new Set(Object.values(set.traits).filter((trait) => trait.owner === 'hero').map((trait) => trait.key));
+  for (const [key, feature] of Object.entries(features)) {
+    if (!lowerAndHyphens.test(key)) problems.push(`portraitAppearances.features: "${key}" is not lower case and hyphens`);
+    checkReferences(`portraitAppearances.features.${key}.shows`, feature.shows, heroTraits, 'a Hero Trait', problems);
+  }
+
+  const pictures = picturesOf(set.portraits);
+  for (const [key, { role }] of pictures) {
+    if (role !== 'patron' && !Object.hasOwn(rows, key)) {
+      problems.push(`portraitAppearances.portraits: "${key}", a picture in portraits.json, has no row`);
+    }
+  }
+
+  const stations = new Set(descriptions.stations);
+  const tempers = new Set(descriptions.tempers);
+  const callings = new Set(Object.keys(descriptions.callings));
+  const classes = new Set(Object.keys(set.classes));
+  const featureKeys = new Set(Object.keys(features));
+  const pronounSlots = new Set(Object.values(descriptions.pronouns).flatMap((words) => Object.keys(words)));
+  for (const [key, row] of Object.entries(rows)) {
     const where = `portraitAppearances.portraits.${key}`;
-    if (!pictures.has(key)) problems.push(`portraitAppearances.portraits: "${key}" names no picture in portraits.json`);
-    for (const keyword of row.keywords) {
-      const defined = Object.hasOwn(keywords, keyword) ? keywords[keyword] : undefined;
-      if (defined === undefined) problems.push(`${where}.keywords: "${keyword}" is not a keyword defined under keywords`);
-      else if (defined.slot === 'facialHair' && pictures.has(key) && !male.has(key)) {
-        problems.push(`${where}.keywords: "${keyword}" is facialHair, which only a male picture's may use`);
+    const picture = pictures.get(key);
+    if (picture === undefined) problems.push(`portraitAppearances.portraits: "${key}" names no picture in portraits.json`);
+    else if (picture.role === 'patron') {
+      problems.push(`${where}: a Patron's picture has no row yet (DL-135 item 10)`);
+      continue;
+    }
+
+    const [from, to, ...more] = row.apparentAge;
+    const whole = (age: number | undefined): age is number => Number.isSafeInteger(age) && (age ?? -1) >= 0;
+    if (!whole(from) || !whole(to) || more.length > 0 || from > to) {
+      problems.push(`${where}.apparentAge is ${JSON.stringify(row.apparentAge)}; it is two whole numbers from 0, the first no greater than the second`);
+    }
+    if (!stations.has(row.station)) problems.push(`${where}.station: "${row.station}" is not a station defined in descriptions.stations`);
+    if (!tempers.has(row.temper)) problems.push(`${where}.temper: "${row.temper}" is not a temper defined in descriptions.tempers`);
+
+    if (picture?.role === 'guildmaster') {
+      if (row.callings === undefined) problems.push(`${where}.callings is missing: a Guildmaster's picture has one or two`);
+      else if (row.callings.length < 1 || row.callings.length > 2) {
+        problems.push(`${where}.callings has ${row.callings.length}; a Guildmaster's picture has one or two`);
+      }
+      if (row.classes !== undefined) problems.push(`${where}.classes: a Guildmaster's picture has callings, not classes`);
+    } else if (picture?.role === 'hero') {
+      if (row.classes === undefined) problems.push(`${where}.classes is missing: a Hero's picture has one or more`);
+      else if (row.classes.length < 1) problems.push(`${where}.classes has ${row.classes.length}; a Hero's picture has one or more`);
+      if (row.callings !== undefined) problems.push(`${where}.callings: a Hero's picture has classes, not callings`);
+    }
+    checkReferences(`${where}.callings`, row.callings ?? [], callings, 'a calling defined in descriptions.callings', problems);
+    checkReferences(`${where}.classes`, row.classes ?? [], classes, 'a Class', problems);
+
+    checkReferences(`${where}.features`, row.features, featureKeys, 'a feature defined under features', problems);
+    if (picture !== undefined && picture.sex !== 'male') {
+      for (const feature of new Set(row.features)) {
+        if (own(features, feature)?.maleOnly === true) problems.push(`${where}.features: "${feature}" is maleOnly, and this is a ${picture.sex} picture`);
       }
     }
-    for (const keyword of repeated(row.keywords)) problems.push(`${where}.keywords: "${keyword}" is listed twice`);
+
     if (row.narrative.trim() === '') problems.push(`${where}.narrative is empty`);
     const length = lengthOf(row.narrative.trim());
-    if (length > descriptionBounds.appearance) {
-      problems.push(`${where}.narrative is ${length} characters; an Appearance holds at most ${descriptionBounds.appearance}`);
+    if (length > narrativeMaxLength) problems.push(`${where}.narrative is ${length} characters; a narrative holds at most ${narrativeMaxLength}`);
+    // Shown as written (DL-127 item 4), never filled: a slot would show as braces (v1.1.3-S5).
+    const brace = /[{}]/.exec(row.narrative)?.[0];
+    if (brace !== undefined) problems.push(`${where}.narrative holds "${brace}"; a narrative is shown as written, so it has no slot and no brace`);
+
+    if (row.hooks.length > hooksMax) problems.push(`${where}.hooks has ${row.hooks.length}; a picture has at most two`);
+    checkSentences(row.hooks, `${where}.hooks`, pronounSlots, descriptions.pronouns.female, problems, { mayBeEmpty: true });
+    const words = picture === undefined ? {} : descriptions.pronouns[picture.sex];
+    row.hooks.forEach((hook, index) => {
+      const written = lengthOf(filledWith(hook, words, ''));
+      if (written > hookMaxLength) problems.push(`${where}.hooks.${index} is ${written} characters; a hook holds at most ${hookMaxLength}`);
+    });
+  }
+}
+
+/**
+ * The warnings a content set passes with (v1.1.3-S1, DL-134 item 10): each sex and age band with fewer
+ * than `picturesWanted` Guildmaster pictures whose `apparentAge` touches the band, and each Class and
+ * sex with fewer Hero pictures of the Class. A person with no picture that fits shows the Silhouette
+ * (DL-135 item 3), so these are never refusals. Each names its role, sex, and band or Class. Pure; a
+ * set that has passed `validateContent` is expected.
+ */
+export function contentWarnings(set: Pick<ContentSet, 'portraits' | 'portraitAppearances' | 'descriptions' | 'classes'>): string[] {
+  const warnings: string[] = [];
+  const rows = set.portraitAppearances.portraits;
+  const { ageBands } = set.descriptions;
+  const counted = (count: number): string => `${count} ${count === 1 ? 'picture' : 'pictures'}`;
+  for (const [sex, keys] of Object.entries(set.portraits.guildmaster)) {
+    ageBands.forEach((band, index) => {
+      const next = ageBands[index + 1]?.from ?? Number.POSITIVE_INFINITY;
+      const count = keys.filter((key) => {
+        const age = own(rows, key)?.apparentAge;
+        return age !== undefined && age[0] < next && age[1] >= band.from;
+      }).length;
+      if (count < picturesWanted) {
+        warnings.push(`portraits.guildmaster.${sex}: ${counted(count)} in the ${band.key} band, fewer than ${picturesWanted}`);
+      }
+    });
+  }
+  for (const [sex, keys] of Object.entries(set.portraits.hero)) {
+    for (const classKey of Object.keys(set.classes)) {
+      const count = keys.filter((key) => own(rows, key)?.classes?.includes(classKey) === true).length;
+      if (count < picturesWanted) {
+        warnings.push(`portraits.hero.${sex}: ${counted(count)} of the Class ${classKey}, fewer than ${picturesWanted}`);
+      }
     }
   }
+  return warnings;
 }
 
 /** A slot in a Biography's sentence: `{he}`, `{birthplace}`. */
 const slotPattern = /\{([^{}]*)\}/g;
 
-/** The slot every Biography sentence may use beside the pronouns: the Guildmaster's Birthplace. */
+/** The slot a Guildmaster's Biography sentence may use beside the pronouns: the Guildmaster's Birthplace. */
 const birthplaceSlot = 'birthplace';
+
+/** `text` with each pronoun's slot `words`' word and `{birthplace}` `birthplace`; any other slot as it stands. */
+function filledWith(text: string, words: Readonly<Record<string, string>>, birthplace: string): string {
+  return text.replace(slotPattern, (slot, name: string) => (name === birthplaceSlot ? birthplace : (own(words, name) ?? slot)));
+}
+
+/**
+ * Refuses an empty list, unless it `mayBeEmpty`, and each text that is no sentence: trimmed, a capital
+ * first and a full stop last. With `slots`, each slot is one of them and a `{birthplace}` is followed
+ * by a comma or a full stop, since a Birthplace may hold a comma ("Scarrow, a fishing village"); with
+ * none, a text has no slot. `fill` is the pronouns' words a sentence is read with.
+ */
+function checkSentences(
+  texts: readonly string[],
+  where: string,
+  slots: ReadonlySet<string> | null,
+  fill: Readonly<Record<string, string>>,
+  problems: string[],
+  options: { mayBeEmpty?: boolean } = {},
+): void {
+  if (texts.length === 0 && options.mayBeEmpty !== true) problems.push(`${where} is empty`);
+  texts.forEach((text, index) => {
+    const at = `${where}.${index}`;
+    const filled = text.replace(slotPattern, (slot, name: string) => {
+      if (slots === null) return slot;
+      if (!slots.has(name)) problems.push(`${at}: {${name}} is not a slot; the slots are ${[...slots].map((it) => `{${it}}`).join(', ')}`);
+      return name === birthplaceSlot ? 'Place' : (own(fill, name) ?? name);
+    });
+    if (/[{}]/.test(filled)) problems.push(`${at} has a brace that is no slot${slots !== null ? '' : ': an Appearance has no slot'}`);
+    if (slots?.has(birthplaceSlot) === true && new RegExp(`\\{${birthplaceSlot}\\}(?![,.])`).test(text)) {
+      problems.push(`${at}: {${birthplaceSlot}} is followed by a comma or a full stop, since a Birthplace may hold a comma`);
+    }
+    if (!written(filled) || !filled.endsWith('.')) problems.push(`${at} is no sentence: trimmed, a capital first and a full stop last`);
+  });
+}
 
 /** The Appearance's slots, in the order a drawn Appearance is written, `mark` and `bearing` one of the two. */
 const appearanceSlots = ['build', 'face', 'hair', 'facialHair', 'eyes', 'mark', 'bearing'] as const;
@@ -290,39 +463,52 @@ const bandedParts = ['origins', 'careers', 'closings'] as const;
 export interface LongestDescriptions {
   birthplace: number;
   appearance: number;
+  /** A Guildmaster's Biography, with a picture or without. */
   biography: number;
+  /** A Hero's Biography, with a picture or without (v1.1.3-S1, DL-135 item 6). */
+  heroBiography: number;
 }
 
 /**
- * The longest Birthplace, Appearance and Biography the engine can write from `set.descriptions`,
- * in characters (v1.1.2-S5, DL-125 item 6), by the way the engine writes them
- * (`engine/src/descriptions.ts`):
+ * The longest Birthplace, Appearance and Biography the engine can write from `set.descriptions` and
+ * the pictures' rows, in characters (v1.1.2-S5, DL-125 item 6; v1.1.3-S1, DL-134 items 6 and 9), by the
+ * way the engine writes them (`engine/src/descriptions.ts`):
  * - an Appearance is one phrase of each slot of the sex's age band, `facialHair` a male's only, and
  *   `mark` or `bearing`, in that order, joined by spaces;
- * - a Biography is an origin, a career, the Guild Background's sentence, one for each of the first
- *   `biographyTraitSentences` Traits, and a closing, those there are joined by spaces, each pronoun
- *   slot the sex's word and `{birthplace}` the Birthplace, which may be as long as its bound.
- * The longest of every combination, not of samples: each part at its longest, for each sex and band.
- * A picture's narrative is not among them; it is checked alone.
+ * - a Guildmaster's Biography is an origin, a career, the Guild Background's sentence, one for each of
+ *   the first `biographyTraitSentences` Traits, and a closing, those there are joined by spaces, each
+ *   pronoun slot the sex's word and `{birthplace}` the Birthplace, which may be as long as its bound.
+ *   With a picture of the sex (DL-134 item 6), whatever its band, since the player may choose any: the
+ *   origin is its Station's, the career its Callings' at the band or one of its hooks, and the closing
+ *   its Temper's, each the band's where its own list is empty;
+ * - a Hero's Biography, which v1.1.3-S6 writes and which this assumes it writes so (DL-135 item 6; a
+ *   change there is a change here): a sentence of their Background; one of their Class at their band,
+ *   or with a picture one of its Classes' at the band or one of its hooks; one for each of the first
+ *   `heroBiographyTraitSentences` Hero Traits; and a closing, the band's, or with a picture its
+ *   Temper's, the band's where the Temper has none; joined by spaces, with the sex's pronouns.
+ * The longest of every combination, not of samples: each part at its longest, for each sex, band and
+ * picture. A picture's narrative is not among them; it is checked alone.
  */
-export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): LongestDescriptions {
+export function longestDescriptions(set: Pick<ContentSet, 'descriptions' | 'portraits' | 'portraitAppearances'>): LongestDescriptions {
   const { descriptions } = set;
+  const rows = set.portraitAppearances.portraits;
   const most = (values: readonly number[]): number => values.reduce((max, value) => Math.max(max, value), 0);
   const joined = (lengths: readonly number[]): number => {
     const present = lengths.filter((length) => length > 0);
     return present.reduce((sum, length) => sum + length, 0) + Math.max(0, present.length - 1);
   };
+  /** The rows of the pictures of `role` and `sex`, with `null` first for a person with none. */
+  const picturesFor = (role: 'guildmaster' | 'hero', sex: Sex): (PortraitAppearance | null)[] => [
+    null,
+    ...set.portraits[role][sex].flatMap((key) => own(rows, key) ?? []),
+  ];
   const birthplace = most(descriptions.birthplaces.map((place) => lengthOf(place.trim())));
   let appearance = 0;
   let biography = 0;
-  for (const sex of Object.keys(descriptions.appearance) as (keyof Descriptions['appearance'])[]) {
+  let heroBiography = 0;
+  for (const sex of Object.keys(descriptions.appearance) as Sex[]) {
     const words = descriptions.pronouns[sex];
-    const sentence = (text: string): number =>
-      lengthOf(
-        text.replace(slotPattern, (slot, name: string) =>
-          name === birthplaceSlot ? 'x'.repeat(descriptionBounds.birthplace) : (words[name] ?? slot),
-        ),
-      );
+    const sentence = (text: string): number => lengthOf(filledWith(text, words, 'x'.repeat(descriptionBounds.birthplace)));
     const longest = (texts: readonly string[] | undefined): number => most((texts ?? []).map(sentence));
     for (const phrases of Object.values(descriptions.appearance[sex])) {
       const slot = (name: (typeof appearanceSlots)[number]): number => most((phrases[name] ?? []).map((phrase) => lengthOf(phrase)));
@@ -331,6 +517,7 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): Long
         joined([slot('build'), slot('face'), slot('hair'), slot('facialHair'), slot('eyes'), Math.max(slot('mark'), slot('bearing'))]),
       );
     }
+
     const parts = descriptions.biography;
     // A successor's sentence stands in the Background's place (v1.1.2-S6).
     const background = Math.max(most(Object.values(parts.backgrounds).map(longest)), longest(parts.successors));
@@ -338,14 +525,53 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): Long
       .map(longest)
       .sort((a, b) => b - a)
       .slice(0, biographyTraitSentences);
+    /** The longest of a picture's own list, or of the band's where its own is empty. */
+    const ownElseBand = (ownList: readonly string[], band: readonly string[] | undefined): number =>
+      ownList.length > 0 ? longest(ownList) : longest(band);
     for (const band of descriptions.ageBands) {
-      biography = Math.max(
-        biography,
-        joined([longest(parts.origins[band.key]), longest(parts.careers[band.key]), background, ...traits, longest(parts.closings[band.key])]),
-      );
+      for (const picture of picturesFor('guildmaster', sex)) {
+        const bandOrigins = own(parts.origins, band.key);
+        const bandCareers = own(parts.careers, band.key);
+        const bandClosings = own(parts.closings, band.key);
+        if (picture === null) {
+          biography = Math.max(biography, joined([longest(bandOrigins), longest(bandCareers), background, ...traits, longest(bandClosings)]));
+          continue;
+        }
+        const callingCareers = (picture.callings ?? []).flatMap((calling) => own(own(parts.callingCareers, calling) ?? {}, band.key) ?? []);
+        const career = Math.max(longest(callingCareers), longest(picture.hooks), callingCareers.length > 0 ? 0 : longest(bandCareers));
+        biography = Math.max(
+          biography,
+          joined([
+            ownElseBand(own(parts.stationOrigins, picture.station) ?? [], bandOrigins),
+            career,
+            background,
+            ...traits,
+            ownElseBand(own(parts.temperClosings, picture.temper) ?? [], bandClosings),
+          ]),
+        );
+      }
+    }
+
+    const hero = descriptions.heroBiography;
+    const heroBackground = most(Object.values(hero.backgrounds).map(longest));
+    const heroTraits = Object.values(hero.traits)
+      .map(longest)
+      .sort((a, b) => b - a)
+      .slice(0, heroBiographyTraitSentences);
+    for (const band of descriptions.ageBands) {
+      const atBand = (classKey: string): readonly string[] => own(own(hero.classes, classKey) ?? {}, band.key) ?? [];
+      const bandClosings = own(hero.closings, band.key);
+      for (const picture of picturesFor('hero', sex)) {
+        const classSentence =
+          picture === null
+            ? most(Object.keys(hero.classes).map((classKey) => longest(atBand(classKey))))
+            : Math.max(most((picture.classes ?? []).map((classKey) => longest(atBand(classKey)))), longest(picture.hooks));
+        const closing = picture === null ? longest(bandClosings) : ownElseBand(own(parts.temperClosings, picture.temper) ?? [], bandClosings);
+        heroBiography = Math.max(heroBiography, joined([heroBackground, classSentence, ...heroTraits, closing]));
+      }
     }
   }
-  return { birthplace, appearance, biography };
+  return { birthplace, appearance, biography, heroBiography };
 }
 
 /**
@@ -361,11 +587,24 @@ export function longestDescriptions(set: Pick<ContentSet, 'descriptions'>): Long
  *   one (v1.1.2-S6); each sentence begins with a capital and ends with a full stop, its slots are the
  *   pronouns' and `{birthplace}`, and `{birthplace}` is followed by a comma or a full stop, since a
  *   Birthplace may hold a comma of its own ("Scarrow, a fishing village"; v1.1.2-S6);
- * - and the longest Birthplace, Appearance and Biography they can make (`longestDescriptions`) are
- *   within 60, 280 and 1,000 characters.
+ * - the vocabulary a picture is read in (v1.1.3-S1, DL-134 item 4): the Stations and the Tempers, at
+ *   least one of each, each lower case and hyphens and listed once; the Callings, at least one, each
+ *   keyed so, suiting and clashing with Guildmaster Traits, none both; and each Hero Background's
+ *   Station, one of them, where a Guild Background has none (DL-135 item 5);
+ * - the Biography by a picture (v1.1.3-S1): `stationOrigins` by Station, `callingCareers` by Calling
+ *   and then by age band, and `temperClosings` by Temper, each key optional and defined, each list at
+ *   least one sentence; a Temper's closing names no Birthplace, since it closes a Hero's too;
+ * - a Hero's Biography (v1.1.3-S1, DL-135 item 6): its sentences by Hero Background, by Class and
+ *   then by age band, and by Hero Trait, each key optional and defined, and its closings for every
+ *   age band; no sentence names a Birthplace, since a Hero has none;
+ * - and the longest Birthplace, Appearance and Biography they can make (`longestDescriptions`), a
+ *   Guildmaster's and a Hero's, hooks included, are within 60, 280 and 1,000 characters.
  */
-function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' | 'traits'>, problems: string[]): void {
-  const { ageBands, pronouns, birthplaces, appearance, biography } = set.descriptions;
+function checkDescriptions(
+  set: Pick<ContentSet, 'descriptions' | 'backgrounds' | 'traits' | 'classes' | 'portraits' | 'portraitAppearances'>,
+  problems: string[],
+): void {
+  const { ageBands, pronouns, birthplaces, appearance, biography, stations, tempers, callings, heroBiography } = set.descriptions;
 
   if (ageBands.length === 0) problems.push('descriptions.ageBands is empty: every age needs a band');
   else if (ageBands[0]?.from !== 0) {
@@ -395,7 +634,8 @@ function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' 
       if (word.trim() === '' || word !== word.trim()) problems.push(`${where} is ${JSON.stringify(word)}; it is a word, trimmed`);
     }
   }
-  const slots = new Set([birthplaceSlot, ...sexes.flatMap((sex) => Object.keys(pronouns[sex]))]);
+  const pronounSlots = new Set(sexes.flatMap((sex) => Object.keys(pronouns[sex])));
+  const slots = new Set([birthplaceSlot, ...pronounSlots]);
 
   if (birthplaces.length === 0) problems.push('descriptions.birthplaces is empty');
   birthplaces.forEach((place, index) => {
@@ -412,25 +652,16 @@ function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' 
   /** Refuses a band missing from `byBand`, and a key there that is no band. */
   const everyBand = (byBand: Readonly<Record<string, unknown>>, where: string): void => {
     for (const band of bands) if (!Object.hasOwn(byBand, band)) problems.push(`${where}: the age band "${band}" is missing`);
+    onlyBands(byBand, where);
+  };
+  /** Refuses a key of `byBand` that is no band. */
+  const onlyBands = (byBand: Readonly<Record<string, unknown>>, where: string): void => {
     for (const key of Object.keys(byBand)) if (!bands.includes(key)) problems.push(`${where}: "${key}" is not an age band`);
   };
-  /** Refuses an empty list, and each text that is no sentence: a capital first and a full stop last. */
-  const sentences = (texts: readonly string[], where: string, slotted: boolean): void => {
-    if (texts.length === 0) problems.push(`${where} is empty`);
-    texts.forEach((text, index) => {
-      const at = `${where}.${index}`;
-      const filled = text.replace(slotPattern, (slot, name: string) => {
-        if (!slotted) return slot;
-        if (!slots.has(name)) problems.push(`${at}: {${name}} is not a slot; the slots are ${[...slots].map((it) => `{${it}}`).join(', ')}`);
-        return name === birthplaceSlot ? 'Place' : (pronouns.female[name] ?? name);
-      });
-      if (/[{}]/.test(filled)) problems.push(`${at} has a brace that is no slot${slotted ? '' : ': an Appearance has no slot'}`);
-      if (slotted && new RegExp(`\\{${birthplaceSlot}\\}(?![,.])`).test(text)) {
-        problems.push(`${at}: {${birthplaceSlot}} is followed by a comma or a full stop, since a Birthplace may hold a comma`);
-      }
-      if (!written(filled) || !filled.endsWith('.')) problems.push(`${at} is no sentence: trimmed, a capital first and a full stop last`);
-    });
-  };
+  const fill = pronouns.female;
+  /** Refuses an empty list and each text that is no sentence, with a Guildmaster's slots, a Hero's, or none. */
+  const sentences = (texts: readonly string[], where: string, slotted: 'guildmaster' | 'hero' | false): void =>
+    checkSentences(texts, where, slotted === false ? null : slotted === 'hero' ? pronounSlots : slots, fill, problems);
 
   for (const [sex, byBand] of Object.entries(appearance) as [keyof Descriptions['appearance'], Descriptions['appearance']['male']][]) {
     const where = `descriptions.appearance.${sex}`;
@@ -449,26 +680,88 @@ function checkDescriptions(set: Pick<ContentSet, 'descriptions' | 'backgrounds' 
 
   for (const part of bandedParts) {
     everyBand(biography[part], `descriptions.biography.${part}`);
-    for (const [band, texts] of Object.entries(biography[part])) sentences(texts, `descriptions.biography.${part}.${band}`, true);
+    for (const [band, texts] of Object.entries(biography[part])) sentences(texts, `descriptions.biography.${part}.${band}`, 'guildmaster');
   }
   for (const [key, texts] of Object.entries(biography.backgrounds)) {
-    if (set.backgrounds[key]?.owner !== 'guild') problems.push(`descriptions.biography.backgrounds: "${key}" is not a Guild Background`);
-    sentences(texts, `descriptions.biography.backgrounds.${key}`, true);
+    if (own(set.backgrounds, key)?.owner !== 'guild') problems.push(`descriptions.biography.backgrounds: "${key}" is not a Guild Background`);
+    sentences(texts, `descriptions.biography.backgrounds.${key}`, 'guildmaster');
   }
   for (const [key, texts] of Object.entries(biography.traits)) {
-    if (set.traits[key]?.owner !== 'guildmaster') problems.push(`descriptions.biography.traits: "${key}" is not a Guildmaster Trait`);
-    sentences(texts, `descriptions.biography.traits.${key}`, true);
+    if (own(set.traits, key)?.owner !== 'guildmaster') problems.push(`descriptions.biography.traits: "${key}" is not a Guildmaster Trait`);
+    sentences(texts, `descriptions.biography.traits.${key}`, 'guildmaster');
   }
-  sentences(biography.successors, 'descriptions.biography.successors', true);
+  sentences(biography.successors, 'descriptions.biography.successors', 'guildmaster');
+
+  // The vocabulary a picture is read in (v1.1.3-S1, DL-134 item 4).
+  for (const [name, list] of [['stations', stations], ['tempers', tempers]] as const) {
+    if (list.length === 0) problems.push(`descriptions.${name} is empty`);
+    for (const key of list) if (!lowerAndHyphens.test(key)) problems.push(`descriptions.${name}: "${key}" is not lower case and hyphens`);
+    for (const key of repeated(list)) problems.push(`descriptions.${name}: "${key}" is listed twice`);
+  }
+  const guildmasterTraits = new Set(Object.values(set.traits).filter((trait) => trait.owner === 'guildmaster').map((trait) => trait.key));
+  if (Object.keys(callings).length === 0) problems.push('descriptions.callings is empty');
+  for (const [key, calling] of Object.entries(callings)) {
+    const where = `descriptions.callings.${key}`;
+    if (!lowerAndHyphens.test(key)) problems.push(`descriptions.callings: "${key}" is not lower case and hyphens`);
+    checkReferences(`${where}.suits`, calling.suits, guildmasterTraits, 'a Guildmaster Trait', problems);
+    checkReferences(`${where}.clashes`, calling.clashes, guildmasterTraits, 'a Guildmaster Trait', problems);
+    for (const trait of new Set(calling.suits)) if (calling.clashes.includes(trait)) problems.push(`${where}: "${trait}" both suits and clashes`);
+  }
+  const stationSet = new Set(stations);
+  for (const [key, background] of Object.entries(set.backgrounds)) {
+    const where = `backgrounds.${key}.station`;
+    if (background.owner === 'guild') {
+      if (background.station !== undefined) problems.push(`${where}: a Guild Background has none`);
+    } else if (background.station === undefined) problems.push(`${where} is missing: a Hero Background has one`);
+    else if (!stationSet.has(background.station)) {
+      problems.push(`${where}: "${background.station}" is not a station defined in descriptions.stations`);
+    }
+  }
+
+  // The Biography by a picture (v1.1.3-S1, DL-134 items 4 and 6).
+  for (const [key, texts] of Object.entries(biography.stationOrigins)) {
+    if (!stationSet.has(key)) problems.push(`descriptions.biography.stationOrigins: "${key}" is not a station`);
+    sentences(texts, `descriptions.biography.stationOrigins.${key}`, 'guildmaster');
+  }
+  for (const [key, byBand] of Object.entries(biography.callingCareers)) {
+    const where = `descriptions.biography.callingCareers`;
+    if (!Object.hasOwn(callings, key)) problems.push(`${where}: "${key}" is not a calling`);
+    onlyBands(byBand, `${where}.${key}`);
+    for (const [band, texts] of Object.entries(byBand)) sentences(texts, `${where}.${key}.${band}`, 'guildmaster');
+  }
+  const temperSet = new Set(tempers);
+  for (const [key, texts] of Object.entries(biography.temperClosings)) {
+    if (!temperSet.has(key)) problems.push(`descriptions.biography.temperClosings: "${key}" is not a temper`);
+    sentences(texts, `descriptions.biography.temperClosings.${key}`, 'hero');
+  }
+
+  // A Hero's Biography (v1.1.3-S1, DL-135 item 6).
+  for (const [key, texts] of Object.entries(heroBiography.backgrounds)) {
+    if (own(set.backgrounds, key)?.owner !== 'hero') problems.push(`descriptions.heroBiography.backgrounds: "${key}" is not a Hero Background`);
+    sentences(texts, `descriptions.heroBiography.backgrounds.${key}`, 'hero');
+  }
+  for (const [key, byBand] of Object.entries(heroBiography.classes)) {
+    const where = 'descriptions.heroBiography.classes';
+    if (!Object.hasOwn(set.classes, key)) problems.push(`${where}: "${key}" is not a Class`);
+    onlyBands(byBand, `${where}.${key}`);
+    for (const [band, texts] of Object.entries(byBand)) sentences(texts, `${where}.${key}.${band}`, 'hero');
+  }
+  for (const [key, texts] of Object.entries(heroBiography.traits)) {
+    if (own(set.traits, key)?.owner !== 'hero') problems.push(`descriptions.heroBiography.traits: "${key}" is not a Hero Trait`);
+    sentences(texts, `descriptions.heroBiography.traits.${key}`, 'hero');
+  }
+  everyBand(heroBiography.closings, 'descriptions.heroBiography.closings');
+  for (const [band, texts] of Object.entries(heroBiography.closings)) sentences(texts, `descriptions.heroBiography.closings.${band}`, 'hero');
 
   const longest = longestDescriptions(set);
-  const names = { appearance: 'Appearance', biography: 'Biography' } as const;
-  for (const attribute of ['appearance', 'biography'] as const) {
-    if (longest[attribute] > descriptionBounds[attribute]) {
-      problems.push(
-        `descriptions.${attribute}: the longest ${names[attribute]} it can write is ${longest[attribute]} characters; ` +
-          `it holds at most ${descriptionBounds[attribute]}`,
-      );
+  const names = { appearance: 'Appearance', biography: 'Biography', heroBiography: "Hero's Biography" } as const;
+  for (const [attribute, bound] of [
+    ['appearance', descriptionBounds.appearance],
+    ['biography', descriptionBounds.biography],
+    ['heroBiography', descriptionBounds.biography],
+  ] as const) {
+    if (longest[attribute] > bound) {
+      problems.push(`descriptions.${attribute}: the longest ${names[attribute]} it can write is ${longest[attribute]} characters; it holds at most ${bound}`);
     }
   }
 }
