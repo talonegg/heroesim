@@ -28,7 +28,10 @@ export type SphereKey = string;
 
 /** A Quest template (M2-S3). */
 export type QuestTemplateKey = string;
-/** A tag a Quest template carries (M2-S3). */
+/**
+ * A tag a Quest template carries (M2-S3), and from v1.1.4-S8 an Encounter: an Encounter sharing one
+ * with its template is likelier drawn (`encounterTagWeight`).
+ */
 export type QuestTagKey = string;
 /** A type of Injury (M2-S5, `injuries.json`). */
 export type InjuryTypeKey = string;
@@ -124,7 +127,7 @@ export type GuildmasterTraitEffectKind = GuildmasterTraitEffect['kind'];
  *   as gear's are (DL-148 item 24), so the change shows wherever a Stat shows. One effect may name
  *   several Stats.
  * - `encounterBonus`: `flat` added to the capability of every Check of an Encounter of one of its
- *   `kinds`, or sharing one of its `tags` (which Encounters gain in v1.1.4-S8), when any Hero still in
+ *   `kinds`, or sharing one of its `tags` (an Encounter's, from v1.1.4-S8), when any Hero still in
  *   the sequence holds the Trait: once for the Party however many hold it (DL-148 item 26), and never
  *   to a raw Check, which is its score alone (DL-152), as a consumable's bonus is not.
  */
@@ -266,10 +269,20 @@ export interface QuestTemplate {
    */
   encountersMin: number;
   encountersMax: number;
+  /**
+   * Its Finale (v1.1.4-S8, DL-148 items 22 and 23): an Encounter content defines, of any kind, always
+   * the last of a Quest's Encounters, in the last of its `encounterCount` places, the places before it
+   * drawn as before. An Encounter some template names as its Finale is never drawn into a place. On a
+   * Quest with one, Loot also needs the Finale to end a Triumph.
+   */
+  finale?: EncounterKey;
 }
 
-/** The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from. */
-export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const;
+/**
+ * The kinds of Encounter (M4-S1): the flavour of a Check, and what a Quest template draws from.
+ * `lore`, for Intelligence and Knowledge, riddles, records and clues, from v1.1.4-S8 (DL-148 item 21).
+ */
+export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth', 'lore'] as const;
 
 export type EncounterKind = (typeof encounterKinds)[number];
 
@@ -516,6 +529,11 @@ export interface Encounter {
   key: EncounterKey;
   name: string;
   kind: EncounterKind;
+  /**
+   * Its tags (v1.1.4-S8, DL-148 item 22), as a Quest template's are written: within its kind, it is
+   * drawn `encounterTagWeight` times as often for each it shares with the template. None when absent.
+   */
+  tags?: QuestTagKey[];
   /** Its Checks, one to four (v1.1.4-S2), each rolled every time, in this order. */
   checks: EncounterCheck[];
   /** How its Checks combine into its Degree (v1.1.4-S2); may be absent when it has one Check, which then decides. */

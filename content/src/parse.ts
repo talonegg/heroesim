@@ -100,8 +100,10 @@ export const contentSetId = 'core';
  * each Trait's `effect` into `effects`, a list, and drops `owner` (DL-158); the same games are played.
  * 24 from v1.1.4-S7's second step, which gives the four Injury Traits their `statModifiers` (DL-148
  * item 24, DL-159).
+ * 25 from v1.1.4-S8, which gives today's Encounters their `tags`, matched to the templates' (DL-148
+ * item 22, DL-160); no template names a Finale and no Encounter is of the `lore` kind until S10.
  */
-export const contentVersion = 24;
+export const contentVersion = 25;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -136,7 +138,7 @@ const guildmasterTraitEffectKinds: Record<GuildmasterTraitEffectKind, true> = { 
 const heroTraitEffectKinds: Record<HeroTraitEffectKind, true> = { statModifiers: true, encounterBonus: true };
 const backgroundOwners: Record<BackgroundOwner, true> = { hero: true, guild: true };
 const facilities: Record<FacilityKey, true> = { infirmary: true, trainingYard: true, quarters: true };
-const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
+const encounterKinds: Record<EncounterKind, true> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
 const aggregates: Record<EncounterAggregate, true> = { best: true, sum: true };
 const consequenceKinds: Record<ConsequenceKind, true> = {
   injury: true,
@@ -242,26 +244,31 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
       json('quest-templates.json'),
       problems,
       'a Quest template',
-      (row) => ({
-        name: row.string('name'),
-        sphereKeys: row.strings('sphereKeys'),
-        tags: row.strings('tags'),
-        difficultyMin: row.integer('difficultyMin'),
-        difficultyMax: row.integer('difficultyMax'),
-        durationDaysMin: row.integer('durationDaysMin'),
-        durationDaysMax: row.integer('durationDaysMax'),
-        rewardPerDifficulty: row.number('rewardPerDifficulty'),
-        fameEffect: row.integer('fameEffect'),
-        partySizeMin: row.integer('partySizeMin'),
-        partySizeMax: row.integer('partySizeMax'),
-        demands: row.weightedKeys('demands'),
-        skillKeys: row.strings('skillKeys'),
-        requires: requires(row.child('requires')),
-        lootTableKey: row.stringOrNull('lootTableKey'),
-        encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
-        encountersMin: row.integer('encountersMin'),
-        encountersMax: row.integer('encountersMax'),
-      }),
+      (row) => {
+        // v1.1.4-S8: its Finale, none when absent.
+        const finale = row.optionalString('finale');
+        return {
+          name: row.string('name'),
+          sphereKeys: row.strings('sphereKeys'),
+          tags: row.strings('tags'),
+          difficultyMin: row.integer('difficultyMin'),
+          difficultyMax: row.integer('difficultyMax'),
+          durationDaysMin: row.integer('durationDaysMin'),
+          durationDaysMax: row.integer('durationDaysMax'),
+          rewardPerDifficulty: row.number('rewardPerDifficulty'),
+          fameEffect: row.integer('fameEffect'),
+          partySizeMin: row.integer('partySizeMin'),
+          partySizeMax: row.integer('partySizeMax'),
+          demands: row.weightedKeys('demands'),
+          skillKeys: row.strings('skillKeys'),
+          requires: requires(row.child('requires')),
+          lootTableKey: row.stringOrNull('lootTableKey'),
+          encounterKinds: row.oneOfEach('encounterKinds', encounterKinds),
+          encountersMin: row.integer('encountersMin'),
+          encountersMax: row.integer('encountersMax'),
+          ...(finale === undefined ? {} : { finale }),
+        };
+      },
     ),
     dispositions: table<Disposition>('dispositions.json', json('dispositions.json'), problems, 'a Disposition', (row) => ({
       name: row.string('name'),
@@ -292,7 +299,9 @@ export function readContent(files: Readonly<Record<string, string>>): ContentSet
     ),
     encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row, key) => {
       const name = row.string('name');
-      const shape = { name, kind: row.oneOf('kind', encounterKinds) };
+      // v1.1.4-S8: its tags, none when absent.
+      const tags = row.optional('tags', (field) => row.strings(field));
+      const shape = { name, kind: row.oneOf('kind', encounterKinds), ...(tags === undefined ? {} : { tags }) };
       // v1.1.4-S2: the new form, `checks` and `pass`, or the old, which loads into one Check.
       const consequences = (): Encounter['consequences'] => outcomes(row.child('consequences'));
       if (row.value('checks') === undefined) return { ...shape, checks: [oldFormCheck(row, key, name, known)], consequences: consequences() };

@@ -5,7 +5,7 @@ import { createWorld } from '../create.js';
 import { encounterCount } from '../quest-engine/encounters.js';
 import type { Patron, Quest, World } from '../document.js';
 import { append } from '../history.js';
-import type { StreamName } from '../rng.js';
+import { next, type StreamName } from '../rng.js';
 import { dayOf, nightOf, turnsPerDay } from '../time.js';
 import { plannedStreams, testContent, testDeps, testWorld, withValid } from '../world.test-support.js';
 import { generatePatron } from './patrons.js';
@@ -191,6 +191,36 @@ describe('generateQuest', () => {
     }
   });
 
+  // v1.1.4-S8's second box: a Finale is always last, and a Quest without one draws as many times as before.
+  test("ends a Quest of a template naming a Finale with it, at the Quest's count, two encounters draws fewer; a Quest without one draws two a place", () => {
+    const deps = testDeps();
+    const barrow = testContent.questTemplates['clear-the-barrow'];
+    if (barrow === undefined) throw new Error('No clear-the-barrow');
+    const withFinale: EngineDeps = {
+      config: deps.config,
+      content: { ...testContent, questTemplates: { ...testContent.questTemplates, 'clear-the-barrow': { ...barrow, finale: 'the-sealed-door' } } },
+    };
+    for (const [content, finale] of [[deps, false], [withFinale, true]] as const) {
+      const { world, patron } = withPatron(`finale-${finale}`, content, 'crown');
+      for (let made = 0; made < 60; made += 1) {
+        const before = structuredClone(world.rng.encounters);
+        const { quest } = generateQuest(world, patron, content, { templateKey: 'clear-the-barrow' });
+        const count = encounterCount(barrow, quest.difficulty, deps.config);
+        expect(quest.encounterKeys).toHaveLength(count);
+        // Two draws a drawn place: the stream moved as far as a twin moved by that many `next`s.
+        const places = finale ? count - 1 : count;
+        const moved = structuredClone(world.rng.encounters);
+        const stepped = structuredClone(before);
+        for (let draw = 0; draw < 2 * places; draw += 1) next(stepped);
+        expect(moved).toEqual(stepped);
+        if (finale) {
+          expect(quest.encounterKeys.at(-1)).toBe('the-sealed-door');
+          expect(quest.encounterKeys.slice(0, -1)).not.toContain('the-sealed-door');
+        } else expect(quest.encounterKeys).not.toContain('the-sealed-door');
+      }
+    }
+  });
+
   test('gives each Quest a sequence of its own, sharing no array with content or another Quest', () => {
     const deps = testDeps();
     const { world, patron } = withPatron('own-sequence', deps);
@@ -297,5 +327,20 @@ describe('generateQuest', () => {
     const withoutStream = structuredClone(noStream);
     expect(() => generateQuest(noStream, patron, deps)).toThrow(/encounters/);
     expect(noStream).toEqual(withoutStream);
+  });
+
+  test('throws, changing nothing, on an unsound encounterTagWeight or a Finale content does not define (v1.1.4-S8)', () => {
+    const deps = testDeps();
+    const { world, patron } = withPatron('finale-refusals', deps);
+    const before = structuredClone(world);
+    expect(() => generateQuest(world, patron, testDeps({ encounterTagWeight: 0.5 }))).toThrow(/encounterTagWeight is 0.5/);
+    const barrow = testContent.questTemplates['clear-the-barrow'];
+    if (barrow === undefined) throw new Error('No clear-the-barrow');
+    const lost: EngineDeps = {
+      config: deps.config,
+      content: { ...testContent, questTemplates: { ...testContent.questTemplates, 'clear-the-barrow': { ...barrow, finale: 'gone' } } },
+    };
+    expect(() => generateQuest(world, patron, lost, { templateKey: 'hold-the-border-fort' })).toThrow(/gone/);
+    expect(world).toEqual(before);
   });
 });

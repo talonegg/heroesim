@@ -1077,7 +1077,7 @@ describe("a Quest template's Encounters (M4-S1)", () => {
     expect(message).toMatch(problem);
   });
 
-  test('with a kind that is not one of the five is refused, naming the field', () => {
+  test('with a kind that is not one of the six is refused, naming the field', () => {
     const files = withJson('quest-templates.json', (json) => {
       Object.assign(barrow(json), { encounterKinds: ['combat', 'naval'] });
     });
@@ -1159,7 +1159,7 @@ describe('an Encounter (M4-S1)', () => {
 
     const { message } = refusalOf(() => parseContent(files));
 
-    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth/);
+    expect(message).toMatch(/ambush-on-the-road\.kind is "naval"; expected one of combat, travel, social, arcane, stealth, lore/);
     expect(message).toMatch(/ambush-on-the-road\.aggregate is "worst"; expected one of best, sum/);
   });
 });
@@ -1193,13 +1193,13 @@ describe('a Synergy (M4-S3)', () => {
     expect(refusalOf(() => parseContent(files)).message).toMatch(problem);
   });
 
-  test('with a kind that is not one of the five is refused, naming the field and the choices', () => {
+  test('with a kind that is not one of the six is refused, naming the field and the choices', () => {
     const files = withJson('synergies.json', (json) => {
       Object.assign(salve(json), { kinds: ['combat', 'naval'] });
     });
 
     expect(refusalOf(() => parseContent(files)).message).toMatch(
-      /synergies\.json: sword-and-salve\.kinds is \["combat","naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/,
+      /synergies\.json: sword-and-salve\.kinds is \["combat","naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/,
     );
   });
 
@@ -1433,7 +1433,7 @@ describe('an Item definition (M5-S1)', () => {
     ['an effect with a field its kind lacks', (json) => void Object.assign(draught(json), { effect: { kind: 'heal', days: 5, flat: 2 } }), /items\.json: healing-draught\.effect\.flat is not a field of a heal effect/],
     ['a heal of no Days', (json) => void Object.assign(draught(json), { effect: { kind: 'heal', days: 0 } }), /items\.healing-draught\.effect\.days is 0; it is a whole number from 1/],
     ['a bonus of 0', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 0, kinds: ['combat'] } }), /items\.whetstone\.effect\.flat is 0; it is a number above 0/],
-    ['an Encounter kind that is not one of the five', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 3, kinds: ['naval'] } }), /items\.json: whetstone\.effect\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/],
+    ['an Encounter kind that is not one of the six', (json) => void Object.assign(whetstone(json), { effect: { kind: 'bonus', flat: 3, kinds: ['naval'] } }), /items\.json: whetstone\.effect\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/],
     ['no Encounter kinds', (json) => void Object.assign(whetstone(json), { effect: { kind: 'reroll', kinds: [] } }), /items\.whetstone\.effect\.kinds is empty/],
     ['an Encounter kind listed twice', (json) => void Object.assign(whetstone(json), { effect: { kind: 'reroll', kinds: ['travel', 'travel'] } }), /items\.whetstone\.effect\.kinds: "travel" is listed twice/],
   ])('with %s is refused, naming the Item', (_, change, problem) => {
@@ -1770,7 +1770,7 @@ describe('a file', () => {
     [
       'an encounterBonus on a kind that is not one',
       (json) => Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['naval'] }] }),
-      /hero-traits\.json: scarred\.effects\.0\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth/,
+      /hero-traits\.json: scarred\.effects\.0\.kinds is \["naval"\]; expected a list, each one of combat, travel, social, arcane, stealth, lore/,
     ],
     [
       'an encounterBonus naming a kind twice',
@@ -2142,6 +2142,81 @@ describe('an earned Trait (v1.1.4-S7)', () => {
     );
     expect(refusalOf(() => parseContent(consequences({ triumph: [{ ...trait, exposedBy: ['dexterity'] }] }))).message).toMatch(
       /encounters\.json: ambush-on-the-road\.consequences\.triumph\.0\.exposedBy is not a field of a consequence of kind trait/,
+    );
+  });
+});
+
+describe('tags, a Finale and the lore kind (v1.1.4-S8)', () => {
+  /** The real files with `ambush-on-the-road` changed. */
+  const ambushed = (change: (it: EncounterRow) => void) => withJson('encounters.json', (json) => change(json['ambush-on-the-road'] as EncounterRow));
+  /** `files` with the barrow's template changed. */
+  const barrowed = (change: (it: Template) => void, files = realFiles()) => changed(files, 'quest-templates.json', (json) => change(barrow(json)));
+  /** A lore Encounter keyed `a-riddle`, the sealed door's Check. */
+  const riddle = (files: Record<string, string>) =>
+    changed(files, 'encounters.json', (json) => {
+      json['a-riddle'] = { ...(json['the-sealed-door'] as EncounterRow), name: 'A riddle', kind: 'lore', tags: ['delve'] };
+    });
+
+  test("loads an Encounter's tags and a template's Finale as written, and an Encounter with none has no tags", () => {
+    const files = barrowed((it) => (it.finale = 'hold-the-line'), ambushed((it) => (it.tags = ['escort', 'road-side'])));
+    const content = parseContent(files);
+    expect(content.encounters['ambush-on-the-road']?.tags).toEqual(['escort', 'road-side']);
+    expect(content.questTemplates['clear-the-barrow']?.finale).toBe('hold-the-line');
+    const untagged = parseContent(ambushed((it) => delete it.tags));
+    expect(untagged.encounters['ambush-on-the-road']).not.toHaveProperty('tags');
+    expect(untagged.questTemplates['hold-the-border-fort']).not.toHaveProperty('finale');
+  });
+
+  test.each<[string, (it: EncounterRow) => void, RegExp]>([
+    ['a tag that is not kebab-case', (it) => (it.tags = ['On The Road']), /encounters\.ambush-on-the-road\.tags: "On The Road" is not kebab-case/],
+    ['a tag listed twice', (it) => (it.tags = ['escort', 'escort']), /encounters\.ambush-on-the-road\.tags: "escort" is listed twice/],
+    ['tags that are not a list of strings', (it) => ((it as unknown as Record<string, unknown>)['tags'] = 'escort'), /encounters\.json: ambush-on-the-road\.tags is "escort"; expected a list of strings/],
+  ])("an Encounter's %s is refused, naming its path", (_, change, problem) => {
+    expect(refusalOf(() => parseContent(ambushed(change))).message).toMatch(problem);
+  });
+
+  test.each<[string, (it: Template) => void, RegExp]>([
+    ['a Finale that is not an Encounter', (it) => (it.finale = 'the-dragon'), /questTemplates\.clear-the-barrow\.finale: "the-dragon" is not an Encounter/],
+    ['a Finale that is not a string', (it) => ((it as unknown as Record<string, unknown>)['finale'] = ['hold-the-line']), /quest-templates\.json: clear-the-barrow\.finale is \["hold-the-line"\]; expected a string, or no such field/],
+  ])("a template's %s is refused, naming its path", (_, change, problem) => {
+    expect(refusalOf(() => parseContent(barrowed(change))).message).toMatch(problem);
+  });
+
+  test('a kind whose every Encounter is a Finale, which is never drawn, is refused for each template that draws it', () => {
+    // The two arcane Encounters made Finales: the barrow's, and the vault's.
+    const files = changed(
+      barrowed((it) => (it.finale = 'the-sealed-door')),
+      'quest-templates.json',
+      (json) => void ((json['break-the-sealed-vault'] as Template).finale = 'a-restless-power'),
+    );
+    const { message } = refusalOf(() => parseContent(files));
+    expect(message).toMatch(/questTemplates\.lay-the-restless-dead\.encounterKinds: every Encounter of kind "arcane" is a Finale, which is never drawn/);
+    expect(message).toMatch(/questTemplates\.break-the-sealed-vault\.encounterKinds: every Encounter of kind "arcane" is a Finale/);
+    expect(message).not.toMatch(/clear-the-barrow\.encounterKinds/);
+  });
+
+  test("a Finale may be of any kind, one its template's places are not drawn from", () => {
+    const files = barrowed((it) => (it.finale = 'a-riddle'), riddle(realFiles()));
+    expect(parseContent(files).questTemplates['clear-the-barrow']?.finale).toBe('a-riddle');
+  });
+
+  test('lore is a kind an Encounter, a template, a Synergy, a consumable and a Hero Trait may name', () => {
+    let files = riddle(realFiles());
+    files = barrowed((it) => (it.encounterKinds = [...it.encounterKinds, 'lore']), files);
+    files = changed(files, 'synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).kinds = ['lore']));
+    files = changed(files, 'items.json', (json) => void Object.assign(json['whetstone'] ?? {}, { effect: { kind: 'bonus', flat: 3, kinds: ['lore'] } }));
+    files = changed(files, 'hero-traits.json', (json) =>
+      Object.assign(json['scarred'] ?? {}, { effects: [{ kind: 'encounterBonus', flat: 2, kinds: ['lore'], tags: ['delve'] }] }),
+    );
+    const content = parseContent(files);
+    expect(content.encounters['a-riddle']?.kind).toBe('lore');
+    expect(content.questTemplates['clear-the-barrow']?.encounterKinds).toContain('lore');
+    expect(content.synergies['sword-and-salve']?.kinds).toEqual(['lore']);
+  });
+
+  test('a template drawing lore when content has no lore Encounter is refused, naming the kind', () => {
+    expect(refusalOf(() => parseContent(barrowed((it) => (it.encounterKinds = ['lore'])))).message).toMatch(
+      /questTemplates\.clear-the-barrow\.encounterKinds: no Encounter is of kind "lore"/,
     );
   });
 });

@@ -70,6 +70,7 @@ const encounterIcons: Readonly<Record<EncounterKind, IconName>> = {
   social: 'social',
   arcane: 'arcane',
   stealth: 'stealth',
+  lore: 'lore',
 };
 
 export function Board({

@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 24 since v1.1.4-S7 gave the Injury Traits their effects (DL-159)", () => {
+  test("is the core content set, version 25 since v1.1.4-S8 gave the Encounters their tags (DL-160)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(24);
+    expect(content.version).toBe(25);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -507,11 +507,40 @@ describe('loadContent()', () => {
     // The engine's union, written out: content imports only types from the engine (ADR-0006).
     const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const satisfies readonly EncounterKind[];
 
-    test('are twelve, at least two of each kind', () => {
+    test('are twelve, at least two of each kind but lore, whose Encounters S10 writes', () => {
       expect(encounters).toHaveLength(12);
       for (const kind of encounterKinds) {
         expect(encounters.filter((it) => it.kind === kind).length, kind).toBeGreaterThanOrEqual(2);
       }
+      expect(encounters.filter((it) => it.kind === 'lore')).toEqual([]);
+    });
+
+    // v1.1.4-S8 (DL-148 item 22, DL-160): the tags that weight the draw, matched to the templates'.
+    test("each has one or two tags, each one some template carries, so that every tag weights some Quest's draw", () => {
+      const carried = new Set(Object.values(content.questTemplates).flatMap((it) => it.tags));
+      for (const it of encounters) {
+        expect(it.tags?.length ?? 0, it.key).toBeGreaterThanOrEqual(1);
+        expect(it.tags?.length ?? 0, it.key).toBeLessThanOrEqual(2);
+        for (const tag of it.tags ?? []) expect(carried.has(tag), `${it.key}: ${tag}`).toBe(true);
+      }
+      expect(Object.fromEntries(encounters.map((it) => [it.key, it.tags]))).toEqual({
+        'ambush-on-the-road': ['escort'],
+        'the-restless-dead': ['dark'],
+        'hold-the-line': ['guard'],
+        'the-long-march': ['escort', 'guard'],
+        'the-flooded-ford': ['water'],
+        'lost-in-the-fells': ['wilds', 'hunt'],
+        'a-hostile-reeve': ['town'],
+        'the-patrons-steward': ['talk'],
+        'the-sealed-door': ['delve'],
+        'a-restless-power': ['dark'],
+        'past-the-watch': ['town'],
+        'the-trapped-passage': ['delve'],
+      });
+    });
+
+    test('no template names a Finale yet: S10 writes the four (DL-148 item 22)', () => {
+      expect(Object.values(content.questTemplates).filter((it) => it.finale !== undefined)).toEqual([]);
     });
 
     test('each weigh demands on Hero Stats summing to 1, name Skills from skills.json, and harm only on a failure', () => {

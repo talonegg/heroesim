@@ -1187,6 +1187,85 @@ describe("a Hero Trait's effects in a Check (v1.1.4-S7)", () => {
   });
 });
 
+describe('a Finale and Loot (v1.1.4-S8)', () => {
+  // Two Encounters: `easy`, always a Triumph, then `last`, whose one Check is aimed so its roll
+  // lands about the Triumph line: a Success leaves the Quest strong (every Encounter at Success or
+  // better, half Triumphs), so only the Finale's rule keeps Loot from it.
+  const config = { checkVariance: 0.2 };
+
+  /** The scene's Quest through `easy` then `last`, given a Loot table, `last` aimed at 1 ÷ 1.2 of the Party's capability. */
+  function finaleScene(seed: string, finale: boolean): Scene {
+    const easy = encounter('easy', true);
+    const plain = contentWith(easy, encounter('last', true));
+    const s = scene(seed, plain, ['easy', 'last']);
+    const last = plain.encounters['last'] as Encounter;
+    const aim = checkCapability(queryParty(s.heroes, s.world, s.deps), last, onlyCheckOf(last), s.world, s.deps) / 1.2;
+    const aimed: Encounter = { ...last, checks: [{ ...onlyCheckOf(last), difficultyFactor: 0, flat: aim }] };
+    const template = s.deps.content.questTemplates[s.quest.templateKey];
+    if (template === undefined) throw new Error(`No template ${s.quest.templateKey}`);
+    const content: ContentSet = {
+      ...contentWith(easy, aimed),
+      questTemplates: { ...testContent.questTemplates, [template.key]: { ...template, ...(finale ? { finale: 'last' } : {}) } },
+    };
+    s.deps = testDeps({ ...pinned, ...config }, content);
+    s.quest.lootTableKey = 'lesser-loot';
+    return s;
+  }
+
+  test("Loot is never drawn on a Quest whose Finale did not end a Triumph, and is on one whose Finale did; its two draws taken whatever happens", () => {
+    const seen = new Map<string, number>();
+    for (let seed = 0; seed < 120; seed += 1) {
+      const withFinale = finaleScene(`finale-${seed}`, true);
+      const without = finaleScene(`finale-${seed}`, false);
+      const resolved = resolveQuest(withFinale.world, withFinale.quest, withFinale.party, withFinale.deps);
+      const plain = resolveQuest(without.world, without.quest, without.party, without.deps);
+      const degree = resolved.encounters.at(-1)?.degree ?? 'unmet';
+      const key = `${degree} ${resolved.outcome.band}`;
+      seen.set(key, (seen.get(key) ?? 0) + 1);
+
+      // The same rolls and band either way, and the same draws: only the award differs.
+      expect(resolved.encounters).toEqual(plain.encounters);
+      expect(streamOf(withFinale.world, 'quests')).toEqual(streamOf(without.world, 'quests'));
+      if (degree === 'triumph') expect(resolved.loot, key).toEqual(plain.loot);
+      else expect(resolved.loot, key).toBeNull();
+      if (resolved.outcome.band === 'strong') expect(plain.loot, key).not.toBeNull();
+    }
+    // The case the rule is for, a strong success with the Finale a plain Success, and the Triumphs, were both met.
+    expect(seen.get('success strong') ?? 0).toBeGreaterThan(0);
+    expect(seen.get('triumph strong') ?? 0).toBeGreaterThan(0);
+  });
+
+  test('a Party that falls before its Finale brings no Loot home, however the Encounters before went', () => {
+    const killer = encounter('killer', false, [{ kind: 'death', chance: 1 }]);
+    const s = finaleScene('fallen', true);
+    const content: ContentSet = { ...s.deps.content, encounters: { ...s.deps.content.encounters, killer } };
+    const deps = testDeps({ ...pinned, ...config, bandBySuccessShare: { successAbove: 0, strongAtLeast: 0 }, strongTriumphShare: 0 }, content);
+    const quest = { ...s.quest, encounterKeys: ['easy', 'killer', 'killer', 'killer', 'last'] };
+    const resolved = resolveQuest(s.world, quest, s.party, deps);
+    expect(resolved.outcome.deaths).toHaveLength(3);
+    expect(resolved.encounters.map((it) => it.encounterKey)).toEqual(['easy', 'killer', 'killer', 'killer']);
+    expect(resolved.outcome.band).toBe('strong');
+    expect(resolved.loot).toBeNull();
+  });
+
+  test("an Encounter bonus by tag applies to an Encounter whose tags content writes, through the resolver (DL-159's seam)", () => {
+    const withEffects = (key: string, effects: HeroTraitEffect[]) => ({ key, name: key, excludes: [], effects });
+    const heroTraits = { ...testContent.heroTraits, 'tomb-wise': withEffects('tomb-wise', [{ kind: 'encounterBonus', flat: 3, tags: ['dark'] }]) };
+    const dark: Encounter = { ...encounter('dark', true), tags: ['dark', 'delve'] };
+    const light: Encounter = { ...encounter('light', true), tags: ['town'] };
+    const content = { ...contentWith(dark, light), synergies: {}, heroTraits };
+    const capabilities = (traits: string[]) => {
+      const s = scene('tagged', content, ['dark', 'light']);
+      (s.heroes[0] as Hero).traits.push(...traits);
+      return resolveQuest(s.world, s.quest, s.party, s.deps).encounters.map((it) => it.checks[0]?.capability ?? 0);
+    };
+    const [darkBefore = 0, lightBefore = 0] = capabilities([]);
+    const [darkAfter = 0, lightAfter = 0] = capabilities(['tomb-wise']);
+    expect(darkAfter).toBeCloseTo(darkBefore + 3, 10);
+    expect(lightAfter).toBeCloseTo(lightBefore, 10);
+  });
+});
+
 /** An Encounter's one Check. */
 function onlyCheckOf(it: Encounter): EncounterCheck {
   return it.checks[0] as EncounterCheck;

@@ -66,8 +66,8 @@ export function traitStatModifiers(hero: { traits: readonly TraitKey[] }, conten
   return total;
 }
 
-/** What an Encounter bonus is matched against: the Encounter's kind, and its tags once Encounters have them (v1.1.4-S8). */
-export type BonusTarget = Pick<Encounter, 'kind'> & { tags?: readonly string[] };
+/** What an Encounter bonus is matched against: the Encounter's kind, and its tags (v1.1.4-S8). */
+export type BonusTarget = Pick<Encounter, 'kind' | 'tags'>;
 
 /**
  * The flat bonus every Check of `encounter` gains from the Traits of `heroes`, the Party still in the

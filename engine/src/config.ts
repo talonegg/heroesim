@@ -44,8 +44,8 @@ export interface GameConfig {
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
    * (DL-149, DL-153), S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154), S4's
-   * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), and S6's
-   * `playerPartyMargin` (DL-148, DL-157).
+   * `exposureRange` and `guardRange` (DL-148, DL-155), S5's `chanceBands` (DL-148, DL-156), S6's
+   * `playerPartyMargin` (DL-148, DL-157), and S8's `encounterTagWeight` (DL-148, DL-160).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -181,6 +181,13 @@ export interface GameConfig {
    */
   questDifficultyMin: number;
   questDifficultyMax: number;
+  /**
+   * How much likelier an Encounter is drawn, within its kind, for each tag it shares with its Quest's
+   * template (v1.1.4-S8, DL-148 item 22): its weight in the one `weightedPick` is this to the power of
+   * the tags shared, so at 3 one shared tag draws it three times as often as one sharing none. A finite
+   * number of 1 or more, so that a tag shared never makes an Encounter rarer; at 1 tags change nothing.
+   */
+  encounterTagWeight: number;
 
   // ── The Quest Engine (M4-S2, INPUTS 6.2, DL-42) ────────────────────────────────────────────
   // The stub's fields (M2-S5, DL-29, DL-35) are gone: `stubBands` for `bandBySuccessShare`,
@@ -601,6 +608,7 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   questOfferDays: 3,
   questDifficultyMin: 10,
   questDifficultyMax: 100,
+  encounterTagWeight: 3,
 
   checkVariance: 0.2,
   skillBonusPerRating: 2,
@@ -708,8 +716,10 @@ export interface EngineDeps {
  * that a guard never raises a chance nor turns it below 0 (v1.1.4-S4, DL-155). `chanceBands`' starts
  * are finite, strictly increasing and each above 0 and below 1, so that every band holds some chances
  * (v1.1.4-S5, DL-156). `playerPartyMargin` is a share from 0 to 1, as a Disposition's `partyMargin` is
- * (v1.1.4-S6, DL-157). The Quest Engine refuses to resolve, and to estimate, under a config with a
- * problem (`resolveQuest`, `estimateQuest`).
+ * (v1.1.4-S6, DL-157). `encounterTagWeight` is a finite number of 1 or more (v1.1.4-S8, DL-160). The
+ * Quest Engine refuses to resolve, and to estimate, under a config with a problem (`resolveQuest`,
+ * `estimateQuest`), and the Quest Generator to draw a sequence under an unsound `encounterTagWeight`
+ * (`drawSequence`).
  */
 export function configProblems(
   config: Pick<
@@ -723,6 +733,7 @@ export function configProblems(
     | 'guardRange'
     | 'chanceBands'
     | 'playerPartyMargin'
+    | 'encounterTagWeight'
   >,
 ): string[] {
   const problems: string[] = [];
@@ -766,7 +777,18 @@ export function configProblems(
   }
   const margin = config.playerPartyMargin;
   if (!(margin >= 0 && margin <= 1)) problems.push(`playerPartyMargin is ${margin}; it is a share from 0 to 1`);
+  const tagProblem = encounterTagWeightProblem(config.encounterTagWeight);
+  if (tagProblem !== undefined) problems.push(tagProblem);
   return problems;
+}
+
+/**
+ * What is wrong with `encounterTagWeight` (v1.1.4-S8, DL-160), a sentence naming it, or `undefined`
+ * for a finite number of 1 or more: the one `configProblems` and `drawSequence` both read.
+ */
+export function encounterTagWeightProblem(weight: number): string | undefined {
+  if (typeof weight === 'number' && Number.isFinite(weight) && weight >= 1) return undefined;
+  return `encounterTagWeight is ${weight}; it is a finite number of 1 or more, so that a tag shared never makes an Encounter rarer`;
 }
 
 /** Whether `value` is a finite number above 0: a form factor (DL-154). */

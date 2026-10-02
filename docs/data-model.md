@@ -229,7 +229,9 @@ difficulty, tags, reward, fameEffect
 durationTurns:  integer                     durationDays × 3, from the template's range
 demands:        [StatKey, weight][]         copied from the template at generation
 skillKeys:      SkillKey[]                  copied from the template at generation
-encounterKeys:  string[]                    drawn at generation (M4); empty before
+encounterKeys:  string[]                    drawn at generation (M4); empty before. Weighted by the tags
+                                            each shares with the template, and the last the template's
+                                            Finale when it names one (v1.1.4-S8, DL-160)
 requirements:   { partySizeMin, partySizeMax, classKey?, skillKey? }   copied from the template
 lootTableKey:   string | null               the template's, copied at generation when its difficultyMin is
                                             above lootDifficultyThreshold, else null (M5-S5, DL-52)

@@ -34,7 +34,8 @@
 // verification). The Traits are the resolution's `traits`, for `questsConclude` to grant, at most one a
 // Hero, a Hero who died taking none.
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
-// loot.ts, DL-52).
+// loot.ts, DL-52), and whatever its Finale did: a Quest ending with its template's Finale has Loot
+// only if the Finale ended a Triumph (v1.1.4-S8, DL-148 item 23).
 //
 // Each Hero brings their form to the Checks (v1.1.4-S3, form.ts): their Morale band's factor, the
 // band read from their Morale on the Quest, their Morale as they set out plus the Morale consequences
@@ -78,9 +79,9 @@ import { mayEarn } from '../traits.js';
 import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
-import { sequenceFor } from './encounters.js';
+import { endsWithFinale, sequenceFor } from './encounters.js';
 import { exposure, guard, narrowed } from './harm.js';
-import { drawLoot, type LootDraw } from './loot.js';
+import { drawLoot, type FinaleOutcome, type LootDraw } from './loot.js';
 import { membersOf, queryParty, type OnQuest, type QueryMember, type QueryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
@@ -364,8 +365,20 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
     encounters,
     traits,
     consumables: kit.used,
-    loot: drawLoot(world, quest, band, deps), // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52)
+    // M5-S5: Loot, the sequence's last draws (loot.ts, DL-52), needing a Finale's Triumph (v1.1.4-S8).
+    loot: drawLoot(world, quest, band, deps, finaleOf(quest, sequence, encounters, deps)),
   };
+}
+
+/**
+ * How `quest`'s Finale went (v1.1.4-S8): `none` when its `sequence` does not end with its template's
+ * Finale (`endsWithFinale`); else the Degree the last of `results` ended at, or `unmet` when the
+ * Party fell before it.
+ */
+function finaleOf(quest: Quest, sequence: readonly Encounter[], results: readonly EncounterResult[], deps: CheckDeps): FinaleOutcome {
+  if (!endsWithFinale(quest.templateKey, sequence, deps.content)) return 'none';
+  const last = results.at(-1);
+  return last !== undefined && last.index === sequence.length - 1 ? last.degree : 'unmet';
 }
 
 /** Each of `encounter`'s Checks' Degrees in `results`, by its key. */

@@ -18818,6 +18818,199 @@ Milestone); `docs/data-model.md` (a Hero's `traits`); the epic's S7 boxes and st
 
 ---
 
+## DL-160 — v1.1.4-S8 built: the Encounter of a kind drawn by the tags it shares with its template, a template's Finale always last with Loot needing its Triumph, and the `lore` kind
+
+**Status:** Accepted · **Date:** 2026-10-03 · **Decided by:** the agent, building S8 as the epic's S8
+bullets describe, on DL-148 items 21 to 23. Where the plan was silent, the calls are the agent's, in
+item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** Until now a Quest's sequence was a kind drawn uniformly among its template's, then an
+Encounter drawn uniformly among that kind's (`drawSequence`, M4-S1, DL-42): the templates' `tags` were
+read by no rule (DL-82), so a vault drew the same arcane Encounters as a mill. DL-148 item 22 weights
+that draw by tags shared and gives the four hardest templates a fixed last Encounter, a Finale; item 23
+makes Loot on such a Quest also need the Finale's Triumph; item 21 adds a `lore` kind for Intelligence
+and Knowledge. S8 builds the rules and the tags on today's content; the Finales and the lore Encounters
+are written in S10, after the owner's review (S9). It was built on `v1.1.4-dev` at `a0a8ec1` (S7,
+DL-159), and every comparison of play below is with S7's sweep, `harness/reports/m9-v114-s7-2026-10-02.md`.
+
+**Decision.**
+
+1. **Tags on Encounters** (`engine/src/content-types.ts`, `Encounter.tags`; DL-148 item 22). An
+   Encounter may carry `tags`, written as a Quest template's are (kebab-case, none twice), absent for
+   none. Within its kind, an Encounter's weight in the draw is `encounterTagWeight` to the power of the
+   tags it shares with the template (`tagWeight`, `quest-engine/encounters.ts`): at 3, one tag shared
+   draws it three times as often as one sharing none, two shared nine times. The draw is still one
+   `weightedPick` from `encounters`, after the kind's one `pick`, so a Quest takes two draws a place as
+   before; with no tag shared every weight is 1, which `weightedPick` draws exactly as `pick` drew. The
+   Encounter bonus by `tags` that S7 validated on Hero Traits (DL-159) now matches an Encounter's own
+   tags: `BonusTarget` is `Pick<Encounter, 'kind' | 'tags'>`.
+2. **`encounterTagWeight`** (`engine/src/config.ts`), 3, under config version 13 as the epic's §2 has
+   it. `configProblems` holds it to a finite number of 1 or more, so that a shared tag never makes an
+   Encounter rarer (at 1 tags change nothing); `drawSequence` refuses an unsound one, drawing nothing,
+   and `generateQuest` refuses it before its first draw, so a throw changes nothing.
+3. **Finales** (`QuestTemplate.finale`; DL-148 item 22). A template may name a `finale`, an Encounter
+   content defines. It is always the last of the Quest's Encounters: the count is `encounterCount` as
+   before, its last place the Finale, which draws nothing, and the places before it drawn as before, so
+   a Quest with a Finale takes two `encounters` draws fewer and one without takes as many as it did. The
+   Finale is stored in `encounterKeys` when the Quest is posted (`generateQuest`), so the Board, the
+   chance estimate (S5, DL-156) and the Rivals' choice (S6, DL-157) all read it; a Quest posted before
+   M4, which draws its sequence as it resolves (`sequenceFor`), ends with it too.
+4. **Loot and the Finale** (DL-148 item 23; `quest-engine/loot.ts`, `resolve.ts`). Loot keeps its rule,
+   a band in `lootOnBands` on a Quest carrying a table. On a Quest whose sequence ends with its
+   template's Finale (`endsWithFinale`), it also needs the Finale to end a Triumph (`FinaleOutcome`:
+   `none`, a Degree, or `unmet` when the Party fell before reaching it). Loot's two draws are taken
+   whatever happens, last, as before.
+5. **The `lore` kind** (`encounterKinds`; DL-148 item 21). `lore` joins `combat`, `travel`, `social`,
+   `arcane` and `stealth`, for Intelligence and Knowledge: riddles, records and clues. Content's
+   Encounters, templates, Synergies, consumables and Hero Traits' Encounter bonuses may name it; the
+   compiler holds every enumeration of the kinds to the union (content's parser and validator, the
+   Board's icons). The page and the CLI word a kind by its key inside a sentence, as they do the others
+   ("+2 to every Check of lore Encounters", "on lore Encounters", "+3 on a lore Encounter"); the Board
+   gives a lore Encounter a scroll icon (`web/src/views/icons.tsx`). No text begins with a kind, so the
+   capitals guard has no new standalone word. `CONTEXT.md` says that `lore` names a kind of Encounter and
+   never a Background, whose entry avoids "Lore".
+6. **Content** (version **25**). Today's twelve Encounters gain one or two tags each, from the
+   vocabulary the templates already carry, every tag one some template carries (a content test holds
+   it): Ambush on the road `escort`; The restless dead `dark`; Hold the line `guard`; The long march
+   `escort`, `guard`; The flooded ford `water`; Lost in the fells `wilds`, `hunt`; A hostile reeve
+   `town`; The Patron's steward `talk`; The sealed door `delve`; A restless power `dark`; Past the watch
+   `town`; The trapped passage `delve`. The templates' tags are unchanged. No template names a Finale and
+   no Encounter is `lore` until S10. So, within a kind: the barrow, the vault and Lay the restless dead
+   draw The restless dead 60% of their combat places (a third before); the fort Hold the line 60%; the
+   tithe Ambush on the road 60%; the caravan The long march 69% of its travel; the beast Lost in the
+   fells 82%; the strongbox The flooded ford 60%; the mill and the counting-house A hostile reeve 75% of
+   their social places, so The Patron's steward 25% (half before); Lay the restless dead A restless
+   power 75%; the barrow, the old workings and the vault The trapped passage 75% of their stealth; A
+   quiet word and the counting-house Past the watch 75%.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *"For each tag it shares"* is read as a factor for each: `encounterTagWeight` to the power of the
+     tags shared, not a sum.
+   - *`encounterTagWeight` at least 1* (the coordinator's question): a weight below 1 would make a
+     shared tag a reason to draw an Encounter less, which is no tag's meaning; 1 turns tags off.
+   - *A Finale may be of any kind,* not only one its template draws: it is named, not drawn, and a
+     vault's Finale may be a riddle while its places are arcane, stealth and combat.
+   - *A Finale is never drawn into a place,* on its own template or another: an Encounter some template
+     names as its Finale is left out of every pool. So writing a Finale that is a new Encounter changes
+     no other Quest's draws, and no Quest meets its Finale twice. Naming an Encounter some template
+     already draws would change every draw of its kind, and would let a Quest posted before the change
+     have its Loot gated on a place it happened to draw last (the verifier's finding). So S10 writes
+     each Finale as a new Encounter. Content validation refuses a template kind whose every Encounter
+     is a Finale.
+   - *Whether a Quest has a Finale* is read from content when it resolves: its stored sequence ends with
+     its template's Finale. No row gains a field (the schema stays 6). A template that later drops its
+     Finale lets its Quests already posted take Loot by the band alone (data-model rule 5).
+   - *A Party that falls before its Finale* brings no Loot: the Finale did not end a Triumph.
+   - *Tags on an Encounter are optional,* none when absent, so a test's or a module's Encounter written
+     without them draws as before; the content test holds that each of today's has one or two.
+   - *The harness's Encounter table* gains a `lore` row, 0 until S10.
+   - *A Web test's seed:* `app.test.tsx`'s Quest report test moves from `report-d` to `report-f`, since
+     the tags draw `report-d`'s Quest so that its Party comes home unhurt and the test reads an Injury.
+
+**The checks.**
+1. **The boxes, test first.**
+   - *About three times as often over 20,000 draws* (box 1): `encounters.test.ts`, one kind of three
+     Encounters, one sharing a tag with the template: it takes 58 to 62% of 20,000 draws and 2.8 to 3.2
+     times either other's count. `tagWeight` gives 9 for two tags shared, 3 for one, 1 for none or at a
+     weight of 1.
+   - *No play change with no tag shared:* `drawSequence` draws exactly what M4-S1's `pick` then `pick`
+     drew, key for key and state for state, for every template of the test content over 200 seeds, and
+     tags at `encounterTagWeight` 1 draw exactly what no tags draw.
+   - *A Finale always last, the count unchanged* (box 2): `encounters.test.ts`, over 50 seeds at counts
+     1, 2 and 4, the last key is the Finale, the places before it are what M4-S1 drew for one fewer, and
+     the stream is two draws a drawn place on; a Finale of another template is never drawn into a place,
+     and the barrow draws as it did before the Finale was written; a Quest posted before M4 ends with it.
+     `quests.test.ts`: 60 Quests of the barrow with and without a Finale each have `encounterCount` keys,
+     the stream moved two draws a place (one place fewer with the Finale), the Finale last; the generator
+     refuses an unsound weight or an undefined Finale, changing nothing.
+   - *No Loot on a Quest whose Finale was not a Triumph* (box 3): `resolve.test.ts`, 120 seeds of a
+     Quest through an Encounter always a Triumph then a Finale aimed at the Triumph line: wherever the
+     Finale is not a Triumph there is no Loot, though the twin Quest without a Finale, the same rolls and
+     band, has it on every strong success; where it is a Triumph the Loot is the twin's; the `quests`
+     stream ends where the twin's does; both "Success, strong" and "Triumph, strong" were met. A Party
+     wiped out before its Finale brings none home on a strong band. `loot.test.ts`: `drawLoot` awards for
+     `none` and `triumph` only, two draws for each of the six outcomes. With the rule taken out, these
+     three tests fail; put back, they pass.
+   - *The Trait bonus by tag through the resolver:* `resolve.test.ts`, a Hero Trait with an Encounter
+     bonus on `dark` adds 3 to the Check of an Encounter tagged `dark` and `delve` and nothing to one
+     tagged `town`.
+   - *`encounterTagWeight`:* 3 by default, and `configProblems` names 0.99, 0, −3, NaN and Infinity.
+   - *Content:* `refusals.test.ts`, the tags and the Finale loaded as written, three refusals of an
+     Encounter's tags and two of a template's Finale, each naming its path, a kind whose every Encounter
+     is a Finale refused for each template drawing it, a Finale of a kind its template does not draw
+     accepted, `lore` accepted on an Encounter, a template, a Synergy, a consumable and a Hero Trait, and
+     a template drawing `lore` with no lore Encounter refused. `content.test.ts` pins version 25 and each
+     Encounter's tags. The kind lists in four refusal messages gain `lore`.
+   - *The words:* both front ends' `traitEffectWords` word "+2 to every Check of lore Encounters"; the
+     icon test holds the lore icon in the set.
+2. **The same games with the tags taken out.** `a0a8ec1` (S7, by `git stash`) and this tree with
+   `encounters.json`'s tags removed and the content version set back to 24, each played
+   `HEROESIM_SEEDS=6 HEROESIM_YEARS=6`, core only: every counter and every table is equal. The reports
+   differ only in their titles, the timings, two new `lore` rows of 0, and the saves: each is 23
+   characters longer, `"encounterTagWeight":3,` in the document's `config`, so the fingerprint differs
+   (`7ae8453a…` and `f6268cfa…`). The new code draws exactly as the old while no tag is shared.
+3. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s8 npm run harness`, core only, 20
+   years, content 25, config 13, not validated, on a quiet machine:
+   `harness/reports/m9-v114-s8-2026-10-03.md`, to be force-added. Against S7's (in brackets), play
+   changes by the Encounter mix alone (item 6):
+   - *The player's Quests:* failed 10.1% (10.7%), succeeded 15.0% (15.7%), strong 74.9% (73.6%);
+     339,051 resolved (338,559). Encounters at Success or better 88.6% (87.9%). Injuries 13,370
+     (14,761), Deaths 1,085 (1,119).
+   - *The Rivals' Quests:* failed 6.4% (6.9%), succeeded 12.3% (12.9%), strong 81.3% (80.2%); 844,746
+     resolved (836,871). Encounters at Success or better 91.8% (91.1%). Injuries 25,960 (27,492),
+     Deaths 2,382 (2,235).
+   - *Why, by kind.* The harness counts Checks by kind, not by Encounter, so the cause is read from the
+     mix (item 6) beside the rates: combat Checks succeed 94.6% (93.4%), travel 86.9% (85.5%), social
+     84.1% (83.5%), arcane 91.1% (90.2%); stealth is level at 86.6% (86.9%). Within each of the first
+     four, the Encounter a template's tags favour is, more often than not, one the Parties `partyFor`
+     sends pass more easily there: social, for one, meets The Patron's steward, DL-148's hardest
+     Encounter, on a quarter of the counting-house's and the mill's social places rather than half
+     (A quiet word, which tags neither, still meets it half the time).
+   - *Why, by Injury.* The Injury types follow the Encounters that inflict them: Bruised ribs, from Hold
+     the line, fall to 2,011 (2,994), now drawn mostly on the fort and the caravan; an Eye wound, from
+     The sealed door, to 398 (688), the door no longer half the arcane places of Lay the restless dead;
+     a Broken arm, from The restless dead and The trapped passage, rises to 3,262 (2,962); a Sprained
+     ankle, from The flooded ford on the strongbox, to 1,078 (879); a Shattered knee, from Lost in the
+     fells on the beast, to 784 (684). Fewer Injuries in all leave fewer Heroes marked by an Injury Trait.
+     The Rivals' Deaths rise, 2,382 (2,235), the player's fall, 1,085 (1,119): The restless dead and A
+     restless power, which kill on a failure, are now most of the combat and arcane places of the barrow,
+     the vault and Lay the restless dead, and the Rivals, whose Parties are chosen by their
+     Dispositions' margins, fail them more often (the harness does not split Deaths by template, so this
+     is the likeliest reading, not a count).
+   - *Loot.* 0.180 awards a Quest resolved for the player (0.175) and 0.167 for the Rivals (0.156), with
+     the strong successes; no Finale yet gates any.
+   - *What follows.* 178 Rivals folded (180); 2 of the player's games ended in bankruptcy, in years 14
+     and 18 (18 and 19). Wealth after 20 years 165,221 a game (161,526). The mean save at year 20 is
+     119.85 MiB; `seed-0001` played twice is identical, 120,383,971 characters.
+   - *The time,* alone on the machine: `advance` mean 4.043 ms a Turn, p99 12.670 (6.134 and 22.895,
+     measured under load), and 827.2 s in all (1,106.9); `seed-0001` replayed alone 1.761 ms (1.769).
+   - *For S10.* The Quest target is no nearer: the player's failed 10.1% against 20 to 30%, strong 74.9%
+     against at most 50%.
+4. **The script.** `npm run build -w web`'s check-bundle passes. The script is 774,039 bytes (774.04 kB,
+   225.48 kB gzipped), 2,063 more than S7's 771,976: the draw, the Finale's Loot rule and the lore
+   icon. 25.96 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,523 tests in 176 files (4,490 at S7's verification).
+   - `npm run e2e -w web` passes all 96 specs.
+
+**Consequences.**
+- Play changes by the Encounter mix alone: tags move which Encounter of a kind a template meets.
+  S10's balance pass starts from this sweep.
+- S10 writes the four Finales and the lore Encounters with `finale` and `kind: "lore"`, and S9's drafts
+  may change the tags; a Finale's Triumph then gates Loot on the four hardest templates.
+- S12's register will list these readers: `tagWeight` (`drawSequence`), `finaleKeys` and
+  `sequencePlan` (the pools), `endsWithFinale` (Loot), and `traitEncounterBonus`'s tag match.
+
+**Actioned in:** `engine/src/content-types.ts`, `config.ts`, `traits.ts`, `generators/quests.ts`,
+`quest-engine/encounters.ts`, `loot.ts`, `resolve.ts` and their tests (`encounters`, `quests`, `loot`,
+`resolve`, `synergy`); `content/encounters.json`, `content/src/parse.ts` (version 25), `validate.ts`,
+`content.test.ts`, `refusals.test.ts`; `web/src/views/icons.tsx`, `board.tsx` and the web's tests
+(`icons`, `names`, `app`); `cli/src/render.test.ts`; `harness/src/counters.test.ts`;
+`harness/reports/m9-v114-s8-2026-10-03.md`; `CONTEXT.md` (Quest template, Encounter, Finale);
+`docs/data-model.md` (a Quest's `encounterKeys`); the epic's S8 boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

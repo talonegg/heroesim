@@ -151,15 +151,17 @@ describe('the Synergy term of the capability', () => {
     const on = (party: Hero[]) => encounterKinds.map((kind) => capability(party, encounterOf(kind), world, deps));
 
     // Shield wall: combat only.
-    expect(on([w1, w2, w3])).toEqual([24 * 1.15, 24, 24, 24, 24].map((value) => expect.closeTo(value, 10)));
+    expect(on([w1, w2, w3])).toEqual([24 * 1.15, 24, 24, 24, 24, 24].map((value) => expect.closeTo(value, 10)));
     // Sword and salve: combat and travel.
-    expect(on([w1, healer])).toEqual([18, 18, 16, 16, 16]);
+    expect(on([w1, healer])).toEqual([18, 18, 16, 16, 16, 16]);
     // A full company, on every kind (× 1.05 + 1), beside Sword and salve on combat and travel and
     // Shadow and spell (× 1.1) on arcane and stealth.
     expect(on([w1, rogue, mage, healer])).toEqual(
-      [32 * 1.05 + 1 + 2, 32 * 1.05 + 1 + 2, 32 * 1.05 + 1, 32 * 1.05 * 1.1 + 1, 32 * 1.05 * 1.1 + 1].map((value) => expect.closeTo(value, 10)),
+      [32 * 1.05 + 1 + 2, 32 * 1.05 + 1 + 2, 32 * 1.05 + 1, 32 * 1.05 * 1.1 + 1, 32 * 1.05 * 1.1 + 1, 32 * 1.05 + 1].map((value) =>
+        expect.closeTo(value, 10),
+      ),
     );
-    expect(encounterKinds.map((kind) => keysOf(synergiesOn(as(world, [w1, w2, w3]), { kind }, testContent)))).toEqual([['shield-wall'], [], [], [], []]);
+    expect(encounterKinds.map((kind) => keysOf(synergiesOn(as(world, [w1, w2, w3]), { kind }, testContent)))).toEqual([['shield-wall'], [], [], [], [], []]);
     expect(appliesOn({}, 'social')).toBe(true);
   });
 

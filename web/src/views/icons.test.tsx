@@ -24,6 +24,6 @@ test('every icon is an inline SVG in the one stroke style, hidden from assistive
 });
 
 test('the set holds the icons the epic names', () => {
-  const named = ['wealth', 'fame', 'morning', 'afternoon', 'night', 'combat', 'travel', 'stealth', 'arcane', 'social', 'morale', 'injury', 'build', 'history', 'menu', 'close'];
+  const named = ['wealth', 'fame', 'morning', 'afternoon', 'night', 'combat', 'travel', 'stealth', 'arcane', 'social', 'lore', 'morale', 'injury', 'build', 'history', 'menu', 'close'];
   expect(named.filter((name) => !(iconNames as readonly string[]).includes(name))).toEqual([]);
 });

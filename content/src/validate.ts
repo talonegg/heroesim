@@ -50,7 +50,7 @@ export const demandSumTolerance = 0.001;
 const facilities: Readonly<Record<FacilityKey, true>> = { infirmary: true, trainingYard: true, quarters: true };
 
 /** The kinds of Encounter a Synergy may name (`EncounterKind`): the compiler holds it to the union. */
-const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true };
+const encounterKinds: Readonly<Record<EncounterKind, true>> = { combat: true, travel: true, social: true, arcane: true, stealth: true, lore: true };
 
 /** The gear slots an Item may be made for (`SlotKey`, the engine's `gearSlotKeys`): the compiler holds it to the union. */
 const gearSlots: Readonly<Record<SlotKey, true>> = { weapon: true, armour: true, trinket: true };
@@ -150,7 +150,7 @@ export function validateContent(set: ContentSet): ContentSet {
     if (skillKey !== undefined && !skills.has(skillKey)) {
       problems.push(`${where}.requires.skillKey: "${skillKey}" is not a Skill`);
     }
-    checkEncounterDraw(where, template, set.encounters, problems);
+    checkEncounterDraw(where, template, set, problems);
     const { lootTableKey } = template;
     if (lootTableKey !== null && !Object.hasOwn(set.lootTables, lootTableKey)) {
       problems.push(`${where}.lootTableKey: "${lootTableKey}" is not a Loot table`);
@@ -831,38 +831,46 @@ function checkImprovements(improvements: ContentSet['improvements'], problems: s
 
 /**
  * What a Quest template's Encounter sequence is drawn by (M4-S1): at least one kind, none twice,
- * each with an Encounter in content to draw, and a count range from 1 that is not upside down.
+ * each with an Encounter in content to draw, and a count range from 1 that is not upside down. From
+ * v1.1.4-S8, an Encounter some template names as its Finale is never drawn, so a kind needs one that
+ * is no Finale; and a Finale, if the template names one, is an Encounter content defines, of any kind,
+ * since it is named rather than drawn (DL-160).
  */
-function checkEncounterDraw(
-  where: string,
-  template: ContentSet['questTemplates'][string],
-  encounters: ContentSet['encounters'],
-  problems: string[],
-): void {
+function checkEncounterDraw(where: string, template: ContentSet['questTemplates'][string], set: ContentSet, problems: string[]): void {
   if (template.encounterKinds.length === 0) problems.push(`${where}.encounterKinds is empty: a Quest is drawn with Encounters`);
   for (const kind of repeated(template.encounterKinds)) problems.push(`${where}.encounterKinds: "${kind}" is listed twice`);
+  const finales = new Set(Object.values(set.questTemplates).flatMap((it) => (it.finale === undefined ? [] : [it.finale])));
   for (const kind of new Set(template.encounterKinds)) {
-    if (!Object.values(encounters).some((encounter) => encounter.kind === kind)) {
-      problems.push(`${where}.encounterKinds: no Encounter is of kind "${kind}"`);
+    const ofKind = Object.values(set.encounters).filter((encounter) => encounter.kind === kind);
+    if (ofKind.length === 0) problems.push(`${where}.encounterKinds: no Encounter is of kind "${kind}"`);
+    else if (ofKind.every((encounter) => finales.has(encounter.key))) {
+      problems.push(`${where}.encounterKinds: every Encounter of kind "${kind}" is a Finale, which is never drawn`);
     }
   }
   checkRange(where, 'encounters', template.encountersMin, template.encountersMax, 1, problems);
+  const { finale } = template;
+  if (finale !== undefined && !Object.hasOwn(set.encounters, finale)) problems.push(`${where}.finale: "${finale}" is not an Encounter`);
 }
 
 /** How many Checks an Encounter has at most (v1.1.4-S2, DL-148 item 7). */
 export const encounterChecksMax = 4;
 
 /**
- * The Encounters (M4-S1): one to four Checks (v1.1.4-S1, v1.1.4-S2), each keyed in kebab-case once,
- * named, scored by a Num Query (`checkQuery`), helped by Skills that exist, and aimed at a target
- * above 0 (`checkTarget`); a pass formula naming every Check once (`checkPass`), which one Check may
- * leave out; and consequences by Degree, each within its kind's bounds, an Injury naming a type
- * content defines. The epic's first box: an unknown Stat, Skill or Injury type is refused. The old
- * form's demands are held as they load (`parseContent`).
+ * The Encounters (M4-S1): tags, if any, in kebab-case, none twice (v1.1.4-S8); one to four Checks
+ * (v1.1.4-S1, v1.1.4-S2), each keyed in kebab-case once, named, scored by a Num Query
+ * (`checkQuery`), helped by Skills that exist, and aimed at a target above 0 (`checkTarget`); a pass
+ * formula naming every Check once (`checkPass`), which one Check may leave out; and consequences by
+ * Degree, each within its kind's bounds, an Injury naming a type content defines. The epic's first
+ * box: an unknown Stat, Skill or Injury type is refused. The old form's demands are held as they
+ * load (`parseContent`).
  */
 function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): void {
   for (const [key, encounter] of Object.entries(set.encounters)) {
     const where = `encounters.${key}`;
+    for (const tag of encounter.tags ?? []) {
+      if (!kebabCase.test(tag)) problems.push(`${where}.tags: "${tag}" is not kebab-case`);
+    }
+    for (const tag of repeated(encounter.tags ?? [])) problems.push(`${where}.tags: "${tag}" is listed twice`);
     const { checks } = encounter;
     if (checks.length === 0) problems.push(`${where}.checks is empty: an Encounter is resolved by a Check`);
     if (checks.length > encounterChecksMax) {

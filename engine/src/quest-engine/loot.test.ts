@@ -118,6 +118,23 @@ describe('drawLoot', () => {
     }
   });
 
+  test("on a Quest with a Finale, awards only when the Finale ended a Triumph, its two draws taken whatever it did (v1.1.4-S8)", () => {
+    const deps = lootDeps({}, content);
+    const finales = ['none', 'triumph', 'success', 'setback', 'failure', 'unmet'] as const;
+    const awarded = finales.filter((finale) => {
+      const world = testWorld(`finale-${finale}`, deps);
+      const twin = structuredClone(streamOf(world, 'quests'));
+      const loot = drawLoot(world, { lootTableKey: 'whetstones' }, 'strong', deps, finale);
+      next(twin);
+      next(twin);
+      expect(streamOf(world, 'quests'), finale).toEqual(twin);
+      return loot !== null;
+    });
+    expect(awarded).toEqual(['none', 'triumph']);
+    // The band's rule still holds: a Finale's Triumph on a plain success awards nothing.
+    expect(drawLoot(testWorld('finale-success-band', deps), { lootTableKey: 'whetstones' }, 'success', deps, 'triumph')).toBeNull();
+  });
+
   test("draws entries in proportion to their weights, each quantity inside its entry's range", () => {
     const deps = lootDeps({}, withTables(testContent, table('three-to-one', ['whetstone', 3, 1, 3], ['lockpicks', 1, 2, 5])));
     const world = testWorld('weights', deps);

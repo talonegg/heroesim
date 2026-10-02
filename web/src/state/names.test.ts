@@ -21,6 +21,16 @@ describe('traitEffectWords', () => {
     );
   });
 
+  test('the lore kind (v1.1.4-S8) is worded as the others are, by its key, and a tag an Encounter carries as written', () => {
+    const effects: TraitEffect[] = [
+      { kind: 'encounterBonus', flat: 2, kinds: ['lore'] },
+      { kind: 'encounterBonus', flat: 1, kinds: ['arcane', 'lore'], tags: ['delve'] },
+    ];
+    expect(traitEffectWords(effects, content)).toBe(
+      '+2 to every Check of lore Encounters, +1 to every Check of arcane or lore Encounters or Encounters tagged delve',
+    );
+  });
+
   test('none is "No effect"', () => {
     expect(traitEffectWords([], content)).toBe('No effect');
   });

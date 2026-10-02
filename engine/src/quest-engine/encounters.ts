@@ -8,12 +8,19 @@
 // from `board` exactly as it did, and the sequence beside it from `encounters`. The sequence is
 // drawn when a Quest is generated and stored on its row as `encounterKeys`. A Quest generated
 // before M4 has none; it draws its sequence the same way when it resolves (`sequenceFor`).
+//
+// v1.1.4-S8 (DL-148 items 22 and 23): the Encounter of a kind is drawn by `weightedPick`, each weighted
+// `encounterTagWeight` to the power of the tags it shares with the template, still one draw, which at
+// every weight 1, no tags shared, is exactly what `pick` drew. A template may name a Finale, always the
+// last of its Encounters: the count is unchanged, and the places before it are drawn as before, so a
+// Quest with a Finale draws two fewer. An Encounter named as any template's Finale is never drawn into a
+// place, so writing one changes no other Quest's draws.
 
-import type { GameConfig } from '../config.js';
-import type { ContentSet, Encounter, EncounterKey, EncounterKind, QuestTemplate } from '../content-types.js';
+import { encounterTagWeightProblem, type GameConfig } from '../config.js';
+import type { ContentSet, Encounter, EncounterKey, EncounterKind, QuestTagKey, QuestTemplate } from '../content-types.js';
 import type { Quest, World } from '../document.js';
 import { clamp, sortedRows, streamOf, type Stream } from '../generators/draw.js';
-import { pick, type StreamName } from '../rng.js';
+import { pick, weightedPick, type StreamName } from '../rng.js';
 
 /** The stream every Encounter sequence is drawn from, and nothing else. */
 export const encounterStream: StreamName = 'encounters';
@@ -21,7 +28,7 @@ export const encounterStream: StreamName = 'encounters';
 /** What a template's sequence is drawn by. */
 export type SequenceTemplate = Pick<
   QuestTemplate,
-  'key' | 'difficultyMin' | 'difficultyMax' | 'encounterKinds' | 'encountersMin' | 'encountersMax'
+  'key' | 'difficultyMin' | 'difficultyMax' | 'encounterKinds' | 'encountersMin' | 'encountersMax' | 'tags' | 'finale'
 >;
 
 /**
@@ -43,27 +50,77 @@ export function encounterCount(
 }
 
 /**
- * The Encounters of each kind `template` names, in key order (DL-19 item 3), for `drawSequence`.
- * Throws when content has none of a kind, which content validation refuses, so that a caller can
- * find it before it draws anything.
+ * What a template's sequence is drawn from (v1.1.4-S8): the Encounters of each kind it names, in key
+ * order (DL-19 item 3), with no template's Finale among them; the template's tags, which weight the
+ * draw within a kind; and its own Finale, if any, met last.
  */
-export function encounterPools(template: SequenceTemplate, content: Pick<ContentSet, 'encounters'>): Encounter[][] {
-  if (template.encounterKinds.length === 0) throw new RangeError(`${template.key} names no Encounter kind`);
-  return template.encounterKinds.map((kind: EncounterKind) => {
-    const pool = sortedRows(content.encounters, (encounter) => encounter.kind === kind);
-    if (pool.length === 0) throw new RangeError(`No Encounter is of kind ${JSON.stringify(kind)}, which ${template.key} names`);
-    return pool;
-  });
+export interface SequencePlan {
+  pools: Encounter[][];
+  tags: readonly QuestTagKey[];
+  finale: EncounterKey | null;
 }
 
 /**
- * Draws `count` Encounters from `pools` (`encounterPools`): for each, a kind uniformly among the
- * template's kinds as listed, then an Encounter uniformly among that kind's. Two draws an
- * Encounter, from `state`.
+ * The Encounters a sequence is drawn from (`SequencePlan`) for `template`, for `drawSequence`.
+ * Throws when content has no Encounter of a kind but Finales, or does not define the template's
+ * Finale, which content validation refuses, so that a caller can find it before it draws anything.
  */
-export function drawSequence(state: Stream, pools: readonly (readonly Encounter[])[], count: number): EncounterKey[] {
+export function sequencePlan(template: SequenceTemplate, content: Pick<ContentSet, 'encounters' | 'questTemplates'>): SequencePlan {
+  if (template.encounterKinds.length === 0) throw new RangeError(`${template.key} names no Encounter kind`);
+  const finales = finaleKeys(content);
+  const pools = template.encounterKinds.map((kind: EncounterKind) => {
+    const pool = sortedRows(content.encounters, (encounter) => encounter.kind === kind && !finales.has(encounter.key));
+    if (pool.length === 0) {
+      throw new RangeError(`No Encounter that may be drawn, none a Finale, is of kind ${JSON.stringify(kind)}, which ${template.key} names`);
+    }
+    return pool;
+  });
+  const finale = template.finale ?? null;
+  if (finale !== null && !Object.hasOwn(content.encounters, finale)) {
+    throw new RangeError(`${template.key}'s Finale ${JSON.stringify(finale)} is no Encounter content defines`);
+  }
+  return { pools, tags: template.tags, finale };
+}
+
+/** The Encounters content's templates name as their Finales (v1.1.4-S8), which no place is drawn from. */
+export function finaleKeys(content: Pick<ContentSet, 'questTemplates'>): ReadonlySet<EncounterKey> {
+  return new Set(Object.values(content.questTemplates).flatMap((template) => (template.finale === undefined ? [] : [template.finale])));
+}
+
+/**
+ * How much likelier `encounter` is drawn within its kind for a template of `tags` (v1.1.4-S8):
+ * `encounterTagWeight` to the power of the tags it shares with them; 1 when it shares none.
+ */
+export function tagWeight(encounter: Pick<Encounter, 'tags'>, tags: readonly QuestTagKey[], config: Pick<GameConfig, 'encounterTagWeight'>): number {
+  const shared = (encounter.tags ?? []).filter((tag) => tags.includes(tag)).length;
+  return config.encounterTagWeight ** shared;
+}
+
+/**
+ * Draws `count` Encounters by `plan` (`sequencePlan`): for each place, a kind uniformly among the
+ * template's kinds as listed (`pick`), then an Encounter of that kind, each weighted by the tags it
+ * shares with the template (`tagWeight`, one `weightedPick`). Two draws a place, from `state`. With
+ * a Finale, the last place is the Finale, drawing nothing, and the `count - 1` before it are drawn.
+ * Throws, drawing nothing, under an unsound `encounterTagWeight` (`configProblems`).
+ */
+export function drawSequence(
+  state: Stream,
+  plan: SequencePlan,
+  count: number,
+  config: Pick<GameConfig, 'encounterTagWeight'>,
+): EncounterKey[] {
+  const problem = encounterTagWeightProblem(config.encounterTagWeight);
+  if (problem !== undefined) throw new RangeError(`The Encounter draw's configuration: ${problem}`);
+  const weights = plan.pools.map((pool) => pool.map((encounter) => tagWeight(encounter, plan.tags, config)));
+  // Each kind by its place in the template's list: `pick` over them draws as it drew over the pools.
+  const kinds = plan.pools.map((_, index) => index);
+  const drawn = plan.finale === null ? count : count - 1;
   const keys: EncounterKey[] = [];
-  for (let slot = 0; slot < count; slot += 1) keys.push(pick(state, pick(state, pools)).key);
+  for (let place = 0; place < drawn; place += 1) {
+    const kind = pick(state, kinds);
+    keys.push(weightedPick(state, plan.pools[kind] as Encounter[], weights[kind] as number[]).key);
+  }
+  if (plan.finale !== null) keys.push(plan.finale);
   return keys;
 }
 
@@ -105,6 +162,20 @@ export function sequenceFor(
     if (all.length === 0) throw new RangeError('Content defines no Encounter for a Quest to be resolved through');
     return [pick(state, all)];
   }
-  const keys = drawSequence(state, encounterPools(template, content), encounterCount(template, quest.difficulty, config));
+  const keys = drawSequence(state, sequencePlan(template, content), encounterCount(template, quest.difficulty, config), config);
   return keys.map((key) => content.encounters[key] as Encounter);
+}
+
+/**
+ * Whether `sequence`, a Quest's of the template `templateKey`, ends with that template's Finale
+ * (v1.1.4-S8): so the Quest has one, and Loot also needs it to end a Triumph (DL-148 item 23). False
+ * for a template content no longer defines, or names none (data-model rule 5). Draws nothing.
+ */
+export function endsWithFinale(
+  templateKey: Quest['templateKey'],
+  sequence: readonly Pick<Encounter, 'key'>[],
+  content: Pick<ContentSet, 'questTemplates'>,
+): boolean {
+  const finale = Object.hasOwn(content.questTemplates, templateKey) ? content.questTemplates[templateKey]?.finale : undefined;
+  return finale !== undefined && sequence.at(-1)?.key === finale;
 }

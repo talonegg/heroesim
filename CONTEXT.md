@@ -306,10 +306,12 @@ _Avoid_: Mission, Commission, Job, Contract, Task
 
 **Quest template**:
 A content row a Quest is drawn from: its Spheres, Stat demands, Skills, requirements, the ranges
-of its difficulty, duration and Party size, its reward and Fame effect, its tags and its Loot
-table. A Quest copies what it carries at generation, so a changed template never alters a Quest
-already offered (DL-25). No rule reads the tags; they are kept for Random Events' conditions
-(DL-82).
+of its difficulty, duration and Party size, its reward and Fame effect, its tags, its Loot
+table, its kinds of Encounter and any Finale. A Quest copies what it carries at generation, so a
+changed template never alters a Quest already offered (DL-25). Its tags weight the draw of its
+Encounters: within a kind, an Encounter is drawn `encounterTagWeight` times as often for each tag
+it shares with the template (DL-148 item 22, built in v1.1.4-S8, DL-160); they are kept too for
+Random Events' conditions (DL-82).
 _Avoid_: Quest type, Blueprint, Archetype
 
 **Stat demand**:
@@ -330,7 +332,11 @@ _Avoid_: Mission Engine, Combat system, Resolver
 One typed step of a Quest, resolved by its Checks with typed consequences. An Encounter has one
 to four Checks, combined by its pass formula (`and`, `or` and `at-least`, every Check named once)
 into its Degree, and its consequences may differ by Degree: a Triumph's are Success's unless it
-has its own, and a Setback's Failure's (DL-148 item 7, built in v1.1.4-S2, DL-152).
+has its own, and a Setback's Failure's (DL-148 item 7, built in v1.1.4-S2, DL-152). Each is of one
+kind, `combat`, `travel`, `social`, `arcane`, `stealth` or `lore` (for Intelligence and Knowledge:
+riddles, records and clues, from v1.1.4-S8), and may carry tags, as a Quest template does. The kind
+is data, written in lower case inside a sentence ("on lore Encounters"); `lore` names a kind of
+Encounter, never a Background.
 _Avoid_: Beat, Scene, Event
 
 **Check**:
@@ -390,9 +396,11 @@ protects (DL-148 item 14; built in v1.1.4-S4, DL-155).
 _Avoid_: Defence, Armour (for the whole), Resistance, Save
 
 **Finale**:
-A fixed last Encounter a Quest template names, met after the drawn ones. The four hardest
-templates have one, and on such a Quest Loot also needs the finale to end a Triumph (DL-148
-items 22 and 23; to be built, v1.1.4-S8).
+A fixed last Encounter a Quest template names, met after the drawn ones: the Quest's count of
+Encounters is unchanged, its last place the Finale. An Encounter named as a Finale is never drawn
+into a place. On such a Quest Loot also needs the Finale to end a Triumph. The four hardest
+templates are to have one (DL-148 items 22 and 23; built in v1.1.4-S8, DL-160, the four written in
+S10).
 _Avoid_: Boss, Climax, Final Encounter
 
 **Quest band**:

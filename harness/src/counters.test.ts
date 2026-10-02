@@ -447,8 +447,8 @@ describe("M4's counters, from the History", () => {
 
     const none = { success: 0, failure: 0, injured: 0, died: 0 };
     expect(encounters).toEqual({
-      player: { combat: { success: 1, failure: 1, injured: 3, died: 1 }, travel: none, social: { ...none, success: 1 }, arcane: none, stealth: none },
-      rival: { combat: { ...none, failure: 1 }, travel: none, social: none, arcane: none, stealth: { ...none, success: 1 } },
+      player: { combat: { success: 1, failure: 1, injured: 3, died: 1 }, travel: none, social: { ...none, success: 1 }, arcane: none, stealth: none, lore: none },
+      rival: { combat: { ...none, failure: 1 }, travel: none, social: none, arcane: none, stealth: { ...none, success: 1 }, lore: none },
     });
   });
 

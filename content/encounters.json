@@ -2,6 +2,7 @@
   "ambush-on-the-road": {
     "name": "Ambush on the road",
     "kind": "combat",
+    "tags": ["escort"],
     "demands": [["weaponry", 0.4], ["strength", 0.3], ["courage", 0.3]],
     "aggregate": "sum",
     "skillKeys": ["swordcraft", "tactics"],
@@ -17,6 +18,7 @@
   "the-restless-dead": {
     "name": "The restless dead",
     "kind": "combat",
+    "tags": ["dark"],
     "demands": [["spirit", 0.4], ["courage", 0.3], ["weaponry", 0.3]],
     "aggregate": "sum",
     "skillKeys": ["benediction", "swordcraft"],
@@ -33,6 +35,7 @@
   "hold-the-line": {
     "name": "Hold the line",
     "kind": "combat",
+    "tags": ["guard"],
     "demands": [["strength", 0.3], ["constitution", 0.3], ["endurance", 0.2], ["leadership", 0.2]],
     "aggregate": "sum",
     "skillKeys": ["shieldwork", "tactics"],
@@ -49,6 +52,7 @@
   "the-long-march": {
     "name": "The long march",
     "kind": "travel",
+    "tags": ["escort", "guard"],
     "demands": [["endurance", 0.5], ["constitution", 0.3], ["willpower", 0.2]],
     "aggregate": "sum",
     "skillKeys": ["field-surgery", "herbalism"],
@@ -64,6 +68,7 @@
   "the-flooded-ford": {
     "name": "The flooded ford",
     "kind": "travel",
+    "tags": ["water"],
     "demands": [["strength", 0.3], ["perception", 0.3], ["adaptability", 0.4]],
     "aggregate": "best",
     "skillKeys": ["tactics"],
@@ -79,6 +84,7 @@
   "lost-in-the-fells": {
     "name": "Lost in the fells",
     "kind": "travel",
+    "tags": ["wilds", "hunt"],
     "demands": [["perception", 0.4], ["wits", 0.3], ["knowledge", 0.3]],
     "aggregate": "best",
     "skillKeys": ["herbalism", "stealth"],
@@ -95,6 +101,7 @@
   "a-hostile-reeve": {
     "name": "A hostile reeve",
     "kind": "social",
+    "tags": ["town"],
     "demands": [["diplomacy", 0.4], ["charisma", 0.3], ["wits", 0.3]],
     "aggregate": "best",
     "skillKeys": ["benediction"],
@@ -110,6 +117,7 @@
   "the-patrons-steward": {
     "name": "The Patron's steward",
     "kind": "social",
+    "tags": ["talk"],
     "demands": [["leadership", 0.3], ["diplomacy", 0.3], ["charisma", 0.2], ["adaptability", 0.2]],
     "aggregate": "best",
     "skillKeys": [],
@@ -123,6 +131,7 @@
   "the-sealed-door": {
     "name": "The sealed door",
     "kind": "arcane",
+    "tags": ["delve"],
     "demands": [["arcana", 0.4], ["spelllore", 0.4], ["intelligence", 0.2]],
     "aggregate": "best",
     "skillKeys": ["runecraft", "warding"],
@@ -135,6 +144,7 @@
   "a-restless-power": {
     "name": "A restless power",
     "kind": "arcane",
+    "tags": ["dark"],
     "demands": [["power", 0.3], ["resistance", 0.4], ["willpower", 0.3]],
     "aggregate": "sum",
     "skillKeys": ["warding", "evocation"],
@@ -151,6 +161,7 @@
   "past-the-watch": {
     "name": "Past the watch",
     "kind": "stealth",
+    "tags": ["town"],
     "demands": [["dexterity", 0.4], ["wits", 0.3], ["perception", 0.3]],
     "aggregate": "best",
     "skillKeys": ["stealth", "lockpicking"],
@@ -166,6 +177,7 @@
   "the-trapped-passage": {
     "name": "The trapped passage",
     "kind": "stealth",
+    "tags": ["delve"],
     "demands": [["dexterity", 0.3], ["perception", 0.4], ["wits", 0.3]],
     "aggregate": "best",
     "skillKeys": ["trapcraft", "lockpicking"],
