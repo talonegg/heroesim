@@ -437,7 +437,7 @@ describe('show', () => {
     for (const id of world.board) {
       const quest = world.quests[id];
       if (quest === undefined) throw new Error(`No Quest ${id}`);
-      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.skillKeys ?? []))];
+      const keys = [...new Set(quest.encounterKeys.flatMap((key) => content.encounters[key]?.checks.flatMap((it) => it.skills) ?? []))];
       const skills = keys.length === 0 ? 'None' : keys.map((key) => content.skills[key]?.name).join(', ');
       const kinds = quest.encounterKeys.map((key) => content.encounters[key]?.kind).join(', ');
       const line = run.out.split('\n').find((it) => it.startsWith(id) && it.endsWith(kinds));

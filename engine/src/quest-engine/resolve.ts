@@ -36,6 +36,7 @@ import { check, type CheckDeps, type EncounterOutcome } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { sequenceFor } from './encounters.js';
 import { drawLoot, type LootDraw } from './loot.js';
+import { queryParty } from './query.js';
 import { synergiesOn } from './synergy.js';
 
 /** An Injury the outcome inflicts: its type and the Days it takes to heal, the infirmary applied. */
@@ -144,8 +145,8 @@ interface Working {
  * shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
- * difficulty that is not above 0, an Injury type content lacks, or a world without the `quests`
- * stream.
+ * difficulty that is not above 0, an Encounter with no Check, an Injury type content lacks, or a world
+ * without the `quests` stream.
  */
 export function resolveQuest(world: World, quest: Quest, party: Party, deps: CheckDeps): Resolution {
   const { config } = deps;
@@ -170,13 +171,19 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const synergyKeys = new Set<SynergyKey>();
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
+    // v1.1.4-S1: the members as the Queries read them on this Encounter, their effective Stats read once.
+    const hurt = new Set(working.injuries.map((injury) => injury.heroId));
+    const party = queryParty(working.alive, world, deps, hurt);
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
-    for (const synergy of synergiesOn(working.alive, encounter, deps.content)) synergyKeys.add(synergy.key);
+    for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);
+    // One Check an Encounter until v1.1.4-S2.
+    const [encounterCheck] = encounter.checks;
+    if (encounterCheck === undefined) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
     // M5-S3: a bonus the Party carries adds to the Check; a reroll it carries rolls a failure again, once.
     const bonus = kit.bonus(encounter.kind, index);
-    let result = check(working.alive, encounter, quest, world, deps, bonus);
+    let result = check(party, encounter, encounterCheck, quest, world, deps, bonus);
     if (result.outcome === 'failure' && kit.reroll(encounter.kind, index, result.roll)) {
-      result = check(working.alive, encounter, quest, world, deps, bonus);
+      result = check(party, encounter, encounterCheck, quest, world, deps, bonus);
     }
     const harm: Harm = { injured: [], died: [] };
     for (const consequence of encounter.consequences[result.outcome]) {

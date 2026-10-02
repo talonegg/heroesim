@@ -254,13 +254,18 @@ export {
   type Resolution,
 } from './quest-engine/resolve.js';
 export {
-  appliesOn,
-  meetsRequirement,
-  synergiesFor,
-  synergiesOn,
-  synergyBonus,
-  type SynergyMember,
-} from './quest-engine/synergy.js';
+  evaluate,
+  heroOf,
+  holds,
+  is,
+  membersOf,
+  queryParty,
+  valueOf,
+  type QueryContent,
+  type QueryMember,
+  type QueryParty,
+} from './quest-engine/query.js';
+export { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './quest-engine/synergy.js';
 export * from './selectors.js';
 export * from './serialise.js';
 export * from './stops.js';

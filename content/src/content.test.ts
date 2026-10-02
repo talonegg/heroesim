@@ -13,9 +13,9 @@ describe('loadContent()', () => {
   const heroStats = stats.filter((stat) => stat.owner === 'hero');
   const guildmasterStats = stats.filter((stat) => stat.owner === 'guildmaster');
 
-  test("is the core content set, version 17 since v1.1.3-S1's pictures' rows, vocabulary and a Hero's sentences (DL-134, DL-135)", () => {
+  test("is the core content set, version 21 since v1.1.4-S1's Checks and Synergy requirements as Queries (DL-151)", () => {
     expect(content.id).toBe('core');
-    expect(content.version).toBe(20);
+    expect(content.version).toBe(21);
   });
 
   test("gives each Patron's name its sex, in the order the names had: 16 male and 14 female, Jocelyn female (DL-125 item 5)", () => {
@@ -488,6 +488,11 @@ describe('loadContent()', () => {
   // M4-S1's third box.
   describe('Encounters (M4-S1)', () => {
     const encounters = Object.values(content.encounters);
+    /** Each Encounter as `encounters.json` writes it: the old form (v1.1.4-S1 loads it into one Check). */
+    const written = JSON.parse(readFileSync(join(contentDir, 'encounters.json'), 'utf8')) as Record<
+      string,
+      { demands: [string, number][]; aggregate: string; skillKeys: string[]; difficultyFactor: number }
+    >;
     // The engine's union, written out: content imports only types from the engine (ADR-0006).
     const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'] as const satisfies readonly EncounterKind[];
 
@@ -500,11 +505,12 @@ describe('loadContent()', () => {
 
     test('each weigh demands on Hero Stats summing to 1, name Skills from skills.json, and harm only on a failure', () => {
       for (const it of encounters) {
-        const sum = it.demands.reduce((total, [, weight]) => total + weight, 0);
+        const { demands, skillKeys, difficultyFactor } = written[it.key] ?? expect.fail(it.key);
+        const sum = demands.reduce((total, [, weight]) => total + weight, 0);
         expect(sum, it.key).toBeCloseTo(1, 6);
-        for (const [statKey] of it.demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
-        for (const skillKey of it.skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
-        expect(it.difficultyFactor, it.key).toBeGreaterThan(0);
+        for (const [statKey] of demands) expect(content.stats[statKey]?.owner, it.key).toBe('hero');
+        for (const skillKey of skillKeys) expect(content.skills[skillKey], it.key).toBeDefined();
+        expect(difficultyFactor, it.key).toBeGreaterThan(0);
         const harm = it.consequences.success.filter((consequence) => consequence.kind === 'injury' || consequence.kind === 'death');
         expect(harm, it.key).toEqual([]);
         for (const consequence of it.consequences.failure) {
@@ -513,8 +519,27 @@ describe('loadContent()', () => {
       }
     });
 
+    // v1.1.4-S1: the old form loads into one Check, keyed and named as its Encounter, whose score is
+    // the weighted aggregate of each demand over the Party in the order written (DL-151).
+    test('each load into one Check, its score the weighted aggregates of its demands in order', () => {
+      for (const it of encounters) {
+        const { demands, aggregate, skillKeys, difficultyFactor } = written[it.key] ?? expect.fail(it.key);
+        const read = aggregate === 'best' ? 'max' : 'sum';
+
+        expect(it.checks, it.key).toEqual([
+          {
+            key: it.key,
+            name: it.name,
+            score: ['+', ...demands.map(([statKey, weight]) => ['*', weight, [read, 'party', ['stat', statKey]]])],
+            skills: skillKeys,
+            difficultyFactor,
+          },
+        ]);
+      }
+    });
+
     test('use both aggregates and every kind of consequence', () => {
-      expect(new Set(encounters.map((it) => it.aggregate))).toEqual(new Set(['best', 'sum']));
+      expect(new Set(Object.values(written).map((it) => it.aggregate))).toEqual(new Set(['best', 'sum']));
       const used = new Set(
         encounters.flatMap((it) => [...it.consequences.success, ...it.consequences.failure].map((consequence) => consequence.kind)),
       );
@@ -525,22 +550,40 @@ describe('loadContent()', () => {
   // INPUTS 6.4: six starter Synergies, among them Warrior + Healer, Rogue + Mage and three Warriors.
   describe('Synergies (M4-S3)', () => {
     const synergies = Object.values(content.synergies);
+    /** Each Synergy's requirement as `synergies.json` writes it: the old form (v1.1.4-S1 loads it into Queries). */
+    const written = JSON.parse(readFileSync(join(contentDir, 'synergies.json'), 'utf8')) as Record<
+      string,
+      { requires: { classes?: Record<string, number>; skills?: string[] } }
+    >;
+    const requirements = Object.values(written).map((it) => it.requires);
 
     test('are six, among them Warrior + Healer, Rogue + Mage and three Warriors (INPUTS 6.4)', () => {
       expect(synergies).toHaveLength(6);
-      const byClasses = synergies.map((it) => it.requires.classes);
+      const byClasses = requirements.map((it) => it.classes);
       expect(byClasses).toContainEqual({ warrior: 1, healer: 1 });
       expect(byClasses).toContainEqual({ rogue: 1, mage: 1 });
       expect(byClasses).toContainEqual({ warrior: 3 });
       for (const it of synergies) expect(it.name.length, it.key).toBeGreaterThan(0);
     });
 
-    test('require Classes or Skills content has, add a flat or a factor, some on named kinds and some on every kind', () => {
+    // v1.1.4-S1: the old form loads into conditions on the Party, a count of each Class, then each Skill held.
+    test('each load its requirement into conditions on the Party: a count of each Class, then each Skill held', () => {
       for (const it of synergies) {
-        for (const classKey of Object.keys(it.requires.classes ?? {})) expect(content.classes[classKey], it.key).toBeDefined();
-        for (const skillKey of it.requires.skills ?? []) expect(content.skills[skillKey], it.key).toBeDefined();
+        const { classes = {}, skills = [] } = written[it.key]?.requires ?? expect.fail(it.key);
+
+        expect(it.requires, it.key).toEqual([
+          ...Object.entries(classes).map(([classKey, count]) => ['>=', ['count', ['where', 'party', ['class', classKey]]], count]),
+          ...skills.map((skillKey) => ['>=', ['max', 'party', ['skill', skillKey]], 1]),
+        ]);
       }
-      expect(synergies.some((it) => (it.requires.skills ?? []).length > 0)).toBe(true);
+    });
+
+    test('require Classes or Skills content has, add a flat or a factor, some on named kinds and some on every kind', () => {
+      for (const it of requirements) {
+        for (const classKey of Object.keys(it.classes ?? {})) expect(content.classes[classKey]).toBeDefined();
+        for (const skillKey of it.skills ?? []) expect(content.skills[skillKey]).toBeDefined();
+      }
+      expect(requirements.some((it) => (it.skills ?? []).length > 0)).toBe(true);
       expect(synergies.some((it) => it.bonus.flat !== undefined)).toBe(true);
       expect(synergies.some((it) => it.bonus.factor !== undefined)).toBe(true);
       expect(synergies.some((it) => it.kinds === undefined)).toBe(true);

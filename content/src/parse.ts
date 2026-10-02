@@ -20,6 +20,7 @@ import type {
   Disposition,
   Encounter,
   EncounterAggregate,
+  EncounterCheck,
   EncounterKind,
   FacilityKey,
   Feature,
@@ -32,6 +33,8 @@ import type {
   LootEntry,
   LootTable,
   Names,
+  NumQuery,
+  PartyCondition,
   PatronName,
   PortraitAppearance,
   PortraitAppearances,
@@ -55,7 +58,7 @@ import type {
   TraitOwner,
 } from '@heroesim/engine';
 import { findDuplicateKeys } from './duplicate-keys.js';
-import { ContentError, validateContent } from './validate.js';
+import { checkDemands, checkReferences, ContentError, validateContent } from './validate.js';
 
 /** The content set this package holds, as `meta.content` records it. */
 export const contentSetId = 'core';
@@ -84,8 +87,10 @@ export const contentSetId = 'core';
  * 18 from the portrait tool's intake 2026-10-01 (`docs/portraits/intake/2026-10-01.md`).
  * 19 from the portrait tool's apply of analysis run 2026-10-01 (`docs/portraits/analysis/2026-10-01.md`).
  * 20 from the portrait tool's apply of analysis run 2026-10-02 (`docs/portraits/analysis/2026-10-02.md`).
+ * 21 from v1.1.4-S1, which loads each Encounter into a list of Checks scored by Queries and each Synergy's
+ * requirements into Queries over the Party (DL-151); the files keep their old form, and nothing is re-authored.
  */
-export const contentVersion = 20;
+export const contentVersion = 21;
 
 /** The files of a content set, named as they sit in the content directory. */
 export const contentFiles = [
@@ -148,26 +153,37 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
   const problems: string[] = [];
   const json = (file: ContentFileName): unknown => readJson(file, files[file], problems);
 
+  const stats = table<Stat>('stats.json', json('stats.json'), problems, 'a Stat', (row) => ({
+    name: row.string('name'),
+    area: row.oneOf('area', statAreas),
+    min: row.integer('min'),
+    max: row.integer('max'),
+    default: row.integer('default'),
+    owner: row.oneOf('owner', statOwners),
+  }));
+  const classes = table<Class>('classes.json', json('classes.json'), problems, 'a Class', (row) => ({
+    name: row.string('name'),
+    leadingStats: row.strings('leadingStats'),
+    gatedSkills: row.strings('gatedSkills'),
+    growth: row.numbers('growth'),
+  }));
+  const skills = table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
+    name: row.string('name'),
+  }));
+  // What the old forms of an Encounter and a Synergy name is checked as they load (v1.1.4-S1), in the
+  // words of the form the author wrote; a Query's keys are `validateContent`'s.
+  const known: OldFormKeys = {
+    heroStats: new Set(Object.values(stats).flatMap((stat) => (stat.owner === 'hero' ? [stat.key] : []))),
+    classes: new Set(Object.keys(classes)),
+    skills: new Set(Object.keys(skills)),
+  };
+
   const set: ContentSet = {
     id: contentSetId,
     version: contentVersion,
-    stats: table<Stat>('stats.json', json('stats.json'), problems, 'a Stat', (row) => ({
-      name: row.string('name'),
-      area: row.oneOf('area', statAreas),
-      min: row.integer('min'),
-      max: row.integer('max'),
-      default: row.integer('default'),
-      owner: row.oneOf('owner', statOwners),
-    })),
-    classes: table<Class>('classes.json', json('classes.json'), problems, 'a Class', (row) => ({
-      name: row.string('name'),
-      leadingStats: row.strings('leadingStats'),
-      gatedSkills: row.strings('gatedSkills'),
-      growth: row.numbers('growth'),
-    })),
-    skills: table<Skill>('skills.json', json('skills.json'), problems, 'a Skill', (row) => ({
-      name: row.string('name'),
-    })),
+    stats,
+    classes,
+    skills,
     traits: table<Trait>('traits.json', json('traits.json'), problems, 'a Trait', (row) => ({
       name: row.string('name'),
       owner: row.oneOf('owner', traitOwners),
@@ -243,19 +259,19 @@ export function parseContent(files: Readonly<Record<string, string>>): ContentSe
         cost: row.integer('cost'),
       }),
     ),
-    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row) => ({
-      name: row.string('name'),
-      kind: row.oneOf('kind', encounterKinds),
-      demands: row.weightedKeys('demands'),
-      aggregate: row.oneOf('aggregate', aggregates),
-      skillKeys: row.strings('skillKeys'),
-      difficultyFactor: row.number('difficultyFactor'),
-      consequences: outcomes(row.child('consequences')),
-    })),
+    encounters: table<Encounter>('encounters.json', json('encounters.json'), problems, 'an Encounter', (row, key) => {
+      const name = row.string('name');
+      return {
+        name,
+        kind: row.oneOf('kind', encounterKinds),
+        checks: [oldFormCheck(row, key, name, known)],
+        consequences: outcomes(row.child('consequences')),
+      };
+    }),
     synergies: table<Synergy>('synergies.json', json('synergies.json'), problems, 'a Synergy', (row) => {
       const shape = {
         name: row.string('name'),
-        requires: synergyRequires(row.child('requires')),
+        requires: synergyRequires(row, known),
         bonus: synergyBonus(row.child('bonus')),
       };
       const kinds = row.optional('kinds', (field) => row.oneOfEach(field, encounterKinds));
@@ -308,7 +324,7 @@ function table<Row extends { key: string }>(
   json: unknown,
   problems: string[],
   what: string,
-  shape: (row: RowReader) => Omit<Row, 'key'>,
+  shape: (row: RowReader, key: string) => Omit<Row, 'key'>,
 ): Record<string, Row> {
   const rows: Record<string, Row> = {};
   if (json === undefined) return rows;
@@ -322,7 +338,7 @@ function table<Row extends { key: string }>(
       continue;
     }
     const row = new RowReader(file, [key], raw, problems);
-    rows[key] = { key, ...shape(row) } as Row;
+    rows[key] = { key, ...shape(row, key) } as Row;
     row.refuseUnknown(what);
   }
   return rows;
@@ -651,15 +667,61 @@ function requires(reader: RowReader): QuestTemplateRequires {
   return { ...(classKey === undefined ? {} : { classKey }), ...(skillKey === undefined ? {} : { skillKey }) };
 }
 
+/** The keys an old form may name, as content defines them (v1.1.4-S1). */
+interface OldFormKeys {
+  heroStats: ReadonlySet<string>;
+  classes: ReadonlySet<string>;
+  skills: ReadonlySet<string>;
+}
+
 /**
- * What a Synergy requires (M4-S3): a count for each Class it names, the Skills it names, either or
- * both, and nothing else. What they must name, and that they name something, is `validateContent`'s.
+ * The one Check an Encounter in the old form loads into (v1.1.4-S1, DL-151): keyed and named as its
+ * Encounter, its score `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of its
+ * `demands`, `best` reading as `max`, its Skills its `skillKeys` and its `difficultyFactor` its own, so
+ * that every Check scores what it did to the last bit. The demands are held here as a Quest
+ * template's are, each a Hero Stat once with a weight above 0, the weights summing to 1, and each
+ * Skill one content defines, once; the Check itself is `validateContent`'s.
  */
-function synergyRequires(reader: RowReader): SynergyRequires {
-  const classes = reader.optional('classes', (field) => reader.numbers(field));
-  const skills = reader.optional('skills', (field) => reader.strings(field));
+function oldFormCheck(row: RowReader, key: string, name: string, known: OldFormKeys): EncounterCheck {
+  const demands = row.weightedKeys('demands');
+  const aggregate = row.oneOf('aggregate', aggregates);
+  const skillKeys = row.strings('skillKeys');
+  checkDemands(row.where('demands'), demands, known.heroStats, row.problems);
+  checkReferences(row.where('skillKeys'), skillKeys, known.skills, 'a Skill', row.problems);
+  const read = aggregate === 'best' ? 'max' : 'sum';
+  const terms = demands.map(([statKey, weight]): NumQuery => ['*', weight, [read, 'party', ['stat', statKey]]]);
+  return { key, name, score: ['+', ...terms], skills: skillKeys, difficultyFactor: row.number('difficultyFactor') };
+}
+
+/**
+ * What a Synergy requires (M4-S3; v1.1.4-S1, DL-148 item 20): a list of Party-level conditions,
+ * each a Num compared with another, read as written and held by `validateContent`; or the old form,
+ * a count for each Class it names and the Skills it names, either or both and nothing else, which
+ * loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each Class, then
+ * `[">=", ["max", "party", ["skill", k]], 1]` for each Skill. The old form is held here: every Class
+ * and Skill one content defines, a count a whole number from 1, no Skill twice, and something named.
+ */
+function synergyRequires(row: RowReader, known: OldFormKeys): SynergyRequires {
+  if (Array.isArray(row.value('requires'))) return row.value('requires') as PartyCondition[];
+  const reader = row.child('requires');
+  const classes = reader.optional('classes', (field) => reader.numbers(field)) ?? {};
+  const skills = reader.optional('skills', (field) => reader.strings(field)) ?? [];
   reader.refuseUnknown('what a Synergy requires');
-  return { ...(classes === undefined ? {} : { classes }), ...(skills === undefined ? {} : { skills }) };
+  const counts = Object.entries(classes);
+  if (counts.length === 0 && skills.length === 0) {
+    row.problems.push(`${row.where('requires')} names no Class and no Skill: a Synergy is for a combination of them`);
+  }
+  checkReferences(reader.where('classes'), Object.keys(classes), known.classes, 'a Class', row.problems);
+  for (const [classKey, count] of counts) {
+    if (!(Number.isInteger(count) && count >= 1)) {
+      row.problems.push(`${reader.where('classes')}.${classKey} is ${count}; a count is a whole number from 1`);
+    }
+  }
+  checkReferences(reader.where('skills'), skills, known.skills, 'a Skill', row.problems);
+  return [
+    ...counts.map(([classKey, count]): PartyCondition => ['>=', ['count', ['where', 'party', ['class', classKey]]], count]),
+    ...skills.map((skillKey): PartyCondition => ['>=', ['max', 'party', ['skill', skillKey]], 1]),
+  ];
 }
 
 /** A Synergy's bonus (M4-S3): a `flat`, a `factor`, either or both, and nothing else. */
@@ -715,8 +777,19 @@ class RowReader {
     private readonly file: ContentFileName,
     private readonly prefix: readonly string[],
     private readonly raw: Record<string, unknown>,
-    private readonly problems: string[],
+    /** Where the problems found are recorded: a caller may record one of its own, with `where`. */
+    readonly problems: string[],
   ) {}
+
+  /** `field`'s value as it stands, of any type, then counted as read: for a value checked elsewhere. */
+  value(field: string): unknown {
+    return this.field(field);
+  }
+
+  /** Where `field` is, as a problem names it: `file: key.field`. */
+  where(field: string): string {
+    return this.path(field);
+  }
 
   string(field: string): string {
     const value = this.field(field);

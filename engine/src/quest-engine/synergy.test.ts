@@ -9,15 +9,27 @@ import { makeId, type Guild, type Hero, type Party, type Quest, type World, type
 import type { EngineEvent, EngineEventOf, TurnEvent } from '../events.js';
 import { generateHero } from '../generators/heroes.js';
 import { playerGuild } from '../selectors.js';
-import { harmlessContent, heroStatKeys, testContent, testDeps, testWorld, withValid } from '../world.test-support.js';
-import { capability, check } from './check.js';
+import {
+  encounterCapability as capability,
+  encounterCheck as check,
+  harmlessContent,
+  heroStatKeys,
+  oldFormCheck,
+  oldFormRequires,
+  testContent,
+  testDeps,
+  testWorld,
+  withValid,
+} from '../world.test-support.js';
+import { queryParty } from './query.js';
 import { resolveQuest } from './resolve.js';
 import { appliesOn, meetsRequirement, synergiesFor, synergiesOn, synergyBonus } from './synergy.js';
 
 // M4-S3: Synergies (R26, INPUTS 6.4, DL-45), matched on the Party's Classes and Skills and added to
-// the Check on the Encounter kinds each names. The test content carries the core's six; a test that
-// needs others writes them. The config values a Check relies on are pinned, and every document the
-// engine makes here is asserted valid.
+// the Check on the Encounter kinds each names. The test content carries the core's six, in the old
+// form loaded into Queries as content's parser loads it (v1.1.4-S1); a test that needs others writes
+// them. The config values a Check relies on are pinned, and every document the engine makes here is
+// asserted valid.
 
 const pinned = { rivalCount: 0, checkVariance: 0, skillBonusPerRating: 2, bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 } };
 const deps = testDeps(pinned);
@@ -36,54 +48,77 @@ function partyOf(seed: string, ...classKeys: string[]): { world: World; heroes: 
   return { world, heroes };
 }
 
-/** An Encounter of `kind` on Strength alone, summed, with no Skill: a Party of 8s has a base of 8 a member. */
-function encounterOf(kind: EncounterKind, fields: Partial<Encounter> = {}): Encounter {
+/** An Encounter of `kind` on Strength alone, summed, with `skillKeys`: a Party of 8s has a base of 8 a member. */
+function encounterOf(kind: EncounterKind, skillKeys: string[] = []): Encounter {
   return {
     key: `test-${kind}`,
     name: `Test ${kind}`,
     kind,
-    demands: [['strength', 1]],
-    aggregate: 'sum',
-    skillKeys: [],
-    difficultyFactor: 1,
+    checks: [oldFormCheck(`test-${kind}`, `Test ${kind}`, 'sum', [['strength', 1]], skillKeys, 1)],
     consequences: { success: [], failure: [] },
-    ...fields,
   };
 }
+
+/** `heroes` of `world` as the Queries read them. */
+const as = (world: World, heroes: readonly Hero[]) => queryParty(heroes, world, deps);
 
 const keysOf = (synergies: readonly Synergy[]): string[] => synergies.map((synergy) => synergy.key);
 
 describe('synergiesFor', () => {
   test("a Party matching a Synergy's Classes has it, and one member short has none of it", () => {
-    const { heroes } = partyOf('classes', 'warrior', 'warrior', 'warrior', 'warrior', 'healer', 'rogue');
+    const { world, heroes } = partyOf('classes', 'warrior', 'warrior', 'warrior', 'warrior', 'healer', 'rogue');
     const [w1, w2, w3, w4, healer, rogue] = heroes as [Hero, Hero, Hero, Hero, Hero, Hero];
 
-    expect(keysOf(synergiesFor([w1, healer], testContent))).toEqual(['sword-and-salve']);
-    expect(keysOf(synergiesFor([w1, rogue], testContent))).toEqual([]);
-    expect(keysOf(synergiesFor([w1, w2, w3], testContent))).toEqual(['shield-wall']);
-    expect(keysOf(synergiesFor([w1, w2], testContent))).toEqual([]);
+    expect(keysOf(synergiesFor(as(world, [w1, healer]), testContent))).toEqual(['sword-and-salve']);
+    expect(keysOf(synergiesFor(as(world, [w1, rogue]), testContent))).toEqual([]);
+    expect(keysOf(synergiesFor(as(world, [w1, w2, w3]), testContent))).toEqual(['shield-wall']);
+    expect(keysOf(synergiesFor(as(world, [w1, w2]), testContent))).toEqual([]);
     // At least the count: a fourth Warrior keeps it.
-    expect(keysOf(synergiesFor([w1, w2, w3, w4], testContent))).toEqual(['shield-wall']);
+    expect(keysOf(synergiesFor(as(world, [w1, w2, w3, w4]), testContent))).toEqual(['shield-wall']);
   });
 
   test("a Party holding a Synergy's Skills has it, held by any members at any rating, and missing one has none of it", () => {
-    const { heroes } = partyOf('skills', 'mage', 'healer', 'warrior');
+    const { world, heroes } = partyOf('skills', 'mage', 'healer', 'warrior');
     const [mage, healer, warrior] = heroes as [Hero, Hero, Hero];
     mage.skills = { warding: 1 };
     healer.skills = { benediction: 4 };
+    const both = oldFormRequires({ skills: ['warding', 'benediction'] });
 
-    expect(keysOf(synergiesFor([mage, healer], testContent))).toEqual(['wards-and-blessings']);
-    expect(keysOf(synergiesFor([mage, warrior], testContent))).toEqual([]);
-    expect(meetsRequirement([mage], { skills: ['warding', 'benediction'] })).toBe(false);
+    expect(keysOf(synergiesFor(as(world, [mage, healer]), testContent))).toEqual(['wards-and-blessings']);
+    expect(keysOf(synergiesFor(as(world, [mage, warrior]), testContent))).toEqual([]);
+    expect(meetsRequirement(as(world, [mage]), both)).toBe(false);
     mage.skills['benediction'] = 2;
-    expect(meetsRequirement([mage], { skills: ['warding', 'benediction'] })).toBe(true);
+    expect(meetsRequirement(as(world, [mage]), both)).toBe(true);
   });
 
   test('lists every Synergy a Party meets in key order, whatever Encounter it meets', () => {
-    const { heroes } = partyOf('many', 'warrior', 'warrior', 'warrior', 'rogue', 'mage', 'healer');
+    const { world, heroes } = partyOf('many', 'warrior', 'warrior', 'warrior', 'rogue', 'mage', 'healer');
 
-    expect(keysOf(synergiesFor(heroes, testContent))).toEqual(['a-full-company', 'shadow-and-spell', 'shield-wall', 'sword-and-salve']);
-    expect(synergiesFor(heroes, { synergies: {} })).toEqual([]);
+    expect(keysOf(synergiesFor(as(world, heroes), testContent))).toEqual(['a-full-company', 'shadow-and-spell', 'shield-wall', 'sword-and-salve']);
+    expect(synergiesFor(as(world, heroes), { synergies: {} })).toEqual([]);
+  });
+
+  // v1.1.4-S1: a requirement written as a Query reads what the old form could not, every condition holding.
+  test('a requirement written as Queries holds only when every condition does: here a Warrior of Strength 12 or more, and two Heroes at least', () => {
+    const { world, heroes } = partyOf('queries', 'warrior', 'mage');
+    const [warrior, mage] = heroes as [Hero, Hero];
+    const strongWarrior: Synergy = {
+      key: 'strong-arm',
+      name: 'Strong arm',
+      requires: [
+        ['>=', ['of', ['best', ['where', 'party', ['class', 'warrior']], ['stat', 'strength']], ['stat', 'strength']], 12],
+        ['>=', ['count', 'party'], 2],
+      ],
+      bonus: { flat: 1 },
+    };
+    const content = { synergies: { 'strong-arm': strongWarrior } };
+
+    expect(keysOf(synergiesFor(as(world, [warrior, mage]), content))).toEqual([]);
+    warrior.stats['strength'] = 12;
+    expect(keysOf(synergiesFor(as(world, [warrior, mage]), content))).toEqual(['strong-arm']);
+    expect(keysOf(synergiesFor(as(world, [warrior]), content))).toEqual([]);
+    mage.stats['strength'] = 20;
+    expect(keysOf(synergiesFor(as(world, [mage, mage]), content))).toEqual([]);
   });
 });
 
@@ -124,7 +159,7 @@ describe('the Synergy term of the capability', () => {
     expect(on([w1, rogue, mage, healer])).toEqual(
       [32 * 1.05 + 1 + 2, 32 * 1.05 + 1 + 2, 32 * 1.05 + 1, 32 * 1.05 * 1.1 + 1, 32 * 1.05 * 1.1 + 1].map((value) => expect.closeTo(value, 10)),
     );
-    expect(encounterKinds.map((kind) => keysOf(synergiesOn([w1, w2, w3], { kind }, testContent)))).toEqual([['shield-wall'], [], [], [], []]);
+    expect(encounterKinds.map((kind) => keysOf(synergiesOn(as(world, [w1, w2, w3]), { kind }, testContent)))).toEqual([['shield-wall'], [], [], [], []]);
     expect(appliesOn({}, 'social')).toBe(true);
   });
 
@@ -132,18 +167,21 @@ describe('the Synergy term of the capability', () => {
     const { world, heroes } = partyOf('several', 'warrior');
     const [warrior] = heroes as [Hero];
     warrior.skills = { tactics: 3 };
-    const onWarrior = (key: string, bonus: Synergy['bonus']): [string, Synergy] => [key, { key, name: key, requires: { classes: { warrior: 1 } }, bonus }];
+    const onWarrior = (key: string, bonus: Synergy['bonus']): [string, Synergy] => [
+      key,
+      { key, name: key, requires: oldFormRequires({ classes: { warrior: 1 } }), bonus },
+    ];
     const rows = [onWarrior('a', { factor: 1.2 }), onWarrior('b', { flat: 2 }), onWarrior('c', { factor: 1.5 }), onWarrior('d', { flat: 3, factor: 1.1 })];
     const listed = (order: [string, Synergy][]): EngineDeps => testDeps(pinned, { ...testContent, synergies: Object.fromEntries(order) });
     // Strength 8 and Tactics 3 × 2: a base of 14.
-    const encounter = encounterOf('combat', { skillKeys: ['tactics'] });
+    const encounter = encounterOf('combat', ['tactics']);
 
     expect(capability([warrior], encounter, world, bare)).toBe(14);
     const expected = 14 * 1.2 * 1.5 * 1.1 + 2 + 3;
     expect(capability([warrior], encounter, world, listed(rows))).toBeCloseTo(expected, 10);
     expect(capability([warrior], encounter, world, listed([...rows].reverse()))).toBeCloseTo(expected, 10);
-    expect(synergyBonus([warrior], encounter, 14, listed(rows))).toBeCloseTo(expected - 14, 10);
-    expect(synergyBonus([warrior], encounter, 14, bare)).toBe(0);
+    expect(synergyBonus(as(world, [warrior]), encounter, 14, listed(rows))).toBeCloseTo(expected - 14, 10);
+    expect(synergyBonus(as(world, [warrior]), encounter, 14, bare)).toBe(0);
   });
 });
 
@@ -178,7 +216,7 @@ describe("the Quest's outcome lists the Synergies that applied", () => {
     const withStealth = scene('applied', harmlessContent, ['ambush-on-the-road', 'past-the-watch', 'the-trapped-passage'], ['rogue', 'mage']);
 
     const party = (it: typeof combatOnly) => it.party.heroIds.map((id) => it.world.heroes[id] as Hero);
-    expect(keysOf(synergiesFor(party(combatOnly), testContent))).toEqual(['shadow-and-spell']);
+    expect(keysOf(synergiesFor(queryParty(party(combatOnly), combatOnly.world, combatOnly.deps), testContent))).toEqual(['shadow-and-spell']);
     expect(resolveQuest(combatOnly.world, combatOnly.quest, combatOnly.party, combatOnly.deps).outcome.synergyKeys).toEqual([]);
     expect(resolveQuest(withStealth.world, withStealth.quest, withStealth.party, withStealth.deps).outcome.synergyKeys).toEqual([
       'shadow-and-spell',

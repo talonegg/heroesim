@@ -6,8 +6,8 @@ import { makeId, type Guild, type Hero, type Party, type Quest, type World } fro
 import { streamOf } from '../generators/draw.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
-import { heroStatKeys, testContent, testDeps } from '../world.test-support.js';
-import { capability } from './check.js';
+import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
+import { queryParty } from './query.js';
 import { questBand, resolveQuest } from './resolve.js';
 import { synergyBonus } from './synergy.js';
 import { teamwork } from './teamwork.js';
@@ -32,10 +32,7 @@ function encounter(key: string, pass: boolean, failure: Consequence[] = [], succ
     key,
     name: key,
     kind: 'combat',
-    demands: [['strength', 1]],
-    aggregate: 'sum',
-    skillKeys: [],
-    difficultyFactor: pass ? 0.001 : 1000,
+    checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
     consequences: { success, failure },
   };
 }
@@ -100,7 +97,7 @@ describe('resolveQuest', () => {
     const content = contentWith(
       encounter('first', true),
       encounter('deadly', false, [{ kind: 'death', chance: 1 }]),
-      { ...encounter('third', true), difficultyFactor: 0.4 },
+      withFactor(encounter('third', true), 0.4),
     );
     const { world, heroes, quest, party, deps } = scene('killed', content, ['first', 'deadly', 'third'], { difficulty: 40 });
 
@@ -256,11 +253,41 @@ describe("the Quest Engine's config (DL-42)", () => {
 
 // The two seams M4-S3 and M4-S4 fill (DL-42): neutral until then, and the Synergy term neutral for
 // content without Synergies (M4-S3's own tests are synergy.test.ts).
+// v1.1.4-S1: a Query's `["hurt"]` reads the Heroes injured earlier on the same Quest (resolve.ts
+// passes them to `queryParty` for each Encounter).
+describe('a Query on the Quest', () => {
+  test('`["hurt"]` counts a Hero injured by an earlier Encounter, and no one when the Injury did not land', () => {
+    const counted: Encounter = {
+      key: 'counted',
+      name: 'counted',
+      kind: 'combat',
+      // The number hurt, against a target of 0.5 (0.0125 × 40): met by one Hero hurt, missed by none.
+      checks: [{ key: 'counted', name: 'Counted', score: ['count', ['where', 'party', ['hurt']]], skills: [], difficultyFactor: 0.0125 }],
+      consequences: { success: [], failure: [] },
+    };
+    const wounding = (chance: number) => encounter('wounding', false, [{ kind: 'injury', typeKey: 'deep-cut', chance, count: 1 }]);
+    const resolved = (chance: number) => {
+      const content = { ...contentWith(wounding(chance), counted), synergies: {} };
+      const { world, quest, party, deps } = scene(`hurt-${chance}`, content, ['wounding', 'counted']);
+      return resolveQuest(world, quest, party, deps).encounters;
+    };
+
+    const [woundedBy, countedHurt] = resolved(1);
+    expect(woundedBy?.injured).toHaveLength(1);
+    expect(countedHurt).toMatchObject({ encounterKey: 'counted', target: 0.5, outcome: 'success' });
+    expect(countedHurt?.roll).toBeGreaterThanOrEqual(0.9);
+
+    const [unwounded, countedNone] = resolved(0);
+    expect(unwounded?.injured).toEqual([]);
+    expect(countedNone).toMatchObject({ encounterKey: 'counted', roll: 0, outcome: 'failure' });
+  });
+});
+
 describe("the Check's seams", () => {
   test('the Synergy bonus is 0 and the teamwork scalar 1, whatever the Party', () => {
     const { world, heroes, deps } = scene('seams', { ...testContent, synergies: {} }, []);
     const any = testContent.encounters['ambush-on-the-road'] as Encounter;
-    expect(synergyBonus(heroes, any, 30, deps)).toBe(0);
+    expect(synergyBonus(queryParty(heroes, world, deps), any, 30, deps)).toBe(0);
     expect(teamwork(heroes, world, deps)).toBe(1);
   });
 });

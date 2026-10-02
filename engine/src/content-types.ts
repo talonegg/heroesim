@@ -230,10 +230,95 @@ export const encounterKinds = ['combat', 'travel', 'social', 'arcane', 'stealth'
 export type EncounterKind = (typeof encounterKinds)[number];
 
 /**
- * How a Check reads the Party's Stats on an Encounter's demands (M4-S2): `best` takes the best
- * Hero's value of each Stat, `sum` the Party's sum of it.
+ * How the old form of an Encounter reads the Party's Stats on its demands (M4-S2): `best` takes the
+ * best Hero's value of each Stat, `sum` the Party's sum of it. Since v1.1.4-S1 the old form loads
+ * into one Check whose score is a Query of the same reading (`EncounterCheck`).
  */
 export type EncounterAggregate = 'best' | 'sum';
+
+// Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010): how content reads the Party. A Query is a JSON
+// array, operator first, of one of five types, each read where its type is expected. A Set is some
+// of the Party's Heroes; a Hero one of them, or none; a Val a number read of the current Hero; a Pred
+// a fact of the current Hero; a Num a number of the Party. A number is a Val or a Num, as `+`, `-` and
+// `*` are, by where they stand. The engine evaluates them (`quest-engine/query.ts`); content
+// validation holds their shape, keys and size, and where Sex may stand.
+
+/** Some of the Party's Heroes, in Party order: `"party"` is every member still in the sequence. */
+export type SetQuery =
+  | 'party'
+  | ['where', SetQuery, PredQuery]
+  | ['top', SetQuery, number, ValQuery]
+  | ['bottom', SetQuery, number, ValQuery];
+
+/** One Hero of a Set, the earlier in Party order on a tie; none of an empty Set. */
+export type HeroQuery = ['best', SetQuery, ValQuery] | ['worst', SetQuery, ValQuery];
+
+/** A number read of the current Hero: an effective Stat, a Skill's rating, their Level, Morale or age. */
+export type ValQuery =
+  | number
+  | ['stat', StatKey]
+  | ['skill', SkillKey]
+  | ['level']
+  | ['morale']
+  | ['age']
+  | ['weighted', [statKey: StatKey, weight: number][]]
+  | ['+', ...ValQuery[]]
+  | ['-', ValQuery, ValQuery]
+  | ['*', ...ValQuery[]];
+
+/** How two numbers compare, in a Pred or a Party-level condition. */
+export type QueryComparison = '>=' | '>' | '<' | '<=' | '=';
+
+/** A fact of the current Hero. `sex` stands only in a `where` filter (DL-148 item 6). */
+export type PredQuery =
+  | ['class', ...ClassKey[]]
+  | ['background', ...BackgroundKey[]]
+  | ['sex', Sex]
+  | ['has-skill', SkillKey]
+  | ['has-skill', SkillKey, number]
+  | ['has-trait', TraitKey]
+  | ['hurt']
+  | [QueryComparison, ValQuery, ValQuery]
+  | ['and', ...PredQuery[]]
+  | ['or', ...PredQuery[]]
+  | ['not', PredQuery];
+
+/** A number of the Party. Every Num of an empty Set, or of no Hero, is 0. */
+export type NumQuery =
+  | number
+  | ['sum' | 'avg' | 'max' | 'min', SetQuery, ValQuery]
+  | ['count', SetQuery]
+  | ['ranked', SetQuery, ValQuery, number[]]
+  | ['of', HeroQuery, ValQuery]
+  | ['+', ...NumQuery[]]
+  | ['-', NumQuery, NumQuery]
+  | ['*', ...NumQuery[]]
+  | ['least', ...NumQuery[]]
+  | ['greatest', ...NumQuery[]];
+
+/** A condition on the Party: one Num compared with another, such as `[">=", ["count", "party"], 3]`. */
+export type PartyCondition = [QueryComparison, NumQuery, NumQuery];
+
+/** A Check of an Encounter (v1.1.4-S1): its key, unique within its Encounter. */
+export type CheckKey = string;
+
+/**
+ * One Check of an Encounter (v1.1.4-S1, DL-148 item 7): the Party's capability is its `score`, a
+ * Num Query, plus a bonus for the best rating held of each of its `skills`, against
+ * `difficultyFactor` times the Quest's difficulty. The old form of an Encounter (`demands`,
+ * `aggregate`, `skillKeys`, `difficultyFactor`) loads into one, keyed and named as its Encounter,
+ * whose score is `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of its
+ * demands. v1.1.4-S2 adds several to an Encounter, with `pass`, `flat` and `variance`.
+ */
+export interface EncounterCheck {
+  key: CheckKey;
+  name: string;
+  score: NumQuery;
+  /** The Skills that help; may be none. */
+  skills: SkillKey[];
+  /** The Check's target is this times the Quest's difficulty; above 0. */
+  difficultyFactor: number;
+}
 
 /**
  * Up to `count` Heroes of the Party are injured with `typeKey`, each with probability `chance`,
@@ -296,34 +381,25 @@ export type Consequence =
 export type ConsequenceKind = Consequence['kind'];
 
 /**
- * One typed step of a Quest (M4-S1, `encounters.json`), resolved by a Check (M4-S2): the Party's
- * capability on the weighted `demands`, aggregated by `aggregate`, with a bonus for the best rating
- * held of each of `skillKeys`, against `difficultyFactor` times the Quest's difficulty. Its
- * `consequences` are applied by outcome.
+ * One typed step of a Quest (M4-S1, `encounters.json`), resolved by its Check (M4-S2; `checks`, one
+ * until v1.1.4-S2). Its `consequences` are applied by outcome.
  */
 export interface Encounter {
   key: EncounterKey;
   name: string;
   kind: EncounterKind;
-  /** Hero Stats with weights summing to 1, as a Quest template's demands. */
-  demands: [statKey: StatKey, weight: number][];
-  aggregate: EncounterAggregate;
-  /** The Skills that help; may be none. */
-  skillKeys: SkillKey[];
-  /** The Check's target is this times the Quest's difficulty; above 0. */
-  difficultyFactor: number;
+  /** Its Checks (v1.1.4-S1): one, loaded from the old form, until v1.1.4-S2 allows up to four. */
+  checks: EncounterCheck[];
   consequences: { success: Consequence[]; failure: Consequence[] };
 }
 
 /**
- * What a Party must hold for a Synergy to apply (M4-S3): at least `count` members of each Class
- * named, and each Skill named held, at any rating, by at least one member. At least one Class or
- * Skill in all; content validation refuses a count below 1.
+ * What a Party must hold for a Synergy to apply (M4-S3; v1.1.4-S1, DL-148 item 20): Party-level
+ * conditions, at least one, every one of which must hold. The old form, a count for each Class and
+ * a list of Skills, loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each
+ * Class, then `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
  */
-export interface SynergyRequires {
-  classes?: Record<ClassKey, number>;
-  skills?: SkillKey[];
-}
+export type SynergyRequires = PartyCondition[];
 
 /**
  * What a Synergy adds to a Check's capability (M4-S3, DL-45): `flat` added as it stands, and
@@ -336,9 +412,10 @@ export interface SynergyBonus {
 }
 
 /**
- * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party holding a
- * combination of Classes or Skills, added to each Check of an Encounter of one of its `kinds`, or
- * of every kind when it names none. Relationship between the members is teamwork's, apart (M4-S4).
+ * A Synergy (R26, CONTEXT.md; `synergies.json`, M4-S3): an authored bonus for a Party that meets its
+ * requirements, Queries over the Party since v1.1.4-S1, added to each Check of an Encounter of one
+ * of its `kinds`, or of every kind when it names none. Relationship between the members is
+ * teamwork's, apart (M4-S4).
  */
 export interface Synergy {
   key: SynergyKey;

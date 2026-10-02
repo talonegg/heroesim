@@ -16860,6 +16860,232 @@ open.
 
 ---
 
+## DL-151 — v1.1.4-S1 built: Checks scored by Queries over the Party, Synergy requirements written in them, the old forms loading into them, and play unchanged
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 4 to 6
+and 20 as the epic's S1 describes. Where the plan was silent, the calls are the agent's, each in
+item 7, for the owner to change. Opus built it; a second Opus agent verifies it.
+
+**Context.** S1 is the language every later engine story reads: a Check's score and a Synergy's
+requirements become Queries, written in content and evaluated by the engine. It must change no
+play. The files keep their old form, which loads into the new one. It was built on `v1.1.4-dev` at
+`8987cd5`, and every comparison below is with that commit.
+
+**Decision.**
+
+1. **The glossary and the ADR.** `CONTEXT.md` gains **Query**, **Degree** (with **Triumph** and
+   **Setback**), **Form**, **Finale** and **Earned Trait**. **Encounter** and **Check** say an
+   Encounter has one to four named Checks by DL-148, one until S2, and the Check's score is a Query.
+   **Synergy** says its requirements are Queries. ADR-0010, "Checks and Synergy requirements are
+   Queries over the Party, written in content", extends ADR-0006.
+2. **The types** (`engine/src/content-types.ts`). `SetQuery`, `HeroQuery`, `ValQuery`, `PredQuery`
+   and `NumQuery`, as the epic's table, with `QueryComparison` and `PartyCondition`, a Num compared
+   with a Num. An `EncounterCheck` has `key`, `name`, `score` (a Num), `skills` and
+   `difficultyFactor`. An `Encounter` has `checks` in place of `demands`, `aggregate`, `skillKeys`
+   and `difficultyFactor`. `SynergyRequires` is a list of `PartyCondition`s.
+3. **The evaluator** (`engine/src/quest-engine/query.ts`). It is pure and draws nothing.
+   - *The Party.* `queryParty(heroes, world, deps, hurt)` takes the members in Party order. It reads
+     each Hero's effective Stats once (`effectiveStats`), their Morale, their age at `world.turn`
+     (`ageOf`), and whether they are hurt on the Quest. `resolveQuest` takes it once an Encounter,
+     and a reroll reads the same.
+   - *The reading.* `evaluate` (Num), `holds` (a condition), `membersOf` (Set), `heroOf` (Hero),
+     `valueOf` (Val) and `is` (Pred).
+   - *Ties and order.* `best`, `worst`, `top`, `bottom` and `ranked` give a tie to the earlier Hero
+     in Party order. `top` and `bottom` keep their members in Party order, so a sum over them runs in
+     Party order too. Sums start from 0 and products from 1.
+   - *Nothing to read.* An empty Set gives 0 to every Num, and no Hero gives 0. A Stat, Skill, Class,
+     Background or Trait content does not define reads 0 or matches no one.
+   - *An operator no type has* throws, since validation refuses it.
+4. **The Check and the Synergies.**
+   - `capability(party, encounter, encounterCheck, world, deps)` is the score, plus the Skill term,
+     plus the Synergy term of the Encounter's kind, times teamwork. `check` takes the same and the
+     Quest. The Skill and Synergy terms are as they were.
+   - `meetsRequirement(party, requires)` holds when every condition does.
+   - `synergiesFor(party, content)`, `synergiesOn` and `synergyBonus` take the Party as Queries read
+     it. Their results are unchanged, and so is the preview's `synergies`.
+5. **The old forms load** (`content/src/parse.ts`).
+   - *An Encounter* loads into one Check, keyed and named as its Encounter. Its score is
+     `["+", ["*", w1, [aggregate, "party", ["stat", s1]]], …]` in the order of `demands`, `best` read
+     as `max`. Its Skills are `skillKeys` and its factor its own.
+   - *A Synergy's* `requires` may be a list of conditions, read as written, or the old object, which
+     loads into `[">=", ["count", ["where", "party", ["class", k]]], n]` for each Class, then
+     `[">=", ["max", "party", ["skill", k]], 1]` for each Skill.
+   - *Why bit-identical.* The old capability added `weight × aggregate` for each demand, in order,
+     from 0. `best` was `Math.max(0, …values)` and `sum` a sum from 0 in Party order. The Query does
+     the same operations in the same order. `0 + x` is `x`, `1 × w` is `w`, and a `max` over a
+     non-empty Party equals `Math.max(0, …)`, since every effective Stat is at least its minimum, 1.
+     The old requirement was a count of each Class and a Skill held at a rating of 1 or more. The
+     conditions say the same.
+   - *The content version* goes from 20 to 21. No file changed.
+6. **The checks** (`content/src/validate.ts`).
+   - *Every Query* is held to its type at every node, its arguments' number, the keys content
+     defines, 64 nodes and 12 deep (`queryNodesMax`, `queryDepthMax`). `top` and `bottom`'s n must
+     be a whole number from 1, and `ranked`'s weights finite and 0 or more.
+   - *Sex.* `["sex", …]` stands only as the Pred of a `where` filter in a Check's score, and nowhere
+     in a Synergy's requirement (verification, below). A Set filtered by Sex, however deep within, is
+     refused when counted.
+   - *A Hero Stat's least value* is 0 or more (verification, below).
+   - *An Encounter* has one Check (`encounterChecksMax`, 1 until S2), keyed in kebab-case once and
+     named, its score a Num, its Skills ones content defines, its factor above 0.
+   - *A Synergy* has one or more conditions.
+   - *The old forms* are held as they load, in the words written. A demand's Stat and weights and an
+     Encounter's Skills keep their old refusals. So do a Synergy's Classes, counts and Skills, now
+     with the file's path (`synergies.json: sword-and-salve.requires.classes: "paladin" is not a
+     Class`). The difficulty factor's refusal names `checks.0.difficultyFactor`.
+   - *Each refusal names its path*, every argument by its place in its array:
+     `synergies.sword-and-salve.requires.0.1.1.2.1: "paladin" is not a Class`.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *The internal shape.* An Encounter holds a list of Checks, one until S2, which adds `pass`,
+     `flat`, `variance` and up to four. `encounters.json` is read only in the old form until S2
+     writes `checks`. `synergies.json` takes either form now, since S1 is where the new one lands.
+   - *The old form's Check* is keyed and named as its Encounter.
+   - *A condition* compares a Num with a Num. The epic's `[">=", Num, n]` is the case where one side
+     is a number.
+   - *Arity.* `+`, `*`, `least`, `greatest`, `and`, `or`, `class` and `background` take one
+     operand or more. `-` takes two: there is no unary minus, and `["*", -1, x]` negates. `has-skill`'s
+     least rating is a whole number from 1, and 1 when left out.
+   - *What counts as a node.* Each operator, number and `"party"`. Keys, `weighted`'s pairs and
+     `ranked`'s weights are part of their node. A leaf is 1 deep.
+   - *Keys.* `stat` and `weighted` name Hero Stats, so a Guildmaster Stat is refused. `background`
+     names a Hero Background, and `has-trait` a Hero Trait.
+   - *Counting by Sex.* `["sum", S, 1]` counts S. So a Set filtered by Sex is also refused when
+     summed, averaged, ranked, maxed or minned by a Val that reads nothing of a Hero, or when its
+     Hero is read as a number alone. "Reads nothing" is a number, a read times a literal 0, or a
+     `weighted` of no weight but 0. A sum of a Stat over it, in a Check's score, is accepted: Sex
+     decides who takes part.
+   - *Morale.* `["morale"]` reads the stored Morale until S3's working Morale. `QueryMember.morale`
+     is the seam.
+   - *The owner's examples.* "Wits" is the core Stat `wits`. "The least agile" is the least
+     Dexterity, `dexterity`. Strength and Intelligence are `strength` and `intelligence`.
+   - *`synergiesFor`'s argument.* A requirement may read effective Stats, which need the world, so
+     `synergiesFor` takes the Party as `queryParty` makes it, not bare Heroes. Its result and the
+     preview's are unchanged. `SynergyMember` is gone.
+   - *The word "form".* The glossary's Form is a Hero's. The setup form is not the term, and keeps
+     its lower case.
+8. **The tests.**
+   - *`query.test.ts`,* 59 tests. The owner's three examples come first, each beside its SQL
+     reading:
+     - `SELECT MAX(strength) FROM party WHERE class = 'warrior'`;
+     - `SELECT SUM(intelligence) FROM party WHERE class IN ('mage', 'healer')`;
+     - `SELECT wits FROM party ORDER BY dexterity LIMIT 1`.
+
+     Then every operator, ties, empty Sets, unknown keys, Party-level conditions, the old forms
+     read to the last bit for both aggregates at every size, Stats read once, and no draw.
+   - *`check.test.ts`.* The source-reading test of M4's third risk covers `check.ts` and
+     `query.ts`. Neither mentions the Guildmaster, nor Wealth, Fame, the Treasury, Upkeep, a Patron
+     or a Rival. `query.ts` imports as values only `effectiveStats` and `ageOf`.
+   - *`refusals.test.ts`,* 49 new tests: 41 refusals of a Query, 4 Queries accepted at the bounds,
+     two sets held in memory, a requirement written as a list, and a demand listed twice. Each
+     refusal names its path:
+     - the wrong type, the wrong number of arguments, an unknown key of each kind;
+     - `top` or `bottom` below 1, not whole, or a word;
+     - `ranked`'s weights negative, empty, infinite or NaN;
+     - Sex outside a filter, and a Set filtered by it counted;
+     - 65 nodes and 13 deep refused, 64 and 12 accepted;
+     - an Encounter's Check in memory.
+   - *`content.test.ts`.* Each core Encounter and Synergy loads as item 5 says.
+   - The engine's tests write their Encounters in the old form through `oldFormCheck` and
+     `oldFormRequires` (`world.test-support.ts`), which load as the parser does.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first:
+1. **Sex could still be read as a value.** Three Synergy conditions were accepted:
+   - `[">", ["max", F, ["level"]], 0]`, where F is a Set filtered by Sex;
+   - `[">", ["sum", F, ["+", 1, ["*", 0, ["level"]]]], 0]`, a constant disguised with × 0;
+   - `[">", ["of", ["best", F, ["level"]], ["level"]], 0]`.
+
+   Each tests whether anyone of a sex is in the Party.
+
+   *The fix.* A Synergy's requirement is a gate, so any reading of Sex in it is a value. `["sex", …]`
+   is now refused anywhere in one, naming its path: "stands in no Synergy's requirement". In a
+   Check's score, a Val that is a number, reads a Hero only times a literal 0, or is a `weighted` of
+   no weight but 0 now reads nothing. A Set filtered by Sex and aggregated by such a Val is refused as
+   counted. `CONTEXT.md` and ADR-0010 say exactly this.
+
+   `refusals.test.ts` holds the three probes and a sum of a Stat, each refused in a requirement. Six
+   scores held in memory are refused or accepted as the rule says.
+
+   *Left (the agent's).* A score can still turn a Set filtered by Sex into a near-presence test by
+   arithmetic validation does not follow: `["-", ["level"], ["level"]]`, or `least` clamping a `max`
+   of Levels to 1. Every such score still reads a Hero's value. No content writes Sex yet, and S9's
+   review shows the owner every Check.
+2. **`["hurt"]` through `resolveQuest` was untested.** `resolve.test.ts` now has the case. Encounter 1
+   injures a Hero with chance 1. Encounter 2's score is `["count", ["where", "party", ["hurt"]]]`
+   against a target of 0.5. It succeeds with the Injury, and fails, with a roll of 0, when the
+   chance is 0.
+3. **`best` and `max` agree only above 0.** The old `best` was `Math.max(0, …values)`, and it loads
+   as `["max", …]`. The two are equal only while no effective Stat is below 0. Content's Stats run
+   from 1 and `effectiveStats` holds every value within its Stat's range, so play is unchanged. A
+   Hero Stat whose `min` is below 0 is now refused, naming it: `stats.<key>.min is …; a Hero Stat's
+   least value is 0 or more`. A Guildmaster Stat is not held to it. Tested in `refusals.test.ts`.
+4. **A load flake.** `web/src/views/history.test.tsx` ("the rail opens the History… Quest report")
+   failed once under the full suite's load for the verifier. It passed alone and on a rerun.
+
+After the fixes, `npm run typecheck` and `npm run lint` are clean, and `npm test` passes 4,007 tests
+in 166 files, 11 more than below, with no flake. The sweep was not run again: no fix changes a rule
+that runs, only what content may be written.
+
+**The checks.**
+These checks were run on the working tree over `8987cd5`, before the commit.
+1. **The 50 × 20 sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s1 npm run harness`, core
+   only, content 21, not validated. Its report is `harness/reports/m9-v114-s1-2026-10-02.md`, to be
+   force-added.
+   - *Play is unchanged.* Lines 27 to 592, the Counters through the Rivals, hash equal
+     (`84d68609…`) to `m9-v113-close-2026-10-02.md`'s, DL-146's hash. The Portraits' and the Heroes'
+     sections are equal too.
+     - Every play counter, yearly table and ending is the same: 138 Rival folds, 37 Successions, no
+       player ending, no refused action.
+     - One seed played twice is byte-identical, at 106,422,611 characters as before.
+     - 50 of 50 saves round trip.
+   - *What moved,* with the line `diff` shows for each:
+     - the title and the run's start;
+     - the content version, 21;
+     - the machine's Windows build, 26300;
+     - the timings, which fell by half on an idle machine (`advance` 3.524 ms mean against 8.184 ms);
+     - the fingerprint of the last saves, `35588633…` against `deaf4d1e…`.
+   - *Why the fingerprint moved.* Every save records `meta.content.version`, now 21. "20" and "21"
+     are the same length, so the saves keep their length, and only that field differs. Three seeds
+     were played 20 years at both trees to show it: `seed-0001` to `seed-0003`, the player idle with
+     a Wealth of 10⁹, so the four Rivals quest through the Quest Engine for all 21,600 Turns. The
+     tree at `8987cd5` was a `git worktree`, since removed. With `meta.content.version` set aside,
+     the three saves hash equal at both trees. The run held 18,959, 18,981 and 19,570 Quests
+     resolved, and 54,014, 54,030 and 55,990 Encounters. The saves are 83,415,600, 83,780,550 and
+     87,096,899 characters at both.
+2. **Creation, 1,000 seeds, two setups** (the harness's age 30, and a bare one), against `8987cd5`,
+   hashed before the change:
+   - With `meta.content.version` set aside, all 2,000 documents hash equal: combined `7aaf9fe5…`
+     (age 30) and `eaadbeb2…` (bare) at both trees.
+   - Taken whole, every one differs, by that field alone.
+3. **The script.** `npm run build -w web`'s check-bundle passes, and the script is 779.64 kB
+   (779,636 bytes, 223.69 kB gzipped). The same build at `8987cd5` is 770.12 kB (770,120 bytes), so
+   S1 adds 9.5 kB: `query.ts` minifies to about 3.4 kB, and the rest is the content checks and
+   their words. That leaves 20.4 kB under 800 kB.
+4. **The rest.**
+   - `npm run typecheck` and `npm run lint`: clean.
+   - `npm test`: 3,996 tests in 166 files, all passing, with no load flake.
+   - `npm run e2e -w web`: all 86 specs pass.
+
+**Consequences.**
+- S2 extends `Encounter.checks` to four, with `pass` and Degrees, and lifts `encounterChecksMax`.
+  S3 sets `QueryMember.morale` to the working Morale and scales what a Hero adds by their Form.
+- Content may now write a Synergy's requirement as Queries. The old forms load until S10 rewrites
+  the content.
+- An old-form refusal keeps its words. A Query's names its path, which an author reads against the
+  array.
+- `meta.content.version` is 21 in every document created from here. Saves need no migration (the
+  owner's rule).
+- The script is 779.64 kB, 9.5 kB more than at `8987cd5`, with 20.4 kB left under the limit for
+  S2 to S13. The epic's risk expected 6 to 10 kB for the evaluator, the estimate and the words
+  together, so S5's and S6's sizes need watching.
+
+**Actioned in:** `CONTEXT.md`; `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`engine/src/content-types.ts`; `engine/src/quest-engine/query.ts` and `query.test.ts`; `check.ts`,
+`synergy.ts`, `resolve.ts` and their tests; `engine/src/preview.ts`; `engine/src/index.ts`;
+`engine/src/world.test-support.ts`; `content/src/parse.ts`, `validate.ts`, `refusals.test.ts` and
+`content.test.ts`; the engine's and the CLI's tests that built Encounters;
+`harness/reports/m9-v114-s1-2026-10-02.md`; the epic's S1 boxes.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

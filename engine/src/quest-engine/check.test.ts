@@ -1,22 +1,42 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, test } from 'vitest';
-import type { Encounter } from '../content-types.js';
+import type { EngineDeps } from '../config.js';
+import type { EncounterAggregate, EncounterCheck } from '../content-types.js';
 import type { Guild, GuildId, Guildmaster, Hero, World } from '../document.js';
 import { streamOf } from '../generators/draw.js';
 import { generateHero } from '../generators/heroes.js';
 import { next } from '../rng.js';
-import { buildDocument, heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
-import { capability, check } from './check.js';
+import { buildDocument, heroStatKeys, oldFormCheck, testDeps, testWorld } from '../world.test-support.js';
+import { capability as capabilityOf, check as checkOf } from './check.js';
+import { queryParty } from './query.js';
 
 // M4-S2: the Check (INPUTS 6.2, DL-42). Heroes are generated, then given the Stats and Skills a test
-// needs; the config values a test relies on are pinned.
+// needs; the config values a test relies on are pinned. Since v1.1.4-S1 an Encounter's Check scores
+// by a Query; these tests write it in the old form, as `encounters.json` still does, so that they
+// hold the old reading.
 
 const deps = testDeps({ checkVariance: 0, skillBonusPerRating: 2 });
 
-/** An Encounter from the test content, with `fields` changed. */
-function encounterWith(fields: Partial<Encounter> = {}): Encounter {
-  return { ...structuredClone(testContent.encounters['hold-the-line'] as Encounter), ...fields };
+/** The kind of Encounter the tests' Checks are of. */
+const combat = { kind: 'combat' } as const;
+
+/** A Check in the old form: `hold-the-line`'s from the test content, with `fields` changed. */
+function encounterWith(
+  fields: { demands?: [string, number][]; aggregate?: EncounterAggregate; skillKeys?: string[]; difficultyFactor?: number } = {},
+): EncounterCheck {
+  const { demands = [['strength', 0.5], ['constitution', 0.5]], aggregate = 'sum', skillKeys = ['shieldwork', 'tactics'], difficultyFactor = 0.3 } = fields;
+  return oldFormCheck('hold-the-line', 'Hold the line', aggregate, demands, skillKeys, difficultyFactor);
+}
+
+/** `heroes`' capability on `encounterCheck`, the Party taken as the Quest Engine takes it. */
+function capability(heroes: readonly Hero[], encounterCheck: EncounterCheck, world: World, using: EngineDeps): number {
+  return capabilityOf(queryParty(heroes, world, using), combat, encounterCheck, world, using);
+}
+
+/** Checks `heroes` on `encounterCheck`, the Party taken as the Quest Engine takes it. */
+function check(heroes: readonly Hero[], encounterCheck: EncounterCheck, quest: { difficulty: number }, world: World, using: EngineDeps) {
+  return checkOf(queryParty(heroes, world, using), combat, encounterCheck, quest, world, using);
 }
 
 /** A world holding `count` Heroes, every Hero Stat at `value` and no Skill, for a test to change. */
@@ -32,7 +52,8 @@ function party(seed: string, count: number, value = 8): { world: World; heroes: 
 }
 
 describe('capability', () => {
-  const twoStats = encounterWith({ demands: [['strength', 0.5], ['courage', 0.5]], skillKeys: [] });
+  const twoStats = (aggregate: EncounterAggregate, skillKeys: string[] = []) =>
+    encounterWith({ demands: [['strength', 0.5], ['courage', 0.5]], aggregate, skillKeys });
 
   test("with `best`, weighs the best member's value of each Stat", () => {
     const { world, heroes } = party('best', 3);
@@ -41,7 +62,7 @@ describe('capability', () => {
     b.stats['courage'] = 12;
     c.stats['strength'] = 3;
 
-    expect(capability(heroes, { ...twoStats, aggregate: 'best' }, world, deps)).toBe(0.5 * 14 + 0.5 * 12);
+    expect(capability(heroes, twoStats('best'), world, deps)).toBe(0.5 * 14 + 0.5 * 12);
   });
 
   test("with `sum`, weighs the members' sum of each Stat", () => {
@@ -50,13 +71,13 @@ describe('capability', () => {
     a.stats['strength'] = 14;
     b.stats['courage'] = 12;
 
-    expect(capability(heroes, { ...twoStats, aggregate: 'sum' }, world, deps)).toBe(0.5 * (14 + 8 + 8) + 0.5 * (8 + 12 + 8));
+    expect(capability(heroes, twoStats('sum'), world, deps)).toBe(0.5 * (14 + 8 + 8) + 0.5 * (8 + 12 + 8));
   });
 
   test("adds skillBonusPerRating times the best rating any member holds, for each of the Encounter's Skills", () => {
     const { world, heroes } = party('skills', 2);
     const [a, b] = heroes as [Hero, Hero];
-    const skilled = { ...twoStats, aggregate: 'best' as const, skillKeys: ['shieldwork', 'tactics', 'stealth'] };
+    const skilled = twoStats('best', ['shieldwork', 'tactics', 'stealth']);
     const bare = capability(heroes, skilled, world, deps);
     a.skills = { shieldwork: 2, tactics: 1, lockpicking: 5 };
     b.skills = { shieldwork: 3 };
@@ -76,7 +97,8 @@ describe('capability', () => {
 
   test('is nothing for no members', () => {
     const { world } = party('none', 0);
-    expect(capability([], twoStats, world, deps)).toBe(0);
+    expect(capability([], twoStats('sum'), world, deps)).toBe(0);
+    expect(capability([], twoStats('best'), world, deps)).toBe(0);
   });
 });
 
@@ -87,14 +109,14 @@ describe('check', () => {
     const [a, b, c, d] = heroes as [Hero, Hero, Hero, Hero];
     c.skills = { shieldwork: 3 };
     d.skills = { tactics: 3 };
-    const encounter = encounterWith({ demands: [['strength', 0.5], ['constitution', 0.5]], aggregate: 'sum', skillKeys: ['shieldwork', 'tactics'], difficultyFactor: 1 });
+    const both = encounterWith({ demands: [['strength', 0.5], ['constitution', 0.5]], aggregate: 'sum', skillKeys: ['shieldwork', 'tactics'], difficultyFactor: 1 });
     const lacking = [a, b];
     const holding = [c, d];
     // Between the two: 16 on the Stats alone, and 16 + 2 × 3 × 2 = 28 with the Skills.
     const quest = { difficulty: 20 };
 
-    const without = check(lacking, encounter, quest, world, deps);
-    const withSkills = check(holding, encounter, quest, world, deps);
+    const without = check(lacking, both, quest, world, deps);
+    const withSkills = check(holding, both, quest, world, deps);
 
     expect(without).toMatchObject({ capability: 16, roll: 16, target: 20, margin: -4, outcome: 'failure' });
     expect(withSkills).toMatchObject({ capability: 28, roll: 28, target: 20, margin: 8, outcome: 'success' });
@@ -102,21 +124,21 @@ describe('check', () => {
 
   test("succeeds when the roll reaches difficultyFactor × the Quest's difficulty, and not below it", () => {
     const { world, heroes } = party('edge', 1);
-    const encounter = encounterWith({ demands: [['strength', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 0.5 });
+    const strength = encounterWith({ demands: [['strength', 1]], aggregate: 'best', skillKeys: [], difficultyFactor: 0.5 });
 
-    expect(check(heroes, encounter, { difficulty: 16 }, world, deps)).toMatchObject({ target: 8, margin: 0, outcome: 'success' });
-    expect(check(heroes, encounter, { difficulty: 17 }, world, deps)).toMatchObject({ target: 8.5, outcome: 'failure' });
+    expect(check(heroes, strength, { difficulty: 16 }, world, deps)).toMatchObject({ target: 8, margin: 0, outcome: 'success' });
+    expect(check(heroes, strength, { difficulty: 17 }, world, deps)).toMatchObject({ target: 8.5, outcome: 'failure' });
   });
 
   test('rolls the capability by 1 + a draw from −checkVariance to +checkVariance, one draw from quests', () => {
     const { world, heroes } = party('roll', 2);
-    const encounter = encounterWith();
+    const line = encounterWith();
     const varied = testDeps({ checkVariance: 0.2, skillBonusPerRating: 2 });
     const twin = structuredClone(streamOf(world, 'quests'));
 
-    const results = Array.from({ length: 200 }, () => check(heroes, encounter, { difficulty: 30 }, world, varied));
+    const results = Array.from({ length: 200 }, () => check(heroes, line, { difficulty: 30 }, world, varied));
 
-    const cap = capability(heroes, encounter, world, varied);
+    const cap = capability(heroes, line, world, varied);
     for (const result of results) {
       const r = (next(twin) * 2 - 1) * 0.2;
       expect(result.roll).toBeCloseTo(cap * (1 + r), 10);
@@ -204,10 +226,33 @@ describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, D
   });
 });
 
-// M4's third risk: the Guildmaster's rules are Guild-side, never in the Check.
-describe('check.ts', () => {
+// M4's third risk: the Guildmaster's rules are Guild-side, never in the Check, nor in the Queries it
+// evaluates (v1.1.4-S1, DL-148 item 5).
+describe.each(['check.ts', 'query.ts'])('%s', (file) => {
+  const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
+
   test('never mentions the Guildmaster', () => {
-    const source = readFileSync(fileURLToPath(new URL('./check.ts', import.meta.url)), 'utf8');
     expect(source.toLowerCase()).not.toContain('guildmaster');
+  });
+
+  test("reads nothing of the Guild's dealings: no Wealth, Fame, Treasury, Upkeep, Patron or Rival", () => {
+    expect(source.toLowerCase()).not.toMatch(/wealth|fame|treasury|upkeep|patron|rival/);
+  });
+});
+
+describe('query.ts', () => {
+  test("imports as values only effectiveStats and ageOf, and otherwise only types: content's, the document's and the config's", () => {
+    const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
+    const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
+      from,
+      names: names.split(',').map((name) => name.trim()).filter((name) => name !== ''),
+      typeOnly: type !== undefined,
+    }));
+
+    expect(imports.filter((it) => !it.typeOnly)).toEqual([
+      { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
+      { from: '../time.js', names: ['ageOf'], typeOnly: false },
+    ]);
+    expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
   });
 });

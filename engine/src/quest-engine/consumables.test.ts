@@ -9,8 +9,7 @@ import { streamOf, type Stream } from '../generators/draw.js';
 import { addStack } from '../items.js';
 import { next } from '../rng.js';
 import { playerGuild } from '../selectors.js';
-import { heroStatKeys, testContent, testDeps } from '../world.test-support.js';
-import { capability } from './check.js';
+import { encounterCapability as capability, heroStatKeys, oldFormCheck, testContent, testDeps, withFactor } from '../world.test-support.js';
 import { resolveQuest } from './resolve.js';
 
 // M5-S3 (DL-50): the consumables a Party carries, used as the Quest Engine resolves its sequence. A
@@ -34,10 +33,7 @@ function encounter(key: string, kind: EncounterKind, pass: boolean, failure: Con
     key,
     name: key,
     kind,
-    demands: [['strength', 1]],
-    aggregate: 'sum',
-    skillKeys: [],
-    difficultyFactor: pass ? 0.001 : 1000,
+    checks: [oldFormCheck(key, key, 'sum', [['strength', 1]], [], pass ? 0.001 : 1000)],
     consequences: { success, failure },
   };
 }
@@ -144,7 +140,7 @@ describe('a reroll', () => {
     const capable = capability(probe.heroes, ford, probe.world, probe.deps);
     const first = rollOf(capable, next(probe.twin), variance);
     const second = rollOf(capable, next(probe.twin), variance);
-    const between = { ...encounter('between', 'travel', false, fame(-5), fame(1)), difficultyFactor: (first + second) / 2 / 40 };
+    const between = withFactor(encounter('between', 'travel', false, fame(-5), fame(1)), (first + second) / 2 / 40);
     const without = scene(found, contentWith([between]), ['between'], [], { overrides: { checkVariance: variance } });
     const within = scene(found, contentWith([between]), ['between'], [['grappling-line', 1]], { overrides: { checkVariance: variance } });
 
@@ -220,11 +216,11 @@ describe('a bonus', () => {
   });
 
   test('can turn a failure into a success, and a reroll then rolls the same capability again', () => {
-    const tight = { ...encounter('tight', 'combat', false), difficultyFactor: 0 };
+    const tight = withFactor(encounter('tight', 'combat', false), 0);
     const s0 = scene('tight', contentWith([tight]), ['tight'], []);
     const capable = capability(s0.heroes, tight, s0.world, s0.deps);
     // A target just above the capability: failed bare, met with a whetstone's 3.
-    const edge = { ...tight, difficultyFactor: (capable + 1) / 40 };
+    const edge = withFactor(tight, (capable + 1) / 40);
     const bare = scene('tight', contentWith([edge]), ['tight'], []);
     const honed = scene('tight', contentWith([edge]), ['tight'], [['whetstone', 1]]);
 

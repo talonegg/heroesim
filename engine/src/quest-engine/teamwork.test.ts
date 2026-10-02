@@ -4,8 +4,15 @@ import type { Hero, World } from '../document.js';
 import { generateHero } from '../generators/heroes.js';
 import { relationship } from '../hero-regard.js';
 import { regardBand } from '../regard.js';
-import { heroStatKeys, testContent, testDeps, testWorld } from '../world.test-support.js';
-import { capability, check } from './check.js';
+import {
+  encounterCapability as capability,
+  encounterCheck as check,
+  heroStatKeys,
+  oldFormCheck,
+  testContent,
+  testDeps,
+  testWorld,
+} from '../world.test-support.js';
 import { teamwork } from './teamwork.js';
 
 // M4-S4: the teamwork scalar M4-S2's Check multiplies capability by (DL-42's seam, DL-46): 1 plus
@@ -91,10 +98,7 @@ describe('the Check with teamwork', () => {
     regardAll(hostile, -20);
     const encounter: Encounter = {
       ...structuredClone(testContent.encounters['hold-the-line'] as Encounter),
-      demands: [['strength', 0.5], ['constitution', 0.5]],
-      aggregate: 'sum',
-      skillKeys: [],
-      difficultyFactor: 1,
+      checks: [oldFormCheck('hold-the-line', 'Hold the line', 'sum', [['strength', 0.5], ['constitution', 0.5]], [], 1)],
     };
     const quest = { difficulty: 16 };
 

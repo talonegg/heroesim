@@ -4,6 +4,7 @@ import type { Guild, Hero, HeroId, Quest, World, WorldDocument } from './documen
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { addStack } from './items.js';
 import { previewDispatch, skillsThatHelp } from './preview.js';
+import { queryParty } from './quest-engine/query.js';
 import { synergiesFor } from './quest-engine/synergy.js';
 import { serialise } from './serialise.js';
 import { buildDocument, testContent, testDeps, withValid } from './world.test-support.js';
@@ -101,7 +102,7 @@ describe('previewDispatch', () => {
 
     // A Rogue and a Mage: shadow-and-spell, on stealth and arcane Encounters, one of these three.
     expect(preview?.encounterKinds).toEqual(['combat', 'travel', 'stealth']);
-    expect(preview?.synergies.map(({ synergy }) => synergy.key)).toEqual(synergiesFor(heroes, testContent).map((it) => it.key));
+    expect(preview?.synergies.map(({ synergy }) => synergy.key)).toEqual(synergiesFor(queryParty(heroes, world, deps), testContent).map((it) => it.key));
     expect(preview?.synergies.find(({ synergy }) => synergy.key === 'shadow-and-spell')?.encounters).toBe(1);
   });
 

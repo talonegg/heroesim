@@ -30,6 +30,7 @@ import type {
 import type { Guild, Hero, HeroId, Quest, Stack, World } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { holdings, itemDefinition } from './items.js';
+import { queryParty } from './quest-engine/query.js';
 import { appliesOn, synergiesFor } from './quest-engine/synergy.js';
 
 /** One of a Quest's requirements, and whether the proposed Party meets it. */
@@ -131,7 +132,7 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
     requirements: requirementsOf(quest, heroes),
     problems: problemsOf(guild, request.heroIds, world),
     encounterKinds,
-    synergies: synergiesFor(heroes, content).map((synergy) => ({
+    synergies: synergiesFor(queryParty(heroes, world, deps), content).map((synergy) => ({
       synergy,
       encounters: kindsReached((kind) => appliesOn(synergy, kind)),
     })),
@@ -171,8 +172,8 @@ function problemsOf(guild: Guild, heroIds: readonly HeroId[], world: World): Par
 
 /**
  * The Skills that help on a Quest (DL-70): from M4 the Checks read its Encounters' Skills and not
- * the template's (DL-42), so each Skill any of its Encounters names, once, in the order the Quest
- * meets them. A Quest drawn before M4, whose Encounters are drawn on the way, gives its own Skills,
+ * the template's (DL-42), so each Skill any of its Encounters' Checks names, once, in the order the
+ * Quest meets them. A Quest drawn before M4, whose Encounters are drawn on the way, gives its own Skills,
  * the kind of work it is. A key content lacks is left out (data-model rule 5).
  */
 export function skillsThatHelp(
@@ -182,7 +183,7 @@ export function skillsThatHelp(
   const keys =
     quest.encounterKeys.length === 0
       ? quest.skillKeys
-      : [...new Set(quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.skillKeys ?? []))];
+      : [...new Set(quest.encounterKeys.flatMap((key) => own(content.encounters, key)?.checks.flatMap((it) => it.skills) ?? []))];
   return keys.filter((key) => Object.hasOwn(content.skills, key));
 }
 

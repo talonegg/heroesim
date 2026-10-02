@@ -615,7 +615,7 @@ describe('questsConclude writes Regard once for each resolved Quest (M4-S5, DL-4
       ...structuredClone(base),
       key,
       name: key,
-      difficultyFactor,
+      checks: base.checks.map((it) => ({ ...structuredClone(it), difficultyFactor })),
       consequences: { success: [], failure },
     });
     const content: ContentSet = {

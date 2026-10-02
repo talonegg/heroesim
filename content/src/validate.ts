@@ -1,6 +1,7 @@
 // The content schema's rules across rows: what a single row's shape cannot show (M1-S4).
 // `parseContent` runs this on every set it builds; a set assembled in memory, by a test or a
-// later module, runs it directly.
+// later module, runs it directly. Since v1.1.4-S1 it holds every Query, an Encounter's Checks'
+// scores and a Synergy's requirements, to its types, its keys and its size (ADR-0010).
 
 import type {
   Consequence,
@@ -94,6 +95,11 @@ export function validateContent(set: ContentSet): ContentSet {
     } else if (stat.default < stat.min || stat.default > stat.max) {
       problems.push(`stats.${key}: default ${stat.default} is outside ${stat.min} to ${stat.max}`);
     }
+    // An Encounter's old `best` read Math.max(0, …) of a Stat and loads as `max` (v1.1.4-S1): the two
+    // agree only while no Hero's effective value is below 0, which a least value of 0 or more holds.
+    if (stat.owner === 'hero' && !(stat.min >= 0)) {
+      problems.push(`stats.${key}.min is ${stat.min}; a Hero Stat's least value is 0 or more, as a Check reads it (DL-151)`);
+    }
   }
 
   const heroStats = new Set(
@@ -167,10 +173,11 @@ export function validateContent(set: ContentSet): ContentSet {
 
   checkDispositions(set.dispositions, problems);
   checkImprovements(set.improvements, problems);
-  checkEncounters(set, heroStats, skills, problems);
+  const keys = queryKeys(set);
+  checkEncounters(set, keys, problems);
   checkTraitEffects(set.traits, classes, heroStats, problems);
   checkTraitCosts(set.traits, problems);
-  checkSynergies(set.synergies, classes, skills, problems);
+  checkSynergies(set.synergies, keys, problems);
   checkItems(set.items, heroStats, problems);
   checkLootTables(set, problems);
 
@@ -841,25 +848,35 @@ function checkEncounterDraw(
   checkRange(where, 'encounters', template.encountersMin, template.encountersMax, 1, problems);
 }
 
+/** How many Checks an Encounter has (v1.1.4-S1): one, loaded from the old form, until v1.1.4-S2 allows up to four. */
+export const encounterChecksMax = 1;
+
 /**
- * The Encounters (M4-S1): demands on Hero Stats weighted as a Quest template's are, Skills that
- * exist, a difficulty factor above 0, and consequences each within its kind's bounds, an Injury
- * naming a type content defines. The epic's first box: an unknown Stat, Skill or Injury type is
- * refused.
+ * The Encounters (M4-S1): Checks (v1.1.4-S1), one, each keyed in kebab-case once, named, scored by a
+ * Num Query (`checkQuery`), helped by Skills that exist and aimed at a difficulty factor above 0;
+ * and consequences each within its kind's bounds, an Injury naming a type content defines. The
+ * epic's first box: an unknown Stat, Skill or Injury type is refused. The old form's demands are
+ * held as they load (`parseContent`).
  */
-function checkEncounters(
-  set: ContentSet,
-  heroStats: ReadonlySet<string>,
-  skills: ReadonlySet<string>,
-  problems: string[],
-): void {
+function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): void {
   for (const [key, encounter] of Object.entries(set.encounters)) {
     const where = `encounters.${key}`;
-    checkDemands(`${where}.demands`, encounter.demands, heroStats, problems);
-    checkReferences(`${where}.skillKeys`, encounter.skillKeys, skills, 'a Skill', problems);
-    if (!(Number.isFinite(encounter.difficultyFactor) && encounter.difficultyFactor > 0)) {
-      problems.push(`${where}.difficultyFactor is ${encounter.difficultyFactor}; it is a number above 0`);
+    const { checks } = encounter;
+    if (checks.length === 0) problems.push(`${where}.checks is empty: an Encounter is resolved by a Check`);
+    if (checks.length > encounterChecksMax) {
+      problems.push(`${where}.checks has ${checks.length}; an Encounter has at most ${encounterChecksMax}`);
     }
+    for (const repeat of repeated(checks.map((it) => it.key))) problems.push(`${where}.checks: "${repeat}" is listed twice`);
+    checks.forEach((it, index) => {
+      const at = `${where}.checks.${index}`;
+      if (!kebabCase.test(it.key)) problems.push(`${at}.key: "${it.key}" is not kebab-case`);
+      if (it.name.trim() === '') problems.push(`${at}.name is empty: a Check is named for the narration and the Board`);
+      checkQuery(`${at}.score`, it.score, 'num', keys, problems);
+      checkReferences(`${at}.skills`, it.skills, keys.skills, 'a Skill', problems);
+      if (!(Number.isFinite(it.difficultyFactor) && it.difficultyFactor > 0)) {
+        problems.push(`${at}.difficultyFactor is ${it.difficultyFactor}; it is a number above 0`);
+      }
+    });
     for (const outcome of ['success', 'failure'] as const) {
       encounter.consequences[outcome].forEach((consequence, index) => {
         checkConsequence(`${where}.consequences.${outcome}.${index}`, consequence, set, problems);
@@ -982,31 +999,23 @@ function checkTraitCosts(traits: ContentSet['traits'], problems: string[]): void
 }
 
 /**
- * The Synergies (M4-S3, DL-45): each requires at least one Class or Skill, every Class content
- * defines with a count that is a whole number from 1, every Skill content defines and none twice;
- * adds a `flat` above 0, a `factor` above 1 or both, a Synergy being a bonus and a factor in content
- * a multiplier; and names, if any, one or more Encounter kinds, none twice.
+ * The Synergies (M4-S3, DL-45): each requires one or more conditions on the Party, each a Query
+ * (v1.1.4-S1, DL-148 item 20, `checkQuery`); adds a `flat` above 0, a `factor` above 1 or both, a
+ * Synergy being a bonus and a factor in content a multiplier; and names, if any, one or more
+ * Encounter kinds, none twice. The old form's Classes and Skills are held as they load
+ * (`parseContent`).
  */
-function checkSynergies(
-  synergies: ContentSet['synergies'],
-  classes: ReadonlySet<string>,
-  skills: ReadonlySet<string>,
-  problems: string[],
-): void {
+function checkSynergies(synergies: ContentSet['synergies'], keys: QueryKeys, problems: string[]): void {
   for (const [key, synergy] of Object.entries(synergies)) {
     const where = `synergies.${key}`;
     const { requires, bonus, kinds } = synergy;
-    const counts = Object.entries(requires.classes ?? {});
-    if (counts.length === 0 && (requires.skills ?? []).length === 0) {
-      problems.push(`${where}.requires names no Class and no Skill: a Synergy is for a combination of them`);
+    if (!Array.isArray(requires)) {
+      problems.push(`${where}.requires is ${JSON.stringify(requires)}; expected a list of conditions on the Party`);
+    } else {
+      if (requires.length === 0) problems.push(`${where}.requires is empty: a Synergy is for a Party that meets something`);
+      const gate = { ...keys, sexFilters: false };
+      requires.forEach((condition, index) => checkQuery(`${where}.requires.${index}`, condition, 'condition', gate, problems));
     }
-    for (const [classKey, count] of counts) {
-      if (!classes.has(classKey)) problems.push(`${where}.requires.classes: "${classKey}" is not a Class`);
-      if (!(Number.isInteger(count) && count >= 1)) {
-        problems.push(`${where}.requires.classes.${classKey} is ${count}; a count is a whole number from 1`);
-      }
-    }
-    checkReferences(`${where}.requires.skills`, requires.skills ?? [], skills, 'a Skill', problems);
     if (bonus.flat === undefined && bonus.factor === undefined) {
       problems.push(`${where}.bonus is empty: a Synergy adds a flat, a factor or both`);
     }
@@ -1126,8 +1135,315 @@ function checkLootTables(set: ContentSet, problems: string[]): void {
   }
 }
 
+// Queries (v1.1.4-S1, DL-148 items 4 to 6, ADR-0010). A Query is held to its type at every node, to
+// the keys content defines, and to a size; and Sex is held to filters, so that it decides who takes
+// part and never a value. Every problem names the Query's path, each argument by its place in its
+// array, as `encounters.<key>.checks.0.score.1.2`.
+
+/** The most nodes a Query may hold: each operator, each number and each `"party"` (v1.1.4-S1). */
+export const queryNodesMax = 64;
+
+/** How deep a Query may nest, an operator's node one below it (v1.1.4-S1). */
+export const queryDepthMax = 12;
+
+/** The five types of Query, and a condition on the Party, which a Synergy's requirement lists. */
+type QueryType = 'set' | 'hero' | 'val' | 'pred' | 'num' | 'condition';
+
+/** What an argument of an operator is: a Query of a type, a key, or a number or list of its own. */
+type QueryArgument =
+  | QueryType
+  | 'stat'
+  | 'skill'
+  | 'class'
+  | 'background'
+  | 'trait'
+  | 'sex'
+  | 'heroes'
+  | 'rating'
+  | 'weights'
+  | 'pairs';
+
+/** An operator's arguments: those it always takes, then as many more of `rest` (one at least) or `optional` ones. */
+interface Signature {
+  args: readonly QueryArgument[];
+  rest?: QueryArgument;
+  optional?: readonly QueryArgument[];
+}
+
+const comparisons = ['>=', '>', '<', '<=', '='] as const;
+const arithmetic = (type: 'val' | 'num'): Record<string, Signature> => ({
+  '+': { args: [], rest: type },
+  '-': { args: [type, type] },
+  '*': { args: [], rest: type },
+});
+
+/** Every operator of each type (content-types.ts's `SetQuery` to `NumQuery`, and `PartyCondition`). */
+const operators: Readonly<Record<QueryType, Readonly<Record<string, Signature>>>> = {
+  set: {
+    where: { args: ['set', 'pred'] },
+    top: { args: ['set', 'heroes', 'val'] },
+    bottom: { args: ['set', 'heroes', 'val'] },
+  },
+  hero: {
+    best: { args: ['set', 'val'] },
+    worst: { args: ['set', 'val'] },
+  },
+  val: {
+    stat: { args: ['stat'] },
+    skill: { args: ['skill'] },
+    level: { args: [] },
+    morale: { args: [] },
+    age: { args: [] },
+    weighted: { args: ['pairs'] },
+    ...arithmetic('val'),
+  },
+  pred: {
+    class: { args: [], rest: 'class' },
+    background: { args: [], rest: 'background' },
+    sex: { args: ['sex'] },
+    'has-skill': { args: ['skill'], optional: ['rating'] },
+    'has-trait': { args: ['trait'] },
+    hurt: { args: [] },
+    ...Object.fromEntries(comparisons.map((comparison): [string, Signature] => [comparison, { args: ['val', 'val'] }])),
+    and: { args: [], rest: 'pred' },
+    or: { args: [], rest: 'pred' },
+    not: { args: ['pred'] },
+  },
+  num: {
+    ...Object.fromEntries(['sum', 'avg', 'max', 'min'].map((it): [string, Signature] => [it, { args: ['set', 'val'] }])),
+    count: { args: ['set'] },
+    ranked: { args: ['set', 'val', 'weights'] },
+    of: { args: ['hero', 'val'] },
+    ...arithmetic('num'),
+    least: { args: [], rest: 'num' },
+    greatest: { args: [], rest: 'num' },
+  },
+  condition: Object.fromEntries(comparisons.map((comparison): [string, Signature] => [comparison, { args: ['num', 'num'] }])),
+};
+
+const typeNames: Readonly<Record<QueryType, string>> = {
+  set: 'a Set',
+  hero: 'a Hero',
+  val: 'a Val',
+  pred: 'a Pred',
+  num: 'a Num',
+  condition: 'a condition on the Party',
+};
+
+/**
+ * The keys a Query may name: content's Hero Stats, Skills, Classes, Hero Backgrounds and Hero Traits;
+ * and whether Sex may filter it at all. A Check's score may filter by Sex; a Synergy's requirement may
+ * not, since it is a gate, so that any reading of Sex in it would be a value (DL-151's verification).
+ */
+interface QueryKeys {
+  heroStats: ReadonlySet<string>;
+  skills: ReadonlySet<string>;
+  classes: ReadonlySet<string>;
+  heroBackgrounds: ReadonlySet<string>;
+  heroTraits: ReadonlySet<string>;
+  sexFilters: boolean;
+}
+
+/** What a Query's node comes to, for the checks above it. */
+interface QueryShape {
+  nodes: number;
+  depth: number;
+  /** A Set, or the Hero of one, filtered by Sex somewhere within. */
+  bySex: boolean;
+  /**
+   * A Val that reads something of the Hero: not a number alone, nor a read of the Hero only times a
+   * literal 0, nor a `weighted` of no weight but 0.
+   */
+  readsHero: boolean;
+}
+
+const leaf: QueryShape = { nodes: 1, depth: 1, bySex: false, readsHero: false };
+
+/** The keys `set` defines that a Query may name. */
+function queryKeys(set: ContentSet): QueryKeys {
+  const owned = (rows: Readonly<Record<string, { owner: string }>>): Set<string> =>
+    new Set(Object.entries(rows).flatMap(([key, row]) => (row.owner === 'hero' ? [key] : [])));
+  return {
+    heroStats: owned(set.stats),
+    skills: new Set(Object.keys(set.skills)),
+    classes: new Set(Object.keys(set.classes)),
+    heroBackgrounds: owned(set.backgrounds),
+    heroTraits: owned(set.traits),
+    sexFilters: true,
+  };
+}
+
+/**
+ * `query`, at `where`, as a Query of `type`: each node an operator of that type with its arguments,
+ * or a number where a Val or a Num stands, or `"party"` where a Set does; each key one content
+ * defines; at most `queryNodesMax` nodes and `queryDepthMax` deep; `["sex", …]` only as a filter's
+ * Pred, and only where `keys.sexFilters` allows it; and no Set filtered by Sex counted, by `count` or
+ * by a value that reads nothing of a Hero.
+ */
+function checkQuery(where: string, query: unknown, type: QueryType, keys: QueryKeys, problems: string[]): void {
+  const { nodes, depth } = queryNode(where, query, type, keys, problems);
+  if (nodes > queryNodesMax) problems.push(`${where} has ${nodes} nodes; a Query has at most ${queryNodesMax}`);
+  if (depth > queryDepthMax) problems.push(`${where} is ${depth} deep; a Query is at most ${queryDepthMax} deep`);
+}
+
+/** One node of a Query, and every node below it. */
+function queryNode(where: string, query: unknown, type: QueryType, keys: QueryKeys, problems: string[]): QueryShape {
+  if (typeof query === 'number') {
+    if (type !== 'val' && type !== 'num') problems.push(`${where} is ${query}; a number stands for a Val or a Num, not ${typeNames[type]}`);
+    else if (!Number.isFinite(query)) problems.push(`${where} is ${query}; a number in a Query is finite`);
+    return leaf;
+  }
+  if (query === 'party') {
+    if (type !== 'set') problems.push(`${where} is "party", a Set; ${typeNames[type]} stands here`);
+    return leaf;
+  }
+  const [operator, ...args] = Array.isArray(query) ? (query as unknown[]) : [];
+  if (typeof operator !== 'string') {
+    problems.push(`${where} is ${JSON.stringify(query)}; expected ${typeNames[type]}, a list with its operator first`);
+    return leaf;
+  }
+  const signature = Object.hasOwn(operators[type], operator) ? operators[type][operator] : undefined;
+  if (signature === undefined) {
+    problems.push(`${where}: ${misplaced(operator, type)}`);
+    return leaf;
+  }
+  const fixed = signature.args.length;
+  const most = signature.rest === undefined ? fixed + (signature.optional?.length ?? 0) : Infinity;
+  const least = signature.rest === undefined ? fixed : fixed + 1;
+  if (args.length < least || args.length > most) {
+    problems.push(`${where}: "${operator}" takes ${arity(least, most)}; it has ${args.length}`);
+    return leaf;
+  }
+  const shapes = args.map((arg, index) => {
+    const kind = signature.args[index] ?? signature.optional?.[index - fixed] ?? signature.rest ?? 'num';
+    return queryArgument(`${where}.${index + 1}`, arg, kind, operator, keys, problems);
+  });
+  const below = shapes.filter((shape): shape is QueryShape => shape !== null);
+  const shape: QueryShape = {
+    nodes: 1 + below.reduce((total, it) => total + it.nodes, 0),
+    depth: 1 + Math.max(0, ...below.map((it) => it.depth)),
+    bySex: below.some((it) => it.bySex),
+    readsHero: type === 'val' && readsHero(operator, args, below),
+  };
+  if (operator === 'sex') {
+    if (!keys.sexFilters) {
+      problems.push(`${where}: ["sex", …] stands in no Synergy's requirement: a requirement is a condition on the Party, and Sex decides only who takes part in a Check (DL-148 item 6)`);
+    }
+    return { ...shape, bySex: true };
+  }
+  if (type === 'set' || type === 'hero' || type === 'pred') return shape;
+  // A Num of a Set (or of its Hero) filtered by Sex: counted, if it reads nothing of a Hero.
+  const [of, value] = below;
+  if (type === 'num' && of?.bySex === true && (operator === 'count' || value?.readsHero === false)) {
+    problems.push(`${where}: a Set filtered by Sex is counted; Sex decides who takes part, never a number (DL-148 item 6)`);
+  }
+  return { ...shape, bySex: false };
+}
+
+/**
+ * Whether a Val node of `operator` reads something of the Hero: an operand of `+` or `-` that does; a
+ * product with one that does and no literal 0 among its factors; a `weighted` with a weight other than
+ * 0; and every other operator, which reads the Hero itself.
+ */
+function readsHero(operator: string, args: readonly unknown[], below: readonly QueryShape[]): boolean {
+  switch (operator) {
+    case '+':
+    case '-':
+      return below.some((it) => it.readsHero);
+    case '*':
+      return !args.includes(0) && below.some((it) => it.readsHero);
+    case 'weighted': {
+      const [pairs] = args;
+      return Array.isArray(pairs) && pairs.some((pair: unknown) => !Array.isArray(pair) || pair[1] !== 0);
+    }
+    default:
+      return true;
+  }
+}
+
+/** One argument of `operator`: a Query of its type, with its shape, or a key or number checked here, with none. */
+function queryArgument(
+  where: string,
+  arg: unknown,
+  kind: QueryArgument,
+  operator: string,
+  keys: QueryKeys,
+  problems: string[],
+): QueryShape | null {
+  const key = (known: ReadonlySet<string>, what: string): null => {
+    if (typeof arg !== 'string' || !known.has(arg)) problems.push(`${where}: ${JSON.stringify(arg)} is not ${what}`);
+    return null;
+  };
+  switch (kind) {
+    case 'stat':
+      return key(keys.heroStats, 'a Hero Stat');
+    case 'skill':
+      return key(keys.skills, 'a Skill');
+    case 'class':
+      return key(keys.classes, 'a Class');
+    case 'background':
+      return key(keys.heroBackgrounds, 'a Hero Background');
+    case 'trait':
+      return key(keys.heroTraits, 'a Hero Trait');
+    case 'sex':
+      return key(new Set<Sex>(['female', 'male']), 'a sex: female or male');
+    case 'heroes':
+      if (!(Number.isInteger(arg) && (arg as number) >= 1)) {
+        problems.push(`${where} is ${JSON.stringify(arg)}; ${operator}'s n is a whole number from 1`);
+      }
+      return null;
+    case 'rating':
+      if (!(Number.isInteger(arg) && (arg as number) >= 1)) {
+        problems.push(`${where} is ${JSON.stringify(arg)}; has-skill's least rating is a whole number from 1`);
+      }
+      return null;
+    case 'weights':
+      if (!Array.isArray(arg) || arg.length === 0) {
+        problems.push(`${where} is ${JSON.stringify(arg)}; ranked's weights are a list of one or more`);
+        return null;
+      }
+      arg.forEach((weight: unknown, index) => {
+        if (!(typeof weight === 'number' && Number.isFinite(weight) && weight >= 0)) {
+          problems.push(`${where}.${index} is ${String(weight)}; a weight is a finite number of 0 or more`);
+        }
+      });
+      return null;
+    case 'pairs':
+      if (!Array.isArray(arg) || arg.length === 0) {
+        problems.push(`${where} is ${JSON.stringify(arg)}; weighted's Stats are a list of one or more [Stat, weight] pairs`);
+        return null;
+      }
+      arg.forEach((pair: unknown, index) => {
+        const [statKey, weight, ...more] = Array.isArray(pair) ? (pair as unknown[]) : [];
+        if (!Array.isArray(pair) || more.length > 0 || !(typeof weight === 'number' && Number.isFinite(weight))) {
+          problems.push(`${where}.${index} is ${JSON.stringify(pair)}; expected a [Stat, weight] pair, the weight a finite number`);
+        } else if (typeof statKey !== 'string' || !keys.heroStats.has(statKey)) {
+          problems.push(`${where}.${index}.0: ${JSON.stringify(statKey)} is not a Hero Stat`);
+        }
+      });
+      return null;
+    default:
+      return queryNode(where, arg, kind, keys, problems);
+  }
+}
+
+/** Why `operator` cannot stand where a Query of `type` is expected. */
+function misplaced(operator: string, type: QueryType): string {
+  if (operator === 'sex') return '["sex", …] stands only as the Pred of a where filter: Sex decides who takes part, never a value (DL-148 item 6)';
+  const types = (Object.keys(operators) as QueryType[]).filter((it) => Object.hasOwn(operators[it], operator));
+  if (types.length === 0) return `"${operator}" is not an operator of a Query`;
+  return `"${operator}" makes ${types.map((it) => typeNames[it]).join(' or ')}, where ${typeNames[type]} is expected`;
+}
+
+/** How many arguments an operator takes, in words. */
+function arity(least: number, most: number): string {
+  const count = (n: number): string => (n === 0 ? 'no arguments' : n === 1 ? '1 argument' : `${n} arguments`);
+  if (most === Infinity) return `${count(least)} or more`;
+  return least === most ? count(least) : `${least} or ${most} arguments`;
+}
+
 /** Every key must name a row of the table it refers to, and appear once. */
-function checkReferences(
+export function checkReferences(
   where: string,
   keys: readonly string[],
   known: ReadonlySet<string>,
@@ -1164,7 +1480,7 @@ function checkRange(where: string, field: string, min: number, max: number, floo
  * A Quest template's demands: at least one, each a Hero Stat once with a weight above 0, the
  * weights summing to 1 within the tolerance (M2-S3's acceptance).
  */
-function checkDemands(
+export function checkDemands(
   where: string,
   demands: readonly (readonly [string, number])[],
   heroStats: ReadonlySet<string>,

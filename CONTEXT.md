@@ -213,6 +213,13 @@ effects, and DL-87 lets one Trait carry several, so a Trait may trade a buff for
 to be built).
 _Avoid_: Perk, Flaw, Buff, Modifier (as a noun)
 
+**Earned Trait**:
+A Hero Trait a Hero gains on a Quest, rarely. A positive one is drawn on an Encounter's Triumph
+and kept only if the Quest ends a strong success; a negative one falls only on a Hero injured by
+the same failed Encounter. At most one a Hero a Quest, none twice, and each a Milestone (DL-148
+items 25 to 27; to be built, v1.1.4-S7).
+_Avoid_: Perk, Achievement, Level-up
+
 **Trait budget**:
 The points a Guildmaster's Traits may cost in all, `guildmasterTraitBudget`, so the dearer buffs
 need a penalty beside them. The player's choice at setup and every drawn Guildmaster, a Rival's
@@ -303,12 +310,50 @@ effects on each Hero, reward or penalty, Loot, and what the world learns from it
 _Avoid_: Mission Engine, Combat system, Resolver
 
 **Encounter**:
-One typed step of a Quest, resolved by a Check with typed consequences.
+One typed step of a Quest, resolved by its Checks with typed consequences. By DL-148 an
+Encounter has one to four Checks, combined by its pass formula, and its consequences may differ
+by Degree (to be built, v1.1.4-S2); until then it has one.
 _Avoid_: Beat, Scene, Event
 
 **Check**:
-The comparison of a Party's capability against an Encounter's difficulty.
+The comparison of a Party's capability against an Encounter's difficulty. Its score is a Query
+over the Party since v1.1.4-S1 (DL-151), an Encounter written the old way loading into one Check
+whose score is the same weighted sum of Stats. By DL-148 item 7 an Encounter has one to four
+Checks, each named for the narration and the Board, each rolled every time (to be built,
+v1.1.4-S2).
 _Avoid_: Roll (for the whole), Test, Save
+
+**Query**:
+A reading of the Party, written in content as a list with its operator first, which the engine
+evaluates: some of the Party's Heroes (a Set), one of them, a number or a fact of one Hero, or a
+number of the Party, such as the strongest Warrior's Strength or the total Intelligence of the
+Mages and Healers. A Check's score and a Synergy's requirements are Queries (DL-148 items 4 to 6,
+ADR-0010; built in v1.1.4-S1, DL-151). A Query reads only the Party's own Heroes on the Quest,
+never the Guildmaster or the Guild's dealings, nor Regard between Heroes. Sex decides who takes
+part in a Check and never a value: it stands only in a filter of a Check's score, never in a
+Synergy's requirement, and a Set filtered by it is never counted, by `count` or by a value that
+reads nothing of a Hero.
+_Avoid_: Formula, Expression, Script, Filter (for the whole)
+
+**Degree**:
+How a Check came out, read from its roll against its target: a **Triumph**, a Success, a
+**Setback** or a Failure. A Triumph is a Success by a wide margin, a Setback a Failure by a narrow
+one. An Encounter takes the Degree its pass formula gives, and a strong success needs Triumphs
+(DL-148 item 8; to be built, v1.1.4-S2).
+_Avoid_: Tier, Grade, Result (alone)
+
+**Form**:
+How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
+score, from their Morale band, and lower once they are hurt on the Quest. Filters, the choice of
+the best or worst Hero, Synergy requirements, Skills, Level, age and counts read a Hero as they
+are (DL-148 items 9 to 11; to be built, v1.1.4-S3).
+_Avoid_: Condition, Fitness, Mood
+
+**Finale**:
+A fixed last Encounter a Quest template names, met after the drawn ones. The four hardest
+templates have one, and on such a Quest Loot also needs the finale to end a Triumph (DL-148
+items 22 and 23; to be built, v1.1.4-S8).
+_Avoid_: Boss, Climax, Final Encounter
 
 **Quest band**:
 How well a Quest went: failure, success or strong success, read from the share of its
@@ -338,8 +383,10 @@ drawn. A Quest carries one only when its template names one and it is hard enoug
 _Avoid_: Drop table, Treasure table
 
 **Synergy**:
-An authored bonus that applies when a Party contains a particular combination of Classes or
-Skills. Relationship between members scales teamwork separately.
+An authored bonus that applies when a Party meets its requirements: conditions on the Party
+written as Queries, every one of which must hold, such as at least one Warrior and one Healer
+(DL-148 item 20; built in v1.1.4-S1, DL-151, the old list of Classes and Skills loading into
+them). Relationship between members scales teamwork separately.
 _Avoid_: Combo, Bonus (alone), Chemistry
 
 **Campaign**:
