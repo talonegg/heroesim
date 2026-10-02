@@ -73,8 +73,9 @@ from elsewhere), every later release is refused, because `main` differs from the
 head. Merge `main` back into the current release branch and push it; the next pull request
 releases both.
 
-A new line needs only its two branches, and Dependabot's `target-branch` (`.github/dependabot.yml`)
-moved to its dev branch. Every day `watch.yml` does three things, and opens an issue when any of
+A new line needs only its two branches. Each new dev branch, a line's or a patch's, moves
+Dependabot's `target-branch` (`.github/dependabot.yml`) to itself (DL-147), which takes effect once
+released to `main`. Every day `watch.yml` does three things, and opens an issue when any of
 them fails, or when the token expires within 30 days:
 - it plays both addresses;
 - it verifies the Cloudflare token and its expiry;

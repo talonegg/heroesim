@@ -16525,7 +16525,7 @@ texts checked on load as strings only) and T3 (Chromium without its sandbox) for
 
 **Actioned in:** `web/src/state/setup.ts`, `web/src/views/new-game.tsx`, `web/src/state/world-views.ts`,
 `web/src/views/guilds.tsx`, `web/src/styles.css` (`hidden-on-phone`) and their tests; `web/e2e/layout.spec.ts`;
-`.github/dependabot.yml`; `docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`;
+`.github/dependabot.yml`, `web/src/deploy.test.ts` and `README.md`; `docs/planning/epics/v1.1.3-release.md`; `docs/planning/epics/README.md`;
 `docs/plan.md`.
 
 ---
