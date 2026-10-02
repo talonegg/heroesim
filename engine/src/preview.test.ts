@@ -106,6 +106,23 @@ describe('previewDispatch', () => {
     expect(preview?.synergies.find(({ synergy }) => synergy.key === 'shadow-and-spell')?.encounters).toBe(1);
   });
 
+  test("gives the Party's mean form as it sets out and what it does to the odds, for the Party, and none for no one (v1.1.4-S3)", () => {
+    const setting = proposal();
+    const { world } = setting.document;
+    const party = [setting.rogue, setting.mage];
+    const at = (morales: [number, number]) => {
+      party.forEach((id, index) => ((world.heroes[id] as Hero).morale = morales[index] as number));
+      return previewDispatch(world, request(setting, party), deps)?.form;
+    };
+    const { moraleCheckFactor: factor } = deps.config;
+
+    expect(at([60, 60])).toEqual({ mean: 1, effect: 'none' });
+    expect(at([95, 60])).toEqual({ mean: (factor.elated + 1) / 2, effect: 'raises' });
+    expect(at([30, 60])).toEqual({ mean: (factor.low + 1) / 2, effect: 'lowers-a-little' });
+    expect(at([10, 30])).toEqual({ mean: (factor.wretched + factor.low) / 2, effect: 'lowers-badly' });
+    expect(previewDispatch(world, request(setting, []), deps)?.form).toBeNull();
+  });
+
   test('counts every Encounter for a Synergy of every kind, and none while a Quest\'s Encounters are drawn on the way', () => {
     const setting = proposal();
     const world: World = structuredClone(setting.document.world);

@@ -9,15 +9,17 @@
 // ±2", its title saying it is won on a success and lost on a failure (Q9).
 //
 // "Choose a Party" opens the builder (DL-99 item 3, the review's C4): each Hero on the Roster as a
-// row saying whether they can go, and when not why and until when, their Class and Level, their
-// Morale and its band, the effective values of the Stats the Quest demands, and the Skills it names
-// that they have. A row opens the Hero's page in place of the Board; "Back to the Party" returns to
+// row saying whether they can go, and when not why and until when, their Class and Level, the
+// effective values of the Stats the Quest demands, and the Skills it names that they have; no Hero's
+// Morale (v1.1.4-S3's verification, DL-148 item 12). A row opens the Hero's page in place of the Board; "Back to the Party" returns to
 // the builder with the Party and the consumables as they were chosen. The choice is the shell's, kept
 // by Quest (`state/party-choices.ts`), so it holds when the player leaves the Board too, until the
 // Party is sent, its Quest leaves the Board, or another game is started or loaded (Q16). The requirements are a
 // checklist, and dispatch's own verdict (`previewDispatch`, DL-66 item 2) a banner at the foot of the
 // form, beside Send, which stays in view while the form scrolls. Once sent, the card becomes a
-// "Party out" card naming who went and the night they return (E1). No fit score and no odds.
+// "Party out" card naming who went and the night they return (E1). No fit score and no odds, but
+// one Morale line for the Party chosen, worded from its mean form and naming no Hero (v1.1.4-S3,
+// DL-148 item 12).
 //
 // Every number and judgement comes from a selector (`boardView`, `partyRows`, `consumableChoices`,
 // `previewView`, `sentView`): nothing here computes a rule.
@@ -40,7 +42,7 @@ import {
 import { HeroPage } from './hero-page';
 import { Icon, type IconName } from './icons';
 import { View } from './section';
-import { Banner, Chip, moraleTones, Stepper, VisuallyHidden } from './ui';
+import { Banner, Chip, Stepper, VisuallyHidden } from './ui';
 
 /** The orders the player may choose, in the words the control shows. */
 const orders: readonly (readonly [BoardOrder, string])[] = [
@@ -481,6 +483,12 @@ function Builder({
               <li key={synergy}>{synergy}</li>
             ))}
           </ul>
+          {preview.morale === null ? null : (
+            <>
+              <h4>Morale</h4>
+              <p data-testid="party-morale">{preview.morale}</p>
+            </>
+          )}
           <h4>Consumables</h4>
           <ul>
             {preview.consumables.map((consumable) => (
@@ -529,9 +537,6 @@ function HeroRow({ row, chosen, onToggle, onOpen }: { row: PartyRow; chosen: boo
             {row.unavailable}
           </Chip>
         )}
-        <Chip tone={moraleTones[row.moraleBand]} icon="morale">
-          Morale {row.morale}, {row.moraleBand}
-        </Chip>
         {row.skills.map((skill) => (
           <Chip key={skill.name} tone="accent">
             {skill.name} {skill.rating}

@@ -402,7 +402,7 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     return { document, quest, bram, liv, cenric, ragnvald };
   }
 
-  test("gives each Hero on the Roster a row: Class and Level, Morale and its band, the effective values of the Stats the Quest demands, and its Skills they have", () => {
+  test("gives each Hero on the Roster a row: Class and Level, the effective values of the Stats the Quest demands, and its Skills they have, and no Morale (DL-148 item 12)", () => {
     const { document, quest, bram, liv } = builder();
     liv.morale = 15;
     // An arming sword lifts Liv's Strength by 1: the value a Check reads, not the base.
@@ -416,8 +416,6 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       name: 'Bram Netherby',
       className: 'Healer',
       level: 1,
-      morale: 60,
-      moraleBand: 'steady',
       why: null,
       unavailable: null,
       stats: [
@@ -433,8 +431,6 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     });
     expect(rows?.[1]).toMatchObject({
       className: 'Warrior',
-      morale: 15,
-      moraleBand: 'wretched',
       stats: [
         { name: 'Strength', value: (liv.stats.strength ?? 0) + 1 },
         { name: 'Willpower', value: liv.stats.willpower },
@@ -444,6 +440,8 @@ describe('the Party builder (M9-S4, DL-104)', () => {
     });
     // A Rogue and a Mage have none of this Quest's Skills.
     expect(rows?.slice(2).map((row) => row.skills)).toEqual([[], []]);
+    // v1.1.4-S3's verification: no row names a Hero's Morale; the Party's one line says what it does.
+    for (const row of rows ?? []) expect(Object.keys(row).filter((key) => key.startsWith('morale'))).toEqual([]);
   });
 
   test("the values are those the Hero's page shows: its effective Stats and its Skills' ratings", () => {
@@ -454,9 +452,6 @@ describe('the Party builder (M9-S4, DL-104)', () => {
       const page = heroPage(document, row.heroId);
       for (const stat of row.stats) expect(stat.value).toBe(page?.areas.flatMap((area) => area.stats).find((each) => each.name === stat.name)?.value);
       for (const skill of row.skills) expect(page?.skills).toContainEqual(skill);
-      const card = rosterView(document).find((each) => each.heroId === row.heroId);
-      expect([row.morale, row.moraleBand]).toEqual([card?.morale, card?.moraleBand]);
-      expect([row.morale, row.moraleBand]).toEqual([page?.morale.value, page?.morale.band]);
     }
   });
 
@@ -522,6 +517,25 @@ describe('choosing a Party', () => {
     expect(nobody?.verdict).toEqual({ sends: false, words: expect.stringMatching(/^Dispatch would refuse it: .+ needs a Party of/) });
     expect(nobody?.requirements[0]?.met).toBe(false);
     expect(previewView(document, 'quest-999999' as QuestId, party, [])).toBeNull();
+  });
+
+  // v1.1.4-S3 (DL-148 item 12): one Morale line for the Party, from its mean form, naming no Hero.
+  test.each([
+    [[60, 60], 'Makes no difference.'],
+    [[95, 50], 'Raises the odds.'],
+    [[25, 50], 'Lowers the odds a little.'],
+    [[5, 5], 'Lowers the odds badly.'],
+  ])('with Morale %j, gives the Party one line: %s', (morales, words) => {
+    const document = structuredClone(newGame());
+    const questId = document.world.board[0] as QuestId;
+    const chosen = heroes(document).slice(0, 2);
+    chosen.forEach((hero, index) => (hero.morale = morales[index] ?? 60));
+
+    const preview = previewView(document, questId, chosen.map((hero) => hero.id), []);
+
+    expect(preview?.morale).toBe(words);
+    for (const hero of chosen) expect(preview?.morale).not.toContain(hero.name);
+    expect(previewView(document, questId, [], [])?.morale).toBeNull();
   });
 });
 

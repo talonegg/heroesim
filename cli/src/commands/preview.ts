@@ -7,6 +7,7 @@
 // Hero who cannot go, the Synergies the Party would have and on how many of the Quest's Encounters
 // (M4-S3, DL-45), what it would carry, the reward its `negotiatedReward` for the player's
 // Guildmaster, and the verdict `dispatch`'s own checks. The preview is a list of sections of words.
+// From v1.1.4-S3, one line for the Party's Morale, from its mean form, naming no Hero (DL-148 item 12).
 
 import {
   playerGuild,
@@ -15,6 +16,7 @@ import {
   type ConsumableEffect,
   type DispatchPreview,
   type EngineDeps,
+  type FormEffect,
   type Hero,
   type Synergy,
   type WorldDocument,
@@ -81,6 +83,19 @@ function synergyLines(preview: DispatchPreview): string[] {
     return `  ${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reachWords(encounters, preview)}.`;
   });
   return ['Synergies', ...lines];
+}
+
+/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the page's words too. */
+const formEffectWords: Readonly<Record<FormEffect, string>> = {
+  raises: 'Raises the odds',
+  none: 'Makes no difference',
+  'lowers-a-little': 'Lowers the odds a little',
+  'lowers-badly': 'Lowers the odds badly',
+};
+
+/** The Party's Morale, one line for the Party from its mean form, naming no Hero (DL-148 item 12); none for no one. */
+function moraleLines({ form }: DispatchPreview): string[] {
+  return form === null ? [] : ['Morale', `  ${formEffectWords[form.effect]}.`];
 }
 
 /** What a consumable does, in words (M5-S3, DL-50). */
@@ -150,6 +165,7 @@ export function previewParty(
     requirementLines(preview, deps),
     heroLines(preview, guild.name),
     synergyLines(preview),
+    moraleLines(preview),
     consumableLines(preview, deps),
     [`Reward agreed on a success: ${preview.agreedReward} Wealth, ${preview.offeredReward} offered.`],
     [

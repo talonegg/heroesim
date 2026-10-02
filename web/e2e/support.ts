@@ -277,9 +277,9 @@ export async function dispatchAParty(page: Page): Promise<string> {
     const form = quest.getByRole('form');
     const verdict = form.getByRole('status');
     const rows = form.getByTestId('party-row');
-    // Each row: who, their Class and Level, their Morale and its band.
+    // Each row: who, their Class and Level, and no Hero's Morale (v1.1.4-S3, DL-148 item 12).
     await expect(rows.first()).toContainText(/(Warrior|Rogue|Mage|Healer), Level \d+/);
-    await expect(rows.first()).toContainText(/Morale \d+, (wretched|low|steady|high|elated)/);
+    await expect(rows.first()).not.toContainText(/Morale/);
     // Choose Heroes one at a time until dispatch would send them, or none are left.
     const chosen: string[] = [];
     for (let hero = 0; hero < (await rows.count()); hero += 1) {

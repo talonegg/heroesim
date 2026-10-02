@@ -13,6 +13,14 @@
 // It reads only the Party's own Heroes and their state on the Quest: never the Guild's leader nor
 // the Guild's dealings (M4's third risk; the Check's test reads this file to hold it so), nor Regard
 // between particular Heroes (DL-148 item 5).
+//
+// Form (v1.1.4-S3, DL-148 items 9 to 11, form.ts). A Check's score is read with each Hero's form
+// (`evaluate`'s `withForm`), a Synergy's requirements without. With form, only the Stat values a Hero
+// adds into the score are scaled: each `stat`, and each Stat within a `weighted` and within the `+`,
+// `-` and `*` of Vals, is times its Hero's form; a number, a Skill rating, Level, Morale and age are
+// not. Every choice of a Hero reads them unscaled: `best`, `worst`, `top`, `bottom`, `ranked`'s order,
+// and the Hero whose value `max` or `min` adds, which are `of best` and `of worst`. So do every filter
+// and every count. A hurt Warrior is still the strongest Warrior, and adds less.
 
 import type { EngineDeps } from '../config.js';
 import type {
@@ -28,18 +36,29 @@ import type {
 import type { Hero, HeroId, StatValues, World } from '../document.js';
 import { effectiveStats } from '../selectors.js';
 import { ageOf } from '../time.js';
+import { formOf, workingMorale } from './form.js';
 
 /** One member of the Party as a Query reads them on an Encounter. */
 export interface QueryMember {
   hero: Hero;
   /** Their effective Stats (`effectiveStats`), read once when the Party is taken. */
   stats: StatValues;
-  /** Their Morale on the Quest: what `["morale"]` reads. Their stored Morale until v1.1.4-S3. */
+  /** Their Morale on the Quest (`workingMorale`): what `["morale"]` reads, and what sets their form's band. */
   morale: number;
   /** Their age in whole years at the Turn the Party is taken (`ageOf`). */
   age: number;
   /** Whether they are hurt on this Quest: what `["hurt"]` reads. */
   hurt: boolean;
+  /** Their form (v1.1.4-S3, `formOf`): the factor on the Stat values they add into a Check's score. */
+  form: number;
+}
+
+/** What has happened to the Party on the Quest so far, as the Queries read it (v1.1.4-S3). */
+export interface OnQuest {
+  /** The Heroes hurt earlier on the Quest; none when absent. */
+  hurt?: ReadonlySet<HeroId>;
+  /** The Morale consequences applied so far, summed; 0 when absent. */
+  moraleDelta?: number;
 }
 
 /** What a Query reads of content: whether a key it names is still defined. */
@@ -53,67 +72,84 @@ export interface QueryParty {
 
 /**
  * `heroes`, the members still in the sequence in Party order, as Queries read them on one Encounter:
- * each Hero's effective Stats read once (`effectiveStats`), their stored Morale, their age at
- * `world.turn`, and whether `hurt` holds their id, the Heroes hurt earlier on the Quest.
+ * each Hero's effective Stats read once (`effectiveStats`); their Morale on the Quest, their stored
+ * Morale plus `onQuest.moraleDelta` held to the scale (`workingMorale`); their age at `world.turn`;
+ * whether `onQuest.hurt` holds their id; and their form from those two (`formOf`, v1.1.4-S3). With
+ * nothing `onQuest`, the Party as it sets out.
  */
 export function queryParty(
   heroes: readonly Hero[],
   world: World,
   deps: Pick<EngineDeps, 'config' | 'content'>,
-  hurt: ReadonlySet<HeroId> = new Set(),
+  onQuest: OnQuest = {},
 ): QueryParty {
   const { config, content } = deps;
+  const { hurt = new Set(), moraleDelta = 0 } = onQuest;
   return {
-    members: heroes.map((hero) => ({
-      hero,
-      stats: effectiveStats(hero, world, content),
-      morale: hero.morale,
-      age: ageOf(hero, world.turn, config),
-      hurt: hurt.has(hero.id),
-    })),
+    members: heroes.map((hero) => {
+      const morale = workingMorale(hero.morale, moraleDelta, config);
+      const isHurt = hurt.has(hero.id);
+      return {
+        hero,
+        stats: effectiveStats(hero, world, content),
+        morale,
+        age: ageOf(hero, world.turn, config),
+        hurt: isHurt,
+        form: formOf(morale, isHurt, config),
+      };
+    }),
     content,
   };
 }
 
-/** `query`'s value for `party`: a number of the Party, 0 for an empty Set or no Hero. */
-export function evaluate(query: NumQuery, party: QueryParty): number {
+/**
+ * `query`'s value for `party`: a number of the Party, 0 for an empty Set or no Hero. `withForm`, for
+ * a Check's score (v1.1.4-S3), scales each Stat value a Hero adds into it by their form; without it,
+ * as for a Synergy's requirements, every Hero is read as they are.
+ */
+export function evaluate(query: NumQuery, party: QueryParty, withForm = false): number {
   if (typeof query === 'number') return query;
   switch (query[0]) {
     case 'sum':
-      return valuesOf(query[1], query[2], party).reduce((total, value) => total + value, 0);
+      return valuesOf(query[1], query[2], party, withForm).reduce((total, value) => total + value, 0);
     case 'avg': {
-      const values = valuesOf(query[1], query[2], party);
+      const values = valuesOf(query[1], query[2], party, withForm);
       return values.length === 0 ? 0 : values.reduce((total, value) => total + value, 0) / values.length;
     }
-    case 'max': {
-      const values = valuesOf(query[1], query[2], party);
-      return values.length === 0 ? 0 : Math.max(...values);
-    }
+    case 'max':
     case 'min': {
-      const values = valuesOf(query[1], query[2], party);
-      return values.length === 0 ? 0 : Math.min(...values);
+      if (withForm) {
+        // The Hero `of best` or `of worst` would choose, as they are, adds their value with their form.
+        const [first] = ranking(membersOf(query[1], party), query[2], party.content, query[0] === 'max' ? 'highest' : 'lowest');
+        return first === undefined ? 0 : valueOf(query[2], first.member, party.content, true);
+      }
+      const values = valuesOf(query[1], query[2], party, false);
+      if (values.length === 0) return 0;
+      return query[0] === 'max' ? Math.max(...values) : Math.min(...values);
     }
     case 'count':
       return membersOf(query[1], party).length;
     case 'ranked': {
       const [, set, val, weights] = query;
       const ranked = ranking(membersOf(set, party), val, party.content, 'highest');
-      return ranked.slice(0, weights.length).reduce((total, { value }, index) => total + (weights[index] ?? 0) * value, 0);
+      const added = ({ member, value }: { member: QueryMember; value: number }): number =>
+        withForm ? valueOf(val, member, party.content, true) : value;
+      return ranked.slice(0, weights.length).reduce((total, it, index) => total + (weights[index] ?? 0) * added(it), 0);
     }
     case 'of': {
       const member = heroOf(query[1], party);
-      return member === undefined ? 0 : valueOf(query[2], member, party.content);
+      return member === undefined ? 0 : valueOf(query[2], member, party.content, withForm);
     }
     case '+':
-      return query.slice(1).reduce<number>((total, operand) => total + evaluate(operand as NumQuery, party), 0);
+      return query.slice(1).reduce<number>((total, operand) => total + evaluate(operand as NumQuery, party, withForm), 0);
     case '-':
-      return evaluate(query[1], party) - evaluate(query[2], party);
+      return evaluate(query[1], party, withForm) - evaluate(query[2], party, withForm);
     case '*':
-      return query.slice(1).reduce<number>((total, operand) => total * evaluate(operand as NumQuery, party), 1);
+      return query.slice(1).reduce<number>((total, operand) => total * evaluate(operand as NumQuery, party, withForm), 1);
     case 'least':
-      return Math.min(...query.slice(1).map((operand) => evaluate(operand as NumQuery, party)));
+      return Math.min(...query.slice(1).map((operand) => evaluate(operand as NumQuery, party, withForm)));
     case 'greatest':
-      return Math.max(...query.slice(1).map((operand) => evaluate(operand as NumQuery, party)));
+      return Math.max(...query.slice(1).map((operand) => evaluate(operand as NumQuery, party, withForm)));
     default:
       return unknownOperator(query, 'a Num');
   }
@@ -150,12 +186,16 @@ export function heroOf(query: HeroQuery, party: QueryParty): QueryMember | undef
   return ranking(membersOf(set, party), val, party.content, operator === 'best' ? 'highest' : 'lowest')[0]?.member;
 }
 
-/** `query`'s value for `member`: a number read of the one Hero. */
-export function valueOf(query: ValQuery, member: QueryMember, content: QueryContent): number {
+/**
+ * `query`'s value for `member`: a number read of the one Hero. `withForm`, for a value they add into a
+ * Check's score (v1.1.4-S3), scales each Stat it reads by their form, within a `weighted` and an
+ * arithmetic Val too; a number, a Skill rating, Level, Morale and age are read as they are.
+ */
+export function valueOf(query: ValQuery, member: QueryMember, content: QueryContent, withForm = false): number {
   if (typeof query === 'number') return query;
   switch (query[0]) {
     case 'stat':
-      return statOf(member, query[1]);
+      return statOf(member, query[1], withForm);
     case 'skill':
       return ratingOf(member.hero, query[1], content);
     case 'level':
@@ -165,13 +205,13 @@ export function valueOf(query: ValQuery, member: QueryMember, content: QueryCont
     case 'age':
       return member.age;
     case 'weighted':
-      return query[1].reduce((total, [statKey, weight]) => total + weight * statOf(member, statKey), 0);
+      return query[1].reduce((total, [statKey, weight]) => total + weight * statOf(member, statKey, withForm), 0);
     case '+':
-      return query.slice(1).reduce<number>((total, operand) => total + valueOf(operand as ValQuery, member, content), 0);
+      return query.slice(1).reduce<number>((total, operand) => total + valueOf(operand as ValQuery, member, content, withForm), 0);
     case '-':
-      return valueOf(query[1], member, content) - valueOf(query[2], member, content);
+      return valueOf(query[1], member, content, withForm) - valueOf(query[2], member, content, withForm);
     case '*':
-      return query.slice(1).reduce<number>((total, operand) => total * valueOf(operand as ValQuery, member, content), 1);
+      return query.slice(1).reduce<number>((total, operand) => total * valueOf(operand as ValQuery, member, content, withForm), 1);
     default:
       return unknownOperator(query, 'a Val');
   }
@@ -226,12 +266,12 @@ function compare(comparison: QueryComparison, a: number, b: number): boolean {
   }
 }
 
-/** Each of `members`' value of `val`, in Party order. */
-function valuesOf(set: SetQuery, val: ValQuery, party: QueryParty): number[] {
-  return membersOf(set, party).map((member) => valueOf(val, member, party.content));
+/** Each of `members`' value of `val`, in Party order, `withForm` or as they are. */
+function valuesOf(set: SetQuery, val: ValQuery, party: QueryParty, withForm: boolean): number[] {
+  return membersOf(set, party).map((member) => valueOf(val, member, party.content, withForm));
 }
 
-/** `members` by their value of `val`, the highest or the lowest first, the earlier in Party order on a tie. */
+/** `members` by their value of `val` as they are, the highest or the lowest first, the earlier in Party order on a tie. */
 function ranking(
   members: readonly QueryMember[],
   val: ValQuery,
@@ -244,9 +284,10 @@ function ranking(
     .sort((a, b) => sign * (a.value - b.value) || a.index - b.index);
 }
 
-/** A member's effective value of the Stat `statKey`; 0 for a Stat content does not define. */
-function statOf(member: QueryMember, statKey: string): number {
-  return Object.hasOwn(member.stats, statKey) ? (member.stats[statKey] ?? 0) : 0;
+/** A member's effective value of the Stat `statKey`, times their form `withForm`; 0 for a Stat content does not define. */
+function statOf(member: QueryMember, statKey: string, withForm: boolean): number {
+  const value = Object.hasOwn(member.stats, statKey) ? (member.stats[statKey] ?? 0) : 0;
+  return withForm ? value * member.form : value;
 }
 
 /** The rating `hero` holds of the Skill `skillKey`; 0 when none, or for a Skill content does not define. */

@@ -95,6 +95,24 @@ describe('the Quest report (M9-F5)', () => {
     expect(within(hero).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Gained 60 XP', 'Reached Level 2']);
   });
 
+  test("says once, for the Party, of the Encounter whose success form decided, and of no other (v1.1.4-S3)", () => {
+    const { region } = drawn({
+      band: 'fail',
+      encounters: [
+        { encounterKey: 'ambush-on-the-road', outcome: 'failure', degree: 'setback', formDecided: 'lowered' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'success' },
+        { encounterKey: 'ambush-on-the-road', outcome: 'success', degree: 'triumph', formDecided: 'raised' },
+      ],
+    });
+
+    const lines = Array.from(region.querySelectorAll('.report__list > li')).map((item) => item.textContent);
+    expect(lines).toEqual([
+      "The Lantern's Party failed at Ambush on the road (Encounter 1), a Setback. Low spirits told against them.",
+      "The Lantern's Party came through Ambush on the road (Encounter 2), a Success.",
+      "The Lantern's Party came through Ambush on the road (Encounter 3), a Triumph. Their high spirits carried them through.",
+    ]);
+  });
+
   test('a section with nothing to say is not drawn, and leaves no gap: no heading, no empty list', () => {
     const { region } = drawn({ band: 'success', wealth: 90, xp: 20 });
 

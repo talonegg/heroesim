@@ -36,6 +36,7 @@ import type {
   StackId,
   Turn,
 } from './document.js';
+import type { FormDecided } from './quest-engine/check.js';
 import type { ConsumableUse } from './quest-engine/consumables.js';
 import type { EncounterResult, QuestOutcome } from './quest-engine/resolve.js';
 
@@ -208,6 +209,16 @@ export type QuestEncounter = Entry<
 /** The Degree a `quest.encounter` entry records (v1.1.4-S2), or, for one written before, its outcome's. */
 export function encounterDegree(payload: Pick<QuestEncounter['payload'], 'degree' | 'outcome'>): Degree {
   return payload.degree ?? (payload.outcome === 'success' ? 'success' : 'failure');
+}
+
+/**
+ * Whether form decided whether a `quest.encounter` entry's Encounter succeeded, and which way
+ * (v1.1.4-S3's verification): with every form at 1 and the same rolls, its pass formula would have
+ * given the other side of the Success line. The narration's one sentence of the Encounter is said
+ * exactly when it is set; an entry written before v1.1.4-S3 has none.
+ */
+export function encounterForm(payload: Pick<QuestEncounter['payload'], 'formDecided'>): FormDecided | undefined {
+  return payload.formDecided;
 }
 
 /**

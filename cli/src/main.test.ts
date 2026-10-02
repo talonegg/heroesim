@@ -1791,6 +1791,25 @@ describe('preview lists the Synergies a proposed Party would have (M4-S3)', () =
 
     expect(synergies(run.out)).toEqual(["  Shield wall: ×1.15 on combat Encounters; this Quest's Encounters are drawn on the way."]);
   });
+
+  // v1.1.4-S3 (DL-148 item 12): one line for the Party's Morale, from its mean form, naming no Hero.
+  test.each([
+    [[60, 60], 'Makes no difference'],
+    [[80, 60], 'Raises the odds'],
+    [[30, 30], 'Lowers the odds a little'],
+    [[10, 60], 'Lowers the odds badly'],
+  ])('with Morale %j, says once for the Party: %s', (morales, words) => {
+    const { questId, heroIds } = proposed(['ambush-on-the-road'], 'warrior', 'rogue');
+    edit((edited) => heroIds.forEach((id, index) => ((edited.world.heroes[id] as Hero).morale = morales[index] ?? 60)));
+
+    const run = play(['preview', '--quest', questId, '--heroes', heroIds.join(',')]);
+
+    const lines = run.out.split('\n');
+    const start = lines.indexOf('Morale');
+    expect(lines.slice(start, start + 3)).toEqual(['Morale', `  ${words}.`, '']);
+    const names = heroIds.map((id) => document().world.heroes[id]?.name ?? id);
+    for (const name of names) expect(lines[start + 1]).not.toContain(name);
+  });
 });
 
 describe('the command line', () => {

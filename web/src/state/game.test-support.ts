@@ -22,6 +22,7 @@ import {
   playerGuild,
   type Degree,
   type EncounterOutcome,
+  type FormDecided,
   type EngineEventOf,
   type EngineEventType,
   type EntityId,
@@ -192,9 +193,16 @@ export interface ReturnTold {
   xp?: number;
   /**
    * The Encounters, each written as before v1.1.4-S2, with no Degree, unless it is told one: then as
-   * since, decided by its one Check.
+   * since, decided by its one Check; form decided it, and so the Encounter, when it is told so (v1.1.4-S3).
    */
-  encounters?: readonly { encounterKey?: string; outcome: EncounterOutcome; degree?: Degree; injured?: readonly number[]; died?: readonly number[] }[];
+  encounters?: readonly {
+    encounterKey?: string;
+    outcome: EncounterOutcome;
+    degree?: Degree;
+    formDecided?: FormDecided;
+    injured?: readonly number[];
+    died?: readonly number[];
+  }[];
   /** Consumables used, each a bonus to an Encounter's Check, or a heal of a Hero's Injury. */
   used?: readonly ({ definitionKey: ItemDefinitionKey; encounterIndex: number } | { definitionKey: ItemDefinitionKey; heal: number; days: number })[];
   loot?: readonly { definitionKey: ItemDefinitionKey; quantity: number }[];
@@ -265,7 +273,7 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
     const deaths = (told.deaths ?? []).map(hero);
     const survivors = heroIds.filter((id) => !deaths.includes(id));
 
-    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, degree, injured = [], died = [] }, index) => {
+    (told.encounters ?? []).forEach(({ encounterKey = Object.keys(content.encounters)[0] ?? '', outcome, degree, formDecided, injured = [], died = [] }, index) => {
       const hurt = injured.map(hero);
       const killed = died.map(hero);
       const rolled = { roll: 10, target: 10, margin: 0 };
@@ -278,7 +286,14 @@ export function withReturn(state: GameState, told: ReturnTold): Written {
         kind: 'combat',
         ...rolled,
         outcome,
-        ...(degree === undefined ? {} : { degree, decidedBy: encounterKey, checks: [{ key: encounterKey, capability: 10, ...rolled, degree }] }),
+        ...(degree === undefined
+          ? {}
+          : {
+              degree,
+              decidedBy: encounterKey,
+              ...(formDecided === undefined ? {} : { formDecided }),
+              checks: [{ key: encounterKey, capability: 10, ...rolled, degree, ...(formDecided === undefined ? {} : { formDecided }) }],
+            }),
         injured: hurt,
         died: killed,
       });

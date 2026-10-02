@@ -756,7 +756,8 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
    * cause above comes up. The Guildmasters' ages are those before DL-113, and the band's rule the one
    * before v1.1.4-S2, with no share of Triumphs asked for a strong success (DL-152), so that the
    * fingerprints below, recorded at `86c7afa` before M9-F1, still hold: with that rule, an Encounter's
-   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did.
+   * Checks, Degrees and formula, on content in the old form, draw and resolve as one Check did. Every
+   * form factor is 1, as before v1.1.4-S3 (DL-154), so that form is shown to change nothing else.
    */
   const deps = testDeps(
     {
@@ -765,6 +766,8 @@ describe('the Quest named on what its return causes (M9-F1)', () => {
       guildmasterRetirementAge: 65,
       startingWealth: 100_000,
       strongTriumphShare: 0,
+      moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 },
+      hurtCheckFactor: 1,
     },
     withEncounters({ failure: [{ kind: 'death', chance: 0.15 }, { kind: 'morale', delta: -2 }] }),
   );

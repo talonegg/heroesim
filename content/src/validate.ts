@@ -874,6 +874,7 @@ function checkEncounters(set: ContentSet, keys: QueryKeys, problems: string[]): 
       if (!kebabCase.test(it.key)) problems.push(`${at}.key: "${it.key}" is not kebab-case`);
       if (it.name.trim() === '') problems.push(`${at}.name is empty: a Check is named for the narration and the Board`);
       checkQuery(`${at}.score`, it.score, 'num', keys, problems);
+      if (it.raw !== true) checkSubtractions(`${at}.score`, it.score, 'num', problems);
       checkReferences(`${at}.skills`, it.skills, keys.skills, 'a Skill', problems);
       checkTarget(at, it, problems);
       if (it.raw === true && it.skills.length > 0) {
@@ -1484,6 +1485,45 @@ function queryArgument(
     default:
       return queryNode(where, arg, kind, keys, problems);
   }
+}
+
+/**
+ * A Check's score subtracts no Stat a Hero adds (v1.1.4-S3's verification, DL-154, ADR-0010). Form
+ * scales each Stat a Hero adds into a score (query.ts), so a Stat on the right of a `-` would be
+ * scaled too, and a wound or low spirits would raise the score. A `-` of Vals or of Nums whose right
+ * operand reads such a Stat (`addsStat`) is refused, naming its path. A raw Check, read without form,
+ * and a Synergy's requirement, read as the Heroes are, are not held to it. Run on a score
+ * `checkQuery` has checked; a node of the wrong shape is that check's to refuse, and passed over here.
+ */
+function checkSubtractions(where: string, query: unknown, type: 'num' | 'val', problems: string[]): void {
+  if (!Array.isArray(query)) return;
+  const [operator, ...args] = query as unknown[];
+  if (operator === '-' && addsStat(args[1], type)) {
+    problems.push(`${where}.2: "-" subtracts a Stat a Hero adds; form would then raise the score of a hurt or low-spirited Hero`);
+  }
+  for (const [index, arg] of args.entries()) {
+    const below = belowOf(operator, index, type);
+    if (below !== null) checkSubtractions(`${where}.${index + 1}`, arg, below, problems);
+  }
+}
+
+/** Whether `query`, a Num or a Val, reads a Stat a Hero adds into a score: a `stat` or `weighted`, or a Num of a Val that does. */
+function addsStat(query: unknown, type: 'num' | 'val'): boolean {
+  if (!Array.isArray(query)) return false;
+  const [operator, ...args] = query as unknown[];
+  if (type === 'val' && (operator === 'stat' || operator === 'weighted')) return true;
+  return args.some((arg, index) => {
+    const below = belowOf(operator, index, type);
+    return below !== null && addsStat(arg, below);
+  });
+}
+
+/** What the argument at `index` of a Num's or a Val's `operator` adds into its value: a Num, a Val, or nothing (a Set, a Hero, a key, a weight). */
+function belowOf(operator: unknown, index: number, type: 'num' | 'val'): 'num' | 'val' | null {
+  if (operator === '+' || operator === '-' || operator === '*') return type;
+  if (type === 'num' && (operator === 'least' || operator === 'greatest')) return 'num';
+  if (type === 'num' && index === 1 && (operator === 'sum' || operator === 'avg' || operator === 'max' || operator === 'min' || operator === 'ranked' || operator === 'of')) return 'val';
+  return null;
 }
 
 /** Why `operator` cannot stand where a Query of `type` is expected. */

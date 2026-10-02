@@ -80,6 +80,7 @@ import {
   type StopCondition,
   type StopReason,
   type Synergy,
+  type FormEffect,
   type TimeOfDay,
   type TraitKey,
   type Unavailability,
@@ -364,17 +365,16 @@ const unavailableWords = {
 
 /**
  * A Hero on the Roster as the Party builder shows them for one Quest (M9-S4, DL-99 item 3): whether
- * they can go, and when not why and until when; their Class and Level; their Morale and its band;
- * the effective values of the Stats the Quest demands; and the Skills the Quest names that they
- * have. Every value is one the Roster, a Hero's page and the Board already give: no fit and no odds.
+ * they can go, and when not why and until when; their Class and Level; the effective values of the
+ * Stats the Quest demands; and the Skills the Quest names that they have. Every value is one the
+ * Roster, a Hero's page and the Board already give: no fit and no odds. No Hero's Morale: the
+ * builder says what the Party's does in one line (v1.1.4-S3's verification, DL-148 item 12).
  */
 export interface PartyRow {
   heroId: HeroId;
   name: string;
   className: string;
   level: number;
-  morale: number;
-  moraleBand: MoraleBand;
   /** The engine's `unavailability`: why the Hero cannot go now, or `null` when they can. */
   why: Unavailability | null;
   /** The same with until when, as the Roster words it: `Injured, healing on the night of Day 6`. */
@@ -391,7 +391,6 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
   const guild = playerGuild(world);
   const quest = rowOf(world.quests, questId);
   if (guild === undefined || quest === undefined || !world.board.includes(questId)) return null;
-  const { config } = playDeps(document);
   const { skillKey } = quest.requirements;
   const named = [...new Set([...(skillKey === undefined ? [] : [skillKey]), ...skillsThatHelp(quest, content)])];
   return guild.rosterIds.flatMap((heroId): PartyRow[] => {
@@ -405,8 +404,6 @@ export function partyRows(document: WorldDocument, questId: QuestId): PartyRow[]
         name: hero.name,
         className: nameIn(content.classes, hero.classKey),
         level: hero.level,
-        morale: hero.morale,
-        moraleBand: moraleBand(hero.morale, config),
         why: unavailability(hero),
         unavailable: unavailableUntil(hero, world),
         stats: quest.demands.map(([key]) => ({ name: nameIn(content.stats, key), value: values.get(key)?.effective ?? 0 })),
@@ -453,12 +450,22 @@ function bonusWords({ flat, factor }: Synergy['bonus']): string {
   return listed([...(flat === undefined ? [] : [`+${flat}`]), ...(factor === undefined ? [] : [`×${factor}`])]);
 }
 
+/** What a Party's mean form does to its odds (v1.1.4-S3, `formEffect`): the CLI's words. */
+const formEffectWords: Readonly<Record<FormEffect, string>> = {
+  raises: 'Raises the odds',
+  none: 'Makes no difference',
+  'lowers-a-little': 'Lowers the odds a little',
+  'lowers-badly': 'Lowers the odds badly',
+};
+
 export interface PreviewView {
   requirements: { words: string; met: boolean }[];
   /** Each Hero chosen who cannot go. */
   problems: string[];
   /** Each Synergy the Party would have, or that it has none. */
   synergies: string[];
+  /** What the Party's Morale does to its odds, one line for the Party naming no Hero (DL-148 item 12); `null` for no one chosen. */
+  morale: string | null;
   /** What the Party would carry. */
   consumables: string[];
   /** The reward agreed on a success and the reward offered. */
@@ -510,6 +517,7 @@ export function previewView(
             const where = synergy.kinds === undefined ? 'on every Encounter' : `on ${listed(synergy.kinds)} Encounters`;
             return `${synergy.name}: ${bonusWords(synergy.bonus)} ${where}; ${reach(encounters)}.`;
           }),
+    morale: preview.form === null ? null : `${formEffectWords[preview.form.effect]}.`,
     consumables:
       preview.consumables.length === 0
         ? ['None carried.']

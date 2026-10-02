@@ -29,12 +29,14 @@ import {
   compareByCodeUnit,
   dayOf,
   encounterDegree,
+  encounterForm,
   entriesFor,
   isModuleEvent,
   parseId,
   regardBandNames,
   type ContentSet,
   type Degree,
+  type FormDecided,
   type EndingReason,
   type EngineEvent,
   type EngineEventOf,
@@ -166,6 +168,9 @@ const bandWords: Readonly<Record<QuestBand, string>> = { fail: 'failed', success
 /** A Degree, a glossary term in each (v1.1.4-S2, `CONTEXT.md` Degree): the CLI's words. */
 export const degreeWords: Readonly<Record<Degree, string>> = { triumph: 'Triumph', success: 'Success', setback: 'Setback', failure: 'Failure' };
 
+/** The Encounter's one sentence when form decided a Check's Degree (v1.1.4-S3, `encounterForm`), for the Party, naming no Hero: the CLI's words. */
+const formWords: Readonly<Record<FormDecided, string>> = { lowered: 'Low spirits told against them.', raised: 'Their high spirits carried them through.' };
+
 /** What befell a Guild at its ending, after its name. */
 const endingWords: Readonly<Record<EndingReason, string>> = {
   retirement: 'lost its Guildmaster to Retirement',
@@ -268,7 +273,8 @@ const sentences: Sentences = {
     // The roll and target are the engine's; the page says only how it went and what it cost, and
     // which Encounter it was, counted from 1. Its Degree, and the Check that decided it when there
     // are several or it is named otherwise than its Encounter (v1.1.4-S2, DL-152); an entry written
-    // before then reads as its outcome, a Success or a Failure.
+    // before then reads as its outcome, a Success or a Failure. When form decided a Check's Degree,
+    // one sentence more, for the Party, naming no Hero (v1.1.4-S3, DL-148 item 12).
     const { guildId, index, encounterKey, outcome, injured, died, decidedBy, checks = [] } = event.payload;
     const went = outcome === 'success' ? 'came through' : 'failed at';
     const hurt = [
@@ -281,7 +287,9 @@ const sentences: Sentences = {
     const named = decider !== undefined && (checks.length > 1 || decider !== nameIn(content.encounters, encounterKey));
     const by = named ? `, decided by ${decider}` : '';
     const degree = `, a ${degreeWords[encounterDegree(event.payload)]}${by}`;
-    return say`${called(event, guildId)}'s Party ${went} ${which}${degree}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.`;
+    const form = encounterForm(event.payload);
+    const told = form === undefined ? '' : ` ${formWords[form]}`;
+    return say`${called(event, guildId)}'s Party ${went} ${which}${degree}${hurt.length === 0 ? '' : say`: ${listedWords(hurt)}`}.${told}`;
   },
   'quest.resolved': (event, narration) => {
     const { lead, band, rest } = resolvedWords(event, narration);

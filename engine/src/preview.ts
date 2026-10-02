@@ -6,7 +6,8 @@
 // so that the CLI and the browser show one statement of it and the browser computes no rule: each
 // requirement met or missed is `unmetRequirements`', each Hero who cannot go `unavailability`'s,
 // the Synergies `synergiesFor`'s and where each applies `appliesOn`'s, the reward the Guildmaster's
-// `negotiatedReward`, and the verdict `dispatch`'s own checks (`dispatchRefusal`).
+// `negotiatedReward`, and the verdict `dispatch`'s own checks (`dispatchRefusal`). From v1.1.4-S3,
+// what the Party's form as it sets out does to its odds, for the Party as a whole (`formEffect`).
 
 import {
   dispatchRefusal,
@@ -30,6 +31,7 @@ import type {
 import type { Guild, Hero, HeroId, Quest, Stack, World } from './document.js';
 import { guildmasterOf, negotiatedReward } from './guildmaster.js';
 import { holdings, itemDefinition } from './items.js';
+import { formEffect, meanForm, type FormEffect } from './quest-engine/form.js';
 import { queryParty } from './quest-engine/query.js';
 import { appliesOn, synergiesFor } from './quest-engine/synergy.js';
 
@@ -84,6 +86,12 @@ export interface DispatchPreview {
   consumables: ConsumableReach[];
   /** The consumables the Guild holds, which it could carry. */
   held: Stack[];
+  /**
+   * What the Party's form as it sets out does to its odds (v1.1.4-S3, DL-148 item 12): the mean of its
+   * Heroes' forms, and its `formEffect`. One line for the Party, naming no Hero's Morale; `null` for a
+   * Party of no one.
+   */
+  form: { mean: number; effect: FormEffect } | null;
   /** The reward the Patron offers. */
   offeredReward: number;
   /** The reward the Guild's Guildmaster would agree on a success (`negotiatedReward`, M4-S5). */
@@ -126,18 +134,21 @@ export function previewDispatch(world: World, request: DispatchRequest, deps: En
     };
   });
 
+  const party = queryParty(heroes, world, deps);
+  const mean = meanForm(party.members.map((member) => member.form));
   return {
     quest,
     heroes,
     requirements: requirementsOf(quest, heroes),
     problems: problemsOf(guild, request.heroIds, world),
     encounterKinds,
-    synergies: synergiesFor(queryParty(heroes, world, deps), content).map((synergy) => ({
+    synergies: synergiesFor(party, content).map((synergy) => ({
       synergy,
       encounters: kindsReached((kind) => appliesOn(synergy, kind)),
     })),
     consumables,
     held,
+    form: heroes.length === 0 ? null : { mean, effect: formEffect(mean, config) },
     offeredReward: quest.reward,
     agreedReward: negotiatedReward(quest.reward, guildmasterOf(guild, world), content, config),
     refusal,

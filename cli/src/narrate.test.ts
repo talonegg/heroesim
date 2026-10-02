@@ -1,5 +1,6 @@
 import {
   milestoneTypes,
+  type CheckRoll,
   type Encounter,
   type EncounterCheck,
   type EngineEventOf,
@@ -345,6 +346,31 @@ describe('narrate', () => {
     // One Check named otherwise is named (v1.1.4-S2's verification, DL-152).
     const renamed = { ...content, encounters: { ...content.encounters, [ambush.key]: { ...ambush, checks: [{ ...front, name: 'Steel' }] } } } satisfies typeof content;
     expect(narrate({ ...samples['quest.encounter'], payload: one }, renamed)).toBe(`party-000004 came through ${ambush.name} (Encounter 2), a Triumph, decided by Steel.`);
+  });
+
+  test("says once, for the Party, when form decided whether the Encounter succeeded, exactly when its formDecided is set, naming no Hero (v1.1.4-S3)", () => {
+    const roll = { capability: 15, roll: 14.5, target: 18, margin: -3.5 };
+    const front: CheckRoll = { key: 'front', ...roll, degree: 'setback' };
+    const base = { ...samples['quest.encounter'].payload, degree: 'setback' as const, decidedBy: 'front', checks: [front] };
+    const line = (payload: EngineEventOf<'quest.encounter'>['payload']) => narrate({ ...samples['quest.encounter'], payload }, content);
+    const plain = line(base);
+
+    expect(plain).not.toMatch(/spirits/);
+    // Lowered from a Success to a Setback: the Encounter failed by form.
+    expect(line({ ...base, formDecided: 'lowered', checks: [{ ...front, formDecided: 'lowered' }] })).toBe(`${plain} Low spirits told against them.`);
+    // Raised from a Setback to a Success: the Encounter succeeded by form.
+    const won = { ...base, outcome: 'success' as const, degree: 'success' as const, injured: [], checks: [{ ...front, degree: 'success' as const }] };
+    expect(line({ ...won, formDecided: 'raised', checks: [{ ...front, degree: 'success', formDecided: 'raised' }] })).toBe(`${line(won)} Their high spirits carried them through.`);
+    // A Check form moved across the Success line, in an Encounter it did not decide: no sentence.
+    const other: CheckRoll = { key: 'other', ...roll, degree: 'success', formDecided: 'raised' };
+    expect(line({ ...base, checks: [other, front] })).toBe(plain);
+    // An entry written before v1.1.4-S3, or before v1.1.4-S2, has no such sentence.
+    const older = { ...base };
+    Reflect.deleteProperty(older, 'checks');
+    expect(line(older)).not.toMatch(/spirits/);
+    for (const sentence of ['Low spirits told against them.', 'Their high spirits carried them through.']) {
+      expect(sentence).not.toMatch(/Brenna|hero-/);
+    }
   });
 
   test('says a Regard band crossed, never the number, and what moved a Patron (M4-S5)', () => {

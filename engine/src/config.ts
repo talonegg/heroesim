@@ -43,7 +43,7 @@ export interface GameConfig {
    * (DL-102); 12 from M9-F1's Guildmasters, 21 to 50 at the start and retiring at 61 (DL-113, DL-114);
    * 13 from v1.1.4-S2's Degrees, `checkDegrees` and `strongTriumphShare` (DL-148, DL-152), which
    * v1.1.4's later stories add their fields under before the release: S11's `guildmasterStatPoints`
-   * (DL-149, DL-153).
+   * (DL-149, DL-153), and S3's `moraleCheckFactor` and `hurtCheckFactor` (DL-148, DL-154).
    */
   configVersion: number;
   /** Turns in a year: three Turns a Day, so 1,080 is 360 Days (data-model §3.1, INPUTS 3.2). */
@@ -212,6 +212,13 @@ export interface GameConfig {
    * The share is of the whole sequence, as `bandBySuccessShare`'s is.
    */
   strongTriumphShare: number;
+  /**
+   * A Hero's form on a Quest (v1.1.4-S3, DL-148 items 9 to 11, `CONTEXT.md` Form): the factor on the
+   * Stat values they add into a Check's score, by the band of their Morale on the Quest.
+   */
+  moraleCheckFactor: Readonly<Record<MoraleBand, number>>;
+  /** Their form is also multiplied by this once they are hurt on the Quest (DL-148 item 10). */
+  hurtCheckFactor: number;
 
   // ── The Hero State Engine (M2-S6, INPUTS 4.5, 4.8, 4.11, DL-29) ──────────────────────────
   /** Morale's scale: no change takes it below `moraleMin` or above `moraleMax`. */
@@ -564,6 +571,8 @@ export const defaultConfig: Readonly<GameConfig> = Object.freeze({
   bandBySuccessShare: Object.freeze({ successAbove: 0.5, strongAtLeast: 1 }),
   checkDegrees: Object.freeze({ triumph: 1.25, success: 1, setback: 0.75 }),
   strongTriumphShare: 0.5,
+  moraleCheckFactor: Object.freeze({ wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 }),
+  hurtCheckFactor: 0.85,
 
   moraleMin: 0,
   moraleMax: 100,
@@ -651,9 +660,14 @@ export interface EngineDeps {
  * What is wrong with `config`'s Quest Engine fields, each a sentence naming its field; none for a
  * sound one (v1.1.4-S2's verification, DL-152). A Degree means something only while its thresholds
  * are ordered, `triumph` > `success` > `setback` > 0, and `strongTriumphShare` is a share from 0 to
- * 1. The Quest Engine refuses to resolve under a config with a problem (`resolveQuest`).
+ * 1. A form factor is a finite number above 0, one for every Morale band, `steady`'s 1 and the rest
+ * in the bands' order, so that better spirits never bring less; and `hurtCheckFactor` is at most 1,
+ * so that a wound never helps (v1.1.4-S3, DL-154). The Quest Engine refuses to resolve under a
+ * config with a problem (`resolveQuest`).
  */
-export function configProblems(config: Pick<GameConfig, 'checkDegrees' | 'strongTriumphShare'>): string[] {
+export function configProblems(
+  config: Pick<GameConfig, 'checkDegrees' | 'strongTriumphShare' | 'moraleCheckFactor' | 'hurtCheckFactor'>,
+): string[] {
   const problems: string[] = [];
   const { triumph, success, setback } = config.checkDegrees;
   if (!(triumph > success && success > setback && setback > 0)) {
@@ -661,5 +675,22 @@ export function configProblems(config: Pick<GameConfig, 'checkDegrees' | 'strong
   }
   const share = config.strongTriumphShare;
   if (!(share >= 0 && share <= 1)) problems.push(`strongTriumphShare is ${share}; it is a share from 0 to 1`);
+  const factors: Readonly<Partial<Record<MoraleBand, number>>> = config.moraleCheckFactor ?? {};
+  const unsound = moraleBandNames.filter((band) => !isFactor(Object.hasOwn(factors, band) ? factors[band] : undefined));
+  for (const band of unsound) problems.push(`moraleCheckFactor.${band} is ${factors[band]}; it is a finite number above 0`);
+  if (unsound.length === 0) {
+    const { wretched, low, steady, high, elated } = config.moraleCheckFactor;
+    if (steady !== 1) problems.push(`moraleCheckFactor.steady is ${steady}; it is 1, the band that changes nothing`);
+    else if (!(wretched <= low && low <= steady && steady <= high && high <= elated)) {
+      problems.push(`moraleCheckFactor is ${JSON.stringify(config.moraleCheckFactor)}; wretched ≤ low ≤ steady ≤ high ≤ elated`);
+    }
+  }
+  const hurt = config.hurtCheckFactor;
+  if (!(isFactor(hurt) && hurt <= 1)) problems.push(`hurtCheckFactor is ${hurt}; it is above 0 and at most 1, so that a wound never helps`);
   return problems;
+}
+
+/** Whether `value` is a finite number above 0: a form factor (DL-154). */
+function isFactor(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0;
 }

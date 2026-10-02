@@ -189,6 +189,11 @@ describe('every standalone text begins with a capital (DL-125 item 9)', { timeou
     const [choose] = within(board).getAllByRole('button', { name: 'Choose a Party' });
     fireEvent.click(choose as HTMLElement);
     reader.read('The Party builder');
+    // With a Hero chosen, its Morale line too (v1.1.4-S3).
+    const [pick] = within(board).getAllByRole('checkbox').filter((box) => !(box as HTMLInputElement).disabled);
+    fireEvent.click(pick as HTMLElement);
+    expect(within(board).getByTestId('party-morale')).toBeDefined();
+    reader.read('The Party builder, a Hero chosen');
 
     // A Rival Guild's page, its Hall and Guildmaster.
     const guilds = section('Guilds');

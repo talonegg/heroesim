@@ -33,7 +33,15 @@ names the Query's path. The old forms, an Encounter's weighted demands and a Syn
 Classes and Skills, load into Queries that read exactly as they did, so content written before
 this decision plays the same.
 
+A Hero's form (v1.1.4-S3, DL-154) scales the Stat values a Hero adds into a Check's score, and
+nothing that chooses, filters or counts. So a wound or low spirits must never raise a score: a Stat
+subtracted would be scaled with the rest, and a hurt Hero would subtract less. Validation refuses,
+in a Check's score, any `-` whose right operand reads a Stat a Hero adds: a `stat`, a `weighted`, or
+a Num of such a Val, at any depth. A raw Check, read without form, and a Synergy's requirement, read
+as the Heroes are, may still subtract one.
+
 A text form, compiled when content is built, is not part of this decision. It is added only if
 writing the arrays proves painful (DL-148 item 4).
 
-*Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20.
+*Recorded 2026-10-02* in v1.1.4-S1 (DL-151), from DL-148 items 4 to 6 and 20; the refusal of a
+subtracted Stat added in v1.1.4-S3 (DL-154).

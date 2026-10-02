@@ -273,8 +273,8 @@ A Hero's contentment.
 _Avoid_: Happiness, Mood, Loyalty
 
 **Morale band**:
-One of the named ranges a Hero's Morale falls in. Random Events are to be the first rule to
-read them (DL-82).
+One of the named ranges a Hero's Morale falls in. A Hero's Form on a Quest is the first rule to
+read them (v1.1.4-S3, DL-154); Random Events are to read them too (DL-82).
 _Avoid_: Mood, Tier
 
 **Regard**:
@@ -356,9 +356,12 @@ _Avoid_: Tier, Grade, Result (alone)
 
 **Form**:
 How much of themselves a Hero brings to a Check on a Quest: a factor on the Stats they add to a
-score, from their Morale band, and lower once they are hurt on the Quest. Filters, the choice of
-the best or worst Hero, Synergy requirements, Skills, Level, age and counts read a Hero as they
-are (DL-148 items 9 to 11; to be built, v1.1.4-S3).
+score, from their Morale band, and lower once they are hurt on the Quest. The band is read from
+their Morale on the Quest: their Morale as they set out plus the Morale the Quest's Encounters have
+cost or given so far. Filters, the choice of the best or worst Hero, Synergy requirements, Skills,
+Level, age and counts read a Hero as they are, and so does a raw Check. The Party builder says in
+one line what the Party's Form does to its odds, naming no Hero (DL-148 items 9 to 12; built in
+v1.1.4-S3, DL-154).
 _Avoid_: Condition, Fitness, Mood
 
 **Finale**:

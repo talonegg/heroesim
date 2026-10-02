@@ -225,7 +225,7 @@ describe('the Board', () => {
 });
 
 describe('the Party builder', () => {
-  test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; Morale and its band; the Stats the Quest demands; the Skills it names", () => {
+  test("gives each Hero on the Roster a row: whether they can go, and why not and until when; Class and Level; the Stats the Quest demands; the Skills it names; and no Hero's Morale (DL-148 item 12)", () => {
     let names: string[] = [];
     const state = changed(madeToOrder(), (document) => {
       const guild = Object.values(document.world.guilds).find((each) => each.controller.kind === 'player');
@@ -260,7 +260,8 @@ describe('the Party builder', () => {
         `Courage${hero.stats.courage}`,
       ]);
     });
-    expect(within(second as HTMLElement).getByText('Morale 15, wretched')).toBeDefined();
+    // v1.1.4-S3's verification: the builder names no Hero's Morale; the Party's one line says what it does.
+    for (const row of rows(form)) expect(row.textContent).not.toMatch(/Morale|wretched|steady/);
     expect(within(third as HTMLElement).getByText('Herbalism 3')).toBeDefined();
     // No fit and no odds: nothing on a row judges the Hero against the Quest.
     expect(form.textContent).not.toMatch(/\b(fit|odds|chance)\b/i);
@@ -363,6 +364,29 @@ describe('the Party builder', () => {
     expect(verdict.className).toBe('banner banner--good');
     expect(verdict.textContent).toBe('Dispatch would send this Party.');
     expect((within(form).getByRole('button', { name: 'Send the Party' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  test("gives one Morale line for the Party chosen, from its mean form, naming no Hero (v1.1.4-S3, DL-148 item 12)", () => {
+    const state = changed(madeToOrder(), (document, player) => {
+      const [first, second] = player.rosterIds;
+      (document.world.heroes[first as HeroId] as Hero).morale = 10;
+      (document.world.heroes[second as HeroId] as Hero).morale = 60;
+    });
+    render(<App initial={state} />);
+    const form = chooseForFirst();
+    const [first, second] = rows(form);
+    if (first === undefined || second === undefined) throw new Error('two Heroes wanted');
+
+    expect(within(form).queryByTestId('party-morale')).toBeNull();
+    fireEvent.click(within(second).getByRole('checkbox'));
+    expect(within(form).getByRole('heading', { level: 4, name: 'Morale' })).toBeDefined();
+    expect(within(form).getByTestId('party-morale').textContent).toBe('Makes no difference.');
+
+    // A wretched Hero beside a steady one: a mean form of 0.925, below the low band's 0.93.
+    fireEvent.click(within(first).getByRole('checkbox'));
+    const line = within(form).getByTestId('party-morale').textContent ?? '';
+    expect(line).toBe('Lowers the odds badly.');
+    for (const hero of heroesOf(state).slice(0, 2)) expect(line).not.toContain(hero.name);
   });
 
   test('once sent, the card becomes a Party out card where it stood, naming who went and the night they return, with the keyboard on it', async () => {

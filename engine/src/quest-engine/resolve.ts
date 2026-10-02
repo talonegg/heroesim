@@ -19,6 +19,13 @@
 // After the sequence, Loot's two draws for a Quest with a Loot table, whatever the band (M5-S5,
 // loot.ts, DL-52).
 //
+// Each Hero brings their form to the Checks (v1.1.4-S3, form.ts): their Morale band's factor, the
+// band read from their Morale on the Quest, their Morale as they set out plus the Morale consequences
+// applied so far, held to the scale; and less once they are hurt on the Quest. Their stored Morale
+// still changes only on the return (`questsConclude`). Form draws nothing. An Encounter says form
+// decided it (`formDecided`) only when, with every form at 1 and the same rolls, its pass formula
+// would have put it on the other side of the Success line (v1.1.4-S3's verification).
+//
 // The consumables the Party carries (M5-S3, DL-50, consumables.ts) add a bonus to every Check of an
 // Encounter (DL-148 item 13), roll the Checks of a failed Encounter again, and shorten the Injuries
 // once the sequence is over. Only a reroll draws: one more from `quests` for each Check that fell
@@ -31,13 +38,13 @@
 // (ADR-0002 as amended by pre-M0 review A1).
 
 import { configProblems, type GameConfig, type QuestBand } from '../config.js';
-import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, InjuryTypeKey, SynergyKey } from '../content-types.js';
+import type { CheckKey, Consequence, Degree, Encounter, EncounterKey, EncounterKind, InjuryTypeKey, PassFormula, SynergyKey } from '../content-types.js';
 import { compareByCodeUnit, type Guild, type Hero, type HeroId, type Party, type Quest, type World } from '../document.js';
 import { streamOf, type Stream } from '../generators/draw.js';
 import { healDays } from '../injuries.js';
 import { chance, int } from '../rng.js';
 import { healFactor } from '../selectors.js';
-import { check, type CheckDeps, type CheckResult, type EncounterOutcome } from './check.js';
+import { check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './check.js';
 import { kitOf, type ConsumableUse } from './consumables.js';
 import { passDegree, passOf, succeeded } from './degree.js';
 import { sequenceFor } from './encounters.js';
@@ -52,7 +59,10 @@ export interface QuestInjury {
   healDays: number;
 }
 
-/** One Check of an Encounter, rolled (v1.1.4-S2): its key, then `CheckResult`'s numbers and its Degree. */
+/**
+ * One Check of an Encounter, rolled (v1.1.4-S2): its key, then `CheckResult`'s numbers and its Degree,
+ * and, only when form decided its Degree, which way (v1.1.4-S3).
+ */
 export interface CheckRoll {
   key: CheckKey;
   capability: number;
@@ -60,6 +70,7 @@ export interface CheckRoll {
   target: number;
   margin: number;
   degree: Degree;
+  formDecided?: FormDecided;
 }
 
 /** One Encounter of the sequence, checked: what `quest.encounter` records. */
@@ -78,6 +89,12 @@ export interface EncounterResult {
   degree: Degree;
   /** The Check that set the Degree. */
   decidedBy: CheckKey;
+  /**
+   * Set when form decided whether the Encounter succeeded (v1.1.4-S3): with every form at 1 and the
+   * same rolls, its pass formula would have given the other side of the Success line. `raised` when
+   * it succeeded by form, `lowered` when it failed by it. Absent otherwise.
+   */
+  formDecided?: FormDecided;
   /** Each Check, in the order the Encounter lists them; a reroll's rolls in place of the first. */
   checks: CheckRoll[];
   /** The Heroes its consequences injured, in the order they were. */
@@ -172,7 +189,7 @@ interface Working {
  * and then shorten the Injuries (M5-S3, DL-50, `kitOf`); the Items used are the resolution's `consumables`.
  *
  * Changes nothing but the streams. Throws on a programming error: a Hero or Guild not in the world, a
- * configuration whose Degrees are unsound (`configProblems`), a difficulty that is not above 0, an
+ * configuration whose Degrees or form factors are unsound (`configProblems`), a difficulty that is not above 0, an
  * Encounter with no Check, or with several and no pass formula, or a formula naming a Check it
  * lacks, an Injury type content lacks, or a world without the `quests` stream.
  */
@@ -201,9 +218,10 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
   const synergyKeys = new Set<SynergyKey>();
   for (const [index, encounter] of sequence.entries()) {
     if (working.alive.length === 0) break;
-    // v1.1.4-S1: the members as the Queries read them on this Encounter, their effective Stats read once.
+    // v1.1.4-S1: the members as the Queries read them on this Encounter, their effective Stats read
+    // once; from v1.1.4-S3 their Morale on the Quest and their form, from the harm so far.
     const hurt = new Set(working.injuries.map((injury) => injury.heroId));
-    const party = queryParty(working.alive, world, deps, hurt);
+    const party = queryParty(working.alive, world, deps, { hurt, moraleDelta: working.moraleDelta });
     // The Synergies the Check adds, from the same members: recorded for the Quest, not the Encounter.
     for (const synergy of synergiesOn(party, encounter, deps.content)) synergyKeys.add(synergy.key);
     if (encounter.checks.length === 0) throw new RangeError(`Encounter ${JSON.stringify(encounter.key)} has no Check`);
@@ -226,6 +244,7 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       apply(consequence, working, harm, state, guild, deps);
     }
     const deciding = rollOf(encounter, results, decided.decidedBy);
+    const formDecided = formDecidedOf(encounter, pass, results, decided.degree);
     encounters.push({
       index,
       encounterKey: encounter.key,
@@ -236,9 +255,10 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
       outcome: deciding.outcome,
       degree: decided.degree,
       decidedBy: decided.decidedBy,
+      ...(formDecided === undefined ? {} : { formDecided }),
       checks: encounter.checks.map(({ key }, at) => {
-        const { capability, roll, target, margin, degree } = results[at] as CheckResult;
-        return { key, capability, roll, target, margin, degree };
+        const { capability, roll, target, margin, degree, formDecided } = results[at] as CheckResult;
+        return { key, capability, roll, target, margin, degree, ...(formDecided === undefined ? {} : { formDecided }) };
       }),
       ...harm,
     });
@@ -275,6 +295,30 @@ export function resolveQuest(world: World, quest: Quest, party: Party, deps: Che
 /** Each of `encounter`'s Checks' Degrees in `results`, by its key. */
 function degreesOf(encounter: Pick<Encounter, 'checks'>, results: readonly CheckResult[]): Record<CheckKey, Degree> {
   return Object.fromEntries(encounter.checks.map(({ key }, at) => [key, (results[at] as CheckResult).degree]));
+}
+
+/**
+ * Whether form decided whether `encounter` succeeded, at `degree` by `pass` (v1.1.4-S3's
+ * verification): its Degree read again with every form at 1 and the same rolls. A Check form raised
+ * across the Success line was below it, one it lowered at or above it, and every other on its own
+ * side. Whether a formula of `and`, `or` and `at-least` succeeds hangs only on which of its Checks
+ * did, so a Failure and a Success stand for each.
+ */
+function formDecidedOf(
+  encounter: Pick<Encounter, 'checks'>,
+  pass: PassFormula,
+  results: readonly CheckResult[],
+  degree: Degree,
+): FormDecided | undefined {
+  if (!results.some((result) => result.formDecided !== undefined)) return undefined;
+  const atOne = Object.fromEntries(
+    encounter.checks.map(({ key }, at): [CheckKey, Degree] => {
+      const { formDecided, degree: rolled } = results[at] as CheckResult;
+      return [key, formDecided === 'raised' ? 'failure' : formDecided === 'lowered' ? 'success' : rolled];
+    }),
+  );
+  if (succeeded(passDegree(pass, atOne).degree) === succeeded(degree)) return undefined;
+  return succeeded(degree) ? 'raised' : 'lowered';
 }
 
 /** The result in `results` of `encounter`'s Check `key`. */

@@ -241,7 +241,8 @@ export * from './regard.js';
 export { moraleBand, moraleBaselineFor } from './morale.js';
 export { potentialHint } from './potential.js';
 export * from './preview.js';
-export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome } from './quest-engine/check.js';
+export { capability, check, type CheckDeps, type CheckResult, type EncounterOutcome, type FormDecided } from './quest-engine/check.js';
+export { formEffect, formEffects, formOf, meanForm, workingMorale, type FormConfig, type FormEffect } from './quest-engine/form.js';
 export { expendUsed, kitOf, sendHome, type ConsumableUse, type Kit } from './quest-engine/consumables.js';
 export { degreeOf, passDegree, passOf, succeeded, type Decided } from './quest-engine/degree.js';
 export { encounterCount, sequenceFor } from './quest-engine/encounters.js';
@@ -264,6 +265,7 @@ export {
   queryParty,
   valueOf,
   type QueryContent,
+  type OnQuest,
   type QueryMember,
   type QueryParty,
 } from './quest-engine/query.js';

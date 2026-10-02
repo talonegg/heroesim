@@ -227,8 +227,8 @@ describe('the Check reads effective Stats, Guildmaster Traits included (DL-43, D
 });
 
 // M4's third risk: the Guildmaster's rules are Guild-side, never in the Check, nor in the Queries it
-// evaluates (v1.1.4-S1, DL-148 item 5).
-describe.each(['check.ts', 'query.ts'])('%s', (file) => {
+// evaluates (v1.1.4-S1, DL-148 item 5), nor in the form it reads them with (v1.1.4-S3).
+describe.each(['check.ts', 'query.ts', 'form.ts'])('%s', (file) => {
   const source = readFileSync(fileURLToPath(new URL(`./${file}`, import.meta.url)), 'utf8');
 
   test('never mentions the Guildmaster', () => {
@@ -241,7 +241,7 @@ describe.each(['check.ts', 'query.ts'])('%s', (file) => {
 });
 
 describe('query.ts', () => {
-  test("imports as values only effectiveStats and ageOf, and otherwise only types: content's, the document's and the config's", () => {
+  test("imports as values only effectiveStats, ageOf and form's two, and otherwise only types: content's, the document's and the config's", () => {
     const source = readFileSync(fileURLToPath(new URL('./query.ts', import.meta.url)), 'utf8');
     const imports = [...source.matchAll(/^import (type )?\{([^}]*)\} from '([^']+)';\r?$/gm)].map(([, type, names = '', from]) => ({
       from,
@@ -252,6 +252,7 @@ describe('query.ts', () => {
     expect(imports.filter((it) => !it.typeOnly)).toEqual([
       { from: '../selectors.js', names: ['effectiveStats'], typeOnly: false },
       { from: '../time.js', names: ['ageOf'], typeOnly: false },
+      { from: './form.js', names: ['formOf', 'workingMorale'], typeOnly: false },
     ]);
     expect(imports.filter((it) => it.typeOnly).map((it) => it.from)).toEqual(['../config.js', '../content-types.js', '../document.js']);
   });

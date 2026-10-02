@@ -17527,6 +17527,251 @@ points); `docs/requirements.md` (R8); the epic's S11 boxes and status.
 
 ---
 
+## DL-154 — v1.1.4-S3 built: a Hero's form, from the band of their Morale on the Quest and their wounds, scaling the Stats they add to a Check, one Morale line for the Party, and a sentence when form decided a Check
+
+**Status:** Accepted · **Date:** 2026-10-02 · **Decided by:** the agent, building DL-148 items 9 to
+12 as the epic's S3 describes, DL-148 winning where the two differ. Where the plan was silent, the
+calls are the agent's, in item 7, for the owner to change. Opus built it; a second Opus agent
+verifies it.
+
+**Context.** Before S3, Morale was read by no rule on a Quest, and a wound taken on one changed
+nothing for the rest of it (DL-148's analysis). DL-148 items 9 to 12 give each Hero a form: their
+own Morale band's factor, lower once they are hurt, on the Stat values they add into a Check's
+score. It was built on `v1.1.4-dev` at `07a1c30` (S11, DL-153), and every comparison below is with
+that commit and S2's sweep, `harness/reports/m9-v114-s2-2026-10-02.md` (S11 changed no play).
+
+**Decision.**
+
+1. **Form** (`engine/src/quest-engine/form.ts`, new, pure).
+   - `workingMorale(morale, delta)`: the Hero's Morale as they set out plus the Morale consequences
+     applied so far on the Quest, held to `moraleMin` to `moraleMax`. Stored Morale still changes
+     only on the return, as before.
+   - `formOf(morale, hurt)`: the `moraleCheckFactor` of that Morale's band (`moraleBand`), times
+     `hurtCheckFactor` once the Hero is hurt on the Quest. Each Hero's own band, not the Party's
+     mean (item 9).
+   - `meanForm` and `formEffect`, for the Party builder's line (item 4 below).
+2. **The Queries** (`query.ts`).
+   - `queryParty` takes what has happened on the Quest, `{ hurt, moraleDelta }`, in place of S1's
+     set of the hurt. Each member gains `form`, and `morale` is now their Morale on the Quest, which
+     `["morale"]` reads.
+   - `evaluate` and `valueOf` take `withForm`. With it, only the Stat values a Hero adds into the
+     score are times their form (item 11):
+     - `["stat", k]`, and each Stat within a `weighted`, are scaled; so are the Stats within the
+       `+`, `-` and `*` of Vals, while a number, a Skill rating, Level, Morale and age are not. A
+       product of two Stats is scaled twice, as each Stat in it is.
+     - `sum` and `avg` add each Hero's scaled value; `of` adds the chosen Hero's; `ranked` weighs
+       each Hero's scaled value; the `+`, `-`, `*`, `least` and `greatest` of Nums carry it into
+       each Num.
+     - Every choice reads the Heroes as they are: `best`, `worst`, `top`, `bottom`, `ranked`'s
+       order, and the Hero whose value `max` or `min` adds, which are `of best` and `of worst`. So
+       does every filter and every `count`. A hurt Warrior is still the strongest Warrior, and adds
+       less.
+   - Without `withForm` every read is as before. `holds`, so every Synergy requirement, reads the
+     Heroes as they are.
+3. **The Check** (`check.ts`) and **the resolver** (`resolve.ts`).
+   - `capability` reads the score with form; the Skill term, the Synergy term, teamwork and a
+     consumable's bonus are as before. A raw Check (DL-152) is read without form.
+   - When any member's form is not 1, `check` also rolls the capability with every form at 1 by
+     the same draw. If the two fall on either side of the Success line, the result's `formDecided`
+     is `raised` (a Success or better by form) or `lowered` (below Success by form); the
+     verification's item 1. No draw is added: the second roll reuses the first's `next`.
+   - `resolveQuest` takes the Party for each Encounter with the Heroes hurt so far and the Morale
+     consequences summed so far. When a Check's `formDecided` is set, it reads the Encounter's
+     Degree again by its pass formula with every form at 1 and the same rolls; if that is on the
+     other side of the Success line, the Encounter's `formDecided` is set too. `quest.encounter`
+     and its Checks carry `formDecided` only when it is set.
+4. **The words.**
+   - *The Party builder* (`previewDispatch`'s `form`, the CLI's `preview` and the page's builder):
+     one "Morale" line for the Party chosen, from the mean of its Heroes' forms as they set out:
+     "Raises the odds", "Makes no difference", "Lowers the odds a little" or "Lowers the odds badly".
+     It names no Hero. No line for a Party of no one.
+   - *The narration* (`encounterForm`, the CLI's and the page's narration, so the Quest report and
+     the History): once per Encounter, after its sentence, "Low spirits told against them." or
+     "Their high spirits carried them through." when the Encounter's `formDecided` is set, that is
+     when form decided whether it succeeded, and never otherwise. It names no Hero.
+5. **Configuration.** `moraleCheckFactor` (`wretched` 0.85, `low` 0.93, `steady` 1, `high` 1.04,
+   `elated` 1.08) and `hurtCheckFactor` (0.85), under `configVersion` 13 (not raised). S2's
+   `configProblems` refuses a factor that is not a finite number above 0, a Morale band missing
+   from `moraleCheckFactor`, a `steady` factor other than 1, factors out of the bands' order, and a
+   `hurtCheckFactor` above 1, naming each (the verification's item 5); `resolveQuest` throws on it
+   as on S2's.
+6. **The glossary.** `CONTEXT.md`'s Form says what is built, and Morale band that Form is the first
+   rule to read the bands.
+7. **Calls where the plan was silent** (the agent's, for the owner to change).
+   - *Form scales the score, not the capability.* The epic's S2 wrote "times teamwork (and, from S3,
+     times form)"; DL-148 item 11 and the epic's S3 say only the Stat values a Hero adds are scaled.
+     The DL item wins: the Skill term, Synergies, teamwork and a consumable's bonus are untouched.
+   - *`max` and `min` are `of best` and `of worst`.* The Hero is chosen as they are, and adds their
+     value with form, so the max of the scaled values is not taken. Otherwise a hurt strongest
+     Warrior would stop being "the strongest Warrior" (the epic's own example). At every form 1 it
+     is the old `Math.max` exactly.
+   - *Arithmetic over Stats.* Within a Val, each Stat is scaled and nothing else, so
+     `["*", ["stat", a], ["stat", b]]` carries the form twice and `["+", ["stat", a], 2]` once on
+     the Stat alone. A Num's arithmetic carries `withForm` into each Num.
+   - *Working Morale and the band.* The sum of the Morale consequences so far is added to each
+     Hero's stored Morale, then held to the scale, as `questsConclude` applies the same sum on the
+     return. S4's `moraleByHero` can replace the sum by each Hero's own.
+   - *The Party builder's thresholds.* A mean form above 1 "Raises the odds"; exactly 1 "Makes no
+     difference"; from the `low` band's factor (0.93) up to 1 "Lowers the odds a little", a Party
+     no worse on the whole than every Hero in low spirits; below 0.93 "Lowers the odds badly". They
+     are read from `moraleCheckFactor`, so no new field; a tolerance of 1e-9 keeps a mean of
+     rounded factors at its threshold. The mean is as the Party sets out: no one is hurt then.
+   - *The sentence's way.* `formDecided` is `raised` or `lowered`, not true, so the sentence can say
+     which. A wound's 0.85 is form too, so "Low spirits told against them" covers it; no third
+     sentence was added.
+   - *Only when set.* `formDecided` is written only when form decided the Check, which keeps the
+     save as short as it was and an entry from before S3 reading as none.
+   - *The CLI's `preview`* gains the same line under "Morale", and its help says so.
+
+**The verification.** A second Opus agent verified the story. Its findings were fixed test first,
+each call the agent's or the verifier's, for the owner to change:
+1. **The sentence could contradict the Degree.** `formDecided` was set for any change of Degree,
+   so a Failure made a Setback read "Their high spirits carried them through" of an Encounter that
+   still failed; and the sentence followed the deciding Check, or any Check, so in an `and` or an
+   `or` it could speak of a Check that decided nothing.
+   - *The fix.* A Check's `formDecided` is set only when form moved it across the Success line. The
+     Encounter's is set only when its pass formula, read again with every form at 1 and the same
+     rolls, would have put it on the other side of the Success line, and `encounterForm` reads the
+     Encounter's alone. A formula of `and`, `or` and `at-least` succeeds by which of its Checks did,
+     so a Check form raised stands as a Failure there, and one it lowered as a Success.
+   - *The tests.* A Failure made a Setback and a Success made a Triumph set none; an `and` whose
+     raised Check was undone by another's Failure says nothing; an `or` that succeeded through a
+     Check form did not touch, while it lowered another, says nothing, and says it when that Check
+     missed; the narrations say the sentence exactly when the Encounter's field is set. The epic's
+     S3 bullet and box now read "when form decided whether the Encounter succeeded".
+   - *No play changed:* nothing reads `formDecided`. Item 1 of the checks' three seeds, form on,
+     give the same world hashes before and after, and the History differs only in the fields.
+2. **The builder named each Hero's Morale.** Its rows showed "Morale 72, high", where DL-148 item
+   12 says no Hero's Morale is named. The chip is gone from the builder's rows, and `PartyRow` has
+   no Morale; the Roster's cards and a Hero's page keep theirs. `board.test.tsx`,
+   `selectors.test.ts` and the e2e support's Board walk hold that no row says "Morale". This
+   replaces the call that kept the chip.
+3. **A subtracted Stat inverts form.** In `["-", 40, ["sum", "party", ["stat", "strength"]]]` a
+   hurt Hero would subtract less and raise the score. Content now refuses, in a Check's score, a
+   `-` whose right operand reads a Stat a Hero adds, directly, within a `weighted`, or by a Num of
+   such a Val at any depth, naming the `-`'s path (`checkSubtractions`). A raw Check and a
+   Synergy's requirement, both read without form, may still subtract one. `refusals.test.ts` holds
+   seven refusals, four scores accepted (a Stat less a number or a Level, a sum less a count
+   filtered by a Stat, a sum less a Skill), and a requirement that subtracts. ADR-0010 says why: a
+   wound must never raise a score. Core content writes no `-`, so nothing is refused.
+   - *Left open:* a negative weight in a `weighted`, or a negative number times a Stat, inverts form
+     the same way; content allows both today, and S9 and S10 write the scores.
+4. **`least` and `greatest`** choose among Nums already read with form, so `["least", A, B]` may
+   take a different Num with form than without. Item 11 is about choosing a Hero, which stays
+   unscaled; a Num is a number of the Party, not a Hero, so this is by design.
+5. **The configuration was looser than form means.** `configProblems` now also requires `steady`
+   to be 1, the factors in the bands' order, `wretched` ≤ `low` ≤ `steady` ≤ `high` ≤ `elated`, and
+   `0 < hurtCheckFactor ≤ 1`, so that better spirits never bring less and a wound never helps. The
+   verifier asked for strict order; it is `≤`, so that every factor 1, the rule before S3, stays a
+   sound configuration, as the parity tests use it. Tested in `form.test.ts`.
+
+After the fixes, play is unchanged (items 1 and 4 by design; the defaults pass the new checks and
+core content has no `-`). In the three seeds of the checks' item 1, form on, form decided 624
+Encounters of 38,710 (1.6%) across the Success line, 542 raised and 82 lowered.
+- `npm run typecheck` and `npm run lint` are clean.
+- `npm test` passes 4,213 tests in 168 files, 24 more than before the fixes, with no load flake.
+- `npm run e2e -w web` passes all 93 specs.
+- The script is 761,507 bytes (761.51 kB), 376 more than before the fixes: 38.49 kB is left.
+
+**The checks.**
+These were run before the verification's fixes, so item 3 below, and the sweep's probe, count any
+change of a Check's Degree.
+1. **Form is the only change.**
+   - *The History fingerprints.* `quests-conclude.test.ts`'s three seeded games of 120 Days now set
+     every `moraleCheckFactor` and `hurtCheckFactor` to 1, beside S2's `strongTriumphShare: 0`, and
+     their SHA-256s still equal those recorded at `86c7afa`.
+   - *Seeded games.* Three seeds (`p-1` to `p-3`) played 5 years with the player idle and the
+     Rivals questing, every factor 1: the world and the History hash equal to `07a1c30`'s, game for
+     game. With form on, all three differ.
+   - *A short sweep.* `HEROESIM_SEEDS=10 HEROESIM_YEARS=5`, core only, at `07a1c30` and again with
+     every factor 1 as the default for the run (put back after; neither report kept). Every counter,
+     yearly table and ending is equal. Only the timings, the fingerprint and each save's length
+     moved, by 94 characters a save: the two new fields in the save's `meta.config`.
+   - *A test.* With every form 1, a score with form reads exactly as one without, in
+     `query.test.ts`; and the resolver's Checks with every factor 1 equal the old ones, with no
+     `formDecided`, in `resolve.test.ts`.
+2. **The sweep.** `HEROESIM_SEEDS=50 HEROESIM_MILESTONE=m9-v114-s3 npm run harness`, core only,
+   content 21, config 13, not validated. Its report is `harness/reports/m9-v114-s3-2026-10-02.md`,
+   to be force-added. Against S2's (`m9-v114-s2-2026-10-02.md`):
+   - *Form cuts both ways, by whose Heroes are in what spirits.* A probe of 4 seeds × 10 years under
+     the same policy, not kept, sampled each Hero as their Party set out:
+     - the player's were `steady` 95.6% of the time and `high` 4.4%. The policy never builds
+       quarters (it buys only the infirmary), so their Morale drifts to 60. Form only lowered them,
+       through wounds: it changed the Degree of 241 of 43,588 Checks (0.6%), 211 lowered;
+     - the Rivals' were `high` 87.6%, `steady` 11.9% and `elated` 0.5%. The Rivals build quarters,
+       +5 to the baseline a grade, so most set out at 75 or more and bring 1.04. Form changed the
+       Degree of 4,707 of 97,340 Checks (4.8%), 4,350 raised.
+   - *The player's Quests.* Failed 15.2% (14.7%), succeeded 18.1% (18.3%), strong 66.7% (67.0%);
+     349,411 resolved before, 348,218 now. Encounters at Success or better 83.3% (83.8%). Injuries
+     19,361 (18,986), Deaths 1,648 (1,610).
+   - *The Rivals' Quests.* Failed 11.3% (13.2%), succeeded 14.5% (15.6%), strong 74.1% (71.3%), and
+     805,084 resolved (791,431). Encounters at Success or better 87.0% (85.3%). Injuries 38,878
+     (43,341), Deaths 3,298 (3,720).
+   - *What follows.* Stronger Rivals take more of the Board: they took 805,850 Quests (792,150) and
+     the player 348,430 (349,604). Two of the player's games ended in bankruptcy, in years 18 and 19
+     (none before), and six fell below the floor (none). Rival folds are 163 (151), Successions 28
+     (32), Levels a player's Guild-year 11.24 (11.13). The player's Loot awards are 43,474 (43,763),
+     0.125 a Quest as before. From the first Check form moves, every later draw moves, so the rest
+     differs as a different game does.
+   - *Unchanged.* No refused action. One seed played twice is byte-identical, at 119,714,257
+     characters. 50 of 50 saves round trip. The mean save at year 20 is 112.83 MiB (110.83), from
+     the Rivals' extra Quests and each `formDecided`.
+   - *For S10.* The Quest target is still unmet for the player (failed 15.2%, strong 66.7%). Form
+     favours a Guild that builds quarters; the harness's policy does not, which S6's policy change
+     and S10's balance pass should weigh.
+3. **How often form decides, with the player idle.** In item 1's seeds `p-1` to `p-3`, 5 years with
+   form on, the Rivals met 38,710 Encounters of one Check each. Form decided 1,751 Checks (4.5%):
+   1,545 raised (88%), 747 of them to a Triumph, and 206 lowered.
+4. **The script** is 761,131 bytes (761.13 kB, 217.06 kB gzipped), up 2,083 bytes from S11's
+   759,048: form.ts, the Queries' `withForm`, the second roll, the line and the sentences.
+   38.87 kB is left under 800 kB.
+5. **The rest.**
+   - `npm run typecheck` and `npm run lint` are clean.
+   - `npm test` passes 4,189 tests in 168 files, 65 more than S11's 4,124, with no load flake.
+   - `npm run e2e -w web` passes all 93 specs.
+   - The new tests:
+     - `form.test.ts` (new), 25: working Morale held to the scale; each band's factor, hurt and not;
+       the line's thresholds and eight Parties; `configProblems` for each band and the hurt factor
+       at 0, −1, NaN, Infinity and missing.
+     - `query.test.ts`, 19: each scaled read (`stat`, `weighted`, the Vals' arithmetic, `sum`,
+       `avg`, `of`, `max`, `min`, `ranked`, the Nums' arithmetic, `least`, `greatest`) and each
+       read as they are (a filter, `best` and `worst`, `top`, `bottom` and `ranked`'s order,
+       `count`, a Skill rating, Level, Morale, age and a number, a Synergy's requirement, and every
+       read without `withForm`); every form 1 reading exactly as none; the Morale on the Quest and
+       its band, and the hurt factor.
+     - `resolve.test.ts`, 6: a Morale consequence in Encounter 1 changes form in Encounter 2, at
+       each band, with stored Morale untouched; a Hero hurt in Encounter 1 adds 0.85 in Encounter 2;
+       `formDecided` exactly when the Degree at form 1 differs, each way; every factor 1 as before;
+       a raw Check without form; the throws.
+     - `preview.test.ts`, the CLI's `main.test.ts` (4), the page's `selectors.test.ts` (4) and
+       `board.test.tsx`: the Morale line, through the CLI's `preview` and the builder's checkboxes.
+     - The CLI's and the page's narration and `quest-report.test.tsx`: the sentence exactly when
+       `formDecided` is set, each way, the deciding Check's first, none for an older entry, and no
+       Hero's name in it. The capitals guard reads the builder with a Hero chosen.
+
+**Consequences.**
+- Play changes by form alone (the checks, item 1). It favours Heroes in high spirits, so Guilds
+  that build quarters, the Rivals in the harness, gain; the harness's player, steady and only ever
+  wounded, loses a little. The Quest target is not met yet.
+- S4 replaces the summed Morale consequences by each Hero's own (`moraleByHero`) where
+  `queryParty` takes `moraleDelta`. S5's estimate reads the Party as it sets out, with its forms,
+  through `queryParty` and `capability`, and says "if no one falls". S10 tunes
+  `moraleCheckFactor` and `hurtCheckFactor` with the rest.
+- No save row gains a field; schema 6 and configuration 13 hold. `quest.encounter`'s Checks gain
+  `formDecided` only where it is set.
+
+**Actioned in:** `engine/src/quest-engine/form.ts` and `form.test.ts` (new); `query.ts`,
+`check.ts`, `resolve.ts` and their tests; `engine/src/config.ts`, `events.ts`, `index.ts`,
+`preview.ts` and `preview.test.ts`; `engine/src/phases/quests-conclude.test.ts`;
+`cli/src/commands/preview.ts`, `args.ts`, `narrate.ts` and their tests; `web/src/state/narrate.ts`,
+`selectors.ts`, `game.test-support.ts` and their tests; `web/src/views/board.tsx`, `board.test.tsx`,
+`quest-report.test.tsx` and `capitals.test.tsx`; `web/e2e/support.ts`; `content/src/validate.ts`
+and `refusals.test.ts`; `docs/adr/0010-checks-and-synergy-requirements-are-queries-over-the-party.md`;
+`CONTEXT.md` (Form, Morale band); `harness/reports/m9-v114-s3-2026-10-02.md`; the epic's S3 bullet,
+boxes and status.
+
+---
+
 ## Pre-M0 review decisions, 2026-09-25 to 2026-09-26
 
 Decisions from the review of the planning documents (`docs/plan.md`, `docs/planning/epics/*`)

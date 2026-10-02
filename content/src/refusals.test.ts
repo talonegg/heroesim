@@ -1839,3 +1839,48 @@ describe('an Encounter in the new form (v1.1.4-S2)', () => {
     expect(refusalOf(() => parseContent(odd)).message).toMatch(/ambush-on-the-road\.consequences\.glory is not a field of an Encounter's consequences/);
   });
 });
+
+// v1.1.4-S3's verification (DL-154): form scales the Stats a Hero adds into a Check's score, so a
+// Stat subtracted would be scaled too, and a wound or low spirits would raise the score. A `-` whose
+// right operand reads a Stat a Hero adds, directly, within a `weighted`, or by a Num of such a Val,
+// is refused in a Check's score. A Synergy's requirement reads the Heroes as they are, and keeps it.
+describe("a Check's score that subtracts a Stat (v1.1.4-S3)", () => {
+  const scored = (score: unknown) =>
+    withJson('encounters.json', (json) => {
+      const { name, kind, consequences } = json['ambush-on-the-road'] as EncounterRow;
+      (json as Record<string, unknown>)['ambush-on-the-road'] = {
+        name,
+        kind,
+        checks: [{ key: 'front', name: 'Front', score, skills: [], difficultyFactor: 0.2 }],
+        consequences,
+      };
+    });
+  const at = (rest: string) => new RegExp(`encounters\\.ambush-on-the-road\\.checks\\.0\\.score${rest.replace(/[.[\]()]/g, (char) => `\\${char}`)}: "-" subtracts a Stat a Hero adds`);
+
+  test.each<[string, unknown, RegExp]>([
+    ['a Val subtracting a Stat', ['sum', 'party', ['-', ['level'], ['stat', 'strength']]], at('.2.2')],
+    ['a Val subtracting a weighted', ['max', 'party', ['-', 20, ['weighted', [['wits', 1]]]]], at('.2.2')],
+    ['a Val subtracting a sum of Stats', ['of', ['best', 'party', ['level']], ['-', 10, ['+', 1, ['stat', 'wits']]]], at('.2.2')],
+    ['a Num subtracting a sum of a Stat', ['-', 40, ['sum', 'party', ['stat', 'strength']]], at('.2')],
+    ['a Num subtracting the best Hero\'s Stat', ['+', 5, ['-', ['count', 'party'], ['of', ['best', 'party', ['level']], ['stat', 'wits']]]], at('.2.2')],
+    ['a Num subtracting a ranked Stat', ['-', 30, ['ranked', 'party', ['stat', 'courage'], [1]]], at('.2')],
+    ['a Num subtracting the least of a Stat', ['-', 30, ['least', 3, ['min', 'party', ['stat', 'courage']]]], at('.2')],
+  ])('with %s is refused, naming its path', (_, score, problem) => {
+    expect(refusalOf(() => parseContent(scored(score))).message).toMatch(problem);
+  });
+
+  test.each<[string, unknown]>([
+    ['a Stat less a number', ['sum', 'party', ['-', ['stat', 'strength'], 2]]],
+    ['a Stat less a Level', ['sum', 'party', ['-', ['stat', 'strength'], ['level']]]],
+    ['a sum less a count of Heroes filtered by a Stat', ['-', ['sum', 'party', ['stat', 'strength']], ['count', ['where', 'party', ['<', ['stat', 'wits'], 8]]]]],
+    ['a sum less the best Hero\'s Skill', ['-', ['sum', 'party', ['stat', 'strength']], ['of', ['best', 'party', ['stat', 'wits']], ['skill', 'tactics']]]],
+  ])('with %s is accepted', (_, score) => {
+    expect(parseContent(scored(score)).encounters['ambush-on-the-road']?.checks[0]?.score).toEqual(score);
+  });
+
+  test("a Synergy's requirement, read as the Heroes are, may subtract a Stat", () => {
+    const condition = ['>=', ['-', 40, ['sum', 'party', ['stat', 'strength']]], 1];
+    const files = withJson('synergies.json', (json) => void ((json['sword-and-salve'] as SynergyRow).requires = [condition]));
+    expect(parseContent(files).synergies['sword-and-salve']?.requires).toEqual([condition]);
+  });
+});

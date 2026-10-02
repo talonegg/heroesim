@@ -278,7 +278,7 @@ describe("the Quest Engine's config (DL-42)", () => {
     // configVersion 4 from DL-42; 8 on the main line by the M5 close (DL-62) and 5 on M6's from M6-S1,
     // which moved two Rival fields to content (DL-56); 9 from their merge (DL-63); 10 from the M6 close's
     // Transfer lock (DL-69); 11 from M9-S2's Trait budget (DL-102); 12 from M9-F1's Guildmasters' ages (DL-113);
-    // 13 from v1.1.4-S2's Degrees (DL-152).
+    // 13 from v1.1.4-S2's Degrees (DL-152), which v1.1.4-S3's form factors join (DL-154).
     expect(defaultConfig).toMatchObject({
       configVersion: 13,
       checkVariance: 0.2,
@@ -286,12 +286,15 @@ describe("the Quest Engine's config (DL-42)", () => {
       bandBySuccessShare: { successAbove: 0.5, strongAtLeast: 1 },
       checkDegrees: { triumph: 1.25, success: 1, setback: 0.75 },
       strongTriumphShare: 0.5,
+      moraleCheckFactor: { wretched: 0.85, low: 0.93, steady: 1, high: 1.04, elated: 1.08 },
+      hurtCheckFactor: 0.85,
     });
     for (const field of ['stubBands', 'stubVariance', 'stubSkillBonusPerRating', 'stubInjuryChance', 'stubDeathChance']) {
       expect(Object.hasOwn(defaultConfig, field), field).toBe(false);
     }
     expect(Object.isFrozen(defaultConfig.bandBySuccessShare)).toBe(true);
     expect(Object.isFrozen(defaultConfig.checkDegrees)).toBe(true);
+    expect(Object.isFrozen(defaultConfig.moraleCheckFactor)).toBe(true);
   });
 });
 
@@ -534,5 +537,149 @@ describe('several Checks (v1.1.4-S2)', () => {
     const loose = several('loose', [strength('a', 'success'), strength('b', 'success')]);
     const s = scene('loose', contentWith(loose), ['loose']);
     expect(() => resolveQuest(s.world, s.quest, s.party, s.deps)).toThrow(/2 Checks and no pass formula/);
+  });
+});
+
+// v1.1.4-S3 (DL-148 items 9 to 11, DL-154): each Hero's form, from the band of their Morale on the
+// Quest and whether they are hurt on it, scales the Stats they add into a Check's score. The scene's
+// Party of three, steady at Morale 60, has Strength 24 in all; with no variance, its roll is its
+// capability.
+describe('form on the Quest (v1.1.4-S3)', () => {
+  /** An Encounter keyed `key` of one Check of the Party's summed Strength at `factor`, with `success` and `failure`. */
+  function summed(key: string, factor: number, success: Consequence[] = [], failure: Consequence[] = [], fields: Partial<EncounterCheck> = {}): Encounter {
+    return {
+      key,
+      name: key,
+      kind: 'combat',
+      checks: [{ key, name: key, score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: factor, ...fields }],
+      consequences: { success, failure },
+    };
+  }
+
+  /** The scene through `encounters`, its Heroes at Morale `morale`. */
+  function resolvedAt(seed: string, morale: number, encounters: Encounter[], config: Partial<EngineDeps['config']> = {}) {
+    const s = scene(seed, { ...contentWith(...encounters), synergies: {} }, encounters.map((it) => it.key));
+    for (const hero of s.heroes) hero.morale = morale;
+    const deps = { ...s.deps, config: { ...s.deps.config, ...config } };
+    return { ...resolveQuest(s.world, s.quest, s.party, deps), heroes: s.heroes };
+  }
+
+  test('a Morale consequence in Encounter 1 changes form in Encounter 2, and stored Morale waits for the return', () => {
+    const capabilities = (delta: number) => {
+      const { encounters, outcome, heroes } = resolvedAt(`morale-${delta}`, 60, [summed('first', 0.25, [{ kind: 'morale', delta }]), summed('second', 0.25)]);
+      expect(heroes.map((hero) => hero.morale)).toEqual([60, 60, 60]);
+      expect(outcome.moraleDelta).toBe(delta);
+      return encounters.map((it) => it.checks[0]?.capability ?? Number.NaN);
+    };
+    const { moraleCheckFactor: factor } = defaultConfig;
+
+    // Steady at 60 in the first, as they set out; in the second at 60 + delta, held to the scale.
+    expect(capabilities(0)).toEqual([24, 24]);
+    const [steady, wretched] = capabilities(-45);
+    expect(steady).toBe(24);
+    expect(wretched).toBeCloseTo(24 * factor.wretched, 10);
+    expect(capabilities(-200)[1]).toBeCloseTo(24 * factor.wretched, 10);
+    expect(capabilities(-30)[1]).toBeCloseTo(24 * factor.low, 10);
+    expect(capabilities(20)[1]).toBeCloseTo(24 * factor.high, 10);
+    expect(capabilities(35)[1]).toBeCloseTo(24 * factor.elated, 10);
+  });
+
+  test('a Hero hurt in Encounter 1 adds hurtCheckFactor of their Strength in Encounter 2', () => {
+    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }]);
+    const { encounters } = resolvedAt('hurt-form', 60, [wounding, summed('after', 0.25)]);
+
+    expect(encounters[0]?.injured).toHaveLength(1);
+    expect(encounters[1]?.checks[0]?.capability).toBeCloseTo(8 * defaultConfig.hurtCheckFactor + 16, 10);
+  });
+
+  test("sets a Check's formDecided exactly when the same roll with every form at 1 falls on the other side of the Success line, and which way", () => {
+    // A target of 22: 24 is a Success at form 1, and 20.4, wretched, a Setback.
+    const lowered = resolvedAt('lowered', 10, [summed('one', 0.55)]).encounters[0];
+    expect(lowered).toMatchObject({ degree: 'setback', formDecided: 'lowered', checks: [{ degree: 'setback', formDecided: 'lowered' }] });
+    expect(lowered?.checks[0]?.roll).toBeCloseTo(24 * defaultConfig.moraleCheckFactor.wretched, 10);
+    // A target of 25.2: 24 is a Setback at form 1, and 25.92, elated, a Success.
+    expect(resolvedAt('raised', 95, [summed('one', 0.63)]).encounters[0]).toMatchObject({
+      degree: 'success',
+      formDecided: 'raised',
+      checks: [{ degree: 'success', formDecided: 'raised' }],
+    });
+    // Form moved the roll but not past the Success line: a Failure made a Setback (a target of 34),
+    // a Success made a Triumph (20), or no Degree moved at all. None is set. Nor at form 1, steady.
+    for (const [morale, factor] of [[95, 0.85], [95, 0.5], [95, 0.55], [10, 0.25], [60, 0.55], [60, 0.63]] as const) {
+      const [only] = resolvedAt(`none-${morale}-${factor}`, morale, [summed('one', factor)]).encounters;
+      expect(only).not.toHaveProperty('formDecided');
+      expect(only?.checks[0]).not.toHaveProperty('formDecided');
+    }
+    expect(resolvedAt('setback-not-raised', 95, [summed('one', 0.85)]).encounters[0]?.checks[0]?.degree).toBe('setback');
+    expect(resolvedAt('triumph-not-raised', 95, [summed('one', 0.5)]).encounters[0]?.checks[0]?.degree).toBe('triumph');
+  });
+
+  // The verification of v1.1.4-S3: the Encounter says form decided it only when, with every form at 1
+  // and the same rolls, its pass formula would have given the other side of the Success line.
+  test("an Encounter's formDecided follows its pass formula: not when form raised a Check of an `and` another failed", () => {
+    const anded: Encounter = {
+      key: 'anded',
+      name: 'anded',
+      kind: 'combat',
+      checks: [
+        { key: 'a', name: 'A', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.63 },
+        { key: 'b', name: 'B', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 2 },
+      ],
+      pass: ['and', 'a', 'b'],
+      consequences: { success: [], failure: [] },
+    };
+    const [only] = resolvedAt('anded', 95, [anded]).encounters;
+
+    expect(only?.checks.map((it) => [it.degree, it.formDecided])).toEqual([['success', 'raised'], ['failure', undefined]]);
+    expect(only?.degree).toBe('failure');
+    expect(only).not.toHaveProperty('formDecided');
+  });
+
+  test("nor when an `or` succeeded through a Check form did not move, though it lowered another", () => {
+    const ored: Encounter = {
+      key: 'ored',
+      name: 'ored',
+      kind: 'combat',
+      checks: [
+        { key: 'a', name: 'A', score: ['sum', 'party', ['stat', 'strength']], skills: [], difficultyFactor: 0.55 },
+        { key: 'c', name: 'C', score: ['count', 'party'], skills: [], difficultyFactor: 0.05 },
+      ],
+      pass: ['or', 'a', 'c'],
+      consequences: { success: [], failure: [] },
+    };
+    const [only] = resolvedAt('ored', 10, [ored]).encounters;
+
+    expect(only?.checks.map((it) => [it.degree, it.formDecided])).toEqual([['setback', 'lowered'], ['triumph', undefined]]);
+    expect(only).toMatchObject({ degree: 'triumph', decidedBy: 'c' });
+    expect(only).not.toHaveProperty('formDecided');
+    // With the counting Check missed, the same lowering decides the `or`: it fails, and says so.
+    const [missed] = resolvedAt('ored-missed', 10, [{ ...ored, checks: [ored.checks[0] as EncounterCheck, { ...(ored.checks[1] as EncounterCheck), difficultyFactor: 2 }] }]).encounters;
+    expect(missed).toMatchObject({ degree: 'setback', formDecided: 'lowered' });
+  });
+
+  test('every form factor 1 plays as before v1.1.4-S3: the capabilities read as they are, and nothing is formDecided', () => {
+    const ones = { moraleCheckFactor: { wretched: 1, low: 1, steady: 1, high: 1, elated: 1 }, hurtCheckFactor: 1 };
+    const wounding = summed('wounding', 0.25, [{ kind: 'injury', typeKey: 'deep-cut', chance: 1, count: 1 }, { kind: 'morale', delta: -50 }]);
+    const { encounters } = resolvedAt('ones', 10, [wounding, summed('after', 0.55)], ones);
+
+    expect(encounters.map((it) => it.checks)).toEqual([
+      [{ key: 'wounding', capability: 24, roll: 24, target: 10, margin: 14, degree: 'triumph' }],
+      [{ key: 'after', capability: 24, roll: 24, target: 22, margin: 2, degree: 'success' }],
+    ]);
+  });
+
+  test('a raw Check is read without form, and form decides none of it (DL-152)', () => {
+    const gate = summed('gate', 0, [], [], { score: ['sum', 'party', ['stat', 'strength']], flat: 24, variance: 0, raw: true });
+    const { encounters } = resolvedAt('raw-form', 10, [gate]);
+
+    expect(encounters[0]?.checks).toEqual([{ key: 'gate', capability: 24, roll: 24, target: 24, margin: 0, degree: 'success' }]);
+  });
+
+  test('throws on a form factor that is not a finite number above 0, naming it', () => {
+    const one = summed('one', 0.55);
+    expect(() => resolvedAt('bad-band', 60, [one], { moraleCheckFactor: { ...defaultConfig.moraleCheckFactor, low: 0 } })).toThrow(
+      /moraleCheckFactor\.low is 0; it is a finite number above 0/,
+    );
+    expect(() => resolvedAt('bad-hurt', 60, [one], { hurtCheckFactor: Number.POSITIVE_INFINITY })).toThrow(/hurtCheckFactor is Infinity/);
   });
 });
